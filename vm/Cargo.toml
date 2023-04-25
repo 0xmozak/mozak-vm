@@ -8,6 +8,9 @@ edition = "2021"
 anyhow = { version = "1.0", default-features = false }
 elf = { version = "0.7" }
 
+[dev-dependencies]
+test-case = "3.1.0"
+
 [features]
 default = ["std"]
 std = ["anyhow/std"]

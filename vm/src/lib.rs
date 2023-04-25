@@ -1,4 +1,5 @@
+pub mod decode;
 pub mod elf;
-pub mod opcode;
+pub mod instruction;
 
 extern crate alloc;

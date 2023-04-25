@@ -1,3 +1,5 @@
+use crate::instruction::{Add, Instruction};
+
 #[derive(Debug)]
 pub enum OpCode {
     LB,
@@ -48,6 +50,36 @@ pub enum OpCode {
     ECALL,
     EBREAK,
     UNKNOWN,
+}
+
+/// Decode RS2 register number from 32-bit instruction
+pub fn decode_rs2(word: u32) -> u8 {
+    ((word & 0x01f00000) >> 20) as u8
+}
+
+/// Decode RS1 register number from 32-bit instruction
+pub fn decode_rs1(word: u32) -> u8 {
+    ((word & 0x000f8000) >> 15) as u8
+}
+
+/// Decode RD register number from 32-bit instruction
+pub fn decode_rd(word: u32) -> u8 {
+    ((word & 0x00000f80) >> 7) as u8
+}
+
+/// Decode Opcode from 32-bit instruction
+pub fn decode_op(word: u32) -> u8 {
+    (word & 0x0000007f) as u8
+}
+
+/// Decode func3 from 32-bit instruction
+pub fn decode_func3(word: u32) -> u8 {
+    ((word & 0x00007000) >> 12) as u8
+}
+
+/// Decode func7 from 32-bit instruction
+pub fn decode_func7(word: u32) -> u8 {
+    ((word & 0xfe000000) >> 25) as u8
 }
 
 // Encodings can be verified against https://www.csl.cornell.edu/courses/ece5745/handouts/ece5745-tinyrv-isa.txt
@@ -193,5 +225,41 @@ pub fn decode(word: u32) -> OpCode {
             );
             OpCode::UNKNOWN
         }
+    }
+}
+
+pub fn decode_instruction(word: u32) -> Instruction {
+    let opcode = decode_op(word);
+    let funct3 = decode_func3(word);
+    let funct7 = decode_func7(word);
+
+    match opcode {
+        0b0110011 => match (funct3, funct7) {
+            (0x0, 0x00) => {
+                let rs1 = decode_rs1(word);
+                let rs2 = decode_rs2(word);
+                let rd = decode_rd(word);
+                return Instruction::ADD(Add { rs1, rs2, rd });
+            }
+            _ => unimplemented!(),
+        },
+        _ => unimplemented!(),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use test_case::test_case;
+
+    use super::decode_instruction;
+    use crate::instruction::{Add, Instruction};
+
+    #[test_case(0x018B80B3, 1, 23, 24; "add r1, r23, r24")]
+    #[test_case(0x00000033, 0, 0, 0; "add r0, r0, r0")]
+    #[test_case(0x01FF8FB3, 31, 31, 31; "add r31, r31, r31")]
+    fn add(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::ADD(Add { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
     }
 }
