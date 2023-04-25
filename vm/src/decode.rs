@@ -1,4 +1,4 @@
-use crate::instruction::{Add, AddI, Instruction};
+use crate::instruction::{Add, AddI, Instruction, SllI, Sub};
 
 #[derive(Debug)]
 pub enum OpCode {
@@ -82,6 +82,7 @@ pub fn decode_func7(word: u32) -> u8 {
     ((word & 0xfe000000) >> 25) as u8
 }
 
+/// Decode signed imm12 value
 pub fn decode_imm12(word: u32) -> i16 {
     let val = ((word & 0xfff00000) >> 20) as u16;
     if (val & 0x0800) != 0 {
@@ -91,6 +92,10 @@ pub fn decode_imm12(word: u32) -> i16 {
     } else {
         return val as i16;
     }
+}
+
+pub fn decode_shamt(word: u32) -> u8 {
+    ((word & 0x01f00000) >> 20) as u8
 }
 
 // Encodings can be verified against https://www.csl.cornell.edu/courses/ece5745/handouts/ece5745-tinyrv-isa.txt
@@ -252,6 +257,12 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 let rd = decode_rd(word);
                 return Instruction::ADD(Add { rs1, rs2, rd });
             }
+            (0x0, 0x20) => {
+                let rs1 = decode_rs1(word);
+                let rs2 = decode_rs2(word);
+                let rd = decode_rd(word);
+                return Instruction::SUB(Sub { rs1, rs2, rd });
+            }
             _ => unimplemented!(),
         },
         0b0010011 => match funct3 {
@@ -260,6 +271,12 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
                 return Instruction::ADDI(AddI { rs1, rd, imm12 });
+            }
+            0x1 => {
+                let rs1 = decode_rs1(word);
+                let rd = decode_rd(word);
+                let shamt = decode_shamt(word);
+                return Instruction::SLLI(SllI { rs1, rd, shamt });
             }
             _ => unimplemented!(),
         },
@@ -272,7 +289,7 @@ mod test {
     use test_case::test_case;
 
     use super::decode_instruction;
-    use crate::instruction::{Add, AddI, Instruction};
+    use crate::instruction::{Add, AddI, Instruction, SllI, Sub};
 
     #[test_case(0x018B80B3, 1, 23, 24; "add r1, r23, r24")]
     #[test_case(0x00000033, 0, 0, 0; "add r0, r0, r0")]
@@ -290,6 +307,23 @@ mod test {
     fn addi(word: u32, rd: u8, rs1: u8, imm12: i16) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::ADDI(AddI { rs1, rd, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x01f21213, 4, 4, 31; "slli r4, r4, 31")]
+    #[test_case(0x00769693, 13, 13, 7; "slli r13, r13, 7")]
+    fn slli(word: u32, rd: u8, rs1: u8, shamt: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SLLI(SllI { rs1, rd, shamt });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x409401b3, 3, 8, 9; "sub r3, r8, r9")]
+    #[test_case(0x407383b3, 7, 7, 7; "sub r7, r7, r7")]
+    #[test_case(0x41bc8733, 14, 25, 27; "sub r14, r25, r27")]
+    fn sub(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SUB(Sub { rs1, rs2, rd });
         assert_eq!(ins, match_ins);
     }
 }
