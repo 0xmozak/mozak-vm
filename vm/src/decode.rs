@@ -1,4 +1,4 @@
-use crate::instruction::{Add, Instruction};
+use crate::instruction::{Add, AddI, Instruction};
 
 #[derive(Debug)]
 pub enum OpCode {
@@ -80,6 +80,17 @@ pub fn decode_func3(word: u32) -> u8 {
 /// Decode func7 from 32-bit instruction
 pub fn decode_func7(word: u32) -> u8 {
     ((word & 0xfe000000) >> 25) as u8
+}
+
+pub fn decode_imm12(word: u32) -> i16 {
+    let val = ((word & 0xfff00000) >> 20) as u16;
+    if (val & 0x0800) != 0 {
+        // negative number
+        let val = val - 1;
+        return -((!val & 0x0fff) as i16);
+    } else {
+        return val as i16;
+    }
 }
 
 // Encodings can be verified against https://www.csl.cornell.edu/courses/ece5745/handouts/ece5745-tinyrv-isa.txt
@@ -243,6 +254,15 @@ pub fn decode_instruction(word: u32) -> Instruction {
             }
             _ => unimplemented!(),
         },
+        0b0010011 => match funct3 {
+            0x0 => {
+                let rs1 = decode_rs1(word);
+                let rd = decode_rd(word);
+                let imm12 = decode_imm12(word);
+                return Instruction::ADDI(AddI { rs1, rd, imm12 });
+            }
+            _ => unimplemented!(),
+        },
         _ => unimplemented!(),
     }
 }
@@ -252,7 +272,7 @@ mod test {
     use test_case::test_case;
 
     use super::decode_instruction;
-    use crate::instruction::{Add, Instruction};
+    use crate::instruction::{Add, AddI, Instruction};
 
     #[test_case(0x018B80B3, 1, 23, 24; "add r1, r23, r24")]
     #[test_case(0x00000033, 0, 0, 0; "add r0, r0, r0")]
@@ -260,6 +280,16 @@ mod test {
     fn add(word: u32, rd: u8, rs1: u8, rs2: u8) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::ADD(Add { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x7ff18193, 3, 3, 2047; "addi r3, r3, 2047")]
+    #[test_case(0x80018193, 3, 3, -2048; "addi r3, r3, -2048")]
+    #[test_case(0x44800f93, 31, 0, 1096; "addi r31, r0, 1096")]
+    #[test_case(0xdca58e13, 28, 11, -566; "addi r28, r11, -566")]
+    fn addi(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::ADDI(AddI { rs1, rd, imm12 });
         assert_eq!(ins, match_ins);
     }
 }
