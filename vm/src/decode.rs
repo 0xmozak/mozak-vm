@@ -1,4 +1,4 @@
-use crate::instruction::{Add, AddI, Instruction, SllI, Sub};
+use crate::instruction::{Add, AddI, Instruction, Load, SllI, Sub};
 
 #[derive(Debug)]
 pub enum OpCode {
@@ -80,6 +80,11 @@ pub fn decode_func3(word: u32) -> u8 {
 /// Decode func7 from 32-bit instruction
 pub fn decode_func7(word: u32) -> u8 {
     ((word & 0xfe000000) >> 25) as u8
+}
+
+/// Decode func12 from 32-bit instruction
+pub fn decode_func12(word: u32) -> u16 {
+    ((word & 0xfff00000) >> 20) as u16
 }
 
 /// Decode signed imm12 value
@@ -263,7 +268,40 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 let rd = decode_rd(word);
                 return Instruction::SUB(Sub { rs1, rs2, rd });
             }
-            _ => unimplemented!(),
+            _ => return Instruction::UNKNOWN,
+        },
+        0b0000011 => match funct3 {
+            0x0 => {
+                let rs1 = decode_rs1(word);
+                let rd = decode_rd(word);
+                let imm12 = decode_imm12(word);
+                return Instruction::LB(Load { rs1, rd, imm12 });
+            }
+            0x1 => {
+                let rs1 = decode_rs1(word);
+                let rd = decode_rd(word);
+                let imm12 = decode_imm12(word);
+                return Instruction::LH(Load { rs1, rd, imm12 });
+            }
+            0x2 => {
+                let rs1 = decode_rs1(word);
+                let rd = decode_rd(word);
+                let imm12 = decode_imm12(word);
+                return Instruction::LW(Load { rs1, rd, imm12 });
+            }
+            0x4 => {
+                let rs1 = decode_rs1(word);
+                let rd = decode_rd(word);
+                let imm12 = decode_imm12(word);
+                return Instruction::LBU(Load { rs1, rd, imm12 });
+            }
+            0x5 => {
+                let rs1 = decode_rs1(word);
+                let rd = decode_rd(word);
+                let imm12 = decode_imm12(word);
+                return Instruction::LHU(Load { rs1, rd, imm12 });
+            }
+            _ => return Instruction::UNKNOWN,
         },
         0b0010011 => match funct3 {
             0x0 => {
@@ -278,9 +316,14 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 let shamt = decode_shamt(word);
                 return Instruction::SLLI(SllI { rs1, rd, shamt });
             }
-            _ => unimplemented!(),
+            _ => return Instruction::UNKNOWN,
         },
-        _ => unimplemented!(),
+        0b1110011 => match decode_func12(word) {
+            0x0 => return Instruction::ECALL,
+            0x1 => return Instruction::EBREAK,
+            _ => return Instruction::UNKNOWN,
+        },
+        _ => return Instruction::UNKNOWN,
     }
 }
 

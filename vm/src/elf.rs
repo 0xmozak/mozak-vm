@@ -36,6 +36,7 @@ impl Program {
         if segments.len() > 256 {
             bail!("Too many program headers");
         }
+
         for segment in segments.iter().filter(|x| x.p_type == elf::abi::PT_LOAD) {
             let file_size: u32 = segment.p_filesz.try_into()?;
             let mem_size: u32 = segment.p_memsz.try_into()?;
@@ -61,33 +62,4 @@ impl Program {
         }
         Ok(Program { entry, image })
     }
-
-    fn load_u32(&self, addr: u32) -> Result<&u32> {
-        self.image
-            .get(&addr)
-            .ok_or(anyhow!("Address invalid for image"))
-    }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use crate::{elf::Program, opcode::decode};
-//     #[test]
-//     fn check() {
-//         let elf = std::fs::read("src/test.elf").unwrap();
-//         let max_mem_size = 1 * 1024 * 1024 * 1024; // 1GB
-//         let program = Program::load_elf(&elf, max_mem_size);
-//         assert!(program.is_ok());
-//         let program = program.unwrap();
-//         let mut pc = program.entry;
-//         loop {
-//             let word = program.load_u32(pc);
-//             if word.is_err() {
-//                 break;
-//             }
-//             let opcode = decode(*word.unwrap());
-//             println!("OpCode: {:?}", opcode);
-//             pc += 4;
-//         }
-//     }
-// }
