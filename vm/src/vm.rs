@@ -27,9 +27,24 @@ impl Vm {
     fn execute_instruction(&mut self, inst: &Instruction) -> Result<()> {
         match inst {
             Instruction::ADD(add) => {
+                // TODO: how to handle if regs have negative value?
                 let res = self.state.get_register_value(add.rs1.into())
                     + self.state.get_register_value(add.rs2.into());
                 self.state.set_register_value(add.rd.into(), res);
+                Ok(())
+            }
+            Instruction::ADDI(addi) => {
+                // TODO: how to handle if regs have negative value?
+                let rs1_value: i64 = self.state.get_register_value(addi.rs1.into()).into();
+                let mut res = rs1_value;
+                if addi.imm12.is_negative() {
+                    res -= addi.imm12 as i64;
+                } else {
+                    res += addi.imm12 as i64;
+                }
+                // ignore anything above 32-bits
+                let res: u32 = (res & 0xffffffff) as u32;
+                self.state.set_register_value(addi.rd.into(), res);
                 Ok(())
             }
             Instruction::SUB(sub) => {
@@ -52,9 +67,14 @@ impl Vm {
                 Ok(())
             }
             Instruction::ECALL => {
-                // TODO: for testing purpose halt on first ECALL
-                // Actually system call exit halts the VM.
-                self.state.halt();
+                let r17_value = self.state.get_register_value(17_usize);
+                match r17_value {
+                    93 => {
+                        // exit system call
+                        self.state.halt();
+                    }
+                    _ => {}
+                }
                 Ok(())
             }
             _ => Ok(()),
@@ -83,16 +103,21 @@ mod tests {
         assert!(res.is_ok());
     }
 
-    #[test_case(0x018B80B3, 1, 23, 24, 60049, 50493; "add r1, r23, r24")]
-    #[test_case(0x00000033, 0, 0, 0, 1, 1; "add r0, r0, r0")]
+    // NOTE: For writing test cases please follow RISCV
+    // calling convention for using registers in instructions.
+    // Please check https://en.wikichip.org/wiki/risc-v/registers
+
+    #[test_case(0x007302b3, 5, 6, 7, 60049, 50493; "add r5, r6, r7")]
     #[test_case(0x01FF8FB3, 31, 31, 31, 8981, 8981; "add r31, r31, r31")]
     fn add(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction add
         image.insert(0_u32, word);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
         // add ECALL to halt the program
-        image.insert(4_u32, 0x00000073_u32);
+        image.insert(8_u32, 0x00000073_u32);
         let program = Program {
             entry: 0_u32,
             image,
@@ -106,17 +131,47 @@ mod tests {
         assert_eq!(vm.state.get_register_value(rd), rs1_value + rs2_value);
     }
 
-    #[test_case(0x06408003, 0, 1, 100, 0, 127; "lb r0, 100(r1)")]
-    #[test_case(0x06408003, 0, 1, 100, 200, 127; "lb r0, -100(r1) offset_negative")]
-    #[test_case(0x06408003, 0, 1, 100, 0, -128; "lb r0, 100(r1) value_negative")]
-    #[test_case(0x06408003, 0, 1, 100, 200, -128; "lb r0, -100(r1) offset_negative_value_negative")]
+    #[test_case(0x05d00393, 7, 0, 0, 93; "addi r7, r0, 93")]
+    fn addi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction add
+        image.insert(0_u32, word);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(8_u32, 0x00000073_u32);
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let mut state = State::new(program);
+        state.set_register_value(rs1.into(), rs1_value);
+        let mut vm = Vm::new(state);
+        let res = vm.step();
+        assert!(res.is_ok());
+        let mut expected_value = rs1_value;
+        if imm12.is_negative() {
+            expected_value -= imm12.abs() as u32;
+        } else {
+            expected_value += imm12 as u32;
+        }
+        assert_eq!(vm.state.get_register_value(rd), expected_value);
+    }
+
+    #[test_case(0x06430283, 5, 6, 100, 0, 127; "lb r5, 100(r6)")]
+    #[test_case(0x06430283, 5, 6, 100, 200, 127; "lb r5, -100(r6) offset_negative")]
+    #[test_case(0x06430283, 5, 6, 100, 0, -128; "lb r5, 100(r6) value_negative")]
+    #[test_case(0x06430283, 5, 6, 100, 200, -128; "lb r5, -100(r6) offset_negative_value_negative")]
     fn lb(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i8) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction add
         image.insert(0_u32, word);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
         // add ECALL to halt the program
-        image.insert(4_u32, 0x00000073_u32);
+        image.insert(8_u32, 0x00000073_u32);
         let mut address: u32 = rs1_value;
         if offset.is_negative() {
             let abs_offset = offset.abs() as u32;
