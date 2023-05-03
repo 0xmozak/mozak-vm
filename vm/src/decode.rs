@@ -1,4 +1,4 @@
-use crate::instruction::{Add, AddI, Instruction, Load, SllI, Sub};
+use crate::instruction::{ITypeInst, Instruction, RTypeInst};
 
 #[derive(Debug)]
 pub enum OpCode {
@@ -260,13 +260,19 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 let rs1 = decode_rs1(word);
                 let rs2 = decode_rs2(word);
                 let rd = decode_rd(word);
-                return Instruction::ADD(Add { rs1, rs2, rd });
+                return Instruction::ADD(RTypeInst { rs1, rs2, rd });
             }
             (0x0, 0x20) => {
                 let rs1 = decode_rs1(word);
                 let rs2 = decode_rs2(word);
                 let rd = decode_rd(word);
-                return Instruction::SUB(Sub { rs1, rs2, rd });
+                return Instruction::SUB(RTypeInst { rs1, rs2, rd });
+            }
+            (0x4, 0x00) => {
+                let rs1 = decode_rs1(word);
+                let rs2 = decode_rs2(word);
+                let rd = decode_rd(word);
+                return Instruction::XOR(RTypeInst { rs1, rs2, rd });
             }
             _ => return Instruction::UNKNOWN,
         },
@@ -275,31 +281,31 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::LB(Load { rs1, rd, imm12 });
+                return Instruction::LB(ITypeInst { rs1, rd, imm12 });
             }
             0x1 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::LH(Load { rs1, rd, imm12 });
+                return Instruction::LH(ITypeInst { rs1, rd, imm12 });
             }
             0x2 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::LW(Load { rs1, rd, imm12 });
+                return Instruction::LW(ITypeInst { rs1, rd, imm12 });
             }
             0x4 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::LBU(Load { rs1, rd, imm12 });
+                return Instruction::LBU(ITypeInst { rs1, rd, imm12 });
             }
             0x5 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::LHU(Load { rs1, rd, imm12 });
+                return Instruction::LHU(ITypeInst { rs1, rd, imm12 });
             }
             _ => return Instruction::UNKNOWN,
         },
@@ -308,13 +314,17 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::ADDI(AddI { rs1, rd, imm12 });
+                return Instruction::ADDI(ITypeInst { rs1, rd, imm12 });
             }
             0x1 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let shamt = decode_shamt(word);
-                return Instruction::SLLI(SllI { rs1, rd, shamt });
+                return Instruction::SLLI(ITypeInst {
+                    rs1,
+                    rd,
+                    imm12: shamt.into(),
+                });
             }
             _ => return Instruction::UNKNOWN,
         },
@@ -332,14 +342,14 @@ mod test {
     use test_case::test_case;
 
     use super::decode_instruction;
-    use crate::instruction::{Add, AddI, Instruction, SllI, Sub};
+    use crate::instruction::{ITypeInst, Instruction, RTypeInst};
 
     #[test_case(0x018B80B3, 1, 23, 24; "add r1, r23, r24")]
     #[test_case(0x00000033, 0, 0, 0; "add r0, r0, r0")]
     #[test_case(0x01FF8FB3, 31, 31, 31; "add r31, r31, r31")]
     fn add(word: u32, rd: u8, rs1: u8, rs2: u8) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::ADD(Add { rs1, rs2, rd });
+        let match_ins = Instruction::ADD(RTypeInst { rs1, rs2, rd });
         assert_eq!(ins, match_ins);
     }
 
@@ -349,7 +359,7 @@ mod test {
     #[test_case(0xdca58e13, 28, 11, -566; "addi r28, r11, -566")]
     fn addi(word: u32, rd: u8, rs1: u8, imm12: i16) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::ADDI(AddI { rs1, rd, imm12 });
+        let match_ins = Instruction::ADDI(ITypeInst { rs1, rd, imm12 });
         assert_eq!(ins, match_ins);
     }
 
@@ -357,7 +367,11 @@ mod test {
     #[test_case(0x00769693, 13, 13, 7; "slli r13, r13, 7")]
     fn slli(word: u32, rd: u8, rs1: u8, shamt: u8) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::SLLI(SllI { rs1, rd, shamt });
+        let match_ins = Instruction::SLLI(ITypeInst {
+            rs1,
+            rd,
+            imm12: shamt.into(),
+        });
         assert_eq!(ins, match_ins);
     }
 
@@ -366,7 +380,7 @@ mod test {
     #[test_case(0x41bc8733, 14, 25, 27; "sub r14, r25, r27")]
     fn sub(word: u32, rd: u8, rs1: u8, rs2: u8) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::SUB(Sub { rs1, rs2, rd });
+        let match_ins = Instruction::SUB(RTypeInst { rs1, rs2, rd });
         assert_eq!(ins, match_ins);
     }
 }
