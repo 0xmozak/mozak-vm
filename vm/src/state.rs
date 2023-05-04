@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, ensure, Result};
 
 use crate::elf::Program;
 
@@ -6,16 +6,24 @@ pub struct State {
     halted: bool,
     registers: [u32; 32],
     pc: u32,
-    program: Program,
+    memory: Vec<u8>,
 }
 
 impl State {
     pub fn new(program: Program) -> Self {
+        let mut memory = vec![0_u8; 256 * 1024 * 1024];
+        for (addr, data) in program.image.iter() {
+            let addr = *addr as usize;
+            let bytes = data.to_le_bytes();
+            for i in 0..4 {
+                memory[addr + i] = bytes[i];
+            }
+        }
         Self {
             halted: false,
             registers: [0_u32; 32],
             pc: program.entry,
-            program,
+            memory,
         }
     }
     pub fn halt(&mut self) {
@@ -44,29 +52,27 @@ impl State {
     }
 
     pub fn load_u32(&self, addr: u32) -> Result<u32> {
-        let word = self
-            .program
-            .image
-            .get(&addr)
-            .ok_or(anyhow!("Address invalid for image"))?;
-        Ok(*word)
+        const WORD_SIZE: usize = 4;
+        assert_eq!(addr % WORD_SIZE as u32, 0, "unaligned load");
+        let mut bytes = [0_u8; WORD_SIZE];
+        for i in 0..WORD_SIZE {
+            bytes[i] = self.load_u8(addr + i as u32)?;
+        }
+        Ok(u32::from_le_bytes(bytes))
     }
 
     pub fn load_u8(&self, addr: u32) -> Result<u8> {
-        let word = self
-            .program
-            .image
-            .get(&addr)
-            .ok_or(anyhow!("Address invalid for image"))?;
-        Ok((*word & 0x000000ff) as u8)
+        ensure!(
+            self.memory.len() >= addr as usize,
+            anyhow!("Address outof bound")
+        );
+        Ok(self.memory[addr as usize])
     }
 
     pub fn load_u16(&self, addr: u32) -> Result<u16> {
-        let word = self
-            .program
-            .image
-            .get(&addr)
-            .ok_or(anyhow!("Address invalid for image"))?;
-        Ok((*word & 0x0000ffff) as u16)
+        let mut bytes = [0_u8; 2];
+        bytes[0] = self.load_u8(addr)?;
+        bytes[1] = self.load_u8(addr + 1_u32)?;
+        Ok(u16::from_le_bytes(bytes))
     }
 }
