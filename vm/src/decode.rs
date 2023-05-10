@@ -93,9 +93,9 @@ pub fn decode_imm12(word: u32) -> i16 {
     if (val & 0x0800) != 0 {
         // negative number
         let val = val - 1;
-        return -((!val & 0x0fff) as i16);
+        -((!val & 0x0fff) as i16)
     } else {
-        return val as i16;
+        val as i16
     }
 }
 
@@ -260,80 +260,80 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 let rs1 = decode_rs1(word);
                 let rs2 = decode_rs2(word);
                 let rd = decode_rd(word);
-                return Instruction::ADD(RTypeInst { rs1, rs2, rd });
+                Instruction::ADD(RTypeInst { rs1, rs2, rd })
             }
             (0x0, 0x20) => {
                 let rs1 = decode_rs1(word);
                 let rs2 = decode_rs2(word);
                 let rd = decode_rd(word);
-                return Instruction::SUB(RTypeInst { rs1, rs2, rd });
+                Instruction::SUB(RTypeInst { rs1, rs2, rd })
             }
             (0x4, 0x00) => {
                 let rs1 = decode_rs1(word);
                 let rs2 = decode_rs2(word);
                 let rd = decode_rd(word);
-                return Instruction::XOR(RTypeInst { rs1, rs2, rd });
+                Instruction::XOR(RTypeInst { rs1, rs2, rd })
             }
-            _ => return Instruction::UNKNOWN,
+            _ => Instruction::UNKNOWN,
         },
         0b0000011 => match funct3 {
             0x0 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::LB(ITypeInst { rs1, rd, imm12 });
+                Instruction::LB(ITypeInst { rs1, rd, imm12 })
             }
             0x1 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::LH(ITypeInst { rs1, rd, imm12 });
+                Instruction::LH(ITypeInst { rs1, rd, imm12 })
             }
             0x2 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::LW(ITypeInst { rs1, rd, imm12 });
+                Instruction::LW(ITypeInst { rs1, rd, imm12 })
             }
             0x4 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::LBU(ITypeInst { rs1, rd, imm12 });
+                Instruction::LBU(ITypeInst { rs1, rd, imm12 })
             }
             0x5 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::LHU(ITypeInst { rs1, rd, imm12 });
+                Instruction::LHU(ITypeInst { rs1, rd, imm12 })
             }
-            _ => return Instruction::UNKNOWN,
+            _ => Instruction::UNKNOWN,
         },
         0b0010011 => match funct3 {
             0x0 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::ADDI(ITypeInst { rs1, rd, imm12 });
+                Instruction::ADDI(ITypeInst { rs1, rd, imm12 })
             }
             0x1 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let shamt = decode_shamt(word);
-                return Instruction::SLLI(ITypeInst {
+                Instruction::SLLI(ITypeInst {
                     rs1,
                     rd,
                     imm12: shamt.into(),
-                });
+                })
             }
-            _ => return Instruction::UNKNOWN,
+            _ => Instruction::UNKNOWN,
         },
         0b1110011 => match decode_func12(word) {
-            0x0 => return Instruction::ECALL,
-            0x1 => return Instruction::EBREAK,
-            _ => return Instruction::UNKNOWN,
+            0x0 => Instruction::ECALL,
+            0x1 => Instruction::EBREAK,
+            _ => Instruction::UNKNOWN,
         },
-        _ => return Instruction::UNKNOWN,
+        _ => Instruction::UNKNOWN,
     }
 }
 

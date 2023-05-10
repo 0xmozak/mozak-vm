@@ -15,9 +15,7 @@ impl State {
         for (addr, data) in program.image.iter() {
             let addr = *addr as usize;
             let bytes = data.to_le_bytes();
-            for i in 0..4 {
-                memory[addr + i] = bytes[i];
-            }
+            memory[addr..(4 + addr)].copy_from_slice(&bytes[..4]);
         }
         Self {
             halted: false,
@@ -55,8 +53,8 @@ impl State {
         const WORD_SIZE: usize = 4;
         assert_eq!(addr % WORD_SIZE as u32, 0, "unaligned load");
         let mut bytes = [0_u8; WORD_SIZE];
-        for i in 0..WORD_SIZE {
-            bytes[i] = self.load_u8(addr + i as u32)?;
+        for (i, byte) in bytes.iter_mut().enumerate() {
+            *byte = self.load_u8(addr + i as u32)?;
         }
         Ok(u32::from_le_bytes(bytes))
     }

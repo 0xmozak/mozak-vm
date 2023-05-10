@@ -32,7 +32,9 @@ impl Program {
         if entry >= max_mem || entry % 4 != 0 {
             bail!("Invalid entrypoint");
         }
-        let segments = elf.segments().ok_or(anyhow!("Missing segment table"))?;
+        let segments = elf
+            .segments()
+            .ok_or_else(|| anyhow!("Missing segment table"))?;
         if segments.len() > 256 {
             bail!("Too many program headers");
         }
@@ -54,7 +56,7 @@ impl Program {
                     for j in 0..len {
                         let offset = (offset + i + j) as usize;
                         let byte = input[offset] as u32;
-                        word |= byte << j * 8;
+                        word |= byte << (j * 8);
                     }
                     image.insert(addr, word);
                 }
