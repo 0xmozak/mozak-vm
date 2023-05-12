@@ -15,6 +15,15 @@ pub struct ITypeInst {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct JTypeInst {
+    pub rd: u8,
+    // 20 bit sign extended immediate offset
+    // value in multiples of 2 bytes.
+    // -1 MB to 1 MB
+    pub imm20: i32,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Instruction {
     ADD(RTypeInst),
     ADDI(ITypeInst),
@@ -26,6 +35,7 @@ pub enum Instruction {
     LBU(ITypeInst),
     LHU(ITypeInst),
     XOR(RTypeInst),
+    JAL(JTypeInst),
     ECALL,
     EBREAK,
     UNKNOWN,
