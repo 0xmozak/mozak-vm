@@ -54,7 +54,7 @@ impl Program {
                     for j in 0..len {
                         let offset = (offset + i + j) as usize;
                         let byte = input[offset] as u32;
-                        word |= byte << j * 8;
+                        word |= byte << (j * 8);
                     }
                     image.insert(addr, word);
                 }
