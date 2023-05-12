@@ -93,9 +93,9 @@ pub fn decode_imm12(word: u32) -> i16 {
     if (val & 0x0800) != 0 {
         // negative number
         let val = val - 1;
-        return -((!val & 0x0fff) as i16);
+        -((!val & 0x0fff) as i16)
     } else {
-        return val as i16;
+        val as i16
     }
 }
 
@@ -103,13 +103,13 @@ pub fn decode_imm12(word: u32) -> i16 {
 /// Please refer RISCV manual section "Immediate Encoding Variants" for this
 /// decoding
 pub fn decode_imm20(word: u32) -> i32 {
-    let val1 = ((word & 0x7FE00000) >> 20) as u32;
-    let val2 = ((word & 0x00100000) >> 9) as u32;
-    let val3 = (word & 0x000FF000) as u32;
+    let val1 = (word & 0x7FE00000) >> 20;
+    let val2 = (word & 0x00100000) >> 9;
+    let val3 = word & 0x000FF000;
     if (word & 0x80000000) != 0 {
-        return (0xFFF00000 | val1 | val2 | val3) as i32;
+        (0xFFF00000 | val1 | val2 | val3) as i32
     } else {
-        return (0x00000000 | val1 | val2 | val3) as i32;
+        (val1 | val2 | val3) as i32
     }
 }
 
@@ -132,10 +132,7 @@ pub fn decode(word: u32) -> OpCode {
             0x4 => OpCode::LBU,
             0x5 => OpCode::LHU,
             _ => {
-                println!(
-                    "opcode: {:?}, rs2: {:?}, funct3: {:?}, funct7 {:?}",
-                    opcode, rs2, funct3, funct7
-                );
+                println!("opcode: {opcode:?}, rs2: {rs2:?}, funct3: {funct3:?}, funct7 {funct7:?}");
                 OpCode::UNKNOWN
             }
         },
@@ -150,8 +147,7 @@ pub fn decode(word: u32) -> OpCode {
                 0x20 => OpCode::SRAI,
                 _ => {
                     println!(
-                        "opcode: {:?}, rs2: {:?}, funct3: {:?}, funct7 {:?}",
-                        opcode, rs2, funct3, funct7
+                        "opcode: {opcode:?}, rs2: {rs2:?}, funct3: {funct3:?}, funct7 {funct7:?}"
                     );
                     OpCode::UNKNOWN
                 }
@@ -159,10 +155,7 @@ pub fn decode(word: u32) -> OpCode {
             0x6 => OpCode::ORI,
             0x7 => OpCode::ANDI,
             _ => {
-                println!(
-                    "opcode: {:?}, rs2: {:?}, funct3: {:?}, funct7 {:?}",
-                    opcode, rs2, funct3, funct7
-                );
+                println!("opcode: {opcode:?}, rs2: {rs2:?}, funct3: {funct3:?}, funct7 {funct7:?}");
                 OpCode::UNKNOWN
             }
         },
@@ -172,10 +165,7 @@ pub fn decode(word: u32) -> OpCode {
             0x1 => OpCode::SH,
             0x2 => OpCode::SW,
             _ => {
-                println!(
-                    "opcode: {:?}, rs2: {:?}, funct3: {:?}, funct7 {:?}",
-                    opcode, rs2, funct3, funct7
-                );
+                println!("opcode: {opcode:?}, rs2: {rs2:?}, funct3: {funct3:?}, funct7 {funct7:?}");
                 OpCode::UNKNOWN
             }
         },
@@ -199,10 +189,7 @@ pub fn decode(word: u32) -> OpCode {
             (0x6, 0x01) => OpCode::REM,
             (0x7, 0x01) => OpCode::REMU,
             _ => {
-                println!(
-                    "opcode: {:?}, rs2: {:?}, funct3: {:?}, funct7 {:?}",
-                    opcode, rs2, funct3, funct7
-                );
+                println!("opcode: {opcode:?}, rs2: {rs2:?}, funct3: {funct3:?}, funct7 {funct7:?}");
                 OpCode::UNKNOWN
             }
         },
@@ -215,20 +202,14 @@ pub fn decode(word: u32) -> OpCode {
             0x6 => OpCode::BLTU,
             0x7 => OpCode::BGEU,
             _ => {
-                println!(
-                    "opcode: {:?}, rs2: {:?}, funct3: {:?}, funct7 {:?}",
-                    opcode, rs2, funct3, funct7
-                );
+                println!("opcode: {opcode:?}, rs2: {rs2:?}, funct3: {funct3:?}, funct7 {funct7:?}");
                 OpCode::UNKNOWN
             }
         },
         0b1100111 => match funct3 {
             0x0 => OpCode::JALR,
             _ => {
-                println!(
-                    "opcode: {:?}, rs2: {:?}, funct3: {:?}, funct7 {:?}",
-                    opcode, rs2, funct3, funct7
-                );
+                println!("opcode: {opcode:?}, rs2: {rs2:?}, funct3: {funct3:?}, funct7 {funct7:?}");
                 OpCode::UNKNOWN
             }
         },
@@ -239,25 +220,18 @@ pub fn decode(word: u32) -> OpCode {
                 (0x1, 0x0) => OpCode::EBREAK,
                 _ => {
                     println!(
-                        "opcode: {:?}, rs2: {:?}, funct3: {:?}, funct7 {:?}",
-                        opcode, rs2, funct3, funct7
+                        "opcode: {opcode:?}, rs2: {rs2:?}, funct3: {funct3:?}, funct7 {funct7:?}"
                     );
                     OpCode::UNKNOWN
                 }
             },
             _ => {
-                println!(
-                    "opcode: {:?}, rs2: {:?}, funct3: {:?}, funct7 {:?}",
-                    opcode, rs2, funct3, funct7
-                );
+                println!("opcode: {opcode:?}, rs2: {rs2:?}, funct3: {funct3:?}, funct7 {funct7:?}");
                 OpCode::UNKNOWN
             }
         },
         _ => {
-            println!(
-                "opcode: {:?}, rs2: {:?}, funct3: {:?}, funct7 {:?}",
-                opcode, rs2, funct3, funct7
-            );
+            println!("opcode: {opcode:?}, rs2: {rs2:?}, funct3: {funct3:?}, funct7 {funct7:?}");
             OpCode::UNKNOWN
         }
     }
@@ -274,85 +248,85 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 let rs1 = decode_rs1(word);
                 let rs2 = decode_rs2(word);
                 let rd = decode_rd(word);
-                return Instruction::ADD(RTypeInst { rs1, rs2, rd });
+                Instruction::ADD(RTypeInst { rs1, rs2, rd })
             }
             (0x0, 0x20) => {
                 let rs1 = decode_rs1(word);
                 let rs2 = decode_rs2(word);
                 let rd = decode_rd(word);
-                return Instruction::SUB(RTypeInst { rs1, rs2, rd });
+                Instruction::SUB(RTypeInst { rs1, rs2, rd })
             }
             (0x4, 0x00) => {
                 let rs1 = decode_rs1(word);
                 let rs2 = decode_rs2(word);
                 let rd = decode_rd(word);
-                return Instruction::XOR(RTypeInst { rs1, rs2, rd });
+                Instruction::XOR(RTypeInst { rs1, rs2, rd })
             }
-            _ => return Instruction::UNKNOWN,
+            _ => Instruction::UNKNOWN,
         },
         0b0000011 => match funct3 {
             0x0 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::LB(ITypeInst { rs1, rd, imm12 });
+                Instruction::LB(ITypeInst { rs1, rd, imm12 })
             }
             0x1 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::LH(ITypeInst { rs1, rd, imm12 });
+                Instruction::LH(ITypeInst { rs1, rd, imm12 })
             }
             0x2 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::LW(ITypeInst { rs1, rd, imm12 });
+                Instruction::LW(ITypeInst { rs1, rd, imm12 })
             }
             0x4 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::LBU(ITypeInst { rs1, rd, imm12 });
+                Instruction::LBU(ITypeInst { rs1, rd, imm12 })
             }
             0x5 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::LHU(ITypeInst { rs1, rd, imm12 });
+                Instruction::LHU(ITypeInst { rs1, rd, imm12 })
             }
-            _ => return Instruction::UNKNOWN,
+            _ => Instruction::UNKNOWN,
         },
         0b0010011 => match funct3 {
             0x0 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let imm12 = decode_imm12(word);
-                return Instruction::ADDI(ITypeInst { rs1, rd, imm12 });
+                Instruction::ADDI(ITypeInst { rs1, rd, imm12 })
             }
             0x1 => {
                 let rs1 = decode_rs1(word);
                 let rd = decode_rd(word);
                 let shamt = decode_shamt(word);
-                return Instruction::SLLI(ITypeInst {
+                Instruction::SLLI(ITypeInst {
                     rs1,
                     rd,
                     imm12: shamt.into(),
-                });
+                })
             }
-            _ => return Instruction::UNKNOWN,
+            _ => Instruction::UNKNOWN,
         },
         0b1110011 => match decode_func12(word) {
-            0x0 => return Instruction::ECALL,
-            0x1 => return Instruction::EBREAK,
-            _ => return Instruction::UNKNOWN,
+            0x0 => Instruction::ECALL,
+            0x1 => Instruction::EBREAK,
+            _ => Instruction::UNKNOWN,
         },
         0b1101111 => {
             let rd = decode_rd(word);
             let imm20 = decode_imm20(word);
-            return Instruction::JAL(JTypeInst { rd, imm20 });
+            Instruction::JAL(JTypeInst { rd, imm20 })
         }
-        _ => return Instruction::UNKNOWN,
+        _ => Instruction::UNKNOWN,
     }
 }
 
