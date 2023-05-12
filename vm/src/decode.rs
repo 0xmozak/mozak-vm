@@ -1,4 +1,4 @@
-use crate::instruction::{ITypeInst, Instruction, RTypeInst};
+use crate::instruction::{ITypeInst, Instruction, JTypeInst, RTypeInst};
 
 #[derive(Debug)]
 pub enum OpCode {
@@ -96,6 +96,20 @@ pub fn decode_imm12(word: u32) -> i16 {
         return -((!val & 0x0fff) as i16);
     } else {
         return val as i16;
+    }
+}
+
+/// Decode signed imm20 value for JTypeInst
+/// Please refer RISCV manual section "Immediate Encoding Variants" for this
+/// decoding
+pub fn decode_imm20(word: u32) -> i32 {
+    let val1 = ((word & 0x7FE00000) >> 20) as u32;
+    let val2 = ((word & 0x00100000) >> 9) as u32;
+    let val3 = (word & 0x000FF000) as u32;
+    if (word & 0x80000000) != 0 {
+        return (0xFFF00000 | val1 | val2 | val3) as i32;
+    } else {
+        return (0x00000000 | val1 | val2 | val3) as i32;
     }
 }
 
@@ -333,6 +347,11 @@ pub fn decode_instruction(word: u32) -> Instruction {
             0x1 => return Instruction::EBREAK,
             _ => return Instruction::UNKNOWN,
         },
+        0b1101111 => {
+            let rd = decode_rd(word);
+            let imm20 = decode_imm20(word);
+            return Instruction::JAL(JTypeInst { rd, imm20 });
+        }
         _ => return Instruction::UNKNOWN,
     }
 }
@@ -342,7 +361,7 @@ mod test {
     use test_case::test_case;
 
     use super::decode_instruction;
-    use crate::instruction::{ITypeInst, Instruction, RTypeInst};
+    use crate::instruction::{ITypeInst, Instruction, JTypeInst, RTypeInst};
 
     #[test_case(0x018B80B3, 1, 23, 24; "add r1, r23, r24")]
     #[test_case(0x00000033, 0, 0, 0; "add r0, r0, r0")]
@@ -381,6 +400,14 @@ mod test {
     fn sub(word: u32, rd: u8, rs1: u8, rs2: u8) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::SUB(RTypeInst { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x840000ef,1, -1048512; "jal r1, -1048512")]
+    #[test_case(0x7c1ffa6f,20, 1048512; "jal r20, 1048512")]
+    fn jal(word: u32, rd: u8, imm20: i32) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::JAL(JTypeInst { rd, imm20 });
         assert_eq!(ins, match_ins);
     }
 }
