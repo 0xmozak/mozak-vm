@@ -56,7 +56,7 @@ impl State {
         const WORD_SIZE: usize = 4;
         assert_eq!(addr % WORD_SIZE as u32, 0, "unaligned load");
         let mut bytes = [0_u8; WORD_SIZE];
-        for (i, byte) in bytes.iter_mut().enumerate().take(WORD_SIZE) {
+        for (i, byte) in bytes.iter_mut().enumerate() {
             *byte = self.load_u8(addr + i as u32)?;
         }
         Ok(u32::from_le_bytes(bytes))

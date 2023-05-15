@@ -32,7 +32,9 @@ impl Program {
         if entry >= max_mem || entry % 4 != 0 {
             bail!("Invalid entrypoint");
         }
-        let segments = elf.segments().ok_or(anyhow!("Missing segment table"))?;
+        let segments = elf
+            .segments()
+            .ok_or_else(|| anyhow!("Missing segment table"))?;
         if segments.len() > 256 {
             bail!("Too many program headers");
         }
