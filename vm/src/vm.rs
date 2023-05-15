@@ -19,7 +19,6 @@ impl Vm {
             let inst = decode_instruction(word);
             trace!("Decoded Inst: {:?}", inst);
             self.execute_instruction(&inst)?;
-            self.state.set_pc(pc + 4);
         }
         Ok(())
     }
@@ -31,6 +30,7 @@ impl Vm {
                 let res = self.state.get_register_value(add.rs1.into())
                     + self.state.get_register_value(add.rs2.into());
                 self.state.set_register_value(add.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::ADDI(addi) => {
@@ -45,12 +45,14 @@ impl Vm {
                 // ignore anything above 32-bits
                 let res: u32 = (res & 0xffffffff) as u32;
                 self.state.set_register_value(addi.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SUB(sub) => {
                 let res = self.state.get_register_value(sub.rs1.into())
                     - self.state.get_register_value(sub.rs2.into());
                 self.state.set_register_value(sub.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::LB(load) => {
@@ -64,6 +66,7 @@ impl Vm {
                     final_value |= 0xffffff00;
                 }
                 self.state.set_register_value(load.rd.into(), final_value);
+                self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::ECALL => {
@@ -93,6 +96,78 @@ impl Vm {
                 let rs1_value = self.state.get_register_value(jalr.rs1.into());
                 let jump_pc = (rs1_value as i32) + jalr.imm12 as i32;
                 self.state.set_pc(jump_pc as u32);
+                Ok(())
+            }
+            Instruction::BEQ(beq) => {
+                if self.state.get_register_value(beq.rs1.into())
+                    == self.state.get_register_value(beq.rs2.into())
+                {
+                    let pc = self.state.get_pc();
+                    let jump_pc = (pc as i32) + beq.imm12 as i32;
+                    self.state.set_pc(jump_pc as u32);
+                } else {
+                    self.state.set_pc(self.state.get_pc() + 4);
+                }
+                Ok(())
+            }
+            Instruction::BNE(bne) => {
+                if self.state.get_register_value(bne.rs1.into())
+                    != self.state.get_register_value(bne.rs2.into())
+                {
+                    let pc = self.state.get_pc();
+                    let jump_pc = (pc as i32) + bne.imm12 as i32;
+                    self.state.set_pc(jump_pc as u32);
+                } else {
+                    self.state.set_pc(self.state.get_pc() + 4);
+                }
+                Ok(())
+            }
+            Instruction::BLT(blt) => {
+                if self.state.get_register_value_signed(blt.rs1.into())
+                    < self.state.get_register_value_signed(blt.rs2.into())
+                {
+                    let pc = self.state.get_pc();
+                    let jump_pc = (pc as i32) + blt.imm12 as i32;
+                    self.state.set_pc(jump_pc as u32);
+                } else {
+                    self.state.set_pc(self.state.get_pc() + 4);
+                }
+                Ok(())
+            }
+            Instruction::BLTU(bltu) => {
+                if self.state.get_register_value(bltu.rs1.into())
+                    < self.state.get_register_value(bltu.rs2.into())
+                {
+                    let pc = self.state.get_pc();
+                    let jump_pc = (pc as i32) + bltu.imm12 as i32;
+                    self.state.set_pc(jump_pc as u32);
+                } else {
+                    self.state.set_pc(self.state.get_pc() + 4);
+                }
+                Ok(())
+            }
+            Instruction::BGE(bge) => {
+                if self.state.get_register_value_signed(bge.rs1.into())
+                    >= self.state.get_register_value_signed(bge.rs2.into())
+                {
+                    let pc = self.state.get_pc();
+                    let jump_pc = (pc as i32) + bge.imm12 as i32;
+                    self.state.set_pc(jump_pc as u32);
+                } else {
+                    self.state.set_pc(self.state.get_pc() + 4);
+                }
+                Ok(())
+            }
+            Instruction::BGEU(bgeu) => {
+                if self.state.get_register_value_signed(bgeu.rs1.into())
+                    >= self.state.get_register_value_signed(bgeu.rs2.into())
+                {
+                    let pc = self.state.get_pc();
+                    let jump_pc = (pc as i32) + bgeu.imm12 as i32;
+                    self.state.set_pc(jump_pc as u32);
+                } else {
+                    self.state.set_pc(self.state.get_pc() + 4);
+                }
                 Ok(())
             }
             _ => Ok(()),
@@ -231,9 +306,13 @@ mod tests {
         image.insert(4_u32, 0x05d00893_u32);
         // add ECALL to halt the program
         image.insert(8_u32, 0x00000073_u32);
-        // at 256 go back to address after JAL
+        // set R5 to 100 so that it can be verified
+        // that indeed control passed to this location
+        // ADDI x5, x0, 100
+        image.insert(256_u32, 0x06400293);
+        // at 260 go back to address after JAL
         // JALR x0, x1, 0
-        image.insert(256_u32, 0x00008067);
+        image.insert(260_u32, 0x00008067);
         let program = Program {
             entry: 0_u32,
             image,
@@ -243,5 +322,195 @@ mod tests {
         let res = vm.step();
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
+        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+    }
+
+    #[test]
+    fn beq() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction BEQ to 256
+        // BEQ x0, x1, 256
+        image.insert(0_u32, 0x10100063);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(8_u32, 0x00000073_u32);
+        // set R5 to 100 so that it can be verified
+        // that indeed control passed to this location
+        // ADDI x5, x0, 100
+        image.insert(256_u32, 0x06400293);
+        // at 260 go back to address after BEQ
+        // JAL x0, -256
+        image.insert(260_u32, 0xf01ff06f);
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let state = State::new(program);
+        let mut vm = Vm::new(state);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+    }
+
+    #[test]
+    fn bne() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction BNE to 256
+        // BNE x0, x1, 256
+        image.insert(0_u32, 0x10101063);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(8_u32, 0x00000073_u32);
+        // set R5 to 100 so that it can be verified
+        // that indeed control passed to this location
+        // ADDI x5, x0, 100
+        image.insert(256_u32, 0x06400293);
+        // at 260 go back to address after BNE
+        // JAL x0, -256
+        image.insert(260_u32, 0xf01ff06f);
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let mut state = State::new(program);
+        state.set_register_value(1_usize, 1_u32);
+        let mut vm = Vm::new(state);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+    }
+
+    #[test]
+    fn blt() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction BLT to 256
+        // BLT x1, x0, 256
+        image.insert(0_u32, 0x1000c063);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(8_u32, 0x00000073_u32);
+        // set R5 to 100 so that it can be verified
+        // that indeed control passed to this location
+        // ADDI x5, x0, 100
+        image.insert(256_u32, 0x06400293);
+        // at 260 go back to address after BLT
+        // JAL x0, -256
+        image.insert(260_u32, 0xf01ff06f);
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let mut state = State::new(program);
+        // set R1 = -1
+        state.set_register_value(1_usize, 0xffffffff);
+        let mut vm = Vm::new(state);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+    }
+
+    #[test]
+    fn bltu() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction BLTU to 256
+        // BLTU x1, x2, 256
+        image.insert(0_u32, 0x1020e063);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(8_u32, 0x00000073_u32);
+        // set R5 to 100 so that it can be verified
+        // that indeed control passed to this location
+        // ADDI x5, x0, 100
+        image.insert(256_u32, 0x06400293);
+        // at 260 go back to address after BLTU
+        // JAL x0, -256
+        image.insert(260_u32, 0xf01ff06f);
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let mut state = State::new(program);
+        state.set_register_value(1_usize, 0xfffffffe);
+        state.set_register_value(2_usize, 0xffffffff);
+        let mut vm = Vm::new(state);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+    }
+
+    #[test]
+    fn bge() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction BGE to 256
+        // BGE x0, x1, 256
+        image.insert(0_u32, 0x10105063);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(8_u32, 0x00000073_u32);
+        // set R5 to 100 so that it can be verified
+        // that indeed control passed to this location
+        // ADDI x5, x0, 100
+        image.insert(256_u32, 0x06400293);
+        // at 260 go back to address after BGE
+        // JAL x0, -256
+        image.insert(260_u32, 0xf01ff06f);
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let mut state = State::new(program);
+        // set R1 = -1
+        state.set_register_value(1_usize, 0xffffffff);
+        let mut vm = Vm::new(state);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+    }
+
+    #[test]
+    fn bgeu() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction BGEU to 256
+        // BGEU x2, x1, 256
+        image.insert(0_u32, 0x10117063);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(8_u32, 0x00000073_u32);
+        // set R5 to 100 so that it can be verified
+        // that indeed control passed to this location
+        // ADDI x5, x0, 100
+        image.insert(256_u32, 0x06400293);
+        // at 260 go back to address after BGEU
+        // JAL x0, -256
+        image.insert(260_u32, 0xf01ff06f);
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let mut state = State::new(program);
+        state.set_register_value(1_usize, 0xfffffffe);
+        state.set_register_value(2_usize, 0xffffffff);
+        let mut vm = Vm::new(state);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
     }
 }

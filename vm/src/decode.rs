@@ -1,4 +1,4 @@
-use crate::instruction::{ITypeInst, Instruction, JTypeInst, RTypeInst};
+use crate::instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst};
 
 /// Decode RS2 register number from 32-bit instruction
 pub fn decode_rs2(word: u32) -> u8 {
@@ -58,6 +58,17 @@ pub fn decode_imm20(word: u32) -> i32 {
         (0xFFF00000 | val1 | val2 | val3) as i32
     } else {
         (val1 | val2 | val3) as i32
+    }
+}
+
+pub fn decode_imm12_b_imm(word: u32) -> i16 {
+    let val1 = (word & 0x00000F00) >> 7;
+    let val2 = (word & 0x7E000000) >> 20;
+    let val3 = (word & 0x00000080) << 4;
+    if (word & 0x80000000) != 0 {
+        (0xF000 | val1 | val2 | val3) as i16
+    } else {
+        (val1 | val2 | val3) as i16
     }
 }
 
@@ -163,6 +174,21 @@ pub fn decode_instruction(word: u32) -> Instruction {
             }
             _ => Instruction::UNKNOWN,
         },
+        0b1100011 => {
+            let rs1 = decode_rs1(word);
+            let rs2 = decode_rs2(word);
+            let imm12 = decode_imm12_b_imm(word);
+
+            match funct3 {
+                0x0 => Instruction::BEQ(BTypeInst { rs1, rs2, imm12 }),
+                0x1 => Instruction::BNE(BTypeInst { rs1, rs2, imm12 }),
+                0x4 => Instruction::BLT(BTypeInst { rs1, rs2, imm12 }),
+                0x5 => Instruction::BGE(BTypeInst { rs1, rs2, imm12 }),
+                0x6 => Instruction::BLTU(BTypeInst { rs1, rs2, imm12 }),
+                0x7 => Instruction::BGEU(BTypeInst { rs1, rs2, imm12 }),
+                _ => Instruction::UNKNOWN,
+            }
+        }
         _ => Instruction::UNKNOWN,
     }
 }
@@ -172,7 +198,7 @@ mod test {
     use test_case::test_case;
 
     use super::decode_instruction;
-    use crate::instruction::{ITypeInst, Instruction, JTypeInst, RTypeInst};
+    use crate::instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst};
 
     #[test_case(0x018B80B3, 1, 23, 24; "add r1, r23, r24")]
     #[test_case(0x00000033, 0, 0, 0; "add r0, r0, r0")]
@@ -227,6 +253,54 @@ mod test {
     fn jalr(word: u32, rd: u8, rs1: u8, imm12: i16) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::JALR(ITypeInst { rd, rs1, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x80941063,8, 9, -4096; "bne r8, r9, -4096")]
+    #[test_case(0x7e941fe3,8, 9, 4094; "bne r8, r9, 4094")]
+    fn bne(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::BNE(BTypeInst { rs1, rs2, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x80940063,8, 9, -4096; "beq r8, r9, -4096")]
+    #[test_case(0x7e940fe3,8, 9, 4094; "beq r8, r9, 4094")]
+    fn beq(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::BEQ(BTypeInst { rs1, rs2, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x80944063,8, 9, -4096; "blt r8, r9, -4096")]
+    #[test_case(0x7e944fe3,8, 9, 4094; "blt r8, r9, 4094")]
+    fn blt(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::BLT(BTypeInst { rs1, rs2, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x80946063,8, 9, -4096; "bltu r8, r9, -4096")]
+    #[test_case(0x7e946fe3,8, 9, 4094; "bltu r8, r9, 4094")]
+    fn bltu(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::BLTU(BTypeInst { rs1, rs2, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x80945063,8, 9, -4096; "bge r8, r9, -4096")]
+    #[test_case(0x7e945fe3,8, 9, 4094; "bge r8, r9, 4094")]
+    fn bge(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::BGE(BTypeInst { rs1, rs2, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x80947063,8, 9, -4096; "bgeu r8, r9, -4096")]
+    #[test_case(0x7e947fe3,8, 9, 4094; "bgeu r8, r9, 4094")]
+    fn bgeu(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::BGEU(BTypeInst { rs1, rs2, imm12 });
         assert_eq!(ins, match_ins);
     }
 }
