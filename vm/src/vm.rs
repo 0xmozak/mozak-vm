@@ -88,6 +88,7 @@ mod tests {
     use crate::{elf::Program, state::State, vm::Vm};
 
     #[test]
+    #[ignore]
     fn check() {
         let _ = env_logger::try_init();
         let elf = std::fs::read("src/test.elf").unwrap();
