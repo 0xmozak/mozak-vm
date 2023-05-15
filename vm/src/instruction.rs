@@ -36,6 +36,7 @@ pub enum Instruction {
     LHU(ITypeInst),
     XOR(RTypeInst),
     JAL(JTypeInst),
+    JALR(ITypeInst),
     ECALL,
     EBREAK,
     UNKNOWN,

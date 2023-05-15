@@ -326,6 +326,15 @@ pub fn decode_instruction(word: u32) -> Instruction {
             let imm20 = decode_imm20(word);
             Instruction::JAL(JTypeInst { rd, imm20 })
         }
+        0b1100111 => match funct3 {
+            0x0 => {
+                let rs1 = decode_rs1(word);
+                let rd = decode_rd(word);
+                let imm12 = decode_imm12(word);
+                Instruction::JALR(ITypeInst { rs1, rd, imm12 })
+            }
+            _ => Instruction::UNKNOWN,
+        },
         _ => Instruction::UNKNOWN,
     }
 }
@@ -382,6 +391,14 @@ mod test {
     fn jal(word: u32, rd: u8, imm20: i32) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::JAL(JTypeInst { rd, imm20 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x7ff88567,10, 17, 2047; "jalr r10, r17, 2047")]
+    #[test_case(0x80058ae7,21, 11, -2048; "jalr r21, r11, -2048")]
+    fn jalr(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::JALR(ITypeInst { rd, rs1, imm12 });
         assert_eq!(ins, match_ins);
     }
 }

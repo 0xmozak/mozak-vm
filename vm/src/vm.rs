@@ -68,6 +68,7 @@ impl Vm {
             }
             Instruction::ECALL => {
                 let r17_value = self.state.get_register_value(17_usize);
+                #[allow(clippy::single_match)]
                 match r17_value {
                     93 => {
                         // exit system call
