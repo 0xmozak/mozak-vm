@@ -68,10 +68,31 @@ impl Vm {
             }
             Instruction::ECALL => {
                 let r17_value = self.state.get_register_value(17_usize);
-                if r17_value == 93 {
-                    // exit system call
-                    self.state.halt();
+                #[allow(clippy::single_match)]
+                match r17_value {
+                    93 => {
+                        // exit system call
+                        self.state.halt();
+                    }
+                    _ => {}
                 }
+                Ok(())
+            }
+            Instruction::JAL(jal) => {
+                let pc = self.state.get_pc();
+                let next_pc = pc + 4;
+                self.state.set_register_value(jal.rd.into(), next_pc);
+                let jump_pc = (pc as i32) + jal.imm20;
+                self.state.set_pc(jump_pc as u32);
+                Ok(())
+            }
+            Instruction::JALR(jalr) => {
+                let pc = self.state.get_pc();
+                let next_pc = pc + 4;
+                self.state.set_register_value(jalr.rd.into(), next_pc);
+                let rs1_value = self.state.get_register_value(jalr.rs1.into());
+                let jump_pc = (rs1_value as i32) + jalr.imm12 as i32;
+                self.state.set_pc(jump_pc as u32);
                 Ok(())
             }
             _ => Ok(()),
@@ -196,5 +217,31 @@ mod tests {
             expected_value |= 0xffffff00;
         }
         assert_eq!(vm.state.get_register_value(rd), expected_value);
+    }
+
+    // TODO: Add more tests for JAL/JALR
+    #[test]
+    fn jal_jalr() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction jal to 256
+        // JAL x1, 256
+        image.insert(0_u32, 0x100000ef);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(8_u32, 0x00000073_u32);
+        // at 256 go back to address after JAL
+        // JALR x0, x1, 0
+        image.insert(256_u32, 0x00008067);
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let state = State::new(program);
+        let mut vm = Vm::new(state);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
     }
 }

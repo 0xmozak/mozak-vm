@@ -34,7 +34,10 @@ impl State {
 
     pub fn set_register_value(&mut self, index: usize, value: u32) {
         assert!(index < 32);
-        self.registers[index] = value;
+        // R0 is always 0
+        if index != 0 {
+            self.registers[index] = value;
+        }
     }
 
     pub fn get_register_value(&self, index: usize) -> u32 {
