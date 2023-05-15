@@ -87,7 +87,7 @@ mod tests {
 
     use crate::{elf::Program, state::State, vm::Vm};
 
-    /// TODO: Unignore this test once instructions required are supported
+    // TODO: Unignore this test once instructions required are supported
     #[test]
     #[ignore]
     fn check() {
