@@ -183,6 +183,23 @@ mod tests {
 
     use crate::{elf::Program, state::State, vm::Vm};
 
+    fn add_exit_syscall(address: u32, image: &mut BTreeMap<u32, u32>) {
+        // set sys-call EXIT in x17(or a7)
+        image.insert(address, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(address + 4, 0x00000073_u32);
+    }
+
+    fn create_vm<F: Fn(&mut State)>(image: BTreeMap<u32, u32>, state_init: F) -> Vm {
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let mut state = State::new(program);
+        state_init(&mut state);
+        Vm::new(state)
+    }
+
     // TODO: Unignore this test once instructions required are supported
     #[test]
     #[ignore]
@@ -210,18 +227,11 @@ mod tests {
         let mut image = BTreeMap::new();
         // at 0 address instruction add
         image.insert(0_u32, word);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let mut state = State::new(program);
-        state.set_register_value(rs1, rs1_value);
-        state.set_register_value(rs2, rs2_value);
-        let mut vm = Vm::new(state);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+            state.set_register_value(rs2, rs2_value);
+        });
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), rs1_value + rs2_value);
@@ -233,17 +243,10 @@ mod tests {
         let mut image = BTreeMap::new();
         // at 0 address instruction add
         image.insert(0_u32, word);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let mut state = State::new(program);
-        state.set_register_value(rs1, rs1_value);
-        let mut vm = Vm::new(state);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
         let res = vm.step();
         assert!(res.is_ok());
         let mut expected_value = rs1_value;
@@ -264,10 +267,7 @@ mod tests {
         let mut image = BTreeMap::new();
         // at 0 address instruction add
         image.insert(0_u32, word);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
+        add_exit_syscall(4_u32, &mut image);
         let mut address: u32 = rs1_value;
         if offset.is_negative() {
             let abs_offset = offset.unsigned_abs() as u32;
@@ -277,13 +277,9 @@ mod tests {
             address += offset as u32;
         }
         image.insert(address, memory_value as u32);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let mut state = State::new(program);
-        state.set_register_value(rs1, rs1_value);
-        let mut vm = Vm::new(state);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
         let res = vm.step();
         assert!(res.is_ok());
         let mut expected_value = memory_value as u32;
@@ -302,10 +298,7 @@ mod tests {
         // at 0 address instruction jal to 256
         // JAL x1, 256
         image.insert(0_u32, 0x100000ef);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
+        add_exit_syscall(4_u32, &mut image);
         // set R5 to 100 so that it can be verified
         // that indeed control passed to this location
         // ADDI x5, x0, 100
@@ -313,12 +306,7 @@ mod tests {
         // at 260 go back to address after JAL
         // JALR x0, x1, 0
         image.insert(260_u32, 0x00008067);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let state = State::new(program);
-        let mut vm = Vm::new(state);
+        let mut vm = create_vm(image, |_state: &mut State| {});
         let res = vm.step();
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
@@ -332,10 +320,7 @@ mod tests {
         // at 0 address instruction BEQ to 256
         // BEQ x0, x1, 256
         image.insert(0_u32, 0x10100063);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
+        add_exit_syscall(4_u32, &mut image);
         // set R5 to 100 so that it can be verified
         // that indeed control passed to this location
         // ADDI x5, x0, 100
@@ -343,12 +328,7 @@ mod tests {
         // at 260 go back to address after BEQ
         // JAL x0, -256
         image.insert(260_u32, 0xf01ff06f);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let state = State::new(program);
-        let mut vm = Vm::new(state);
+        let mut vm = create_vm(image, |_state: &mut State| {});
         let res = vm.step();
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
@@ -362,10 +342,7 @@ mod tests {
         // at 0 address instruction BNE to 256
         // BNE x0, x1, 256
         image.insert(0_u32, 0x10101063);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
+        add_exit_syscall(4_u32, &mut image);
         // set R5 to 100 so that it can be verified
         // that indeed control passed to this location
         // ADDI x5, x0, 100
@@ -373,13 +350,9 @@ mod tests {
         // at 260 go back to address after BNE
         // JAL x0, -256
         image.insert(260_u32, 0xf01ff06f);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let mut state = State::new(program);
-        state.set_register_value(1_usize, 1_u32);
-        let mut vm = Vm::new(state);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(1_usize, 1_u32);
+        });
         let res = vm.step();
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
@@ -393,10 +366,7 @@ mod tests {
         // at 0 address instruction BLT to 256
         // BLT x1, x0, 256
         image.insert(0_u32, 0x1000c063);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
+        add_exit_syscall(4_u32, &mut image);
         // set R5 to 100 so that it can be verified
         // that indeed control passed to this location
         // ADDI x5, x0, 100
@@ -404,14 +374,10 @@ mod tests {
         // at 260 go back to address after BLT
         // JAL x0, -256
         image.insert(260_u32, 0xf01ff06f);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let mut state = State::new(program);
-        // set R1 = -1
-        state.set_register_value(1_usize, 0xffffffff);
-        let mut vm = Vm::new(state);
+        let mut vm = create_vm(image, |state: &mut State| {
+            // set R1 = -1
+            state.set_register_value(1_usize, 0xffffffff);
+        });
         let res = vm.step();
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
@@ -425,10 +391,7 @@ mod tests {
         // at 0 address instruction BLTU to 256
         // BLTU x1, x2, 256
         image.insert(0_u32, 0x1020e063);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
+        add_exit_syscall(4_u32, &mut image);
         // set R5 to 100 so that it can be verified
         // that indeed control passed to this location
         // ADDI x5, x0, 100
@@ -436,14 +399,10 @@ mod tests {
         // at 260 go back to address after BLTU
         // JAL x0, -256
         image.insert(260_u32, 0xf01ff06f);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let mut state = State::new(program);
-        state.set_register_value(1_usize, 0xfffffffe);
-        state.set_register_value(2_usize, 0xffffffff);
-        let mut vm = Vm::new(state);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(1_usize, 0xfffffffe);
+            state.set_register_value(2_usize, 0xffffffff);
+        });
         let res = vm.step();
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
@@ -457,10 +416,7 @@ mod tests {
         // at 0 address instruction BGE to 256
         // BGE x0, x1, 256
         image.insert(0_u32, 0x10105063);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
+        add_exit_syscall(4_u32, &mut image);
         // set R5 to 100 so that it can be verified
         // that indeed control passed to this location
         // ADDI x5, x0, 100
@@ -468,14 +424,10 @@ mod tests {
         // at 260 go back to address after BGE
         // JAL x0, -256
         image.insert(260_u32, 0xf01ff06f);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let mut state = State::new(program);
-        // set R1 = -1
-        state.set_register_value(1_usize, 0xffffffff);
-        let mut vm = Vm::new(state);
+        let mut vm = create_vm(image, |state: &mut State| {
+            // set R1 = -1
+            state.set_register_value(1_usize, 0xffffffff);
+        });
         let res = vm.step();
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
@@ -489,10 +441,7 @@ mod tests {
         // at 0 address instruction BGEU to 256
         // BGEU x2, x1, 256
         image.insert(0_u32, 0x10117063);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
+        add_exit_syscall(4_u32, &mut image);
         // set R5 to 100 so that it can be verified
         // that indeed control passed to this location
         // ADDI x5, x0, 100
@@ -500,14 +449,10 @@ mod tests {
         // at 260 go back to address after BGEU
         // JAL x0, -256
         image.insert(260_u32, 0xf01ff06f);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let mut state = State::new(program);
-        state.set_register_value(1_usize, 0xfffffffe);
-        state.set_register_value(2_usize, 0xffffffff);
-        let mut vm = Vm::new(state);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(1_usize, 0xfffffffe);
+            state.set_register_value(2_usize, 0xffffffff);
+        });
         let res = vm.step();
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
