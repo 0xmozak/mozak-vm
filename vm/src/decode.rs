@@ -101,6 +101,18 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 let rd = decode_rd(word);
                 Instruction::XOR(RTypeInst { rs1, rs2, rd })
             }
+            (0x6, 0x00) => {
+                let rs1 = decode_rs1(word);
+                let rs2 = decode_rs2(word);
+                let rd = decode_rd(word);
+                Instruction::OR(RTypeInst { rs1, rs2, rd })
+            }
+            (0x7, 0x00) => {
+                let rs1 = decode_rs1(word);
+                let rs2 = decode_rs2(word);
+                let rd = decode_rd(word);
+                Instruction::AND(RTypeInst { rs1, rs2, rd })
+            }
             _ => Instruction::UNKNOWN,
         },
         0b0000011 => match funct3 {
@@ -301,6 +313,20 @@ mod test {
     fn bgeu(word: u32, rs1: u8, rs2: u8, imm12: i16) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::BGEU(BTypeInst { rs1, rs2, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x0128f533, 10, 17, 18; "and r10, r17, r18")]
+    fn and(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::AND(RTypeInst { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x0128e533, 10, 17, 18; "or r10, r17, r18")]
+    fn or(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::OR(RTypeInst { rs1, rs2, rd });
         assert_eq!(ins, match_ins);
     }
 }

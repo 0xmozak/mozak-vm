@@ -53,6 +53,8 @@ pub enum Instruction {
     BGE(BTypeInst),
     BLTU(BTypeInst),
     BGEU(BTypeInst),
+    AND(RTypeInst),
+    OR(RTypeInst),
     ECALL,
     EBREAK,
     UNKNOWN,
