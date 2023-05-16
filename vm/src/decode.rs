@@ -1,4 +1,4 @@
-use crate::instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst};
+use crate::instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst};
 
 /// Decode RS2 register number from 32-bit instruction
 pub fn decode_rs2(word: u32) -> u8 {
@@ -69,6 +69,16 @@ pub fn decode_imm12_b_imm(word: u32) -> i16 {
         (0xF000 | val1 | val2 | val3) as i16
     } else {
         (val1 | val2 | val3) as i16
+    }
+}
+
+pub fn decode_imm12_s_imm(word: u32) -> i16 {
+    let val1 = (word & 0x00000F80) >> 7;
+    let val2 = (word & 0x7E000000) >> 20;
+    if (word & 0x80000000) != 0 {
+        (0xF800 | val1 | val2) as i16
+    } else {
+        (val1 | val2) as i16
     }
 }
 
@@ -148,6 +158,17 @@ pub fn decode_instruction(word: u32) -> Instruction {
             }
             _ => Instruction::UNKNOWN,
         },
+        0b0100011 => {
+            let rs1 = decode_rs1(word);
+            let rs2 = decode_rs2(word);
+            let imm12 = decode_imm12_s_imm(word);
+            match funct3 {
+                0x0 => Instruction::SB(STypeInst { rs1, rs2, imm12 }),
+                0x1 => Instruction::SH(STypeInst { rs1, rs2, imm12 }),
+                0x2 => Instruction::SW(STypeInst { rs1, rs2, imm12 }),
+                _ => Instruction::UNKNOWN,
+            }
+        }
         0b0010011 => match funct3 {
             0x0 => {
                 let rs1 = decode_rs1(word);
@@ -210,7 +231,7 @@ mod test {
     use test_case::test_case;
 
     use super::decode_instruction;
-    use crate::instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst};
+    use crate::instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst};
 
     #[test_case(0x018B80B3, 1, 23, 24; "add r1, r23, r24")]
     #[test_case(0x00000033, 0, 0, 0; "add r0, r0, r0")]
@@ -327,6 +348,30 @@ mod test {
     fn or(word: u32, rd: u8, rs1: u8, rs2: u8) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::OR(RTypeInst { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x80a00023, 0, 10, -2048; "sb r10, -2048(r0)")]
+    #[test_case(0x7ea00fa3, 0, 10, 2047; "sb r10, 2047(r0)")]
+    fn sb(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SB(STypeInst { rs1, rs2, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x80a01023, 0, 10, -2048; "sh r10, -2048(r0)")]
+    #[test_case(0x7ea01fa3, 0, 10, 2047; "sh r10, 2047(r0)")]
+    fn sh(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SH(STypeInst { rs1, rs2, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x80a02023, 0, 10, -2048; "sw r10, -2048(r0)")]
+    #[test_case(0x7ea02fa3, 0, 10, 2047; "sw r10, 2047(r0)")]
+    fn sw(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SW(STypeInst { rs1, rs2, imm12 });
         assert_eq!(ins, match_ins);
     }
 }

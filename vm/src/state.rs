@@ -72,6 +72,16 @@ impl State {
         Ok(u32::from_le_bytes(bytes))
     }
 
+    pub fn store_u32(&mut self, addr: u32, value: u32) -> Result<()> {
+        const WORD_SIZE: usize = 4;
+        assert_eq!(addr % WORD_SIZE as u32, 0, "unaligned load");
+        let bytes = value.to_le_bytes();
+        for (i, byte) in bytes.iter().enumerate() {
+            self.store_u8(addr + i as u32, *byte)?;
+        }
+        Ok(())
+    }
+
     pub fn load_u8(&self, addr: u32) -> Result<u8> {
         ensure!(
             self.memory.len() >= addr as usize,
@@ -80,10 +90,26 @@ impl State {
         Ok(self.memory[addr as usize])
     }
 
+    pub fn store_u8(&mut self, addr: u32, value: u8) -> Result<()> {
+        ensure!(
+            self.memory.len() >= addr as usize,
+            anyhow!("Address outof bound")
+        );
+        self.memory[addr as usize] = value;
+        Ok(())
+    }
+
     pub fn load_u16(&self, addr: u32) -> Result<u16> {
         let mut bytes = [0_u8; 2];
         bytes[0] = self.load_u8(addr)?;
         bytes[1] = self.load_u8(addr + 1_u32)?;
         Ok(u16::from_le_bytes(bytes))
+    }
+
+    pub fn store_u16(&mut self, addr: u32, value: u16) -> Result<()> {
+        let bytes = value.to_le_bytes();
+        self.store_u8(addr, bytes[0])?;
+        self.store_u8(addr + 1_u32, bytes[1])?;
+        Ok(())
     }
 }

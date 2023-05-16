@@ -170,6 +170,35 @@ impl Vm {
                 }
                 Ok(())
             }
+            Instruction::SW(sw) => {
+                let rs1: i64 = self.state.get_register_value(sw.rs1.into()).into();
+                let addr = rs1 + sw.imm12 as i64;
+                let addr: u32 = (addr & 0xffffffff) as u32;
+                let value = self.state.get_register_value(sw.rs2.into());
+                self.state.store_u32(addr, value)?;
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::SH(sh) => {
+                let rs1: i64 = self.state.get_register_value(sh.rs1.into()).into();
+                let addr = rs1 + sh.imm12 as i64;
+                let addr: u32 = (addr & 0xffffffff) as u32;
+                let value = self.state.get_register_value(sh.rs2.into());
+                let value: u16 = (0x0000FFFF & value) as u16;
+                self.state.store_u16(addr, value)?;
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::SB(sb) => {
+                let rs1: i64 = self.state.get_register_value(sb.rs1.into()).into();
+                let addr = rs1 + sb.imm12 as i64;
+                let addr: u32 = (addr & 0xffffffff) as u32;
+                let value = self.state.get_register_value(sb.rs2.into());
+                let value: u8 = (0x000000FF & value) as u8;
+                self.state.store_u8(addr, value)?;
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
             _ => Ok(()),
         }
     }
@@ -457,5 +486,59 @@ mod tests {
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
         assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+    }
+
+    #[test]
+    fn sb() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction SB
+        // SB x5, 1200(x0)
+        image.insert(0_u32, 0x4a500823);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(5_usize, 0x000000FF);
+        });
+        assert_eq!(vm.state.load_u32(1200).unwrap(), 0);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.load_u32(1200).unwrap(), 0x000000FF);
+    }
+
+    #[test]
+    fn sh() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction SH
+        // SH x5, 1200(x0)
+        image.insert(0_u32, 0x4a501823);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(5_usize, 0x0000BABE);
+        });
+        assert_eq!(vm.state.load_u32(1200).unwrap(), 0);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.load_u32(1200).unwrap(), 0x0000BABE);
+    }
+
+    #[test]
+    fn sw() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction SW
+        // SW x5, 1200(x0)
+        image.insert(0_u32, 0x4a502823);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(5_usize, 0xC0DEBABE);
+        });
+        assert_eq!(vm.state.load_u32(1200).unwrap(), 0);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.load_u32(1200).unwrap(), 0xC0DEBABE);
     }
 }
