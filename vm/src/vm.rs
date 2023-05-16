@@ -184,7 +184,6 @@ impl Vm {
                 }
                 Ok(())
             }
-<<<<<<< HEAD
             Instruction::SW(sw) => {
                 let rs1: i64 = self.state.get_register_value(sw.rs1.into()).into();
                 let addr = rs1 + sw.imm12 as i64;
@@ -287,18 +286,11 @@ mod tests {
         let mut image = BTreeMap::new();
         // at 0 address instruction and
         image.insert(0_u32, word);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let mut state = State::new(program);
-        state.set_register_value(rs1, rs1_value);
-        state.set_register_value(rs2, rs2_value);
-        let mut vm = Vm::new(state);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+            state.set_register_value(rs2, rs2_value);
+        });
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), rs1_value & rs2_value);
@@ -310,18 +302,11 @@ mod tests {
         let mut image = BTreeMap::new();
         // at 0 address instruction or
         image.insert(0_u32, word);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let mut state = State::new(program);
-        state.set_register_value(rs1, rs1_value);
-        state.set_register_value(rs2, rs2_value);
-        let mut vm = Vm::new(state);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+            state.set_register_value(rs2, rs2_value);
+        });
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), rs1_value | rs2_value);
