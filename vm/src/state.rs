@@ -44,6 +44,16 @@ impl State {
         self.registers[index]
     }
 
+    pub fn get_register_value_signed(&self, index: usize) -> i32 {
+        let word = self.registers[index];
+        if word & 0x80000000 != 0 {
+            // convert from 2's complement
+            0 - (!(word - 1)) as i32
+        } else {
+            word as i32
+        }
+    }
+
     pub fn set_pc(&mut self, value: u32) {
         self.pc = value;
     }
