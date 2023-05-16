@@ -83,6 +83,47 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
+            Instruction::LBU(load) => {
+                let rs1: i64 = self.state.get_register_value(load.rs1.into()).into();
+                let addr = rs1 + load.imm12 as i64;
+                let addr: u32 = (addr & 0xffffffff) as u32;
+                let value: u8 = self.state.load_u8(addr)?;
+                self.state.set_register_value(load.rd.into(), value.into());
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::LH(load) => {
+                let rs1: i64 = self.state.get_register_value(load.rs1.into()).into();
+                let addr = rs1 + load.imm12 as i64;
+                let addr: u32 = (addr & 0xffffffff) as u32;
+                let value: u16 = self.state.load_u16(addr)?;
+                let mut final_value: u32 = value.into();
+                if value & 0x8000 != 0x0 {
+                    // extend sign bit
+                    final_value |= 0xffff0000;
+                }
+                self.state.set_register_value(load.rd.into(), final_value);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::LHU(load) => {
+                let rs1: i64 = self.state.get_register_value(load.rs1.into()).into();
+                let addr = rs1 + load.imm12 as i64;
+                let addr: u32 = (addr & 0xffffffff) as u32;
+                let value: u16 = self.state.load_u16(addr)?;
+                self.state.set_register_value(load.rd.into(), value.into());
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::LW(load) => {
+                let rs1: i64 = self.state.get_register_value(load.rs1.into()).into();
+                let addr = rs1 + load.imm12 as i64;
+                let addr: u32 = (addr & 0xffffffff) as u32;
+                let value: u32 = self.state.load_u32(addr)?;
+                self.state.set_register_value(load.rd.into(), value);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
             Instruction::ECALL => {
                 let r17_value = self.state.get_register_value(17_usize);
                 #[allow(clippy::single_match)]
@@ -316,7 +357,7 @@ mod tests {
     fn addi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
-        // at 0 address instruction add
+        // at 0 address instruction addi
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |state: &mut State| {
@@ -340,7 +381,7 @@ mod tests {
     fn lb(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i8) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
-        // at 0 address instruction add
+        // at 0 address instruction lb
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
         let mut address: u32 = rs1_value;
@@ -362,6 +403,122 @@ mod tests {
             // extend the sign
             expected_value |= 0xffffff00;
         }
+        assert_eq!(vm.state.get_register_value(rd), expected_value);
+    }
+
+    #[test_case(0x06434283, 5, 6, 100, 0, 127; "lbu r5, 100(r6)")]
+    #[test_case(0x06434283, 5, 6, 100, 200, 127; "lbu r5, -100(r6) offset_negative")]
+    #[test_case(0x06434283, 5, 6, 100, 0, -128; "lbu r5, 100(r6) value_negative")]
+    #[test_case(0x06434283, 5, 6, 100, 200, -128; "lbu r5, -100(r6) offset_negative_value_negative")]
+    fn lbu(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i8) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction lbu
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut address: u32 = rs1_value;
+        if offset.is_negative() {
+            let abs_offset = offset.unsigned_abs() as u32;
+            assert!(abs_offset <= rs1_value);
+            address -= offset.unsigned_abs() as u32;
+        } else {
+            address += offset as u32;
+        }
+        image.insert(address, memory_value as u32);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        let expected_value = (memory_value as u32) & 0x000000FF;
+        assert_eq!(vm.state.get_register_value(rd), expected_value);
+    }
+
+    #[test_case(0x06431283, 5, 6, 100, 0, 4096; "lh r5, 100(r6)")]
+    #[test_case(0x06431283, 5, 6, 100, 200, 4096; "lh r5, -100(r6) offset_negative")]
+    #[test_case(0x06431283, 5, 6, 100, 0, -4095; "lh r5, 100(r6) value_negative")]
+    #[test_case(0x06431283, 5, 6, 100, 200, -4095; "lh r5, -100(r6) offset_negative_value_negative")]
+    fn lh(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction lh
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut address: u32 = rs1_value;
+        if offset.is_negative() {
+            let abs_offset = offset.unsigned_abs() as u32;
+            assert!(abs_offset <= rs1_value);
+            address -= offset.unsigned_abs() as u32;
+        } else {
+            address += offset as u32;
+        }
+        image.insert(address, memory_value as u32);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        let mut expected_value = memory_value as u32;
+        if memory_value.is_negative() {
+            // extend the sign
+            expected_value |= 0xffff0000;
+        }
+        assert_eq!(vm.state.get_register_value(rd), expected_value);
+    }
+
+    #[test_case(0x06435283, 5, 6, 100, 0, 4096; "lhu r5, 100(r6)")]
+    #[test_case(0x06435283, 5, 6, 100, 200, 4096; "lhu r5, -100(r6) offset_negative")]
+    #[test_case(0x06435283, 5, 6, 100, 0, -4095; "lhu r5, 100(r6) value_negative")]
+    #[test_case(0x06435283, 5, 6, 100, 200, -4095; "lhu r5, -100(r6) offset_negative_value_negative")]
+    fn lhu(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction lhu
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut address: u32 = rs1_value;
+        if offset.is_negative() {
+            let abs_offset = offset.unsigned_abs() as u32;
+            assert!(abs_offset <= rs1_value);
+            address -= offset.unsigned_abs() as u32;
+        } else {
+            address += offset as u32;
+        }
+        image.insert(address, memory_value as u32);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        let expected_value = (memory_value as u32) & 0x0000FFFF;
+        assert_eq!(vm.state.get_register_value(rd), expected_value);
+    }
+
+    #[test_case(0x06432283, 5, 6, 100, 0, 65535; "lw r5, 100(r6)")]
+    #[test_case(0x06432283, 5, 6, 100, 200, 65535; "lw r5, -100(r6) offset_negative")]
+    #[test_case(0x06432283, 5, 6, 100, 0, -65535; "lw r5, 100(r6) value_negative")]
+    #[test_case(0x06432283, 5, 6, 100, 200, -65535; "lw r5, -100(r6) offset_negative_value_negative")]
+    fn lw(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i32) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction lw
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut address: u32 = rs1_value;
+        if offset.is_negative() {
+            let abs_offset = offset.unsigned_abs() as u32;
+            assert!(abs_offset <= rs1_value);
+            address -= offset.unsigned_abs() as u32;
+        } else {
+            address += offset as u32;
+        }
+        image.insert(address, memory_value as u32);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        let expected_value = memory_value as u32;
         assert_eq!(vm.state.get_register_value(rd), expected_value);
     }
 
