@@ -33,6 +33,20 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
+            Instruction::AND(and) => {
+                let res = self.state.get_register_value(and.rs1.into())
+                    & self.state.get_register_value(and.rs2.into());
+                self.state.set_register_value(and.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::OR(or) => {
+                let res = self.state.get_register_value(or.rs1.into())
+                    | self.state.get_register_value(or.rs2.into());
+                self.state.set_register_value(or.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
             Instruction::ADDI(addi) => {
                 // TODO: how to handle if regs have negative value?
                 let rs1_value: i64 = self.state.get_register_value(addi.rs1.into()).into();
@@ -225,6 +239,52 @@ mod tests {
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), rs1_value + rs2_value);
+    }
+
+    #[test_case(0x007372b3, 5, 6, 7, 7, 8; "and r5, r6, r7")]
+    fn and(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction and
+        image.insert(0_u32, word);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(8_u32, 0x00000073_u32);
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let mut state = State::new(program);
+        state.set_register_value(rs1, rs1_value);
+        state.set_register_value(rs2, rs2_value);
+        let mut vm = Vm::new(state);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(vm.state.get_register_value(rd), rs1_value & rs2_value);
+    }
+
+    #[test_case(0x007362b3, 5, 6, 7, 7, 8; "or r5, r6, r7")]
+    fn or(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction or
+        image.insert(0_u32, word);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(8_u32, 0x00000073_u32);
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let mut state = State::new(program);
+        state.set_register_value(rs1, rs1_value);
+        state.set_register_value(rs2, rs2_value);
+        let mut vm = Vm::new(state);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(vm.state.get_register_value(rd), rs1_value | rs2_value);
     }
 
     #[test_case(0x05d00393, 7, 0, 0, 93; "addi r7, r0, 93")]
