@@ -33,6 +33,41 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
+            Instruction::SLL(sll) => {
+                let res = self.state.get_register_value(sll.rs1.into())
+                    << self.state.get_register_value(sll.rs2.into());
+                self.state.set_register_value(sll.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::SRL(srl) => {
+                let res = self.state.get_register_value(srl.rs1.into())
+                    >> self.state.get_register_value(srl.rs2.into());
+                self.state.set_register_value(srl.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::SRA(sra) => {
+                let res = self.state.get_register_value_signed(sra.rs1.into())
+                    >> self.state.get_register_value_signed(sra.rs2.into());
+                self.state.set_register_value(sra.rd.into(), res as u32);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::SLT(slt) => {
+                let res = self.state.get_register_value_signed(slt.rs1.into())
+                    < self.state.get_register_value_signed(slt.rs2.into());
+                self.state.set_register_value(slt.rd.into(), res.into());
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::SLTU(sltu) => {
+                let res = self.state.get_register_value(sltu.rs1.into())
+                    < self.state.get_register_value(sltu.rs2.into());
+                self.state.set_register_value(sltu.rd.into(), res.into());
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
             Instruction::ADDI(addi) => {
                 // TODO: how to handle if regs have negative value?
                 let rs1_value: i64 = self.state.get_register_value(addi.rs1.into()).into();
@@ -225,6 +260,147 @@ mod tests {
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), rs1_value + rs2_value);
+    }
+
+    // Tests 2 cases:
+    //   1) without overflow
+    //   2) with overflow (0x12345678 << 0x08 (shift left by 3 bits) == 0x34567800)
+    #[test_case(0x007312b3, 5, 6, 7, 7, 8; "sll r5, r6, r7")]
+    #[test_case(0x013912b3, 5, 18, 19, 0x12345678, 0x08; "sll r5, r18, r19")]
+    fn sll(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction sll
+        image.insert(0_u32, word);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(8_u32, 0x00000073_u32);
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let mut state = State::new(program);
+        state.set_register_value(rs1, rs1_value);
+        state.set_register_value(rs2, rs2_value);
+        let mut vm = Vm::new(state);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(vm.state.get_register_value(rd), rs1_value << rs2_value);
+    }
+
+    // Tests 2 cases:
+    //   1) without overflow
+    //   2) with underflow (0x87654321 >> 0x08 (logical shift right by 3 bits) == 0x00876543)
+    #[test_case(0x007352b3, 5, 6, 7, 7, 8; "srl r5, r6, r7")]
+    #[test_case(0x013952b3, 5, 18, 19, 0x87654321, 0x08; "srl r5, r18, r19")]
+    fn srl(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction srl
+        image.insert(0_u32, word);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(8_u32, 0x00000073_u32);
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let mut state = State::new(program);
+        state.set_register_value(rs1, rs1_value);
+        state.set_register_value(rs2, rs2_value);
+        let mut vm = Vm::new(state);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(vm.state.get_register_value(rd), rs1_value >> rs2_value);
+    }
+
+    // 0x87654321 >> 0x08 (arithmetic shift right by 3 bits) == 0xff876543
+    #[test_case(0x413952b3, 5, 18, 19, 0x87654321, 0x08; "sra r5, r18, r19")]
+    fn sra(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction sra
+        image.insert(0_u32, word);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(8_u32, 0x00000073_u32);
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let mut state = State::new(program);
+        state.set_register_value(rs1, rs1_value);
+        state.set_register_value(rs2, rs2_value);
+        let mut vm = Vm::new(state);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(
+            vm.state.get_register_value(rd),
+            (rs1_value as i32 >> rs2_value as i32) as u32
+        );
+    }
+
+    // x6 = 0x12345678 x7 = 0x0000ffff, x5 = 0x00000000
+    // x18 = 0x82345678 x19 = 0x8000ffff, x5 = 0x00000001
+    #[test_case(0x007322b3, 5, 6, 7, 0x12345678, 0x0000ffff; "slt r5, r6, r7")]
+    #[test_case(0x013922b3, 5, 18, 19, 0x82345678, 0x0000ffff; "slt r5, r18, r19")]
+    fn slt(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction slt
+        image.insert(0_u32, word);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(8_u32, 0x00000073_u32);
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let mut state = State::new(program);
+        state.set_register_value(rs1, rs1_value);
+        state.set_register_value(rs2, rs2_value);
+        let mut vm = Vm::new(state);
+        let res = vm.step();
+        assert!(res.is_ok());
+        let rs1_value = rs1_value as i32;
+        let rs2_value = rs2_value as i32;
+        assert_eq!(
+            vm.state.get_register_value(rd),
+            (rs1_value < rs2_value) as u32
+        );
+    }
+
+    // x6 = 0x12345678 x7 = 0x0000ffff, x5 = 0x00000000
+    // x18 = 0x12345678 x19 = 0x8000ffff, x5 = 0x00000001
+    #[test_case(0x007332b3, 5, 6, 7, 0x12345678, 0x0000ffff; "sltu r5, r6, r7")]
+    #[test_case(0x013932b3, 5, 18, 19, 0x12345678, 0x8000ffff; "sltu r5, r18, r19")]
+    fn sltu(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction sltu
+        image.insert(0_u32, word);
+        // set sys-call EXIT in x17(or a7)
+        image.insert(4_u32, 0x05d00893_u32);
+        // add ECALL to halt the program
+        image.insert(8_u32, 0x00000073_u32);
+        let program = Program {
+            entry: 0_u32,
+            image,
+        };
+        let mut state = State::new(program);
+        state.set_register_value(rs1, rs1_value);
+        state.set_register_value(rs2, rs2_value);
+        let mut vm = Vm::new(state);
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(
+            vm.state.get_register_value(rd),
+            (rs1_value < rs2_value) as u32
+        );
     }
 
     #[test_case(0x05d00393, 7, 0, 0, 93; "addi r7, r0, 93")]
