@@ -184,7 +184,7 @@ impl Vm {
                 }
                 Ok(())
             }
-            _ => Ok(()),
+            _ => unimplemented!(),
         }
     }
 }
