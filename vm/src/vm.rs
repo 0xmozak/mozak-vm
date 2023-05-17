@@ -278,7 +278,7 @@ mod tests {
 
     // Tests 2 cases:
     //   1) without overflow
-    //   2) with overflow (0x12345678 << 0x08 (shift left by 3 bits) == 0x34567800)
+    //   2) with overflow (0x12345678 << 0x08 == 0x34567800)
     #[test_case(0x007312b3, 5, 6, 7, 7, 8; "sll r5, r6, r7")]
     #[test_case(0x013912b3, 5, 18, 19, 0x12345678, 0x08; "sll r5, r18, r19")]
     fn sll(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
@@ -328,7 +328,7 @@ mod tests {
 
     // Tests 2 cases:
     //   1) without overflow
-    //   2) with underflow (0x87654321 >> 0x08 (logical shift right by 3 bits) == 0x00876543)
+    //   2) with underflow (0x87654321 >> 0x08 == 0x00876543)
     #[test_case(0x007352b3, 5, 6, 7, 7, 8; "srl r5, r6, r7")]
     #[test_case(0x013952b3, 5, 18, 19, 0x87654321, 0x08; "srl r5, r18, r19")]
     fn srl(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
