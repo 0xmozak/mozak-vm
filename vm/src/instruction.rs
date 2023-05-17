@@ -63,6 +63,7 @@ pub enum Instruction {
     BLTU(BTypeInst),
     BGEU(BTypeInst),
     AND(RTypeInst),
+    ANDI(ITypeInst),
     OR(RTypeInst),
     ORI(ITypeInst),
     SW(STypeInst),
