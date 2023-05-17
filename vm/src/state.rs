@@ -48,7 +48,7 @@ impl State {
         let word = self.registers[index];
         if word & 0x80000000 != 0 {
             // convert from 2's complement
-            0 - (!(word - 1)) as i32
+            (0_i64 - (!(word - 1)) as i64) as i32
         } else {
             word as i32
         }
