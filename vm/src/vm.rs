@@ -364,20 +364,12 @@ mod tests {
     fn sll(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
-        // at 0 address instruction sll
         image.insert(0_u32, word);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let mut state = State::new(program);
-        state.set_register_value(rs1, rs1_value);
-        state.set_register_value(rs2, rs2_value);
-        let mut vm = Vm::new(state);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+            state.set_register_value(rs2, rs2_value);
+        });
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), rs1_value << rs2_value);
@@ -409,18 +401,11 @@ mod tests {
         let mut image = BTreeMap::new();
         // at 0 address instruction srl
         image.insert(0_u32, word);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let mut state = State::new(program);
-        state.set_register_value(rs1, rs1_value);
-        state.set_register_value(rs2, rs2_value);
-        let mut vm = Vm::new(state);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+            state.set_register_value(rs2, rs2_value);
+        });
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), rs1_value >> rs2_value);
@@ -449,18 +434,11 @@ mod tests {
         let mut image = BTreeMap::new();
         // at 0 address instruction sra
         image.insert(0_u32, word);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let mut state = State::new(program);
-        state.set_register_value(rs1, rs1_value);
-        state.set_register_value(rs2, rs2_value);
-        let mut vm = Vm::new(state);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+            state.set_register_value(rs2, rs2_value);
+        });
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(
@@ -478,18 +456,11 @@ mod tests {
         let mut image = BTreeMap::new();
         // at 0 address instruction slt
         image.insert(0_u32, word);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let mut state = State::new(program);
-        state.set_register_value(rs1, rs1_value);
-        state.set_register_value(rs2, rs2_value);
-        let mut vm = Vm::new(state);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+            state.set_register_value(rs2, rs2_value);
+        });
         let res = vm.step();
         assert!(res.is_ok());
         let rs1_value = rs1_value as i32;
@@ -509,18 +480,11 @@ mod tests {
         let mut image = BTreeMap::new();
         // at 0 address instruction sltu
         image.insert(0_u32, word);
-        // set sys-call EXIT in x17(or a7)
-        image.insert(4_u32, 0x05d00893_u32);
-        // add ECALL to halt the program
-        image.insert(8_u32, 0x00000073_u32);
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
-        let mut state = State::new(program);
-        state.set_register_value(rs1, rs1_value);
-        state.set_register_value(rs2, rs2_value);
-        let mut vm = Vm::new(state);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+            state.set_register_value(rs2, rs2_value);
+        });
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(
