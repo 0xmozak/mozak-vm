@@ -498,7 +498,6 @@ mod tests {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction sra
-
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |state: &mut State| {
