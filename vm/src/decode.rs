@@ -92,69 +92,24 @@ pub fn decode_instruction(word: u32) -> Instruction {
     let funct7 = decode_func7(word);
 
     match opcode {
-        0b0110011 => match (funct3, funct7) {
-            (0x0, 0x00) => {
-                let rs1 = decode_rs1(word);
-                let rs2 = decode_rs2(word);
-                let rd = decode_rd(word);
-                Instruction::ADD(RTypeInst { rs1, rs2, rd })
+        0b0110011 => {
+            let rs1 = decode_rs1(word);
+            let rs2 = decode_rs2(word);
+            let rd = decode_rd(word);
+            match (funct3, funct7) {
+                (0x0, 0x00) => Instruction::ADD(RTypeInst { rs1, rs2, rd }),
+                (0x0, 0x20) => Instruction::SUB(RTypeInst { rs1, rs2, rd }),
+                (0x1, 0x00) => Instruction::SLL(RTypeInst { rs1, rs2, rd }),
+                (0x2, 0x00) => Instruction::SLT(RTypeInst { rs1, rs2, rd }),
+                (0x3, 0x00) => Instruction::SLTU(RTypeInst { rs1, rs2, rd }),
+                (0x4, 0x00) => Instruction::XOR(RTypeInst { rs1, rs2, rd }),
+                (0x5, 0x00) => Instruction::SRL(RTypeInst { rs1, rs2, rd }),
+                (0x5, 0x20) => Instruction::SRA(RTypeInst { rs1, rs2, rd }),
+                (0x6, 0x00) => Instruction::OR(RTypeInst { rs1, rs2, rd }),
+                (0x7, 0x00) => Instruction::AND(RTypeInst { rs1, rs2, rd }),
+                _ => Instruction::UNKNOWN,
             }
-            (0x0, 0x20) => {
-                let rs1 = decode_rs1(word);
-                let rs2 = decode_rs2(word);
-                let rd = decode_rd(word);
-                Instruction::SUB(RTypeInst { rs1, rs2, rd })
-            }
-            (0x1, 0x00) => {
-                let rs1 = decode_rs1(word);
-                let rs2 = decode_rs2(word);
-                let rd = decode_rd(word);
-                Instruction::SLL(RTypeInst { rs1, rs2, rd })
-            }
-            (0x2, 0x00) => {
-                let rs1 = decode_rs1(word);
-                let rs2 = decode_rs2(word);
-                let rd = decode_rd(word);
-                Instruction::SLT(RTypeInst { rs1, rs2, rd })
-            }
-            (0x3, 0x00) => {
-                let rs1 = decode_rs1(word);
-                let rs2 = decode_rs2(word);
-                let rd = decode_rd(word);
-                Instruction::SLTU(RTypeInst { rs1, rs2, rd })
-            }
-            (0x4, 0x00) => {
-                let rs1 = decode_rs1(word);
-                let rs2 = decode_rs2(word);
-                let rd = decode_rd(word);
-                Instruction::XOR(RTypeInst { rs1, rs2, rd })
-            }
-            (0x5, 0x00) => {
-                let rs1 = decode_rs1(word);
-                let rs2 = decode_rs2(word);
-                let rd = decode_rd(word);
-                Instruction::SRL(RTypeInst { rs1, rs2, rd })
-            }
-            (0x5, 0x20) => {
-                let rs1 = decode_rs1(word);
-                let rs2 = decode_rs2(word);
-                let rd = decode_rd(word);
-                Instruction::SRA(RTypeInst { rs1, rs2, rd })
-            }
-            (0x6, 0x00) => {
-                let rs1 = decode_rs1(word);
-                let rs2 = decode_rs2(word);
-                let rd = decode_rd(word);
-                Instruction::OR(RTypeInst { rs1, rs2, rd })
-            }
-            (0x7, 0x00) => {
-                let rs1 = decode_rs1(word);
-                let rs2 = decode_rs2(word);
-                let rd = decode_rd(word);
-                Instruction::AND(RTypeInst { rs1, rs2, rd })
-            }
-            _ => Instruction::UNKNOWN,
-        },
+        }
         0b0000011 => match funct3 {
             0x0 => {
                 let rs1 = decode_rs1(word);
