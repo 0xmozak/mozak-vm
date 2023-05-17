@@ -504,10 +504,6 @@ mod tests {
             vm.state.get_register_value(rd),
             (rs1_value < rs2_value) as u32
         );
-        assert_eq!(
-            vm.state.get_register_value(rd),
-            (rs1_value < rs2_value) as u32
-        );
     }
 
     #[test_case(0x05d00393, 7, 0, 0, 93; "addi r7, r0, 93")]
