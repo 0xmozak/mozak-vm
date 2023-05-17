@@ -62,6 +62,17 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
+            Instruction::ORI(ori) => {
+                let rs1_value: i64 = self.state.get_register_value(ori.rs1.into()).into();
+                let mut res = rs1_value | ori.imm12 as i64;
+                if ori.imm12.is_negative() {
+                    // extend sign bit
+                    res = res | 0xfffff000;
+                }
+                self.state.set_register_value(ori.rd.into(), res as u32);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
             Instruction::SUB(sub) => {
                 let res = self.state.get_register_value(sub.rs1.into())
                     - self.state.get_register_value(sub.rs2.into());
@@ -351,6 +362,29 @@ mod tests {
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), rs1_value | rs2_value);
+    }
+
+    // #[test_case(0x0ff36293, 5, 6, 0x55551111, 0xff; "ori r5, r6, 255")]
+    #[test_case(0x80036293, 5, 6, 0x55551111, -2048; "ori r5, r6, -2048")]
+    fn ori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction ori
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+
+        let mut expected_value = (rs1_value as i64 | imm12 as i64) as u32;
+        if imm12.is_negative() {
+            //extend
+            expected_value |= 0xfffff000;
+        }
+        // ignore anything above 32-bits
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(vm.state.get_register_value(rd), expected_value);
     }
 
     #[test_case(0x05d00393, 7, 0, 0, 93; "addi r7, r0, 93")]
