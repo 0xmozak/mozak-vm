@@ -92,39 +92,24 @@ pub fn decode_instruction(word: u32) -> Instruction {
     let funct7 = decode_func7(word);
 
     match opcode {
-        0b0110011 => match (funct3, funct7) {
-            (0x0, 0x00) => {
-                let rs1 = decode_rs1(word);
-                let rs2 = decode_rs2(word);
-                let rd = decode_rd(word);
-                Instruction::ADD(RTypeInst { rs1, rs2, rd })
+        0b0110011 => {
+            let rs1 = decode_rs1(word);
+            let rs2 = decode_rs2(word);
+            let rd = decode_rd(word);
+            match (funct3, funct7) {
+                (0x0, 0x00) => Instruction::ADD(RTypeInst { rs1, rs2, rd }),
+                (0x0, 0x20) => Instruction::SUB(RTypeInst { rs1, rs2, rd }),
+                (0x1, 0x00) => Instruction::SLL(RTypeInst { rs1, rs2, rd }),
+                (0x2, 0x00) => Instruction::SLT(RTypeInst { rs1, rs2, rd }),
+                (0x3, 0x00) => Instruction::SLTU(RTypeInst { rs1, rs2, rd }),
+                (0x4, 0x00) => Instruction::XOR(RTypeInst { rs1, rs2, rd }),
+                (0x5, 0x00) => Instruction::SRL(RTypeInst { rs1, rs2, rd }),
+                (0x5, 0x20) => Instruction::SRA(RTypeInst { rs1, rs2, rd }),
+                (0x6, 0x00) => Instruction::OR(RTypeInst { rs1, rs2, rd }),
+                (0x7, 0x00) => Instruction::AND(RTypeInst { rs1, rs2, rd }),
+                _ => Instruction::UNKNOWN,
             }
-            (0x0, 0x20) => {
-                let rs1 = decode_rs1(word);
-                let rs2 = decode_rs2(word);
-                let rd = decode_rd(word);
-                Instruction::SUB(RTypeInst { rs1, rs2, rd })
-            }
-            (0x4, 0x00) => {
-                let rs1 = decode_rs1(word);
-                let rs2 = decode_rs2(word);
-                let rd = decode_rd(word);
-                Instruction::XOR(RTypeInst { rs1, rs2, rd })
-            }
-            (0x6, 0x00) => {
-                let rs1 = decode_rs1(word);
-                let rs2 = decode_rs2(word);
-                let rd = decode_rd(word);
-                Instruction::OR(RTypeInst { rs1, rs2, rd })
-            }
-            (0x7, 0x00) => {
-                let rs1 = decode_rs1(word);
-                let rs2 = decode_rs2(word);
-                let rd = decode_rd(word);
-                Instruction::AND(RTypeInst { rs1, rs2, rd })
-            }
-            _ => Instruction::UNKNOWN,
-        },
+        }
         0b0000011 => match funct3 {
             0x0 => {
                 let rs1 = decode_rs1(word);
@@ -252,6 +237,13 @@ mod test {
         assert_eq!(ins, match_ins);
     }
 
+    #[test_case(0x012892b3, 5, 17, 18; "sll r5, r17, r18")]
+    fn sll(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SLL(RTypeInst { rs1, rd, rs2 });
+        assert_eq!(ins, match_ins);
+    }
+
     #[test_case(0x01f21213, 4, 4, 31; "slli r4, r4, 31")]
     #[test_case(0x00769693, 13, 13, 7; "slli r13, r13, 7")]
     fn slli(word: u32, rd: u8, rs1: u8, shamt: u8) {
@@ -261,6 +253,34 @@ mod test {
             rd,
             imm12: shamt.into(),
         });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x013952b3, 5, 18, 19; "srl r5, r18, r19")]
+    fn srl(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SRL(RTypeInst { rs1, rd, rs2 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x413952b3, 5, 18, 19; "sra r5, r18, r19")]
+    fn sra(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SRA(RTypeInst { rs1, rd, rs2 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x013922b3, 5, 18, 19; "slt r5, r18, r19")]
+    fn slt(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SLT(RTypeInst { rs1, rd, rs2 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x013932b3, 5, 18, 19; "sltu r5, r18, r19")]
+    fn sltu(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SLTU(RTypeInst { rs1, rd, rs2 });
         assert_eq!(ins, match_ins);
     }
 
