@@ -154,37 +154,33 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 _ => Instruction::UNKNOWN,
             }
         }
-        0b0010011 => match funct3 {
-            0x0 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
-                Instruction::ADDI(ITypeInst { rs1, rd, imm12 })
-            }
-            0x1 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let shamt = decode_shamt(word);
-                Instruction::SLLI(ITypeInst {
+        0b0010011 => {
+            let rs1 = decode_rs1(word);
+            let rd = decode_rd(word);
+            match funct3 {
+                0x0 => Instruction::ADDI(ITypeInst {
                     rs1,
                     rd,
-                    imm12: shamt.into(),
-                })
+                    imm12: decode_imm12(word),
+                }),
+                0x1 => Instruction::SLLI(ITypeInst {
+                    rs1,
+                    rd,
+                    imm12: decode_shamt(word).into(),
+                }),
+                0x6 => Instruction::ORI(ITypeInst {
+                    rs1,
+                    rd,
+                    imm12: decode_imm12(word),
+                }),
+                0x7 => Instruction::ANDI(ITypeInst {
+                    rs1,
+                    rd,
+                    imm12: decode_imm12(word),
+                }),
+                _ => Instruction::UNKNOWN,
             }
-            0x6 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
-                Instruction::ORI(ITypeInst { rs1, rd, imm12 })
-            }
-            0x7 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
-                Instruction::ANDI(ITypeInst { rs1, rd, imm12 })
-            }
-            _ => Instruction::UNKNOWN,
-        },
+        }
         0b1110011 => match decode_func12(word) {
             0x0 => Instruction::ECALL,
             0x1 => Instruction::EBREAK,
