@@ -34,22 +34,25 @@ impl Vm {
                 Ok(())
             }
             Instruction::SLL(sll) => {
+                // Only use lower 5 bits of rs2
                 let res = self.state.get_register_value(sll.rs1.into())
-                    << self.state.get_register_value(sll.rs2.into());
+                    << (self.state.get_register_value(sll.rs2.into()) & 0x1F);
                 self.state.set_register_value(sll.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SRL(srl) => {
+                // Only use lower 5 bits of rs2
                 let res = self.state.get_register_value(srl.rs1.into())
-                    >> self.state.get_register_value(srl.rs2.into());
+                    >> (self.state.get_register_value(srl.rs2.into()) & 0x1F);
                 self.state.set_register_value(srl.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SRA(sra) => {
+                // Only use lower 5 bits of rs2
                 let res = self.state.get_register_value_signed(sra.rs1.into())
-                    >> self.state.get_register_value_signed(sra.rs2.into());
+                    >> (self.state.get_register_value_signed(sra.rs2.into()) & 0x1F);
                 self.state.set_register_value(sra.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -357,10 +360,10 @@ mod tests {
     }
 
     // Tests 2 cases:
-    //   1) without overflow
-    //   2) with overflow (0x12345678 << 0x08 == 0x34567800)
-    #[test_case(0x007312b3, 5, 6, 7, 7, 8; "sll r5, r6, r7")]
-    #[test_case(0x013912b3, 5, 18, 19, 0x12345678, 0x08; "sll r5, r18, r19")]
+    //   1) rs2 overflow (0x1111 should only use lower 5 bits)
+    //   2) rs1 overflow (0x12345678 << 0x08 == 0x34567800)
+    #[test_case(0x007312b3, 5, 6, 7, 7, 0x1111; "sll r5, r6, r7, only lower 5 bits rs2")]
+    #[test_case(0x013912b3, 5, 18, 19, 0x12345678, 0x08; "sll r5, r18, r19, rs1 overflow")]
     fn sll(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
@@ -373,7 +376,10 @@ mod tests {
         });
         let res = vm.step();
         assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), rs1_value << rs2_value);
+        assert_eq!(
+            vm.state.get_register_value(rd),
+            rs1_value << (rs2_value & 0x1F)
+        );
     }
 
     #[test_case(0x007372b3, 5, 6, 7, 7, 8; "and r5, r6, r7")]
@@ -393,10 +399,10 @@ mod tests {
     }
 
     // Tests 2 cases:
-    //   1) without overflow
-    //   2) with underflow (0x87654321 >> 0x08 == 0x00876543)
-    #[test_case(0x007352b3, 5, 6, 7, 7, 8; "srl r5, r6, r7")]
-    #[test_case(0x013952b3, 5, 18, 19, 0x87654321, 0x08; "srl r5, r18, r19")]
+    //   1) rs2 overflow (0x1111 should only use lower 5 bits)
+    //   2) rs1 underflow (0x87654321 >> 0x08 == 0x00876543)
+    #[test_case(0x007352b3, 5, 6, 7, 7, 0x1111; "srl r5, r6, r7, only lower 5 bits rs2")]
+    #[test_case(0x013952b3, 5, 18, 19, 0x87654321, 0x08; "srl r5, r18, r19, rs1 underflow")]
     fn srl(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
@@ -409,7 +415,10 @@ mod tests {
         });
         let res = vm.step();
         assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), rs1_value >> rs2_value);
+        assert_eq!(
+            vm.state.get_register_value(rd),
+            rs1_value >> (rs2_value & 0x1F)
+        );
     }
 
     #[test_case(0x007362b3, 5, 6, 7, 7, 8; "or r5, r6, r7")]
@@ -428,8 +437,11 @@ mod tests {
         assert_eq!(vm.state.get_register_value(rd), rs1_value | rs2_value);
     }
 
-    // 0x87654321 >> 0x08 (arithmetic shift right by 3 bits) == 0xff876543
-    #[test_case(0x413952b3, 5, 18, 19, 0x87654321, 0x08; "sra r5, r18, r19")]
+    // Tests 2 cases:
+    //   1) rs2 overflow (0x1111 should only use lower 5 bits)
+    //   2) rs1 underflow (0x87654321 >> 0x08 == 0xff876543)
+    #[test_case(0x407352b3, 5, 6, 7, 7, 0x1111; "sra r5, r6, r7, only lower 5 bits rs2")]
+    #[test_case(0x413952b3, 5, 18, 19, 0x87654321, 0x08; "sra r5, r18, r19, rs1 underflow")]
     fn sra(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
@@ -444,7 +456,7 @@ mod tests {
         assert!(res.is_ok());
         assert_eq!(
             vm.state.get_register_value(rd),
-            (rs1_value as i32 >> rs2_value as i32) as u32
+            (rs1_value as i32 >> (rs2_value & 0x1F) as i32) as u32
         );
     }
 
