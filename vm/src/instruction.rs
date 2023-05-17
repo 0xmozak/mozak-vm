@@ -15,6 +15,15 @@ pub struct ITypeInst {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct STypeInst {
+    pub rs1: u8,
+    pub rs2: u8,
+    /// 12 bit sign extended immediate value
+    /// -2048 to 2047
+    pub imm12: i16,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct JTypeInst {
     pub rd: u8,
     /// 20 bit sign extended immediate offset
@@ -60,6 +69,9 @@ pub enum Instruction {
     BGEU(BTypeInst),
     AND(RTypeInst),
     OR(RTypeInst),
+    SW(STypeInst),
+    SH(STypeInst),
+    SB(STypeInst),
     ECALL,
     EBREAK,
     UNKNOWN,
