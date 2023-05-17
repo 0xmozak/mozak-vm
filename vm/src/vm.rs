@@ -460,8 +460,12 @@ mod tests {
         );
     }
 
+    // x6 = 0x8000ffff x7 = 0x12345678, x5 = 0x00000001
+    // x6 = 0x12345678 x7 = 0x8000ffff, x5 = 0x00000000
     // x6 = 0x12345678 x7 = 0x0000ffff, x5 = 0x00000000
     // x18 = 0x82345678 x19 = 0x8000ffff, x5 = 0x00000001
+    #[test_case(0x007322b3, 5, 6, 7, 0x8000ffff, 0x12345678; "slt r5, r6, r7, neg rs1")]
+    #[test_case(0x007322b3, 5, 6, 7, 0x12345678, 0x8000ffff; "slt r5, r6, r7, neg rs2")]
     #[test_case(0x007322b3, 5, 6, 7, 0x12345678, 0x0000ffff; "slt r5, r6, r7")]
     #[test_case(0x013922b3, 5, 18, 19, 0x82345678, 0x0000ffff; "slt r5, r18, r19")]
     fn slt(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
