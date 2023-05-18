@@ -293,6 +293,41 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
+            Instruction::MUL(mul) => {
+                let rs1: i64 = self.state.get_register_value_signed(mul.rs1.into()).into();
+                let rs2: i64 = self.state.get_register_value_signed(mul.rs2.into()).into();
+                let res: u32 = ((rs1 * rs2) & 0xFFFF_FFFF) as u32;
+                self.state.set_register_value(mul.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::MULH(mulh) => {
+                let rs1: i64 = self.state.get_register_value_signed(mulh.rs1.into()).into();
+                let rs2: i64 = self.state.get_register_value_signed(mulh.rs2.into()).into();
+                let res: u32 = ((rs1 * rs2) >> 32) as u32;
+                self.state.set_register_value(mulh.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::MULHSU(mulhsu) => {
+                let rs1: i64 = self
+                    .state
+                    .get_register_value_signed(mulhsu.rs1.into())
+                    .into();
+                let rs2: i64 = self.state.get_register_value(mulhsu.rs2.into()).into();
+                let res: u32 = ((rs1 * rs2) >> 32) as u32;
+                self.state.set_register_value(mulhsu.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::MULHU(mulhu) => {
+                let rs1: i64 = self.state.get_register_value(mulhu.rs1.into()).into();
+                let rs2: i64 = self.state.get_register_value(mulhu.rs2.into()).into();
+                let res: u32 = ((rs1 * rs2) >> 32) as u32;
+                self.state.set_register_value(mulhu.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
             _ => unimplemented!(),
         }
     }
@@ -901,5 +936,83 @@ mod tests {
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
         assert_eq!(vm.state.load_u32(1200).unwrap(), 0xC0DE_BABE);
+    }
+
+    #[test]
+    fn mulh() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction MULH
+        // MULH x5, x6, x7
+        image.insert(0_u32, 0x0273_12b3);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(6_usize, 0x8000_0000 /* -2^31 */);
+            state.set_register_value(7_usize, 0x8000_0000 /* -2^31 */);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(
+            vm.state.get_register_value(5_usize),
+            0x4000_0000 // High bits for 2^62
+        );
+    }
+
+    #[test]
+    fn mul() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction MUL
+        // MUL x5, x6, x7
+        image.insert(0_u32, 0x0273_02b3);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(6_usize, 0x2000_0000 /* 2^30 */);
+            state.set_register_value(7_usize, 0xFFFF_FFFE /* -2 */);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(
+            vm.state.get_register_value(5_usize),
+            0xC000_0000 // -2^31
+        );
+    }
+
+    #[test]
+    fn mulhsu() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction MULHSU
+        // MULHSU x5, x6, x7
+        image.insert(0_u32, 0x0273_22b3);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(6_usize, 0xFFFF_FFFE /* -2 */);
+            state.set_register_value(7_usize, 0x4000_0000 /* 2^31 */);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.get_register_value(5_usize), 0xFFFF_FFFF);
+    }
+
+    #[test]
+    fn mulhu() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction MULHU
+        // MULHU x5, x6, x7
+        image.insert(0_u32, 0x0273_32b3);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(6_usize, 0x0000_0002 /* 2 */);
+            state.set_register_value(7_usize, 0x8000_0000 /* 2^32 */);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.get_register_value(5_usize), 0x0000_0001);
     }
 }
