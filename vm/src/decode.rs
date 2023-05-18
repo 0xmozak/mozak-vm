@@ -98,7 +98,26 @@ pub fn decode_shamt(word: u32) -> u8 {
     ((word & 0x01f0_0000) >> 20) as u8
 }
 
+pub enum ShiftType {
+    SRAI,
+    SRLI,
+    Unsupported,
+}
+
+/// Decodes the first 7 bits in a word to determine the shift type in a
+/// an Integer Register Immediate Instruction, specifically SRAI/SRLI.
+///
+/// SRAI/SRLI instructions have the same funct3 value and are differentiated
+/// by their 30th bit, for which SRAI = 1 and SRLI = 0. The rest of the 7-bit imm should be 0s.
 #[must_use]
+pub fn decode_shtyp(word: u32) -> ShiftType {
+    match word & 0xfe00_0000 {
+        0x4000_0000 => ShiftType::SRAI,
+        0 => ShiftType::SRLI,
+        _ => ShiftType::Unsupported,
+    }
+}
+
 pub fn decode_instruction(word: u32) -> Instruction {
     let opcode = decode_op(word);
     let funct3 = decode_func3(word);
@@ -183,6 +202,17 @@ pub fn decode_instruction(word: u32) -> Instruction {
                     rd,
                     imm12: shamt.into(),
                 })
+            }
+            0x5 => {
+                let rs1 = decode_rs1(word);
+                let rd = decode_rd(word);
+                let imm12 = decode_shamt(word).into();
+
+                match decode_shtyp(word) {
+                    ShiftType::SRAI => Instruction::SRAI(ITypeInst { rs1, rd, imm12 }),
+                    ShiftType::SRLI => Instruction::SRLI(ITypeInst { rs1, rd, imm12 }),
+                    ShiftType::Unsupported => Instruction::UNKNOWN,
+                }
             }
             _ => Instruction::UNKNOWN,
         },
@@ -287,6 +317,20 @@ mod test {
     fn slt(word: u32, rd: u8, rs1: u8, rs2: u8) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::SLT(RTypeInst { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x41f9_5293, 5, 18, 31; "srai r5, r18, 31")]
+    fn srai(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SRAI(ITypeInst { rs1, rd, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x01f9_5293, 5, 18, 31; "srli r5, r18, 31")]
+    fn srli(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SRLI(ITypeInst { rs1, rd, imm12 });
         assert_eq!(ins, match_ins);
     }
 

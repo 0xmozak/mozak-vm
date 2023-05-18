@@ -77,6 +77,19 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
+            Instruction::SRAI(srai) => {
+                let res =
+                    self.state.get_register_value_signed(srai.rs1.into()) >> srai.imm12 as u32;
+                self.state.set_register_value(srai.rd.into(), res as u32);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::SRLI(srli) => {
+                let res = self.state.get_register_value(srli.rs1.into()) >> srli.imm12 as u32;
+                self.state.set_register_value(srli.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
             Instruction::AND(and) => {
                 let res = self.state.get_register_value(and.rs1.into())
                     & self.state.get_register_value(and.rs2.into());
@@ -491,6 +504,44 @@ mod tests {
         assert_eq!(
             vm.state.get_register_value(rd),
             u32::from(rs1_value < rs2_value)
+        );
+    }
+
+    #[test_case(0x4043_5293, 5, 6, 0x8765_4321, 4; "srai r5, r6, 4")]
+    #[test_case(0x41f3_5293, 5, 6, 1, 31; "srai r5, r6, 31")]
+    fn srai(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction srai
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(
+            vm.state.get_register_value(rd),
+            (rs1_value as i32 >> imm12) as u32
+        );
+    }
+
+    #[test_case(0x0043_5293, 5, 6, 0x8765_4321, 4; "srli r5, r6, 4")]
+    #[test_case(0x01f3_5293, 5, 6, 1, 31; "srli r5, r6, 31")]
+    fn srli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction srli
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(
+            vm.state.get_register_value(rd),
+            u32::from(rs1_value >> imm12)
         );
     }
 
