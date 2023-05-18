@@ -55,7 +55,7 @@ impl Program {
                     let len = std::cmp::min(file_size - i, 4);
                     for j in 0..len {
                         let offset = (offset + i + j) as usize;
-                        let byte = input[offset] as u32;
+                        let byte = u32::from(input[offset]);
                         word |= byte << (j * 8);
                     }
                     image.insert(addr, word);
