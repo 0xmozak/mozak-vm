@@ -80,7 +80,7 @@ impl Vm {
             }
             Instruction::ANDI(andi) => {
                 let rs1_value = self.state.get_register_value(andi.rs1.into());
-                let res = rs1_value as i64 & andi.imm12 as i64;
+                let res = rs1_value as i32 & andi.imm12 as i32;
                 self.state.set_register_value(andi.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -109,14 +109,14 @@ impl Vm {
             }
             Instruction::ORI(ori) => {
                 let rs1_value: i64 = self.state.get_register_value(ori.rs1.into()).into();
-                let res = rs1_value | ori.imm12 as i64;
+                let res = rs1_value as i32 | ori.imm12 as i32;
                 self.state.set_register_value(ori.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::XORI(xori) => {
                 let rs1_value = self.state.get_register_value(xori.rs1.into());
-                let res = rs1_value as i64 ^ xori.imm12 as i64;
+                let res = rs1_value as i32 ^ xori.imm12 as i32;
                 self.state.set_register_value(xori.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -473,7 +473,7 @@ mod tests {
             state.set_register_value(rs1, rs1_value);
         });
 
-        let expected_value = (rs1_value as i64 | imm12 as i64) as u32;
+        let expected_value = (rs1_value as i32 | imm12 as i32) as u32;
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), expected_value);
@@ -494,7 +494,7 @@ mod tests {
             state.set_register_value(rs1, rs1_value);
         });
 
-        let expected_value = (rs1_value as i64 & imm12 as i64) as u32;
+        let expected_value = (rs1_value as i32 & imm12 as i32) as u32;
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), expected_value);
@@ -515,7 +515,7 @@ mod tests {
             state.set_register_value(rs1, rs1_value);
         });
 
-        let expected_value = (rs1_value as i64 ^ imm12 as i64) as u32;
+        let expected_value = (rs1_value as i32 ^ imm12 as i32) as u32;
         println!("exp: {:x}", expected_value);
         let res = vm.step();
         assert!(res.is_ok());
