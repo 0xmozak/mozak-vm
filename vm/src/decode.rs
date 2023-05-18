@@ -72,6 +72,7 @@ pub fn decode_imm20(word: u32) -> i32 {
     }
 }
 
+#[must_use]
 pub fn decode_imm20_u_imm(word: u32) -> i32 {
     (word & 0xFFFF_F000) as i32
 }
@@ -226,11 +227,11 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 _ => Instruction::UNKNOWN,
             }
         }
-        0b0110111 => Instruction::LUI(UTypeInst {
+        0b011_0111 => Instruction::LUI(UTypeInst {
             rd: decode_rd(word),
             imm20: decode_imm20_u_imm(word),
         }),
-        0b0010111 => Instruction::AUIPC(UTypeInst {
+        0b001_0111 => Instruction::AUIPC(UTypeInst {
             rd: decode_rd(word),
             imm20: decode_imm20_u_imm(word),
         }),
@@ -424,16 +425,16 @@ mod test {
         assert_eq!(ins, match_ins);
     }
 
-    #[test_case(0x800000b7, 1, -2147483648; "lui r1, -524288")]
-    #[test_case(0x7ffff0b7, 1, 2147479552; "lui r1, 524287")]
+    #[test_case(0x8000_00b7, 1, -2_147_483_648; "lui r1, -524288")]
+    #[test_case(0x7fff_f0b7, 1, 2_147_479_552; "lui r1, 524287")]
     fn lui(word: u32, rd: u8, imm20: i32) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::LUI(UTypeInst { rd, imm20 });
         assert_eq!(ins, match_ins);
     }
 
-    #[test_case(0x80000097, 1, -2147483648; "auipc r1, -524288")]
-    #[test_case(0x7ffff097, 1, 2147479552; "auipc r1, 524287")]
+    #[test_case(0x8000_0097, 1, -2_147_483_648; "auipc r1, -524288")]
+    #[test_case(0x7fff_f097, 1, 2_147_479_552; "auipc r1, 524287")]
     fn auipc(word: u32, rd: u8, imm20: i32) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::AUIPC(UTypeInst { rd, imm20 });
