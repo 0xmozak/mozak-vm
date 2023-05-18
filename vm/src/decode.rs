@@ -130,39 +130,19 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 _ => Instruction::UNKNOWN,
             }
         }
-        0b000_0011 => match funct3 {
-            0x0 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
-                Instruction::LB(ITypeInst { rs1, rd, imm12 })
+        0b000_0011 => {
+            let rs1 = decode_rs1(word);
+            let rd = decode_rd(word);
+            let imm12 = decode_imm12(word);
+            match funct3 {
+                0x0 => Instruction::LB(ITypeInst { rs1, rd, imm12 }),
+                0x1 => Instruction::LH(ITypeInst { rs1, rd, imm12 }),
+                0x2 => Instruction::LW(ITypeInst { rs1, rd, imm12 }),
+                0x4 => Instruction::LBU(ITypeInst { rs1, rd, imm12 }),
+                0x5 => Instruction::LHU(ITypeInst { rs1, rd, imm12 }),
+                _ => Instruction::UNKNOWN,
             }
-            0x1 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
-                Instruction::LH(ITypeInst { rs1, rd, imm12 })
-            }
-            0x2 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
-                Instruction::LW(ITypeInst { rs1, rd, imm12 })
-            }
-            0x4 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
-                Instruction::LBU(ITypeInst { rs1, rd, imm12 })
-            }
-            0x5 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
-                Instruction::LHU(ITypeInst { rs1, rd, imm12 })
-            }
-            _ => Instruction::UNKNOWN,
-        },
+        }
         0b010_0011 => {
             let rs1 = decode_rs1(word);
             let rs2 = decode_rs2(word);
@@ -456,6 +436,46 @@ mod test {
     fn sw(word: u32, rs1: u8, rs2: u8, imm12: i16) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::SW(STypeInst { rs1, rs2, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x7ff0_af83, 31, 1, 2047; "lw r31, 2047(r1)")]
+    #[test_case(0x8000_af83, 31, 1, -2048; "lw r31, -2048(r1)")]
+    fn lw(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::LW(ITypeInst { rs1, rd, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x7ff0_9f83, 31, 1, 2047; "lh r31, 2047(r1)")]
+    #[test_case(0x8000_9f83, 31, 1, -2048; "lh r31, -2048(r1)")]
+    fn lh(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::LH(ITypeInst { rs1, rd, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x7ff0_df83, 31, 1, 2047; "lhu r31, 2047(r1)")]
+    #[test_case(0x8000_df83, 31, 1, -2048; "lhu r31, -2048(r1)")]
+    fn lhu(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::LHU(ITypeInst { rs1, rd, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x7ff0_8f83, 31, 1, 2047; "lb r31, 2047(r1)")]
+    #[test_case(0x8000_8f83, 31, 1, -2048; "lb r31, -2048(r1)")]
+    fn lb(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::LB(ITypeInst { rs1, rd, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x7ff0_cf83, 31, 1, 2047; "lbu r31, 2047(r1)")]
+    #[test_case(0x8000_cf83, 31, 1, -2048; "lbu r31, -2048(r1)")]
+    fn lbu(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::LBU(ITypeInst { rs1, rd, imm12 });
         assert_eq!(ins, match_ins);
     }
 
