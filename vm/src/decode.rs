@@ -108,7 +108,8 @@ pub enum ShiftType {
 /// an Integer Register Immediate Instruction, specifically SRAI/SRLI.
 ///
 /// SRAI/SRLI instructions have the same funct3 value and are differentiated
-/// by their 30th bit, for which SRAI = 1 and SRLI = 0. The rest of the 7-bit imm should be 0s.
+/// by their 30th bit, for which SRAI = 1 and SRLI = 0. The rest of the 7-bit
+/// imm should be 0s.
 #[must_use]
 pub fn decode_shtyp(word: u32) -> ShiftType {
     match word & 0xfe00_0000 {
