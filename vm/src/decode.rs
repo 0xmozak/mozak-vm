@@ -405,40 +405,40 @@ mod test {
         assert_eq!(ins, match_ins);
     }
 
-    #[test_case(0x7ff0af83, 31, 1, 2047; "lw r31, 2047(r1)")]
-    #[test_case(0x8000af83, 31, 1, -2048; "lw r31, -2048(r1)")]
+    #[test_case(0x7ff0_af83, 31, 1, 2047; "lw r31, 2047(r1)")]
+    #[test_case(0x8000_af83, 31, 1, -2048; "lw r31, -2048(r1)")]
     fn lw(word: u32, rd: u8, rs1: u8, imm12: i16) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::LW(ITypeInst { rs1, rd, imm12 });
         assert_eq!(ins, match_ins);
     }
 
-    #[test_case(0x7ff09f83, 31, 1, 2047; "lh r31, 2047(r1)")]
-    #[test_case(0x80009f83, 31, 1, -2048; "lh r31, -2048(r1)")]
+    #[test_case(0x7ff0_9f83, 31, 1, 2047; "lh r31, 2047(r1)")]
+    #[test_case(0x8000_9f83, 31, 1, -2048; "lh r31, -2048(r1)")]
     fn lh(word: u32, rd: u8, rs1: u8, imm12: i16) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::LH(ITypeInst { rs1, rd, imm12 });
         assert_eq!(ins, match_ins);
     }
 
-    #[test_case(0x7ff0df83, 31, 1, 2047; "lhu r31, 2047(r1)")]
-    #[test_case(0x8000df83, 31, 1, -2048; "lhu r31, -2048(r1)")]
+    #[test_case(0x7ff0_df83, 31, 1, 2047; "lhu r31, 2047(r1)")]
+    #[test_case(0x8000_df83, 31, 1, -2048; "lhu r31, -2048(r1)")]
     fn lhu(word: u32, rd: u8, rs1: u8, imm12: i16) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::LHU(ITypeInst { rs1, rd, imm12 });
         assert_eq!(ins, match_ins);
     }
 
-    #[test_case(0x7ff08f83, 31, 1, 2047; "lb r31, 2047(r1)")]
-    #[test_case(0x80008f83, 31, 1, -2048; "lb r31, -2048(r1)")]
+    #[test_case(0x7ff0_8f83, 31, 1, 2047; "lb r31, 2047(r1)")]
+    #[test_case(0x8000_8f83, 31, 1, -2048; "lb r31, -2048(r1)")]
     fn lb(word: u32, rd: u8, rs1: u8, imm12: i16) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::LB(ITypeInst { rs1, rd, imm12 });
         assert_eq!(ins, match_ins);
     }
 
-    #[test_case(0x7ff0cf83, 31, 1, 2047; "lbu r31, 2047(r1)")]
-    #[test_case(0x8000cf83, 31, 1, -2048; "lbu r31, -2048(r1)")]
+    #[test_case(0x7ff0_cf83, 31, 1, 2047; "lbu r31, 2047(r1)")]
+    #[test_case(0x8000_cf83, 31, 1, -2048; "lbu r31, -2048(r1)")]
     fn lbu(word: u32, rd: u8, rs1: u8, imm12: i16) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::LBU(ITypeInst { rs1, rd, imm12 });
