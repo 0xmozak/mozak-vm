@@ -1,4 +1,6 @@
-use crate::instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst};
+use crate::instruction::{
+    BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst, UTypeInst,
+};
 
 /// Decode RS2 register number from 32-bit instruction
 #[must_use]
@@ -68,6 +70,10 @@ pub fn decode_imm20(word: u32) -> i32 {
     } else {
         (val1 | val2 | val3) as i32
     }
+}
+
+pub fn decode_imm20_u_imm(word: u32) -> i32 {
+    (word & 0xFFFF_F000) as i32
 }
 
 #[must_use]
@@ -224,6 +230,14 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 _ => Instruction::UNKNOWN,
             }
         }
+        0b0110111 => Instruction::LUI(UTypeInst {
+            rd: decode_rd(word),
+            imm20: decode_imm20_u_imm(word),
+        }),
+        0b0010111 => Instruction::AUIPC(UTypeInst {
+            rd: decode_rd(word),
+            imm20: decode_imm20_u_imm(word),
+        }),
         _ => Instruction::UNKNOWN,
     }
 }
@@ -233,7 +247,9 @@ mod test {
     use test_case::test_case;
 
     use super::decode_instruction;
-    use crate::instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst};
+    use crate::instruction::{
+        BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst, UTypeInst,
+    };
 
     #[test_case(0x018B_80B3, 1, 23, 24; "add r1, r23, r24")]
     #[test_case(0x0000_0033, 0, 0, 0; "add r0, r0, r0")]
@@ -437,6 +453,22 @@ mod test {
     fn mulhu(word: u32, rd: u8, rs1: u8, rs2: u8) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::MULHU(RTypeInst { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x800000b7, 1, -2147483648; "lui r1, -524288")]
+    #[test_case(0x7ffff0b7, 1, 2147479552; "lui r1, 524287")]
+    fn lui(word: u32, rd: u8, imm20: i32) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::LUI(UTypeInst { rd, imm20 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x80000097, 1, -2147483648; "auipc r1, -524288")]
+    #[test_case(0x7ffff097, 1, 2147479552; "auipc r1, 524287")]
+    fn auipc(word: u32, rd: u8, imm20: i32) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::AUIPC(UTypeInst { rd, imm20 });
         assert_eq!(ins, match_ins);
     }
 }
