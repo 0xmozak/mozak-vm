@@ -8,7 +8,8 @@ pub struct Vm {
 }
 
 impl Vm {
-    #[must_use] pub fn new(state: State) -> Self {
+    #[must_use]
+    pub fn new(state: State) -> Self {
         Self { state }
     }
 

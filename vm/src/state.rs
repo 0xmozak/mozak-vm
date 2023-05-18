@@ -10,7 +10,8 @@ pub struct State {
 }
 
 impl State {
-    #[must_use] pub fn new(program: Program) -> Self {
+    #[must_use]
+    pub fn new(program: Program) -> Self {
         let mut memory = vec![0_u8; 256 * 1024 * 1024];
         for (addr, data) in &program.image {
             let addr = *addr as usize;
@@ -28,7 +29,8 @@ impl State {
         self.halted = true;
     }
 
-    #[must_use] pub fn has_halted(&self) -> bool {
+    #[must_use]
+    pub fn has_halted(&self) -> bool {
         self.halted
     }
 
@@ -40,11 +42,13 @@ impl State {
         }
     }
 
-    #[must_use] pub fn get_register_value(&self, index: usize) -> u32 {
+    #[must_use]
+    pub fn get_register_value(&self, index: usize) -> u32 {
         self.registers[index]
     }
 
-    #[must_use] pub fn get_register_value_signed(&self, index: usize) -> i32 {
+    #[must_use]
+    pub fn get_register_value_signed(&self, index: usize) -> i32 {
         let word = self.registers[index];
         if word & 0x8000_0000 != 0 {
             // convert from 2's complement
@@ -58,7 +62,8 @@ impl State {
         self.pc = value;
     }
 
-    #[must_use] pub fn get_pc(&self) -> u32 {
+    #[must_use]
+    pub fn get_pc(&self) -> u32 {
         self.pc
     }
 

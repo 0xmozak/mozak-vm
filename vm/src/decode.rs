@@ -1,42 +1,50 @@
 use crate::instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst};
 
 /// Decode RS2 register number from 32-bit instruction
-#[must_use] pub fn decode_rs2(word: u32) -> u8 {
+#[must_use]
+pub fn decode_rs2(word: u32) -> u8 {
     ((word & 0x01f0_0000) >> 20) as u8
 }
 
 /// Decode RS1 register number from 32-bit instruction
-#[must_use] pub fn decode_rs1(word: u32) -> u8 {
+#[must_use]
+pub fn decode_rs1(word: u32) -> u8 {
     ((word & 0x000f_8000) >> 15) as u8
 }
 
 /// Decode RD register number from 32-bit instruction
-#[must_use] pub fn decode_rd(word: u32) -> u8 {
+#[must_use]
+pub fn decode_rd(word: u32) -> u8 {
     ((word & 0x0000_0f80) >> 7) as u8
 }
 
 /// Decode Opcode from 32-bit instruction
-#[must_use] pub fn decode_op(word: u32) -> u8 {
+#[must_use]
+pub fn decode_op(word: u32) -> u8 {
     (word & 0x0000_007f) as u8
 }
 
 /// Decode func3 from 32-bit instruction
-#[must_use] pub fn decode_func3(word: u32) -> u8 {
+#[must_use]
+pub fn decode_func3(word: u32) -> u8 {
     ((word & 0x0000_7000) >> 12) as u8
 }
 
 /// Decode func7 from 32-bit instruction
-#[must_use] pub fn decode_func7(word: u32) -> u8 {
+#[must_use]
+pub fn decode_func7(word: u32) -> u8 {
     ((word & 0xfe00_0000) >> 25) as u8
 }
 
 /// Decode func12 from 32-bit instruction
-#[must_use] pub fn decode_func12(word: u32) -> u16 {
+#[must_use]
+pub fn decode_func12(word: u32) -> u16 {
     ((word & 0xfff0_0000) >> 20) as u16
 }
 
 /// Decode signed imm12 value
-#[must_use] pub fn decode_imm12(word: u32) -> i16 {
+#[must_use]
+pub fn decode_imm12(word: u32) -> i16 {
     let val = ((word & 0xfff0_0000) >> 20) as u16;
     if (val & 0x0800) != 0 {
         // negative number
@@ -50,7 +58,8 @@ use crate::instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst
 /// Decode signed imm20 value for [`JTypeInst`]
 /// Please refer RISCV manual section "Immediate Encoding Variants" for this
 /// decoding
-#[must_use] pub fn decode_imm20(word: u32) -> i32 {
+#[must_use]
+pub fn decode_imm20(word: u32) -> i32 {
     let val1 = (word & 0x7FE0_0000) >> 20;
     let val2 = (word & 0x0010_0000) >> 9;
     let val3 = word & 0x000F_F000;
@@ -61,7 +70,8 @@ use crate::instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst
     }
 }
 
-#[must_use] pub fn decode_imm12_b_imm(word: u32) -> i16 {
+#[must_use]
+pub fn decode_imm12_b_imm(word: u32) -> i16 {
     let val1 = (word & 0x0000_0F00) >> 7;
     let val2 = (word & 0x7E00_0000) >> 20;
     let val3 = (word & 0x0000_0080) << 4;
@@ -72,7 +82,8 @@ use crate::instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst
     }
 }
 
-#[must_use] pub fn decode_imm12_s_imm(word: u32) -> i16 {
+#[must_use]
+pub fn decode_imm12_s_imm(word: u32) -> i16 {
     let val1 = (word & 0x0000_0F80) >> 7;
     let val2 = (word & 0x7E00_0000) >> 20;
     if (word & 0x8000_0000) != 0 {
@@ -82,11 +93,13 @@ use crate::instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst
     }
 }
 
-#[must_use] pub fn decode_shamt(word: u32) -> u8 {
+#[must_use]
+pub fn decode_shamt(word: u32) -> u8 {
     ((word & 0x01f0_0000) >> 20) as u8
 }
 
-#[must_use] pub fn decode_instruction(word: u32) -> Instruction {
+#[must_use]
+pub fn decode_instruction(word: u32) -> Instruction {
     let opcode = decode_op(word);
     let funct3 = decode_func3(word);
     let funct7 = decode_func7(word);
