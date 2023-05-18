@@ -13,6 +13,11 @@ impl Vm {
         Self { state }
     }
 
+    /// Execute a single instruction
+    ///
+    /// # Errors
+    /// This function returns an error, if the instruction could not be loaded
+    /// or executed.
     pub fn step(&mut self) -> Result<()> {
         while !self.state.has_halted() {
             let pc = self.state.get_pc();
@@ -290,6 +295,21 @@ impl Vm {
                 let value = self.state.get_register_value(sb.rs2.into());
                 let value: u8 = (0x0000_00FF & value) as u8;
                 self.state.store_u8(addr, value)?;
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::LUI(lui) => {
+                self.state
+                    .set_register_value(lui.rd.into(), lui.imm20 as u32);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::AUIPC(auipc) => {
+                let val = i64::from(auipc.imm20);
+                let pc = i64::from(self.state.get_pc());
+                let res = pc + val;
+                let res_u32 = res as u32;
+                self.state.set_register_value(auipc.rd.into(), res_u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
@@ -901,5 +921,39 @@ mod tests {
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
         assert_eq!(vm.state.load_u32(1200).unwrap(), 0xC0DE_BABE);
+    }
+
+    #[test]
+    fn lui() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction lui
+        // LUI x1, -524288
+        image.insert(0_u32, 0x8000_00b7);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |_state: &mut State| {});
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.get_register_value(1), 0x8000_0000);
+        assert_eq!(vm.state.get_register_value_signed(1), -2_147_483_648);
+    }
+
+    #[test]
+    fn auipc() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address addi x0, x0, 0
+        image.insert(0_u32, 0x0000_0013);
+        // at 4 address instruction auipc
+        // auipc x1, -524288
+        image.insert(4_u32, 0x8000_0097);
+        add_exit_syscall(8_u32, &mut image);
+        let mut vm = create_vm(image, |_state: &mut State| {});
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.get_register_value(1), 0x8000_0004);
+        assert_eq!(vm.state.get_register_value_signed(1), -2_147_483_644);
     }
 }
