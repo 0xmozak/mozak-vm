@@ -34,6 +34,10 @@ impl State {
         self.halted
     }
 
+    /// Load a byte from memory
+    ///
+    /// # Panics
+    /// This function panics, if you try to load into an invalid register.
     pub fn set_register_value(&mut self, index: usize, value: u32) {
         assert!(index < 32);
         // R0 is always 0
@@ -67,6 +71,14 @@ impl State {
         self.pc
     }
 
+    /// Load a word from memory
+    ///
+    /// # Errors
+    /// This function returns an error, if you try to load from an invalid
+    /// address.
+    ///
+    /// # Panics
+    /// This function panics, if you try to from an unaligned address.
     pub fn load_u32(&self, addr: u32) -> Result<u32> {
         const WORD_SIZE: usize = 4;
         assert_eq!(addr % WORD_SIZE as u32, 0, "unaligned load");
@@ -77,9 +89,16 @@ impl State {
         Ok(u32::from_le_bytes(bytes))
     }
 
+    /// Store a word to memory
+    ///
+    /// # Errors
+    /// This function returns an error, if you try to store to an invalid
+    /// address.
+    /// # Panics
+    /// This function panics, if you try to store to an unaligned address.
     pub fn store_u32(&mut self, addr: u32, value: u32) -> Result<()> {
         const WORD_SIZE: usize = 4;
-        assert_eq!(addr % WORD_SIZE as u32, 0, "unaligned load");
+        assert_eq!(addr % WORD_SIZE as u32, 0, "unaligned store");
         let bytes = value.to_le_bytes();
         for (i, byte) in bytes.iter().enumerate() {
             self.store_u8(addr + i as u32, *byte)?;
@@ -87,23 +106,38 @@ impl State {
         Ok(())
     }
 
+    /// Load a byte from memory
+    ///
+    /// # Errors
+    /// This function returns an error, if you try to load from an invalid
+    /// address.
     pub fn load_u8(&self, addr: u32) -> Result<u8> {
         ensure!(
             self.memory.len() >= addr as usize,
-            anyhow!("Address outof bound")
+            anyhow!("Address out of bounds")
         );
         Ok(self.memory[addr as usize])
     }
 
+    /// Store a byte to memory
+    ///
+    /// # Errors
+    /// This function returns an error, if you try to store to an invalid
+    /// address.
     pub fn store_u8(&mut self, addr: u32, value: u8) -> Result<()> {
         ensure!(
             self.memory.len() >= addr as usize,
-            anyhow!("Address outof bound")
+            anyhow!("Address out of bounds")
         );
         self.memory[addr as usize] = value;
         Ok(())
     }
 
+    /// Load a halfword from memory
+    ///
+    /// # Errors
+    /// This function returns an error, if you try to load from an invalid
+    /// address.
     pub fn load_u16(&self, addr: u32) -> Result<u16> {
         let mut bytes = [0_u8; 2];
         bytes[0] = self.load_u8(addr)?;
@@ -111,6 +145,11 @@ impl State {
         Ok(u16::from_le_bytes(bytes))
     }
 
+    /// Store a halfword to memory
+    ///
+    /// # Errors
+    /// This function returns an error, if you try to store to an invalid
+    /// address.
     pub fn store_u16(&mut self, addr: u32, value: u16) -> Result<()> {
         let bytes = value.to_le_bytes();
         self.store_u8(addr, bytes[0])?;

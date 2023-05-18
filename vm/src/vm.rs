@@ -13,6 +13,11 @@ impl Vm {
         Self { state }
     }
 
+    /// Execute a single instruction
+    ///
+    /// # Errors
+    /// This function returns an error, if the instruction could not be loaded
+    /// or executed.
     pub fn step(&mut self) -> Result<()> {
         while !self.state.has_halted() {
             let pc = self.state.get_pc();
