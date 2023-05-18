@@ -118,6 +118,7 @@ pub fn decode_shtyp(word: u32) -> ShiftType {
     }
 }
 
+#[must_use]
 pub fn decode_instruction(word: u32) -> Instruction {
     let opcode = decode_op(word);
     let funct3 = decode_func3(word);

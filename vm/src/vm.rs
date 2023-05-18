@@ -539,10 +539,7 @@ mod tests {
         });
         let res = vm.step();
         assert!(res.is_ok());
-        assert_eq!(
-            vm.state.get_register_value(rd),
-            u32::from(rs1_value >> imm12)
-        );
+        assert_eq!(vm.state.get_register_value(rd), rs1_value >> imm12);
     }
 
     // x6 = 0x12345678 x7 = 0x0000ffff, x5 = 0x00000000
