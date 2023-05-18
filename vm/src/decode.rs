@@ -1,51 +1,6 @@
+use bitfield::bitfield;
+
 use crate::instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst};
-
-/// Decode RS2 register number from 32-bit instruction
-pub fn decode_rs2(word: u32) -> u8 {
-    ((word & 0x01f00000) >> 20) as u8
-}
-
-/// Decode RS1 register number from 32-bit instruction
-pub fn decode_rs1(word: u32) -> u8 {
-    ((word & 0x000f8000) >> 15) as u8
-}
-
-/// Decode RD register number from 32-bit instruction
-pub fn decode_rd(word: u32) -> u8 {
-    ((word & 0x00000f80) >> 7) as u8
-}
-
-/// Decode Opcode from 32-bit instruction
-pub fn decode_op(word: u32) -> u8 {
-    (word & 0x0000007f) as u8
-}
-
-/// Decode func3 from 32-bit instruction
-pub fn decode_func3(word: u32) -> u8 {
-    ((word & 0x00007000) >> 12) as u8
-}
-
-/// Decode func7 from 32-bit instruction
-pub fn decode_func7(word: u32) -> u8 {
-    ((word & 0xfe000000) >> 25) as u8
-}
-
-/// Decode func12 from 32-bit instruction
-pub fn decode_func12(word: u32) -> u16 {
-    ((word & 0xfff00000) >> 20) as u16
-}
-
-/// Decode signed imm12 value
-pub fn decode_imm12(word: u32) -> i16 {
-    let val = ((word & 0xfff00000) >> 20) as u16;
-    if (val & 0x0800) != 0 {
-        // negative number
-        let val = val - 1;
-        -((!val & 0x0fff) as i16)
-    } else {
-        val as i16
-    }
-}
 
 /// Decode signed imm20 value for [`JTypeInst`]
 /// Please refer RISCV manual section "Immediate Encoding Variants" for this
@@ -82,20 +37,34 @@ pub fn decode_imm12_s_imm(word: u32) -> i16 {
     }
 }
 
-pub fn decode_shamt(word: u32) -> u8 {
-    ((word & 0x01f00000) >> 20) as u8
+bitfield! {
+    pub struct InstructionBits(u32);
+    impl Debug;
+    u8;
+    pub opcode, _: 6, 0;
+    pub rd, _: 11, 7;
+    pub func3, _: 14, 12;
+    pub rs1, _: 19, 15;
+    pub rs2, _: 24, 20;
+    pub shamt, _: 24, 20;
+    pub func7, _: 31, 25;
+    u16;
+    pub func12, _: 31, 20;
+    i16;
+    pub imm12, _: 31, 20;
 }
 
 pub fn decode_instruction(word: u32) -> Instruction {
-    let opcode = decode_op(word);
-    let funct3 = decode_func3(word);
-    let funct7 = decode_func7(word);
+    let bf = InstructionBits(word);
+    let opcode = bf.opcode();
+    let funct3 = bf.func3();
+    let funct7 = bf.func7();
 
     match opcode {
         0b0110011 => {
-            let rs1 = decode_rs1(word);
-            let rs2 = decode_rs2(word);
-            let rd = decode_rd(word);
+            let rs1 = bf.rs1();
+            let rs2 = bf.rs2();
+            let rd = bf.rd();
             match (funct3, funct7) {
                 (0x0, 0x00) => Instruction::ADD(RTypeInst { rs1, rs2, rd }),
                 (0x0, 0x20) => Instruction::SUB(RTypeInst { rs1, rs2, rd }),
@@ -112,40 +81,40 @@ pub fn decode_instruction(word: u32) -> Instruction {
         }
         0b0000011 => match funct3 {
             0x0 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
+                let rs1 = bf.rs1();
+                let rd = bf.rd();
+                let imm12 = bf.imm12();
                 Instruction::LB(ITypeInst { rs1, rd, imm12 })
             }
             0x1 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
+                let rs1 = bf.rs1();
+                let rd = bf.rd();
+                let imm12 = bf.imm12();
                 Instruction::LH(ITypeInst { rs1, rd, imm12 })
             }
             0x2 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
+                let rs1 = bf.rs1();
+                let rd = bf.rd();
+                let imm12 = bf.imm12();
                 Instruction::LW(ITypeInst { rs1, rd, imm12 })
             }
             0x4 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
+                let rs1 = bf.rs1();
+                let rd = bf.rd();
+                let imm12 = bf.imm12();
                 Instruction::LBU(ITypeInst { rs1, rd, imm12 })
             }
             0x5 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
+                let rs1 = bf.rs1();
+                let rd = bf.rd();
+                let imm12 = bf.imm12();
                 Instruction::LHU(ITypeInst { rs1, rd, imm12 })
             }
             _ => Instruction::UNKNOWN,
         },
         0b0100011 => {
-            let rs1 = decode_rs1(word);
-            let rs2 = decode_rs2(word);
+            let rs1 = bf.rs1();
+            let rs2 = bf.rs2();
             let imm12 = decode_imm12_s_imm(word);
             match funct3 {
                 0x0 => Instruction::SB(STypeInst { rs1, rs2, imm12 }),
@@ -156,15 +125,15 @@ pub fn decode_instruction(word: u32) -> Instruction {
         }
         0b0010011 => match funct3 {
             0x0 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
+                let rs1 = bf.rs1();
+                let rd = bf.rd();
+                let imm12 = bf.imm12();
                 Instruction::ADDI(ITypeInst { rs1, rd, imm12 })
             }
             0x1 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let shamt = decode_shamt(word);
+                let rs1 = bf.rs1();
+                let rd = bf.rd();
+                let shamt = bf.shamt();
                 Instruction::SLLI(ITypeInst {
                     rs1,
                     rd,
@@ -173,28 +142,28 @@ pub fn decode_instruction(word: u32) -> Instruction {
             }
             _ => Instruction::UNKNOWN,
         },
-        0b1110011 => match decode_func12(word) {
+        0b1110011 => match bf.func12() {
             0x0 => Instruction::ECALL,
             0x1 => Instruction::EBREAK,
             _ => Instruction::UNKNOWN,
         },
         0b1101111 => {
-            let rd = decode_rd(word);
+            let rd = bf.rd();
             let imm20 = decode_imm20(word);
             Instruction::JAL(JTypeInst { rd, imm20 })
         }
         0b1100111 => match funct3 {
             0x0 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
+                let rs1 = bf.rs1();
+                let rd = bf.rd();
+                let imm12 = bf.imm12();
                 Instruction::JALR(ITypeInst { rs1, rd, imm12 })
             }
             _ => Instruction::UNKNOWN,
         },
         0b1100011 => {
-            let rs1 = decode_rs1(word);
-            let rs2 = decode_rs2(word);
+            let rs1 = bf.rs1();
+            let rs2 = bf.rs2();
             let imm12 = decode_imm12_b_imm(word);
 
             match funct3 {
