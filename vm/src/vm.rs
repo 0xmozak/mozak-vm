@@ -458,7 +458,10 @@ mod tests {
         assert_eq!(vm.state.get_register_value(rd), rs1_value | rs2_value);
     }
 
-    #[test_case(0x0ff36293, 5, 6, 0x55551111, 0xff; "ori r5, r6, 255")]
+    // Tests 2 cases:
+    //   1) x6 = 0x55551111, imm = 0xff (255), x5 = 0x555511ff
+    //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0xfffff911
+    #[test_case(0x0ff36293, 5, 6, 0x55551111, 255; "ori r5, r6, 255")]
     #[test_case(0x80036293, 5, 6, 0x55551111, -2048; "ori r5, r6, -2048")]
     fn ori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
         let _ = env_logger::try_init();
@@ -476,7 +479,9 @@ mod tests {
         assert_eq!(vm.state.get_register_value(rd), expected_value);
     }
 
-    // x6 = 0x55551111, imm = 0x800, x5 = 0x55551000
+    // Tests 2 cases:
+    //   1) x6 = 0x55551111, imm = 0xff (255), x5 = 0x555510000
+    //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0x00000011
     #[test_case(0x0ff37293, 5, 6, 0x55551111, 255; "andi r5, r6, 255")]
     #[test_case(0x80037293, 5, 6, 0x55551111, -2048; "andi r5, r6, -2048")]
     fn andi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
@@ -495,7 +500,9 @@ mod tests {
         assert_eq!(vm.state.get_register_value(rd), expected_value);
     }
 
-    // x6 = 0x55551111, imm = 0x800, x5 = 0x55551000
+    // Tests 2 cases:
+    //   1) x6 = 0x55551111, imm = 0xff (255), x5 = 0x555511ff
+    //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0xfffff911
     #[test_case(0x0ff34293, 5, 6, 0x55551111, 255; "xori r5, r6, 255")]
     #[test_case(0x80034293, 5, 6, 0x55551111, -2048; "xori r5, r6, -2048")]
     fn xori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
