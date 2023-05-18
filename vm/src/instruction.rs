@@ -43,6 +43,18 @@ pub struct BTypeInst {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct UTypeInst {
+    pub rd: u8,
+    /// 20 bit signed immediate offset
+    /// -524288 to 524287 which will be
+    /// placed in MSB, so shift by 12 bit
+    /// to create 32 bit.
+    /// so actual range is
+    /// -2147483648 to 2147479552
+    pub imm20: i32,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Instruction {
     ADD(RTypeInst),
     ADDI(ITypeInst),
@@ -61,6 +73,7 @@ pub enum Instruction {
     LBU(ITypeInst),
     LHU(ITypeInst),
     XOR(RTypeInst),
+    XORI(ITypeInst),
     JAL(JTypeInst),
     JALR(ITypeInst),
     BEQ(BTypeInst),
@@ -70,10 +83,14 @@ pub enum Instruction {
     BLTU(BTypeInst),
     BGEU(BTypeInst),
     AND(RTypeInst),
+    ANDI(ITypeInst),
     OR(RTypeInst),
+    ORI(ITypeInst),
     SW(STypeInst),
     SH(STypeInst),
     SB(STypeInst),
+    LUI(UTypeInst),
+    AUIPC(UTypeInst),
     ECALL,
     EBREAK,
     UNKNOWN,
