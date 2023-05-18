@@ -168,6 +168,11 @@ pub fn decode_instruction(word: u32) -> Instruction {
                     rd,
                     imm12: decode_shamt(word).into(),
                 }),
+                0x4 => Instruction::XORI(ITypeInst {
+                    rs1,
+                    rd,
+                    imm12: decode_imm12(word),
+                }),
                 0x6 => Instruction::ORI(ITypeInst {
                     rs1,
                     rd,
@@ -376,6 +381,13 @@ mod test {
     fn andi(word: u32, rd: u8, rs1: u8, imm12: i16) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::ANDI(ITypeInst { rs1, rd, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x8008c513, 10, 17, -2048; "xori r10, r17, -2048")]
+    fn xori(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::XORI(ITypeInst { rs1, rd, imm12 });
         assert_eq!(ins, match_ins);
     }
 

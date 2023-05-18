@@ -114,6 +114,13 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
+            Instruction::XORI(xori) => {
+                let rs1_value = self.state.get_register_value(xori.rs1.into());
+                let res = rs1_value as i64 ^ xori.imm12 as i64;
+                self.state.set_register_value(xori.rd.into(), res as u32);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
             Instruction::SUB(sub) => {
                 let res = self.state.get_register_value(sub.rs1.into())
                     - self.state.get_register_value(sub.rs2.into());
@@ -483,7 +490,26 @@ mod tests {
         });
 
         let expected_value = (rs1_value as i64 & imm12 as i64) as u32;
-        // ignore anything above 32-bits
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(vm.state.get_register_value(rd), expected_value);
+    }
+
+    // x6 = 0x55551111, imm = 0x800, x5 = 0x55551000
+    #[test_case(0x0ff34293, 5, 6, 0x55551111, 255; "xori r5, r6, 255")]
+    #[test_case(0x80034293, 5, 6, 0x55551111, -2048; "xori r5, r6, -2048")]
+    fn xori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction andi
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+
+        let expected_value = (rs1_value as i64 ^ imm12 as i64) as u32;
+        println!("exp: {:x}", expected_value);
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), expected_value);

@@ -59,6 +59,7 @@ pub enum Instruction {
     LBU(ITypeInst),
     LHU(ITypeInst),
     XOR(RTypeInst),
+    XORI(ITypeInst),
     JAL(JTypeInst),
     JALR(ITypeInst),
     BEQ(BTypeInst),
