@@ -516,7 +516,6 @@ mod tests {
         });
 
         let expected_value = (rs1_value as i32 ^ imm12 as i32) as u32;
-        println!("exp: {:x}", expected_value);
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), expected_value);
