@@ -184,6 +184,18 @@ pub fn decode_instruction(word: u32) -> Instruction {
                     imm12: shamt.into(),
                 })
             }
+            0x2 => {
+                let rs1 = decode_rs1(word);
+                let rd = decode_rd(word);
+                let imm12 = decode_imm12(word);
+                Instruction::SLTI(ITypeInst { rs1, rd, imm12 })
+            }
+            0x3 => {
+                let rs1 = decode_rs1(word);
+                let rd = decode_rd(word);
+                let imm12 = decode_imm12(word);
+                Instruction::SLTIU(ITypeInst { rs1, rd, imm12 })
+            }
             _ => Instruction::UNKNOWN,
         },
         0b111_0011 => match decode_func12(word) {
@@ -287,6 +299,20 @@ mod test {
     fn slt(word: u32, rd: u8, rs1: u8, rs2: u8) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::SLT(RTypeInst { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x0ff9_2293, 5, 18, 255; "slti r5, r18, 255")]
+    fn slti(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SLTI(ITypeInst { rs1, rd, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x0ff9_3293, 5, 18, 255; "sltiu r5, r18, 255")]
+    fn sltiu(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SLTIU(ITypeInst { rs1, rd, imm12 });
         assert_eq!(ins, match_ins);
     }
 

@@ -77,6 +77,21 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
+            Instruction::SLTI(slti) => {
+                let res =
+                    self.state.get_register_value_signed(slti.rs1.into()) < i32::from(slti.imm12);
+                self.state
+                    .set_register_value(slti.rd.into(), u32::from(res));
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::SLTIU(sltiu) => {
+                let res = self.state.get_register_value(sltiu.rs1.into()) < sltiu.imm12 as u32;
+                self.state
+                    .set_register_value(sltiu.rd.into(), u32::from(res));
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
             Instruction::AND(and) => {
                 let res = self.state.get_register_value(and.rs1.into())
                     & self.state.get_register_value(and.rs2.into());
@@ -491,6 +506,49 @@ mod tests {
         assert_eq!(
             vm.state.get_register_value(rd),
             u32::from(rs1_value < rs2_value)
+        );
+    }
+
+    #[test_case(0x8009_2293, 5, 6, 1, -2048; "slti r5, r6, -2048")]
+    #[test_case(0xfff3_2293, 5, 6, 1, -1; "slti r5, r6, -1")]
+    #[test_case(0x0009_2293, 5, 6, 1, 0; "slti r5, r6, 0")]
+    #[test_case(0x7ff3_2293, 5, 6, 1, 2047; "slti r5, r6, 2047")]
+    fn slti(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction slti
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        let rs1_value = rs1_value as i32;
+        assert_eq!(
+            vm.state.get_register_value(rd),
+            u32::from(rs1_value < i32::from(imm12))
+        );
+    }
+
+    #[test_case(0x8003_3293, 5, 6, 1, -2048; "sltiu r5, r6, -2048")]
+    #[test_case(0xfff3_3293, 5, 6, 1, -1; "sltiu r5, r6, -1")]
+    #[test_case(0x0003_3293, 5, 6, 1, 0; "sltiu r5, r6, 0")]
+    #[test_case(0x7ff3_3293, 5, 6, 1, 2047; "sltiu r5, r6, 2047")]
+    fn sltiu(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction sltiu
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(
+            vm.state.get_register_value(rd),
+            u32::from(rs1_value < imm12 as u32)
         );
     }
 
