@@ -86,7 +86,7 @@ impl Vm {
             }
             Instruction::ANDI(andi) => {
                 let rs1_value = self.state.get_register_value(andi.rs1.into());
-                let res = rs1_value as i32 & andi.imm12 as i32;
+                let res = rs1_value as i32 & i32::from(andi.imm12);
                 self.state.set_register_value(andi.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -115,14 +115,14 @@ impl Vm {
             }
             Instruction::ORI(ori) => {
                 let rs1_value: i64 = self.state.get_register_value(ori.rs1.into()).into();
-                let res = rs1_value as i32 | ori.imm12 as i32;
+                let res = rs1_value as i32 | i32::from(ori.imm12);
                 self.state.set_register_value(ori.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::XORI(xori) => {
                 let rs1_value = self.state.get_register_value(xori.rs1.into());
-                let res = rs1_value as i32 ^ xori.imm12 as i32;
+                let res = rs1_value as i32 ^ i32::from(xori.imm12);
                 self.state.set_register_value(xori.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -467,8 +467,8 @@ mod tests {
     // Tests 2 cases:
     //   1) x6 = 0x55551111, imm = 0xff (255), x5 = 0x555511ff
     //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0xfffff911
-    #[test_case(0x0ff36293, 5, 6, 0x55551111, 255; "ori r5, r6, 255")]
-    #[test_case(0x80036293, 5, 6, 0x55551111, -2048; "ori r5, r6, -2048")]
+    #[test_case(0x0ff3_6293, 5, 6, 0x5555_1111, 255; "ori r5, r6, 255")]
+    #[test_case(0x8003_6293, 5, 6, 0x5555_1111, -2048; "ori r5, r6, -2048")]
     fn ori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
@@ -479,7 +479,7 @@ mod tests {
             state.set_register_value(rs1, rs1_value);
         });
 
-        let expected_value = (rs1_value as i32 | imm12 as i32) as u32;
+        let expected_value = (rs1_value as i32 | i32::from(imm12)) as u32;
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), expected_value);
@@ -488,8 +488,8 @@ mod tests {
     // Tests 2 cases:
     //   1) x6 = 0x55551111, imm = 0xff (255), x5 = 0x555510000
     //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0x00000011
-    #[test_case(0x0ff37293, 5, 6, 0x55551111, 255; "andi r5, r6, 255")]
-    #[test_case(0x80037293, 5, 6, 0x55551111, -2048; "andi r5, r6, -2048")]
+    #[test_case(0x0ff3_7293, 5, 6, 0x5555_1111, 255; "andi r5, r6, 255")]
+    #[test_case(0x8003_7293, 5, 6, 0x5555_1111, -2048; "andi r5, r6, -2048")]
     fn andi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
@@ -500,7 +500,7 @@ mod tests {
             state.set_register_value(rs1, rs1_value);
         });
 
-        let expected_value = (rs1_value as i32 & imm12 as i32) as u32;
+        let expected_value = (rs1_value as i32 & i32::from(imm12)) as u32;
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), expected_value);
@@ -509,8 +509,8 @@ mod tests {
     // Tests 2 cases:
     //   1) x6 = 0x55551111, imm = 0xff (255), x5 = 0x555511ff
     //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0xfffff911
-    #[test_case(0x0ff34293, 5, 6, 0x55551111, 255; "xori r5, r6, 255")]
-    #[test_case(0x80034293, 5, 6, 0x55551111, -2048; "xori r5, r6, -2048")]
+    #[test_case(0x0ff3_4293, 5, 6, 0x5555_1111, 255; "xori r5, r6, 255")]
+    #[test_case(0x8003_4293, 5, 6, 0x5555_1111, -2048; "xori r5, r6, -2048")]
     fn xori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
@@ -521,7 +521,7 @@ mod tests {
             state.set_register_value(rs1, rs1_value);
         });
 
-        let expected_value = (rs1_value as i32 ^ imm12 as i32) as u32;
+        let expected_value = (rs1_value as i32 ^ i32::from(imm12)) as u32;
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), expected_value);

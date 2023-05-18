@@ -411,7 +411,7 @@ mod test {
         assert_eq!(ins, match_ins);
     }
 
-    #[test_case(0x0ff8e513, 10, 17, 0xff; "ori r10, r17, 255")]
+    #[test_case(0x0ff8_e513, 10, 17, 0xff; "ori r10, r17, 255")]
     fn ori(word: u32, rd: u8, rs1: u8, imm12: i16) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::ORI(ITypeInst { rs1, rd, imm12 });
