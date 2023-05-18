@@ -174,25 +174,38 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 _ => Instruction::UNKNOWN,
             }
         }
-        0b001_0011 => match funct3 {
-            0x0 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let imm12 = decode_imm12(word);
-                Instruction::ADDI(ITypeInst { rs1, rd, imm12 })
-            }
-            0x1 => {
-                let rs1 = decode_rs1(word);
-                let rd = decode_rd(word);
-                let shamt = decode_shamt(word);
-                Instruction::SLLI(ITypeInst {
+        0b001_0011 => {
+            let rs1 = decode_rs1(word);
+            let rd = decode_rd(word);
+            match funct3 {
+                0x0 => Instruction::ADDI(ITypeInst {
                     rs1,
                     rd,
-                    imm12: shamt.into(),
-                })
+                    imm12: decode_imm12(word),
+                }),
+                0x1 => Instruction::SLLI(ITypeInst {
+                    rs1,
+                    rd,
+                    imm12: decode_shamt(word).into(),
+                }),
+                0x4 => Instruction::XORI(ITypeInst {
+                    rs1,
+                    rd,
+                    imm12: decode_imm12(word),
+                }),
+                0x6 => Instruction::ORI(ITypeInst {
+                    rs1,
+                    rd,
+                    imm12: decode_imm12(word),
+                }),
+                0x7 => Instruction::ANDI(ITypeInst {
+                    rs1,
+                    rd,
+                    imm12: decode_imm12(word),
+                }),
+                _ => Instruction::UNKNOWN,
             }
-            _ => Instruction::UNKNOWN,
-        },
+        }
         0b111_0011 => match decode_func12(word) {
             0x0 => Instruction::ECALL,
             0x1 => Instruction::EBREAK,
@@ -394,10 +407,31 @@ mod test {
         assert_eq!(ins, match_ins);
     }
 
+    #[test_case(0x0ff8_f513, 10, 17, 0xff; "andi r10, r17, 255")]
+    fn andi(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::ANDI(ITypeInst { rs1, rd, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x8008_c513, 10, 17, -2048; "xori r10, r17, -2048")]
+    fn xori(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::XORI(ITypeInst { rs1, rd, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
     #[test_case(0x0128_e533, 10, 17, 18; "or r10, r17, r18")]
     fn or(word: u32, rd: u8, rs1: u8, rs2: u8) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::OR(RTypeInst { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x0ff8_e513, 10, 17, 0xff; "ori r10, r17, 255")]
+    fn ori(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::ORI(ITypeInst { rs1, rd, imm12 });
         assert_eq!(ins, match_ins);
     }
 
