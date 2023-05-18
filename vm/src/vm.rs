@@ -305,8 +305,8 @@ impl Vm {
                 Ok(())
             }
             Instruction::AUIPC(auipc) => {
-                let val = auipc.imm20 as i64;
-                let pc = self.state.get_pc() as i64;
+                let val = i64::from(auipc.imm20);
+                let pc = i64::from(self.state.get_pc());
                 let res = pc + val;
                 let res_u32 = res as u32;
                 self.state.set_register_value(auipc.rd.into(), res_u32);
@@ -929,14 +929,14 @@ mod tests {
         let mut image = BTreeMap::new();
         // at 0 address instruction lui
         // LUI x1, -524288
-        image.insert(0_u32, 0x800000b7);
+        image.insert(0_u32, 0x8000_00b7);
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |_state: &mut State| {});
         let res = vm.step();
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(1), 0x80000000);
-        assert_eq!(vm.state.get_register_value_signed(1), -2147483648);
+        assert_eq!(vm.state.get_register_value(1), 0x8000_0000);
+        assert_eq!(vm.state.get_register_value_signed(1), -2_147_483_648);
     }
 
     #[test]
@@ -944,16 +944,16 @@ mod tests {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address addi x0, x0, 0
-        image.insert(0_u32, 0x00000013);
+        image.insert(0_u32, 0x0000_0013);
         // at 4 address instruction auipc
         // auipc x1, -524288
-        image.insert(4_u32, 0x80000097);
+        image.insert(4_u32, 0x8000_0097);
         add_exit_syscall(8_u32, &mut image);
         let mut vm = create_vm(image, |_state: &mut State| {});
         let res = vm.step();
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(1), 0x80000004);
-        assert_eq!(vm.state.get_register_value_signed(1), -2147483644);
+        assert_eq!(vm.state.get_register_value(1), 0x8000_0004);
+        assert_eq!(vm.state.get_register_value_signed(1), -2_147_483_644);
     }
 }
