@@ -77,10 +77,32 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
+            Instruction::SLTI(slti) => {
+                let res =
+                    self.state.get_register_value_signed(slti.rs1.into()) < i32::from(slti.imm12);
+                self.state
+                    .set_register_value(slti.rd.into(), u32::from(res));
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::SLTIU(sltiu) => {
+                let res = self.state.get_register_value(sltiu.rs1.into()) < sltiu.imm12 as u32;
+                self.state
+                    .set_register_value(sltiu.rd.into(), u32::from(res));
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
             Instruction::AND(and) => {
                 let res = self.state.get_register_value(and.rs1.into())
                     & self.state.get_register_value(and.rs2.into());
                 self.state.set_register_value(and.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::ANDI(andi) => {
+                let rs1_value = self.state.get_register_value(andi.rs1.into());
+                let res = rs1_value as i32 & i32::from(andi.imm12);
+                self.state.set_register_value(andi.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
@@ -103,6 +125,20 @@ impl Vm {
                 // ignore anything above 32-bits
                 let res: u32 = (res & 0xffff_ffff) as u32;
                 self.state.set_register_value(addi.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::ORI(ori) => {
+                let rs1_value: i64 = self.state.get_register_value(ori.rs1.into()).into();
+                let res = rs1_value as i32 | i32::from(ori.imm12);
+                self.state.set_register_value(ori.rd.into(), res as u32);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::XORI(xori) => {
+                let rs1_value = self.state.get_register_value(xori.rs1.into());
+                let res = rs1_value as i32 ^ i32::from(xori.imm12);
+                self.state.set_register_value(xori.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
@@ -494,6 +530,69 @@ mod tests {
     }
 
     // Tests 2 cases:
+    //   1) x6 = 0x55551111, imm = 0xff (255), x5 = 0x555511ff
+    //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0xfffff911
+    #[test_case(0x0ff3_6293, 5, 6, 0x5555_1111, 255; "ori r5, r6, 255")]
+    #[test_case(0x8003_6293, 5, 6, 0x5555_1111, -2048; "ori r5, r6, -2048")]
+    fn ori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction ori
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+
+        let expected_value = (rs1_value as i32 | i32::from(imm12)) as u32;
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(vm.state.get_register_value(rd), expected_value);
+    }
+
+    // Tests 2 cases:
+    //   1) x6 = 0x55551111, imm = 0xff (255), x5 = 0x555510000
+    //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0x00000011
+    #[test_case(0x0ff3_7293, 5, 6, 0x5555_1111, 255; "andi r5, r6, 255")]
+    #[test_case(0x8003_7293, 5, 6, 0x5555_1111, -2048; "andi r5, r6, -2048")]
+    fn andi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction andi
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+
+        let expected_value = (rs1_value as i32 & i32::from(imm12)) as u32;
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(vm.state.get_register_value(rd), expected_value);
+    }
+
+    // Tests 2 cases:
+    //   1) x6 = 0x55551111, imm = 0xff (255), x5 = 0x555511ff
+    //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0xfffff911
+    #[test_case(0x0ff3_4293, 5, 6, 0x5555_1111, 255; "xori r5, r6, 255")]
+    #[test_case(0x8003_4293, 5, 6, 0x5555_1111, -2048; "xori r5, r6, -2048")]
+    fn xori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction andi
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+
+        let expected_value = (rs1_value as i32 ^ i32::from(imm12)) as u32;
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(vm.state.get_register_value(rd), expected_value);
+    }
+
+    // Tests 2 cases:
     //   1) rs2 overflow (0x1111 should only use lower 5 bits)
     //   2) rs1 underflow (0x87654321 >> 0x08 == 0xff876543)
     #[test_case(0x4073_52b3, 5, 6, 7, 7, 0x1111; "sra r5, r6, r7, only lower 5 bits rs2")]
@@ -541,6 +640,49 @@ mod tests {
         assert_eq!(
             vm.state.get_register_value(rd),
             u32::from(rs1_value < rs2_value)
+        );
+    }
+
+    #[test_case(0x8009_2293, 5, 6, 1, -2048; "slti r5, r6, -2048")]
+    #[test_case(0xfff3_2293, 5, 6, 1, -1; "slti r5, r6, -1")]
+    #[test_case(0x0009_2293, 5, 6, 1, 0; "slti r5, r6, 0")]
+    #[test_case(0x7ff3_2293, 5, 6, 1, 2047; "slti r5, r6, 2047")]
+    fn slti(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction slti
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        let rs1_value = rs1_value as i32;
+        assert_eq!(
+            vm.state.get_register_value(rd),
+            u32::from(rs1_value < i32::from(imm12))
+        );
+    }
+
+    #[test_case(0x8003_3293, 5, 6, 1, -2048; "sltiu r5, r6, -2048")]
+    #[test_case(0xfff3_3293, 5, 6, 1, -1; "sltiu r5, r6, -1")]
+    #[test_case(0x0003_3293, 5, 6, 1, 0; "sltiu r5, r6, 0")]
+    #[test_case(0x7ff3_3293, 5, 6, 1, 2047; "sltiu r5, r6, 2047")]
+    fn sltiu(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction sltiu
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(
+            vm.state.get_register_value(rd),
+            u32::from(rs1_value < imm12 as u32)
         );
     }
 
