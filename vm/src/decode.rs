@@ -115,13 +115,15 @@ pub fn decode_instruction(word: u32) -> Instruction {
     let rs2 = decode_rs2(word);
     let rd = decode_rd(word);
     let imm12 = decode_imm12(word);
+    let imm12_b_imm = decode_imm12_b_imm(word);
+    let imm12_s_imm = decode_imm12_s_imm(word);
     let imm20 = decode_imm20(word);
 
-    let stype = STypeInst { rs1, rs2, imm12 };
+    let stype = STypeInst { rs1, rs2, imm12: imm12_s_imm };
     let rtype = RTypeInst { rs1, rs2, rd };
     let itype = ITypeInst { rs1, rd, imm12 };
     let jtype = JTypeInst { rd, imm20 };
-    let btype = BTypeInst { rs1, rs2, imm12 };
+    let btype = BTypeInst { rs1, rs2, imm12: imm12_b_imm };
     let utype = UTypeInst {
         rd,
         imm20: decode_imm20_u_imm(word),
