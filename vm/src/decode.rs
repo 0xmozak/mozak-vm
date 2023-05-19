@@ -106,11 +106,6 @@ pub fn decode_shamt(word: u32) -> u8 {
 }
 
 #[must_use]
-pub fn decode_shtyp(word: u32) -> u8 {
-    ((word & 0xfe00_0000) >> 25) as u8
-}
-
-#[must_use]
 pub fn decode_instruction(word: u32) -> Instruction {
     let opcode = decode_op(word);
     let funct3 = decode_func3(word);
@@ -208,8 +203,8 @@ pub fn decode_instruction(word: u32) -> Instruction {
                     // Masks the first 7 bits in a word to differentiate between an
                     // SRAI/SRLI instruction. They have the same funct3 value and are
                     // differentiated by their 30th bit, for which SRAI = 1 and SRLI = 0.
-                    match decode_shtyp(word) {
-                        0x20 => Instruction::SRAI(ITypeInst { rs1, rd, imm12 }),
+                    match word & 0xfe00_0000 {
+                        0x4000_0000 => Instruction::SRAI(ITypeInst { rs1, rd, imm12 }),
                         0 => Instruction::SRLI(ITypeInst { rs1, rd, imm12 }),
                         _ => Instruction::UNKNOWN,
                     }
