@@ -78,11 +78,6 @@ bitfield! {
 }
 
 #[must_use]
-pub fn decode_shamt(word: u32) -> u8 {
-    ((word & 0x01f0_0000) >> 20) as u8
-}
-
-#[must_use]
 pub fn decode_instruction(word: u32) -> Instruction {
     let bf = InstructionBits(word);
 
@@ -148,7 +143,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
             0x1 => Instruction::SLLI(ITypeInst {
                 rs1,
                 rd,
-                imm12: decode_shamt(word).into(),
+                imm12: bf.shamt().into(),
             }),
             0x4 => Instruction::XORI(itype),
             0x6 => Instruction::ORI(itype),
