@@ -1130,7 +1130,7 @@ mod tests {
         image.insert(0_u32, 0x0273_02b3);
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(6_usize, 0x2000_0000 /* == 2^30 */);
+            state.set_register_value(6_usize, 0x4000_0000 /* == 2^30 */);
             state.set_register_value(7_usize, 0xFFFF_FFFE /* == -2 */);
         });
         let res = vm.step();
@@ -1138,7 +1138,7 @@ mod tests {
         assert!(vm.state.has_halted());
         assert_eq!(
             vm.state.get_register_value(5_usize),
-            0xC000_0000 // -2^31
+            0x8000_0000 // -2^31
         );
     }
 
@@ -1152,7 +1152,7 @@ mod tests {
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |state: &mut State| {
             state.set_register_value(6_usize, 0xFFFF_FFFE /* == -2 */);
-            state.set_register_value(7_usize, 0x4000_0000 /* == 2^31 */);
+            state.set_register_value(7_usize, 0x4000_0000 /* == 2^30 */);
         });
         let res = vm.step();
         assert!(res.is_ok());
@@ -1170,7 +1170,7 @@ mod tests {
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |state: &mut State| {
             state.set_register_value(6_usize, 0x0000_0002 /* == 2 */);
-            state.set_register_value(7_usize, 0x8000_0000 /* == 2^32 */);
+            state.set_register_value(7_usize, 0x8000_0000 /* == 2^31 */);
         });
         let res = vm.step();
         assert!(res.is_ok());
