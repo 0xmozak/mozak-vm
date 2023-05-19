@@ -111,21 +111,6 @@ pub enum ShiftType {
     Unsupported,
 }
 
-/// Decodes the first 7 bits in a word to determine the shift type in a
-/// an Integer Register Immediate Instruction, specifically SRAI/SRLI.
-///
-/// SRAI/SRLI instructions have the same funct3 value and are differentiated
-/// by their 30th bit, for which SRAI = 1 and SRLI = 0. The rest of the 7-bit
-/// imm should be 0s.
-#[must_use]
-pub fn decode_shtyp(word: u32) -> ShiftType {
-    match word & 0xfe00_0000 {
-        0x4000_0000 => ShiftType::SRAI,
-        0 => ShiftType::SRLI,
-        _ => ShiftType::Unsupported,
-    }
-}
-
 #[must_use]
 pub fn decode_instruction(word: u32) -> Instruction {
     let opcode = decode_op(word);
@@ -209,10 +194,13 @@ pub fn decode_instruction(word: u32) -> Instruction {
                     let rd = decode_rd(word);
                     let imm12 = decode_shamt(word).into();
 
-                    match decode_shtyp(word) {
-                        ShiftType::SRAI => Instruction::SRAI(ITypeInst { rs1, rd, imm12 }),
-                        ShiftType::SRLI => Instruction::SRLI(ITypeInst { rs1, rd, imm12 }),
-                        ShiftType::Unsupported => Instruction::UNKNOWN,
+                    // Masks the first 7 bits in a word to differentiate between an
+                    // SRAI/SRLI instruction. They have the same funct3 value and are
+                    // differentiated by their 30th bit, for which SRAI = 1 and SRLI = 0.
+                    match word & 0xfe00_0000 {
+                        0x4000_0000 => Instruction::SRAI(ITypeInst { rs1, rd, imm12 }),
+                        0 => Instruction::SRLI(ITypeInst { rs1, rd, imm12 }),
+                        _ => Instruction::UNKNOWN,
                     }
                 }
                 _ => Instruction::UNKNOWN,
