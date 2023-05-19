@@ -350,33 +350,62 @@ impl Vm {
                 Ok(())
             }
             Instruction::DIV(div) => {
-                let rs1 = self.state.get_register_value_signed(div.rs1.into());
-                let rs2 = self.state.get_register_value_signed(div.rs2.into());
-                let res = rs1 / rs2;
-                self.state.set_register_value(div.rd.into(), res as u32);
+                let dividend = self.state.get_register_value_signed(div.rs1.into());
+                let divisor = self.state.get_register_value_signed(div.rs2.into());
+                let res = if divisor == 0 {
+                    // division by zero
+                    0xFFFF_FFFF
+                } else if divisor == -1
+                    && self.state.get_register_value(div.rs1.into()) == 0x8000_0000
+                {
+                    // overflow when -2^31 / -1
+                    0x8000_0000
+                } else {
+                    (dividend / divisor) as u32
+                };
+                self.state.set_register_value(div.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::DIVU(divu) => {
-                let rs1 = self.state.get_register_value(divu.rs1.into());
-                let rs2 = self.state.get_register_value(divu.rs2.into());
-                let res = rs1 / rs2;
+                let dividend = self.state.get_register_value(divu.rs1.into());
+                let divisor = self.state.get_register_value(divu.rs2.into());
+                let res = if divisor == 0 {
+                    // division by zero
+                    0xFFFF_FFFF
+                } else {
+                    dividend / divisor
+                };
                 self.state.set_register_value(divu.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::REM(rem) => {
-                let rs1 = self.state.get_register_value_signed(rem.rs1.into());
-                let rs2 = self.state.get_register_value_signed(rem.rs2.into());
-                let res = rs1 % rs2;
-                self.state.set_register_value(rem.rd.into(), res as u32);
+                let dividend = self.state.get_register_value_signed(rem.rs1.into());
+                let divisor = self.state.get_register_value_signed(rem.rs2.into());
+                let res = if divisor == 0 {
+                    // division by zero
+                    dividend as u32
+                } else if divisor == -1
+                    && self.state.get_register_value(rem.rs1.into()) == 0x8000_0000
+                {
+                    // overflow when -2^31 / -1
+                    0x0000_0000
+                } else {
+                    (dividend % divisor) as u32
+                };
+                self.state.set_register_value(rem.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::REMU(remu) => {
-                let rs1 = self.state.get_register_value(remu.rs1.into());
-                let rs2 = self.state.get_register_value(remu.rs2.into());
-                let res = rs1 % rs2;
+                let dividend = self.state.get_register_value(remu.rs1.into());
+                let divisor = self.state.get_register_value(remu.rs2.into());
+                let res = if divisor == 0 {
+                    dividend
+                } else {
+                    dividend % divisor
+                };
                 self.state.set_register_value(remu.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
