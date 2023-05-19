@@ -105,12 +105,6 @@ pub fn decode_shamt(word: u32) -> u8 {
     ((word & 0x01f0_0000) >> 20) as u8
 }
 
-pub enum ShiftType {
-    SRAI,
-    SRLI,
-    Unsupported,
-}
-
 #[must_use]
 pub fn decode_instruction(word: u32) -> Instruction {
     let opcode = decode_op(word);
