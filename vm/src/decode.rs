@@ -119,64 +119,64 @@ pub fn decode_instruction(word: u32) -> Instruction {
     let imm12_s_imm = decode_imm12_s_imm(word);
     let imm20 = decode_imm20(word);
 
-    let stype = STypeInst { rs1, rs2, imm12: imm12_s_imm };
+    let stype = STypeInst {
+        rs1,
+        rs2,
+        imm12: imm12_s_imm,
+    };
     let rtype = RTypeInst { rs1, rs2, rd };
     let itype = ITypeInst { rs1, rd, imm12 };
     let jtype = JTypeInst { rd, imm20 };
-    let btype = BTypeInst { rs1, rs2, imm12: imm12_b_imm };
+    let btype = BTypeInst {
+        rs1,
+        rs2,
+        imm12: imm12_b_imm,
+    };
     let utype = UTypeInst {
         rd,
         imm20: decode_imm20_u_imm(word),
     };
 
     match opcode {
-        0b011_0011 => {
-            match (funct3, funct7) {
-                (0x0, 0x00) => Instruction::ADD(rtype),
-                (0x0, 0x20) => Instruction::SUB(rtype),
-                (0x1, 0x00) => Instruction::SLL(rtype),
-                (0x2, 0x00) => Instruction::SLT(rtype),
-                (0x3, 0x00) => Instruction::SLTU(rtype),
-                (0x4, 0x00) => Instruction::XOR(rtype),
-                (0x5, 0x00) => Instruction::SRL(rtype),
-                (0x5, 0x20) => Instruction::SRA(rtype),
-                (0x6, 0x00) => Instruction::OR(rtype),
-                (0x7, 0x00) => Instruction::AND(rtype),
-                _ => Instruction::UNKNOWN,
-            }
-        }
-        0b000_0011 => {
-            match funct3 {
-                0x0 => Instruction::LB(itype),
-                0x1 => Instruction::LH(itype),
-                0x2 => Instruction::LW(itype),
-                0x4 => Instruction::LBU(itype),
-                0x5 => Instruction::LHU(itype),
-                _ => Instruction::UNKNOWN,
-            }
-        }
-        0b010_0011 => {
-            match funct3 {
-                0x0 => Instruction::SB(stype),
-                0x1 => Instruction::SH(stype),
-                0x2 => Instruction::SW(stype),
-                _ => Instruction::UNKNOWN,
-            }
-        }
-        0b001_0011 => {
-            match funct3 {
-                0x0 => Instruction::ADDI(itype),
-                0x1 => Instruction::SLLI(ITypeInst {
-                    rs1,
-                    rd,
-                    imm12: decode_shamt(word).into(),
-                }),
-                0x4 => Instruction::XORI(itype),
-                0x6 => Instruction::ORI(itype),
-                0x7 => Instruction::ANDI(itype),
-                _ => Instruction::UNKNOWN,
-            }
-        }
+        0b011_0011 => match (funct3, funct7) {
+            (0x0, 0x00) => Instruction::ADD(rtype),
+            (0x0, 0x20) => Instruction::SUB(rtype),
+            (0x1, 0x00) => Instruction::SLL(rtype),
+            (0x2, 0x00) => Instruction::SLT(rtype),
+            (0x3, 0x00) => Instruction::SLTU(rtype),
+            (0x4, 0x00) => Instruction::XOR(rtype),
+            (0x5, 0x00) => Instruction::SRL(rtype),
+            (0x5, 0x20) => Instruction::SRA(rtype),
+            (0x6, 0x00) => Instruction::OR(rtype),
+            (0x7, 0x00) => Instruction::AND(rtype),
+            _ => Instruction::UNKNOWN,
+        },
+        0b000_0011 => match funct3 {
+            0x0 => Instruction::LB(itype),
+            0x1 => Instruction::LH(itype),
+            0x2 => Instruction::LW(itype),
+            0x4 => Instruction::LBU(itype),
+            0x5 => Instruction::LHU(itype),
+            _ => Instruction::UNKNOWN,
+        },
+        0b010_0011 => match funct3 {
+            0x0 => Instruction::SB(stype),
+            0x1 => Instruction::SH(stype),
+            0x2 => Instruction::SW(stype),
+            _ => Instruction::UNKNOWN,
+        },
+        0b001_0011 => match funct3 {
+            0x0 => Instruction::ADDI(itype),
+            0x1 => Instruction::SLLI(ITypeInst {
+                rs1,
+                rd,
+                imm12: decode_shamt(word).into(),
+            }),
+            0x4 => Instruction::XORI(itype),
+            0x6 => Instruction::ORI(itype),
+            0x7 => Instruction::ANDI(itype),
+            _ => Instruction::UNKNOWN,
+        },
         0b111_0011 => match decode_func12(word) {
             0x0 => Instruction::ECALL,
             0x1 => Instruction::EBREAK,
@@ -187,17 +187,15 @@ pub fn decode_instruction(word: u32) -> Instruction {
             0x0 => Instruction::JALR(itype),
             _ => Instruction::UNKNOWN,
         },
-        0b110_0011 => {
-            match funct3 {
-                0x0 => Instruction::BEQ(btype),
-                0x1 => Instruction::BNE(btype),
-                0x4 => Instruction::BLT(btype),
-                0x5 => Instruction::BGE(btype),
-                0x6 => Instruction::BLTU(btype),
-                0x7 => Instruction::BGEU(btype),
-                _ => Instruction::UNKNOWN,
-            }
-        }
+        0b110_0011 => match funct3 {
+            0x0 => Instruction::BEQ(btype),
+            0x1 => Instruction::BNE(btype),
+            0x4 => Instruction::BLT(btype),
+            0x5 => Instruction::BGE(btype),
+            0x6 => Instruction::BLTU(btype),
+            0x7 => Instruction::BGEU(btype),
+            _ => Instruction::UNKNOWN,
+        },
         0b011_0111 => Instruction::LUI(utype),
         0b001_0111 => Instruction::AUIPC(utype),
         _ => Instruction::UNKNOWN,
