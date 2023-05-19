@@ -16,6 +16,10 @@ pub struct Program {
 
 impl Program {
     /// Initialize a RISC Program from an appropriate ELF file
+    ///
+    /// # Errors
+    /// Will return `Err` if the ELF file is invalid or if the entrypoint is
+    /// invalid.
     pub fn load_elf(input: &[u8], max_mem: u32) -> Result<Program> {
         let mut image: BTreeMap<u32, u32> = BTreeMap::new();
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
@@ -55,7 +59,7 @@ impl Program {
                     let len = std::cmp::min(file_size - i, 4);
                     for j in 0..len {
                         let offset = (offset + i + j) as usize;
-                        let byte = input[offset] as u32;
+                        let byte = u32::from(input[offset]);
                         word |= byte << (j * 8);
                     }
                     image.insert(addr, word);
