@@ -118,6 +118,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
     let imm12_b_imm = decode_imm12_b_imm(word);
     let imm12_s_imm = decode_imm12_s_imm(word);
     let imm20 = decode_imm20(word);
+    let imm20_u_imm = decode_imm20_u_imm(word);
 
     let stype = STypeInst {
         rs1,
@@ -134,7 +135,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
     };
     let utype = UTypeInst {
         rd,
-        imm20: decode_imm20_u_imm(word),
+        imm20: imm20_u_imm,
     };
 
     match opcode {
