@@ -85,39 +85,38 @@ pub fn decode_shamt(word: u32) -> u8 {
 #[must_use]
 pub fn decode_instruction(word: u32) -> Instruction {
     let bf = InstructionBits(word);
-    let opcode = bf.opcode();
-    let funct3 = bf.func3();
-    let funct7 = bf.func7();
 
     let rs1 = bf.rs1();
     let rs2 = bf.rs2();
     let rd = bf.rd();
-    let imm12 = decode_imm12(word);
-    let imm12_b_imm = decode_imm12_b_imm(word);
-    let imm12_s_imm = decode_imm12_s_imm(word);
-    let imm20 = decode_imm20(word);
-    let imm20_u_imm = decode_imm20_u_imm(word);
 
     let stype = STypeInst {
         rs1,
         rs2,
-        imm12: imm12_s_imm,
+        imm12: decode_imm12_s_imm(word),
     };
     let rtype = RTypeInst { rs1, rs2, rd };
-    let itype = ITypeInst { rs1, rd, imm12 };
-    let jtype = JTypeInst { rd, imm20 };
+    let itype = ITypeInst {
+        rs1,
+        rd,
+        imm12: decode_imm12(word),
+    };
+    let jtype = JTypeInst {
+        rd,
+        imm20: decode_imm20(word),
+    };
     let btype = BTypeInst {
         rs1,
         rs2,
-        imm12: imm12_b_imm,
+        imm12: decode_imm12_b_imm(word),
     };
     let utype = UTypeInst {
         rd,
-        imm20: imm20_u_imm,
+        imm20: decode_imm20_u_imm(word),
     };
 
-    match opcode {
-        0b011_0011 => match (funct3, funct7) {
+    match bf.opcode() {
+        0b011_0011 => match (bf.func3(), bf.func7()) {
             (0x0, 0x00) => Instruction::ADD(rtype),
             (0x0, 0x20) => Instruction::SUB(rtype),
             (0x1, 0x00) => Instruction::SLL(rtype),
@@ -130,7 +129,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
             (0x7, 0x00) => Instruction::AND(rtype),
             _ => Instruction::UNKNOWN,
         },
-        0b000_0011 => match funct3 {
+        0b000_0011 => match bf.func3() {
             0x0 => Instruction::LB(itype),
             0x1 => Instruction::LH(itype),
             0x2 => Instruction::LW(itype),
@@ -138,13 +137,13 @@ pub fn decode_instruction(word: u32) -> Instruction {
             0x5 => Instruction::LHU(itype),
             _ => Instruction::UNKNOWN,
         },
-        0b010_0011 => match funct3 {
+        0b010_0011 => match bf.func3() {
             0x0 => Instruction::SB(stype),
             0x1 => Instruction::SH(stype),
             0x2 => Instruction::SW(stype),
             _ => Instruction::UNKNOWN,
         },
-        0b001_0011 => match funct3 {
+        0b001_0011 => match bf.func3() {
             0x0 => Instruction::ADDI(itype),
             0x1 => Instruction::SLLI(ITypeInst {
                 rs1,
@@ -162,11 +161,11 @@ pub fn decode_instruction(word: u32) -> Instruction {
             _ => Instruction::UNKNOWN,
         },
         0b110_1111 => Instruction::JAL(jtype),
-        0b110_0111 => match funct3 {
+        0b110_0111 => match bf.func3() {
             0x0 => Instruction::JALR(itype),
             _ => Instruction::UNKNOWN,
         },
-        0b110_0011 => match funct3 {
+        0b110_0011 => match bf.func3() {
             0x0 => Instruction::BEQ(btype),
             0x1 => Instruction::BNE(btype),
             0x4 => Instruction::BLT(btype),
