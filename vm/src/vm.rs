@@ -398,20 +398,19 @@ impl Vm {
                 Ok(())
             }
             Instruction::DIV(div) => {
-                let dividend = self.state.get_register_value_signed(div.rs1.into());
-                let divisor = self.state.get_register_value_signed(div.rs2.into());
-                let res = if divisor == 0 {
-                    // division by zero
-                    0xFFFF_FFFF
-                } else if divisor == -1
-                    && self.state.get_register_value(div.rs1.into()) == 0x8000_0000
-                {
-                    // overflow when -2^31 / -1
-                    0x8000_0000
-                } else {
-                    (dividend / divisor) as u32
-                };
-                self.state.set_register_value(div.rd.into(), res);
+                self.state.set_register_value(
+                    div.rd.into(),
+                    match (
+                        self.state.get_register_value_signed(div.rs1.into()),
+                        self.state.get_register_value_signed(div.rs2.into()),
+                    ) {
+                        // division by zero
+                        (_, 0) => 0xFFFF_FFFF,
+                        // overflow when -2^31 / -1
+                        (-0x8000_0000, -1) => 0x8000_0000,
+                        (dividend, divisor) => (dividend / divisor) as u32,
+                    },
+                );
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
