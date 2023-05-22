@@ -398,11 +398,15 @@ impl Vm {
                 Ok(())
             }
             Instruction::DIV(div) => {
-                let p = self.state.get_register_value_signed(div.rs1.into());
-                let q = self.state.get_register_value_signed(div.rs2.into());
                 self.state.set_register_value(
                     div.rd.into(),
-                    p.checked_div(q).unwrap_or(-0x8000_0000) as u32,
+                    match (
+                        self.state.get_register_value_signed(div.rs1.into()),
+                        self.state.get_register_value_signed(div.rs2.into()),
+                    ) {
+                        (_, 0) => 0xffff_ffff,
+                        (p, q) => p.overflowing_div(q).0 as u32,
+                    },
                 );
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
