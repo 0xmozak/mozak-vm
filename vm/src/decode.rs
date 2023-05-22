@@ -127,6 +127,10 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 (0x5, 0x20) => Instruction::SRA(RTypeInst { rs1, rs2, rd }),
                 (0x6, 0x00) => Instruction::OR(RTypeInst { rs1, rs2, rd }),
                 (0x7, 0x00) => Instruction::AND(RTypeInst { rs1, rs2, rd }),
+                (0x0, 0x01) => Instruction::MUL(RTypeInst { rs1, rs2, rd }),
+                (0x1, 0x01) => Instruction::MULH(RTypeInst { rs1, rs2, rd }),
+                (0x2, 0x01) => Instruction::MULHSU(RTypeInst { rs1, rs2, rd }),
+                (0x3, 0x01) => Instruction::MULHU(RTypeInst { rs1, rs2, rd }),
                 _ => Instruction::UNKNOWN,
             }
         }
@@ -490,6 +494,34 @@ mod test {
     fn sw(word: u32, rs1: u8, rs2: u8, imm12: i16) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::SW(STypeInst { rs1, rs2, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x0328_8533, 10, 17, 18; "mul r10, r17, r18")]
+    fn mul(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::MUL(RTypeInst { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x0328_9533, 10, 17, 18; "mulh r10, r17, r18")]
+    fn mulh(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::MULH(RTypeInst { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x0328_a533, 10, 17, 18; "mulhsu r10, r17, r18")]
+    fn mulhsu(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::MULHSU(RTypeInst { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x0328_b533, 10, 17, 18; "mulhu r10, r17, r18")]
+    fn mulhu(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::MULHU(RTypeInst { rs1, rs2, rd });
         assert_eq!(ins, match_ins);
     }
 
