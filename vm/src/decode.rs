@@ -127,6 +127,10 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 (0x5, 0x20) => Instruction::SRA(RTypeInst { rs1, rs2, rd }),
                 (0x6, 0x00) => Instruction::OR(RTypeInst { rs1, rs2, rd }),
                 (0x7, 0x00) => Instruction::AND(RTypeInst { rs1, rs2, rd }),
+                (0x4, 0x01) => Instruction::DIV(RTypeInst { rs1, rs2, rd }),
+                (0x5, 0x01) => Instruction::DIVU(RTypeInst { rs1, rs2, rd }),
+                (0x6, 0x01) => Instruction::REM(RTypeInst { rs1, rs2, rd }),
+                (0x7, 0x01) => Instruction::REMU(RTypeInst { rs1, rs2, rd }),
                 (0x0, 0x01) => Instruction::MUL(RTypeInst { rs1, rs2, rd }),
                 (0x1, 0x01) => Instruction::MULH(RTypeInst { rs1, rs2, rd }),
                 (0x2, 0x01) => Instruction::MULHSU(RTypeInst { rs1, rs2, rd }),
@@ -578,6 +582,34 @@ mod test {
     fn auipc(word: u32, rd: u8, imm20: i32) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::AUIPC(UTypeInst { rd, imm20 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x0328_c533, 10, 17, 18; "div r10, r17, r18")]
+    fn div(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::DIV(RTypeInst { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x0328_d533, 10, 17, 18; "divu r10, r17, r18")]
+    fn divu(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::DIVU(RTypeInst { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x0328_e533, 10, 17, 18; "rem r10, r17, r18")]
+    fn rem(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::REM(RTypeInst { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x0328_f533, 10, 17, 18; "remu r10, r17, r18")]
+    fn remu(word: u32, rd: u8, rs1: u8, rs2: u8) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::REMU(RTypeInst { rs1, rs2, rd });
         assert_eq!(ins, match_ins);
     }
 }
