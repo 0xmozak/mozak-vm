@@ -408,10 +408,15 @@ impl Vm {
                 Ok(())
             }
             Instruction::DIVU(divu) => {
-                let p = self.state.get_register_value(divu.rs1.into());
-                let q = self.state.get_register_value(divu.rs2.into());
-                self.state
-                    .set_register_value(divu.rd.into(), p.checked_div(q).unwrap_or(0xFFFF_FFFF));
+                let dividend = self.state.get_register_value(divu.rs1.into());
+                let divisor = self.state.get_register_value(divu.rs2.into());
+                let res = if divisor == 0 {
+                    // division by zero
+                    0xFFFF_FFFF
+                } else {
+                    dividend / divisor
+                };
+                self.state.set_register_value(divu.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
