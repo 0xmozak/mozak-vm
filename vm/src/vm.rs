@@ -404,11 +404,8 @@ impl Vm {
                         self.state.get_register_value_signed(div.rs1.into()),
                         self.state.get_register_value_signed(div.rs2.into()),
                     ) {
-                        // division by zero
                         (_, 0) => 0xFFFF_FFFF,
-                        // overflow when -2^31 / -1
-                        (-0x8000_0000, -1) => 0x8000_0000,
-                        (dividend, divisor) => (dividend / divisor) as u32,
+                        (p, q) => p.overflowing_div(q).0 as u32,
                     },
                 );
                 self.state.set_pc(self.state.get_pc() + 4);
