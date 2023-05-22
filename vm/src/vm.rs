@@ -404,53 +404,59 @@ impl Vm {
                         self.state.get_register_value_signed(div.rs1.into()),
                         self.state.get_register_value_signed(div.rs2.into()),
                     ) {
-                        (_, 0) => 0xffff_ffff,
-                        (p, q) => p.overflowing_div(q).0 as u32,
+                        // division by zero
+                        (_dividend, 0) => 0xFFFF_FFFF,
+                        // overflow when -2^31 / -1
+                        (dividend, divisor) => dividend.overflowing_div(divisor).0 as u32,
                     },
                 );
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::DIVU(divu) => {
-                let dividend = self.state.get_register_value(divu.rs1.into());
-                let divisor = self.state.get_register_value(divu.rs2.into());
-                let res = if divisor == 0 {
-                    // division by zero
-                    0xFFFF_FFFF
-                } else {
-                    dividend / divisor
-                };
-                self.state.set_register_value(divu.rd.into(), res);
+                self.state.set_register_value(
+                    divu.rd.into(),
+                    match (
+                        self.state.get_register_value(divu.rs1.into()),
+                        self.state.get_register_value(divu.rs2.into()),
+                    ) {
+                        // division by zero
+                        (_dividend, 0) => 0xFFFF_FFFF,
+                        (dividend, divisor) => dividend / divisor,
+                    },
+                );
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::REM(rem) => {
-                let dividend = self.state.get_register_value_signed(rem.rs1.into());
-                let divisor = self.state.get_register_value_signed(rem.rs2.into());
-                let res = if divisor == 0 {
-                    // division by zero
-                    dividend as u32
-                } else if divisor == -1
-                    && self.state.get_register_value(rem.rs1.into()) == 0x8000_0000
-                {
-                    // overflow when -2^31 / -1
-                    0x0000_0000
-                } else {
-                    (dividend % divisor) as u32
-                };
-                self.state.set_register_value(rem.rd.into(), res);
+                self.state.set_register_value(
+                    rem.rd.into(),
+                    match (
+                        self.state.get_register_value_signed(rem.rs1.into()),
+                        self.state.get_register_value_signed(rem.rs2.into()),
+                    ) {
+                        // division by zero
+                        (dividend, 0) => dividend as u32,
+                        // overflow when -2^31 / -1
+                        (-0x8000_0000, -1) => 0,
+                        (dividend, divisor) => (dividend % divisor) as u32,
+                    },
+                );
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::REMU(remu) => {
-                let dividend = self.state.get_register_value(remu.rs1.into());
-                let divisor = self.state.get_register_value(remu.rs2.into());
-                let res = if divisor == 0 {
-                    dividend
-                } else {
-                    dividend % divisor
-                };
-                self.state.set_register_value(remu.rd.into(), res);
+                self.state.set_register_value(
+                    remu.rd.into(),
+                    match (
+                        self.state.get_register_value(remu.rs1.into()),
+                        self.state.get_register_value(remu.rs2.into()),
+                    ) {
+                        // division by zero
+                        (dividend, 0) => dividend,
+                        (dividend, divisor) => dividend % divisor,
+                    },
+                );
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
@@ -1318,8 +1324,10 @@ mod tests {
         assert_eq!(vm.state.get_register_value_signed(1), -2_147_483_644);
     }
 
-    #[test]
-    fn div() {
+    #[test_case(0x4000_0000 /*2^30*/, 0xFFFF_FFFE /*-2*/, 0xE000_0000 /*-2^29*/; "simple")]
+    #[test_case(0x4000_0000, 0x0000_0000, 0xFFFF_FFFF; "div_by_zero")]
+    #[test_case(0x8000_0000 /*-2^31*/, 0xFFFF_FFFF /*-1*/, 0x8000_0000; "overflow")]
+    fn div(rs1_value: u32, rs2_value: u32, rd_value: u32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction DIV
@@ -1327,20 +1335,21 @@ mod tests {
         image.insert(0_u32, 0x0273_42b3);
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(6_usize, 0x4000_0000 /* == 2^30 */);
-            state.set_register_value(7_usize, 0xFFFF_FFFE /* == -2 */);
+            state.set_register_value(6_usize, rs1_value /* == 2^30 */);
+            state.set_register_value(7_usize, rs2_value /* == -2 */);
         });
         let res = vm.step();
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
         assert_eq!(
             vm.state.get_register_value(5_usize),
-            0xE000_0000 // -2^29
+            rd_value // -2^29
         );
     }
 
-    #[test]
-    fn divu() {
+    #[test_case(0x8000_0000 /*2^31*/, 0x0000_0002 /*2*/, 0x4000_0000 /*2^30*/; "simple")]
+    #[test_case(0x4000_0000, 0x0000_0000, 0xFFFF_FFFF; "div_by_zero")]
+    fn divu(rs1_value: u32, rs2_value: u32, rd_value: u32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction DIVU
@@ -1348,20 +1357,19 @@ mod tests {
         image.insert(0_u32, 0x0273_52b3);
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(6_usize, 0x8000_0000 /* == 2^31 */);
-            state.set_register_value(7_usize, 0x000_0002 /* == 2 */);
+            state.set_register_value(6_usize, rs1_value);
+            state.set_register_value(7_usize, rs2_value);
         });
         let res = vm.step();
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
-        assert_eq!(
-            vm.state.get_register_value(5_usize),
-            0x4000_0000 // 2^30
-        );
+        assert_eq!(vm.state.get_register_value(5_usize), rd_value);
     }
 
-    #[test]
-    fn rem() {
+    #[test_case(0xBFFF_FFFD /*-2^31 - 3*/, 0x0000_0002 /*2*/, 0xFFFF_FFFF /*-1*/; "simple")]
+    #[test_case(0x4000_0000, 0x0000_0000, 0x4000_0000; "div_by_zero")]
+    #[test_case(0x8000_0000 /*-2^31*/, 0xFFFF_FFFF /*-1*/, 0x0000_0000; "overflow")]
+    fn rem(rs1_value: u32, rs2_value: u32, rd_value: u32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction REM
@@ -1369,20 +1377,18 @@ mod tests {
         image.insert(0_u32, 0x0273_62b3);
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(6_usize, 0xBFFF_FFFD /* == -2^31 - 3 */);
-            state.set_register_value(7_usize, 0x000_0002 /* == 2 */);
+            state.set_register_value(6_usize, rs1_value);
+            state.set_register_value(7_usize, rs2_value);
         });
         let res = vm.step();
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
-        assert_eq!(
-            vm.state.get_register_value(5_usize),
-            0xFFFF_FFFF // -1
-        );
+        assert_eq!(vm.state.get_register_value(5_usize), rd_value);
     }
 
-    #[test]
-    fn remu() {
+    #[test_case(0x8000_0003 /*2^31 + 3*/, 0x0000_0002 /*2*/, 0x000_0001 /*1*/; "simple")]
+    #[test_case(0x4000_0000, 0x0000_0000, 0x4000_0000; "div_by_zero")]
+    fn remu(rs1_value: u32, rs2_value: u32, rd_value: u32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction REMU
@@ -1390,15 +1396,12 @@ mod tests {
         image.insert(0_u32, 0x0273_72b3);
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(6_usize, 0x8000_0003 /* == 2^31 + 3 */);
-            state.set_register_value(7_usize, 0x000_0002 /* == 2 */);
+            state.set_register_value(6_usize, rs1_value);
+            state.set_register_value(7_usize, rs2_value);
         });
         let res = vm.step();
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
-        assert_eq!(
-            vm.state.get_register_value(5_usize),
-            0x0000_0001 // 1
-        );
+        assert_eq!(vm.state.get_register_value(5_usize), rd_value);
     }
 }
