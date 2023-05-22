@@ -67,6 +67,8 @@ pub enum Instruction {
     SLTI(ITypeInst),
     SLTU(RTypeInst),
     SLTIU(ITypeInst),
+    SRAI(ITypeInst),
+    SRLI(ITypeInst),
     LB(ITypeInst),
     LH(ITypeInst),
     LW(ITypeInst),

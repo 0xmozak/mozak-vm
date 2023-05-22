@@ -195,6 +195,20 @@ pub fn decode_instruction(word: u32) -> Instruction {
                     rd,
                     imm12: decode_imm12(word),
                 }),
+                0x5 => {
+                    let rs1 = decode_rs1(word);
+                    let rd = decode_rd(word);
+                    let imm12 = decode_shamt(word).into();
+
+                    // Masks the first 7 bits in a word to differentiate between an
+                    // SRAI/SRLI instruction. They have the same funct3 value and are
+                    // differentiated by their 30th bit, for which SRAI = 1 and SRLI = 0.
+                    match word & 0xfe00_0000 {
+                        0x4000_0000 => Instruction::SRAI(ITypeInst { rs1, rd, imm12 }),
+                        0 => Instruction::SRLI(ITypeInst { rs1, rd, imm12 }),
+                        _ => Instruction::UNKNOWN,
+                    }
+                }
                 _ => Instruction::UNKNOWN,
             }
         }
@@ -309,6 +323,20 @@ mod test {
     fn slt(word: u32, rd: u8, rs1: u8, rs2: u8) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::SLT(RTypeInst { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x41f9_5293, 5, 18, 31; "srai r5, r18, 31")]
+    fn srai(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SRAI(ITypeInst { rs1, rd, imm12 });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x01f9_5293, 5, 18, 31; "srli r5, r18, 31")]
+    fn srli(word: u32, rd: u8, rs1: u8, imm12: i16) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::SRLI(ITypeInst { rs1, rd, imm12 });
         assert_eq!(ins, match_ins);
     }
 
