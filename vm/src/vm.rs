@@ -77,6 +77,19 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
+            Instruction::SRAI(srai) => {
+                let res =
+                    self.state.get_register_value_signed(srai.rs1.into()) >> srai.imm12 as u32;
+                self.state.set_register_value(srai.rd.into(), res as u32);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::SRLI(srli) => {
+                let res = self.state.get_register_value(srli.rs1.into()) >> srli.imm12 as u32;
+                self.state.set_register_value(srli.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
             Instruction::SLTI(slti) => {
                 let res =
                     self.state.get_register_value_signed(slti.rs1.into()) < i32::from(slti.imm12);
@@ -331,6 +344,41 @@ impl Vm {
                 let value = self.state.get_register_value(sb.rs2.into());
                 let value: u8 = (0x0000_00FF & value) as u8;
                 self.state.store_u8(addr, value)?;
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::MUL(mul) => {
+                let rs1: i64 = self.state.get_register_value_signed(mul.rs1.into()).into();
+                let rs2: i64 = self.state.get_register_value_signed(mul.rs2.into()).into();
+                let res: u32 = ((rs1 * rs2) & 0xFFFF_FFFF) as u32;
+                self.state.set_register_value(mul.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::MULH(mulh) => {
+                let rs1: i64 = self.state.get_register_value_signed(mulh.rs1.into()).into();
+                let rs2: i64 = self.state.get_register_value_signed(mulh.rs2.into()).into();
+                let res: u32 = ((rs1 * rs2) >> 32) as u32;
+                self.state.set_register_value(mulh.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::MULHSU(mulhsu) => {
+                let rs1: i64 = self
+                    .state
+                    .get_register_value_signed(mulhsu.rs1.into())
+                    .into();
+                let rs2: i64 = self.state.get_register_value(mulhsu.rs2.into()).into();
+                let res: u32 = ((rs1 * rs2) >> 32) as u32;
+                self.state.set_register_value(mulhsu.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::MULHU(mulhu) => {
+                let rs1: i64 = self.state.get_register_value(mulhu.rs1.into()).into();
+                let rs2: i64 = self.state.get_register_value(mulhu.rs2.into()).into();
+                let res: u32 = ((rs1 * rs2) >> 32) as u32;
+                self.state.set_register_value(mulhu.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
@@ -667,6 +715,42 @@ mod tests {
             vm.state.get_register_value(rd),
             u32::from(rs1_value < rs2_value)
         );
+    }
+
+    #[test_case(0x4043_5293, 5, 6, 0x8765_4321, 4; "srai r5, r6, 4")]
+    #[test_case(0x41f3_5293, 5, 6, 1, 31; "srai r5, r6, 31")]
+    fn srai(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction srai
+
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(
+            vm.state.get_register_value(rd),
+            (rs1_value as i32 >> imm12) as u32
+        );
+    }
+
+    #[test_case(0x0043_5293, 5, 6, 0x8765_4321, 4; "srli r5, r6, 4")]
+    #[test_case(0x01f3_5293, 5, 6, 1, 31; "srli r5, r6, 31")]
+    fn srli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction srli
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(vm.state.get_register_value(rd), rs1_value >> imm12);
     }
 
     #[test_case(0x8009_2293, 5, 6, 1, -2048; "slti r5, r6, -2048")]
@@ -1124,6 +1208,84 @@ mod tests {
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
         assert_eq!(vm.state.load_u32(1200).unwrap(), 0xC0DE_BABE);
+    }
+
+    #[test]
+    fn mulh() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction MULH
+        // MULH x5, x6, x7
+        image.insert(0_u32, 0x0273_12b3);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(6_usize, 0x8000_0000 /* == -2^31 */);
+            state.set_register_value(7_usize, 0x8000_0000 /* == -2^31 */);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(
+            vm.state.get_register_value(5_usize),
+            0x4000_0000 // High bits for 2^62
+        );
+    }
+
+    #[test]
+    fn mul() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction MUL
+        // MUL x5, x6, x7
+        image.insert(0_u32, 0x0273_02b3);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(6_usize, 0x4000_0000 /* == 2^30 */);
+            state.set_register_value(7_usize, 0xFFFF_FFFE /* == -2 */);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(
+            vm.state.get_register_value(5_usize),
+            0x8000_0000 // -2^31
+        );
+    }
+
+    #[test]
+    fn mulhsu() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction MULHSU
+        // MULHSU x5, x6, x7
+        image.insert(0_u32, 0x0273_22b3);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(6_usize, 0xFFFF_FFFE /* == -2 */);
+            state.set_register_value(7_usize, 0x4000_0000 /* == 2^30 */);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.get_register_value(5_usize), 0xFFFF_FFFF);
+    }
+
+    #[test]
+    fn mulhu() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction MULHU
+        // MULHU x5, x6, x7
+        image.insert(0_u32, 0x0273_32b3);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(6_usize, 0x0000_0002 /* == 2 */);
+            state.set_register_value(7_usize, 0x8000_0000 /* == 2^31 */);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.get_register_value(5_usize), 0x0000_0001);
     }
 
     #[test]
