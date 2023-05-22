@@ -407,8 +407,7 @@ impl Vm {
                         // division by zero
                         (_dividend, 0) => 0xFFFF_FFFF,
                         // overflow when -2^31 / -1
-                        (-0x8000_0000, -1) => 0x8000_0000,
-                        (dividend, divisor) => (dividend / divisor) as u32,
+                        (dividend, divisor) => dividend.overflowing_div(divisor).0 as u32,
                     },
                 );
                 self.state.set_pc(self.state.get_pc() + 4);
