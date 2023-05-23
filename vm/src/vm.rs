@@ -1,134 +1,126 @@
 use anyhow::Result;
 use log::trace;
+use nonempty::{nonempty, NonEmpty};
 
 use crate::{decode::decode_instruction, instruction::Instruction, state::State};
 
 pub struct Vm {
-    pub state: State,
+    pub states: NonEmpty<State>,
 }
 
 impl Vm {
     #[must_use]
     pub fn new(state: State) -> Self {
-        Self { state }
+        Self {
+            states: nonempty![state],
+        }
     }
 
-    /// Execute a single instruction
+    /// Execute a stream of instructions
     ///
     /// # Errors
     /// This function returns an error, if the instruction could not be loaded
     /// or executed.
-    pub fn step(&mut self) -> Result<()> {
-        while !self.state.has_halted() {
-            let pc = self.state.get_pc();
-            let word = self.state.load_u32(pc)?;
+    pub fn step(state: State) -> Result<NonEmpty<State>> {
+        let mut states = nonempty![state];
+        loop {
+            let state = states.last().clone();
+            if state.has_halted() {
+                break;
+            }
+            let pc = state.get_pc();
+            let word = state.load_u32(pc)?;
             let inst = decode_instruction(word);
             trace!("Decoded Inst: {:?}", inst);
-            self.execute_instruction(&inst)?;
+            let state = Self::execute_instruction(state, &inst)?;
+            states.push(state);
         }
-        Ok(())
+        Ok(states)
     }
 
-    fn execute_instruction(&mut self, inst: &Instruction) -> Result<()> {
+    fn execute_instruction(state: State, inst: &Instruction) -> Result<State> {
         match inst {
             Instruction::ADD(add) => {
                 // TODO: how to handle if regs have negative value?
-                let res = self.state.get_register_value(add.rs1.into())
-                    + self.state.get_register_value(add.rs2.into());
-                self.state.set_register_value(add.rd.into(), res);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let res = state.get_register_value(add.rs1.into())
+                    + state.get_register_value(add.rs2.into());
+                let state = state.set_register_value(add.rd.into(), res);
+                Ok(state.bump_pc())
             }
             Instruction::SLL(sll) => {
                 // Only use lower 5 bits of rs2
-                let res = self.state.get_register_value(sll.rs1.into())
-                    << (self.state.get_register_value(sll.rs2.into()) & 0x1F);
-                self.state.set_register_value(sll.rd.into(), res);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let res = state.get_register_value(sll.rs1.into())
+                    << (state.get_register_value(sll.rs2.into()) & 0x1F);
+                let state = state.set_register_value(sll.rd.into(), res);
+                Ok(state.bump_pc())
             }
             Instruction::SRL(srl) => {
                 // Only use lower 5 bits of rs2
-                let res = self.state.get_register_value(srl.rs1.into())
-                    >> (self.state.get_register_value(srl.rs2.into()) & 0x1F);
-                self.state.set_register_value(srl.rd.into(), res);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let res = state.get_register_value(srl.rs1.into())
+                    >> (state.get_register_value(srl.rs2.into()) & 0x1F);
+                let state = state.set_register_value(srl.rd.into(), res);
+                Ok(state.bump_pc())
             }
             Instruction::SRA(sra) => {
                 // Only use lower 5 bits of rs2
-                let res = self.state.get_register_value_signed(sra.rs1.into())
-                    >> (self.state.get_register_value_signed(sra.rs2.into()) & 0x1F);
-                self.state.set_register_value(sra.rd.into(), res as u32);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let res = state.get_register_value_signed(sra.rs1.into())
+                    >> (state.get_register_value_signed(sra.rs2.into()) & 0x1F);
+                let state = state.set_register_value(sra.rd.into(), res as u32);
+                Ok(state.bump_pc())
             }
             Instruction::SLT(slt) => {
-                let res = self.state.get_register_value_signed(slt.rs1.into())
-                    < self.state.get_register_value_signed(slt.rs2.into());
-                self.state.set_register_value(slt.rd.into(), res.into());
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let res = state.get_register_value_signed(slt.rs1.into())
+                    < state.get_register_value_signed(slt.rs2.into());
+                let state = state.set_register_value(slt.rd.into(), res.into());
+                Ok(state.bump_pc())
             }
             Instruction::SLTU(sltu) => {
-                let res = self.state.get_register_value(sltu.rs1.into())
-                    < self.state.get_register_value(sltu.rs2.into());
-                self.state.set_register_value(sltu.rd.into(), res.into());
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let res = state.get_register_value(sltu.rs1.into())
+                    < state.get_register_value(sltu.rs2.into());
+                let state = state.set_register_value(sltu.rd.into(), res.into());
+                Ok(state.bump_pc())
             }
             Instruction::SRAI(srai) => {
-                let res =
-                    self.state.get_register_value_signed(srai.rs1.into()) >> srai.imm12 as u32;
-                self.state.set_register_value(srai.rd.into(), res as u32);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let res = state.get_register_value_signed(srai.rs1.into()) >> srai.imm12 as u32;
+                let state = state.set_register_value(srai.rd.into(), res as u32);
+                Ok(state.bump_pc())
             }
             Instruction::SRLI(srli) => {
-                let res = self.state.get_register_value(srli.rs1.into()) >> srli.imm12 as u32;
-                self.state.set_register_value(srli.rd.into(), res);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let res = state.get_register_value(srli.rs1.into()) >> srli.imm12 as u32;
+                let state = state.set_register_value(srli.rd.into(), res);
+                Ok(state.bump_pc())
             }
             Instruction::SLTI(slti) => {
-                let res =
-                    self.state.get_register_value_signed(slti.rs1.into()) < i32::from(slti.imm12);
-                self.state
-                    .set_register_value(slti.rd.into(), u32::from(res));
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let res = state.get_register_value_signed(slti.rs1.into()) < i32::from(slti.imm12);
+                let state = state.set_register_value(slti.rd.into(), u32::from(res));
+                Ok(state.bump_pc())
             }
             Instruction::SLTIU(sltiu) => {
-                let res = self.state.get_register_value(sltiu.rs1.into()) < sltiu.imm12 as u32;
-                self.state
-                    .set_register_value(sltiu.rd.into(), u32::from(res));
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let res = state.get_register_value(sltiu.rs1.into()) < sltiu.imm12 as u32;
+                let state = state.set_register_value(sltiu.rd.into(), u32::from(res));
+                Ok(state.bump_pc())
             }
             Instruction::AND(and) => {
-                let res = self.state.get_register_value(and.rs1.into())
-                    & self.state.get_register_value(and.rs2.into());
-                self.state.set_register_value(and.rd.into(), res);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let res = state.get_register_value(and.rs1.into())
+                    & state.get_register_value(and.rs2.into());
+                let state = state.set_register_value(and.rd.into(), res);
+                Ok(state.bump_pc())
             }
             Instruction::ANDI(andi) => {
-                let rs1_value = self.state.get_register_value(andi.rs1.into());
+                let rs1_value = state.get_register_value(andi.rs1.into());
                 let res = rs1_value as i32 & i32::from(andi.imm12);
-                self.state.set_register_value(andi.rd.into(), res as u32);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let state = state.set_register_value(andi.rd.into(), res as u32);
+                Ok(state.bump_pc())
             }
             Instruction::OR(or) => {
-                let res = self.state.get_register_value(or.rs1.into())
-                    | self.state.get_register_value(or.rs2.into());
-                self.state.set_register_value(or.rd.into(), res);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let res = state.get_register_value(or.rs1.into())
+                    | state.get_register_value(or.rs2.into());
+                let state = state.set_register_value(or.rd.into(), res);
+                Ok(state.bump_pc())
             }
             Instruction::ADDI(addi) => {
                 // TODO: how to handle if regs have negative value?
-                let rs1_value: i64 = self.state.get_register_value(addi.rs1.into()).into();
+                let rs1_value: i64 = state.get_register_value(addi.rs1.into()).into();
                 let mut res = rs1_value;
                 if addi.imm12.is_negative() {
                     res -= i64::from(addi.imm12);
@@ -137,304 +129,266 @@ impl Vm {
                 }
                 // ignore anything above 32-bits
                 let res: u32 = (res & 0xffff_ffff) as u32;
-                self.state.set_register_value(addi.rd.into(), res);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let state = state.set_register_value(addi.rd.into(), res);
+                Ok(state.bump_pc())
             }
             Instruction::ORI(ori) => {
-                let rs1_value: i64 = self.state.get_register_value(ori.rs1.into()).into();
+                let rs1_value: i64 = state.get_register_value(ori.rs1.into()).into();
                 let res = rs1_value as i32 | i32::from(ori.imm12);
-                self.state.set_register_value(ori.rd.into(), res as u32);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let state = state.set_register_value(ori.rd.into(), res as u32);
+                Ok(state.bump_pc())
             }
             Instruction::XORI(xori) => {
-                let rs1_value = self.state.get_register_value(xori.rs1.into());
+                let rs1_value = state.get_register_value(xori.rs1.into());
                 let res = rs1_value as i32 ^ i32::from(xori.imm12);
-                self.state.set_register_value(xori.rd.into(), res as u32);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let state = state.set_register_value(xori.rd.into(), res as u32);
+                Ok(state.bump_pc())
             }
             Instruction::SUB(sub) => {
-                let res = self.state.get_register_value(sub.rs1.into())
-                    - self.state.get_register_value(sub.rs2.into());
-                self.state.set_register_value(sub.rd.into(), res);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let res = state.get_register_value(sub.rs1.into())
+                    - state.get_register_value(sub.rs2.into());
+                let state = state.set_register_value(sub.rd.into(), res);
+                Ok(state.bump_pc())
             }
             Instruction::LB(load) => {
-                let rs1: i64 = self.state.get_register_value(load.rs1.into()).into();
+                let rs1: i64 = state.get_register_value(load.rs1.into()).into();
                 let addr = rs1 + i64::from(load.imm12);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
-                let value: u8 = self.state.load_u8(addr)?;
+                let value: u8 = state.load_u8(addr)?;
                 let mut final_value: u32 = value.into();
                 if value & 0x80 != 0x0 {
                     // extend sign bit
                     final_value |= 0xffff_ff00;
                 }
-                self.state.set_register_value(load.rd.into(), final_value);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let state = state.set_register_value(load.rd.into(), final_value);
+                Ok(state.bump_pc())
             }
             Instruction::LBU(load) => {
-                let rs1: i64 = self.state.get_register_value(load.rs1.into()).into();
+                let rs1: i64 = state.get_register_value(load.rs1.into()).into();
                 let addr = rs1 + i64::from(load.imm12);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
-                let value: u8 = self.state.load_u8(addr)?;
-                self.state.set_register_value(load.rd.into(), value.into());
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let value: u8 = state.load_u8(addr)?;
+                let state = state.set_register_value(load.rd.into(), value.into());
+                Ok(state.bump_pc())
             }
             Instruction::LH(load) => {
-                let rs1: i64 = self.state.get_register_value(load.rs1.into()).into();
+                let rs1: i64 = state.get_register_value(load.rs1.into()).into();
                 let addr = rs1 + i64::from(load.imm12);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
-                let value: u16 = self.state.load_u16(addr)?;
+                let value: u16 = state.load_u16(addr)?;
                 let mut final_value: u32 = value.into();
                 if value & 0x8000 != 0x0 {
                     // extend sign bit
                     final_value |= 0xffff_0000;
                 }
-                self.state.set_register_value(load.rd.into(), final_value);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let state = state.set_register_value(load.rd.into(), final_value);
+                Ok(state.bump_pc())
             }
             Instruction::LHU(load) => {
-                let rs1: i64 = self.state.get_register_value(load.rs1.into()).into();
+                let rs1: i64 = state.get_register_value(load.rs1.into()).into();
                 let addr = rs1 + i64::from(load.imm12);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
-                let value: u16 = self.state.load_u16(addr)?;
-                self.state.set_register_value(load.rd.into(), value.into());
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let value: u16 = state.load_u16(addr)?;
+                let state = state.set_register_value(load.rd.into(), value.into());
+                Ok(state.bump_pc())
             }
             Instruction::LW(load) => {
-                let rs1: i64 = self.state.get_register_value(load.rs1.into()).into();
+                let rs1: i64 = state.get_register_value(load.rs1.into()).into();
                 let addr = rs1 + i64::from(load.imm12);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
-                let value: u32 = self.state.load_u32(addr)?;
-                self.state.set_register_value(load.rd.into(), value);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let value: u32 = state.load_u32(addr)?;
+                let state = state.set_register_value(load.rd.into(), value);
+                Ok(state.bump_pc())
             }
             Instruction::ECALL => {
-                let r17_value = self.state.get_register_value(17_usize);
+                let r17_value = state.get_register_value(17_usize);
                 #[allow(clippy::single_match)]
                 match r17_value {
                     93 => {
                         // exit system call
-                        self.state.halt();
+                        Ok(state.halt())
                     }
-                    _ => {}
+                    _ => Ok(state),
                 }
-                Ok(())
             }
             Instruction::JAL(jal) => {
-                let pc = self.state.get_pc();
+                let pc = state.get_pc();
                 let next_pc = pc + 4;
-                self.state.set_register_value(jal.rd.into(), next_pc);
+                let state = state.set_register_value(jal.rd.into(), next_pc);
                 let jump_pc = (pc as i32) + jal.imm20;
-                self.state.set_pc(jump_pc as u32);
-                Ok(())
+                let state = state.set_pc(jump_pc as u32);
+                Ok(state)
             }
             Instruction::JALR(jalr) => {
-                let pc = self.state.get_pc();
+                let pc = state.get_pc();
                 let next_pc = pc + 4;
-                self.state.set_register_value(jalr.rd.into(), next_pc);
-                let rs1_value = self.state.get_register_value(jalr.rs1.into());
+                let state = state.set_register_value(jalr.rd.into(), next_pc);
+                let rs1_value = state.get_register_value(jalr.rs1.into());
                 let jump_pc = (rs1_value as i32) + i32::from(jalr.imm12);
-                self.state.set_pc(jump_pc as u32);
-                Ok(())
+                let state = state.set_pc(jump_pc as u32);
+                Ok(state)
             }
-            Instruction::BEQ(beq) => {
-                if self.state.get_register_value(beq.rs1.into())
-                    == self.state.get_register_value(beq.rs2.into())
+            Instruction::BEQ(beq) => Ok(
+                if state.get_register_value(beq.rs1.into())
+                    == state.get_register_value(beq.rs2.into())
                 {
-                    let pc = self.state.get_pc();
+                    let pc = state.get_pc();
                     let jump_pc = (pc as i32) + i32::from(beq.imm12);
-                    self.state.set_pc(jump_pc as u32);
+                    state.set_pc(jump_pc as u32)
                 } else {
-                    self.state.set_pc(self.state.get_pc() + 4);
-                }
-                Ok(())
-            }
-            Instruction::BNE(bne) => {
-                if self.state.get_register_value(bne.rs1.into())
-                    != self.state.get_register_value(bne.rs2.into())
+                    state.bump_pc()
+                },
+            ),
+            Instruction::BNE(bne) => Ok(
+                if state.get_register_value(bne.rs1.into())
+                    != state.get_register_value(bne.rs2.into())
                 {
-                    let pc = self.state.get_pc();
+                    let pc = state.get_pc();
                     let jump_pc = (pc as i32) + i32::from(bne.imm12);
-                    self.state.set_pc(jump_pc as u32);
+                    state.set_pc(jump_pc as u32)
                 } else {
-                    self.state.set_pc(self.state.get_pc() + 4);
-                }
-                Ok(())
-            }
-            Instruction::BLT(blt) => {
-                if self.state.get_register_value_signed(blt.rs1.into())
-                    < self.state.get_register_value_signed(blt.rs2.into())
+                    state.bump_pc()
+                },
+            ),
+            Instruction::BLT(blt) => Ok(
+                if state.get_register_value_signed(blt.rs1.into())
+                    < state.get_register_value_signed(blt.rs2.into())
                 {
-                    let pc = self.state.get_pc();
+                    let pc = state.get_pc();
                     let jump_pc = (pc as i32) + i32::from(blt.imm12);
-                    self.state.set_pc(jump_pc as u32);
+                    state.set_pc(jump_pc as u32)
                 } else {
-                    self.state.set_pc(self.state.get_pc() + 4);
-                }
-                Ok(())
-            }
-            Instruction::BLTU(bltu) => {
-                if self.state.get_register_value(bltu.rs1.into())
-                    < self.state.get_register_value(bltu.rs2.into())
+                    state.bump_pc()
+                },
+            ),
+            Instruction::BLTU(bltu) => Ok(
+                if state.get_register_value(bltu.rs1.into())
+                    < state.get_register_value(bltu.rs2.into())
                 {
-                    let pc = self.state.get_pc();
+                    let pc = state.get_pc();
                     let jump_pc = (pc as i32) + i32::from(bltu.imm12);
-                    self.state.set_pc(jump_pc as u32);
+                    state.set_pc(jump_pc as u32)
                 } else {
-                    self.state.set_pc(self.state.get_pc() + 4);
-                }
-                Ok(())
-            }
-            Instruction::BGE(bge) => {
-                if self.state.get_register_value_signed(bge.rs1.into())
-                    >= self.state.get_register_value_signed(bge.rs2.into())
+                    state.bump_pc()
+                },
+            ),
+            Instruction::BGE(bge) => Ok(
+                if state.get_register_value_signed(bge.rs1.into())
+                    >= state.get_register_value_signed(bge.rs2.into())
                 {
-                    let pc = self.state.get_pc();
+                    let pc = state.get_pc();
                     let jump_pc = (pc as i32) + i32::from(bge.imm12);
-                    self.state.set_pc(jump_pc as u32);
+                    state.set_pc(jump_pc as u32)
                 } else {
-                    self.state.set_pc(self.state.get_pc() + 4);
-                }
-                Ok(())
-            }
-            Instruction::BGEU(bgeu) => {
-                if self.state.get_register_value_signed(bgeu.rs1.into())
-                    >= self.state.get_register_value_signed(bgeu.rs2.into())
+                    state.bump_pc()
+                },
+            ),
+            Instruction::BGEU(bgeu) => Ok(
+                if state.get_register_value_signed(bgeu.rs1.into())
+                    >= state.get_register_value_signed(bgeu.rs2.into())
                 {
-                    let pc = self.state.get_pc();
+                    let pc = state.get_pc();
                     let jump_pc = (pc as i32) + i32::from(bgeu.imm12);
-                    self.state.set_pc(jump_pc as u32);
+                    state.set_pc(jump_pc as u32)
                 } else {
-                    self.state.set_pc(self.state.get_pc() + 4);
-                }
-                Ok(())
-            }
+                    state.bump_pc()
+                },
+            ),
             Instruction::SW(sw) => {
-                let rs1: i64 = self.state.get_register_value(sw.rs1.into()).into();
+                let rs1: i64 = state.get_register_value(sw.rs1.into()).into();
                 let addr = rs1 + i64::from(sw.imm12);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
-                let value = self.state.get_register_value(sw.rs2.into());
-                self.state.store_u32(addr, value)?;
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let value = state.get_register_value(sw.rs2.into());
+                let state = state.store_u32(addr, value)?;
+                Ok(state.bump_pc())
             }
             Instruction::SH(sh) => {
-                let rs1: i64 = self.state.get_register_value(sh.rs1.into()).into();
+                let rs1: i64 = state.get_register_value(sh.rs1.into()).into();
                 let addr = rs1 + i64::from(sh.imm12);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
-                let value = self.state.get_register_value(sh.rs2.into());
+                let value = state.get_register_value(sh.rs2.into());
                 let value: u16 = (0x0000_FFFF & value) as u16;
-                self.state.store_u16(addr, value)?;
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let state = state.store_u16(addr, value)?;
+                Ok(state.bump_pc())
             }
             Instruction::SB(sb) => {
-                let rs1: i64 = self.state.get_register_value(sb.rs1.into()).into();
+                let rs1: i64 = state.get_register_value(sb.rs1.into()).into();
                 let addr = rs1 + i64::from(sb.imm12);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
-                let value = self.state.get_register_value(sb.rs2.into());
+                let value = state.get_register_value(sb.rs2.into());
                 let value: u8 = (0x0000_00FF & value) as u8;
-                self.state.store_u8(addr, value)?;
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let state = state.store_u8(addr, value)?;
+                Ok(state.bump_pc())
             }
             Instruction::MUL(mul) => {
-                let rs1: i64 = self.state.get_register_value_signed(mul.rs1.into()).into();
-                let rs2: i64 = self.state.get_register_value_signed(mul.rs2.into()).into();
+                let rs1: i64 = state.get_register_value_signed(mul.rs1.into()).into();
+                let rs2: i64 = state.get_register_value_signed(mul.rs2.into()).into();
                 let res: u32 = ((rs1 * rs2) & 0xFFFF_FFFF) as u32;
-                self.state.set_register_value(mul.rd.into(), res);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let state = state.set_register_value(mul.rd.into(), res);
+                Ok(state.bump_pc())
             }
             Instruction::MULH(mulh) => {
-                let rs1: i64 = self.state.get_register_value_signed(mulh.rs1.into()).into();
-                let rs2: i64 = self.state.get_register_value_signed(mulh.rs2.into()).into();
+                let rs1: i64 = state.get_register_value_signed(mulh.rs1.into()).into();
+                let rs2: i64 = state.get_register_value_signed(mulh.rs2.into()).into();
                 let res: u32 = ((rs1 * rs2) >> 32) as u32;
-                self.state.set_register_value(mulh.rd.into(), res);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let state = state.set_register_value(mulh.rd.into(), res);
+                Ok(state.bump_pc())
             }
             Instruction::MULHSU(mulhsu) => {
-                let rs1: i64 = self
-                    .state
-                    .get_register_value_signed(mulhsu.rs1.into())
-                    .into();
-                let rs2: i64 = self.state.get_register_value(mulhsu.rs2.into()).into();
+                let rs1: i64 = state.get_register_value_signed(mulhsu.rs1.into()).into();
+                let rs2: i64 = state.get_register_value(mulhsu.rs2.into()).into();
                 let res: u32 = ((rs1 * rs2) >> 32) as u32;
-                self.state.set_register_value(mulhsu.rd.into(), res);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let state = state.set_register_value(mulhsu.rd.into(), res);
+                Ok(state.bump_pc())
             }
             Instruction::MULHU(mulhu) => {
-                let rs1: i64 = self.state.get_register_value(mulhu.rs1.into()).into();
-                let rs2: i64 = self.state.get_register_value(mulhu.rs2.into()).into();
+                let rs1: i64 = state.get_register_value(mulhu.rs1.into()).into();
+                let rs2: i64 = state.get_register_value(mulhu.rs2.into()).into();
                 let res: u32 = ((rs1 * rs2) >> 32) as u32;
-                self.state.set_register_value(mulhu.rd.into(), res);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let state = state.set_register_value(mulhu.rd.into(), res);
+                Ok(state.bump_pc())
             }
             Instruction::LUI(lui) => {
-                self.state
-                    .set_register_value(lui.rd.into(), lui.imm20 as u32);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let state = state.set_register_value(lui.rd.into(), lui.imm20 as u32);
+                Ok(state.bump_pc())
             }
             Instruction::AUIPC(auipc) => {
                 let val = i64::from(auipc.imm20);
-                let pc = i64::from(self.state.get_pc());
+                let pc = i64::from(state.get_pc());
                 let res = pc + val;
                 let res_u32 = res as u32;
-                self.state.set_register_value(auipc.rd.into(), res_u32);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let state = state.set_register_value(auipc.rd.into(), res_u32);
+                Ok(state.bump_pc())
             }
             Instruction::DIV(div) => {
-                self.state.set_register_value(
+                let p = state.get_register_value_signed(div.rs1.into());
+                let q = state.get_register_value_signed(div.rs2.into());
+                let state = state.set_register_value(
                     div.rd.into(),
-                    match (
-                        self.state.get_register_value_signed(div.rs1.into()),
-                        self.state.get_register_value_signed(div.rs2.into()),
-                    ) {
-                        // division by zero
-                        (_dividend, 0) => 0xFFFF_FFFF,
-                        // overflow when -2^31 / -1
-                        (dividend, divisor) => dividend.overflowing_div(divisor).0 as u32,
+                    if 0 == q {
+                        0xFFFF_FFFF
+                    } else {
+                        p.overflowing_div(q).0 as u32
                     },
                 );
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                Ok(state.bump_pc())
             }
             Instruction::DIVU(divu) => {
-                self.state.set_register_value(
+                let p = state.get_register_value(divu.rs1.into());
+                let q = state.get_register_value(divu.rs2.into());
+                let state = state.set_register_value(
                     divu.rd.into(),
-                    match (
-                        self.state.get_register_value(divu.rs1.into()),
-                        self.state.get_register_value(divu.rs2.into()),
-                    ) {
-                        // division by zero
-                        (_dividend, 0) => 0xFFFF_FFFF,
-                        (dividend, divisor) => dividend / divisor,
-                    },
+                    // handle division by zero
+                    p.checked_div(q).unwrap_or(0xFFFF_FFFF),
                 );
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                Ok(state.bump_pc())
             }
             Instruction::REM(rem) => {
-                self.state.set_register_value(
+                let p = state.get_register_value_signed(rem.rs1.into());
+                let q = state.get_register_value_signed(rem.rs2.into());
+                let state = state.set_register_value(
                     rem.rd.into(),
-                    match (
-                        self.state.get_register_value_signed(rem.rs1.into()),
-                        self.state.get_register_value_signed(rem.rs2.into()),
-                    ) {
+                    match (p, q) {
                         // division by zero
                         (dividend, 0) => dividend as u32,
                         // overflow when -2^31 / -1
@@ -442,23 +396,20 @@ impl Vm {
                         (dividend, divisor) => (dividend % divisor) as u32,
                     },
                 );
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                Ok(state.bump_pc())
             }
             Instruction::REMU(remu) => {
-                self.state.set_register_value(
+                let p = state.get_register_value(remu.rs1.into());
+                let q = state.get_register_value(remu.rs2.into());
+                let state = state.set_register_value(
                     remu.rd.into(),
-                    match (
-                        self.state.get_register_value(remu.rs1.into()),
-                        self.state.get_register_value(remu.rs2.into()),
-                    ) {
+                    match (p, q) {
                         // division by zero
                         (dividend, 0) => dividend,
                         (dividend, divisor) => dividend % divisor,
                     },
                 );
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                Ok(state.bump_pc())
             }
             _ => unimplemented!(),
         }
@@ -480,14 +431,11 @@ mod tests {
         image.insert(address + 4, 0x0000_0073_u32);
     }
 
-    fn create_vm<F: Fn(&mut State)>(image: BTreeMap<u32, u32>, state_init: F) -> Vm {
-        let program = Program {
+    fn create_vm(image: BTreeMap<u32, u32>) -> State {
+        State::new(Program {
             entry: 0_u32,
             image,
-        };
-        let mut state = State::new(program);
-        state_init(&mut state);
-        Vm::new(state)
+        })
     }
 
     // TODO: Unignore this test once instructions required are supported
@@ -501,9 +449,7 @@ mod tests {
         assert!(program.is_ok());
         let program = program.unwrap();
         let state = State::new(program);
-        let mut vm = Vm::new(state);
-        let res = vm.step();
-        assert!(res.is_ok());
+        let _res = Vm::step(state);
     }
 
     // NOTE: For writing test cases please follow RISCV
@@ -518,13 +464,11 @@ mod tests {
         // at 0 address instruction add
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-            state.set_register_value(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), rs1_value + rs2_value);
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let state = state.set_register_value(rs2, rs2_value);
+        let states = Vm::step(state).unwrap();
+        assert_eq!(states.last().get_register_value(rd), rs1_value + rs2_value);
     }
 
     // Tests 2 cases:
@@ -538,14 +482,12 @@ mod tests {
         // at 0 address instruction sll
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-            state.set_register_value(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let state = state.set_register_value(rs2, rs2_value);
+        let states = Vm::step(state).unwrap();
         assert_eq!(
-            vm.state.get_register_value(rd),
+            states.last().get_register_value(rd),
             rs1_value << (rs2_value & 0x1F)
         );
     }
@@ -557,13 +499,12 @@ mod tests {
         // at 0 address instruction and
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-            state.set_register_value(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), rs1_value & rs2_value);
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let state = state.set_register_value(rs2, rs2_value);
+        let states = Vm::step(state).unwrap();
+
+        assert_eq!(states.last().get_register_value(rd), rs1_value & rs2_value);
     }
 
     // Tests 2 cases:
@@ -577,14 +518,13 @@ mod tests {
         // at 0 address instruction srl
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-            state.set_register_value(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let state = state.set_register_value(rs2, rs2_value);
+        let states = Vm::step(state).unwrap();
+
         assert_eq!(
-            vm.state.get_register_value(rd),
+            states.last().get_register_value(rd),
             rs1_value >> (rs2_value & 0x1F)
         );
     }
@@ -596,13 +536,12 @@ mod tests {
         // at 0 address instruction or
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-            state.set_register_value(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), rs1_value | rs2_value);
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let state = state.set_register_value(rs2, rs2_value);
+        let states = Vm::step(state).unwrap();
+
+        assert_eq!(states.last().get_register_value(rd), rs1_value | rs2_value);
     }
 
     // Tests 2 cases:
@@ -616,14 +555,13 @@ mod tests {
         // at 0 address instruction ori
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-        });
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
 
         let expected_value = (rs1_value as i32 | i32::from(imm12)) as u32;
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        let states = Vm::step(state).unwrap();
+
+        assert_eq!(states.last().get_register_value(rd), expected_value);
     }
 
     // Tests 2 cases:
@@ -637,14 +575,13 @@ mod tests {
         // at 0 address instruction andi
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-        });
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
 
         let expected_value = (rs1_value as i32 & i32::from(imm12)) as u32;
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        let states = Vm::step(state).unwrap();
+
+        assert_eq!(states.last().get_register_value(rd), expected_value);
     }
 
     // Tests 2 cases:
@@ -658,14 +595,13 @@ mod tests {
         // at 0 address instruction andi
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-        });
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
 
         let expected_value = (rs1_value as i32 ^ i32::from(imm12)) as u32;
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        let states = Vm::step(state).unwrap();
+
+        assert_eq!(states.last().get_register_value(rd), expected_value);
     }
 
     // Tests 2 cases:
@@ -679,14 +615,13 @@ mod tests {
         // at 0 address instruction sra
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-            state.set_register_value(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let state = state.set_register_value(rs2, rs2_value);
+        let states = Vm::step(state).unwrap();
+
         assert_eq!(
-            vm.state.get_register_value(rd),
+            states.last().get_register_value(rd),
             (rs1_value as i32 >> (rs2_value & 0x1F) as i32) as u32
         );
     }
@@ -705,16 +640,15 @@ mod tests {
         // at 0 address instruction slt
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-            state.set_register_value(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let state = state.set_register_value(rs2, rs2_value);
+        let states = Vm::step(state).unwrap();
+
         let rs1_value = rs1_value as i32;
         let rs2_value = rs2_value as i32;
         assert_eq!(
-            vm.state.get_register_value(rd),
+            states.last().get_register_value(rd),
             u32::from(rs1_value < rs2_value)
         );
     }
@@ -728,13 +662,12 @@ mod tests {
 
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let states = Vm::step(state).unwrap();
+
         assert_eq!(
-            vm.state.get_register_value(rd),
+            states.last().get_register_value(rd),
             (rs1_value as i32 >> imm12) as u32
         );
     }
@@ -747,12 +680,11 @@ mod tests {
         // at 0 address instruction srli
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), rs1_value >> imm12);
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let states = Vm::step(state).unwrap();
+
+        assert_eq!(states.last().get_register_value(rd), rs1_value >> imm12);
     }
 
     #[test_case(0x8009_2293, 5, 6, 1, -2048; "slti r5, r6, -2048")]
@@ -765,14 +697,13 @@ mod tests {
         // at 0 address instruction slti
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let states = Vm::step(state).unwrap();
+
         let rs1_value = rs1_value as i32;
         assert_eq!(
-            vm.state.get_register_value(rd),
+            states.last().get_register_value(rd),
             u32::from(rs1_value < i32::from(imm12))
         );
     }
@@ -787,13 +718,12 @@ mod tests {
         // at 0 address instruction sltiu
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let states = Vm::step(state).unwrap();
+
         assert_eq!(
-            vm.state.get_register_value(rd),
+            states.last().get_register_value(rd),
             u32::from(rs1_value < imm12 as u32)
         );
     }
@@ -808,14 +738,13 @@ mod tests {
         // at 0 address instruction sltu
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-            state.set_register_value(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let state = state.set_register_value(rs2, rs2_value);
+        let states = Vm::step(state).unwrap();
+
         assert_eq!(
-            vm.state.get_register_value(rd),
+            states.last().get_register_value(rd),
             u32::from(rs1_value < rs2_value)
         );
     }
@@ -827,18 +756,17 @@ mod tests {
         // at 0 address instruction addi
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let states = Vm::step(state).unwrap();
+
         let mut expected_value = rs1_value;
         if imm12.is_negative() {
             expected_value -= u32::from(imm12.unsigned_abs());
         } else {
             expected_value += imm12 as u32;
         }
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(states.last().get_register_value(rd), expected_value);
     }
 
     #[test_case(0x0643_0283, 5, 6, 100, 0, 127; "lb r5, 100(r6)")]
@@ -860,17 +788,16 @@ mod tests {
             address += offset as u32;
         }
         image.insert(address, memory_value as u32);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let states = Vm::step(state).unwrap();
+
         let mut expected_value = memory_value as u32;
         if memory_value.is_negative() {
             // extend the sign
             expected_value |= 0xffff_ff00;
         }
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(states.last().get_register_value(rd), expected_value);
     }
 
     #[test_case(0x0643_4283, 5, 6, 100, 0, 127; "lbu r5, 100(r6)")]
@@ -892,13 +819,12 @@ mod tests {
             address += offset as u32;
         }
         image.insert(address, memory_value as u32);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let states = Vm::step(state).unwrap();
+
         let expected_value = (memory_value as u32) & 0x0000_00FF;
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(states.last().get_register_value(rd), expected_value);
     }
 
     #[test_case(0x0643_1283, 5, 6, 100, 0, 4096; "lh r5, 100(r6)")]
@@ -920,17 +846,16 @@ mod tests {
             address += offset as u32;
         }
         image.insert(address, memory_value as u32);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let states = Vm::step(state).unwrap();
+
         let mut expected_value = memory_value as u32;
         if memory_value.is_negative() {
             // extend the sign
             expected_value |= 0xffff_0000;
         }
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(states.last().get_register_value(rd), expected_value);
     }
 
     #[test_case(0x0643_5283, 5, 6, 100, 0, 4096; "lhu r5, 100(r6)")]
@@ -952,13 +877,12 @@ mod tests {
             address += offset as u32;
         }
         image.insert(address, memory_value as u32);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let states = Vm::step(state).unwrap();
+
         let expected_value = (memory_value as u32) & 0x0000_FFFF;
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(states.last().get_register_value(rd), expected_value);
     }
 
     #[test_case(0x0643_2283, 5, 6, 100, 0, 65535; "lw r5, 100(r6)")]
@@ -980,13 +904,12 @@ mod tests {
             address += offset as u32;
         }
         image.insert(address, memory_value as u32);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let states = Vm::step(state).unwrap();
+
         let expected_value = memory_value as u32;
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(states.last().get_register_value(rd), expected_value);
     }
 
     // TODO: Add more tests for JAL/JALR
@@ -1005,11 +928,11 @@ mod tests {
         // at 260 go back to address after JAL
         // JALR x0, x1, 0
         image.insert(260_u32, 0x0000_8067);
-        let mut vm = create_vm(image, |_state: &mut State| {});
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        let state = create_vm(image);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().get_register_value(5_usize), 100_u32);
     }
 
     #[test]
@@ -1027,11 +950,11 @@ mod tests {
         // at 260 go back to address after BEQ
         // JAL x0, -256
         image.insert(260_u32, 0xf01f_f06f);
-        let mut vm = create_vm(image, |_state: &mut State| {});
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        let state = create_vm(image);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().get_register_value(5_usize), 100_u32);
     }
 
     #[test]
@@ -1049,13 +972,12 @@ mod tests {
         // at 260 go back to address after BNE
         // JAL x0, -256
         image.insert(260_u32, 0xf01f_f06f);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(1_usize, 1_u32);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        let state = create_vm(image);
+        let state = state.set_register_value(1_usize, 1_u32);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().get_register_value(5_usize), 100_u32);
     }
 
     #[test]
@@ -1073,14 +995,13 @@ mod tests {
         // at 260 go back to address after BLT
         // JAL x0, -256
         image.insert(260_u32, 0xf01f_f06f);
-        let mut vm = create_vm(image, |state: &mut State| {
-            // set R1 = -1
-            state.set_register_value(1_usize, 0xffff_ffff);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        let state = create_vm(image);
+        // set R1 = -1
+        let state = state.set_register_value(1_usize, 0xffff_ffff);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().get_register_value(5_usize), 100_u32);
     }
 
     #[test]
@@ -1098,14 +1019,13 @@ mod tests {
         // at 260 go back to address after BLTU
         // JAL x0, -256
         image.insert(260_u32, 0xf01f_f06f);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(1_usize, 0xffff_fffe);
-            state.set_register_value(2_usize, 0xffff_ffff);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        let state = create_vm(image);
+        let state = state.set_register_value(1_usize, 0xffff_fffe);
+        let state = state.set_register_value(2_usize, 0xffff_ffff);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().get_register_value(5_usize), 100_u32);
     }
 
     #[test]
@@ -1123,14 +1043,13 @@ mod tests {
         // at 260 go back to address after BGE
         // JAL x0, -256
         image.insert(260_u32, 0xf01f_f06f);
-        let mut vm = create_vm(image, |state: &mut State| {
-            // set R1 = -1
-            state.set_register_value(1_usize, 0xffff_ffff);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        let state = create_vm(image);
+        // set R1 = -1
+        let state = state.set_register_value(1_usize, 0xffff_ffff);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().get_register_value(5_usize), 100_u32);
     }
 
     #[test]
@@ -1148,14 +1067,13 @@ mod tests {
         // at 260 go back to address after BGEU
         // JAL x0, -256
         image.insert(260_u32, 0xf01f_f06f);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(1_usize, 0xffff_fffe);
-            state.set_register_value(2_usize, 0xffff_ffff);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        let state = create_vm(image);
+        let state = state.set_register_value(1_usize, 0xffff_fffe);
+        let state = state.set_register_value(2_usize, 0xffff_ffff);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().get_register_value(5_usize), 100_u32);
     }
 
     #[test]
@@ -1166,14 +1084,13 @@ mod tests {
         // SB x5, 1200(x0)
         image.insert(0_u32, 0x4a50_0823);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(5_usize, 0x0000_00FF);
-        });
-        assert_eq!(vm.state.load_u32(1200).unwrap(), 0);
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.load_u32(1200).unwrap(), 0x0000_00FF);
+        let state = create_vm(image);
+        let state = state.set_register_value(5_usize, 0x0000_00FF);
+        assert_eq!(state.load_u32(1200).unwrap(), 0);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().load_u32(1200).unwrap(), 0x0000_00FF);
     }
 
     #[test]
@@ -1184,14 +1101,13 @@ mod tests {
         // SH x5, 1200(x0)
         image.insert(0_u32, 0x4a50_1823);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(5_usize, 0x0000_BABE);
-        });
-        assert_eq!(vm.state.load_u32(1200).unwrap(), 0);
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.load_u32(1200).unwrap(), 0x0000_BABE);
+        let state = create_vm(image);
+        let state = state.set_register_value(5_usize, 0x0000_BABE);
+        assert_eq!(state.load_u32(1200).unwrap(), 0);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().load_u32(1200).unwrap(), 0x0000_BABE);
     }
 
     #[test]
@@ -1202,14 +1118,13 @@ mod tests {
         // SW x5, 1200(x0)
         image.insert(0_u32, 0x4a50_2823);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(5_usize, 0xC0DE_BABE);
-        });
-        assert_eq!(vm.state.load_u32(1200).unwrap(), 0);
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.load_u32(1200).unwrap(), 0xC0DE_BABE);
+        let state = create_vm(image);
+        let state = state.set_register_value(5_usize, 0xC0DE_BABE);
+        assert_eq!(state.load_u32(1200).unwrap(), 0);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().load_u32(1200).unwrap(), 0xC0DE_BABE);
     }
 
     #[test]
@@ -1220,15 +1135,14 @@ mod tests {
         // MULH x5, x6, x7
         image.insert(0_u32, 0x0273_12b3);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(6_usize, 0x8000_0000 /* == -2^31 */);
-            state.set_register_value(7_usize, 0x8000_0000 /* == -2^31 */);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
+        let state = create_vm(image);
+        let state = state.set_register_value(6_usize, 0x8000_0000 /* == -2^31 */);
+        let state = state.set_register_value(7_usize, 0x8000_0000 /* == -2^31 */);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
         assert_eq!(
-            vm.state.get_register_value(5_usize),
+            states.last().get_register_value(5_usize),
             0x4000_0000 // High bits for 2^62
         );
     }
@@ -1241,15 +1155,14 @@ mod tests {
         // MUL x5, x6, x7
         image.insert(0_u32, 0x0273_02b3);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(6_usize, 0x4000_0000 /* == 2^30 */);
-            state.set_register_value(7_usize, 0xFFFF_FFFE /* == -2 */);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
+        let state = create_vm(image);
+        let state = state.set_register_value(6_usize, 0x4000_0000 /* == 2^30 */);
+        let state = state.set_register_value(7_usize, 0xFFFF_FFFE /* == -2 */);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
         assert_eq!(
-            vm.state.get_register_value(5_usize),
+            states.last().get_register_value(5_usize),
             0x8000_0000 // -2^31
         );
     }
@@ -1262,14 +1175,13 @@ mod tests {
         // MULHSU x5, x6, x7
         image.insert(0_u32, 0x0273_22b3);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(6_usize, 0xFFFF_FFFE /* == -2 */);
-            state.set_register_value(7_usize, 0x4000_0000 /* == 2^30 */);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 0xFFFF_FFFF);
+        let state = create_vm(image);
+        let state = state.set_register_value(6_usize, 0xFFFF_FFFE /* == -2 */);
+        let state = state.set_register_value(7_usize, 0x4000_0000 /* == 2^30 */);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().get_register_value(5_usize), 0xFFFF_FFFF);
     }
 
     #[test]
@@ -1280,14 +1192,13 @@ mod tests {
         // MULHU x5, x6, x7
         image.insert(0_u32, 0x0273_32b3);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(6_usize, 0x0000_0002 /* == 2 */);
-            state.set_register_value(7_usize, 0x8000_0000 /* == 2^31 */);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 0x0000_0001);
+        let state = create_vm(image);
+        let state = state.set_register_value(6_usize, 0x0000_0002 /* == 2 */);
+        let state = state.set_register_value(7_usize, 0x8000_0000 /* == 2^31 */);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().get_register_value(5_usize), 0x0000_0001);
     }
 
     #[test]
@@ -1298,12 +1209,12 @@ mod tests {
         // LUI x1, -524288
         image.insert(0_u32, 0x8000_00b7);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |_state: &mut State| {});
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(1), 0x8000_0000);
-        assert_eq!(vm.state.get_register_value_signed(1), -2_147_483_648);
+        let state = create_vm(image);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().get_register_value(1), 0x8000_0000);
+        assert_eq!(states.last().get_register_value_signed(1), -2_147_483_648);
     }
 
     #[test]
@@ -1316,12 +1227,12 @@ mod tests {
         // auipc x1, -524288
         image.insert(4_u32, 0x8000_0097);
         add_exit_syscall(8_u32, &mut image);
-        let mut vm = create_vm(image, |_state: &mut State| {});
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(1), 0x8000_0004);
-        assert_eq!(vm.state.get_register_value_signed(1), -2_147_483_644);
+        let state = create_vm(image);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().get_register_value(1), 0x8000_0004);
+        assert_eq!(states.last().get_register_value_signed(1), -2_147_483_644);
     }
 
     #[test_case(0x4000_0000 /*2^30*/, 0xFFFF_FFFE /*-2*/, 0xE000_0000 /*-2^29*/; "simple")]
@@ -1334,15 +1245,14 @@ mod tests {
         // DIV x5, x6, x7
         image.insert(0_u32, 0x0273_42b3);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(6_usize, rs1_value /* == 2^30 */);
-            state.set_register_value(7_usize, rs2_value /* == -2 */);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
+        let state = create_vm(image);
+        let state = state.set_register_value(6_usize, rs1_value /* == 2^30 */);
+        let state = state.set_register_value(7_usize, rs2_value /* == -2 */);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
         assert_eq!(
-            vm.state.get_register_value(5_usize),
+            states.last().get_register_value(5_usize),
             rd_value // -2^29
         );
     }
@@ -1356,14 +1266,13 @@ mod tests {
         // DIVU x5, x6, x7
         image.insert(0_u32, 0x0273_52b3);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(6_usize, rs1_value);
-            state.set_register_value(7_usize, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), rd_value);
+        let state = create_vm(image);
+        let state = state.set_register_value(6_usize, rs1_value);
+        let state = state.set_register_value(7_usize, rs2_value);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().get_register_value(5_usize), rd_value);
     }
 
     #[test_case(0xBFFF_FFFD /*-2^31 - 3*/, 0x0000_0002 /*2*/, 0xFFFF_FFFF /*-1*/; "simple")]
@@ -1376,14 +1285,13 @@ mod tests {
         // REM x5, x6, x7
         image.insert(0_u32, 0x0273_62b3);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(6_usize, rs1_value);
-            state.set_register_value(7_usize, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), rd_value);
+        let state = create_vm(image);
+        let state = state.set_register_value(6_usize, rs1_value);
+        let state = state.set_register_value(7_usize, rs2_value);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().get_register_value(5_usize), rd_value);
     }
 
     #[test_case(0x8000_0003 /*2^31 + 3*/, 0x0000_0002 /*2*/, 0x000_0001 /*1*/; "simple")]
@@ -1395,13 +1303,12 @@ mod tests {
         // REMU x5, x6, x7
         image.insert(0_u32, 0x0273_72b3);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(6_usize, rs1_value);
-            state.set_register_value(7_usize, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), rd_value);
+        let state = create_vm(image);
+        let state = state.set_register_value(6_usize, rs1_value);
+        let state = state.set_register_value(7_usize, rs2_value);
+        let states = Vm::step(state).unwrap();
+
+        assert!(states.last().has_halted());
+        assert_eq!(states.last().get_register_value(5_usize), rd_value);
     }
 }
