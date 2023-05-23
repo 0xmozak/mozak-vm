@@ -91,10 +91,9 @@ impl Vm {
                 Ok(state.bump_pc())
             }
             Instruction::SLLI(slli) => {
-                let res = self.state.get_register_value(slli.rs1.into()) << slli.imm12 as u32;
-                self.state.set_register_value(slli.rd.into(), res);
-                self.state.set_pc(self.state.get_pc() + 4);
-                Ok(())
+                let res = state.get_register_value(slli.rs1.into()) << slli.imm12 as u32;
+                let state = state.set_register_value(slli.rd.into(), res);
+                Ok(state.bump_pc())
             }
             Instruction::SLTI(slti) => {
                 let res = state.get_register_value_signed(slti.rs1.into()) < i32::from(slti.imm12);
@@ -701,12 +700,10 @@ mod tests {
         // at 0 address instruction slli
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), rs1_value << imm12);
+        let state = create_vm(image);
+        let state = state.set_register_value(rs1, rs1_value);
+        let states = Vm::step(state).unwrap();
+        assert_eq!(states.last().get_register_value(rd), rs1_value << imm12);
     }
 
     #[test_case(0x8009_2293, 5, 6, 1, -2048; "slti r5, r6, -2048")]
