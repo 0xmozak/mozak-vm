@@ -192,6 +192,7 @@ dependencies = [
  "elf",
  "env_logger",
  "log",
+ "mozak-core",
  "test-case",
 ]
 
