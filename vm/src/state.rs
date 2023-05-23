@@ -76,8 +76,9 @@ impl State {
         self.pc
     }
 
+    #[must_use]
     pub fn bump_pc(mut self) -> Self {
-        self.pc = self.pc + 4;
+        self.pc += 4;
         self
     }
 
