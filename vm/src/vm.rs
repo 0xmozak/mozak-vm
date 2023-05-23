@@ -13,10 +13,10 @@ impl Vm {
         Self { state }
     }
 
-    /// Execute a single instruction
+    /// Execute a program
     ///
     /// # Errors
-    /// This function returns an error, if the instruction could not be loaded
+    /// This function returns an error, if an instruction could not be loaded
     /// or executed.
     pub fn step(&mut self) -> Result<()> {
         while !self.state.has_halted() {
