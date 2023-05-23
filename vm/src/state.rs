@@ -1,4 +1,4 @@
-use anyhow::{anyhow, ensure, Result};
+use anyhow::Result;
 use im::hashmap::HashMap;
 
 use crate::elf::Program;
