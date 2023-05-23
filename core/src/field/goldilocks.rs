@@ -287,7 +287,11 @@ fn add(lhs: u64, rhs: u64) -> u64 {
 /// Wrapping subtraction of [Elem] using Goldilocks field modulus
 fn sub(lhs: u64, rhs: u64) -> u64 {
     let x = lhs.wrapping_sub(rhs);
-    if x > lhs { x.wrapping_add(P) } else { x }
+    if x > lhs {
+        x.wrapping_add(P)
+    } else {
+        x
+    }
 }
 
 /// Wrapping multiplication of [Elem] using Goldilocks field modulus
@@ -793,11 +797,7 @@ mod tests {
             } else {
                 ((a as u128 - b as u128) % (P as u128)) as u64
             };
-            assert_eq!(
-                fa - fb,
-                Elem::from(diff),
-                "Error subtracting `{a} - {b}`"
-            );
+            assert_eq!(fa - fb, Elem::from(diff), "Error subtracting `{a} - {b}`");
             assert_eq!(
                 fa * fb,
                 Elem::from(((a as u128 * b as u128) % P as u128) as u64),

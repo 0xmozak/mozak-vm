@@ -18,9 +18,9 @@ impl From<u32> for Register {
     }
 }
 
-impl Into<u32> for Register {
-    fn into(self) -> u32 {
-        (self.hi.as_u32() << 16 | self.lo.as_u32()) as u32
+impl From<Register> for u32 {
+    fn from(val: Register) -> Self {
+        val.hi.as_u32() << 16 | val.lo.as_u32()
     }
 }
 
