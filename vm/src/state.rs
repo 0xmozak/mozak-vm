@@ -18,8 +18,8 @@ impl State {
         for (addr, data) in &program.image {
             let addr = *addr as usize;
             let bytes = data.to_le_bytes();
-            for a in 0..4 {
-                memory.insert(addr + a, bytes[a]);
+            for (a, byte) in bytes.iter().enumerate() {
+                memory.insert(addr + a, *byte);
             }
         }
         Self {
@@ -90,7 +90,6 @@ impl State {
     ///
     /// # Panics
     /// This function panics, if you try to from an unaligned address.
-    #[must_use]
     pub fn load_u32(&self, addr: u32) -> Result<u32> {
         const WORD_SIZE: usize = 4;
         assert_eq!(addr % WORD_SIZE as u32, 0, "unaligned load");
@@ -108,7 +107,6 @@ impl State {
     /// address.
     /// # Panics
     /// This function panics, if you try to store to an unaligned address.
-    #[must_use]
     pub fn store_u32(mut self, addr: u32, value: u32) -> Result<Self> {
         const WORD_SIZE: usize = 4;
         assert_eq!(addr % WORD_SIZE as u32, 0, "unaligned store");
@@ -124,7 +122,6 @@ impl State {
     /// # Errors
     /// This function returns an error, if you try to load from an invalid
     /// address.
-    #[must_use]
     pub fn load_u8(&self, addr: u32) -> Result<u8> {
         // ensure!(
         //     self.memory.len() >= addr as usize,
@@ -138,7 +135,6 @@ impl State {
     /// # Errors
     /// This function returns an error, if you try to store to an invalid
     /// address.
-    #[must_use]
     pub fn store_u8(mut self, addr: u32, value: u8) -> Result<Self> {
         // ensure!(
         //     self.memory.len() >= addr as usize,
@@ -153,7 +149,6 @@ impl State {
     /// # Errors
     /// This function returns an error, if you try to load from an invalid
     /// address.
-    #[must_use]
     pub fn load_u16(&self, addr: u32) -> Result<u16> {
         let mut bytes = [0_u8; 2];
         bytes[0] = self.load_u8(addr)?;
@@ -166,7 +161,6 @@ impl State {
     /// # Errors
     /// This function returns an error, if you try to store to an invalid
     /// address.
-    #[must_use]
     pub fn store_u16(mut self, addr: u32, value: u16) -> Result<Self> {
         let bytes = value.to_le_bytes();
         self = self.store_u8(addr, bytes[0])?;
