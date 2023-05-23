@@ -1,4 +1,6 @@
-use anyhow::{anyhow, ensure, Result};
+use std::collections::HashMap;
+
+use anyhow::Result;
 use risc0_core::field::baby_bear::BabyBearElem;
 
 use crate::elf::Program;
@@ -28,13 +30,13 @@ pub struct State {
     halted: bool,
     registers: [Register; 32],
     pc: BabyBearElem,
-    memory: Vec<BabyBearElem>,
+    memory: HashMap<usize, BabyBearElem>,
 }
 
 impl State {
     #[must_use]
     pub fn new(program: Program) -> Self {
-        let mut memory = vec![BabyBearElem::new(0); 256 * 1024 * 1024];
+        let mut memory: HashMap<usize, BabyBearElem> = HashMap::new();
         for (addr, data) in &program.image {
             let addr = *addr as usize;
             let bytes = data.to_le_bytes();
@@ -42,7 +44,9 @@ impl State {
                 .iter()
                 .map(|b| BabyBearElem::new(u32::from(*b)))
                 .collect();
-            memory[addr..(4 + addr)].copy_from_slice(&bytes_f[..4]);
+            for (a, byte) in bytes_f.iter().enumerate() {
+                memory.insert(addr + a, *byte);
+            }
         }
         Self {
             halted: false,
@@ -132,11 +136,10 @@ impl State {
     /// This function returns an error, if you try to load from an invalid
     /// address.
     pub fn load_u8(&self, addr: u32) -> Result<u8> {
-        ensure!(
-            self.memory.len() >= addr as usize,
-            anyhow!("Address out of bounds")
-        );
-        Ok(self.memory[addr as usize].as_u32() as u8)
+        Ok(self
+            .memory
+            .get(&(addr as usize))
+            .map_or(0, |bb| bb.as_u32() as u8))
     }
 
     /// Store a byte to memory
@@ -145,11 +148,8 @@ impl State {
     /// This function returns an error, if you try to store to an invalid
     /// address.
     pub fn store_u8(&mut self, addr: u32, value: u8) -> Result<()> {
-        ensure!(
-            self.memory.len() >= addr as usize,
-            anyhow!("Address out of bounds")
-        );
-        self.memory[addr as usize] = BabyBearElem::new(u32::from(value));
+        self.memory
+            .insert(addr as usize, BabyBearElem::new(u32::from(value)));
         Ok(())
     }
 
