@@ -1,0 +1,15 @@
+[package]
+name = "mozak-core"
+description = "Core types for Mozak VM crates"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytemuck = { version = "1.12", features = ["derive"] }
+rand_core = "0.6"
+
+[dev-dependencies]
+rand = { version = "0.8", features = ["small_rng"] }
+
+[features]
+std = []
