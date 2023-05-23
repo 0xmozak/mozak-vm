@@ -1,22 +1,26 @@
-use anyhow::{anyhow, ensure, Result};
+use anyhow::Result;
+use im::hashmap::HashMap;
 
 use crate::elf::Program;
 
+#[derive(Clone, Debug)]
 pub struct State {
     halted: bool,
     registers: [u32; 32],
     pc: u32,
-    memory: Vec<u8>,
+    memory: HashMap<usize, u8>,
 }
 
 impl State {
     #[must_use]
     pub fn new(program: Program) -> Self {
-        let mut memory = vec![0_u8; 256 * 1024 * 1024];
+        let mut memory = HashMap::new();
         for (addr, data) in &program.image {
             let addr = *addr as usize;
             let bytes = data.to_le_bytes();
-            memory[addr..(4 + addr)].copy_from_slice(&bytes[..4]);
+            for (a, byte) in bytes.iter().enumerate() {
+                memory.insert(addr + a, *byte);
+            }
         }
         Self {
             halted: false,
@@ -106,11 +110,7 @@ impl State {
     /// This function returns an error, if you try to load from an invalid
     /// address.
     pub fn load_u8(&self, addr: u32) -> Result<u8> {
-        ensure!(
-            self.memory.len() >= addr as usize,
-            anyhow!("Address out of bounds")
-        );
-        Ok(self.memory[addr as usize])
+        Ok(*self.memory.get(&(addr as usize)).unwrap_or(&0))
     }
 
     /// Store a byte to memory
@@ -119,11 +119,7 @@ impl State {
     /// This function returns an error, if you try to store to an invalid
     /// address.
     pub fn store_u8(&mut self, addr: u32, value: u8) -> Result<()> {
-        ensure!(
-            self.memory.len() >= addr as usize,
-            anyhow!("Address out of bounds")
-        );
-        self.memory[addr as usize] = value;
+        self.memory.insert(addr as usize, value);
         Ok(())
     }
 
