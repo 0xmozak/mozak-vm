@@ -1,27 +1,53 @@
 use anyhow::{anyhow, ensure, Result};
+use risc0_core::field::baby_bear::BabyBearElem;
 
 use crate::elf::Program;
 
+#[derive(Copy, Clone)]
+pub struct Register {
+    lo: BabyBearElem,
+    hi: BabyBearElem,
+}
+
+impl From<u32> for Register {
+    fn from(value: u32) -> Self {
+        Register {
+            lo: BabyBearElem::new(value & 0xFFFF),
+            hi: BabyBearElem::new(value >> 16),
+        }
+    }
+}
+
+impl From<Register> for u32 {
+    fn from(val: Register) -> Self {
+        val.hi.as_u32() << 16 | val.lo.as_u32()
+    }
+}
+
 pub struct State {
     halted: bool,
-    registers: [u32; 32],
-    pc: u32,
-    memory: Vec<u8>,
+    registers: [Register; 32],
+    pc: BabyBearElem,
+    memory: Vec<BabyBearElem>,
 }
 
 impl State {
     #[must_use]
     pub fn new(program: Program) -> Self {
-        let mut memory = vec![0_u8; 256 * 1024 * 1024];
+        let mut memory = vec![BabyBearElem::new(0); 256 * 1024 * 1024];
         for (addr, data) in &program.image {
             let addr = *addr as usize;
             let bytes = data.to_le_bytes();
-            memory[addr..(4 + addr)].copy_from_slice(&bytes[..4]);
+            let bytes_f: Vec<BabyBearElem> = bytes
+                .iter()
+                .map(|b| BabyBearElem::new(u32::from(*b)))
+                .collect();
+            memory[addr..(4 + addr)].copy_from_slice(&bytes_f[..4]);
         }
         Self {
             halted: false,
-            registers: [0_u32; 32],
-            pc: program.entry,
+            registers: [Register::from(0); 32],
+            pc: BabyBearElem::new(program.entry),
             memory,
         }
     }
@@ -42,13 +68,13 @@ impl State {
         assert!(index < 32);
         // R0 is always 0
         if index != 0 {
-            self.registers[index] = value;
+            self.registers[index] = Register::from(value);
         }
     }
 
     #[must_use]
     pub fn get_register_value(&self, index: usize) -> u32 {
-        self.registers[index]
+        self.registers[index].into()
     }
 
     #[must_use]
@@ -57,12 +83,12 @@ impl State {
     }
 
     pub fn set_pc(&mut self, value: u32) {
-        self.pc = value;
+        self.pc = BabyBearElem::new(value);
     }
 
     #[must_use]
     pub fn get_pc(&self) -> u32 {
-        self.pc
+        self.pc.into()
     }
 
     /// Load a word from memory
@@ -110,7 +136,7 @@ impl State {
             self.memory.len() >= addr as usize,
             anyhow!("Address out of bounds")
         );
-        Ok(self.memory[addr as usize])
+        Ok(self.memory[addr as usize].as_u32() as u8)
     }
 
     /// Store a byte to memory
@@ -123,7 +149,7 @@ impl State {
             self.memory.len() >= addr as usize,
             anyhow!("Address out of bounds")
         );
-        self.memory[addr as usize] = value;
+        self.memory[addr as usize] = BabyBearElem::new(u32::from(value));
         Ok(())
     }
 
