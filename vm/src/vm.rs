@@ -90,6 +90,12 @@ impl Vm {
                 let state = state.set_register_value(srli.rd.into(), res);
                 Ok(state.bump_pc())
             }
+            Instruction::SLLI(slli) => {
+                let res = self.state.get_register_value(slli.rs1.into()) << slli.imm12 as u32;
+                self.state.set_register_value(slli.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
             Instruction::SLTI(slti) => {
                 let res = state.get_register_value_signed(slti.rs1.into()) < i32::from(slti.imm12);
                 let state = state.set_register_value(slti.rd.into(), u32::from(res));
@@ -685,6 +691,22 @@ mod tests {
         let states = Vm::step(state).unwrap();
 
         assert_eq!(states.last().get_register_value(rd), rs1_value >> imm12);
+    }
+
+    #[test_case(0x0043_1293, 5, 6, 0x8765_4321, 4; "slli r5, r6, 4")]
+    #[test_case(0x01f3_1293, 5, 6, 1, 31; "slli r5, r6, 31")]
+    fn slli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction slli
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+        });
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(vm.state.get_register_value(rd), rs1_value << imm12);
     }
 
     #[test_case(0x8009_2293, 5, 6, 1, -2048; "slti r5, r6, -2048")]
