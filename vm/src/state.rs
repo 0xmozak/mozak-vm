@@ -36,12 +36,17 @@ pub struct State {
 impl State {
     #[must_use]
     pub fn new(program: Program) -> Self {
-        let mut memory: HashMap<usize, BabyBearElem> = HashMap::new();
-        program.image.iter().for_each(|(addr, data)| {
-            data.to_le_bytes().iter().enumerate().for_each(|(a, byte)| {
-                memory.insert(*addr as usize + a, BabyBearElem::from(u32::from(*byte)));
+        // let mut memory: HashMap<usize, BabyBearElem> = HashMap::new();
+        let memory: HashMap<usize, BabyBearElem> = program
+            .image
+            .into_iter()
+            .flat_map(|(addr, data)| {
+                data.to_le_bytes()
+                    .into_iter()
+                    .enumerate()
+                    .map(move |(a, byte)| (addr as usize + a, BabyBearElem::from(u32::from(byte))))
             })
-        });
+            .collect();
         Self {
             halted: false,
             registers: [Register::from(0); 32],

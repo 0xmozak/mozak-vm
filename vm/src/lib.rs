@@ -2,7 +2,6 @@
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::similar_names)]
 #![allow(clippy::if_not_else)]
-#![allow(clippy::semicolon_if_nothing_returned)]
 // Some of the below might be better to deny here and allow on a case-by-case basis in the code.
 // This is just a first cut.
 
