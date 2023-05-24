@@ -1,6 +1,5 @@
-use im::hashmap::HashMap;
-
 use anyhow::Result;
+use im::hashmap::HashMap;
 use risc0_core::field::baby_bear::BabyBearElem;
 
 use crate::elf::Program;
@@ -40,12 +39,12 @@ impl State {
         let mut memory: HashMap<usize, BabyBearElem> = HashMap::new();
         for (addr, data) in &program.image {
             let addr = *addr as usize;
-            let bytes = data.to_le_bytes();
-            let bytes_f = bytes
+            for (a, byte) in data
+                .to_le_bytes()
                 .iter()
                 .map(|b| BabyBearElem::new(u32::from(*b)))
-                .enumerate();
-            for (a, byte) in bytes_f {
+                .enumerate()
+            {
                 memory.insert(addr + a, byte);
             }
         }
