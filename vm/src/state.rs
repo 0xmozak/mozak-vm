@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
+use im::hashmap::HashMap;
 use risc0_core::field::baby_bear::BabyBearElem;
 
 use crate::elf::Program;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Register {
     lo: BabyBearElem,
     hi: BabyBearElem,
@@ -26,6 +25,7 @@ impl From<Register> for u32 {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct State {
     halted: bool,
     registers: [Register; 32],
@@ -36,18 +36,16 @@ pub struct State {
 impl State {
     #[must_use]
     pub fn new(program: Program) -> Self {
-        let mut memory: HashMap<usize, BabyBearElem> = HashMap::new();
-        for (addr, data) in &program.image {
-            let addr = *addr as usize;
-            let bytes = data.to_le_bytes();
-            let bytes_f: Vec<BabyBearElem> = bytes
-                .iter()
-                .map(|b| BabyBearElem::new(u32::from(*b)))
-                .collect();
-            for (a, byte) in bytes_f.iter().enumerate() {
-                memory.insert(addr + a, *byte);
-            }
-        }
+        let memory: HashMap<usize, BabyBearElem> = program
+            .image
+            .into_iter()
+            .flat_map(|(addr, data)| {
+                data.to_le_bytes()
+                    .into_iter()
+                    .enumerate()
+                    .map(move |(a, byte)| (addr as usize + a, BabyBearElem::from(u32::from(byte))))
+            })
+            .collect();
         Self {
             halted: false,
             registers: [Register::from(0); 32],

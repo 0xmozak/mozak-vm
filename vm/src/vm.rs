@@ -18,15 +18,17 @@ impl Vm {
     /// # Errors
     /// This function returns an error, if an instruction could not be loaded
     /// or executed.
-    pub fn step(&mut self) -> Result<()> {
+    pub fn step(&mut self) -> Result<Vec<State>> {
+        let mut states = vec![self.state.clone()];
         while !self.state.has_halted() {
             let pc = self.state.get_pc();
             let word = self.state.load_u32(pc)?;
             let inst = decode_instruction(word);
             trace!("Decoded Inst: {:?}", inst);
             self.execute_instruction(&inst)?;
+            states.push(self.state.clone());
         }
-        Ok(())
+        Ok(states)
     }
 
     fn execute_instruction(&mut self, inst: &Instruction) -> Result<()> {
