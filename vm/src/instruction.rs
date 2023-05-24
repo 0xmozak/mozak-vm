@@ -101,6 +101,8 @@ pub enum Instruction {
     DIVU(RTypeInst),
     REM(RTypeInst),
     REMU(RTypeInst),
+    FENCE(ITypeInst),
+    CSR,
     ECALL,
     EBREAK,
     UNKNOWN,
