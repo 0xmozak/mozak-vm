@@ -36,7 +36,6 @@ pub struct State {
 impl State {
     #[must_use]
     pub fn new(program: Program) -> Self {
-        // let mut memory: HashMap<usize, BabyBearElem> = HashMap::new();
         let memory: HashMap<usize, BabyBearElem> = program
             .image
             .into_iter()
