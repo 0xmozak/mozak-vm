@@ -4,15 +4,28 @@ use crate::instruction::{
     BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst, UTypeInst,
 };
 
+pub trait Extract<T> {
+    #[must_use]
+    fn extract(&self, segments: &[(usize, usize)]) -> T;
+}
+
 /// builds a u32 from segments, like [(0, 4), (20, 32)]
 /// [(31, 20), (3, 0)]
 /// Make 'em inclusive.
-#[must_use]
-pub fn extract(segments: &[(usize, usize)], word: u32) -> u32 {
-    segments.iter().fold(0, |acc, (msb, lsb)| {
-        let x: u32 = bitfield::BitRange::bit_range(&word, *msb, *lsb);
-        (acc << (msb - lsb + 1)) | x
-    })
+impl Extract<u32> for u32 {
+    fn extract(&self, segments: &[(usize, usize)]) -> u32 {
+        segments.iter().fold(0, |acc, (msb, lsb)| -> u32 {
+            (acc << (msb - lsb + 1)) | bitfield::BitRange::<u32>::bit_range(self, *msb, *lsb)
+        })
+    }
+}
+
+impl Extract<i32> for u32 {
+    fn extract(&self, segments: &[(usize, usize)]) -> i32 {
+        let len: usize = segments.iter().map(|(msb, lsb)| msb - lsb + 1).sum();
+        let x: u32 = <u32 as Extract<u32>>::extract(self, segments) << (32 - len);
+        (x as i32) >> (32 - len)
+    }
 }
 
 /// Decode signed imm20 value for [`JTypeInst`]
