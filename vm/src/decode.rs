@@ -4,17 +4,15 @@ use crate::instruction::{
     BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst, UTypeInst,
 };
 
-/// Decode signed imm12 value
+/// builds a u32 from segments, like [(0, 4), (20, 32)]
+/// [(31, 20), (3, 0)]
+/// Make 'em inclusive.
 #[must_use]
-pub fn decode_imm12(word: u32) -> i16 {
-    let val = ((word & 0xfff0_0000) >> 20) as u16;
-    if (val & 0x0800) != 0 {
-        // negative number
-        let val = val - 1;
-        -((!val & 0x0fff) as i16)
-    } else {
-        val as i16
-    }
+pub fn extract(segments: &[(usize, usize)], word: u32) -> u32 {
+    segments.iter().fold(0, |acc, (msb, lsb)| {
+        let x: u32 = bitfield::BitRange::bit_range(&word, *msb, *lsb);
+        (acc << (msb - lsb + 1)) | x
+    })
 }
 
 /// Decode signed imm20 value for [`JTypeInst`]
@@ -49,6 +47,7 @@ pub fn decode_imm12_b_imm(word: u32) -> i16 {
     }
 }
 
+/// For s-type
 #[must_use]
 pub fn decode_imm12_s_imm(word: u32) -> i16 {
     let val1 = (word & 0x0000_0F80) >> 7;
@@ -93,7 +92,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
     let itype = ITypeInst {
         rs1,
         rd,
-        imm12: decode_imm12(word),
+        imm12: bf.imm12(),
     };
     let jtype = JTypeInst {
         rd,

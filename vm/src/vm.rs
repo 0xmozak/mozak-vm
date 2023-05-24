@@ -35,8 +35,10 @@ impl Vm {
         match inst {
             Instruction::ADD(add) => {
                 // TODO: how to handle if regs have negative value?
-                let res = self.state.get_register_value(add.rs1.into())
-                    + self.state.get_register_value(add.rs2.into());
+                let res = self
+                    .state
+                    .get_register_value(add.rs1.into())
+                    .wrapping_add(self.state.get_register_value(add.rs2.into()));
                 self.state.set_register_value(add.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -136,15 +138,10 @@ impl Vm {
             }
             Instruction::ADDI(addi) => {
                 // TODO: how to handle if regs have negative value?
-                let rs1_value: i64 = self.state.get_register_value(addi.rs1.into()).into();
-                let mut res = rs1_value;
-                if addi.imm12.is_negative() {
-                    res -= i64::from(addi.imm12);
-                } else {
-                    res += i64::from(addi.imm12);
-                }
-                // ignore anything above 32-bits
-                let res: u32 = (res & 0xffff_ffff) as u32;
+                // Answer: sign extension.
+                let a = self.state.get_register_value(addi.rs1.into());
+                let res = a.wrapping_add(i32::from(addi.imm12) as u32);
+
                 self.state.set_register_value(addi.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -479,7 +476,7 @@ mod tests {
 
     use test_case::test_case;
 
-    use crate::{elf::Program, state::State, vm::Vm};
+    use crate::{decode::decode_instruction, elf::Program, state::State, vm::Vm};
 
     fn add_exit_syscall(address: u32, image: &mut BTreeMap<u32, u32>) {
         // set sys-call EXIT in x17(or a7)
@@ -520,6 +517,7 @@ mod tests {
 
     #[test_case(0x0073_02b3, 5, 6, 7, 60049, 50493; "add r5, r6, r7")]
     #[test_case(0x01FF_8FB3, 31, 31, 31, 8981, 8981; "add r31, r31, r31")]
+    #[test_case(0x0073_02b3, 5, 6, 7, 0xFFFF_FFFE, 2; "add r5, r6, r7 wrapping")]
     fn add(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
@@ -532,7 +530,10 @@ mod tests {
         });
         let res = vm.step();
         assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), rs1_value + rs2_value);
+        assert_eq!(
+            vm.state.get_register_value(rd),
+            rs1_value.wrapping_add(rs2_value)
+        );
     }
 
     // Tests 2 cases:
@@ -845,24 +846,30 @@ mod tests {
     }
 
     #[test_case(0x05d0_0393, 7, 0, 0, 93; "addi r7, r0, 93")]
+    // #[test_case(0x05d0_0393, 7, 0, 0xffff_ffff, 0x93; "addi r7, r0, 93 --
+    // wrapping")]
     fn addi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction addi
         image.insert(0_u32, word);
+        let a = match decode_instruction(word) {
+            crate::vm::Instruction::ADDI(a) => a,
+            _ => unreachable!(),
+        };
+        assert_eq!(a.imm12, imm12);
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |state: &mut State| {
             state.set_register_value(rs1, rs1_value);
         });
         let res = vm.step();
         assert!(res.is_ok());
-        let mut expected_value = rs1_value;
-        if imm12.is_negative() {
-            expected_value -= u32::from(imm12.unsigned_abs());
+        let expected_value = if imm12.is_negative() {
+            rs1_value.wrapping_sub(u32::from(imm12.unsigned_abs()))
         } else {
-            expected_value += imm12 as u32;
-        }
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+            rs1_value.wrapping_add(imm12 as u32)
+        };
+        assert_eq!(expected_value, vm.state.get_register_value(rd));
     }
 
     #[test_case(0x0643_0283, 5, 6, 100, 0, 127; "lb r5, 100(r6)")]
