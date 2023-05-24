@@ -853,10 +853,7 @@ mod tests {
         let mut image = BTreeMap::new();
         // at 0 address instruction addi
         image.insert(0_u32, word);
-        let a = match decode_instruction(word) {
-            crate::vm::Instruction::ADDI(a) => a,
-            _ => unreachable!(),
-        };
+        let crate::vm::Instruction::ADDI(a) = decode_instruction(word) else { unreachable!() };
         assert_eq!(a.imm12, imm12);
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |state: &mut State| {
