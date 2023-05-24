@@ -37,17 +37,11 @@ impl State {
     #[must_use]
     pub fn new(program: Program) -> Self {
         let mut memory: HashMap<usize, BabyBearElem> = HashMap::new();
-        for (addr, data) in &program.image {
-            let addr = *addr as usize;
-            for (a, byte) in data
-                .to_le_bytes()
-                .iter()
-                .map(|b| BabyBearElem::new(u32::from(*b)))
-                .enumerate()
-            {
-                memory.insert(addr + a, byte);
-            }
-        }
+        program.image.iter().for_each(|(addr, data)| {
+            data.to_le_bytes().iter().enumerate().for_each(|(a, byte)| {
+                memory.insert(*addr as usize + a, BabyBearElem::from(u32::from(*byte)));
+            })
+        });
         Self {
             halted: false,
             registers: [Register::from(0); 32],
