@@ -1,12 +1,22 @@
 use bitfield::bitfield;
+use bitfield::BitRange;
 
 use crate::instruction::{
     BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst, UTypeInst,
 };
 
-pub trait Extract<T> {
+pub trait Extract<T: std::ops::Shl<usize, Output = T>> {
     #[must_use]
     fn extract(&self, segments: &[(usize, usize)]) -> T;
+
+    /// Like extract, but shifts left afterwards
+    ///
+    /// This is for convenience, because the type annotation syntax in Rust
+    /// is a bit awkward otherwise.
+    #[must_use]
+    fn extract_and_shift(&self, segments: &[(usize, usize)], shift: usize) -> T {
+        self.extract(segments) << shift
+    }
 }
 
 /// builds a u32 from segments, like [(0, 4), (20, 32)]
@@ -15,7 +25,8 @@ pub trait Extract<T> {
 impl Extract<u32> for u32 {
     fn extract(&self, segments: &[(usize, usize)]) -> u32 {
         segments.iter().fold(0, |acc, (msb, lsb)| -> u32 {
-            (acc << (msb - lsb + 1)) | bitfield::BitRange::<u32>::bit_range(self, *msb, *lsb)
+            let bits: Self = self.bit_range(*msb, *lsb);
+            (acc << (msb - lsb + 1)) | bits
         })
     }
 }
@@ -23,52 +34,17 @@ impl Extract<u32> for u32 {
 impl Extract<i32> for u32 {
     fn extract(&self, segments: &[(usize, usize)]) -> i32 {
         let len: usize = segments.iter().map(|(msb, lsb)| msb - lsb + 1).sum();
-        let x: u32 = <u32 as Extract<u32>>::extract(self, segments) << (32 - len);
-        (x as i32) >> (32 - len)
+        let x: Self = self.extract(segments);
+        let bits = std::mem::size_of::<Self>() * 8;
+        let x = x << (bits - len);
+        (x as i32) >> (bits - len)
     }
 }
 
-/// Decode signed imm20 value for [`JTypeInst`]
-/// Please refer RISCV manual section "Immediate Encoding Variants" for this
-/// decoding
-#[must_use]
-pub fn decode_imm20(word: u32) -> i32 {
-    let val1 = (word & 0x7FE0_0000) >> 20;
-    let val2 = (word & 0x0010_0000) >> 9;
-    let val3 = word & 0x000F_F000;
-    if (word & 0x8000_0000) != 0 {
-        (0xFFF0_0000 | val1 | val2 | val3) as i32
-    } else {
-        (val1 | val2 | val3) as i32
-    }
-}
-
-#[must_use]
-pub fn decode_imm20_u_imm(word: u32) -> i32 {
-    (word & 0xFFFF_F000) as i32
-}
-
-#[must_use]
-pub fn decode_imm12_b_imm(word: u32) -> i16 {
-    let val1 = (word & 0x0000_0F00) >> 7;
-    let val2 = (word & 0x7E00_0000) >> 20;
-    let val3 = (word & 0x0000_0080) << 4;
-    if (word & 0x8000_0000) != 0 {
-        (0xF000 | val1 | val2 | val3) as i16
-    } else {
-        (val1 | val2 | val3) as i16
-    }
-}
-
-/// For s-type
-#[must_use]
-pub fn decode_imm12_s_imm(word: u32) -> i16 {
-    let val1 = (word & 0x0000_0F80) >> 7;
-    let val2 = (word & 0x7E00_0000) >> 20;
-    if (word & 0x8000_0000) != 0 {
-        (0xF800 | val1 | val2) as i16
-    } else {
-        (val1 | val2) as i16
+impl Extract<i16> for u32 {
+    fn extract(&self, segments: &[(usize, usize)]) -> i16 {
+        let x: i32 = self.extract(segments);
+        x as i16
     }
 }
 
@@ -99,7 +75,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
     let stype = STypeInst {
         rs1,
         rs2,
-        imm12: decode_imm12_s_imm(word),
+        imm12: word.extract(&[(31, 31), (30, 25), (11, 8), (7, 7)]),
     };
     let rtype = RTypeInst { rs1, rs2, rd };
     let itype = ITypeInst {
@@ -109,16 +85,16 @@ pub fn decode_instruction(word: u32) -> Instruction {
     };
     let jtype = JTypeInst {
         rd,
-        imm20: decode_imm20(word),
+        imm20: word.extract_and_shift(&[(31, 31), (19, 12), (20, 20), (30, 25), (24, 21)], 1),
     };
     let btype = BTypeInst {
         rs1,
         rs2,
-        imm12: decode_imm12_b_imm(word),
+        imm12: word.extract_and_shift(&[(31, 31), (7, 7), (30, 25), (11, 8)], 1),
     };
     let utype = UTypeInst {
         rd,
-        imm20: decode_imm20_u_imm(word),
+        imm20: word.extract_and_shift(&[(31, 12)], 12),
     };
     match bf.opcode() {
         0b011_0011 => match (bf.func3(), bf.func7()) {
@@ -209,13 +185,21 @@ pub fn decode_instruction(word: u32) -> Instruction {
 
 #[cfg(test)]
 mod test {
+
     use test_case::test_case;
 
     use super::decode_instruction;
+    use crate::decode::Extract;
     use crate::instruction::{
         BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst, UTypeInst,
     };
 
+    #[test_case(0b000_1100, 3; "extract 3")]
+    #[test_case(0b1101_1100, -1; "extract neg 3")]
+    fn extract_simple(word: u32, x: i16) {
+        let a: i16 = word.extract(&[(7, 6), (4, 2)]);
+        assert_eq!(x, a);
+    }
     #[test_case(0x018B_80B3, 1, 23, 24; "add r1, r23, r24")]
     #[test_case(0x0000_0033, 0, 0, 0; "add r0, r0, r0")]
     #[test_case(0x01FF_8FB3, 31, 31, 31; "add r31, r31, r31")]
