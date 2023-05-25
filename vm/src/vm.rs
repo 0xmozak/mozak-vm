@@ -18,8 +18,17 @@ impl Vm {
     /// # Errors
     /// This function returns an error, if an instruction could not be loaded
     /// or executed.
+    ///
+    /// # Panics
+    /// Panics in debug mode, when executing more steps than specified in
+    /// environment variable `MOZAK_MAX_LOOPS` at compile time.  Defaults to one
+    /// million steps.
+    /// This is a temporary measure to catch problems with accidental infinite
+    /// loops. (Matthias had some trouble debugging a problem with jumps
+    /// earlier.)
     pub fn step(&mut self) -> Result<Vec<State>> {
         let mut states = vec![self.state.clone()];
+        let mut debug_count: usize = 0;
         while !self.state.has_halted() {
             let pc = self.state.get_pc();
             let word = self.state.load_u32(pc)?;
@@ -27,6 +36,15 @@ impl Vm {
             trace!("Decoded Inst: {:?}", inst);
             self.execute_instruction(&inst)?;
             states.push(self.state.clone());
+            if cfg!(debug_assertions) {
+                debug_count += 1;
+                let limit: usize = std::option_env!("MOZAK_MAX_LOOPS")
+                    .map_or(1_000_000, |env_var| env_var.parse().unwrap());
+                debug_assert!(
+                    debug_count != limit,
+                    "Looped for longer than MOZAK_MAX_LOOPS"
+                );
+            }
         }
         Ok(states)
     }
