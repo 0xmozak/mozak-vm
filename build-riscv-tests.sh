@@ -1,3 +1,3 @@
 #!/bin/sh
 
-DOCKER_BUILDKIT=1 docker build -o vm/tests/testdata .
+docker buildx build -o vm/tests/testdata .
