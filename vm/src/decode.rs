@@ -61,8 +61,8 @@ bitfield! {
     pub func7, _: 31, 25;
     u16;
     pub func12, _: 31, 20;
-    i16;
-    pub imm12, _: 31, 20;
+    i32;
+    pub imm, _: 31, 20;
 }
 
 #[must_use]
@@ -75,26 +75,26 @@ pub fn decode_instruction(word: u32) -> Instruction {
     let stype = STypeInst {
         rs1,
         rs2,
-        imm12: word.extract(&[(31, 31), (30, 25), (11, 8), (7, 7)]),
+        imm: word.extract(&[(31, 31), (30, 25), (11, 8), (7, 7)]),
     };
     let rtype = RTypeInst { rs1, rs2, rd };
     let itype = ITypeInst {
         rs1,
         rd,
-        imm12: bf.imm12(),
+        imm: bf.imm(),
     };
     let jtype = JTypeInst {
         rd,
-        imm20: word.extract_and_shift(&[(31, 31), (19, 12), (20, 20), (30, 25), (24, 21)], 1),
+        imm: word.extract_and_shift(&[(31, 31), (19, 12), (20, 20), (30, 25), (24, 21)], 1),
     };
     let btype = BTypeInst {
         rs1,
         rs2,
-        imm12: word.extract_and_shift(&[(31, 31), (7, 7), (30, 25), (11, 8)], 1),
+        imm: word.extract_and_shift(&[(31, 31), (7, 7), (30, 25), (11, 8)], 1),
     };
     let utype = UTypeInst {
         rd,
-        imm20: word.extract_and_shift(&[(31, 12)], 12),
+        imm: word.extract_and_shift(&[(31, 12)], 12),
     };
     match bf.opcode() {
         0b011_0011 => match (bf.func3(), bf.func7()) {
@@ -137,20 +137,20 @@ pub fn decode_instruction(word: u32) -> Instruction {
             0x1 => Instruction::SLLI(ITypeInst {
                 rs1,
                 rd,
-                imm12: bf.shamt().into(),
+                imm: bf.shamt().into(),
             }),
             0x2 => Instruction::SLTI(itype),
             0x3 => Instruction::SLTIU(itype),
             0x4 => Instruction::XORI(itype),
             0x5 => {
-                let imm12 = bf.shamt().into();
+                let imm = bf.shamt().into();
 
                 // Masks the first 7 bits in a word to differentiate between an
                 // SRAI/SRLI instruction. They have the same funct3 value and are
                 // differentiated by their 30th bit, for which SRAI = 1 and SRLI = 0.
                 match word & 0xfe00_0000 {
-                    0x4000_0000 => Instruction::SRAI(ITypeInst { rs1, rd, imm12 }),
-                    0 => Instruction::SRLI(ITypeInst { rs1, rd, imm12 }),
+                    0x4000_0000 => Instruction::SRAI(ITypeInst { rs1, rd, imm }),
+                    0 => Instruction::SRLI(ITypeInst { rs1, rd, imm }),
                     _ => Instruction::UNKNOWN,
                 }
             }
@@ -212,9 +212,9 @@ mod test {
     #[test_case(0x8001_8193, 3, 3, -2048; "addi r3, r3, -2048")]
     #[test_case(0x4480_0f93, 31, 0, 1096; "addi r31, r0, 1096")]
     #[test_case(0xdca5_8e13, 28, 11, -566; "addi r28, r11, -566")]
-    fn addi(word: u32, rd: u8, rs1: u8, imm12: i16) {
+    fn addi(word: u32, rd: u8, rs1: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::ADDI(ITypeInst { rs1, rd, imm12 });
+        let match_ins = Instruction::ADDI(ITypeInst { rs1, rd, imm });
         assert_eq!(ins, match_ins);
     }
 
@@ -232,7 +232,7 @@ mod test {
         let match_ins = Instruction::SLLI(ITypeInst {
             rs1,
             rd,
-            imm12: shamt.into(),
+            imm: shamt.into(),
         });
         assert_eq!(ins, match_ins);
     }
@@ -259,30 +259,30 @@ mod test {
     }
 
     #[test_case(0x41f9_5293, 5, 18, 31; "srai r5, r18, 31")]
-    fn srai(word: u32, rd: u8, rs1: u8, imm12: i16) {
+    fn srai(word: u32, rd: u8, rs1: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::SRAI(ITypeInst { rs1, rd, imm12 });
+        let match_ins = Instruction::SRAI(ITypeInst { rs1, rd, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x01f9_5293, 5, 18, 31; "srli r5, r18, 31")]
-    fn srli(word: u32, rd: u8, rs1: u8, imm12: i16) {
+    fn srli(word: u32, rd: u8, rs1: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::SRLI(ITypeInst { rs1, rd, imm12 });
+        let match_ins = Instruction::SRLI(ITypeInst { rs1, rd, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x0ff9_2293, 5, 18, 255; "slti r5, r18, 255")]
-    fn slti(word: u32, rd: u8, rs1: u8, imm12: i16) {
+    fn slti(word: u32, rd: u8, rs1: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::SLTI(ITypeInst { rs1, rd, imm12 });
+        let match_ins = Instruction::SLTI(ITypeInst { rs1, rd, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x0ff9_3293, 5, 18, 255; "sltiu r5, r18, 255")]
-    fn sltiu(word: u32, rd: u8, rs1: u8, imm12: i16) {
+    fn sltiu(word: u32, rd: u8, rs1: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::SLTIU(ITypeInst { rs1, rd, imm12 });
+        let match_ins = Instruction::SLTIU(ITypeInst { rs1, rd, imm });
         assert_eq!(ins, match_ins);
     }
 
@@ -304,65 +304,65 @@ mod test {
 
     #[test_case(0x8400_00ef,1, -1_048_512; "jal r1, -1048512")]
     #[test_case(0x7c1f_fa6f,20, 1_048_512; "jal r20, 1048512")]
-    fn jal(word: u32, rd: u8, imm20: i32) {
+    fn jal(word: u32, rd: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::JAL(JTypeInst { rd, imm20 });
+        let match_ins = Instruction::JAL(JTypeInst { rd, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x7ff8_8567,10, 17, 2047; "jalr r10, r17, 2047")]
     #[test_case(0x8005_8ae7,21, 11, -2048; "jalr r21, r11, -2048")]
-    fn jalr(word: u32, rd: u8, rs1: u8, imm12: i16) {
+    fn jalr(word: u32, rd: u8, rs1: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::JALR(ITypeInst { rs1, rd, imm12 });
+        let match_ins = Instruction::JALR(ITypeInst { rs1, rd, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x8094_1063,8, 9, -4096; "bne r8, r9, -4096")]
     #[test_case(0x7e94_1fe3,8, 9, 4094; "bne r8, r9, 4094")]
-    fn bne(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+    fn bne(word: u32, rs1: u8, rs2: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::BNE(BTypeInst { rs1, rs2, imm12 });
+        let match_ins = Instruction::BNE(BTypeInst { rs1, rs2, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x8094_0063,8, 9, -4096; "beq r8, r9, -4096")]
     #[test_case(0x7e94_0fe3,8, 9, 4094; "beq r8, r9, 4094")]
-    fn beq(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+    fn beq(word: u32, rs1: u8, rs2: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::BEQ(BTypeInst { rs1, rs2, imm12 });
+        let match_ins = Instruction::BEQ(BTypeInst { rs1, rs2, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x8094_4063,8, 9, -4096; "blt r8, r9, -4096")]
     #[test_case(0x7e94_4fe3,8, 9, 4094; "blt r8, r9, 4094")]
-    fn blt(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+    fn blt(word: u32, rs1: u8, rs2: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::BLT(BTypeInst { rs1, rs2, imm12 });
+        let match_ins = Instruction::BLT(BTypeInst { rs1, rs2, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x8094_6063,8, 9, -4096; "bltu r8, r9, -4096")]
     #[test_case(0x7e94_6fe3,8, 9, 4094; "bltu r8, r9, 4094")]
-    fn bltu(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+    fn bltu(word: u32, rs1: u8, rs2: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::BLTU(BTypeInst { rs1, rs2, imm12 });
+        let match_ins = Instruction::BLTU(BTypeInst { rs1, rs2, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x8094_5063,8, 9, -4096; "bge r8, r9, -4096")]
     #[test_case(0x7e94_5fe3,8, 9, 4094; "bge r8, r9, 4094")]
-    fn bge(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+    fn bge(word: u32, rs1: u8, rs2: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::BGE(BTypeInst { rs1, rs2, imm12 });
+        let match_ins = Instruction::BGE(BTypeInst { rs1, rs2, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x8094_7063,8, 9, -4096; "bgeu r8, r9, -4096")]
     #[test_case(0x7e94_7fe3,8, 9, 4094; "bgeu r8, r9, 4094")]
-    fn bgeu(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+    fn bgeu(word: u32, rs1: u8, rs2: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::BGEU(BTypeInst { rs1, rs2, imm12 });
+        let match_ins = Instruction::BGEU(BTypeInst { rs1, rs2, imm });
         assert_eq!(ins, match_ins);
     }
 
@@ -374,16 +374,16 @@ mod test {
     }
 
     #[test_case(0x0ff8_f513, 10, 17, 0xff; "andi r10, r17, 255")]
-    fn andi(word: u32, rd: u8, rs1: u8, imm12: i16) {
+    fn andi(word: u32, rd: u8, rs1: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::ANDI(ITypeInst { rs1, rd, imm12 });
+        let match_ins = Instruction::ANDI(ITypeInst { rs1, rd, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x8008_c513, 10, 17, -2048; "xori r10, r17, -2048")]
-    fn xori(word: u32, rd: u8, rs1: u8, imm12: i16) {
+    fn xori(word: u32, rd: u8, rs1: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::XORI(ITypeInst { rs1, rd, imm12 });
+        let match_ins = Instruction::XORI(ITypeInst { rs1, rd, imm });
         assert_eq!(ins, match_ins);
     }
 
@@ -395,33 +395,33 @@ mod test {
     }
 
     #[test_case(0x0ff8_e513, 10, 17, 0xff; "ori r10, r17, 255")]
-    fn ori(word: u32, rd: u8, rs1: u8, imm12: i16) {
+    fn ori(word: u32, rd: u8, rs1: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::ORI(ITypeInst { rs1, rd, imm12 });
+        let match_ins = Instruction::ORI(ITypeInst { rs1, rd, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x80a0_0023, 0, 10, -2048; "sb r10, -2048(r0)")]
     #[test_case(0x7ea0_0fa3, 0, 10, 2047; "sb r10, 2047(r0)")]
-    fn sb(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+    fn sb(word: u32, rs1: u8, rs2: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::SB(STypeInst { rs1, rs2, imm12 });
+        let match_ins = Instruction::SB(STypeInst { rs1, rs2, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x80a0_1023, 0, 10, -2048; "sh r10, -2048(r0)")]
     #[test_case(0x7ea0_1fa3, 0, 10, 2047; "sh r10, 2047(r0)")]
-    fn sh(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+    fn sh(word: u32, rs1: u8, rs2: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::SH(STypeInst { rs1, rs2, imm12 });
+        let match_ins = Instruction::SH(STypeInst { rs1, rs2, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x80a0_2023, 0, 10, -2048; "sw r10, -2048(r0)")]
     #[test_case(0x7ea0_2fa3, 0, 10, 2047; "sw r10, 2047(r0)")]
-    fn sw(word: u32, rs1: u8, rs2: u8, imm12: i16) {
+    fn sw(word: u32, rs1: u8, rs2: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::SW(STypeInst { rs1, rs2, imm12 });
+        let match_ins = Instruction::SW(STypeInst { rs1, rs2, imm });
         assert_eq!(ins, match_ins);
     }
 
@@ -455,57 +455,57 @@ mod test {
 
     #[test_case(0x7ff0_af83, 31, 1, 2047; "lw r31, 2047(r1)")]
     #[test_case(0x8000_af83, 31, 1, -2048; "lw r31, -2048(r1)")]
-    fn lw(word: u32, rd: u8, rs1: u8, imm12: i16) {
+    fn lw(word: u32, rd: u8, rs1: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::LW(ITypeInst { rs1, rd, imm12 });
+        let match_ins = Instruction::LW(ITypeInst { rs1, rd, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x7ff0_9f83, 31, 1, 2047; "lh r31, 2047(r1)")]
     #[test_case(0x8000_9f83, 31, 1, -2048; "lh r31, -2048(r1)")]
-    fn lh(word: u32, rd: u8, rs1: u8, imm12: i16) {
+    fn lh(word: u32, rd: u8, rs1: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::LH(ITypeInst { rs1, rd, imm12 });
+        let match_ins = Instruction::LH(ITypeInst { rs1, rd, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x7ff0_df83, 31, 1, 2047; "lhu r31, 2047(r1)")]
     #[test_case(0x8000_df83, 31, 1, -2048; "lhu r31, -2048(r1)")]
-    fn lhu(word: u32, rd: u8, rs1: u8, imm12: i16) {
+    fn lhu(word: u32, rd: u8, rs1: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::LHU(ITypeInst { rs1, rd, imm12 });
+        let match_ins = Instruction::LHU(ITypeInst { rs1, rd, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x7ff0_8f83, 31, 1, 2047; "lb r31, 2047(r1)")]
     #[test_case(0x8000_8f83, 31, 1, -2048; "lb r31, -2048(r1)")]
-    fn lb(word: u32, rd: u8, rs1: u8, imm12: i16) {
+    fn lb(word: u32, rd: u8, rs1: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::LB(ITypeInst { rs1, rd, imm12 });
+        let match_ins = Instruction::LB(ITypeInst { rs1, rd, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x7ff0_cf83, 31, 1, 2047; "lbu r31, 2047(r1)")]
     #[test_case(0x8000_cf83, 31, 1, -2048; "lbu r31, -2048(r1)")]
-    fn lbu(word: u32, rd: u8, rs1: u8, imm12: i16) {
+    fn lbu(word: u32, rd: u8, rs1: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::LBU(ITypeInst { rs1, rd, imm12 });
+        let match_ins = Instruction::LBU(ITypeInst { rs1, rd, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x8000_00b7, 1, -2_147_483_648; "lui r1, -524288")]
     #[test_case(0x7fff_f0b7, 1, 2_147_479_552; "lui r1, 524287")]
-    fn lui(word: u32, rd: u8, imm20: i32) {
+    fn lui(word: u32, rd: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::LUI(UTypeInst { rd, imm20 });
+        let match_ins = Instruction::LUI(UTypeInst { rd, imm });
         assert_eq!(ins, match_ins);
     }
 
     #[test_case(0x8000_0097, 1, -2_147_483_648; "auipc r1, -524288")]
     #[test_case(0x7fff_f097, 1, 2_147_479_552; "auipc r1, 524287")]
-    fn auipc(word: u32, rd: u8, imm20: i32) {
+    fn auipc(word: u32, rd: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::AUIPC(UTypeInst { rd, imm20 });
+        let match_ins = Instruction::AUIPC(UTypeInst { rd, imm });
         assert_eq!(ins, match_ins);
     }
 
