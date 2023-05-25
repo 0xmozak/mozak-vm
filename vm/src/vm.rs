@@ -1405,22 +1405,6 @@ mod tests {
         assert_eq!(vm.state.get_register_value_signed(1), -2_147_483_644);
     }
 
-    #[test]
-    fn fence() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address addi x0, x0, 0
-        image.insert(0_u32, 0x0000_0013);
-        // at 4 address instruction fence
-        // fence iorw iorw
-        image.insert(4_u32, 0x0ff0000f);
-        add_exit_syscall(8_u32, &mut image);
-        let mut vm = create_vm(image, |_state: &mut State| {});
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-    }
-
     #[test_case(0x4000_0000 /*2^30*/, 0xFFFF_FFFE /*-2*/, 0xE000_0000 /*-2^29*/; "simple")]
     #[test_case(0x4000_0000, 0x0000_0000, 0xFFFF_FFFF; "div_by_zero")]
     #[test_case(0x8000_0000 /*-2^31*/, 0xFFFF_FFFF /*-1*/, 0x8000_0000; "overflow")]

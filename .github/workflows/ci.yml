@@ -22,12 +22,34 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
       
+      - uses: actions/download-artifact@v3
+        continue-on-error: true
+        with:
+          name: riscv-tests
+          path: riscv-tests
+
+      - name: Check if riscv-tests are cached
+        id: check-tests-cached
+        run: |
+          if [ -d riscv-tests ]; then
+            echo "tests-cached=true" >> "$GITHUB_OUTPUT"
+          fi
+      
       - name: Set up Docker Buildx
+        if: ${{ steps.check-tests-cached.outputs.tests-cached != 'true' }}
         uses: docker/setup-buildx-action@v2
 
       - name: Build RISC-V test suite
+        if: ${{ steps.check-tests-cached.outputs.tests-cached != 'true' }}
         run: |
           ./build-riscv-tests.sh
+
+      - name: Archive build artifacts
+        if: ${{ steps.check-tests-cached.outputs.tests-cached != 'true' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: riscv-tests
+          path: vm/tests/testdata
 
       - name: Run tests
         run: cargo test --locked --all-targets
