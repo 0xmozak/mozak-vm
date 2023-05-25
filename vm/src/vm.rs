@@ -14,8 +14,8 @@ pub struct Vm {
 fn add(mut state: State, rtype: RTypeInst) -> Result<State> {
     // TODO: how to handle if regs have negative value?
     let res = state
-        .get_register_value(rtype.rs1.into())
-        .wrapping_add(state.get_register_value(rtype.rs2.into()));
+        .get_register_value(rtype.rs1)
+        .wrapping_add(state.get_register_value(rtype.rs2));
     state.registers[rtype.rd] = Register::from(res);
     // state.set_register_value(rtype.rd.into(), res);
     state.set_pc(state.get_pc() + 4);
@@ -90,106 +90,106 @@ impl Vm {
                 // TODO: how to handle if regs have negative value?
                 let res = self
                     .state
-                    .get_register_value(add.rs1.into())
-                    .wrapping_add(self.state.get_register_value(add.rs2.into()));
-                self.state.set_register_value(add.rd.into(), res);
+                    .get_register_value(add.rs1)
+                    .wrapping_add(self.state.get_register_value(add.rs2));
+                self.state.set_register_value(add.rd, res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SLL(sll) => {
                 // Only use lower 5 bits of rs2
-                let res = self.state.get_register_value(sll.rs1.into())
-                    << (self.state.get_register_value(sll.rs2.into()) & 0x1F);
-                self.state.set_register_value(sll.rd.into(), res);
+                let res = self.state.get_register_value(sll.rs1)
+                    << (self.state.get_register_value(sll.rs2) & 0x1F);
+                self.state.set_register_value(sll.rd, res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SRL(srl) => {
                 // Only use lower 5 bits of rs2
-                let res = self.state.get_register_value(srl.rs1.into())
-                    >> (self.state.get_register_value(srl.rs2.into()) & 0x1F);
-                self.state.set_register_value(srl.rd.into(), res);
+                let res = self.state.get_register_value(srl.rs1)
+                    >> (self.state.get_register_value(srl.rs2) & 0x1F);
+                self.state.set_register_value(srl.rd, res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SRA(sra) => {
                 // Only use lower 5 bits of rs2
-                let res = self.state.get_register_value_signed(sra.rs1.into())
-                    >> (self.state.get_register_value_signed(sra.rs2.into()) & 0x1F);
-                self.state.set_register_value(sra.rd.into(), res as u32);
+                let res = self.state.get_register_value_signed(sra.rs1)
+                    >> (self.state.get_register_value_signed(sra.rs2) & 0x1F);
+                self.state.set_register_value(sra.rd, res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SLT(slt) => {
-                let res = self.state.get_register_value_signed(slt.rs1.into())
-                    < self.state.get_register_value_signed(slt.rs2.into());
-                self.state.set_register_value(slt.rd.into(), res.into());
+                let res = self.state.get_register_value_signed(slt.rs1)
+                    < self.state.get_register_value_signed(slt.rs2);
+                self.state.set_register_value(slt.rd, res.into());
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SLTU(sltu) => {
-                let res = self.state.get_register_value(sltu.rs1.into())
-                    < self.state.get_register_value(sltu.rs2.into());
-                self.state.set_register_value(sltu.rd.into(), res.into());
+                let res = self.state.get_register_value(sltu.rs1)
+                    < self.state.get_register_value(sltu.rs2);
+                self.state.set_register_value(sltu.rd, res.into());
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SRAI(srai) => {
-                let res = self.state.get_register_value_signed(srai.rs1.into()) >> srai.imm as u32;
-                self.state.set_register_value(srai.rd.into(), res as u32);
+                let res = self.state.get_register_value_signed(srai.rs1) >> srai.imm as u32;
+                self.state.set_register_value(srai.rd, res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SRLI(srli) => {
-                let res = self.state.get_register_value(srli.rs1.into()) >> srli.imm as u32;
-                self.state.set_register_value(srli.rd.into(), res);
+                let res = self.state.get_register_value(srli.rs1) >> srli.imm as u32;
+                self.state.set_register_value(srli.rd, res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SLLI(slli) => {
-                let res = self.state.get_register_value(slli.rs1.into()) << slli.imm as u32;
-                self.state.set_register_value(slli.rd.into(), res);
+                let res = self.state.get_register_value(slli.rs1) << slli.imm as u32;
+                self.state.set_register_value(slli.rd, res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SLTI(slti) => {
                 let res =
-                    self.state.get_register_value_signed(slti.rs1.into()) < i32::from(slti.imm);
+                    self.state.get_register_value_signed(slti.rs1) < slti.imm;
                 self.state
-                    .set_register_value(slti.rd.into(), u32::from(res));
+                    .set_register_value(slti.rd, u32::from(res));
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SLTIU(sltiu) => {
-                let res = self.state.get_register_value(sltiu.rs1.into()) < sltiu.imm as u32;
+                let res = self.state.get_register_value(sltiu.rs1) < sltiu.imm as u32;
                 self.state
-                    .set_register_value(sltiu.rd.into(), u32::from(res));
+                    .set_register_value(sltiu.rd, u32::from(res));
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::AND(and) => {
-                let res = self.state.get_register_value(and.rs1.into())
-                    & self.state.get_register_value(and.rs2.into());
-                self.state.set_register_value(and.rd.into(), res);
+                let res = self.state.get_register_value(and.rs1)
+                    & self.state.get_register_value(and.rs2);
+                self.state.set_register_value(and.rd, res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::ANDI(andi) => {
-                let rs1_value = self.state.get_register_value(andi.rs1.into());
-                let res = rs1_value as i32 & i32::from(andi.imm);
-                self.state.set_register_value(andi.rd.into(), res as u32);
+                let rs1_value = self.state.get_register_value(andi.rs1);
+                let res = rs1_value as i32 & andi.imm;
+                self.state.set_register_value(andi.rd, res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::OR(or) => {
-                let res = self.state.get_register_value(or.rs1.into())
-                    | self.state.get_register_value(or.rs2.into());
-                self.state.set_register_value(or.rd.into(), res);
+                let res = self.state.get_register_value(or.rs1)
+                    | self.state.get_register_value(or.rs2);
+                self.state.set_register_value(or.rd, res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::ADDI(addi) => {
-                let rs1_value: i64 = self.state.get_register_value(addi.rs1.into()).into();
+                let rs1_value: i64 = self.state.get_register_value(addi.rs1).into();
                 let res = rs1_value;
                 // TODO(Matthias): add a prop test, then think carefully about the exact
                 // semantic, and replace this with a simpler version.
@@ -200,35 +200,35 @@ impl Vm {
                 };
                 // ignore anything above 32-bits
                 let res: u32 = (res & 0xffff_ffff) as u32;
-                self.state.set_register_value(addi.rd.into(), res);
+                self.state.set_register_value(addi.rd, res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::ORI(ori) => {
-                let rs1_value: i64 = self.state.get_register_value(ori.rs1.into()).into();
-                let res = rs1_value as i32 | i32::from(ori.imm);
-                self.state.set_register_value(ori.rd.into(), res as u32);
+                let rs1_value: i64 = self.state.get_register_value(ori.rs1).into();
+                let res = rs1_value as i32 | ori.imm;
+                self.state.set_register_value(ori.rd, res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::XORI(xori) => {
-                let rs1_value = self.state.get_register_value(xori.rs1.into());
-                let res = rs1_value as i32 ^ i32::from(xori.imm);
-                self.state.set_register_value(xori.rd.into(), res as u32);
+                let rs1_value = self.state.get_register_value(xori.rs1);
+                let res = rs1_value as i32 ^ xori.imm;
+                self.state.set_register_value(xori.rd, res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SUB(sub) => {
                 let res = self
                     .state
-                    .get_register_value(sub.rs1.into())
-                    .wrapping_sub(self.state.get_register_value(sub.rs2.into()));
-                self.state.set_register_value(sub.rd.into(), res);
+                    .get_register_value(sub.rs1)
+                    .wrapping_sub(self.state.get_register_value(sub.rs2));
+                self.state.set_register_value(sub.rd, res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::LB(load) => {
-                let rs1: i64 = self.state.get_register_value(load.rs1.into()).into();
+                let rs1: i64 = self.state.get_register_value(load.rs1).into();
                 let addr = rs1 + i64::from(load.imm);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
                 let value: u8 = self.state.load_u8(addr)?;
@@ -237,21 +237,21 @@ impl Vm {
                     // extend sign bit
                     final_value |= 0xffff_ff00;
                 }
-                self.state.set_register_value(load.rd.into(), final_value);
+                self.state.set_register_value(load.rd, final_value);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::LBU(load) => {
-                let rs1: i64 = self.state.get_register_value(load.rs1.into()).into();
+                let rs1: i64 = self.state.get_register_value(load.rs1).into();
                 let addr = rs1 + i64::from(load.imm);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
                 let value: u8 = self.state.load_u8(addr)?;
-                self.state.set_register_value(load.rd.into(), value.into());
+                self.state.set_register_value(load.rd, value.into());
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::LH(load) => {
-                let rs1: i64 = self.state.get_register_value(load.rs1.into()).into();
+                let rs1: i64 = self.state.get_register_value(load.rs1).into();
                 let addr = rs1 + i64::from(load.imm);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
                 let value: u16 = self.state.load_u16(addr)?;
@@ -260,25 +260,25 @@ impl Vm {
                     // extend sign bit
                     final_value |= 0xffff_0000;
                 }
-                self.state.set_register_value(load.rd.into(), final_value);
+                self.state.set_register_value(load.rd, final_value);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::LHU(load) => {
-                let rs1: i64 = self.state.get_register_value(load.rs1.into()).into();
+                let rs1: i64 = self.state.get_register_value(load.rs1).into();
                 let addr = rs1 + i64::from(load.imm);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
                 let value: u16 = self.state.load_u16(addr)?;
-                self.state.set_register_value(load.rd.into(), value.into());
+                self.state.set_register_value(load.rd, value.into());
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::LW(load) => {
-                let rs1: i64 = self.state.get_register_value(load.rs1.into()).into();
+                let rs1: i64 = self.state.get_register_value(load.rs1).into();
                 let addr = rs1 + i64::from(load.imm);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
                 let value: u32 = self.state.load_u32(addr)?;
-                self.state.set_register_value(load.rd.into(), value);
+                self.state.set_register_value(load.rd, value);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
@@ -297,7 +297,7 @@ impl Vm {
             Instruction::JAL(jal) => {
                 let pc = self.state.get_pc();
                 let next_pc = pc + 4;
-                self.state.set_register_value(jal.rd.into(), next_pc);
+                self.state.set_register_value(jal.rd, next_pc);
                 let jump_pc = (pc as i32) + jal.imm;
                 self.state.set_pc(jump_pc as u32);
                 Ok(())
@@ -305,18 +305,18 @@ impl Vm {
             Instruction::JALR(jalr) => {
                 let pc = self.state.get_pc();
                 let next_pc = pc + 4;
-                self.state.set_register_value(jalr.rd.into(), next_pc);
-                let rs1_value = self.state.get_register_value(jalr.rs1.into());
-                let jump_pc = (rs1_value as i32) + i32::from(jalr.imm);
+                self.state.set_register_value(jalr.rd, next_pc);
+                let rs1_value = self.state.get_register_value(jalr.rs1);
+                let jump_pc = (rs1_value as i32) + jalr.imm;
                 self.state.set_pc(jump_pc as u32);
                 Ok(())
             }
             Instruction::BEQ(beq) => {
-                if self.state.get_register_value(beq.rs1.into())
-                    == self.state.get_register_value(beq.rs2.into())
+                if self.state.get_register_value(beq.rs1)
+                    == self.state.get_register_value(beq.rs2)
                 {
                     let pc = self.state.get_pc();
-                    let jump_pc = (pc as i32) + i32::from(beq.imm);
+                    let jump_pc = (pc as i32) + beq.imm;
                     self.state.set_pc(jump_pc as u32);
                 } else {
                     self.state.set_pc(self.state.get_pc() + 4);
@@ -324,11 +324,11 @@ impl Vm {
                 Ok(())
             }
             Instruction::BNE(bne) => {
-                if self.state.get_register_value(bne.rs1.into())
-                    != self.state.get_register_value(bne.rs2.into())
+                if self.state.get_register_value(bne.rs1)
+                    != self.state.get_register_value(bne.rs2)
                 {
                     let pc = self.state.get_pc();
-                    let jump_pc = (pc as i32) + i32::from(bne.imm);
+                    let jump_pc = (pc as i32) + bne.imm;
                     self.state.set_pc(jump_pc as u32);
                 } else {
                     self.state.set_pc(self.state.get_pc() + 4);
@@ -336,11 +336,11 @@ impl Vm {
                 Ok(())
             }
             Instruction::BLT(blt) => {
-                if self.state.get_register_value_signed(blt.rs1.into())
-                    < self.state.get_register_value_signed(blt.rs2.into())
+                if self.state.get_register_value_signed(blt.rs1)
+                    < self.state.get_register_value_signed(blt.rs2)
                 {
                     let pc = self.state.get_pc();
-                    let jump_pc = (pc as i32) + i32::from(blt.imm);
+                    let jump_pc = (pc as i32) + blt.imm;
                     self.state.set_pc(jump_pc as u32);
                 } else {
                     self.state.set_pc(self.state.get_pc() + 4);
@@ -348,11 +348,11 @@ impl Vm {
                 Ok(())
             }
             Instruction::BLTU(bltu) => {
-                if self.state.get_register_value(bltu.rs1.into())
-                    < self.state.get_register_value(bltu.rs2.into())
+                if self.state.get_register_value(bltu.rs1)
+                    < self.state.get_register_value(bltu.rs2)
                 {
                     let pc = self.state.get_pc();
-                    let jump_pc = (pc as i32) + i32::from(bltu.imm);
+                    let jump_pc = (pc as i32) + bltu.imm;
                     self.state.set_pc(jump_pc as u32);
                 } else {
                     self.state.set_pc(self.state.get_pc() + 4);
@@ -360,11 +360,11 @@ impl Vm {
                 Ok(())
             }
             Instruction::BGE(bge) => {
-                if self.state.get_register_value_signed(bge.rs1.into())
-                    >= self.state.get_register_value_signed(bge.rs2.into())
+                if self.state.get_register_value_signed(bge.rs1)
+                    >= self.state.get_register_value_signed(bge.rs2)
                 {
                     let pc = self.state.get_pc();
-                    let jump_pc = (pc as i32) + i32::from(bge.imm);
+                    let jump_pc = (pc as i32) + bge.imm;
                     self.state.set_pc(jump_pc as u32);
                 } else {
                     self.state.set_pc(self.state.get_pc() + 4);
@@ -372,11 +372,11 @@ impl Vm {
                 Ok(())
             }
             Instruction::BGEU(bgeu) => {
-                if self.state.get_register_value_signed(bgeu.rs1.into())
-                    >= self.state.get_register_value_signed(bgeu.rs2.into())
+                if self.state.get_register_value_signed(bgeu.rs1)
+                    >= self.state.get_register_value_signed(bgeu.rs2)
                 {
                     let pc = self.state.get_pc();
-                    let jump_pc = (pc as i32) + i32::from(bgeu.imm);
+                    let jump_pc = (pc as i32) + bgeu.imm;
                     self.state.set_pc(jump_pc as u32);
                 } else {
                     self.state.set_pc(self.state.get_pc() + 4);
@@ -384,71 +384,71 @@ impl Vm {
                 Ok(())
             }
             Instruction::SW(sw) => {
-                let rs1: i64 = self.state.get_register_value(sw.rs1.into()).into();
+                let rs1: i64 = self.state.get_register_value(sw.rs1).into();
                 let addr = rs1 + i64::from(sw.imm);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
-                let value = self.state.get_register_value(sw.rs2.into());
+                let value = self.state.get_register_value(sw.rs2);
                 self.state.store_u32(addr, value)?;
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SH(sh) => {
-                let rs1: i64 = self.state.get_register_value(sh.rs1.into()).into();
+                let rs1: i64 = self.state.get_register_value(sh.rs1).into();
                 let addr = rs1 + i64::from(sh.imm);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
-                let value = self.state.get_register_value(sh.rs2.into());
+                let value = self.state.get_register_value(sh.rs2);
                 let value: u16 = (0x0000_FFFF & value) as u16;
                 self.state.store_u16(addr, value)?;
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SB(sb) => {
-                let rs1: i64 = self.state.get_register_value(sb.rs1.into()).into();
+                let rs1: i64 = self.state.get_register_value(sb.rs1).into();
                 let addr = rs1 + i64::from(sb.imm);
                 let addr: u32 = (addr & 0xffff_ffff) as u32;
-                let value = self.state.get_register_value(sb.rs2.into());
+                let value = self.state.get_register_value(sb.rs2);
                 let value: u8 = (0x0000_00FF & value) as u8;
                 self.state.store_u8(addr, value)?;
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::MUL(mul) => {
-                let rs1: i64 = self.state.get_register_value_signed(mul.rs1.into()).into();
-                let rs2: i64 = self.state.get_register_value_signed(mul.rs2.into()).into();
+                let rs1: i64 = self.state.get_register_value_signed(mul.rs1).into();
+                let rs2: i64 = self.state.get_register_value_signed(mul.rs2).into();
                 let res: u32 = ((rs1 * rs2) & 0xFFFF_FFFF) as u32;
-                self.state.set_register_value(mul.rd.into(), res);
+                self.state.set_register_value(mul.rd, res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::MULH(mulh) => {
-                let rs1: i64 = self.state.get_register_value_signed(mulh.rs1.into()).into();
-                let rs2: i64 = self.state.get_register_value_signed(mulh.rs2.into()).into();
+                let rs1: i64 = self.state.get_register_value_signed(mulh.rs1).into();
+                let rs2: i64 = self.state.get_register_value_signed(mulh.rs2).into();
                 let res: u32 = ((rs1 * rs2) >> 32) as u32;
-                self.state.set_register_value(mulh.rd.into(), res);
+                self.state.set_register_value(mulh.rd, res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::MULHSU(mulhsu) => {
                 let rs1: i64 = self
                     .state
-                    .get_register_value_signed(mulhsu.rs1.into())
+                    .get_register_value_signed(mulhsu.rs1)
                     .into();
-                let rs2: i64 = self.state.get_register_value(mulhsu.rs2.into()).into();
+                let rs2: i64 = self.state.get_register_value(mulhsu.rs2).into();
                 let res: u32 = ((rs1 * rs2) >> 32) as u32;
-                self.state.set_register_value(mulhsu.rd.into(), res);
+                self.state.set_register_value(mulhsu.rd, res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::MULHU(mulhu) => {
-                let rs1: i64 = self.state.get_register_value(mulhu.rs1.into()).into();
-                let rs2: i64 = self.state.get_register_value(mulhu.rs2.into()).into();
+                let rs1: i64 = self.state.get_register_value(mulhu.rs1).into();
+                let rs2: i64 = self.state.get_register_value(mulhu.rs2).into();
                 let res: u32 = ((rs1 * rs2) >> 32) as u32;
-                self.state.set_register_value(mulhu.rd.into(), res);
+                self.state.set_register_value(mulhu.rd, res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::LUI(lui) => {
-                self.state.set_register_value(lui.rd.into(), lui.imm as u32);
+                self.state.set_register_value(lui.rd, lui.imm as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
@@ -457,16 +457,16 @@ impl Vm {
                 let pc = i64::from(self.state.get_pc());
                 let res = pc + val;
                 let res_u32 = res as u32;
-                self.state.set_register_value(auipc.rd.into(), res_u32);
+                self.state.set_register_value(auipc.rd, res_u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::DIV(div) => {
                 self.state.set_register_value(
-                    div.rd.into(),
+                    div.rd,
                     match (
-                        self.state.get_register_value_signed(div.rs1.into()),
-                        self.state.get_register_value_signed(div.rs2.into()),
+                        self.state.get_register_value_signed(div.rs1),
+                        self.state.get_register_value_signed(div.rs2),
                     ) {
                         // division by zero
                         (_dividend, 0) => 0xFFFF_FFFF,
@@ -479,10 +479,10 @@ impl Vm {
             }
             Instruction::DIVU(divu) => {
                 self.state.set_register_value(
-                    divu.rd.into(),
+                    divu.rd,
                     match (
-                        self.state.get_register_value(divu.rs1.into()),
-                        self.state.get_register_value(divu.rs2.into()),
+                        self.state.get_register_value(divu.rs1),
+                        self.state.get_register_value(divu.rs2),
                     ) {
                         // division by zero
                         (_dividend, 0) => 0xFFFF_FFFF,
@@ -494,10 +494,10 @@ impl Vm {
             }
             Instruction::REM(rem) => {
                 self.state.set_register_value(
-                    rem.rd.into(),
+                    rem.rd,
                     match (
-                        self.state.get_register_value_signed(rem.rs1.into()),
-                        self.state.get_register_value_signed(rem.rs2.into()),
+                        self.state.get_register_value_signed(rem.rs1),
+                        self.state.get_register_value_signed(rem.rs2),
                     ) {
                         // division by zero
                         (dividend, 0) => dividend as u32,
@@ -511,10 +511,10 @@ impl Vm {
             }
             Instruction::REMU(remu) => {
                 self.state.set_register_value(
-                    remu.rd.into(),
+                    remu.rd,
                     match (
-                        self.state.get_register_value(remu.rs1.into()),
-                        self.state.get_register_value(remu.rs2.into()),
+                        self.state.get_register_value(remu.rs1),
+                        self.state.get_register_value(remu.rs2),
                     ) {
                         // division by zero
                         (dividend, 0) => dividend,
@@ -929,7 +929,7 @@ mod tests {
         // } else {
         //     rs1_value.wrapping_add(imm as u32)
         // };
-        assert_eq!(expected_value, vm.state.get_register_value(rd) as i64);
+        assert_eq!(expected_value, i64::from(vm.state.get_register_value(rd)));
     }
 
     #[test_case(0x0643_0283, 5, 6, 100, 0, 127; "lb r5, 100(r6)")]
