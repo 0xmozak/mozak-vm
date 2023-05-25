@@ -34,7 +34,7 @@ impl Vm {
             let word = self.state.load_u32(pc)?;
             let inst = decode_instruction(word);
             trace!(
-                "PC: {:?}, Decoded Inst: {:?}, Encoded Inst Word: {:?}",
+                "PC: {:#010x?}, Decoded Inst: {:?}, Encoded Inst Word: {:#010x?}",
                 pc,
                 inst,
                 word
@@ -164,11 +164,7 @@ impl Vm {
                 let res = rs1_value;
                 // TODO(Matthias): add a prop test, then think carefully about the exact
                 // semantic, and replace this with a simpler version.
-                let res = if addi.imm12.is_negative() {
-                    res.wrapping_sub(i64::from(addi.imm12))
-                } else {
-                    res.wrapping_add(i64::from(addi.imm12))
-                };
+                let res = res.wrapping_add(i64::from(addi.imm12));
                 // ignore anything above 32-bits
                 let res: u32 = (res & 0xffff_ffff) as u32;
                 self.state.set_register_value(addi.rd.into(), res);
