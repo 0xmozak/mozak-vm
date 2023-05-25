@@ -168,7 +168,7 @@ mod test {
     };
 
     #[test_case(0b000_1100, 3; "extract 3")]
-    #[test_case(0b1101_1100, -1; "extract neg 3")]
+    #[test_case(0b1101_1100, -1; "extract neg 1")]
     fn extract_simple(word: u32, x: i32) {
         let a: i32 = extract_immediate(word, &[(7, 6), (4, 2)], 0);
         assert_eq!(x, a);
