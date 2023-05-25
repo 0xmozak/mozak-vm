@@ -145,8 +145,12 @@ impl Vm {
             Instruction::ADDI(addi) => {
                 // TODO: how to handle if regs have negative value?
                 // Answer: sign extension.
-                let a = self.state.get_register_value(addi.rs1.into());
-                let res = a.wrapping_add(i32::from(addi.imm12) as u32);
+                let a: u32 = self.state.get_register_value(addi.rs1.into());
+                println!("a {a}");
+                let b: u32 = i32::from(addi.imm12) as u32;
+                println!("b {b}");
+                let res: u32 = a.wrapping_add(b);
+                println!("res {res}");
 
                 self.state.set_register_value(addi.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
@@ -852,10 +856,11 @@ mod tests {
     }
 
     #[test_case(0x05d0_0393, 7, 0, 0, 93; "addi r7, r0, 93")]
-    // #[test_case(0x05d0_0393, 7, 0, 0xffff_ffff, 0x93; "addi r7, r0, 93 --
-    // wrapping")]
+    #[test_case(0x05d0_0393, 7, 0, 0xffff_fff0, 93; "addi r7, r0, 93 -- wrapping")]
+    #[test_case(0x05d0_0393, 7, 0, 2, 93; "addi r7, r0, 93 -- not zero")]
     fn addi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
         let _ = env_logger::try_init();
+        println!("\n### Start test");
         let mut image = BTreeMap::new();
         // at 0 address instruction addi
         image.insert(0_u32, word);
@@ -866,13 +871,15 @@ mod tests {
             state.set_register_value(rs1, rs1_value);
         });
         let res = vm.step();
+        assert_eq!(rs1_value, vm.state.get_register_value(rs1));
         assert!(res.is_ok());
-        let expected_value = if imm12.is_negative() {
-            rs1_value.wrapping_sub(u32::from(imm12.unsigned_abs()))
-        } else {
-            rs1_value.wrapping_add(imm12 as u32)
-        };
-        assert_eq!(expected_value, vm.state.get_register_value(rd));
+        let expected_value = (i64::from(rs1_value) + i64::from(imm12)) & 0xFFFF_FFFF;
+        // let expected_value = if imm12.is_negative() {
+        //     rs1_value.wrapping_sub(u32::from(imm12.unsigned_abs()))
+        // } else {
+        //     rs1_value.wrapping_add(imm12 as u32)
+        // };
+        assert_eq!(expected_value, vm.state.get_register_value(rd) as i64);
     }
 
     #[test_case(0x0643_0283, 5, 6, 100, 0, 127; "lb r5, 100(r6)")]
