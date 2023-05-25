@@ -185,7 +185,6 @@ pub fn decode_instruction(word: u32) -> Instruction {
 
 #[cfg(test)]
 mod test {
-
     use test_case::test_case;
 
     use super::decode_instruction;
