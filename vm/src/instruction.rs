@@ -1,14 +1,14 @@
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct RTypeInst {
-    pub rs1: u8,
-    pub rs2: u8,
-    pub rd: u8,
+    pub rs1: usize,
+    pub rs2: usize,
+    pub rd: usize,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct ITypeInst {
-    pub rs1: u8,
-    pub rd: u8,
+    pub rs1: usize,
+    pub rd: usize,
     /// 12 bit sign extended immediate value
     /// -2048 to 2047
     pub imm: i32,
@@ -16,8 +16,8 @@ pub struct ITypeInst {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct STypeInst {
-    pub rs1: u8,
-    pub rs2: u8,
+    pub rs1: usize,
+    pub rs2: usize,
     /// 12 bit sign extended immediate value
     /// -2048 to 2047
     pub imm: i32,
@@ -25,7 +25,7 @@ pub struct STypeInst {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct JTypeInst {
-    pub rd: u8,
+    pub rd: usize,
     /// 20 bit sign extended immediate offset
     /// value in multiples of 2 bytes (ie lsb is 0)
     /// -1 MB to 1 MB
@@ -34,8 +34,8 @@ pub struct JTypeInst {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct BTypeInst {
-    pub rs1: u8,
-    pub rs2: u8,
+    pub rs1: usize,
+    pub rs2: usize,
     /// 12 bit sign extended immediate offset
     /// value in multiples of 2 bytes.
     /// -4096 to 4095
@@ -44,7 +44,7 @@ pub struct BTypeInst {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct UTypeInst {
-    pub rd: u8,
+    pub rd: usize,
     /// 20 bit signed immediate offset
     /// -524288 to 524287 which will be
     /// placed in MSB, so shift by 12 bit

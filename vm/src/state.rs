@@ -43,10 +43,10 @@ proptest! {
 /// every step of evaluation.
 #[derive(Clone, Debug, Default)]
 pub struct State {
-    halted: bool,
-    registers: [Register; 32],
-    pc: BabyBearElem,
-    memory: HashMap<usize, BabyBearElem>,
+    pub halted: bool,
+    pub registers: [Register; 32],
+    pub pc: BabyBearElem,
+    pub memory: HashMap<usize, BabyBearElem>,
 }
 
 impl From<Program> for State {

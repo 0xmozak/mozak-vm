@@ -1,10 +1,52 @@
 use anyhow::Result;
 use log::trace;
 
-use crate::{decode::decode_instruction, instruction::Instruction, state::State};
+use crate::{
+    decode::decode_instruction,
+    instruction::{Instruction, RTypeInst},
+    state::{Register, State},
+};
 
 pub struct Vm {
     pub state: State,
+}
+
+fn add(mut state: State, rtype: RTypeInst) -> Result<State> {
+    // TODO: how to handle if regs have negative value?
+    let res = state
+        .get_register_value(rtype.rs1.into())
+        .wrapping_add(state.get_register_value(rtype.rs2.into()));
+    state.registers[rtype.rd] = Register::from(res);
+    // state.set_register_value(rtype.rd.into(), res);
+    state.set_pc(state.get_pc() + 4);
+    Ok(state)
+}
+
+fn step1(state: State) -> Result<State> {
+    let pc = state.get_pc();
+    let word = state.load_u32(pc)?;
+    let inst = decode_instruction(word);
+    trace!("Decoded Inst: {:?}", inst);
+    match inst {
+        Instruction::ADD(rtype) => add(state, rtype),
+
+        _ => unimplemented!(),
+    }
+}
+
+pub fn step_all(mut state: State) -> Result<Vec<State>> {
+    let mut states = vec![state.clone()];
+    // TODO(Matthias): make this upper limit more configurable.
+    let mut debug_count = 1_000_000;
+    while !state.has_halted() {
+        state = step1(state)?;
+        states.push(state.clone());
+        if cfg!(debug_assertions) {
+            debug_count -= 1;
+            debug_assert!(debug_count > 0, "infinite loop");
+        }
+    }
+    Ok(states)
 }
 
 impl Vm {
@@ -40,6 +82,8 @@ impl Vm {
         Ok(states)
     }
 
+    // Idea: make this take a state and return a state (via move).
+    // Then we can break it apart.
     fn execute_instruction(&mut self, inst: &Instruction) -> Result<()> {
         match inst {
             Instruction::ADD(add) => {
