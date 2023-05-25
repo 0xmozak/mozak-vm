@@ -679,7 +679,7 @@ mod tests {
             state.set_register_value(rs2, rs2_value);
         });
 
-        let expected_value = (rs1_value ^ rs2_value) as u32;
+        let expected_value = rs1_value ^ rs2_value;
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), expected_value);
