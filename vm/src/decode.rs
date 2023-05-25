@@ -5,16 +5,16 @@ use crate::instruction::{
     BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst, UTypeInst,
 };
 
-/// Builds a u32 from segments, like [(0, 4), (20, 32)], shifts left afterwards
+/// Builds a i32 from segments, like [(0, 4), (20, 32)], shifts left afterwards
 ///
-/// The shift is built-in for convenience, because the type annotation syntax in Rust
-/// is a bit awkward otherwise.
+/// The shift is built-in for convenience, because the type annotation syntax in
+/// Rust is a bit awkward otherwise.
 #[must_use]
-fn extract_and_shift(word: u32, segments: &[(usize, usize)], shift: usize) -> i32 {
+fn extract_immediate(word: u32, segments: &[(usize, usize)], shift: usize) -> i32 {
     let len: usize = segments.iter().map(|(msb, lsb)| msb - lsb + 1).sum();
     let u = segments.iter().fold(0, |acc, (msb, lsb)| -> u32 {
         let bits: u32 = word.bit_range(*msb, *lsb);
-        let u = (acc << (msb - lsb + 1)) | bits;
+        // let acc = (acc << (msb - lsb + 1)) | bits;
         (acc << (msb - lsb + 1)) | bits
     });
     let bit_size = std::mem::size_of::<u32>() * 8;
@@ -47,26 +47,26 @@ pub fn decode_instruction(word: u32) -> Instruction {
     let stype = STypeInst {
         rs1,
         rs2,
-        imm: word.extract(&[(31, 31), (30, 25), (11, 8), (7, 7)]),
+        imm: extract_immediate(word, &[(31, 31), (30, 25), (11, 8), (7, 7)], 0),
     };
     let rtype = RTypeInst { rs1, rs2, rd };
     let itype = ITypeInst {
         rs1,
         rd,
-        imm: word.extract(&[(31, 20)]),
+        imm: extract_immediate(word, &[(31, 20)], 0),
     };
     let jtype = JTypeInst {
         rd,
-        imm: word.extract_and_shift(&[(31, 31), (19, 12), (20, 20), (30, 25), (24, 21)], 1),
+        imm: extract_immediate(word, &[(31, 31), (19, 12), (20, 20), (30, 25), (24, 21)], 1),
     };
     let btype = BTypeInst {
         rs1,
         rs2,
-        imm: word.extract_and_shift(&[(31, 31), (7, 7), (30, 25), (11, 8)], 1),
+        imm: extract_immediate(word, &[(31, 31), (7, 7), (30, 25), (11, 8)], 1),
     };
     let utype = UTypeInst {
         rd,
-        imm: word.extract_and_shift(&[(31, 12)], 12),
+        imm: extract_immediate(word, &[(31, 12)], 12),
     };
     match bf.opcode() {
         0b011_0011 => match (bf.func3(), bf.func7()) {
@@ -159,15 +159,15 @@ pub fn decode_instruction(word: u32) -> Instruction {
 mod test {
     use test_case::test_case;
 
-    use super::decode_instruction;
+    use super::{decode_instruction, extract_immediate};
     use crate::instruction::{
         BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst, UTypeInst,
     };
 
     #[test_case(0b000_1100, 3; "extract 3")]
     #[test_case(0b1101_1100, -1; "extract neg 3")]
-    fn extract_simple(word: u32, x: i16) {
-        let a: i16 = extract_and_shift(word, &[(7, 6), (4, 2)], 0);
+    fn extract_simple(word: u32, x: i32) {
+        let a: i32 = extract_immediate(word, &[(7, 6), (4, 2)], 0);
         assert_eq!(x, a);
     }
     #[test_case(0x018B_80B3, 1, 23, 24; "add r1, r23, r24")]

@@ -861,8 +861,9 @@ mod tests {
     }
 
     #[test_case(0x05d0_0393, 7, 0, 0, 93; "addi r7, r0, 93")]
-    // #[test_case(0x05d0_0393, 7, 0, 0xffff_fff0, 93; "addi r7, r0, 93 -- wrapping")]
-    // #[test_case(0x05d0_0393, 7, 0, 2, 93; "addi r7, r0, 93 -- not zero")]
+    // #[test_case(0x05d0_0393, 7, 0, 0xffff_fff0, 93; "addi r7, r0, 93 --
+    // wrapping")] #[test_case(0x05d0_0393, 7, 0, 2, 93; "addi r7, r0, 93 -- not
+    // zero")]
     fn addi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         println!("\n### Start test");
