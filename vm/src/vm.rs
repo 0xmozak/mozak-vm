@@ -23,6 +23,7 @@ impl Vm {
     /// Panics when entering an infinite loop.
     pub fn step(&mut self) -> Result<Vec<State>> {
         let mut states = vec![self.state.clone()];
+        // TODO(Matthias): make this upper limit more configurable.
         let mut debug_count = 1_000_000;
         while !self.state.has_halted() {
             let pc = self.state.get_pc();
