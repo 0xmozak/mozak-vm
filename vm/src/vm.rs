@@ -97,20 +97,19 @@ impl Vm {
                 Ok(())
             }
             Instruction::SRLI(srli) => {
-                let res = self.state.get_register_value(srli.rs1.into()) >> srli.imm as u32;
+                let res = self.state.get_register_value(srli.rs1.into()) >> srli.imm;
                 self.state.set_register_value(srli.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SLLI(slli) => {
-                let res = self.state.get_register_value(slli.rs1.into()) << slli.imm as u32;
+                let res = self.state.get_register_value(slli.rs1.into()) << slli.imm;
                 self.state.set_register_value(slli.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SLTI(slti) => {
-                let res =
-                    self.state.get_register_value_signed(slti.rs1.into()) < slti.imm;
+                let res = self.state.get_register_value_signed(slti.rs1.into()) < slti.imm;
                 self.state
                     .set_register_value(slti.rd.into(), u32::from(res));
                 self.state.set_pc(self.state.get_pc() + 4);
@@ -634,7 +633,7 @@ mod tests {
     //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0xfffff911
     #[test_case(0x0ff3_6293, 5, 6, 0x5555_1111, 255; "ori r5, r6, 255")]
     #[test_case(0x8003_6293, 5, 6, 0x5555_1111, -2048; "ori r5, r6, -2048")]
-    fn ori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i16) {
+    fn ori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction ori
@@ -644,7 +643,7 @@ mod tests {
             state.set_register_value(rs1, rs1_value);
         });
 
-        let expected_value = (rs1_value as i32 | i32::from(imm)) as u32;
+        let expected_value = (rs1_value as i32 | imm) as u32;
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), expected_value);
@@ -655,7 +654,7 @@ mod tests {
     //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0x00000011
     #[test_case(0x0ff3_7293, 5, 6, 0x5555_1111, 255; "andi r5, r6, 255")]
     #[test_case(0x8003_7293, 5, 6, 0x5555_1111, -2048; "andi r5, r6, -2048")]
-    fn andi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i16) {
+    fn andi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction andi
@@ -665,7 +664,7 @@ mod tests {
             state.set_register_value(rs1, rs1_value);
         });
 
-        let expected_value = (rs1_value as i32 & i32::from(imm)) as u32;
+        let expected_value = (rs1_value as i32 & imm) as u32;
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), expected_value);
@@ -676,7 +675,7 @@ mod tests {
     //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0xfffff911
     #[test_case(0x0ff3_4293, 5, 6, 0x5555_1111, 255; "xori r5, r6, 255")]
     #[test_case(0x8003_4293, 5, 6, 0x5555_1111, -2048; "xori r5, r6, -2048")]
-    fn xori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i16) {
+    fn xori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction andi
@@ -686,7 +685,7 @@ mod tests {
             state.set_register_value(rs1, rs1_value);
         });
 
-        let expected_value = (rs1_value as i32 ^ i32::from(imm)) as u32;
+        let expected_value = (rs1_value as i32 ^ imm) as u32;
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), expected_value);
@@ -799,7 +798,7 @@ mod tests {
     #[test_case(0xfff3_2293, 5, 6, 1, -1; "slti r5, r6, -1")]
     #[test_case(0x0009_2293, 5, 6, 1, 0; "slti r5, r6, 0")]
     #[test_case(0x7ff3_2293, 5, 6, 1, 2047; "slti r5, r6, 2047")]
-    fn slti(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i16) {
+    fn slti(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction slti
@@ -811,10 +810,7 @@ mod tests {
         let res = vm.step();
         assert!(res.is_ok());
         let rs1_value = rs1_value as i32;
-        assert_eq!(
-            vm.state.get_register_value(rd),
-            u32::from(rs1_value < i32::from(imm))
-        );
+        assert_eq!(vm.state.get_register_value(rd), u32::from(rs1_value < imm));
     }
 
     #[test_case(0x8003_3293, 5, 6, 1, -2048; "sltiu r5, r6, -2048")]
