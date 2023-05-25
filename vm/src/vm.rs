@@ -671,7 +671,7 @@ mod tests {
     fn xor(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
-        // at 0 address instruction andi
+        // at 0 address instruction xor
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |state: &mut State| {
@@ -693,7 +693,7 @@ mod tests {
     fn xori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm12: i16) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
-        // at 0 address instruction andi
+        // at 0 address instruction xori
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |state: &mut State| {
