@@ -146,15 +146,17 @@ impl Vm {
                 Ok(())
             }
             Instruction::ADDI(addi) => {
-                // TODO: how to handle if regs have negative value?
-                // Answer: sign extension.
-                let a: u32 = self.state.get_register_value(addi.rs1.into());
-                println!("a {a}");
-                let b: u32 = i32::from(addi.imm12) as u32;
-                println!("b {b}");
-                let res: u32 = a.wrapping_add(b);
-                println!("res {res}");
-
+                let rs1_value: i64 = self.state.get_register_value(addi.rs1.into()).into();
+                let res = rs1_value;
+                // TODO(Matthias): add a prop test, then think carefully about the exact
+                // semantic, and replace this with a simpler version.
+                let res = if addi.imm12.is_negative() {
+                    res.wrapping_sub(i64::from(addi.imm12))
+                } else {
+                    res.wrapping_add(i64::from(addi.imm12))
+                };
+                // ignore anything above 32-bits
+                let res: u32 = (res & 0xffff_ffff) as u32;
                 self.state.set_register_value(addi.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -174,8 +176,10 @@ impl Vm {
                 Ok(())
             }
             Instruction::SUB(sub) => {
-                let res = self.state.get_register_value(sub.rs1.into())
-                    - self.state.get_register_value(sub.rs2.into());
+                let res = self
+                    .state
+                    .get_register_value(sub.rs1.into())
+                    .wrapping_sub(self.state.get_register_value(sub.rs2.into()));
                 self.state.set_register_value(sub.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
