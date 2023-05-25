@@ -4,7 +4,7 @@ use log::trace;
 use crate::{
     decode::decode_instruction,
     instruction::{Instruction, RTypeInst},
-    state::{Register, State},
+    state::State,
 };
 
 pub struct Vm {
@@ -12,12 +12,9 @@ pub struct Vm {
 }
 
 fn add(mut state: State, rtype: RTypeInst) -> Result<State> {
-    // TODO: how to handle if regs have negative value?
-    let res = state
-        .get_register_value(rtype.rs1)
-        .wrapping_add(state.get_register_value(rtype.rs2));
-    state.registers[rtype.rd] = Register::from(res);
-    // state.set_register_value(rtype.rd.into(), res);
+    state.registers[rtype.rd] = u32::from(state.registers[rtype.rs1])
+        .wrapping_add(state.registers[rtype.rs2].into())
+        .into();
     state.set_pc(state.get_pc() + 4);
     Ok(state)
 }
@@ -153,23 +150,20 @@ impl Vm {
                 Ok(())
             }
             Instruction::SLTI(slti) => {
-                let res =
-                    self.state.get_register_value_signed(slti.rs1) < slti.imm;
-                self.state
-                    .set_register_value(slti.rd, u32::from(res));
+                let res = self.state.get_register_value_signed(slti.rs1) < slti.imm;
+                self.state.set_register_value(slti.rd, u32::from(res));
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::SLTIU(sltiu) => {
                 let res = self.state.get_register_value(sltiu.rs1) < sltiu.imm as u32;
-                self.state
-                    .set_register_value(sltiu.rd, u32::from(res));
+                self.state.set_register_value(sltiu.rd, u32::from(res));
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::AND(and) => {
-                let res = self.state.get_register_value(and.rs1)
-                    & self.state.get_register_value(and.rs2);
+                let res =
+                    self.state.get_register_value(and.rs1) & self.state.get_register_value(and.rs2);
                 self.state.set_register_value(and.rd, res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -182,8 +176,8 @@ impl Vm {
                 Ok(())
             }
             Instruction::OR(or) => {
-                let res = self.state.get_register_value(or.rs1)
-                    | self.state.get_register_value(or.rs2);
+                let res =
+                    self.state.get_register_value(or.rs1) | self.state.get_register_value(or.rs2);
                 self.state.set_register_value(or.rd, res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -312,8 +306,7 @@ impl Vm {
                 Ok(())
             }
             Instruction::BEQ(beq) => {
-                if self.state.get_register_value(beq.rs1)
-                    == self.state.get_register_value(beq.rs2)
+                if self.state.get_register_value(beq.rs1) == self.state.get_register_value(beq.rs2)
                 {
                     let pc = self.state.get_pc();
                     let jump_pc = (pc as i32) + beq.imm;
@@ -324,8 +317,7 @@ impl Vm {
                 Ok(())
             }
             Instruction::BNE(bne) => {
-                if self.state.get_register_value(bne.rs1)
-                    != self.state.get_register_value(bne.rs2)
+                if self.state.get_register_value(bne.rs1) != self.state.get_register_value(bne.rs2)
                 {
                     let pc = self.state.get_pc();
                     let jump_pc = (pc as i32) + bne.imm;
@@ -348,8 +340,7 @@ impl Vm {
                 Ok(())
             }
             Instruction::BLTU(bltu) => {
-                if self.state.get_register_value(bltu.rs1)
-                    < self.state.get_register_value(bltu.rs2)
+                if self.state.get_register_value(bltu.rs1) < self.state.get_register_value(bltu.rs2)
                 {
                     let pc = self.state.get_pc();
                     let jump_pc = (pc as i32) + bltu.imm;
@@ -429,10 +420,7 @@ impl Vm {
                 Ok(())
             }
             Instruction::MULHSU(mulhsu) => {
-                let rs1: i64 = self
-                    .state
-                    .get_register_value_signed(mulhsu.rs1)
-                    .into();
+                let rs1: i64 = self.state.get_register_value_signed(mulhsu.rs1).into();
                 let rs2: i64 = self.state.get_register_value(mulhsu.rs2).into();
                 let res: u32 = ((rs1 * rs2) >> 32) as u32;
                 self.state.set_register_value(mulhsu.rd, res);
