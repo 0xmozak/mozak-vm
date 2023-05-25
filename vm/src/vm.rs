@@ -493,7 +493,7 @@ mod tests {
             entry: 0_u32,
             image,
         };
-        let mut state = State::new(program);
+        let mut state = State::from(program);
         state_init(&mut state);
         Vm::new(state)
     }
@@ -508,7 +508,7 @@ mod tests {
         let program = Program::load_elf(&elf, max_mem_size);
         assert!(program.is_ok());
         let program = program.unwrap();
-        let state = State::new(program);
+        let state = State::from(program);
         let mut vm = Vm::new(state);
         let res = vm.step();
         assert!(res.is_ok());

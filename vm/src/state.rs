@@ -4,7 +4,7 @@ use risc0_core::field::baby_bear::BabyBearElem;
 
 use crate::elf::Program;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct Register {
     lo: BabyBearElem,
     hi: BabyBearElem,
@@ -31,7 +31,7 @@ impl From<Register> for u32 {
 /// carefully picked the type of `memory` to be clonable in about O(1)
 /// regardless of size. That way we can keep cheaply keep snapshots even at
 /// every step of evaluation.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct State {
     halted: bool,
     registers: [Register; 32],
@@ -39,9 +39,8 @@ pub struct State {
     memory: HashMap<usize, BabyBearElem>,
 }
 
-impl State {
-    #[must_use]
-    pub fn new(program: Program) -> Self {
+impl From<Program> for State {
+    fn from(program: Program) -> Self {
         let memory: HashMap<usize, BabyBearElem> = program
             .image
             .into_iter()
@@ -53,12 +52,14 @@ impl State {
             })
             .collect();
         Self {
-            halted: false,
-            registers: [Register::from(0); 32],
             pc: BabyBearElem::new(program.entry),
             memory,
+            ..Default::default()
         }
     }
+}
+
+impl State {
     pub fn halt(&mut self) {
         self.halted = true;
     }
