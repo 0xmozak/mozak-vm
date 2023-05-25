@@ -35,8 +35,10 @@ impl Vm {
         match inst {
             Instruction::ADD(add) => {
                 // TODO: how to handle if regs have negative value?
-                let res = self.state.get_register_value(add.rs1.into())
-                    + self.state.get_register_value(add.rs2.into());
+                let res = self
+                    .state
+                    .get_register_value(add.rs1.into())
+                    .wrapping_add(self.state.get_register_value(add.rs2.into()));
                 self.state.set_register_value(add.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -135,14 +137,15 @@ impl Vm {
                 Ok(())
             }
             Instruction::ADDI(addi) => {
-                // TODO: how to handle if regs have negative value?
                 let rs1_value: i64 = self.state.get_register_value(addi.rs1.into()).into();
-                let mut res = rs1_value;
-                if addi.imm12.is_negative() {
-                    res -= i64::from(addi.imm12);
+                let res = rs1_value;
+                // TODO(Matthias): add a prop test, then think carefully about the exact
+                // semantic, and replace this with a simpler version.
+                let res = if addi.imm12.is_negative() {
+                    res.wrapping_sub(i64::from(addi.imm12))
                 } else {
-                    res += i64::from(addi.imm12);
-                }
+                    res.wrapping_add(i64::from(addi.imm12))
+                };
                 // ignore anything above 32-bits
                 let res: u32 = (res & 0xffff_ffff) as u32;
                 self.state.set_register_value(addi.rd.into(), res);
@@ -164,8 +167,10 @@ impl Vm {
                 Ok(())
             }
             Instruction::SUB(sub) => {
-                let res = self.state.get_register_value(sub.rs1.into())
-                    - self.state.get_register_value(sub.rs2.into());
+                let res = self
+                    .state
+                    .get_register_value(sub.rs1.into())
+                    .wrapping_sub(self.state.get_register_value(sub.rs2.into()));
                 self.state.set_register_value(sub.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
