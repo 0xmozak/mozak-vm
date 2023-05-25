@@ -157,6 +157,13 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
+            Instruction::XOR(xor) => {
+                let res = self.state.get_register_value(xor.rs1.into())
+                    ^ self.state.get_register_value(xor.rs2.into());
+                self.state.set_register_value(xor.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
             Instruction::XORI(xori) => {
                 let rs1_value = self.state.get_register_value(xori.rs1.into());
                 let res = rs1_value as i32 ^ xori.imm;
@@ -657,6 +664,24 @@ mod tests {
         assert_eq!(vm.state.get_register_value(rd), expected_value);
     }
 
+    #[test_case(0x0073_42b3, 5, 6, 7, 0x0000_1111, 0x0011_0011; "xor r5, r6, r7")]
+    fn xor(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction xor
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+            state.set_register_value(rs2, rs2_value);
+        });
+
+        let expected_value = rs1_value ^ rs2_value;
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(vm.state.get_register_value(rd), expected_value);
+    }
+
     // Tests 2 cases:
     //   1) x6 = 0x55551111, imm = 0xff (255), x5 = 0x555511ff
     //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0xfffff911
@@ -665,7 +690,7 @@ mod tests {
     fn xori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
-        // at 0 address instruction andi
+        // at 0 address instruction xori
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |state: &mut State| {
