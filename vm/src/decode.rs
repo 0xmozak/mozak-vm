@@ -14,12 +14,11 @@ fn extract_immediate(word: u32, segments: &[(usize, usize)], shift: usize) -> i3
     let len: usize = segments.iter().map(|(msb, lsb)| msb - lsb + 1).sum();
     let u = segments.iter().fold(0, |acc, (msb, lsb)| -> u32 {
         let bits: u32 = word.bit_range(*msb, *lsb);
-        // let acc = (acc << (msb - lsb + 1)) | bits;
         (acc << (msb - lsb + 1)) | bits
     });
     let bit_size = std::mem::size_of::<u32>() * 8;
-    let u = u << (bit_size - len);
-    (u as i32) >> (bit_size - len - shift)
+    // shift back and forth for sign extension.
+    ((u << (bit_size - len)) as i32) >> (bit_size - len - shift)
 }
 
 bitfield! {
