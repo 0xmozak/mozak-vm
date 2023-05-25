@@ -396,6 +396,7 @@ impl Vm {
             Instruction::MULH(mulh) => {
                 let rs1: i64 = self.state.get_register_value_signed(mulh.rs1.into()).into();
                 let rs2: i64 = self.state.get_register_value_signed(mulh.rs2.into()).into();
+                // TODO(Matthias): consider using widening_mul, when that becomes stable.
                 let res: u32 = ((rs1 * rs2) >> 32) as u32;
                 self.state.set_register_value(mulh.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
@@ -407,6 +408,7 @@ impl Vm {
                     .get_register_value_signed(mulhsu.rs1.into())
                     .into();
                 let rs2: i64 = self.state.get_register_value(mulhsu.rs2.into()).into();
+                // TODO(Matthias): consider using widening_mul, when that becomes stable.
                 let res: u32 = ((rs1 * rs2) >> 32) as u32;
                 self.state.set_register_value(mulhsu.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
@@ -415,6 +417,7 @@ impl Vm {
             Instruction::MULHU(mulhu) => {
                 let rs1: u64 = self.state.get_register_value(mulhu.rs1.into()).into();
                 let rs2: u64 = self.state.get_register_value(mulhu.rs2.into()).into();
+                // TODO(Matthias): consider using widening_mul, when that becomes stable.
                 let res: u32 = ((rs1 * rs2) >> 32) as u32;
                 self.state.set_register_value(mulhu.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
