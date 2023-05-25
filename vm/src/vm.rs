@@ -731,7 +731,7 @@ mod tests {
 
     #[test_case(0x4043_5293, 5, 6, 0x8765_4321, 4; "srai r5, r6, 4")]
     #[test_case(0x41f3_5293, 5, 6, 1, 31; "srai r5, r6, 31")]
-    fn srai(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i16) {
+    fn srai(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction srai
@@ -751,7 +751,7 @@ mod tests {
 
     #[test_case(0x0043_5293, 5, 6, 0x8765_4321, 4; "srli r5, r6, 4")]
     #[test_case(0x01f3_5293, 5, 6, 1, 31; "srli r5, r6, 31")]
-    fn srli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i16) {
+    fn srli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction srli
@@ -767,7 +767,7 @@ mod tests {
 
     #[test_case(0x0043_1293, 5, 6, 0x8765_4321, 4; "slli r5, r6, 4")]
     #[test_case(0x01f3_1293, 5, 6, 1, 31; "slli r5, r6, 31")]
-    fn slli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i16) {
+    fn slli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction slli
@@ -804,7 +804,7 @@ mod tests {
     #[test_case(0xfff3_3293, 5, 6, 1, -1; "sltiu r5, r6, -1")]
     #[test_case(0x0003_3293, 5, 6, 1, 0; "sltiu r5, r6, 0")]
     #[test_case(0x7ff3_3293, 5, 6, 1, 2047; "sltiu r5, r6, 2047")]
-    fn sltiu(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i16) {
+    fn sltiu(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction sltiu
@@ -844,7 +844,7 @@ mod tests {
     }
 
     #[test_case(0x05d0_0393, 7, 0, 0, 93; "addi r7, r0, 93")]
-    fn addi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i16) {
+    fn addi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction addi
