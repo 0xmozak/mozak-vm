@@ -23,7 +23,7 @@ impl Vm {
     /// Panics when entering an infinite loop.
     pub fn step(&mut self) -> Result<Vec<State>> {
         let mut states = vec![self.state.clone()];
-        let mut count = 1_000_000;
+        let mut debug_count = 1_000_000;
         while !self.state.has_halted() {
             let pc = self.state.get_pc();
             let word = self.state.load_u32(pc)?;
@@ -31,8 +31,10 @@ impl Vm {
             trace!("Decoded Inst: {:?}", inst);
             self.execute_instruction(&inst)?;
             states.push(self.state.clone());
-            count -= 1;
-            assert!(count > 0, "infinite loop");
+            if cfg!(debug_assertions) {
+                debug_count -= 1;
+                debug_assert!(debug_count > 0, "infinite loop");
+            }
         }
         Ok(states)
     }
