@@ -1,4 +1,5 @@
 #![deny(clippy::pedantic)]
+#![deny(clippy::cargo)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::similar_names)]
 #![allow(clippy::if_not_else)]
