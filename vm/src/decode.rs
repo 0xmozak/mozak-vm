@@ -61,8 +61,6 @@ bitfield! {
     pub func7, _: 31, 25;
     u16;
     pub func12, _: 31, 20;
-    i32;
-    pub imm, _: 31, 20;
 }
 
 #[must_use]
@@ -81,7 +79,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
     let itype = ITypeInst {
         rs1,
         rd,
-        imm: bf.imm(),
+        imm: word.extract(&[(31, 20)]),
     };
     let jtype = JTypeInst {
         rd,
