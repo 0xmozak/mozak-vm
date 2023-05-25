@@ -159,6 +159,13 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
+            Instruction::XOR(xor) => {
+                let res = self.state.get_register_value(xor.rs1.into())
+                    ^ self.state.get_register_value(xor.rs2.into());
+                self.state.set_register_value(xor.rd.into(), res);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
             Instruction::XORI(xori) => {
                 let rs1_value = self.state.get_register_value(xori.rs1.into());
                 let res = rs1_value as i32 ^ i32::from(xori.imm12);
@@ -655,6 +662,24 @@ mod tests {
         });
 
         let expected_value = (rs1_value as i32 & i32::from(imm12)) as u32;
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(vm.state.get_register_value(rd), expected_value);
+    }
+
+    #[test_case(0x0073_42b3, 5, 6, 7, 0x0000_1111, 0x0011_0011; "xor r5, r6, r7")]
+    fn xor(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction andi
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+            state.set_register_value(rs2, rs2_value);
+        });
+
+        let expected_value = (rs1_value ^ rs2_value) as u32;
         let res = vm.step();
         assert!(res.is_ok());
         assert_eq!(vm.state.get_register_value(rd), expected_value);
