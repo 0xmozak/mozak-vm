@@ -25,6 +25,12 @@ impl From<Register> for u32 {
     }
 }
 
+/// State of our VM
+///
+/// Note: In general clone is not necessarily what you want, but in our case we
+/// carefully picked the type of `memory` to be clonable in about O(1)
+/// regardless of size. That way we can keep cheaply keep snapshots even at
+/// every step of evaluation.
 #[derive(Clone, Debug)]
 pub struct State {
     halted: bool,
