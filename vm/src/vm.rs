@@ -82,7 +82,7 @@ impl Vm {
                 Ok(())
             }
             Instruction::SRAI(srai) => {
-                let res = self.state.get_register_value_signed(srai.rs1.into()) >> srai.imm as u32;
+                let res = self.state.get_register_value_signed(srai.rs1.into()) >> srai.imm;
                 self.state.set_register_value(srai.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
