@@ -5,47 +5,21 @@ use crate::instruction::{
     BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst, UTypeInst,
 };
 
-pub trait Extract<T: std::ops::Shl<usize, Output = T>> {
-    #[must_use]
-    fn extract(&self, segments: &[(usize, usize)]) -> T;
-
-    /// Like extract, but shifts left afterwards
-    ///
-    /// This is for convenience, because the type annotation syntax in Rust
-    /// is a bit awkward otherwise.
-    #[must_use]
-    fn extract_and_shift(&self, segments: &[(usize, usize)], shift: usize) -> T {
-        self.extract(segments) << shift
-    }
-}
-
-/// builds a u32 from segments, like [(0, 4), (20, 32)]
-/// [(31, 20), (3, 0)]
-/// Make 'em inclusive.
-impl Extract<u32> for u32 {
-    fn extract(&self, segments: &[(usize, usize)]) -> u32 {
-        segments.iter().fold(0, |acc, (msb, lsb)| -> u32 {
-            let bits: Self = self.bit_range(*msb, *lsb);
-            (acc << (msb - lsb + 1)) | bits
-        })
-    }
-}
-
-impl Extract<i32> for u32 {
-    fn extract(&self, segments: &[(usize, usize)]) -> i32 {
-        let len: usize = segments.iter().map(|(msb, lsb)| msb - lsb + 1).sum();
-        let x: Self = self.extract(segments);
-        let bits = std::mem::size_of::<Self>() * 8;
-        let x = x << (bits - len);
-        (x as i32) >> (bits - len)
-    }
-}
-
-impl Extract<i16> for u32 {
-    fn extract(&self, segments: &[(usize, usize)]) -> i16 {
-        let x: i32 = self.extract(segments);
-        x as i16
-    }
+/// Builds a u32 from segments, like [(0, 4), (20, 32)], shifts left afterwards
+///
+/// The shift is built-in for convenience, because the type annotation syntax in Rust
+/// is a bit awkward otherwise.
+#[must_use]
+fn extract_and_shift(word: u32, segments: &[(usize, usize)], shift: usize) -> i32 {
+    let len: usize = segments.iter().map(|(msb, lsb)| msb - lsb + 1).sum();
+    let u = segments.iter().fold(0, |acc, (msb, lsb)| -> u32 {
+        let bits: u32 = word.bit_range(*msb, *lsb);
+        let u = (acc << (msb - lsb + 1)) | bits;
+        (acc << (msb - lsb + 1)) | bits
+    });
+    let bit_size = std::mem::size_of::<u32>() * 8;
+    let u = u << (bit_size - len);
+    (u as i32) >> (bit_size - len - shift)
 }
 
 bitfield! {
@@ -186,7 +160,6 @@ mod test {
     use test_case::test_case;
 
     use super::decode_instruction;
-    use crate::decode::Extract;
     use crate::instruction::{
         BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst, UTypeInst,
     };
@@ -194,7 +167,7 @@ mod test {
     #[test_case(0b000_1100, 3; "extract 3")]
     #[test_case(0b1101_1100, -1; "extract neg 3")]
     fn extract_simple(word: u32, x: i16) {
-        let a: i16 = word.extract(&[(7, 6), (4, 2)]);
+        let a: i16 = extract_and_shift(word, &[(7, 6), (4, 2)], 0);
         assert_eq!(x, a);
     }
     #[test_case(0x018B_80B3, 1, 23, 24; "add r1, r23, r24")]
