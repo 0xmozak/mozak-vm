@@ -1,5 +1,6 @@
 use anyhow::Result;
 use im::hashmap::HashMap;
+use proptest::prelude::*;
 use risc0_core::field::baby_bear::BabyBearElem;
 
 use crate::elf::Program;
@@ -22,6 +23,15 @@ impl From<u32> for Register {
 impl From<Register> for u32 {
     fn from(val: Register) -> Self {
         val.hi.as_u32() << 16 | val.lo.as_u32()
+    }
+}
+
+proptest! {
+    #[test]
+    fn round_trip(x in any::<u32>()) {
+        let y: Register = x.into();
+        let z: u32 = y.into();
+        assert_eq!(x, z);
     }
 }
 
