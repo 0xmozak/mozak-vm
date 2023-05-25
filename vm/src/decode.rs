@@ -105,23 +105,23 @@ pub fn decode_instruction(word: u32) -> Instruction {
         },
         0b001_0011 => match bf.func3() {
             0x0 => Instruction::ADDI(itype),
-            0x1 => Instruction::SLLI(ITypeInst {
-                rs1,
-                rd,
-                imm: bf.shamt().into(),
-            }),
+            0x1 => Instruction::SLLI(itype),
             0x2 => Instruction::SLTI(itype),
             0x3 => Instruction::SLTIU(itype),
             0x4 => Instruction::XORI(itype),
             0x5 => {
-                let imm = bf.shamt().into();
-
+                let imm = itype.imm as u32;
+                let imm_masked: u32 = imm.bit_range(4, 0);
+                let itype = ITypeInst {
+                    imm: imm_masked as i32,
+                    ..itype
+                };
                 // Masks the first 7 bits in a word to differentiate between an
                 // SRAI/SRLI instruction. They have the same funct3 value and are
                 // differentiated by their 30th bit, for which SRAI = 1 and SRLI = 0.
-                match word & 0xfe00_0000 {
-                    0x4000_0000 => Instruction::SRAI(ITypeInst { rs1, rd, imm }),
-                    0 => Instruction::SRLI(ITypeInst { rs1, rd, imm }),
+                match imm.bit_range(11, 5) {
+                    0b0100000 => Instruction::SRAI(itype),
+                    0 => Instruction::SRLI(itype),
                     _ => Instruction::UNKNOWN,
                 }
             }
