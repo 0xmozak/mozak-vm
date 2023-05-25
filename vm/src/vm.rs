@@ -158,18 +158,9 @@ impl Vm {
                 Ok(())
             }
             Instruction::ADDI(addi) => {
-                let rs1_value: i64 = self.state.get_register_value(addi.rs1.into()).into();
-                let res = rs1_value;
-                // TODO(Matthias): add a prop test, then think carefully about the exact
-                // semantic, and replace this with a simpler version.
-                let res = if addi.imm.is_negative() {
-                    res.wrapping_sub(i64::from(addi.imm))
-                } else {
-                    res.wrapping_add(i64::from(addi.imm))
-                };
-                // ignore anything above 32-bits
-                let res: u32 = (res & 0xffff_ffff) as u32;
-                self.state.set_register_value(addi.rd.into(), res);
+                let rs1_value: i32 = self.state.get_register_value_signed(addi.rs1.into());
+                let res = rs1_value.wrapping_add(addi.imm);
+                self.state.set_register_value(addi.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
