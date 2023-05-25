@@ -11,7 +11,7 @@ pub struct ITypeInst {
     pub rd: u8,
     /// 12 bit sign extended immediate value
     /// -2048 to 2047
-    pub imm12: i16,
+    pub imm: i32,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -20,16 +20,16 @@ pub struct STypeInst {
     pub rs2: u8,
     /// 12 bit sign extended immediate value
     /// -2048 to 2047
-    pub imm12: i16,
+    pub imm: i32,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct JTypeInst {
     pub rd: u8,
     /// 20 bit sign extended immediate offset
-    /// value in multiples of 2 bytes.
+    /// value in multiples of 2 bytes (ie lsb is 0)
     /// -1 MB to 1 MB
-    pub imm20: i32,
+    pub imm: i32,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -39,7 +39,7 @@ pub struct BTypeInst {
     /// 12 bit sign extended immediate offset
     /// value in multiples of 2 bytes.
     /// -4096 to 4095
-    pub imm12: i16,
+    pub imm: i32,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -51,7 +51,7 @@ pub struct UTypeInst {
     /// to create 32 bit.
     /// so actual range is
     /// -2147483648 to 2147479552
-    pub imm20: i32,
+    pub imm: i32,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
