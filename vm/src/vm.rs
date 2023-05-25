@@ -110,7 +110,7 @@ impl Vm {
             }
             Instruction::SLTI(slti) => {
                 let res =
-                    self.state.get_register_value_signed(slti.rs1.into()) < i32::from(slti.imm);
+                    self.state.get_register_value_signed(slti.rs1.into()) < slti.imm;
                 self.state
                     .set_register_value(slti.rd.into(), u32::from(res));
                 self.state.set_pc(self.state.get_pc() + 4);
@@ -132,7 +132,7 @@ impl Vm {
             }
             Instruction::ANDI(andi) => {
                 let rs1_value = self.state.get_register_value(andi.rs1.into());
-                let res = rs1_value as i32 & i32::from(andi.imm);
+                let res = rs1_value as i32 & andi.imm;
                 self.state.set_register_value(andi.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -162,14 +162,14 @@ impl Vm {
             }
             Instruction::ORI(ori) => {
                 let rs1_value: i64 = self.state.get_register_value(ori.rs1.into()).into();
-                let res = rs1_value as i32 | i32::from(ori.imm);
+                let res = rs1_value as i32 | ori.imm;
                 self.state.set_register_value(ori.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::XORI(xori) => {
                 let rs1_value = self.state.get_register_value(xori.rs1.into());
-                let res = rs1_value as i32 ^ i32::from(xori.imm);
+                let res = rs1_value as i32 ^ xori.imm;
                 self.state.set_register_value(xori.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -263,7 +263,7 @@ impl Vm {
                 let next_pc = pc + 4;
                 self.state.set_register_value(jalr.rd.into(), next_pc);
                 let rs1_value = self.state.get_register_value(jalr.rs1.into());
-                let jump_pc = (rs1_value as i32) + i32::from(jalr.imm);
+                let jump_pc = (rs1_value as i32) + jalr.imm;
                 self.state.set_pc(jump_pc as u32);
                 Ok(())
             }
@@ -272,7 +272,7 @@ impl Vm {
                     == self.state.get_register_value(beq.rs2.into())
                 {
                     let pc = self.state.get_pc();
-                    let jump_pc = (pc as i32) + i32::from(beq.imm);
+                    let jump_pc = (pc as i32) + beq.imm;
                     self.state.set_pc(jump_pc as u32);
                 } else {
                     self.state.set_pc(self.state.get_pc() + 4);
@@ -284,7 +284,7 @@ impl Vm {
                     != self.state.get_register_value(bne.rs2.into())
                 {
                     let pc = self.state.get_pc();
-                    let jump_pc = (pc as i32) + i32::from(bne.imm);
+                    let jump_pc = (pc as i32) + bne.imm;
                     self.state.set_pc(jump_pc as u32);
                 } else {
                     self.state.set_pc(self.state.get_pc() + 4);
@@ -296,7 +296,7 @@ impl Vm {
                     < self.state.get_register_value_signed(blt.rs2.into())
                 {
                     let pc = self.state.get_pc();
-                    let jump_pc = (pc as i32) + i32::from(blt.imm);
+                    let jump_pc = (pc as i32) + blt.imm;
                     self.state.set_pc(jump_pc as u32);
                 } else {
                     self.state.set_pc(self.state.get_pc() + 4);
@@ -308,7 +308,7 @@ impl Vm {
                     < self.state.get_register_value(bltu.rs2.into())
                 {
                     let pc = self.state.get_pc();
-                    let jump_pc = (pc as i32) + i32::from(bltu.imm);
+                    let jump_pc = (pc as i32) + bltu.imm;
                     self.state.set_pc(jump_pc as u32);
                 } else {
                     self.state.set_pc(self.state.get_pc() + 4);
@@ -320,7 +320,7 @@ impl Vm {
                     >= self.state.get_register_value_signed(bge.rs2.into())
                 {
                     let pc = self.state.get_pc();
-                    let jump_pc = (pc as i32) + i32::from(bge.imm);
+                    let jump_pc = (pc as i32) + bge.imm;
                     self.state.set_pc(jump_pc as u32);
                 } else {
                     self.state.set_pc(self.state.get_pc() + 4);
@@ -332,7 +332,7 @@ impl Vm {
                     >= self.state.get_register_value_signed(bgeu.rs2.into())
                 {
                     let pc = self.state.get_pc();
-                    let jump_pc = (pc as i32) + i32::from(bgeu.imm);
+                    let jump_pc = (pc as i32) + bgeu.imm;
                     self.state.set_pc(jump_pc as u32);
                 } else {
                     self.state.set_pc(self.state.get_pc() + 4);
@@ -885,7 +885,7 @@ mod tests {
         // } else {
         //     rs1_value.wrapping_add(imm as u32)
         // };
-        assert_eq!(expected_value, vm.state.get_register_value(rd) as i64);
+        assert_eq!(expected_value, i64::from(vm.state.get_register_value(rd)));
     }
 
     #[test_case(0x0643_0283, 5, 6, 100, 0, 127; "lb r5, 100(r6)")]

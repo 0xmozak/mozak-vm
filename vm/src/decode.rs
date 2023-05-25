@@ -120,7 +120,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 // SRAI/SRLI instruction. They have the same funct3 value and are
                 // differentiated by their 30th bit, for which SRAI = 1 and SRLI = 0.
                 match imm.bit_range(11, 5) {
-                    0b0100000 => Instruction::SRAI(itype),
+                    0b010_0000 => Instruction::SRAI(itype),
                     0 => Instruction::SRLI(itype),
                     _ => Instruction::UNKNOWN,
                 }
