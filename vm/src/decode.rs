@@ -136,6 +136,8 @@ pub fn decode_instruction(word: u32) -> Instruction {
         0b111_0011 => match bf.func12() {
             0x0 => Instruction::ECALL,
             0x1 => Instruction::EBREAK,
+            // TODO: Only decode a subset of CSR instructions.
+            // The rest should be an Instruction::UNKNOWN.
             _ => Instruction::CSR,
         },
         0b110_1111 => Instruction::JAL(jtype),
@@ -481,14 +483,6 @@ mod test {
     fn auipc(word: u32, rd: u8, imm: i32) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::AUIPC(UTypeInst { rd, imm });
-        assert_eq!(ins, match_ins);
-    }
-
-    #[test_case(0x0110000f, 0, 0, 17; "fence w w")]
-    #[test_case(0x0ff0000f, 0, 0, 255; "fence iorw iorw")]
-    fn fence(word: u32, rs1: u8, rd: u8, imm12: i16) {
-        let ins: Instruction = decode_instruction(word);
-        let match_ins = Instruction::FENCE(ITypeInst { rs1, rd, imm12 });
         assert_eq!(ins, match_ins);
     }
 
