@@ -386,9 +386,9 @@ impl Vm {
                 Ok(())
             }
             Instruction::MUL(mul) => {
-                let rs1: i64 = self.state.get_register_value_signed(mul.rs1.into()).into();
-                let rs2: i64 = self.state.get_register_value_signed(mul.rs2.into()).into();
-                let res: u32 = ((rs1 * rs2) & 0xFFFF_FFFF) as u32;
+                let rs1: u32 = self.state.get_register_value(mul.rs1.into());
+                let rs2: u32 = self.state.get_register_value(mul.rs2.into());
+                let res: u32 = rs1.overflowing_mul(rs2).0;
                 self.state.set_register_value(mul.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -413,8 +413,8 @@ impl Vm {
                 Ok(())
             }
             Instruction::MULHU(mulhu) => {
-                let rs1: i64 = self.state.get_register_value(mulhu.rs1.into()).into();
-                let rs2: i64 = self.state.get_register_value(mulhu.rs2.into()).into();
+                let rs1: u64 = self.state.get_register_value(mulhu.rs1.into()).into();
+                let rs2: u64 = self.state.get_register_value(mulhu.rs2.into()).into();
                 let res: u32 = ((rs1 * rs2) >> 32) as u32;
                 self.state.set_register_value(mulhu.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
