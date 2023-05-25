@@ -33,7 +33,12 @@ impl Vm {
             let pc = self.state.get_pc();
             let word = self.state.load_u32(pc)?;
             let inst = decode_instruction(word);
-            trace!("Decoded Inst: {:?}", inst);
+            trace!(
+                "PC: {:?}, Decoded Inst: {:?}, Encoded Inst Word: {:?}",
+                pc,
+                inst,
+                word
+            );
             self.execute_instruction(&inst)?;
             states.push(self.state.clone());
             if cfg!(debug_assertions) {
@@ -265,23 +270,24 @@ impl Vm {
                     }
                     _ => {}
                 }
+                self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::JAL(jal) => {
                 let pc = self.state.get_pc();
                 let next_pc = pc + 4;
-                self.state.set_register_value(jal.rd.into(), next_pc);
                 let jump_pc = (pc as i32) + jal.imm20;
                 self.state.set_pc(jump_pc as u32);
+                self.state.set_register_value(jal.rd.into(), next_pc);
                 Ok(())
             }
             Instruction::JALR(jalr) => {
                 let pc = self.state.get_pc();
                 let next_pc = pc + 4;
-                self.state.set_register_value(jalr.rd.into(), next_pc);
                 let rs1_value = self.state.get_register_value(jalr.rs1.into());
                 let jump_pc = (rs1_value as i32) + i32::from(jalr.imm12);
                 self.state.set_pc(jump_pc as u32);
+                self.state.set_register_value(jalr.rd.into(), next_pc);
                 Ok(())
             }
             Instruction::BEQ(beq) => {
@@ -1082,6 +1088,30 @@ mod tests {
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
         assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+    }
+
+    #[test]
+    fn jalr_same_registers() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction jal to 256
+        // JAL x1, 256
+        image.insert(0_u32, 0x1000_00ef);
+        add_exit_syscall(4_u32, &mut image);
+        // set R5 to 100 so that it can be verified
+        // that indeed control passed to this location
+        // ADDI x5, x0, 100
+        image.insert(256_u32, 0x0640_0293);
+        // at 260 go back to address after JAL
+        // JALR x1, x1, 0
+        image.insert(260_u32, 0x0000_80e7);
+        let mut vm = create_vm(image, |_state: &mut State| {});
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        // JALR at 260 updates X1 to have value of next_pc i.e 264
+        assert_eq!(vm.state.get_register_value(1_usize), 264_u32);
     }
 
     #[test]
