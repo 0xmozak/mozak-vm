@@ -857,7 +857,7 @@ mod tests {
         assert!(res.is_ok());
         let mut expected_value = rs1_value;
         if imm.is_negative() {
-            expected_value -= u32::from(imm.unsigned_abs());
+            expected_value -= imm.unsigned_abs();
         } else {
             expected_value += imm as u32;
         }
