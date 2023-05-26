@@ -10,7 +10,7 @@ env:
   NIGHTLY_RUST_VERSION: nightly-2023-05-17
 
 jobs:
-  cargo-test:
+  build-and-populate-cache:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -46,34 +46,23 @@ jobs:
           name: riscv-tests
           path: vm/tests/testdata
 
+  cargo-test:
+    needs: "build-and-populate-cache"
+    runs-on: ubuntu-latest
+    steps:
       - name: Run tests
         run: cargo test --locked --all-targets
 
   cargo-clippy:
+    needs: "build-and-populate-cache"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
-          components: clippy
-
-      - uses: Swatinem/rust-cache@v2
-
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
 
   cargo-fmt:
+    needs: "build-and-populate-cache"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
-
-      - uses: Swatinem/rust-cache@v2
-
       - name: Run fmt
         run: cargo fmt --all --check
