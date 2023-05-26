@@ -45,7 +45,7 @@ proptest! {
 pub struct State {
     halted: bool,
     registers: [Register; 32],
-    pc: BabyBearElem,
+    pc: Register,
     memory: HashMap<usize, BabyBearElem>,
 }
 
@@ -62,7 +62,7 @@ impl From<Program> for State {
             })
             .collect();
         Self {
-            pc: BabyBearElem::new(program.entry),
+            pc: Register::from(program.entry),
             memory,
             ..Default::default()
         }
@@ -102,7 +102,7 @@ impl State {
     }
 
     pub fn set_pc(&mut self, value: u32) {
-        self.pc = BabyBearElem::new(value);
+        self.pc = Register::from(value);
     }
 
     #[must_use]
