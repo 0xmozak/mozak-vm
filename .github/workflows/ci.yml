@@ -24,9 +24,13 @@ jobs:
 
       - name: Cache RISC-V tests
         id: cache-built-tests
-        uses: actions/cache@v3
+        uses: actions/cache@v3  
+        env:
+          cache-name: cache-riscv-tests
         with:
           path: vm/tests/testdata
+          key: ${{ runner.os }}-riscv-tests-${{ env.cache-name }}
+          restore-keys: ${{ runner.os }}-riscv-tests-${{ env.cache-name }}
 
       - name: Set up Docker Buildx
         if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
