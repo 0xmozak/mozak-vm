@@ -13,5 +13,5 @@ fn main() {
             .status()
             .unwrap()
             .success())
-        }
+    }
 }

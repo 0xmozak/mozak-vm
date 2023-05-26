@@ -1,20 +1,17 @@
-/*
-Plan:
-- create tests/testdata via custom cargo build script.
-- also create tests/testdata/commit
-- and some commit in our files
-
-*/
+// Plan:
+// - create tests/testdata via custom cargo build script.
+// - also create tests/testdata/commit
+// - and some commit in our files
+//
+use anyhow::Result;
 use mozak_vm::elf::Program;
 use mozak_vm::state::State;
 use mozak_vm::vm::Vm;
 
-use anyhow::Result;
-
 macro_rules! test_elf {
     ($test_name:ident, $file_name:tt) => {
         #[test]
-        fn $test_name() -> Result<()>{
+        fn $test_name() -> Result<()> {
             let _ = env_logger::try_init();
             let elf_name = format!("tests/testdata/{}", $file_name);
             let elf = std::fs::read(elf_name)?;
