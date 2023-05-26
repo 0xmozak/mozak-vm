@@ -531,8 +531,7 @@ mod tests {
     fn check() {
         let _ = env_logger::try_init();
         let elf = std::fs::read("src/test.elf").unwrap();
-        let max_mem_size = 1024 * 1024 * 1024; // 1 GB
-        let program = Program::load_elf(&elf, max_mem_size);
+        let program = Program::load_elf(&elf);
         assert!(program.is_ok());
         let program = program.unwrap();
         let state = State::from(program);
