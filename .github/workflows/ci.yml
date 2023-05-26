@@ -78,6 +78,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
+          components: clippy
 
       - uses: Swatinem/rust-cache@v2
 
