@@ -20,21 +20,35 @@ impl Vm {
     /// or executed.
     ///
     /// # Panics
-    /// Panics when entering an infinite loop.
+    /// Panics in debug mode, when executing more steps than specified in
+    /// environment variable `MOZAK_MAX_LOOPS` at compile time.  Defaults to one
+    /// million steps.
+    /// This is a temporary measure to catch problems with accidental infinite
+    /// loops. (Matthias had some trouble debugging a problem with jumps
+    /// earlier.)
     pub fn step(&mut self) -> Result<Vec<State>> {
         let mut states = vec![self.state.clone()];
-        // TODO(Matthias): make this upper limit more configurable.
-        let mut debug_count = 1_000_000;
+        let mut debug_count: usize = 0;
         while !self.state.has_halted() {
             let pc = self.state.get_pc();
             let word = self.state.load_u32(pc)?;
             let inst = decode_instruction(word);
-            trace!("Decoded Inst: {:?}", inst);
+            trace!(
+                "PC: {:?}, Decoded Inst: {:?}, Encoded Inst Word: {:?}",
+                pc,
+                inst,
+                word
+            );
             self.execute_instruction(&inst)?;
             states.push(self.state.clone());
             if cfg!(debug_assertions) {
-                debug_count -= 1;
-                debug_assert!(debug_count > 0, "infinite loop");
+                debug_count += 1;
+                let limit: usize = std::option_env!("MOZAK_MAX_LOOPS")
+                    .map_or(1_000_000, |env_var| env_var.parse().unwrap());
+                debug_assert!(
+                    debug_count != limit,
+                    "Looped for longer than MOZAK_MAX_LOOPS"
+                );
             }
         }
         Ok(states)
@@ -91,7 +105,7 @@ impl Vm {
                 Ok(())
             }
             Instruction::SRAI(srai) => {
-                let res = self.state.get_register_value_signed(srai.rs1.into()) >> srai.imm as u32;
+                let res = self.state.get_register_value_signed(srai.rs1.into()) >> srai.imm;
                 self.state.set_register_value(srai.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -144,18 +158,9 @@ impl Vm {
                 Ok(())
             }
             Instruction::ADDI(addi) => {
-                let rs1_value: i64 = self.state.get_register_value(addi.rs1.into()).into();
-                let res = rs1_value;
-                // TODO(Matthias): add a prop test, then think carefully about the exact
-                // semantic, and replace this with a simpler version.
-                let res = if addi.imm.is_negative() {
-                    res.wrapping_sub(i64::from(addi.imm))
-                } else {
-                    res.wrapping_add(i64::from(addi.imm))
-                };
-                // ignore anything above 32-bits
-                let res: u32 = (res & 0xffff_ffff) as u32;
-                self.state.set_register_value(addi.rd.into(), res);
+                let rs1_value: i32 = self.state.get_register_value_signed(addi.rs1.into());
+                let res = rs1_value.wrapping_add(addi.imm);
+                self.state.set_register_value(addi.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
@@ -163,6 +168,13 @@ impl Vm {
                 let rs1_value: i64 = self.state.get_register_value(ori.rs1.into()).into();
                 let res = rs1_value as i32 | ori.imm;
                 self.state.set_register_value(ori.rd.into(), res as u32);
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            Instruction::XOR(xor) => {
+                let res = self.state.get_register_value(xor.rs1.into())
+                    ^ self.state.get_register_value(xor.rs2.into());
+                self.state.set_register_value(xor.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
@@ -247,23 +259,24 @@ impl Vm {
                     }
                     _ => {}
                 }
+                self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::JAL(jal) => {
                 let pc = self.state.get_pc();
                 let next_pc = pc + 4;
-                self.state.set_register_value(jal.rd.into(), next_pc);
                 let jump_pc = (pc as i32) + jal.imm;
                 self.state.set_pc(jump_pc as u32);
+                self.state.set_register_value(jal.rd.into(), next_pc);
                 Ok(())
             }
             Instruction::JALR(jalr) => {
                 let pc = self.state.get_pc();
                 let next_pc = pc + 4;
-                self.state.set_register_value(jalr.rd.into(), next_pc);
                 let rs1_value = self.state.get_register_value(jalr.rs1.into());
                 let jump_pc = (rs1_value as i32) + jalr.imm;
                 self.state.set_pc(jump_pc as u32);
+                self.state.set_register_value(jalr.rd.into(), next_pc);
                 Ok(())
             }
             Instruction::BEQ(beq) => {
@@ -368,9 +381,9 @@ impl Vm {
                 Ok(())
             }
             Instruction::MUL(mul) => {
-                let rs1: i64 = self.state.get_register_value_signed(mul.rs1.into()).into();
-                let rs2: i64 = self.state.get_register_value_signed(mul.rs2.into()).into();
-                let res: u32 = ((rs1 * rs2) & 0xFFFF_FFFF) as u32;
+                let rs1: u32 = self.state.get_register_value(mul.rs1.into());
+                let rs2: u32 = self.state.get_register_value(mul.rs2.into());
+                let res: u32 = rs1.overflowing_mul(rs2).0;
                 self.state.set_register_value(mul.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -378,6 +391,7 @@ impl Vm {
             Instruction::MULH(mulh) => {
                 let rs1: i64 = self.state.get_register_value_signed(mulh.rs1.into()).into();
                 let rs2: i64 = self.state.get_register_value_signed(mulh.rs2.into()).into();
+                // TODO(Matthias): consider using widening_mul, when that becomes stable.
                 let res: u32 = ((rs1 * rs2) >> 32) as u32;
                 self.state.set_register_value(mulh.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
@@ -389,14 +403,16 @@ impl Vm {
                     .get_register_value_signed(mulhsu.rs1.into())
                     .into();
                 let rs2: i64 = self.state.get_register_value(mulhsu.rs2.into()).into();
+                // TODO(Matthias): consider using widening_mul, when that becomes stable.
                 let res: u32 = ((rs1 * rs2) >> 32) as u32;
                 self.state.set_register_value(mulhsu.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
             Instruction::MULHU(mulhu) => {
-                let rs1: i64 = self.state.get_register_value(mulhu.rs1.into()).into();
-                let rs2: i64 = self.state.get_register_value(mulhu.rs2.into()).into();
+                let rs1: u64 = self.state.get_register_value(mulhu.rs1.into()).into();
+                let rs2: u64 = self.state.get_register_value(mulhu.rs2.into()).into();
+                // TODO(Matthias): consider using widening_mul, when that becomes stable.
                 let res: u32 = ((rs1 * rs2) >> 32) as u32;
                 self.state.set_register_value(mulhu.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
@@ -515,8 +531,7 @@ mod tests {
     fn check() {
         let _ = env_logger::try_init();
         let elf = std::fs::read("src/test.elf").unwrap();
-        let max_mem_size = 1024 * 1024 * 1024; // 1 GB
-        let program = Program::load_elf(&elf, max_mem_size);
+        let program = Program::load_elf(&elf);
         assert!(program.is_ok());
         let program = program.unwrap();
         let state = State::from(program);
@@ -670,6 +685,24 @@ mod tests {
         assert_eq!(vm.state.get_register_value(rd), expected_value);
     }
 
+    #[test_case(0x0073_42b3, 5, 6, 7, 0x0000_1111, 0x0011_0011; "xor r5, r6, r7")]
+    fn xor(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction xor
+        image.insert(0_u32, word);
+        add_exit_syscall(4_u32, &mut image);
+        let mut vm = create_vm(image, |state: &mut State| {
+            state.set_register_value(rs1, rs1_value);
+            state.set_register_value(rs2, rs2_value);
+        });
+
+        let expected_value = rs1_value ^ rs2_value;
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert_eq!(vm.state.get_register_value(rd), expected_value);
+    }
+
     // Tests 2 cases:
     //   1) x6 = 0x55551111, imm = 0xff (255), x5 = 0x555511ff
     //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0xfffff911
@@ -678,7 +711,7 @@ mod tests {
     fn xori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
-        // at 0 address instruction andi
+        // at 0 address instruction xori
         image.insert(0_u32, word);
         add_exit_syscall(4_u32, &mut image);
         let mut vm = create_vm(image, |state: &mut State| {
@@ -744,7 +777,7 @@ mod tests {
 
     #[test_case(0x4043_5293, 5, 6, 0x8765_4321, 4; "srai r5, r6, 4")]
     #[test_case(0x41f3_5293, 5, 6, 1, 31; "srai r5, r6, 31")]
-    fn srai(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i16) {
+    fn srai(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction srai
@@ -764,7 +797,7 @@ mod tests {
 
     #[test_case(0x0043_5293, 5, 6, 0x8765_4321, 4; "srli r5, r6, 4")]
     #[test_case(0x01f3_5293, 5, 6, 1, 31; "srli r5, r6, 31")]
-    fn srli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i16) {
+    fn srli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction srli
@@ -780,7 +813,7 @@ mod tests {
 
     #[test_case(0x0043_1293, 5, 6, 0x8765_4321, 4; "slli r5, r6, 4")]
     #[test_case(0x01f3_1293, 5, 6, 1, 31; "slli r5, r6, 31")]
-    fn slli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i16) {
+    fn slli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction slli
@@ -817,7 +850,7 @@ mod tests {
     #[test_case(0xfff3_3293, 5, 6, 1, -1; "sltiu r5, r6, -1")]
     #[test_case(0x0003_3293, 5, 6, 1, 0; "sltiu r5, r6, 0")]
     #[test_case(0x7ff3_3293, 5, 6, 1, 2047; "sltiu r5, r6, 2047")]
-    fn sltiu(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i16) {
+    fn sltiu(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
         // at 0 address instruction sltiu
@@ -875,13 +908,13 @@ mod tests {
         let res = vm.step();
         assert_eq!(rs1_value, vm.state.get_register_value(rs1));
         assert!(res.is_ok());
-        let expected_value = (i64::from(rs1_value) + i64::from(imm)) & 0xFFFF_FFFF;
-        // let expected_value = if imm.is_negative() {
-        //     rs1_value.wrapping_sub(u32::from(imm.unsigned_abs()))
-        // } else {
-        //     rs1_value.wrapping_add(imm as u32)
-        // };
-        assert_eq!(expected_value, i64::from(vm.state.get_register_value(rd)));
+        let mut expected_value = rs1_value;
+        if imm.is_negative() {
+            expected_value -= imm.unsigned_abs();
+        } else {
+            expected_value += imm as u32;
+        }
+        assert_eq!(vm.state.get_register_value(rd), expected_value);
     }
 
     #[test_case(0x0643_0283, 5, 6, 100, 0, 127; "lb r5, 100(r6)")]
@@ -1053,6 +1086,30 @@ mod tests {
         assert!(res.is_ok());
         assert!(vm.state.has_halted());
         assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+    }
+
+    #[test]
+    fn jalr_same_registers() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address instruction jal to 256
+        // JAL x1, 256
+        image.insert(0_u32, 0x1000_00ef);
+        add_exit_syscall(4_u32, &mut image);
+        // set R5 to 100 so that it can be verified
+        // that indeed control passed to this location
+        // ADDI x5, x0, 100
+        image.insert(256_u32, 0x0640_0293);
+        // at 260 go back to address after JAL
+        // JALR x1, x1, 0
+        image.insert(260_u32, 0x0000_80e7);
+        let mut vm = create_vm(image, |_state: &mut State| {});
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
+        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        // JALR at 260 updates X1 to have value of next_pc i.e 264
+        assert_eq!(vm.state.get_register_value(1_usize), 264_u32);
     }
 
     #[test]

@@ -5,12 +5,16 @@ use crate::instruction::{
     BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst, UTypeInst,
 };
 
-/// Builds a i32 from segments, like [(0, 4), (20, 32)], shifts left afterwards
+/// Builds a i32 from segments, and right pads with zeroes
 ///
-/// The shift is built-in for convenience, because the type annotation syntax in
-/// Rust is a bit awkward otherwise.
+/// This function takes segment specifications in the same format as the table
+/// in figure 2.4 of page 12 of <https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf>
+///
+/// So for example, a B-immediate takes:
+///   segments: &[(31, 31), (7, 7), (30, 25), (11, 8)]
+///   pad: 1
 #[must_use]
-fn extract_immediate(word: u32, segments: &[(usize, usize)], shift: usize) -> i32 {
+fn extract_immediate(word: u32, segments: &[(usize, usize)], pad: usize) -> i32 {
     let len: usize = segments.iter().map(|(msb, lsb)| msb - lsb + 1).sum();
     let u = segments.iter().fold(0, |acc, (msb, lsb)| -> u32 {
         let bits: u32 = word.bit_range(*msb, *lsb);
@@ -18,7 +22,7 @@ fn extract_immediate(word: u32, segments: &[(usize, usize)], shift: usize) -> i3
     });
     let bit_size = std::mem::size_of::<u32>() * 8;
     // shift back and forth for sign extension.
-    ((u << (bit_size - len)) as i32) >> (bit_size - len - shift)
+    ((u << (bit_size - len)) as i32) >> (bit_size - len - pad)
 }
 
 bitfield! {
@@ -164,7 +168,7 @@ mod test {
     };
 
     #[test_case(0b000_1100, 3; "extract 3")]
-    #[test_case(0b1101_1100, -1; "extract neg 3")]
+    #[test_case(0b1101_1100, -1; "extract neg 1")]
     fn extract_simple(word: u32, x: i32) {
         let a: i32 = extract_immediate(word, &[(7, 6), (4, 2)], 0);
         assert_eq!(x, a);
