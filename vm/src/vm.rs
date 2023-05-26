@@ -496,7 +496,7 @@ impl Vm {
                 Ok(())
             }
             Instruction::FENCE(_) | Instruction::CSR => {
-                // TODO: implement, for now, advance pc.
+                // TODO(bing): implement! For now, advance pc.
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
