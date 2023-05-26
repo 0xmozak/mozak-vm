@@ -1,22 +1,28 @@
+/*
+Plan:
+- create tests/testdata via custom cargo build script.
+- also create tests/testdata/commit
+- and some commit in our files
+
+*/
 use mozak_vm::elf::Program;
 use mozak_vm::state::State;
 use mozak_vm::vm::Vm;
 
+use anyhow::Result;
+
 macro_rules! test_elf {
     ($test_name:ident, $file_name:tt) => {
         #[test]
-        fn $test_name() {
+        fn $test_name() -> Result<()>{
             let _ = env_logger::try_init();
             let elf_name = format!("tests/testdata/{}", $file_name);
-            let elf = std::fs::read(elf_name).unwrap();
+            let elf = std::fs::read(elf_name)?;
             let max_mem_size = 1024 * 1024 * 1024; // 1 GB
-            let program = Program::load_elf(&elf, max_mem_size);
-            assert!(program.is_ok());
-            let program = program.unwrap();
+            let program = Program::load_elf(&elf, max_mem_size)?;
             let state = State::from(program);
             let mut vm = Vm::new(state);
-            let res = vm.step();
-            assert!(res.is_ok());
+            vm.step().map(|_| ())
         }
     };
 }

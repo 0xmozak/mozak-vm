@@ -24,7 +24,7 @@ jobs:
 
       - name: Cache RISC-V tests
         id: cache-built-tests
-        uses: actions/cache@v3  
+        uses: actions/cache@v3
         with:
           path: vm/tests/testdata
           key: ${{ runner.os }}-riscv-tests-${{ github.ref_name }}
@@ -37,7 +37,7 @@ jobs:
       - name: Build RISC-V test suite
         if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
         run: |
-          ./build-riscv-tests.sh
+          cargo build
 
       # This is useful for inspecting what exactly was built during the run.
       - name: Upload riscv-tests build artifacts

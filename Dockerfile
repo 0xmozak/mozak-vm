@@ -25,7 +25,8 @@ ENV RISCV_TEST="/root/riscv-tests/isa"
 
 # Update tests
 RUN cd riscv-tests && \
-    git submodule update --init --recursive
+    git submodule update --init --recursive && \
+    git rev-parse HEAD | tee .testdata_generated_from_this_commit
 
 # Edit env - the starting address is 0x8000_0000 (default), but we want something smaller.
 # Lets use 0x0700_0000. This is used in compiling the ELF binaries in the next step.
@@ -40,3 +41,4 @@ RUN cd riscv-tests && autoconf && \
 
 FROM scratch as exporter-stage
 COPY --from=builder-stage /root/riscv-tests/isa /
+COPY --from=builder-stage /root/riscv-tests/.testdata_generated_from_this_commit /
