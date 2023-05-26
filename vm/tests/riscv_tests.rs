@@ -13,7 +13,7 @@ macro_rules! test_elf {
             let program = Program::load_elf(&elf, max_mem_size);
             assert!(program.is_ok());
             let program = program.unwrap();
-            let state = State::new(program);
+            let state = State::from(program);
             let mut vm = Vm::new(state);
             let res = vm.step();
             assert!(res.is_ok());
