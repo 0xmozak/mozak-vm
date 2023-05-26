@@ -1,4 +1,1 @@
 target/
-
-# Ignore test files
-vm/tests/testdata

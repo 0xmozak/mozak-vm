@@ -32,6 +32,11 @@ proptest! {
         let y: Register = x.into();
         let z: u32 = y.into();
         assert_eq!(x, z);
+
+        let x = 0x80000004;
+        let y: Register = x.into();
+        let z: u32 = y.into();
+        assert_eq!(x, z);
     }
 }
 

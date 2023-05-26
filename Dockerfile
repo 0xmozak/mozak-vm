@@ -28,6 +28,10 @@ RUN cd riscv-tests && \
     git submodule update --init --recursive && \
     git rev-parse HEAD | tee .testdata_generated_from_this_commit
 
+# Edit env - the starting address is 0x8000_0000 (default), but we want something smaller.
+# Lets use 0x0700_0000. This is used in compiling the ELF binaries in the next step.
+RUN sed --in-place "s|0x80000000|0x07000000|g" /root/riscv-tests/env/p/link.ld
+
 # Build the tests - we are interested in rv32ui and rv32um
 RUN cd riscv-tests && autoconf && \
     ./configure --prefix=/root/riscv-tests && \
