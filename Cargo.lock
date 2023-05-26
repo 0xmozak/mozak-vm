@@ -441,9 +441,9 @@ checksum = "436b050e76ed2903236f032a59761c1eb99e1b0aead2c257922771dab1fc8c78"
 
 [[package]]
 name = "risc0-core"
-version = "0.15.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7984b7ba0e72a5f6ed4b9fe05b891b3ad76c3d009ea4bf961c6e59ca3659ae8"
+checksum = "da1d4e7ceb54f2e5ec46e12083c69054b4d41cae717e87816af4eea9c82d04ee"
 dependencies = [
  "bytemuck",
  "rand_core",
