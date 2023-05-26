@@ -1,3 +1,3 @@
 #!/bin/sh
 
-docker buildx build -o vm/tests/testdata .
+docker buildx build --output vm/tests/testdata .
