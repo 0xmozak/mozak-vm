@@ -9,8 +9,7 @@ macro_rules! test_elf {
             let _ = env_logger::try_init();
             let elf_name = format!("tests/testdata/{}", $file_name);
             let elf = std::fs::read(elf_name).unwrap();
-            let max_mem_size = 1024 * 1024 * 1024; // 1 GB
-            let program = Program::load_elf(&elf, max_mem_size);
+            let program = Program::load_elf(&elf);
             assert!(program.is_ok());
             let program = program.unwrap();
             let state = State::from(program);
