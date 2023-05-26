@@ -20,7 +20,7 @@ impl Program {
     /// # Errors
     /// Will return `Err` if the ELF file is invalid or if the entrypoint is
     /// invalid.
-    pub fn load_elf(input: &[u8], max_mem: u32) -> Result<Program> {
+    pub fn load_elf(input: &[u8]) -> Result<Program> {
         let mut image: BTreeMap<u32, u32> = BTreeMap::new();
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
         if elf.ehdr.class != Class::ELF32 {
@@ -33,7 +33,7 @@ impl Program {
             bail!("Invalid ELF type, must be executable");
         }
         let entry: u32 = elf.ehdr.e_entry.try_into()?;
-        if entry >= max_mem || entry % 4 != 0 {
+        if entry % 4 != 0 {
             bail!("Invalid entrypoint");
         }
         let segments = elf
