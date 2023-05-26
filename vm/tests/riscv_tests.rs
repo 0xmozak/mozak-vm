@@ -1,8 +1,3 @@
-// Plan:
-// - create tests/testdata via custom cargo build script.
-// - also create tests/testdata/commit
-// - and some commit in our files
-//
 use anyhow::Result;
 use mozak_vm::elf::Program;
 use mozak_vm::state::State;
