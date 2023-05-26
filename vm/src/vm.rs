@@ -500,8 +500,8 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
-            _ => {
-                unimplemented!()
+            i => {
+                unimplemented!("{i:#?}")
             }
         }
     }

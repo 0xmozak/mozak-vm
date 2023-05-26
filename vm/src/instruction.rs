@@ -105,5 +105,5 @@ pub enum Instruction {
     CSR,
     ECALL,
     EBREAK,
-    UNKNOWN,
+    UNKNOWN(u32),
 }

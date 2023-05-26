@@ -120,7 +120,6 @@ impl State {
     /// This function panics, if you try to from an unaligned address.
     pub fn load_u32(&self, addr: u32) -> Result<u32> {
         const WORD_SIZE: usize = 4;
-        assert_eq!(addr % WORD_SIZE as u32, 0, "unaligned load");
         let mut bytes = [0_u8; WORD_SIZE];
         for (i, byte) in bytes.iter_mut().enumerate() {
             *byte = self.load_u8(addr + i as u32)?;
