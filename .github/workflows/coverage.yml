@@ -31,7 +31,8 @@ jobs:
 
       - name:                   Generate code coverage
         run: |
-          cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 120 --out Xml
+          cargo tarpaulin
+        #   cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 120 --out Xml
 
       - name: Upload riscv-tests build artifacts
         if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
