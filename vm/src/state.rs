@@ -187,3 +187,13 @@ impl State {
         Ok(())
     }
 }
+
+proptest! {
+    #[test]
+    fn round_trip_memory(addr in any::<u32>(), x in any::<u32>()) {
+        let mut state: State = State::default();
+        state.store_u32(addr, x).unwrap();
+        let y = state.load_u32(addr).unwrap();
+        assert_eq!(x, y);
+    }
+}
