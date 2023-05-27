@@ -17,8 +17,7 @@ jobs:
       image:                    xd009642/tarpaulin:develop-nightly
       options:                  --security-opt seccomp=unconfined
     steps:
-      - uses:                   actions/checkout@v2
-
+      - uses: actions/checkout@v3
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@master
         with:
