@@ -21,8 +21,27 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - name: Cache RISC-V tests
+        id: cache-built-tests
+        uses: actions/cache@v3
+        with:
+          path: vm/tests/testdata
+          key: ${{ runner.os }}-riscv-tests-${{ github.ref_name }}
+          restore-keys: ${{ runner.os }}-riscv-tests-${{ github.ref_name }}
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
+        uses: docker/setup-buildx-action@v2
+
       - name: Run tests
         run: cargo test --locked --all-targets
+
+      - name: Upload riscv-tests build artifacts
+        if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: riscv-tests
+          path: vm/tests/testdata
 
   cargo-clippy:
     runs-on: ubuntu-latest
@@ -36,8 +55,27 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - name: Cache RISC-V tests
+        id: cache-built-tests
+        uses: actions/cache@v3
+        with:
+          path: vm/tests/testdata
+          key: ${{ runner.os }}-riscv-tests-${{ github.ref_name }}
+          restore-keys: ${{ runner.os }}-riscv-tests-${{ github.ref_name }}
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
+        uses: docker/setup-buildx-action@v2
+
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
+
+      - name: Upload riscv-tests build artifacts
+        if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: riscv-tests
+          path: vm/tests/testdata
 
   cargo-fmt:
     runs-on: ubuntu-latest

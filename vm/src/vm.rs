@@ -495,7 +495,14 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
-            _ => unimplemented!(),
+            Instruction::FENCE(_) | Instruction::CSR => {
+                // TODO(bing): implement! For now, advance pc.
+                self.state.set_pc(self.state.get_pc() + 4);
+                Ok(())
+            }
+            _ => {
+                unimplemented!()
+            }
         }
     }
 }
@@ -523,21 +530,6 @@ mod tests {
         let mut state = State::from(program);
         state_init(&mut state);
         Vm::new(state)
-    }
-
-    // TODO: Unignore this test once instructions required are supported
-    #[test]
-    #[ignore]
-    fn check() {
-        let _ = env_logger::try_init();
-        let elf = std::fs::read("src/test.elf").unwrap();
-        let program = Program::load_elf(&elf);
-        assert!(program.is_ok());
-        let program = program.unwrap();
-        let state = State::from(program);
-        let mut vm = Vm::new(state);
-        let res = vm.step();
-        assert!(res.is_ok());
     }
 
     // NOTE: For writing test cases please follow RISCV
