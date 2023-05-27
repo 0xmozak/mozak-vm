@@ -36,6 +36,11 @@ jobs:
         if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
         uses: docker/setup-buildx-action@v2
 
+      - name:                   Generate testdata (via `cargo check`)
+        run: |
+          cargo check
+        #   cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 120 --out Xml
+
       - name:                   Generate code coverage
         run: |
           cargo tarpaulin --locked --workspace
