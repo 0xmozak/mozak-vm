@@ -1,4 +1,7 @@
 [workspace]
 members = [
+    "field",
     "vm",
+    "circuits",
+    "prover",
 ]
