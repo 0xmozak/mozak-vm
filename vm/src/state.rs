@@ -5,17 +5,20 @@ use risc0_core::field::baby_bear::BabyBearElem;
 
 use crate::elf::Program;
 
+// Create new type to use everywhere with just renaming
+type FieldElement = BabyBearElem;
+
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Register {
-    lo: BabyBearElem,
-    hi: BabyBearElem,
+    lo: FieldElement,
+    hi: FieldElement,
 }
 
 impl From<u32> for Register {
     fn from(value: u32) -> Self {
         Register {
-            lo: BabyBearElem::new(value & 0xFFFF),
-            hi: BabyBearElem::new(value >> 16),
+            lo: FieldElement::new(value & 0xFFFF),
+            hi: FieldElement::new(value >> 16),
         }
     }
 }
@@ -46,19 +49,19 @@ pub struct State {
     halted: bool,
     registers: [Register; 32],
     pc: Register,
-    memory: HashMap<usize, BabyBearElem>,
+    memory: HashMap<usize, FieldElement>,
 }
 
 impl From<Program> for State {
     fn from(program: Program) -> Self {
-        let memory: HashMap<usize, BabyBearElem> = program
+        let memory: HashMap<usize, FieldElement> = program
             .image
             .into_iter()
             .flat_map(|(addr, data)| {
                 data.to_le_bytes()
                     .into_iter()
                     .enumerate()
-                    .map(move |(a, byte)| (addr as usize + a, BabyBearElem::from(u32::from(byte))))
+                    .map(move |(a, byte)| (addr as usize + a, FieldElement::from(u32::from(byte))))
             })
             .collect();
         Self {
@@ -156,7 +159,7 @@ impl State {
     /// address.
     pub fn store_u8(&mut self, addr: u32, value: u8) -> Result<()> {
         self.memory
-            .insert(addr as usize, BabyBearElem::new(u32::from(value)));
+            .insert(addr as usize, FieldElement::new(u32::from(value)));
         Ok(())
     }
 
