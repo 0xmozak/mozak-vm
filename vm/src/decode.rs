@@ -136,7 +136,9 @@ pub fn decode_instruction(word: u32) -> Instruction {
         0b111_0011 => match bf.func12() {
             0x0 => Instruction::ECALL,
             0x1 => Instruction::EBREAK,
-            _ => Instruction::UNKNOWN,
+            // TODO: Only decode a subset of CSR instructions.
+            // The rest should be an Instruction::UNKNOWN.
+            _ => Instruction::CSR,
         },
         0b110_1111 => Instruction::JAL(jtype),
         0b110_0111 => match bf.func3() {
@@ -154,6 +156,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
         },
         0b011_0111 => Instruction::LUI(utype),
         0b001_0111 => Instruction::AUIPC(utype),
+        0b000_1111 => Instruction::FENCE(itype),
         _ => Instruction::UNKNOWN,
     }
 }
