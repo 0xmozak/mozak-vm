@@ -26,13 +26,8 @@ ENV RISCV_TEST="/root/riscv-tests/isa"
 
 # Update tests
 RUN cd riscv-tests && \
-    git submodule update --init --recursive
-
-# Edit env - the starting address is 0x8000_0000 (default), but we want a smaller entrypoint
-# so that it works well with our test suite which checks for a maximum memory boundary.
-# The exact value is not important - let's use 0x0700_0000.
-# This is used in compiling the ELF binaries in the next step.
-RUN sed --in-place "s|0x80000000|0x07000000|g" /root/riscv-tests/env/p/link.ld
+    git submodule update --init --recursive && \
+    git rev-parse HEAD | tee .testdata_generated_from_this_commit
 
 # Build the tests - we are interested in rv32ui and rv32um
 RUN cd riscv-tests && autoconf && \
@@ -45,3 +40,4 @@ FROM scratch as exporter-stage
 
 # Copy all built tests to the host system
 COPY --from=builder-stage /root/riscv-tests/isa /
+COPY --from=builder-stage /root/riscv-tests/.testdata_generated_from_this_commit /

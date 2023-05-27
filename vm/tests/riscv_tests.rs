@@ -1,3 +1,4 @@
+use anyhow::Result;
 use mozak_vm::elf::Program;
 use mozak_vm::state::State;
 use mozak_vm::vm::Vm;
@@ -5,17 +6,14 @@ use mozak_vm::vm::Vm;
 macro_rules! test_elf {
     ($test_name:ident, $file_name:tt) => {
         #[test]
-        fn $test_name() {
+        fn $test_name() -> Result<()> {
             let _ = env_logger::try_init();
             let elf_name = format!("tests/testdata/{}", $file_name);
-            let elf = std::fs::read(elf_name).unwrap();
-            let program = Program::load_elf(&elf);
-            assert!(program.is_ok());
-            let program = program.unwrap();
+            let elf = std::fs::read(elf_name)?;
+            let program = Program::load_elf(&elf)?;
             let state = State::from(program);
             let mut vm = Vm::new(state);
-            let res = vm.step();
-            assert!(res.is_ok());
+            vm.step().map(|_| ())
         }
     };
 }
