@@ -84,7 +84,6 @@ jobs:
       packages: read
       pull-requests: write
       checks: write
-      statuses: write
     steps:
       - uses: actions/checkout@v3
       - name: Install toolchain
@@ -94,6 +93,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
+          # tarpaulin runs with different RUSTFLAGS, so we need a different cache.
           prefix-key: "v0-rust-tarpaulin"
 
       - name: "Install coverage tool: cargo tarpaulin"
@@ -113,6 +113,8 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Run tests for coverage
+        # skip-clean is there to make tarpaulin not re-build unnecessarily,
+        # so caching dependencies works.
         run: cargo tarpaulin --skip-clean --engine llvm --locked --workspace --out Xml
 
       - name: Coverage Comment
