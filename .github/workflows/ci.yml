@@ -83,6 +83,7 @@ jobs:
       # metadata: read
       packages: read
       pull-requests: write
+      checks: write
     steps:
       - uses: actions/checkout@v3
       - name: Install toolchain
@@ -119,7 +120,8 @@ jobs:
           COVERAGE_FILE: "cobertura.xml"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # - uses: 5monkeys/cobertura-action@master
-      #   with:
-      #     path: cobertura.xml
-      #     minimum_coverage: 0
+      - uses: 5monkeys/cobertura-action@master
+        with:
+          path: cobertura.xml
+          minimum_coverage: 0
+          # repo_token: ${{ secrets.GITHUB_TOKEN }}
