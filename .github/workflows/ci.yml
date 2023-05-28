@@ -102,5 +102,5 @@ jobs:
         if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
         uses: docker/setup-buildx-action@v2
 
-      - name: Run tests
+      - name: Run tests for coverage
         run: cargo tarpaulin --locked --workspace
