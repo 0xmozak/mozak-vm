@@ -12,7 +12,13 @@ fn main() {
         != std::fs::read_to_string(stamp_actual).unwrap_or_default()
     {
         assert!(Command::new("docker")
-            .args(["buildx", "build", "--output", "tests/testdata", "tests/create_testdata/"])
+            .args([
+                "buildx",
+                "build",
+                "--output",
+                "tests/testdata",
+                "tests/create_testdata/"
+            ])
             .status()
             .unwrap()
             .success())
