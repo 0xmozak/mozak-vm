@@ -88,9 +88,7 @@ jobs:
 
       - uses: taiki-e/install-action@v2
         with:
-          tool: cargo-binstall
-
-      - run: cargo binstall cargo-tarpaulin
+          tool: cargo-tarpaulin
 
       - name: Cache RISC-V tests
         id: cache-built-tests
