@@ -82,6 +82,7 @@ jobs:
       contents: read
       # metadata: read
       packages: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v3
       - name: Install toolchain
