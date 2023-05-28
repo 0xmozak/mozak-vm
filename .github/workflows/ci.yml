@@ -105,10 +105,10 @@ jobs:
       - name: Run tests for coverage
         run: cargo tarpaulin --engine llvm --locked --workspace --out Xml
 
-      - name: Coverage Comment
-        uses: ewjoachim/coverage-comment-action@v1.0.3
-        with:
-          COVERAGE_FILE: "cobertura.xml"
+      # - name: Coverage Comment
+      #   uses: ewjoachim/coverage-comment-action@v1.0.3
+      #   with:
+      #     COVERAGE_FILE: "cobertura.xml"
 
       - uses: 5monkeys/cobertura-action@master
         with:
