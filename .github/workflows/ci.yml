@@ -80,7 +80,6 @@ jobs:
     permissions:
       issues: read
       contents: read
-      # metadata: read
       packages: read
       pull-requests: write
       checks: write
@@ -127,4 +126,3 @@ jobs:
         with:
           path: cobertura.xml
           minimum_coverage: 0
-          # repo_token: ${{ secrets.GITHUB_TOKEN }}
