@@ -74,3 +74,30 @@ jobs:
 
       - name: Run fmt
         run: cargo fmt --all --check
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo install tarpaulin
+
+      - name: Cache RISC-V tests
+        id: cache-built-tests
+        uses: actions/cache@v3
+        with:
+          path: vm/tests/testdata
+          key: "${{ runner.os }}-riscv-tests-${{ hashFiles('vm/tests/create_testdata/') }}"
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
+        uses: docker/setup-buildx-action@v2
+
+      - name: Run tests
+        run: cargo tarpaulin --locked --workspace
