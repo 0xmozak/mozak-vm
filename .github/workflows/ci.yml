@@ -105,12 +105,12 @@ jobs:
       - name: Run tests for coverage
         run: cargo tarpaulin --engine llvm --locked --workspace --out Xml
 
-      - name: Coverage Comment
-        uses: ewjoachim/coverage-comment-action@v1.0.3
-        with:
-          COVERAGE_FILE: "cobertura.xml"
-          # GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Coverage Comment
+      #   uses: ewjoachim/coverage-comment-action@v1.0.3
+      #   with:
+      #     COVERAGE_FILE: "cobertura.xml"
+      #     # GITHUB_TOKEN: ${{ github.token }}
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: 5monkeys/cobertura-action@master
         with:
