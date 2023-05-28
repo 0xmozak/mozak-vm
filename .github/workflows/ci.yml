@@ -103,7 +103,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Run tests for coverage
-        run: cargo tarpaulin --engine llvm --locked --workspace --out Xml
+        run: cargo tarpaulin --skip-clean --engine llvm --locked --workspace --out Xml
 
       # - name: Coverage Comment
       #   uses: ewjoachim/coverage-comment-action@v1.0.3
