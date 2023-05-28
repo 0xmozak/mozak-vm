@@ -85,6 +85,8 @@ jobs:
           toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v0-rust-tarpaulin"
 
       - name: "Install coverage tool: cargo tarpaulin"
         uses: taiki-e/install-action@v2
