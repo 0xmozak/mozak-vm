@@ -77,6 +77,11 @@ jobs:
 
   coverage:
     runs-on: ubuntu-latest
+    permissions:
+      issues: read
+      contents: read
+      metadata: read
+      packages: read
     steps:
       - uses: actions/checkout@v3
       - name: Install toolchain
@@ -107,12 +112,12 @@ jobs:
       - name: Run tests for coverage
         run: cargo tarpaulin --skip-clean --engine llvm --locked --workspace --out Xml
 
-      # - name: Coverage Comment
-      #   uses: ewjoachim/coverage-comment-action@v1.0.3
-      #   with:
-      #     COVERAGE_FILE: "cobertura.xml"
-      #     # GITHUB_TOKEN: ${{ github.token }}
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Coverage Comment
+        uses: ewjoachim/coverage-comment-action@v1.0.3
+        with:
+          COVERAGE_FILE: "cobertura.xml"
+          # GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: 5monkeys/cobertura-action@master
         with:
