@@ -52,7 +52,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: vm/tests/testdata
-          key: "${{ runner.os }}-riscv-tests-${{ hashFiles('hashFiles(path)') }}"
+          key: "${{ runner.os }}-riscv-tests-${{ hashFiles('vm/tests/create_testdata/') }}"
 
       - name: Set up Docker Buildx
         if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
