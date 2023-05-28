@@ -86,6 +86,10 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-binstall
+
       - run: cargo binstall cargo-tarpaulin
 
       - name: Cache RISC-V tests
