@@ -80,7 +80,7 @@ jobs:
     permissions:
       issues: read
       contents: read
-      metadata: read
+      # metadata: read
       packages: read
     steps:
       - uses: actions/checkout@v3
