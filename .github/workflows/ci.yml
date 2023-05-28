@@ -84,6 +84,7 @@ jobs:
       packages: read
       pull-requests: write
       checks: write
+      statuses: write
     steps:
       - uses: actions/checkout@v3
       - name: Install toolchain
