@@ -86,7 +86,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - run: cargo install tarpaulin
+      - run: cargo install cargo-tarpaulin
 
       - name: Cache RISC-V tests
         id: cache-built-tests
