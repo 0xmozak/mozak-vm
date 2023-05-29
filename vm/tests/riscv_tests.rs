@@ -13,12 +13,17 @@ macro_rules! test_elf {
             let program = Program::load_elf(&elf)?;
             let state = State::from(program);
             let mut vm = Vm::new(state);
-            vm.step().map(|_| ())
+            vm.step().map(|_| ())?;
+            // At the end of every test, register gp(x3) is set to 1 before an ECALL
+            assert_eq!(vm.state.get_register_value(3_usize), 1);
+
+            Ok(())
         }
     };
 }
 
 // Base instruction set
+test_elf!(add, "rv32ui-p-add");
 test_elf!(addi, "rv32ui-p-addi");
 test_elf!(and, "rv32ui-p-and");
 test_elf!(andi, "rv32ui-p-andi");

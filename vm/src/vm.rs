@@ -495,14 +495,21 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
-            Instruction::FENCE(_) | Instruction::CSR => {
-                // TODO(bing): implement! For now, advance pc.
+            // It's not important that these instructions are implemented for the sake of
+            // our purpose at this moment, but these instructions are found in the test
+            // data that we use - so we simply advance the register.
+            Instruction::FENCE(_)
+            | Instruction::CSRRS(_)
+            | Instruction::CSRRW(_)
+            | Instruction::CSRRC(_)
+            | Instruction::CSRRWI(_)
+            | Instruction::CSRRSI(_)
+            | Instruction::CSRRCI(_)
+            | Instruction::MRET => {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
-            _ => {
-                unimplemented!()
-            }
+            _ => unimplemented!(),
         }
     }
 }
@@ -1403,6 +1410,22 @@ mod tests {
         assert!(vm.state.has_halted());
         assert_eq!(vm.state.get_register_value(1), 0x8000_0004);
         assert_eq!(vm.state.get_register_value_signed(1), -2_147_483_644);
+    }
+
+    #[test]
+    fn csrrs() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // at 0 address addi x0, x0, 0
+        image.insert(0_u32, 0x0000_0013);
+        // at 4 address instruction auipc
+        // csrrs x30, mcause, x0
+        image.insert(4_u32, 0x3420_2f73);
+        add_exit_syscall(8_u32, &mut image);
+        let mut vm = create_vm(image, |_state: &mut State| {});
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
     }
 
     #[test_case(0x4000_0000 /*2^30*/, 0xFFFF_FFFE /*-2*/, 0xE000_0000 /*-2^29*/; "simple")]
