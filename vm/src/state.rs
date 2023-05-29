@@ -170,6 +170,6 @@ proptest! {
     fn round_trip_u32(x in any::<u32>()) {
         let field_el = GoldilocksField::from_canonical_u32(x);
         let y = field_el.to_canonical_u64();
-        assert_eq!(x as u64, y);
+        assert_eq!(u64::from(x), y);
     }
 }
