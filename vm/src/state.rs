@@ -1,42 +1,10 @@
 use anyhow::Result;
 use im::hashmap::HashMap;
+use plonky2::field::goldilocks_field::GoldilocksField;
+use plonky2::field::types::{Field, PrimeField64};
 use proptest::prelude::*;
-use risc0_core::field::baby_bear::BabyBearElem;
 
 use crate::elf::Program;
-
-// Create new type to use everywhere with just renaming
-type FieldElement = BabyBearElem;
-
-#[derive(Copy, Clone, Debug, Default)]
-pub struct Register {
-    lo: FieldElement,
-    hi: FieldElement,
-}
-
-impl From<u32> for Register {
-    fn from(value: u32) -> Self {
-        Register {
-            lo: FieldElement::new(value & 0xFFFF),
-            hi: FieldElement::new(value >> 16),
-        }
-    }
-}
-
-impl From<Register> for u32 {
-    fn from(val: Register) -> Self {
-        val.hi.as_u32() << 16 | val.lo.as_u32()
-    }
-}
-
-proptest! {
-    #[test]
-    fn round_trip(x in any::<u32>()) {
-        let y: Register = x.into();
-        let z: u32 = y.into();
-        assert_eq!(x, z);
-    }
-}
 
 /// State of our VM
 ///
@@ -47,25 +15,27 @@ proptest! {
 #[derive(Clone, Debug, Default)]
 pub struct State {
     halted: bool,
-    registers: [Register; 32],
-    pc: Register,
-    memory: HashMap<usize, FieldElement>,
+    registers: [GoldilocksField; 32],
+    pc: GoldilocksField,
+    memory: HashMap<usize, GoldilocksField>,
 }
 
 impl From<Program> for State {
     fn from(program: Program) -> Self {
-        let memory: HashMap<usize, FieldElement> = program
+        let memory: HashMap<usize, GoldilocksField> = program
             .image
             .into_iter()
             .flat_map(|(addr, data)| {
                 data.to_le_bytes()
                     .into_iter()
                     .enumerate()
-                    .map(move |(a, byte)| (addr as usize + a, FieldElement::from(u32::from(byte))))
+                    .map(move |(a, byte)| {
+                        (addr as usize + a, GoldilocksField::from_canonical_u8(byte))
+                    })
             })
             .collect();
         Self {
-            pc: Register::from(program.entry),
+            pc: GoldilocksField::from_canonical_u32(program.entry),
             memory,
             ..Default::default()
         }
@@ -89,13 +59,13 @@ impl State {
     pub fn set_register_value(&mut self, index: usize, value: u32) {
         // R0 is always 0
         if index != 0 {
-            self.registers[index] = Register::from(value);
+            self.registers[index] = GoldilocksField::from_canonical_u32(value);
         }
     }
 
     #[must_use]
     pub fn get_register_value(&self, index: usize) -> u32 {
-        self.registers[index].into()
+        self.registers[index].to_canonical_u64() as u32
     }
 
     #[must_use]
@@ -104,12 +74,12 @@ impl State {
     }
 
     pub fn set_pc(&mut self, value: u32) {
-        self.pc = Register::from(value);
+        self.pc = GoldilocksField::from_canonical_u32(value);
     }
 
     #[must_use]
     pub fn get_pc(&self) -> u32 {
-        self.pc.into()
+        self.pc.to_canonical_u64() as u32
     }
 
     /// Load a word from memory
@@ -148,7 +118,7 @@ impl State {
         Ok(self
             .memory
             .get(&(addr as usize))
-            .map_or(0, FieldElement::as_u32)
+            .map_or(0, GoldilocksField::to_canonical_u64)
             .try_into()?)
     }
 
@@ -159,7 +129,7 @@ impl State {
     /// address.
     pub fn store_u8(&mut self, addr: u32, value: u8) -> Result<()> {
         self.memory
-            .insert(addr as usize, FieldElement::new(u32::from(value)));
+            .insert(addr as usize, GoldilocksField::from_canonical_u8(value));
         Ok(())
     }
 
@@ -195,5 +165,11 @@ proptest! {
         state.store_u32(addr, x).unwrap();
         let y = state.load_u32(addr).unwrap();
         assert_eq!(x, y);
+    }
+    #[test]
+    fn round_trip_u32(x in any::<u32>()) {
+        let field_el = GoldilocksField::from_canonical_u32(x);
+        let y = field_el.to_canonical_u64();
+        assert_eq!(x as u64, y);
     }
 }
