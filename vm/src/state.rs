@@ -87,7 +87,6 @@ impl State {
     /// # Panics
     /// This function panics, if you try to load into an invalid register.
     pub fn set_register_value(&mut self, index: usize, value: u32) {
-        assert!(index < 32);
         // R0 is always 0
         if index != 0 {
             self.registers[index] = Register::from(value);
@@ -149,7 +148,8 @@ impl State {
         Ok(self
             .memory
             .get(&(addr as usize))
-            .map_or(0, |bb| bb.as_u32() as u8))
+            .map_or(0, FieldElement::as_u32)
+            .try_into()?)
     }
 
     /// Store a byte to memory
@@ -185,5 +185,15 @@ impl State {
         self.store_u8(addr, bytes[0])?;
         self.store_u8(addr + 1_u32, bytes[1])?;
         Ok(())
+    }
+}
+
+proptest! {
+    #[test]
+    fn round_trip_memory(addr in any::<u32>(), x in any::<u32>()) {
+        let mut state: State = State::default();
+        state.store_u32(addr, x).unwrap();
+        let y = state.load_u32(addr).unwrap();
+        assert_eq!(x, y);
     }
 }

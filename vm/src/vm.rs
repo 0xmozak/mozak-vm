@@ -340,8 +340,8 @@ impl Vm {
                 Ok(())
             }
             Instruction::BGEU(bgeu) => {
-                if self.state.get_register_value_signed(bgeu.rs1.into())
-                    >= self.state.get_register_value_signed(bgeu.rs2.into())
+                if self.state.get_register_value(bgeu.rs1.into())
+                    >= self.state.get_register_value(bgeu.rs2.into())
                 {
                     let pc = self.state.get_pc();
                     let jump_pc = (pc as i32) + bgeu.imm;
@@ -495,14 +495,18 @@ impl Vm {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
-            Instruction::FENCE(_) | Instruction::CSR => {
-                // TODO(bing): implement! For now, advance pc.
+            // It's not important that these instructions are implemented for the sake of
+            // our purpose at this moment, but these instructions are found in the test
+            // data that we use - so we simply advance the register.
+            Instruction::FENCE(_)
+            | Instruction::CSRRS(_)
+            | Instruction::CSRRW(_)
+            | Instruction::CSRRWI(_)
+            | Instruction::MRET => {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
             }
-            _ => {
-                unimplemented!()
-            }
+            _ => unimplemented!(),
         }
     }
 }
@@ -1403,6 +1407,28 @@ mod tests {
         assert!(vm.state.has_halted());
         assert_eq!(vm.state.get_register_value(1), 0x8000_0004);
         assert_eq!(vm.state.get_register_value_signed(1), -2_147_483_644);
+    }
+
+    #[test]
+    fn system_opcode_instructions() {
+        let _ = env_logger::try_init();
+        let mut image = BTreeMap::new();
+        // mret
+        image.insert(0_u32, 0x3020_0073);
+        // csrrs, t5, mcause
+        image.insert(4_u32, 0x3420_2f73);
+        // csrrw, mtvec, t0
+        image.insert(8_u32, 0x3052_9073);
+        // csrrwi, 0x744, 8
+        image.insert(12_u32, 0x7444_5073);
+        // fence, iorw, iorw
+        image.insert(16_u32, 0x0ff0_000f);
+
+        add_exit_syscall(20_u32, &mut image);
+        let mut vm = create_vm(image, |_state: &mut State| {});
+        let res = vm.step();
+        assert!(res.is_ok());
+        assert!(vm.state.has_halted());
     }
 
     #[test_case(0x4000_0000 /*2^30*/, 0xFFFF_FFFE /*-2*/, 0xE000_0000 /*-2^29*/; "simple")]
