@@ -14,8 +14,11 @@ macro_rules! test_elf {
             let state = State::from(program);
             let mut vm = Vm::new(state);
             vm.step().map(|_| ())?;
-            // At the end of every test, register gp(x3) is set to 1 before an ECALL
-            assert_eq!(vm.state.get_register_value(3_usize), 1);
+            // At the end of every test,
+            // register a0(x10) is set to 0 before an ECALL if it passes
+            assert_eq!(vm.state.get_register_value(10_usize), 0);
+            assert_eq!(vm.state.get_register_value(17_usize), 93);
+            assert!(vm.state.has_halted());
 
             Ok(())
         }
