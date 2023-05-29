@@ -1421,7 +1421,10 @@ mod tests {
         image.insert(8_u32, 0x3052_9073);
         // csrrwi, 0x744, 8
         image.insert(12_u32, 0x7444_5073);
-        add_exit_syscall(16_u32, &mut image);
+        // fence, iorw, iorw
+        image.insert(16_u32, 0x0ff0_000f);
+
+        add_exit_syscall(20_u32, &mut image);
         let mut vm = create_vm(image, |_state: &mut State| {});
         let res = vm.step();
         assert!(res.is_ok());

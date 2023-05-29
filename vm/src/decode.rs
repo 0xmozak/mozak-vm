@@ -523,6 +523,13 @@ mod test {
         assert_eq!(ins, match_ins);
     }
 
+    #[test_case(0x0ff0_000f, 0, 0, 255; "fence, iorw, iorw")]
+    fn fence(word: u32, rd: u8, rs1: u8, imm: i32) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::FENCE(ITypeInst { rs1, rd, imm });
+        assert_eq!(ins, match_ins);
+    }
+
     #[test_case(0x3020_0073; "mret")]
     fn mret(word: u32) {
         let ins: Instruction = decode_instruction(word);
