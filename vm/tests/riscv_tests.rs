@@ -3,6 +3,19 @@ use mozak_vm::elf::Program;
 use mozak_vm::state::State;
 use mozak_vm::vm::Vm;
 
+/// This macro takes in an identifier as the test name and the file name of a
+/// compiled ELF and runs it through the Mozak VM to ensure correctness of the
+/// base RISC-V implementation.
+///
+/// Below, we use a set of test files compiled from https://github.com/riscv-software-src/riscv-tests,
+/// specifically the rv32ui and rv32um tests.
+///
+/// These files are generated on the first `cargo build` using Docker which
+/// downloads the RISC-V toolchain and compiles these test files into ELFs.
+///
+/// To use these tests, this macro specifically asserts that the value of
+/// x10 = 0 at the end of a run, as defined by RVTEST_PASS here: https://github.com/riscv/riscv-test-env/blob/4fabfb4e0d3eacc1dc791da70e342e4b68ea7e46/p/riscv_test.h#L247-L252
+/// Custom tests may be added as long as the assertion is respected.
 macro_rules! test_elf {
     ($test_name:ident, $file_name:tt) => {
         #[test]
@@ -64,9 +77,6 @@ test_elf!(sub, "rv32ui-p-sub");
 test_elf!(sw, "rv32ui-p-sw");
 test_elf!(xor, "rv32ui-p-xor");
 test_elf!(xori, "rv32ui-p-xori");
-
-// Unimplemented
-// test_elf!(fence_i, "rv32ui-");
 
 // M extension
 test_elf!(div, "rv32um-p-div");
