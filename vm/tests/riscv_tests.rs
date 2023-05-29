@@ -13,7 +13,7 @@ macro_rules! test_elf {
             let program = Program::load_elf(&elf)?;
             let state = State::from(program);
             let mut vm = Vm::new(state);
-            vm.step().map(|_| ())?;
+            vm.step()?;
             // At the end of every test,
             // register a0(x10) is set to 0 before an ECALL if it passes
             assert_eq!(vm.state.get_register_value(10_usize), 0);

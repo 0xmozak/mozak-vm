@@ -134,9 +134,9 @@ pub fn decode_instruction(word: u32) -> Instruction {
             _ => Instruction::UNKNOWN,
         },
         0b111_0011 => match (bf.func3(), bf.func12()) {
-            (0, 0x0) => Instruction::ECALL,
-            (0, 0x302) => Instruction::MRET,
-            (0, 0x1) => Instruction::EBREAK,
+            (0x0, 0x0) => Instruction::ECALL,
+            (0x0, 0x302) => Instruction::MRET,
+            (0x0, 0x1) => Instruction::EBREAK,
             (0x1, _) => Instruction::CSRRW(itype),
             (0x2, _) => Instruction::CSRRS(itype),
             (0x5, _) => Instruction::CSRRWI(itype),
