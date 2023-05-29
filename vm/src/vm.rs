@@ -501,10 +501,7 @@ impl Vm {
             Instruction::FENCE(_)
             | Instruction::CSRRS(_)
             | Instruction::CSRRW(_)
-            | Instruction::CSRRC(_)
             | Instruction::CSRRWI(_)
-            | Instruction::CSRRSI(_)
-            | Instruction::CSRRCI(_)
             | Instruction::MRET => {
                 self.state.set_pc(self.state.get_pc() + 4);
                 Ok(())
@@ -1413,15 +1410,18 @@ mod tests {
     }
 
     #[test]
-    fn csrrs() {
+    fn system_opcode_instructions() {
         let _ = env_logger::try_init();
         let mut image = BTreeMap::new();
-        // at 0 address addi x0, x0, 0
-        image.insert(0_u32, 0x0000_0013);
-        // at 4 address instruction auipc
-        // csrrs x30, mcause, x0
+        // mret
+        image.insert(0_u32, 0x3020_0073);
+        // csrrs, t5, mcause
         image.insert(4_u32, 0x3420_2f73);
-        add_exit_syscall(8_u32, &mut image);
+        // csrrw, mtvec, t0
+        image.insert(8_u32, 0x3052_9073);
+        // csrrwi, 0x744, 8
+        image.insert(12_u32, 0x7444_5073);
+        add_exit_syscall(16_u32, &mut image);
         let mut vm = create_vm(image, |_state: &mut State| {});
         let res = vm.step();
         assert!(res.is_ok());

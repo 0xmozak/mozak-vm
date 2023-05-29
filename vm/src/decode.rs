@@ -133,17 +133,13 @@ pub fn decode_instruction(word: u32) -> Instruction {
             0x7 => Instruction::ANDI(itype),
             _ => Instruction::UNKNOWN,
         },
-
         0b111_0011 => match (bf.func3(), bf.func12()) {
             (0, 0x0) => Instruction::ECALL,
             (0, 0x302) => Instruction::MRET,
             (0, 0x1) => Instruction::EBREAK,
             (0x1, _) => Instruction::CSRRW(itype),
             (0x2, _) => Instruction::CSRRS(itype),
-            (0x3, _) => Instruction::CSRRC(itype),
             (0x5, _) => Instruction::CSRRWI(itype),
-            (0x6, _) => Instruction::CSRRSI(itype),
-            (0x7, _) => Instruction::CSRRCI(itype),
             _ => Instruction::UNKNOWN,
         },
         0b110_1111 => Instruction::JAL(jtype),
@@ -517,6 +513,41 @@ mod test {
     fn remu(word: u32, rd: u8, rs1: u8, rs2: u8) {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction::REMU(RTypeInst { rs1, rs2, rd });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x0000_0073; "ecall")]
+    fn ecall(word: u32) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::ECALL;
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x3020_0073; "mret")]
+    fn mret(word: u32) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::MRET;
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x3420_2f73, 30, 0, 834; "csrrs, t5, mcause")]
+    fn csrrs(word: u32, rd: u8, rs1: u8, imm: i32) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::CSRRS(ITypeInst { rs1, rd, imm });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x3052_9073, 0, 5, 773; "csrrw, mtvec, t0")]
+    fn csrrw(word: u32, rd: u8, rs1: u8, imm: i32) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::CSRRW(ITypeInst { rs1, rd, imm });
+        assert_eq!(ins, match_ins);
+    }
+
+    #[test_case(0x7444_5073, 0, 8, 0x744; "csrrwi, 0x744, 8")]
+    fn csrrwi(word: u32, rd: u8, rs1: u8, imm: i32) {
+        let ins: Instruction = decode_instruction(word);
+        let match_ins = Instruction::CSRRWI(ITypeInst { rs1, rd, imm });
         assert_eq!(ins, match_ins);
     }
 }
