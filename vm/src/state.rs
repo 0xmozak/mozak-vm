@@ -87,7 +87,6 @@ impl State {
     /// # Panics
     /// This function panics, if you try to load into an invalid register.
     pub fn set_register_value(&mut self, index: usize, value: u32) {
-        assert!(index < 32);
         // R0 is always 0
         if index != 0 {
             self.registers[index] = Register::from(value);
@@ -149,7 +148,8 @@ impl State {
         Ok(self
             .memory
             .get(&(addr as usize))
-            .map_or(0, |bb| bb.as_u32() as u8))
+            .map_or(0, FieldElement::as_u32)
+            .try_into()?)
     }
 
     /// Store a byte to memory
