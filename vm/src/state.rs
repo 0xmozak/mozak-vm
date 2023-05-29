@@ -87,7 +87,6 @@ impl State {
     /// # Panics
     /// This function panics, if you try to load into an invalid register.
     pub fn set_register_value(&mut self, index: usize, value: u32) {
-        assert!(index < 32);
         // R0 is always 0
         if index != 0 {
             self.registers[index] = Register::from(value);
