@@ -340,8 +340,8 @@ impl Vm {
                 Ok(())
             }
             Instruction::BGEU(bgeu) => {
-                if self.state.get_register_value_signed(bgeu.rs1.into())
-                    >= self.state.get_register_value_signed(bgeu.rs2.into())
+                if self.state.get_register_value(bgeu.rs1.into())
+                    >= self.state.get_register_value(bgeu.rs2.into())
                 {
                     let pc = self.state.get_pc();
                     let jump_pc = (pc as i32) + bgeu.imm;
