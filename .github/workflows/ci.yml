@@ -128,3 +128,30 @@ jobs:
         with:
           path: cobertura.xml
           minimum_coverage: 0
+
+  cargo-udeps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Cache RISC-V tests
+        id: cache-built-tests
+        uses: actions/cache@v3
+        with:
+          path: vm/tests/testdata
+          key: "${{ runner.os }}-riscv-tests-${{ hashFiles('vm/tests/create_testdata/') }}"
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
+        uses: docker/setup-buildx-action@v2
+
+      - name: Run cargo-udeps
+        uses: aig787/cargo-udeps-action@v1
+        with:
+          args: '--workspace --all-targets --all-features'
