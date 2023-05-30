@@ -1,4 +1,4 @@
-FROM ubuntu:latest as builder-stage
+FROM --platform=linux/amd64 ubuntu:latest as builder-stage
 
 # Set the working directory
 WORKDIR /root
