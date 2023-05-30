@@ -116,6 +116,8 @@ impl From<&Instruction> for u8 {
         match val {
             Instruction::ADD(_) => 0_u8,
             Instruction::ADDI(_) => 1_u8,
+            Instruction::LW(_) => 2_u8,
+            Instruction::SW(_) => 3_u8,
             _ => 255_u8,
         }
     }

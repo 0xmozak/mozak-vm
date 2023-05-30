@@ -10,7 +10,7 @@ use crate::{
     instruction::Instruction,
     state::State,
     traces::Trace,
-    traces::{ProcessorTraceRow, RegisterSelector},
+    traces::{MemoryTraceRow, ProcessorTraceRow, RegisterSelector},
 };
 pub struct Vm {
     pub state: State,
@@ -307,6 +307,33 @@ impl Vm {
                 let value: u32 = self.state.load_u32(addr)?;
                 self.state.set_register_value(load.rd.into(), value);
                 self.state.set_pc(self.state.get_pc() + 4);
+                // Processor Trace
+                let mut register_selectors = RegisterSelector {
+                    rs1: GoldilocksField::from_canonical_u8(load.rs1),
+                    rd: GoldilocksField::from_canonical_u8(load.rd),
+                    ..Default::default()
+                };
+                register_selectors.rs1_reg_sel[usize::from(load.rs1)] =
+                    GoldilocksField::from_canonical_u8(1_u8);
+                register_selectors.rd_reg_sel[usize::from(load.rd)] =
+                    GoldilocksField::from_canonical_u8(1_u8);
+                self.trace.processor_trace.push(ProcessorTraceRow {
+                    clk: self.state.clk,
+                    registers: self.state.registers,
+                    register_selectors,
+                    pc: self.state.pc,
+                    opcode: inst.into(),
+                    op2_imm: GoldilocksField::from_canonical_u8(1_u8),
+                    imm_value: GoldilocksField::from_canonical_u32(load.imm as u32),
+                });
+
+                // Memory Trace
+                self.trace.memory_trace.push(MemoryTraceRow {
+                    clk: self.state.clk,
+                    address: GoldilocksField::from_canonical_u32(addr),
+                    value: GoldilocksField::from_canonical_u32(value),
+                    is_write: GoldilocksField::from_canonical_u8(0),
+                });
                 Ok(())
             }
             Instruction::ECALL => {
@@ -418,6 +445,33 @@ impl Vm {
                 let value = self.state.get_register_value(sw.rs2.into());
                 self.state.store_u32(addr, value)?;
                 self.state.set_pc(self.state.get_pc() + 4);
+                // Processor Trace
+                let mut register_selectors = RegisterSelector {
+                    rs1: GoldilocksField::from_canonical_u8(sw.rs1),
+                    rs2: GoldilocksField::from_canonical_u8(sw.rs2),
+                    ..Default::default()
+                };
+                register_selectors.rs1_reg_sel[usize::from(sw.rs1)] =
+                    GoldilocksField::from_canonical_u8(1_u8);
+                register_selectors.rs2_reg_sel[usize::from(sw.rs2)] =
+                    GoldilocksField::from_canonical_u8(1_u8);
+                self.trace.processor_trace.push(ProcessorTraceRow {
+                    clk: self.state.clk,
+                    registers: self.state.registers,
+                    register_selectors,
+                    pc: self.state.pc,
+                    opcode: inst.into(),
+                    op2_imm: GoldilocksField::from_canonical_u8(1_u8),
+                    imm_value: GoldilocksField::from_canonical_u32(sw.imm as u32),
+                });
+
+                // Memory Trace
+                self.trace.memory_trace.push(MemoryTraceRow {
+                    clk: self.state.clk,
+                    address: GoldilocksField::from_canonical_u32(addr),
+                    value: GoldilocksField::from_canonical_u32(value),
+                    is_write: GoldilocksField::from_canonical_u8(0),
+                });
                 Ok(())
             }
             Instruction::SH(sh) => {

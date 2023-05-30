@@ -36,6 +36,19 @@ pub struct ProcessorTraceRow {
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
+pub struct MemoryTraceRow {
+    /// A processor clock value.
+    pub clk: u32,
+    /// Address of memory used in instruction.
+    pub address: GoldilocksField,
+    /// Value at address on memory.
+    pub value: GoldilocksField,
+    /// 1 => Store, 0 => Load
+    pub is_write: GoldilocksField,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct Trace {
     pub processor_trace: Vec<ProcessorTraceRow>,
+    pub memory_trace: Vec<MemoryTraceRow>,
 }
