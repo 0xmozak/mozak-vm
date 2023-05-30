@@ -1,16 +1,26 @@
 use anyhow::Result;
 use log::trace;
+use plonky2::field::{goldilocks_field::GoldilocksField, types::Field};
 
-use crate::{decode::decode_instruction, instruction::Instruction, state::State};
-
+use crate::{
+    decode::decode_instruction,
+    instruction::Instruction,
+    state::State,
+    traces::Trace,
+    traces::{ProcessorTraceRow, RegisterSelector},
+};
 pub struct Vm {
     pub state: State,
+    pub trace: Trace,
 }
 
 impl Vm {
     #[must_use]
     pub fn new(state: State) -> Self {
-        Self { state }
+        Self {
+            state,
+            trace: Trace::default(),
+        }
     }
 
     /// Execute a program
@@ -64,6 +74,26 @@ impl Vm {
                     .wrapping_add(self.state.get_register_value(add.rs2.into()));
                 self.state.set_register_value(add.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
+                let mut register_selectors = RegisterSelector {
+                    rs1: GoldilocksField::from_canonical_u8(add.rs1),
+                    rs2: GoldilocksField::from_canonical_u8(add.rs2),
+                    rd: GoldilocksField::from_canonical_u8(add.rd),
+                    ..Default::default()
+                };
+                register_selectors.rs1_reg_sel[usize::from(add.rs1)] =
+                    GoldilocksField::from_canonical_u8(1_u8);
+                register_selectors.rs2_reg_sel[usize::from(add.rs2)] =
+                    GoldilocksField::from_canonical_u8(1_u8);
+                register_selectors.rd_reg_sel[usize::from(add.rd)] =
+                    GoldilocksField::from_canonical_u8(1_u8);
+                self.trace.processor_trace.push(ProcessorTraceRow {
+                    registers: self.state.registers,
+                    register_selectors,
+                    pc: self.state.pc,
+                    opcode: inst.into(),
+                    op1_imm: GoldilocksField::from_canonical_u8(0_u8),
+                });
+
                 Ok(())
             }
             Instruction::SLL(sll) => {

@@ -110,3 +110,12 @@ pub enum Instruction {
     EBREAK,
     UNKNOWN,
 }
+
+impl From<&Instruction> for u8 {
+    fn from(val: &Instruction) -> u8 {
+        match val {
+            Instruction::ADD(_) => 0_u8,
+            _ => 255_u8,
+        }
+    }
+}

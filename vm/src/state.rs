@@ -15,9 +15,9 @@ use crate::elf::Program;
 #[derive(Clone, Debug, Default)]
 pub struct State {
     halted: bool,
-    registers: [GoldilocksField; 32],
-    pc: GoldilocksField,
-    memory: HashMap<usize, GoldilocksField>,
+    pub registers: [GoldilocksField; 32],
+    pub pc: GoldilocksField,
+    pub memory: HashMap<usize, GoldilocksField>,
 }
 
 impl From<Program> for State {
