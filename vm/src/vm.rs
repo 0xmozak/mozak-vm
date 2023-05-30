@@ -103,7 +103,7 @@ impl Vm {
                     register_selectors,
                     pc: self.state.pc,
                     opcode: inst.into(),
-                    op1_imm: GoldilocksField::from_canonical_u8(0_u8),
+                    ..Default::default()
                 });
 
                 Ok(())
@@ -204,6 +204,24 @@ impl Vm {
                 let res = rs1_value.wrapping_add(addi.imm);
                 self.state.set_register_value(addi.rd.into(), res as u32);
                 self.state.set_pc(self.state.get_pc() + 4);
+                let mut register_selectors = RegisterSelector {
+                    rs1: GoldilocksField::from_canonical_u8(addi.rs1),
+                    rd: GoldilocksField::from_canonical_u8(addi.rd),
+                    ..Default::default()
+                };
+                register_selectors.rs1_reg_sel[usize::from(addi.rs1)] =
+                    GoldilocksField::from_canonical_u8(1_u8);
+                register_selectors.rd_reg_sel[usize::from(addi.rd)] =
+                    GoldilocksField::from_canonical_u8(1_u8);
+                self.trace.processor_trace.push(ProcessorTraceRow {
+                    clk: self.state.clk,
+                    registers: self.state.registers,
+                    register_selectors,
+                    pc: self.state.pc,
+                    opcode: inst.into(),
+                    op2_imm: GoldilocksField::from_canonical_u8(1_u8),
+                    imm_value: GoldilocksField::from_canonical_u32(addi.imm as u32),
+                });
                 Ok(())
             }
             Instruction::ORI(ori) => {
