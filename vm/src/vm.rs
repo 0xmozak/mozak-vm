@@ -1,4 +1,7 @@
+use std::io::prelude::*;
+
 use anyhow::Result;
+use csv::WriterBuilder;
 use log::trace;
 use plonky2::field::{goldilocks_field::GoldilocksField, types::Field};
 
@@ -9,7 +12,6 @@ use crate::{
     traces::Trace,
     traces::{ProcessorTraceRow, RegisterSelector},
 };
-use csv::WriterBuilder;
 pub struct Vm {
     pub state: State,
     pub trace: Trace,
@@ -61,13 +63,14 @@ impl Vm {
                 );
             }
         }
-        let dump_traces: bool = std::option_env!("DUMP_TRACES").map_or(false, |env_var| env_var.parse().unwrap());
+        let dump_traces: bool =
+            std::option_env!("DUMP_TRACES").map_or(false, |env_var| env_var.parse().unwrap());
         if dump_traces {
             let mut wrt = WriterBuilder::new().has_headers(true).from_writer(vec![]);
             wrt.serialize(&self.trace).expect("CSV Generation Failed");
-            use std::io::prelude::*;
-                let mut file = std::fs::File::create("traces.csv")?;
-                file.write_all(&wrt.into_inner().expect("String conversion failed")).expect("CSV writing failed");
+            let mut file = std::fs::File::create("traces.csv")?;
+            file.write_all(&wrt.into_inner().expect("String conversion failed"))
+                .expect("CSV writing failed");
         }
         Ok(states)
     }
