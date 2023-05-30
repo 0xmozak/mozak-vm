@@ -65,7 +65,10 @@ impl State {
 
     #[must_use]
     pub fn get_register_value(&self, index: usize) -> u32 {
-        self.registers[index].to_canonical_u64() as u32
+        self.registers[index]
+            .to_canonical_u64()
+            .try_into()
+            .expect("Could not convert u64 to u32")
     }
 
     #[must_use]
