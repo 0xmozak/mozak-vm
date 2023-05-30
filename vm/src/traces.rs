@@ -12,6 +12,7 @@ pub struct RegisterSelector {
 
 #[derive(Debug, Clone, Default)]
 pub struct ProcessorTraceRow {
+    pub clk: u32,
     pub registers: [GoldilocksField; 32],
     pub register_selectors: RegisterSelector,
     pub pc: GoldilocksField,

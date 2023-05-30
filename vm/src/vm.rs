@@ -38,7 +38,6 @@ impl Vm {
     /// earlier.)
     pub fn step(&mut self) -> Result<Vec<State>> {
         let mut states = vec![self.state.clone()];
-        let mut debug_count: usize = 0;
         while !self.state.has_halted() {
             let pc = self.state.get_pc();
             let word = self.state.load_u32(pc)?;
@@ -50,13 +49,13 @@ impl Vm {
                 word
             );
             self.execute_instruction(&inst)?;
+            self.state.clk += 1;
             states.push(self.state.clone());
             if cfg!(debug_assertions) {
-                debug_count += 1;
-                let limit: usize = std::option_env!("MOZAK_MAX_LOOPS")
+                let limit: u32 = std::option_env!("MOZAK_MAX_LOOPS")
                     .map_or(1_000_000, |env_var| env_var.parse().unwrap());
                 debug_assert!(
-                    debug_count != limit,
+                    self.state.clk != limit,
                     "Looped for longer than MOZAK_MAX_LOOPS"
                 );
             }
@@ -87,6 +86,7 @@ impl Vm {
                 register_selectors.rd_reg_sel[usize::from(add.rd)] =
                     GoldilocksField::from_canonical_u8(1_u8);
                 self.trace.processor_trace.push(ProcessorTraceRow {
+                    clk: self.state.clk,
                     registers: self.state.registers,
                     register_selectors,
                     pc: self.state.pc,

@@ -14,6 +14,7 @@ use crate::elf::Program;
 /// every step of evaluation.
 #[derive(Clone, Debug, Default)]
 pub struct State {
+    pub clk: u32,
     halted: bool,
     pub registers: [GoldilocksField; 32],
     pub pc: GoldilocksField,
