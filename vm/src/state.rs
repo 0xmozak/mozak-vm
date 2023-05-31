@@ -158,9 +158,8 @@ impl State {
 
     /// Load a byte from memory
     ///
-    /// # Errors
-    /// This function returns an error, if you try to load from an invalid
-    /// address.
+    /// # Panics
+    /// This function panics if the conversion from `u32` to a `u8` fails, which is an internal error.
     pub fn load_u8(&self, addr: u32) -> u8 {
         self.memory
             .get(&(addr as usize))
