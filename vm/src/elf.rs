@@ -7,6 +7,7 @@ use elf::{endian::LittleEndian, file::Class, ElfBytes};
 use itertools::Itertools;
 
 /// A RISC program
+#[derive(Debug, Default)]
 pub struct Program {
     /// The entrypoint of the program
     pub entry: u32,
