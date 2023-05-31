@@ -1,10 +1,10 @@
-use anyhow::Result;
 use im::hashmap::HashMap;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::{Field, PrimeField64};
 use proptest::prelude::*;
 
 use crate::elf::Program;
+use crate::instruction::{BTypeInst, ITypeInst, RTypeInst};
 
 /// State of our VM
 ///
@@ -42,9 +42,55 @@ impl From<Program> for State {
     }
 }
 
+impl RTypeInst {
+    pub fn register_op(&self, state: State, op: fn(u32, u32) -> u32) -> State {
+        let rs1 = state.get_register_value(self.rs1.into());
+        let rs2 = state.get_register_value(self.rs2.into());
+        state
+            .set_register_value(self.rd.into(), op(rs1, rs2))
+            .bump_pc()
+    }
+}
+
+impl ITypeInst {
+    pub fn register_op(&self, state: State, op: fn(u32, u32) -> u32) -> State {
+        let rs1 = state.get_register_value(self.rs1.into());
+        state
+            .set_register_value(self.rd.into(), op(rs1, self.imm as u32))
+            .bump_pc()
+    }
+
+    pub fn memory_load(&self, state: State, op: fn(&[u8; 4]) -> u32) -> State {
+        let addr: u32 = state
+            .get_register_value(self.rs1.into())
+            .wrapping_add(self.imm as u32);
+        let mem = [
+            state.load_u8(addr),
+            state.load_u8(addr + 1),
+            state.load_u8(addr + 2),
+            state.load_u8(addr + 3),
+        ];
+        state.set_register_value(self.rd.into(), op(&mem)).bump_pc()
+    }
+}
+
+impl BTypeInst {
+    pub fn register_op(&self, state: State, op: fn(u32, u32) -> bool) -> State {
+        let rs1 = state.get_register_value(self.rs1.into());
+        let rs2 = state.get_register_value(self.rs2.into());
+        if op(rs1, rs2) {
+            state.bump_pc_n(self.imm as u32)
+        } else {
+            state.bump_pc()
+        }
+    }
+}
+
 impl State {
-    pub fn halt(&mut self) {
+    #[must_use]
+    pub fn halt(mut self) -> Self {
         self.halted = true;
+        self
     }
 
     #[must_use]
@@ -56,11 +102,13 @@ impl State {
     ///
     /// # Panics
     /// This function panics, if you try to load into an invalid register.
-    pub fn set_register_value(&mut self, index: usize, value: u32) {
+    #[must_use]
+    pub fn set_register_value(mut self, index: usize, value: u32) -> Self {
         // R0 is always 0
         if index != 0 {
             self.registers[index] = GoldilocksField::from_canonical_u32(value);
         }
+        self
     }
 
     #[must_use]
@@ -72,12 +120,9 @@ impl State {
     }
 
     #[must_use]
-    pub fn get_register_value_signed(&self, index: usize) -> i32 {
-        self.get_register_value(index) as i32
-    }
-
-    pub fn set_pc(&mut self, value: u32) {
+    pub fn set_pc(mut self, value: u32) -> Self {
         self.pc = GoldilocksField::from_canonical_u32(value);
+        self
     }
 
     #[must_use]
@@ -85,44 +130,43 @@ impl State {
         self.pc.to_canonical_u64() as u32
     }
 
+    #[must_use]
+    pub fn bump_pc(self) -> Self {
+        self.bump_pc_n(4)
+    }
+
+    #[must_use]
+    pub fn bump_pc_n(self, diff: u32) -> Self {
+        let pc = self.get_pc();
+        self.set_pc(pc.wrapping_add(diff))
+    }
+
     /// Load a word from memory
     ///
     /// # Errors
     /// This function returns an error, if you try to load from an invalid
     /// address.
-    pub fn load_u32(&self, addr: u32) -> Result<u32> {
+    #[must_use]
+    pub fn load_u32(&self, addr: u32) -> u32 {
         const WORD_SIZE: usize = 4;
         let mut bytes = [0_u8; WORD_SIZE];
         for (i, byte) in bytes.iter_mut().enumerate() {
-            *byte = self.load_u8(addr + i as u32)?;
+            *byte = self.load_u8(addr + i as u32);
         }
-        Ok(u32::from_le_bytes(bytes))
-    }
-
-    /// Store a word to memory
-    ///
-    /// # Errors
-    /// This function returns an error, if you try to store to an invalid
-    /// address.
-    pub fn store_u32(&mut self, addr: u32, value: u32) -> Result<()> {
-        let bytes = value.to_le_bytes();
-        for (i, byte) in bytes.iter().enumerate() {
-            self.store_u8(addr + i as u32, *byte)?;
-        }
-        Ok(())
+        u32::from_le_bytes(bytes)
     }
 
     /// Load a byte from memory
     ///
-    /// # Errors
-    /// This function returns an error, if you try to load from an invalid
-    /// address.
-    pub fn load_u8(&self, addr: u32) -> Result<u8> {
-        Ok(self
-            .memory
+    /// # Panics
+    /// This function panics if the conversion from `u32` to a `u8` fails, which
+    /// is an internal error.
+    pub fn load_u8(&self, addr: u32) -> u8 {
+        self.memory
             .get(&(addr as usize))
             .map_or(0, GoldilocksField::to_canonical_u64)
-            .try_into()?)
+            .try_into()
+            .unwrap()
     }
 
     /// Store a byte to memory
@@ -130,34 +174,11 @@ impl State {
     /// # Errors
     /// This function returns an error, if you try to store to an invalid
     /// address.
-    pub fn store_u8(&mut self, addr: u32, value: u8) -> Result<()> {
+    #[must_use]
+    pub fn store_u8(mut self, addr: u32, value: u8) -> Self {
         self.memory
             .insert(addr as usize, GoldilocksField::from_canonical_u8(value));
-        Ok(())
-    }
-
-    /// Load a halfword from memory
-    ///
-    /// # Errors
-    /// This function returns an error, if you try to load from an invalid
-    /// address.
-    pub fn load_u16(&self, addr: u32) -> Result<u16> {
-        let mut bytes = [0_u8; 2];
-        bytes[0] = self.load_u8(addr)?;
-        bytes[1] = self.load_u8(addr + 1_u32)?;
-        Ok(u16::from_le_bytes(bytes))
-    }
-
-    /// Store a halfword to memory
-    ///
-    /// # Errors
-    /// This function returns an error, if you try to store to an invalid
-    /// address.
-    pub fn store_u16(&mut self, addr: u32, value: u16) -> Result<()> {
-        let bytes = value.to_le_bytes();
-        self.store_u8(addr, bytes[0])?;
-        self.store_u8(addr + 1_u32, bytes[1])?;
-        Ok(())
+        self
     }
 }
 
@@ -166,7 +187,7 @@ proptest! {
     fn round_trip_memory(addr in any::<u32>(), x in any::<u32>()) {
         let mut state: State = State::default();
         state.store_u32(addr, x).unwrap();
-        let y = state.load_u32(addr).unwrap();
+        let y = state.load_u32(addr);
         assert_eq!(x, y);
     }
     #[test]
