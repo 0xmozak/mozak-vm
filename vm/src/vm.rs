@@ -1,8 +1,6 @@
 use anyhow::Result;
-use log::trace;
 
 use crate::{
-    decode::decode_instruction,
     instruction::{ITypeInst, Instruction, JTypeInst, STypeInst, UTypeInst},
     state::State,
 };
@@ -138,15 +136,7 @@ impl State {
 
     #[must_use]
     pub fn execute_instruction(self) -> Self {
-        let pc = self.get_pc();
-        let word = self.load_u32(pc);
-        let inst = decode_instruction(word);
-        trace!(
-            "PC: {:?}, Decoded Inst: {:?}, Encoded Inst Word: {:?}",
-            pc,
-            inst,
-            word
-        );
+        let inst = self.current_instruction();
         match inst {
             Instruction::ADD(inst) => inst.register_op(self, u32::wrapping_add),
             Instruction::ADDI(inst) => inst.register_op(self, u32::wrapping_add),
@@ -215,19 +205,22 @@ impl State {
             | Instruction::MRET => self.bump_pc(),
             Instruction::UNKNOWN => unimplemented!("Unknown instruction"),
         }
+        .bump_clock()
     }
 }
 
-pub struct Vm {
+/// Later on, this can hold traces.
+#[derive(Debug, Clone, Default)]
+pub struct Row {
     pub state: State,
 }
 
-impl Vm {
-    #[must_use]
-    pub fn new(state: State) -> Self {
-        Self { state }
-    }
+#[derive(Debug, Clone, Default)]
+pub struct Vm {
+    pub rows: Vec<Row>,
+}
 
+impl Vm {
     /// Execute a program
     ///
     /// # Errors
@@ -241,25 +234,23 @@ impl Vm {
     /// This is a temporary measure to catch problems with accidental infinite
     /// loops. (Matthias had some trouble debugging a problem with jumps
     /// earlier.)
-    pub fn step(&mut self) -> Result<Vec<State>> {
-        let mut states = vec![self.state.clone()];
-        let mut debug_count: usize = 0;
-        let mut state = self.state.clone();
+    pub fn step(mut state: State) -> Result<(Self, State)> {
+        let mut rows = vec![Row {
+            state: state.clone(),
+        }];
         while !state.has_halted() {
             state = state.execute_instruction();
-            states.push(state.clone());
+            rows.push(Row {
+                state: state.clone(),
+            });
+
             if cfg!(debug_assertions) {
-                debug_count += 1;
-                let limit: usize = std::option_env!("MOZAK_MAX_LOOPS")
+                let limit: u32 = std::option_env!("MOZAK_MAX_LOOPS")
                     .map_or(1_000_000, |env_var| env_var.parse().unwrap());
-                debug_assert!(
-                    debug_count != limit,
-                    "Looped for longer than MOZAK_MAX_LOOPS"
-                );
+                debug_assert!(state.clk != limit, "Looped for longer than MOZAK_MAX_LOOPS");
             }
         }
-        self.state = state;
-        Ok(states)
+        Ok((Vm { rows }, state))
     }
 }
 
@@ -312,18 +303,28 @@ mod tests {
         }
     }
 
-    fn add_exit_syscall(address: u32, image: &mut BTreeMap<u32, u32>) {
-        // set sys-call EXIT in x17(or a7)
-        image.insert(address, 0x05d0_0893_u32);
-        // add ECALL to halt the program
-        image.insert(address + 4, 0x0000_0073_u32);
+    fn create_prog(image: BTreeMap<u32, u32>) -> State {
+        State::from(Program::from(image))
     }
 
-    fn create_vm<F: Fn(&mut State)>(image: BTreeMap<u32, u32>, state_init: F) -> Vm {
-        let program = Program::from(image);
-        let mut state = State::from(program);
-        state_init(&mut state);
-        Vm::new(state)
+    fn simple_test(exit_at: u32, mem: &[(u32, u32)], regs: &[(usize, u32)]) -> State {
+        // TODO(Matthias): stick this line into proper common setup?
+        let _ = env_logger::try_init();
+        let exit_inst =
+              // set sys-call EXIT in x17(or a7)
+              &[(exit_at, 0x05d0_0893_u32),
+              // add ECALL to halt the program
+              (exit_at + 4, 0x0000_0073_u32)];
+
+        let image: BTreeMap<u32, u32> = mem.iter().chain(exit_inst.iter()).copied().collect();
+
+        let state = regs.iter().fold(create_prog(image), |state, (rs, val)| {
+            state.set_register_value(*rs, *val)
+        });
+
+        let state = Vm::step(state).unwrap().1;
+        assert!(state.has_halted());
+        state
     }
 
     // NOTE: For writing test cases please follow RISCV
@@ -333,18 +334,8 @@ mod tests {
     #[test_case(0x0073_02b3, 5, 6, 7, 60049, 50493; "add r5, r6, r7")]
     #[test_case(0x01FF_8FB3, 31, 31, 31, 8981, 8981; "add r31, r31, r31")]
     fn add(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction add
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-            state.set_register_value_mut(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), rs1_value + rs2_value);
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        assert_eq!(state.get_register_value(rd), rs1_value + rs2_value);
     }
 
     // Tests 2 cases:
@@ -353,37 +344,17 @@ mod tests {
     #[test_case(0x0073_12b3, 5, 6, 7, 7, 0x1111; "sll r5, r6, r7, only lower 5 bits rs2")]
     #[test_case(0x0139_12b3, 5, 18, 19, 0x1234_5678, 0x08; "sll r5, r18, r19, rs1 overflow")]
     fn sll(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction sll
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-            state.set_register_value_mut(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(
-            vm.state.get_register_value(rd),
+            state.get_register_value(rd),
             rs1_value << (rs2_value & 0x1F)
         );
     }
 
     #[test_case(0x0073_72b3, 5, 6, 7, 7, 8; "and r5, r6, r7")]
     fn and(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction and
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-            state.set_register_value_mut(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), rs1_value & rs2_value);
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        assert_eq!(state.get_register_value(rd), rs1_value & rs2_value);
     }
 
     // Tests 2 cases:
@@ -392,37 +363,17 @@ mod tests {
     #[test_case(0x0073_52b3, 5, 6, 7, 7, 0x1111; "srl r5, r6, r7, only lower 5 bits rs2")]
     #[test_case(0x0139_52b3, 5, 18, 19, 0x8765_4321, 0x08; "srl r5, r18, r19, rs1 underflow")]
     fn srl(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction srl
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-            state.set_register_value_mut(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(
-            vm.state.get_register_value(rd),
+            state.get_register_value(rd),
             rs1_value >> (rs2_value & 0x1F)
         );
     }
 
     #[test_case(0x0073_62b3, 5, 6, 7, 7, 8; "or r5, r6, r7")]
     fn or(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction or
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-            state.set_register_value_mut(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), rs1_value | rs2_value);
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        assert_eq!(state.get_register_value(rd), rs1_value | rs2_value);
     }
 
     // Tests 2 cases:
@@ -431,19 +382,10 @@ mod tests {
     #[test_case(0x0ff3_6293, 5, 6, 0x5555_1111, 255; "ori r5, r6, 255")]
     #[test_case(0x8003_6293, 5, 6, 0x5555_1111, -2048; "ori r5, r6, -2048")]
     fn ori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction ori
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-        });
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
 
         let expected_value = (rs1_value as i32 | imm) as u32;
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(state.get_register_value(rd), expected_value);
     }
 
     // Tests 2 cases:
@@ -452,37 +394,17 @@ mod tests {
     #[test_case(0x0ff3_7293, 5, 6, 0x5555_1111, 255; "andi r5, r6, 255")]
     #[test_case(0x8003_7293, 5, 6, 0x5555_1111, -2048; "andi r5, r6, -2048")]
     fn andi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction andi
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-        });
-
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         let expected_value = (rs1_value as i32 & imm) as u32;
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(state.get_register_value(rd), expected_value);
     }
 
     #[test_case(0x0073_42b3, 5, 6, 7, 0x0000_1111, 0x0011_0011; "xor r5, r6, r7")]
     fn xor(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction xor
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-            state.set_register_value_mut(rs2, rs2_value);
-        });
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
 
         let expected_value = rs1_value ^ rs2_value;
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(state.get_register_value(rd), expected_value);
     }
 
     // Tests 2 cases:
@@ -491,19 +413,10 @@ mod tests {
     #[test_case(0x0ff3_4293, 5, 6, 0x5555_1111, 255; "xori r5, r6, 255")]
     #[test_case(0x8003_4293, 5, 6, 0x5555_1111, -2048; "xori r5, r6, -2048")]
     fn xori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction xori
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-        });
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
 
         let expected_value = (rs1_value as i32 ^ imm) as u32;
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(state.get_register_value(rd), expected_value);
     }
 
     // Tests 2 cases:
@@ -512,19 +425,9 @@ mod tests {
     #[test_case(0x4073_52b3, 5, 6, 7, 7, 0x1111; "sra r5, r6, r7, only lower 5 bits rs2")]
     #[test_case(0x4139_52b3, 5, 18, 19, 0x8765_4321, 0x08; "sra r5, r18, r19, rs1 underflow")]
     fn sra(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction sra
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-            state.set_register_value_mut(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(
-            vm.state.get_register_value(rd),
+            state.get_register_value(rd),
             (rs1_value as i32 >> (rs2_value & 0x1F) as i32) as u32
         );
     }
@@ -538,21 +441,11 @@ mod tests {
     #[test_case(0x0073_22b3, 5, 6, 7, 0x1234_5678, 0x0000_ffff; "slt r5, r6, r7")]
     #[test_case(0x0139_22b3, 5, 18, 19, 0x8234_5678, 0x0000_ffff; "slt r5, r18, r19")]
     fn slt(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction slt
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-            state.set_register_value_mut(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         let rs1_value = rs1_value as i32;
         let rs2_value = rs2_value as i32;
         assert_eq!(
-            vm.state.get_register_value(rd),
+            state.get_register_value(rd),
             u32::from(rs1_value < rs2_value)
         );
     }
@@ -560,19 +453,9 @@ mod tests {
     #[test_case(0x4043_5293, 5, 6, 0x8765_4321, 4; "srai r5, r6, 4")]
     #[test_case(0x41f3_5293, 5, 6, 1, 31; "srai r5, r6, 31")]
     fn srai(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction srai
-
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         assert_eq!(
-            vm.state.get_register_value(rd),
+            state.get_register_value(rd),
             (rs1_value as i32 >> imm) as u32
         );
     }
@@ -580,33 +463,15 @@ mod tests {
     #[test_case(0x0043_5293, 5, 6, 0x8765_4321, 4; "srli r5, r6, 4")]
     #[test_case(0x01f3_5293, 5, 6, 1, 31; "srli r5, r6, 31")]
     fn srli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction srli
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), rs1_value >> imm);
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
+        assert_eq!(state.get_register_value(rd), rs1_value >> imm);
     }
 
     #[test_case(0x0043_1293, 5, 6, 0x8765_4321, 4; "slli r5, r6, 4")]
     #[test_case(0x01f3_1293, 5, 6, 1, 31; "slli r5, r6, 31")]
     fn slli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction slli
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert_eq!(vm.state.get_register_value(rd), rs1_value << imm);
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
+        assert_eq!(state.get_register_value(rd), rs1_value << imm);
     }
 
     #[test_case(0x8009_2293, 5, 6, 1, -2048; "slti r5, r6, -2048")]
@@ -614,18 +479,9 @@ mod tests {
     #[test_case(0x0009_2293, 5, 6, 1, 0; "slti r5, r6, 0")]
     #[test_case(0x7ff3_2293, 5, 6, 1, 2047; "slti r5, r6, 2047")]
     fn slti(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction slti
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         let rs1_value = rs1_value as i32;
-        assert_eq!(vm.state.get_register_value(rd), u32::from(rs1_value < imm));
+        assert_eq!(state.get_register_value(rd), u32::from(rs1_value < imm));
     }
 
     #[test_case(0x8003_3293, 5, 6, 1, -2048; "sltiu r5, r6, -2048")]
@@ -633,18 +489,9 @@ mod tests {
     #[test_case(0x0003_3293, 5, 6, 1, 0; "sltiu r5, r6, 0")]
     #[test_case(0x7ff3_3293, 5, 6, 1, 2047; "sltiu r5, r6, 2047")]
     fn sltiu(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction sltiu
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         assert_eq!(
-            vm.state.get_register_value(rd),
+            state.get_register_value(rd),
             u32::from(rs1_value < imm as u32)
         );
     }
@@ -654,42 +501,23 @@ mod tests {
     #[test_case(0x0073_32b3, 5, 6, 7, 0x1234_5678, 0x0000_ffff; "sltu r5, r6, r7")]
     #[test_case(0x0139_32b3, 5, 18, 19, 0x1234_5678, 0x8000_ffff; "sltu r5, r18, r19")]
     fn sltu(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction sltu
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-            state.set_register_value_mut(rs2, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(
-            vm.state.get_register_value(rd),
+            state.get_register_value(rd),
             u32::from(rs1_value < rs2_value)
         );
     }
 
     #[test_case(0x05d0_0393, 7, 0, 0, 93; "addi r7, r0, 93")]
     fn addi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction addi
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         let mut expected_value = rs1_value;
         if imm.is_negative() {
             expected_value -= imm.unsigned_abs();
         } else {
             expected_value += imm as u32;
         }
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(state.get_register_value(rd), expected_value);
     }
 
     #[test_case(0x0643_0283, 5, 6, 100, 0, 127; "lb r5, 100(r6)")]
@@ -697,11 +525,6 @@ mod tests {
     #[test_case(0x0643_0283, 5, 6, 100, 0, -128; "lb r5, 100(r6) value_negative")]
     #[test_case(0x0643_0283, 5, 6, 100, 200, -128; "lb r5, -100(r6) offset_negative_value_negative")]
     fn lb(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i8) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction lb
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
         let mut address: u32 = rs1_value;
         if offset.is_negative() {
             let abs_offset = u32::from(offset.unsigned_abs());
@@ -710,18 +533,17 @@ mod tests {
         } else {
             address += offset as u32;
         }
-        image.insert(address, memory_value as u32);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = simple_test(
+            4,
+            &[(0_u32, word), (address, memory_value as u32)],
+            &[(rs1, rs1_value)],
+        );
         let mut expected_value = memory_value as u32;
         if memory_value.is_negative() {
             // extend the sign
             expected_value |= 0xffff_ff00;
         }
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(state.get_register_value(rd), expected_value);
     }
 
     #[test_case(0x0643_4283, 5, 6, 100, 0, 127; "lbu r5, 100(r6)")]
@@ -729,11 +551,6 @@ mod tests {
     #[test_case(0x0643_4283, 5, 6, 100, 0, -128; "lbu r5, 100(r6) value_negative")]
     #[test_case(0x0643_4283, 5, 6, 100, 200, -128; "lbu r5, -100(r6) offset_negative_value_negative")]
     fn lbu(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i8) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction lbu
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
         let mut address: u32 = rs1_value;
         if offset.is_negative() {
             let abs_offset = u32::from(offset.unsigned_abs());
@@ -742,14 +559,13 @@ mod tests {
         } else {
             address += offset as u32;
         }
-        image.insert(address, memory_value as u32);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = simple_test(
+            4,
+            &[(0_u32, word), (address, memory_value as u32)],
+            &[(rs1, rs1_value)],
+        );
         let expected_value = (memory_value as u32) & 0x0000_00FF;
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(state.get_register_value(rd), expected_value);
     }
 
     #[test_case(0x0643_1283, 5, 6, 100, 0, 4096; "lh r5, 100(r6)")]
@@ -757,11 +573,6 @@ mod tests {
     #[test_case(0x0643_1283, 5, 6, 100, 0, -4095; "lh r5, 100(r6) value_negative")]
     #[test_case(0x0643_1283, 5, 6, 100, 200, -4095; "lh r5, -100(r6) offset_negative_value_negative")]
     fn lh(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i16) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction lh
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
         let mut address: u32 = rs1_value;
         if offset.is_negative() {
             let abs_offset = u32::from(offset.unsigned_abs());
@@ -770,18 +581,17 @@ mod tests {
         } else {
             address += offset as u32;
         }
-        image.insert(address, memory_value as u32);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = simple_test(
+            4,
+            &[(0_u32, word), (address, memory_value as u32)],
+            &[(rs1, rs1_value)],
+        );
         let mut expected_value = memory_value as u32;
         if memory_value.is_negative() {
             // extend the sign
             expected_value |= 0xffff_0000;
         }
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(state.get_register_value(rd), expected_value);
     }
 
     #[test_case(0x0643_5283, 5, 6, 100, 0, 4096; "lhu r5, 100(r6)")]
@@ -789,11 +599,6 @@ mod tests {
     #[test_case(0x0643_5283, 5, 6, 100, 0, -4095; "lhu r5, 100(r6) value_negative")]
     #[test_case(0x0643_5283, 5, 6, 100, 200, -4095; "lhu r5, -100(r6) offset_negative_value_negative")]
     fn lhu(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i16) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction lhu
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
         let mut address: u32 = rs1_value;
         if offset.is_negative() {
             let abs_offset = u32::from(offset.unsigned_abs());
@@ -802,14 +607,13 @@ mod tests {
         } else {
             address += offset as u32;
         }
-        image.insert(address, memory_value as u32);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = simple_test(
+            4,
+            &[(0_u32, word), (address, memory_value as u32)],
+            &[(rs1, rs1_value)],
+        );
         let expected_value = (memory_value as u32) & 0x0000_FFFF;
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(state.get_register_value(rd), expected_value);
     }
 
     #[test_case(0x0643_2283, 5, 6, 100, 0, 65535; "lw r5, 100(r6)")]
@@ -817,11 +621,6 @@ mod tests {
     #[test_case(0x0643_2283, 5, 6, 100, 0, -65535; "lw r5, 100(r6) value_negative")]
     #[test_case(0x0643_2283, 5, 6, 100, 200, -65535; "lw r5, -100(r6) offset_negative_value_negative")]
     fn lw(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction lw
-        image.insert(0_u32, word);
-        add_exit_syscall(4_u32, &mut image);
         let mut address: u32 = rs1_value;
         if offset.is_negative() {
             let abs_offset = u32::from(offset.unsigned_abs());
@@ -830,416 +629,330 @@ mod tests {
         } else {
             address += offset as u32;
         }
-        image.insert(address, memory_value as u32);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(rs1, rs1_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
+        let state = simple_test(
+            4,
+            &[(0_u32, word), (address, memory_value as u32)],
+            &[(rs1, rs1_value)],
+        );
         let expected_value = memory_value as u32;
-        assert_eq!(vm.state.get_register_value(rd), expected_value);
+        assert_eq!(state.get_register_value(rd), expected_value);
     }
 
     // TODO: Add more tests for JAL/JALR
     #[test]
     fn jal_jalr() {
         let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
+        let mem =
         // at 0 address instruction jal to 256
         // JAL x1, 256
-        image.insert(0_u32, 0x1000_00ef);
-        add_exit_syscall(4_u32, &mut image);
+        [(0_u32, 0x1000_00ef),
         // set R5 to 100 so that it can be verified
         // that indeed control passed to this location
         // ADDI x5, x0, 100
-        image.insert(256_u32, 0x0640_0293);
+            (256_u32, 0x0640_0293),
         // at 260 go back to address after JAL
         // JALR x0, x1, 0
-        image.insert(260_u32, 0x0000_8067);
-        let mut vm = create_vm(image, |_state: &mut State| {});
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+            (260_u32, 0x0000_8067)];
+        let state = simple_test(4, &mem, &[]);
+        assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
 
     #[test]
     fn jalr_same_registers() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction jal to 256
-        // JAL x1, 256
-        image.insert(0_u32, 0x1000_00ef);
-        add_exit_syscall(4_u32, &mut image);
-        // set R5 to 100 so that it can be verified
-        // that indeed control passed to this location
-        // ADDI x5, x0, 100
-        image.insert(256_u32, 0x0640_0293);
-        // at 260 go back to address after JAL
-        // JALR x1, x1, 0
-        image.insert(260_u32, 0x0000_80e7);
-        let mut vm = create_vm(image, |_state: &mut State| {});
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        let mem = [
+            // at 0 address instruction jal to 256
+            // JAL x1, 256
+            (0_u32, 0x1000_00ef),
+            // set R5 to 100 so that it can be verified
+            // that indeed control passed to this location
+            // ADDI x5, x0, 100
+            (256_u32, 0x0640_0293),
+            // at 260 go back to address after JAL
+            // JALR x1, x1, 0
+            (260_u32, 0x0000_80e7),
+        ];
+        let state = simple_test(4, &mem, &[]);
+
+        assert_eq!(state.get_register_value(5_usize), 100_u32);
         // JALR at 260 updates X1 to have value of next_pc i.e 264
-        assert_eq!(vm.state.get_register_value(1_usize), 264_u32);
+        assert_eq!(state.get_register_value(1_usize), 264_u32);
     }
 
     #[test]
     fn beq() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction BEQ to 256
-        // BEQ x0, x1, 256
-        image.insert(0_u32, 0x1010_0063);
-        add_exit_syscall(4_u32, &mut image);
-        // set R5 to 100 so that it can be verified
-        // that indeed control passed to this location
-        // ADDI x5, x0, 100
-        image.insert(256_u32, 0x0640_0293);
-        // at 260 go back to address after BEQ
-        // JAL x0, -256
-        image.insert(260_u32, 0xf01f_f06f);
-        let mut vm = create_vm(image, |_state: &mut State| {});
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        let mem = [
+            // at 0 address instruction BEQ to 256
+            // BEQ x0, x1, 256
+            (0_u32, 0x1010_0063),
+            // set R5 to 100 so that it can be verified
+            // that indeed control passed to this location
+            // ADDI x5, x0, 100
+            (256_u32, 0x0640_0293),
+            // at 260 go back to address after BEQ
+            // JAL x0, -256
+            (260_u32, 0xf01f_f06f),
+        ];
+        let state = simple_test(4, &mem, &[]);
+
+        assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
 
     #[test]
     fn bne() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction BNE to 256
-        // BNE x0, x1, 256
-        image.insert(0_u32, 0x1010_1063);
-        add_exit_syscall(4_u32, &mut image);
-        // set R5 to 100 so that it can be verified
-        // that indeed control passed to this location
-        // ADDI x5, x0, 100
-        image.insert(256_u32, 0x0640_0293);
-        // at 260 go back to address after BNE
-        // JAL x0, -256
-        image.insert(260_u32, 0xf01f_f06f);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(1_usize, 1_u32);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        let mem = [
+            // at 0 address instruction BNE to 256
+            // BNE x0, x1, 256
+            (0_u32, 0x1010_1063),
+            // set R5 to 100 so that it can be verified
+            // that indeed control passed to this location
+            // ADDI x5, x0, 100
+            (256_u32, 0x0640_0293),
+            // at 260 go back to address after BNE
+            // JAL x0, -256
+            (260_u32, 0xf01f_f06f),
+        ];
+        let state = simple_test(4, &mem, &[(1, 1)]);
+
+        assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
 
     #[test]
     fn blt() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction BLT to 256
-        // BLT x1, x0, 256
-        image.insert(0_u32, 0x1000_c063);
-        add_exit_syscall(4_u32, &mut image);
-        // set R5 to 100 so that it can be verified
-        // that indeed control passed to this location
-        // ADDI x5, x0, 100
-        image.insert(256_u32, 0x0640_0293);
-        // at 260 go back to address after BLT
-        // JAL x0, -256
-        image.insert(260_u32, 0xf01f_f06f);
-        let mut vm = create_vm(image, |state: &mut State| {
-            // set R1 = -1
-            state.set_register_value_mut(1_usize, 0xffff_ffff);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        let mem = [
+            // at 0 address instruction BLT to 256
+            // BLT x1, x0, 256
+            (0_u32, 0x1000_c063),
+            // set R5 to 100 so that it can be verified
+            // that indeed control passed to this location
+            // ADDI x5, x0, 100
+            (256_u32, 0x0640_0293),
+            // at 260 go back to address after BLT
+            // JAL x0, -256
+            (260_u32, 0xf01f_f06f),
+        ];
+
+        // set R1 = -1
+        let state = simple_test(4, &mem, &[(1, 0xffff_ffff)]);
+
+        assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
 
     #[test]
     fn bltu() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction BLTU to 256
-        // BLTU x1, x2, 256
-        image.insert(0_u32, 0x1020_e063);
-        add_exit_syscall(4_u32, &mut image);
-        // set R5 to 100 so that it can be verified
-        // that indeed control passed to this location
-        // ADDI x5, x0, 100
-        image.insert(256_u32, 0x0640_0293);
-        // at 260 go back to address after BLTU
-        // JAL x0, -256
-        image.insert(260_u32, 0xf01f_f06f);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(1_usize, 0xffff_fffe);
-            state.set_register_value_mut(2_usize, 0xffff_ffff);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        let mem = [
+            // at 0 address instruction BLTU to 256
+            // BLTU x1, x2, 256
+            (0_u32, 0x1020_e063),
+            // set R5 to 100 so that it can be verified
+            // that indeed control passed to this location
+            // ADDI x5, x0, 100
+            (256_u32, 0x0640_0293),
+            // at 260 go back to address after BLTU
+            // JAL x0, -256
+            (260_u32, 0xf01f_f06f),
+        ];
+        let state = simple_test(4, &mem, &[(1_usize, 0xffff_fffe), (2_usize, 0xffff_ffff)]);
+
+        assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
 
     #[test]
     fn bge() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction BGE to 256
-        // BGE x0, x1, 256
-        image.insert(0_u32, 0x1010_5063);
-        add_exit_syscall(4_u32, &mut image);
-        // set R5 to 100 so that it can be verified
-        // that indeed control passed to this location
-        // ADDI x5, x0, 100
-        image.insert(256_u32, 0x0640_0293);
-        // at 260 go back to address after BGE
-        // JAL x0, -256
-        image.insert(260_u32, 0xf01f_f06f);
-        let mut vm = create_vm(image, |state: &mut State| {
-            // set R1 = -1
-            state.set_register_value_mut(1_usize, 0xffff_ffff);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        let mem = [
+            // at 0 address instruction BGE to 256
+            // BGE x0, x1, 256
+            (0_u32, 0x1010_5063),
+            // set R5 to 100 so that it can be verified
+            // that indeed control passed to this location
+            // ADDI x5, x0, 100
+            (256_u32, 0x0640_0293),
+            // at 260 go back to address after BGE
+            // JAL x0, -256
+            (260_u32, 0xf01f_f06f),
+        ];
+        // set R1 = -1
+        let state = simple_test(4, &mem, &[(1_usize, 0xffff_ffff)]);
+
+        assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
 
     #[test]
     fn bgeu() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // at 0 address instruction BGEU to 256
-        // BGEU x2, x1, 256
-        image.insert(0_u32, 0x1011_7063);
-        add_exit_syscall(4_u32, &mut image);
-        // set R5 to 100 so that it can be verified
-        // that indeed control passed to this location
-        // ADDI x5, x0, 100
-        image.insert(256_u32, 0x0640_0293);
-        // at 260 go back to address after BGEU
-        // JAL x0, -256
-        image.insert(260_u32, 0xf01f_f06f);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(1_usize, 0xffff_fffe);
-            state.set_register_value_mut(2_usize, 0xffff_ffff);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 100_u32);
+        let mem = [
+            // at 0 address instruction BGEU to 256
+            // BGEU x2, x1, 256
+            (0_u32, 0x1011_7063),
+            // set R5 to 100 so that it can be verified
+            // that indeed control passed to this location
+            // ADDI x5, x0, 100
+            (256_u32, 0x0640_0293),
+            // at 260 go back to address after BGEU
+            // JAL x0, -256
+            (260_u32, 0xf01f_f06f),
+        ];
+        let state = simple_test(4, &mem, &[(1_usize, 0xffff_fffe), (2_usize, 0xffff_ffff)]);
+
+        assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
 
     #[test]
     fn sb() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
         // at 0 address instruction SB
         // SB x5, 1200(x0)
-        image.insert(0_u32, 0x4a50_0823);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(5_usize, 0x0000_00FF);
-        });
-        assert_eq!(vm.state.load_u32(1200), 0);
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.load_u32(1200), 0x0000_00FF);
+        let state = simple_test(4, &[(0, 0x4a50_0823)], &[(5, 0x0000_00FF)]);
+
+        assert_eq!(state.load_u32(1200), 0x0000_00FF);
     }
 
     #[test]
     fn sh() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
         // at 0 address instruction SH
         // SH x5, 1200(x0)
-        image.insert(0_u32, 0x4a50_1823);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(5_usize, 0x0000_BABE);
-        });
-        assert_eq!(vm.state.load_u32(1200), 0);
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.load_u32(1200), 0x0000_BABE);
+        let state = simple_test(4, &[(0, 0x4a50_1823)], &[(5_usize, 0x0000_BABE)]);
+        // assert_eq!(vm.state.load_u32(1200), 0);
+
+        assert_eq!(state.load_u32(1200), 0x0000_BABE);
     }
 
     #[test]
     fn sw() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
         // at 0 address instruction SW
         // SW x5, 1200(x0)
-        image.insert(0_u32, 0x4a50_2823);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(5_usize, 0xC0DE_BABE);
-        });
-        assert_eq!(vm.state.load_u32(1200), 0);
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.load_u32(1200), 0xC0DE_BABE);
+        let state = simple_test(4, &[(0, 0x4a50_2823)], &[(5_usize, 0xC0DE_BABE)]);
+        // assert_eq!(vm.state.load_u32(1200), 0);
+
+        assert_eq!(state.load_u32(1200), 0xC0DE_BABE);
     }
 
     #[test]
     fn mulh() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
         // at 0 address instruction MULH
         // MULH x5, x6, x7
-        image.insert(0_u32, 0x0273_12b3);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(6_usize, 0x8000_0000 /* == -2^31 */);
-            state.set_register_value_mut(7_usize, 0x8000_0000 /* == -2^31 */);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
+        let state = simple_test(
+            4,
+            &[(0, 0x0273_12b3)],
+            &[
+                (6_usize, 0x8000_0000 /* == -2^31 */),
+                (7_usize, 0x8000_0000 /* == -2^31 */),
+            ],
+        );
+
         assert_eq!(
-            vm.state.get_register_value(5_usize),
+            state.get_register_value(5_usize),
             0x4000_0000 // High bits for 2^62
         );
     }
 
     #[test]
     fn mul() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
         // at 0 address instruction MUL
         // MUL x5, x6, x7
-        image.insert(0_u32, 0x0273_02b3);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(6_usize, 0x4000_0000 /* == 2^30 */);
-            state.set_register_value_mut(7_usize, 0xFFFF_FFFE /* == -2 */);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
+        let state = simple_test(
+            4,
+            &[(0, 0x0273_02b3)],
+            &[
+                (6_usize, 0x4000_0000 /* == 2^30 */),
+                (7_usize, 0xFFFF_FFFE /* == -2 */),
+            ],
+        );
         assert_eq!(
-            vm.state.get_register_value(5_usize),
+            state.get_register_value(5_usize),
             0x8000_0000 // -2^31
         );
     }
 
     #[test]
     fn mulhsu() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
         // at 0 address instruction MULHSU
         // MULHSU x5, x6, x7
-        image.insert(0_u32, 0x0273_22b3);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(6_usize, 0xFFFF_FFFE /* == -2 */);
-            state.set_register_value_mut(7_usize, 0x4000_0000 /* == 2^30 */);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 0xFFFF_FFFF);
+        let state = simple_test(
+            4,
+            &[(0_u32, 0x0273_22b3)],
+            &[
+                (6_usize, 0xFFFF_FFFE /* == -2 */),
+                (7_usize, 0x4000_0000 /* == 2^30 */),
+            ],
+        );
+        assert_eq!(state.get_register_value(5_usize), 0xFFFF_FFFF);
     }
 
     #[test]
     fn mulhu() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
         // at 0 address instruction MULHU
         // MULHU x5, x6, x7
-        image.insert(0_u32, 0x0273_32b3);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(6_usize, 0x0000_0002 /* == 2 */);
-            state.set_register_value_mut(7_usize, 0x8000_0000 /* == 2^31 */);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), 0x0000_0001);
+        let state = simple_test(
+            4,
+            &[(0_u32, 0x0273_32b3)],
+            &[
+                (6_usize, 0x0000_0002 /* == 2 */),
+                (7_usize, 0x8000_0000 /* == 2^31 */),
+            ],
+        );
+        assert_eq!(state.get_register_value(5_usize), 0x0000_0001);
     }
 
     #[test]
     fn lui() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
         // at 0 address instruction lui
         // LUI x1, -524288
-        image.insert(0_u32, 0x8000_00b7);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |_state: &mut State| {});
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(1), 0x8000_0000);
-        assert_eq!(vm.state.get_register_value_signed(1), -2_147_483_648);
+        let state = simple_test(4, &[(0_u32, 0x8000_00b7)], &[]);
+        assert_eq!(state.get_register_value(1), 0x8000_0000);
+        assert_eq!(state.get_register_value_signed(1), -2_147_483_648);
     }
 
     #[test]
     fn auipc() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
         // at 0 address addi x0, x0, 0
-        image.insert(0_u32, 0x0000_0013);
-        // at 4 address instruction auipc
-        // auipc x1, -524288
-        image.insert(4_u32, 0x8000_0097);
-        add_exit_syscall(8_u32, &mut image);
-        let mut vm = create_vm(image, |_state: &mut State| {});
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(1), 0x8000_0004);
-        assert_eq!(vm.state.get_register_value_signed(1), -2_147_483_644);
+        let state = simple_test(
+            8,
+            &[
+                (0_u32, 0x0000_0013),
+                // at 4 address instruction auipc
+                // auipc x1, -524288
+                (4_u32, 0x8000_0097),
+            ],
+            &[],
+        );
+        assert_eq!(state.get_register_value(1), 0x8000_0004);
+        assert_eq!(state.get_register_value_signed(1), -2_147_483_644);
     }
 
     #[test]
     fn system_opcode_instructions() {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
-        // mret
-        image.insert(0_u32, 0x3020_0073);
-        // csrrs, t5, mcause
-        image.insert(4_u32, 0x3420_2f73);
-        // csrrw, mtvec, t0
-        image.insert(8_u32, 0x3052_9073);
-        // csrrwi, 0x744, 8
-        image.insert(12_u32, 0x7444_5073);
-        // fence, iorw, iorw
-        image.insert(16_u32, 0x0ff0_000f);
-
-        add_exit_syscall(20_u32, &mut image);
-        let mut vm = create_vm(image, |_state: &mut State| {});
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
+        simple_test(
+            20,
+            &[
+                // mret
+                (0_u32, 0x3020_0073),
+                // csrrs, t5, mcause
+                (4_u32, 0x3420_2f73),
+                // csrrw, mtvec, t0
+                (8_u32, 0x3052_9073),
+                // csrrwi, 0x744, 8
+                (12_u32, 0x7444_5073),
+                // fence, iorw, iorw
+                (16_u32, 0x0ff0_000f),
+            ],
+            &[],
+        );
     }
 
     #[test_case(0x4000_0000 /*2^30*/, 0xFFFF_FFFE /*-2*/, 0xE000_0000 /*-2^29*/; "simple")]
     #[test_case(0x4000_0000, 0x0000_0000, 0xFFFF_FFFF; "div_by_zero")]
     #[test_case(0x8000_0000 /*-2^31*/, 0xFFFF_FFFF /*-1*/, 0x8000_0000; "overflow")]
     fn div(rs1_value: u32, rs2_value: u32, rd_value: u32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
         // at 0 address instruction DIV
         // DIV x5, x6, x7
-        image.insert(0_u32, 0x0273_42b3);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(6_usize, rs1_value /* == 2^30 */);
-            state.set_register_value_mut(7_usize, rs2_value /* == -2 */);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
+        let state = simple_test(
+            4,
+            &[(0_u32, 0x0273_42b3)],
+            &[
+                (6_usize, rs1_value /* == 2^30 */),
+                (7_usize, rs2_value /* == -2 */),
+            ],
+        );
         assert_eq!(
-            vm.state.get_register_value(5_usize),
+            state.get_register_value(5_usize),
             rd_value // -2^29
         );
     }
@@ -1247,58 +960,40 @@ mod tests {
     #[test_case(0x8000_0000 /*2^31*/, 0x0000_0002 /*2*/, 0x4000_0000 /*2^30*/; "simple")]
     #[test_case(0x4000_0000, 0x0000_0000, 0xFFFF_FFFF; "div_by_zero")]
     fn divu(rs1_value: u32, rs2_value: u32, rd_value: u32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
         // at 0 address instruction DIVU
         // DIVU x5, x6, x7
-        image.insert(0_u32, 0x0273_52b3);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(6_usize, rs1_value);
-            state.set_register_value_mut(7_usize, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), rd_value);
+        let state = simple_test(
+            4,
+            &[(0_u32, 0x0273_52b3)],
+            &[(6_usize, rs1_value), (7_usize, rs2_value)],
+        );
+        assert_eq!(state.get_register_value(5_usize), rd_value);
     }
 
     #[test_case(0xBFFF_FFFD /*-2^31 - 3*/, 0x0000_0002 /*2*/, 0xFFFF_FFFF /*-1*/; "simple")]
     #[test_case(0x4000_0000, 0x0000_0000, 0x4000_0000; "div_by_zero")]
     #[test_case(0x8000_0000 /*-2^31*/, 0xFFFF_FFFF /*-1*/, 0x0000_0000; "overflow")]
     fn rem(rs1_value: u32, rs2_value: u32, rd_value: u32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
         // at 0 address instruction REM
         // REM x5, x6, x7
-        image.insert(0_u32, 0x0273_62b3);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(6_usize, rs1_value);
-            state.set_register_value_mut(7_usize, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), rd_value);
+        let state = simple_test(
+            4,
+            &[(0_u32, 0x0273_62b3)],
+            &[(6_usize, rs1_value), (7_usize, rs2_value)],
+        );
+        assert_eq!(state.get_register_value(5_usize), rd_value);
     }
 
     #[test_case(0x8000_0003 /*2^31 + 3*/, 0x0000_0002 /*2*/, 0x000_0001 /*1*/; "simple")]
     #[test_case(0x4000_0000, 0x0000_0000, 0x4000_0000; "div_by_zero")]
     fn remu(rs1_value: u32, rs2_value: u32, rd_value: u32) {
-        let _ = env_logger::try_init();
-        let mut image = BTreeMap::new();
         // at 0 address instruction REMU
         // REMU x5, x6, x7
-        image.insert(0_u32, 0x0273_72b3);
-        add_exit_syscall(4_u32, &mut image);
-        let mut vm = create_vm(image, |state: &mut State| {
-            state.set_register_value_mut(6_usize, rs1_value);
-            state.set_register_value_mut(7_usize, rs2_value);
-        });
-        let res = vm.step();
-        assert!(res.is_ok());
-        assert!(vm.state.has_halted());
-        assert_eq!(vm.state.get_register_value(5_usize), rd_value);
+        let state = simple_test(
+            4,
+            &[(0_u32, 0x0273_72b3)],
+            &[(6_usize, rs1_value), (7_usize, rs2_value)],
+        );
+        assert_eq!(state.get_register_value(5_usize), rd_value);
     }
 }
