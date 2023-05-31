@@ -243,7 +243,6 @@ impl Vm {
     /// loops. (Matthias had some trouble debugging a problem with jumps
     /// earlier.)
     pub fn step(mut state: State) -> Result<(Self, State)> {
-        // let mut states = vec![state.clone()];
         let mut rows = vec![Row {
             state: state.clone(),
             ..Row::default()
