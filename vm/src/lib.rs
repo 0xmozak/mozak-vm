@@ -13,6 +13,7 @@
 #![allow(clippy::too_many_lines)]
 #![allow(clippy::cast_sign_loss)]
 #![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::missing_panics_doc)]
 
 pub mod decode;
 pub mod elf;
