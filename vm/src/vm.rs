@@ -346,13 +346,13 @@ mod tests {
         State::from(Program::from(image))
     }
 
-    fn setup_test(mem: &[(u32, u32)], regs: &[(usize, u32)]) -> State {
+    fn setup_test(exit: u32, mem: &[(u32, u32)], regs: &[(usize, u32)]) -> State {
         // TODO(Matthias): stick into common setup?
         let _ = env_logger::try_init();
 
         // TODO: this conversion looks a bit ugly.
         let mut image: BTreeMap<u32, u32> = BTreeMap::from_iter(mem.iter().copied());
-        add_exit_syscall(4_u32, &mut image);
+        add_exit_syscall(exit, &mut image);
         let state = regs.iter().fold(create_prog(image), |state, (rs, val)| {
             state.set_register_value(*rs, *val)
         });
@@ -369,7 +369,7 @@ mod tests {
     #[test_case(0x0073_02b3, 5, 6, 7, 60049, 50493; "add r5, r6, r7")]
     #[test_case(0x01FF_8FB3, 31, 31, 31, 8981, 8981; "add r31, r31, r31")]
     fn add(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(state.get_register_value(rd), rs1_value + rs2_value);
     }
 
@@ -379,7 +379,7 @@ mod tests {
     #[test_case(0x0073_12b3, 5, 6, 7, 7, 0x1111; "sll r5, r6, r7, only lower 5 bits rs2")]
     #[test_case(0x0139_12b3, 5, 18, 19, 0x1234_5678, 0x08; "sll r5, r18, r19, rs1 overflow")]
     fn sll(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(
             state.get_register_value(rd),
             rs1_value << (rs2_value & 0x1F)
@@ -388,7 +388,7 @@ mod tests {
 
     #[test_case(0x0073_72b3, 5, 6, 7, 7, 8; "and r5, r6, r7")]
     fn and(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(state.get_register_value(rd), rs1_value & rs2_value);
     }
 
@@ -398,7 +398,7 @@ mod tests {
     #[test_case(0x0073_52b3, 5, 6, 7, 7, 0x1111; "srl r5, r6, r7, only lower 5 bits rs2")]
     #[test_case(0x0139_52b3, 5, 18, 19, 0x8765_4321, 0x08; "srl r5, r18, r19, rs1 underflow")]
     fn srl(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(
             state.get_register_value(rd),
             rs1_value >> (rs2_value & 0x1F)
@@ -407,7 +407,7 @@ mod tests {
 
     #[test_case(0x0073_62b3, 5, 6, 7, 7, 8; "or r5, r6, r7")]
     fn or(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(state.get_register_value(rd), rs1_value | rs2_value);
     }
 
@@ -417,7 +417,7 @@ mod tests {
     #[test_case(0x0ff3_6293, 5, 6, 0x5555_1111, 255; "ori r5, r6, 255")]
     #[test_case(0x8003_6293, 5, 6, 0x5555_1111, -2048; "ori r5, r6, -2048")]
     fn ori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
 
         let expected_value = (rs1_value as i32 | imm) as u32;
         assert_eq!(state.get_register_value(rd), expected_value);
@@ -429,14 +429,14 @@ mod tests {
     #[test_case(0x0ff3_7293, 5, 6, 0x5555_1111, 255; "andi r5, r6, 255")]
     #[test_case(0x8003_7293, 5, 6, 0x5555_1111, -2048; "andi r5, r6, -2048")]
     fn andi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         let expected_value = (rs1_value as i32 & imm) as u32;
         assert_eq!(state.get_register_value(rd), expected_value);
     }
 
     #[test_case(0x0073_42b3, 5, 6, 7, 0x0000_1111, 0x0011_0011; "xor r5, r6, r7")]
     fn xor(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
 
         let expected_value = rs1_value ^ rs2_value;
         assert_eq!(state.get_register_value(rd), expected_value);
@@ -448,7 +448,7 @@ mod tests {
     #[test_case(0x0ff3_4293, 5, 6, 0x5555_1111, 255; "xori r5, r6, 255")]
     #[test_case(0x8003_4293, 5, 6, 0x5555_1111, -2048; "xori r5, r6, -2048")]
     fn xori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
 
         let expected_value = (rs1_value as i32 ^ imm) as u32;
         assert_eq!(state.get_register_value(rd), expected_value);
@@ -460,7 +460,7 @@ mod tests {
     #[test_case(0x4073_52b3, 5, 6, 7, 7, 0x1111; "sra r5, r6, r7, only lower 5 bits rs2")]
     #[test_case(0x4139_52b3, 5, 18, 19, 0x8765_4321, 0x08; "sra r5, r18, r19, rs1 underflow")]
     fn sra(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(
             state.get_register_value(rd),
             (rs1_value as i32 >> (rs2_value & 0x1F) as i32) as u32
@@ -476,7 +476,7 @@ mod tests {
     #[test_case(0x0073_22b3, 5, 6, 7, 0x1234_5678, 0x0000_ffff; "slt r5, r6, r7")]
     #[test_case(0x0139_22b3, 5, 18, 19, 0x8234_5678, 0x0000_ffff; "slt r5, r18, r19")]
     fn slt(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         let rs1_value = rs1_value as i32;
         let rs2_value = rs2_value as i32;
         assert_eq!(
@@ -488,7 +488,7 @@ mod tests {
     #[test_case(0x4043_5293, 5, 6, 0x8765_4321, 4; "srai r5, r6, 4")]
     #[test_case(0x41f3_5293, 5, 6, 1, 31; "srai r5, r6, 31")]
     fn srai(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         assert_eq!(
             state.get_register_value(rd),
             (rs1_value as i32 >> imm) as u32
@@ -498,14 +498,14 @@ mod tests {
     #[test_case(0x0043_5293, 5, 6, 0x8765_4321, 4; "srli r5, r6, 4")]
     #[test_case(0x01f3_5293, 5, 6, 1, 31; "srli r5, r6, 31")]
     fn srli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         assert_eq!(state.get_register_value(rd), rs1_value >> imm);
     }
 
     #[test_case(0x0043_1293, 5, 6, 0x8765_4321, 4; "slli r5, r6, 4")]
     #[test_case(0x01f3_1293, 5, 6, 1, 31; "slli r5, r6, 31")]
     fn slli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         assert_eq!(state.get_register_value(rd), rs1_value << imm);
     }
 
@@ -514,7 +514,7 @@ mod tests {
     #[test_case(0x0009_2293, 5, 6, 1, 0; "slti r5, r6, 0")]
     #[test_case(0x7ff3_2293, 5, 6, 1, 2047; "slti r5, r6, 2047")]
     fn slti(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         let rs1_value = rs1_value as i32;
         assert_eq!(state.get_register_value(rd), u32::from(rs1_value < imm));
     }
@@ -524,7 +524,7 @@ mod tests {
     #[test_case(0x0003_3293, 5, 6, 1, 0; "sltiu r5, r6, 0")]
     #[test_case(0x7ff3_3293, 5, 6, 1, 2047; "sltiu r5, r6, 2047")]
     fn sltiu(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         assert_eq!(
             state.get_register_value(rd),
             u32::from(rs1_value < imm as u32)
@@ -536,7 +536,7 @@ mod tests {
     #[test_case(0x0073_32b3, 5, 6, 7, 0x1234_5678, 0x0000_ffff; "sltu r5, r6, r7")]
     #[test_case(0x0139_32b3, 5, 18, 19, 0x1234_5678, 0x8000_ffff; "sltu r5, r18, r19")]
     fn sltu(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(
             state.get_register_value(rd),
             u32::from(rs1_value < rs2_value)
@@ -545,7 +545,7 @@ mod tests {
 
     #[test_case(0x05d0_0393, 7, 0, 0, 93; "addi r7, r0, 93")]
     fn addi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let state = setup_test(&[(0_u32, word)], &[(rs1, rs1_value)]);
+        let state = setup_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         let mut expected_value = rs1_value;
         if imm.is_negative() {
             expected_value -= imm.unsigned_abs();
@@ -569,6 +569,7 @@ mod tests {
             address += offset as u32;
         }
         let state = setup_test(
+            4,
             &[(0_u32, word), (address, memory_value as u32)],
             &[(rs1, rs1_value)],
         );
@@ -594,6 +595,7 @@ mod tests {
             address += offset as u32;
         }
         let state = setup_test(
+            4,
             &[(0_u32, word), (address, memory_value as u32)],
             &[(rs1, rs1_value)],
         );
@@ -615,6 +617,7 @@ mod tests {
             address += offset as u32;
         }
         let state = setup_test(
+            4,
             &[(0_u32, word), (address, memory_value as u32)],
             &[(rs1, rs1_value)],
         );
@@ -640,6 +643,7 @@ mod tests {
             address += offset as u32;
         }
         let state = setup_test(
+            4,
             &[(0_u32, word), (address, memory_value as u32)],
             &[(rs1, rs1_value)],
         );
@@ -661,6 +665,7 @@ mod tests {
             address += offset as u32;
         }
         let state = setup_test(
+            4,
             &[(0_u32, word), (address, memory_value as u32)],
             &[(rs1, rs1_value)],
         );
@@ -683,7 +688,7 @@ mod tests {
         // at 260 go back to address after JAL
         // JALR x0, x1, 0
             (260_u32, 0x0000_8067)];
-        let state = setup_test(&mem, &[]);
+        let state = setup_test(4, &mem, &[]);
         assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
 
@@ -701,7 +706,7 @@ mod tests {
             // JALR x1, x1, 0
             (260_u32, 0x0000_80e7),
         ];
-        let state = setup_test(&mem, &[]);
+        let state = setup_test(4, &mem, &[]);
 
         assert_eq!(state.get_register_value(5_usize), 100_u32);
         // JALR at 260 updates X1 to have value of next_pc i.e 264
@@ -722,7 +727,7 @@ mod tests {
             // JAL x0, -256
             (260_u32, 0xf01f_f06f),
         ];
-        let state = setup_test(&mem, &[]);
+        let state = setup_test(4, &mem, &[]);
 
         assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
@@ -741,7 +746,7 @@ mod tests {
             // JAL x0, -256
             (260_u32, 0xf01f_f06f),
         ];
-        let state = setup_test(&mem, &[(1, 1)]);
+        let state = setup_test(4, &mem, &[(1, 1)]);
 
         assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
@@ -762,7 +767,7 @@ mod tests {
         ];
 
         // set R1 = -1
-        let state = setup_test(&mem, &[(1, 0xffff_ffff)]);
+        let state = setup_test(4, &mem, &[(1, 0xffff_ffff)]);
 
         assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
@@ -781,7 +786,7 @@ mod tests {
             // JAL x0, -256
             (260_u32, 0xf01f_f06f),
         ];
-        let state = setup_test(&mem, &[(1_usize, 0xffff_fffe), (2_usize, 0xffff_ffff)]);
+        let state = setup_test(4, &mem, &[(1_usize, 0xffff_fffe), (2_usize, 0xffff_ffff)]);
 
         assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
@@ -801,7 +806,7 @@ mod tests {
             (260_u32, 0xf01f_f06f),
         ];
         // set R1 = -1
-        let state = setup_test(&mem, &[(1_usize, 0xffff_ffff)]);
+        let state = setup_test(4, &mem, &[(1_usize, 0xffff_ffff)]);
 
         assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
@@ -820,7 +825,7 @@ mod tests {
             // JAL x0, -256
             (260_u32, 0xf01f_f06f),
         ];
-        let state = setup_test(&mem, &[(1_usize, 0xffff_fffe), (2_usize, 0xffff_ffff)]);
+        let state = setup_test(4, &mem, &[(1_usize, 0xffff_fffe), (2_usize, 0xffff_ffff)]);
 
         assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
@@ -829,7 +834,7 @@ mod tests {
     fn sb() {
         // at 0 address instruction SB
         // SB x5, 1200(x0)
-        let state = setup_test(&[(0, 0x4a50_0823)], &[(5, 0x0000_00FF)]);
+        let state = setup_test(4, &[(0, 0x4a50_0823)], &[(5, 0x0000_00FF)]);
 
         assert_eq!(state.load_u32(1200), 0x0000_00FF);
     }
@@ -838,7 +843,7 @@ mod tests {
     fn sh() {
         // at 0 address instruction SH
         // SH x5, 1200(x0)
-        let state = setup_test(&[(0, 0x4a50_1823)], &[(5_usize, 0x0000_BABE)]);
+        let state = setup_test(4, &[(0, 0x4a50_1823)], &[(5_usize, 0x0000_BABE)]);
         // assert_eq!(vm.state.load_u32(1200), 0);
 
         assert_eq!(state.load_u32(1200), 0x0000_BABE);
@@ -848,7 +853,7 @@ mod tests {
     fn sw() {
         // at 0 address instruction SW
         // SW x5, 1200(x0)
-        let state = setup_test(&[(0, 0x4a50_2823)], &[(5_usize, 0xC0DE_BABE)]);
+        let state = setup_test(4, &[(0, 0x4a50_2823)], &[(5_usize, 0xC0DE_BABE)]);
         // assert_eq!(vm.state.load_u32(1200), 0);
 
         assert_eq!(state.load_u32(1200), 0xC0DE_BABE);
@@ -859,6 +864,7 @@ mod tests {
         // at 0 address instruction MULH
         // MULH x5, x6, x7
         let state = setup_test(
+            4,
             &[(0, 0x0273_12b3)],
             &[
                 (6_usize, 0x8000_0000 /* == -2^31 */),
@@ -877,6 +883,7 @@ mod tests {
         // at 0 address instruction MUL
         // MUL x5, x6, x7
         let state = setup_test(
+            4,
             &[(0, 0x0273_02b3)],
             &[
                 (6_usize, 0x4000_0000 /* == 2^30 */),
@@ -894,6 +901,7 @@ mod tests {
         // at 0 address instruction MULHSU
         // MULHSU x5, x6, x7
         let state = setup_test(
+            4,
             &[(0_u32, 0x0273_22b3)],
             &[
                 (6_usize, 0xFFFF_FFFE /* == -2 */),
@@ -908,6 +916,7 @@ mod tests {
         // at 0 address instruction MULHU
         // MULHU x5, x6, x7
         let state = setup_test(
+            4,
             &[(0_u32, 0x0273_32b3)],
             &[
                 (6_usize, 0x0000_0002 /* == 2 */),
@@ -921,7 +930,7 @@ mod tests {
     fn lui() {
         // at 0 address instruction lui
         // LUI x1, -524288
-        let state = setup_test(&[(0_u32, 0x8000_00b7)], &[]);
+        let state = setup_test(4, &[(0_u32, 0x8000_00b7)], &[]);
         assert_eq!(state.get_register_value(1), 0x8000_0000);
         assert_eq!(state.get_register_value_signed(1), -2_147_483_648);
     }
@@ -930,6 +939,7 @@ mod tests {
     fn auipc() {
         // at 0 address addi x0, x0, 0
         let state = setup_test(
+            8,
             &[
                 (0_u32, 0x0000_0013),
                 // at 4 address instruction auipc
@@ -945,6 +955,7 @@ mod tests {
     #[test]
     fn system_opcode_instructions() {
         setup_test(
+            4,
             &[
                 (0_u32, 0x3020_0073),
                 // csrrs, t5, mcause
@@ -967,6 +978,7 @@ mod tests {
         // at 0 address instruction DIV
         // DIV x5, x6, x7
         let state = setup_test(
+            4,
             &[(0_u32, 0x0273_42b3)],
             &[
                 (6_usize, rs1_value /* == 2^30 */),
@@ -985,6 +997,7 @@ mod tests {
         // at 0 address instruction DIVU
         // DIVU x5, x6, x7
         let state = setup_test(
+            4,
             &[(0_u32, 0x0273_52b3)],
             &[(6_usize, rs1_value), (7_usize, rs2_value)],
         );
@@ -998,6 +1011,7 @@ mod tests {
         // at 0 address instruction REM
         // REM x5, x6, x7
         let state = setup_test(
+            4,
             &[(0_u32, 0x0273_62b3)],
             &[(6_usize, rs1_value), (7_usize, rs2_value)],
         );
@@ -1010,6 +1024,7 @@ mod tests {
         // at 0 address instruction REMU
         // REMU x5, x6, x7
         let state = setup_test(
+            4,
             &[(0_u32, 0x0273_72b3)],
             &[(6_usize, rs1_value), (7_usize, rs2_value)],
         );
