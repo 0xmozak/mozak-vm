@@ -1,12 +1,11 @@
 use plonky2::field::{goldilocks_field::GoldilocksField, types::Field};
-use serde::Serialize;
 
 use crate::{
     instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst, UTypeInst},
     util::init_arr,
 };
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default)]
 pub struct RegisterSelector {
     /// Register used for first operand.
     pub rs1: GoldilocksField,
@@ -153,7 +152,7 @@ impl From<&Instruction> for RegisterSelector {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default)]
 pub struct ProcessorTraceRow {
     /// A processor clock value.
     pub clk: u32,
@@ -169,7 +168,7 @@ pub struct ProcessorTraceRow {
     pub imm_value: GoldilocksField,
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default)]
 pub struct MemoryTraceRow {
     /// A processor clock value.
     pub clk: u32,
@@ -181,7 +180,7 @@ pub struct MemoryTraceRow {
     pub is_write: GoldilocksField,
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default)]
 pub struct TraceRow {
     pub processor_trace: Vec<ProcessorTraceRow>,
     pub memory_trace: Vec<MemoryTraceRow>,

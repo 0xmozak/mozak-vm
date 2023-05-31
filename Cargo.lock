@@ -401,7 +401,6 @@ dependencies = [
  "log",
  "plonky2",
  "proptest",
- "serde",
  "test-case",
 ]
 
