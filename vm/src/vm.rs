@@ -347,11 +347,10 @@ mod tests {
     }
 
     fn setup_test(exit: u32, mem: &[(u32, u32)], regs: &[(usize, u32)]) -> State {
-        // TODO(Matthias): stick into common setup?
+        // TODO(Matthias): stick this line into proper common setup?
         let _ = env_logger::try_init();
 
-        // TODO: this conversion looks a bit ugly.
-        let mut image: BTreeMap<u32, u32> = BTreeMap::from_iter(mem.iter().copied());
+        let mut image: BTreeMap<u32, u32> = mem.iter().copied().collect();
         add_exit_syscall(exit, &mut image);
         let state = regs.iter().fold(create_prog(image), |state, (rs, val)| {
             state.set_register_value(*rs, *val)
