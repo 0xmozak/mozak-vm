@@ -92,6 +92,7 @@ impl From<&UTypeInst> for RegisterSelector {
 }
 
 impl From<&Instruction> for RegisterSelector {
+    #[allow(clippy::match_same_arms)]
     fn from(inst: &Instruction) -> Self {
         match inst {
             Instruction::ADD(inst) => Self::from(inst),
