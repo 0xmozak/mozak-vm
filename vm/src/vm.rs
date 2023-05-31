@@ -1,9 +1,4 @@
-use std::io::prelude::*;
-
 use anyhow::Result;
-use csv::WriterBuilder;
-use plonky2::field::{goldilocks_field::GoldilocksField, types::Field};
-use serde::Serialize;
 
 use crate::{
     instruction::{ITypeInst, Instruction, JTypeInst, STypeInst, UTypeInst},

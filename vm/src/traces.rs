@@ -2,7 +2,7 @@ use plonky2::field::{goldilocks_field::GoldilocksField, types::Field};
 use serde::Serialize;
 
 use crate::{
-    instruction::{ITypeInst, Instruction, RTypeInst, STypeInst},
+    instruction::{BTypeInst, ITypeInst, Instruction, JTypeInst, RTypeInst, STypeInst, UTypeInst},
     util::init_arr,
 };
 
@@ -36,7 +36,19 @@ impl From<&ITypeInst> for RegisterSelector {
 
 impl From<&STypeInst> for RegisterSelector {
     fn from(inst: &STypeInst) -> Self {
-        RegisterSelector {
+        Self {
+            rs1: GoldilocksField::from_canonical_u8(inst.rs1),
+            rs2: GoldilocksField::from_canonical_u8(inst.rs2),
+            rs1_reg_sel: init_arr(&[(inst.rs1, GoldilocksField::from_canonical_u8(1))]),
+            rs2_reg_sel: init_arr(&[(inst.rs2, GoldilocksField::from_canonical_u8(1))]),
+            ..Self::default()
+        }
+    }
+}
+
+impl From<&BTypeInst> for RegisterSelector {
+    fn from(inst: &BTypeInst) -> Self {
+        Self {
             rs1: GoldilocksField::from_canonical_u8(inst.rs1),
             rs2: GoldilocksField::from_canonical_u8(inst.rs2),
             rs1_reg_sel: init_arr(&[(inst.rs1, GoldilocksField::from_canonical_u8(1))]),
@@ -48,7 +60,7 @@ impl From<&STypeInst> for RegisterSelector {
 
 impl From<&RTypeInst> for RegisterSelector {
     fn from(inst: &RTypeInst) -> Self {
-        RegisterSelector {
+        Self {
             rs1: GoldilocksField::from_canonical_u8(inst.rs1),
             rs2: GoldilocksField::from_canonical_u8(inst.rs2),
             rd: GoldilocksField::from_canonical_u8(inst.rd),
@@ -59,63 +71,83 @@ impl From<&RTypeInst> for RegisterSelector {
     }
 }
 
+impl From<&JTypeInst> for RegisterSelector {
+    fn from(inst: &JTypeInst) -> Self {
+        Self {
+            rd: GoldilocksField::from_canonical_u8(inst.rd),
+            rd_reg_sel: init_arr(&[(inst.rd, GoldilocksField::from_canonical_u8(1))]),
+            ..Self::default()
+        }
+    }
+}
+
+impl From<&UTypeInst> for RegisterSelector {
+    fn from(inst: &UTypeInst) -> Self {
+        Self {
+            rd: GoldilocksField::from_canonical_u8(inst.rd),
+            rd_reg_sel: init_arr(&[(inst.rd, GoldilocksField::from_canonical_u8(1))]),
+            ..Self::default()
+        }
+    }
+}
+
 impl From<&Instruction> for RegisterSelector {
     fn from(inst: &Instruction) -> Self {
         match inst {
             Instruction::ADD(inst) => Self::from(inst),
             Instruction::ADDI(inst) => Self::from(inst),
-            // SUB(RTypeInst),
-            // SRL(RTypeInst),
-            // SRA(RTypeInst),
-            // SLL(RTypeInst),
-            // SLLI(ITypeInst),
-            // SLT(RTypeInst),
-            // SLTI(ITypeInst),
-            // SLTU(RTypeInst),
-            // SLTIU(ITypeInst),
-            // SRAI(ITypeInst),
-            // SRLI(ITypeInst),
-            // LB(ITypeInst),
-            // LH(ITypeInst),
-            // LW(ITypeInst),
-            // LBU(ITypeInst),
-            // LHU(ITypeInst),
-            // XOR(RTypeInst),
-            // XORI(ITypeInst),
-            // JAL(JTypeInst),
-            // JALR(ITypeInst),
-            // BEQ(BTypeInst),
-            // BNE(BTypeInst),
-            // BLT(BTypeInst),
-            // BGE(BTypeInst),
-            // BLTU(BTypeInst),
-            // BGEU(BTypeInst),
-            // AND(RTypeInst),
-            // ANDI(ITypeInst),
-            // OR(RTypeInst),
-            // ORI(ITypeInst),
-            // SW(STypeInst),
-            // SH(STypeInst),
-            // SB(STypeInst),
-            // MUL(RTypeInst),
-            // MULH(RTypeInst),
-            // MULHU(RTypeInst),
-            // MULHSU(RTypeInst),
-            // LUI(UTypeInst),
-            // AUIPC(UTypeInst),
-            // DIV(RTypeInst),
-            // DIVU(RTypeInst),
-            // REM(RTypeInst),
-            // REMU(RTypeInst),
-            // FENCE(ITypeInst),
-            // CSRRW(ITypeInst),
-            // CSRRS(ITypeInst),
-            // CSRRWI(ITypeInst),
+            Instruction::SUB(inst) => Self::from(inst),
+            Instruction::SRL(inst) => Self::from(inst),
+            Instruction::SRA(inst) => Self::from(inst),
+            Instruction::SLL(inst) => Self::from(inst),
+            Instruction::SLLI(inst) => Self::from(inst),
+            Instruction::SLT(inst) => Self::from(inst),
+            Instruction::SLTI(inst) => Self::from(inst),
+            Instruction::SLTU(inst) => Self::from(inst),
+            Instruction::SLTIU(inst) => Self::from(inst),
+            Instruction::SRAI(inst) => Self::from(inst),
+            Instruction::SRLI(inst) => Self::from(inst),
+            Instruction::LB(inst) => Self::from(inst),
+            Instruction::LH(inst) => Self::from(inst),
+            Instruction::LW(inst) => Self::from(inst),
+            Instruction::LBU(inst) => Self::from(inst),
+            Instruction::LHU(inst) => Self::from(inst),
+            Instruction::XOR(inst) => Self::from(inst),
+            Instruction::XORI(inst) => Self::from(inst),
+            Instruction::JAL(inst) => Self::from(inst),
+            Instruction::JALR(inst) => Self::from(inst),
+            Instruction::BEQ(inst) => Self::from(inst),
+            Instruction::BNE(inst) => Self::from(inst),
+            Instruction::BLT(inst) => Self::from(inst),
+            Instruction::BGE(inst) => Self::from(inst),
+            Instruction::BLTU(inst) => Self::from(inst),
+            Instruction::BGEU(inst) => Self::from(inst),
+            Instruction::AND(inst) => Self::from(inst),
+            Instruction::ANDI(inst) => Self::from(inst),
+            Instruction::OR(inst) => Self::from(inst),
+            Instruction::ORI(inst) => Self::from(inst),
+            Instruction::SW(inst) => Self::from(inst),
+            Instruction::SH(inst) => Self::from(inst),
+            Instruction::SB(inst) => Self::from(inst),
+            Instruction::MUL(inst) => Self::from(inst),
+            Instruction::MULH(inst) => Self::from(inst),
+            Instruction::MULHU(inst) => Self::from(inst),
+            Instruction::MULHSU(inst) => Self::from(inst),
+            Instruction::LUI(inst) => Self::from(inst),
+            Instruction::AUIPC(inst) => Self::from(inst),
+            Instruction::DIV(inst) => Self::from(inst),
+            Instruction::DIVU(inst) => Self::from(inst),
+            Instruction::REM(inst) => Self::from(inst),
+            Instruction::REMU(inst) => Self::from(inst),
+            Instruction::FENCE(inst) => Self::from(inst),
+            Instruction::CSRRW(inst) => Self::from(inst),
+            Instruction::CSRRS(inst) => Self::from(inst),
+            Instruction::CSRRWI(inst) => Self::from(inst),
             // MRET,
             // ECALL,
             // EBREAK,
             // UNKNOWN,
-            _ => todo!(),
+            _ => Self::default(),
         }
     }
 }
