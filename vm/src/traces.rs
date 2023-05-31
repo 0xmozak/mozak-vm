@@ -2,7 +2,7 @@ use plonky2::field::{goldilocks_field::GoldilocksField, types::Field};
 use serde::Serialize;
 
 use crate::{
-    instruction::{ITypeInst, RTypeInst, STypeInst},
+    instruction::{ITypeInst, RTypeInst, STypeInst, Instruction},
     util::init_arr,
 };
 
@@ -59,6 +59,68 @@ impl From<&RTypeInst> for RegisterSelector {
     }
 }
 
+impl From<&Instruction> for RegisterSelector {
+    fn from(inst: &Instruction) -> Self {
+        match inst {
+            Instruction::ADD(inst) => Self::from(inst),
+            Instruction::ADDI(inst) => Self::from(inst),
+            // SUB(RTypeInst),
+            // SRL(RTypeInst),
+            // SRA(RTypeInst),
+            // SLL(RTypeInst),
+            // SLLI(ITypeInst),
+            // SLT(RTypeInst),
+            // SLTI(ITypeInst),
+            // SLTU(RTypeInst),
+            // SLTIU(ITypeInst),
+            // SRAI(ITypeInst),
+            // SRLI(ITypeInst),
+            // LB(ITypeInst),
+            // LH(ITypeInst),
+            // LW(ITypeInst),
+            // LBU(ITypeInst),
+            // LHU(ITypeInst),
+            // XOR(RTypeInst),
+            // XORI(ITypeInst),
+            // JAL(JTypeInst),
+            // JALR(ITypeInst),
+            // BEQ(BTypeInst),
+            // BNE(BTypeInst),
+            // BLT(BTypeInst),
+            // BGE(BTypeInst),
+            // BLTU(BTypeInst),
+            // BGEU(BTypeInst),
+            // AND(RTypeInst),
+            // ANDI(ITypeInst),
+            // OR(RTypeInst),
+            // ORI(ITypeInst),
+            // SW(STypeInst),
+            // SH(STypeInst),
+            // SB(STypeInst),
+            // MUL(RTypeInst),
+            // MULH(RTypeInst),
+            // MULHU(RTypeInst),
+            // MULHSU(RTypeInst),
+            // LUI(UTypeInst),
+            // AUIPC(UTypeInst),
+            // DIV(RTypeInst),
+            // DIVU(RTypeInst),
+            // REM(RTypeInst),
+            // REMU(RTypeInst),
+            // FENCE(ITypeInst),
+            // CSRRW(ITypeInst),
+            // CSRRS(ITypeInst),
+            // CSRRWI(ITypeInst),
+            // MRET,
+            // ECALL,
+            // EBREAK,
+            // UNKNOWN,
+            _ => todo!(),
+        }
+    }
+
+}
+
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct ProcessorTraceRow {
     /// A processor clock value.
@@ -88,7 +150,7 @@ pub struct MemoryTraceRow {
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
-pub struct Trace {
+pub struct TraceRow {
     pub processor_trace: Vec<ProcessorTraceRow>,
     pub memory_trace: Vec<MemoryTraceRow>,
 }

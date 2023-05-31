@@ -1,18 +1,14 @@
 use std::io::prelude::*;
+use serde::Serialize;
 
 use anyhow::Result;
 use csv::WriterBuilder;
-use log::trace;
 use plonky2::field::{goldilocks_field::GoldilocksField, types::Field};
 
 use crate::{
-    decode::decode_instruction,
-    instruction::Instruction,
     state::State,
-    traces::Trace,
     traces::{MemoryTraceRow, ProcessorTraceRow, RegisterSelector},
     instruction::{ITypeInst, Instruction, JTypeInst, STypeInst, UTypeInst},
-    state::State,
 };
 
 #[must_use]
@@ -146,7 +142,7 @@ impl State {
 
     #[must_use]
     pub fn execute_instruction(self) -> Self {
-        let inst = Instruction::from(self);
+        let inst = Instruction::from(&self);
         match inst {
             Instruction::ADD(inst) => inst.register_op(self, u32::wrapping_add),
             Instruction::ADDI(inst) => inst.register_op(self, u32::wrapping_add),
@@ -218,14 +214,15 @@ impl State {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
+// TODO(Matthias): extract just the trace rows, and serialize a vector of those.
+#[derive(Debug, Clone, Default)]
 pub struct Row {
     pub state: State,
     pub processor: ProcessorTraceRow,
     pub memory: MemoryTraceRow,
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default)]
 pub struct Vm {
     pub rows: Vec<Row>,
 }
@@ -256,24 +253,24 @@ impl Vm {
             rows.push(Row {state: state.clone(), processor, memory});
 
             if cfg!(debug_assertions) {
-                let limit: usize = std::option_env!("MOZAK_MAX_LOOPS")
+                let limit: u32 = std::option_env!("MOZAK_MAX_LOOPS")
                     .map_or(1_000_000, |env_var| env_var.parse().unwrap());
                 debug_assert!(
-                    self.state.clk != limit,
+                    state.clk != limit,
                     "Looped for longer than MOZAK_MAX_LOOPS"
                 );
             }
         }
-        // TODO(Matthias): Move the dump to its own function.
-        let dump_traces: bool =
-            std::option_env!("DUMP_TRACES").map_or(false, |env_var| env_var.parse().unwrap());
-        if dump_traces {
-            let mut wrt = WriterBuilder::new().has_headers(true).from_writer(vec![]);
-            wrt.serialize(&self.trace).expect("CSV Generation Failed");
-            let mut file = std::fs::File::create("traces.csv")?;
-            file.write_all(&wrt.into_inner().expect("String conversion failed"))
-                .expect("CSV writing failed");
-        }
+        // // TODO(Matthias): Move the dump to its own function.
+        // let dump_traces: bool =
+        //     std::option_env!("DUMP_TRACES").map_or(false, |env_var| env_var.parse().unwrap());
+        // if dump_traces {
+        //     let mut wrt = WriterBuilder::new().has_headers(true).from_writer(vec![]);
+        //     wrt.serialize(&self.trace).expect("CSV Generation Failed");
+        //     let mut file = std::fs::File::create("traces.csv")?;
+        //     file.write_all(&wrt.into_inner().expect("String conversion failed"))
+        //         .expect("CSV writing failed");
+        // }
         Ok((Vm {rows}, state))
     }
 }

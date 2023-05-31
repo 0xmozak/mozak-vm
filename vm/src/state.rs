@@ -4,7 +4,9 @@ use plonky2::field::types::{Field, PrimeField64};
 use proptest::prelude::*;
 
 use crate::elf::Program;
-use crate::instruction::{BTypeInst, ITypeInst, RTypeInst};
+use log::trace;
+use crate::instruction::{BTypeInst, ITypeInst, RTypeInst, Instruction};
+use crate::decode::decode_instruction;
 
 /// State of our VM
 ///
@@ -142,6 +144,12 @@ impl State {
         self.set_pc(pc.wrapping_add(diff))
     }
 
+    #[must_use]
+    pub fn bump_clock(mut self) -> Self {
+        self.clk += 1;
+        self
+    }
+
     /// Load a word from memory
     ///
     /// # Errors
@@ -180,6 +188,21 @@ impl State {
         self.memory
             .insert(addr as usize, GoldilocksField::from_canonical_u8(value));
         self
+    }
+}
+
+impl From<&State> for Instruction {
+    fn from(state: &State) -> Self {
+        let pc = state.get_pc();
+        let word = state.load_u32(pc);
+        let inst = decode_instruction(word);
+        trace!(
+            "PC: {:?}, Decoded Inst: {:?}, Encoded Inst Word: {:?}",
+            pc,
+            inst,
+            word
+        );
+        inst
     }
 }
 
