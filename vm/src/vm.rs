@@ -274,6 +274,7 @@ impl Vm {
     }
 }
 
+#[must_use]
 pub fn processor_row(inst: &Instruction, state: &State) -> ProcessorTraceRow {
     ProcessorTraceRow {
         clk: state.clk,
@@ -350,7 +351,7 @@ mod tests {
         let _ = env_logger::try_init();
 
         // TODO: this conversion looks a bit ugly.
-        let mut image: BTreeMap<u32, u32> = BTreeMap::from_iter(mem.iter().map(|x| *x));
+        let mut image: BTreeMap<u32, u32> = BTreeMap::from_iter(mem.iter().copied());
         add_exit_syscall(4_u32, &mut image);
         let state = regs.iter().fold(create_prog(image), |state, (rs, val)| {
             state.set_register_value(*rs, *val)
