@@ -107,13 +107,10 @@ impl State {
 
     #[must_use]
     pub fn ecall(self) -> Self {
-        #[allow(clippy::single_match)]
-        match self.get_register_value(17_usize) {
-            93 => {
-                // exit system call
-                self.halt()
-            }
-            _ => self,
+        if self.get_register_value(17_usize) == 93 {
+            self.halt() // exit system call
+        } else {
+            self
         }
         .bump_pc()
     }
