@@ -6,12 +6,22 @@ use anyhow::{anyhow, bail, Result};
 use elf::{endian::LittleEndian, file::Class, ElfBytes};
 
 /// A RISC program
+#[derive(Debug, Default)]
 pub struct Program {
     /// The entrypoint of the program
     pub entry: u32,
 
     /// The initial memory image
     pub image: BTreeMap<u32, u32>,
+}
+
+impl From<BTreeMap<u32, u32>> for Program {
+    fn from(image: BTreeMap<u32, u32>) -> Self {
+        Self {
+            entry: 0_u32,
+            image,
+        }
+    }
 }
 
 impl Program {

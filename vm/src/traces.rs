@@ -2,7 +2,7 @@ use plonky2::field::{goldilocks_field::GoldilocksField, types::Field};
 use serde::Serialize;
 
 use crate::{
-    instruction::{ITypeInst, RTypeInst, STypeInst, Instruction},
+    instruction::{ITypeInst, Instruction, RTypeInst, STypeInst},
     util::init_arr,
 };
 
@@ -118,7 +118,6 @@ impl From<&Instruction> for RegisterSelector {
             _ => todo!(),
         }
     }
-
 }
 
 #[derive(Debug, Clone, Default, Serialize)]

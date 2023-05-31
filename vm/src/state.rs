@@ -1,12 +1,12 @@
 use im::hashmap::HashMap;
+use log::trace;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::{Field, PrimeField64};
 use proptest::prelude::*;
 
-use crate::elf::Program;
-use log::trace;
-use crate::instruction::{BTypeInst, ITypeInst, RTypeInst, Instruction};
 use crate::decode::decode_instruction;
+use crate::elf::Program;
+use crate::instruction::{BTypeInst, ITypeInst, Instruction, RTypeInst};
 
 /// State of our VM
 ///
