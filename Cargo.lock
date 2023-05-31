@@ -398,6 +398,7 @@ dependencies = [
  "elf",
  "env_logger",
  "im",
+ "itertools",
  "log",
  "plonky2",
  "proptest",

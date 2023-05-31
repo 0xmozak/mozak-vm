@@ -4,6 +4,7 @@ use alloc::collections::BTreeMap;
 
 use anyhow::{anyhow, bail, Result};
 use elf::{endian::LittleEndian, file::Class, ElfBytes};
+use itertools::Itertools;
 
 /// A RISC program
 pub struct Program {
@@ -11,7 +12,34 @@ pub struct Program {
     pub entry: u32,
 
     /// The initial memory image
-    pub image: BTreeMap<u32, u32>,
+    pub image: BTreeMap<u32, u8>,
+}
+
+impl From<BTreeMap<u32, u8>> for Program {
+    fn from(image: BTreeMap<u32, u8>) -> Self {
+        Self {
+            entry: 0_u32,
+            image,
+        }
+    }
+}
+
+impl From<BTreeMap<u32, u32>> for Program {
+    fn from(image: BTreeMap<u32, u32>) -> Self {
+        let image = image
+            .iter()
+            .flat_map(move |(k, v)| {
+                v.to_le_bytes()
+                    .into_iter()
+                    .enumerate()
+                    .map(move |(i, b)| (k + i as u32, b))
+            })
+            .collect();
+        Self {
+            entry: 0_u32,
+            image,
+        }
+    }
 }
 
 impl Program {
@@ -21,7 +49,6 @@ impl Program {
     /// Will return `Err` if the ELF file is invalid or if the entrypoint is
     /// invalid.
     pub fn load_elf(input: &[u8]) -> Result<Program> {
-        let mut image: BTreeMap<u32, u32> = BTreeMap::new();
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
         if elf.ehdr.class != Class::ELF32 {
             bail!("Not a 32-bit ELF");
@@ -43,29 +70,21 @@ impl Program {
             bail!("Too many program headers");
         }
 
-        for segment in segments.iter().filter(|x| x.p_type == elf::abi::PT_LOAD) {
-            let file_size: u32 = segment.p_filesz.try_into()?;
-            let mem_size: u32 = segment.p_memsz.try_into()?;
-            let vaddr: u32 = segment.p_vaddr.try_into()?;
-            let offset: u32 = segment.p_offset.try_into()?;
-            for i in (0..mem_size).step_by(4) {
-                let addr = vaddr + i;
-                if i >= file_size {
-                    // Past the file size, all zeros.
-                    image.insert(addr, 0);
-                } else {
-                    let mut word = 0;
-                    // Don't read past the end of the file.
-                    let len = std::cmp::min(file_size - i, 4);
-                    for j in 0..len {
-                        let offset = (offset + i + j) as usize;
-                        let byte = u32::from(input[offset]);
-                        word |= byte << (j * 8);
-                    }
-                    image.insert(addr, word);
-                }
-            }
-        }
+        let image = segments
+            .iter()
+            .filter(|x| x.p_type == elf::abi::PT_LOAD)
+            .map(|segment| -> Result<_> {
+                let file_size: usize = segment.p_filesz.try_into()?;
+                let mem_size: usize = segment.p_memsz.try_into()?;
+                let vaddr: u32 = segment.p_vaddr.try_into()?;
+                let offset = segment.p_offset.try_into()?;
+                Ok(input[offset..offset + std::cmp::min(file_size, mem_size)]
+                    .iter()
+                    .enumerate()
+                    .map(move |(i, b)| (vaddr + i as u32, *b)))
+            })
+            .flatten_ok()
+            .try_collect()?;
         Ok(Program { entry, image })
     }
 }
