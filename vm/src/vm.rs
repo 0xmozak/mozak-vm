@@ -11,6 +11,7 @@ use crate::{
     state::State,
     traces::Trace,
     traces::{MemoryTraceRow, ProcessorTraceRow, RegisterSelector},
+    util::init_arr,
 };
 pub struct Vm {
     pub state: State,
@@ -85,18 +86,14 @@ impl Vm {
                     .wrapping_add(self.state.get_register_value(add.rs2.into()));
                 self.state.set_register_value(add.rd.into(), res);
                 self.state.set_pc(self.state.get_pc() + 4);
-                let mut register_selectors = RegisterSelector {
+                let register_selectors = RegisterSelector {
                     rs1: GoldilocksField::from_canonical_u8(add.rs1),
                     rs2: GoldilocksField::from_canonical_u8(add.rs2),
                     rd: GoldilocksField::from_canonical_u8(add.rd),
-                    ..Default::default()
+                    rs1_reg_sel: init_arr(&[(add.rs1, GoldilocksField::from_canonical_u8(1_u8))]),
+                    rs2_reg_sel: init_arr(&[(add.rs2, GoldilocksField::from_canonical_u8(1_u8))]),
+                    rd_reg_sel: init_arr(&[(add.rd, GoldilocksField::from_canonical_u8(1_u8))]),
                 };
-                register_selectors.rs1_reg_sel[usize::from(add.rs1)] =
-                    GoldilocksField::from_canonical_u8(1_u8);
-                register_selectors.rs2_reg_sel[usize::from(add.rs2)] =
-                    GoldilocksField::from_canonical_u8(1_u8);
-                register_selectors.rd_reg_sel[usize::from(add.rd)] =
-                    GoldilocksField::from_canonical_u8(1_u8);
                 self.trace.processor_trace.push(ProcessorTraceRow {
                     clk: self.state.clk,
                     registers: self.state.registers,

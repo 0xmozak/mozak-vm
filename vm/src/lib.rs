@@ -19,6 +19,7 @@ pub mod elf;
 pub mod instruction;
 pub mod state;
 pub mod traces;
+pub mod util;
 pub mod vm;
 
 extern crate alloc;
