@@ -260,16 +260,6 @@ impl Vm {
                 debug_assert!(state.clk != limit, "Looped for longer than MOZAK_MAX_LOOPS");
             }
         }
-        // // TODO(Matthias): Move the dump to its own function.
-        // let dump_traces: bool =
-        //     std::option_env!("DUMP_TRACES").map_or(false, |env_var|
-        // env_var.parse().unwrap()); if dump_traces {
-        //     let mut wrt = WriterBuilder::new().has_headers(true).from_writer(vec![]);
-        //     wrt.serialize(&self.trace).expect("CSV Generation Failed");
-        //     let mut file = std::fs::File::create("traces.csv")?;
-        //     file.write_all(&wrt.into_inner().expect("String conversion failed"))
-        //         .expect("CSV writing failed");
-        // }
         Ok((Vm { rows }, state))
     }
 }
