@@ -1,10 +1,12 @@
 use im::hashmap::HashMap;
+use log::trace;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::{Field, PrimeField64};
 use proptest::prelude::*;
 
+use crate::decode::decode_instruction;
 use crate::elf::Program;
-use crate::instruction::{BTypeInst, ITypeInst, RTypeInst};
+use crate::instruction::{BTypeInst, ITypeInst, Instruction, RTypeInst};
 
 /// State of our VM
 ///
@@ -14,6 +16,7 @@ use crate::instruction::{BTypeInst, ITypeInst, RTypeInst};
 /// every step of evaluation.
 #[derive(Clone, Debug, Default)]
 pub struct State {
+    pub clk: u32,
     halted: bool,
     registers: [GoldilocksField; 32],
     pc: GoldilocksField,
@@ -141,6 +144,12 @@ impl State {
         self.set_pc(pc.wrapping_add(diff))
     }
 
+    #[must_use]
+    pub fn bump_clock(mut self) -> Self {
+        self.clk += 1;
+        self
+    }
+
     /// Load a word from memory
     ///
     /// # Errors
@@ -179,6 +188,15 @@ impl State {
         self.memory
             .insert(addr as usize, GoldilocksField::from_canonical_u8(value));
         self
+    }
+
+    #[must_use]
+    pub fn current_instruction(&self) -> Instruction {
+        let pc = self.get_pc();
+        let word = self.load_u32(pc);
+        let inst = decode_instruction(word);
+        trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}, Encoded Inst Word: {word:#x?}");
+        inst
     }
 }
 
