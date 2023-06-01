@@ -45,6 +45,7 @@ impl From<BTreeMap<u32, u8>> for Program {
     }
 }
 
+#[cfg(test)]
 impl From<BTreeMap<u32, u32>> for Program {
     fn from(image: BTreeMap<u32, u32>) -> Self {
         let image = image

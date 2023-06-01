@@ -139,7 +139,7 @@ impl State {
 
     #[must_use]
     pub fn execute_instruction(self) -> Self {
-        let inst = Instruction::from(&self);
+        let inst = self.current_instruction();
         match inst {
             Instruction::ADD(inst) => inst.register_op(self, u32::wrapping_add),
             Instruction::ADDI(inst) => inst.register_op(self, u32::wrapping_add),
@@ -918,6 +918,7 @@ mod tests {
         simple_test(
             20,
             &[
+                // mret
                 (0_u32, 0x3020_0073),
                 // csrrs, t5, mcause
                 (4_u32, 0x3420_2f73),

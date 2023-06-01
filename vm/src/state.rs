@@ -189,6 +189,15 @@ impl State {
             .insert(addr as usize, GoldilocksField::from_canonical_u8(value));
         self
     }
+
+    #[must_use]
+    pub fn current_instruction(&self) -> Instruction {
+        let pc = self.get_pc();
+        let word = self.load_u32(pc);
+        let inst = decode_instruction(word);
+        trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}, Encoded Inst Word: {word:#x?}");
+        inst
+    }
 }
 
 impl From<&State> for Instruction {
