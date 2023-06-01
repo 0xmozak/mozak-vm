@@ -1,2 +1,2 @@
-vm/tests/testdata/* linguist-generated=true
+vm/tests/testdata/ linguist-generated=true
 vm/tests/testdata/.testdata_generated_from_this_commit linguist-generated=false
