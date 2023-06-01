@@ -17,8 +17,8 @@ ENV RISCV="/root"
 
 # Clone the RISC-V tests repository
 # (Get only the specific commit we want)
-WORKDIR /root/riscv-tests/
 RUN git clone --depth=1 https://github.com/riscv/riscv-tests.git
+WORKDIR /root/riscv-tests/
 
 # Set the environment variable for the RISC-V tests
 ENV RISCV_TEST="/root/riscv-tests/isa"
