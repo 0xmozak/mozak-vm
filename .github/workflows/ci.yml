@@ -11,12 +11,11 @@ env:
 
 jobs:
   check-riscv-tests:
-    name: "Check RiscV Tests are up to date"
+    name: "Check Risc-V Tests are up to date"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - run: |
-          echo "{markdown content}" >> $GITHUB_STEP_SUMMARY
           git ls-remote --quiet --heads https://github.com/riscv/riscv-tests.git master | grep --only '^[^[:space:]]*' | tee vm/tests/testdata/.testdata_generated_from_this_commit
           git diff --exit-code || {
             echo "::error RiscV tests are out of date";
