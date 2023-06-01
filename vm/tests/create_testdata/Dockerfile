@@ -34,6 +34,8 @@ RUN autoconf && \
     make rv32ui XLEN=32 && \
     make rv32um XLEN=32
 
+RUN rm -f /root/riscv-tests/isa/.gitignore
+
 FROM scratch as exporter-stage
 
 # Copy all built tests to the host system
