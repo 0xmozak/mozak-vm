@@ -10,6 +10,18 @@ env:
   NIGHTLY_RUST_VERSION: nightly-2023-05-17
 
 jobs:
+  check-riscv-tests:
+    name: "Check RiscV Tests are up to date"
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          git ls-remote --quiet --heads https://github.com/riscv/riscv-tests.git master | grep --only '^[^[:space:]]*' > .testdata_generated_from_this_commit
+          git diff --exit-code || {
+            echo "::error RiscV tests are out of date";
+            cat vm/tests/create_testdata/error_message.markdown >> ${GITHUB_STEP_SUMMARY};
+            false
+          }
+
   cargo-test:
     runs-on: ubuntu-latest
     steps:
@@ -20,17 +32,6 @@ jobs:
           toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
 
       - uses: Swatinem/rust-cache@v2
-
-      - name: Cache RISC-V tests
-        id: cache-built-tests
-        uses: actions/cache@v3
-        with:
-          path: vm/tests/testdata
-          key: "${{ runner.os }}-riscv-tests-${{ hashFiles('vm/tests/create_testdata/') }}"
-
-      - name: Set up Docker Buildx
-        if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
-        uses: docker/setup-buildx-action@v2
 
       - name: Run tests
         run: cargo test --locked --all-targets
@@ -46,17 +47,6 @@ jobs:
           components: clippy
 
       - uses: Swatinem/rust-cache@v2
-
-      - name: Cache RISC-V tests
-        id: cache-built-tests
-        uses: actions/cache@v3
-        with:
-          path: vm/tests/testdata
-          key: "${{ runner.os }}-riscv-tests-${{ hashFiles('vm/tests/create_testdata/') }}"
-
-      - name: Set up Docker Buildx
-        if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
-        uses: docker/setup-buildx-action@v2
 
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
@@ -102,17 +92,6 @@ jobs:
         with:
           tool: cargo-tarpaulin
 
-      - name: Cache RISC-V tests
-        id: cache-built-tests
-        uses: actions/cache@v3
-        with:
-          path: vm/tests/testdata
-          key: "${{ runner.os }}-riscv-tests-${{ hashFiles('vm/tests/create_testdata/') }}"
-
-      - name: Set up Docker Buildx
-        if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
-        uses: docker/setup-buildx-action@v2
-
       - name: Run tests for coverage
         # skip-clean is there to make tarpaulin not re-build unnecessarily,
         # so caching dependencies works.
@@ -139,17 +118,6 @@ jobs:
           toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
 
       - uses: Swatinem/rust-cache@v2
-
-      - name: Cache RISC-V tests
-        id: cache-built-tests
-        uses: actions/cache@v3
-        with:
-          path: vm/tests/testdata
-          key: "${{ runner.os }}-riscv-tests-${{ hashFiles('vm/tests/create_testdata/') }}"
-
-      - name: Set up Docker Buildx
-        if: ${{ steps.cache-built-tests.outputs.cache-hit != 'true' }}
-        uses: docker/setup-buildx-action@v2
 
       - name: Run cargo-udeps
         uses: aig787/cargo-udeps-action@v1

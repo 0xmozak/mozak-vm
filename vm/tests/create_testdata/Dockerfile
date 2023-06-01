@@ -2,7 +2,6 @@ FROM --platform=linux/amd64 ubuntu:latest as builder-stage
 
 # Set the working directory
 WORKDIR /root
-COPY generate_testdata_from_this_commit .
 
 # Install necessary tools to build RISC-V tests
 RUN apt-get update && apt-get install --yes curl git autoconf g++ build-essential
@@ -19,16 +18,13 @@ ENV RISCV="/root"
 # Clone the RISC-V tests repository
 # (Get only the specific commit we want)
 WORKDIR /root/riscv-tests/
-RUN git init --initial-branch=main \
-    && git remote add origin https://github.com/riscv/riscv-tests.git \
-    && git fetch origin --depth=3 "$(cat ../generate_testdata_from_this_commit)" \
-    && git reset --hard FETCH_HEAD
+RUN git clone --depth=1 https://github.com/riscv/riscv-tests.git
 
 # Set the environment variable for the RISC-V tests
 ENV RISCV_TEST="/root/riscv-tests/isa"
 
 # Update tests
-RUN git submodule update --init --recursive && \
+RUN git submodule update --init --depth=1 --recursive && \
     git rev-parse HEAD | tee .testdata_generated_from_this_commit
 
 # Build the tests - we are interested in rv32ui and rv32um
