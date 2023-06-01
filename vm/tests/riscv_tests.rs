@@ -1,7 +1,7 @@
 use anyhow::Result;
 use mozak_vm::elf::Program;
 use mozak_vm::state::State;
-use mozak_vm::vm::Vm;
+use mozak_vm::vm::step;
 
 /// This macro takes in an identifier as the test name and the file name of a
 /// compiled ELF and runs it through the Mozak VM to ensure correctness of the
@@ -25,7 +25,7 @@ macro_rules! test_elf {
             let elf = std::fs::read(elf_name)?;
             let program = Program::load_elf(&elf)?;
             let state = State::from(program);
-            let state = Vm::step(state)?.1;
+            let state = step(state)?.1;
             // At the end of every test,
             // register a0(x10) is set to 0 before an ECALL if it passes
             assert_eq!(state.get_register_value(10_usize), 0);
