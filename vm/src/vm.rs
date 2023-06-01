@@ -320,10 +320,7 @@ mod tests {
     }
 
     fn create_vm<F: Fn(&mut State)>(image: BTreeMap<u32, u32>, state_init: F) -> Vm {
-        let program = Program {
-            entry: 0_u32,
-            image,
-        };
+        let program = Program::from(image);
         let mut state = State::from(program);
         state_init(&mut state);
         Vm::new(state)
