@@ -96,9 +96,10 @@ impl State {
     #[must_use]
     pub fn jalr(self, inst: &ITypeInst) -> Self {
         let pc = self.get_pc();
-        let new_pc = self
+        let new_pc = (self
             .get_register_value(inst.rs1.into())
-            .wrapping_add(inst.imm as u32);
+            .wrapping_add(inst.imm as u32))
+            & !1;
         self.set_pc(new_pc)
             .set_register_value(inst.rd.into(), pc.wrapping_add(4))
     }
