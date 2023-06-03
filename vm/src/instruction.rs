@@ -54,7 +54,7 @@ pub struct UTypeInst {
     pub imm: i32,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub enum Instruction {
     ADD(RTypeInst),
     ADDI(ITypeInst),
@@ -108,5 +108,6 @@ pub enum Instruction {
     MRET,
     ECALL,
     EBREAK,
+    #[default]
     UNKNOWN,
 }

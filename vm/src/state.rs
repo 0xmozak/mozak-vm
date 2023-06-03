@@ -4,7 +4,6 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::{Field, PrimeField64};
 use proptest::prelude::*;
 
-use crate::decode::decode_instruction;
 use crate::elf::Program;
 use crate::instruction::{BTypeInst, ITypeInst, Instruction, RTypeInst};
 
@@ -18,22 +17,24 @@ use crate::instruction::{BTypeInst, ITypeInst, Instruction, RTypeInst};
 pub struct State {
     pub clk: u32,
     halted: bool,
+    // TODO(Matthias): remove the field from this data structure.
+    // It's the wrong layer of abstraction for it.
     registers: [GoldilocksField; 32],
     pc: GoldilocksField,
     memory: HashMap<usize, GoldilocksField>,
 }
 
-impl From<Program> for State {
-    fn from(program: Program) -> Self {
+impl From<&Program> for State {
+    fn from(program: &Program) -> Self {
         let memory: HashMap<usize, GoldilocksField> = program
             .image
-            .into_iter()
+            .iter()
             .flat_map(|(addr, data)| {
                 data.to_le_bytes()
                     .into_iter()
                     .enumerate()
                     .map(move |(a, byte)| {
-                        (addr as usize + a, GoldilocksField::from_canonical_u8(byte))
+                        (*addr as usize + a, GoldilocksField::from_canonical_u8(byte))
                     })
             })
             .collect();
@@ -190,14 +191,14 @@ impl State {
         self
     }
 
-    #[must_use]
-    pub fn current_instruction(&self) -> Instruction {
-        let pc = self.get_pc();
-        let word = self.load_u32(pc);
-        let inst = decode_instruction(word);
-        trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}, Encoded Inst Word: {word:#x?}");
-        inst
-    }
+    // #[must_use]
+    // pub fn current_instruction(&self) -> Instruction {
+    //     let pc = self.get_pc();
+    //     let word = self.load_u32(pc);
+    //     let inst = decode_instruction(word);
+    //     trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}, Encoded Inst Word: {word:#x?}");
+    //     inst
+    // }
 }
 
 proptest! {
