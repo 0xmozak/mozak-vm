@@ -200,21 +200,6 @@ impl State {
     }
 }
 
-impl From<&State> for Instruction {
-    fn from(state: &State) -> Self {
-        let pc = state.get_pc();
-        let word = state.load_u32(pc);
-        let inst = decode_instruction(word);
-        trace!(
-            "PC: {:?}, Decoded Inst: {:?}, Encoded Inst Word: {:?}",
-            pc,
-            inst,
-            word
-        );
-        inst
-    }
-}
-
 proptest! {
     #[test]
     fn round_trip_memory(addr in any::<u32>(), x in any::<u32>()) {
