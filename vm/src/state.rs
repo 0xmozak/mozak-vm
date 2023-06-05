@@ -13,7 +13,7 @@ use crate::instruction::{BTypeInst, ITypeInst, Instruction, RTypeInst};
 /// every step of evaluation.
 #[derive(Clone, Debug, Default)]
 pub struct State {
-    pub clk: u32,
+    pub clk: usize,
     halted: bool,
     registers: [u32; 32],
     pc: u32,

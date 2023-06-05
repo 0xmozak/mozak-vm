@@ -240,7 +240,7 @@ pub fn step(mut state: State) -> Result<(Vec<Row>, State)> {
         });
 
         if cfg!(debug_assertions) {
-            let limit: u32 = std::option_env!("MOZAK_MAX_LOOPS")
+            let limit: usize = std::option_env!("MOZAK_MAX_LOOPS")
                 .map_or(1_000_000, |env_var| env_var.parse().unwrap());
             debug_assert!(state.clk != limit, "Looped for longer than MOZAK_MAX_LOOPS");
         }
