@@ -1,0 +1,16 @@
+[package]
+name = "mozak-circuits"
+description = "MozakVM circuits"
+version = "0.1.0"
+edition = "2021"
+repository = "https://github.com/0xmozak/mozak-vm"
+readme = "README.md"
+license = "All rights reserved"
+keywords = ["crypto", "zero-knowledge", "vm"]
+categories = ["cryptography"]
+
+[dependencies]
+plonky2 = "0.1.3"
+mozak-vm = { path="../vm" }
+
+
