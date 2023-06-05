@@ -214,43 +214,36 @@ pub struct Row {
     pub state: State,
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct Vm {
-    pub rows: Vec<Row>,
-}
-
-impl Vm {
-    /// Execute a program
-    ///
-    /// # Errors
-    /// This function returns an error, if an instruction could not be loaded
-    /// or executed.
-    ///
-    /// # Panics
-    /// Panics in debug mode, when executing more steps than specified in
-    /// environment variable `MOZAK_MAX_LOOPS` at compile time.  Defaults to one
-    /// million steps.
-    /// This is a temporary measure to catch problems with accidental infinite
-    /// loops. (Matthias had some trouble debugging a problem with jumps
-    /// earlier.)
-    pub fn step(mut state: State) -> Result<(Self, State)> {
-        let mut rows = vec![Row {
+/// Execute a program
+///
+/// # Errors
+/// This function returns an error, if an instruction could not be loaded
+/// or executed.
+///
+/// # Panics
+/// Panics in debug mode, when executing more steps than specified in
+/// environment variable `MOZAK_MAX_LOOPS` at compile time.  Defaults to one
+/// million steps.
+/// This is a temporary measure to catch problems with accidental infinite
+/// loops. (Matthias had some trouble debugging a problem with jumps
+/// earlier.)
+pub fn step(mut state: State) -> Result<(Vec<Row>, State)> {
+    let mut rows = vec![Row {
+        state: state.clone(),
+    }];
+    while !state.has_halted() {
+        state = state.execute_instruction();
+        rows.push(Row {
             state: state.clone(),
-        }];
-        while !state.has_halted() {
-            state = state.execute_instruction();
-            rows.push(Row {
-                state: state.clone(),
-            });
+        });
 
-            if cfg!(debug_assertions) {
-                let limit: usize = std::option_env!("MOZAK_MAX_LOOPS")
-                    .map_or(1_000_000, |env_var| env_var.parse().unwrap());
-                debug_assert!(state.clk != limit, "Looped for longer than MOZAK_MAX_LOOPS");
-            }
+        if cfg!(debug_assertions) {
+            let limit: usize = std::option_env!("MOZAK_MAX_LOOPS")
+                .map_or(1_000_000, |env_var| env_var.parse().unwrap());
+            debug_assert!(state.clk != limit, "Looped for longer than MOZAK_MAX_LOOPS");
         }
-        Ok((Vm { rows }, state))
     }
+    Ok((rows, state))
 }
 
 #[cfg(test)]
@@ -259,7 +252,7 @@ mod tests {
     use im::hashmap::HashMap;
     use test_case::test_case;
 
-    use crate::{elf::Program, state::State, vm::Vm};
+    use crate::{elf::Program, state::State};
     impl State {
         pub fn set_register_value_mut(&mut self, index: usize, value: u32) {
             *self = self.clone().set_register_value(index, value);
@@ -320,7 +313,7 @@ mod tests {
             state.set_register_value(*rs, *val)
         });
 
-        let state = Vm::step(state).unwrap().1;
+        let state = super::step(state).unwrap().1;
         assert!(state.has_halted());
         state
     }
