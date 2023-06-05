@@ -1,7 +1,5 @@
 use im::hashmap::HashMap;
 use log::trace;
-use plonky2::field::goldilocks_field::GoldilocksField;
-use plonky2::field::types::{Field, PrimeField64};
 use proptest::prelude::*;
 
 use crate::decode::decode_instruction;
@@ -18,14 +16,14 @@ use crate::instruction::{BTypeInst, ITypeInst, Instruction, RTypeInst};
 pub struct State {
     pub clk: u32,
     halted: bool,
-    registers: [GoldilocksField; 32],
-    pc: GoldilocksField,
-    memory: HashMap<usize, GoldilocksField>,
+    registers: [u32; 32],
+    pc: u32,
+    memory: HashMap<u32, u8>,
 }
 
 impl From<Program> for State {
     fn from(program: Program) -> Self {
-        let memory: HashMap<usize, GoldilocksField> = program
+        let memory: HashMap<u32, u8> = program
             .image
             .into_iter()
             .flat_map(|(addr, data)| {
@@ -33,12 +31,12 @@ impl From<Program> for State {
                     .into_iter()
                     .enumerate()
                     .map(move |(a, byte)| {
-                        (addr as usize + a, GoldilocksField::from_canonical_u8(byte))
+                        (addr + a as u32, byte)
                     })
             })
             .collect();
         Self {
-            pc: GoldilocksField::from_canonical_u32(program.entry),
+            pc: program.entry,
             memory,
             ..Default::default()
         }
@@ -109,7 +107,7 @@ impl State {
     pub fn set_register_value(mut self, index: usize, value: u32) -> Self {
         // R0 is always 0
         if index != 0 {
-            self.registers[index] = GoldilocksField::from_canonical_u32(value);
+            self.registers[index] = value;
         }
         self
     }
@@ -117,20 +115,17 @@ impl State {
     #[must_use]
     pub fn get_register_value(&self, index: usize) -> u32 {
         self.registers[index]
-            .to_canonical_u64()
-            .try_into()
-            .expect("Could not convert u64 to u32")
     }
 
     #[must_use]
     pub fn set_pc(mut self, value: u32) -> Self {
-        self.pc = GoldilocksField::from_canonical_u32(value);
+        self.pc = value;
         self
     }
 
     #[must_use]
     pub fn get_pc(&self) -> u32 {
-        self.pc.to_canonical_u64() as u32
+        self.pc
     }
 
     #[must_use]
@@ -172,10 +167,8 @@ impl State {
     /// is an internal error.
     pub fn load_u8(&self, addr: u32) -> u8 {
         self.memory
-            .get(&(addr as usize))
-            .map_or(0, GoldilocksField::to_canonical_u64)
-            .try_into()
-            .unwrap()
+            .get(&addr).cloned()
+            .unwrap_or_default()
     }
 
     /// Store a byte to memory
@@ -186,7 +179,7 @@ impl State {
     #[must_use]
     pub fn store_u8(mut self, addr: u32, value: u8) -> Self {
         self.memory
-            .insert(addr as usize, GoldilocksField::from_canonical_u8(value));
+            .insert(addr, value);
         self
     }
 
@@ -207,11 +200,5 @@ proptest! {
         state.store_u32(addr, x).unwrap();
         let y = state.load_u32(addr);
         assert_eq!(x, y);
-    }
-    #[test]
-    fn round_trip_u32(x in any::<u32>()) {
-        let field_el = GoldilocksField::from_canonical_u32(x);
-        let y = field_el.to_canonical_u64();
-        assert_eq!(u64::from(x), y);
     }
 }
