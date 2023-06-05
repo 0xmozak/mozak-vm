@@ -135,7 +135,7 @@ impl State {
     }
 
     #[must_use]
-    pub fn execute_instruction(self) -> Self where {
+    pub fn execute_instruction(self) -> Self {
         let inst = self.current_instruction();
         let rop = |op: fn(u32, u32) -> u32| move |a, b, _imm| op(a, b);
         let iop = |op: fn(u32, u32) -> u32| move |a, _b, imm| op(a, imm);
