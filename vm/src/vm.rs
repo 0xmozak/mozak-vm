@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    instruction::{Op, TypeInst},
+    instruction::{Data, Op},
     state::State,
 };
 
@@ -81,19 +81,19 @@ pub fn lw(mem: &[u8; 4]) -> u32 {
 
 impl State {
     #[must_use]
-    pub fn lui(self, inst: &TypeInst) -> Self {
+    pub fn lui(self, inst: &Data) -> Self {
         self.set_register_value(inst.rd.into(), inst.imm).bump_pc()
     }
 
     #[must_use]
-    pub fn jal(self, inst: &TypeInst) -> Self {
+    pub fn jal(self, inst: &Data) -> Self {
         let pc = self.get_pc();
         self.bump_pc_n(inst.imm)
             .set_register_value(inst.rd.into(), pc.wrapping_add(4))
     }
 
     #[must_use]
-    pub fn jalr(self, inst: &TypeInst) -> Self {
+    pub fn jalr(self, inst: &Data) -> Self {
         let pc = self.get_pc();
         let new_pc = (self
             .get_register_value(inst.rs1.into())
@@ -114,13 +114,13 @@ impl State {
     }
 
     #[must_use]
-    pub fn auipc(self, inst: &TypeInst) -> Self {
+    pub fn auipc(self, inst: &Data) -> Self {
         let res = self.get_pc().wrapping_add(inst.imm);
         self.set_register_value(inst.rd.into(), res).bump_pc()
     }
 
     #[must_use]
-    pub fn store(self, inst: &TypeInst, bytes: usize) -> Self {
+    pub fn store(self, inst: &Data, bytes: usize) -> Self {
         let addr = self
             .get_register_value(inst.rs1.into())
             .wrapping_add(inst.imm);

@@ -4,7 +4,7 @@ use proptest::prelude::*;
 
 use crate::decode::decode_instruction;
 use crate::elf::Program;
-use crate::instruction::{Instruction, TypeInst};
+use crate::instruction::{Data, Instruction};
 
 /// State of our VM
 ///
@@ -34,7 +34,7 @@ impl From<Program> for State {
 
 impl State {
     #[must_use]
-    pub fn register_op<F>(self, data: &TypeInst, op: F) -> Self
+    pub fn register_op<F>(self, data: &Data, op: F) -> Self
     where
         F: FnOnce(u32, u32, u32) -> u32,
     {
@@ -46,7 +46,7 @@ impl State {
     }
 
     #[must_use]
-    pub fn memory_load(self, data: &TypeInst, op: fn(&[u8; 4]) -> u32) -> Self {
+    pub fn memory_load(self, data: &Data, op: fn(&[u8; 4]) -> u32) -> Self {
         let addr: u32 = self
             .get_register_value(data.rs1.into())
             .wrapping_add(data.imm);
@@ -61,7 +61,7 @@ impl State {
 
     // TODO(Matthias): this used to use a register_op.
     #[must_use]
-    pub fn branch_op(self, data: &TypeInst, op: fn(u32, u32) -> bool) -> State {
+    pub fn branch_op(self, data: &Data, op: fn(u32, u32) -> bool) -> State {
         let rs1 = self.get_register_value(data.rs1.into());
         let rs2 = self.get_register_value(data.rs2.into());
         if op(rs1, rs2) {
