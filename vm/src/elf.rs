@@ -1,9 +1,8 @@
 // Copyright 2023 MOZAK.
 
-use alloc::collections::BTreeMap;
-
 use anyhow::{anyhow, bail, Result};
 use elf::{endian::LittleEndian, file::Class, ElfBytes};
+use im::hashmap::HashMap;
 use itertools::Itertools;
 
 /// A RISC program
@@ -12,11 +11,11 @@ pub struct Program {
     pub entry: u32,
 
     /// The initial memory image
-    pub image: BTreeMap<u32, u8>,
+    pub image: HashMap<u32, u8>,
 }
 
-impl From<BTreeMap<u32, u8>> for Program {
-    fn from(image: BTreeMap<u32, u8>) -> Self {
+impl From<HashMap<u32, u8>> for Program {
+    fn from(image: HashMap<u32, u8>) -> Self {
         Self {
             entry: 0_u32,
             image,
@@ -25,8 +24,8 @@ impl From<BTreeMap<u32, u8>> for Program {
 }
 
 #[cfg(test)]
-impl From<BTreeMap<u32, u32>> for Program {
-    fn from(image: BTreeMap<u32, u32>) -> Self {
+impl From<HashMap<u32, u32>> for Program {
+    fn from(image: HashMap<u32, u32>) -> Self {
         let image = image
             .iter()
             .flat_map(move |(k, v)| {
