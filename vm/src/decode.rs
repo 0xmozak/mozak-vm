@@ -79,141 +79,78 @@ pub fn decode_instruction(word: u32) -> Instruction {
         imm: extract_immediate(word, &[(31, 12)], 12),
         ..Default::default()
     };
-    match bf.opcode() {
+    let (op, data) = match bf.opcode() {
         0b011_0011 => match (bf.func3(), bf.func7()) {
-            (0x0, 0x00) => Instruction {
-                op: Op::ADD,
-                data: rtype,
-            },
-            (0x0, 0x20) => Instruction {
-                op: Op::SUB,
-                data: rtype,
-            },
-            (0x1, 0x00) => Instruction {
-                op: Op::SLL,
-                data: rtype,
-            },
-            (0x2, 0x00) => Instruction {
-                op: Op::SLT,
-                data: rtype,
-            },
-            (0x3, 0x00) => Instruction {
-                op: Op::SLTU,
-                data: rtype,
-            },
-            (0x4, 0x00) => Instruction {
-                op: Op::XOR,
-                data: rtype,
-            },
-            (0x5, 0x00) => Instruction {
-                op: Op::SRL,
-                data: rtype,
-            },
-            (0x5, 0x20) => Instruction {
-                op: Op::SRA,
-                data: rtype,
-            },
-            (0x6, 0x00) => Instruction {
-                op: Op::OR,
-                data: rtype,
-            },
-            (0x7, 0x00) => Instruction {
-                op: Op::AND,
-                data: rtype,
-            },
-            (0x4, 0x01) => Instruction {
-                op: Op::DIV,
-                data: rtype,
-            },
-            (0x5, 0x01) => Instruction {
-                op: Op::DIVU,
-                data: rtype,
-            },
-            (0x6, 0x01) => Instruction {
-                op: Op::REM,
-                data: rtype,
-            },
-            (0x7, 0x01) => Instruction {
-                op: Op::REMU,
-                data: rtype,
-            },
-            (0x0, 0x01) => Instruction {
-                op: Op::MUL,
-                data: rtype,
-            },
-            (0x1, 0x01) => Instruction {
-                op: Op::MULH,
-                data: rtype,
-            },
-            (0x2, 0x01) => Instruction {
-                op: Op::MULHSU,
-                data: rtype,
-            },
-            (0x3, 0x01) => Instruction {
-                op: Op::MULHU,
-                data: rtype,
-            },
-            _ => Instruction::default(),
+            (0x0, 0x00) => (Op::ADD, rtype),
+            (0x0, 0x20) => (Op::SUB,
+                rtype),
+            (0x1, 0x00) => (Op::SLL,
+                rtype),
+            (0x2, 0x00) => (Op::SLT,
+                rtype),
+            (0x3, 0x00) => (Op::SLTU,
+                rtype),
+            (0x4, 0x00) => (Op::XOR,
+                rtype),
+            (0x5, 0x00) => (Op::SRL,
+                rtype),
+            (0x5, 0x20) => (Op::SRA,
+                rtype),
+            (0x6, 0x00) => (Op::OR,
+                rtype),
+            (0x7, 0x00) => (Op::AND,
+                rtype),
+            (0x4, 0x01) => (Op::DIV,
+                rtype),
+            (0x5, 0x01) => (Op::DIVU,
+                rtype),
+            (0x6, 0x01) => (Op::REM,
+                rtype),
+            (0x7, 0x01) => (Op::REMU,
+                rtype),
+            (0x0, 0x01) => (Op::MUL,
+                rtype),
+            (0x1, 0x01) => (Op::MULH,
+                rtype),
+            (0x2, 0x01) => (Op::MULHSU,
+                rtype),
+            (0x3, 0x01) => (Op::MULHU,
+                rtype),
+            _ => Default::default(),
         },
         0b000_0011 => match bf.func3() {
-            0x0 => Instruction {
-                op: Op::LB,
-                data: itype,
-            },
-            0x1 => Instruction {
-                op: Op::LH,
-                data: itype,
-            },
-            0x2 => Instruction {
-                op: Op::LW,
-                data: itype,
-            },
-            0x4 => Instruction {
-                op: Op::LBU,
-                data: itype,
-            },
-            0x5 => Instruction {
-                op: Op::LHU,
-                data: itype,
-            },
-            _ => Instruction::default(),
+            0x0 => (Op::LB,
+                itype),
+            0x1 => (Op::LH,
+                itype),
+            0x2 => (Op::LW,
+                itype),
+            0x4 => (Op::LBU,
+                itype),
+            0x5 => (Op::LHU,
+                itype),
+            _ => Default::default(),
         },
         0b010_0011 => match bf.func3() {
-            0x0 => Instruction {
-                op: Op::SB,
-                data: stype,
-            },
-            0x1 => Instruction {
-                op: Op::SH,
-                data: stype,
-            },
-            0x2 => Instruction {
-                op: Op::SW,
-                data: stype,
-            },
-            _ => Instruction::default(),
+            0x0 => (Op::SB,
+                stype),
+            0x1 => (Op::SH,
+                stype),
+            0x2 => (Op::SW,
+                stype),
+            _ => Default::default(),
         },
         0b001_0011 => match bf.func3() {
-            0x0 => Instruction {
-                op: Op::ADDI,
-                data: itype,
-            },
-            0x1 => Instruction {
-                op: Op::SLLI,
-                data: itype,
-            },
-            0x2 => Instruction {
-                op: Op::SLTI,
-                data: itype,
-            },
-            0x3 => Instruction {
-                op: Op::SLTIU,
-                data: itype,
-            },
-            0x4 => Instruction {
-                op: Op::XORI,
-                data: itype,
-            },
+            0x0 => (Op::ADDI,
+                itype),
+            0x1 => (Op::SLLI,
+                itype),
+            0x2 => (Op::SLTI,
+                itype),
+            0x3 => (Op::SLTIU,
+                itype),
+            0x4 => (Op::XORI,
+                itype),
             0x5 => {
                 let imm = itype.imm;
                 let imm_masked: u32 = imm.bit_range(4, 0);
@@ -225,106 +162,76 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 // SRAI/SRLI instruction. They have the same funct3 value and are
                 // differentiated by their 30th bit, for which SRAI = 1 and SRLI = 0.
                 match imm.bit_range(11, 5) {
-                    0b010_0000 => Instruction {
-                        op: Op::SRAI,
-                        data: itype,
-                    },
-                    0 => Instruction {
-                        op: Op::SRLI,
-                        data: itype,
-                    },
-                    _ => Instruction::default(),
+                    0b010_0000 => (Op::SRAI,
+                        itype,
+                    ),
+                    0 =>(
+                        Op::SRLI,
+                        itype,
+                    ),
+                    _ => Default::default(),
                 }
             }
-            0x6 => Instruction {
-                op: Op::ORI,
-                data: itype,
-            },
-            0x7 => Instruction {
-                op: Op::ANDI,
-                data: itype,
-            },
-            _ => Instruction::default(),
+            0x6 => (Op::ORI,
+                itype),
+            0x7 => (Op::ANDI,
+                itype),
+            _ => Default::default(),
         },
         0b111_0011 => match (bf.func3(), bf.func12()) {
-            (0x0, 0x0) => Instruction {
-                op: Op::ECALL,
-                ..Instruction::default()
-            },
-            (0x0, 0x302) => Instruction {
-                op: Op::MRET,
-                ..Instruction::default()
-            },
-            (0x0, 0x1) => Instruction {
-                op: Op::EBREAK,
-                ..Instruction::default()
-            },
-            (0x1, _) => Instruction {
-                op: Op::CSRRW,
-                data: itype,
-            },
-            (0x2, _) => Instruction {
-                op: Op::CSRRS,
-                data: itype,
-            },
-            (0x5, _) => Instruction {
-                op: Op::CSRRWI,
-                data: itype,
-            },
-            _ => Instruction::default(),
+            (0x0, 0x0) => (Op::ECALL,
+                TypeInst::default()
+            ),
+            (0x0, 0x302) => (Op::MRET,
+                TypeInst::default()
+            ),
+            (0x0, 0x1) => (Op::EBREAK,
+                TypeInst::default()
+            ),
+            (0x1, _) => (Op::CSRRW,
+                itype),
+            (0x2, _) => (Op::CSRRS,
+                itype),
+            (0x5, _) => (Op::CSRRWI,
+                itype),
+            _ => Default::default(),
         },
-        0b110_1111 => Instruction {
-            op: Op::JAL,
-            data: jtype,
-        },
+        0b110_1111 => (
+            Op::JAL,
+            jtype,
+        ),
         0b110_0111 => match bf.func3() {
-            0x0 => Instruction {
-                op: Op::JALR,
-                data: itype,
-            },
-            _ => Instruction::default(),
+            0x0 => (Op::JALR,
+                itype),
+            _ => Default::default(),
         },
         0b110_0011 => match bf.func3() {
-            0x0 => Instruction {
-                op: Op::BEQ,
-                data: btype,
-            },
-            0x1 => Instruction {
-                op: Op::BNE,
-                data: btype,
-            },
-            0x4 => Instruction {
-                op: Op::BLT,
-                data: btype,
-            },
-            0x5 => Instruction {
-                op: Op::BGE,
-                data: btype,
-            },
-            0x6 => Instruction {
-                op: Op::BLTU,
-                data: btype,
-            },
-            0x7 => Instruction {
-                op: Op::BGEU,
-                data: btype,
-            },
-            _ => Instruction::default(),
+            0x0 => (Op::BEQ,
+                btype),
+            0x1 => (Op::BNE,
+                btype),
+            0x4 => (Op::BLT,
+                btype),
+            0x5 => (Op::BGE,
+                btype),
+            0x6 => (Op::BLTU,
+                btype),
+            0x7 => (Op::BGEU,
+                btype),
+            _ => Default::default(),
         },
-        0b011_0111 => Instruction {
-            op: Op::LUI,
-            data: utype,
-        },
-        0b001_0111 => Instruction {
-            op: Op::AUIPC,
-            data: utype,
-        },
-        0b000_1111 => Instruction {
-            op: Op::FENCE,
-            data: itype,
-        },
-        _ => Instruction::default(),
-    }
+        0b011_0111 => (Op::LUI,
+            utype,
+    ),
+        0b001_0111 => (Op::AUIPC,
+            utype,
+        ),
+        0b000_1111 => (Op::FENCE,
+            itype,
+        ),
+        _ => Default::default(),
+    };
+    Instruction {op, data}
 }
 
 #[cfg(test)]
