@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    instruction::{ITypeInst, Instruction, JTypeInst, STypeInst, UTypeInst},
+    instruction::{Data, Op},
     state::State,
 };
 
@@ -81,24 +81,23 @@ pub fn lw(mem: &[u8; 4]) -> u32 {
 
 impl State {
     #[must_use]
-    pub fn lui(self, inst: &UTypeInst) -> Self {
-        self.set_register_value(inst.rd.into(), inst.imm as u32)
-            .bump_pc()
+    pub fn lui(self, inst: &Data) -> Self {
+        self.set_register_value(inst.rd.into(), inst.imm).bump_pc()
     }
 
     #[must_use]
-    pub fn jal(self, inst: &JTypeInst) -> Self {
+    pub fn jal(self, inst: &Data) -> Self {
         let pc = self.get_pc();
-        self.bump_pc_n(inst.imm as u32)
+        self.bump_pc_n(inst.imm)
             .set_register_value(inst.rd.into(), pc.wrapping_add(4))
     }
 
     #[must_use]
-    pub fn jalr(self, inst: &ITypeInst) -> Self {
+    pub fn jalr(self, inst: &Data) -> Self {
         let pc = self.get_pc();
         let new_pc = (self
             .get_register_value(inst.rs1.into())
-            .wrapping_add(inst.imm as u32))
+            .wrapping_add(inst.imm))
             & !1;
         self.set_pc(new_pc)
             .set_register_value(inst.rd.into(), pc.wrapping_add(4))
@@ -115,16 +114,16 @@ impl State {
     }
 
     #[must_use]
-    pub fn auipc(self, inst: &UTypeInst) -> Self {
-        let res = self.get_pc().wrapping_add(inst.imm as u32);
+    pub fn auipc(self, inst: &Data) -> Self {
+        let res = self.get_pc().wrapping_add(inst.imm);
         self.set_register_value(inst.rd.into(), res).bump_pc()
     }
 
     #[must_use]
-    pub fn store(self, inst: &STypeInst, bytes: usize) -> Self {
+    pub fn store(self, inst: &Data, bytes: usize) -> Self {
         let addr = self
             .get_register_value(inst.rs1.into())
-            .wrapping_add(inst.imm as u32);
+            .wrapping_add(inst.imm);
         let value: u32 = self.get_register_value(inst.rs2.into());
         (value.to_le_bytes()[0..bytes])
             .iter()
@@ -138,73 +137,72 @@ impl State {
     #[must_use]
     pub fn execute_instruction(self) -> Self {
         let inst = self.current_instruction();
-        match inst {
-            Instruction::ADD(inst) => inst.register_op(self, u32::wrapping_add),
-            Instruction::ADDI(inst) => inst.register_op(self, u32::wrapping_add),
+        let rop = |op: fn(u32, u32) -> u32| move |a, b, _imm| op(a, b);
+        let iop = |op: fn(u32, u32) -> u32| move |a, _b, imm| op(a, imm);
+        match inst.op {
+            Op::ADD => self.register_op(&inst.data, rop(u32::wrapping_add)),
+            Op::ADDI => self.register_op(&inst.data, iop(u32::wrapping_add)),
             // Only use lower 5 bits of rs2
-            Instruction::SLL(inst) => inst.register_op(self, |a, b| a << (b & 0x1F)),
+            Op::SLL => self.register_op(&inst.data, rop(|a, b| a << (b & 0x1F))),
             // Only use lower 5 bits of rs2
-            Instruction::SRL(inst) => inst.register_op(self, |a, b| a >> (b & 0x1F)),
+            Op::SRL => self.register_op(&inst.data, rop(|a, b| a >> (b & 0x1F))),
             // Only use lower 5 bits of rs2
-            Instruction::SRA(inst) => {
-                inst.register_op(self, |a, b| (a as i32 >> (b & 0x1F) as i32) as u32)
-            }
-            Instruction::SLT(inst) => {
-                inst.register_op(self, |a, b| u32::from((a as i32) < (b as i32)))
-            }
-            Instruction::SLTU(inst) => inst.register_op(self, |a, b| u32::from(a < b)),
-            Instruction::SRAI(inst) => inst.register_op(self, |a, b| ((a as i32) >> b) as u32),
-            Instruction::SRLI(inst) => inst.register_op(self, core::ops::Shr::shr),
-            Instruction::SLLI(inst) => inst.register_op(self, |a, b| a << b),
-            Instruction::SLTI(inst) => {
-                inst.register_op(self, |a, b| u32::from((a as i32) < b as i32))
-            }
-            Instruction::SLTIU(inst) => inst.register_op(self, |a, b| u32::from(a < b)),
-            Instruction::AND(inst) => inst.register_op(self, core::ops::BitAnd::bitand),
-            Instruction::ANDI(inst) => inst.register_op(self, core::ops::BitAnd::bitand),
-            Instruction::OR(inst) => inst.register_op(self, core::ops::BitOr::bitor),
-            Instruction::ORI(inst) => inst.register_op(self, core::ops::BitOr::bitor),
-            Instruction::XOR(inst) => inst.register_op(self, core::ops::BitXor::bitxor),
-            Instruction::XORI(inst) => inst.register_op(self, core::ops::BitXor::bitxor),
-            Instruction::SUB(inst) => inst.register_op(self, u32::wrapping_sub),
+            Op::SRA => self.register_op(
+                &inst.data,
+                rop(|a, b| (a as i32 >> (b & 0x1F) as i32) as u32),
+            ),
 
-            Instruction::LB(inst) => inst.memory_load(self, lb),
-            Instruction::LBU(inst) => inst.memory_load(self, lbu),
-            Instruction::LH(inst) => inst.memory_load(self, lh),
-            Instruction::LHU(inst) => inst.memory_load(self, lhu),
-            Instruction::LW(inst) => inst.memory_load(self, lw),
-            Instruction::ECALL => self.ecall(),
-            Instruction::JAL(inst) => self.jal(&inst),
-            Instruction::JALR(inst) => self.jalr(&inst),
-            Instruction::BEQ(inst) => inst.register_op(self, |a, b| a == b),
-            Instruction::BNE(inst) => inst.register_op(self, |a, b| a != b),
-            Instruction::BLT(inst) => inst.register_op(self, |a, b| (a as i32) < (b as i32)),
-            Instruction::BLTU(inst) => inst.register_op(self, |a, b| a < b),
-            Instruction::BGE(inst) => inst.register_op(self, |a, b| (a as i32) >= (b as i32)),
-            Instruction::BGEU(inst) => inst.register_op(self, |a, b| a >= b),
-            Instruction::SW(inst) => self.store(&inst, 4),
-            Instruction::SH(inst) => self.store(&inst, 2),
-            Instruction::SB(inst) => self.store(&inst, 1),
-            Instruction::MUL(inst) => inst.register_op(self, u32::wrapping_mul),
-            Instruction::MULH(inst) => inst.register_op(self, mulh),
-            Instruction::MULHU(inst) => inst.register_op(self, mulhu),
-            Instruction::MULHSU(inst) => inst.register_op(self, mulhsu),
-            Instruction::LUI(inst) => self.lui(&inst),
-            Instruction::AUIPC(inst) => self.auipc(&inst),
-            Instruction::DIV(inst) => inst.register_op(self, div),
-            Instruction::DIVU(inst) => inst.register_op(self, divu),
-            Instruction::REM(inst) => inst.register_op(self, rem),
-            Instruction::REMU(inst) => inst.register_op(self, remu),
+            Op::SLT => self.register_op(&inst.data, rop(|a, b| u32::from((a as i32) < (b as i32)))),
+            Op::SLTU => self.register_op(&inst.data, rop(|a, b| u32::from(a < b))),
+            Op::SRAI => self.register_op(&inst.data, iop(|a, b| ((a as i32) >> b) as u32)),
+            Op::SRLI => self.register_op(&inst.data, iop(core::ops::Shr::shr)),
+            Op::SLLI => self.register_op(&inst.data, iop(|a, b| a << b)),
+            Op::SLTI => self.register_op(&inst.data, iop(|a, b| u32::from((a as i32) < b as i32))),
+            Op::SLTIU => self.register_op(&inst.data, iop(|a, b| u32::from(a < b))),
+            Op::AND => self.register_op(&inst.data, rop(core::ops::BitAnd::bitand)),
+            Op::ANDI => self.register_op(&inst.data, iop(core::ops::BitAnd::bitand)),
+            Op::OR => self.register_op(&inst.data, rop(core::ops::BitOr::bitor)),
+            Op::ORI => self.register_op(&inst.data, iop(core::ops::BitOr::bitor)),
+            Op::XOR => self.register_op(&inst.data, rop(core::ops::BitXor::bitxor)),
+            Op::XORI => self.register_op(&inst.data, iop(core::ops::BitXor::bitxor)),
+            Op::SUB => self.register_op(&inst.data, rop(u32::wrapping_sub)),
+
+            Op::LB => self.memory_load(&inst.data, lb),
+            Op::LBU => self.memory_load(&inst.data, lbu),
+            Op::LH => self.memory_load(&inst.data, lh),
+            Op::LHU => self.memory_load(&inst.data, lhu),
+            Op::LW => self.memory_load(&inst.data, lw),
+            Op::ECALL => self.ecall(),
+            Op::JAL => self.jal(&inst.data),
+            Op::JALR => self.jalr(&inst.data),
+            // branches
+            Op::BEQ => self.branch_op(&inst.data, |a, b| a == b),
+            Op::BNE => self.branch_op(&inst.data, |a, b| a != b),
+            Op::BLT => self.branch_op(&inst.data, |a, b| (a as i32) < (b as i32)),
+            Op::BLTU => self.branch_op(&inst.data, |a, b| a < b),
+            Op::BGE => self.branch_op(&inst.data, |a, b| (a as i32) >= (b as i32)),
+            Op::BGEU => self.branch_op(&inst.data, |a, b| a >= b),
+            // branching done.
+            Op::SW => self.store(&inst.data, 4),
+            Op::SH => self.store(&inst.data, 2),
+            Op::SB => self.store(&inst.data, 1),
+            Op::MUL => self.register_op(&inst.data, rop(u32::wrapping_mul)),
+            Op::MULH => self.register_op(&inst.data, rop(mulh)),
+            Op::MULHU => self.register_op(&inst.data, rop(mulhu)),
+            Op::MULHSU => self.register_op(&inst.data, rop(mulhsu)),
+            Op::LUI => self.lui(&inst.data),
+            Op::AUIPC => self.auipc(&inst.data),
+            Op::DIV => self.register_op(&inst.data, rop(div)),
+            Op::DIVU => self.register_op(&inst.data, rop(divu)),
+            Op::REM => self.register_op(&inst.data, rop(rem)),
+            Op::REMU => self.register_op(&inst.data, rop(remu)),
             // It's not important that these instructions are implemented for the sake of
             // our purpose at this moment, but these instructions are found in the test
             // data that we use - so we simply advance the register.
-            Instruction::FENCE(_)
-            | Instruction::CSRRS(_)
-            | Instruction::CSRRW(_)
-            | Instruction::CSRRWI(_)
-            | Instruction::EBREAK
-            | Instruction::MRET => self.bump_pc(),
-            Instruction::UNKNOWN => unimplemented!("Unknown instruction"),
+            Op::FENCE | Op::CSRRS | Op::CSRRW | Op::CSRRWI | Op::EBREAK | Op::MRET => {
+                self.bump_pc()
+            }
+            Op::UNKNOWN => unimplemented!("Unknown instruction"),
         }
         .bump_clock()
     }
