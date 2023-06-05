@@ -1,24 +1,56 @@
 // Copyright 2023 MOZAK.
 
 use alloc::collections::BTreeMap;
+use std::collections::HashMap;
+use std::collections::HashSet;
 
 use anyhow::{anyhow, bail, Result};
 use elf::{endian::LittleEndian, file::Class, ElfBytes};
 use itertools::Itertools;
 
+use crate::decode::decode_instruction;
+use crate::instruction::Instruction;
+use crate::util::load_u32;
+
 /// A RISC program
+#[derive(Debug, Default)]
 pub struct Program {
     /// The entrypoint of the program
     pub entry: u32,
 
     /// The initial memory image
     pub image: BTreeMap<u32, u8>,
+    // TODO(Matthias): only decode code sections of the elf,
+    // instead of trying to decode everything.
+    pub code: Code,
+}
+
+#[derive(Debug, Default)]
+pub struct Code(HashMap<u32, Instruction>);
+
+impl Code {
+    pub fn get_instruction(&self, pc: u32) -> Instruction {
+        let Code(code) = self;
+        code.get(&pc).copied().unwrap_or_default()
+    }
+}
+
+#[must_use]
+pub fn decode_instructions(image: &BTreeMap<u32, u8>) -> HashMap<u32, Instruction> {
+    image
+        .keys()
+        .map(|addr| addr & !3)
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .map(|key| (key, decode_instruction(load_u32(image, key))))
+        .collect()
 }
 
 impl From<BTreeMap<u32, u8>> for Program {
     fn from(image: BTreeMap<u32, u8>) -> Self {
         Self {
             entry: 0_u32,
+            code: Code(decode_instructions(&image)),
             image,
         }
     }
@@ -38,6 +70,7 @@ impl From<BTreeMap<u32, u32>> for Program {
             .collect();
         Self {
             entry: 0_u32,
+            code: Code(decode_instructions(&image)),
             image,
         }
     }
@@ -86,6 +119,10 @@ impl Program {
             })
             .flatten_ok()
             .try_collect()?;
-        Ok(Program { entry, image })
+        Ok(Program {
+            entry,
+            code: Code(decode_instructions(&image)),
+            image,
+        })
     }
 }

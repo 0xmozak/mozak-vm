@@ -2,7 +2,6 @@ use im::hashmap::HashMap;
 use log::trace;
 use proptest::prelude::*;
 
-use crate::decode::decode_instruction;
 use crate::elf::Program;
 use crate::instruction::{BTypeInst, ITypeInst, Instruction, RTypeInst};
 
@@ -188,14 +187,14 @@ impl State {
         self
     }
 
-    #[must_use]
-    pub fn current_instruction(&self) -> Instruction {
-        let pc = self.get_pc();
-        let word = self.load_u32(pc);
-        let inst = decode_instruction(word);
-        trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}, Encoded Inst Word: {word:#x?}");
-        inst
-    }
+    // #[must_use]
+    // pub fn current_instruction(&self) -> Instruction {
+    //     let pc = self.get_pc();
+    //     let word = self.load_u32(pc);
+    //     let inst = decode_instruction(word);
+    //     trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}, Encoded Inst Word: {word:#x?}");
+    //     inst
+    // }
 }
 
 proptest! {
