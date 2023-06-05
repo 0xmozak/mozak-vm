@@ -35,22 +35,25 @@ impl Code {
     }
 }
 
-#[must_use]
-pub fn decode_instructions(image: &HashMap<u32, u8>) -> HashMap<u32, Instruction> {
-    image
-        .keys()
-        .map(|addr| addr & !3)
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .map(|key| (key, decode_instruction(load_u32(image, key))))
-        .collect()
+impl From<&HashMap<u32, u8>> for Code {
+    fn from(image: &HashMap<u32, u8>) -> Self {
+        Self(
+            image
+                .keys()
+                .map(|addr| addr & !3)
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .map(|key| (key, decode_instruction(load_u32(image, key))))
+                .collect(),
+        )
+    }
 }
 
 impl From<HashMap<u32, u8>> for Program {
     fn from(image: HashMap<u32, u8>) -> Self {
         Self {
             entry: 0_u32,
-            code: Code(decode_instructions(&image)),
+            code: Code::from(&image),
             image,
         }
     }
@@ -70,7 +73,7 @@ impl From<HashMap<u32, u32>> for Program {
             .collect();
         Self {
             entry: 0_u32,
-            code: Code(decode_instructions(&image)),
+            code: Code::from(&image),
             image,
         }
     }
@@ -121,7 +124,7 @@ impl Program {
             .try_collect()?;
         Ok(Program {
             entry,
-            code: Code(decode_instructions(&image)),
+            code: Code::from(&image),
             image,
         })
     }
