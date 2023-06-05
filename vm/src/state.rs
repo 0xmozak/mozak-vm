@@ -6,7 +6,7 @@ use proptest::prelude::*;
 
 use crate::decode::decode_instruction;
 use crate::elf::Program;
-use crate::instruction::{BTypeInst, ITypeInst, Instruction, RTypeInst};
+use crate::instruction::{TypeInst, Instruction};
 
 /// State of our VM
 ///
@@ -45,46 +45,41 @@ impl From<Program> for State {
     }
 }
 
-impl RTypeInst {
-    pub fn register_op(&self, state: State, op: fn(u32, u32) -> u32) -> State {
-        let rs1 = state.get_register_value(self.rs1.into());
-        let rs2 = state.get_register_value(self.rs2.into());
-        state
-            .set_register_value(self.rd.into(), op(rs1, rs2))
-            .bump_pc()
-    }
-}
-
-impl ITypeInst {
-    pub fn register_op(&self, state: State, op: fn(u32, u32) -> u32) -> State {
-        let rs1 = state.get_register_value(self.rs1.into());
-        state
-            .set_register_value(self.rd.into(), op(rs1, self.imm as u32))
+impl State {
+    #[must_use]
+    pub fn register_op(self, data: &TypeInst, op: fn(u32, u32, u32) -> u32) -> Self {
+        let rs1 = self.get_register_value(data.rs1.into());
+        let rs2 = self.get_register_value(data.rs2.into());
+        let imm: u32 = data.imm;
+        self
+            .set_register_value(data.rd.into(), op(rs1, rs2, imm))
             .bump_pc()
     }
 
-    pub fn memory_load(&self, state: State, op: fn(&[u8; 4]) -> u32) -> State {
-        let addr: u32 = state
-            .get_register_value(self.rs1.into())
-            .wrapping_add(self.imm as u32);
+    #[must_use]
+    pub fn memory_load(self, data: &TypeInst, op: fn(&[u8; 4]) -> u32) -> Self {
+        let addr: u32 = self
+            .get_register_value(data.rs1.into())
+            .wrapping_add(data.imm);
         let mem = [
-            state.load_u8(addr),
-            state.load_u8(addr + 1),
-            state.load_u8(addr + 2),
-            state.load_u8(addr + 3),
+            self.load_u8(addr),
+            self.load_u8(addr + 1),
+            self.load_u8(addr + 2),
+            self.load_u8(addr + 3),
         ];
-        state.set_register_value(self.rd.into(), op(&mem)).bump_pc()
+        self.set_register_value(data.rd.into(), op(&mem)).bump_pc()
     }
-}
 
-impl BTypeInst {
-    pub fn register_op(&self, state: State, op: fn(u32, u32) -> bool) -> State {
-        let rs1 = state.get_register_value(self.rs1.into());
-        let rs2 = state.get_register_value(self.rs2.into());
+    // TODO(Matthias): this used to use a register_op.
+    #[must_use]
+    pub fn branch_op(self, data: &TypeInst, op: fn(u32, u32) -> bool) -> State {
+        let rs1 = self.get_register_value(data.rs1.into());
+        let rs2 = self.get_register_value(data.rs2.into());
+        assert_eq!(0, data.imm);
         if op(rs1, rs2) {
-            state.bump_pc_n(self.imm as u32)
+            self.bump_pc_n(data.imm as u32)
         } else {
-            state.bump_pc()
+            self.bump_pc()
         }
     }
 }
