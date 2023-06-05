@@ -246,7 +246,7 @@ impl Vm {
             });
 
             if cfg!(debug_assertions) {
-                let limit: u32 = std::option_env!("MOZAK_MAX_LOOPS")
+                let limit: usize = std::option_env!("MOZAK_MAX_LOOPS")
                     .map_or(1_000_000, |env_var| env_var.parse().unwrap());
                 debug_assert!(state.clk != limit, "Looped for longer than MOZAK_MAX_LOOPS");
             }
@@ -257,9 +257,8 @@ impl Vm {
 
 #[cfg(test)]
 mod tests {
-    use alloc::collections::BTreeMap;
-
     use anyhow::Result;
+    use im::hashmap::HashMap;
     use test_case::test_case;
 
     use crate::{elf::Program, state::State, vm::Vm};
@@ -304,7 +303,7 @@ mod tests {
         }
     }
 
-    fn create_prog(image: BTreeMap<u32, u32>) -> State {
+    fn create_prog(image: HashMap<u32, u32>) -> State {
         State::from(Program::from(image))
     }
 
@@ -317,7 +316,7 @@ mod tests {
               // add ECALL to halt the program
               (exit_at + 4, 0x0000_0073_u32)];
 
-        let image: BTreeMap<u32, u32> = mem.iter().chain(exit_inst.iter()).copied().collect();
+        let image: HashMap<u32, u32> = mem.iter().chain(exit_inst.iter()).copied().collect();
 
         let state = regs.iter().fold(create_prog(image), |state, (rs, val)| {
             state.set_register_value(*rs, *val)
