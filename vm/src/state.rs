@@ -19,24 +19,29 @@ pub struct State {
     registers: [u32; 32],
     pc: u32,
     memory: HashMap<u32, u8>,
+    code: HashMap<u32, Instruction>,
 }
 
 impl From<Program> for State {
     fn from(program: Program) -> Self {
         let memory: HashMap<u32, u8> = program
             .image
-            .into_iter()
-            .flat_map(|(addr, data)| {
-                data.to_le_bytes()
-                    .into_iter()
-                    .enumerate()
-                    .map(move |(a, byte)| {
-                        (addr + a as u32, byte)
-                    })
-            })
+            .iter()
+            .map(|(k, v)| (*k, *v))
             .collect();
+            // .flat_map(|(addr, data)| {
+            //     data.to_le_bytes()
+            //         .into_iter()
+            //         .enumerate()
+            //         .map(move |(a, byte)| {
+            //             (addr + a as u32, byte)
+            //         })
+            // })
+            // .collect();
+        // let code: HashMap<u32, Instruction> = program.image.iter().map(|(k, v)| (*k, decode_instruction(*v))).collect();
         Self {
             pc: program.entry,
+            code: todo!(),
             memory,
             ..Default::default()
         }
