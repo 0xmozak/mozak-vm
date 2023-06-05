@@ -78,7 +78,7 @@ impl State {
         let rs1 = self.get_register_value(data.rs1.into());
         let rs2 = self.get_register_value(data.rs2.into());
         if op(rs1, rs2) {
-            self.bump_pc_n(data.imm as u32)
+            self.bump_pc_n(data.imm)
         } else {
             self.bump_pc()
         }

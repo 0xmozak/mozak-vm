@@ -82,14 +82,14 @@ pub fn lw(mem: &[u8; 4]) -> u32 {
 impl State {
     #[must_use]
     pub fn lui(self, inst: &TypeInst) -> Self {
-        self.set_register_value(inst.rd.into(), inst.imm as u32)
+        self.set_register_value(inst.rd.into(), inst.imm)
             .bump_pc()
     }
 
     #[must_use]
     pub fn jal(self, inst: &TypeInst) -> Self {
         let pc = self.get_pc();
-        self.bump_pc_n(inst.imm as u32)
+        self.bump_pc_n(inst.imm)
             .set_register_value(inst.rd.into(), pc.wrapping_add(4))
     }
 
@@ -98,7 +98,7 @@ impl State {
         let pc = self.get_pc();
         let new_pc = (self
             .get_register_value(inst.rs1.into())
-            .wrapping_add(inst.imm as u32))
+            .wrapping_add(inst.imm))
             & !1;
         self.set_pc(new_pc)
             .set_register_value(inst.rd.into(), pc.wrapping_add(4))
@@ -116,7 +116,7 @@ impl State {
 
     #[must_use]
     pub fn auipc(self, inst: &TypeInst) -> Self {
-        let res = self.get_pc().wrapping_add(inst.imm as u32);
+        let res = self.get_pc().wrapping_add(inst.imm);
         self.set_register_value(inst.rd.into(), res).bump_pc()
     }
 
@@ -124,7 +124,7 @@ impl State {
     pub fn store(self, inst: &TypeInst, bytes: usize) -> Self {
         let addr = self
             .get_register_value(inst.rs1.into())
-            .wrapping_add(inst.imm as u32);
+            .wrapping_add(inst.imm);
         let value: u32 = self.get_register_value(inst.rs2.into());
         (value.to_le_bytes()[0..bytes])
             .iter()

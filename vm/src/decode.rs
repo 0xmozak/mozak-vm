@@ -224,7 +224,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 data: itype,
             },
             0x5 => {
-                let imm = itype.imm as u32;
+                let imm = itype.imm;
                 let imm_masked: u32 = imm.bit_range(4, 0);
                 let itype = TypeInst {
                     imm: imm_masked,
