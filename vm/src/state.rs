@@ -2,10 +2,8 @@ use im::hashmap::HashMap;
 use log::trace;
 use proptest::prelude::*;
 
-use crate::elf::Code;
-use crate::elf::Program;
-use crate::instruction::Data;
-use crate::instruction::Instruction;
+use crate::elf::{Code, Program};
+use crate::instruction::{Data, Instruction};
 
 /// State of our VM
 ///
