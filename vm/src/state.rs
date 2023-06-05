@@ -2,7 +2,7 @@ use im::hashmap::HashMap;
 use log::trace;
 use proptest::prelude::*;
 
-use crate::elf::Program;
+use crate::elf::{Code, Program};
 use crate::instruction::{BTypeInst, ITypeInst, Instruction, RTypeInst};
 
 /// State of our VM
@@ -18,29 +18,21 @@ pub struct State {
     registers: [u32; 32],
     pc: u32,
     memory: HashMap<u32, u8>,
-    code: HashMap<u32, Instruction>,
+    // NOTE: meant to be immutable.
+    // TODO(Matthias): replace with an immutable reference,
+    // but need to sort out life-times first
+    // (ie sort out where the original lives.)
+    // This ain't super-urgent, because im::hashmap::HashMap is O(1) to clone.
+    code: Code,
 }
 
 impl From<Program> for State {
     fn from(program: Program) -> Self {
-        let memory: HashMap<u32, u8> = program
-            .image
-            .iter()
-            .map(|(k, v)| (*k, *v))
-            .collect();
-            // .flat_map(|(addr, data)| {
-            //     data.to_le_bytes()
-            //         .into_iter()
-            //         .enumerate()
-            //         .map(move |(a, byte)| {
-            //             (addr + a as u32, byte)
-            //         })
-            // })
-            // .collect();
-        // let code: HashMap<u32, Instruction> = program.image.iter().map(|(k, v)| (*k, decode_instruction(*v))).collect();
+        let memory: HashMap<u32, u8> = program.image;
+        let code = program.code;
         Self {
             pc: program.entry,
-            code: todo!(),
+            code,
             memory,
             ..Default::default()
         }
@@ -169,10 +161,9 @@ impl State {
     /// # Panics
     /// This function panics if the conversion from `u32` to a `u8` fails, which
     /// is an internal error.
+    #[must_use]
     pub fn load_u8(&self, addr: u32) -> u8 {
-        self.memory
-            .get(&addr).cloned()
-            .unwrap_or_default()
+        self.memory.get(&addr).copied().unwrap_or_default()
     }
 
     /// Store a byte to memory
@@ -182,19 +173,17 @@ impl State {
     /// address.
     #[must_use]
     pub fn store_u8(mut self, addr: u32, value: u8) -> Self {
-        self.memory
-            .insert(addr, value);
+        self.memory.insert(addr, value);
         self
     }
 
-    // #[must_use]
-    // pub fn current_instruction(&self) -> Instruction {
-    //     let pc = self.get_pc();
-    //     let word = self.load_u32(pc);
-    //     let inst = decode_instruction(word);
-    //     trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}, Encoded Inst Word: {word:#x?}");
-    //     inst
-    // }
+    #[must_use]
+    pub fn current_instruction(&self) -> Instruction {
+        let pc = self.get_pc();
+        let inst = self.code.get_instruction(pc);
+        trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}");
+        inst
+    }
 }
 
 proptest! {

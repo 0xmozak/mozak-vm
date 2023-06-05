@@ -1,9 +1,6 @@
-use alloc::collections::BTreeMap;
-
 use anyhow::Result;
 
 use crate::{
-    elf::{Program, Code},
     instruction::{ITypeInst, Instruction, JTypeInst, STypeInst, UTypeInst},
     state::State,
 };
@@ -139,10 +136,8 @@ impl State {
     }
 
     #[must_use]
-    pub fn execute_instruction<F>(self, get_instruction: F) -> Self where
-        F: FnOnce(u32) -> &'static Instruction
-        {
-        let inst = get_instruction(self.get_pc());
+    pub fn execute_instruction(self) -> Self where {
+        let inst = self.current_instruction();
         match inst {
             Instruction::ADD(inst) => inst.register_op(self, u32::wrapping_add),
             Instruction::ADDI(inst) => inst.register_op(self, u32::wrapping_add),
@@ -221,12 +216,6 @@ pub struct Row {
     pub state: State,
 }
 
-pub struct Vm {
-    code: Code,
-}
-
-impl Vm {
-
 /// Execute a program
 ///
 /// # Errors
@@ -240,12 +229,12 @@ impl Vm {
 /// This is a temporary measure to catch problems with accidental infinite
 /// loops. (Matthias had some trouble debugging a problem with jumps
 /// earlier.)
-pub fn step(&self, mut state: State) -> Result<(Vec<Row>, State)> {
+pub fn step(mut state: State) -> Result<(Vec<Row>, State)> {
     let mut rows = vec![Row {
         state: state.clone(),
     }];
     while !state.has_halted() {
-        state = state.execute_instruction(|pc| &self.code.get_instruction(pc));
+        state = state.execute_instruction();
         rows.push(Row {
             state: state.clone(),
         });
@@ -258,13 +247,11 @@ pub fn step(&self, mut state: State) -> Result<(Vec<Row>, State)> {
     }
     Ok((rows, state))
 }
-}
 
 #[cfg(test)]
 mod tests {
-    use alloc::collections::BTreeMap;
-
     use anyhow::Result;
+    use im::hashmap::HashMap;
     use test_case::test_case;
 
     use crate::{elf::Program, state::State};
@@ -309,8 +296,8 @@ mod tests {
         }
     }
 
-    fn create_prog(image: BTreeMap<u32, u32>) -> State {
-        State::from(&Program::from(image))
+    fn create_prog(image: HashMap<u32, u32>) -> State {
+        State::from(Program::from(image))
     }
 
     fn simple_test(exit_at: u32, mem: &[(u32, u32)], regs: &[(usize, u32)]) -> State {
@@ -322,13 +309,13 @@ mod tests {
               // add ECALL to halt the program
               (exit_at + 4, 0x0000_0073_u32)];
 
-        let image: BTreeMap<u32, u32> = mem.iter().chain(exit_inst.iter()).copied().collect();
+        let image: HashMap<u32, u32> = mem.iter().chain(exit_inst.iter()).copied().collect();
 
         let state = regs.iter().fold(create_prog(image), |state, (rs, val)| {
             state.set_register_value(*rs, *val)
         });
 
-        let state = Vm::step(state).unwrap().1;
+        let state = super::step(state).unwrap().1;
         assert!(state.has_halted());
         state
     }

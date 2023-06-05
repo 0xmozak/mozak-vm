@@ -1,7 +1,7 @@
-use alloc::collections::BTreeMap;
+use im::hashmap::HashMap;
 
 #[must_use]
-pub fn load_u32(m: &BTreeMap<u32, u8>, addr: u32) -> u32 {
+pub fn load_u32(m: &HashMap<u32, u8>, addr: u32) -> u32 {
     const WORD_SIZE: usize = 4;
     let mut bytes = [0_u8; WORD_SIZE];
     for (i, byte) in bytes.iter_mut().enumerate() {
