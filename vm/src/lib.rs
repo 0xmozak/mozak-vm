@@ -1,6 +1,5 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
-#![allow(clippy::module_name_repetitions)]
 #![allow(clippy::similar_names)]
 #![allow(clippy::if_not_else)]
 // Some of the below might be better to deny here and allow on a case-by-case basis in the code.
@@ -10,7 +9,6 @@
 // even globally for the whole crate.
 #![allow(clippy::cast_possible_wrap)]
 #![allow(clippy::cast_possible_truncation)]
-#![allow(clippy::too_many_lines)]
 #![allow(clippy::cast_sign_loss)]
 #![allow(clippy::needless_pass_by_value)]
 #![allow(clippy::missing_panics_doc)]
