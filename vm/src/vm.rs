@@ -82,8 +82,7 @@ pub fn lw(mem: &[u8; 4]) -> u32 {
 impl State {
     #[must_use]
     pub fn lui(self, inst: &TypeInst) -> Self {
-        self.set_register_value(inst.rd.into(), inst.imm)
-            .bump_pc()
+        self.set_register_value(inst.rd.into(), inst.imm).bump_pc()
     }
 
     #[must_use]

@@ -153,10 +153,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 op: Op::MULHU,
                 data: rtype,
             },
-            _ => Instruction {
-                op: Op::UNKNOWN,
-                data: Default::default(),
-            },
+            _ => Instruction::default(),
         },
         0b000_0011 => match bf.func3() {
             0x0 => Instruction {
@@ -179,10 +176,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 op: Op::LHU,
                 data: itype,
             },
-            _ => Instruction {
-                op: Op::UNKNOWN,
-                data: Default::default(),
-            },
+            _ => Instruction::default(),
         },
         0b010_0011 => match bf.func3() {
             0x0 => Instruction {
@@ -197,10 +191,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 op: Op::SW,
                 data: stype,
             },
-            _ => Instruction {
-                op: Op::UNKNOWN,
-                data: Default::default(),
-            },
+            _ => Instruction::default(),
         },
         0b001_0011 => match bf.func3() {
             0x0 => Instruction {
@@ -242,10 +233,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
                         op: Op::SRLI,
                         data: itype,
                     },
-                    _ => Instruction {
-                        op: Op::UNKNOWN,
-                        data: Default::default(),
-                    },
+                    _ => Instruction::default(),
                 }
             }
             0x6 => Instruction {
@@ -256,23 +244,20 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 op: Op::ANDI,
                 data: itype,
             },
-            _ => Instruction {
-                op: Op::UNKNOWN,
-                data: Default::default(),
-            },
+            _ => Instruction::default(),
         },
         0b111_0011 => match (bf.func3(), bf.func12()) {
             (0x0, 0x0) => Instruction {
                 op: Op::ECALL,
-                data: Default::default(),
+                ..Instruction::default()
             },
             (0x0, 0x302) => Instruction {
                 op: Op::MRET,
-                data: Default::default(),
+                ..Instruction::default()
             },
             (0x0, 0x1) => Instruction {
                 op: Op::EBREAK,
-                data: Default::default(),
+                ..Instruction::default()
             },
             (0x1, _) => Instruction {
                 op: Op::CSRRW,
@@ -286,10 +271,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 op: Op::CSRRWI,
                 data: itype,
             },
-            _ => Instruction {
-                op: Op::UNKNOWN,
-                data: Default::default(),
-            },
+            _ => Instruction::default(),
         },
         0b110_1111 => Instruction {
             op: Op::JAL,
@@ -300,10 +282,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 op: Op::JALR,
                 data: itype,
             },
-            _ => Instruction {
-                op: Op::UNKNOWN,
-                data: Default::default(),
-            },
+            _ => Instruction::default(),
         },
         0b110_0011 => match bf.func3() {
             0x0 => Instruction {
@@ -330,10 +309,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
                 op: Op::BGEU,
                 data: btype,
             },
-            _ => Instruction {
-                op: Op::UNKNOWN,
-                data: Default::default(),
-            },
+            _ => Instruction::default(),
         },
         0b011_0111 => Instruction {
             op: Op::LUI,
@@ -347,10 +323,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
             op: Op::FENCE,
             data: itype,
         },
-        _ => Instruction {
-            op: Op::UNKNOWN,
-            data: Default::default(),
-        },
+        _ => Instruction::default(),
     }
 }
 
@@ -1077,7 +1050,7 @@ mod test {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction {
             op: Op::ECALL,
-            data: Default::default(),
+            data: TypeInst::default(),
         };
         assert_eq!(ins, match_ins);
     }
@@ -1092,7 +1065,7 @@ mod test {
                 rs1,
                 rd,
                 imm,
-                ..Default::default()
+                ..TypeInst::default()
             },
         };
         assert_eq!(ins, match_ins);
@@ -1103,7 +1076,7 @@ mod test {
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction {
             op: Op::MRET,
-            data: Default::default(),
+            ..Instruction::default()
         };
         assert_eq!(ins, match_ins);
     }

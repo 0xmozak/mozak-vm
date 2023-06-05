@@ -6,7 +6,7 @@ pub struct TypeInst {
     pub imm: u32,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub enum Op {
     ADD,
     ADDI,
@@ -60,10 +60,11 @@ pub enum Op {
     MRET,
     ECALL,
     EBREAK,
+    #[default]
     UNKNOWN,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct Instruction {
     pub op: Op,
     pub data: TypeInst,
