@@ -393,6 +393,7 @@ dependencies = [
 name = "mozak-circuits"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "mozak-vm",
  "plonky2",
 ]
