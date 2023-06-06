@@ -1,4 +1,5 @@
 use mozak_vm::vm::Row;
+use mozak_vm::instruction::Op;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns as cpu_cols;
@@ -16,6 +17,19 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_col
     for (i, s) in step_rows.iter().enumerate() {
         trace[cpu_cols::COL_CLK][i] = F::from_canonical_usize(s.state.clk);
         trace[cpu_cols::COL_PC][i] = F::from_canonical_u32(s.state.get_pc());
+
+        trace[cpu_cols::COL_RS1][i] = F::from_canonical_u8(s.state.op1_reg);
+        trace[cpu_cols::COL_RS2][i] = F::from_canonical_u8(s.state.op2_reg);
+        trace[cpu_cols::COL_RD][i] = F::from_canonical_u8(s.state.dst_reg);
+
+        for j in 0..32_usize {
+            trace[cpu_cols::COL_START_REG + j][i] = F::from_canonical_u32(s.state.get_register_value(j));
+        }
+
+        match s.state.opcode {
+            op if Op::ADD as u8 == op => trace[cpu_cols::COL_SADD][i] = F::from_canonical_u8(1),
+            _ => {},
+        }
     }
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {

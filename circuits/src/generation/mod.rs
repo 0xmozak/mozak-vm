@@ -6,8 +6,14 @@ use plonky2::{
     hash::hash_types::RichField,
 };
 
+use crate::stark::utils::trace_to_poly_values;
+
+use self::cpu::generate_cpu_trace;
+
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
-    _state_rows: Vec<Row>,
+    step_rows: Vec<Row>,
 ) -> [Vec<PolynomialValues<F>>; 1] {
-    [vec![]]
+    let cpu_rows = generate_cpu_trace::<F>(step_rows);
+    let cpu_trace = trace_to_poly_values(cpu_rows);
+    [cpu_trace]
 }

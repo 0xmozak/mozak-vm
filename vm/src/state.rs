@@ -20,6 +20,7 @@ pub struct State {
     pub op1_reg: u8,
     pub op2_reg: u8,
     pub dst_reg: u8,
+    pub opcode: u8,
     pc: u32,
     memory: HashMap<u32, u8>,
 }
@@ -196,6 +197,13 @@ impl State {
         self.dst_reg = value;
         self
     }
+    #[must_use]
+    pub fn set_opcode(mut self, value: u8) -> Self {
+        self.opcode = value;
+        self
+    }
+
+    
 }
 
 proptest! {

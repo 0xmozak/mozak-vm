@@ -205,6 +205,7 @@ impl State {
             Op::UNKNOWN => unimplemented!("Unknown instruction"),
         }
         .bump_clock()
+        .set_opcode(inst.op as u8)
     }
 }
 
