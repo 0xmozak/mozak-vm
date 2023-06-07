@@ -1,6 +1,5 @@
 use im::hashmap::HashMap;
 use log::trace;
-use proptest::prelude::*;
 
 use crate::elf::{Code, Program};
 use crate::instruction::{Data, Instruction};
@@ -182,12 +181,17 @@ impl State {
     }
 }
 
-proptest! {
-    #[test]
-    fn round_trip_memory(addr in any::<u32>(), x in any::<u32>()) {
-        let mut state: State = State::default();
-        state.store_u32(addr, x).unwrap();
-        let y = state.load_u32(addr);
-        assert_eq!(x, y);
+#[cfg(test)]
+mod tests {
+    use proptest::prelude::*;
+    use super::State;
+    proptest! {
+        #[test]
+        fn round_trip_memory(addr in any::<u32>(), x in any::<u32>()) {
+            let mut state: State = State::default();
+            state.store_u32(addr, x).unwrap();
+            let y = state.load_u32(addr);
+            assert_eq!(x, y);
+        }
     }
 }
