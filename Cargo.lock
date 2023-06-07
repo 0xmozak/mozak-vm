@@ -396,6 +396,7 @@ dependencies = [
  "anyhow",
  "mozak-vm",
  "plonky2",
+ "plonky2_maybe_rayon",
 ]
 
 [[package]]

@@ -202,8 +202,6 @@ impl State {
         self.opcode = value;
         self
     }
-
-    
 }
 
 proptest! {

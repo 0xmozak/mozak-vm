@@ -1,4 +1,4 @@
-use std::ops::Range; 
+use std::ops::Range;
 
 pub(crate) const COL_CLK: usize = 0;
 pub(crate) const COL_PC: usize = COL_CLK + 1;

@@ -1,4 +1,3 @@
-
 use plonky2::field::packed::PackedField;
 
 pub struct ConstraintConsumer<P: PackedField> {
@@ -70,4 +69,3 @@ impl<P: PackedField> ConstraintConsumer<P> {
         self.constraint(constraint * self.lagrange_basis_last);
     }
 }
-
