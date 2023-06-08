@@ -13,6 +13,8 @@
 #![allow(clippy::needless_pass_by_value)]
 #![allow(clippy::missing_panics_doc)]
 
+#![feature(wrapping_next_power_of_two)]
+
 pub mod decode;
 pub mod elf;
 pub mod instruction;
