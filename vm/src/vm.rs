@@ -137,41 +137,46 @@ impl State {
     #[must_use]
     pub fn execute_instruction(self) -> Self {
         let inst = self.current_instruction();
-        let rop = |op: fn(u32, u32) -> u32| move |a, b, _imm| op(a, b);
-        let iop = |op: fn(u32, u32) -> u32| move |a, _b, imm| op(a, imm);
+        macro_rules! rop {
+            ($op: expr) => {
+                self.register_op(&inst.data, |a, b, _i| $op(a, b))
+            };
+        }
+        macro_rules! iop {
+            ($op: expr) => {
+                self.register_op(&inst.data, |a, _b, i| $op(a, i))
+            };
+        }
         match inst.op {
-            Op::ADD => self.register_op(&inst.data, rop(u32::wrapping_add)),
-            Op::ADDI => self.register_op(&inst.data, iop(u32::wrapping_add)),
+            Op::ADD => rop!(u32::wrapping_add),
+            Op::ADDI => iop!(u32::wrapping_add),
             // Only use lower 5 bits of rs2
-            Op::SLL => self.register_op(&inst.data, rop(|a, b| a << (b & 0x1F))),
+            Op::SLL => rop!(|a, b| a << (b & 0x1F)),
             // Only use lower 5 bits of rs2
-            Op::SRL => self.register_op(&inst.data, rop(|a, b| a >> (b & 0x1F))),
+            Op::SRL => rop!(|a, b| a >> (b & 0x1F)),
             // Only use lower 5 bits of rs2
-            Op::SRA => self.register_op(
-                &inst.data,
-                rop(|a, b| (a as i32 >> (b & 0x1F) as i32) as u32),
-            ),
-
-            Op::SLT => self.register_op(&inst.data, rop(|a, b| u32::from((a as i32) < (b as i32)))),
-            Op::SLTU => self.register_op(&inst.data, rop(|a, b| u32::from(a < b))),
-            Op::SRAI => self.register_op(&inst.data, iop(|a, b| ((a as i32) >> b) as u32)),
-            Op::SRLI => self.register_op(&inst.data, iop(core::ops::Shr::shr)),
-            Op::SLLI => self.register_op(&inst.data, iop(|a, b| a << b)),
-            Op::SLTI => self.register_op(&inst.data, iop(|a, b| u32::from((a as i32) < b as i32))),
-            Op::SLTIU => self.register_op(&inst.data, iop(|a, b| u32::from(a < b))),
-            Op::AND => self.register_op(&inst.data, rop(core::ops::BitAnd::bitand)),
-            Op::ANDI => self.register_op(&inst.data, iop(core::ops::BitAnd::bitand)),
-            Op::OR => self.register_op(&inst.data, rop(core::ops::BitOr::bitor)),
-            Op::ORI => self.register_op(&inst.data, iop(core::ops::BitOr::bitor)),
-            Op::XOR => self.register_op(&inst.data, rop(core::ops::BitXor::bitxor)),
-            Op::XORI => self.register_op(&inst.data, iop(core::ops::BitXor::bitxor)),
-            Op::SUB => self.register_op(&inst.data, rop(u32::wrapping_sub)),
+            Op::SRA => rop!(|a, b| (a as i32 >> (b & 0x1F) as i32) as u32),
+            Op::SLT => rop!(|a, b| u32::from((a as i32) < (b as i32))),
+            Op::SLTU => rop!(|a, b| u32::from(a < b)),
+            Op::SRAI => iop!(|a, b| ((a as i32) >> b) as u32),
+            Op::SRLI => iop!(core::ops::Shr::shr),
+            Op::SLLI => iop!(|a, b| a << b),
+            Op::SLTI => iop!(|a, b| u32::from((a as i32) < b as i32)),
+            Op::SLTIU => iop!(|a, b| u32::from(a < b)),
+            Op::AND => rop!(core::ops::BitAnd::bitand),
+            Op::ANDI => iop!(core::ops::BitAnd::bitand),
+            Op::OR => rop!(core::ops::BitOr::bitor),
+            Op::ORI => iop!(core::ops::BitOr::bitor),
+            Op::XOR => rop!(core::ops::BitXor::bitxor),
+            Op::XORI => iop!(core::ops::BitXor::bitxor),
+            Op::SUB => rop!(u32::wrapping_sub),
 
             Op::LB => self.memory_load(&inst.data, lb),
             Op::LBU => self.memory_load(&inst.data, lbu),
             Op::LH => self.memory_load(&inst.data, lh),
             Op::LHU => self.memory_load(&inst.data, lhu),
             Op::LW => self.memory_load(&inst.data, lw),
+
             Op::ECALL => self.ecall(),
             Op::JAL => self.jal(&inst.data),
             Op::JALR => self.jalr(&inst.data),
@@ -186,16 +191,16 @@ impl State {
             Op::SW => self.store(&inst.data, 4),
             Op::SH => self.store(&inst.data, 2),
             Op::SB => self.store(&inst.data, 1),
-            Op::MUL => self.register_op(&inst.data, rop(u32::wrapping_mul)),
-            Op::MULH => self.register_op(&inst.data, rop(mulh)),
-            Op::MULHU => self.register_op(&inst.data, rop(mulhu)),
-            Op::MULHSU => self.register_op(&inst.data, rop(mulhsu)),
+            Op::MUL => rop!(u32::wrapping_mul),
+            Op::MULH => rop!(mulh),
+            Op::MULHU => rop!(mulhu),
+            Op::MULHSU => rop!(mulhsu),
             Op::LUI => self.lui(&inst.data),
             Op::AUIPC => self.auipc(&inst.data),
-            Op::DIV => self.register_op(&inst.data, rop(div)),
-            Op::DIVU => self.register_op(&inst.data, rop(divu)),
-            Op::REM => self.register_op(&inst.data, rop(rem)),
-            Op::REMU => self.register_op(&inst.data, rop(remu)),
+            Op::DIV => rop!(div),
+            Op::DIVU => rop!(divu),
+            Op::REM => rop!(rem),
+            Op::REMU => rop!(remu),
             // It's not important that these instructions are implemented for the sake of
             // our purpose at this moment, but these instructions are found in the test
             // data that we use - so we simply advance the register.
@@ -215,43 +220,36 @@ pub struct Row {
     pub inst: Instruction,
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct Vm {
-    pub rows: Vec<Row>,
-}
+/// Execute a program
+///
+/// # Errors
+/// This function returns an error, if an instruction could not be loaded
+/// or executed.
+///
+/// # Panics
+/// Panics in debug mode, when executing more steps than specified in
+/// environment variable `MOZAK_MAX_LOOPS` at compile time.  Defaults to one
+/// million steps.
+/// This is a temporary measure to catch problems with accidental infinite
+/// loops. (Matthias had some trouble debugging a problem with jumps
+/// earlier.)
+pub fn step(mut state: State) -> Result<(Vec<Row>, State)> {
+    let mut rows = vec![];
+    while !state.has_halted() {
+        let inst = state.current_instruction();
+        state = state.execute_instruction();
+        rows.push(Row {
+            state: state.clone(),
+            inst,
+        });
 
-impl Vm {
-    /// Execute a program
-    ///
-    /// # Errors
-    /// This function returns an error, if an instruction could not be loaded
-    /// or executed.
-    ///
-    /// # Panics
-    /// Panics in debug mode, when executing more steps than specified in
-    /// environment variable `MOZAK_MAX_LOOPS` at compile time.  Defaults to one
-    /// million steps.
-    /// This is a temporary measure to catch problems with accidental infinite
-    /// loops. (Matthias had some trouble debugging a problem with jumps
-    /// earlier.)
-    pub fn step(mut state: State) -> Result<(Self, State)> {
-        let mut rows = vec![];
-        while !state.has_halted() {
-            let inst = state.current_instruction();
-            state = state.execute_instruction();
-            rows.push(Row {
-                state: state.clone(),
-                inst,
-            });
-
-            if cfg!(debug_assertions) {
-                let limit: usize = std::option_env!("MOZAK_MAX_LOOPS")
-                    .map_or(1_000_000, |env_var| env_var.parse().unwrap());
-                debug_assert!(state.clk != limit, "Looped for longer than MOZAK_MAX_LOOPS");
-            }
+        if cfg!(debug_assertions) {
+            let limit: usize = std::option_env!("MOZAK_MAX_LOOPS")
+                .map_or(1_000_000, |env_var| env_var.parse().unwrap());
+            debug_assert!(state.clk != limit, "Looped for longer than MOZAK_MAX_LOOPS");
         }
-        Ok((Vm { rows }, state))
     }
+    Ok((rows, state))
 }
 
 #[cfg(test)]
@@ -260,7 +258,7 @@ mod tests {
     use im::hashmap::HashMap;
     use test_case::test_case;
 
-    use crate::{elf::Program, state::State, vm::Vm};
+    use crate::{elf::Program, state::State};
     impl State {
         pub fn set_register_value_mut(&mut self, index: usize, value: u32) {
             *self = self.clone().set_register_value(index, value);
@@ -321,7 +319,7 @@ mod tests {
             state.set_register_value(*rs, *val)
         });
 
-        let state = Vm::step(state).unwrap().1;
+        let state = super::step(state).unwrap().1;
         assert!(state.has_halted());
         state
     }

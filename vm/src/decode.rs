@@ -38,6 +38,8 @@ bitfield! {
     pub func12, _: 31, 20;
 }
 
+#[allow(clippy::too_many_lines)]
+#[allow(clippy::module_name_repetitions)]
 #[must_use]
 pub fn decode_instruction(word: u32) -> Instruction {
     let bf = InstructionBits(word);

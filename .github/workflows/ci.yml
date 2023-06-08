@@ -28,7 +28,10 @@ jobs:
   cargo-test:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # TODO(Matthias): restore `macos-latest` to run only on pushes to main or on a schedule.
+        # MacOS minutes are ten times more expensive than Ubuntu minutes, so this single job was
+        # eating 2/3 of our GitHub action spend.
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
