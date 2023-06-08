@@ -2,8 +2,7 @@ use im::hashmap::HashMap;
 use log::trace;
 use proptest::prelude::*;
 
-use crate::decode::decode_instruction;
-use crate::elf::Program;
+use crate::elf::{Code, Program};
 use crate::instruction::{Data, Instruction};
 
 /// State of our VM
@@ -19,13 +18,21 @@ pub struct State {
     registers: [u32; 32],
     pc: u32,
     memory: HashMap<u32, u8>,
+    // NOTE: meant to be immutable.
+    // TODO(Matthias): replace with an immutable reference,
+    // but need to sort out life-times first
+    // (ie sort out where the original lives.)
+    // This ain't super-urgent, because im::hashmap::HashMap is O(1) to clone.
+    code: Code,
 }
 
 impl From<Program> for State {
     fn from(program: Program) -> Self {
-        let memory: HashMap<u32, u8> = program.image.into_iter().collect();
+        let memory: HashMap<u32, u8> = program.image;
+        let code = program.code;
         Self {
             pc: program.entry,
+            code,
             memory,
             ..Default::default()
         }
@@ -169,9 +176,8 @@ impl State {
     #[must_use]
     pub fn current_instruction(&self) -> Instruction {
         let pc = self.get_pc();
-        let word = self.load_u32(pc);
-        let inst = decode_instruction(word);
-        trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}, Encoded Inst Word: {word:#x?}");
+        let inst = self.code.get_instruction(pc);
+        trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}");
         inst
     }
 }
