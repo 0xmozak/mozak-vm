@@ -18,17 +18,17 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_col
         trace[cpu_cols::COL_CLK][i] = F::from_canonical_usize(s.state.clk);
         trace[cpu_cols::COL_PC][i] = F::from_canonical_u32(s.state.get_pc());
 
-        trace[cpu_cols::COL_RS1][i] = F::from_canonical_u8(s.state.op1_reg);
-        trace[cpu_cols::COL_RS2][i] = F::from_canonical_u8(s.state.op2_reg);
-        trace[cpu_cols::COL_RD][i] = F::from_canonical_u8(s.state.dst_reg);
+        trace[cpu_cols::COL_RS1][i] = F::from_canonical_u8(s.inst.data.rs1);
+        trace[cpu_cols::COL_RS2][i] = F::from_canonical_u8(s.inst.data.rs2);
+        trace[cpu_cols::COL_RD][i] = F::from_canonical_u8(s.inst.data.rd);
 
         for j in 0..32_usize {
             trace[cpu_cols::COL_START_REG + j][i] =
                 F::from_canonical_u32(s.state.get_register_value(j));
         }
 
-        match s.state.opcode {
-            op if Op::ADD as u8 == op => trace[cpu_cols::COL_SADD][i] = F::from_canonical_u8(1),
+        match s.inst.op {
+            Op::ADD => trace[cpu_cols::COL_SADD][i] = F::from_canonical_u8(1),
             _ => {}
         }
     }

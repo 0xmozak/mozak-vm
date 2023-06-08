@@ -17,10 +17,6 @@ pub struct State {
     pub clk: usize,
     halted: bool,
     registers: [u32; 32],
-    pub op1_reg: u8,
-    pub op2_reg: u8,
-    pub dst_reg: u8,
-    pub opcode: u8,
     pc: u32,
     memory: HashMap<u32, u8>,
 }
@@ -45,10 +41,7 @@ impl State {
         let rs1 = self.get_register_value(data.rs1.into());
         let rs2 = self.get_register_value(data.rs2.into());
         let imm: u32 = data.imm;
-        self.set_op1_reg(data.rs1)
-            .set_op2_reg(data.rs2)
-            .set_dst_reg(data.rd)
-            .set_register_value(data.rd.into(), op(rs1, rs2, imm))
+        self.set_register_value(data.rd.into(), op(rs1, rs2, imm))
             .bump_pc()
     }
 
@@ -180,27 +173,6 @@ impl State {
         let inst = decode_instruction(word);
         trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}, Encoded Inst Word: {word:#x?}");
         inst
-    }
-
-    #[must_use]
-    pub fn set_op1_reg(mut self, value: u8) -> Self {
-        self.op1_reg = value;
-        self
-    }
-    #[must_use]
-    pub fn set_op2_reg(mut self, value: u8) -> Self {
-        self.op2_reg = value;
-        self
-    }
-    #[must_use]
-    pub fn set_dst_reg(mut self, value: u8) -> Self {
-        self.dst_reg = value;
-        self
-    }
-    #[must_use]
-    pub fn set_opcode(mut self, value: u8) -> Self {
-        self.opcode = value;
-        self
     }
 }
 
