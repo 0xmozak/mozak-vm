@@ -1,5 +1,4 @@
 pub mod config;
-pub mod constraint_consumer;
 pub mod mozak_stark;
 pub mod proof;
 pub mod prover;

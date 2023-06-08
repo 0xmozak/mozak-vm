@@ -20,7 +20,7 @@ use plonky2::util::transpose;
 use plonky2_maybe_rayon::*;
 
 use super::config::StarkConfig;
-use super::constraint_consumer::ConstraintConsumer;
+use starky::constraint_consumer::ConstraintConsumer;
 use super::mozak_stark::{MozakStark, NUM_TABLES};
 use super::proof::StarkOpeningSet;
 use super::proof::{AllProof, StarkProof};

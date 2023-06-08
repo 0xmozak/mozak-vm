@@ -4,7 +4,7 @@ use plonky2::fri::structure::{FriBatchInfo, FriInstanceInfo, FriOracleInfo, FriP
 use plonky2::{field::extension::Extendable, hash::hash_types::RichField};
 
 use super::config::StarkConfig;
-use super::constraint_consumer::ConstraintConsumer;
+use starky::constraint_consumer::ConstraintConsumer;
 use super::vars::StarkEvaluationVars;
 
 const TRACE_ORACLE_INDEX: usize = 0;

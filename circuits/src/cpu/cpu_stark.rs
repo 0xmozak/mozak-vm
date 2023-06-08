@@ -6,7 +6,7 @@ use plonky2::field::packed::PackedField;
 use plonky2::{field::extension::Extendable, hash::hash_types::RichField};
 
 use super::columns::*;
-use crate::stark::constraint_consumer::ConstraintConsumer;
+use starky::constraint_consumer::ConstraintConsumer;
 use crate::stark::stark::Stark;
 use crate::stark::vars::StarkEvaluationVars;
 

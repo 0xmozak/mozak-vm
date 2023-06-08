@@ -8,7 +8,7 @@ use plonky2::{
 };
 
 use super::config::StarkConfig;
-use super::constraint_consumer::ConstraintConsumer;
+use starky::constraint_consumer::ConstraintConsumer;
 use super::stark::Stark;
 use super::vars::StarkEvaluationVars;
 
