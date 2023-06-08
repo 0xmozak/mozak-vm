@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    instruction::{Data, Op},
+    instruction::{Data, Instruction, Op},
     state::State,
 };
 
@@ -212,6 +212,7 @@ impl State {
 #[derive(Debug, Clone, Default)]
 pub struct Row {
     pub state: State,
+    pub inst: Instruction,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -234,13 +235,13 @@ impl Vm {
     /// loops. (Matthias had some trouble debugging a problem with jumps
     /// earlier.)
     pub fn step(mut state: State) -> Result<(Self, State)> {
-        let mut rows = vec![Row {
-            state: state.clone(),
-        }];
+        let mut rows = vec![];
         while !state.has_halted() {
+            let inst = state.current_instruction();
             state = state.execute_instruction();
             rows.push(Row {
                 state: state.clone(),
+                inst,
             });
 
             if cfg!(debug_assertions) {
