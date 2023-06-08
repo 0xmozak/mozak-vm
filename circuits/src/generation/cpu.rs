@@ -11,7 +11,6 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_col
     } else {
         trace_len
     };
-    // TODO: May be need to duplicate last row?
 
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; cpu_cols::NUM_CPU_COLS];
     for (i, s) in step_rows.iter().enumerate() {
@@ -31,6 +30,17 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_col
             Op::ADD => trace[cpu_cols::COL_SADD][i] = F::from_canonical_u8(1),
             _ => {}
         }
+    }
+
+    // For expanded trace from `trace_len` to `trace_len's power of two`,
+    // we use last row to pad them.
+    if trace_len != ext_trace_len {
+        trace[cpu_cols::COL_CLK..cpu_cols::NUM_CPU_COLS]
+            .iter_mut()
+            .for_each(|row| {
+                let last = row[trace_len - 1];
+                row[trace_len..].fill(last);
+            });
     }
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
