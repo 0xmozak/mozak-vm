@@ -3,12 +3,13 @@ use std::marker::PhantomData;
 use anyhow::Result;
 use plonky2::field::extension::FieldExtension;
 use plonky2::field::packed::PackedField;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::{field::extension::Extendable, hash::hash_types::RichField};
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::stark::Stark;
+use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::*;
-use starky::constraint_consumer::ConstraintConsumer;
-use crate::stark::stark::Stark;
-use crate::stark::vars::StarkEvaluationVars;
+use super::{columns::*, *};
 
 #[derive(Copy, Clone, Default)]
 pub struct CpuStark<F, const D: usize> {
@@ -29,9 +30,10 @@ impl<F: RichField, const D: usize> CpuStark<F, D> {
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
     const COLUMNS: usize = NUM_CPU_COLS;
+    const PUBLIC_INPUTS: usize = 0;
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
-        vars: StarkEvaluationVars<FE, P, NUM_CPU_COLS>,
+        vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
         yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
@@ -74,6 +76,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         yield_constr.constraint((P::ONES - lv[COL_S_HALT]) * (nv[COL_PC] - pc_incr));
 
         // add constraint
+        add::eval_packed_generic(lv, nv, yield_constr);
 
         // Last row must be HALT
         yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);
@@ -81,5 +84,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 
     fn constraint_degree(&self) -> usize {
         5
+    }
+
+    fn eval_ext_circuit(
+        &self,
+        _builder: &mut CircuitBuilder<F, D>,
+        _vars: StarkEvaluationTargets<D, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+    ) {
+        unimplemented!()
     }
 }
