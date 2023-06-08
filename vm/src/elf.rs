@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 
 use anyhow::{anyhow, bail, Result};
+use derive_more::Deref;
 use elf::{endian::LittleEndian, file::Class, ElfBytes};
 use im::hashmap::HashMap;
 use itertools::Itertools;
@@ -24,7 +25,7 @@ pub struct Program {
     pub code: Code,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Deref)]
 pub struct Code(HashMap<u32, Instruction>);
 
 impl Code {
