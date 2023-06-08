@@ -17,6 +17,7 @@ bitfield = "0.14.0"
 im = "15.1.0"
 proptest = "1.2.0"
 itertools = "0.10.5"
+derive_more = "0.99.17"
 
 [dev-dependencies]
 env_logger = "0.10.0"
