@@ -1,6 +1,7 @@
 // Copyright 2023 MOZAK.
 
 use std::collections::HashSet;
+use std::ops::Deref;
 
 use anyhow::{anyhow, bail, Result};
 use elf::{endian::LittleEndian, file::Class, ElfBytes};
@@ -30,8 +31,15 @@ pub struct Code(HashMap<u32, Instruction>);
 impl Code {
     #[must_use]
     pub fn get_instruction(&self, pc: u32) -> Instruction {
-        let Code(code) = self;
-        code.get(&pc).copied().unwrap_or_default()
+        self.get(&pc).copied().unwrap_or_default()
+    }
+}
+
+impl Deref for Code {
+    type Target = HashMap<u32, Instruction>;
+
+    fn deref(&self) -> &HashMap<u32, Instruction> {
+        &self.0
     }
 }
 
