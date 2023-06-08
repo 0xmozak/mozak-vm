@@ -7,6 +7,7 @@ pub struct Data {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[repr(u8)]
 pub enum Op {
     ADD,
     ADDI,
