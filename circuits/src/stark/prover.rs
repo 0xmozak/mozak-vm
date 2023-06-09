@@ -65,7 +65,30 @@ where
 #[cfg(test)]
 mod test {
     use mozak_vm::test_utils::simple_test;
+    use plonky2::{
+        plonk::config::{GenericConfig, PoseidonGoldilocksConfig},
+        util::timing::TimingTree,
+    };
+    use starky::config::StarkConfig;
+
+    use super::prove;
+    use crate::stark::mozak_stark::MozakStark;
 
     #[test]
-    fn prove_add() {}
+    fn prove_add() {
+        let (rows, state) = simple_test(
+            4,
+            &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
+            &[(6, 100), (7, 100)],
+        );
+        assert_eq!(state.get_register_value(5), 100 + 100);
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        type S = MozakStark<F, D>;
+        let config = StarkConfig::standard_fast_config();
+        let mut stark = S::default();
+        let proof = prove::<F, C, D>(rows, &mut stark, &config, &mut TimingTree::default());
+        assert!(proof.is_ok());
+    }
 }

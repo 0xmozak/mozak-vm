@@ -69,6 +69,7 @@ fn create_prog(image: HashMap<u32, u32>) -> State {
     State::from(Program::from(image))
 }
 
+#[must_use]
 pub fn simple_test(exit_at: u32, mem: &[(u32, u32)], regs: &[(usize, u32)]) -> (Vec<Row>, State) {
     // TODO(Matthias): stick this line into proper common setup?
     let _ = env_logger::try_init();
