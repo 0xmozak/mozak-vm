@@ -17,6 +17,8 @@ pub mod decode;
 pub mod elf;
 pub mod instruction;
 pub mod state;
+#[cfg(feature = "test")]
+pub mod test_utils;
 pub mod util;
 pub mod vm;
 

@@ -253,6 +253,7 @@ pub fn step(mut state: State) -> Result<(Vec<Row>, State)> {
 }
 
 #[cfg(test)]
+#[cfg(feature = "test")]
 mod tests {
     use anyhow::Result;
     use im::hashmap::HashMap;
@@ -260,10 +261,6 @@ mod tests {
 
     use crate::{elf::Program, state::State};
     impl State {
-        pub fn set_register_value_mut(&mut self, index: usize, value: u32) {
-            *self = self.clone().set_register_value(index, value);
-        }
-
         pub fn set_pc_mut(&mut self, value: u32) {
             *self = self.clone().set_pc(value);
         }

@@ -16,6 +16,7 @@ use mozak_vm::vm::step;
 /// To use these tests, this macro specifically asserts that the value of
 /// x10 = 0 at the end of a run, as defined by RVTEST_PASS here: https://github.com/riscv/riscv-test-env/blob/4fabfb4e0d3eacc1dc791da70e342e4b68ea7e46/p/riscv_test.h#L247-L252
 /// Custom tests may be added as long as the assertion is respected.
+#[cfg(feature = "test")]
 macro_rules! test_elf {
     ($test_name:ident, $file_name:tt) => {
         #[test]
