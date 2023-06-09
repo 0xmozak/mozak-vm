@@ -61,3 +61,11 @@ where
         compress_challenges,
     })
 }
+
+#[cfg(test)]
+mod test {
+    use mozak_vm::test_utils::simple_test;
+
+    #[test]
+    fn prove_add() {}
+}

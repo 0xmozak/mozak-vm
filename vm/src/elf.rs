@@ -60,26 +60,6 @@ impl From<HashMap<u32, u8>> for Program {
     }
 }
 
-#[cfg(test)]
-impl From<HashMap<u32, u32>> for Program {
-    fn from(image: HashMap<u32, u32>) -> Self {
-        let image = image
-            .iter()
-            .flat_map(move |(k, v)| {
-                v.to_le_bytes()
-                    .into_iter()
-                    .enumerate()
-                    .map(move |(i, b)| (k + i as u32, b))
-            })
-            .collect();
-        Self {
-            entry: 0_u32,
-            code: Code::from(&image),
-            image,
-        }
-    }
-}
-
 impl Program {
     /// Initialize a RISC Program from an appropriate ELF file
     ///
