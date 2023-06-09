@@ -59,8 +59,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
             .constraint((P::ONES - lv[COL_S_HALT]) * (nv[COL_CLK] - (lv[COL_CLK] + P::ONES)));
 
         // Registers
-        // Register used as destination register can have different value, all other regs
-        // have same value as of previous row.
+        // Register used as destination register can have different value, all other
+        // regs have same value as of previous row.
         for reg in 0..32 {
             let reg_index = COL_REGS.start + reg;
             yield_constr.constraint(
@@ -83,7 +83,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     }
 
     fn constraint_degree(&self) -> usize {
-        5
+        2
     }
 
     fn eval_ext_circuit(

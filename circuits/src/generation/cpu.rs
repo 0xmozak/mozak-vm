@@ -36,6 +36,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_col
 
         match s.inst.op {
             Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::from_canonical_u8(1),
+            Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::from_canonical_u8(1),
             _ => {}
         }
     }
