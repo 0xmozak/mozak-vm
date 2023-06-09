@@ -42,7 +42,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_col
     }
 
     // For expanded trace from `trace_len` to `trace_len's power of two`,
-    // we use last row `HALT` to pad them. 
+    // we use last row `HALT` to pad them.
     if trace_len != ext_trace_len {
         trace[cpu_cols::COL_CLK..cpu_cols::NUM_CPU_COLS]
             .iter_mut()
