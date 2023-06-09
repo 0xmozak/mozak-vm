@@ -254,51 +254,10 @@ pub fn step(mut state: State) -> Result<(Vec<Row>, State)> {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
     use im::hashmap::HashMap;
     use test_case::test_case;
 
     use crate::{elf::Program, state::State};
-    impl State {
-        pub fn set_register_value_mut(&mut self, index: usize, value: u32) {
-            *self = self.clone().set_register_value(index, value);
-        }
-
-        pub fn set_pc_mut(&mut self, value: u32) {
-            *self = self.clone().set_pc(value);
-        }
-
-        #[must_use]
-        pub fn get_register_value_signed(&self, index: usize) -> i32 {
-            self.get_register_value(index) as i32
-        }
-
-        /// Store a word to memory
-        ///
-        /// # Errors
-        /// This function returns an error, if you try to store to an invalid
-        /// address.
-        pub fn store_u32(&mut self, addr: u32, value: u32) -> Result<()> {
-            let bytes = value.to_le_bytes();
-            for (i, byte) in bytes.iter().enumerate() {
-                *self = self.clone().store_u8(addr + i as u32, *byte);
-            }
-            Ok(())
-        }
-
-        /// Load a halfword from memory
-        ///
-        /// # Errors
-        /// This function returns an error, if you try to load from an invalid
-        /// address.
-        #[must_use]
-        pub fn load_u16(&self, addr: u32) -> u16 {
-            let mut bytes = [0_u8; 2];
-            bytes[0] = self.load_u8(addr);
-            bytes[1] = self.load_u8(addr + 1_u32);
-            u16::from_le_bytes(bytes)
-        }
-    }
 
     fn create_prog(image: HashMap<u32, u32>) -> State {
         State::from(Program::from(image))
@@ -894,7 +853,7 @@ mod tests {
         // LUI x1, -524288
         let state = simple_test(4, &[(0_u32, 0x8000_00b7)], &[]);
         assert_eq!(state.get_register_value(1), 0x8000_0000);
-        assert_eq!(state.get_register_value_signed(1), -2_147_483_648);
+        assert_eq!(state.get_register_value(1) as i32, -2_147_483_648);
     }
 
     #[test]
@@ -911,7 +870,7 @@ mod tests {
             &[],
         );
         assert_eq!(state.get_register_value(1), 0x8000_0004);
-        assert_eq!(state.get_register_value_signed(1), -2_147_483_644);
+        assert_eq!(state.get_register_value(1) as i32, -2_147_483_644);
     }
 
     #[test]
