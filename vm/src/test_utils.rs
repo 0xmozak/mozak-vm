@@ -6,44 +6,7 @@ use crate::state::State;
 use crate::vm::{step, Row};
 
 impl State {
-    pub fn set_register_value_mut(&mut self, index: usize, value: u32) {
-        *self = self.clone().set_register_value(index, value);
-    }
 
-    pub fn set_pc_mut(&mut self, value: u32) {
-        *self = self.clone().set_pc(value);
-    }
-
-    #[must_use]
-    pub fn get_register_value_signed(&self, index: usize) -> i32 {
-        self.get_register_value(index) as i32
-    }
-
-    /// Store a word to memory
-    ///
-    /// # Errors
-    /// This function returns an error, if you try to store to an invalid
-    /// address.
-    pub fn store_u32(&mut self, addr: u32, value: u32) -> Result<()> {
-        let bytes = value.to_le_bytes();
-        for (i, byte) in bytes.iter().enumerate() {
-            *self = self.clone().store_u8(addr + i as u32, *byte);
-        }
-        Ok(())
-    }
-
-    /// Load a halfword from memory
-    ///
-    /// # Errors
-    /// This function returns an error, if you try to load from an invalid
-    /// address.
-    #[must_use]
-    pub fn load_u16(&self, addr: u32) -> u16 {
-        let mut bytes = [0_u8; 2];
-        bytes[0] = self.load_u8(addr);
-        bytes[1] = self.load_u8(addr + 1_u32);
-        u16::from_le_bytes(bytes)
-    }
 }
 
 impl From<HashMap<u32, u32>> for Program {
