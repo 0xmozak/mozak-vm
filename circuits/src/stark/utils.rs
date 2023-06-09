@@ -5,6 +5,6 @@ pub fn trace_to_poly_values<F: Field, const COLUMNS: usize>(
 ) -> Vec<PolynomialValues<F>> {
     trace
         .into_iter()
-        .map(|row| PolynomialValues::new(row))
+        .map(PolynomialValues::new)
         .collect()
 }
