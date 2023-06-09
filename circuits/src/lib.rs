@@ -5,5 +5,6 @@
 
 pub mod cpu;
 pub mod generation;
+pub mod memory;
 pub mod stark;
 pub mod utils;
