@@ -17,11 +17,13 @@ bitfield = "0.14.0"
 im = "15.1.0"
 itertools = "0.10.5"
 derive_more = "0.99.17"
+env_logger = { version = "0.10.0", optional = true }
 
 [dev-dependencies]
-env_logger = "0.10.0"
 test-case = "3.1.0"
+env_logger = { version = "0.10.0" }
 
 [features]
 default = ["std"]
 std = ["anyhow/std"]
+test = ["env_logger"]
