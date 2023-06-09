@@ -5,10 +5,6 @@ use crate::elf::{Code, Program};
 use crate::state::State;
 use crate::vm::{step, Row};
 
-impl State {
-
-}
-
 impl From<HashMap<u32, u32>> for Program {
     fn from(image: HashMap<u32, u32>) -> Self {
         let image = image
