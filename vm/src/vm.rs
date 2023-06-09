@@ -850,7 +850,7 @@ mod tests {
 
     #[test]
     fn system_opcode_instructions() {
-        simple_test(
+        let _ = simple_test(
             20,
             &[
                 // mret
