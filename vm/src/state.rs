@@ -1,6 +1,5 @@
 use im::hashmap::HashMap;
 use log::trace;
-use proptest::prelude::*;
 
 use crate::elf::{Code, Program};
 use crate::instruction::{Data, Instruction};
