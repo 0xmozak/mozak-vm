@@ -4,6 +4,7 @@ use crate::elf::Program;
 use crate::state::State;
 use crate::vm::{step, Row};
 
+#[must_use]
 fn create_prog(image: HashMap<u32, u32>) -> State {
     State::from(Program::from(image))
 }
