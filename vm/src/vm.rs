@@ -839,7 +839,7 @@ mod tests {
         // LUI x1, -524288
         let (_rows, state) = simple_test(4, &[(0_u32, 0x8000_00b7)], &[]);
         assert_eq!(state.get_register_value(1), 0x8000_0000);
-        assert_eq!(state.get_register_value_signed(1), -2_147_483_648);
+        assert_eq!(state.get_register_value(1) as i32, -2_147_483_648);
     }
 
     #[test]
@@ -856,7 +856,7 @@ mod tests {
             &[],
         );
         assert_eq!(state.get_register_value(1), 0x8000_0004);
-        assert_eq!(state.get_register_value_signed(1), -2_147_483_644);
+        assert_eq!(state.get_register_value(1) as i32, -2_147_483_644);
     }
 
     #[test]
