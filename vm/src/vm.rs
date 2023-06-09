@@ -253,7 +253,6 @@ pub fn step(mut state: State) -> Result<(Vec<Row>, State)> {
 }
 
 #[cfg(test)]
-#[cfg(feature = "test")]
 mod tests {
     use anyhow::Result;
     use im::hashmap::HashMap;
