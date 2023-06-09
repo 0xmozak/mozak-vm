@@ -54,11 +54,9 @@ where
     )?;
     let stark_proofs = [cpu_proof];
 
-    let compress_challenges = [mozak_stark.cpu_stark.get_compress_challenge().unwrap()];
 
     Ok(AllProof {
         stark_proofs,
-        compress_challenges,
     })
 }
 
@@ -77,8 +75,19 @@ mod test {
     #[test]
     fn prove_add() {
         let (rows, state) = simple_test(
-            4,
-            &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
+            48,
+            &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */),
+            (4_u32, 0x0073_02b3 /* add r5, r6, r7 */),
+            (8_u32, 0x0073_02b3 /* add r5, r6, r7 */),
+            (12_u32, 0x0073_02b3 /* add r5, r6, r7 */),
+            (16_u32, 0x0073_02b3 /* add r5, r6, r7 */),
+            (20_u32, 0x0073_02b3 /* add r5, r6, r7 */),
+            (24_u32, 0x0073_02b3 /* add r5, r6, r7 */),
+            (28_u32, 0x0073_02b3 /* add r5, r6, r7 */),
+            (32_u32, 0x0073_02b3 /* add r5, r6, r7 */),
+            (36_u32, 0x0073_02b3 /* add r5, r6, r7 */),
+            (40_u32, 0x0073_02b3 /* add r5, r6, r7 */),
+            (44_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
             &[(6, 100), (7, 100)],
         );
         assert_eq!(state.get_register_value(5), 100 + 100);

@@ -41,6 +41,17 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_col
         }
     }
 
+    // For expanded trace from `trace_len` to `trace_len's power of two`,
+    // we use last row `HALT` to pad them. 
+    if trace_len != ext_trace_len {
+        trace[cpu_cols::COL_CLK..cpu_cols::NUM_CPU_COLS]
+            .iter_mut()
+            .for_each(|row| {
+                let last = row[trace_len - 1];
+                row[trace_len..].fill(last);
+            });
+    }
+
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
             "Expected a Vec of length {} but it was {}",

@@ -8,5 +8,4 @@ use super::mozak_stark::NUM_TABLES;
 #[derive(Debug, Clone)]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     pub stark_proofs: [StarkProofWithPublicInputs<F, C, D>; NUM_TABLES],
-    pub compress_challenges: [F; NUM_TABLES],
 }
