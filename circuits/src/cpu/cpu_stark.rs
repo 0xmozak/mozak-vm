@@ -28,9 +28,44 @@ impl<F: RichField, const D: usize> CpuStark<F, D> {
     }
 }
 
+impl<F: RichField + Extendable<D>, const D: usize> CpuStark<F, D> {
+    /// Selector of opcode, builtins and halt should be one-hot encoded.
+    ///
+    /// Ie exactly one of them should be by 1, all others by 0 in each row.
+    /// See <https://en.wikipedia.org/wiki/One-hot>
+    fn opcode_one_hot<FE, P, const D2: usize>(lv: &[P], yield_constr: &mut ConstraintConsumer<P>)
+    where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>,
+    {
+        let op_selectors = [lv[COL_S_ADD], lv[COL_S_HALT]];
+
+        op_selectors
+            .iter()
+            .for_each(|s| yield_constr.constraint(*s * (P::ONES - *s)));
+
+        // Only one opcode selector enabled.
+        let sum_s_op: P = op_selectors.into_iter().sum();
+        yield_constr.constraint(P::ONES - sum_s_op);
+    }
+
+    /// Ensure clock is ticking up
+    fn clock_ticks<FE, P, const D2: usize>(
+        lv: &[P],
+        nv: &[P],
+        yield_constr: &mut ConstraintConsumer<P>,
+    ) where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>,
+    {
+        yield_constr.constraint(nv[COL_CLK] - (lv[COL_CLK] + P::ONES));
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
     const COLUMNS: usize = NUM_CPU_COLS;
     const PUBLIC_INPUTS: usize = 0;
+
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
@@ -41,22 +76,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     {
         let lv = vars.local_values;
         let nv = vars.next_values;
-        // Selector of opcode, builtins and halt should be binary.
-        let op_selectors = [lv[COL_S_ADD], lv[COL_S_HALT]];
 
-        op_selectors
-            .iter()
-            .for_each(|s| yield_constr.constraint(*s * (P::ONES - *s)));
-
-        // Only one opcode selector enabled.
-        let sum_s_op: P = op_selectors.into_iter().sum();
-        yield_constr.constraint(P::ONES - sum_s_op);
+        Self::opcode_one_hot(lv, yield_constr);
 
         // Constrain state changing.
-        // clk
-        // if its already halted we can ignore this constraint
-        yield_constr
-            .constraint((P::ONES - lv[COL_S_HALT]) * (nv[COL_CLK] - (lv[COL_CLK] + P::ONES)));
+        Self::clock_ticks(lv, nv, yield_constr);
 
         // Registers
         // Register used as destination register can have different value, all other
