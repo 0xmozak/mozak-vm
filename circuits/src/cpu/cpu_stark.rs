@@ -60,6 +60,24 @@ impl<F: RichField + Extendable<D>, const D: usize> CpuStark<F, D> {
     {
         yield_constr.constraint(nv[COL_CLK] - (lv[COL_CLK] + P::ONES));
     }
+    /// Register used as destination register can have different value, all
+    /// other regs have same value as of previous row.
+    fn only_rd_changes<FE, P, const D2: usize>(
+        lv: &[P],
+        nv: &[P],
+        yield_constr: &mut ConstraintConsumer<P>,
+    ) where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>,
+    {
+        for reg in 0..32 {
+            let reg_index = COL_REGS.start + reg;
+            yield_constr.constraint(
+                (lv[COL_RD] - P::Scalar::from_canonical_u32(reg as u32))
+                    * (lv[reg_index] - nv[reg_index]),
+            );
+        }
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
@@ -79,28 +97,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 
         Self::opcode_one_hot(lv, yield_constr);
 
-        // Constrain state changing.
         Self::clock_ticks(lv, nv, yield_constr);
 
         // Registers
-        // Register used as destination register can have different value, all other
-        // regs have same value as of previous row.
-        for reg in 0..32 {
-            let reg_index = COL_REGS.start + reg;
-            yield_constr.constraint(
-                (lv[COL_RD] - P::Scalar::from_canonical_u32(reg as u32))
-                    * (lv[reg_index] - nv[reg_index]),
-            );
-        }
+        Self::only_rd_changes(lv, nv, yield_constr);
 
-        // pc
-        // if its already halted we can ignore this constraint
-        let incr_wo_branch = P::ONES + P::ONES + P::ONES + P::ONES;
-        let pc_incr = lv[COL_PC] + incr_wo_branch;
-        yield_constr.constraint((P::ONES - lv[COL_S_HALT]) * (nv[COL_PC] - pc_incr));
 
         // add constraint
         add::eval_packed_generic(lv, nv, yield_constr);
+        halt::eval_packed_generic(lv, nv, yield_constr);
 
         // Last row must be HALT
         yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);
