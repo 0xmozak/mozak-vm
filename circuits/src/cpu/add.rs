@@ -13,5 +13,6 @@ pub(crate) fn eval_packed_generic<P: PackedField>(
         .constraint(lv[COL_S_ADD] * (lv[COL_DST_VALUE] - (lv[COL_OP1_VALUE] + lv[COL_OP2_VALUE])));
 
     // pc ticks up
-    yield_constr.constraint((lv[COL_S_ADD]) * (nv[COL_PC] - lv[COL_PC] + column_of_xs(4_u32)));
+    let inc: P = column_of_xs(4_u32);
+    yield_constr.constraint((lv[COL_S_ADD]) * (nv[COL_PC] - lv[COL_PC] + inc));
 }

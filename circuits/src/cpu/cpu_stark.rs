@@ -59,15 +59,11 @@ fn clock_ticks<P: PackedField>(
 
 /// Register used as destination register can have different value, all
 /// other regs have same value as of previous row.
-fn only_rd_changes<P: PackedField, F, FE, const D2: usize>(
+fn only_rd_changes<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     nv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
-) where
-    F: RichField,
-    FE: FieldExtension<D2, BaseField = F>,
-    P: PackedField<Scalar = FE>,
-{
+) {
     // Note: register 0 is already always 0.
     // But we keep the constraints simple here.
     for reg in 0..32 {
