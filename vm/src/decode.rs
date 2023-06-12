@@ -118,7 +118,7 @@ pub fn decode_instruction(word: u32) -> Instruction {
             _ => Default::default(),
         },
         0b001_0011 => match bf.func3() {
-            0x0 => (Op::ADDI, itype),
+            0x0 => (Op::ADD, itype),
             0x1 => (Op::SLLI, itype),
             0x2 => (Op::SLTI, itype),
             0x3 => (Op::SLTIU, itype),
@@ -212,7 +212,7 @@ mod test {
         let imm = imm as u32;
         let ins: Instruction = decode_instruction(word);
         let match_ins = Instruction {
-            op: Op::ADDI,
+            op: Op::ADD,
             data: Data {
                 rs1,
                 rd,
