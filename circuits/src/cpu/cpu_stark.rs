@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use anyhow::Result;
 use plonky2::field::extension::FieldExtension;
 use plonky2::field::packed::PackedField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -14,19 +13,8 @@ use crate::utils::from_;
 
 #[derive(Copy, Clone, Default)]
 pub struct CpuStark<F, const D: usize> {
-    compress_challenge: Option<F>,
-    pub f: PhantomData<F>,
-}
-
-impl<F: RichField, const D: usize> CpuStark<F, D> {
-    pub fn set_compress_challenge(&mut self, challenge: F) -> Result<()> {
-        assert!(self.compress_challenge.is_none(), "already set?");
-        self.compress_challenge = Some(challenge);
-        Ok(())
-    }
-    pub fn get_compress_challenge(&self) -> Option<F> {
-        self.compress_challenge
-    }
+    _compress_challenge: Option<F>,
+    pub _f: PhantomData<F>,
 }
 
 /// Selector of opcode, builtins and halt should be one-hot encoded.
