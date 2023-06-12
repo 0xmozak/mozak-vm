@@ -11,8 +11,7 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
         trace[cpu_cols::COL_CLK..cpu_cols::NUM_CPU_COLS]
             .iter_mut()
             .for_each(|col| {
-                let last = col.last().unwrap();
-                col.extend(vec![*last; padded_len - len]);
+                col.extend(vec![*col.last().unwrap(); padded_len - len]);
             });
     }
     trace
