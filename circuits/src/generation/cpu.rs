@@ -29,8 +29,6 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_col
         trace[cpu_cols::COL_RD][i] = from_(s.inst.data.rd);
         trace[cpu_cols::COL_OP1_VALUE][i] =
             from_(s.state.get_register_value(usize::from(s.inst.data.rs1)));
-        // TODO(Vivek): Soon we support immediate values as opd2 in some instructions.
-        // So below line will change accordingly.
         trace[cpu_cols::COL_OP2_VALUE][i] =
             from_(s.state.get_register_value(usize::from(s.inst.data.rs2)));
         trace[cpu_cols::COL_DST_VALUE][i] =
@@ -42,6 +40,11 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_col
 
         match s.inst.op {
             Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,
+            Op::ADDI => {
+                trace[cpu_cols::COL_S_ADD][i] = F::ONE;
+                // override value of OP2, as its immediate operand
+                trace[cpu_cols::COL_OP2_VALUE][i] = from_(s.inst.data.imm);
+            }
             Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             _ => {}
         }

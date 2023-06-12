@@ -103,4 +103,24 @@ mod test {
         let proof = prove::<F, C, D>(rows, &mut stark, &config, &mut TimingTree::default());
         assert!(proof.is_ok());
     }
+
+    #[test]
+    fn prove_addi() {
+        let (rows, state) = simple_test(
+            4,
+            &[(0_u32, 0x06428313 /* addi r6, r5, 100 */)],
+            &[(5, 100)],
+        );
+        assert_eq!(state.get_register_value(6), 100 + 100);
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        type S = MozakStark<F, D>;
+        let mut config = StarkConfig::standard_fast_config();
+        config.fri_config.cap_height = 0;
+
+        let mut stark = S::default();
+        let proof = prove::<F, C, D>(rows, &mut stark, &config, &mut TimingTree::default());
+        assert!(proof.is_ok());
+    }
 }
