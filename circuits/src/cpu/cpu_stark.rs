@@ -13,7 +13,6 @@ use crate::utils::from_;
 
 #[derive(Copy, Clone, Default)]
 pub struct CpuStark<F, const D: usize> {
-    _compress_challenge: Option<F>,
     pub _f: PhantomData<F>,
 }
 
