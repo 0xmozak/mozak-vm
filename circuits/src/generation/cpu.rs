@@ -8,7 +8,6 @@ use crate::utils::from_;
 pub fn pad_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
     let len = trace[0].len();
     if let Some(padded_len) = len.checked_next_power_of_two() {
-        println!("len: {len}, padded_len: {padded_len}");
         trace[cpu_cols::COL_CLK..cpu_cols::NUM_CPU_COLS]
             .iter_mut()
             .for_each(|col| {
