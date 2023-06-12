@@ -4,7 +4,7 @@ use starky::constraint_consumer::ConstraintConsumer;
 use super::columns::*;
 use crate::utils::column_of_xs;
 
-pub(crate) fn eval_packed_generic<P: PackedField>(
+pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     nv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
