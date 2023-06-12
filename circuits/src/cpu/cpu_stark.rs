@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use anyhow::Result;
 use plonky2::field::extension::FieldExtension;
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::{field::extension::Extendable, hash::hash_types::RichField};
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
@@ -28,56 +29,55 @@ impl<F: RichField, const D: usize> CpuStark<F, D> {
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CpuStark<F, D> {
-    /// Selector of opcode, builtins and halt should be one-hot encoded.
-    ///
-    /// Ie exactly one of them should be by 1, all others by 0 in each row.
-    /// See <https://en.wikipedia.org/wiki/One-hot>
-    fn opcode_one_hot<FE, P, const D2: usize>(lv: &[P], yield_constr: &mut ConstraintConsumer<P>)
-    where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>,
-    {
-        let op_selectors = [lv[COL_S_ADD], lv[COL_S_HALT]];
+/// Selector of opcode, builtins and halt should be one-hot encoded.
+///
+/// Ie exactly one of them should be by 1, all others by 0 in each row.
+/// See <https://en.wikipedia.org/wiki/One-hot>
+fn opcode_one_hot<P: PackedField>(
+    lv: &[P; NUM_CPU_COLS],
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    let op_selectors = [lv[COL_S_ADD], lv[COL_S_HALT]];
 
-        op_selectors
-            .iter()
-            .for_each(|s| yield_constr.constraint(*s * (P::ONES - *s)));
+    op_selectors
+        .into_iter()
+        .for_each(|s| yield_constr.constraint(s * (P::ONES - s)));
 
-        // Only one opcode selector enabled.
-        let sum_s_op: P = op_selectors.into_iter().sum();
-        yield_constr.constraint(P::ONES - sum_s_op);
-    }
+    // Only one opcode selector enabled.
+    let sum_s_op: P = op_selectors.into_iter().sum();
+    yield_constr.constraint(P::ONES - sum_s_op);
+}
 
-    /// Ensure clock is ticking up
-    fn clock_ticks<FE, P, const D2: usize>(
-        lv: &[P],
-        nv: &[P],
-        yield_constr: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>,
-    {
-        yield_constr.constraint(nv[COL_CLK] - (lv[COL_CLK] + P::ONES));
+/// Ensure clock is ticking up
+fn clock_ticks<P: PackedField>(
+    lv: &[P; NUM_CPU_COLS],
+    nv: &[P; NUM_CPU_COLS],
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    yield_constr.constraint(nv[COL_CLK] - (lv[COL_CLK] + P::ONES));
+}
+
+/// Register used as destination register can have different value, all
+/// other regs have same value as of previous row.
+fn only_rd_changes<P: PackedField>(
+    lv: &[P; NUM_CPU_COLS],
+    nv: &[P; NUM_CPU_COLS],
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    // Note: register 0 is already always 0.
+    // But we keep the constraints simple here.
+    for reg in 0..32 {
+        let reg_index = COL_REGS.start + reg;
+        yield_constr.constraint(
+            (lv[COL_RD] - P::Scalar::from_canonical_u32(reg as u32))
+                * (lv[reg_index] - nv[reg_index]),
+        );
     }
-    /// Register used as destination register can have different value, all
-    /// other regs have same value as of previous row.
-    fn only_rd_changes<FE, P, const D2: usize>(
-        lv: &[P],
-        nv: &[P],
-        yield_constr: &mut ConstraintConsumer<P>,
-    ) where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>,
-    {
-        for reg in 0..32 {
-            let reg_index = COL_REGS.start + reg;
-            yield_constr.constraint(
-                (lv[COL_RD] - P::Scalar::from_canonical_u32(reg as u32))
-                    * (lv[reg_index] - nv[reg_index]),
-            );
-        }
-    }
+}
+
+/// Register 0 is always 0
+fn r0_always_0<P: PackedField>(lv: &[P; NUM_CPU_COLS], yield_constr: &mut ConstraintConsumer<P>) {
+    yield_constr.constraint(lv[COL_RD]);
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
@@ -95,13 +95,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         let lv = vars.local_values;
         let nv = vars.next_values;
 
-        Self::opcode_one_hot(lv, yield_constr);
+        opcode_one_hot(lv, yield_constr);
 
-        Self::clock_ticks(lv, nv, yield_constr);
+        clock_ticks(lv, nv, yield_constr);
 
         // Registers
-        Self::only_rd_changes(lv, nv, yield_constr);
-
+        only_rd_changes(lv, nv, yield_constr);
+        r0_always_0(lv, yield_constr);
 
         // add constraint
         add::eval_packed_generic(lv, nv, yield_constr);
