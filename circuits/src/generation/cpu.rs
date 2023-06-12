@@ -5,15 +5,21 @@ use plonky2::hash::hash_types::RichField;
 use crate::cpu::columns as cpu_cols;
 use crate::utils::from_;
 
+pub fn pad_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
+    let len = trace[0].len();
+    if let Some(padded_len) = len.checked_next_power_of_two() {
+        trace[cpu_cols::COL_CLK..cpu_cols::NUM_CPU_COLS]
+            .iter_mut()
+            .for_each(|col| {
+                col.extend(vec![*col.last().unwrap(); padded_len - len]);
+            });
+    }
+    trace
+}
+
 pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {
     let trace_len = step_rows.len();
-    let ext_trace_len = if !trace_len.is_power_of_two() {
-        trace_len.next_power_of_two()
-    } else {
-        trace_len
-    };
-
-    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; cpu_cols::NUM_CPU_COLS];
+    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; trace_len]; cpu_cols::NUM_CPU_COLS];
     for (i, s) in step_rows.iter().enumerate() {
         trace[cpu_cols::COL_CLK][i] = from_(s.state.clk);
         trace[cpu_cols::COL_PC][i] = from_(s.state.get_pc());
@@ -43,14 +49,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_col
 
     // For expanded trace from `trace_len` to `trace_len's power of two`,
     // we use last row `HALT` to pad them.
-    if trace_len != ext_trace_len {
-        trace[cpu_cols::COL_CLK..cpu_cols::NUM_CPU_COLS]
-            .iter_mut()
-            .for_each(|row| {
-                let last = row[trace_len - 1];
-                row[trace_len..].fill(last);
-            });
-    }
+    let trace = pad_trace(trace);
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
