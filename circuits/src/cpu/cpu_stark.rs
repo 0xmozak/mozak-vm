@@ -63,14 +63,14 @@ fn only_rd_changes<P: PackedField>(
 
 /// Register 0 is always 0
 fn r0_always_0<P: PackedField>(lv: &[P; NUM_CPU_COLS], yield_constr: &mut ConstraintConsumer<P>) {
-    yield_constr.constraint(lv[COL_RD]);
+    yield_constr.constraint(lv[COL_REGS.start]);
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
     const COLUMNS: usize = NUM_CPU_COLS;
     const PUBLIC_INPUTS: usize = 0;
 
-    fn eval_packed_generic<FE, P, const D2: usize>(
+    fn constraints<FE, P, const D2: usize>(
         &self,
         vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
         yield_constr: &mut ConstraintConsumer<P>,

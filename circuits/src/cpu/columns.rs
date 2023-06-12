@@ -18,3 +18,29 @@ pub(crate) const COL_S_BEQ: usize = COL_S_ADD + 1;
 pub(crate) const COL_S_HALT: usize = COL_S_BEQ + 1;
 
 pub(crate) const NUM_CPU_COLS: usize = COL_S_HALT + 1;
+
+pub struct OpCodeRow<F> {
+    add: F,
+    beq: F,
+    halt: F,
+}
+
+pub struct Row<F> {
+    pub clk: F,
+    pub pc: F,
+    pub rs1: F,
+    pub rs2: F,
+    pub rd: F,
+    pub rs1_val: F,
+    pub rs2_val: F,
+    pub imm: F,
+    pub rd_val: F,
+    pub regs: [F; 32],
+    pub op_codes: OpCodeRow<F>,
+}
+
+impl<F> From<Row<F>> for Vec<F> {
+    fn from(row: Row<F>) -> Self {
+        unimplemented!()
+    }
+}
