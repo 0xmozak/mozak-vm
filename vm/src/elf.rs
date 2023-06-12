@@ -60,7 +60,6 @@ impl From<HashMap<u32, u8>> for Program {
     }
 }
 
-#[cfg(test)]
 impl From<HashMap<u32, u32>> for Program {
     fn from(image: HashMap<u32, u32>) -> Self {
         let image = image
