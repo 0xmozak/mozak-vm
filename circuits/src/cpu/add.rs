@@ -9,8 +9,9 @@ pub(crate) fn constraints<P: PackedField>(
     nv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    yield_constr
-        .constraint(lv[COL_S_ADD] * (lv[COL_DST_VALUE] - (lv[COL_OP1_VALUE] + lv[COL_OP2_VALUE])));
+    yield_constr.constraint(
+        lv[COL_S_ADD] * (lv[COL_DST_VALUE] - (lv[COL_OP1_VALUE] + lv[COL_OP2_VALUE] + lv[COL_IMM])),
+    );
 
     // pc ticks up
     let inc: P = column_of_xs(4_u32);
