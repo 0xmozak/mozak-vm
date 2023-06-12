@@ -67,7 +67,6 @@ fn only_rd_changes<P: PackedField, F, FE, const D2: usize>(
     F: RichField,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
-    // P::Scalar: Field64
 {
     // Note: register 0 is already always 0.
     // But we keep the constraints simple here.
