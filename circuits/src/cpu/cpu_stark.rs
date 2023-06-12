@@ -70,7 +70,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     const COLUMNS: usize = NUM_CPU_COLS;
     const PUBLIC_INPUTS: usize = 0;
 
-    fn constraints<FE, P, const D2: usize>(
+    fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
         yield_constr: &mut ConstraintConsumer<P>,
