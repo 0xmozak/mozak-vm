@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use anyhow::Result;
 use plonky2::field::extension::FieldExtension;
 use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::{field::extension::Extendable, hash::hash_types::RichField};
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
@@ -11,6 +10,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::{columns::*, *};
+use crate::utils::from_;
 
 #[derive(Copy, Clone, Default)]
 pub struct CpuStark<F, const D: usize> {
@@ -59,19 +59,22 @@ fn clock_ticks<P: PackedField>(
 
 /// Register used as destination register can have different value, all
 /// other regs have same value as of previous row.
-fn only_rd_changes<P: PackedField>(
+fn only_rd_changes<P: PackedField, F, FE, const D2: usize>(
     lv: &[P; NUM_CPU_COLS],
     nv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
-) {
+) where
+    F: RichField,
+    FE: FieldExtension<D2, BaseField = F>,
+    P: PackedField<Scalar = FE>,
+    // P::Scalar: Field64
+{
     // Note: register 0 is already always 0.
     // But we keep the constraints simple here.
     for reg in 0..32 {
         let reg_index = COL_REGS.start + reg;
-        yield_constr.constraint(
-            (lv[COL_RD] - P::Scalar::from_canonical_u32(reg as u32))
-                * (lv[reg_index] - nv[reg_index]),
-        );
+        let x: P::Scalar = from_(reg as u32);
+        yield_constr.constraint((lv[COL_RD] - x) * (lv[reg_index] - nv[reg_index]));
     }
 }
 
