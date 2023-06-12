@@ -12,7 +12,7 @@ use crate::instruction::{Data, Instruction};
 /// every step of evaluation.
 #[derive(Clone, Debug, Default)]
 pub struct State {
-    pub clk: usize,
+    pub clk: u64,
     halted: bool,
     registers: [u32; 32],
     pc: u32,
