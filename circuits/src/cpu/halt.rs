@@ -3,7 +3,7 @@ use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::*;
 
-pub(crate) fn eval_packed_generic<P: PackedField>(
+pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     nv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,

@@ -103,7 +103,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 
         // add constraint
         add::constraints(lv, nv, yield_constr);
-        halt::eval_packed_generic(lv, nv, yield_constr);
+        halt::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT
         yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);
