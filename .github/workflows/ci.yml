@@ -12,6 +12,7 @@ env:
 jobs:
   check-riscv-tests:
     name: "Check Risc-V Tests are up to date"
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -26,6 +27,7 @@ jobs:
           }
 
   cargo-test:
+    if: github.event.pull_request.draft == false
     strategy:
       matrix:
         # TODO(Matthias): restore `macos-latest` to run only on pushes to main or on a schedule.
@@ -46,6 +48,7 @@ jobs:
         run: cargo test --locked --all-targets
 
   cargo-clippy:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -61,6 +64,7 @@ jobs:
         run: cargo clippy --all-features --all-targets -- -D warnings
 
   cargo-fmt:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -75,6 +79,7 @@ jobs:
         run: cargo fmt --all --check
 
   coverage:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     permissions:
       issues: read
@@ -118,6 +123,7 @@ jobs:
           minimum_coverage: 0
 
   cargo-udeps:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
