@@ -71,7 +71,7 @@ mod test {
 
     #[test]
     fn prove_halt() {
-        let (rows, _state) = simple_test(0, &[], &[(6, 100), (7, 100)]);
+        let (rows, _state) = simple_test(0, &[], &[]);
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
