@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use mozak_vm::instruction::Op;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -11,27 +9,22 @@ use crate::memory::trace::{
 };
 
 /// Returns the rows sorted in the order of the instruction address.
-pub fn filter_memory_trace(step_rows: Vec<Row>) -> Vec<Row> {
-    let result: BTreeMap<u32, Vec<Row>> = step_rows
-        .into_iter()
-        .filter_map(|row| match row.inst.op {
-            Op::LB | Op::SB => {
-                let addr = row
-                    .state
-                    .get_register_value(row.inst.data.rs1.into())
-                    .wrapping_add(row.inst.data.imm);
-                Some((addr, row))
-            }
-            _ => None,
-        })
-        .fold(BTreeMap::new(), |mut acc, (addr, row)| {
-            acc.entry(addr).or_insert_with(Vec::new).push(row);
-            acc
-        });
+#[must_use]
+pub fn filter_memory_trace(mut step_rows: Vec<Row>) -> Vec<Row> {
+    // Sorting is stable, and rows are already ordered by row.state.clk
+    step_rows.sort_by_key(|row| {
+        row.state
+            .get_register_value(row.inst.data.rs1.into())
+            .wrapping_add(row.inst.data.imm)
+    });
 
-    result.into_iter().flat_map(|(_, v)| v).collect()
+    step_rows
+        .into_iter()
+        .filter(|row| row.inst.op == Op::LB || row.inst.op == Op::SB)
+        .collect()
 }
 
+#[must_use]
 pub fn generate_memory_trace<F: RichField>(
     step_rows: Vec<Row>,
 ) -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
