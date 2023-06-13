@@ -19,4 +19,4 @@ itertools = "0.10.0"
 starky = "0.1.1"
 
 [dev-dependencies]
-mozak-vm = { path="../vm" }
+mozak-vm = { path="../vm", features=["test"] }
