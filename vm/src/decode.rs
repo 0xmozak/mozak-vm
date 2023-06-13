@@ -12,6 +12,8 @@ use crate::instruction::{Data, Instruction, Op};
 ///   segments: &[(31, 31), (7, 7), (30, 25), (11, 8)]
 ///   pad: 1
 #[must_use]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 fn extract_immediate(word: u32, segments: &[(usize, usize)], pad: usize) -> u32 {
     let len: usize = segments.iter().map(|(msb, lsb)| msb - lsb + 1).sum();
     let u = segments.iter().fold(0, |acc, (msb, lsb)| -> u32 {
@@ -40,6 +42,7 @@ bitfield! {
 
 #[allow(clippy::too_many_lines)]
 #[allow(clippy::module_name_repetitions)]
+#[allow(clippy::similar_names)]
 #[must_use]
 pub fn decode_instruction(word: u32) -> Instruction {
     let bf = InstructionBits(word);
@@ -175,6 +178,8 @@ pub fn decode_instruction(word: u32) -> Instruction {
 }
 
 #[cfg(test)]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 mod test {
     use test_case::test_case;
 
