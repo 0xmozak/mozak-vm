@@ -45,7 +45,6 @@ pub fn generate_memory_trace<F: RichField>(
 
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; mem_cols::NUM_MEM_COLS];
     for (i, s) in filtered_step_rows.iter().enumerate() {
-        trace[mem_cols::COL_MEM_PADDING][i] = F::ZERO;
         trace[mem_cols::COL_MEM_ADDR][i] = get_memory_inst_addr(s);
         trace[mem_cols::COL_MEM_CLK][i] = get_memory_inst_clk(s);
         trace[mem_cols::COL_MEM_OP][i] = get_memory_inst_op(&s.inst);
