@@ -137,6 +137,11 @@ impl State {
     #[must_use]
     pub fn execute_instruction(self) -> Self {
         let inst = self.current_instruction();
+        macro_rules! x_op {
+            ($op: expr) => {
+                self.register_op(&inst.data, $op)
+            };
+        }
         macro_rules! rop {
             ($op: expr) => {
                 self.register_op(&inst.data, |a, b, _i| $op(a, b))
@@ -148,8 +153,7 @@ impl State {
             };
         }
         match inst.op {
-            Op::ADD => rop!(u32::wrapping_add),
-            Op::ADDI => iop!(u32::wrapping_add),
+            Op::ADD => x_op!(|a, b, i| a.wrapping_add(b.wrapping_add(i))),
             // Only use lower 5 bits of rs2
             Op::SLL => rop!(|a, b| a << (b & 0x1F)),
             // Only use lower 5 bits of rs2
