@@ -20,7 +20,8 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
     trace
 }
 
-pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {
+#[allow(clippy::missing_panics_doc)]
+pub fn generate_cpu_trace<F: RichField>(step_rows: &Vec<Row>) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {
     let trace_len = step_rows.len();
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; trace_len]; cpu_cols::NUM_CPU_COLS];
     for (i, s) in step_rows.iter().enumerate() {
