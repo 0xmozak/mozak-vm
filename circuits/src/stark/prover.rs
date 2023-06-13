@@ -82,7 +82,7 @@ mod test {
         config.fri_config.cap_height = 0;
 
         let mut stark = S::default();
-        let proof = prove::<F, C, D>(rows, &mut stark, &config, &mut TimingTree::default());
+        let proof = prove::<F, C, D>(&rows, &mut stark, &config, &mut TimingTree::default());
         assert!(proof.is_ok());
     }
 
@@ -102,7 +102,7 @@ mod test {
         config.fri_config.cap_height = 0;
 
         let mut stark = S::default();
-        let proof = prove::<F, C, D>(rows, &mut stark, &config, &mut TimingTree::default());
+        let proof = prove::<F, C, D>(&rows, &mut stark, &config, &mut TimingTree::default());
         assert!(proof.is_ok());
     }
 }
