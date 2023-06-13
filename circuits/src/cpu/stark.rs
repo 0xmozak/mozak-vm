@@ -16,6 +16,7 @@ use super::{
 use crate::utils::from_;
 
 #[derive(Copy, Clone, Default)]
+#[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {
     _compress_challenge: Option<F>,
     pub _f: PhantomData<F>,
@@ -60,7 +61,7 @@ fn only_rd_changes<P: PackedField>(
     // But we keep the constraints simple here.
     for reg in 0..32 {
         let reg_index = COL_REGS.start + reg;
-        let x: P::Scalar = from_(reg as u32);
+        let x: P::Scalar = from_(reg as u64);
         yield_constr.constraint((lv[COL_RD] - x) * (lv[reg_index] - nv[reg_index]));
     }
 }
