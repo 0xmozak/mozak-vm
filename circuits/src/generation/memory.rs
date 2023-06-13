@@ -46,7 +46,11 @@ pub fn filter_memory_trace(step_rows: Vec<Row>) -> Vec<Row> {
             acc
         });
 
-    result.into_iter().flat_map(|(_, v)| v).collect()
+    let mut sorted_rows: Vec<Row> = Vec::new();
+    for (_, rows) in result {
+        sorted_rows.extend(rows);
+    }
+    sorted_rows
 }
 
 #[must_use]
