@@ -10,7 +10,6 @@ pub struct Data {
 #[repr(u8)]
 pub enum Op {
     ADD,
-    ADDI,
     SUB,
     SRL,
     SRA,
