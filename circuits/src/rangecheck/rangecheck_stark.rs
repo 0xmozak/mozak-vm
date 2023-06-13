@@ -15,22 +15,20 @@ use starky::{
     vars::{StarkEvaluationTargets, StarkEvaluationVars},
 };
 
-use super::columns::{self, COL_NUM_RC};
+use super::columns;
+use crate::lookup::{eval_lookups, eval_lookups_circuit};
 
 #[derive(Copy, Clone, Default)]
 pub struct RangeCheckStark<F, const D: usize> {
     pub f: PhantomData<F>,
 }
 
-const RANGE_MAX: usize = 1usize << 16; // Range check strict upper bound
-
 impl<F: RichField, const D: usize> RangeCheckStark<F, D> {
     const BASE: usize = 1 << 16;
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckStark<F, D> {
-    const COLUMNS: usize = COL_NUM_RC;
-    // TODO: add PUBLIC_INPUTS
+    const COLUMNS: usize = columns::NUM_RC_COLS;
     const PUBLIC_INPUTS: usize = 0;
 
     // Split U32 into 2 16bit limbs
@@ -54,18 +52,18 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
 
         yield_constr.constraint(val - sum);
 
-        // eval_lookups(
-        //     vars,
-        //     yield_constr,
-        //     columns::LIMB_LO_PERMUTED,
-        //     columnsFIX_RANGE_CHECK_U16_PERMUTED_LO,
-        // );
-        // eval_lookups(
-        //     vars,
-        //     yield_constr,
-        //     LIMB_HI_PERMUTED,
-        //     FIX_RANGE_CHECK_U16_PERMUTED_HI,
-        // );
+        eval_lookups(
+            vars,
+            yield_constr,
+            columns::LIMB_LO_PERMUTED,
+            columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
+        );
+        eval_lookups(
+            vars,
+            yield_constr,
+            columns::LIMB_HI_PERMUTED,
+            columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
+        );
     }
 
     fn eval_ext_circuit(
@@ -78,27 +76,26 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         let limb_lo = vars.local_values[columns::LIMB_LO];
         let limb_hi = vars.local_values[columns::LIMB_HI];
 
-        // Addition check for op0, op1, diff
         let base = builder.constant_extension(F::Extension::from_canonical_usize(Self::BASE));
         let sum = builder.mul_add_extension(limb_hi, base, limb_lo);
         let val_sum_diff = builder.sub_extension(val, sum);
+        // constraint: val - (limb_hi ** base + limb_lo) == 0
         yield_constr.constraint(builder, val_sum_diff);
 
-        // TODO: add lookups
-        // eval_lookups_circuit(
-        //     builder,
-        //     vars,
-        //     yield_constr,
-        //     LIMB_LO_PERMUTED,
-        //     FIX_RANGE_CHECK_U16_PERMUTED_LO,
-        // );
-        // eval_lookups_circuit(
-        //     builder,
-        //     vars,
-        //     yield_constr,
-        //     LIMB_HI_PERMUTED,
-        //     FIX_RANGE_CHECK_U16_PERMUTED_HI,
-        // );
+        eval_lookups_circuit(
+            builder,
+            vars,
+            yield_constr,
+            columns::LIMB_LO_PERMUTED,
+            columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
+        );
+        eval_lookups_circuit(
+            builder,
+            vars,
+            yield_constr,
+            columns::LIMB_HI_PERMUTED,
+            columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
+        );
     }
 
     fn constraint_degree(&self) -> usize {
@@ -106,27 +103,110 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     }
 }
 
+#[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use starky::stark_testing::test_stark_low_degree;
+    use plonky2::{
+        field::{goldilocks_field::GoldilocksField, types::Sample},
+        plonk::config::{GenericConfig, PoseidonGoldilocksConfig},
+        util::log2_strict,
+    };
+    use starky::{
+        stark::Stark,
+        stark_testing::{test_stark_circuit_constraints, test_stark_low_degree},
+    };
 
-    use crate::rangecheck::rangecheck_stark::RangeCheckStark;
+    use super::*;
+    use crate::generation::rangecheck::{generate_rangecheck_trace, RangeCheckRow};
+
+    const D: usize = 2;
+    type C = PoseidonGoldilocksConfig;
+    type F = <C as GenericConfig<D>>::F;
+    type S = RangeCheckStark<F, D>;
 
     #[test]
-    fn degree() -> Result<()> {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        type S = RangeCheckStark<F, D>;
-
+    fn test_degree() -> Result<()> {
         let stark = S {
             f: Default::default(),
         };
         test_stark_low_degree(stark)
     }
 
-    // TODO: test against some dummy traces
     #[test]
-    fn basic_trace() {}
+    fn test_rangecheck_stark_circuit() -> Result<()> {
+        let stark = S {
+            f: Default::default(),
+        };
+        test_stark_circuit_constraints::<F, C, S, D>(stark)
+    }
+
+    #[test]
+    fn test_rangecheck_stark() -> Result<()> {
+        let stark = S::default();
+
+        let rows = [RangeCheckRow {
+            val: 0,
+            limb_lo: 0,
+            limb_hi: 0,
+            filter_cpu: 0,
+        }];
+        let trace = generate_rangecheck_trace::<F>(&rows);
+
+        let len = trace[0].len();
+        println!(
+            "raw trace len:{}, extended len: {} {} ",
+            rows.len(),
+            len,
+            trace.len()
+        );
+
+        let last = F::primitive_root_of_unity(log2_strict(len)).inverse();
+        let subgroup =
+            F::cyclic_subgroup_known_order(F::primitive_root_of_unity(log2_strict(len)), len);
+
+        for i in 0..len {
+            let local_values = trace
+                .iter()
+                .map(|row| row[i % len])
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap();
+
+            let vars = StarkEvaluationVars {
+                local_values: &local_values,
+                next_values: &trace
+                    .iter()
+                    .map(|row| row[(i + 1) % len])
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap(),
+                public_inputs: &[],
+            };
+
+            let mut constraint_consumer = ConstraintConsumer::new(
+                vec![F::rand()],
+                subgroup[i] - last,
+                if i == 0 {
+                    GoldilocksField::ONE
+                } else {
+                    GoldilocksField::ZERO
+                },
+                if i == len - 1 {
+                    GoldilocksField::ONE
+                } else {
+                    GoldilocksField::ZERO
+                },
+            );
+            stark.eval_packed_generic(vars, &mut constraint_consumer);
+
+            for &acc in &constraint_consumer.constraint_accs {
+                if !acc.eq(&GoldilocksField::ZERO) {
+                    println!("constraint error in line {}", i);
+                }
+                assert_eq!(acc, GoldilocksField::ZERO);
+            }
+        }
+
+        Ok(())
+    }
 }
