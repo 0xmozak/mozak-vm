@@ -59,9 +59,15 @@ fn only_rd_changes<P: PackedField>(
 ) {
     // Note: register 0 is already always 0.
     // But we keep the constraints simple here.
+<<<<<<< HEAD
     for reg in 0..32 {
         let reg_index = COL_REGS.start + reg;
         let x: P::Scalar = from_(reg as u64);
+=======
+    for reg in 0_u32..32 {
+        let reg_index = COL_REGS.start + reg as usize;
+        let x: P::Scalar = from_(reg);
+>>>>>>> matthias/fix-pad-traces
         yield_constr.constraint((lv[COL_RD] - x) * (lv[reg_index] - nv[reg_index]));
     }
 }

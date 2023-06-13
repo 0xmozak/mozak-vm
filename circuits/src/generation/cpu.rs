@@ -38,7 +38,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &Vec<Row>) -> [Vec<F>; cpu_co
 
     // For expanded trace from `trace_len` to `trace_len's power of two`,
     // we use last row `HALT` to pad them.
-    let trace = pad_trace(trace, cpu_cols::COL_CLK);
+    let trace = pad_trace(trace, Some(cpu_cols::COL_CLK));
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
