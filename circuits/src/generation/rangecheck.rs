@@ -49,12 +49,20 @@ pub fn generate_fixed_rangecheck_table<F: RichField>(mut trace: Vec<Vec<F>>) -> 
 }
 
 pub fn generate_rangecheck_trace<F: RichField>(
-    rangecheck_rows: Vec<RangeCheckRow>,
+    rangecheck_rows: &[RangeCheckRow],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let trace_len = rangecheck_rows.len();
-    let max_trace_len = columns::RANGE_CHECK_U16_SIZE;
-    println!("trace len {}", trace_len);
-    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; trace_len]; columns::NUM_RC_COLS];
+    let max_trace_len = trace_len.max(columns::RANGE_CHECK_U16_SIZE);
+    let ext_trace_len = if !max_trace_len.is_power_of_two() || max_trace_len < 2 {
+        if max_trace_len < 2 {
+            2
+        } else {
+            max_trace_len.next_power_of_two()
+        }
+    } else {
+        max_trace_len
+    };
+    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; columns::NUM_RC_COLS];
     for (i, r) in rangecheck_rows.iter().enumerate() {
         trace[columns::VAL][i] = from_(r.val);
         trace[columns::LIMB_HI][i] = from_(r.limb_hi);
@@ -62,8 +70,8 @@ pub fn generate_rangecheck_trace<F: RichField>(
         trace[columns::CPU_FILTER][i] = from_(r.filter_cpu);
     }
 
-    let trace = pad_trace(trace);
     let trace = generate_fixed_rangecheck_table(trace);
+    let trace = pad_trace(trace);
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
