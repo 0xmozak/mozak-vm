@@ -6,9 +6,8 @@ use plonky2::hash::hash_types::RichField;
 use crate::cpu::columns as cpu_cols;
 use crate::utils::{from_, pad_trace};
 
-
 #[allow(clippy::missing_panics_doc)]
-pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {
+pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {
     // NOTE: Frist row of steps is just initial state without any instruction.
     // All registers value in columns COL_START_REG to COL_START_REG + 31
     // have register values at given clock before executing instruction.
@@ -50,12 +49,11 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_col
     let trace = pad_trace(trace, Some(cpu_cols::COL_CLK));
 
     log_trace!("trace {:?}", trace);
-    let trace = trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
+    trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
             "Expected a Vec of length {} but it was {}",
             cpu_cols::NUM_CPU_COLS,
             v.len()
         )
-    });
-    trace
+    })
 }

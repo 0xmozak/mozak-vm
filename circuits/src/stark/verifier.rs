@@ -9,9 +9,10 @@ use starky::{config::StarkConfig, verifier::verify_stark_proof};
 use super::{mozak_stark::MozakStark, proof::AllProof};
 use crate::cpu::stark::CpuStark;
 
+#[allow(clippy::missing_errors_doc)]
 pub fn verify_proof<F, C, const D: usize>(
-    mozak_stark: MozakStark<F, D>,
-    all_proof: AllProof<F, C, D>,
+    mozak_stark: &MozakStark<F, D>,
+    all_proof: &AllProof<F, C, D>,
     config: &StarkConfig,
 ) -> Result<()>
 where
@@ -22,5 +23,5 @@ where
     [(); C::Hasher::HASH_SIZE]:,
 {
     let MozakStark { cpu_stark } = mozak_stark;
-    verify_stark_proof(cpu_stark, all_proof.stark_proofs[0].clone(), config)
+    verify_stark_proof(*cpu_stark, all_proof.stark_proofs[0].clone(), config)
 }

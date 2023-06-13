@@ -1,4 +1,3 @@
-use log::trace;
 use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 

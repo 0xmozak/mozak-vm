@@ -17,7 +17,7 @@ use crate::generation::generate_traces;
 
 #[allow(clippy::missing_errors_doc)]
 pub fn prove<F, C, const D: usize>(
-    step_rows: &Vec<Row>,
+    step_rows: &[Row],
     mozak_stark: &mut MozakStark<F, D>,
     config: &StarkConfig,
     timing: &mut TimingTree,
@@ -105,8 +105,7 @@ mod test {
         let mut stark = S::default();
         let all_proof = prove::<F, C, D>(&rows, &mut stark, &config, &mut TimingTree::default());
         assert!(all_proof.is_ok());
-        let res = verify_proof(stark, all_proof.unwrap(), &config);
-        println!("{:?}", res);
+        let res = verify_proof(&stark, &all_proof.unwrap(), &config);
         assert!(res.is_ok());
     }
 }
