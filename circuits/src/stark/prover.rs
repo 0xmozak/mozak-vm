@@ -104,6 +104,7 @@ mod test {
         let all_proof = prove::<F, C, D>(rows, &mut stark, &config, &mut TimingTree::default());
         assert!(all_proof.is_ok());
         let res = verify_proof(stark, all_proof.unwrap(), &config);
+        println!("{:?}", res);
         assert!(res.is_ok());
     }
 }

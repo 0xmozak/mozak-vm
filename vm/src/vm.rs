@@ -238,7 +238,10 @@ pub struct Row {
 /// loops. (Matthias had some trouble debugging a problem with jumps
 /// earlier.)
 pub fn step(mut state: State) -> Result<(Vec<Row>, State)> {
-    let mut rows = vec![];
+    let mut rows = vec![Row {
+        state: state.clone(),
+        inst: Instruction::default(),
+    }];
     while !state.has_halted() {
         let inst = state.current_instruction();
         state = state.execute_instruction();

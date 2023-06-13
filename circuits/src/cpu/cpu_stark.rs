@@ -26,11 +26,13 @@ fn opcode_one_hot<P: PackedField>(
 ) {
     let op_selectors = [lv[COL_S_ADD], lv[COL_S_HALT]];
 
+    // Op selectors have value 0 or 1.
     op_selectors
         .into_iter()
         .for_each(|s| yield_constr.constraint(s * (P::ONES - s)));
 
-    // Only one opcode selector enabled.
+    // Only one opcode selector enabled, except for CLK 0, which does not have any
+    // instruction.
     let sum_s_op: P = op_selectors.into_iter().sum();
     yield_constr.constraint(P::ONES - sum_s_op);
 }
@@ -56,7 +58,7 @@ fn only_rd_changes<P: PackedField>(
     for reg in 0..32 {
         let reg_index = COL_REGS.start + reg;
         let x: P::Scalar = from_(reg as u32);
-        yield_constr.constraint((lv[COL_RD] - x) * (lv[reg_index] - nv[reg_index]));
+        yield_constr.constraint_transition((lv[COL_RD] - x) * (lv[reg_index] - nv[reg_index]));
     }
 }
 
