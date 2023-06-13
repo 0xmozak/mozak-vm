@@ -1,5 +1,3 @@
-#![feature(generic_const_exprs)]
-
 use plonky2::field::goldilocks_field::GoldilocksField;
 
 pub mod columns;
