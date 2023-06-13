@@ -6,6 +6,8 @@ use crate::{
 };
 
 #[must_use]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn mulh(a: u32, b: u32) -> u32 {
     ((i64::from(a as i32) * i64::from(b as i32)) >> 32) as u32
 }
@@ -16,11 +18,15 @@ pub fn mulhu(a: u32, b: u32) -> u32 {
 }
 
 #[must_use]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn mulhsu(a: u32, b: u32) -> u32 {
     ((i64::from(a as i32) * i64::from(b)) >> 32) as u32
 }
 
 #[must_use]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn div(a: u32, b: u32) -> u32 {
     match (a as i32, b as i32) {
         (_, 0) => 0xFFFF_FFFF,
@@ -37,6 +43,8 @@ pub fn divu(a: u32, b: u32) -> u32 {
 }
 
 #[must_use]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn rem(a: u32, b: u32) -> u32 {
     (match (a as i32, b as i32) {
         (a, 0) => a,
@@ -55,6 +63,8 @@ pub fn remu(a: u32, b: u32) -> u32 {
 }
 
 #[must_use]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn lb(mem: &[u8; 4]) -> u32 {
     i32::from(mem[0] as i8) as u32
 }
@@ -65,6 +75,8 @@ pub fn lbu(mem: &[u8; 4]) -> u32 {
 }
 
 #[must_use]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn lh(mem: &[u8; 4]) -> u32 {
     i32::from(i16::from_le_bytes([mem[0], mem[1]])) as u32
 }
@@ -120,21 +132,22 @@ impl State {
     }
 
     #[must_use]
-    pub fn store(self, inst: &Data, bytes: usize) -> Self {
+    pub fn store(self, inst: &Data, bytes: u32) -> Self {
         let addr = self
             .get_register_value(inst.rs1.into())
             .wrapping_add(inst.imm);
         let value: u32 = self.get_register_value(inst.rs2.into());
-        (value.to_le_bytes()[0..bytes])
-            .iter()
-            .enumerate()
-            .fold(self, |acc, (i, byte)| {
-                acc.store_u8(addr.wrapping_add(i as u32), *byte)
-            })
+        (0..bytes)
+            .map(|i| addr.wrapping_add(i))
+            .zip(value.to_le_bytes().into_iter())
+            .fold(self, |acc, (i, byte)| acc.store_u8(i, byte))
             .bump_pc()
     }
 
     #[must_use]
+    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_possible_wrap)]
     pub fn execute_instruction(self) -> Self {
         let inst = self.current_instruction();
         macro_rules! x_op {
@@ -257,6 +270,8 @@ pub fn step(mut state: State) -> Result<(Vec<Row>, State)> {
 }
 
 #[cfg(test)]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 mod tests {
     use test_case::test_case;
 
