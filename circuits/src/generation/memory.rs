@@ -10,8 +10,7 @@ use crate::memory::trace::{
     get_memory_store_inst_value,
 };
 
-// Make sure that the memory trace comes in the order of the instruction
-// address.
+/// Returns the rows sorted in the order of the instruction address.
 pub fn filter_memory_trace(step_rows: Vec<Row>) -> Vec<Row> {
     let result: BTreeMap<u32, Vec<Row>> = step_rows
         .into_iter()
@@ -71,8 +70,9 @@ pub fn generate_memory_trace<F: RichField>(
             };
     }
 
-    // For expanded trace from `trace_len` to `trace_len's power of two`,
-    // we use last row to pad them.
+    // If the trace length is not a power of two, we need to extend the trace to the
+    // next power of two. The additional elements are filled with the last row
+    // of the trace.
     if trace_len != ext_trace_len {
         trace[mem_cols::COL_MEM_ADDR..mem_cols::NUM_MEM_COLS]
             .iter_mut()
@@ -98,6 +98,9 @@ mod test {
     use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
+    // This test simulates the scenario of a set of instructions
+    // which perform store byte (SB) and load byte (LB) operations
+    // to memory and then checks if the memory trace is generated correctly.
     #[test]
     fn generate_memory_trace() {
         // PADDING  ADDR       CLK       OP        VALUE     DIFF_ADDR   DIFF_CLK
