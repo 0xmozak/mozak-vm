@@ -7,14 +7,20 @@ use crate::utils::from_;
 
 /// Pad the trace to a power of 2.
 #[must_use]
-pub fn pad_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
+pub fn pad_trace<F: RichField>(mut trace: Vec<Vec<F>>, clk_col: usize) -> Vec<Vec<F>> {
     trace[cpu_cols::COL_CLK..cpu_cols::NUM_CPU_COLS]
         .iter_mut()
-        .for_each(|col| {
-            if let (Some(padded_len), Some(last)) =
+        .enumerate()
+        .for_each(|(i, col)| {
+            if let (Some(padded_len), Some(&last)) =
                 (col.len().checked_next_power_of_two(), col.last())
             {
-                col.extend(vec![*last; padded_len - col.len()]);
+                let extra = padded_len - col.len();
+                if clk_col == i {
+                    col.extend((0_u64..).take(extra).map(|i| last + from_(i)));
+                } else {
+                    col.extend(vec![last; extra]);
+                }
             }
         });
     trace
@@ -53,7 +59,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &Vec<Row>) -> [Vec<F>; cpu_co
 
     // For expanded trace from `trace_len` to `trace_len's power of two`,
     // we use last row `HALT` to pad them.
-    let trace = pad_trace(trace);
+    let trace = pad_trace(trace, cpu_cols::COL_CLK);
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
