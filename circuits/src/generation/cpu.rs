@@ -5,19 +5,23 @@ use plonky2::hash::hash_types::RichField;
 use crate::cpu::columns as cpu_cols;
 use crate::utils::from_;
 
+/// Pad the trace to a power of 2.
+#[must_use]
 pub fn pad_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
-    let len = trace[0].len();
-    if let Some(padded_len) = len.checked_next_power_of_two() {
-        trace[cpu_cols::COL_CLK..cpu_cols::NUM_CPU_COLS]
-            .iter_mut()
-            .for_each(|col| {
-                col.extend(vec![*col.last().unwrap(); padded_len - len]);
-            });
-    }
+    trace[cpu_cols::COL_CLK..cpu_cols::NUM_CPU_COLS]
+        .iter_mut()
+        .for_each(|col| {
+            if let (Some(padded_len), Some(last)) =
+                (col.len().checked_next_power_of_two(), col.last())
+            {
+                col.extend(vec![*last; padded_len - col.len()]);
+            }
+        });
     trace
 }
 
-pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {
+#[allow(clippy::missing_panics_doc)]
+pub fn generate_cpu_trace<F: RichField>(step_rows: &Vec<Row>) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {
     let trace_len = step_rows.len();
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; trace_len]; cpu_cols::NUM_CPU_COLS];
     for (i, s) in step_rows.iter().enumerate() {

@@ -12,11 +12,12 @@ use starky::stark::Stark;
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
 use super::proof::AllProof;
-use crate::cpu::cpu_stark::CpuStark;
+use crate::cpu::stark::CpuStark;
 use crate::generation::generate_traces;
 
+#[allow(clippy::missing_errors_doc)]
 pub fn prove<F, C, const D: usize>(
-    step_rows: Vec<Row>,
+    step_rows: &Vec<Row>,
     mozak_stark: &mut MozakStark<F, D>,
     config: &StarkConfig,
     timing: &mut TimingTree,
@@ -29,13 +30,14 @@ where
     [(); C::Hasher::HASH_SIZE]:,
 {
     let trace_poly_values = generate_traces(step_rows);
-    prove_with_traces(mozak_stark, config, trace_poly_values, timing)
+    prove_with_traces(mozak_stark, config, &trace_poly_values, timing)
 }
 
+#[allow(clippy::missing_errors_doc)]
 pub fn prove_with_traces<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
-    trace_poly_values: [Vec<PolynomialValues<F>>; NUM_TABLES],
+    trace_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
 where

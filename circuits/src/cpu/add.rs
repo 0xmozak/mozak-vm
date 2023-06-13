@@ -1,7 +1,9 @@
 use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::*;
+use super::columns::{
+    COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_S_ADD, NUM_CPU_COLS,
+};
 use crate::utils::column_of_xs;
 
 pub(crate) fn constraints<P: PackedField>(
