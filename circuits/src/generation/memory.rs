@@ -10,30 +10,29 @@ use crate::memory::trace::{
     get_memory_store_inst_value,
 };
 
+// Make sure that the memory trace comes in the order of the instruction
+// address.
 pub fn filter_memory_trace(step_rows: Vec<Row>) -> Vec<Row> {
-    let mut result: BTreeMap<u32, Vec<Row>> = BTreeMap::new();
-
-    for row in step_rows {
-        match row.inst.op {
+    let result: BTreeMap<u32, Vec<Row>> = step_rows
+        .into_iter()
+        .filter_map(|row| match row.inst.op {
             Op::LB | Op::SB => {
                 let addr = row
                     .state
                     .get_register_value(row.inst.data.rs1.into())
                     .wrapping_add(row.inst.data.imm);
-                result.entry(addr).or_insert_with(Vec::new).push(row);
+                Some((addr, row))
             }
-            _ => (),
-        }
-    }
+            _ => None,
+        })
+        .fold(BTreeMap::new(), |mut acc, (addr, row)| {
+            acc.entry(addr).or_insert_with(Vec::new).push(row);
+            acc
+        });
 
-    let mut sorted_rows: Vec<Row> = Vec::new();
-    for (_, rows) in result {
-        sorted_rows.extend(rows);
-    }
-    sorted_rows
+    result.into_iter().flat_map(|(_, v)| v).collect()
 }
 
-// Suppose that the memory trace comes in the order of the instruction address
 pub fn generate_memory_trace<F: RichField>(
     step_rows: Vec<Row>,
 ) -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
