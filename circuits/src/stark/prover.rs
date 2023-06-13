@@ -12,7 +12,7 @@ use starky::stark::Stark;
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
 use super::proof::AllProof;
-use crate::cpu::cpu_stark::CpuStark;
+use crate::cpu::stark::CpuStark;
 use crate::generation::generate_traces;
 
 pub fn prove<F, C, const D: usize>(
