@@ -62,7 +62,7 @@ pub fn generate_memory_trace<F: RichField>(
         };
 
         trace[mem_cols::COL_MEM_DIFF_CLK][i] =
-            if i == 0 || trace[mem_cols::COL_MEM_ADDR][i] != trace[mem_cols::COL_MEM_ADDR][i - 1] {
+            if i == 0 || trace[mem_cols::COL_MEM_DIFF_ADDR][i] != F::ZERO {
                 F::ZERO
             } else {
                 trace[mem_cols::COL_MEM_CLK][i] - trace[mem_cols::COL_MEM_CLK][i - 1]
