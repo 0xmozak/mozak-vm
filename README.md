@@ -9,7 +9,11 @@ If you are unfamiliar with the Risc-V instruction set, please have a look at the
 The Mozak VM is built in Rust, so the Rust toolchain is a pre-requisite.
 
 ```bash
-cargo build
+# Initialize necessary properties (like hooks) for the repository
+make init
+
+# Build code
+make build
 ```
 
 # Update official Risc-V tests
