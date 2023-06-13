@@ -1,1 +1,4 @@
 target/
+target-tarpaulin/
+cobertura.xml
+**/proptest-regressions/
