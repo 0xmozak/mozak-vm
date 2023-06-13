@@ -64,12 +64,7 @@ impl From<HashMap<u32, u32>> for Program {
     fn from(image: HashMap<u32, u32>) -> Self {
         let image = image
             .iter()
-            .flat_map(move |(k, v)| {
-                v.to_le_bytes()
-                    .into_iter()
-                    .enumerate()
-                    .map(move |(i, b)| (k + i as u32, b))
-            })
+            .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes().into_iter()))
             .collect();
         Self {
             entry: 0_u32,
@@ -115,10 +110,11 @@ impl Program {
                 let mem_size: usize = segment.p_memsz.try_into()?;
                 let vaddr: u32 = segment.p_vaddr.try_into()?;
                 let offset = segment.p_offset.try_into()?;
-                Ok(input[offset..offset + std::cmp::min(file_size, mem_size)]
-                    .iter()
-                    .enumerate()
-                    .map(move |(i, b)| (vaddr + i as u32, *b)))
+                Ok((vaddr..).zip(
+                    input[offset..offset + std::cmp::min(file_size, mem_size)]
+                        .iter()
+                        .copied(),
+                ))
             })
             .flatten_ok()
             .try_collect()?;
