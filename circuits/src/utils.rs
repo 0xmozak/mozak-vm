@@ -30,7 +30,7 @@ pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>, clk_col: Option<usize>) -> Ve
         {
             let extra = padded_len - col.len();
             if clk_col == Some(i) {
-                col.extend((0_u64..).take(extra).map(|j| last + from_(j)));
+                col.extend((1_u64..).take(extra).map(|j| last + from_(j)));
             } else {
                 col.extend(vec![last; extra]);
             }
