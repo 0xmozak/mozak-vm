@@ -9,31 +9,13 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::{columns::*, *};
+use crate::stark::utils::opcode_one_hot;
 use crate::utils::from_;
 
 #[derive(Copy, Clone, Default)]
 pub struct CpuStark<F, const D: usize> {
     _compress_challenge: Option<F>,
     pub _f: PhantomData<F>,
-}
-
-/// Selector of opcode, builtins and halt should be one-hot encoded.
-///
-/// Ie exactly one of them should be by 1, all others by 0 in each row.
-/// See <https://en.wikipedia.org/wiki/One-hot>
-fn opcode_one_hot<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    let op_selectors = [lv[COL_S_ADD], lv[COL_S_HALT]];
-
-    op_selectors
-        .into_iter()
-        .for_each(|s| yield_constr.constraint(s * (P::ONES - s)));
-
-    // Only one opcode selector enabled.
-    let sum_s_op: P = op_selectors.into_iter().sum();
-    yield_constr.constraint(P::ONES - sum_s_op);
 }
 
 /// Ensure clock is ticking up
@@ -81,7 +63,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         let lv = vars.local_values;
         let nv = vars.next_values;
 
-        opcode_one_hot(lv, yield_constr);
+        opcode_one_hot(lv, NUM_CPU_COLS, COL_S_ADD, COL_S_HALT, yield_constr);
 
         clock_ticks(lv, nv, yield_constr);
 

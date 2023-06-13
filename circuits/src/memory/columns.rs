@@ -13,11 +13,14 @@ pub(crate) const COL_MEM_OP: usize = 3;
 // Value of memory access.
 pub(crate) const COL_MEM_VALUE: usize = 4;
 
+// Indicates rows with memory with different addresses have started.
+pub(crate) const COL_MEM_NEW_ADDR: usize = 5;
+
 // Difference between current and previous address.
-pub(crate) const COL_MEM_DIFF_ADDR: usize = 5;
+pub(crate) const COL_MEM_DIFF_ADDR: usize = 6;
 
 // Difference between current and previous clock.
-pub(crate) const COL_MEM_DIFF_CLK: usize = 6;
+pub(crate) const COL_MEM_DIFF_CLK: usize = 7;
 
 // Total number of columns.
-pub(crate) const NUM_MEM_COLS: usize = 7;
+pub(crate) const NUM_MEM_COLS: usize = 8;
