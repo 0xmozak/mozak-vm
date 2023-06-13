@@ -20,7 +20,8 @@ where
 /// Pad the trace to a power of 2.
 ///
 /// # Panics
-/// There's an assert that makes sure all columns passed in have the same length.
+/// There's an assert that makes sure all columns passed in have the same
+/// length.
 #[must_use]
 pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>, clk_col: Option<usize>) -> Vec<Vec<F>> {
     assert!(trace.iter().tuples().all(|(a, b)| a.len() == b.len()));
