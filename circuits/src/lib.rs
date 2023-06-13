@@ -3,6 +3,7 @@
 
 pub mod cpu;
 pub mod generation;
+pub mod lookup;
 pub mod rangecheck;
 pub mod stark;
 pub mod utils;
