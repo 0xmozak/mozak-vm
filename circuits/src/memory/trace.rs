@@ -22,7 +22,7 @@ pub fn get_memory_inst_addr<F: RichField>(row: &Row) -> F {
 }
 
 pub fn get_memory_inst_clk<F: RichField>(row: &Row) -> F {
-    F::from_canonical_usize(row.state.clk)
+    F::from_canonical_u64(row.state.clk)
 }
 
 pub fn get_memory_load_inst_value<F: RichField>(row: &Row) -> F {
