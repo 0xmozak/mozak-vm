@@ -5,7 +5,8 @@ use plonky2::hash::hash_types::RichField;
 use crate::cpu::columns as cpu_cols;
 use crate::utils::from_;
 
-#[must_use] pub fn pad_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
+#[must_use]
+pub fn pad_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
     let len = trace[0].len();
     if let Some(padded_len) = len.checked_next_power_of_two() {
         trace[cpu_cols::COL_CLK..cpu_cols::NUM_CPU_COLS]

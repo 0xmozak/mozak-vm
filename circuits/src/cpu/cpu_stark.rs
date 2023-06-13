@@ -8,7 +8,11 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::{columns::{COL_CLK, COL_RD, COL_REGS, COL_S_ADD, COL_S_HALT, NUM_CPU_COLS}, add, halt};
+use super::{
+    add,
+    columns::{COL_CLK, COL_RD, COL_REGS, COL_S_ADD, COL_S_HALT, NUM_CPU_COLS},
+    halt,
+};
 use crate::utils::from_;
 
 #[derive(Copy, Clone, Default)]
