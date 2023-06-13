@@ -7,6 +7,7 @@ use crate::memory::trace::{
     get_memory_inst_addr, get_memory_inst_clk, get_memory_inst_op, get_memory_load_inst_value,
     get_memory_store_inst_value,
 };
+use crate::utils::pad_trace;
 
 /// Returns the rows sorted in the order of the instruction address.
 #[must_use]
@@ -25,18 +26,14 @@ pub fn filter_memory_trace(mut step_rows: Vec<Row>) -> Vec<Row> {
 }
 
 #[must_use]
+#[allow(clippy::missing_panics_doc)]
 pub fn generate_memory_trace<F: RichField>(
     step_rows: Vec<Row>,
 ) -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
     let filtered_step_rows = filter_memory_trace(step_rows);
-    let trace_len = filtered_step_rows.len();
-    let ext_trace_len = if !trace_len.is_power_of_two() {
-        trace_len.next_power_of_two()
-    } else {
-        trace_len
-    };
 
-    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; mem_cols::NUM_MEM_COLS];
+    let mut trace: Vec<Vec<F>> =
+        vec![vec![F::ZERO; filtered_step_rows.len()]; mem_cols::NUM_MEM_COLS];
     for (i, s) in filtered_step_rows.iter().enumerate() {
         trace[mem_cols::COL_MEM_PADDING][i] = F::ZERO;
         trace[mem_cols::COL_MEM_ADDR][i] = get_memory_inst_addr(s);
@@ -66,15 +63,7 @@ pub fn generate_memory_trace<F: RichField>(
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
     // of the trace.
-    if trace_len != ext_trace_len {
-        trace[mem_cols::COL_MEM_ADDR..mem_cols::NUM_MEM_COLS]
-            .iter_mut()
-            .for_each(|row| {
-                let last = row[trace_len - 1];
-                row[trace_len..].fill(last);
-            });
-        trace[mem_cols::COL_MEM_PADDING][trace_len..].fill(F::ONE);
-    }
+    let trace = pad_trace(trace, Some(mem_cols::COL_MEM_PADDING));
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
