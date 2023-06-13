@@ -71,5 +71,6 @@ mod test {
     use mozak_vm::test_utils::simple_test;
 
     fn generate_memory_trace_test() {
+        unimplemented!()
     }
 }
