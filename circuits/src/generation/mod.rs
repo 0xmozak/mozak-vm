@@ -9,7 +9,7 @@ use plonky2::{
 use self::cpu::generate_cpu_trace;
 use crate::stark::utils::trace_to_poly_values;
 
-pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
+#[must_use] pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     step_rows: Vec<Row>,
 ) -> [Vec<PolynomialValues<F>>; 1] {
     let cpu_rows = generate_cpu_trace::<F>(step_rows);
