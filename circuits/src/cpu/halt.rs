@@ -2,7 +2,8 @@ use log::trace;
 use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::*;
+use super::columns::{COL_PC, COL_S_HALT, NUM_CPU_COLS};
+
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     nv: &[P; NUM_CPU_COLS],

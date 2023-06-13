@@ -7,7 +7,7 @@ use starky::stark::Stark;
 use starky::{config::StarkConfig, verifier::verify_stark_proof};
 
 use super::{mozak_stark::MozakStark, proof::AllProof};
-use crate::cpu::cpu_stark::CpuStark;
+use crate::cpu::stark::CpuStark;
 
 pub fn verify_proof<F, C, const D: usize>(
     mozak_stark: MozakStark<F, D>,
