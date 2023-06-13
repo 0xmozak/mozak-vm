@@ -145,8 +145,8 @@ impl State {
     pub fn load_u32(&self, addr: u32) -> u32 {
         const WORD_SIZE: usize = 4;
         let mut bytes = [0_u8; WORD_SIZE];
-        for (i, byte) in bytes.iter_mut().enumerate() {
-            *byte = self.load_u8(addr + i as u32);
+        for (i, byte) in (0_u32..).zip(bytes.iter_mut()) {
+            *byte = self.load_u8(addr + i);
         }
         u32::from_le_bytes(bytes)
     }

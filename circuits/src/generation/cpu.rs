@@ -3,21 +3,10 @@ use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns as cpu_cols;
-use crate::utils::from_;
+use crate::utils::{from_, pad_trace};
 
-pub fn pad_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
-    let len = trace[0].len();
-    if let Some(padded_len) = len.checked_next_power_of_two() {
-        trace[cpu_cols::COL_CLK..cpu_cols::NUM_CPU_COLS]
-            .iter_mut()
-            .for_each(|col| {
-                col.extend(vec![*col.last().unwrap(); padded_len - len]);
-            });
-    }
-    trace
-}
-
-pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {
+#[allow(clippy::missing_panics_doc)]
+pub fn generate_cpu_trace<F: RichField>(step_rows: &Vec<Row>) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {
     let trace_len = step_rows.len();
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; trace_len]; cpu_cols::NUM_CPU_COLS];
     for (i, s) in step_rows.iter().enumerate() {
@@ -49,7 +38,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: Vec<Row>) -> [Vec<F>; cpu_col
 
     // For expanded trace from `trace_len` to `trace_len's power of two`,
     // we use last row `HALT` to pad them.
-    let trace = pad_trace(trace);
+    let trace = pad_trace(trace, Some(cpu_cols::COL_CLK));
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
