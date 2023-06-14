@@ -31,9 +31,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     const COLUMNS: usize = columns::NUM_RC_COLS;
     const PUBLIC_INPUTS: usize = 0;
 
-    // Split U32 into 2 16bit limbs
-    // Sumcheck between Val and limbs
-    // RC for limbs
+    /// Given the u32 value and the u16 limbs found in our variables to be
+    /// evaluated, perform:
+    ///   1. sumcheck between val (u32) and limbs (u16),
+    ///   2. rangecheck for limbs.
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
@@ -66,6 +67,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         );
     }
 
+    /// Given the u32 value and the u16 limbs found in our variables to be
+    /// evaluated, perform:
+    ///   1. sumcheck between val (u32) and limbs (u16),
+    ///   2. rangecheck for limbs.
     fn eval_ext_circuit(
         &self,
         builder: &mut CircuitBuilder<F, D>,
