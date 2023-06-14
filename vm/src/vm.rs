@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    instruction::{Data, Instruction, Op},
+    instruction::{Data, Op},
     state::State,
     trace::RangeCheckRow,
 };
@@ -119,11 +119,12 @@ impl State {
     #[must_use]
     pub fn ecall(self) -> Self {
         if self.get_register_value(17_usize) == 93 {
+            // Note: we don't advance the program counter for 'halt'.
+            // That is we treat 'halt' like an endless loop.
             self.halt() // exit system call
         } else {
-            self
+            self.bump_pc()
         }
-        .bump_pc()
     }
 
     #[must_use]
@@ -244,11 +245,11 @@ impl State {
     }
 }
 
-/// Later on, this can hold traces.
+/// Each row corresponds to the state of the VM _just before_ executing the
+/// instruction that the program counter points to.
 #[derive(Debug, Clone, Default)]
 pub struct Row {
     pub state: State,
-    pub inst: Instruction,
 }
 
 /// Execute a program
@@ -265,13 +266,13 @@ pub struct Row {
 /// loops. (Matthias had some trouble debugging a problem with jumps
 /// earlier.)
 pub fn step(mut state: State) -> Result<(Vec<Row>, State)> {
-    let mut rows = vec![];
+    let mut rows = vec![Row {
+        state: state.clone(),
+    }];
     while !state.has_halted() {
-        let inst = state.current_instruction();
         state = state.execute_instruction();
         rows.push(Row {
             state: state.clone(),
-            inst,
         });
 
         if cfg!(debug_assertions) {
