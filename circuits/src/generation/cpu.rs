@@ -14,32 +14,33 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
     // All other columns in trace has updated values at given clock after executing
     // current instuction. We do this to make cpu constraint `only_rd_changes()`
     // work correctly.
-    let trace_len = step_rows.len() - 1;
+    let trace_len = step_rows.len();
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; trace_len]; cpu_cols::NUM_CPU_COLS];
-    for i in 1..step_rows.len() {
-        let s = &step_rows[i];
-        trace[cpu_cols::COL_CLK][i - 1] = from_(s.state.clk);
-        trace[cpu_cols::COL_PC][i - 1] = from_(s.state.get_pc());
+    for (i, s) in step_rows.iter().enumerate() {
+        trace[cpu_cols::COL_CLK][i] = from_(s.state.clk);
+        trace[cpu_cols::COL_PC][i] = from_(s.state.get_pc());
 
-        trace[cpu_cols::COL_RS1][i - 1] = from_(s.inst.data.rs1);
-        trace[cpu_cols::COL_RS2][i - 1] = from_(s.inst.data.rs2);
-        trace[cpu_cols::COL_RD][i - 1] = from_(s.inst.data.rd);
-        trace[cpu_cols::COL_OP1_VALUE][i - 1] =
-            from_(s.state.get_register_value(usize::from(s.inst.data.rs1)));
-        trace[cpu_cols::COL_OP2_VALUE][i - 1] =
-            from_(s.state.get_register_value(usize::from(s.inst.data.rs2)));
-        trace[cpu_cols::COL_DST_VALUE][i - 1] =
-            from_(s.state.get_register_value(usize::from(s.inst.data.rd)));
-        trace[cpu_cols::COL_IMM_VALUE][i - 1] = from_(s.inst.data.imm);
-        trace[cpu_cols::COL_S_HALT][i - 1] = from_(s.state.has_halted());
+        let inst = s.state.current_instruction();
+
+        trace[cpu_cols::COL_RS1][i] = from_(inst.data.rs1);
+        trace[cpu_cols::COL_RS2][i] = from_(inst.data.rs2);
+        trace[cpu_cols::COL_RD][i] = from_(inst.data.rd);
+        trace[cpu_cols::COL_OP1_VALUE][i] =
+            from_(s.state.get_register_value(usize::from(inst.data.rs1)));
+        // TODO(Vivek): Soon we support immediate values as opd2 in some instructions.
+        // So below line will change accordingly.
+        trace[cpu_cols::COL_OP2_VALUE][i] =
+            from_(s.state.get_register_value(usize::from(inst.data.rs2)));
+        trace[cpu_cols::COL_DST_VALUE][i] =
+            from_(s.state.get_register_value(usize::from(inst.data.rd)));
+        trace[cpu_cols::COL_S_HALT][i] = from_(s.state.has_halted());
         for j in 0..32_usize {
-            trace[cpu_cols::COL_START_REG + j][i - 1] =
-                from_(step_rows[i - 1].state.get_register_value(j));
+            trace[cpu_cols::COL_START_REG + j][i] = from_(s.state.get_register_value(j));
         }
 
-        match s.inst.op {
-            Op::ADD => trace[cpu_cols::COL_S_ADD][i - 1] = F::ONE,
-            Op::BEQ => trace[cpu_cols::COL_S_BEQ][i - 1] = F::ONE,
+        match inst.op {
+            Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,
+            Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             _ => {}
         }
     }
