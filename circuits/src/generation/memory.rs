@@ -11,6 +11,7 @@ use crate::memory::trace::{
 };
 
 /// Returns the rows sorted in the order of the instruction address.
+#[must_use]
 pub fn filter_memory_trace(step_rows: Vec<Row>) -> Vec<Row> {
     let result: BTreeMap<u32, Vec<Row>> = step_rows
         .into_iter()
@@ -32,15 +33,17 @@ pub fn filter_memory_trace(step_rows: Vec<Row>) -> Vec<Row> {
     result.into_iter().flat_map(|(_, v)| v).collect()
 }
 
+#[must_use]
+#[allow(clippy::missing_panics_doc)]
 pub fn generate_memory_trace<F: RichField>(
     step_rows: Vec<Row>,
 ) -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
     let filtered_step_rows = filter_memory_trace(step_rows);
     let trace_len = filtered_step_rows.len();
-    let ext_trace_len = if !trace_len.is_power_of_two() {
-        trace_len.next_power_of_two()
-    } else {
+    let ext_trace_len = if trace_len.is_power_of_two() {
         trace_len
+    } else {
+        trace_len.next_power_of_two()
     };
 
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; mem_cols::NUM_MEM_COLS];
@@ -102,6 +105,10 @@ mod test {
     // to memory and then checks if the memory trace is generated correctly.
     #[test]
     fn generate_memory_trace() {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
         // PADDING  ADDR       CLK       OP        VALUE     DIFF_ADDR   DIFF_CLK
         // 0        100        0         SB        5         0           0
         // 0        100        4         LB        5         0           4
@@ -122,12 +129,12 @@ mod test {
                 // 000011001000      00000  000     00110     0000011   lb r6, 200(r0)
                 // 0000011    00010  00000  000     00100     0100011   sb r2, 100(r0)
                 // 000001100100      00000  000     00101     0000011   lb r5, 100(r0)
-                (0_u32, 0b00000110000100000000001000100011),
-                (4_u32, 0b00000110010000000000001000000011),
-                (8_u32, 0b00001100001100000000010000100011),
-                (12_u32, 0b00001100100000000000001100000011),
-                (16_u32, 0b00000110001000000000001000100011),
-                (20_u32, 0b00000110010000000000001010000011),
+                (0_u32, 0b0000_0110_0001_0000_0000_0010_0010_0011),
+                (4_u32, 0b0000_0110_0100_0000_0000_0010_0000_0011),
+                (8_u32, 0b0000_1100_0011_0000_0000_0100_0010_0011),
+                (12_u32, 0b0000_1100_1000_0000_0000_0011_0000_0011),
+                (16_u32, 0b0000_0110_0010_0000_0000_0010_0010_0011),
+                (20_u32, 0b0000_0110_0100_0000_0000_0010_1000_0011),
             ],
             &[(1, 5), (2, 10), (3, 15)],
         );
@@ -137,9 +144,6 @@ mod test {
         assert_eq!(state.load_u8(200), 15);
         assert_eq!(state.get_register_value(6), 15);
 
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
         let trace = super::generate_memory_trace::<F>(rows);
         let expected_trace = [
             [
