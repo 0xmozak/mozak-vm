@@ -8,10 +8,15 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::{columns::*, *};
+use super::{
+    add,
+    columns::{COL_CLK, COL_RD, COL_REGS, COL_S_ADD, COL_S_HALT, NUM_CPU_COLS},
+    halt,
+};
 use crate::utils::from_;
 
 #[derive(Copy, Clone, Default)]
+#[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {
     _compress_challenge: Option<F>,
     pub _f: PhantomData<F>,
@@ -54,9 +59,9 @@ fn only_rd_changes<P: PackedField>(
 ) {
     // Note: register 0 is already always 0.
     // But we keep the constraints simple here.
-    for reg in 0..32 {
-        let reg_index = COL_REGS.start + reg;
-        let x: P::Scalar = from_(reg as u32);
+    for reg in 0_u32..32 {
+        let reg_index = COL_REGS.start + reg as usize;
+        let x: P::Scalar = from_(reg);
         yield_constr.constraint((lv[COL_RD] - x) * (lv[reg_index] - nv[reg_index]));
     }
 }
