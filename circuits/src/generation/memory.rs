@@ -10,6 +10,21 @@ use crate::memory::trace::{
     get_memory_store_inst_value,
 };
 
+/// Pad the memory trace to a power of 2.
+#[must_use]
+fn pad_mem_trace<F: RichField>(mut trace: Vec<Vec<F>>, trace_len: usize) -> Vec<Vec<F>> {
+    if trace_len != trace[0].len() {
+        trace[mem_cols::COL_MEM_ADDR..mem_cols::NUM_MEM_COLS]
+            .iter_mut()
+            .for_each(|row| {
+                let last = row[trace_len - 1];
+                row[trace_len..].fill(last);
+            });
+        trace[mem_cols::COL_MEM_PADDING][trace_len..].fill(F::ONE);
+    }
+    trace
+}
+
 /// Returns the rows sorted in the order of the instruction address.
 #[must_use]
 pub fn filter_memory_trace(step_rows: Vec<Row>) -> Vec<Row> {
@@ -75,15 +90,7 @@ pub fn generate_memory_trace<F: RichField>(
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
     // of the trace.
-    if trace_len != ext_trace_len {
-        trace[mem_cols::COL_MEM_ADDR..mem_cols::NUM_MEM_COLS]
-            .iter_mut()
-            .for_each(|row| {
-                let last = row[trace_len - 1];
-                row[trace_len..].fill(last);
-            });
-        trace[mem_cols::COL_MEM_PADDING][trace_len..].fill(F::ONE);
-    }
+    trace = pad_mem_trace(trace, trace_len);
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
