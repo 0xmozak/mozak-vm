@@ -10,16 +10,33 @@ use crate::memory::trace::{
     get_memory_store_inst_value,
 };
 
+/// Pad the memory trace to a power of 2.
+#[must_use]
+fn pad_mem_trace<F: RichField>(mut trace: Vec<Vec<F>>, trace_len: usize) -> Vec<Vec<F>> {
+    if trace_len != trace[0].len() {
+        trace[mem_cols::COL_MEM_ADDR..mem_cols::NUM_MEM_COLS]
+            .iter_mut()
+            .for_each(|row| {
+                let last = row[trace_len - 1];
+                row[trace_len..].fill(last);
+            });
+        trace[mem_cols::COL_MEM_PADDING][trace_len..].fill(F::ONE);
+    }
+    trace
+}
+
 /// Returns the rows sorted in the order of the instruction address.
+#[must_use]
 pub fn filter_memory_trace(step_rows: Vec<Row>) -> Vec<Row> {
     let result: BTreeMap<u32, Vec<Row>> = step_rows
         .into_iter()
-        .filter_map(|row| match row.inst.op {
+        .filter_map(|row| match row.state.current_instruction().op {
             Op::LB | Op::SB => {
+                let inst = row.state.current_instruction();
                 let addr = row
                     .state
-                    .get_register_value(row.inst.data.rs1.into())
-                    .wrapping_add(row.inst.data.imm);
+                    .get_register_value(inst.data.rs1.into())
+                    .wrapping_add(inst.data.imm);
                 Some((addr, row))
             }
             _ => None,
@@ -29,27 +46,33 @@ pub fn filter_memory_trace(step_rows: Vec<Row>) -> Vec<Row> {
             acc
         });
 
-    result.into_iter().flat_map(|(_, v)| v).collect()
+    let mut sorted_rows: Vec<Row> = Vec::new();
+    for (_, rows) in result {
+        sorted_rows.extend(rows);
+    }
+    sorted_rows
 }
 
+#[must_use]
+#[allow(clippy::missing_panics_doc)]
 pub fn generate_memory_trace<F: RichField>(
     step_rows: Vec<Row>,
 ) -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
     let filtered_step_rows = filter_memory_trace(step_rows);
     let trace_len = filtered_step_rows.len();
-    let ext_trace_len = if !trace_len.is_power_of_two() {
-        trace_len.next_power_of_two()
-    } else {
+    let ext_trace_len = if trace_len.is_power_of_two() {
         trace_len
+    } else {
+        trace_len.next_power_of_two()
     };
 
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; mem_cols::NUM_MEM_COLS];
     for (i, s) in filtered_step_rows.iter().enumerate() {
         trace[mem_cols::COL_MEM_ADDR][i] = get_memory_inst_addr(s);
         trace[mem_cols::COL_MEM_CLK][i] = get_memory_inst_clk(s);
-        trace[mem_cols::COL_MEM_OP][i] = get_memory_inst_op(&s.inst);
+        trace[mem_cols::COL_MEM_OP][i] = get_memory_inst_op(&s.state.current_instruction());
 
-        trace[mem_cols::COL_MEM_VALUE][i] = match s.inst.op {
+        trace[mem_cols::COL_MEM_VALUE][i] = match s.state.current_instruction().op {
             Op::LB => get_memory_load_inst_value(s),
             Op::SB => get_memory_store_inst_value(s),
             _ => F::ZERO,
@@ -62,7 +85,7 @@ pub fn generate_memory_trace<F: RichField>(
         };
 
         trace[mem_cols::COL_MEM_DIFF_CLK][i] =
-            if i == 0 || trace[mem_cols::COL_MEM_ADDR][i] != trace[mem_cols::COL_MEM_ADDR][i - 1] {
+            if i == 0 || trace[mem_cols::COL_MEM_DIFF_ADDR][i] != F::ZERO {
                 F::ZERO
             } else {
                 trace[mem_cols::COL_MEM_CLK][i] - trace[mem_cols::COL_MEM_CLK][i - 1]
@@ -72,15 +95,7 @@ pub fn generate_memory_trace<F: RichField>(
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
     // of the trace.
-    if trace_len != ext_trace_len {
-        trace[mem_cols::COL_MEM_ADDR..mem_cols::NUM_MEM_COLS]
-            .iter_mut()
-            .for_each(|row| {
-                let last = row[trace_len - 1];
-                row[trace_len..].fill(last);
-            });
-        trace[mem_cols::COL_MEM_PADDING][trace_len..].fill(F::ONE);
-    }
+    trace = pad_mem_trace(trace, trace_len);
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
@@ -102,6 +117,10 @@ mod test {
     // to memory and then checks if the memory trace is generated correctly.
     #[test]
     fn generate_memory_trace() {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
         // PADDING  ADDR       CLK       OP        VALUE     DIFF_ADDR   DIFF_CLK
         // 0        100        0         SB        5         0           0
         // 0        100        4         LB        5         0           4
@@ -122,12 +141,12 @@ mod test {
                 // 000011001000      00000  000     00110     0000011   lb r6, 200(r0)
                 // 0000011    00010  00000  000     00100     0100011   sb r2, 100(r0)
                 // 000001100100      00000  000     00101     0000011   lb r5, 100(r0)
-                (0_u32, 0b00000110000100000000001000100011),
-                (4_u32, 0b00000110010000000000001000000011),
-                (8_u32, 0b00001100001100000000010000100011),
-                (12_u32, 0b00001100100000000000001100000011),
-                (16_u32, 0b00000110001000000000001000100011),
-                (20_u32, 0b00000110010000000000001010000011),
+                (0_u32, 0b0000_0110_0001_0000_0000_0010_0010_0011),
+                (4_u32, 0b0000_0110_0100_0000_0000_0010_0000_0011),
+                (8_u32, 0b0000_1100_0011_0000_0000_0100_0010_0011),
+                (12_u32, 0b0000_1100_1000_0000_0000_0011_0000_0011),
+                (16_u32, 0b0000_0110_0010_0000_0000_0010_0010_0011),
+                (20_u32, 0b0000_0110_0100_0000_0000_0010_1000_0011),
             ],
             &[(1, 5), (2, 10), (3, 15)],
         );
@@ -137,9 +156,6 @@ mod test {
         assert_eq!(state.load_u8(200), 15);
         assert_eq!(state.get_register_value(6), 15);
 
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
         let trace = super::generate_memory_trace::<F>(rows);
         let expected_trace = [
             [
@@ -163,14 +179,14 @@ mod test {
                 F::from_canonical_u32(200),
             ],
             [
+                F::from_canonical_u32(0),
                 F::from_canonical_u32(1),
-                F::from_canonical_u32(2),
+                F::from_canonical_u32(4),
                 F::from_canonical_u32(5),
-                F::from_canonical_u32(6),
+                F::from_canonical_u32(2),
                 F::from_canonical_u32(3),
-                F::from_canonical_u32(4),
-                F::from_canonical_u32(4),
-                F::from_canonical_u32(4),
+                F::from_canonical_u32(3),
+                F::from_canonical_u32(3),
             ],
             [
                 F::ONE,
