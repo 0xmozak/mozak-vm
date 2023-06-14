@@ -5,6 +5,7 @@ use plonky2::hash::hash_types::RichField;
 pub(crate) const OPCODE_LB: usize = 0;
 pub(crate) const OPCODE_SB: usize = 1;
 
+#[must_use]
 pub fn get_memory_inst_op<F: RichField>(inst: &Instruction) -> F {
     match inst.op {
         Op::LB => F::from_canonical_usize(OPCODE_LB),
@@ -13,6 +14,7 @@ pub fn get_memory_inst_op<F: RichField>(inst: &Instruction) -> F {
     }
 }
 
+#[must_use]
 pub fn get_memory_inst_addr<F: RichField>(row: &Row) -> F {
     let addr = row
         .state
@@ -21,10 +23,12 @@ pub fn get_memory_inst_addr<F: RichField>(row: &Row) -> F {
     F::from_canonical_u32(addr)
 }
 
+#[must_use]
 pub fn get_memory_inst_clk<F: RichField>(row: &Row) -> F {
     F::from_canonical_usize(row.state.clk)
 }
 
+#[must_use]
 pub fn get_memory_load_inst_value<F: RichField>(row: &Row) -> F {
     let state = &row.state;
     let inst = &row.inst;
@@ -34,6 +38,7 @@ pub fn get_memory_load_inst_value<F: RichField>(row: &Row) -> F {
     F::from_canonical_u8(state.load_u8(addr))
 }
 
+#[must_use]
 pub fn get_memory_store_inst_value<F: RichField>(row: &Row) -> F {
     let state = &row.state;
     let inst = &row.inst;
