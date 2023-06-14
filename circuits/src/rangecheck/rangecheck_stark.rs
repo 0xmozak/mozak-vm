@@ -106,6 +106,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use mozak_vm::trace::RangeCheckRow;
     use plonky2::{
         field::{goldilocks_field::GoldilocksField, types::Sample},
         plonk::config::{GenericConfig, PoseidonGoldilocksConfig},
@@ -117,7 +118,7 @@ mod tests {
     };
 
     use super::*;
-    use crate::generation::rangecheck::{generate_rangecheck_trace, RangeCheckRow};
+    use crate::generation::rangecheck::generate_rangecheck_trace;
 
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;

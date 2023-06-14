@@ -1,16 +1,9 @@
+use mozak_vm::trace::RangeCheckRow;
 use plonky2::hash::hash_types::RichField;
 
 use crate::lookup::permuted_cols;
 use crate::rangecheck::columns;
 use crate::utils::from_;
-
-#[derive(Debug, Clone, Copy)]
-pub struct RangeCheckRow {
-    pub val: u32,
-    pub limb_lo: u16,
-    pub limb_hi: u16,
-    pub filter_cpu: u32,
-}
 
 pub fn pad_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
     let len = trace[0].len();
@@ -53,16 +46,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let trace_len = rangecheck_rows.len();
     let max_trace_len = trace_len.max(columns::RANGE_CHECK_U16_SIZE);
-    let ext_trace_len = if !max_trace_len.is_power_of_two() || max_trace_len < 2 {
-        if max_trace_len < 2 {
-            2
-        } else {
-            max_trace_len.next_power_of_two()
-        }
-    } else {
-        max_trace_len
-    };
-    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; columns::NUM_RC_COLS];
+    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; max_trace_len]; columns::NUM_RC_COLS];
     for (i, r) in rangecheck_rows.iter().enumerate() {
         trace[columns::VAL][i] = from_(r.val);
         trace[columns::LIMB_HI][i] = from_(r.limb_hi);
@@ -80,4 +64,30 @@ pub fn generate_rangecheck_trace<F: RichField>(
             v.len()
         )
     })
+}
+#[cfg(test)]
+mod tests {
+    use mozak_vm::{test_utils::simple_test, trace::RangeCheckRow};
+
+    #[test]
+    fn test_add_instruction_inserts_rangecheck() {
+        let (_, state) = simple_test(
+            4,
+            &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
+            &[(6, 100), (7, 100)],
+        );
+
+        println!("state: {:?}", state);
+        assert_eq!(state.get_register_value(5), 100 + 100);
+        let row = state.trace.rangecheck_column[0];
+        let expected_row = RangeCheckRow {
+            val: 200,
+            limb_lo: 200,
+            limb_hi: 0,
+            filter_cpu: 1,
+        };
+
+        assert_eq!(state.trace.rangecheck_column.len(), 1);
+        assert_eq!(row, expected_row);
+    }
 }
