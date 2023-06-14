@@ -36,8 +36,7 @@ fn opcode_one_hot<P: PackedField>(
         .into_iter()
         .for_each(|s| yield_constr.constraint(s * (P::ONES - s)));
 
-    // Only one opcode selector enabled, except for CLK 0, which does not have any
-    // instruction.
+    // Only one opcode selector enabled.
     let sum_s_op: P = op_selectors.into_iter().sum();
     yield_constr.constraint(P::ONES - sum_s_op);
 }

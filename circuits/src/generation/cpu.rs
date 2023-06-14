@@ -8,12 +8,6 @@ use crate::utils::{from_, pad_trace};
 
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {
-    // NOTE: Frist row of steps is just initial state without any instruction.
-    // All registers value in columns COL_START_REG to COL_START_REG + 31
-    // have register values at given clock before executing instruction.
-    // All other columns in trace has updated values at given clock after executing
-    // current instuction. We do this to make cpu constraint `only_rd_changes()`
-    // work correctly.
     let trace_len = step_rows.len();
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; trace_len]; cpu_cols::NUM_CPU_COLS];
     for (i, s) in step_rows.iter().enumerate() {
@@ -27,8 +21,6 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         trace[cpu_cols::COL_RD][i] = from_(inst.data.rd);
         trace[cpu_cols::COL_OP1_VALUE][i] =
             from_(s.state.get_register_value(usize::from(inst.data.rs1)));
-        // TODO(Vivek): Soon we support immediate values as opd2 in some instructions.
-        // So below line will change accordingly.
         trace[cpu_cols::COL_OP2_VALUE][i] =
             from_(s.state.get_register_value(usize::from(inst.data.rs2)));
         trace[cpu_cols::COL_DST_VALUE][i] =
