@@ -30,12 +30,13 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Vec<F>>, trace_len: usize) -> Vec<
 pub fn filter_memory_trace(step_rows: Vec<Row>) -> Vec<Row> {
     let result: BTreeMap<u32, Vec<Row>> = step_rows
         .into_iter()
-        .filter_map(|row| match row.inst.op {
+        .filter_map(|row| match row.state.current_instruction().op {
             Op::LB | Op::SB => {
+                let inst = row.state.current_instruction();
                 let addr = row
                     .state
-                    .get_register_value(row.inst.data.rs1.into())
-                    .wrapping_add(row.inst.data.imm);
+                    .get_register_value(inst.data.rs1.into())
+                    .wrapping_add(inst.data.imm);
                 Some((addr, row))
             }
             _ => None,
@@ -65,9 +66,9 @@ pub fn generate_memory_trace<F: RichField>(
     for (i, s) in filtered_step_rows.iter().enumerate() {
         trace[mem_cols::COL_MEM_ADDR][i] = get_memory_inst_addr(s);
         trace[mem_cols::COL_MEM_CLK][i] = get_memory_inst_clk(s);
-        trace[mem_cols::COL_MEM_OP][i] = get_memory_inst_op(&s.inst);
+        trace[mem_cols::COL_MEM_OP][i] = get_memory_inst_op(&s.state.current_instruction());
 
-        trace[mem_cols::COL_MEM_VALUE][i] = match s.inst.op {
+        trace[mem_cols::COL_MEM_VALUE][i] = match s.state.current_instruction().op {
             Op::LB => get_memory_load_inst_value(s),
             Op::SB => get_memory_store_inst_value(s),
             _ => F::ZERO,
@@ -174,14 +175,14 @@ mod test {
                 F::from_canonical_u32(200),
             ],
             [
+                F::from_canonical_u32(0),
                 F::from_canonical_u32(1),
-                F::from_canonical_u32(2),
+                F::from_canonical_u32(4),
                 F::from_canonical_u32(5),
-                F::from_canonical_u32(6),
+                F::from_canonical_u32(2),
                 F::from_canonical_u32(3),
-                F::from_canonical_u32(4),
-                F::from_canonical_u32(4),
-                F::from_canonical_u32(4),
+                F::from_canonical_u32(3),
+                F::from_canonical_u32(3),
             ],
             [
                 F::ONE,

@@ -16,10 +16,11 @@ pub fn get_memory_inst_op<F: Field>(inst: &Instruction) -> F {
 
 #[must_use]
 pub fn get_memory_inst_addr<F: Field>(row: &Row) -> F {
+    let inst = row.state.current_instruction();
     let addr = row
         .state
-        .get_register_value(row.inst.data.rs1.into())
-        .wrapping_add(row.inst.data.imm);
+        .get_register_value(inst.data.rs1.into())
+        .wrapping_add(inst.data.imm);
     F::from_canonical_u32(addr)
 }
 
@@ -31,7 +32,7 @@ pub fn get_memory_inst_clk<F: Field>(row: &Row) -> F {
 #[must_use]
 pub fn get_memory_load_inst_value<F: Field>(row: &Row) -> F {
     let state = &row.state;
-    let inst = &row.inst;
+    let inst = &state.current_instruction();
     let addr = state
         .get_register_value(inst.data.rs1.into())
         .wrapping_add(inst.data.imm);
@@ -41,6 +42,6 @@ pub fn get_memory_load_inst_value<F: Field>(row: &Row) -> F {
 #[must_use]
 pub fn get_memory_store_inst_value<F: Field>(row: &Row) -> F {
     let state = &row.state;
-    let inst = &row.inst;
+    let inst = &state.current_instruction();
     F::from_canonical_u32(state.get_register_value(inst.data.rs2.into()))
 }
