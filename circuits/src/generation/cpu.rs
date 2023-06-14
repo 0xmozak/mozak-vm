@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use log::trace as log_trace;
 use mozak_vm::instruction::Op;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -46,7 +45,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
     // we use last row `HALT` to pad them.
     let trace = pad_trace(trace, Some(cpu_cols::COL_CLK));
 
-    log_trace!("trace {:?}", trace);
+    log::trace!("trace {:?}", trace);
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
             "Expected a Vec of length {} but it was {}",
