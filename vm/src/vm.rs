@@ -117,13 +117,13 @@ impl State {
 
     #[must_use]
     pub fn ecall(self) -> Self {
-        if self.get_register_value(17_usize) == 93 {
-            // Note: we don't advance the program counter for 'halt'.
-            // That is we treat 'halt' like an endless loop.
-            self.halt() // exit system call
-        } else {
-            self.bump_pc()
-        }
+        // Technically, only r[17] == 93 is the system call for 'exit',
+        // but we halt on all system calls.
+        // TODO(Matthias): our design doesn't foresee needing to support any other
+        // system calls in the zk-VM, because of the multi-step execution to get
+        // non-deterministic values. If that design ever changes, we need to
+        // change our simplistic ecall implementation.
+        self.halt()
     }
 
     #[must_use]
