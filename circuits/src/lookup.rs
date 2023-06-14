@@ -1,3 +1,9 @@
+//! Implementation of the Halo2 lookup argument.
+//!
+//! References:
+//! - https://zcash.github.io/halo2/design/proving-system/lookup.html
+//! - https://www.youtube.com/watch?v=YlTt12s7vGE&t=5237s
+
 use std::cmp::Ordering;
 
 use itertools::Itertools;
