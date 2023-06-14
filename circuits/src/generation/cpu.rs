@@ -9,8 +9,6 @@ use crate::utils::{from_, pad_trace};
 
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {
-    let mut steps = step_rows.to_vec();
-    steps.push(steps.last().expect("Must have one element").clone());
     let trace_len = step_rows.len() - 1;
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; trace_len]; cpu_cols::NUM_CPU_COLS];
     for (i, (s, ns)) in step_rows.iter().tuple_windows().enumerate() {
