@@ -3,6 +3,7 @@ use log::trace;
 
 use crate::elf::{Code, Program};
 use crate::instruction::{Data, Instruction};
+use crate::trace::Trace;
 
 /// State of our VM
 ///
@@ -23,6 +24,7 @@ pub struct State {
     // (ie sort out where the original lives.)
     // This ain't super-urgent, because im::hashmap::HashMap is O(1) to clone.
     code: Code,
+    pub trace: Trace,
 }
 
 impl From<Program> for State {

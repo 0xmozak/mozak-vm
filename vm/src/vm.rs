@@ -3,6 +3,7 @@ use anyhow::Result;
 use crate::{
     instruction::{Data, Instruction, Op},
     state::State,
+    trace::RangeCheckRow,
 };
 
 #[must_use]
@@ -135,7 +136,7 @@ impl State {
     }
 
     #[must_use]
-    pub fn execute_instruction(self) -> Self {
+    pub fn execute_instruction(mut self) -> Self {
         let inst = self.current_instruction();
         macro_rules! rop {
             ($op: expr) => {
@@ -148,7 +149,10 @@ impl State {
             };
         }
         match inst.op {
-            Op::ADD => rop!(u32::wrapping_add),
+            Op::ADD => {
+                let res = rop!(u32::wrapping_add);
+                res
+            }
             Op::ADDI => iop!(u32::wrapping_add),
             // Only use lower 5 bits of rs2
             Op::SLL => rop!(|a, b| a << (b & 0x1F)),
@@ -210,6 +214,19 @@ impl State {
             Op::UNKNOWN => unimplemented!("Unknown instruction"),
         }
         .bump_clock()
+    }
+
+    fn insert_rangecheck(&mut self, inst: &Instruction) {
+        println!("inst: {:?}", inst);
+        let val = self.get_register_value(inst.data.rd.into());
+        let limb_hi = (val >> 8) as u16;
+        let limb_lo = val as u16 & 0xffff;
+        self.trace.rangecheck_column.push(RangeCheckRow {
+            val,
+            limb_lo,
+            limb_hi,
+            filter_cpu: 1,
+        });
     }
 }
 
