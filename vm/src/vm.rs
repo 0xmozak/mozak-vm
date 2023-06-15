@@ -1,11 +1,13 @@
 use anyhow::Result;
 
 use crate::{
-    instruction::{Data, Instruction, Op},
+    instruction::{Data, Op},
     state::State,
 };
 
 #[must_use]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn mulh(a: u32, b: u32) -> u32 {
     ((i64::from(a as i32) * i64::from(b as i32)) >> 32) as u32
 }
@@ -16,11 +18,15 @@ pub fn mulhu(a: u32, b: u32) -> u32 {
 }
 
 #[must_use]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn mulhsu(a: u32, b: u32) -> u32 {
     ((i64::from(a as i32) * i64::from(b)) >> 32) as u32
 }
 
 #[must_use]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn div(a: u32, b: u32) -> u32 {
     match (a as i32, b as i32) {
         (_, 0) => 0xFFFF_FFFF,
@@ -37,6 +43,8 @@ pub fn divu(a: u32, b: u32) -> u32 {
 }
 
 #[must_use]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn rem(a: u32, b: u32) -> u32 {
     (match (a as i32, b as i32) {
         (a, 0) => a,
@@ -55,6 +63,8 @@ pub fn remu(a: u32, b: u32) -> u32 {
 }
 
 #[must_use]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn lb(mem: &[u8; 4]) -> u32 {
     i32::from(mem[0] as i8) as u32
 }
@@ -65,6 +75,8 @@ pub fn lbu(mem: &[u8; 4]) -> u32 {
 }
 
 #[must_use]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn lh(mem: &[u8; 4]) -> u32 {
     i32::from(i16::from_le_bytes([mem[0], mem[1]])) as u32
 }
@@ -106,11 +118,12 @@ impl State {
     #[must_use]
     pub fn ecall(self) -> Self {
         if self.get_register_value(17_usize) == 93 {
+            // Note: we don't advance the program counter for 'halt'.
+            // That is we treat 'halt' like an endless loop.
             self.halt() // exit system call
         } else {
-            self
+            self.bump_pc()
         }
-        .bump_pc()
     }
 
     #[must_use]
@@ -120,23 +133,29 @@ impl State {
     }
 
     #[must_use]
-    pub fn store(self, inst: &Data, bytes: usize) -> Self {
+    pub fn store(self, inst: &Data, bytes: u32) -> Self {
         let addr = self
             .get_register_value(inst.rs1.into())
             .wrapping_add(inst.imm);
         let value: u32 = self.get_register_value(inst.rs2.into());
-        (value.to_le_bytes()[0..bytes])
-            .iter()
-            .enumerate()
-            .fold(self, |acc, (i, byte)| {
-                acc.store_u8(addr.wrapping_add(i as u32), *byte)
-            })
+        (0..bytes)
+            .map(|i| addr.wrapping_add(i))
+            .zip(value.to_le_bytes().into_iter())
+            .fold(self, |acc, (i, byte)| acc.store_u8(i, byte))
             .bump_pc()
     }
 
     #[must_use]
+    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_possible_wrap)]
     pub fn execute_instruction(self) -> Self {
         let inst = self.current_instruction();
+        macro_rules! x_op {
+            ($op: expr) => {
+                self.register_op(&inst.data, $op)
+            };
+        }
         macro_rules! rop {
             ($op: expr) => {
                 self.register_op(&inst.data, |a, b, _i| $op(a, b))
@@ -148,8 +167,7 @@ impl State {
             };
         }
         match inst.op {
-            Op::ADD => rop!(u32::wrapping_add),
-            Op::ADDI => iop!(u32::wrapping_add),
+            Op::ADD => x_op!(|a, b, i| a.wrapping_add(b.wrapping_add(i))),
             // Only use lower 5 bits of rs2
             Op::SLL => rop!(|a, b| a << (b & 0x1F)),
             // Only use lower 5 bits of rs2
@@ -213,11 +231,11 @@ impl State {
     }
 }
 
-/// Later on, this can hold traces.
+/// Each row corresponds to the state of the VM _just before_ executing the
+/// instruction that the program counter points to.
 #[derive(Debug, Clone, Default)]
 pub struct Row {
     pub state: State,
-    pub inst: Instruction,
 }
 
 /// Execute a program
@@ -234,13 +252,13 @@ pub struct Row {
 /// loops. (Matthias had some trouble debugging a problem with jumps
 /// earlier.)
 pub fn step(mut state: State) -> Result<(Vec<Row>, State)> {
-    let mut rows = vec![];
+    let mut rows = vec![Row {
+        state: state.clone(),
+    }];
     while !state.has_halted() {
-        let inst = state.current_instruction();
         state = state.execute_instruction();
         rows.push(Row {
             state: state.clone(),
-            inst,
         });
 
         if cfg!(debug_assertions) {
@@ -253,6 +271,8 @@ pub fn step(mut state: State) -> Result<(Vec<Row>, State)> {
 }
 
 #[cfg(test)]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 mod tests {
     use test_case::test_case;
 

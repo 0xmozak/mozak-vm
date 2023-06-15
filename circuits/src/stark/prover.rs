@@ -12,11 +12,12 @@ use starky::stark::Stark;
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
 use super::proof::AllProof;
-use crate::cpu::cpu_stark::CpuStark;
+use crate::cpu::stark::CpuStark;
 use crate::generation::generate_traces;
 
+#[allow(clippy::missing_errors_doc)]
 pub fn prove<F, C, const D: usize>(
-    step_rows: Vec<Row>,
+    step_rows: &Vec<Row>,
     mozak_stark: &mut MozakStark<F, D>,
     config: &StarkConfig,
     timing: &mut TimingTree,
@@ -29,13 +30,14 @@ where
     [(); C::Hasher::HASH_SIZE]:,
 {
     let trace_poly_values = generate_traces(step_rows);
-    prove_with_traces(mozak_stark, config, trace_poly_values, timing)
+    prove_with_traces(mozak_stark, config, &trace_poly_values, timing)
 }
 
+#[allow(clippy::missing_errors_doc)]
 pub fn prove_with_traces<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
-    trace_poly_values: [Vec<PolynomialValues<F>>; NUM_TABLES],
+    trace_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
 where
@@ -71,36 +73,36 @@ mod test {
 
     #[test]
     fn prove_halt() {
-        let (rows, _state) = simple_test(0, &[], &[]);
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
         type S = MozakStark<F, D>;
+        let (rows, _state) = simple_test(0, &[], &[]);
         let mut config = StarkConfig::standard_fast_config();
         config.fri_config.cap_height = 0;
 
         let mut stark = S::default();
-        let proof = prove::<F, C, D>(rows, &mut stark, &config, &mut TimingTree::default());
+        let proof = prove::<F, C, D>(&rows, &mut stark, &config, &mut TimingTree::default());
         assert!(proof.is_ok());
     }
 
     #[test]
     fn prove_add() {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        type S = MozakStark<F, D>;
         let (rows, state) = simple_test(
             4,
             &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
             &[(6, 100), (7, 100)],
         );
         assert_eq!(state.get_register_value(5), 100 + 100);
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        type S = MozakStark<F, D>;
         let mut config = StarkConfig::standard_fast_config();
         config.fri_config.cap_height = 0;
 
         let mut stark = S::default();
-        let proof = prove::<F, C, D>(rows, &mut stark, &config, &mut TimingTree::default());
+        let proof = prove::<F, C, D>(&rows, &mut stark, &config, &mut TimingTree::default());
         assert!(proof.is_ok());
     }
 }
