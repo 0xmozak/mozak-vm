@@ -3,7 +3,6 @@ use anyhow::Result;
 use crate::{
     instruction::{Data, Op},
     state::State,
-    trace::RangeCheckRow,
 };
 
 #[must_use]
@@ -150,7 +149,7 @@ impl State {
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
-    pub fn execute_instruction(self) -> Self {
+    pub fn execute_instruction(mut self) -> Self {
         let inst = self.current_instruction();
         macro_rules! x_op {
             ($op: expr) => {
@@ -229,19 +228,6 @@ impl State {
             Op::UNKNOWN => unimplemented!("Unknown instruction"),
         }
         .bump_clock()
-    }
-
-    fn insert_rangecheck(&mut self, inst: &Instruction) {
-        println!("inst: {:?}", inst);
-        let val = self.get_register_value(inst.data.rd.into());
-        let limb_hi = (val >> 8) as u16;
-        let limb_lo = val as u16 & 0xffff;
-        self.trace.rangecheck_column.push(RangeCheckRow {
-            val,
-            limb_lo,
-            limb_hi,
-            filter_cpu: 1,
-        });
     }
 }
 
