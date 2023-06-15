@@ -100,7 +100,7 @@ impl State {
     #[must_use]
     pub fn jal(self, inst: &Data) -> Self {
         let pc = self.get_pc();
-        self.bump_pc_n(inst.imm)
+        self.set_pc(inst.imm)
             .set_register_value(inst.rd.into(), pc.wrapping_add(4))
     }
 

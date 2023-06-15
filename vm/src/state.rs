@@ -65,13 +65,12 @@ impl State {
         self.set_register_value(data.rd.into(), op(&mem)).bump_pc()
     }
 
-    // TODO(Matthias): this used to use a register_op.
     #[must_use]
     pub fn branch_op(self, data: &Data, op: fn(u32, u32) -> bool) -> State {
         let rs1 = self.get_register_value(data.rs1.into());
         let rs2 = self.get_register_value(data.rs2.into());
         if op(rs1, rs2) {
-            self.bump_pc_n(data.imm)
+            self.set_pc(data.imm)
         } else {
             self.bump_pc()
         }
