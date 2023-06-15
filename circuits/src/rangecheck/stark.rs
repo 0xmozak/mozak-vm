@@ -57,13 +57,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
             vars,
             yield_constr,
             columns::LIMB_LO_PERMUTED,
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED,
+            columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
         );
         eval_lookups(
             vars,
             yield_constr,
             columns::LIMB_HI_PERMUTED,
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED,
+            columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
         );
     }
 
@@ -92,14 +92,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
             vars,
             yield_constr,
             columns::LIMB_LO_PERMUTED,
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED,
+            columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
         );
         eval_lookups_circuit(
             builder,
             vars,
             yield_constr,
             columns::LIMB_HI_PERMUTED,
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED,
+            columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
         );
     }
 
@@ -111,6 +111,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use log::trace;
     use mozak_vm::test_utils::simple_test;
     use plonky2::{
         field::{goldilocks_field::GoldilocksField, types::Sample},
@@ -130,24 +131,31 @@ mod tests {
     type F = <C as GenericConfig<D>>::F;
     type S = RangeCheckStark<F, D>;
 
+    fn generate_failing_trace() -> [Vec<GoldilocksField>; columns::NUM_RC_COLS] {
+        let (rows, _) = simple_test(
+            4,
+            &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
+            &[(6, 100), (7, 100)],
+        );
+        let mut trace = generate_rangecheck_trace::<F>(&rows);
+        trace[0][columns::VAL] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
+        trace
+    }
+
     #[test]
     fn test_degree() -> Result<()> {
-        let stark = S {
-            f: Default::default(),
-        };
+        let stark = S::default();
         test_stark_low_degree(stark)
     }
 
     #[test]
     fn test_rangecheck_stark_circuit() -> Result<()> {
-        let stark = S {
-            f: Default::default(),
-        };
+        let stark = S::default();
         test_stark_circuit_constraints::<F, C, S, D>(stark)
     }
 
     #[test]
-    fn test_rangecheck_stark() -> Result<()> {
+    fn test_rangecheck_stark() {
         let stark = S::default();
         let (rows, _) = simple_test(
             4,
@@ -162,22 +170,23 @@ mod tests {
         let subgroup =
             F::cyclic_subgroup_known_order(F::primitive_root_of_unity(log2_strict(len)), len);
 
-        for i in 0..len {
+        for i in 0..1 {
             let local_values = trace
                 .iter()
                 .map(|row| row[i % len])
                 .collect::<Vec<_>>()
                 .try_into()
                 .unwrap();
+            let next_values = trace
+                .iter()
+                .map(|row| row[(i + 1) % len])
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap();
 
             let vars = StarkEvaluationVars {
                 local_values: &local_values,
-                next_values: &trace
-                    .iter()
-                    .map(|row| row[(i + 1) % len])
-                    .collect::<Vec<_>>()
-                    .try_into()
-                    .unwrap(),
+                next_values: &next_values,
                 public_inputs: &[],
             };
 
@@ -199,12 +208,70 @@ mod tests {
 
             for &acc in &constraint_consumer.constraint_accs {
                 if !acc.eq(&GoldilocksField::ZERO) {
-                    println!("constraint error in line {}", i);
+                    trace!("constraint error in line {i}");
                 }
                 assert_eq!(acc, GoldilocksField::ZERO);
             }
         }
+    }
 
-        Ok(())
+    #[test]
+    fn test_rangecheck_stark_fail() {
+        let stark = S::default();
+        let trace = generate_failing_trace();
+
+        let len = trace[0].len();
+        let last = F::primitive_root_of_unity(log2_strict(len)).inverse();
+        let subgroup =
+            F::cyclic_subgroup_known_order(F::primitive_root_of_unity(log2_strict(len)), len);
+
+        for i in 0..len {
+            let local_values = trace
+                .iter()
+                .map(|row| row[i % len])
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap();
+            let next_values = trace
+                .iter()
+                .map(|row| row[(i + 1) % len])
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap();
+
+            let vars = StarkEvaluationVars {
+                local_values: &local_values,
+                next_values: &next_values,
+                public_inputs: &[],
+            };
+
+            let mut constraint_consumer = ConstraintConsumer::new(
+                vec![F::rand()],
+                subgroup[i] - last,
+                if i == 0 {
+                    GoldilocksField::ONE
+                } else {
+                    GoldilocksField::ZERO
+                },
+                if i == len - 1 {
+                    GoldilocksField::ONE
+                } else {
+                    GoldilocksField::ZERO
+                },
+            );
+            stark.eval_packed_generic(vars, &mut constraint_consumer);
+
+            for &acc in &constraint_consumer.constraint_accs {
+                if i == 0 {
+                    assert_ne!(acc, GoldilocksField::ZERO);
+                } else {
+                    if !acc.eq(&GoldilocksField::ZERO) {
+                        trace!("constraint error in line {i}");
+                    }
+
+                    assert_eq!(acc, GoldilocksField::ZERO);
+                }
+            }
+        }
     }
 }
