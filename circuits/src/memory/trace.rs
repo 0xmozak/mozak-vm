@@ -36,7 +36,7 @@ pub fn get_memory_load_inst_value<F: Field>(row: &Row) -> F {
     let addr = state
         .get_register_value(inst.data.rs1.into())
         .wrapping_add(inst.data.imm);
-    F::from_canonical_u32(state.load_u8(addr))
+    F::from_canonical_u32(state.load_u32(addr))
 }
 
 #[must_use]
