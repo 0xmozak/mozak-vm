@@ -16,7 +16,7 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
 
     if trace_len < ext_trace_len {
         for row in trace[mem_cols::COL_MEM_ADDR..mem_cols::NUM_MEM_COLS].iter_mut() {
-            let last = row[trace_len - 1].clone();
+            let last = row[trace_len - 1];
             row.resize(ext_trace_len, last);
         }
 
