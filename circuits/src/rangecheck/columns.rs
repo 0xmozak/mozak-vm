@@ -13,7 +13,6 @@ pub(crate) const FIXED_RANGE_CHECK_U16: usize = CPU_FILTER + 1;
 pub(crate) const FIXED_RANGE_CHECK_U16_PERMUTED_LO: usize = FIXED_RANGE_CHECK_U16 + 1;
 pub(crate) const FIXED_RANGE_CHECK_U16_PERMUTED_HI: usize = FIXED_RANGE_CHECK_U16_PERMUTED_LO + 1;
 
-//
-pub(crate) const NUM_RC_COLS: usize = FIXED_RANGE_CHECK_U16_PERMUTED_HI + 1; // 11
+pub(crate) const NUM_RC_COLS: usize = FIXED_RANGE_CHECK_U16_PERMUTED_HI + 1;
 
-pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16; // 4
+pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
