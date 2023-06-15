@@ -69,6 +69,12 @@ pub fn generate_memory_trace<F: RichField>(
             trace[mem_cols::COL_MEM_ADDR][i] - trace[mem_cols::COL_MEM_ADDR][i - 1]
         };
 
+        trace[mem_cols::COL_MEM_NEW_ADDR][i] = if trace[mem_cols::COL_MEM_DIFF_ADDR][i] == F::ZERO {
+            F::ZERO
+        } else {
+            F::ONE
+        };
+
         trace[mem_cols::COL_MEM_DIFF_CLK][i] =
             if i == 0 || trace[mem_cols::COL_MEM_DIFF_ADDR][i] != F::ZERO {
                 F::ZERO
@@ -107,13 +113,13 @@ mod test {
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        // PADDING  ADDR       CLK       OP        VALUE     DIFF_ADDR   DIFF_CLK
-        // 0        100        0         SB        5         0           0
-        // 0        100        4         LB        5         0           4
-        // 0        100        16        SB        10        0           12
-        // 0        100        20        LB        10        0           4
-        // 0        200        8         SB        15        100         0
-        // 0        200        12        LB        15        0           4
+        // PADDING  ADDR  CLK   OP  VALUE  NEW_ADDR  DIFF_ADDR  DIFF_CLK
+        // 0        100   0     SB  5      0         0          0
+        // 0        100   4     LB  5      0         0          4
+        // 0        100   16    SB  10     0         0          12
+        // 0        100   20    LB  10     0         0          4
+        // 0        200   8     SB  15     1         100        0
+        // 0        200   12    LB  15     0         0          4
         let ExecutionRecord {
             executed,
             last_state: state,
@@ -147,6 +153,7 @@ mod test {
 
         let trace = super::generate_memory_trace::<F>(executed);
         let expected_trace = [
+            // PADDING
             [
                 F::ZERO,
                 F::ZERO,
@@ -157,6 +164,7 @@ mod test {
                 F::ONE,
                 F::ONE,
             ],
+            // ADDR
             [
                 F::from_canonical_u32(100),
                 F::from_canonical_u32(100),
@@ -167,6 +175,7 @@ mod test {
                 F::from_canonical_u32(200),
                 F::from_canonical_u32(200),
             ],
+            // CLK
             [
                 F::from_canonical_u32(0),
                 F::from_canonical_u32(1),
@@ -177,6 +186,7 @@ mod test {
                 F::from_canonical_u32(3),
                 F::from_canonical_u32(3),
             ],
+            // OP
             [
                 F::ONE,
                 F::ZERO,
@@ -187,6 +197,7 @@ mod test {
                 F::ZERO,
                 F::ZERO,
             ],
+            // VALUE
             [
                 F::from_canonical_u32(5),
                 F::from_canonical_u32(5),
@@ -197,6 +208,18 @@ mod test {
                 F::from_canonical_u32(15),
                 F::from_canonical_u32(15),
             ],
+            // NEW_ADDR
+            [
+                F::ZERO,
+                F::ZERO,
+                F::ZERO,
+                F::ZERO,
+                F::ONE,
+                F::ZERO,
+                F::ZERO,
+                F::ZERO,
+            ],
+            // DIFF_ADDR
             [
                 F::ZERO,
                 F::ZERO,
@@ -207,6 +230,7 @@ mod test {
                 F::ZERO,
                 F::ZERO,
             ],
+            // DIFF_CLK
             [
                 F::from_canonical_u32(0),
                 F::from_canonical_u32(1),
