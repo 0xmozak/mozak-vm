@@ -43,6 +43,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,
             Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
+            Op::LUI => trace[cpu_cols::COL_S_LUI][i] = F::ONE,
             _ => {}
         }
     }
