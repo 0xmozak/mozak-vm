@@ -20,7 +20,19 @@ use crate::lookup::{eval_lookups, eval_lookups_circuit};
 
 #[derive(Copy, Clone, Default)]
 pub struct RangeCheckStark<F, const D: usize> {
-    pub f: PhantomData<F>,
+    pub _f: PhantomData<F>,
+}
+
+/// Constrain val - (limb_hi ** base + limb_lo) == 0
+fn constrain_value<P: PackedField>(
+    base: P::Scalar,
+    local_values: &[P; columns::NUM_RC_COLS],
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    let val = local_values[columns::VAL];
+    let limb_lo = local_values[columns::LIMB_LO];
+    let limb_hi = local_values[columns::LIMB_HI];
+    yield_constr.constraint(val - (limb_lo + limb_hi * base));
 }
 
 impl<F: RichField, const D: usize> RangeCheckStark<F, D> {
@@ -43,16 +55,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>,
     {
-        let val = vars.local_values[columns::VAL];
-        let limb_lo = vars.local_values[columns::LIMB_LO];
-        let limb_hi = vars.local_values[columns::LIMB_HI];
-
-        // Addition check for op0, op1, diff
-        let base = P::Scalar::from_canonical_usize(Self::BASE);
-        let sum = limb_lo + limb_hi * base;
-
-        yield_constr.constraint(val - sum);
-
+        constrain_value(
+            P::Scalar::from_canonical_usize(Self::BASE),
+            vars.local_values,
+            yield_constr,
+        );
         eval_lookups(
             vars,
             yield_constr,
@@ -84,7 +91,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         let base = builder.constant_extension(F::Extension::from_canonical_usize(Self::BASE));
         let sum = builder.mul_add_extension(limb_hi, base, limb_lo);
         let val_sum_diff = builder.sub_extension(val, sum);
-        // constraint: val - (limb_hi ** base + limb_lo) == 0
         yield_constr.constraint(builder, val_sum_diff);
 
         eval_lookups_circuit(
@@ -164,6 +170,70 @@ mod tests {
         );
 
         let trace = generate_rangecheck_trace::<F>(&rows);
+
+        let len = trace[0].len();
+        let last = F::primitive_root_of_unity(log2_strict(len)).inverse();
+        let subgroup =
+            F::cyclic_subgroup_known_order(F::primitive_root_of_unity(log2_strict(len)), len);
+
+        for i in 0..1 {
+            let local_values = trace
+                .iter()
+                .map(|row| row[i % len])
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap();
+            let next_values = trace
+                .iter()
+                .map(|row| row[(i + 1) % len])
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap();
+
+            let vars = StarkEvaluationVars {
+                local_values: &local_values,
+                next_values: &next_values,
+                public_inputs: &[],
+            };
+
+            let mut constraint_consumer = ConstraintConsumer::new(
+                vec![F::rand()],
+                subgroup[i] - last,
+                if i == 0 {
+                    GoldilocksField::ONE
+                } else {
+                    GoldilocksField::ZERO
+                },
+                if i == len - 1 {
+                    GoldilocksField::ONE
+                } else {
+                    GoldilocksField::ZERO
+                },
+            );
+            stark.eval_packed_generic(vars, &mut constraint_consumer);
+
+            for &acc in &constraint_consumer.constraint_accs {
+                if !acc.eq(&GoldilocksField::ZERO) {
+                    trace!("constraint error in line {i}");
+                }
+                assert_eq!(acc, GoldilocksField::ZERO);
+            }
+        }
+    }
+
+    #[test]
+    fn test_rangecheck_stark_big_trace() {
+        let stark = S::default();
+        let inst = 0x0073_02b3 /* add r5, r6, r7 */;
+
+        let mut mem = vec![];
+        for i in 0..u16::MAX as u32 + 1 {
+            mem.push((u32::from(i as u32 * 4), inst));
+        }
+        let (rows, _) = simple_test(4, &mem, &[(6, 100), (7, 100)]);
+
+        let trace = generate_rangecheck_trace::<F>(&rows);
+        println!("trace len: {}", trace[0].len());
 
         let len = trace[0].len();
         let last = F::primitive_root_of_unity(log2_strict(len)).inverse();
