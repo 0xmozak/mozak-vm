@@ -57,13 +57,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
             vars,
             yield_constr,
             columns::LIMB_LO_PERMUTED,
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
+            columns::FIXED_RANGE_CHECK_U16_PERMUTED,
         );
         eval_lookups(
             vars,
             yield_constr,
             columns::LIMB_HI_PERMUTED,
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
+            columns::FIXED_RANGE_CHECK_U16_PERMUTED,
         );
     }
 
@@ -92,14 +92,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
             vars,
             yield_constr,
             columns::LIMB_LO_PERMUTED,
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
+            columns::FIXED_RANGE_CHECK_U16_PERMUTED,
         );
         eval_lookups_circuit(
             builder,
             vars,
             yield_constr,
             columns::LIMB_HI_PERMUTED,
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
+            columns::FIXED_RANGE_CHECK_U16_PERMUTED,
         );
     }
 
@@ -111,7 +111,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use mozak_vm::trace::RangeCheckRow;
+    use mozak_vm::test_utils::simple_test;
     use plonky2::{
         field::{goldilocks_field::GoldilocksField, types::Sample},
         plonk::config::{GenericConfig, PoseidonGoldilocksConfig},
@@ -149,23 +149,15 @@ mod tests {
     #[test]
     fn test_rangecheck_stark() -> Result<()> {
         let stark = S::default();
+        let (rows, _) = simple_test(
+            4,
+            &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
+            &[(6, 100), (7, 100)],
+        );
 
-        let rows = [RangeCheckRow {
-            val: 0,
-            limb_lo: 0,
-            limb_hi: 0,
-            filter_cpu: 0,
-        }];
         let trace = generate_rangecheck_trace::<F>(&rows);
 
         let len = trace[0].len();
-        println!(
-            "raw trace len:{}, extended len: {} {} ",
-            rows.len(),
-            len,
-            trace.len()
-        );
-
         let last = F::primitive_root_of_unity(log2_strict(len)).inverse();
         let subgroup =
             F::cyclic_subgroup_known_order(F::primitive_root_of_unity(log2_strict(len)), len);
