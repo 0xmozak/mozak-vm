@@ -1,4 +1,9 @@
-pub fn memory_trace_test_case() -> (u32, Vec<(u32, u32)>, Vec<(usize, u32)>) {
+type ExitAt = u32;
+type Instructions = Vec<(u32, u32)>;
+type RegInitValues = Vec<(usize, u32)>;
+
+#[must_use]
+pub fn memory_trace_test_case() -> (ExitAt, Instructions, RegInitValues) {
     // Store Byte: M[rs1 + imm] = rs2
     // imm[11:5]  rs2    rs1    funct3  imm[4:0]  opcode
     // Load Byte: rd = M[rs1 + imm]
