@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use mozak_vm::state::State;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 
@@ -51,4 +52,14 @@ where
         .chain(std::iter::once(None))
         .tuple_windows()
         .filter_map(|(a, b)| a.map(|a| (a, b)))
+}
+
+pub fn augment_dst<'a>(
+    states: impl Iterator<Item = &'a State>,
+) -> impl Iterator<Item = (&'a State, u32)> {
+    pair_windows(states).map(move |(state, next_state)| {
+        let dst = state.current_instruction().data.rd;
+        let dst_val = next_state.map_or(0, |ns| ns.get_register_value(usize::from(dst)));
+        (state, dst_val)
+    })
 }

@@ -1,20 +1,9 @@
 use mozak_vm::instruction::Op;
-use mozak_vm::state::State;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns as cpu_cols;
-use crate::utils::{from_, pad_trace, pair_windows};
-
-fn augment_dst<'a>(
-    states: impl Iterator<Item = &'a State>,
-) -> impl Iterator<Item = (&'a State, u32)> {
-    pair_windows(states).map(move |(state, next_state)| {
-        let dst = state.current_instruction().data.rd;
-        let dst_val = next_state.map_or(0, |ns| ns.get_register_value(usize::from(dst)));
-        (state, dst_val)
-    })
-}
+use crate::utils::{augment_dst, from_, pad_trace};
 
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {
