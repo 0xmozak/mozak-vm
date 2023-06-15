@@ -1,8 +1,8 @@
 //! Implementation of the Halo2 lookup argument.
 //!
 //! References:
-//! - https://zcash.github.io/halo2/design/proving-system/lookup.html
-//! - https://www.youtube.com/watch?v=YlTt12s7vGE&t=5237s
+//! - [ZCash Halo2 lookup docs](https://zcash.github.io/halo2/design/proving-system/lookup.html)
+//! - [ZK Meetup Seoul ECC X ZKS Deep dive on Halo2](https://www.youtube.com/watch?v=YlTt12s7vGE&t=5237s)
 
 use std::cmp::Ordering;
 
@@ -91,13 +91,13 @@ pub fn permuted_cols<F: PrimeField64>(inputs: &[F], table: &[F]) -> (Vec<F>, Vec
 
     let sorted_inputs = inputs
         .iter()
-        .map(|x| x.to_canonical())
-        .sorted_unstable_by_key(|x| x.to_noncanonical_u64())
+        .map(PrimeField64::to_canonical)
+        .sorted_unstable_by_key(PrimeField64::to_noncanonical_u64)
         .collect_vec();
     let sorted_table = table
         .iter()
-        .map(|x| x.to_canonical())
-        .sorted_unstable_by_key(|x| x.to_noncanonical_u64())
+        .map(PrimeField64::to_canonical)
+        .sorted_unstable_by_key(PrimeField64::to_noncanonical_u64)
         .collect_vec();
 
     let mut unused_table_inds = Vec::with_capacity(n);
