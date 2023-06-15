@@ -57,14 +57,20 @@ pub fn generate_rangecheck_trace<F: RichField>(
         }
     }
 
+    // Here, we generate fixed columns for the table, used in inner table lookups.
+    // We are interested in range checking 16-bit values, hence we populate with
+    // values 0, 1, .., 2^16 - 1.
     trace[columns::FIXED_RANGE_CHECK_U16] =
         (0..RANGE_CHECK_U16_SIZE).map(|i| from_(i as u64)).collect();
 
+    // This permutation is done in accordance to the [Halo2 lookup argument
+    // spec]()https://zcash.github.io/halo2/design/proving-system/lookup.html
     let (permuted_inputs, permuted_table) = permuted_cols(
         &trace[columns::LIMB_LO],
         &trace[columns::FIXED_RANGE_CHECK_U16],
     );
 
+    // We need a column for the lower limb.
     trace[columns::LIMB_LO_PERMUTED] = permuted_inputs;
     trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO] = permuted_table;
 
@@ -73,6 +79,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
         &trace[columns::FIXED_RANGE_CHECK_U16],
     );
 
+    // And we also need a column for the upper limb.
     trace[columns::LIMB_HI_PERMUTED] = permuted_inputs;
     trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI] = permuted_table;
     let trace = pad_trace(trace);
