@@ -34,7 +34,6 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         // NOTE: Updated value of DST register is next step.
         trace[cpu_cols::COL_DST_VALUE][i] = from_(dst_val);
         trace[cpu_cols::COL_IMM_VALUE][i] = from_(inst.data.imm);
-        // NOTE: Updated halted status is in next step.
         trace[cpu_cols::COL_S_HALT][i] = from_(s.has_halted());
         for j in 0..32_usize {
             trace[cpu_cols::COL_START_REG + j][i] = from_(s.get_register_value(j));
