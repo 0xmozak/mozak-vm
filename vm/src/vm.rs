@@ -149,7 +149,7 @@ impl State {
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
-    pub fn execute_instruction(mut self) -> Self {
+    pub fn execute_instruction(self) -> Self {
         let inst = self.current_instruction();
         macro_rules! x_op {
             ($op: expr) => {
