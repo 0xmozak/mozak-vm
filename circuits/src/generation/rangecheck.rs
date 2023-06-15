@@ -19,7 +19,7 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
 
 pub fn generate_fixed_rangecheck_table<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
     trace[columns::FIXED_RANGE_CHECK_U16] = (0..columns::RANGE_CHECK_U16_SIZE)
-        .map(|i| F::from_canonical_usize(i))
+        .map(|i| from_(i as u64))
         .collect();
 
     let (permuted_inputs, permuted_table) = permuted_cols(
