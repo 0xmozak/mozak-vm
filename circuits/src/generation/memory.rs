@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use mozak_vm::instruction::Op;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -12,45 +10,40 @@ use crate::memory::trace::{
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
-fn pad_mem_trace<F: RichField>(mut trace: Vec<Vec<F>>, trace_len: usize) -> Vec<Vec<F>> {
-    if trace_len != trace[0].len() {
-        trace[mem_cols::COL_MEM_ADDR..mem_cols::NUM_MEM_COLS]
-            .iter_mut()
-            .for_each(|row| {
-                let last = row[trace_len - 1];
-                row[trace_len..].fill(last);
-            });
-        trace[mem_cols::COL_MEM_PADDING][trace_len..].fill(F::ONE);
+fn pad_mem_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
+    let trace_len = trace[0].len();
+    let ext_trace_len = trace_len.next_power_of_two();
+
+    if trace_len < ext_trace_len {
+        for row in trace[mem_cols::COL_MEM_ADDR..mem_cols::NUM_MEM_COLS].iter_mut() {
+            let last = row[trace_len - 1].clone();
+            row.resize(ext_trace_len, last);
+        }
+
+        trace[mem_cols::COL_MEM_PADDING].resize(ext_trace_len, F::ONE);
     }
+
     trace
 }
 
 /// Returns the rows sorted in the order of the instruction address.
 #[must_use]
-pub fn filter_memory_trace(step_rows: Vec<Row>) -> Vec<Row> {
-    let result: BTreeMap<u32, Vec<Row>> = step_rows
-        .into_iter()
-        .filter_map(|row| match row.state.current_instruction().op {
-            Op::LB | Op::SB => {
-                let inst = row.state.current_instruction();
-                let addr = row
-                    .state
-                    .get_register_value(inst.data.rs1.into())
-                    .wrapping_add(inst.data.imm);
-                Some((addr, row))
-            }
-            _ => None,
-        })
-        .fold(BTreeMap::new(), |mut acc, (addr, row)| {
-            acc.entry(addr).or_insert_with(Vec::new).push(row);
-            acc
-        });
+pub fn filter_memory_trace(mut step_rows: Vec<Row>) -> Vec<Row> {
+    // Sorting is stable, and rows are already ordered by row.state.clk
+    step_rows.sort_by_key(|row| {
+        let data = row.state.current_instruction().data;
+        row.state
+            .get_register_value(data.rs1.into())
+            .wrapping_add(data.imm)
+    });
 
-    let mut sorted_rows: Vec<Row> = Vec::new();
-    for (_, rows) in result {
-        sorted_rows.extend(rows);
-    }
-    sorted_rows
+    step_rows
+        .into_iter()
+        .filter(|row| {
+            let inst = row.state.current_instruction();
+            inst.op == Op::LB || inst.op == Op::SB
+        })
+        .collect()
 }
 
 #[must_use]
@@ -60,13 +53,8 @@ pub fn generate_memory_trace<F: RichField>(
 ) -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
     let filtered_step_rows = filter_memory_trace(step_rows);
     let trace_len = filtered_step_rows.len();
-    let ext_trace_len = if trace_len.is_power_of_two() {
-        trace_len
-    } else {
-        trace_len.next_power_of_two()
-    };
 
-    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; mem_cols::NUM_MEM_COLS];
+    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; trace_len]; mem_cols::NUM_MEM_COLS];
     for (i, s) in filtered_step_rows.iter().enumerate() {
         trace[mem_cols::COL_MEM_ADDR][i] = get_memory_inst_addr(s);
         trace[mem_cols::COL_MEM_CLK][i] = get_memory_inst_clk(s);
@@ -95,7 +83,7 @@ pub fn generate_memory_trace<F: RichField>(
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
     // of the trace.
-    trace = pad_mem_trace(trace, trace_len);
+    trace = pad_mem_trace(trace);
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
