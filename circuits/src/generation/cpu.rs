@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use mozak_vm::instruction::Op;
 use mozak_vm::state::State;
 use mozak_vm::vm::Row;
