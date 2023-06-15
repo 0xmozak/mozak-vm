@@ -3,16 +3,14 @@ use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns as cpu_cols;
-use crate::utils::{from_, pad_trace};
+use crate::utils::{from_, pad_trace, pair_windows};
 
 fn augment_dst(rows: &[Row]) -> impl Iterator<Item = (&Row, u32)> {
-    rows.iter().zip(
-        rows.iter()
-            .map(|s| s.state.current_instruction().data.rd)
-            .zip(rows.iter().skip(1))
-            .map(|(rd, row)| row.state.get_register_value(usize::from(rd)))
-            .chain(std::iter::once(0_u32)),
-    )
+    pair_windows(rows.iter()).map(|(a, b)| {
+        let dst = a.state.current_instruction().data.rd;
+        let dst_val = b.map_or(0, |b| b.state.get_register_value(usize::from(dst)));
+        (a, dst_val)
+    })
 }
 
 #[allow(clippy::missing_panics_doc)]
