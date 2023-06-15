@@ -1,4 +1,5 @@
 pub mod cpu;
+pub mod memory;
 
 use mozak_vm::vm::Row;
 use plonky2::{
