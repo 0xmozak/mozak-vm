@@ -99,41 +99,22 @@ pub fn generate_memory_trace<F: RichField>(
 
 #[cfg(test)]
 mod test {
-    use mozak_vm::test_utils::simple_test;
-    use mozak_vm::vm::ExecutionRecord;
-    use plonky2::field::types::Field;
+    use plonky2::hash::hash_types::RichField;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
+    use crate::memory::columns as mem_cols;
     use crate::memory::test_utils::memory_trace_test_case;
 
-    // This test simulates the scenario of a set of instructions
-    // which perform store byte (SB) and load byte (LB) operations
-    // to memory and then checks if the memory trace is generated correctly.
-    #[test]
-    fn generate_memory_trace() {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-
-        // PADDING  ADDR  CLK   OP  VALUE  NEW_ADDR  DIFF_ADDR  DIFF_CLK
-        // 0        100   0     SB  5      0         0          0
-        // 0        100   4     LB  5      0         0          4
-        // 0        100   16    SB  10     0         0          12
-        // 0        100   20    LB  10     0         0          4
-        // 0        200   8     SB  15     1         100        0
-        // 0        200   12    LB  15     0         0          4
-        let (exit_at, mem, reg) = memory_trace_test_case();
-        let (rows, state) = simple_test(exit_at, &*mem, &*reg);
-        assert_eq!(state.load_u8(100), 10);
-        assert_eq!(state.get_register_value(4), 5);
-        assert_eq!(state.get_register_value(5), 10);
-        assert_eq!(state.load_u8(200), 15);
-        assert_eq!(state.get_register_value(6), 15);
-
-        let trace = super::generate_memory_trace::<F>(executed);
-        let expected_trace = [
-            // PADDING
-            [
+    // PADDING  ADDR  CLK   OP  VALUE  NEW_ADDR  DIFF_ADDR  DIFF_CLK
+    // 0        100   0     SB  5      0         0          0
+    // 0        100   4     LB  5      0         0          4
+    // 0        100   16    SB  10     0         0          12
+    // 0        100   20    LB  10     0         0          4
+    // 0        200   8     SB  15     1         100        0
+    // 0        200   12    LB  15     0         0          4
+    fn expected_trace<F: RichField>() -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
+        [
+            vec![
                 F::ZERO,
                 F::ZERO,
                 F::ZERO,
@@ -144,7 +125,7 @@ mod test {
                 F::ONE,
             ],
             // ADDR
-            [
+            vec![
                 F::from_canonical_u32(100),
                 F::from_canonical_u32(100),
                 F::from_canonical_u32(100),
@@ -155,7 +136,7 @@ mod test {
                 F::from_canonical_u32(200),
             ],
             // CLK
-            [
+            vec![
                 F::from_canonical_u32(0),
                 F::from_canonical_u32(1),
                 F::from_canonical_u32(4),
@@ -166,7 +147,7 @@ mod test {
                 F::from_canonical_u32(3),
             ],
             // OP
-            [
+            vec![
                 F::ONE,
                 F::ZERO,
                 F::ONE,
@@ -177,7 +158,7 @@ mod test {
                 F::ZERO,
             ],
             // VALUE
-            [
+            vec![
                 F::from_canonical_u32(5),
                 F::from_canonical_u32(5),
                 F::from_canonical_u32(10),
@@ -188,7 +169,7 @@ mod test {
                 F::from_canonical_u32(15),
             ],
             // NEW_ADDR
-            [
+            vec![
                 F::ZERO,
                 F::ZERO,
                 F::ZERO,
@@ -199,7 +180,7 @@ mod test {
                 F::ZERO,
             ],
             // DIFF_ADDR
-            [
+            vec![
                 F::ZERO,
                 F::ZERO,
                 F::ZERO,
@@ -210,7 +191,7 @@ mod test {
                 F::ZERO,
             ],
             // DIFF_CLK
-            [
+            vec![
                 F::from_canonical_u32(0),
                 F::from_canonical_u32(1),
                 F::from_canonical_u32(3),
@@ -220,7 +201,21 @@ mod test {
                 F::from_canonical_u32(1),
                 F::from_canonical_u32(1),
             ],
-        ];
-        assert_eq!(trace, expected_trace);
+        ]
+    }
+
+    // This test simulates the scenario of a set of instructions
+    // which perform store byte (SB) and load byte (LB) operations
+    // to memory and then checks if the memory trace is generated correctly.
+    #[test]
+    fn generate_memory_trace() {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        let rows = memory_trace_test_case();
+
+        let trace = super::generate_memory_trace::<F>(rows);
+        assert_eq!(trace, expected_trace());
     }
 }
