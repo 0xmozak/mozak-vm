@@ -107,13 +107,13 @@ mod test {
 
     // PADDING  ADDR  CLK   OP  VALUE  NEW_ADDR  DIFF_ADDR  DIFF_CLK
     // 0        100   0     SB  5      0         0          0
-    // 0        100   4     LB  5      0         0          4
-    // 0        100   16    SB  10     0         0          12
-    // 0        100   20    LB  10     0         0          4
-    // 0        200   8     SB  15     1         100        0
-    // 0        200   12    LB  15     0         0          4
-    // 1        200   12    LB  15     0         0          4
-    // 1        200   12    LB  15     0         0          4
+    // 0        100   1     LB  5      0         0          4
+    // 0        100   4     SB  10     0         0          12
+    // 0        100   5     LB  10     0         0          4
+    // 0        200   2     SB  15     1         100        0
+    // 0        200   3     LB  15     0         0          4
+    // 1        200   3     LB  15     0         0          4
+    // 1        200   3     LB  15     0         0          4
     fn expected_trace<F: RichField>() -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
         [
             vec![
