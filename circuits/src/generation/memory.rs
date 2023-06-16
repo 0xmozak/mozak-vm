@@ -69,11 +69,12 @@ pub fn generate_memory_trace<F: RichField>(
             trace[mem_cols::COL_MEM_ADDR][i] - trace[mem_cols::COL_MEM_ADDR][i - 1]
         };
 
-        trace[mem_cols::COL_MEM_NEW_ADDR][i] = if trace[mem_cols::COL_MEM_DIFF_ADDR][i] == F::ZERO {
-            F::ZERO
-        } else {
-            F::ONE
-        };
+        trace[mem_cols::COL_MEM_DIFF_ADDR_INV][i] =
+            if trace[mem_cols::COL_MEM_DIFF_ADDR][i] == F::ZERO {
+                F::ZERO
+            } else {
+                trace[mem_cols::COL_MEM_DIFF_ADDR][i].inverse()
+            };
 
         trace[mem_cols::COL_MEM_DIFF_CLK][i] =
             if i == 0 || trace[mem_cols::COL_MEM_DIFF_ADDR][i] != F::ZERO {
@@ -105,15 +106,15 @@ mod test {
     use crate::memory::columns as mem_cols;
     use crate::memory::test_utils::memory_trace_test_case;
 
-    // PADDING  ADDR  CLK   OP  VALUE  NEW_ADDR  DIFF_ADDR  DIFF_CLK
-    // 0        100   0     SB  5      0         0          0
-    // 0        100   1     LB  5      0         0          4
-    // 0        100   4     SB  10     0         0          12
-    // 0        100   5     LB  10     0         0          4
-    // 0        200   2     SB  15     1         100        0
-    // 0        200   3     LB  15     0         0          4
-    // 1        200   3     LB  15     0         0          4
-    // 1        200   3     LB  15     0         0          4
+    // PADDING  ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV        DIFF_CLK
+    // 0        100   0     SB  5      0          0                    0
+    // 0        100   1     LB  5      0          0                    4
+    // 0        100   4     SB  10     0          0                    12
+    // 0        100   5     LB  10     0          0                    4
+    // 0        200   2     SB  15     100        3504881373188771021  0
+    // 0        200   3     LB  15     0          0                    4
+    // 1        200   3     LB  15     0          0                    4
+    // 1        200   3     LB  15     0          0                    4
     fn expected_trace<F: RichField>() -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
         [
             vec![
@@ -170,17 +171,6 @@ mod test {
                 F::from_canonical_u32(15),
                 F::from_canonical_u32(15),
             ],
-            // NEW_ADDR
-            vec![
-                F::ZERO,
-                F::ZERO,
-                F::ZERO,
-                F::ZERO,
-                F::ONE,
-                F::ZERO,
-                F::ZERO,
-                F::ZERO,
-            ],
             // DIFF_ADDR
             vec![
                 F::ZERO,
@@ -188,6 +178,17 @@ mod test {
                 F::ZERO,
                 F::ZERO,
                 F::from_canonical_u32(100),
+                F::ZERO,
+                F::ZERO,
+                F::ZERO,
+            ],
+            // DIFF_ADDR_INV
+            vec![
+                F::ZERO,
+                F::ZERO,
+                F::ZERO,
+                F::ZERO,
+                F::from_canonical_u64(3504881373188771021),
                 F::ZERO,
                 F::ZERO,
                 F::ZERO,

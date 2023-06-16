@@ -9,8 +9,8 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use crate::memory::columns::{
-    COL_MEM_ADDR, COL_MEM_CLK, COL_MEM_DIFF_ADDR, COL_MEM_DIFF_CLK, COL_MEM_NEW_ADDR, COL_MEM_OP,
-    COL_MEM_PADDING, COL_MEM_VALUE, NUM_MEM_COLS,
+    COL_MEM_ADDR, COL_MEM_CLK, COL_MEM_DIFF_ADDR, COL_MEM_DIFF_ADDR_INV, COL_MEM_DIFF_CLK,
+    COL_MEM_OP, COL_MEM_PADDING, COL_MEM_VALUE, NUM_MEM_COLS,
 };
 use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
 
@@ -37,8 +37,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv = vars.local_values;
         let nv = vars.next_values;
 
+        let new_address = lv[COL_MEM_DIFF_ADDR] * lv[COL_MEM_DIFF_ADDR_INV];
         yield_constr.constraint_first_row(lv[COL_MEM_OP] - FE::from_canonical_usize(OPCODE_SB));
-        yield_constr.constraint_first_row(lv[COL_MEM_NEW_ADDR]);
+        yield_constr.constraint_first_row(new_address);
         yield_constr.constraint_first_row(lv[COL_MEM_DIFF_ADDR]);
         yield_constr.constraint_first_row(lv[COL_MEM_DIFF_CLK]);
 
@@ -48,30 +49,25 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // lv[COL_MEM_OP] in {0, 1}
         yield_constr.constraint(lv[COL_MEM_OP] * (lv[COL_MEM_OP] - P::ONES));
 
-        // lv[COL_MEM_NEW_ADDR] in {0, 1}
-        yield_constr.constraint(lv[COL_MEM_NEW_ADDR] * (lv[COL_MEM_NEW_ADDR] - P::ONES));
-
         // a1) When address changed, nv[COL_MEM_OP] should be SB
-        yield_constr.constraint(
-            lv[COL_MEM_NEW_ADDR] * (lv[COL_MEM_OP] - FE::from_canonical_usize(OPCODE_SB)),
-        );
+        yield_constr
+            .constraint(new_address * (lv[COL_MEM_OP] - FE::from_canonical_usize(OPCODE_SB)));
         // a2) If nv[COL_MEM_OP] == LB, nv[COL_MEM_ADDR] == lv[COL_MEM_ADDR]
         yield_constr.constraint(
-            lv[COL_MEM_NEW_ADDR] * (P::ONES - nv[COL_MEM_OP] + FE::from_canonical_usize(OPCODE_LB)),
+            new_address * (P::ONES - nv[COL_MEM_OP] + FE::from_canonical_usize(OPCODE_LB)),
         );
 
         // b) When address not changed, nv[COL_MEM_DIFF_CLK] = nv[COL_MEM_CLK] -
         //    lv[COL_MEM_CLK]
         yield_constr.constraint(
-            (nv[COL_MEM_DIFF_CLK] - nv[COL_MEM_CLK] + lv[COL_MEM_CLK])
-                * (nv[COL_MEM_NEW_ADDR] - P::ONES),
+            (nv[COL_MEM_DIFF_CLK] - nv[COL_MEM_CLK] + lv[COL_MEM_CLK]) * (new_address - P::ONES),
         );
 
         // c) nv[COL_MEM_DIFF_ADDR] = nv[COL_MEM_ADDR] - lv[COL_MEM_ADDR]
         yield_constr.constraint(nv[COL_MEM_DIFF_ADDR] - nv[COL_MEM_ADDR] + lv[COL_MEM_ADDR]);
 
         // d) When address changed, clk difference should be zero.
-        yield_constr.constraint(lv[COL_MEM_NEW_ADDR] * lv[COL_MEM_DIFF_CLK]);
+        yield_constr.constraint(new_address * lv[COL_MEM_DIFF_CLK]);
 
         // e) If nv[COL_MEM_OP] == LB, nv[COL_MEM_VALUE] == lv[COL_MEM_VALUE]
         yield_constr.constraint(
@@ -80,7 +76,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         );
 
         // f) When address not changed, lv[COL_MEM_DIFF_ADDR] = 0
-        yield_constr.constraint(lv[COL_MEM_DIFF_ADDR] * (nv[COL_MEM_NEW_ADDR] - P::ONES));
+        yield_constr.constraint(lv[COL_MEM_DIFF_ADDR] * (new_address - P::ONES));
     }
 
     fn constraint_degree(&self) -> usize {

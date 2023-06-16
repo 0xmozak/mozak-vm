@@ -13,11 +13,11 @@ pub(crate) const COL_MEM_OP: usize = 3;
 // Value of memory access.
 pub(crate) const COL_MEM_VALUE: usize = 4;
 
-// Indicates rows with memory with different addresses have started.
-pub(crate) const COL_MEM_NEW_ADDR: usize = 5;
-
 // Difference between current and previous address.
-pub(crate) const COL_MEM_DIFF_ADDR: usize = 6;
+pub(crate) const COL_MEM_DIFF_ADDR: usize = 5;
+
+// Inverse of the above column. 0 if the above column is 0.
+pub(crate) const COL_MEM_DIFF_ADDR_INV: usize = 6;
 
 // Difference between current and previous clock.
 pub(crate) const COL_MEM_DIFF_CLK: usize = 7;
