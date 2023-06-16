@@ -1,10 +1,10 @@
-use plonky2::{field::extension::Extendable, hash::hash_types::RichField};
+use plonky2::field::types::Field;
 
 use crate::cpu::stark::CpuStark;
 
 #[derive(Clone, Default)]
-pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
-    pub cpu_stark: CpuStark<F, D>,
+pub struct MozakStark<F: Field> {
+    pub cpu_stark: CpuStark<F>,
 }
 
 pub(crate) const NUM_TABLES: usize = 1;

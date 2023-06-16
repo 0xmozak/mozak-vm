@@ -18,15 +18,15 @@ use crate::generation::generate_traces;
 #[allow(clippy::missing_errors_doc)]
 pub fn prove<F, C, const D: usize>(
     step_rows: &[Row],
-    mozak_stark: &mut MozakStark<F, D>,
+    mozak_stark: &mut MozakStark<F>,
     config: &StarkConfig,
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-    [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
+    [(); CpuStark::<F>::COLUMNS]:,
+    [(); CpuStark::<F>::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:,
 {
     let trace_poly_values = generate_traces(step_rows);
@@ -35,7 +35,7 @@ where
 
 #[allow(clippy::missing_errors_doc)]
 pub fn prove_with_traces<F, C, const D: usize>(
-    mozak_stark: &MozakStark<F, D>,
+    mozak_stark: &MozakStark<F>,
     config: &StarkConfig,
     trace_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     timing: &mut TimingTree,
@@ -43,8 +43,8 @@ pub fn prove_with_traces<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-    [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
+    [(); CpuStark::<F>::COLUMNS]:,
+    [(); CpuStark::<F>::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:,
 {
     let cpu_proof = prove_table(

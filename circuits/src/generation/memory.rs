@@ -1,6 +1,6 @@
 use mozak_vm::instruction::Op;
 use mozak_vm::vm::Row;
-use plonky2::hash::hash_types::RichField;
+use plonky2::field::types::Field;
 
 use crate::memory::columns as mem_cols;
 use crate::memory::trace::{
@@ -10,7 +10,7 @@ use crate::memory::trace::{
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
-fn pad_mem_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
+fn pad_mem_trace<F: Field>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
     let trace_len = trace[0].len();
     let ext_trace_len = trace_len.next_power_of_two();
 
@@ -45,9 +45,7 @@ pub fn filter_memory_trace(mut step_rows: Vec<Row>) -> Vec<Row> {
 
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
-pub fn generate_memory_trace<F: RichField>(
-    step_rows: Vec<Row>,
-) -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
+pub fn generate_memory_trace<F: Field>(step_rows: Vec<Row>) -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
     let filtered_step_rows = filter_memory_trace(step_rows);
     let trace_len = filtered_step_rows.len();
 
