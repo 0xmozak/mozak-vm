@@ -137,6 +137,8 @@ mod tests {
     type F = <C as GenericConfig<D>>::F;
     type S = RangeCheckStark<F, D>;
 
+    /// Generates a trace which contains a value that should fail the range
+    /// check.
     fn generate_failing_trace() -> [Vec<GoldilocksField>; columns::NUM_RC_COLS] {
         let (rows, _) = simple_test(
             4,
@@ -161,67 +163,6 @@ mod tests {
     }
 
     #[test]
-    fn test_rangecheck_stark() {
-        let stark = S::default();
-        let (rows, _) = simple_test(
-            4,
-            &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
-            &[(6, 100), (7, 100)],
-        );
-
-        let trace = generate_rangecheck_trace::<F>(&rows);
-
-        let len = trace[0].len();
-        let last = F::primitive_root_of_unity(log2_strict(len)).inverse();
-        let subgroup =
-            F::cyclic_subgroup_known_order(F::primitive_root_of_unity(log2_strict(len)), len);
-
-        for i in 0..1 {
-            let local_values = trace
-                .iter()
-                .map(|row| row[i % len])
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap();
-            let next_values = trace
-                .iter()
-                .map(|row| row[(i + 1) % len])
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap();
-
-            let vars = StarkEvaluationVars {
-                local_values: &local_values,
-                next_values: &next_values,
-                public_inputs: &[],
-            };
-
-            let mut constraint_consumer = ConstraintConsumer::new(
-                vec![F::rand()],
-                subgroup[i] - last,
-                if i == 0 {
-                    GoldilocksField::ONE
-                } else {
-                    GoldilocksField::ZERO
-                },
-                if i == len - 1 {
-                    GoldilocksField::ONE
-                } else {
-                    GoldilocksField::ZERO
-                },
-            );
-            stark.eval_packed_generic(vars, &mut constraint_consumer);
-
-            for &acc in &constraint_consumer.constraint_accs {
-                if !acc.eq(&GoldilocksField::ZERO) {
-                    trace!("constraint error in line {i}");
-                }
-                assert_eq!(acc, GoldilocksField::ZERO);
-            }
-        }
-    }
-
-    #[test]
     fn test_rangecheck_stark_big_trace() {
         let stark = S::default();
         let inst = 0x0073_02b3 /* add r5, r6, r7 */;
@@ -233,14 +174,13 @@ mod tests {
         let (rows, _) = simple_test(4, &mem, &[(6, 100), (7, 100)]);
 
         let trace = generate_rangecheck_trace::<F>(&rows);
-        println!("trace len: {}", trace[0].len());
 
         let len = trace[0].len();
         let last = F::primitive_root_of_unity(log2_strict(len)).inverse();
         let subgroup =
             F::cyclic_subgroup_known_order(F::primitive_root_of_unity(log2_strict(len)), len);
 
-        for i in 0..1 {
+        for i in 0..len {
             let local_values = trace
                 .iter()
                 .map(|row| row[i % len])
@@ -295,53 +235,37 @@ mod tests {
         let subgroup =
             F::cyclic_subgroup_known_order(F::primitive_root_of_unity(log2_strict(len)), len);
 
-        for i in 0..len {
-            let local_values = trace
-                .iter()
-                .map(|row| row[i % len])
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap();
-            let next_values = trace
-                .iter()
-                .map(|row| row[(i + 1) % len])
-                .collect::<Vec<_>>()
-                .try_into()
-                .unwrap();
+        let local_values = trace
+            .iter()
+            .map(|row| row[0])
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+        let next_values = trace
+            .iter()
+            .map(|row| row[1])
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
 
-            let vars = StarkEvaluationVars {
-                local_values: &local_values,
-                next_values: &next_values,
-                public_inputs: &[],
-            };
+        let vars = StarkEvaluationVars {
+            local_values: &local_values,
+            next_values: &next_values,
+            public_inputs: &[],
+        };
 
-            let mut constraint_consumer = ConstraintConsumer::new(
-                vec![F::rand()],
-                subgroup[i] - last,
-                if i == 0 {
-                    GoldilocksField::ONE
-                } else {
-                    GoldilocksField::ZERO
-                },
-                if i == len - 1 {
-                    GoldilocksField::ONE
-                } else {
-                    GoldilocksField::ZERO
-                },
-            );
-            stark.eval_packed_generic(vars, &mut constraint_consumer);
+        let mut constraint_consumer = ConstraintConsumer::new(
+            vec![F::rand()],
+            subgroup[0] - last,
+            GoldilocksField::ONE,
+            GoldilocksField::ZERO,
+        );
+        stark.eval_packed_generic(vars, &mut constraint_consumer);
 
-            for &acc in &constraint_consumer.constraint_accs {
-                if i == 0 {
-                    assert_ne!(acc, GoldilocksField::ZERO);
-                } else {
-                    if !acc.eq(&GoldilocksField::ZERO) {
-                        trace!("constraint error in line {i}");
-                    }
-
-                    assert_eq!(acc, GoldilocksField::ZERO);
-                }
-            }
-        }
+        // Constraint should not hold, since trace contains a value > u16::MAX.
+        assert_ne!(
+            constraint_consumer.constraint_accs[0],
+            GoldilocksField::ZERO
+        );
     }
 }
