@@ -112,6 +112,8 @@ mod test {
     // 0        100   20    LB  10     0         0          4
     // 0        200   8     SB  15     1         100        0
     // 0        200   12    LB  15     0         0          4
+    // 1        200   12    LB  15     0         0          4
+    // 1        200   12    LB  15     0         0          4
     fn expected_trace<F: RichField>() -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
         [
             vec![
@@ -217,5 +219,26 @@ mod test {
 
         let trace = super::generate_memory_trace::<F>(rows);
         assert_eq!(trace, expected_trace());
+    }
+
+    #[test]
+    fn generate_memory_trace_without_padding() {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        let rows = memory_trace_test_case();
+        let trace = super::generate_memory_trace::<F>(rows[..4].to_vec());
+
+        let indices = vec![0, 1, 4, 5];
+        let expected_trace_vec: Vec<Vec<F>> = expected_trace()
+            .iter()
+            .map(|v| indices.iter().filter_map(|&i| v.get(i).cloned()).collect())
+            .collect();
+
+        let expected_trace: [Vec<F>; mem_cols::NUM_MEM_COLS] =
+            expected_trace_vec.try_into().expect("Mismatched lengths");
+
+        assert_eq!(trace, expected_trace);
     }
 }
