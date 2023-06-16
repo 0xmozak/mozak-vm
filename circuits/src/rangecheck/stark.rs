@@ -147,6 +147,7 @@ mod tests {
             &[(6, 100), (7, 100)],
         );
         let mut trace = generate_rangecheck_trace::<F>(&rows);
+        // Manually alter the value here to be larger than a u32.
         trace[0][columns::VAL] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
         trace
     }
