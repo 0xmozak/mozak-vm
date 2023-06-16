@@ -24,7 +24,10 @@ where
 /// length.
 #[must_use]
 pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>, clk_col: Option<usize>) -> Vec<Vec<F>> {
-    assert!(trace.iter().tuples().all(|(a, b)| a.len() == b.len()));
+    assert!(trace
+        .iter()
+        .tuple_windows()
+        .all(|(a, b)| a.len() == b.len()));
     trace.iter_mut().enumerate().for_each(|(i, col)| {
         if let (Some(padded_len), Some(&last)) = (col.len().checked_next_power_of_two(), col.last())
         {
@@ -37,4 +40,15 @@ pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>, clk_col: Option<usize>) -> Ve
         }
     });
     trace
+}
+
+pub fn pair_windows<S, Item>(it: S) -> impl Iterator<Item = (Item, Option<Item>)>
+where
+    S: Sized + Iterator<Item = Item>,
+    Item: Clone,
+{
+    it.map(|x| Some(x))
+        .chain(std::iter::once(None))
+        .tuple_windows()
+        .filter_map(|(a, b)| a.map(|a| (a, b)))
 }

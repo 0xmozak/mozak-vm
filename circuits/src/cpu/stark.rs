@@ -10,15 +10,13 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::{
     add,
-    columns::{COL_CLK, COL_RD, COL_REGS, COL_S_ADD, COL_S_HALT, NUM_CPU_COLS},
-    halt,
+    columns::{COL_CLK, COL_RD, COL_REGS, COL_S_ADD, COL_S_ECALL, COL_S_HALT, NUM_CPU_COLS},
 };
 use crate::utils::from_;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {
-    _compress_challenge: Option<F>,
     pub _f: PhantomData<F>,
 }
 
@@ -30,8 +28,9 @@ fn opcode_one_hot<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let op_selectors = [lv[COL_S_ADD], lv[COL_S_HALT]];
+    let op_selectors = [lv[COL_S_ADD], lv[COL_S_ECALL]];
 
+    // Op selectors have value 0 or 1.
     op_selectors
         .into_iter()
         .for_each(|s| yield_constr.constraint(s * (P::ONES - s)));
@@ -47,7 +46,7 @@ fn clock_ticks<P: PackedField>(
     nv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    yield_constr.constraint(nv[COL_CLK] - (lv[COL_CLK] + P::ONES));
+    yield_constr.constraint_transition(nv[COL_CLK] - (lv[COL_CLK] + P::ONES));
 }
 
 /// Register used as destination register can have different value, all
@@ -62,7 +61,7 @@ fn only_rd_changes<P: PackedField>(
     for reg in 0_u32..32 {
         let reg_index = COL_REGS.start + reg as usize;
         let x: P::Scalar = from_(reg);
-        yield_constr.constraint((lv[COL_RD] - x) * (lv[reg_index] - nv[reg_index]));
+        yield_constr.constraint_transition((lv[COL_RD] - x) * (lv[reg_index] - nv[reg_index]));
     }
 }
 
@@ -96,7 +95,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 
         // add constraint
         add::constraints(lv, nv, yield_constr);
-        halt::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT
         yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);

@@ -7,21 +7,39 @@ use crate::memory::trace::{
     get_memory_inst_addr, get_memory_inst_clk, get_memory_inst_op, get_memory_load_inst_value,
     get_memory_store_inst_value,
 };
-use crate::utils::pad_trace;
+
+/// Pad the memory trace to a power of 2.
+#[must_use]
+fn pad_mem_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
+    let trace_len = trace[0].len();
+    let ext_trace_len = trace_len.next_power_of_two();
+
+    for row in trace[mem_cols::COL_MEM_ADDR..mem_cols::NUM_MEM_COLS].iter_mut() {
+        row.resize(ext_trace_len, *row.last().unwrap());
+    }
+
+    trace[mem_cols::COL_MEM_PADDING].resize(ext_trace_len, F::ONE);
+
+    trace
+}
 
 /// Returns the rows sorted in the order of the instruction address.
 #[must_use]
 pub fn filter_memory_trace(mut step_rows: Vec<Row>) -> Vec<Row> {
     // Sorting is stable, and rows are already ordered by row.state.clk
     step_rows.sort_by_key(|row| {
+        let data = row.state.current_instruction().data;
         row.state
-            .get_register_value(row.inst.data.rs1.into())
-            .wrapping_add(row.inst.data.imm)
+            .get_register_value(data.rs1.into())
+            .wrapping_add(data.imm)
     });
 
     step_rows
         .into_iter()
-        .filter(|row| row.inst.op == Op::LB || row.inst.op == Op::SB)
+        .filter(|row| {
+            let inst = row.state.current_instruction();
+            inst.op == Op::LB || inst.op == Op::SB
+        })
         .collect()
 }
 
@@ -31,15 +49,15 @@ pub fn generate_memory_trace<F: RichField>(
     step_rows: Vec<Row>,
 ) -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
     let filtered_step_rows = filter_memory_trace(step_rows);
+    let trace_len = filtered_step_rows.len();
 
-    let mut trace: Vec<Vec<F>> =
-        vec![vec![F::ZERO; filtered_step_rows.len()]; mem_cols::NUM_MEM_COLS];
+    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; trace_len]; mem_cols::NUM_MEM_COLS];
     for (i, s) in filtered_step_rows.iter().enumerate() {
         trace[mem_cols::COL_MEM_ADDR][i] = get_memory_inst_addr(s);
         trace[mem_cols::COL_MEM_CLK][i] = get_memory_inst_clk(s);
-        trace[mem_cols::COL_MEM_OP][i] = get_memory_inst_op(&s.inst);
+        trace[mem_cols::COL_MEM_OP][i] = get_memory_inst_op(&s.state.current_instruction());
 
-        trace[mem_cols::COL_MEM_VALUE][i] = match s.inst.op {
+        trace[mem_cols::COL_MEM_VALUE][i] = match s.state.current_instruction().op {
             Op::LB => get_memory_load_inst_value(s),
             Op::SB => get_memory_store_inst_value(s),
             _ => F::ZERO,
@@ -62,7 +80,7 @@ pub fn generate_memory_trace<F: RichField>(
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
     // of the trace.
-    let trace = pad_trace(trace, Some(mem_cols::COL_MEM_PADDING));
+    trace = pad_mem_trace(trace);
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
@@ -146,14 +164,14 @@ mod test {
                 F::from_canonical_u32(200),
             ],
             [
+                F::from_canonical_u32(0),
                 F::from_canonical_u32(1),
-                F::from_canonical_u32(2),
+                F::from_canonical_u32(4),
                 F::from_canonical_u32(5),
-                F::from_canonical_u32(6),
+                F::from_canonical_u32(2),
                 F::from_canonical_u32(3),
-                F::from_canonical_u32(4),
-                F::from_canonical_u32(4),
-                F::from_canonical_u32(4),
+                F::from_canonical_u32(3),
+                F::from_canonical_u32(3),
             ],
             [
                 F::ONE,
