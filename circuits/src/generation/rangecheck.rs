@@ -1,10 +1,11 @@
 use mozak_vm::instruction::Op;
+use mozak_vm::state::Aux;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::lookup::permuted_cols;
 use crate::rangecheck::columns;
-use crate::utils::{augment_dst, from_};
+use crate::utils::from_;
 
 pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 
@@ -40,7 +41,14 @@ pub fn generate_rangecheck_trace<F: RichField>(
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; RANGE_CHECK_U16_SIZE]; columns::NUM_RC_COLS];
 
-    for (i, (s, dst_val)) in augment_dst(step_rows.iter().map(|row| &row.state)).enumerate() {
+    for (
+        i,
+        Row {
+            state: s,
+            aux: Aux { dst_val, .. },
+        },
+    ) in step_rows.iter().enumerate()
+    {
         let inst = s.current_instruction();
 
         #[allow(clippy::single_match)]
@@ -48,7 +56,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
             Op::ADD => {
                 let limb_hi = u16::try_from(dst_val >> 8).unwrap();
                 let limb_lo = u16::try_from(dst_val & 0xffff).unwrap();
-                trace[columns::VAL][i] = from_(dst_val);
+                trace[columns::VAL][i] = from_(*dst_val);
                 trace[columns::LIMB_HI][i] = from_(limb_hi);
                 trace[columns::LIMB_LO][i] = from_(limb_lo);
                 trace[columns::CPU_FILTER][i] = F::ONE;
@@ -105,13 +113,13 @@ mod tests {
     #[test]
     fn test_add_instruction_inserts_rangecheck() {
         type F = GoldilocksField;
-        let (rows, _) = simple_test(
+        let record = simple_test(
             4,
             &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
             &[(6, 100), (7, 100)],
         );
 
-        let trace = generate_rangecheck_trace::<F>(&rows);
+        let trace = generate_rangecheck_trace::<F>(&record.executed);
         for (idx, column) in trace.iter().enumerate() {
             if idx == columns::CPU_FILTER {
                 for (i, column) in column.iter().enumerate() {
