@@ -63,53 +63,24 @@ where
 #[allow(clippy::cast_possible_wrap)]
 mod test {
     use mozak_vm::test_utils::simple_test;
-    use plonky2::{
-        plonk::config::{GenericConfig, PoseidonGoldilocksConfig},
-        util::timing::TimingTree,
-    };
-    use starky::config::StarkConfig;
 
-    use super::prove;
-    use crate::stark::mozak_stark::MozakStark;
-    use crate::stark::verifier::verify_proof;
+    use crate::test_utils::simple_proof_test;
 
     #[test]
     fn prove_halt() {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        type S = MozakStark<F, D>;
-        let (rows, _state) = simple_test(0, &[], &[]);
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 0;
-
-        let mut stark = S::default();
-        let all_proof = prove::<F, C, D>(&rows, &mut stark, &config, &mut TimingTree::default());
-        assert!(all_proof.is_ok());
-        let res = verify_proof(&stark, &all_proof.unwrap(), &config);
-        assert!(res.is_ok());
+        let record = simple_test(0, &[], &[]);
+        simple_proof_test(&record.executed);
     }
 
     #[test]
     fn prove_add() {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        type S = MozakStark<F, D>;
-        let (rows, state) = simple_test(
+        let record = simple_test(
             4,
             &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
             &[(6, 100), (7, 100)],
         );
-        assert_eq!(state.get_register_value(5), 100 + 100);
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 0;
-
-        let mut stark = S::default();
-        let all_proof = prove::<F, C, D>(&rows, &mut stark, &config, &mut TimingTree::default());
-        assert!(all_proof.is_ok());
-        let res = verify_proof(&stark, &all_proof.unwrap(), &config);
-        assert!(res.is_ok());
+        assert_eq!(record.last_state.get_register_value(5), 100 + 100);
+        simple_proof_test(&record.executed);
     }
 
     #[test]
