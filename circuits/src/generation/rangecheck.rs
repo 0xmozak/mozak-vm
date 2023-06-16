@@ -3,7 +3,7 @@ use mozak_vm::state::Aux;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
-use crate::lookup::permuted_cols;
+use crate::lookup::permute_cols;
 use crate::rangecheck::columns;
 use crate::utils::from_;
 
@@ -73,7 +73,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
 
     // This permutation is done in accordance to the [Halo2 lookup argument
     // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
-    let (permuted_inputs, permuted_table) = permuted_cols(
+    let (permuted_inputs, permuted_table) = permute_cols(
         &trace[columns::LIMB_LO],
         &trace[columns::FIXED_RANGE_CHECK_U16],
     );
@@ -82,7 +82,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
     trace[columns::LIMB_LO_PERMUTED] = permuted_inputs;
     trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO] = permuted_table;
 
-    let (permuted_inputs, permuted_table) = permuted_cols(
+    let (permuted_inputs, permuted_table) = permute_cols(
         &trace[columns::LIMB_HI],
         &trace[columns::FIXED_RANGE_CHECK_U16],
     );
