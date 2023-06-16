@@ -54,6 +54,11 @@ where
         .filter_map(|(a, b)| a.map(|a| (a, b)))
 }
 
+/// Convenience function to pair `State`s together (usually the i-th state and
+/// the i+1-th state) for trace generation.
+///
+/// This returns the current state, and the value contained in rd in the next
+/// state.
 pub fn augment_dst<'a>(
     states: impl Iterator<Item = &'a State>,
 ) -> impl Iterator<Item = (&'a State, u32)> {
