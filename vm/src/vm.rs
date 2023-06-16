@@ -125,7 +125,10 @@ impl State {
     #[must_use]
     pub fn ecall(self) -> (Aux, Self) {
         (
-            Aux::default(),
+            Aux {
+                will_halt: true,
+                ..Aux::default()
+            },
             if self.get_register_value(17_usize) == 93 {
                 // Note: we don't advance the program counter for 'halt'.
                 // That is we treat 'halt' like an endless loop.
@@ -146,6 +149,7 @@ impl State {
             Aux {
                 dst_val,
                 mem_addr: Some(addr),
+                ..Default::default()
             },
             (0..bytes)
                 .map(|i| addr.wrapping_add(i))

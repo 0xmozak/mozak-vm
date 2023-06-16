@@ -14,7 +14,9 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         i,
         Row {
             state: s,
-            aux: Aux { dst_val, .. },
+            aux: Aux {
+                dst_val, will_halt, ..
+            },
         },
     ) in step_rows.iter().enumerate()
     {
@@ -31,7 +33,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         // NOTE: Updated value of DST register is next step.
         trace[cpu_cols::COL_DST_VALUE][i] = from_(*dst_val);
         trace[cpu_cols::COL_IMM_VALUE][i] = from_(inst.data.imm);
-        trace[cpu_cols::COL_S_HALT][i] = from_(s.has_halted());
+        trace[cpu_cols::COL_S_HALT][i] = from_(u32::from(*will_halt));
         for j in 0..32_usize {
             trace[cpu_cols::COL_START_REG + j][i] = from_(s.get_register_value(j));
         }

@@ -44,6 +44,7 @@ pub struct Aux {
     // 0 serves as a default value just fine.
     pub dst_val: u32,
     pub mem_addr: Option<u32>,
+    pub will_halt: bool,
 }
 
 impl State {
@@ -80,6 +81,7 @@ impl State {
             Aux {
                 dst_val,
                 mem_addr: Some(addr),
+                ..Default::default()
             },
             self.set_register_value(data.rd.into(), dst_val).bump_pc(),
         )
