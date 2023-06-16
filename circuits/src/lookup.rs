@@ -80,7 +80,7 @@ pub(crate) fn eval_lookups_circuit<
 /// argument](https://zcash.github.io/halo2/design/proving-system/lookup.html).
 ///
 /// # Returns
-/// A tuple of the sorted input column, `A'`, and the permuted table column,
+/// A tuple of the permuted input column, `A'`, and the permuted table column,
 /// `S'`.
 pub fn permute_cols<F: PrimeField64>(col_input: &[F], col_table: &[F]) -> (Vec<F>, Vec<F>) {
     let n = col_input.len();
