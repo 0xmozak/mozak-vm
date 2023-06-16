@@ -14,7 +14,7 @@ pub fn simple_proof_test(step_rows: &[Row]) {
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
-    type S = MozakStark<F, D>;
+    type S = MozakStark<F>;
     let mut config = StarkConfig::standard_fast_config();
     config.fri_config.cap_height = 0;
 

@@ -11,15 +11,15 @@ use crate::cpu::stark::CpuStark;
 
 #[allow(clippy::missing_errors_doc)]
 pub fn verify_proof<F, C, const D: usize>(
-    mozak_stark: &MozakStark<F, D>,
+    mozak_stark: &MozakStark<F>,
     all_proof: &AllProof<F, C, D>,
     config: &StarkConfig,
 ) -> Result<()>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-    [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
+    [(); CpuStark::<F>::COLUMNS]:,
+    [(); CpuStark::<F>::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:,
 {
     let MozakStark { cpu_stark } = mozak_stark;

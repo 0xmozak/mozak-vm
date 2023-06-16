@@ -19,7 +19,7 @@ use crate::utils::from_;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
-pub struct CpuStark<F, const D: usize> {
+pub struct CpuStark<F> {
     pub _f: PhantomData<F>,
 }
 
@@ -73,7 +73,7 @@ fn r0_always_0<P: PackedField>(lv: &[P; NUM_CPU_COLS], yield_constr: &mut Constr
     yield_constr.constraint(lv[COL_REGS.start]);
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
+impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F> {
     const COLUMNS: usize = NUM_CPU_COLS;
     const PUBLIC_INPUTS: usize = 0;
 
