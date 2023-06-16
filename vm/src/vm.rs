@@ -2,7 +2,7 @@ use anyhow::Result;
 
 use crate::{
     instruction::{Data, Op},
-    state::State,
+    state::{Aux, State},
 };
 
 #[must_use]
@@ -93,63 +93,73 @@ pub fn lw(mem: &[u8; 4]) -> u32 {
 
 impl State {
     #[must_use]
-    pub fn lui(self, inst: &Data) -> Self {
-        self.set_register_value(inst.rd.into(), inst.imm).bump_pc()
-    }
-
-    #[must_use]
-    pub fn jal(self, inst: &Data) -> Self {
+    pub fn jal(self, inst: &Data) -> (Aux, Self) {
         let pc = self.get_pc();
-        self.set_pc(inst.imm)
-            .set_register_value(inst.rd.into(), pc.wrapping_add(4))
+        (
+            Aux {
+                dst_val: inst.imm,
+                ..Default::default()
+            },
+            self.set_pc(inst.imm)
+                .set_register_value(inst.rd.into(), pc.wrapping_add(4)),
+        )
     }
 
     #[must_use]
-    pub fn jalr(self, inst: &Data) -> Self {
+    pub fn jalr(self, inst: &Data) -> (Aux, Self) {
         let pc = self.get_pc();
         let new_pc = (self
             .get_register_value(inst.rs1.into())
             .wrapping_add(inst.imm))
             & !1;
-        self.set_pc(new_pc)
-            .set_register_value(inst.rd.into(), pc.wrapping_add(4))
+        (
+            Aux {
+                dst_val: new_pc,
+                ..Default::default()
+            },
+            self.set_pc(new_pc)
+                .set_register_value(inst.rd.into(), pc.wrapping_add(4)),
+        )
     }
 
     #[must_use]
-    pub fn ecall(self) -> Self {
-        if self.get_register_value(17_usize) == 93 {
-            // Note: we don't advance the program counter for 'halt'.
-            // That is we treat 'halt' like an endless loop.
-            self.halt() // exit system call
-        } else {
-            self.bump_pc()
-        }
+    pub fn ecall(self) -> (Aux, Self) {
+        (
+            Aux::default(),
+            if self.get_register_value(17_usize) == 93 {
+                // Note: we don't advance the program counter for 'halt'.
+                // That is we treat 'halt' like an endless loop.
+                self.halt() // exit system call
+            } else {
+                self.bump_pc()
+            },
+        )
     }
 
     #[must_use]
-    pub fn auipc(self, inst: &Data) -> Self {
-        let res = self.get_pc().wrapping_add(inst.imm);
-        self.set_register_value(inst.rd.into(), res).bump_pc()
-    }
-
-    #[must_use]
-    pub fn store(self, inst: &Data, bytes: u32) -> Self {
+    pub fn store(self, inst: &Data, bytes: u32) -> (Aux, Self) {
         let addr = self
             .get_register_value(inst.rs1.into())
             .wrapping_add(inst.imm);
-        let value: u32 = self.get_register_value(inst.rs2.into());
-        (0..bytes)
-            .map(|i| addr.wrapping_add(i))
-            .zip(value.to_le_bytes().into_iter())
-            .fold(self, |acc, (i, byte)| acc.store_u8(i, byte))
-            .bump_pc()
+        let dst_val: u32 = self.get_register_value(inst.rs2.into());
+        (
+            Aux {
+                dst_val,
+                mem_addr: Some(addr),
+            },
+            (0..bytes)
+                .map(|i| addr.wrapping_add(i))
+                .zip(dst_val.to_le_bytes().into_iter())
+                .fold(self, |acc, (i, byte)| acc.store_u8(i, byte))
+                .bump_pc(),
+        )
     }
 
     #[must_use]
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
-    pub fn execute_instruction(self) -> Self {
+    pub fn execute_instruction(self) -> (Aux, Self) {
         let inst = self.current_instruction();
         macro_rules! x_op {
             ($op: expr) => {
@@ -166,7 +176,7 @@ impl State {
                 self.register_op(&inst.data, |a, _b, i| $op(a, i))
             };
         }
-        match inst.op {
+        let (aux, state) = match inst.op {
             Op::ADD => x_op!(|a, b, i| a.wrapping_add(b.wrapping_add(i))),
             // Only use lower 5 bits of rs2
             Op::SLL => rop!(|a, b| a << (b & 0x1F)),
@@ -213,8 +223,8 @@ impl State {
             Op::MULH => rop!(mulh),
             Op::MULHU => rop!(mulhu),
             Op::MULHSU => rop!(mulhsu),
-            Op::LUI => self.lui(&inst.data),
-            Op::AUIPC => self.auipc(&inst.data),
+            Op::LUI => iop!(|_a, i| i),
+            Op::AUIPC => iop!(|_a, i| i),
             Op::DIV => rop!(div),
             Op::DIVU => rop!(divu),
             Op::REM => rop!(rem),
@@ -223,11 +233,11 @@ impl State {
             // our purpose at this moment, but these instructions are found in the test
             // data that we use - so we simply advance the register.
             Op::FENCE | Op::CSRRS | Op::CSRRW | Op::CSRRWI | Op::EBREAK | Op::MRET => {
-                self.bump_pc()
+                (Aux::default(), self.bump_pc())
             }
             Op::UNKNOWN => unimplemented!("Unknown instruction"),
-        }
-        .bump_clock()
+        };
+        (aux, state.bump_clock())
     }
 }
 
@@ -236,6 +246,13 @@ impl State {
 #[derive(Debug, Clone, Default)]
 pub struct Row {
     pub state: State,
+    pub aux: Aux,
+}
+
+#[derive(Debug, Default)]
+pub struct ExecutionRecord {
+    pub executed: Vec<Row>,
+    pub last_state: State,
 }
 
 /// Execute a program
@@ -251,23 +268,29 @@ pub struct Row {
 /// This is a temporary measure to catch problems with accidental infinite
 /// loops. (Matthias had some trouble debugging a problem with jumps
 /// earlier.)
-pub fn step(mut state: State) -> Result<(Vec<Row>, State)> {
-    let mut rows = vec![Row {
-        state: state.clone(),
-    }];
-    while !state.has_halted() {
-        state = state.execute_instruction();
-        rows.push(Row {
-            state: state.clone(),
+pub fn step(mut last_state: State) -> Result<ExecutionRecord> {
+    let mut executed = vec![];
+    while !last_state.has_halted() {
+        let (aux, new_state) = last_state.clone().execute_instruction();
+        executed.push(Row {
+            state: last_state,
+            aux,
         });
+        last_state = new_state;
 
         if cfg!(debug_assertions) {
             let limit: u64 = std::option_env!("MOZAK_MAX_LOOPS")
                 .map_or(1_000_000, |env_var| env_var.parse().unwrap());
-            debug_assert!(state.clk != limit, "Looped for longer than MOZAK_MAX_LOOPS");
+            debug_assert!(
+                last_state.clk != limit,
+                "Looped for longer than MOZAK_MAX_LOOPS"
+            );
         }
     }
-    Ok((rows, state))
+    Ok(ExecutionRecord {
+        executed,
+        last_state,
+    })
 }
 
 #[cfg(test)]
@@ -276,6 +299,7 @@ pub fn step(mut state: State) -> Result<(Vec<Row>, State)> {
 mod tests {
     use test_case::test_case;
 
+    use super::ExecutionRecord;
     use crate::test_utils::simple_test;
 
     // NOTE: For writing test cases please follow RISCV
@@ -285,8 +309,9 @@ mod tests {
     #[test_case(0x0073_02b3, 5, 6, 7, 60049, 50493; "add r5, r6, r7")]
     #[test_case(0x01FF_8FB3, 31, 31, 31, 8981, 8981; "add r31, r31, r31")]
     fn add(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let (_rows, state) =
-            simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(state.get_register_value(rd), rs1_value + rs2_value);
     }
 
@@ -296,8 +321,9 @@ mod tests {
     #[test_case(0x0073_12b3, 5, 6, 7, 7, 0x1111; "sll r5, r6, r7, only lower 5 bits rs2")]
     #[test_case(0x0139_12b3, 5, 18, 19, 0x1234_5678, 0x08; "sll r5, r18, r19, rs1 overflow")]
     fn sll(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let (_rows, state) =
-            simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(
             state.get_register_value(rd),
             rs1_value << (rs2_value & 0x1F)
@@ -306,8 +332,9 @@ mod tests {
 
     #[test_case(0x0073_72b3, 5, 6, 7, 7, 8; "and r5, r6, r7")]
     fn and(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let (_rows, state) =
-            simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(state.get_register_value(rd), rs1_value & rs2_value);
     }
 
@@ -317,8 +344,9 @@ mod tests {
     #[test_case(0x0073_52b3, 5, 6, 7, 7, 0x1111; "srl r5, r6, r7, only lower 5 bits rs2")]
     #[test_case(0x0139_52b3, 5, 18, 19, 0x8765_4321, 0x08; "srl r5, r18, r19, rs1 underflow")]
     fn srl(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let (_rows, state) =
-            simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(
             state.get_register_value(rd),
             rs1_value >> (rs2_value & 0x1F)
@@ -327,8 +355,9 @@ mod tests {
 
     #[test_case(0x0073_62b3, 5, 6, 7, 7, 8; "or r5, r6, r7")]
     fn or(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let (_rows, state) =
-            simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(state.get_register_value(rd), rs1_value | rs2_value);
     }
 
@@ -338,7 +367,9 @@ mod tests {
     #[test_case(0x0ff3_6293, 5, 6, 0x5555_1111, 255; "ori r5, r6, 255")]
     #[test_case(0x8003_6293, 5, 6, 0x5555_1111, -2048; "ori r5, r6, -2048")]
     fn ori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let (_rows, state) = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
 
         let expected_value = (rs1_value as i32 | imm) as u32;
         assert_eq!(state.get_register_value(rd), expected_value);
@@ -350,15 +381,18 @@ mod tests {
     #[test_case(0x0ff3_7293, 5, 6, 0x5555_1111, 255; "andi r5, r6, 255")]
     #[test_case(0x8003_7293, 5, 6, 0x5555_1111, -2048; "andi r5, r6, -2048")]
     fn andi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let (_rows, state) = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         let expected_value = (rs1_value as i32 & imm) as u32;
         assert_eq!(state.get_register_value(rd), expected_value);
     }
 
     #[test_case(0x0073_42b3, 5, 6, 7, 0x0000_1111, 0x0011_0011; "xor r5, r6, r7")]
     fn xor(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let (_rows, state) =
-            simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
 
         let expected_value = rs1_value ^ rs2_value;
         assert_eq!(state.get_register_value(rd), expected_value);
@@ -370,7 +404,9 @@ mod tests {
     #[test_case(0x0ff3_4293, 5, 6, 0x5555_1111, 255; "xori r5, r6, 255")]
     #[test_case(0x8003_4293, 5, 6, 0x5555_1111, -2048; "xori r5, r6, -2048")]
     fn xori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let (_rows, state) = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
 
         let expected_value = (rs1_value as i32 ^ imm) as u32;
         assert_eq!(state.get_register_value(rd), expected_value);
@@ -382,8 +418,9 @@ mod tests {
     #[test_case(0x4073_52b3, 5, 6, 7, 7, 0x1111; "sra r5, r6, r7, only lower 5 bits rs2")]
     #[test_case(0x4139_52b3, 5, 18, 19, 0x8765_4321, 0x08; "sra r5, r18, r19, rs1 underflow")]
     fn sra(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let (_rows, state) =
-            simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(
             state.get_register_value(rd),
             (rs1_value as i32 >> (rs2_value & 0x1F) as i32) as u32
@@ -399,8 +436,9 @@ mod tests {
     #[test_case(0x0073_22b3, 5, 6, 7, 0x1234_5678, 0x0000_ffff; "slt r5, r6, r7")]
     #[test_case(0x0139_22b3, 5, 18, 19, 0x8234_5678, 0x0000_ffff; "slt r5, r18, r19")]
     fn slt(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let (_rows, state) =
-            simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         let rs1_value = rs1_value as i32;
         let rs2_value = rs2_value as i32;
         assert_eq!(
@@ -412,7 +450,9 @@ mod tests {
     #[test_case(0x4043_5293, 5, 6, 0x8765_4321, 4; "srai r5, r6, 4")]
     #[test_case(0x41f3_5293, 5, 6, 1, 31; "srai r5, r6, 31")]
     fn srai(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let (_rows, state) = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         assert_eq!(
             state.get_register_value(rd),
             (rs1_value as i32 >> imm) as u32
@@ -422,14 +462,18 @@ mod tests {
     #[test_case(0x0043_5293, 5, 6, 0x8765_4321, 4; "srli r5, r6, 4")]
     #[test_case(0x01f3_5293, 5, 6, 1, 31; "srli r5, r6, 31")]
     fn srli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let (_rows, state) = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         assert_eq!(state.get_register_value(rd), rs1_value >> imm);
     }
 
     #[test_case(0x0043_1293, 5, 6, 0x8765_4321, 4; "slli r5, r6, 4")]
     #[test_case(0x01f3_1293, 5, 6, 1, 31; "slli r5, r6, 31")]
     fn slli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let (_rows, state) = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         assert_eq!(state.get_register_value(rd), rs1_value << imm);
     }
 
@@ -438,7 +482,9 @@ mod tests {
     #[test_case(0x0009_2293, 5, 6, 1, 0; "slti r5, r6, 0")]
     #[test_case(0x7ff3_2293, 5, 6, 1, 2047; "slti r5, r6, 2047")]
     fn slti(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let (_rows, state) = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         let rs1_value = rs1_value as i32;
         assert_eq!(state.get_register_value(rd), u32::from(rs1_value < imm));
     }
@@ -448,7 +494,9 @@ mod tests {
     #[test_case(0x0003_3293, 5, 6, 1, 0; "sltiu r5, r6, 0")]
     #[test_case(0x7ff3_3293, 5, 6, 1, 2047; "sltiu r5, r6, 2047")]
     fn sltiu(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let (_rows, state) = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         assert_eq!(
             state.get_register_value(rd),
             u32::from(rs1_value < imm as u32)
@@ -460,8 +508,9 @@ mod tests {
     #[test_case(0x0073_32b3, 5, 6, 7, 0x1234_5678, 0x0000_ffff; "sltu r5, r6, r7")]
     #[test_case(0x0139_32b3, 5, 18, 19, 0x1234_5678, 0x8000_ffff; "sltu r5, r18, r19")]
     fn sltu(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
-        let (_rows, state) =
-            simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
         assert_eq!(
             state.get_register_value(rd),
             u32::from(rs1_value < rs2_value)
@@ -470,7 +519,9 @@ mod tests {
 
     #[test_case(0x05d0_0393, 7, 0, 0, 93; "addi r7, r0, 93")]
     fn addi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
-        let (_rows, state) = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
         let mut expected_value = rs1_value;
         if imm.is_negative() {
             expected_value -= imm.unsigned_abs();
@@ -493,7 +544,9 @@ mod tests {
         } else {
             address += offset as u32;
         }
-        let (_rows, state) = simple_test(
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(
             4,
             &[(0_u32, word), (address, memory_value as u32)],
             &[(rs1, rs1_value)],
@@ -519,7 +572,9 @@ mod tests {
         } else {
             address += offset as u32;
         }
-        let (_rows, state) = simple_test(
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(
             4,
             &[(0_u32, word), (address, memory_value as u32)],
             &[(rs1, rs1_value)],
@@ -541,7 +596,9 @@ mod tests {
         } else {
             address += offset as u32;
         }
-        let (_rows, state) = simple_test(
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(
             4,
             &[(0_u32, word), (address, memory_value as u32)],
             &[(rs1, rs1_value)],
@@ -567,7 +624,9 @@ mod tests {
         } else {
             address += offset as u32;
         }
-        let (_rows, state) = simple_test(
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(
             4,
             &[(0_u32, word), (address, memory_value as u32)],
             &[(rs1, rs1_value)],
@@ -589,7 +648,9 @@ mod tests {
         } else {
             address += offset as u32;
         }
-        let (_rows, state) = simple_test(
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(
             4,
             &[(0_u32, word), (address, memory_value as u32)],
             &[(rs1, rs1_value)],
@@ -613,7 +674,9 @@ mod tests {
         // at 260 go back to address after JAL
         // JALR x0, x1, 0
             (260_u32, 0x0000_8067)];
-        let (_rows, state) = simple_test(4, &mem, &[]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &mem, &[]);
         assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
 
@@ -631,7 +694,9 @@ mod tests {
             // JALR x1, x1, 0
             (260_u32, 0x0000_80e7),
         ];
-        let (_rows, state) = simple_test(4, &mem, &[]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &mem, &[]);
 
         assert_eq!(state.get_register_value(5_usize), 100_u32);
         // JALR at 260 updates X1 to have value of next_pc i.e 264
@@ -652,7 +717,9 @@ mod tests {
             // JAL x0, -256
             (260_u32, 0xf01f_f06f),
         ];
-        let (_rows, state) = simple_test(4, &mem, &[]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &mem, &[]);
 
         assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
@@ -671,7 +738,9 @@ mod tests {
             // JAL x0, -256
             (260_u32, 0xf01f_f06f),
         ];
-        let (_rows, state) = simple_test(4, &mem, &[(1, 1)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &mem, &[(1, 1)]);
 
         assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
@@ -692,7 +761,9 @@ mod tests {
         ];
 
         // set R1 = -1
-        let (_rows, state) = simple_test(4, &mem, &[(1, 0xffff_ffff)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &mem, &[(1, 0xffff_ffff)]);
 
         assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
@@ -711,8 +782,9 @@ mod tests {
             // JAL x0, -256
             (260_u32, 0xf01f_f06f),
         ];
-        let (_rows, state) =
-            simple_test(4, &mem, &[(1_usize, 0xffff_fffe), (2_usize, 0xffff_ffff)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &mem, &[(1_usize, 0xffff_fffe), (2_usize, 0xffff_ffff)]);
 
         assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
@@ -732,7 +804,9 @@ mod tests {
             (260_u32, 0xf01f_f06f),
         ];
         // set R1 = -1
-        let (_rows, state) = simple_test(4, &mem, &[(1_usize, 0xffff_ffff)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &mem, &[(1_usize, 0xffff_ffff)]);
 
         assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
@@ -751,8 +825,9 @@ mod tests {
             // JAL x0, -256
             (260_u32, 0xf01f_f06f),
         ];
-        let (_rows, state) =
-            simple_test(4, &mem, &[(1_usize, 0xffff_fffe), (2_usize, 0xffff_ffff)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &mem, &[(1_usize, 0xffff_fffe), (2_usize, 0xffff_ffff)]);
 
         assert_eq!(state.get_register_value(5_usize), 100_u32);
     }
@@ -761,7 +836,9 @@ mod tests {
     fn sb() {
         // at 0 address instruction SB
         // SB x5, 1200(x0)
-        let (_rows, state) = simple_test(4, &[(0, 0x4a50_0823)], &[(5, 0x0000_00FF)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0, 0x4a50_0823)], &[(5, 0x0000_00FF)]);
 
         assert_eq!(state.load_u32(1200), 0x0000_00FF);
     }
@@ -770,7 +847,9 @@ mod tests {
     fn sh() {
         // at 0 address instruction SH
         // SH x5, 1200(x0)
-        let (_rows, state) = simple_test(4, &[(0, 0x4a50_1823)], &[(5_usize, 0x0000_BABE)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0, 0x4a50_1823)], &[(5_usize, 0x0000_BABE)]);
         // assert_eq!(vm.state.load_u32(1200), 0);
 
         assert_eq!(state.load_u32(1200), 0x0000_BABE);
@@ -780,7 +859,9 @@ mod tests {
     fn sw() {
         // at 0 address instruction SW
         // SW x5, 1200(x0)
-        let (_rows, state) = simple_test(4, &[(0, 0x4a50_2823)], &[(5_usize, 0xC0DE_BABE)]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0, 0x4a50_2823)], &[(5_usize, 0xC0DE_BABE)]);
         // assert_eq!(vm.state.load_u32(1200), 0);
 
         assert_eq!(state.load_u32(1200), 0xC0DE_BABE);
@@ -790,7 +871,9 @@ mod tests {
     fn mulh() {
         // at 0 address instruction MULH
         // MULH x5, x6, x7
-        let (_rows, state) = simple_test(
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(
             4,
             &[(0, 0x0273_12b3)],
             &[
@@ -809,7 +892,9 @@ mod tests {
     fn mul() {
         // at 0 address instruction MUL
         // MUL x5, x6, x7
-        let (_rows, state) = simple_test(
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(
             4,
             &[(0, 0x0273_02b3)],
             &[
@@ -827,7 +912,9 @@ mod tests {
     fn mulhsu() {
         // at 0 address instruction MULHSU
         // MULHSU x5, x6, x7
-        let (_rows, state) = simple_test(
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(
             4,
             &[(0_u32, 0x0273_22b3)],
             &[
@@ -842,7 +929,9 @@ mod tests {
     fn mulhu() {
         // at 0 address instruction MULHU
         // MULHU x5, x6, x7
-        let (_rows, state) = simple_test(
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(
             4,
             &[(0_u32, 0x0273_32b3)],
             &[
@@ -857,7 +946,9 @@ mod tests {
     fn lui() {
         // at 0 address instruction lui
         // LUI x1, -524288
-        let (_rows, state) = simple_test(4, &[(0_u32, 0x8000_00b7)], &[]);
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(4, &[(0_u32, 0x8000_00b7)], &[]);
         assert_eq!(state.get_register_value(1), 0x8000_0000);
         assert_eq!(state.get_register_value(1) as i32, -2_147_483_648);
     }
@@ -865,7 +956,9 @@ mod tests {
     #[test]
     fn auipc() {
         // at 0 address addi x0, x0, 0
-        let (_rows, state) = simple_test(
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(
             8,
             &[
                 (0_u32, 0x0000_0013),
@@ -905,7 +998,9 @@ mod tests {
     fn div(rs1_value: u32, rs2_value: u32, rd_value: u32) {
         // at 0 address instruction DIV
         // DIV x5, x6, x7
-        let (_rows, state) = simple_test(
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(
             4,
             &[(0_u32, 0x0273_42b3)],
             &[
@@ -924,7 +1019,9 @@ mod tests {
     fn divu(rs1_value: u32, rs2_value: u32, rd_value: u32) {
         // at 0 address instruction DIVU
         // DIVU x5, x6, x7
-        let (_rows, state) = simple_test(
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(
             4,
             &[(0_u32, 0x0273_52b3)],
             &[(6_usize, rs1_value), (7_usize, rs2_value)],
@@ -938,7 +1035,9 @@ mod tests {
     fn rem(rs1_value: u32, rs2_value: u32, rd_value: u32) {
         // at 0 address instruction REM
         // REM x5, x6, x7
-        let (_rows, state) = simple_test(
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(
             4,
             &[(0_u32, 0x0273_62b3)],
             &[(6_usize, rs1_value), (7_usize, rs2_value)],
@@ -951,7 +1050,9 @@ mod tests {
     fn remu(rs1_value: u32, rs2_value: u32, rd_value: u32) {
         // at 0 address instruction REMU
         // REMU x5, x6, x7
-        let (_rows, state) = simple_test(
+        let ExecutionRecord {
+            last_state: state, ..
+        } = simple_test(
             4,
             &[(0_u32, 0x0273_72b3)],
             &[(6_usize, rs1_value), (7_usize, rs2_value)],

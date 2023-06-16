@@ -2,7 +2,7 @@ use im::hashmap::HashMap;
 
 use crate::elf::Program;
 use crate::state::State;
-use crate::vm::{step, Row};
+use crate::vm::{step, ExecutionRecord};
 
 #[must_use]
 fn create_prog(image: HashMap<u32, u32>) -> State {
@@ -11,7 +11,7 @@ fn create_prog(image: HashMap<u32, u32>) -> State {
 
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
-pub fn simple_test(exit_at: u32, mem: &[(u32, u32)], regs: &[(usize, u32)]) -> (Vec<Row>, State) {
+pub fn simple_test(exit_at: u32, mem: &[(u32, u32)], regs: &[(usize, u32)]) -> ExecutionRecord {
     // TODO(Matthias): stick this line into proper common setup?
     let _ = env_logger::try_init();
     let exit_inst =
@@ -26,7 +26,7 @@ pub fn simple_test(exit_at: u32, mem: &[(u32, u32)], regs: &[(usize, u32)]) -> (
         state.set_register_value(*rs, *val)
     });
 
-    let (state_rows, state) = step(state).unwrap();
-    assert!(state.has_halted());
-    (state_rows, state)
+    let record = step(state).unwrap();
+    assert!(record.last_state.has_halted());
+    record
 }
