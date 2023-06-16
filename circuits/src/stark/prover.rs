@@ -85,19 +85,11 @@ mod test {
 
     #[test]
     fn prove_lui() {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        type S = MozakStark<F, D>;
-        let (rows, state) = simple_test(4, &[(0_u32, 0x8000_00b7 /* lui r1, -524288 */)], &[]);
-        assert_eq!(state.get_register_value(1) as i32, -2_147_483_648);
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 0;
-
-        let mut stark = S::default();
-        let all_proof = prove::<F, C, D>(&rows, &mut stark, &config, &mut TimingTree::default());
-        assert!(all_proof.is_ok());
-        let res = verify_proof(&stark, &all_proof.unwrap(), &config);
-        assert!(res.is_ok());
+        let record = simple_test(4, &[(0_u32, 0x8000_00b7 /* lui r1, -524288 */)], &[]);
+        assert_eq!(
+            record.last_state.get_register_value(1) as i32,
+            -2_147_483_648
+        );
+        simple_proof_test(&record.executed);
     }
 }
