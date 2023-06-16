@@ -7,7 +7,7 @@ pub struct Column<F: Field> {
     constant: F,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Table<F: Field> {
     columns: Vec<Column<F>>,
     pub(crate) filter_column: Option<Column<F>>,
@@ -25,5 +25,17 @@ impl<F: Field> CrossTableLookup<F> {
             looking_tables,
             looked_table,
         }
+    }
+}
+
+pub trait LinkLookupTables<F: Field> {
+    fn link_lookup_tables() -> CrossTableLookup<F>;
+}
+
+pub struct RangecheckCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> LinkLookupTables<F> for RangecheckCpuTable<F> {
+    fn link_lookup_tables() -> CrossTableLookup<F> {
+        CrossTableLookup::new(vec![Table::default()], Table::default())
     }
 }

@@ -22,6 +22,6 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:,
 {
-    let MozakStark { cpu_stark } = mozak_stark;
+    let MozakStark { cpu_stark, .. } = mozak_stark;
     verify_stark_proof(*cpu_stark, all_proof.stark_proofs[0].clone(), config)
 }

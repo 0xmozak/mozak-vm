@@ -2,7 +2,7 @@ use plonky2::{field::extension::Extendable, hash::hash_types::RichField};
 
 use crate::{
     cpu::stark::CpuStark,
-    cross_table_lookup::{all_cross_table_lookups, CrossTableLookup},
+    cross_table_lookup::{CrossTableLookup, LinkLookupTables, RangecheckCpuTable},
 };
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
@@ -14,7 +14,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
     fn default() -> Self {
         Self {
             cpu_stark: CpuStark::default(),
-            cross_table_lookups: [CrossTableLookupCpu::new(); 1],
+            cross_table_lookups: [RangecheckCpuTable::link_lookup_tables(); 1],
         }
     }
 }
