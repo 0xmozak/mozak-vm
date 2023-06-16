@@ -26,7 +26,7 @@ pub(crate) const FIXED_RANGE_CHECK_U16: usize = CPU_FILTER + 1;
 pub(crate) const FIXED_RANGE_CHECK_U16_PERMUTED_LO: usize = FIXED_RANGE_CHECK_U16 + 1;
 
 /// Fixed column containing values 0, 1, .., 2^16 - 1. This is used in the
-/// fixed table lookup argument for the lower 16-bit limb.
+/// fixed table lookup argument for the upper 16-bit limb.
 pub(crate) const FIXED_RANGE_CHECK_U16_PERMUTED_HI: usize = FIXED_RANGE_CHECK_U16_PERMUTED_LO + 1;
 
 /// Total number of columns for the range check table.

@@ -26,8 +26,8 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
     trace
 }
 
-/// Generate a trace table for range checks, used in generating a
-/// `RangeCheckStark`.
+/// Generates a trace table for range checks, used in building a
+/// `RangeCheckStark` proof.
 ///
 /// # Panics
 ///
