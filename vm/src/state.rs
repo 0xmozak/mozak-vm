@@ -1,7 +1,7 @@
 use im::hashmap::HashMap;
 use log::trace;
 
-use crate::elf::{Code, Program};
+use crate::elf::{Code, Memory, Program};
 use crate::instruction::{Data, Instruction};
 
 /// State of our VM
@@ -27,7 +27,7 @@ pub struct State {
 
 impl From<Program> for State {
     fn from(program: Program) -> Self {
-        let memory: HashMap<u32, u8> = program.image;
+        let Memory(memory) = program.image;
         let code = program.code;
         Self {
             pc: program.entry,

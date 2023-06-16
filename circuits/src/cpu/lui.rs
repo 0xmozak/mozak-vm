@@ -9,8 +9,8 @@ pub(crate) fn constraints<P: PackedField>(
     nv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // We already left-shift the immediate value in the decoder, so we can just copy
-    // here.
+    // Since while decoding immediate we set 12 LSB to 0
+    // VM puts same value to destination
     yield_constr.constraint(lv[COL_S_LUI] * (lv[COL_DST_VALUE] - lv[COL_IMM_VALUE]));
 
     // pc ticks up
