@@ -19,11 +19,12 @@ use super::columns;
 use crate::lookup::{eval_lookups, eval_lookups_circuit};
 
 #[derive(Copy, Clone, Default)]
+#[allow(clippy::module_name_repetitions)]
 pub struct RangeCheckStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-/// Constrain val - (limb_hi ** base + limb_lo) == 0
+/// Constrain `val` - (`limb_hi` ** base + `limb_lo`) == 0
 fn constrain_value<P: PackedField>(
     base: P::Scalar,
     local_values: &[P; columns::NUM_RC_COLS],
