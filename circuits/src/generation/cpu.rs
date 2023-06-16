@@ -1,15 +1,25 @@
 use mozak_vm::instruction::Op;
+use mozak_vm::state::Aux;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns as cpu_cols;
-use crate::utils::{augment_dst, from_, pad_trace};
+use crate::utils::{from_, pad_trace};
 
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; step_rows.len()]; cpu_cols::NUM_CPU_COLS];
 
-    for (i, (s, dst_val)) in augment_dst(step_rows.iter().map(|row| &row.state)).enumerate() {
+    for (
+        i,
+        Row {
+            state: s,
+            aux: Aux {
+                dst_val, will_halt, ..
+            },
+        },
+    ) in step_rows.iter().enumerate()
+    {
         trace[cpu_cols::COL_CLK][i] = from_(s.clk);
         trace[cpu_cols::COL_PC][i] = from_(s.get_pc());
 
@@ -21,9 +31,9 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         trace[cpu_cols::COL_OP1_VALUE][i] = from_(s.get_register_value(usize::from(inst.data.rs1)));
         trace[cpu_cols::COL_OP2_VALUE][i] = from_(s.get_register_value(usize::from(inst.data.rs2)));
         // NOTE: Updated value of DST register is next step.
-        trace[cpu_cols::COL_DST_VALUE][i] = from_(dst_val);
+        trace[cpu_cols::COL_DST_VALUE][i] = from_(*dst_val);
         trace[cpu_cols::COL_IMM_VALUE][i] = from_(inst.data.imm);
-        trace[cpu_cols::COL_S_HALT][i] = from_(s.has_halted());
+        trace[cpu_cols::COL_S_HALT][i] = from_(u32::from(*will_halt));
         for j in 0..32_usize {
             trace[cpu_cols::COL_START_REG + j][i] = from_(s.get_register_value(j));
         }
@@ -32,6 +42,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,
             Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
+            Op::LUI => trace[cpu_cols::COL_S_LUI][i] = F::ONE,
             _ => {}
         }
     }

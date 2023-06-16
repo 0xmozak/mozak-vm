@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use mozak_vm::state::State;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 
@@ -41,30 +40,4 @@ pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>, clk_col: Option<usize>) -> Ve
         }
     });
     trace
-}
-
-pub fn pair_windows<S, Item>(it: S) -> impl Iterator<Item = (Item, Option<Item>)>
-where
-    S: Sized + Iterator<Item = Item>,
-    Item: Clone,
-{
-    it.map(|x| Some(x))
-        .chain(std::iter::once(None))
-        .tuple_windows()
-        .filter_map(|(a, b)| a.map(|a| (a, b)))
-}
-
-/// Convenience function to pair `State`s together (usually the i-th state and
-/// the i+1-th state) for trace generation.
-///
-/// This returns the current state, and the value contained in rd in the next
-/// state.
-pub fn augment_dst<'a>(
-    states: impl Iterator<Item = &'a State>,
-) -> impl Iterator<Item = (&'a State, u32)> {
-    pair_windows(states).map(move |(state, next_state)| {
-        let dst = state.current_instruction().data.rd;
-        let dst_val = next_state.map_or(0, |ns| ns.get_register_value(usize::from(dst)));
-        (state, dst_val)
-    })
 }

@@ -40,6 +40,13 @@ bitfield! {
     pub func12, _: 31, 20;
 }
 
+fn add_pc(pc: u32, data: Data) -> Data {
+    Data {
+        imm: pc.wrapping_add(data.imm),
+        ..data
+    }
+}
+
 #[allow(clippy::too_many_lines)]
 #[allow(clippy::module_name_repetitions)]
 #[allow(clippy::similar_names)]
@@ -71,33 +78,32 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         ..Default::default()
     };
     // jump type
-    let jtype = Data {
-        rd,
-        // NOTE(Matthias): we use absolute addressing here.
-        imm: pc.wrapping_add(extract_immediate(
-            word,
-            &[(31, 31), (19, 12), (20, 20), (30, 25), (24, 21)],
-            1,
-        )),
-        ..Default::default()
-    };
+    let jtype = add_pc(
+        pc,
+        Data {
+            rd,
+            // NOTE(Matthias): we use absolute addressing here.
+            imm: extract_immediate(word, &[(31, 31), (19, 12), (20, 20), (30, 25), (24, 21)], 1),
+            ..Default::default()
+        },
+    );
     // branch type
-    let btype = Data {
-        rs1,
-        rs2,
-        // NOTE(Matthias): we use absolute addressing here.
-        imm: pc.wrapping_add(extract_immediate(
-            word,
-            &[(31, 31), (7, 7), (30, 25), (11, 8)],
-            1,
-        )),
-        ..Default::default()
-    };
+    let btype = add_pc(
+        pc,
+        Data {
+            rs1,
+            rs2,
+            // NOTE(Matthias): we use absolute addressing here.
+            imm: extract_immediate(word, &[(31, 31), (7, 7), (30, 25), (11, 8)], 1),
+            ..Default::default()
+        },
+    );
     let utype = Data {
         rd,
         imm: extract_immediate(word, &[(31, 12)], 12),
         ..Default::default()
     };
+
     let (op, data) = match bf.opcode() {
         0b011_0011 => match (bf.func3(), bf.func7()) {
             (0x0, 0x00) => (Op::ADD, rtype),
@@ -184,7 +190,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             _ => Default::default(),
         },
         0b011_0111 => (Op::LUI, utype),
-        0b001_0111 => (Op::AUIPC, utype),
+        0b001_0111 => (Op::AUIPC, add_pc(pc, utype)),
         0b000_1111 => (Op::FENCE, itype),
         _ => Default::default(),
     };
