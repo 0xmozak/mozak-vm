@@ -28,14 +28,14 @@ impl<F: Field> CrossTableLookup<F> {
     }
 }
 
-pub trait LinkLookupTables<F: Field> {
-    fn link_lookup_tables() -> CrossTableLookup<F>;
+pub trait Lookups<F: Field> {
+    fn lookups() -> CrossTableLookup<F>;
 }
 
 pub struct RangecheckCpuTable<F: Field>(CrossTableLookup<F>);
 
-impl<F: Field> LinkLookupTables<F> for RangecheckCpuTable<F> {
-    fn link_lookup_tables() -> CrossTableLookup<F> {
+impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(vec![Table::default()], Table::default())
     }
 }
