@@ -170,8 +170,8 @@ mod tests {
         let inst = 0x0073_02b3 /* add r5, r6, r7 */;
 
         let mut mem = vec![];
-        for i in 0..u16::MAX as u32 + 1 {
-            mem.push((u32::from(i as u32 * 4), inst));
+        for i in 0..=u32::from(u16::MAX) {
+            mem.push((i * 4, inst));
         }
         let (rows, _) = simple_test(4, &mem, &[(6, 100), (7, 100)]);
 
