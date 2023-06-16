@@ -39,8 +39,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         let new_address = lv[COL_MEM_DIFF_ADDR] * lv[COL_MEM_DIFF_ADDR_INV];
         yield_constr.constraint_first_row(lv[COL_MEM_OP] - FE::from_canonical_usize(OPCODE_SB));
-        yield_constr.constraint_first_row(new_address);
         yield_constr.constraint_first_row(lv[COL_MEM_DIFF_ADDR]);
+        yield_constr.constraint_first_row(lv[COL_MEM_DIFF_ADDR_INV]);
         yield_constr.constraint_first_row(lv[COL_MEM_DIFF_CLK]);
 
         // lv[COL_MEM_PADDING] is {0, 1}
@@ -49,38 +49,35 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // lv[COL_MEM_OP] in {0, 1}
         yield_constr.constraint(lv[COL_MEM_OP] * (lv[COL_MEM_OP] - P::ONES));
 
-        // a1) When address changed, nv[COL_MEM_OP] should be SB
+        // a) if new_addr: op === sb
         yield_constr
             .constraint(new_address * (lv[COL_MEM_OP] - FE::from_canonical_usize(OPCODE_SB)));
-        // a2) If nv[COL_MEM_OP] == LB, nv[COL_MEM_ADDR] == lv[COL_MEM_ADDR]
-        yield_constr.constraint(
-            new_address * (P::ONES - nv[COL_MEM_OP] + FE::from_canonical_usize(OPCODE_LB)),
-        );
 
-        // b) When address not changed, nv[COL_MEM_DIFF_CLK] = nv[COL_MEM_CLK] -
-        //    lv[COL_MEM_CLK]
+        // b) if new_addr == 0: diff_clk_next <== clk_next - clk_cur
         yield_constr.constraint(
             (nv[COL_MEM_DIFF_CLK] - nv[COL_MEM_CLK] + lv[COL_MEM_CLK]) * (new_address - P::ONES),
         );
 
-        // c) nv[COL_MEM_DIFF_ADDR] = nv[COL_MEM_ADDR] - lv[COL_MEM_ADDR]
-        yield_constr.constraint(nv[COL_MEM_DIFF_ADDR] - nv[COL_MEM_ADDR] + lv[COL_MEM_ADDR]);
-
-        // d) When address changed, clk difference should be zero.
+        // c) if new_addr == 1: diff_clk === 0
         yield_constr.constraint(new_address * lv[COL_MEM_DIFF_CLK]);
 
-        // e) If nv[COL_MEM_OP] == LB, nv[COL_MEM_VALUE] == lv[COL_MEM_VALUE]
+        // d) diff_addr_next <== addr_next - addr_cur
+        yield_constr.constraint(nv[COL_MEM_DIFF_ADDR] - nv[COL_MEM_ADDR] + lv[COL_MEM_ADDR]);
+
+        // e) if op_next == lb: value_next === value_cur
         yield_constr.constraint(
             (nv[COL_MEM_VALUE] - lv[COL_MEM_VALUE])
                 * (P::ONES - nv[COL_MEM_OP] + FE::from_canonical_usize(OPCODE_LB)),
         );
 
-        // f) When address not changed, lv[COL_MEM_DIFF_ADDR] = 0
-        yield_constr.constraint(lv[COL_MEM_DIFF_ADDR] * (new_address - P::ONES));
+        // f) (new_addr - 1)*diff_addr===0
+        //    (new_addr - 1)*diff_addr_inv===0
+        yield_constr.constraint((new_address - P::ONES) * lv[COL_MEM_DIFF_ADDR]);
+        yield_constr.constraint((new_address - P::ONES) * lv[COL_MEM_DIFF_ADDR_INV]);
     }
 
     fn constraint_degree(&self) -> usize {
-        2
+        3
     }
 
     fn eval_ext_circuit(
