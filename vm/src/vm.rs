@@ -5,6 +5,68 @@ use crate::{
     state::{Aux, State},
 };
 
+pub fn needs_range_check(op: Op) -> bool {
+    match op {
+        Op::ADD |
+        Op::SUB |
+        Op::SRL |
+        Op::SRA |
+        Op::SLL |
+        Op::SLLI |
+        Op::SLT |
+        Op::SLTI |
+        Op::SLTU |
+        Op::SLTIU |
+        Op::SRAI |
+        Op::SRLI => true,
+        Op::LB|
+        Op::LH|
+        Op::LW|
+        Op::LBU|
+        Op::LHU |
+        
+        OP::XOR |
+        OP::XORI => false
+    }
+    // XOR,
+    // XORI,
+    // JAL,
+    // JALR,
+    // BEQ,
+    // BNE,
+    // BLT,
+    // BGE,
+    // BLTU,
+    // BGEU,
+    // AND,
+    // ANDI,
+    // OR,
+    // ORI,
+    // SW,
+    // SH,
+    // SB,
+    // MUL,
+    // MULH,
+    // MULHU,
+    // MULHSU,
+    // LUI,
+    // AUIPC,
+    // DIV,
+    // DIVU,
+    // REM,
+    // REMU,
+    // FENCE,
+    // CSRRW,
+    // CSRRS,
+    // CSRRWI,
+    // MRET,
+    // ECALL,
+    // EBREAK,
+    // #[default]
+    // UNKNOWN,
+
+}
+
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
