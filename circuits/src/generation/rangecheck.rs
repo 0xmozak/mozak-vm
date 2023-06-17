@@ -3,7 +3,7 @@ use mozak_vm::state::Aux;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
-use crate::lookup::permuted_cols;
+use crate::lookup::permute_cols;
 use crate::rangecheck::columns;
 use crate::utils::from_;
 
@@ -73,23 +73,23 @@ pub fn generate_rangecheck_trace<F: RichField>(
 
     // This permutation is done in accordance to the [Halo2 lookup argument
     // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
-    let (permuted_inputs, permuted_table) = permuted_cols(
+    let (col_input_permuted, col_table_permuted) = permute_cols(
         &trace[columns::LIMB_LO],
         &trace[columns::FIXED_RANGE_CHECK_U16],
     );
 
     // We need a column for the lower limb.
-    trace[columns::LIMB_LO_PERMUTED] = permuted_inputs;
-    trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO] = permuted_table;
+    trace[columns::LIMB_LO_PERMUTED] = col_input_permuted;
+    trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO] = col_table_permuted;
 
-    let (permuted_inputs, permuted_table) = permuted_cols(
+    let (col_input_permuted, col_table_permuted) = permute_cols(
         &trace[columns::LIMB_HI],
         &trace[columns::FIXED_RANGE_CHECK_U16],
     );
 
     // And we also need a column for the upper limb.
-    trace[columns::LIMB_HI_PERMUTED] = permuted_inputs;
-    trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI] = permuted_table;
+    trace[columns::LIMB_HI_PERMUTED] = col_input_permuted;
+    trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI] = col_table_permuted;
 
     // Finally, we need our columns to be at least of size 2^k.
     let trace = pad_trace(trace);

@@ -75,10 +75,15 @@ pub(crate) fn eval_lookups_circuit<
     yield_constr.constraint_last_row(builder, diff_input_table);
 }
 
-/// Given an input column and a table column, generate the permuted input and
-/// permuted table columns used in the Halo2 permutation argument.
-pub fn permuted_cols<F: PrimeField64>(inputs: &[F], table: &[F]) -> (Vec<F>, Vec<F>) {
-    let n = inputs.len();
+/// Given an input column and a table column, Prepares the permuted input column
+/// `A'` and permuted table column `S'` used in the [Halo2 permutation
+/// argument](https://zcash.github.io/halo2/design/proving-system/lookup.html).
+///
+/// # Returns
+/// A tuple of the permuted input column, `A'`, and the permuted table column,
+/// `S'`.
+pub fn permute_cols<F: PrimeField64>(col_input: &[F], col_table: &[F]) -> (Vec<F>, Vec<F>) {
+    let n = col_input.len();
 
     // The permuted inputs do not have to be ordered, but we found that sorting was
     // faster than hash-based grouping. We also sort the table, as this helps us
@@ -89,12 +94,12 @@ pub fn permuted_cols<F: PrimeField64>(inputs: &[F], table: &[F]) -> (Vec<F>, Vec
     // element may be involved in many comparisons. So we will canonicalize once
     // upfront, then use `to_noncanonical_u64` when comparing elements.
 
-    let sorted_inputs = inputs
+    let col_input_sorted = col_input
         .iter()
         .map(PrimeField64::to_canonical)
         .sorted_unstable_by_key(PrimeField64::to_noncanonical_u64)
         .collect_vec();
-    let sorted_table = table
+    let col_table_sorted = col_table
         .iter()
         .map(PrimeField64::to_canonical)
         .sorted_unstable_by_key(PrimeField64::to_noncanonical_u64)
@@ -102,39 +107,64 @@ pub fn permuted_cols<F: PrimeField64>(inputs: &[F], table: &[F]) -> (Vec<F>, Vec
 
     let mut unused_table_inds = Vec::with_capacity(n);
     let mut unused_table_vals = Vec::with_capacity(n);
-    let mut permuted_table = vec![F::ZERO; n];
+    let mut col_table_permuted = vec![F::ZERO; n];
     let mut i = 0;
     let mut j = 0;
     while (j < n) && (i < n) {
-        let input_val = sorted_inputs[i].to_noncanonical_u64();
-        let table_val = sorted_table[j].to_noncanonical_u64();
+        let input_val = col_input_sorted[i].to_noncanonical_u64();
+        let table_val = col_table_sorted[j].to_noncanonical_u64();
         match input_val.cmp(&table_val) {
+            // In the below tables, we ignore the original input column `col_input` (A),
+            // and only care about `col_input_sorted` (A'), `col_table_permuted` (S'), and
+            // `col_table_sorted` (S).
+            //
+            // -------------
+            // | A'| S'| S |
+            // |---|---|---|
+            // | 4 | . | 3 | <- push 3 to `unused_table_vals` since
+            // |   |   |   |    A' (col_input_sorted) > S (col_table_sorted)
             Ordering::Greater => {
-                unused_table_vals.push(sorted_table[j]);
+                unused_table_vals.push(col_table_sorted[j]);
                 j += 1;
             }
+
+            // -------------
+            // | A'| S'| S |    if `unused_table_vals` has some value, insert
+            // |---|---|---|    into S' (col_table_permuted), else save its index to be
+            // | 2 | . | 3 | <- populated later. It does not matter what is in S',
+            // |   |   |   |    as long as it belongs in S (col_table_sorted).
+            //                  This case also means that our lookup constraint later will
+            //                  rely on the previous A' to be equal to the current A'
+            //                  to hold (diff_input_prev = next_perm_input - local_perm_input).
             Ordering::Less => {
                 if let Some(x) = unused_table_vals.pop() {
-                    permuted_table[i] = x;
+                    col_table_permuted[i] = x;
                 } else {
                     unused_table_inds.push(i);
                 }
                 i += 1;
             }
+            // -------------
+            // | A'| S'| S |    if A' (col_input_sorted) == S (col_table_sorted),
+            // |---|---|---|    insert into S' (col_table_permuted). This case also
+            // | 2 | 2 | 2 | <- means that our lookup constraint holds,
+            // |   |   |   |    since horizontally, diff_input_table = next_perm_input -
+            //                  next_perm_table.
             Ordering::Equal => {
-                permuted_table[i] = sorted_table[j];
+                col_table_permuted[i] = col_table_sorted[j];
                 i += 1;
                 j += 1;
             }
         }
     }
 
-    unused_table_vals.extend_from_slice(&sorted_table[j..n]);
+    unused_table_vals.extend_from_slice(&col_table_sorted[j..n]);
     unused_table_inds.extend(i..n);
 
+    // Populate all the empty `S'` values found in the 2nd case above.
     for (ind, val) in unused_table_inds.into_iter().zip_eq(unused_table_vals) {
-        permuted_table[ind] = val;
+        col_table_permuted[ind] = val;
     }
 
-    (sorted_inputs, permuted_table)
+    (col_input_sorted, col_table_permuted)
 }
