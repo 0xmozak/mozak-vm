@@ -189,8 +189,8 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             0x7 => (Op::BGEU, btype),
             _ => Default::default(),
         },
-        0b011_0111 => (Op::LUI, utype),
-        0b001_0111 => (Op::AUIPC, add_pc(pc, utype)),
+        0b011_0111 => (Op::ADD, utype),
+        0b001_0111 => (Op::ADD, add_pc(pc, utype)),
         0b000_1111 => (Op::FENCE, itype),
         _ => Default::default(),
     };
@@ -831,7 +831,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
-            op: Op::LUI,
+            op: Op::ADD,
             data: Data {
                 rd,
                 imm,
@@ -847,7 +847,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
-            op: Op::AUIPC,
+            op: Op::ADD,
             data: Data {
                 rd,
                 imm,
