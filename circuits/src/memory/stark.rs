@@ -54,15 +54,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
             .constraint(new_address * (lv[COL_MEM_OP] - FE::from_canonical_usize(OPCODE_SB)));
 
         // b) if new_addr == 0: diff_clk_next <== clk_next - clk_cur
-        yield_constr.constraint(
-            (nv[COL_MEM_DIFF_CLK] - nv[COL_MEM_CLK] + lv[COL_MEM_CLK]) * (new_address - P::ONES),
+        yield_constr.constraint_transition(
+            (nv[COL_MEM_DIFF_CLK] - nv[COL_MEM_CLK] + lv[COL_MEM_CLK])
+                * (nv[COL_MEM_DIFF_ADDR] * nv[COL_MEM_DIFF_ADDR_INV] - P::ONES),
         );
 
         // c) if new_addr == 1: diff_clk === 0
         yield_constr.constraint(new_address * lv[COL_MEM_DIFF_CLK]);
 
         // d) diff_addr_next <== addr_next - addr_cur
-        yield_constr.constraint(nv[COL_MEM_DIFF_ADDR] - nv[COL_MEM_ADDR] + lv[COL_MEM_ADDR]);
+        yield_constr
+            .constraint_transition(nv[COL_MEM_DIFF_ADDR] - nv[COL_MEM_ADDR] + lv[COL_MEM_ADDR]);
 
         // e) if op_next == lb: value_next === value_cur
         yield_constr.constraint(
@@ -87,5 +89,44 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         unimplemented!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::util::timing::TimingTree;
+    use starky::config::StarkConfig;
+    use starky::prover::prove as prove_table;
+    use starky::verifier::verify_stark_proof;
+
+    use crate::generation::memory::generate_memory_trace;
+    use crate::memory::stark::MemoryStark;
+    use crate::memory::test_utils::memory_trace_test_case;
+    use crate::stark::utils::trace_to_poly_values;
+
+    #[test]
+    fn prove_memory_sb_lb() -> Result<()> {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        type S = MemoryStark<F, D>;
+        let mut config = StarkConfig::standard_fast_config();
+        config.fri_config.cap_height = 0;
+
+        let stark = S::default();
+        let executed = memory_trace_test_case();
+        let trace = generate_memory_trace(executed);
+        let trace_poly_values = trace_to_poly_values(trace);
+
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values.clone(),
+            [],
+            &mut TimingTree::default(),
+        )?;
+        verify_stark_proof(stark, proof, &config)
     }
 }

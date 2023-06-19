@@ -14,11 +14,14 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
     let trace_len = trace[0].len();
     let ext_trace_len = trace_len.next_power_of_two();
 
-    for row in trace[mem_cols::COL_MEM_ADDR..mem_cols::NUM_MEM_COLS].iter_mut() {
+    for row in trace[mem_cols::COL_MEM_ADDR..mem_cols::COL_MEM_DIFF_CLK].iter_mut() {
         row.resize(ext_trace_len, *row.last().unwrap());
     }
 
     trace[mem_cols::COL_MEM_PADDING].resize(ext_trace_len, F::ONE);
+    trace[mem_cols::COL_MEM_DIFF_ADDR].resize(ext_trace_len, F::ZERO);
+    trace[mem_cols::COL_MEM_DIFF_ADDR_INV].resize(ext_trace_len, F::ZERO);
+    trace[mem_cols::COL_MEM_DIFF_CLK].resize(ext_trace_len, F::ZERO);
 
     trace
 }
@@ -201,8 +204,8 @@ mod test {
                 F::from_canonical_u32(1),
                 F::from_canonical_u32(0),
                 F::from_canonical_u32(1),
-                F::from_canonical_u32(1),
-                F::from_canonical_u32(1),
+                F::from_canonical_u32(0),
+                F::from_canonical_u32(0),
             ],
         ]
     }
