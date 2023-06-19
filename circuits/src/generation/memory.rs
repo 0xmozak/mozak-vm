@@ -78,11 +78,11 @@ pub fn generate_memory_trace<F: RichField>(
             .try_inverse()
             .unwrap_or_default();
 
-        trace[mem_cols::COL_MEM_DIFF_CLK][i] = trace[mem_cols::COL_MEM_CLK][i]
-            - if i == 0 || trace[mem_cols::COL_MEM_DIFF_ADDR][i] != F::ZERO {
+        trace[mem_cols::COL_MEM_DIFF_CLK][i] =
+            if i == 0 || trace[mem_cols::COL_MEM_DIFF_ADDR][i] != F::ZERO {
                 F::ZERO
             } else {
-                trace[mem_cols::COL_MEM_CLK][i - 1]
+                trace[mem_cols::COL_MEM_CLK][i] - trace[mem_cols::COL_MEM_CLK][i - 1]
             };
     }
 
@@ -110,11 +110,11 @@ mod test {
 
     // PADDING  ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV  DIFF_CLK
     // 0        100   0     SB  5      100        inv(100)       0
-    // 0        100   1     LB  5      0          0              4
-    // 0        100   4     SB  10     0          0              12
-    // 0        100   5     LB  10     0          0              4
+    // 0        100   1     LB  5      0          0              1
+    // 0        100   4     SB  10     0          0              3
+    // 0        100   5     LB  10     0          0              1
     // 0        200   2     SB  15     100        inv(100)       0
-    // 0        200   3     LB  15     0          0              4
+    // 0        200   3     LB  15     0          0              1
     // 1        200   3     LB  15     0          0              0
     // 1        200   3     LB  15     0          0              0
     fn expected_trace<F: RichField>() -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
@@ -135,7 +135,7 @@ mod test {
             // DIFF_ADDR_INV
             [inv_100, 0, 0, 0, inv_100, 0, 0, 0],
             // DIFF_CLK
-            [0, 1, 3, 1, 2, 1, 0, 0],
+            [0, 1, 3, 1, 0, 1, 0, 0],
         ]
         .into_iter()
         .map(|col| col.into_iter().map(F::from_canonical_u64).collect())
