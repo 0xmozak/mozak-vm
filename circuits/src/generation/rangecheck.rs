@@ -9,25 +9,24 @@ use crate::utils::from_;
 
 pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 
-/// Pad all columns in the trace to be of a power of 2. Specifically,
-/// extend the column containing the values to be range checked with dummy
-/// values known to be in the column containing the fixed values.
+/// Initializes the rangecheck trace table to the size of 2^k rows in
+/// preparation for the Halo2 lookup argument.
 ///
-///
-/// # Panics
-/// There's an assert that makes sure all columns passed in have the same
-/// length.
+/// Note that by right the column to be checked (A) and the fixed column (S)
+/// have to be extended by dummy values known to be in the fixed column if they
+/// are not of size 2^k, but because our fixed column is a range from 0..2^16-1,
+/// initializing our trace to all [`F::ZERO`]s takes care of this step by
+/// default.
 #[must_use]
-pub fn pad_rc_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
-    let len = trace[0].len();
-    if let Some(padded_len) = len.checked_next_power_of_two() {
-        trace[columns::VAL..columns::NUM_RC_COLS]
-            .iter_mut()
-            .for_each(|col| {
-                col.extend(vec![*col.last().unwrap(); padded_len - len]);
-            });
-    }
-    trace
+fn init_padded_rc_trace<F: RichField>(len: usize) -> Vec<Vec<F>> {
+    let trace_len = if len.is_power_of_two() {
+        len
+    } else {
+        len.checked_next_power_of_two()
+            .unwrap_or_else(|| len.next_power_of_two())
+    };
+
+    vec![vec![F::ZERO; trace_len]; columns::NUM_RC_COLS]
 }
 
 /// Generates a trace table for range checks, used in building a
@@ -39,10 +38,11 @@ pub fn pad_rc_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
 /// 1. conversion of `dst_val` from u32 to u16 fails when splitting
 ///    into limbs,
 /// 2. trace width does not match the number of columns.
+#[must_use]
 pub fn generate_rangecheck_trace<F: RichField>(
     step_rows: &[Row],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
-    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; RANGE_CHECK_U16_SIZE]; columns::NUM_RC_COLS];
+    let mut trace = init_padded_rc_trace(step_rows.len().max(RANGE_CHECK_U16_SIZE));
 
     for (
         i,
@@ -93,9 +93,6 @@ pub fn generate_rangecheck_trace<F: RichField>(
     // And we also need a column for the upper limb.
     trace[columns::LIMB_HI_PERMUTED] = col_input_permuted;
     trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI] = col_table_permuted;
-
-    // Finally, we need our columns to be at least of size 2^k.
-    let trace = pad_rc_trace(trace);
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
