@@ -19,14 +19,17 @@ pub struct Program {
     pub entry: u32,
 
     /// The initial memory image
-    pub image: HashMap<u32, u8>,
+    pub image: Memory,
     // TODO(Matthias): only decode code sections of the elf,
     // instead of trying to decode everything.
     pub code: Code,
 }
 
 #[derive(Clone, Debug, Default, Deref)]
-pub struct Code(HashMap<u32, Instruction>);
+pub struct Code(pub HashMap<u32, Instruction>);
+
+#[derive(Clone, Debug, Default, Deref)]
+pub struct Memory(pub HashMap<u32, u8>);
 
 impl Code {
     #[must_use]
@@ -55,8 +58,19 @@ impl From<HashMap<u32, u8>> for Program {
         Self {
             entry: 0_u32,
             code: Code::from(&image),
-            image,
+            image: Memory(image),
         }
+    }
+}
+
+impl From<HashMap<u32, u32>> for Memory {
+    fn from(image: HashMap<u32, u32>) -> Self {
+        Memory(
+            image
+                .iter()
+                .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes().into_iter()))
+                .collect(),
+        )
     }
 }
 
@@ -69,7 +83,7 @@ impl From<HashMap<u32, u32>> for Program {
         Self {
             entry: 0_u32,
             code: Code::from(&image),
-            image,
+            image: Memory(image),
         }
     }
 }
@@ -121,7 +135,7 @@ impl Program {
         Ok(Program {
             entry,
             code: Code::from(&image),
-            image,
+            image: Memory(image),
         })
     }
 }

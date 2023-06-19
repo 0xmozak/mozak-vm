@@ -62,7 +62,8 @@ where
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod test {
-    use mozak_vm::test_utils::simple_test;
+    use mozak_vm::instruction::{Data, Instruction, Op};
+    use mozak_vm::test_utils::{simple_test, simple_test_code};
 
     use crate::test_utils::simple_proof_test;
 
@@ -87,6 +88,24 @@ mod test {
     fn prove_lui() {
         let record = simple_test(4, &[(0_u32, 0x8000_00b7 /* lui r1, 0x80000 */)], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
+        simple_proof_test(&record.executed);
+    }
+
+    #[test]
+    fn prove_lui_2() {
+        let record = simple_test_code(
+            &[Instruction {
+                op: Op::ADD,
+                data: Data {
+                    rd: 1,
+                    imm: 0xDEAD_BEEF,
+                    ..Data::default()
+                },
+            }],
+            &[],
+            &[],
+        );
+        assert_eq!(record.last_state.get_register_value(1), 0xDEAD_BEEF,);
         simple_proof_test(&record.executed);
     }
 }
