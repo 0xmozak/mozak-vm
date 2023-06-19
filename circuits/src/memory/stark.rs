@@ -123,7 +123,7 @@ mod tests {
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
-            trace_poly_values.clone(),
+            trace_poly_values,
             [],
             &mut TimingTree::default(),
         )?;

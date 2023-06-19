@@ -191,7 +191,7 @@ mod test {
                 F::ZERO,
                 F::ZERO,
                 F::ZERO,
-                F::from_canonical_u64(3504881373188771021),
+                F::from_canonical_u64(3_504_881_373_188_771_021),
                 F::ZERO,
                 F::ZERO,
                 F::ZERO,
@@ -237,7 +237,7 @@ mod test {
         let indices = vec![0, 1, 4, 5];
         let expected_trace_vec: Vec<Vec<F>> = expected_trace()
             .iter()
-            .map(|v| indices.iter().filter_map(|&i| v.get(i).cloned()).collect())
+            .map(|v| indices.iter().filter_map(|&i| v.get(i).copied()).collect())
             .collect();
 
         let expected_trace: [Vec<F>; mem_cols::NUM_MEM_COLS] =
