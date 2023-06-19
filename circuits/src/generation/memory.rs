@@ -34,7 +34,7 @@ pub fn filter_memory_trace(mut step_rows: Vec<Row>) -> Vec<Row> {
     step_rows.sort_by_key(|row| {
         let data = row.state.current_instruction().data;
         row.state
-            .get_register_value(data.rs1.into())
+            .get_register_value(data.rs1)
             .wrapping_add(data.imm)
     });
 

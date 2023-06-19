@@ -53,23 +53,21 @@ impl State {
     where
         F: FnOnce(u32, u32, u32) -> u32,
     {
-        let rs1 = self.get_register_value(data.rs1.into());
-        let rs2 = self.get_register_value(data.rs2.into());
+        let rs1 = self.get_register_value(data.rs1);
+        let rs2 = self.get_register_value(data.rs2);
         let dst_val = op(rs1, rs2, data.imm);
         (
             Aux {
                 dst_val,
                 ..Aux::default()
             },
-            self.set_register_value(data.rd.into(), dst_val).bump_pc(),
+            self.set_register_value(data.rd, dst_val).bump_pc(),
         )
     }
 
     #[must_use]
     pub fn memory_load(self, data: &Data, op: fn(&[u8; 4]) -> u32) -> (Aux, Self) {
-        let addr: u32 = self
-            .get_register_value(data.rs1.into())
-            .wrapping_add(data.imm);
+        let addr: u32 = self.get_register_value(data.rs1).wrapping_add(data.imm);
         let mem = [
             self.load_u8(addr),
             self.load_u8(addr + 1),
@@ -83,14 +81,14 @@ impl State {
                 mem_addr: Some(addr),
                 ..Default::default()
             },
-            self.set_register_value(data.rd.into(), dst_val).bump_pc(),
+            self.set_register_value(data.rd, dst_val).bump_pc(),
         )
     }
 
     #[must_use]
     pub fn branch_op(self, data: &Data, op: fn(u32, u32) -> bool) -> (Aux, State) {
-        let rs1 = self.get_register_value(data.rs1.into());
-        let rs2 = self.get_register_value(data.rs2.into());
+        let rs1 = self.get_register_value(data.rs1);
+        let rs2 = self.get_register_value(data.rs2);
         (
             Aux::default(),
             if op(rs1, rs2) {
@@ -119,17 +117,17 @@ impl State {
     /// # Panics
     /// This function panics, if you try to load into an invalid register.
     #[must_use]
-    pub fn set_register_value(mut self, index: usize, value: u32) -> Self {
+    pub fn set_register_value(mut self, index: u8, value: u32) -> Self {
         // R0 is always 0
         if index != 0 {
-            self.registers[index] = value;
+            self.registers[usize::from(index)] = value;
         }
         self
     }
 
     #[must_use]
-    pub fn get_register_value(&self, index: usize) -> u32 {
-        self.registers[index]
+    pub fn get_register_value(&self, index: u8) -> u32 {
+        self.registers[usize::from(index)]
     }
 
     #[must_use]

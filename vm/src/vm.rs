@@ -101,24 +101,21 @@ impl State {
                 ..Default::default()
             },
             self.set_pc(inst.imm)
-                .set_register_value(inst.rd.into(), pc.wrapping_add(4)),
+                .set_register_value(inst.rd, pc.wrapping_add(4)),
         )
     }
 
     #[must_use]
     pub fn jalr(self, inst: &Data) -> (Aux, Self) {
         let pc = self.get_pc();
-        let new_pc = (self
-            .get_register_value(inst.rs1.into())
-            .wrapping_add(inst.imm))
-            & !1;
+        let new_pc = (self.get_register_value(inst.rs1).wrapping_add(inst.imm)) & !1;
         (
             Aux {
                 dst_val: new_pc,
                 ..Default::default()
             },
             self.set_pc(new_pc)
-                .set_register_value(inst.rd.into(), pc.wrapping_add(4)),
+                .set_register_value(inst.rd, pc.wrapping_add(4)),
         )
     }
 
@@ -129,7 +126,7 @@ impl State {
                 will_halt: true,
                 ..Aux::default()
             },
-            if self.get_register_value(17_usize) == 93 {
+            if self.get_register_value(17) == 93 {
                 // Note: we don't advance the program counter for 'halt'.
                 // That is we treat 'halt' like an endless loop.
                 self.halt() // exit system call
@@ -141,10 +138,8 @@ impl State {
 
     #[must_use]
     pub fn store(self, inst: &Data, bytes: u32) -> (Aux, Self) {
-        let addr = self
-            .get_register_value(inst.rs1.into())
-            .wrapping_add(inst.imm);
-        let dst_val: u32 = self.get_register_value(inst.rs2.into());
+        let addr = self.get_register_value(inst.rs1).wrapping_add(inst.imm);
+        let dst_val: u32 = self.get_register_value(inst.rs2);
         (
             Aux {
                 dst_val,
@@ -310,7 +305,7 @@ mod tests {
 
     #[test_case(0x0073_02b3, 5, 6, 7, 60049, 50493; "add r5, r6, r7")]
     #[test_case(0x01FF_8FB3, 31, 31, 31, 8981, 8981; "add r31, r31, r31")]
-    fn add(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+    fn add(word: u32, rd: u8, rs1: u8, rs2: u8, rs1_value: u32, rs2_value: u32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
@@ -322,7 +317,7 @@ mod tests {
     //   2) rs1 overflow (0x12345678 << 0x08 == 0x34567800)
     #[test_case(0x0073_12b3, 5, 6, 7, 7, 0x1111; "sll r5, r6, r7, only lower 5 bits rs2")]
     #[test_case(0x0139_12b3, 5, 18, 19, 0x1234_5678, 0x08; "sll r5, r18, r19, rs1 overflow")]
-    fn sll(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+    fn sll(word: u32, rd: u8, rs1: u8, rs2: u8, rs1_value: u32, rs2_value: u32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
@@ -333,7 +328,7 @@ mod tests {
     }
 
     #[test_case(0x0073_72b3, 5, 6, 7, 7, 8; "and r5, r6, r7")]
-    fn and(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+    fn and(word: u32, rd: u8, rs1: u8, rs2: u8, rs1_value: u32, rs2_value: u32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
@@ -345,7 +340,7 @@ mod tests {
     //   2) rs1 underflow (0x87654321 >> 0x08 == 0x00876543)
     #[test_case(0x0073_52b3, 5, 6, 7, 7, 0x1111; "srl r5, r6, r7, only lower 5 bits rs2")]
     #[test_case(0x0139_52b3, 5, 18, 19, 0x8765_4321, 0x08; "srl r5, r18, r19, rs1 underflow")]
-    fn srl(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+    fn srl(word: u32, rd: u8, rs1: u8, rs2: u8, rs1_value: u32, rs2_value: u32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
@@ -356,7 +351,7 @@ mod tests {
     }
 
     #[test_case(0x0073_62b3, 5, 6, 7, 7, 8; "or r5, r6, r7")]
-    fn or(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+    fn or(word: u32, rd: u8, rs1: u8, rs2: u8, rs1_value: u32, rs2_value: u32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
@@ -368,7 +363,7 @@ mod tests {
     //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0xfffff911
     #[test_case(0x0ff3_6293, 5, 6, 0x5555_1111, 255; "ori r5, r6, 255")]
     #[test_case(0x8003_6293, 5, 6, 0x5555_1111, -2048; "ori r5, r6, -2048")]
-    fn ori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
+    fn ori(word: u32, rd: u8, rs1: u8, rs1_value: u32, imm: i32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
@@ -382,7 +377,7 @@ mod tests {
     //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0x00000011
     #[test_case(0x0ff3_7293, 5, 6, 0x5555_1111, 255; "andi r5, r6, 255")]
     #[test_case(0x8003_7293, 5, 6, 0x5555_1111, -2048; "andi r5, r6, -2048")]
-    fn andi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
+    fn andi(word: u32, rd: u8, rs1: u8, rs1_value: u32, imm: i32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
@@ -391,7 +386,7 @@ mod tests {
     }
 
     #[test_case(0x0073_42b3, 5, 6, 7, 0x0000_1111, 0x0011_0011; "xor r5, r6, r7")]
-    fn xor(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+    fn xor(word: u32, rd: u8, rs1: u8, rs2: u8, rs1_value: u32, rs2_value: u32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
@@ -405,7 +400,7 @@ mod tests {
     //   2) x6 = 0x55551111, imm = 0x800 (-2048), x5 = 0xfffff911
     #[test_case(0x0ff3_4293, 5, 6, 0x5555_1111, 255; "xori r5, r6, 255")]
     #[test_case(0x8003_4293, 5, 6, 0x5555_1111, -2048; "xori r5, r6, -2048")]
-    fn xori(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
+    fn xori(word: u32, rd: u8, rs1: u8, rs1_value: u32, imm: i32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
@@ -419,7 +414,7 @@ mod tests {
     //   2) rs1 underflow (0x87654321 >> 0x08 == 0xff876543)
     #[test_case(0x4073_52b3, 5, 6, 7, 7, 0x1111; "sra r5, r6, r7, only lower 5 bits rs2")]
     #[test_case(0x4139_52b3, 5, 18, 19, 0x8765_4321, 0x08; "sra r5, r18, r19, rs1 underflow")]
-    fn sra(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+    fn sra(word: u32, rd: u8, rs1: u8, rs2: u8, rs1_value: u32, rs2_value: u32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
@@ -437,7 +432,7 @@ mod tests {
     #[test_case(0x0073_22b3, 5, 6, 7, 0x1234_5678, 0x8000_ffff; "slt r5, r6, r7, neg rs2")]
     #[test_case(0x0073_22b3, 5, 6, 7, 0x1234_5678, 0x0000_ffff; "slt r5, r6, r7")]
     #[test_case(0x0139_22b3, 5, 18, 19, 0x8234_5678, 0x0000_ffff; "slt r5, r18, r19")]
-    fn slt(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+    fn slt(word: u32, rd: u8, rs1: u8, rs2: u8, rs1_value: u32, rs2_value: u32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
@@ -451,7 +446,7 @@ mod tests {
 
     #[test_case(0x4043_5293, 5, 6, 0x8765_4321, 4; "srai r5, r6, 4")]
     #[test_case(0x41f3_5293, 5, 6, 1, 31; "srai r5, r6, 31")]
-    fn srai(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
+    fn srai(word: u32, rd: u8, rs1: u8, rs1_value: u32, imm: i32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
@@ -463,7 +458,7 @@ mod tests {
 
     #[test_case(0x0043_5293, 5, 6, 0x8765_4321, 4; "srli r5, r6, 4")]
     #[test_case(0x01f3_5293, 5, 6, 1, 31; "srli r5, r6, 31")]
-    fn srli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
+    fn srli(word: u32, rd: u8, rs1: u8, rs1_value: u32, imm: i32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
@@ -472,7 +467,7 @@ mod tests {
 
     #[test_case(0x0043_1293, 5, 6, 0x8765_4321, 4; "slli r5, r6, 4")]
     #[test_case(0x01f3_1293, 5, 6, 1, 31; "slli r5, r6, 31")]
-    fn slli(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
+    fn slli(word: u32, rd: u8, rs1: u8, rs1_value: u32, imm: i32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
@@ -483,7 +478,7 @@ mod tests {
     #[test_case(0xfff3_2293, 5, 6, 1, -1; "slti r5, r6, -1")]
     #[test_case(0x0009_2293, 5, 6, 1, 0; "slti r5, r6, 0")]
     #[test_case(0x7ff3_2293, 5, 6, 1, 2047; "slti r5, r6, 2047")]
-    fn slti(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
+    fn slti(word: u32, rd: u8, rs1: u8, rs1_value: u32, imm: i32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
@@ -495,7 +490,7 @@ mod tests {
     #[test_case(0xfff3_3293, 5, 6, 1, -1; "sltiu r5, r6, -1")]
     #[test_case(0x0003_3293, 5, 6, 1, 0; "sltiu r5, r6, 0")]
     #[test_case(0x7ff3_3293, 5, 6, 1, 2047; "sltiu r5, r6, 2047")]
-    fn sltiu(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
+    fn sltiu(word: u32, rd: u8, rs1: u8, rs1_value: u32, imm: i32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
@@ -509,7 +504,7 @@ mod tests {
     // x18 = 0x12345678 x19 = 0x8000ffff, x5 = 0x00000001
     #[test_case(0x0073_32b3, 5, 6, 7, 0x1234_5678, 0x0000_ffff; "sltu r5, r6, r7")]
     #[test_case(0x0139_32b3, 5, 18, 19, 0x1234_5678, 0x8000_ffff; "sltu r5, r18, r19")]
-    fn sltu(word: u32, rd: usize, rs1: usize, rs2: usize, rs1_value: u32, rs2_value: u32) {
+    fn sltu(word: u32, rd: u8, rs1: u8, rs2: u8, rs1_value: u32, rs2_value: u32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value), (rs2, rs2_value)]);
@@ -520,7 +515,7 @@ mod tests {
     }
 
     #[test_case(0x05d0_0393, 7, 0, 0, 93; "addi r7, r0, 93")]
-    fn addi(word: u32, rd: usize, rs1: usize, rs1_value: u32, imm: i32) {
+    fn addi(word: u32, rd: u8, rs1: u8, rs1_value: u32, imm: i32) {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &[(0_u32, word)], &[(rs1, rs1_value)]);
@@ -537,7 +532,7 @@ mod tests {
     #[test_case(0x0643_0283, 5, 6, 100, 200, 127; "lb r5, -100(r6) offset_negative")]
     #[test_case(0x0643_0283, 5, 6, 100, 0, -128; "lb r5, 100(r6) value_negative")]
     #[test_case(0x0643_0283, 5, 6, 100, 200, -128; "lb r5, -100(r6) offset_negative_value_negative")]
-    fn lb(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i8) {
+    fn lb(word: u32, rd: u8, rs1: u8, offset: i16, rs1_value: u32, memory_value: i8) {
         let mut address: u32 = rs1_value;
         if offset.is_negative() {
             let abs_offset = u32::from(offset.unsigned_abs());
@@ -565,7 +560,7 @@ mod tests {
     #[test_case(0x0643_4283, 5, 6, 100, 200, 127; "lbu r5, -100(r6) offset_negative")]
     #[test_case(0x0643_4283, 5, 6, 100, 0, -128; "lbu r5, 100(r6) value_negative")]
     #[test_case(0x0643_4283, 5, 6, 100, 200, -128; "lbu r5, -100(r6) offset_negative_value_negative")]
-    fn lbu(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i8) {
+    fn lbu(word: u32, rd: u8, rs1: u8, offset: i16, rs1_value: u32, memory_value: i8) {
         let mut address: u32 = rs1_value;
         if offset.is_negative() {
             let abs_offset = u32::from(offset.unsigned_abs());
@@ -589,7 +584,7 @@ mod tests {
     #[test_case(0x0643_1283, 5, 6, 100, 200, 4096; "lh r5, -100(r6) offset_negative")]
     #[test_case(0x0643_1283, 5, 6, 100, 0, -4095; "lh r5, 100(r6) value_negative")]
     #[test_case(0x0643_1283, 5, 6, 100, 200, -4095; "lh r5, -100(r6) offset_negative_value_negative")]
-    fn lh(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i16) {
+    fn lh(word: u32, rd: u8, rs1: u8, offset: i16, rs1_value: u32, memory_value: i16) {
         let mut address: u32 = rs1_value;
         if offset.is_negative() {
             let abs_offset = u32::from(offset.unsigned_abs());
@@ -617,7 +612,7 @@ mod tests {
     #[test_case(0x0643_5283, 5, 6, 100, 200, 4096; "lhu r5, -100(r6) offset_negative")]
     #[test_case(0x0643_5283, 5, 6, 100, 0, -4095; "lhu r5, 100(r6) value_negative")]
     #[test_case(0x0643_5283, 5, 6, 100, 200, -4095; "lhu r5, -100(r6) offset_negative_value_negative")]
-    fn lhu(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i16) {
+    fn lhu(word: u32, rd: u8, rs1: u8, offset: i16, rs1_value: u32, memory_value: i16) {
         let mut address: u32 = rs1_value;
         if offset.is_negative() {
             let abs_offset = u32::from(offset.unsigned_abs());
@@ -641,7 +636,7 @@ mod tests {
     #[test_case(0x0643_2283, 5, 6, 100, 200, 65535; "lw r5, -100(r6) offset_negative")]
     #[test_case(0x0643_2283, 5, 6, 100, 0, -65535; "lw r5, 100(r6) value_negative")]
     #[test_case(0x0643_2283, 5, 6, 100, 200, -65535; "lw r5, -100(r6) offset_negative_value_negative")]
-    fn lw(word: u32, rd: usize, rs1: usize, offset: i16, rs1_value: u32, memory_value: i32) {
+    fn lw(word: u32, rd: u8, rs1: u8, offset: i16, rs1_value: u32, memory_value: i32) {
         let mut address: u32 = rs1_value;
         if offset.is_negative() {
             let abs_offset = u32::from(offset.unsigned_abs());
@@ -679,7 +674,7 @@ mod tests {
         let ExecutionRecord {
             last_state: state, ..
         } = simple_test(4, &mem, &[]);
-        assert_eq!(state.get_register_value(5_usize), 100_u32);
+        assert_eq!(state.get_register_value(5), 100_u32);
     }
 
     #[test]
@@ -700,9 +695,9 @@ mod tests {
             last_state: state, ..
         } = simple_test(4, &mem, &[]);
 
-        assert_eq!(state.get_register_value(5_usize), 100_u32);
+        assert_eq!(state.get_register_value(5), 100_u32);
         // JALR at 260 updates X1 to have value of next_pc i.e 264
-        assert_eq!(state.get_register_value(1_usize), 264_u32);
+        assert_eq!(state.get_register_value(1), 264_u32);
     }
 
     #[test]
@@ -723,7 +718,7 @@ mod tests {
             last_state: state, ..
         } = simple_test(4, &mem, &[]);
 
-        assert_eq!(state.get_register_value(5_usize), 100_u32);
+        assert_eq!(state.get_register_value(5), 100_u32);
     }
 
     #[test]
@@ -744,7 +739,7 @@ mod tests {
             last_state: state, ..
         } = simple_test(4, &mem, &[(1, 1)]);
 
-        assert_eq!(state.get_register_value(5_usize), 100_u32);
+        assert_eq!(state.get_register_value(5), 100_u32);
     }
 
     #[test]
@@ -767,7 +762,7 @@ mod tests {
             last_state: state, ..
         } = simple_test(4, &mem, &[(1, 0xffff_ffff)]);
 
-        assert_eq!(state.get_register_value(5_usize), 100_u32);
+        assert_eq!(state.get_register_value(5), 100_u32);
     }
 
     #[test]
@@ -786,9 +781,9 @@ mod tests {
         ];
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(4, &mem, &[(1_usize, 0xffff_fffe), (2_usize, 0xffff_ffff)]);
+        } = simple_test(4, &mem, &[(1, 0xffff_fffe), (2, 0xffff_ffff)]);
 
-        assert_eq!(state.get_register_value(5_usize), 100_u32);
+        assert_eq!(state.get_register_value(5), 100_u32);
     }
 
     #[test]
@@ -808,9 +803,9 @@ mod tests {
         // set R1 = -1
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(4, &mem, &[(1_usize, 0xffff_ffff)]);
+        } = simple_test(4, &mem, &[(1, 0xffff_ffff)]);
 
-        assert_eq!(state.get_register_value(5_usize), 100_u32);
+        assert_eq!(state.get_register_value(5), 100_u32);
     }
 
     #[test]
@@ -829,9 +824,9 @@ mod tests {
         ];
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(4, &mem, &[(1_usize, 0xffff_fffe), (2_usize, 0xffff_ffff)]);
+        } = simple_test(4, &mem, &[(1, 0xffff_fffe), (2, 0xffff_ffff)]);
 
-        assert_eq!(state.get_register_value(5_usize), 100_u32);
+        assert_eq!(state.get_register_value(5), 100_u32);
     }
 
     #[test]
@@ -851,7 +846,7 @@ mod tests {
         // SH x5, 1200(x0)
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(4, &[(0, 0x4a50_1823)], &[(5_usize, 0x0000_BABE)]);
+        } = simple_test(4, &[(0, 0x4a50_1823)], &[(5, 0x0000_BABE)]);
         // assert_eq!(vm.state.load_u32(1200), 0);
 
         assert_eq!(state.load_u32(1200), 0x0000_BABE);
@@ -863,7 +858,7 @@ mod tests {
         // SW x5, 1200(x0)
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(4, &[(0, 0x4a50_2823)], &[(5_usize, 0xC0DE_BABE)]);
+        } = simple_test(4, &[(0, 0x4a50_2823)], &[(5, 0xC0DE_BABE)]);
         // assert_eq!(vm.state.load_u32(1200), 0);
 
         assert_eq!(state.load_u32(1200), 0xC0DE_BABE);
@@ -879,13 +874,13 @@ mod tests {
             4,
             &[(0, 0x0273_12b3)],
             &[
-                (6_usize, 0x8000_0000 /* == -2^31 */),
-                (7_usize, 0x8000_0000 /* == -2^31 */),
+                (6, 0x8000_0000 /* == -2^31 */),
+                (7, 0x8000_0000 /* == -2^31 */),
             ],
         );
 
         assert_eq!(
-            state.get_register_value(5_usize),
+            state.get_register_value(5),
             0x4000_0000 // High bits for 2^62
         );
     }
@@ -899,13 +894,10 @@ mod tests {
         } = simple_test(
             4,
             &[(0, 0x0273_02b3)],
-            &[
-                (6_usize, 0x4000_0000 /* == 2^30 */),
-                (7_usize, 0xFFFF_FFFE /* == -2 */),
-            ],
+            &[(6, 0x4000_0000 /* == 2^30 */), (7, 0xFFFF_FFFE /* == -2 */)],
         );
         assert_eq!(
-            state.get_register_value(5_usize),
+            state.get_register_value(5),
             0x8000_0000 // -2^31
         );
     }
@@ -919,12 +911,9 @@ mod tests {
         } = simple_test(
             4,
             &[(0_u32, 0x0273_22b3)],
-            &[
-                (6_usize, 0xFFFF_FFFE /* == -2 */),
-                (7_usize, 0x4000_0000 /* == 2^30 */),
-            ],
+            &[(6, 0xFFFF_FFFE /* == -2 */), (7, 0x4000_0000 /* == 2^30 */)],
         );
-        assert_eq!(state.get_register_value(5_usize), 0xFFFF_FFFF);
+        assert_eq!(state.get_register_value(5), 0xFFFF_FFFF);
     }
 
     #[test]
@@ -936,12 +925,9 @@ mod tests {
         } = simple_test(
             4,
             &[(0_u32, 0x0273_32b3)],
-            &[
-                (6_usize, 0x0000_0002 /* == 2 */),
-                (7_usize, 0x8000_0000 /* == 2^31 */),
-            ],
+            &[(6, 0x0000_0002 /* == 2 */), (7, 0x8000_0000 /* == 2^31 */)],
         );
-        assert_eq!(state.get_register_value(5_usize), 0x0000_0001);
+        assert_eq!(state.get_register_value(5), 0x0000_0001);
     }
 
     #[test]
@@ -1005,13 +991,10 @@ mod tests {
         } = simple_test(
             4,
             &[(0_u32, 0x0273_42b3)],
-            &[
-                (6_usize, rs1_value /* == 2^30 */),
-                (7_usize, rs2_value /* == -2 */),
-            ],
+            &[(6, rs1_value /* == 2^30 */), (7, rs2_value /* == -2 */)],
         );
         assert_eq!(
-            state.get_register_value(5_usize),
+            state.get_register_value(5),
             rd_value // -2^29
         );
     }
@@ -1026,9 +1009,9 @@ mod tests {
         } = simple_test(
             4,
             &[(0_u32, 0x0273_52b3)],
-            &[(6_usize, rs1_value), (7_usize, rs2_value)],
+            &[(6, rs1_value), (7, rs2_value)],
         );
-        assert_eq!(state.get_register_value(5_usize), rd_value);
+        assert_eq!(state.get_register_value(5), rd_value);
     }
 
     #[test_case(0xBFFF_FFFD /*-2^31 - 3*/, 0x0000_0002 /*2*/, 0xFFFF_FFFF /*-1*/; "simple")]
@@ -1042,9 +1025,9 @@ mod tests {
         } = simple_test(
             4,
             &[(0_u32, 0x0273_62b3)],
-            &[(6_usize, rs1_value), (7_usize, rs2_value)],
+            &[(6, rs1_value), (7, rs2_value)],
         );
-        assert_eq!(state.get_register_value(5_usize), rd_value);
+        assert_eq!(state.get_register_value(5), rd_value);
     }
 
     #[test_case(0x8000_0003 /*2^31 + 3*/, 0x0000_0002 /*2*/, 0x000_0001 /*1*/; "simple")]
@@ -1057,8 +1040,8 @@ mod tests {
         } = simple_test(
             4,
             &[(0_u32, 0x0273_72b3)],
-            &[(6_usize, rs1_value), (7_usize, rs2_value)],
+            &[(6, rs1_value), (7, rs2_value)],
         );
-        assert_eq!(state.get_register_value(5_usize), rd_value);
+        assert_eq!(state.get_register_value(5), rd_value);
     }
 }
