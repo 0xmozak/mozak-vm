@@ -108,16 +108,17 @@ mod test {
     use crate::memory::columns as mem_cols;
     use crate::memory::test_utils::memory_trace_test_case;
 
-    // PADDING  ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV        DIFF_CLK
-    // 0        100   0     SB  5      0          0                    0
-    // 0        100   1     LB  5      0          0                    4
-    // 0        100   4     SB  10     0          0                    12
-    // 0        100   5     LB  10     0          0                    4
-    // 0        200   2     SB  15     100        3504881373188771021  0
-    // 0        200   3     LB  15     0          0                    4
-    // 1        200   3     LB  15     0          0                    0
-    // 1        200   3     LB  15     0          0                    0
+    // PADDING  ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV  DIFF_CLK
+    // 0        100   0     SB  5      100        inv(100)       0
+    // 0        100   1     LB  5      0          0              4
+    // 0        100   4     SB  10     0          0              12
+    // 0        100   5     LB  10     0          0              4
+    // 0        200   2     SB  15     100        inv(100)       0
+    // 0        200   3     LB  15     0          0              4
+    // 1        200   3     LB  15     0          0              0
+    // 1        200   3     LB  15     0          0              0
     fn expected_trace<F: RichField>() -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
+        let inv_100 = F::from_canonical_u32(100).inverse().to_canonical_u64();
         [
             // MEM_PADDING
             [0, 0, 0, 0, 0, 0, 1, 1],
@@ -132,16 +133,7 @@ mod test {
             // DIFF_ADDR
             [100, 0, 0, 0, 100, 0, 0, 0],
             // DIFF_ADDR_INV
-            [
-                3_504_881_373_188_771_021,
-                0,
-                0,
-                0,
-                3_504_881_373_188_771_021,
-                0,
-                0,
-                0,
-            ],
+            [inv_100, 0, 0, 0, inv_100, 0, 0, 0],
             // DIFF_CLK
             [0, 1, 3, 1, 2, 1, 0, 0],
         ]
