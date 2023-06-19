@@ -15,7 +15,7 @@ fn create_prog(image: HashMap<u32, u32>) -> State {
 pub fn simple_test_code(
     code: &[Instruction],
     mem: &[(u32, u32)],
-    regs: &[(usize, u32)],
+    regs: &[(u8, u32)],
 ) -> ExecutionRecord {
     let _ = env_logger::try_init();
     let code = Code(
@@ -72,7 +72,7 @@ pub fn simple_test_code(
 
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
-pub fn simple_test(exit_at: u32, mem: &[(u32, u32)], regs: &[(usize, u32)]) -> ExecutionRecord {
+pub fn simple_test(exit_at: u32, mem: &[(u32, u32)], regs: &[(u8, u32)]) -> ExecutionRecord {
     // TODO(Matthias): stick this line into proper common setup?
     let _ = env_logger::try_init();
     let exit_inst =
