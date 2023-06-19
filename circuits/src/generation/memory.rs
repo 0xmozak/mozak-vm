@@ -11,17 +11,18 @@ use crate::memory::trace::{
 /// Pad the memory trace to a power of 2.
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
-    let trace_len = trace[0].len();
-    let ext_trace_len = trace_len.next_power_of_two();
+    let ext_trace_len = trace[0].len().next_power_of_two();
 
-    for row in trace[mem_cols::COL_MEM_ADDR..mem_cols::COL_MEM_DIFF_CLK].iter_mut() {
-        row.resize(ext_trace_len, *row.last().unwrap());
-    }
-
+    // Some columns need special treatment..
     trace[mem_cols::COL_MEM_PADDING].resize(ext_trace_len, F::ONE);
     trace[mem_cols::COL_MEM_DIFF_ADDR].resize(ext_trace_len, F::ZERO);
     trace[mem_cols::COL_MEM_DIFF_ADDR_INV].resize(ext_trace_len, F::ZERO);
     trace[mem_cols::COL_MEM_DIFF_CLK].resize(ext_trace_len, F::ZERO);
+
+    // .. and all other columns just have their last value duplicated.
+    for row in trace.iter_mut() {
+        row.resize(ext_trace_len, *row.last().unwrap());
+    }
 
     trace
 }
@@ -66,24 +67,22 @@ pub fn generate_memory_trace<F: RichField>(
             _ => F::ZERO,
         };
 
-        trace[mem_cols::COL_MEM_DIFF_ADDR][i] = if i == 0 {
-            F::ZERO
-        } else {
-            trace[mem_cols::COL_MEM_ADDR][i] - trace[mem_cols::COL_MEM_ADDR][i - 1]
-        };
-
-        trace[mem_cols::COL_MEM_DIFF_ADDR_INV][i] =
-            if trace[mem_cols::COL_MEM_DIFF_ADDR][i] == F::ZERO {
+        trace[mem_cols::COL_MEM_DIFF_ADDR][i] = trace[mem_cols::COL_MEM_ADDR][i]
+            - if i == 0 {
                 F::ZERO
             } else {
-                trace[mem_cols::COL_MEM_DIFF_ADDR][i].inverse()
+                trace[mem_cols::COL_MEM_ADDR][i - 1]
             };
 
-        trace[mem_cols::COL_MEM_DIFF_CLK][i] =
-            if i == 0 || trace[mem_cols::COL_MEM_DIFF_ADDR][i] != F::ZERO {
+        trace[mem_cols::COL_MEM_DIFF_ADDR_INV][i] = trace[mem_cols::COL_MEM_DIFF_ADDR][i]
+            .try_inverse()
+            .unwrap_or_default();
+
+        trace[mem_cols::COL_MEM_DIFF_CLK][i] = trace[mem_cols::COL_MEM_CLK][i]
+            - if i == 0 || trace[mem_cols::COL_MEM_DIFF_ADDR][i] != F::ZERO {
                 F::ZERO
             } else {
-                trace[mem_cols::COL_MEM_CLK][i] - trace[mem_cols::COL_MEM_CLK][i - 1]
+                trace[mem_cols::COL_MEM_CLK][i - 1]
             };
     }
 
@@ -120,94 +119,26 @@ mod test {
     // 1        200   3     LB  15     0          0                    0
     fn expected_trace<F: RichField>() -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
         [
-            vec![
-                F::ZERO,
-                F::ZERO,
-                F::ZERO,
-                F::ZERO,
-                F::ZERO,
-                F::ZERO,
-                F::ONE,
-                F::ONE,
-            ],
+            // MEM_PADDING
+            [0, 0, 0, 0, 0, 0, 1, 1],
             // ADDR
-            vec![
-                F::from_canonical_u32(100),
-                F::from_canonical_u32(100),
-                F::from_canonical_u32(100),
-                F::from_canonical_u32(100),
-                F::from_canonical_u32(200),
-                F::from_canonical_u32(200),
-                F::from_canonical_u32(200),
-                F::from_canonical_u32(200),
-            ],
+            [100, 100, 100, 100, 200, 200, 200, 200],
             // CLK
-            vec![
-                F::from_canonical_u32(0),
-                F::from_canonical_u32(1),
-                F::from_canonical_u32(4),
-                F::from_canonical_u32(5),
-                F::from_canonical_u32(2),
-                F::from_canonical_u32(3),
-                F::from_canonical_u32(3),
-                F::from_canonical_u32(3),
-            ],
+            [0, 1, 4, 5, 2, 3, 3, 3],
             // OP
-            vec![
-                F::ONE,
-                F::ZERO,
-                F::ONE,
-                F::ZERO,
-                F::ONE,
-                F::ZERO,
-                F::ZERO,
-                F::ZERO,
-            ],
+            [1, 0, 1, 0, 1, 0, 0, 0],
             // VALUE
-            vec![
-                F::from_canonical_u32(5),
-                F::from_canonical_u32(5),
-                F::from_canonical_u32(10),
-                F::from_canonical_u32(10),
-                F::from_canonical_u32(15),
-                F::from_canonical_u32(15),
-                F::from_canonical_u32(15),
-                F::from_canonical_u32(15),
-            ],
+            [5, 5, 10, 10, 15, 15, 15, 15],
             // DIFF_ADDR
-            vec![
-                F::ZERO,
-                F::ZERO,
-                F::ZERO,
-                F::ZERO,
-                F::from_canonical_u32(100),
-                F::ZERO,
-                F::ZERO,
-                F::ZERO,
-            ],
+            [100, 0, 0, 0, 100, 0, 0, 0],
             // DIFF_ADDR_INV
-            vec![
-                F::ZERO,
-                F::ZERO,
-                F::ZERO,
-                F::ZERO,
-                F::from_canonical_u64(3_504_881_373_188_771_021),
-                F::ZERO,
-                F::ZERO,
-                F::ZERO,
-            ],
+            [3_504_881_373_188_771_021, 0, 0, 0, 3_504_881_373_188_771_021, 0, 0, 0],
             // DIFF_CLK
-            vec![
-                F::from_canonical_u32(0),
-                F::from_canonical_u32(1),
-                F::from_canonical_u32(3),
-                F::from_canonical_u32(1),
-                F::from_canonical_u32(0),
-                F::from_canonical_u32(1),
-                F::from_canonical_u32(0),
-                F::from_canonical_u32(0),
-            ],
+            [0, 1, 3, 1, 2, 1, 0, 0],
         ]
+        .into_iter()
+        .map(|col| col.into_iter().map(F::from_canonical_u64).collect())
+        .collect::<Vec<_>>().try_into().unwrap()
     }
 
     // This test simulates the scenario of a set of instructions
