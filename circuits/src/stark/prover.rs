@@ -86,11 +86,8 @@ mod test {
 
     #[test]
     fn prove_lui() {
-        let record = simple_test(4, &[(0_u32, 0x8000_00b7 /* lui r1, -524288 */)], &[]);
-        assert_eq!(
-            record.last_state.get_register_value(1) as i32,
-            -2_147_483_648
-        );
+        let record = simple_test(4, &[(0_u32, 0x8000_00b7 /* lui r1, 0x80000 */)], &[]);
+        assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
         simple_proof_test(&record.executed);
     }
 
