@@ -47,8 +47,6 @@ pub enum Op {
     MULH,
     MULHU,
     MULHSU,
-    LUI,
-    AUIPC,
     DIV,
     DIVU,
     REM,
