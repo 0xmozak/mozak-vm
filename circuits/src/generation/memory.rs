@@ -117,8 +117,14 @@ mod test {
             .to_canonical_u64()
     }
 
-    // TODO(Matthias): find something in itertools or so to transpose.
+    /// Transposes a table
+    ///
+    /// Like x[i][j] == transpose(x)[j][i]
     fn transpose<A: Clone>(table: &[&[A]]) -> Vec<Vec<A>> {
+        // TODO(Matthias): find something in itertools or so to transpose, instead of
+        // doing it manually. Otherwise, move this function to its own crate,
+        // polish and publish it?
+        // In any case, this is probably useful for some of the other tests as well.
         let mut table: Vec<(usize, &A)> = table
             .into_iter()
             .flat_map(|row| row.into_iter().enumerate())
