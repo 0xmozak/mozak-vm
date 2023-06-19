@@ -20,7 +20,7 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
     trace[mem_cols::COL_MEM_DIFF_CLK].resize(ext_trace_len, F::ZERO);
 
     // .. and all other columns just have their last value duplicated.
-    for row in trace.iter_mut() {
+    for row in &mut trace {
         row.resize(ext_trace_len, *row.last().unwrap());
     }
 
@@ -132,13 +132,24 @@ mod test {
             // DIFF_ADDR
             [100, 0, 0, 0, 100, 0, 0, 0],
             // DIFF_ADDR_INV
-            [3_504_881_373_188_771_021, 0, 0, 0, 3_504_881_373_188_771_021, 0, 0, 0],
+            [
+                3_504_881_373_188_771_021,
+                0,
+                0,
+                0,
+                3_504_881_373_188_771_021,
+                0,
+                0,
+                0,
+            ],
             // DIFF_CLK
             [0, 1, 3, 1, 2, 1, 0, 0],
         ]
         .into_iter()
         .map(|col| col.into_iter().map(F::from_canonical_u64).collect())
-        .collect::<Vec<_>>().try_into().unwrap()
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap()
     }
 
     // This test simulates the scenario of a set of instructions
