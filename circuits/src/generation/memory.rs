@@ -116,8 +116,8 @@ mod test {
     // 0        100   5     LB  10     0          0                    4
     // 0        200   2     SB  15     100        3504881373188771021  0
     // 0        200   3     LB  15     0          0                    4
-    // 1        200   3     LB  15     0          0                    4
-    // 1        200   3     LB  15     0          0                    4
+    // 1        200   3     LB  15     0          0                    0
+    // 1        200   3     LB  15     0          0                    0
     fn expected_trace<F: RichField>() -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
         [
             vec![
