@@ -102,54 +102,61 @@ pub fn generate_memory_trace<F: RichField>(
 
 #[cfg(test)]
 mod test {
+    use itertools::Itertools;
     use plonky2::hash::hash_types::RichField;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use crate::memory::columns as mem_cols;
     use crate::memory::test_utils::memory_trace_test_case;
+    use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
 
-    // PADDING  ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV        DIFF_CLK
-    // 0        100   0     SB  5      0          0                    0
-    // 0        100   1     LB  5      0          0                    4
-    // 0        100   4     SB  10     0          0                    12
-    // 0        100   5     LB  10     0          0                    4
-    // 0        200   2     SB  15     100        3504881373188771021  0
-    // 0        200   3     LB  15     0          0                    4
-    // 1        200   3     LB  15     0          0                    0
-    // 1        200   3     LB  15     0          0                    0
+    fn inv<F: RichField>(x: u64) -> u64 {
+        F::from_canonical_u64(x)
+            .try_inverse()
+            .unwrap_or_default()
+            .to_canonical_u64()
+    }
+
+    // TODO(Matthias): find something in itertools or so to transpose.
+    fn transpose<A: Clone>(table: &[&[A]]) -> Vec<Vec<A>> {
+        let mut table: Vec<(usize, &A)> = table
+            .into_iter()
+            .flat_map(|row| row.into_iter().enumerate())
+            .collect();
+        table.sort_by_key(|(col, _item)| *col);
+        table
+            .into_iter()
+            .group_by(|(col, _item)| *col)
+            .into_iter()
+            .map(|(_, col)| col.map(|(_, item)| item).cloned().collect())
+            .collect()
+    }
+
+    fn prep_table<F: RichField>(table: &[&[u64]]) -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
+        transpose(table)
+            .into_iter()
+            .map(|col| col.into_iter().map(F::from_canonical_u64).collect())
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap()
+    }
+
     fn expected_trace<F: RichField>() -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
-        [
-            // MEM_PADDING
-            [0, 0, 0, 0, 0, 0, 1, 1],
-            // ADDR
-            [100, 100, 100, 100, 200, 200, 200, 200],
-            // CLK
-            [0, 1, 4, 5, 2, 3, 3, 3],
-            // OP
-            [1, 0, 1, 0, 1, 0, 0, 0],
-            // VALUE
-            [5, 5, 10, 10, 15, 15, 15, 15],
-            // DIFF_ADDR
-            [100, 0, 0, 0, 100, 0, 0, 0],
-            // DIFF_ADDR_INV
-            [
-                3_504_881_373_188_771_021,
-                0,
-                0,
-                0,
-                3_504_881_373_188_771_021,
-                0,
-                0,
-                0,
-            ],
-            // DIFF_CLK
-            [0, 1, 3, 1, 2, 1, 0, 0],
-        ]
-        .into_iter()
-        .map(|col| col.into_iter().map(F::from_canonical_u64).collect())
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap()
+        let sb = OPCODE_SB as u64;
+        let lb = OPCODE_LB as u64;
+        let inv = inv::<F>;
+        #[rustfmt::skip]
+        prep_table(&[
+            // PADDING  ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV  DIFF_CLK
+            &[ 0,       100,  0,    sb,   5,    100,     inv(100),              0],
+            &[ 0,       100,  1,    lb,   5,      0,           0,               1],
+            &[ 0,       100,  4,    sb,  10,      0,           0,               3],
+            &[ 0,       100,  5,    lb,  10,      0,           0,               1],
+            &[ 0,       200,  2,    sb,  15,    100,     inv(100),              2],
+            &[ 0,       200,  3,    lb,  15,      0,           0,               1],
+            &[ 1,       200,  3,    lb,  15,      0,           0,               0],
+            &[ 1,       200,  3,    lb , 15,      0,           0,               0],
+        ])
     }
 
     // This test simulates the scenario of a set of instructions

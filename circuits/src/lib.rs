@@ -1,5 +1,6 @@
 #![allow(incomplete_features)]
 #![feature(generic_const_exprs)]
+#![feature(stmt_expr_attributes)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
 
