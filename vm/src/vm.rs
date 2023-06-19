@@ -227,8 +227,6 @@ impl State {
             Op::MULH => rop!(mulh),
             Op::MULHU => rop!(mulhu),
             Op::MULHSU => rop!(mulhsu),
-            Op::LUI => iop!(|_a, i| i),
-            Op::AUIPC => iop!(|_a, i| i),
             Op::DIV => rop!(div),
             Op::DIVU => rop!(divu),
             Op::REM => rop!(rem),
