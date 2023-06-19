@@ -42,8 +42,7 @@ fn init_padded_rc_trace<F: RichField>(len: usize) -> Vec<Vec<F>> {
 pub fn generate_rangecheck_trace<F: RichField>(
     step_rows: &[Row],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
-    let len = step_rows.len().max(RANGE_CHECK_U16_SIZE);
-    let mut trace = init_padded_rc_trace(len);
+    let mut trace = init_padded_rc_trace(step_rows.len().max(RANGE_CHECK_U16_SIZE));
     for (
         i,
         Row {
