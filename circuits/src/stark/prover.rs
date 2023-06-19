@@ -95,7 +95,7 @@ mod test {
     fn prove_lui_2() {
         let record = simple_test_code(
             &[Instruction {
-                op: Op::LUI,
+                op: Op::ADD,
                 data: Data {
                     rd: 1,
                     imm: 0xDEAD_BEEF,
