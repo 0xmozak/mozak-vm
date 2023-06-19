@@ -4,29 +4,30 @@ use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::lookup::permute_cols;
-use crate::rangecheck::columns::{self};
+use crate::rangecheck::columns;
 use crate::utils::from_;
 
 pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 
-/// Initializes the rangecheck trace table to the size of 2^k rows in
-/// preparation for the Halo2 lookup argument.
+/// Pad all columns in the trace to be of a power of 2. Specifically,
+/// extend the column containing the values to be range checked with dummy
+/// values known to be in the column containing the fixed values.
 ///
-/// Note that by right the column to be checked (A) and the fixed column (S)
-/// have to be extended by dummy values known to be in the fixed column if they
-/// are not of size 2^k, but because our fixed column is a range from 0..2^16-1,
-/// initializing our trace to all [`F::ZERO`]s takes care of this step by
-/// default.
+///
+/// # Panics
+/// There's an assert that makes sure all columns passed in have the same
+/// length.
 #[must_use]
-fn init_padded_rc_trace<F: RichField>(len: usize) -> Vec<Vec<F>> {
-    let trace_len = if len.is_power_of_two() {
-        len
-    } else {
-        len.checked_next_power_of_two()
-            .unwrap_or_else(|| len.next_power_of_two())
-    };
-
-    vec![vec![F::ZERO; trace_len]; columns::NUM_RC_COLS]
+pub fn pad_rc_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
+    let len = trace[0].len();
+    if let Some(padded_len) = len.checked_next_power_of_two() {
+        trace[columns::VAL..columns::NUM_RC_COLS]
+            .iter_mut()
+            .for_each(|col| {
+                col.extend(vec![*col.last().unwrap(); padded_len - len]);
+            });
+    }
+    trace
 }
 
 /// Generates a trace table for range checks, used in building a
@@ -38,11 +39,11 @@ fn init_padded_rc_trace<F: RichField>(len: usize) -> Vec<Vec<F>> {
 /// 1. conversion of `dst_val` from u32 to u16 fails when splitting
 ///    into limbs,
 /// 2. trace width does not match the number of columns.
-#[must_use]
 pub fn generate_rangecheck_trace<F: RichField>(
     step_rows: &[Row],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
-    let mut trace = init_padded_rc_trace(step_rows.len().max(RANGE_CHECK_U16_SIZE));
+    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; RANGE_CHECK_U16_SIZE]; columns::NUM_RC_COLS];
+
     for (
         i,
         Row {
@@ -56,7 +57,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
         #[allow(clippy::single_match)]
         match inst.op {
             Op::ADD => {
-                let limb_hi = u16::try_from(dst_val >> 8).unwrap();
+                let limb_hi = u16::try_from(dst_val >> 16).unwrap();
                 let limb_lo = u16::try_from(dst_val & 0xffff).unwrap();
                 trace[columns::VAL][i] = from_(*dst_val);
                 trace[columns::LIMB_HI][i] = from_(limb_hi);
@@ -66,6 +67,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
             _ => {}
         }
     }
+
     // Here, we generate fixed columns for the table, used in inner table lookups.
     // We are interested in range checking 16-bit values, hence we populate with
     // values 0, 1, .., 2^16 - 1.
@@ -92,6 +94,9 @@ pub fn generate_rangecheck_trace<F: RichField>(
     trace[columns::LIMB_HI_PERMUTED] = col_input_permuted;
     trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI] = col_table_permuted;
 
+    // Finally, we need our columns to be at least of size 2^k.
+    let trace = pad_rc_trace(trace);
+
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
             "Expected a Vec of length {} but it was {}",
@@ -114,33 +119,33 @@ mod tests {
         let record = simple_test(
             4,
             &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
-            &[(6, 100), (7, 100)],
+            // Use values that would become limbs later
+            &[(6, 0xffff), (7, 0xffff)],
         );
 
         let trace = generate_rangecheck_trace::<F>(&record.executed);
-        for (idx, column) in trace.iter().enumerate() {
-            if idx == columns::CPU_FILTER {
-                for (i, column) in column.iter().enumerate() {
-                    // Only the first two instructions are ADD, which require a range check
-                    if i < 2 {
-                        assert_eq!(column, &F::ONE);
-                    } else {
-                        assert_eq!(column, &F::ZERO);
-                    }
-                }
-            }
 
-            if idx == columns::VAL {
-                for (i, column) in column.iter().enumerate() {
-                    match i {
-                        // 100 + 100 = 200
-                        0 => assert_eq!(column, &GoldilocksField(200)),
-                        // exit instruction
-                        1 => assert_eq!(column, &GoldilocksField(93)),
-                        _ => assert_eq!(column, &F::ZERO),
-                    }
-                }
-            }
+        // Check values that we are interested in
+        assert_eq!(trace[columns::CPU_FILTER][0], F::ONE);
+        assert_eq!(trace[columns::CPU_FILTER][1], F::ONE);
+        assert_eq!(trace[columns::VAL][0], GoldilocksField(0x0001_fffe));
+        assert_eq!(trace[columns::VAL][1], GoldilocksField(93));
+        assert_eq!(trace[columns::LIMB_HI][0], GoldilocksField(0x0001));
+        assert_eq!(trace[columns::LIMB_LO][0], GoldilocksField(0xfffe));
+        assert_eq!(trace[columns::LIMB_LO][1], GoldilocksField(93));
+
+        // Ensure rest of trace is zeroed out
+        for cpu_filter in trace[columns::CPU_FILTER][2..].iter() {
+            assert_eq!(cpu_filter, &F::ZERO);
+        }
+        for value in trace[columns::VAL][2..].iter() {
+            assert_eq!(value, &F::ZERO);
+        }
+        for limb_hi in trace[columns::LIMB_HI][1..].iter() {
+            assert_eq!(limb_hi, &F::ZERO);
+        }
+        for limb_lo in trace[columns::LIMB_LO][2..].iter() {
+            assert_eq!(limb_lo, &F::ZERO);
         }
     }
 }
