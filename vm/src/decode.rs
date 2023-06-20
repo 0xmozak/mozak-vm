@@ -154,10 +154,16 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             0x3 => (Op::SLTU, itype),
             0x4 => (Op::XORI, itype),
             0x5 => {
+                let imm = itype.imm;
+                let imm_masked: u32 = imm.bit_range(4, 0);
+                let itype = Data {
+                    imm: imm_masked,
+                    ..itype
+                };
                 // Masks the first 7 bits in a word to differentiate between an
                 // SRAI/SRLI instruction. They have the same funct3 value and are
                 // differentiated by their 30th bit, for which SRAI = 1 and SRLI = 0.
-                match itype.imm.bit_range(11, 5) {
+                match imm.bit_range(11, 5) {
                     // For Risc-V its SRAI but we handle it as SRA.
                     0b010_0000 => (Op::SRA, itype),
                     // For Risc-V its SRLI but we handle it as SRL.
@@ -339,7 +345,7 @@ mod test {
         assert_eq!(ins, match_ins);
     }
 
-    #[test_case(0x41f9_5293, 5, 18, 1024 + 31; "srai r5, r18, 31")]
+    #[test_case(0x41f9_5293, 5, 18, 31; "srai r5, r18, 31")]
     fn srai(word: u32, rd: u8, rs1: u8, imm: u32) {
         // NOTE: we match imm value 0100000_11111 where upper bits 0100000 differentiate
         // between SRAI and SRLI
