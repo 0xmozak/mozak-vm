@@ -1,0 +1,32 @@
+name: Unused dependencies
+
+on:
+  # Triggers the workflow every sunday
+  schedule:
+    - cron: "0 18 * * 0"
+
+env:
+  CARGO_TERM_COLOR: always
+  NIGHTLY_RUST_VERSION: nightly-2023-06-17
+
+jobs:
+  cargo-udeps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        # Main branch is default branch
+        # with:
+        #   ref: main
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-udeps
+        run: cargo install --locked cargo-udeps
+
+      - name: Check for unused dependencies
+        run: cargo udeps --workspace --all-targets --all-features
