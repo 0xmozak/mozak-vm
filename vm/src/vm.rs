@@ -295,11 +295,17 @@ mod tests {
     use test_case::test_case;
 
     use super::ExecutionRecord;
-    use crate::test_utils::simple_test;
+    use crate::instruction::{Instruction, Op};
+    use crate::test_utils::{simple_test, simple_test_code};
 
     // NOTE: For writing test cases please follow RISCV
     // calling convention for using registers in instructions.
     // Please check https://en.wikichip.org/wiki/risc-v/registers
+
+    #[test]
+    fn ecall() {
+        let _ = simple_test_code(&[Instruction::new(Op::ECALL, 0, 0, 0, 0)], &[], &[]);
+    }
 
     #[test_case(0x0073_02b3, 5, 6, 7, 60049, 50493; "add r5, r6, r7")]
     #[test_case(0x01FF_8FB3, 31, 31, 31, 8981, 8981; "add r31, r31, r31")]

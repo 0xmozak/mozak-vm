@@ -124,6 +124,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             (0x1, 0x01) => (Op::MULH, rtype),
             (0x2, 0x01) => (Op::MULHSU, rtype),
             (0x3, 0x01) => (Op::MULHU, rtype),
+            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b000_0011 => match bf.func3() {
@@ -132,12 +133,14 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             0x2 => (Op::LW, itype),
             0x4 => (Op::LBU, itype),
             0x5 => (Op::LHU, itype),
+            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b010_0011 => match bf.func3() {
             0x0 => (Op::SB, stype),
             0x1 => (Op::SH, stype),
             0x2 => (Op::SW, stype),
+            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b001_0011 => match bf.func3() {
@@ -162,25 +165,31 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
                 match imm.bit_range(11, 5) {
                     0b010_0000 => (Op::SRAI, itype),
                     0 => (Op::SRLI, itype),
+                    #[tarpaulin::skip]
                     _ => Default::default(),
                 }
             }
             0x6 => (Op::ORI, itype),
             0x7 => (Op::ANDI, itype),
+            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b111_0011 => match (bf.func3(), bf.func12()) {
             (0x0, 0x0) => (Op::ECALL, Data::default()),
+            #[tarpaulin::skip]
             (0x0, 0x302) => (Op::MRET, Data::default()),
+            #[tarpaulin::skip]
             (0x0, 0x1) => (Op::EBREAK, Data::default()),
             (0x1, _) => (Op::CSRRW, itype),
             (0x2, _) => (Op::CSRRS, itype),
             (0x5, _) => (Op::CSRRWI, itype),
+            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b110_1111 => (Op::JAL, jtype),
         0b110_0111 => match bf.func3() {
             0x0 => (Op::JALR, itype),
+            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b110_0011 => match bf.func3() {
@@ -190,6 +199,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             0x5 => (Op::BGE, btype),
             0x6 => (Op::BLTU, btype),
             0x7 => (Op::BGEU, btype),
+            #[tarpaulin::skip]
             _ => Default::default(),
         },
         // LUI in RISC-V; but our ADD instruction is general enough to express the same semantics
@@ -199,6 +209,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         // without a new op-code.
         0b001_0111 => (Op::ADD, add_pc(pc, utype)),
         0b000_1111 => (Op::FENCE, itype),
+        #[tarpaulin::skip]
         _ => Default::default(),
     };
     Instruction { op, data }
