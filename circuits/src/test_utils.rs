@@ -28,6 +28,7 @@ pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
     verify_proof(&stark, &all_proof.unwrap(), &config)
 }
 
+#[must_use]
 pub fn inv<F: RichField>(x: u64) -> u64 {
     F::from_canonical_u64(x)
         .try_inverse()
