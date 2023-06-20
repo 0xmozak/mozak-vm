@@ -141,10 +141,13 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             _ => Default::default(),
         },
         0b001_0011 => match bf.func3() {
+            // For Risc-V its ADDI but we handle it as ADD.
             0x0 => (Op::ADD, itype),
             0x1 => (Op::SLLI, itype),
-            0x2 => (Op::SLTI, itype),
-            0x3 => (Op::SLTIU, itype),
+            // For Risc-V its SLTI but we handle it as SLT.
+            0x2 => (Op::SLT, itype),
+            // For Risc-V its SLTIU but we handle it as SLTU.
+            0x3 => (Op::SLTU, itype),
             0x4 => (Op::XORI, itype),
             0x5 => {
                 let imm = itype.imm;
@@ -362,7 +365,7 @@ mod test {
     fn slti(word: u32, rd: u8, rs1: u8, imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
-            op: Op::SLTI,
+            op: Op::SLT,
             data: Data {
                 rd,
                 rs1,
@@ -377,7 +380,7 @@ mod test {
     fn sltiu(word: u32, rd: u8, rs1: u8, imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
-            op: Op::SLTIU,
+            op: Op::SLTU,
             data: Data {
                 rd,
                 rs1,
