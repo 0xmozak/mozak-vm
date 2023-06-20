@@ -104,6 +104,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         2
     }
 
+    #[no_coverage]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,
