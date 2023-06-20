@@ -70,7 +70,7 @@ mod test {
     #[test]
     fn prove_halt() {
         let record = simple_test(0, &[], &[]);
-        simple_proof_test(&record.executed);
+        simple_proof_test(&record.executed).unwrap();
     }
 
     #[test]
@@ -81,14 +81,14 @@ mod test {
             &[(6, 100), (7, 100)],
         );
         assert_eq!(record.last_state.get_register_value(5), 100 + 100);
-        simple_proof_test(&record.executed);
+        simple_proof_test(&record.executed).unwrap();
     }
 
     #[test]
     fn prove_lui() {
         let record = simple_test(4, &[(0_u32, 0x8000_00b7 /* lui r1, 0x80000 */)], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
-        simple_proof_test(&record.executed);
+        simple_proof_test(&record.executed).unwrap();
     }
 
     #[test]
@@ -106,6 +106,25 @@ mod test {
             &[],
         );
         assert_eq!(record.last_state.get_register_value(1), 0xDEAD_BEEF,);
-        simple_proof_test(&record.executed);
+        simple_proof_test(&record.executed).unwrap();
+    }
+
+    #[test]
+    fn prove_beq() {
+        let record = simple_test_code(
+            &[Instruction {
+                op: Op::BEQ,
+                data: Data {
+                    rs1: 0,
+                    rs2: 1,
+                    imm: 42,
+                    ..Data::default()
+                },
+            }],
+            &[],
+            &[(1, 2)],
+        );
+        assert_eq!(record.last_state.get_pc(), 8);
+        simple_proof_test(&record.executed).expect_err("FIXME:test-is-expected-to-fail");
     }
 }
