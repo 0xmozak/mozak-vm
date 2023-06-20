@@ -152,7 +152,8 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             0x2 => (Op::SLT, itype),
             // For Risc-V its SLTIU but we handle it as SLTU.
             0x3 => (Op::SLTU, itype),
-            0x4 => (Op::XORI, itype),
+            // For Risc-V its XORI but we handle it as XOR.
+            0x4 => (Op::XOR, itype),
             0x5 => {
                 let imm = itype.imm;
                 let imm_masked: u32 = imm.bit_range(4, 0);
@@ -172,8 +173,10 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
                     _ => Default::default(),
                 }
             }
-            0x6 => (Op::ORI, itype),
-            0x7 => (Op::ANDI, itype),
+            // For Risc-V its ORI but we handle it as OR.
+            0x6 => (Op::OR, itype),
+            // For Risc-V its ANDI but we handle it as AND.
+            0x7 => (Op::AND, itype),
             #[tarpaulin::skip]
             _ => Default::default(),
         },
@@ -592,7 +595,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
-            op: Op::ANDI,
+            op: Op::AND,
             data: Data {
                 rd,
                 rs1,
@@ -608,7 +611,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
-            op: Op::XORI,
+            op: Op::XOR,
             data: Data {
                 rd,
                 rs1,
@@ -639,7 +642,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
-            op: Op::ORI,
+            op: Op::OR,
             data: Data {
                 rd,
                 rs1,
