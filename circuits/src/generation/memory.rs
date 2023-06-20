@@ -126,8 +126,8 @@ mod test {
         // polish and publish it?
         // In any case, this is probably useful for some of the other tests as well.
         let mut table: Vec<(usize, &A)> = table
-            .into_iter()
-            .flat_map(|row| row.into_iter().enumerate())
+            .iter()
+            .flat_map(|row| row.iter().enumerate())
             .collect();
         table.sort_by_key(|(col, _item)| *col);
         table
