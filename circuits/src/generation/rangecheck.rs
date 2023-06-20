@@ -19,14 +19,7 @@ pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 /// default.
 #[must_use]
 fn init_padded_rc_trace<F: RichField>(len: usize) -> Vec<Vec<F>> {
-    let trace_len = if len.is_power_of_two() {
-        len
-    } else {
-        len.checked_next_power_of_two()
-            .unwrap_or_else(|| len.next_power_of_two())
-    };
-
-    vec![vec![F::ZERO; trace_len]; columns::NUM_RC_COLS]
+    vec![vec![F::ZERO; len.next_power_of_two()]; columns::NUM_RC_COLS]
 }
 
 /// Generates a trace table for range checks, used in building a
