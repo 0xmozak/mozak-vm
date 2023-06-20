@@ -2,6 +2,8 @@
 #![feature(generic_const_exprs)]
 #![feature(stmt_expr_attributes)]
 #![feature(no_coverage)]
+#![feature(register_tool)]
+#![register_tool(tarpaulin)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
 

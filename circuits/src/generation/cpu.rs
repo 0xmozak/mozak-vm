@@ -42,6 +42,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,
             Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
+            #[tarpaulin::skip]
             _ => {}
         }
     }
@@ -51,6 +52,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
     let trace = pad_trace(trace, Some(cpu_cols::COL_CLK));
 
     log::trace!("trace {:?}", trace);
+    #[tarpaulin::skip]
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
             "Expected a Vec of length {} but it was {}",

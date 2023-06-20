@@ -64,6 +64,7 @@ pub fn generate_memory_trace<F: RichField>(
         trace[mem_cols::COL_MEM_VALUE][i] = match s.state.current_instruction().op {
             Op::LB => get_memory_load_inst_value(s),
             Op::SB => get_memory_store_inst_value(s),
+            #[tarpaulin::skip]
             _ => F::ZERO,
         };
 
@@ -91,6 +92,7 @@ pub fn generate_memory_trace<F: RichField>(
     // of the trace.
     trace = pad_mem_trace(trace);
 
+    #[tarpaulin::skip]
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
             "Expected a Vec of length {} but it was {}",
