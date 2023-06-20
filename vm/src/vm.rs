@@ -177,17 +177,14 @@ impl State {
         }
         let (aux, state) = match inst.op {
             Op::ADD => x_op!(|a, b, i| a.wrapping_add(b.wrapping_add(i))),
-            // Only use lower 5 bits of rs2
-            Op::SLL => rop!(|a, b| a << (b & 0x1F)),
-            // Only use lower 5 bits of rs2
-            Op::SRL => rop!(|a, b| a >> (b & 0x1F)),
-            // Only use lower 5 bits of rs2
-            Op::SRA => rop!(|a, b| (a as i32 >> (b & 0x1F) as i32) as u32),
+            // Only use lower 5 bits of rs2 or imm
+            Op::SLL => x_op!(|a, b, i| a << ((b.wrapping_add(i)) & 0x1F)),
+            // Only use lower 5 bits of rs2 or imm
+            Op::SRL => x_op!(|a, b, i| a >> ((b.wrapping_add(i)) & 0x1F)),
+            // Only use lower 5 bits of rs2 or imm
+            Op::SRA => x_op!(|a, b, i| (a as i32 >> (b.wrapping_add(i) & 0x1F) as i32) as u32),
             Op::SLT => x_op!(|a, b, i| u32::from((a as i32) < (b as i32).wrapping_add(i as i32))),
             Op::SLTU => x_op!(|a, b, i| u32::from(a < b.wrapping_add(i))),
-            Op::SRAI => iop!(|a, b| ((a as i32) >> b) as u32),
-            Op::SRLI => iop!(core::ops::Shr::shr),
-            Op::SLLI => iop!(|a, b| a << b),
             Op::AND => rop!(core::ops::BitAnd::bitand),
             Op::ANDI => iop!(core::ops::BitAnd::bitand),
             Op::OR => rop!(core::ops::BitOr::bitor),

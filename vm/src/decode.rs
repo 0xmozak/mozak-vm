@@ -146,7 +146,8 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         0b001_0011 => match bf.func3() {
             // For Risc-V its ADDI but we handle it as ADD.
             0x0 => (Op::ADD, itype),
-            0x1 if 0 == itype.imm & !0b1_1111 => (Op::SLLI, itype),
+            // For Risc-V its SLLI but we handle it as SLL.
+            0x1 if 0 == itype.imm & !0b1_1111 => (Op::SLL, itype),
             // For Risc-V its SLTI but we handle it as SLT.
             0x2 => (Op::SLT, itype),
             // For Risc-V its SLTIU but we handle it as SLTU.
@@ -163,8 +164,10 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
                 // SRAI/SRLI instruction. They have the same funct3 value and are
                 // differentiated by their 30th bit, for which SRAI = 1 and SRLI = 0.
                 match imm.bit_range(11, 5) {
-                    0b010_0000 => (Op::SRAI, itype),
-                    0 => (Op::SRLI, itype),
+                    // For Risc-V its SRAI but we handle it as SRA.
+                    0b010_0000 => (Op::SRA, itype),
+                    // For Risc-V its SRLI but we handle it as SRL.
+                    0 => (Op::SRL, itype),
                     #[tarpaulin::skip]
                     _ => Default::default(),
                 }
@@ -286,7 +289,7 @@ mod test {
     fn slli(word: u32, rd: u8, rs1: u8, shamt: u8) {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
-            op: Op::SLLI,
+            op: Op::SLL,
             data: Data {
                 rd,
                 rs1,
@@ -346,7 +349,7 @@ mod test {
     fn srai(word: u32, rd: u8, rs1: u8, imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
-            op: Op::SRAI,
+            op: Op::SRA,
             data: Data {
                 rd,
                 rs1,
@@ -361,7 +364,7 @@ mod test {
     fn srli(word: u32, rd: u8, rs1: u8, imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
-            op: Op::SRLI,
+            op: Op::SRL,
             data: Data {
                 rd,
                 rs1,
