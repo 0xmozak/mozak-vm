@@ -17,7 +17,7 @@ use crate::generation::generate_traces;
 
 #[allow(clippy::missing_errors_doc)]
 pub fn prove<F, C, const D: usize>(
-    step_rows: &Vec<Row>,
+    step_rows: &[Row],
     mozak_stark: &mut MozakStark<F, D>,
     config: &StarkConfig,
     timing: &mut TimingTree,
@@ -60,49 +60,71 @@ where
 }
 
 #[cfg(test)]
+#[allow(clippy::cast_possible_wrap)]
 mod test {
-    use mozak_vm::test_utils::simple_test;
-    use plonky2::{
-        plonk::config::{GenericConfig, PoseidonGoldilocksConfig},
-        util::timing::TimingTree,
-    };
-    use starky::config::StarkConfig;
+    use mozak_vm::instruction::{Data, Instruction, Op};
+    use mozak_vm::test_utils::{simple_test, simple_test_code};
 
-    use super::prove;
-    use crate::stark::mozak_stark::MozakStark;
+    use crate::test_utils::simple_proof_test;
 
     #[test]
     fn prove_halt() {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        type S = MozakStark<F, D>;
-        let (rows, _state) = simple_test(0, &[], &[]);
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 0;
-
-        let mut stark = S::default();
-        let proof = prove::<F, C, D>(&rows, &mut stark, &config, &mut TimingTree::default());
-        assert!(proof.is_ok());
+        let record = simple_test(0, &[], &[]);
+        simple_proof_test(&record.executed).unwrap();
     }
 
     #[test]
     fn prove_add() {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        type S = MozakStark<F, D>;
-        let (rows, state) = simple_test(
+        let record = simple_test(
             4,
             &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
             &[(6, 100), (7, 100)],
         );
-        assert_eq!(state.get_register_value(5), 100 + 100);
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 0;
+        assert_eq!(record.last_state.get_register_value(5), 100 + 100);
+        simple_proof_test(&record.executed).unwrap();
+    }
 
-        let mut stark = S::default();
-        let proof = prove::<F, C, D>(&rows, &mut stark, &config, &mut TimingTree::default());
-        assert!(proof.is_ok());
+    #[test]
+    fn prove_lui() {
+        let record = simple_test(4, &[(0_u32, 0x8000_00b7 /* lui r1, 0x80000 */)], &[]);
+        assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
+        simple_proof_test(&record.executed).unwrap();
+    }
+
+    #[test]
+    fn prove_lui_2() {
+        let record = simple_test_code(
+            &[Instruction {
+                op: Op::ADD,
+                data: Data {
+                    rd: 1,
+                    imm: 0xDEAD_BEEF,
+                    ..Data::default()
+                },
+            }],
+            &[],
+            &[],
+        );
+        assert_eq!(record.last_state.get_register_value(1), 0xDEAD_BEEF,);
+        simple_proof_test(&record.executed).unwrap();
+    }
+
+    #[test]
+    fn prove_beq() {
+        let record = simple_test_code(
+            &[Instruction {
+                op: Op::BEQ,
+                data: Data {
+                    rs1: 0,
+                    rs2: 1,
+                    imm: 42,
+                    ..Data::default()
+                },
+            }],
+            &[],
+            &[(1, 2)],
+        );
+        assert_eq!(record.last_state.get_pc(), 8);
+        simple_proof_test(&record.executed).expect_err("FIXME:test-is-expected-to-fail");
     }
 }

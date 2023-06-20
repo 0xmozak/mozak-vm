@@ -17,6 +17,11 @@ pub(crate) fn constraints<P: PackedField>(
     );
 
     // pc ticks up
+    // TODO(Matthias): factor this out into a function to be used by most
+    // instruction, ie all that are not jumping or branching.
+    // NOTE(Matthias): if we are careful, bumping the pc by 4 does not need a range
+    // check, because we can statically guarantee that the PC is far from
+    // wrapping around in both field and u32.
     let inc: P = column_of_xs(4_u32);
     yield_constr.constraint_transition((lv[COL_S_ADD]) * (nv[COL_PC] - lv[COL_PC] - inc));
 }
