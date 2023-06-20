@@ -146,31 +146,24 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         0b001_0011 => match bf.func3() {
             // For Risc-V its ADDI but we handle it as ADD.
             0x0 => (Op::ADD, itype),
-            0x1 => {
-                if itype.imm <= 31 {
-                    (Op::SLLI, itype)
-                } else {
-                    Default::default()
-                }
-            }
+            0x1 if 0 == itype.imm & !0b1_1111 => (Op::SLLI, itype),
             // For Risc-V its SLTI but we handle it as SLT.
             0x2 => (Op::SLT, itype),
             // For Risc-V its SLTIU but we handle it as SLTU.
             0x3 => (Op::SLTU, itype),
             0x4 => (Op::XORI, itype),
             0x5 => {
+                let imm = itype.imm;
+                let imm_masked: u32 = imm.bit_range(4, 0);
+                let itype = Data {
+                    imm: imm_masked,
+                    ..itype
+                };
                 // Masks the first 7 bits in a word to differentiate between an
                 // SRAI/SRLI instruction. They have the same funct3 value and are
                 // differentiated by their 30th bit, for which SRAI = 1 and SRLI = 0.
-                match itype.imm.bit_range(11, 5) {
-                    0b010_0000 => {
-                        let imm_masked: u32 = itype.imm.bit_range(4, 0);
-                        let itype = Data {
-                            imm: imm_masked,
-                            ..itype
-                        };
-                        (Op::SRAI, itype)
-                    }
+                match imm.bit_range(11, 5) {
+                    0b010_0000 => (Op::SRAI, itype),
                     0 => (Op::SRLI, itype),
                     #[tarpaulin::skip]
                     _ => Default::default(),
