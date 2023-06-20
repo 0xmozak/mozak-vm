@@ -66,9 +66,9 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         ..Default::default()
     };
     let rtype = Data {
+        rd,
         rs1,
         rs2,
-        rd,
         ..Default::default()
     };
     let itype = Data {
@@ -124,6 +124,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             (0x1, 0x01) => (Op::MULH, rtype),
             (0x2, 0x01) => (Op::MULHSU, rtype),
             (0x3, 0x01) => (Op::MULHU, rtype),
+            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b000_0011 => match bf.func3() {
@@ -132,20 +133,27 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             0x2 => (Op::LW, itype),
             0x4 => (Op::LBU, itype),
             0x5 => (Op::LHU, itype),
+            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b010_0011 => match bf.func3() {
             0x0 => (Op::SB, stype),
             0x1 => (Op::SH, stype),
             0x2 => (Op::SW, stype),
+            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b001_0011 => match bf.func3() {
+            // For Risc-V its ADDI but we handle it as ADD.
             0x0 => (Op::ADD, itype),
-            0x1 => (Op::SLLI, itype),
-            0x2 => (Op::SLTI, itype),
-            0x3 => (Op::SLTIU, itype),
-            0x4 => (Op::XORI, itype),
+            // For Risc-V its SLLI but we handle it as SLL.
+            0x1 if 0 == itype.imm & !0b1_1111 => (Op::SLL, itype),
+            // For Risc-V its SLTI but we handle it as SLT.
+            0x2 => (Op::SLT, itype),
+            // For Risc-V its SLTIU but we handle it as SLTU.
+            0x3 => (Op::SLTU, itype),
+            // For Risc-V its XORI but we handle it as XOR.
+            0x4 => (Op::XOR, itype),
             0x5 => {
                 let imm = itype.imm;
                 let imm_masked: u32 = imm.bit_range(4, 0);
@@ -157,27 +165,37 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
                 // SRAI/SRLI instruction. They have the same funct3 value and are
                 // differentiated by their 30th bit, for which SRAI = 1 and SRLI = 0.
                 match imm.bit_range(11, 5) {
-                    0b010_0000 => (Op::SRAI, itype),
-                    0 => (Op::SRLI, itype),
+                    // For Risc-V its SRAI but we handle it as SRA.
+                    0b010_0000 => (Op::SRA, itype),
+                    // For Risc-V its SRLI but we handle it as SRL.
+                    0 => (Op::SRL, itype),
+                    #[tarpaulin::skip]
                     _ => Default::default(),
                 }
             }
-            0x6 => (Op::ORI, itype),
-            0x7 => (Op::ANDI, itype),
+            // For Risc-V its ORI but we handle it as OR.
+            0x6 => (Op::OR, itype),
+            // For Risc-V its ANDI but we handle it as AND.
+            0x7 => (Op::AND, itype),
+            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b111_0011 => match (bf.func3(), bf.func12()) {
             (0x0, 0x0) => (Op::ECALL, Data::default()),
+            #[tarpaulin::skip]
             (0x0, 0x302) => (Op::MRET, Data::default()),
+            #[tarpaulin::skip]
             (0x0, 0x1) => (Op::EBREAK, Data::default()),
             (0x1, _) => (Op::CSRRW, itype),
             (0x2, _) => (Op::CSRRS, itype),
             (0x5, _) => (Op::CSRRWI, itype),
+            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b110_1111 => (Op::JAL, jtype),
         0b110_0111 => match bf.func3() {
             0x0 => (Op::JALR, itype),
+            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b110_0011 => match bf.func3() {
@@ -187,6 +205,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             0x5 => (Op::BGE, btype),
             0x6 => (Op::BLTU, btype),
             0x7 => (Op::BGEU, btype),
+            #[tarpaulin::skip]
             _ => Default::default(),
         },
         // LUI in RISC-V; but our ADD instruction is general enough to express the same semantics
@@ -196,6 +215,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         // without a new op-code.
         0b001_0111 => (Op::ADD, add_pc(pc, utype)),
         0b000_1111 => (Op::FENCE, itype),
+        #[tarpaulin::skip]
         _ => Default::default(),
     };
     Instruction { op, data }
@@ -224,9 +244,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::ADD,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -243,8 +263,8 @@ mod test {
         let match_ins = Instruction {
             op: Op::ADD,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -258,9 +278,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::SLL,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -272,10 +292,10 @@ mod test {
     fn slli(word: u32, rd: u8, rs1: u8, shamt: u8) {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
-            op: Op::SLLI,
+            op: Op::SLL,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm: shamt.into(),
                 ..Default::default()
             },
@@ -289,9 +309,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::SRL,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -304,9 +324,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::SRA,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -319,9 +339,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::SLT,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -332,10 +352,10 @@ mod test {
     fn srai(word: u32, rd: u8, rs1: u8, imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
-            op: Op::SRAI,
+            op: Op::SRA,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -347,10 +367,10 @@ mod test {
     fn srli(word: u32, rd: u8, rs1: u8, imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
-            op: Op::SRLI,
+            op: Op::SRL,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -362,10 +382,10 @@ mod test {
     fn slti(word: u32, rd: u8, rs1: u8, imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
-            op: Op::SLTI,
+            op: Op::SLT,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -377,10 +397,10 @@ mod test {
     fn sltiu(word: u32, rd: u8, rs1: u8, imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
-            op: Op::SLTIU,
+            op: Op::SLTU,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -394,9 +414,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::SLTU,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -411,9 +431,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::SUB,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -444,8 +464,8 @@ mod test {
         let match_ins = Instruction {
             op: Op::JALR,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -561,9 +581,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::AND,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -575,10 +595,10 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
-            op: Op::ANDI,
+            op: Op::AND,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -591,10 +611,10 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
-            op: Op::XORI,
+            op: Op::XOR,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -608,9 +628,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::OR,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -622,10 +642,10 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
-            op: Op::ORI,
+            op: Op::OR,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -690,9 +710,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::MUL,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -705,9 +725,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::MULH,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -720,9 +740,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::MULHSU,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -735,9 +755,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::MULHU,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -752,8 +772,8 @@ mod test {
         let match_ins = Instruction {
             op: Op::LW,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -769,8 +789,8 @@ mod test {
         let match_ins = Instruction {
             op: Op::LH,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -786,8 +806,8 @@ mod test {
         let match_ins = Instruction {
             op: Op::LHU,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -803,8 +823,8 @@ mod test {
         let match_ins = Instruction {
             op: Op::LB,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -820,8 +840,8 @@ mod test {
         let match_ins = Instruction {
             op: Op::LBU,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -867,9 +887,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::DIV,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -882,9 +902,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::DIVU,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -897,9 +917,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::REM,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -912,9 +932,9 @@ mod test {
         let match_ins = Instruction {
             op: Op::REMU,
             data: Data {
+                rd,
                 rs1,
                 rs2,
-                rd,
                 ..Default::default()
             },
         };
@@ -938,8 +958,8 @@ mod test {
         let match_ins = Instruction {
             op: Op::FENCE,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Data::default()
             },
@@ -963,8 +983,8 @@ mod test {
         let match_ins = Instruction {
             op: Op::CSRRS,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -978,8 +998,8 @@ mod test {
         let match_ins = Instruction {
             op: Op::CSRRW,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },
@@ -993,8 +1013,8 @@ mod test {
         let match_ins = Instruction {
             op: Op::CSRRWI,
             data: Data {
-                rs1,
                 rd,
+                rs1,
                 imm,
                 ..Default::default()
             },

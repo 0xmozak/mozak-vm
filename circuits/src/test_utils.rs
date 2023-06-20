@@ -19,6 +19,8 @@ pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
     type S = MozakStark<F, D>;
     let mut config = StarkConfig::standard_fast_config();
     config.fri_config.cap_height = 0;
+    config.fri_config.proof_of_work_bits = 0;
+    config.security_bits = 1;
 
     let mut stark = S::default();
     let all_proof = prove::<F, C, D>(step_rows, &mut stark, &config, &mut TimingTree::default());

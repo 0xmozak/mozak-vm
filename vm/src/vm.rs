@@ -170,32 +170,19 @@ impl State {
                 self.register_op(&inst.data, |a, b, _i| $op(a, b))
             };
         }
-        macro_rules! iop {
-            ($op: expr) => {
-                self.register_op(&inst.data, |a, _b, i| $op(a, i))
-            };
-        }
         let (aux, state) = match inst.op {
             Op::ADD => x_op!(|a, b, i| a.wrapping_add(b.wrapping_add(i))),
-            // Only use lower 5 bits of rs2
-            Op::SLL => rop!(|a, b| a << (b & 0x1F)),
-            // Only use lower 5 bits of rs2
-            Op::SRL => rop!(|a, b| a >> (b & 0x1F)),
-            // Only use lower 5 bits of rs2
-            Op::SRA => rop!(|a, b| (a as i32 >> (b & 0x1F) as i32) as u32),
-            Op::SLT => rop!(|a, b| u32::from((a as i32) < (b as i32))),
-            Op::SLTU => rop!(|a, b| u32::from(a < b)),
-            Op::SRAI => iop!(|a, b| ((a as i32) >> b) as u32),
-            Op::SRLI => iop!(core::ops::Shr::shr),
-            Op::SLLI => iop!(|a, b| a << b),
-            Op::SLTI => iop!(|a, b| u32::from((a as i32) < b as i32)),
-            Op::SLTIU => iop!(|a, b| u32::from(a < b)),
-            Op::AND => rop!(core::ops::BitAnd::bitand),
-            Op::ANDI => iop!(core::ops::BitAnd::bitand),
-            Op::OR => rop!(core::ops::BitOr::bitor),
-            Op::ORI => iop!(core::ops::BitOr::bitor),
-            Op::XOR => rop!(core::ops::BitXor::bitxor),
-            Op::XORI => iop!(core::ops::BitXor::bitxor),
+            // Only use lower 5 bits of rs2 or imm
+            Op::SLL => x_op!(|a, b, i| a << ((b.wrapping_add(i)) & 0x1F)),
+            // Only use lower 5 bits of rs2 or imm
+            Op::SRL => x_op!(|a, b, i| a >> ((b.wrapping_add(i)) & 0x1F)),
+            // Only use lower 5 bits of rs2 or imm
+            Op::SRA => x_op!(|a, b, i| (a as i32 >> (b.wrapping_add(i) & 0x1F) as i32) as u32),
+            Op::SLT => x_op!(|a, b, i| u32::from((a as i32) < (b as i32).wrapping_add(i as i32))),
+            Op::SLTU => x_op!(|a, b, i| u32::from(a < b.wrapping_add(i))),
+            Op::AND => x_op!(|a, b, i| core::ops::BitAnd::bitand(a, b.wrapping_add(i))),
+            Op::OR => x_op!(|a, b, i| core::ops::BitOr::bitor(a, b.wrapping_add(i))),
+            Op::XOR => x_op!(|a, b, i| core::ops::BitXor::bitxor(a, b.wrapping_add(i))),
             Op::SUB => rop!(u32::wrapping_sub),
 
             Op::LB => self.memory_load(&inst.data, lb),
@@ -297,11 +284,17 @@ mod tests {
     use test_case::test_case;
 
     use super::ExecutionRecord;
-    use crate::test_utils::simple_test;
+    use crate::instruction::{Instruction, Op};
+    use crate::test_utils::{simple_test, simple_test_code};
 
     // NOTE: For writing test cases please follow RISCV
     // calling convention for using registers in instructions.
     // Please check https://en.wikichip.org/wiki/risc-v/registers
+
+    #[test]
+    fn ecall() {
+        let _ = simple_test_code(&[Instruction::new(Op::ECALL, 0, 0, 0, 0)], &[], &[]);
+    }
 
     #[test_case(0x0073_02b3, 5, 6, 7, 60049, 50493; "add r5, r6, r7")]
     #[test_case(0x01FF_8FB3, 31, 31, 31, 8981, 8981; "add r31, r31, r31")]

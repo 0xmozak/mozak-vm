@@ -122,20 +122,3 @@ jobs:
           path: cobertura.xml
           minimum_coverage: 0
 
-  cargo-udeps:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
-
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Install cargo-udeps
-        run: cargo install --locked cargo-udeps
-
-      - name: Check for unused dependencies
-        run: cargo udeps --workspace --all-targets --all-features

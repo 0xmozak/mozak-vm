@@ -1,8 +1,8 @@
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct Data {
+    pub rd: u8,
     pub rs1: u8,
     pub rs2: u8,
-    pub rd: u8,
     pub imm: u32,
 }
 
@@ -14,20 +14,14 @@ pub enum Op {
     SRL,
     SRA,
     SLL,
-    SLLI,
     SLT,
-    SLTI,
     SLTU,
-    SLTIU,
-    SRAI,
-    SRLI,
     LB,
     LH,
     LW,
     LBU,
     LHU,
     XOR,
-    XORI,
     JAL,
     JALR,
     BEQ,
@@ -37,9 +31,7 @@ pub enum Op {
     BLTU,
     BGEU,
     AND,
-    ANDI,
     OR,
-    ORI,
     SW,
     SH,
     SB,
@@ -66,4 +58,14 @@ pub enum Op {
 pub struct Instruction {
     pub op: Op,
     pub data: Data,
+}
+
+impl Instruction {
+    #[must_use]
+    pub fn new(op: Op, rd: u8, rs1: u8, rs2: u8, imm: u32) -> Self {
+        Instruction {
+            op,
+            data: Data { rd, rs1, rs2, imm },
+        }
+    }
 }
