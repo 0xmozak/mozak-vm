@@ -1,5 +1,6 @@
 use anyhow::Result;
 use mozak_vm::vm::Row;
+use plonky2::hash::hash_types::RichField;
 use plonky2::{
     plonk::config::{GenericConfig, PoseidonGoldilocksConfig},
     util::timing::TimingTree,
@@ -25,4 +26,11 @@ pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
     let mut stark = S::default();
     let all_proof = prove::<F, C, D>(step_rows, &mut stark, &config, &mut TimingTree::default());
     verify_proof(&stark, &all_proof.unwrap(), &config)
+}
+
+pub fn inv<F: RichField>(x: u64) -> u64 {
+    F::from_canonical_u64(x)
+        .try_inverse()
+        .unwrap_or_default()
+        .to_canonical_u64()
 }

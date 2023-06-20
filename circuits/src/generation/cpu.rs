@@ -61,3 +61,19 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         )
     })
 }
+
+mod test {
+    use proptest::prelude::*;
+
+    use crate::test_utils::inv;
+    proptest! {
+        #[test]
+        fn inv_big(x in any::<u32>()) {
+            type F = plonky2::field::goldilocks_field::GoldilocksField;
+            let y: u64 = inv::<F>(x as u64);
+            if x != 0 {
+                prop_assert!((u32::MAX as u64) < y);
+            }
+        }
+    }
+}
