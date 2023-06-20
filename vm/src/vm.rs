@@ -183,13 +183,11 @@ impl State {
             Op::SRL => rop!(|a, b| a >> (b & 0x1F)),
             // Only use lower 5 bits of rs2
             Op::SRA => rop!(|a, b| (a as i32 >> (b & 0x1F) as i32) as u32),
-            Op::SLT => rop!(|a, b| u32::from((a as i32) < (b as i32))),
-            Op::SLTU => rop!(|a, b| u32::from(a < b)),
+            Op::SLT => x_op!(|a, b, i| u32::from((a as i32) < (b as i32).wrapping_add(i as i32))),
+            Op::SLTU => x_op!(|a, b, i| u32::from(a < b.wrapping_add(i))),
             Op::SRAI => iop!(|a, b| ((a as i32) >> b) as u32),
             Op::SRLI => iop!(core::ops::Shr::shr),
             Op::SLLI => iop!(|a, b| a << b),
-            Op::SLTI => iop!(|a, b| u32::from((a as i32) < b as i32)),
-            Op::SLTIU => iop!(|a, b| u32::from(a < b)),
             Op::AND => rop!(core::ops::BitAnd::bitand),
             Op::ANDI => iop!(core::ops::BitAnd::bitand),
             Op::OR => rop!(core::ops::BitOr::bitor),
@@ -297,11 +295,17 @@ mod tests {
     use test_case::test_case;
 
     use super::ExecutionRecord;
-    use crate::test_utils::simple_test;
+    use crate::instruction::{Instruction, Op};
+    use crate::test_utils::{simple_test, simple_test_code};
 
     // NOTE: For writing test cases please follow RISCV
     // calling convention for using registers in instructions.
     // Please check https://en.wikichip.org/wiki/risc-v/registers
+
+    #[test]
+    fn ecall() {
+        let _ = simple_test_code(&[Instruction::new(Op::ECALL, 0, 0, 0, 0)], &[], &[]);
+    }
 
     #[test_case(0x0073_02b3, 5, 6, 7, 60049, 50493; "add r5, r6, r7")]
     #[test_case(0x01FF_8FB3, 31, 31, 31, 8981, 8981; "add r31, r31, r31")]
