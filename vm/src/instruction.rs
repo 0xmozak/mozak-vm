@@ -43,16 +43,31 @@ pub enum Op {
     DIVU,
     REM,
     REMU,
-    FENCE,
-    CSRRW,
-    CSRRS,
-    CSRRWI,
-    MRET,
     ECALL,
-    EBREAK,
     #[default]
     UNKNOWN,
 }
+
+/// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
+pub const NOOP_PAIR: (Op, Data) = (
+    Op::ADD,
+    Data {
+        rd: 0,
+        rs1: 0,
+        rs2: 0,
+        imm: 0,
+    },
+);
+/// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
+pub const NOOP: Instruction = Instruction {
+    op: Op::ADD,
+    data: Data {
+        rd: 0,
+        rs1: 0,
+        rs2: 0,
+        imm: 0,
+    },
+};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct Instruction {
