@@ -26,6 +26,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     const PUBLIC_INPUTS: usize = 0;
 
     // Constraints design: https://docs.google.com/presentation/d/1G4tmGl8V1W0Wqxv-MwjGjaM3zUF99dzTvFhpiood4x4/edit?usp=sharing
+    // or cached at `memory_stark.pdf`
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
