@@ -206,6 +206,7 @@ pub fn permute_cols_<F: PrimeField64>(col_input: &[F], col_table: &[F]) -> (Vec<
             i.to_noncanonical_u64().cmp(&t.to_noncanonical_u64())
         });
 
+    // I suspect Vec instead of VecDeque would also work?
     use std::collections::VecDeque;
     let mut unused_table_inds = VecDeque::new();
     let mut unused_table_vals = VecDeque::new();
