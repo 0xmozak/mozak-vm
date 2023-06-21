@@ -1,7 +1,7 @@
 use bitfield::bitfield;
 use bitfield::BitRange;
 
-use crate::instruction::{Data, Instruction, Op};
+use crate::instruction::{Data, Instruction, Op, NOOP};
 
 /// Builds a i32 from segments, and right pads with zeroes
 ///
@@ -103,6 +103,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         imm: extract_immediate(word, &[(31, 12)], 12),
         ..Default::default()
     };
+    let noop = (NOOP.op, NOOP.data);
 
     let (op, data) = match bf.opcode() {
         0b011_0011 => match (bf.func3(), bf.func7()) {
@@ -146,12 +147,14 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         0b001_0011 => match bf.func3() {
             // For Risc-V its ADDI but we handle it as ADD.
             0x0 => (Op::ADD, itype),
-            0x1 => (Op::SLLI, itype),
+            // For Risc-V its SLLI but we handle it as SLL.
+            0x1 if 0 == itype.imm & !0b1_1111 => (Op::SLL, itype),
             // For Risc-V its SLTI but we handle it as SLT.
             0x2 => (Op::SLT, itype),
             // For Risc-V its SLTIU but we handle it as SLTU.
             0x3 => (Op::SLTU, itype),
-            0x4 => (Op::XORI, itype),
+            // For Risc-V its XORI but we handle it as XOR.
+            0x4 => (Op::XOR, itype),
             0x5 => {
                 let imm = itype.imm;
                 let imm_masked: u32 = imm.bit_range(4, 0);
@@ -163,26 +166,41 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
                 // SRAI/SRLI instruction. They have the same funct3 value and are
                 // differentiated by their 30th bit, for which SRAI = 1 and SRLI = 0.
                 match imm.bit_range(11, 5) {
-                    0b010_0000 => (Op::SRAI, itype),
-                    0 => (Op::SRLI, itype),
+                    // For Risc-V its SRAI but we handle it as SRA.
+                    0b010_0000 => (Op::SRA, itype),
+                    // For Risc-V its SRLI but we handle it as SRL.
+                    0 => (Op::SRL, itype),
                     #[tarpaulin::skip]
                     _ => Default::default(),
                 }
             }
-            0x6 => (Op::ORI, itype),
-            0x7 => (Op::ANDI, itype),
+            // For Risc-V its ORI but we handle it as OR.
+            0x6 => (Op::OR, itype),
+            // For Risc-V its ANDI but we handle it as AND.
+            0x7 => (Op::AND, itype),
             #[tarpaulin::skip]
             _ => Default::default(),
         },
+        #[allow(clippy::match_same_arms)]
         0b111_0011 => match (bf.func3(), bf.func12()) {
             (0x0, 0x0) => (Op::ECALL, Data::default()),
+            // For RISC-V this would be MRET,
+            // but so far we implemented it as a no-op.
             #[tarpaulin::skip]
-            (0x0, 0x302) => (Op::MRET, Data::default()),
+            (0x0, 0x302) => noop,
+            // For RISC-V this would be EBREAK,
+            // but so far we implemented it as a no-op.
             #[tarpaulin::skip]
-            (0x0, 0x1) => (Op::EBREAK, Data::default()),
-            (0x1, _) => (Op::CSRRW, itype),
-            (0x2, _) => (Op::CSRRS, itype),
-            (0x5, _) => (Op::CSRRWI, itype),
+            (0x0, 0x1) => noop,
+            // For RISC-V this would be (Op::CSRRW, itype),
+            // but so far we implemented it as a no-op.
+            (0x1, _) => noop,
+            // For RISC-V this would be (Op::CSRRS, itype),
+            // but so far we implemented it as a no-op.
+            (0x2, _) => noop,
+            // For RISC-V this would be (Op::CSRRWI, itype),
+            // but so far we implemented it as a no-op.
+            (0x5, _) => noop,
             #[tarpaulin::skip]
             _ => Default::default(),
         },
@@ -208,7 +226,9 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         // AUIPC in RISC-V; but our ADD instruction is general enough to express the same semantics
         // without a new op-code.
         0b001_0111 => (Op::ADD, add_pc(pc, utype)),
-        0b000_1111 => (Op::FENCE, itype),
+        // For RISC-V this would be (Op::FENCE, itype)
+        // but so far we implemented it as a no-op.
+        0b000_1111 => noop,
         #[tarpaulin::skip]
         _ => Default::default(),
     };
@@ -219,10 +239,18 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
 mod test {
+    use proptest::prelude::*;
     use test_case::test_case;
 
     use super::{decode_instruction, extract_immediate};
-    use crate::instruction::{Data, Instruction, Op};
+    use crate::instruction::{Data, Instruction, Op, NOOP};
+    proptest! {
+        /// This just tests that we don't panic during decoding.
+        #[test]
+        fn fuzz_decode(pc in any::<u32>(), word in any::<u32>()) {
+            let _ = decode_instruction(pc, word);
+        }
+    }
 
     #[test_case(0b000_1100, 3; "extract 3")]
     #[test_case(0b1101_1100, u32::MAX; "extract neg 1")]
@@ -286,7 +314,7 @@ mod test {
     fn slli(word: u32, rd: u8, rs1: u8, shamt: u8) {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
-            op: Op::SLLI,
+            op: Op::SLL,
             data: Data {
                 rd,
                 rs1,
@@ -346,7 +374,7 @@ mod test {
     fn srai(word: u32, rd: u8, rs1: u8, imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
-            op: Op::SRAI,
+            op: Op::SRA,
             data: Data {
                 rd,
                 rs1,
@@ -361,7 +389,7 @@ mod test {
     fn srli(word: u32, rd: u8, rs1: u8, imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
-            op: Op::SRLI,
+            op: Op::SRL,
             data: Data {
                 rd,
                 rs1,
@@ -589,7 +617,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
-            op: Op::ANDI,
+            op: Op::AND,
             data: Data {
                 rd,
                 rs1,
@@ -605,7 +633,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
-            op: Op::XORI,
+            op: Op::XOR,
             data: Data {
                 rd,
                 rs1,
@@ -636,7 +664,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
-            op: Op::ORI,
+            op: Op::OR,
             data: Data {
                 rd,
                 rs1,
@@ -946,73 +974,32 @@ mod test {
     }
 
     #[test_case(0x0ff0_000f, 0, 0, 255; "fence, iorw, iorw")]
-    fn fence(word: u32, rd: u8, rs1: u8, imm: i32) {
+    fn fence(word: u32, _rd: u8, _rs1: u8, _imm: i32) {
         let ins: Instruction = decode_instruction(0, word);
-        let imm = imm as u32;
-        let match_ins = Instruction {
-            op: Op::FENCE,
-            data: Data {
-                rd,
-                rs1,
-                imm,
-                ..Data::default()
-            },
-        };
-        assert_eq!(ins, match_ins);
+        assert_eq!(ins, NOOP);
     }
 
     #[test_case(0x3020_0073; "mret")]
     fn mret(word: u32) {
         let ins: Instruction = decode_instruction(0, word);
-        let match_ins = Instruction {
-            op: Op::MRET,
-            ..Instruction::default()
-        };
-        assert_eq!(ins, match_ins);
+        assert_eq!(ins, NOOP);
     }
 
     #[test_case(0x3420_2f73, 30, 0, 834; "csrrs, t5, mcause")]
-    fn csrrs(word: u32, rd: u8, rs1: u8, imm: u32) {
+    fn csrrs(word: u32, _rd: u8, _rs1: u8, _imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
-        let match_ins = Instruction {
-            op: Op::CSRRS,
-            data: Data {
-                rd,
-                rs1,
-                imm,
-                ..Default::default()
-            },
-        };
-        assert_eq!(ins, match_ins);
+        assert_eq!(ins, NOOP);
     }
 
     #[test_case(0x3052_9073, 0, 5, 773; "csrrw, mtvec, t0")]
-    fn csrrw(word: u32, rd: u8, rs1: u8, imm: u32) {
+    fn csrrw(word: u32, _rd: u8, _rs1: u8, _imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
-        let match_ins = Instruction {
-            op: Op::CSRRW,
-            data: Data {
-                rd,
-                rs1,
-                imm,
-                ..Default::default()
-            },
-        };
-        assert_eq!(ins, match_ins);
+        assert_eq!(ins, NOOP);
     }
 
     #[test_case(0x7444_5073, 0, 8, 0x744; "csrrwi, 0x744, 8")]
-    fn csrrwi(word: u32, rd: u8, rs1: u8, imm: u32) {
+    fn csrrwi(word: u32, _rd: u8, _rs1: u8, _imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
-        let match_ins = Instruction {
-            op: Op::CSRRWI,
-            data: Data {
-                rd,
-                rs1,
-                imm,
-                ..Default::default()
-            },
-        };
-        assert_eq!(ins, match_ins);
+        assert_eq!(ins, NOOP);
     }
 }

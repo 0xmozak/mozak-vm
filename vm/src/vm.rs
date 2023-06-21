@@ -170,30 +170,19 @@ impl State {
                 self.register_op(&inst.data, |a, b, _i| $op(a, b))
             };
         }
-        macro_rules! iop {
-            ($op: expr) => {
-                self.register_op(&inst.data, |a, _b, i| $op(a, i))
-            };
-        }
         let (aux, state) = match inst.op {
             Op::ADD => x_op!(|a, b, i| a.wrapping_add(b.wrapping_add(i))),
-            // Only use lower 5 bits of rs2
-            Op::SLL => rop!(|a, b| a << (b & 0x1F)),
-            // Only use lower 5 bits of rs2
-            Op::SRL => rop!(|a, b| a >> (b & 0x1F)),
-            // Only use lower 5 bits of rs2
-            Op::SRA => rop!(|a, b| (a as i32 >> (b & 0x1F) as i32) as u32),
+            // Only use lower 5 bits of rs2 or imm
+            Op::SLL => x_op!(|a, b, i| a << ((b.wrapping_add(i)) & 0x1F)),
+            // Only use lower 5 bits of rs2 or imm
+            Op::SRL => x_op!(|a, b, i| a >> ((b.wrapping_add(i)) & 0x1F)),
+            // Only use lower 5 bits of rs2 or imm
+            Op::SRA => x_op!(|a, b, i| (a as i32 >> (b.wrapping_add(i) & 0x1F) as i32) as u32),
             Op::SLT => x_op!(|a, b, i| u32::from((a as i32) < (b as i32).wrapping_add(i as i32))),
             Op::SLTU => x_op!(|a, b, i| u32::from(a < b.wrapping_add(i))),
-            Op::SRAI => iop!(|a, b| ((a as i32) >> b) as u32),
-            Op::SRLI => iop!(core::ops::Shr::shr),
-            Op::SLLI => iop!(|a, b| a << b),
-            Op::AND => rop!(core::ops::BitAnd::bitand),
-            Op::ANDI => iop!(core::ops::BitAnd::bitand),
-            Op::OR => rop!(core::ops::BitOr::bitor),
-            Op::ORI => iop!(core::ops::BitOr::bitor),
-            Op::XOR => rop!(core::ops::BitXor::bitxor),
-            Op::XORI => iop!(core::ops::BitXor::bitxor),
+            Op::AND => x_op!(|a, b, i| core::ops::BitAnd::bitand(a, b.wrapping_add(i))),
+            Op::OR => x_op!(|a, b, i| core::ops::BitOr::bitor(a, b.wrapping_add(i))),
+            Op::XOR => x_op!(|a, b, i| core::ops::BitXor::bitxor(a, b.wrapping_add(i))),
             Op::SUB => rop!(u32::wrapping_sub),
 
             Op::LB => self.memory_load(&inst.data, lb),
@@ -224,12 +213,6 @@ impl State {
             Op::DIVU => rop!(divu),
             Op::REM => rop!(rem),
             Op::REMU => rop!(remu),
-            // It's not important that these instructions are implemented for the sake of
-            // our purpose at this moment, but these instructions are found in the test
-            // data that we use - so we simply advance the register.
-            Op::FENCE | Op::CSRRS | Op::CSRRW | Op::CSRRWI | Op::EBREAK | Op::MRET => {
-                (Aux::default(), self.bump_pc())
-            }
             Op::UNKNOWN => unimplemented!("Unknown instruction"),
         };
         (aux, state.bump_clock())
