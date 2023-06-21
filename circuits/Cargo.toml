@@ -20,3 +20,4 @@ starky = "0.1.1"
 
 [dev-dependencies]
 mozak-vm = { path = "../vm", features = ["test"] }
+proptest = "1.2.0"
