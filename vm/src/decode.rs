@@ -239,10 +239,18 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
 mod test {
+    use proptest::prelude::*;
     use test_case::test_case;
 
     use super::{decode_instruction, extract_immediate};
     use crate::instruction::{Data, Instruction, Op, NOOP};
+    proptest! {
+        /// This just tests that we don't panic during decoding.
+        #[test]
+        fn fuzz_decode(pc in any::<u32>(), word in any::<u32>()) {
+            let _ = decode_instruction(pc, word);
+        }
+    }
 
     #[test_case(0b000_1100, 3; "extract 3")]
     #[test_case(0b1101_1100, u32::MAX; "extract neg 1")]
