@@ -1,3 +1,6 @@
+use std::borrow::Borrow;
+
+use itertools::Itertools;
 use plonky2::field::{polynomial::PolynomialValues, types::Field};
 
 /// Represent a linear combination of columns.
@@ -13,6 +16,12 @@ impl<F: Field> Column<F> {
             linear_combination: vec![(c, F::ONE)],
             constant: F::ZERO,
         }
+    }
+
+    pub fn singles<I: IntoIterator<Item = impl Borrow<usize>>>(
+        cs: I,
+    ) -> impl Iterator<Item = Self> {
+        cs.into_iter().map(|c| Self::single(*c.borrow()))
     }
 
     /// Evaluate on an row of a table given in column-major form.
@@ -38,6 +47,31 @@ pub struct Table<F: Field> {
     pub(crate) filter_column: Option<Column<F>>,
 }
 
+impl<F: Field> Table<F> {
+    pub fn new(kind: TableKind, columns: Vec<Column<F>>, filter_column: Option<Column<F>>) -> Self {
+        Self {
+            kind,
+            columns,
+            filter_column,
+        }
+    }
+}
+
+pub struct RangeCheckTable<F: Field>(Table<F>);
+pub struct CpuTable<F: Field>(Table<F>);
+
+impl<F: Field> RangeCheckTable<F> {
+    pub fn new(columns: Vec<Column<F>>, filter_column: Option<Column<F>>) -> Table<F> {
+        Table::new(TableKind::RangeCheck, columns, filter_column)
+    }
+}
+
+impl<F: Field> CpuTable<F> {
+    pub fn new(columns: Vec<Column<F>>, filter_column: Option<Column<F>>) -> Table<F> {
+        Table::new(TableKind::Cpu, columns, filter_column)
+    }
+}
+
 #[derive(Clone)]
 pub struct CrossTableLookup<F: Field> {
     pub(crate) looking_tables: Vec<Table<F>>,
@@ -58,7 +92,6 @@ pub trait Lookups<F: Field> {
 }
 
 // pub struct RangecheckCpuTable<F: Field>(CrossTableLookup<F>);
-
 // impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
 //     fn lookups() -> CrossTableLookup<F> {
 //         CrossTableLookup::new(vec![], Table::new())
@@ -77,23 +110,22 @@ mod tests {
 
     struct FooBarTable<F: Field>(CrossTableLookup<F>);
 
-    enum TableKind {
-        Foo = 0,
-        Bar = 1,
+    fn ctl_data<F: Field>() -> Vec<Column<F>> {
+        Column::singles([0]).collect_vec()
     }
 
-    // impl<F: Field> Lookups<F> for FooBarTable<F> {
-    //     fn lookups() -> CrossTableLookup<F> {
-    //         CrossTableLookup {
-    //             looking_tables: vec![],
-    //             looked_table: Table {
-    //                 kind: TableKind::Foo,
-    //                 columns: (),
-    //                 filter_column: (),
-    //             },
-    //         }
-    //     }
-    // }
+    fn ctl_filter<F: Field>(col_idx: usize) -> Column<F> {
+        Column::single(col_idx)
+    }
+
+    impl<F: Field> Lookups<F> for FooBarTable<F> {
+        fn lookups() -> CrossTableLookup<F> {
+            CrossTableLookup {
+                looking_tables: vec![CpuTable::new(ctl_data(), Some(ctl_filter(0)))],
+                looked_table: RangeCheckTable::new(ctl_data(), Some(ctl_filter(0))),
+            }
+        }
+    }
 
     // impl<F: Field> Column<F> {
     //     fn rand(num_vals: usize) -> Self {
@@ -154,6 +186,7 @@ mod tests {
 
         for looking_table in &ctl.looking_tables {
             let trace = &trace_poly_values[looking_table.kind as usize];
+            println!("kind: {:?} trace: {:?}", looking_table.kind, trace);
             for i in 0..trace[0].len() {
                 let filter = if let Some(column) = &looking_table.filter_column {
                     column.eval_table(trace, i)
@@ -166,11 +199,12 @@ mod tests {
                         .iter()
                         .map(|c| c.eval_table(trace, i))
                         .collect::<Vec<_>>();
-                    // looking_multiset
-                    //     .entry(row)
-                    //     .or_default()
-                    //     .push((looking_table.kind, i));
+                    looking_multiset
+                        .entry(row)
+                        .or_default()
+                        .push((looking_table.kind, i));
                 } else {
+                    println!("filter: {}", filter);
                     assert_eq!(filter, F::ZERO, "Non-binary filter?")
                 }
             }
@@ -190,16 +224,86 @@ mod tests {
         return poly_values;
     }
 
+    #[derive(Debug, PartialEq)]
+    pub struct Trace<F: Field> {
+        // Lots of complicated fields.
+        trace: Vec<PolynomialValues<F>>,
+    }
+
+    impl<F: Field> Trace<F> {
+        // This method will help users to discover the builder
+        pub fn builder() -> TraceBuilder<F> {
+            TraceBuilder::default()
+        }
+    }
+
+    #[derive(Default)]
+    pub struct TraceBuilder<F: Field> {
+        trace: Vec<PolynomialValues<F>>,
+    }
+
+    impl<F: Field> TraceBuilder<F> {
+        pub fn new(num_cols: usize, num_rows: usize) -> TraceBuilder<F> {
+            let mut trace = vec![];
+            for i in 0..num_cols {
+                let mut values = Vec::with_capacity(num_rows);
+                for j in 0..num_rows {
+                    values.push(F::rand());
+                }
+                trace.push(PolynomialValues::from(values));
+            }
+
+            TraceBuilder { trace }
+        }
+
+        pub fn num_rows(mut self, num_rows: usize) -> TraceBuilder<F> {
+            // Set the name on the builder itself, and return the builder by value.
+            for i in 0..self.trace.len() {
+                let mut row = vec![];
+                for _ in 0..num_rows {
+                    row.push(F::rand())
+                }
+                self.trace.push(PolynomialValues::from(row));
+            }
+            self
+        }
+
+        pub fn zero(mut self, idx: usize) -> TraceBuilder<F> {
+            self.trace[idx] = PolynomialValues::zero(self.trace[idx].len());
+
+            self
+        }
+
+        pub fn one(mut self, idx: usize) -> TraceBuilder<F> {
+            let len = self.trace[idx].len();
+            let ones = PolynomialValues::constant(F::ONE, len);
+            self.trace[idx] = ones;
+
+            self
+        }
+
+        // If we can get away with not consuming the Builder here, that is an
+        // advantage. It means we can use the FooBuilder as a template for constructing
+        // many Foos.
+        pub fn build(self) -> Vec<PolynomialValues<F>> {
+            // Create a Foo from the FooBuilder, applying all settings in FooBuilder
+            // to Foo.
+            self.trace
+        }
+    }
+
     #[test]
     fn test_ctl() {
         type F = GoldilocksField;
-        // let dummy_cross_table_lookup: CrossTableLookup<F> = FooBarTable::lookups();
+        let dummy_cross_table_lookup: CrossTableLookup<F> = FooBarTable::lookups();
 
         let num_cols = 3;
         let num_values = 4;
-        let foo_trace = dummy_trace::<GoldilocksField>(num_cols, num_values);
-        let bar_trace = dummy_trace::<GoldilocksField>(num_cols, num_values);
+        let foo_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4).one(0).build();
+
+        println!("foo: {:?}", foo_trace);
+        let bar_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4).build();
         let traces = vec![foo_trace, bar_trace];
-        // check_ctl(&traces, &dummy_cross_table_lookup, 0);
+        check_ctl(&traces, &dummy_cross_table_lookup, 0);
     }
 }
