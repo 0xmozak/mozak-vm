@@ -265,9 +265,10 @@ mod test {
     proptest! {
 
         #[test]
-        fn oracle(col_input in any::<Vec<u64>>(), col_table in any::<Vec<u64>>())  {
-            let col_input = col_input.into_iter().map(F::from_noncanonical_u64).collect::<Vec<_>>();
-            let col_table = col_table.into_iter().map(F::from_noncanonical_u64).collect::<Vec<_>>();
+        fn oracle(both in any::<Vec<(u64, u64)>>())  {
+
+            let col_input = both.iter().map(|(x, _y)| F::from_noncanonical_u64(*x)).collect::<Vec<_>>();
+            let col_table = both.iter().map(|(_x, y)| F::from_noncanonical_u64(*y)).collect::<Vec<_>>();
             // pub fn permute_cols_<F: PrimeField64>(col_input: &[F], col_table: &[F]) -> (Vec<F>, Vec<F>) {
             let old = super::permute_cols::<F>(&col_input, &col_table);
             let new = super::permute_cols_::<F>(&col_input, &col_table);
@@ -275,3 +276,5 @@ mod test {
         }
     }
 }
+
+// PROPTEST_MAX_SHRINK_ITERS=1000000
