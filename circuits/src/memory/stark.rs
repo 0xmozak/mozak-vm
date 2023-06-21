@@ -37,11 +37,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv = vars.local_values;
         let nv = vars.next_values;
 
-        let local_new_address = lv[COL_MEM_DIFF_ADDR] * lv[COL_MEM_DIFF_ADDR_INV];
-        let next_new_address = nv[COL_MEM_DIFF_ADDR] * nv[COL_MEM_DIFF_ADDR_INV];
+        let local_new_addr = lv[COL_MEM_DIFF_ADDR] * lv[COL_MEM_DIFF_ADDR_INV];
+        let next_new_addr = nv[COL_MEM_DIFF_ADDR] * nv[COL_MEM_DIFF_ADDR_INV];
         yield_constr.constraint_first_row(lv[COL_MEM_OP] - FE::from_canonical_usize(OPCODE_SB));
         yield_constr.constraint_first_row(lv[COL_MEM_DIFF_ADDR] - lv[COL_MEM_ADDR]);
-        yield_constr.constraint_first_row(local_new_address - P::ONES);
+        yield_constr.constraint_first_row(local_new_addr - P::ONES);
         yield_constr.constraint_first_row(lv[COL_MEM_DIFF_CLK]);
 
         // lv[COL_MEM_PADDING] is {0, 1}
@@ -52,15 +52,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         // a) if new_addr: op === sb
         yield_constr
-            .constraint(local_new_address * (lv[COL_MEM_OP] - FE::from_canonical_usize(OPCODE_SB)));
+            .constraint(local_new_addr * (lv[COL_MEM_OP] - FE::from_canonical_usize(OPCODE_SB)));
 
         // b) if not new_addr: diff_clk_next <== clk_next - clk_cur
         yield_constr.constraint_transition(
-            (nv[COL_MEM_DIFF_CLK] - nv[COL_MEM_CLK] + lv[COL_MEM_CLK]) * (next_new_address - P::ONES),
+            (nv[COL_MEM_DIFF_CLK] - nv[COL_MEM_CLK] + lv[COL_MEM_CLK]) * (next_new_addr - P::ONES),
         );
 
         // c) if new_addr: diff_clk === 0
-        yield_constr.constraint(local_new_address * lv[COL_MEM_DIFF_CLK]);
+        yield_constr.constraint(local_new_addr * lv[COL_MEM_DIFF_CLK]);
 
         // d) diff_addr_next <== addr_next - addr_cur
         yield_constr
@@ -74,8 +74,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         // f) (new_addr - 1)*diff_addr===0
         //    (new_addr - 1)*diff_addr_inv===0
-        yield_constr.constraint((local_new_address - P::ONES) * lv[COL_MEM_DIFF_ADDR]);
-        yield_constr.constraint((local_new_address - P::ONES) * lv[COL_MEM_DIFF_ADDR_INV]);
+        yield_constr.constraint((local_new_addr - P::ONES) * lv[COL_MEM_DIFF_ADDR]);
+        yield_constr.constraint((local_new_addr - P::ONES) * lv[COL_MEM_DIFF_ADDR_INV]);
     }
 
     fn constraint_degree(&self) -> usize {
