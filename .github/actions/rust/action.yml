@@ -1,10 +1,6 @@
 name: Install rust toolchain
 
 inputs:
-  rust-version:
-    required: false
-    default: nightly-2023-06-17
-    type: string
   cache-key:
     required: false
     type: string
@@ -12,10 +8,14 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Get rust version
+      run: echo "RUST_VERSION=$(grep -P '^channel\s*=' rust-toolchain.toml | cut -d '=' -f2 | sed 's/"//g' | sed -e 's/^[ \t]*//')" >> $GITHUB_ENV
+      shell: bash
+
     - name: Install toolchain
       uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: ${{ inputs.rust-version }}
+        toolchain: ${{ env.RUST_VERSION }}
         components: rustfmt, clippy
 
     - uses: Swatinem/rust-cache@v2
