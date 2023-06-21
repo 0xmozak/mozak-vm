@@ -13,7 +13,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  NIGHTLY_RUST_VERSION: nightly-2023-06-17
 
 jobs:
   cargo-test:
@@ -21,12 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
-
-      - uses: Swatinem/rust-cache@v2
+      - name: Install rust toolkit
+        uses: ./.github/actions/rust
 
       - name: Run tests
         run: cargo test --locked --all-targets
