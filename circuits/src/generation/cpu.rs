@@ -89,6 +89,7 @@ mod test {
             }
         }
 
+        /// This one fails.
         #[test]
         fn test_signed((a, a_field) in register_and_field(), (b, b_field) in register_and_field()) {
             let a = a as i32;
