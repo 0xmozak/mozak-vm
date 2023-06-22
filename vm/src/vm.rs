@@ -30,7 +30,7 @@ pub fn mulhsu(a: u32, b: u32) -> u32 {
 pub fn div(a: u32, b: u32) -> u32 {
     match (a as i32, b as i32) {
         (_, 0) => 0xFFFF_FFFF,
-        (a, b) => a.overflowing_div(b).0 as u32,
+        (a, b) => a.wrapping_div(b) as u32,
     }
 }
 
