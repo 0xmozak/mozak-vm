@@ -73,7 +73,9 @@ mod test {
     proptest! {
         #[test]
         fn test_signed(a in any::<i32>(), b in any::<i32>()) {
-            let abs_diff = a.abs_diff(b);
+            // If we deliberately use the wrong `.abs_diff`, the test fails in a way that's indicative
+            // of a dishonest prover getting away with a falsehood.
+            let abs_diff = (a as u32).abs_diff(b as u32) as i32;
             let a_field: GoldilocksField = GoldilocksField::from_noncanonical_i64(a as i64);
             let b_field: GoldilocksField = GoldilocksField::from_noncanonical_i64(b as i64);
             let abs_field: GoldilocksField = GoldilocksField::from_noncanonical_i64(abs_diff as i64);
