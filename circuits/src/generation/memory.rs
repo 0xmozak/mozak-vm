@@ -79,11 +79,11 @@ pub fn generate_memory_trace<F: RichField>(
             .try_inverse()
             .unwrap_or_default();
 
-        trace[mem_cols::COL_MEM_DIFF_CLK][i] = trace[mem_cols::COL_MEM_CLK][i]
-            - if i == 0 || trace[mem_cols::COL_MEM_DIFF_ADDR][i] != F::ZERO {
+        trace[mem_cols::COL_MEM_DIFF_CLK][i] =
+            if i == 0 || trace[mem_cols::COL_MEM_DIFF_ADDR][i] != F::ZERO {
                 F::ZERO
             } else {
-                trace[mem_cols::COL_MEM_CLK][i - 1]
+                trace[mem_cols::COL_MEM_CLK][i] - trace[mem_cols::COL_MEM_CLK][i - 1]
             };
     }
 
@@ -160,7 +160,7 @@ mod test {
             &[ 0,       100,  1,    lb,   5,      0,           0,               1],
             &[ 0,       100,  4,    sb,  10,      0,           0,               3],
             &[ 0,       100,  5,    lb,  10,      0,           0,               1],
-            &[ 0,       200,  2,    sb,  15,    100,     inv(100),              2],
+            &[ 0,       200,  2,    sb,  15,    100,     inv(100),              0],
             &[ 0,       200,  3,    lb,  15,      0,           0,               1],
             &[ 1,       200,  3,    lb,  15,      0,           0,               0],
             &[ 1,       200,  3,    lb , 15,      0,           0,               0],
