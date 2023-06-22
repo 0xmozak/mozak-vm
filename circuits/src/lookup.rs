@@ -157,20 +157,24 @@ mod test {
     proptest! {
         #[test]
         fn test_permute_cols(value in any::<Vec<u8>>())  {
-            let col_input  = value.iter().map(|i| F::from_noncanonical_u64(*i as u64)).collect::<Vec<_>>();
-            let col_table = value.iter().map(|i| F::from_noncanonical_u64(*i as u64)).collect::<Vec<_>>();
+            let col_input  = value.iter().map(|i| F::from_noncanonical_u64(u64::from(*i))).collect::<Vec<_>>();
+            let col_table = value.iter().map(|i| F::from_noncanonical_u64(u64::from(*i))).collect::<Vec<_>>();
 
             let mut col_table_u64: Vec<_> = col_table.iter().map(F::to_noncanonical_u64).collect();
             let mut col_input_u64: Vec<_> = col_input.iter().map(F::to_noncanonical_u64).collect();
 
             let (col_input_sorted, col_table_permuted) = permute_cols::<F>(&col_input, &col_table);
 
-            col_table_u64.sort();
-            col_input_u64.sort();
+            col_table_u64.sort_unstable();
+            col_input_u64.sort_unstable();
 
             let col_input_sorted_u64: Vec<_> = col_input_sorted.iter().map(F::to_noncanonical_u64).collect();
             let col_table_permuted_u64: Vec<_> = col_table_permuted.iter().map(F::to_noncanonical_u64).collect();
 
+            // We want to be sure that the result table column
+            // is actually a permutation of the input table column.
+            // Checking the input column may actually not be necessary
+            // since we all we do is sort it.
             assert_eq!(col_table_u64, col_table_permuted_u64);
             assert_eq!(col_input_u64, col_input_sorted_u64);
         }
