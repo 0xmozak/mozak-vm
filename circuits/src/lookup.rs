@@ -141,6 +141,8 @@ pub fn permute_cols<F: PrimeField64>(col_input: &[F], col_table: &[F]) -> (Vec<F
 
     (
         col_input_sorted,
+        // Nice trick to unwrap the `Some<F>`s safely:
+        // https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.flatten
         col_table_permuted.into_iter().flatten().collect(),
     )
 }
