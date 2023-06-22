@@ -158,9 +158,9 @@ mod test {
 
     proptest! {
         #[test]
-        fn test_permute_cols(value in any::<Vec<u8>>())  {
-            let col_input  = value.iter().map(|i| F::from_noncanonical_u64(u64::from(*i))).collect::<Vec<_>>();
-            let col_table = value.iter().map(|i| F::from_noncanonical_u64(u64::from(*i))).collect::<Vec<_>>();
+        fn test_permute_cols(value in any::<Vec<u64>>())  {
+            let col_input  = value.iter().map(|i| F::from_noncanonical_u64(*i)).collect::<Vec<_>>();
+            let col_table = value.iter().map(|i| F::from_noncanonical_u64(*i)).collect::<Vec<_>>();
 
             let mut col_table_u64: Vec<_> = col_table.iter().map(F::to_noncanonical_u64).collect();
             let mut col_input_u64: Vec<_> = col_input.iter().map(F::to_noncanonical_u64).collect();
