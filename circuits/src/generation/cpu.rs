@@ -71,11 +71,11 @@ mod test {
         #[test]
         fn test_signed(a in any::<i32>(), b in any::<i32>()) {
             let abs_diff = a.abs_diff(b);
-            let a_field :GoldilocksField = GoldilocksField::from_noncanonical_i64(a as i64);
-            let b_field : GoldilocksField = GoldilocksField::from_noncanonical_i64(b as i64);
+            let a_field :GoldilocksField = GoldilocksField::from_noncanonical_i64((a as u32) as i64);
+            let b_field : GoldilocksField = GoldilocksField::from_noncanonical_i64((b as u32) as i64);
             let abs_field: GoldilocksField = GoldilocksField::from_noncanonical_i64(abs_diff as i64);
             let cond  = a_field - b_field - abs_field;
-            if a > b {
+            if a >= b {
                 assert_eq!(cond, GoldilocksField::from_noncanonical_i64(0_i64));
             } else {
                 assert_ne!(cond, GoldilocksField::from_noncanonical_i64(0_i64));
@@ -92,7 +92,7 @@ mod test {
             let b_field : GoldilocksField = GoldilocksField::from_noncanonical_i64(b as i64);
             let abs_field: GoldilocksField = GoldilocksField::from_noncanonical_i64(abs_diff as i64);
             let cond  = a_field - b_field - abs_field;
-            if a > b {
+            if a >= b {
                 assert_eq!(cond, GoldilocksField::from_noncanonical_i64(0_i64));
             } else {
                 assert_ne!(cond, GoldilocksField::from_noncanonical_i64(0_i64));
