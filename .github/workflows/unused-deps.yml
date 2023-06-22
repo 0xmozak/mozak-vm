@@ -7,7 +7,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  NIGHTLY_RUST_VERSION: nightly-2023-06-17
 
 jobs:
   cargo-udeps:
@@ -18,12 +17,8 @@ jobs:
         # with:
         #   ref: main
 
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
-
-      - uses: Swatinem/rust-cache@v2
+      - name: Install rust toolkit
+        uses: ./.github/actions/rust
 
       - name: Install cargo-udeps
         run: cargo install --locked cargo-udeps

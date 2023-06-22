@@ -213,12 +213,6 @@ impl State {
             Op::DIVU => rop!(divu),
             Op::REM => rop!(rem),
             Op::REMU => rop!(remu),
-            // It's not important that these instructions are implemented for the sake of
-            // our purpose at this moment, but these instructions are found in the test
-            // data that we use - so we simply advance the register.
-            Op::FENCE | Op::CSRRS | Op::CSRRW | Op::CSRRWI | Op::EBREAK | Op::MRET => {
-                (Aux::default(), self.bump_pc())
-            }
             Op::UNKNOWN => unimplemented!("Unknown instruction"),
         };
         (aux, state.bump_clock())
