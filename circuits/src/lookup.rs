@@ -176,7 +176,7 @@ mod test {
             // We want to be sure that the result table column
             // is actually a permutation of the input table column.
             // Checking the input column may actually not be necessary
-            // since we all we do is sort it.
+            // since all we do is sort it.
             assert_eq!(col_table_u64, col_table_permuted_u64);
             assert_eq!(col_input_u64, col_input_sorted_u64);
         }
