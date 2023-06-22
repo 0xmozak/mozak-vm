@@ -418,6 +418,7 @@ dependencies = [
  "mozak-vm",
  "plonky2",
  "plonky2_maybe_rayon",
+ "proptest",
  "starky",
 ]
 

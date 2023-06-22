@@ -4,7 +4,7 @@
 //! - [ZCash Halo2 lookup docs](https://zcash.github.io/halo2/design/proving-system/lookup.html)
 //! - [ZK Meetup Seoul ECC X ZKS Deep dive on Halo2](https://www.youtube.com/watch?v=YlTt12s7vGE&t=5237s)
 
-use std::cmp::Ordering;
+use std::collections::VecDeque;
 
 use itertools::Itertools;
 use plonky2::field::extension::Extendable;
@@ -82,9 +82,12 @@ pub(crate) fn eval_lookups_circuit<
 /// # Returns
 /// A tuple of the permuted input column, `A'`, and the permuted table column,
 /// `S'`.
+///
+/// # Panics
+/// Panics if there are unused values or indices left, since in the lookup
+/// protocol the permuted table column must be a permutation of the original
+/// column, so any unused values or unfilled spots would indicate a logic bug.
 pub fn permute_cols<F: PrimeField64>(col_input: &[F], col_table: &[F]) -> (Vec<F>, Vec<F>) {
-    let n = col_input.len();
-
     // The permuted inputs do not have to be ordered, but we found that sorting was
     // faster than hash-based grouping. We also sort the table, as this helps us
     // identify "unused" table elements efficiently.
@@ -93,7 +96,6 @@ pub fn permute_cols<F: PrimeField64>(col_input: &[F], col_table: &[F]) -> (Vec<F
     // It would be wasteful to canonicalize in each comparison, as a single
     // element may be involved in many comparisons. So we will canonicalize once
     // upfront, then use `to_noncanonical_u64` when comparing elements.
-
     let col_input_sorted = col_input
         .iter()
         .map(PrimeField64::to_canonical)
@@ -105,66 +107,74 @@ pub fn permute_cols<F: PrimeField64>(col_input: &[F], col_table: &[F]) -> (Vec<F
         .sorted_unstable_by_key(PrimeField64::to_noncanonical_u64)
         .collect_vec();
 
-    let mut unused_table_inds = Vec::with_capacity(n);
-    let mut unused_table_vals = Vec::with_capacity(n);
-    let mut col_table_permuted = vec![F::ZERO; n];
-    let mut i = 0;
-    let mut j = 0;
-    while (j < n) && (i < n) {
-        let input_val = col_input_sorted[i].to_noncanonical_u64();
-        let table_val = col_table_sorted[j].to_noncanonical_u64();
-        match input_val.cmp(&table_val) {
-            // In the below tables, we ignore the original input column `col_input` (A),
-            // and only care about `col_input_sorted` (A'), `col_table_permuted` (S'), and
-            // `col_table_sorted` (S).
-            //
-            // -------------
-            // | A'| S'| S |
-            // |---|---|---|
-            // | 4 | . | 3 | <- push 3 to `unused_table_vals` since
-            // |   |   |   |    A' (col_input_sorted) > S (col_table_sorted)
-            Ordering::Greater => {
-                unused_table_vals.push(col_table_sorted[j]);
-                j += 1;
-            }
-
-            // -------------
-            // | A'| S'| S |    if `unused_table_vals` has some value, insert
-            // |---|---|---|    into S' (col_table_permuted), else save its index to be
-            // | 2 | . | 3 | <- populated later. It does not matter what is in S',
-            // |   |   |   |    as long as it belongs in S (col_table_sorted).
-            //                  This case also means that our lookup constraint later will
-            //                  rely on the previous A' to be equal to the current A'
-            //                  to hold (diff_input_prev = next_perm_input - local_perm_input).
-            Ordering::Less => {
-                if let Some(x) = unused_table_vals.pop() {
-                    col_table_permuted[i] = x;
+    let mut unused_table_inds = VecDeque::new();
+    let mut unused_table_vals = VecDeque::new();
+    let mut col_table_permuted: Vec<Option<F>> = vec![];
+    col_input_sorted
+        .iter()
+        .merge_join_by(col_table_sorted.iter(), |i, t| {
+            i.to_noncanonical_u64().cmp(&t.to_noncanonical_u64())
+        })
+        .for_each(|y| match y {
+            itertools::EitherOrBoth::Left(_) => {
+                if let Some(x) = unused_table_vals.pop_front() {
+                    col_table_permuted.push(Some(x));
                 } else {
-                    unused_table_inds.push(i);
+                    unused_table_inds.push_back(col_table_permuted.len());
+                    // Here, we push None as a placeholder to be replaced later.
+                    col_table_permuted.push(None);
                 }
-                i += 1;
             }
-            // -------------
-            // | A'| S'| S |    if A' (col_input_sorted) == S (col_table_sorted),
-            // |---|---|---|    insert into S' (col_table_permuted). This case also
-            // | 2 | 2 | 2 | <- means that our lookup constraint holds,
-            // |   |   |   |    since horizontally, diff_input_table = next_perm_input -
-            //                  next_perm_table.
-            Ordering::Equal => {
-                col_table_permuted[i] = col_table_sorted[j];
-                i += 1;
-                j += 1;
+            itertools::EitherOrBoth::Both(_, b) => col_table_permuted.push(Some(*b)),
+            itertools::EitherOrBoth::Right(b) => {
+                if let Some(i) = unused_table_inds.pop_front() {
+                    // Replace the placeholder.
+                    col_table_permuted[i] = Some(*b);
+                } else {
+                    unused_table_vals.push_back(*b);
+                }
             }
+        });
+    assert_eq!(unused_table_inds.len(), 0);
+    assert_eq!(unused_table_vals.len(), 0);
+    assert_eq!(col_table_permuted.len(), col_input_sorted.len());
+
+    (
+        col_input_sorted,
+        col_table_permuted.into_iter().flatten().collect(),
+    )
+}
+
+#[cfg(test)]
+mod test {
+    use plonky2::field::types::Field64;
+    use plonky2::field::types::PrimeField64;
+    use proptest::prelude::*;
+
+    use super::*;
+    type F = plonky2::field::goldilocks_field::GoldilocksField;
+
+    proptest! {
+        #[test]
+        fn test_permute_cols(value in any::<Vec<u8>>())  {
+            let col_input  = value.iter().map(|i| F::from_noncanonical_u64(*i as u64)).collect::<Vec<_>>();
+            let col_table = value.iter().map(|i| F::from_noncanonical_u64(*i as u64)).collect::<Vec<_>>();
+
+            let mut col_table_u64: Vec<_> = col_table.iter().map(F::to_noncanonical_u64).collect();
+            let mut col_input_u64: Vec<_> = col_input.iter().map(F::to_noncanonical_u64).collect();
+
+            let (col_input_sorted, col_table_permuted) = permute_cols::<F>(&col_input, &col_table);
+
+            col_table_u64.sort();
+            col_input_u64.sort();
+
+            let col_input_sorted_u64: Vec<_> = col_input_sorted.iter().map(F::to_noncanonical_u64).collect();
+            let col_table_permuted_u64: Vec<_> = col_table_permuted.iter().map(F::to_noncanonical_u64).collect();
+
+            assert_eq!(col_table_u64, col_table_permuted_u64);
+            assert_eq!(col_input_u64, col_input_sorted_u64);
         }
     }
-
-    unused_table_vals.extend_from_slice(&col_table_sorted[j..n]);
-    unused_table_inds.extend(i..n);
-
-    // Populate all the empty `S'` values found in the 2nd case above.
-    for (ind, val) in unused_table_inds.into_iter().zip_eq(unused_table_vals) {
-        col_table_permuted[ind] = val;
-    }
-
-    (col_input_sorted, col_table_permuted)
 }
+
+// PROPTEST_MAX_SHRINK_ITERS=1000000
