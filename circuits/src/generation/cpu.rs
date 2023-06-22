@@ -67,36 +67,40 @@ mod test {
     use plonky2::field::{types::{Field64, Field}, goldilocks_field::GoldilocksField};
     use proptest::prelude::*;
 
+
+    /// This picks an arbitrary register content and its representation as a field element.
+    fn register_and_field() -> impl Strategy<Value = (u32, GoldilocksField)> {
+        any::<u32>().prop_map(|v| (v, GoldilocksField::from_noncanonical_u64(v.into())))
+    }
+
     proptest! {
         #[test]
-        fn test_signed(a in any::<i32>(), b in any::<i32>()) {
+        fn test_unsigned((a, a_field) in register_and_field(), (b, b_field) in register_and_field()) {
             let abs_diff = a.abs_diff(b);
-            let a_field :GoldilocksField = GoldilocksField::from_noncanonical_i64((a as u32) as i64);
-            let b_field : GoldilocksField = GoldilocksField::from_noncanonical_i64((b as u32) as i64);
             let abs_field: GoldilocksField = GoldilocksField::from_noncanonical_i64(abs_diff as i64);
             let cond  = a_field - b_field - abs_field;
             if a >= b {
                 assert_eq!(cond, GoldilocksField::from_noncanonical_i64(0_i64));
             } else {
                 assert_ne!(cond, GoldilocksField::from_noncanonical_i64(0_i64));
-                let cond_inv = cond.try_inverse().expect("can't inverse");
+                let cond_inv = cond.try_inverse().expect("can't invert");
                 let check = cond * cond_inv;
                 assert_eq!(check, GoldilocksField::from_noncanonical_i64(1_i64));
             }
         }
 
         #[test]
-        fn test_unsigned(a in any::<u32>(), b in any::<u32>()) {
+        fn test_signed((a, a_field) in register_and_field(), (b, b_field) in register_and_field()) {
+            let a = a as i32;
+            let b = b as i32;
             let abs_diff = a.abs_diff(b);
-            let a_field :GoldilocksField = GoldilocksField::from_noncanonical_i64(a as i64);
-            let b_field : GoldilocksField = GoldilocksField::from_noncanonical_i64(b as i64);
             let abs_field: GoldilocksField = GoldilocksField::from_noncanonical_i64(abs_diff as i64);
             let cond  = a_field - b_field - abs_field;
             if a >= b {
                 assert_eq!(cond, GoldilocksField::from_noncanonical_i64(0_i64));
             } else {
                 assert_ne!(cond, GoldilocksField::from_noncanonical_i64(0_i64));
-                let cond_inv = cond.try_inverse().expect("can't inverse");
+                let cond_inv = cond.try_inverse().expect("can't invert");
                 let check = cond * cond_inv;
                 assert_eq!(check, GoldilocksField::from_noncanonical_i64(1_i64));
             }
