@@ -61,3 +61,45 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         )
     })
 }
+
+#[cfg(test)]
+mod test {
+    use plonky2::field::{types::{Field64, Field}, goldilocks_field::GoldilocksField};
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn test_signed(a in any::<i32>(), b in any::<i32>()) {
+            let abs_diff = a.abs_diff(b);
+            let a_field :GoldilocksField = GoldilocksField::from_noncanonical_i64(a as i64);
+            let b_field : GoldilocksField = GoldilocksField::from_noncanonical_i64(b as i64);
+            let abs_field: GoldilocksField = GoldilocksField::from_noncanonical_i64(abs_diff as i64);
+            let cond  = a_field - b_field - abs_field;
+            if a > b {
+                assert_eq!(cond, GoldilocksField::from_noncanonical_i64(0_i64));
+            } else {
+                assert_ne!(cond, GoldilocksField::from_noncanonical_i64(0_i64));
+                let cond_inv = cond.try_inverse().expect("can't inverse");
+                let check = cond * cond_inv;
+                assert_eq!(check, GoldilocksField::from_noncanonical_i64(1_i64));
+            }
+        }
+
+        #[test]
+        fn test_unsigned(a in any::<u32>(), b in any::<u32>()) {
+            let abs_diff = a.abs_diff(b);
+            let a_field :GoldilocksField = GoldilocksField::from_noncanonical_i64(a as i64);
+            let b_field : GoldilocksField = GoldilocksField::from_noncanonical_i64(b as i64);
+            let abs_field: GoldilocksField = GoldilocksField::from_noncanonical_i64(abs_diff as i64);
+            let cond  = a_field - b_field - abs_field;
+            if a > b {
+                assert_eq!(cond, GoldilocksField::from_noncanonical_i64(0_i64));
+            } else {
+                assert_ne!(cond, GoldilocksField::from_noncanonical_i64(0_i64));
+                let cond_inv = cond.try_inverse().expect("can't inverse");
+                let check = cond * cond_inv;
+                assert_eq!(check, GoldilocksField::from_noncanonical_i64(1_i64));
+            }
+        }
+    }
+}
