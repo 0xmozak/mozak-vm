@@ -20,8 +20,8 @@ pub struct Program {
 
     /// The initial memory image
     pub image: Memory,
-    // TODO(Matthias): only decode code sections of the elf,
-    // instead of trying to decode everything.
+
+    /// Executable program
     pub code: Code,
 }
 
@@ -123,7 +123,7 @@ impl Program {
 
         let image = segments
             .iter()
-            .filter(|x| x.p_type == elf::abi::PT_LOAD)
+            .filter(|x| x.p_type == elf::abi::PT_LOAD && x.p_flags & elf::abi::PF_X == elf::abi::PF_X)
             .map(|segment| -> Result<_> {
                 let file_size: usize = segment.p_filesz.try_into()?;
                 let mem_size: usize = segment.p_memsz.try_into()?;
