@@ -127,7 +127,6 @@ impl Program {
             let mem_size: usize = segment.p_memsz.try_into()?;
             let vaddr: u32 = segment.p_vaddr.try_into()?;
             let offset = segment.p_offset.try_into()?;
-
             let words = (vaddr..).zip(
                 input[offset..offset + std::cmp::min(file_size, mem_size)]
                     .iter()
@@ -136,6 +135,8 @@ impl Program {
 
             for (k, v) in words {
                 image.insert(k, v);
+
+                // record code segment if it is executable code
                 if segment.p_flags & elf::abi::PF_X == elf::abi::PF_X {
                     code.insert(k, v);
                 }
