@@ -6,7 +6,6 @@ use anyhow::{anyhow, bail, Result};
 use derive_more::Deref;
 use elf::{endian::LittleEndian, file::Class, ElfBytes};
 use im::hashmap::HashMap;
-use itertools::Itertools;
 
 use crate::decode::decode_instruction;
 use crate::instruction::Instruction;
@@ -135,9 +134,11 @@ impl Program {
                     .copied(),
             );
 
-            image.extend(words);
-            if segment.p_flags & elf::abi::PF_X == elf::abi::PF_X {
-                code.extend(words);
+            for (k, v) in words {
+                image.insert(k, v);
+                if segment.p_flags & elf::abi::PF_X == elf::abi::PF_X {
+                    code.insert(k, v);
+                }
             }
         }
         
