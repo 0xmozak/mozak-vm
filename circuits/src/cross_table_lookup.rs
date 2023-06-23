@@ -28,7 +28,15 @@ impl<F: Field> Column<F> {
     pub fn eval_table(&self, table: &[PolynomialValues<F>], row: usize) -> F {
         self.linear_combination
             .iter()
-            .map(|&(c, f)| table[c].values[row] * f)
+            .map(|&(c, f)| {
+                println!(
+                    "{} (table[{c}].values[{row:?}]) * {f} = {}",
+                    table[c].values[row],
+                    table[c].values[row] * f
+                );
+
+                table[c].values[row] * f
+            })
             .sum::<F>()
             + self.constant
     }
@@ -80,6 +88,9 @@ pub struct CrossTableLookup<F: Field> {
 
 impl<F: Field> CrossTableLookup<F> {
     pub fn new(looking_tables: Vec<Table<F>>, looked_table: Table<F>) -> Self {
+        assert!(looking_tables
+            .iter()
+            .all(|twc| twc.columns.len() == looked_table.columns.len()));
         Self {
             looking_tables,
             looked_table,
@@ -100,7 +111,7 @@ pub trait Lookups<F: Field> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, u8};
 
     use plonky2::field::{goldilocks_field::GoldilocksField, polynomial::PolynomialValues};
 
@@ -110,19 +121,19 @@ mod tests {
 
     struct FooBarTable<F: Field>(CrossTableLookup<F>);
 
-    fn ctl_data<F: Field>() -> Vec<Column<F>> {
-        Column::singles([0]).collect_vec()
+    fn lookup_data<F: Field>(col_indices: &[usize]) -> Vec<Column<F>> {
+        Column::singles(col_indices).collect_vec()
     }
 
-    fn ctl_filter<F: Field>(col_idx: usize) -> Column<F> {
+    fn lookup_filter<F: Field>(col_idx: usize) -> Column<F> {
         Column::single(col_idx)
     }
 
     impl<F: Field> Lookups<F> for FooBarTable<F> {
         fn lookups() -> CrossTableLookup<F> {
             CrossTableLookup {
-                looking_tables: vec![CpuTable::new(ctl_data(), Some(ctl_filter(0)))],
-                looked_table: RangeCheckTable::new(ctl_data(), Some(ctl_filter(0))),
+                looking_tables: vec![CpuTable::new(lookup_data(&[1]), Some(lookup_filter(0)))],
+                looked_table: RangeCheckTable::new(lookup_data(&[1]), Some(lookup_filter(0))),
             }
         }
     }
@@ -148,57 +159,49 @@ mod tests {
     //     }
     // }
 
-    fn process_table<F: Field>(
-        trace: &[PolynomialValues<F>],
-        table: &Table<F>,
-        multiset: &mut MultiSet<F>,
-    ) {
-        for i in 0..trace[0].len() {
-            let filter = if let Some(column) = &table.filter_column {
-                column.eval_table(trace, i)
-            } else {
-                F::ONE
-            };
-            if filter.is_one() {
-                let row = table
-                    .columns
-                    .iter()
-                    .map(|c| c.eval_table(trace, i))
-                    .collect::<Vec<_>>();
-                // multiset.entry(row).or_default().push((table.kind, i));
-            } else {
-                assert_eq!(filter, F::ZERO, "Non-binary filter?")
-            }
-        }
-    }
-
     // Check that the provided trace and cross-table lookup are consistent.
     fn check_ctl<F: Field>(
         trace_poly_values: &[Vec<PolynomialValues<F>>],
         ctl: &CrossTableLookup<F>,
         ctl_index: usize,
     ) {
-        // Maps `m` with `(table, i) in m[row]` iff the `i`-th row of `table`
-        // is equal to `row` and the filter is 1. Without default values,
+        // Maps `m` with `(table.kind, i) in m[row]` iff the `i`-th row of the table
+        // is equal to `row` and the filter is 1.
+        //
         // the CTL check holds iff `looking_multiset == looked_multiset`.
         let mut looking_multiset = MultiSet::<F>::new();
         let mut looked_multiset = MultiSet::<F>::new();
 
         for looking_table in &ctl.looking_tables {
             let trace = &trace_poly_values[looking_table.kind as usize];
-            println!("kind: {:?} trace: {:?}", looking_table.kind, trace);
+            println!(
+                "trace.len() {}, trace[0].len() {}",
+                trace.len(),
+                trace[0].len()
+            );
             for i in 0..trace[0].len() {
                 let filter = if let Some(column) = &looking_table.filter_column {
+                    println!(
+                        "filter: eval({:?}, {}): {:?}",
+                        trace,
+                        i,
+                        column.eval_table(trace, i)
+                    );
                     column.eval_table(trace, i)
                 } else {
                     F::ONE
                 };
                 if filter.is_one() {
+                    println!("looking_table.columns: {:?}", looking_table.columns);
                     let row = looking_table
                         .columns
                         .iter()
-                        .map(|c| c.eval_table(trace, i))
+                        .map(|c| {
+                            println!("c.eval_table(): {:?}", c.eval_table(trace, i));
+                            c.eval_table(trace, i)
+                        })
                         .collect::<Vec<_>>();
+                    println!("row: {:?}", row);
                     looking_multiset
                         .entry(row)
                         .or_default()
@@ -209,29 +212,66 @@ mod tests {
                 }
             }
         }
-    }
 
-    fn dummy_trace<F: Field>(num_cols: usize, num_values: usize) -> Vec<PolynomialValues<F>> {
-        let mut poly_values = vec![];
-        for i in 0..num_cols {
-            let mut values = Vec::with_capacity(num_values);
-            for j in 0..num_values {
-                values.push(F::rand());
+        let trace = &trace_poly_values[ctl.looked_table.kind as usize];
+        for i in 0..trace[0].len() {
+            let filter = if let Some(column) = &ctl.looked_table.filter_column {
+                column.eval_table(trace, i)
+            } else {
+                F::ONE
+            };
+            if filter.is_one() {
+                let row = ctl
+                    .looked_table
+                    .columns
+                    .iter()
+                    .map(|c| c.eval_table(trace, i))
+                    .collect::<Vec<_>>();
+                looked_multiset
+                    .entry(row)
+                    .or_default()
+                    .push((ctl.looked_table.kind, i));
+            } else {
+                assert_eq!(filter, F::ZERO, "Non-binary filter?")
             }
-            poly_values.push(PolynomialValues::from(values));
         }
+        println!("looked multiset: {:?}", looked_multiset);
+        println!("looking multiset: {:?}", looking_multiset);
 
-        return poly_values;
+        let empty = &vec![];
+        // Check that every row in the looking tables appears in the looked table the
+        // same number of times.
+        for (row, looking_locations) in &looking_multiset {
+            let looked_locations = looked_multiset.get(row).unwrap_or(empty);
+            println!("looked locations: {:?}", looked_locations);
+            assert_eq!(looking_locations.len(), looked_locations.len(),
+               "CTL #{ctl_index}:\n\
+                 Row {row:?} is present {l0} times in the looking tables, but {l1} times in the looked table.\n\
+                 Looking locations (Table, Row index): {looking_locations:?}.\n\
+                 Looked locations (Table, Row index): {looked_locations:?}.",
+                l0 = looking_locations.len(),
+                l1 = looked_locations.len())
+        }
+        // Check that every row in the looked tables appears in the looking table the
+        // same number of times.
+        for (row, looked_locations) in &looked_multiset {
+            let looking_locations = looking_multiset.get(row).unwrap_or(empty);
+            assert_eq!(looking_locations.len(), looked_locations.len(),
+               "CTL #{ctl_index}:\n\
+                 Row {row:?} is present {l0} times in the looking tables, but {l1} times in the looked table.\n\
+                 Looking locations (Table, Row index): {looking_locations:?}.\n\
+                 Looked locations (Table, Row index): {looked_locations:?}.",
+                l0 = looking_locations.len(),
+                l1 = looked_locations.len())
+        }
     }
 
     #[derive(Debug, PartialEq)]
     pub struct Trace<F: Field> {
-        // Lots of complicated fields.
         trace: Vec<PolynomialValues<F>>,
     }
 
     impl<F: Field> Trace<F> {
-        // This method will help users to discover the builder
         pub fn builder() -> TraceBuilder<F> {
             TraceBuilder::default()
         }
@@ -245,9 +285,9 @@ mod tests {
     impl<F: Field> TraceBuilder<F> {
         pub fn new(num_cols: usize, num_rows: usize) -> TraceBuilder<F> {
             let mut trace = vec![];
-            for i in 0..num_cols {
+            for _ in 0..num_cols {
                 let mut values = Vec::with_capacity(num_rows);
-                for j in 0..num_rows {
+                for _ in 0..num_rows {
                     values.push(F::rand());
                 }
                 trace.push(PolynomialValues::from(values));
@@ -257,7 +297,6 @@ mod tests {
         }
 
         pub fn num_rows(mut self, num_rows: usize) -> TraceBuilder<F> {
-            // Set the name on the builder itself, and return the builder by value.
             for i in 0..self.trace.len() {
                 let mut row = vec![];
                 for _ in 0..num_rows {
@@ -282,12 +321,7 @@ mod tests {
             self
         }
 
-        // If we can get away with not consuming the Builder here, that is an
-        // advantage. It means we can use the FooBuilder as a template for constructing
-        // many Foos.
         pub fn build(self) -> Vec<PolynomialValues<F>> {
-            // Create a Foo from the FooBuilder, applying all settings in FooBuilder
-            // to Foo.
             self.trace
         }
     }
@@ -297,12 +331,8 @@ mod tests {
         type F = GoldilocksField;
         let dummy_cross_table_lookup: CrossTableLookup<F> = FooBarTable::lookups();
 
-        let num_cols = 3;
-        let num_values = 4;
         let foo_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4).one(0).build();
-
-        println!("foo: {:?}", foo_trace);
-        let bar_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4).build();
+        let bar_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4).one(0).build();
         let traces = vec![foo_trace, bar_trace];
         check_ctl(&traces, &dummy_cross_table_lookup, 0);
     }
