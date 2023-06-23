@@ -11,10 +11,12 @@ pub(crate) fn constraints<P: PackedField>(
     nv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    yield_constr.constraint(
-        lv[COL_S_ADD]
-            * (lv[COL_DST_VALUE] - (lv[COL_OP1_VALUE] + lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE])),
-    );
+    let wrap_at: P = column_of_xs(1_u64 << 32);
+    let added = lv[COL_OP1_VALUE] + lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
+    let wrapped = added - wrap_at;
+
+    yield_constr
+        .constraint(lv[COL_S_ADD] * (lv[COL_DST_VALUE] - added) * (lv[COL_DST_VALUE] - wrapped));
 
     // pc ticks up
     // TODO(Matthias): factor this out into a function to be used by most
