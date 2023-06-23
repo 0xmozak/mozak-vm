@@ -112,8 +112,10 @@ pub fn permute_cols<F: PrimeField64>(col_input: &[F], col_table: &[F]) -> (Vec<F
     let mut col_table_permuted: Vec<Option<F>> = vec![];
     col_input_sorted
         .iter()
-        .merge_join_by(col_table_sorted.iter(), |i, t| {
-            i.to_noncanonical_u64().cmp(&t.to_noncanonical_u64())
+        .merge_join_by(col_table_sorted.iter(), |input, target| {
+            input
+                .to_noncanonical_u64()
+                .cmp(&target.to_noncanonical_u64())
         })
         .for_each(|y| match y {
             itertools::EitherOrBoth::Left(_) => {
