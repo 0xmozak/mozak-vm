@@ -142,7 +142,7 @@ impl Program {
                 }
             }
         }
-        
+
         Ok(Program {
             entry,
             code: Code::from(&code),
