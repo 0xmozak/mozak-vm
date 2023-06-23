@@ -28,15 +28,7 @@ impl<F: Field> Column<F> {
     pub fn eval_table(&self, table: &[PolynomialValues<F>], row: usize) -> F {
         self.linear_combination
             .iter()
-            .map(|&(c, f)| {
-                println!(
-                    "{} (table[{c}].values[{row:?}]) * {f} = {}",
-                    table[c].values[row],
-                    table[c].values[row] * f
-                );
-
-                table[c].values[row] * f
-            })
+            .map(|&(c, f)| table[c].values[row] * f)
             .sum::<F>()
             + self.constant
     }
@@ -174,40 +166,23 @@ mod tests {
 
         for looking_table in &ctl.looking_tables {
             let trace = &trace_poly_values[looking_table.kind as usize];
-            println!(
-                "trace.len() {}, trace[0].len() {}",
-                trace.len(),
-                trace[0].len()
-            );
             for i in 0..trace[0].len() {
                 let filter = if let Some(column) = &looking_table.filter_column {
-                    println!(
-                        "filter: eval({:?}, {}): {:?}",
-                        trace,
-                        i,
-                        column.eval_table(trace, i)
-                    );
                     column.eval_table(trace, i)
                 } else {
                     F::ONE
                 };
                 if filter.is_one() {
-                    println!("looking_table.columns: {:?}", looking_table.columns);
                     let row = looking_table
                         .columns
                         .iter()
-                        .map(|c| {
-                            println!("c.eval_table(): {:?}", c.eval_table(trace, i));
-                            c.eval_table(trace, i)
-                        })
+                        .map(|c| c.eval_table(trace, i))
                         .collect::<Vec<_>>();
-                    println!("row: {:?}", row);
                     looking_multiset
                         .entry(row)
                         .or_default()
                         .push((looking_table.kind, i));
                 } else {
-                    println!("filter: {}", filter);
                     assert_eq!(filter, F::ZERO, "Non-binary filter?")
                 }
             }
@@ -235,15 +210,12 @@ mod tests {
                 assert_eq!(filter, F::ZERO, "Non-binary filter?")
             }
         }
-        println!("looked multiset: {:?}", looked_multiset);
-        println!("looking multiset: {:?}", looking_multiset);
 
         let empty = &vec![];
         // Check that every row in the looking tables appears in the looked table the
         // same number of times.
         for (row, looking_locations) in &looking_multiset {
             let looked_locations = looked_multiset.get(row).unwrap_or(empty);
-            println!("looked locations: {:?}", looked_locations);
             assert_eq!(looking_locations.len(), looked_locations.len(),
                "CTL #{ctl_index}:\n\
                  Row {row:?} is present {l0} times in the looking tables, but {l1} times in the looked table.\n\
