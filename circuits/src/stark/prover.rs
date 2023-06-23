@@ -132,9 +132,17 @@ mod test {
     proptest! {
             #[test]
             fn prove_add_proptest(a in any::<u32>(), b in any::<u32>()) {
-                let record = simple_test(
-                    4,
-                    &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
+                let record = simple_test_code(
+                    &[Instruction {
+                        op: Op::ADD,
+                        data: Data {
+                            rd: 5,
+                            rs1: 6,
+                            rs2: 7,
+                            ..Data::default()
+                        },
+                    }],
+                    &[],
                     &[(6, a), (7, b)],
                 );
                 assert_eq!(record.last_state.get_register_value(5), a.wrapping_add(b));
