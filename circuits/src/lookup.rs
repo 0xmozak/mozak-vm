@@ -139,14 +139,15 @@ pub fn permute_cols<F: PrimeField64>(col_input: &[F], col_table: &[F]) -> (Vec<F
         });
     assert_eq!(unused_table_inds.len(), 0);
     assert_eq!(unused_table_vals.len(), 0);
+
+    // Nice trick to unwrap the `Some<F>`s safely:
+    // https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.flatten
+    let col_table_permuted: Vec<F> = col_table_permuted.into_iter().flatten().collect();
+
+    // If there were placeholder `None`s remaining, this would fail.
     assert_eq!(col_table_permuted.len(), col_input_sorted.len());
 
-    (
-        col_input_sorted,
-        // Nice trick to unwrap the `Some<F>`s safely:
-        // https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.flatten
-        col_table_permuted.into_iter().flatten().collect(),
-    )
+    (col_input_sorted, col_table_permuted)
 }
 
 #[cfg(test)]
