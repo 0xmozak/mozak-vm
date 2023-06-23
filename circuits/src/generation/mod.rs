@@ -1,5 +1,6 @@
 pub mod cpu;
 pub mod memory;
+pub mod rangecheck;
 
 use mozak_vm::vm::Row;
 use plonky2::{
