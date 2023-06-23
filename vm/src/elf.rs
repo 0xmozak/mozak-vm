@@ -121,25 +121,29 @@ impl Program {
             bail!("Too many program headers");
         }
 
-        let image = segments
-            .iter()
-            .filter(|x| x.p_type == elf::abi::PT_LOAD && x.p_flags & elf::abi::PF_X == elf::abi::PF_X)
-            .map(|segment| -> Result<_> {
-                let file_size: usize = segment.p_filesz.try_into()?;
-                let mem_size: usize = segment.p_memsz.try_into()?;
-                let vaddr: u32 = segment.p_vaddr.try_into()?;
-                let offset = segment.p_offset.try_into()?;
-                Ok((vaddr..).zip(
-                    input[offset..offset + std::cmp::min(file_size, mem_size)]
-                        .iter()
-                        .copied(),
-                ))
-            })
-            .flatten_ok()
-            .try_collect()?;
+        let mut image: HashMap<u32, u8> = HashMap::new();
+        let mut code: HashMap<u32, u8> = HashMap::new();
+        for segment in segments.iter().filter(|x| x.p_type == elf::abi::PT_LOAD) {
+            let file_size: usize = segment.p_filesz.try_into()?;
+            let mem_size: usize = segment.p_memsz.try_into()?;
+            let vaddr: u32 = segment.p_vaddr.try_into()?;
+            let offset = segment.p_offset.try_into()?;
+
+            let words = (vaddr..).zip(
+                input[offset..offset + std::cmp::min(file_size, mem_size)]
+                    .iter()
+                    .copied(),
+            );
+
+            image.extend(words);
+            if segment.p_flags & elf::abi::PF_X == elf::abi::PF_X {
+                code.extend(words);
+            }
+        }
+        
         Ok(Program {
             entry,
-            code: Code::from(&image),
+            code: Code::from(&code),
             image: Memory(image),
         })
     }
