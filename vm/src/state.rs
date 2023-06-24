@@ -2,7 +2,7 @@ use im::hashmap::HashMap;
 use log::trace;
 
 use crate::elf::{Code, Memory, Program};
-use crate::instruction::{Data, Instruction};
+use crate::instruction::{Args, Instruction};
 
 /// State of our VM
 ///
@@ -49,7 +49,7 @@ pub struct Aux {
 
 impl State {
     #[must_use]
-    pub fn register_op<F>(self, data: &Data, op: F) -> (Aux, Self)
+    pub fn register_op<F>(self, data: &Args, op: F) -> (Aux, Self)
     where
         F: FnOnce(u32, u32, u32) -> u32,
     {
@@ -66,7 +66,7 @@ impl State {
     }
 
     #[must_use]
-    pub fn memory_load(self, data: &Data, op: fn(&[u8; 4]) -> u32) -> (Aux, Self) {
+    pub fn memory_load(self, data: &Args, op: fn(&[u8; 4]) -> u32) -> (Aux, Self) {
         let addr: u32 = self.get_register_value(data.rs1).wrapping_add(data.imm);
         let mem = [
             self.load_u8(addr),
@@ -86,7 +86,7 @@ impl State {
     }
 
     #[must_use]
-    pub fn branch_op(self, data: &Data, op: fn(u32, u32) -> bool) -> (Aux, State) {
+    pub fn branch_op(self, data: &Args, op: fn(u32, u32) -> bool) -> (Aux, State) {
         let rs1 = self.get_register_value(data.rs1);
         let rs2 = self.get_register_value(data.rs2);
         (
