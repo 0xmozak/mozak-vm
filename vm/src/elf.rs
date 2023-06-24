@@ -121,11 +121,11 @@ impl Program {
             bail!("Too many program headers");
         }
 
-        let extract = |test: fn(&ProgramHeader) -> bool| {
+        let extract = |required_flags| {
             segments
                 .iter()
                 .filter(|h: &ProgramHeader| h.p_type == elf::abi::PT_LOAD)
-                .filter(test)
+                .filter(|h| h.p_flags & required_flags == required_flags)
                 .map(|header| -> Result<_> {
                     let file_size: usize = header.p_filesz.try_into()?;
                     let mem_size: usize = header.p_memsz.try_into()?;
@@ -141,8 +141,8 @@ impl Program {
                 .try_collect()
         };
 
-        let data = Data(extract(|_| true)?);
-        let code = extract(|header| header.p_flags & elf::abi::PF_X == elf::abi::PF_X)?;
+        let data = Data(extract(elf::abi::PF_NONE)?);
+        let code = extract(elf::abi::PF_X)?;
         let code = Code::from(&code);
         Ok(Program { entry, data, code })
     }
