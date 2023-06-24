@@ -61,7 +61,7 @@ pub const NOOP_PAIR: (Op, Args) = (
 /// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
 pub const NOOP: Instruction = Instruction {
     op: Op::ADD,
-    data: Args {
+    args: Args {
         rd: 0,
         rs1: 0,
         rs2: 0,
@@ -72,7 +72,7 @@ pub const NOOP: Instruction = Instruction {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct Instruction {
     pub op: Op,
-    pub data: Args,
+    pub args: Args,
 }
 
 impl Instruction {
@@ -80,7 +80,7 @@ impl Instruction {
     pub fn new(op: Op, rd: u8, rs1: u8, rs2: u8, imm: u32) -> Self {
         Instruction {
             op,
-            data: Args { rd, rs1, rs2, imm },
+            args: Args { rd, rs1, rs2, imm },
         }
     }
 }
