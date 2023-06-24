@@ -4,12 +4,7 @@ use std::collections::HashSet;
 
 use anyhow::{anyhow, ensure, Result};
 use derive_more::Deref;
-use elf_rs::ElfClass;
-use elf_rs::ElfFile;
-use elf_rs::ElfMachine;
-use elf_rs::ElfType;
-use elf_rs::ProgramType;
-use elf_rs::*;
+use elf_rs::{ElfClass, ElfEndian, ElfFile, ElfMachine, ElfType, ProgramHeaderFlags, ProgramType};
 use im::hashmap::HashMap;
 use itertools::Itertools;
 
@@ -104,9 +99,13 @@ impl Program {
     // exercise the error handling?
     #[tarpaulin::skip]
     pub fn load_elf(input: &[u8]) -> Result<Program> {
-        let elf = elf_rs::Elf::from_bytes(&input).map_err(|e| anyhow!("Invalid ELF: {e:?}"))?;
+        let elf = elf_rs::Elf::from_bytes(input).map_err(|e| anyhow!("Invalid ELF: {e:?}"))?;
 
         let h = elf.elf_header();
+        ensure!(
+            h.endianness() == ElfEndian::LittleEndian,
+            "Not little-endian ELF"
+        );
         ensure!(h.class() == ElfClass::Elf32, "Not a 32-bit ELF");
         ensure!(
             h.machine() == ElfMachine::RISC_V,
