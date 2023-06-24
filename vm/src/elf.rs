@@ -20,8 +20,7 @@ pub struct Program {
 
     /// The initial memory image
     pub data: Data,
-    // TODO(Matthias): only decode code sections of the elf,
-    // instead of trying to decode everything.
+    /// Executable code
     pub code: Code,
 }
 
