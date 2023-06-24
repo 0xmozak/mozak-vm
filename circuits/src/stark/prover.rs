@@ -136,11 +136,11 @@ mod test {
             let record = simple_test_code(
                 &[Instruction {
                     op: Op::SUB,
-                    data: Data {
+                    args: Args {
                         rd: 5,
                         rs1: 6,
                         rs2: 7,
-                        ..Data::default()
+                        ..Args::default()
                     },
                 }],
                 &[],
