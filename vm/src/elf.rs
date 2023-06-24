@@ -2,10 +2,14 @@
 
 use std::collections::HashSet;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, ensure, Result};
 use derive_more::Deref;
-use elf::segment::ProgramHeader;
-use elf::{endian::LittleEndian, file::Class, ElfBytes};
+use elf_rs::ElfClass;
+use elf_rs::ElfFile;
+use elf_rs::ElfMachine;
+use elf_rs::ElfType;
+use elf_rs::ProgramType;
+use elf_rs::*;
 use im::hashmap::HashMap;
 use itertools::Itertools;
 
@@ -100,50 +104,35 @@ impl Program {
     // exercise the error handling?
     #[tarpaulin::skip]
     pub fn load_elf(input: &[u8]) -> Result<Program> {
-        let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
-        if elf.ehdr.class != Class::ELF32 {
-            bail!("Not a 32-bit ELF");
-        }
-        if elf.ehdr.e_machine != elf::abi::EM_RISCV {
-            bail!("Invalid machine type, must be RISC-V");
-        }
-        if elf.ehdr.e_type != elf::abi::ET_EXEC {
-            bail!("Invalid ELF type, must be executable");
-        }
-        let entry: u32 = elf.ehdr.e_entry.try_into()?;
-        if entry % 4 != 0 {
-            bail!("Invalid entrypoint");
-        }
-        let segments = elf
-            .segments()
-            .ok_or_else(|| anyhow!("Missing segment table"))?;
-        if segments.len() > 256 {
-            bail!("Too many program headers");
-        }
+        let elf = elf_rs::Elf::from_bytes(&input).map_err(|e| anyhow!("Invalid ELF: {e:?}"))?;
 
-        let extract = |test: fn(&ProgramHeader) -> bool| {
-            segments
-                .iter()
-                .filter(|h: &ProgramHeader| h.p_type == elf::abi::PT_LOAD)
-                .filter(test)
-                .map(|header| -> Result<_> {
-                    let file_size: usize = header.p_filesz.try_into()?;
-                    let mem_size: usize = header.p_memsz.try_into()?;
-                    let vaddr: u32 = header.p_vaddr.try_into()?;
-                    let offset = header.p_offset.try_into()?;
-                    Ok((vaddr..).zip(
-                        input[offset..offset + std::cmp::min(file_size, mem_size)]
-                            .iter()
-                            .copied(),
-                    ))
+        let h = elf.elf_header();
+        ensure!(h.class() == ElfClass::Elf32, "Not a 32-bit ELF");
+        ensure!(
+            h.machine() == ElfMachine::RISC_V,
+            "Invalid machine type, must be RISC-V"
+        );
+        ensure!(
+            h.elftype() == ElfType::ET_EXEC,
+            "Invalid ELF type, must be executable"
+        );
+        let entry = h.entry_point().try_into()?;
+        ensure!(entry % 4 != 0, "Misaligned entrypoint");
+        let extract = |flags: ProgramHeaderFlags| {
+            elf.program_header_iter()
+                .filter(|h| h.ph_type() == ProgramType::LOAD)
+                .filter(|h| h.flags().contains(flags))
+                .map(|h| {
+                    let content = h.content().ok_or(anyhow!(""))?;
+                    let v: u32 = h.vaddr().try_into()?;
+                    Ok((v..).zip(content.iter().copied()))
                 })
                 .flatten_ok()
                 .try_collect()
         };
-
-        let data = Data(extract(|_| true)?);
-        let code = extract(|header| header.p_flags & elf::abi::PF_X == elf::abi::PF_X)?;
-        let code = Code::from(&code);
+        let _data: Result<HashMap<u32, u8>> = extract(ProgramHeaderFlags::empty());
+        let data = Data(extract(ProgramHeaderFlags::empty())?);
+        let code = Code::from(&extract(ProgramHeaderFlags::EXECUTE)?);
         Ok(Program { entry, data, code })
     }
 }

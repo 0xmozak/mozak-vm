@@ -186,10 +186,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fcaabb2fef8c910e7f4c7ce9f67a1283a1715879a7c230ca9d6d1ae31f16d91"
 
 [[package]]
-name = "elf"
-version = "0.7.2"
+name = "elf_rs"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2b183d6ce6ca4cf30e3db37abf5b52568b5f9015c97d9fbdd7026aa5dcdd758"
+checksum = "9cf723f70efb0373c0b2501d943cf20ac1adbbd8e7c8eef926b2be545e5a33e8"
+dependencies = [
+ "bitflags",
+ "num-traits",
+]
 
 [[package]]
 name = "env_logger"
@@ -429,7 +433,7 @@ dependencies = [
  "anyhow",
  "bitfield",
  "derive_more",
- "elf",
+ "elf_rs",
  "env_logger",
  "im",
  "itertools",
