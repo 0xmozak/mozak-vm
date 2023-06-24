@@ -162,12 +162,12 @@ impl State {
         let inst = self.current_instruction();
         macro_rules! x_op {
             ($op: expr) => {
-                self.register_op(&inst.data, $op)
+                self.register_op(&inst.args, $op)
             };
         }
         macro_rules! rop {
             ($op: expr) => {
-                self.register_op(&inst.data, |a, b, _i| $op(a, b))
+                self.register_op(&inst.args, |a, b, _i| $op(a, b))
             };
         }
         let (aux, state) = match inst.op {
