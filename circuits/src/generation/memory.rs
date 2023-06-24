@@ -32,7 +32,7 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
 pub fn filter_memory_trace(mut step_rows: Vec<Row>) -> Vec<Row> {
     // Sorting is stable, and rows are already ordered by row.state.clk
     step_rows.sort_by_key(|row| {
-        let data = row.state.current_instruction().data;
+        let data = row.state.current_instruction().args;
         row.state
             .get_register_value(data.rs1)
             .wrapping_add(data.imm)
