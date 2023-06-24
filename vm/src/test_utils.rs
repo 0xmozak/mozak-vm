@@ -1,7 +1,7 @@
 use im::hashmap::HashMap;
 
 use crate::elf::{Code, Memory, Program};
-use crate::instruction::{Data, Instruction, Op};
+use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
 
@@ -28,7 +28,7 @@ pub fn simple_test_code(
                             // set sys-call EXIT in x17(or a7)
                             Instruction {
                                 op: Op::ADD,
-                                data: Data {
+                                data: Args {
                                     rs1: 0,
                                     rs2: 0,
                                     rd: 17,
@@ -38,7 +38,7 @@ pub fn simple_test_code(
                             // add ECALL to halt the program
                             Instruction {
                                 op: Op::ECALL,
-                                data: Data {
+                                data: Args {
                                     rs1: 0,
                                     rs2: 0,
                                     rd: 0,

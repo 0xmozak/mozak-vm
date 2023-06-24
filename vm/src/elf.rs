@@ -4,8 +4,10 @@ use std::collections::HashSet;
 
 use anyhow::{anyhow, bail, Result};
 use derive_more::Deref;
+use elf::segment::ProgramHeader;
 use elf::{endian::LittleEndian, file::Class, ElfBytes};
 use im::hashmap::HashMap;
+use itertools::Itertools;
 
 use crate::decode::decode_instruction;
 use crate::instruction::Instruction;
@@ -19,8 +21,8 @@ pub struct Program {
 
     /// The initial memory image
     pub image: Memory,
-
-    /// Executable program
+    // TODO(Matthias): only decode code sections of the elf,
+    // instead of trying to decode everything.
     pub code: Code,
 }
 
@@ -120,33 +122,29 @@ impl Program {
             bail!("Too many program headers");
         }
 
-        let mut image: HashMap<u32, u8> = HashMap::new();
-        let mut code: HashMap<u32, u8> = HashMap::new();
-        for segment in segments.iter().filter(|x| x.p_type == elf::abi::PT_LOAD) {
-            let file_size: usize = segment.p_filesz.try_into()?;
-            let mem_size: usize = segment.p_memsz.try_into()?;
-            let vaddr: u32 = segment.p_vaddr.try_into()?;
-            let offset = segment.p_offset.try_into()?;
-            let words = (vaddr..).zip(
-                input[offset..offset + std::cmp::min(file_size, mem_size)]
-                    .iter()
-                    .copied(),
-            );
+        let extract = |test: fn(&ProgramHeader) -> bool| {
+            segments
+                .iter()
+                .filter(|h: &ProgramHeader| h.p_type == elf::abi::PT_LOAD)
+                .filter(test)
+                .map(|header| -> Result<_> {
+                    let file_size: usize = header.p_filesz.try_into()?;
+                    let mem_size: usize = header.p_memsz.try_into()?;
+                    let vaddr: u32 = header.p_vaddr.try_into()?;
+                    let offset = header.p_offset.try_into()?;
+                    Ok((vaddr..).zip(
+                        input[offset..offset + std::cmp::min(file_size, mem_size)]
+                            .iter()
+                            .copied(),
+                    ))
+                })
+                .flatten_ok()
+                .try_collect()
+        };
 
-            for (k, v) in words {
-                image.insert(k, v);
-
-                // record code segment if it is executable code
-                if segment.p_flags & elf::abi::PF_X == elf::abi::PF_X {
-                    code.insert(k, v);
-                }
-            }
-        }
-
-        Ok(Program {
-            entry,
-            code: Code::from(&code),
-            image: Memory(image),
-        })
+        let image = Memory(extract(|_| true)?);
+        let code = extract(|header| header.p_flags & elf::abi::PF_X == elf::abi::PF_X)?;
+        let code = Code::from(&code);
+        Ok(Program { entry, image, code })
     }
 }

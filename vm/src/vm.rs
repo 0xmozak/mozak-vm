@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    instruction::{Data, Op},
+    instruction::{Args, Op},
     state::{Aux, State},
 };
 
@@ -93,7 +93,7 @@ pub fn lw(mem: &[u8; 4]) -> u32 {
 
 impl State {
     #[must_use]
-    pub fn jal(self, inst: &Data) -> (Aux, Self) {
+    pub fn jal(self, inst: &Args) -> (Aux, Self) {
         let pc = self.get_pc();
         (
             Aux {
@@ -106,7 +106,7 @@ impl State {
     }
 
     #[must_use]
-    pub fn jalr(self, inst: &Data) -> (Aux, Self) {
+    pub fn jalr(self, inst: &Args) -> (Aux, Self) {
         let pc = self.get_pc();
         let new_pc = (self.get_register_value(inst.rs1).wrapping_add(inst.imm)) & !1;
         (
@@ -137,7 +137,7 @@ impl State {
     }
 
     #[must_use]
-    pub fn store(self, inst: &Data, bytes: u32) -> (Aux, Self) {
+    pub fn store(self, inst: &Args, bytes: u32) -> (Aux, Self) {
         let addr = self.get_register_value(inst.rs1).wrapping_add(inst.imm);
         let dst_val: u32 = self.get_register_value(inst.rs2);
         (
