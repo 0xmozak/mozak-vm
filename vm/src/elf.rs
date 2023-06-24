@@ -4,6 +4,7 @@ use std::collections::HashSet;
 
 use anyhow::{anyhow, ensure, Result};
 use derive_more::Deref;
+use elf::segment::ProgramHeader;
 use elf::{endian::LittleEndian, file::Class, ElfBytes};
 use im::hashmap::HashMap;
 use itertools::Itertools;
@@ -20,8 +21,7 @@ pub struct Program {
 
     /// The initial memory image
     pub data: Data,
-    // TODO(Matthias): only decode code sections of the elf,
-    // instead of trying to decode everything.
+    /// Executable code
     pub code: Code,
 }
 
@@ -117,26 +117,29 @@ impl Program {
             .ok_or_else(|| anyhow!("Missing segment table"))?;
         ensure!(segments.len() <= 256, "Too many program headers");
 
-        let image = segments
-            .iter()
-            .filter(|x| x.p_type == elf::abi::PT_LOAD)
-            .map(|segment| -> Result<_> {
-                let file_size: usize = segment.p_filesz.try_into()?;
-                let mem_size: usize = segment.p_memsz.try_into()?;
-                let vaddr: u32 = segment.p_vaddr.try_into()?;
-                let offset = segment.p_offset.try_into()?;
-                Ok((vaddr..).zip(
-                    input[offset..offset + std::cmp::min(file_size, mem_size)]
-                        .iter()
-                        .copied(),
-                ))
-            })
-            .flatten_ok()
-            .try_collect()?;
-        Ok(Program {
-            entry,
-            code: Code::from(&image),
-            data: Data(image),
-        })
+        let extract = |required_flags| {
+            segments
+                .iter()
+                .filter(|s: &ProgramHeader| s.p_type == elf::abi::PT_LOAD)
+                .filter(|s| s.p_flags & required_flags == required_flags)
+                .map(|segment| -> Result<_> {
+                    let file_size: usize = segment.p_filesz.try_into()?;
+                    let mem_size: usize = segment.p_memsz.try_into()?;
+                    let vaddr: u32 = segment.p_vaddr.try_into()?;
+                    let offset = segment.p_offset.try_into()?;
+                    Ok((vaddr..).zip(
+                        input[offset..offset + std::cmp::min(file_size, mem_size)]
+                            .iter()
+                            .copied(),
+                    ))
+                })
+                .flatten_ok()
+                .try_collect()
+        };
+
+        let data = Data(extract(elf::abi::PF_NONE)?);
+        let code = extract(elf::abi::PF_X)?;
+        let code = Code::from(&code);
+        Ok(Program { entry, data, code })
     }
 }
