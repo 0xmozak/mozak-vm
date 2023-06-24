@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use crate::{
-    instruction::{Data, Op},
+    instruction::{Args, Op},
     state::{Aux, State},
 };
 
@@ -93,7 +93,7 @@ pub fn lw(mem: &[u8; 4]) -> u32 {
 
 impl State {
     #[must_use]
-    pub fn jal(self, inst: &Data) -> (Aux, Self) {
+    pub fn jal(self, inst: &Args) -> (Aux, Self) {
         let pc = self.get_pc();
         (
             Aux {
@@ -106,7 +106,7 @@ impl State {
     }
 
     #[must_use]
-    pub fn jalr(self, inst: &Data) -> (Aux, Self) {
+    pub fn jalr(self, inst: &Args) -> (Aux, Self) {
         let pc = self.get_pc();
         let new_pc = (self.get_register_value(inst.rs1).wrapping_add(inst.imm)) & !1;
         (
@@ -137,7 +137,7 @@ impl State {
     }
 
     #[must_use]
-    pub fn store(self, inst: &Data, bytes: u32) -> (Aux, Self) {
+    pub fn store(self, inst: &Args, bytes: u32) -> (Aux, Self) {
         let addr = self.get_register_value(inst.rs1).wrapping_add(inst.imm);
         let dst_val: u32 = self.get_register_value(inst.rs2);
         (
@@ -162,12 +162,12 @@ impl State {
         let inst = self.current_instruction();
         macro_rules! x_op {
             ($op: expr) => {
-                self.register_op(&inst.data, $op)
+                self.register_op(&inst.args, $op)
             };
         }
         macro_rules! rop {
             ($op: expr) => {
-                self.register_op(&inst.data, |a, b, _i| $op(a, b))
+                self.register_op(&inst.args, |a, b, _i| $op(a, b))
             };
         }
         let (aux, state) = match inst.op {
@@ -185,26 +185,26 @@ impl State {
             Op::XOR => x_op!(|a, b, i| core::ops::BitXor::bitxor(a, b.wrapping_add(i))),
             Op::SUB => rop!(u32::wrapping_sub),
 
-            Op::LB => self.memory_load(&inst.data, lb),
-            Op::LBU => self.memory_load(&inst.data, lbu),
-            Op::LH => self.memory_load(&inst.data, lh),
-            Op::LHU => self.memory_load(&inst.data, lhu),
-            Op::LW => self.memory_load(&inst.data, lw),
+            Op::LB => self.memory_load(&inst.args, lb),
+            Op::LBU => self.memory_load(&inst.args, lbu),
+            Op::LH => self.memory_load(&inst.args, lh),
+            Op::LHU => self.memory_load(&inst.args, lhu),
+            Op::LW => self.memory_load(&inst.args, lw),
 
             Op::ECALL => self.ecall(),
-            Op::JAL => self.jal(&inst.data),
-            Op::JALR => self.jalr(&inst.data),
+            Op::JAL => self.jal(&inst.args),
+            Op::JALR => self.jalr(&inst.args),
             // branches
-            Op::BEQ => self.branch_op(&inst.data, |a, b| a == b),
-            Op::BNE => self.branch_op(&inst.data, |a, b| a != b),
-            Op::BLT => self.branch_op(&inst.data, |a, b| (a as i32) < (b as i32)),
-            Op::BLTU => self.branch_op(&inst.data, |a, b| a < b),
-            Op::BGE => self.branch_op(&inst.data, |a, b| (a as i32) >= (b as i32)),
-            Op::BGEU => self.branch_op(&inst.data, |a, b| a >= b),
+            Op::BEQ => self.branch_op(&inst.args, |a, b| a == b),
+            Op::BNE => self.branch_op(&inst.args, |a, b| a != b),
+            Op::BLT => self.branch_op(&inst.args, |a, b| (a as i32) < (b as i32)),
+            Op::BLTU => self.branch_op(&inst.args, |a, b| a < b),
+            Op::BGE => self.branch_op(&inst.args, |a, b| (a as i32) >= (b as i32)),
+            Op::BGEU => self.branch_op(&inst.args, |a, b| a >= b),
             // branching done.
-            Op::SW => self.store(&inst.data, 4),
-            Op::SH => self.store(&inst.data, 2),
-            Op::SB => self.store(&inst.data, 1),
+            Op::SW => self.store(&inst.args, 4),
+            Op::SH => self.store(&inst.args, 2),
+            Op::SB => self.store(&inst.args, 1),
             Op::MUL => rop!(u32::wrapping_mul),
             Op::MULH => rop!(mulh),
             Op::MULHU => rop!(mulhu),

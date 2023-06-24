@@ -1,7 +1,7 @@
 use im::hashmap::HashMap;
 
-use crate::elf::{Code, Memory, Program};
-use crate::instruction::{Data, Instruction, Op};
+use crate::elf::{Code, Data, Program};
+use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
 
@@ -28,7 +28,7 @@ pub fn simple_test_code(
                             // set sys-call EXIT in x17(or a7)
                             Instruction {
                                 op: Op::ADD,
-                                data: Data {
+                                args: Args {
                                     rs1: 0,
                                     rs2: 0,
                                     rd: 17,
@@ -38,7 +38,7 @@ pub fn simple_test_code(
                             // add ECALL to halt the program
                             Instruction {
                                 op: Op::ECALL,
-                                data: Data {
+                                args: Args {
                                     rs1: 0,
                                     rs2: 0,
                                     rd: 0,
@@ -54,10 +54,10 @@ pub fn simple_test_code(
     );
 
     let image: HashMap<u32, u32> = mem.iter().copied().collect();
-    let image = Memory::from(image);
+    let image = Data::from(image);
     let state0 = State::from(Program {
         entry: 0,
-        image,
+        data: image,
         code,
     });
 

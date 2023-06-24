@@ -62,7 +62,7 @@ where
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod test {
-    use mozak_vm::instruction::{Data, Instruction, Op};
+    use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test, simple_test_code};
 
     use crate::test_utils::simple_proof_test;
@@ -96,10 +96,10 @@ mod test {
         let record = simple_test_code(
             &[Instruction {
                 op: Op::ADD,
-                data: Data {
+                args: Args {
                     rd: 1,
                     imm: 0xDEAD_BEEF,
-                    ..Data::default()
+                    ..Args::default()
                 },
             }],
             &[],
@@ -114,11 +114,11 @@ mod test {
         let record = simple_test_code(
             &[Instruction {
                 op: Op::BEQ,
-                data: Data {
+                args: Args {
                     rs1: 0,
                     rs2: 1,
                     imm: 42,
-                    ..Data::default()
+                    ..Args::default()
                 },
             }],
             &[],
@@ -135,11 +135,11 @@ mod test {
                 let record = simple_test_code(
                     &[Instruction {
                         op: Op::ADD,
-                        data: Data {
+                        args: Args {
                             rd: 5,
                             rs1: 6,
                             rs2: 7,
-                            ..Data::default()
+                            ..Args::default()
                         },
                     }],
                     &[],

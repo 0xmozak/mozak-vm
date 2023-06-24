@@ -1,7 +1,7 @@
 use bitfield::bitfield;
 use bitfield::BitRange;
 
-use crate::instruction::{Data, Instruction, Op, NOOP};
+use crate::instruction::{Args, Instruction, Op, NOOP};
 
 /// Builds a i32 from segments, and right pads with zeroes
 ///
@@ -40,8 +40,8 @@ bitfield! {
     pub func12, _: 31, 20;
 }
 
-fn add_pc(pc: u32, data: Data) -> Data {
-    Data {
+fn add_pc(pc: u32, data: Args) -> Args {
+    Args {
         imm: pc.wrapping_add(data.imm),
         ..data
     }
@@ -59,19 +59,19 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
     let rs2 = bf.rs2();
     let rd = bf.rd();
 
-    let stype = Data {
+    let stype = Args {
         rs1,
         rs2,
         imm: extract_immediate(word, &[(31, 31), (30, 25), (11, 8), (7, 7)], 0),
         ..Default::default()
     };
-    let rtype = Data {
+    let rtype = Args {
         rd,
         rs1,
         rs2,
         ..Default::default()
     };
-    let itype = Data {
+    let itype = Args {
         rs1,
         rd,
         imm: extract_immediate(word, &[(31, 20)], 0),
@@ -80,7 +80,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
     // jump type
     let jtype = add_pc(
         pc,
-        Data {
+        Args {
             rd,
             // NOTE(Matthias): we use absolute addressing here.
             imm: extract_immediate(word, &[(31, 31), (19, 12), (20, 20), (30, 25), (24, 21)], 1),
@@ -90,7 +90,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
     // branch type
     let btype = add_pc(
         pc,
-        Data {
+        Args {
             rs1,
             rs2,
             // NOTE(Matthias): we use absolute addressing here.
@@ -98,14 +98,14 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             ..Default::default()
         },
     );
-    let utype = Data {
+    let utype = Args {
         rd,
         imm: extract_immediate(word, &[(31, 12)], 12),
         ..Default::default()
     };
-    let noop = (NOOP.op, NOOP.data);
+    let noop = (NOOP.op, NOOP.args);
 
-    let (op, data) = match bf.opcode() {
+    let (op, args) = match bf.opcode() {
         0b011_0011 => match (bf.func3(), bf.func7()) {
             (0x0, 0x00) => (Op::ADD, rtype),
             (0x0, 0x20) => (Op::SUB, rtype),
@@ -158,7 +158,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             0x5 => {
                 let imm = itype.imm;
                 let imm_masked: u32 = imm.bit_range(4, 0);
-                let itype = Data {
+                let itype = Args {
                     imm: imm_masked,
                     ..itype
                 };
@@ -183,7 +183,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         },
         #[allow(clippy::match_same_arms)]
         0b111_0011 => match (bf.func3(), bf.func12()) {
-            (0x0, 0x0) => (Op::ECALL, Data::default()),
+            (0x0, 0x0) => (Op::ECALL, Args::default()),
             // For RISC-V this would be MRET,
             // but so far we implemented it as a no-op.
             #[tarpaulin::skip]
@@ -232,7 +232,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         #[tarpaulin::skip]
         _ => Default::default(),
     };
-    Instruction { op, data }
+    Instruction { op, args }
 }
 
 #[cfg(test)]
@@ -243,7 +243,7 @@ mod test {
     use test_case::test_case;
 
     use super::{decode_instruction, extract_immediate};
-    use crate::instruction::{Data, Instruction, Op, NOOP};
+    use crate::instruction::{Args, Instruction, Op, NOOP};
     proptest! {
         /// This just tests that we don't panic during decoding.
         #[test]
@@ -265,7 +265,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::ADD,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -284,7 +284,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::ADD,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 imm,
@@ -299,7 +299,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::SLL,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -315,7 +315,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::SLL,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 imm: shamt.into(),
@@ -330,7 +330,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::SRL,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -345,7 +345,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::SRA,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -360,7 +360,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::SLT,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -375,7 +375,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::SRA,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 imm,
@@ -390,7 +390,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::SRL,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 imm,
@@ -405,7 +405,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::SLT,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 imm,
@@ -420,7 +420,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::SLTU,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 imm,
@@ -435,7 +435,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::SLTU,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -452,7 +452,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::SUB,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -469,7 +469,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::JAL,
-            data: Data {
+            args: Args {
                 rd,
                 imm,
                 ..Default::default()
@@ -485,7 +485,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::JALR,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 imm,
@@ -502,7 +502,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::BNE,
-            data: Data {
+            args: Args {
                 rs1,
                 rs2,
                 imm,
@@ -519,7 +519,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::BEQ,
-            data: Data {
+            args: Args {
                 rs1,
                 rs2,
                 imm,
@@ -536,7 +536,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::BLT,
-            data: Data {
+            args: Args {
                 rs1,
                 rs2,
                 imm,
@@ -553,7 +553,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::BLTU,
-            data: Data {
+            args: Args {
                 rs1,
                 rs2,
                 imm,
@@ -570,7 +570,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::BGE,
-            data: Data {
+            args: Args {
                 rs1,
                 rs2,
                 imm,
@@ -587,7 +587,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::BGEU,
-            data: Data {
+            args: Args {
                 rs1,
                 rs2,
                 imm,
@@ -602,7 +602,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::AND,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -618,7 +618,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::AND,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 imm,
@@ -634,7 +634,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::XOR,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 imm,
@@ -649,7 +649,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::OR,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -665,7 +665,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::OR,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 imm,
@@ -682,7 +682,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::SB,
-            data: Data {
+            args: Args {
                 rs1,
                 rs2,
                 imm,
@@ -699,7 +699,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::SH,
-            data: Data {
+            args: Args {
                 rs1,
                 rs2,
                 imm,
@@ -716,7 +716,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::SW,
-            data: Data {
+            args: Args {
                 rs1,
                 rs2,
                 imm,
@@ -731,7 +731,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::MUL,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -746,7 +746,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::MULH,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -761,7 +761,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::MULHSU,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -776,7 +776,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::MULHU,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -793,7 +793,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::LW,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 imm,
@@ -810,7 +810,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::LH,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 imm,
@@ -827,7 +827,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::LHU,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 imm,
@@ -844,7 +844,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::LB,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 imm,
@@ -861,7 +861,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::LBU,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 imm,
@@ -878,7 +878,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::ADD,
-            data: Data {
+            args: Args {
                 rd,
                 imm,
                 ..Default::default()
@@ -894,7 +894,7 @@ mod test {
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::ADD,
-            data: Data {
+            args: Args {
                 rd,
                 imm,
                 ..Default::default()
@@ -908,7 +908,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::DIV,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -923,7 +923,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::DIVU,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -938,7 +938,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::REM,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -953,7 +953,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::REMU,
-            data: Data {
+            args: Args {
                 rd,
                 rs1,
                 rs2,
@@ -968,7 +968,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
             op: Op::ECALL,
-            data: Data::default(),
+            args: Args::default(),
         };
         assert_eq!(ins, match_ins);
     }
