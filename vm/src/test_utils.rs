@@ -28,7 +28,7 @@ pub fn simple_test_code(
                             // set sys-call EXIT in x17(or a7)
                             Instruction {
                                 op: Op::ADD,
-                                data: Args {
+                                args: Args {
                                     rs1: 0,
                                     rs2: 0,
                                     rd: 17,
@@ -38,7 +38,7 @@ pub fn simple_test_code(
                             // add ECALL to halt the program
                             Instruction {
                                 op: Op::ECALL,
-                                data: Args {
+                                args: Args {
                                     rs1: 0,
                                     rs2: 0,
                                     rd: 0,

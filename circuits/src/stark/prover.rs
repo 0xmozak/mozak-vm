@@ -96,7 +96,7 @@ mod test {
         let record = simple_test_code(
             &[Instruction {
                 op: Op::ADD,
-                data: Args {
+                args: Args {
                     rd: 1,
                     imm: 0xDEAD_BEEF,
                     ..Args::default()
@@ -114,7 +114,7 @@ mod test {
         let record = simple_test_code(
             &[Instruction {
                 op: Op::BEQ,
-                data: Args {
+                args: Args {
                     rs1: 0,
                     rs2: 1,
                     imm: 42,
@@ -135,7 +135,7 @@ mod test {
                 let record = simple_test_code(
                     &[Instruction {
                         op: Op::ADD,
-                        data: Args {
+                        args: Args {
                             rd: 5,
                             rs1: 6,
                             rs2: 7,
