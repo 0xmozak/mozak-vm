@@ -104,7 +104,7 @@ impl Program {
         let h = elf.elf_header();
         ensure!(
             h.endianness() == ElfEndian::LittleEndian,
-            "Not little-endian ELF"
+            "Invalid endianness, must be little-endian"
         );
         ensure!(h.class() == ElfClass::Elf32, "Not a 32-bit ELF");
         ensure!(
