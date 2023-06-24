@@ -124,13 +124,13 @@ impl Program {
         let extract = |required_flags| {
             segments
                 .iter()
-                .filter(|h: &ProgramHeader| h.p_type == elf::abi::PT_LOAD)
-                .filter(|h| h.p_flags & required_flags == required_flags)
-                .map(|header| -> Result<_> {
-                    let file_size: usize = header.p_filesz.try_into()?;
-                    let mem_size: usize = header.p_memsz.try_into()?;
-                    let vaddr: u32 = header.p_vaddr.try_into()?;
-                    let offset = header.p_offset.try_into()?;
+                .filter(|s: &ProgramHeader| s.p_type == elf::abi::PT_LOAD)
+                .filter(|s| s.p_flags & required_flags == required_flags)
+                .map(|segment| -> Result<_> {
+                    let file_size: usize = segment.p_filesz.try_into()?;
+                    let mem_size: usize = segment.p_memsz.try_into()?;
+                    let vaddr: u32 = segment.p_vaddr.try_into()?;
+                    let offset = segment.p_offset.try_into()?;
                     Ok((vaddr..).zip(
                         input[offset..offset + std::cmp::min(file_size, mem_size)]
                             .iter()
