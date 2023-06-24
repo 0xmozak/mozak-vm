@@ -1,6 +1,6 @@
 use im::hashmap::HashMap;
 
-use crate::elf::{Code, Memory, Program};
+use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
@@ -54,10 +54,10 @@ pub fn simple_test_code(
     );
 
     let image: HashMap<u32, u32> = mem.iter().copied().collect();
-    let image = Memory::from(image);
+    let image = Data::from(image);
     let state0 = State::from(Program {
         entry: 0,
-        image,
+        data: image,
         code,
     });
 
