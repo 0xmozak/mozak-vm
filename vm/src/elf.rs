@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, ensure, Result};
 use derive_more::Deref;
 use elf::segment::ProgramHeader;
 use elf::{endian::LittleEndian, file::Class, ElfBytes};
@@ -101,25 +101,21 @@ impl Program {
     #[tarpaulin::skip]
     pub fn load_elf(input: &[u8]) -> Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
-        if elf.ehdr.class != Class::ELF32 {
-            bail!("Not a 32-bit ELF");
-        }
-        if elf.ehdr.e_machine != elf::abi::EM_RISCV {
-            bail!("Invalid machine type, must be RISC-V");
-        }
-        if elf.ehdr.e_type != elf::abi::ET_EXEC {
-            bail!("Invalid ELF type, must be executable");
-        }
+        ensure!(elf.ehdr.class == Class::ELF32, "Not a 32-bit ELF");
+        ensure!(
+            elf.ehdr.e_machine == elf::abi::EM_RISCV,
+            "Invalid machine type, must be RISC-V"
+        );
+        ensure!(
+            elf.ehdr.e_type == elf::abi::ET_EXEC,
+            "Invalid ELF type, must be executable"
+        );
         let entry: u32 = elf.ehdr.e_entry.try_into()?;
-        if entry % 4 != 0 {
-            bail!("Invalid entrypoint");
-        }
+        ensure!(entry % 4 == 0, "Misaligned entrypoint");
         let segments = elf
             .segments()
             .ok_or_else(|| anyhow!("Missing segment table"))?;
-        if segments.len() > 256 {
-            bail!("Too many program headers");
-        }
+        ensure!(segments.len() <= 256, "Too many program headers");
 
         let extract = |required_flags| {
             segments
