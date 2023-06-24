@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use anyhow::{anyhow, ensure, Result};
+use anyhow::{anyhow, ensure, Error, Result};
 use derive_more::Deref;
 use elf_rs::{ElfClass, ElfEndian, ElfFile, ElfMachine, ElfType, ProgramHeaderFlags, ProgramType};
 use im::hashmap::HashMap;
@@ -117,7 +117,7 @@ impl Program {
         );
         let entry = h.entry_point().try_into()?;
         ensure!(entry % 4 != 0, "Misaligned entrypoint");
-        let extract = |flags: ProgramHeaderFlags| {
+        let extract = |flags| {
             elf.program_header_iter()
                 .filter(|h| h.ph_type() == ProgramType::LOAD)
                 .filter(|h| h.flags().contains(flags))
@@ -127,9 +127,8 @@ impl Program {
                     Ok((v..).zip(content.iter().copied()))
                 })
                 .flatten_ok()
-                .try_collect()
+                .try_collect::<(u32, u8), im::HashMap<u32, u8>, Error>()
         };
-        let _data: Result<HashMap<u32, u8>> = extract(ProgramHeaderFlags::empty());
         let data = Data(extract(ProgramHeaderFlags::empty())?);
         let code = Code::from(&extract(ProgramHeaderFlags::EXECUTE)?);
         Ok(Program { entry, data, code })
