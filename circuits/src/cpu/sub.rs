@@ -1,9 +1,7 @@
 use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::{
-    COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_SUB, NUM_CPU_COLS,
-};
+use super::columns::{COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_SUB, NUM_CPU_COLS};
 use super::utils::pc_ticks_up;
 use crate::utils::column_of_xs;
 
@@ -26,10 +24,10 @@ pub(crate) fn constraints<P: PackedField>(
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
-
-    use crate::test_utils::simple_proof_test;
     use proptest::prelude::any;
     use proptest::proptest;
+
+    use crate::test_utils::simple_proof_test;
     proptest! {
         #[test]
         fn prove_sub_proptest(a in any::<u32>(), b in any::<u32>()) {
