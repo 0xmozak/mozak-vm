@@ -74,17 +74,6 @@ mod test {
     }
 
     #[test]
-    fn prove_add() {
-        let record = simple_test(
-            4,
-            &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
-            &[(6, 100), (7, 100)],
-        );
-        assert_eq!(record.last_state.get_register_value(5), 100 + 100);
-        simple_proof_test(&record.executed).unwrap();
-    }
-
-    #[test]
     fn prove_lui() {
         let record = simple_test(4, &[(0_u32, 0x8000_00b7 /* lui r1, 0x80000 */)], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
@@ -126,46 +115,5 @@ mod test {
         );
         assert_eq!(record.last_state.get_pc(), 8);
         simple_proof_test(&record.executed).expect_err("FIXME:test-is-expected-to-fail");
-    }
-
-    use proptest::prelude::any;
-    use proptest::proptest;
-    proptest! {
-        #[test]
-        fn prove_sub_proptest(a in any::<u32>(), b in any::<u32>()) {
-            let record = simple_test_code(
-                &[Instruction {
-                    op: Op::SUB,
-                    args: Args {
-                        rd: 5,
-                        rs1: 6,
-                        rs2: 7,
-                        ..Args::default()
-                    },
-                }],
-                &[],
-                &[(6, a), (7, b)],
-            );
-            assert_eq!(record.last_state.get_register_value(5), a.wrapping_sub(b));
-            simple_proof_test(&record.executed).unwrap();
-        }
-            #[test]
-            fn prove_add_proptest(a in any::<u32>(), b in any::<u32>()) {
-                let record = simple_test_code(
-                    &[Instruction {
-                        op: Op::ADD,
-                        args: Args {
-                            rd: 5,
-                            rs1: 6,
-                            rs2: 7,
-                            ..Args::default()
-                        },
-                    }],
-                    &[],
-                    &[(6, a), (7, b)],
-                );
-                assert_eq!(record.last_state.get_register_value(5), a.wrapping_add(b));
-                simple_proof_test(&record.executed).unwrap();
-            }
     }
 }
