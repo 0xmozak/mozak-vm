@@ -14,7 +14,8 @@ pub(crate) const COL_REGS: Range<usize> = COL_START_REG..COL_START_REG + 32;
 
 pub(crate) const COL_S_ADD: usize = COL_REGS.end;
 pub(crate) const COL_S_SUB: usize = COL_S_ADD + 1;
-pub(crate) const COL_S_BEQ: usize = COL_S_SUB + 1;
+pub(crate) const COL_S_JALR: usize = COL_S_SUB + 1;
+pub(crate) const COL_S_BEQ: usize = COL_S_JALR + 1;
 pub(crate) const COL_S_ECALL: usize = COL_S_BEQ + 1;
 pub(crate) const COL_S_HALT: usize = COL_S_ECALL + 1;
 
