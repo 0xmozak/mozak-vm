@@ -2,6 +2,15 @@ use std::borrow::Borrow;
 
 use itertools::Itertools;
 use plonky2::field::{polynomial::PolynomialValues, types::Field};
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum LookupError {
+    #[error("Non-binary filter at row {0}")]
+    NonBinaryFilter(usize),
+    #[error("Inconsistency found between looking and looked tables")]
+    InconsistentTableRows,
+}
 
 /// Represent a linear combination of columns.
 #[derive(Clone, Debug)]
@@ -11,6 +20,7 @@ pub struct Column<F: Field> {
 }
 
 impl<F: Field> Column<F> {
+    #[must_use]
     pub fn single(c: usize) -> Self {
         Self {
             linear_combination: vec![(c, F::ONE)],
@@ -61,12 +71,14 @@ pub struct RangeCheckTable<F: Field>(Table<F>);
 pub struct CpuTable<F: Field>(Table<F>);
 
 impl<F: Field> RangeCheckTable<F> {
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Option<Column<F>>) -> Table<F> {
         Table::new(TableKind::RangeCheck, columns, filter_column)
     }
 }
 
 impl<F: Field> CpuTable<F> {
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Option<Column<F>>) -> Table<F> {
         Table::new(TableKind::Cpu, columns, filter_column)
     }
@@ -74,11 +86,15 @@ impl<F: Field> CpuTable<F> {
 
 #[derive(Clone)]
 pub struct CrossTableLookup<F: Field> {
-    pub(crate) looking_tables: Vec<Table<F>>,
-    pub(crate) looked_table: Table<F>,
+    looking_tables: Vec<Table<F>>,
+    looked_table: Table<F>,
 }
 
 impl<F: Field> CrossTableLookup<F> {
+    /// Instantiates a new cross table lookup between 2 tables.
+    ///  
+    /// # Panics
+    /// Panics if the two tables do not have equal number of columns.
     pub fn new(looking_tables: Vec<Table<F>>, looked_table: Table<F>) -> Self {
         assert!(looking_tables
             .iter()
@@ -103,60 +119,86 @@ pub trait Lookups<F: Field> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, u8};
+    use std::{collections::HashMap, ops::Deref};
 
+    use anyhow::Result;
     use plonky2::field::{goldilocks_field::GoldilocksField, polynomial::PolynomialValues};
 
     use super::*;
 
-    type MultiSet<F> = HashMap<Vec<F>, Vec<(TableKind, usize)>>;
+    struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, usize)>>);
 
-    struct FooBarTable<F: Field>(CrossTableLookup<F>);
+    impl<F: Field> Deref for MultiSet<F> {
+        type Target = HashMap<Vec<F>, Vec<(TableKind, usize)>>;
 
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    impl<F: Field> MultiSet<F> {
+        pub fn new() -> Self {
+            MultiSet(HashMap::new())
+        }
+
+        fn process_row(
+            &mut self,
+            trace_poly_values: &[Vec<PolynomialValues<F>>],
+            table: &Table<F>,
+        ) -> Result<(), LookupError> {
+            let trace = &trace_poly_values[table.kind as usize];
+            for i in 0..trace[0].len() {
+                let filter = if let Some(column) = &table.filter_column {
+                    column.eval_table(trace, i)
+                } else {
+                    F::ONE
+                };
+                if filter.is_one() {
+                    let row = table
+                        .columns
+                        .iter()
+                        .map(|c| c.eval_table(trace, i))
+                        .collect::<Vec<_>>();
+                    self.0.entry(row).or_default().push((table.kind, i));
+                } else if !filter.is_zero() {
+                    return Err(LookupError::NonBinaryFilter(i));
+                }
+            }
+
+            Ok(())
+        }
+    }
+
+    /// Specify which column(s) to find data related to lookups.
     fn lookup_data<F: Field>(col_indices: &[usize]) -> Vec<Column<F>> {
         Column::singles(col_indices).collect_vec()
     }
 
+    /// Specify the column index of the filter column used in lookups.
     fn lookup_filter<F: Field>(col_idx: usize) -> Column<F> {
         Column::single(col_idx)
     }
 
+    /// A generic cross lookup table.
+    struct FooBarTable<F: Field>(CrossTableLookup<F>);
+
     impl<F: Field> Lookups<F> for FooBarTable<F> {
+        /// We use the [`CpuTable`] and the [`RangeCheckTable`] to build a
+        /// [`CrossTableLookup`] here, but in principle this is meant to
+        /// be used generically for tests.
         fn lookups() -> CrossTableLookup<F> {
             CrossTableLookup {
-                looking_tables: vec![CpuTable::new(lookup_data(&[1]), Some(lookup_filter(0)))],
+                looking_tables: vec![CpuTable::new(lookup_data(&[1]), Some(lookup_filter(2)))],
                 looked_table: RangeCheckTable::new(lookup_data(&[1]), Some(lookup_filter(0))),
             }
         }
     }
 
-    // impl<F: Field> Column<F> {
-    //     fn rand(num_vals: usize) -> Self {
-    //         Self {
-    //             linear_combination: (),
-    //             constant: (),
-    //         }
-    //     }
-    // }
-
-    // impl<F: Field> Table<F> {
-    //     /// Fill a table with random values.
-    //     fn dummy(kind: TableKind, num_cols: usize, filter_column:
-    // Option<Column<F>>) -> Self {         let columns = vec![Column];
-    //         Self {
-    //             columns: columns,
-    //             kind,
-    //             filter_column,
-    //         }
-    //     }
-    // }
-
-    // Check that the provided trace and cross-table lookup are consistent.
+    /// Check that the provided trace and cross-table lookup are consistent.
     fn check_ctl<F: Field>(
         trace_poly_values: &[Vec<PolynomialValues<F>>],
         ctl: &CrossTableLookup<F>,
-        ctl_index: usize,
-    ) {
+    ) -> Result<(), LookupError> {
         // Maps `m` with `(table.kind, i) in m[row]` iff the `i`-th row of the table
         // is equal to `row` and the filter is 1.
         //
@@ -165,88 +207,52 @@ mod tests {
         let mut looked_multiset = MultiSet::<F>::new();
 
         for looking_table in &ctl.looking_tables {
-            let trace = &trace_poly_values[looking_table.kind as usize];
-            for i in 0..trace[0].len() {
-                let filter = if let Some(column) = &looking_table.filter_column {
-                    column.eval_table(trace, i)
-                } else {
-                    F::ONE
-                };
-                if filter.is_one() {
-                    let row = looking_table
-                        .columns
-                        .iter()
-                        .map(|c| c.eval_table(trace, i))
-                        .collect::<Vec<_>>();
-                    looking_multiset
-                        .entry(row)
-                        .or_default()
-                        .push((looking_table.kind, i));
-                } else {
-                    assert_eq!(filter, F::ZERO, "Non-binary filter?")
-                }
-            }
+            looking_multiset.process_row(trace_poly_values, looking_table)?;
         }
 
-        let trace = &trace_poly_values[ctl.looked_table.kind as usize];
-        for i in 0..trace[0].len() {
-            let filter = if let Some(column) = &ctl.looked_table.filter_column {
-                column.eval_table(trace, i)
-            } else {
-                F::ONE
-            };
-            if filter.is_one() {
-                let row = ctl
-                    .looked_table
-                    .columns
-                    .iter()
-                    .map(|c| c.eval_table(trace, i))
-                    .collect::<Vec<_>>();
-                looked_multiset
-                    .entry(row)
-                    .or_default()
-                    .push((ctl.looked_table.kind, i));
-            } else {
-                assert_eq!(filter, F::ZERO, "Non-binary filter?")
-            }
-        }
-
+        looked_multiset.process_row(trace_poly_values, &ctl.looked_table)?;
         let empty = &vec![];
+
         // Check that every row in the looking tables appears in the looked table the
         // same number of times.
-        for (row, looking_locations) in &looking_multiset {
+        for (row, looking_locations) in &looking_multiset.0 {
             let looked_locations = looked_multiset.get(row).unwrap_or(empty);
-            assert_eq!(looking_locations.len(), looked_locations.len(),
-               "CTL #{ctl_index}:\n\
-                 Row {row:?} is present {l0} times in the looking tables, but {l1} times in the looked table.\n\
-                 Looking locations (Table, Row index): {looking_locations:?}.\n\
-                 Looked locations (Table, Row index): {looked_locations:?}.",
-                l0 = looking_locations.len(),
-                l1 = looked_locations.len())
+            if looking_locations.len() != looked_locations.len() {
+                println!(
+                    "Row {row:?} is present {l0} times in the looking tables, but
+                    {l1} times in the looked table.\n\
+                    Looking locations: {looking_locations:?}.\n\
+                    Looked locations: {looked_locations:?}.",
+                    l0 = looking_locations.len(),
+                    l1 = looked_locations.len()
+                );
+                return Err(LookupError::InconsistentTableRows);
+            }
         }
+
         // Check that every row in the looked tables appears in the looking table the
         // same number of times.
-        for (row, looked_locations) in &looked_multiset {
+        for (row, looked_locations) in &looked_multiset.0 {
             let looking_locations = looking_multiset.get(row).unwrap_or(empty);
-            assert_eq!(looking_locations.len(), looked_locations.len(),
-               "CTL #{ctl_index}:\n\
-                 Row {row:?} is present {l0} times in the looking tables, but {l1} times in the looked table.\n\
-                 Looking locations (Table, Row index): {looking_locations:?}.\n\
-                 Looked locations (Table, Row index): {looked_locations:?}.",
-                l0 = looking_locations.len(),
-                l1 = looked_locations.len())
+            if looking_locations.len() != looked_locations.len() {
+                println!(
+                    "Row {row:?} is present {l0} times in the looking tables, but
+                    {l1} times in the looked table.\n\
+                    Looking locations: {looking_locations:?}.\n\
+                    Looked locations: {looked_locations:?}.",
+                    l0 = looking_locations.len(),
+                    l1 = looked_locations.len()
+                );
+                return Err(LookupError::InconsistentTableRows);
+            }
         }
+
+        Ok(())
     }
 
     #[derive(Debug, PartialEq)]
     pub struct Trace<F: Field> {
         trace: Vec<PolynomialValues<F>>,
-    }
-
-    impl<F: Field> Trace<F> {
-        pub fn builder() -> TraceBuilder<F> {
-            TraceBuilder::default()
-        }
     }
 
     #[derive(Default)]
@@ -255,6 +261,7 @@ mod tests {
     }
 
     impl<F: Field> TraceBuilder<F> {
+        /// Creates a new trace with the given `num_cols` and `num_rows`.
         pub fn new(num_cols: usize, num_rows: usize) -> TraceBuilder<F> {
             let mut trace = vec![];
             for _ in 0..num_cols {
@@ -268,27 +275,32 @@ mod tests {
             TraceBuilder { trace }
         }
 
-        pub fn num_rows(mut self, num_rows: usize) -> TraceBuilder<F> {
-            for i in 0..self.trace.len() {
-                let mut row = vec![];
-                for _ in 0..num_rows {
-                    row.push(F::rand())
-                }
-                self.trace.push(PolynomialValues::from(row));
-            }
-            self
-        }
-
+        /// Set all polynomial values at a given column index `col_idx` to
+        /// zeroes.
+        #[allow(unused)]
         pub fn zero(mut self, idx: usize) -> TraceBuilder<F> {
             self.trace[idx] = PolynomialValues::zero(self.trace[idx].len());
 
             self
         }
 
-        pub fn one(mut self, idx: usize) -> TraceBuilder<F> {
-            let len = self.trace[idx].len();
+        /// Set all polynomial values at a given column index `col_idx` to
+        /// `F::ONE`.
+        pub fn one(mut self, col_idx: usize) -> TraceBuilder<F> {
+            let len = self.trace[col_idx].len();
             let ones = PolynomialValues::constant(F::ONE, len);
-            self.trace[idx] = ones;
+            self.trace[col_idx] = ones;
+
+            self
+        }
+
+        /// Set all polynomial values at a given column index `col_idx` to
+        /// `value`. This is convenient for testing cross table lookups.
+        pub fn set_values(mut self, col_idx: usize, value: usize) -> TraceBuilder<F> {
+            let len = self.trace[col_idx].len();
+            let new_v: Vec<F> = (0..len).map(|_| F::from_canonical_usize(value)).collect();
+            let values = PolynomialValues::from(new_v);
+            self.trace[col_idx] = values;
 
             self
         }
@@ -297,15 +309,65 @@ mod tests {
             self.trace
         }
     }
+    /// A generic cross lookup table.
+    struct NonBinaryFilterTable<F: Field>(CrossTableLookup<F>);
+
+    impl<F: Field> Lookups<F> for NonBinaryFilterTable<F> {
+        /// We use the [`CpuTable`] and the [`RangeCheckTable`] to build a
+        /// [`CrossTableLookup`] here, but in principle this is meant to
+        /// be used generically for tests.
+        fn lookups() -> CrossTableLookup<F> {
+            CrossTableLookup {
+                looking_tables: vec![CpuTable::new(lookup_data(&[0]), Some(lookup_filter(0)))],
+                looked_table: RangeCheckTable::new(lookup_data(&[1]), Some(lookup_filter(0))),
+            }
+        }
+    }
 
     #[test]
-    fn test_ctl() {
+    fn test_ctl_non_binary_filters() {
+        type F = GoldilocksField;
+        let dummy_cross_table_lookup: CrossTableLookup<F> = NonBinaryFilterTable::lookups();
+
+        let foo_trace: Vec<PolynomialValues<F>> =
+            TraceBuilder::new(3, 4).one(2).set_values(1, 4).build();
+        let bar_trace: Vec<PolynomialValues<F>> =
+            TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
+        let traces = vec![foo_trace, bar_trace];
+        assert!(matches!(
+            check_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
+            LookupError::NonBinaryFilter(0)
+        ));
+    }
+
+    #[test]
+    fn test_ctl_inconsistent_tables() {
         type F = GoldilocksField;
         let dummy_cross_table_lookup: CrossTableLookup<F> = FooBarTable::lookups();
 
-        let foo_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4).one(0).build();
-        let bar_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4).one(0).build();
+        let foo_trace: Vec<PolynomialValues<F>> =
+            TraceBuilder::new(3, 4).one(2).set_values(1, 4).build();
+        let bar_trace: Vec<PolynomialValues<F>> =
+            TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
         let traces = vec![foo_trace, bar_trace];
-        check_ctl(&traces, &dummy_cross_table_lookup, 0);
+        assert!(matches!(
+            check_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
+            LookupError::InconsistentTableRows
+        ));
+    }
+
+    #[test]
+    fn test_ctl() -> Result<()> {
+        type F = GoldilocksField;
+        let dummy_cross_table_lookup: CrossTableLookup<F> = FooBarTable::lookups();
+
+        let foo_trace: Vec<PolynomialValues<F>> =
+            TraceBuilder::new(3, 4).one(2).set_values(1, 5).build();
+        let bar_trace: Vec<PolynomialValues<F>> =
+            TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
+        let traces = vec![foo_trace, bar_trace];
+        check_ctl(&traces, &dummy_cross_table_lookup)?;
+
+        Ok(())
     }
 }
