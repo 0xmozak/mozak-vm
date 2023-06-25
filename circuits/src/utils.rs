@@ -10,11 +10,9 @@ where
     Field::from_noncanonical_u128(u128::from(x))
 }
 
-pub fn column_of_xs<X, P: PackedField>(x: X) -> P
-where
-    u128: From<X>,
+pub fn column_of_xs<P: PackedField>(x: u64) -> P
 {
-    from_::<X, P::Scalar>(x) * P::ONES
+    from_::<u64, P::Scalar>(x) * P::ONES
 }
 
 /// Pad the trace to a power of 2.
