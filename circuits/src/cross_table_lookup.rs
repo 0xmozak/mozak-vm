@@ -67,7 +67,10 @@ impl<F: Field> Table<F> {
     }
 }
 
+/// Represents a range check table in the Mozak VM.
 pub struct RangeCheckTable<F: Field>(Table<F>);
+
+/// Represents a cpu table in the Mozak VM.
 pub struct CpuTable<F: Field>(Table<F>);
 
 impl<F: Field> RangeCheckTable<F> {
@@ -324,13 +327,16 @@ mod tests {
         }
     }
 
+    /// Create a table with a filter column that's non-binary, which should
+    /// cause our manual checks to fail.
     #[test]
     fn test_ctl_non_binary_filters() {
         type F = GoldilocksField;
+
         let dummy_cross_table_lookup: CrossTableLookup<F> = NonBinaryFilterTable::lookups();
 
         let foo_trace: Vec<PolynomialValues<F>> =
-            TraceBuilder::new(3, 4).one(2).set_values(1, 4).build();
+            TraceBuilder::new(3, 4).one(2).set_values(1, 5).build();
         let bar_trace: Vec<PolynomialValues<F>> =
             TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
         let traces = vec![foo_trace, bar_trace];
@@ -340,6 +346,12 @@ mod tests {
         ));
     }
 
+    /// Create a trace with inconsistent values, which should
+    /// cause our manual checks to fail.
+    /// Here, `foo_trace` has all values in column 1 set to 4,
+    /// while `bar_trace` has all values in column 1 set to 5.
+    /// Since [`FooBarTable`] has defined column 1 to contain lookup data,
+    /// our manual checks will fail this test.
     #[test]
     fn test_ctl_inconsistent_tables() {
         type F = GoldilocksField;
@@ -356,6 +368,7 @@ mod tests {
         ));
     }
 
+    /// Happy path test where all checks go as plan.
     #[test]
     fn test_ctl() -> Result<()> {
         type F = GoldilocksField;
