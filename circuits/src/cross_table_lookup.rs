@@ -1,6 +1,5 @@
 use std::borrow::Borrow;
 
-use itertools::Itertools;
 use plonky2::field::{polynomial::PolynomialValues, types::Field};
 use thiserror::Error;
 
@@ -53,6 +52,7 @@ pub enum TableKind {
 }
 
 #[derive(Clone, Debug)]
+#[allow(unused)]
 pub struct Table<F: Field> {
     kind: TableKind,
     columns: Vec<Column<F>>,
@@ -89,6 +89,7 @@ impl<F: Field> CpuTable<F> {
     }
 }
 
+#[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct CrossTableLookup<F: Field> {
     looking_tables: Vec<Table<F>>,
@@ -137,6 +138,7 @@ mod tests {
     use std::{collections::HashMap, ops::Deref};
 
     use anyhow::Result;
+    use itertools::Itertools;
     use plonky2::field::{goldilocks_field::GoldilocksField, polynomial::PolynomialValues};
 
     use super::*;
