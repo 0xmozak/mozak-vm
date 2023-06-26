@@ -43,12 +43,12 @@ mod test {
     use proptest::proptest;
     proptest! {
             #[test]
-            fn prove_add_proptest(a in any::<u32>(), b in any::<u32>()) {
+            fn prove_add_proptest(a in any::<u32>(), b in any::<u32>(), rd in 0_u8..32) {
                 let record = simple_test_code(
                     &[Instruction {
                         op: Op::ADD,
                         args: Args {
-                            rd: 5,
+                            rd,
                             rs1: 6,
                             rs2: 7,
                             ..Args::default()
@@ -57,7 +57,9 @@ mod test {
                     &[],
                     &[(6, a), (7, b)],
                 );
-                assert_eq!(record.last_state.get_register_value(5), a.wrapping_add(b));
+                if rd != 0 {
+                    assert_eq!(record.executed[1].state.get_register_value(rd), a.wrapping_add(b));
+                }
                 simple_proof_test(&record.executed).unwrap();
             }
     }
