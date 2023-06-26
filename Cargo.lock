@@ -354,6 +354,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "keccak-hash"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -413,7 +422,7 @@ name = "mozak-circuits"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "itertools",
+ "itertools 0.11.0",
  "log",
  "mozak-vm",
  "plonky2",
@@ -432,7 +441,7 @@ dependencies = [
  "elf",
  "env_logger",
  "im",
- "itertools",
+ "itertools 0.11.0",
  "log",
  "proptest",
  "test-case",
@@ -542,7 +551,7 @@ dependencies = [
  "ahash",
  "anyhow",
  "hashbrown",
- "itertools",
+ "itertools 0.10.5",
  "keccak-hash",
  "log",
  "num",
@@ -563,7 +572,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ef0b0cfed734e8aec93ee0b49e3067a27111c355b9263fb1418bfe4c80656d12"
 dependencies = [
  "anyhow",
- "itertools",
+ "itertools 0.10.5",
  "num",
  "plonky2_util",
  "rand",
@@ -863,7 +872,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73e8e3cedd5a3dd61a00cc83150002e7609947b5a4a20244ef34fcbd1a17f649"
 dependencies = [
  "anyhow",
- "itertools",
+ "itertools 0.10.5",
  "log",
  "plonky2",
  "plonky2_maybe_rayon",
