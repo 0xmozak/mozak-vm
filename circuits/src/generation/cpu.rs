@@ -24,15 +24,18 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         trace[cpu_cols::COL_PC][i] = from_(s.get_pc());
 
         let inst = s.current_instruction();
+        let opd1_value = s.get_register_value(inst.args.rs1);
+        let opd2_value = s.get_register_value(inst.args.rs2);
+        let imm_value = inst.args.imm;
 
         trace[cpu_cols::COL_RS1][i] = from_(inst.args.rs1);
         trace[cpu_cols::COL_RS2][i] = from_(inst.args.rs2);
         trace[cpu_cols::COL_RD][i] = from_(inst.args.rd);
-        trace[cpu_cols::COL_OP1_VALUE][i] = from_(s.get_register_value(inst.args.rs1));
-        trace[cpu_cols::COL_OP2_VALUE][i] = from_(s.get_register_value(inst.args.rs2));
+        trace[cpu_cols::COL_OP1_VALUE][i] = from_(opd1_value);
+        trace[cpu_cols::COL_OP2_VALUE][i] = from_(opd2_value);
         // NOTE: Updated value of DST register is next step.
         trace[cpu_cols::COL_DST_VALUE][i] = from_(*dst_val);
-        trace[cpu_cols::COL_IMM_VALUE][i] = from_(inst.args.imm);
+        trace[cpu_cols::COL_IMM_VALUE][i] = from_(imm_value);
         trace[cpu_cols::COL_S_HALT][i] = from_(u32::from(*will_halt));
         for j in 0..32 {
             trace[cpu_cols::COL_START_REG + j as usize][i] = from_(s.get_register_value(j));
@@ -43,6 +46,16 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             Op::SUB => trace[cpu_cols::COL_S_SUB][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
+            Op::SLTU => {
+                trace[cpu_cols::COL_S_SLTU][i] = F::ONE;
+                let opd2_imm_val = opd2_value + imm_value;
+                let abs_diff = opd1_value.abs_diff(opd2_imm_val);
+                let check = opd1_value.overflowing_sub(opd2_imm_val.saturating_add(abs_diff));
+                // check will be 0 or negative number (may have overflow)
+                if check.1 || 0 != check.0 {
+                    trace[cpu_cols::COL_SLTU_CHECK][i] = F::ONE;
+                }
+            }
             #[tarpaulin::skip]
             _ => {}
         }

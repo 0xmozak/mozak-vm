@@ -8,12 +8,13 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
+use super::columns::COL_S_SLTU;
 use super::{
     add,
     columns::{
         COL_CLK, COL_RD, COL_REGS, COL_S_ADD, COL_S_ECALL, COL_S_HALT, COL_S_SUB, NUM_CPU_COLS,
     },
-    sub,
+    sltu, sub,
 };
 use crate::utils::from_;
 
@@ -31,7 +32,12 @@ fn opcode_one_hot<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let op_selectors = [lv[COL_S_ADD], lv[COL_S_ECALL], lv[COL_S_SUB]];
+    let op_selectors = [
+        lv[COL_S_ADD],
+        lv[COL_S_ECALL],
+        lv[COL_S_SUB],
+        lv[COL_S_SLTU],
+    ];
 
     // Op selectors have value 0 or 1.
     op_selectors
@@ -99,6 +105,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         // add constraint
         add::constraints(lv, nv, yield_constr);
         sub::constraints(lv, nv, yield_constr);
+        sltu::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT
         yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);
