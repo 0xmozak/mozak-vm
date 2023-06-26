@@ -4,6 +4,8 @@ use itertools::Itertools;
 use plonky2::field::{polynomial::PolynomialValues, types::Field};
 use thiserror::Error;
 
+use crate::{cpu, rangecheck};
+
 #[derive(Error, Debug)]
 pub enum LookupError {
     #[error("Non-binary filter at row {0}")]
@@ -87,7 +89,7 @@ impl<F: Field> CpuTable<F> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CrossTableLookup<F: Field> {
     looking_tables: Vec<Table<F>>,
     looked_table: Table<F>,
@@ -113,12 +115,22 @@ pub trait Lookups<F: Field> {
     fn lookups() -> CrossTableLookup<F>;
 }
 
-// pub struct RangecheckCpuTable<F: Field>(CrossTableLookup<F>);
-// impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
-//     fn lookups() -> CrossTableLookup<F> {
-//         CrossTableLookup::new(vec![], Table::new())
-//     }
-// }
+pub struct RangecheckCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_rangecheck(),
+                Some(cpu::columns::filter_for_rangecheck()),
+            )],
+            RangeCheckTable::new(
+                rangecheck::columns::data_for_cpu(),
+                Some(rangecheck::columns::filter_for_cpu()),
+            ),
+        )
+    }
+}
 
 #[cfg(test)]
 mod tests {
