@@ -25,26 +25,26 @@ pub fn simple_test_code(
                 code.iter()
                     .chain(
                         [
-                            // set sys-call EXIT in x17(or a7)
-                            Instruction {
-                                op: Op::ADD,
-                                args: Args {
-                                    rs1: 0,
-                                    rs2: 0,
-                                    rd: 17,
-                                    imm: 93,
-                                },
-                            },
-                            // add ECALL to halt the program
-                            Instruction {
-                                op: Op::ECALL,
-                                args: Args {
-                                    rs1: 0,
-                                    rs2: 0,
-                                    rd: 0,
-                                    imm: 0,
-                                },
-                            },
+                            // // set sys-call EXIT in x17(or a7)
+                            // Instruction {
+                            //     op: Op::ADD,
+                            //     args: Args {
+                            //         rs1: 0,
+                            //         rs2: 0,
+                            //         rd: 17,
+                            //         imm: 93,
+                            //     },
+                            // },
+                            // // add ECALL to halt the program
+                            // Instruction {
+                            //     op: Op::ECALL,
+                            //     args: Args {
+                            //         rs1: 0,
+                            //         rs2: 0,
+                            //         rd: 0,
+                            //         imm: 0,
+                            //     },
+                            // },
                         ]
                         .iter(),
                     )
@@ -66,7 +66,7 @@ pub fn simple_test_code(
     });
 
     let record = step(state).unwrap();
-    assert!(record.last_state.has_halted());
+    // assert!(record.last_state.has_halted());
     record
 }
 

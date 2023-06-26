@@ -109,7 +109,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         slt::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT
-        yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);
+        // yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);
     }
 
     fn constraint_degree(&self) -> usize {

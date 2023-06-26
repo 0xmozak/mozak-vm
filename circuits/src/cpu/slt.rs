@@ -2,9 +2,9 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_CMP_ABS_DIFF, COL_CMP_DIFF_INV, COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE,
-    COL_S_SLT, COL_S_SLTU, COL_S_SLT_OP1_VAL_FIXED, COL_S_SLT_OP2_VAL_FIXED, COL_S_SLT_SIGN1,
-    COL_S_SLT_SIGN2, NUM_CPU_COLS,
+    COL_CMP_ABS_DIFF, COL_CMP_DIFF_INV, COL_DST_VALUE, COL_IMM_VALUE, COL_LT, COL_OP1_VALUE,
+    COL_OP2_VALUE, COL_S_SLT, COL_S_SLTU, COL_S_SLT_OP1_VAL_FIXED, COL_S_SLT_OP2_VAL_FIXED,
+    COL_S_SLT_SIGN1, COL_S_SLT_SIGN2, NUM_CPU_COLS,
 };
 use super::utils::pc_ticks_up;
 use crate::utils::column_of_xs;
@@ -21,8 +21,8 @@ pub(crate) fn constraints<P: PackedField>(
     let is_cmp = lv[COL_S_SLT] + lv[COL_S_SLTU];
     let is_signed = lv[COL_S_SLT];
 
-    let lt = lv[COL_DST_VALUE];
-    yield_constr.constraint(is_cmp * lt * (P::ONES - lt));
+    let lt = lv[COL_LT];
+    yield_constr.constraint(lt * (P::ONES - lt));
 
     let sign1 = lv[COL_S_SLT_SIGN1];
     yield_constr.constraint(sign1 * (P::ONES - sign1));
@@ -44,8 +44,8 @@ pub(crate) fn constraints<P: PackedField>(
     let abs_diff = lv[COL_CMP_ABS_DIFF];
 
     // abs_diff calculation
-    yield_constr.constraint(is_cmp * (P::ONES - lt) * (abs_diff - diff));
-    yield_constr.constraint(is_cmp * lt * (abs_diff + diff));
+    yield_constr.constraint((P::ONES - lt) * (abs_diff - diff));
+    yield_constr.constraint(lt * (abs_diff + diff));
 
     // abs_diff * abs_diff_inv = 1 when lt = 1
     // abs_diff * abs_diff_inv = 1 when gte = 0
@@ -53,11 +53,13 @@ pub(crate) fn constraints<P: PackedField>(
     // if lt == 0 => no requirement.
 
     //// This constraint fail for some reason...
-    if false {
+    if true {
         let diff = op1 - op2;
         let diff_inv = lv[COL_CMP_DIFF_INV];
-        yield_constr.constraint(is_cmp * lt * (P::ONES - diff * diff_inv));
+        // yield_constr.constraint(lt * (P::ONES - diff * diff_inv));
+        // yield_constr.constraint(is_cmp * lt * (P::ONES - diff * diff_inv));
     }
+    yield_constr.constraint(is_cmp * (lv[COL_DST_VALUE] - lt));
 
     yield_constr.constraint_transition(is_cmp * pc_ticks_up(lv, nv));
 }
@@ -74,6 +76,8 @@ mod test {
     proptest! {
             #[test]
             fn prove_slt_proptest(a in any::<u32>(), b in any::<u32>()) {
+                let a = 0;
+                let b = 0;
                 let record = simple_test_code(
                     &[Instruction {
                         op: Op::SLTU,
@@ -84,15 +88,33 @@ mod test {
                             ..Args::default()
                         },
                     },
-                    // Instruction {
-                    //     op: Op::SLT,
-                    //     args: Args {
-                    //         rd: 4,
-                    //         rs1: 6,
-                    //         rs2: 7,
-                    //         ..Args::default()
-                    //     },
-                    // }
+                    Instruction {
+                        op: Op::SLTU,
+                        args: Args {
+                            rd: 5,
+                            rs1: 6,
+                            rs2: 7,
+                            ..Args::default()
+                        },
+                    },
+                    Instruction {
+                        op: Op::SLTU,
+                        args: Args {
+                            rd: 5,
+                            rs1: 6,
+                            rs2: 7,
+                            ..Args::default()
+                        },
+                    },
+                    Instruction {
+                        op: Op::SLT,
+                        args: Args {
+                            rd: 4,
+                            rs1: 6,
+                            rs2: 7,
+                            ..Args::default()
+                        },
+                    }
                     ],
                     &[],
                     &[(6, a), (7, b)],

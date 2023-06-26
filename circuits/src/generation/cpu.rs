@@ -88,7 +88,12 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
                 let one: F = diff * diff_inv;
                 assert_eq!(one, if op1 == op2 { F::ZERO } else { F::ONE });
             }
-        }
+            trace[cpu_cols::COL_LT][i] = from_(u32::from(if is_signed {
+                (op1 as i32) < (op2 as i32)
+            } else {
+                op1 < op2
+            }));
+        };
 
         match inst.op {
             Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,

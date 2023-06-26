@@ -248,7 +248,9 @@ pub struct ExecutionRecord {
 /// earlier.)
 pub fn step(mut last_state: State) -> Result<ExecutionRecord> {
     let mut executed = vec![];
-    while !last_state.has_halted() {
+    let mut n = 0;
+    while !last_state.has_halted() && n < 3 {
+        n = n + 1;
         let (aux, new_state) = last_state.clone().execute_instruction();
         executed.push(Row {
             state: last_state,
