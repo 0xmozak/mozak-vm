@@ -63,13 +63,13 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             {
                 if is_signed {
                     assert_eq!(
-                        op1 as i32 as i64 - op2 as i32 as i64,
-                        op1_fixed as i64 - op2_fixed as i64
+                        i64::from(op1 as i32) - i64::from(op2 as i32),
+                        i64::from(op1_fixed) - i64::from(op2_fixed)
                     );
                 } else {
                     assert_eq!(
-                        op1 as i64 - (op2 as i64),
-                        op1_fixed as i64 - (op2_fixed as i64),
+                        i64::from(op1) - i64::from(op2),
+                        i64::from(op1_fixed) - i64::from(op2_fixed),
                         "{op1} - {op2} != {op1_fixed} - {op2_fixed}"
                     );
                 }
