@@ -1,7 +1,6 @@
 use itertools::Itertools;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
-use plonky2::field::types::PrimeField64;
 
 // TODO(Matthias): We can convert via u64, once https://github.com/mir-protocol/plonky2/pull/1092 has landed.
 pub fn from_<X, F: Field>(x: X) -> F
@@ -39,11 +38,4 @@ pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>, clk_col: Option<usize>) -> Ve
         }
     });
     trace
-}
-
-pub fn inv<F: PrimeField64>(x: u64) -> u64 {
-    F::from_canonical_u64(x)
-        .try_inverse()
-        .unwrap_or_default()
-        .to_canonical_u64()
 }

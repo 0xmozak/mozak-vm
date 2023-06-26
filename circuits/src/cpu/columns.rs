@@ -25,6 +25,6 @@ pub(crate) const COL_S_SLT_SIGN2: usize = COL_S_SLT_SIGN1 + 1;
 pub(crate) const COL_S_SLT_OP1_VAL_FIXED: usize = COL_S_SLT_SIGN2 + 1;
 pub(crate) const COL_S_SLT_OP2_VAL_FIXED: usize = COL_S_SLT_OP1_VAL_FIXED + 1;
 pub(crate) const COL_CMP_ABS_DIFF: usize = COL_S_SLT_OP2_VAL_FIXED + 1;
-pub(crate) const COL_CMP_ABS_DIFF_INV: usize = COL_CMP_ABS_DIFF + 1;
+pub(crate) const COL_CMP_DIFF_INV: usize = COL_CMP_ABS_DIFF + 1;
 
-pub(crate) const NUM_CPU_COLS: usize = COL_CMP_ABS_DIFF_INV + 1;
+pub(crate) const NUM_CPU_COLS: usize = COL_CMP_DIFF_INV + 1;

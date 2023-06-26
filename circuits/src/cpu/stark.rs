@@ -11,7 +11,8 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 use super::{
     add,
     columns::{
-        COL_CLK, COL_RD, COL_REGS, COL_S_ADD, COL_S_ECALL, COL_S_HALT, COL_S_SUB, NUM_CPU_COLS,
+        COL_CLK, COL_RD, COL_REGS, COL_S_ADD, COL_S_ECALL, COL_S_HALT, COL_S_SLT, COL_S_SLTU,
+        COL_S_SUB, NUM_CPU_COLS,
     },
     slt, sub,
 };
@@ -31,7 +32,13 @@ fn opcode_one_hot<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let op_selectors = [lv[COL_S_ADD], lv[COL_S_ECALL], lv[COL_S_SUB]];
+    let op_selectors = [
+        lv[COL_S_ADD],
+        lv[COL_S_ECALL],
+        lv[COL_S_SUB],
+        lv[COL_S_SLT],
+        lv[COL_S_SLTU],
+    ];
 
     // Op selectors have value 0 or 1.
     op_selectors

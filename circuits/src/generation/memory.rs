@@ -111,7 +111,13 @@ mod test {
     use crate::memory::columns as mem_cols;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
-    use crate::utils::inv;
+
+    fn inv<F: RichField>(x: u64) -> u64 {
+        F::from_canonical_u64(x)
+            .try_inverse()
+            .unwrap_or_default()
+            .to_canonical_u64()
+    }
 
     /// Transposes a table
     ///
