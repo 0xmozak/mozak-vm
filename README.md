@@ -30,4 +30,4 @@ cd vm/tests/create_testdata/
 
 # Updating Rust toolchain
 
-To update the Rust toolchain, change both `rust-toolchain.toml` and `.github/workflows/ci.yml`.
+To update the Rust toolchain, change `rust-toolchain.toml`.

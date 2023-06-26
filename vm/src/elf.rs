@@ -2,8 +2,9 @@
 
 use std::collections::HashSet;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, ensure, Result};
 use derive_more::Deref;
+use elf::segment::ProgramHeader;
 use elf::{endian::LittleEndian, file::Class, ElfBytes};
 use im::hashmap::HashMap;
 use itertools::Itertools;
@@ -19,9 +20,8 @@ pub struct Program {
     pub entry: u32,
 
     /// The initial memory image
-    pub image: Memory,
-    // TODO(Matthias): only decode code sections of the elf,
-    // instead of trying to decode everything.
+    pub data: Data,
+    /// Executable code
     pub code: Code,
 }
 
@@ -29,7 +29,7 @@ pub struct Program {
 pub struct Code(pub HashMap<u32, Instruction>);
 
 #[derive(Clone, Debug, Default, Deref)]
-pub struct Memory(pub HashMap<u32, u8>);
+pub struct Data(pub HashMap<u32, u8>);
 
 impl Code {
     #[must_use]
@@ -59,14 +59,14 @@ impl From<HashMap<u32, u8>> for Program {
         Self {
             entry: 0_u32,
             code: Code::from(&image),
-            image: Memory(image),
+            data: Data(image),
         }
     }
 }
 
-impl From<HashMap<u32, u32>> for Memory {
+impl From<HashMap<u32, u32>> for Data {
     fn from(image: HashMap<u32, u32>) -> Self {
-        Memory(
+        Data(
             image
                 .iter()
                 .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes().into_iter()))
@@ -84,7 +84,7 @@ impl From<HashMap<u32, u32>> for Program {
         Self {
             entry: 0_u32,
             code: Code::from(&image),
-            image: Memory(image),
+            data: Data(image),
         }
     }
 }
@@ -101,46 +101,45 @@ impl Program {
     #[tarpaulin::skip]
     pub fn load_elf(input: &[u8]) -> Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
-        if elf.ehdr.class != Class::ELF32 {
-            bail!("Not a 32-bit ELF");
-        }
-        if elf.ehdr.e_machine != elf::abi::EM_RISCV {
-            bail!("Invalid machine type, must be RISC-V");
-        }
-        if elf.ehdr.e_type != elf::abi::ET_EXEC {
-            bail!("Invalid ELF type, must be executable");
-        }
+        ensure!(elf.ehdr.class == Class::ELF32, "Not a 32-bit ELF");
+        ensure!(
+            elf.ehdr.e_machine == elf::abi::EM_RISCV,
+            "Invalid machine type, must be RISC-V"
+        );
+        ensure!(
+            elf.ehdr.e_type == elf::abi::ET_EXEC,
+            "Invalid ELF type, must be executable"
+        );
         let entry: u32 = elf.ehdr.e_entry.try_into()?;
-        if entry % 4 != 0 {
-            bail!("Invalid entrypoint");
-        }
+        ensure!(entry % 4 == 0, "Misaligned entrypoint");
         let segments = elf
             .segments()
             .ok_or_else(|| anyhow!("Missing segment table"))?;
-        if segments.len() > 256 {
-            bail!("Too many program headers");
-        }
+        ensure!(segments.len() <= 256, "Too many program headers");
 
-        let image = segments
-            .iter()
-            .filter(|x| x.p_type == elf::abi::PT_LOAD)
-            .map(|segment| -> Result<_> {
-                let file_size: usize = segment.p_filesz.try_into()?;
-                let mem_size: usize = segment.p_memsz.try_into()?;
-                let vaddr: u32 = segment.p_vaddr.try_into()?;
-                let offset = segment.p_offset.try_into()?;
-                Ok((vaddr..).zip(
-                    input[offset..offset + std::cmp::min(file_size, mem_size)]
-                        .iter()
-                        .copied(),
-                ))
-            })
-            .flatten_ok()
-            .try_collect()?;
-        Ok(Program {
-            entry,
-            code: Code::from(&image),
-            image: Memory(image),
-        })
+        let extract = |required_flags| {
+            segments
+                .iter()
+                .filter(|s: &ProgramHeader| s.p_type == elf::abi::PT_LOAD)
+                .filter(|s| s.p_flags & required_flags == required_flags)
+                .map(|segment| -> Result<_> {
+                    let file_size: usize = segment.p_filesz.try_into()?;
+                    let mem_size: usize = segment.p_memsz.try_into()?;
+                    let vaddr: u32 = segment.p_vaddr.try_into()?;
+                    let offset = segment.p_offset.try_into()?;
+                    Ok((vaddr..).zip(
+                        input[offset..offset + std::cmp::min(file_size, mem_size)]
+                            .iter()
+                            .copied(),
+                    ))
+                })
+                .flatten_ok()
+                .try_collect()
+        };
+
+        let data = Data(extract(elf::abi::PF_NONE)?);
+        let code = extract(elf::abi::PF_X)?;
+        let code = Code::from(&code);
+        Ok(Program { entry, data, code })
     }
 }

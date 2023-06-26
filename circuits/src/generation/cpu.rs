@@ -25,14 +25,14 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
         let inst = s.current_instruction();
 
-        trace[cpu_cols::COL_RS1][i] = from_(inst.data.rs1);
-        trace[cpu_cols::COL_RS2][i] = from_(inst.data.rs2);
-        trace[cpu_cols::COL_RD][i] = from_(inst.data.rd);
-        trace[cpu_cols::COL_OP1_VALUE][i] = from_(s.get_register_value(inst.data.rs1));
-        trace[cpu_cols::COL_OP2_VALUE][i] = from_(s.get_register_value(inst.data.rs2));
+        trace[cpu_cols::COL_RS1][i] = from_(inst.args.rs1);
+        trace[cpu_cols::COL_RS2][i] = from_(inst.args.rs2);
+        trace[cpu_cols::COL_RD][i] = from_(inst.args.rd);
+        trace[cpu_cols::COL_OP1_VALUE][i] = from_(s.get_register_value(inst.args.rs1));
+        trace[cpu_cols::COL_OP2_VALUE][i] = from_(s.get_register_value(inst.args.rs2));
         // NOTE: Updated value of DST register is next step.
         trace[cpu_cols::COL_DST_VALUE][i] = from_(*dst_val);
-        trace[cpu_cols::COL_IMM_VALUE][i] = from_(inst.data.imm);
+        trace[cpu_cols::COL_IMM_VALUE][i] = from_(inst.args.imm);
         trace[cpu_cols::COL_S_HALT][i] = from_(u32::from(*will_halt));
         for j in 0..32 {
             trace[cpu_cols::COL_START_REG + j as usize][i] = from_(s.get_register_value(j));
@@ -41,6 +41,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         match inst.op {
             Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,
             Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
+            Op::SUB => trace[cpu_cols::COL_S_SUB][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
             #[tarpaulin::skip]
             _ => {}
