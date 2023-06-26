@@ -1,3 +1,8 @@
+use itertools::Itertools;
+use plonky2::field::types::Field;
+
+use crate::cross_table_lookup::Column;
+
 /// Column containing the value (in u32) to be range checked.
 pub(crate) const VAL: usize = 0;
 
@@ -31,3 +36,18 @@ pub(crate) const FIXED_RANGE_CHECK_U16_PERMUTED_HI: usize = FIXED_RANGE_CHECK_U1
 
 /// Total number of columns for the range check table.
 pub(crate) const NUM_RC_COLS: usize = FIXED_RANGE_CHECK_U16_PERMUTED_HI + 1;
+
+/// Columns containing the data to be range checked in the Mozak
+/// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
+#[must_use]
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
+    Column::singles([VAL]).collect_vec()
+}
+
+/// Column for a binary filter to indicate a range check from the
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable) in the Mozak
+/// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
+#[must_use]
+pub fn filter_for_cpu<F: Field>() -> Column<F> {
+    Column::single(CPU_FILTER)
+}

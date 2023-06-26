@@ -1,5 +1,10 @@
 use std::ops::Range;
 
+use itertools::Itertools;
+use plonky2::field::types::Field;
+
+use crate::cross_table_lookup::Column;
+
 pub(crate) const COL_CLK: usize = 0;
 pub(crate) const COL_PC: usize = COL_CLK + 1;
 pub(crate) const COL_RS1: usize = COL_PC + 1;
@@ -17,5 +22,18 @@ pub(crate) const COL_S_SUB: usize = COL_S_ADD + 1;
 pub(crate) const COL_S_BEQ: usize = COL_S_SUB + 1;
 pub(crate) const COL_S_ECALL: usize = COL_S_BEQ + 1;
 pub(crate) const COL_S_HALT: usize = COL_S_ECALL + 1;
+pub(crate) const COL_S_RC: usize = COL_S_HALT + 1;
 
-pub(crate) const NUM_CPU_COLS: usize = COL_S_HALT + 1;
+pub(crate) const NUM_CPU_COLS: usize = COL_S_RC + 1;
+
+/// Columns containing the data to be range checked in the Mozak
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
+    Column::singles([COL_RD]).collect_vec()
+}
+
+/// Column for a binary filter for our range check in the Mozak
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> {
+    Column::single(COL_S_RC)
+}
