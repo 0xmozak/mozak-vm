@@ -13,7 +13,7 @@ use super::{
     columns::{
         COL_CLK, COL_RD, COL_REGS, COL_S_ADD, COL_S_ECALL, COL_S_HALT, COL_S_SUB, NUM_CPU_COLS,
     },
-    sub,
+    slt, sub,
 };
 use crate::utils::from_;
 
@@ -99,6 +99,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         // add constraint
         add::constraints(lv, nv, yield_constr);
         sub::constraints(lv, nv, yield_constr);
+        slt::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT
         yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);

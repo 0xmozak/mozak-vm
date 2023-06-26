@@ -4,7 +4,7 @@ use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns as cpu_cols;
-use crate::utils::{from_, pad_trace};
+use crate::utils::{from_, inv, pad_trace};
 
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {
@@ -38,9 +38,35 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             trace[cpu_cols::COL_START_REG + j as usize][i] = from_(s.get_register_value(j));
         }
 
+        {
+            // CMP
+            let is_signed = inst.op == Op::SLT;
+            let op1 = s.get_register_value(inst.args.rs1);
+            let op2 = s.get_register_value(inst.args.rs2) + inst.args.imm;
+            let sign1: u32 = (is_signed && (op1 as i32) < 0).into();
+            let sign2: u32 = (is_signed && (op2 as i32) < 0).into();
+
+            let op1_fixed = op1.wrapping_add(sign1 * (1 << 32));
+            let op2_fixed = op1.wrapping_add(sign2 * (1 << 32));
+            trace[cpu_cols::COL_S_SLT_OP1_VAL_FIXED][i] = from_(op1_fixed);
+            trace[cpu_cols::COL_S_SLT_OP2_VAL_FIXED][i] = from_(op2_fixed);
+
+            let abs_diff = if is_signed {
+                (op1 as i32).abs_diff(op2 as i32)
+            } else {
+                op1.abs_diff(op2)
+            };
+            let abs_diff_fixed = op1_fixed.abs_diff(op2_fixed);
+            assert_eq!(abs_diff, abs_diff_fixed);
+            trace[cpu_cols::COL_CMP_ABS_DIFF][i] = from_(abs_diff);
+            trace[cpu_cols::COL_CMP_ABS_DIFF_INV][i] = from_(inv::<F>(abs_diff.into()));
+        }
+
         match inst.op {
             Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,
             Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
+            Op::SLT => trace[cpu_cols::COL_S_SLT][i] = F::ONE,
+            Op::SLTU => trace[cpu_cols::COL_S_SLTU][i] = F::ONE,
             Op::SUB => trace[cpu_cols::COL_S_SUB][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
             #[tarpaulin::skip]
