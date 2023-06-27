@@ -55,6 +55,10 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
                 if check.1 || 0 != check.0 {
                     trace[cpu_cols::COL_SLTU_CHECK][i] = F::ONE;
                 }
+                // F::ONE would also work.
+                let fake_outcome = F::ZERO;
+                trace[cpu_cols::COL_DST_VALUE][i] = fake_outcome;
+                trace[cpu_cols::COL_SLTU_CHECK][i] = fake_outcome;
             }
             #[tarpaulin::skip]
             _ => {}
