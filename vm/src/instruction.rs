@@ -22,7 +22,6 @@ pub enum Op {
     LBU,
     LHU,
     XOR,
-    JAL,
     JALR,
     BEQ,
     BNE,
