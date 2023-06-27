@@ -197,7 +197,8 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             #[tarpaulin::skip]
             _ => Default::default(),
         },
-        0b110_1111 => (Op::JAL, jtype),
+        // For Risc-V its JAL, but we handle it as JALR.
+        0b110_1111 => (Op::JALR, jtype),
         0b110_0111 => match bf.func3() {
             0x0 => (Op::JALR, itype),
             #[tarpaulin::skip]
@@ -461,7 +462,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
-            op: Op::JAL,
+            op: Op::JALR,
             args: Args {
                 rd,
                 imm,
