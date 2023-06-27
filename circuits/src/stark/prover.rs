@@ -1,19 +1,32 @@
+use std::fmt::Debug;
+
+use anyhow::ensure;
 use anyhow::Result;
+use itertools::Itertools;
 use mozak_vm::vm::Row;
 use plonky2::field::extension::Extendable;
+use plonky2::field::packable::Packable;
 use plonky2::field::polynomial::PolynomialValues;
+use plonky2::field::types::Field;
+use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
+use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::config::Hasher;
+use plonky2::timed;
+use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
+use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
-use starky::prover::prove as prove_table;
+use starky::proof::{StarkOpeningSet, StarkProof};
 use starky::stark::Stark;
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
 use super::proof::AllProof;
 use crate::cpu::stark::CpuStark;
+use crate::cross_table_lookup::TableKind;
 use crate::generation::generate_traces;
+use crate::stark::poly::compute_quotient_polys;
 
 #[allow(clippy::missing_errors_doc)]
 pub fn prove<F, C, const D: usize>(
@@ -29,15 +42,54 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:,
 {
-    let trace_poly_values = generate_traces(step_rows);
-    prove_with_traces(mozak_stark, config, &trace_poly_values, timing)
+    let traces_poly_values = generate_traces(step_rows);
+    prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
 }
 
-#[allow(clippy::missing_errors_doc)]
+/// Randomness for a single instance of a permutation check protocol.
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct GrandProductChallenge<T: Copy + PartialEq + Eq + Debug> {
+    /// Randomness used to combine multiple columns into one.
+    pub(crate) beta: T,
+    /// Random offset that's added to the beta-reduced column values.
+    pub(crate) gamma: T,
+}
+
+impl<F: RichField> GrandProductChallenge<F> {
+    pub fn from_challenger<H: Hasher<F>>(
+        challenger: &mut Challenger<F, H>,
+    ) -> GrandProductChallenge<F> {
+        GrandProductChallenge {
+            beta: challenger.get_challenge(),
+            gamma: challenger.get_challenge(),
+        }
+    }
+}
+
+/// Like `PermutationChallenge`, but with `num_challenges` copies to boost
+/// soundness.
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub(crate) struct GrandProductChallengeSet<T: Copy + PartialEq + Eq + Debug> {
+    pub(crate) challenges: Vec<GrandProductChallenge<T>>,
+}
+
+impl<F: RichField> GrandProductChallengeSet<F> {
+    pub fn from_challenger<H: Hasher<F>>(
+        challenger: &mut Challenger<F, H>,
+        num_challenges: usize,
+    ) -> GrandProductChallengeSet<F> {
+        let challenges = (0..num_challenges)
+            .map(|_| GrandProductChallenge::from_challenger(challenger))
+            .collect();
+        GrandProductChallengeSet { challenges }
+    }
+}
+
+/// Given the traces generated from [`generate_traces`], prove a [`MozakStark`].
 pub fn prove_with_traces<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
-    trace_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+    traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
 where
@@ -47,16 +99,273 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:,
 {
-    let cpu_proof = prove_table(
-        mozak_stark.cpu_stark,
-        config,
-        trace_poly_values[0].clone(),
-        [],
+    let rate_bits = config.fri_config.rate_bits;
+    let cap_height = config.fri_config.cap_height;
+
+    let trace_commitments = timed!(
         timing,
-    )?;
-    let stark_proofs = [cpu_proof];
+        "compute all trace commitments",
+        traces_poly_values
+            .iter()
+            .zip_eq(TableKind::all())
+            .map(|(trace, table)| {
+                timed!(
+                    timing,
+                    &format!("compute trace commitment for {:?}", table),
+                    PolynomialBatch::<F, C, D>::from_values(
+                        // TODO: Cloning this isn't great; consider having `from_values` accept a
+                        // reference,
+                        // or having `compute_permutation_z_polys` read trace values from the
+                        // `PolynomialBatch`.
+                        trace.clone(),
+                        rate_bits,
+                        false,
+                        cap_height,
+                        timing,
+                        None,
+                    )
+                )
+            })
+            .collect::<Vec<_>>()
+    );
+
+    let trace_caps = trace_commitments
+        .iter()
+        .map(|c| c.merkle_tree.cap.clone())
+        .collect::<Vec<_>>();
+    let mut challenger = Challenger::<F, C::Hasher>::new();
+    for cap in &trace_caps {
+        challenger.observe_cap(cap);
+    }
+
+    let ctl_challenges =
+        GrandProductChallengeSet::from_challenger(&mut challenger, config.num_challenges);
+    let ctl_data_per_table = timed!(
+        timing,
+        "compute CTL data",
+        cross_table_lookup_data::<F, D>(
+            &traces_poly_values,
+            &mozak_stark.cross_table_lookups,
+            &ctl_challenges,
+        )
+    );
+    let stark_proofs = timed!(
+        timing,
+        "compute all proofs given commitments",
+        prove_with_commitments(
+            mozak_stark,
+            config,
+            traces_poly_values,
+            trace_commitments,
+            ctl_data_per_table,
+            &mut challenger,
+            timing
+        )?
+    );
 
     Ok(AllProof { stark_proofs })
+}
+
+/// Compute proof for a single STARK table, with lookup data.
+pub(crate) fn prove_single_table<F, C, S, const D: usize>(
+    stark: &S,
+    config: &StarkConfig,
+    trace_poly_values: &[PolynomialValues<F>],
+    trace_commitment: &PolynomialBatch<F, C, D>,
+    ctl_data: &CtlData<F>,
+    challenger: &mut Challenger<F, C::Hasher>,
+    timing: &mut TimingTree,
+) -> Result<(StarkProof<F, C, D>, <C::Hasher as Hasher<F>>::Permutation)>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    S: Stark<F, D>,
+    [(); S::COLUMNS]:,
+{
+    let degree = trace_poly_values[0].len();
+    let degree_bits = log2_strict(degree);
+    let fri_params = config.fri_params(degree_bits);
+    let rate_bits = config.fri_config.rate_bits;
+    let cap_height = config.fri_config.cap_height;
+    assert!(
+        fri_params.total_arities() <= degree_bits + rate_bits - cap_height,
+        "FRI total reduction arity is too large.",
+    );
+
+    let init_challenger_state = challenger.compact();
+
+    // Permutation arguments.
+    let permutation_challenges: Option<Vec<GrandProductChallengeSet<F>>> =
+        stark.uses_permutation_args().then(|| {
+            (0..stark.permutation_batch_size())
+                .map(|_| {
+                    GrandProductChallengeSet::from_challenger(challenger, config.num_challenges)
+                })
+                .collect()
+        });
+    let permutation_zs = permutation_challenges.as_ref().map(|challenges| {
+        timed!(
+            timing,
+            "compute permutation Z(x) polys",
+            compute_permutation_z_polys::<F, S, D>(
+                stark,
+                config,
+                trace_poly_values,
+                challenges.as_slice()
+            )
+        )
+    });
+    let num_permutation_zs = permutation_zs.as_ref().map(|v| v.len()).unwrap_or(0);
+
+    let z_polys = match permutation_zs {
+        None => ctl_data.z_polys(),
+        Some(mut permutation_zs) => {
+            permutation_zs.extend(ctl_data.z_polys());
+            permutation_zs
+        }
+    };
+    assert!(!z_polys.is_empty(), "No CTL?");
+
+    let permutation_ctl_zs_commitment = timed!(
+        timing,
+        "compute Zs commitment",
+        PolynomialBatch::from_values(
+            z_polys,
+            rate_bits,
+            false,
+            config.fri_config.cap_height,
+            timing,
+            None,
+        )
+    );
+
+    let permutation_ctl_zs_cap = permutation_ctl_zs_commitment.merkle_tree.cap.clone();
+    challenger.observe_cap(&permutation_ctl_zs_cap);
+
+    let alphas = challenger.get_n_challenges(config.num_challenges);
+    let quotient_polys = timed!(
+        timing,
+        "compute quotient polys",
+        compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
+            stark,
+            trace_commitment,
+            &permutation_ctl_zs_commitment,
+            permutation_challenges.as_ref(),
+            ctl_data,
+            alphas,
+            degree_bits,
+            num_permutation_zs,
+            config,
+        )
+    );
+
+    let all_quotient_chunks = timed!(
+        timing,
+        "split quotient polys",
+        quotient_polys
+            .into_par_iter()
+            .flat_map(|mut quotient_poly| {
+                quotient_poly
+                    .trim_to_len(degree * stark.quotient_degree_factor())
+                    .expect(
+                        "Quotient has failed, the vanishing polynomial is not divisible by Z_H",
+                    );
+                // Split quotient into degree-n chunks.
+                quotient_poly.chunks(degree)
+            })
+            .collect()
+    );
+    let quotient_commitment = timed!(
+        timing,
+        "compute quotient commitment",
+        PolynomialBatch::from_coeffs(
+            all_quotient_chunks,
+            rate_bits,
+            false,
+            config.fri_config.cap_height,
+            timing,
+            None,
+        )
+    );
+    let quotient_polys_cap = quotient_commitment.merkle_tree.cap.clone();
+    challenger.observe_cap(&quotient_polys_cap);
+
+    let zeta = challenger.get_extension_challenge::<D>();
+    // To avoid leaking witness data, we want to ensure that our opening locations,
+    // `zeta` and `g * zeta`, are not in our subgroup `H`. It suffices to check
+    // `zeta` only, since `(g * zeta)^n = zeta^n`, where `n` is the order of
+    // `g`.
+    let g = F::primitive_root_of_unity(degree_bits);
+    ensure!(
+        zeta.exp_power_of_2(degree_bits) != F::Extension::ONE,
+        "Opening point is in the subgroup."
+    );
+
+    let openings = StarkOpeningSet::new(
+        zeta,
+        g,
+        trace_commitment,
+        Some(&permutation_ctl_zs_commitment),
+        &quotient_commitment,
+    );
+    challenger.observe_openings(&openings.to_fri_openings());
+
+    let initial_merkle_trees = vec![
+        trace_commitment,
+        &permutation_ctl_zs_commitment,
+        &quotient_commitment,
+    ];
+
+    let opening_proof = timed!(
+        timing,
+        "compute openings proof",
+        PolynomialBatch::prove_openings(
+            &stark.fri_instance(zeta, g, config),
+            &initial_merkle_trees,
+            challenger,
+            &fri_params,
+            timing,
+        )
+    );
+
+    let proof = StarkProof {
+        trace_cap: trace_commitment.merkle_tree.cap.clone(),
+        permutation_zs_cap: Some(permutation_ctl_zs_cap),
+        quotient_polys_cap,
+        openings,
+        opening_proof,
+    };
+    Ok((proof, init_challenger_state))
+}
+
+/// Given the traces generated from [`generate_traces`] along with their
+/// commitments, prove a [`MozakStark`].
+pub fn prove_with_commitments<F, C, const D: usize>(
+    mozak_stark: &MozakStark<F, D>,
+    config: &StarkConfig,
+    traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+    trace_commitments: Vec<PolynomialBatch<F, C, D>>,
+    ctl_data_per_table: [CtlData<F>; NUM_TABLES],
+    challenger: &mut Challenger<F, C::Hasher>,
+    timing: &mut TimingTree,
+) -> Result<[(StarkProof<F, C, D>, <C::Hasher as Hasher<F>>::Permutation); NUM_TABLES]>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    [(); CpuStark::<F, D>::COLUMNS]:,
+    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
+    [(); C::Hasher::HASH_SIZE]:,
+{
+    let (cpu_proof, cpu_metadata) = prove_single_table(
+        &mozak_stark.cpu_stark,
+        config,
+        &traces_poly_values[TableKind::Cpu as usize].clone(),
+        &trace_commitments[TableKind::Cpu as usize],
+        &ctl_data_per_table[TableKind::Cpu].clone(),
+        challenger,
+        timing,
+    )?;
+    Ok([(cpu_proof, cpu_metadata)])
 }
 
 #[cfg(test)]

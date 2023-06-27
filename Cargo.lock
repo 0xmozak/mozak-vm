@@ -860,8 +860,6 @@ dependencies = [
 [[package]]
 name = "starky"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73e8e3cedd5a3dd61a00cc83150002e7609947b5a4a20244ef34fcbd1a17f649"
 dependencies = [
  "anyhow",
  "itertools",

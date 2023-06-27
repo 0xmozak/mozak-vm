@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, ops::Index};
 
 use plonky2::field::{polynomial::PolynomialValues, types::Field};
 use thiserror::Error;
@@ -49,6 +49,24 @@ impl<F: Field> Column<F> {
 pub enum TableKind {
     Cpu = 0,
     RangeCheck = 1,
+}
+
+impl TableKind {
+    pub fn all() -> [TableKind; 2] {
+        [TableKind::Cpu, TableKind::RangeCheck]
+    }
+}
+
+impl From<TableKind> for usize {
+    fn from(value: TableKind) -> usize {
+        value as usize
+    }
+}
+
+impl Index<TableKind> for std::slice::Slice {
+    type Output = usize;
+
+    fn index(&self, index: TableKind) -> &Self::Output {}
 }
 
 #[derive(Clone, Debug)]

@@ -16,8 +16,8 @@ anyhow = { version = "1.0", default-features = false }
 mozak-vm = { path = "../vm" }
 log = "0.4.19"
 itertools = "0.10.0"
-starky = "0.1.1"
 thiserror = "1.0.40"
+starky = { path = "../../plonky2/starky" } 
 
 [dev-dependencies]
 mozak-vm = { path = "../vm", features = ["test"] }
