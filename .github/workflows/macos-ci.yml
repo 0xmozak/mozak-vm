@@ -25,7 +25,7 @@ jobs:
 
       - name: Run tests
         run: cargo test --locked --all-targets
-      
+
       - name: Create github issue for failed action
         uses: imjohnbo/issue-bot@v3
         if: ${{ failure() }}
@@ -35,5 +35,6 @@ jobs:
           title: "Tests on MacOS failed"
           body: |
             Failed reference github action job: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            The reference ${{ GITHUB_REF_TYPE }} ${{ GITHUB_REF }} was at commit ${{ GITHUB_SHA }} when its run failed.  More information on the failure can be found at ${{ GITHUB_STEP_SUMMARY }}.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
