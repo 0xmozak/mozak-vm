@@ -54,6 +54,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             let op2_fixed = op2.wrapping_add(sign_adjust);
             trace[cpu_cols::COL_S_SLT_OP1_VAL_FIXED][i] = from_(op1_fixed);
             trace[cpu_cols::COL_S_SLT_OP2_VAL_FIXED][i] = from_(op2_fixed);
+            trace[cpu_cols::COL_LT][i] = from_(u32::from(op1_fixed < op2_fixed));
 
             let abs_diff = if is_signed {
                 (op1 as i32).abs_diff(op2 as i32)
