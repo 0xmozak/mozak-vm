@@ -99,7 +99,8 @@ pub fn generate_rangecheck_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
     use mozak_vm::test_utils::simple_test;
-    use plonky2::field::{goldilocks_field::GoldilocksField, types::Field};
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::types::Field;
 
     use super::*;
 

@@ -1,28 +1,20 @@
 use anyhow::Result;
 
-use crate::{
-    instruction::{Args, Op},
-    state::{Aux, State},
-};
+use crate::instruction::{Args, Op};
+use crate::state::{Aux, State};
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
-pub fn mulh(a: u32, b: u32) -> u32 {
-    ((i64::from(a as i32) * i64::from(b as i32)) >> 32) as u32
-}
+pub fn mulh(a: u32, b: u32) -> u32 { ((i64::from(a as i32) * i64::from(b as i32)) >> 32) as u32 }
 
 #[must_use]
-pub fn mulhu(a: u32, b: u32) -> u32 {
-    ((u64::from(a) * u64::from(b)) >> 32) as u32
-}
+pub fn mulhu(a: u32, b: u32) -> u32 { ((u64::from(a) * u64::from(b)) >> 32) as u32 }
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
-pub fn mulhsu(a: u32, b: u32) -> u32 {
-    ((i64::from(a as i32) * i64::from(b)) >> 32) as u32
-}
+pub fn mulhsu(a: u32, b: u32) -> u32 { ((i64::from(a as i32) * i64::from(b)) >> 32) as u32 }
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
@@ -65,31 +57,21 @@ pub fn remu(a: u32, b: u32) -> u32 {
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
-pub fn lb(mem: &[u8; 4]) -> u32 {
-    i32::from(mem[0] as i8) as u32
-}
+pub fn lb(mem: &[u8; 4]) -> u32 { i32::from(mem[0] as i8) as u32 }
 
 #[must_use]
-pub fn lbu(mem: &[u8; 4]) -> u32 {
-    mem[0].into()
-}
+pub fn lbu(mem: &[u8; 4]) -> u32 { mem[0].into() }
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
-pub fn lh(mem: &[u8; 4]) -> u32 {
-    i32::from(i16::from_le_bytes([mem[0], mem[1]])) as u32
-}
+pub fn lh(mem: &[u8; 4]) -> u32 { i32::from(i16::from_le_bytes([mem[0], mem[1]])) as u32 }
 
 #[must_use]
-pub fn lhu(mem: &[u8; 4]) -> u32 {
-    u16::from_le_bytes([mem[0], mem[1]]).into()
-}
+pub fn lhu(mem: &[u8; 4]) -> u32 { u16::from_le_bytes([mem[0], mem[1]]).into() }
 
 #[must_use]
-pub fn lw(mem: &[u8; 4]) -> u32 {
-    u32::from_le_bytes(*mem)
-}
+pub fn lw(mem: &[u8; 4]) -> u32 { u32::from_le_bytes(*mem) }
 
 impl State {
     #[must_use]
@@ -272,9 +254,7 @@ mod tests {
     // Please check https://en.wikichip.org/wiki/risc-v/registers
 
     #[test]
-    fn ecall() {
-        let _ = simple_test_code(&[Instruction::new(Op::ECALL, 0, 0, 0, 0)], &[], &[]);
-    }
+    fn ecall() { let _ = simple_test_code(&[Instruction::new(Op::ECALL, 0, 0, 0, 0)], &[], &[]); }
 
     #[test_case(0x0073_02b3, 5, 6, 7, 60049, 50493; "add r5, r6, r7")]
     #[test_case(0x01FF_8FB3, 31, 31, 31, 8981, 8981; "add r31, r31, r31")]
@@ -516,11 +496,9 @@ mod tests {
         }
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(
-            4,
-            &[(0_u32, word), (address, memory_value as u32)],
-            &[(rs1, rs1_value)],
-        );
+        } = simple_test(4, &[(0_u32, word), (address, memory_value as u32)], &[(
+            rs1, rs1_value,
+        )]);
         let mut expected_value = memory_value as u32;
         if memory_value.is_negative() {
             // extend the sign
@@ -544,11 +522,9 @@ mod tests {
         }
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(
-            4,
-            &[(0_u32, word), (address, memory_value as u32)],
-            &[(rs1, rs1_value)],
-        );
+        } = simple_test(4, &[(0_u32, word), (address, memory_value as u32)], &[(
+            rs1, rs1_value,
+        )]);
         let expected_value = (memory_value as u32) & 0x0000_00FF;
         assert_eq!(state.get_register_value(rd), expected_value);
     }
@@ -568,11 +544,9 @@ mod tests {
         }
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(
-            4,
-            &[(0_u32, word), (address, memory_value as u32)],
-            &[(rs1, rs1_value)],
-        );
+        } = simple_test(4, &[(0_u32, word), (address, memory_value as u32)], &[(
+            rs1, rs1_value,
+        )]);
         let mut expected_value = memory_value as u32;
         if memory_value.is_negative() {
             // extend the sign
@@ -596,11 +570,9 @@ mod tests {
         }
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(
-            4,
-            &[(0_u32, word), (address, memory_value as u32)],
-            &[(rs1, rs1_value)],
-        );
+        } = simple_test(4, &[(0_u32, word), (address, memory_value as u32)], &[(
+            rs1, rs1_value,
+        )]);
         let expected_value = (memory_value as u32) & 0x0000_FFFF;
         assert_eq!(state.get_register_value(rd), expected_value);
     }
@@ -620,11 +592,9 @@ mod tests {
         }
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(
-            4,
-            &[(0_u32, word), (address, memory_value as u32)],
-            &[(rs1, rs1_value)],
-        );
+        } = simple_test(4, &[(0_u32, word), (address, memory_value as u32)], &[(
+            rs1, rs1_value,
+        )]);
         let expected_value = memory_value as u32;
         assert_eq!(state.get_register_value(rd), expected_value);
     }
@@ -843,14 +813,10 @@ mod tests {
         // MULH x5, x6, x7
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(
-            4,
-            &[(0, 0x0273_12b3)],
-            &[
-                (6, 0x8000_0000 /* == -2^31 */),
-                (7, 0x8000_0000 /* == -2^31 */),
-            ],
-        );
+        } = simple_test(4, &[(0, 0x0273_12b3)], &[
+            (6, 0x8000_0000 /* == -2^31 */),
+            (7, 0x8000_0000 /* == -2^31 */),
+        ]);
 
         assert_eq!(
             state.get_register_value(5),
@@ -864,11 +830,10 @@ mod tests {
         // MUL x5, x6, x7
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(
-            4,
-            &[(0, 0x0273_02b3)],
-            &[(6, 0x4000_0000 /* == 2^30 */), (7, 0xFFFF_FFFE /* == -2 */)],
-        );
+        } = simple_test(4, &[(0, 0x0273_02b3)], &[
+            (6, 0x4000_0000 /* == 2^30 */),
+            (7, 0xFFFF_FFFE /* == -2 */),
+        ]);
         assert_eq!(
             state.get_register_value(5),
             0x8000_0000 // -2^31
@@ -881,11 +846,10 @@ mod tests {
         // MULHSU x5, x6, x7
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(
-            4,
-            &[(0_u32, 0x0273_22b3)],
-            &[(6, 0xFFFF_FFFE /* == -2 */), (7, 0x4000_0000 /* == 2^30 */)],
-        );
+        } = simple_test(4, &[(0_u32, 0x0273_22b3)], &[
+            (6, 0xFFFF_FFFE /* == -2 */),
+            (7, 0x4000_0000 /* == 2^30 */),
+        ]);
         assert_eq!(state.get_register_value(5), 0xFFFF_FFFF);
     }
 
@@ -895,11 +859,10 @@ mod tests {
         // MULHU x5, x6, x7
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(
-            4,
-            &[(0_u32, 0x0273_32b3)],
-            &[(6, 0x0000_0002 /* == 2 */), (7, 0x8000_0000 /* == 2^31 */)],
-        );
+        } = simple_test(4, &[(0_u32, 0x0273_32b3)], &[
+            (6, 0x0000_0002 /* == 2 */),
+            (7, 0x8000_0000 /* == 2^31 */),
+        ]);
         assert_eq!(state.get_register_value(5), 0x0000_0001);
     }
 
@@ -961,11 +924,10 @@ mod tests {
         // DIV x5, x6, x7
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(
-            4,
-            &[(0_u32, 0x0273_42b3)],
-            &[(6, rs1_value /* == 2^30 */), (7, rs2_value /* == -2 */)],
-        );
+        } = simple_test(4, &[(0_u32, 0x0273_42b3)], &[
+            (6, rs1_value /* == 2^30 */),
+            (7, rs2_value /* == -2 */),
+        ]);
         assert_eq!(
             state.get_register_value(5),
             rd_value // -2^29
@@ -979,11 +941,10 @@ mod tests {
         // DIVU x5, x6, x7
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(
-            4,
-            &[(0_u32, 0x0273_52b3)],
-            &[(6, rs1_value), (7, rs2_value)],
-        );
+        } = simple_test(4, &[(0_u32, 0x0273_52b3)], &[
+            (6, rs1_value),
+            (7, rs2_value),
+        ]);
         assert_eq!(state.get_register_value(5), rd_value);
     }
 
@@ -995,11 +956,10 @@ mod tests {
         // REM x5, x6, x7
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(
-            4,
-            &[(0_u32, 0x0273_62b3)],
-            &[(6, rs1_value), (7, rs2_value)],
-        );
+        } = simple_test(4, &[(0_u32, 0x0273_62b3)], &[
+            (6, rs1_value),
+            (7, rs2_value),
+        ]);
         assert_eq!(state.get_register_value(5), rd_value);
     }
 
@@ -1010,11 +970,10 @@ mod tests {
         // REMU x5, x6, x7
         let ExecutionRecord {
             last_state: state, ..
-        } = simple_test(
-            4,
-            &[(0_u32, 0x0273_72b3)],
-            &[(6, rs1_value), (7, rs2_value)],
-        );
+        } = simple_test(4, &[(0_u32, 0x0273_72b3)], &[
+            (6, rs1_value),
+            (7, rs2_value),
+        ]);
         assert_eq!(state.get_register_value(5), rd_value);
     }
 }

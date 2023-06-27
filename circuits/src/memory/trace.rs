@@ -21,9 +21,7 @@ pub fn get_memory_inst_addr<F: Field>(row: &Row) -> F {
 }
 
 #[must_use]
-pub fn get_memory_inst_clk<F: Field>(row: &Row) -> F {
-    F::from_canonical_u64(row.state.clk)
-}
+pub fn get_memory_inst_clk<F: Field>(row: &Row) -> F { F::from_canonical_u64(row.state.clk) }
 
 #[must_use]
 pub fn get_memory_load_inst_value<F: Field>(row: &Row) -> F {

@@ -1,19 +1,13 @@
 use std::marker::PhantomData;
 
-use plonky2::{
-    field::{
-        extension::{Extendable, FieldExtension},
-        packed::PackedField,
-        types::Field,
-    },
-    hash::hash_types::RichField,
-    plonk::circuit_builder::CircuitBuilder,
-};
-use starky::{
-    constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer},
-    stark::Stark,
-    vars::{StarkEvaluationTargets, StarkEvaluationVars},
-};
+use plonky2::field::extension::{Extendable, FieldExtension};
+use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
+use plonky2::hash::hash_types::RichField;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::stark::Stark;
+use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns;
 use crate::lookup::{eval_lookups, eval_lookups_circuit};
@@ -54,8 +48,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>,
-    {
+        P: PackedField<Scalar = FE>, {
         constrain_value(
             P::Scalar::from_canonical_usize(Self::BASE),
             vars.local_values,
@@ -110,9 +103,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         );
     }
 
-    fn constraint_degree(&self) -> usize {
-        3
-    }
+    fn constraint_degree(&self) -> usize { 3 }
 }
 
 #[cfg(test)]
@@ -120,15 +111,12 @@ mod tests {
     use anyhow::Result;
     use log::trace;
     use mozak_vm::test_utils::simple_test;
-    use plonky2::{
-        field::{goldilocks_field::GoldilocksField, types::Sample},
-        plonk::config::{GenericConfig, PoseidonGoldilocksConfig},
-        util::log2_strict,
-    };
-    use starky::{
-        stark::Stark,
-        stark_testing::{test_stark_circuit_constraints, test_stark_low_degree},
-    };
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::types::Sample;
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::util::log2_strict;
+    use starky::stark::Stark;
+    use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
 
     use super::*;
     use crate::generation::rangecheck::generate_rangecheck_trace;
@@ -141,11 +129,10 @@ mod tests {
     /// Generates a trace which contains a value that should fail the range
     /// check.
     fn generate_failing_trace() -> [Vec<GoldilocksField>; columns::NUM_RC_COLS] {
-        let record = simple_test(
-            4,
-            &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
-            &[(6, 100), (7, 100)],
-        );
+        let record = simple_test(4, &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)], &[
+            (6, 100),
+            (7, 100),
+        ]);
         let mut trace = generate_rangecheck_trace::<F>(&record.executed);
         // Manually alter the value here to be larger than a u32.
         trace[0][columns::VAL] = GoldilocksField(u64::from(u32::MAX) + 1_u64);

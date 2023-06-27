@@ -51,8 +51,7 @@ impl State {
     #[must_use]
     pub fn register_op<F>(self, data: &Args, op: F) -> (Aux, Self)
     where
-        F: FnOnce(u32, u32, u32) -> u32,
-    {
+        F: FnOnce(u32, u32, u32) -> u32, {
         let rs1 = self.get_register_value(data.rs1);
         let rs2 = self.get_register_value(data.rs2);
         let dst_val = op(rs1, rs2, data.imm);
@@ -108,9 +107,7 @@ impl State {
     }
 
     #[must_use]
-    pub fn has_halted(&self) -> bool {
-        self.halted
-    }
+    pub fn has_halted(&self) -> bool { self.halted }
 
     /// Load a byte from memory
     ///
@@ -126,9 +123,7 @@ impl State {
     }
 
     #[must_use]
-    pub fn get_register_value(&self, index: u8) -> u32 {
-        self.registers[usize::from(index)]
-    }
+    pub fn get_register_value(&self, index: u8) -> u32 { self.registers[usize::from(index)] }
 
     #[must_use]
     pub fn set_pc(mut self, value: u32) -> Self {
@@ -137,14 +132,10 @@ impl State {
     }
 
     #[must_use]
-    pub fn get_pc(&self) -> u32 {
-        self.pc
-    }
+    pub fn get_pc(&self) -> u32 { self.pc }
 
     #[must_use]
-    pub fn bump_pc(self) -> Self {
-        self.bump_pc_n(4)
-    }
+    pub fn bump_pc(self) -> Self { self.bump_pc_n(4) }
 
     #[must_use]
     pub fn bump_pc_n(self, diff: u32) -> Self {
@@ -179,9 +170,7 @@ impl State {
     /// This function panics if the conversion from `u32` to a `u8` fails, which
     /// is an internal error.
     #[must_use]
-    pub fn load_u8(&self, addr: u32) -> u8 {
-        self.memory.get(&addr).copied().unwrap_or_default()
-    }
+    pub fn load_u8(&self, addr: u32) -> u8 { self.memory.get(&addr).copied().unwrap_or_default() }
 
     /// Store a byte to memory
     ///
