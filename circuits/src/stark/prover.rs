@@ -3,8 +3,7 @@ use mozak_vm::vm::Row;
 use plonky2::field::extension::Extendable;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::config::GenericConfig;
-use plonky2::plonk::config::Hasher;
+use plonky2::plonk::config::{GenericConfig, Hasher};
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 use starky::prover::prove as prove_table;
@@ -27,8 +26,7 @@ where
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); C::Hasher::HASH_SIZE]:,
-{
+    [(); C::Hasher::HASH_SIZE]:, {
     let trace_poly_values = generate_traces(step_rows);
     prove_with_traces(mozak_stark, config, &trace_poly_values, timing)
 }
@@ -45,8 +43,7 @@ where
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); C::Hasher::HASH_SIZE]:,
-{
+    [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_table(
         mozak_stark.cpu_stark,
         config,
