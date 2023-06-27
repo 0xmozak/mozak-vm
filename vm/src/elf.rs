@@ -4,8 +4,10 @@ use std::collections::HashSet;
 
 use anyhow::{anyhow, ensure, Result};
 use derive_more::Deref;
+use elf::endian::LittleEndian;
+use elf::file::Class;
 use elf::segment::ProgramHeader;
-use elf::{endian::LittleEndian, file::Class, ElfBytes};
+use elf::ElfBytes;
 use im::hashmap::HashMap;
 use itertools::Itertools;
 
