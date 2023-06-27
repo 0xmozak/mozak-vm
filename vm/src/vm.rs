@@ -93,22 +93,9 @@ pub fn lw(mem: &[u8; 4]) -> u32 {
 
 impl State {
     #[must_use]
-    pub fn jal(self, inst: &Args) -> (Aux, Self) {
-        let pc = self.get_pc();
-        (
-            Aux {
-                dst_val: inst.imm,
-                ..Default::default()
-            },
-            self.set_pc(inst.imm)
-                .set_register_value(inst.rd, pc.wrapping_add(4)),
-        )
-    }
-
-    #[must_use]
     pub fn jalr(self, inst: &Args) -> (Aux, Self) {
         let pc = self.get_pc();
-        let new_pc = (self.get_register_value(inst.rs1).wrapping_add(inst.imm)) & !1;
+        let new_pc = self.get_register_value(inst.rs1).wrapping_add(inst.imm) & !1;
         (
             Aux {
                 dst_val: new_pc,
@@ -192,7 +179,6 @@ impl State {
             Op::LW => self.memory_load(&inst.args, lw),
 
             Op::ECALL => self.ecall(),
-            Op::JAL => self.jal(&inst.args),
             Op::JALR => self.jalr(&inst.args),
             // branches
             Op::BEQ => self.branch_op(&inst.args, |a, b| a == b),
