@@ -99,6 +99,7 @@ mod test {
     }
 
     #[test]
+    #[should_panic]
     fn prove_beq() {
         let record = simple_test_code(
             &[Instruction {
@@ -114,6 +115,6 @@ mod test {
             &[(1, 2)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        simple_proof_test(&record.executed).expect_err("FIXME:test-is-expected-to-fail");
+        simple_proof_test(&record.executed).unwrap();
     }
 }

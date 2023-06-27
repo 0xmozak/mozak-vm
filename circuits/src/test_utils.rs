@@ -1,5 +1,6 @@
 use anyhow::Result;
 use mozak_vm::vm::Row;
+use plonky2::fri::FriConfig;
 use plonky2::{
     plonk::config::{GenericConfig, PoseidonGoldilocksConfig},
     util::timing::TimingTree,
@@ -17,10 +18,18 @@ pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
     type S = MozakStark<F, D>;
-    let mut config = StarkConfig::standard_fast_config();
-    config.fri_config.cap_height = 0;
-    config.fri_config.proof_of_work_bits = 0;
-    config.security_bits = 1;
+    let config = StarkConfig::standard_fast_config();
+    let config = StarkConfig {
+        security_bits: 1,
+        num_challenges: 2,
+        fri_config: FriConfig {
+            rate_bits: 2,
+            cap_height: 0,
+            proof_of_work_bits: 0,
+            ..config.fri_config
+        },
+        ..config
+    };
 
     let mut stark = S::default();
     let all_proof = prove::<F, C, D>(step_rows, &mut stark, &config, &mut TimingTree::default());

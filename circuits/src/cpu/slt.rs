@@ -52,12 +52,9 @@ pub(crate) fn constraints<P: PackedField>(
     // if lt == 1 => abs_diff * abs_diff_inv = 1
     // if lt == 0 => no requirement.
 
-    //// This constraint fail for some reason...
-    if false {
-        let diff = op1 - op2;
-        let diff_inv = lv[COL_CMP_DIFF_INV];
-        yield_constr.constraint(is_cmp * lt * (P::ONES - diff * diff_inv));
-    }
+    let diff = op1 - op2;
+    let diff_inv = lv[COL_CMP_DIFF_INV];
+    yield_constr.constraint(is_cmp * lt * (P::ONES - diff * diff_inv));
 
     yield_constr.constraint_transition(is_cmp * pc_ticks_up(lv, nv));
 }
