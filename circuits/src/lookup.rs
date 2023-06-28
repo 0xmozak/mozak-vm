@@ -12,10 +12,8 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::{Field, PrimeField64};
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::{
-    constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer},
-    vars::{StarkEvaluationTargets, StarkEvaluationVars},
-};
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 pub(crate) fn eval_lookups<
     F: Field,
@@ -152,8 +150,7 @@ pub fn permute_cols<F: PrimeField64>(col_input: &[F], col_table: &[F]) -> (Vec<F
 
 #[cfg(test)]
 mod test {
-    use plonky2::field::types::Field64;
-    use plonky2::field::types::PrimeField64;
+    use plonky2::field::types::{Field64, PrimeField64};
     use proptest::prelude::*;
 
     use super::*;
