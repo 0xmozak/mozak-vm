@@ -9,11 +9,12 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{
-    COL_CLK, COL_PC, COL_RD, COL_REGS, COL_S_ADD, COL_S_BEQ, COL_S_ECALL, COL_S_HALT, COL_S_SUB,
+    COL_CLK, COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_RD_SELECT, COL_REGS,
+    COL_RS1_SELECT, COL_RS2_SELECT, COL_S_ADD, COL_S_BEQ, COL_S_ECALL, COL_S_HALT, COL_S_SUB,
     NUM_CPU_COLS,
 };
 use super::{add, sub};
-use crate::utils::{column_of_xs, from_};
+use crate::utils::column_of_xs;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -71,6 +72,11 @@ fn clock_ticks<P: PackedField>(
     yield_constr.constraint_transition(nv[COL_CLK] - (lv[COL_CLK] + P::ONES));
 }
 
+/// Register 0 is always 0
+fn r0_always_0<P: PackedField>(lv: &[P; NUM_CPU_COLS], yield_constr: &mut ConstraintConsumer<P>) {
+    yield_constr.constraint(lv[COL_REGS[0]]);
+}
+
 /// Register used as destination register can have different value, all
 /// other regs have same value as of previous row.
 fn only_rd_changes<P: PackedField>(
@@ -80,16 +86,53 @@ fn only_rd_changes<P: PackedField>(
 ) {
     // Note: register 0 is already always 0.
     // But we keep the constraints simple here.
-    for reg in 0_u32..32 {
-        let reg_index = COL_REGS.start + reg as usize;
-        let x: P::Scalar = from_(reg);
-        yield_constr.constraint_transition((lv[COL_RD] - x) * (lv[reg_index] - nv[reg_index]));
-    }
+    (0..32).for_each(|reg| {
+        yield_constr.constraint_transition(
+            (P::ONES - lv[COL_RD_SELECT[reg]]) * (lv[COL_REGS[reg]] - nv[COL_REGS[reg]]),
+        );
+    });
 }
 
-/// Register 0 is always 0
-fn r0_always_0<P: PackedField>(lv: &[P; NUM_CPU_COLS], yield_constr: &mut ConstraintConsumer<P>) {
-    yield_constr.constraint(lv[COL_REGS.start]);
+fn rd_actually_changes<P: PackedField>(
+    lv: &[P; NUM_CPU_COLS],
+    nv: &[P; NUM_CPU_COLS],
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    // Note: we skip 0 here, because it's already forced to 0 permanently by
+    // `r0_always_0`
+    (1..32).for_each(|reg| {
+        yield_constr.constraint_transition(
+            (lv[COL_RD_SELECT[reg]]) * (lv[COL_DST_VALUE] - nv[COL_REGS[reg]]),
+        );
+    });
+}
+
+fn populate_op1_value<P: PackedField>(
+    lv: &[P; NUM_CPU_COLS],
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    yield_constr.constraint(
+        lv[COL_OP1_VALUE]
+            // Note: we could skip 0, because r0 is always 0.
+            // But we keep the constraints simple here.
+            - (0..32)
+                .map(|reg| lv[COL_RS1_SELECT[reg]] * lv[COL_REGS[reg]])
+                .sum::<P>(),
+    );
+}
+
+fn populate_op2_value<P: PackedField>(
+    lv: &[P; NUM_CPU_COLS],
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    yield_constr.constraint(
+        lv[COL_OP2_VALUE]
+            // Note: we could skip 0, because r0 is always 0.
+            // But we keep the constraints simple here.
+            - (0..32)
+                .map(|reg| lv[COL_RS2_SELECT[reg]] * lv[COL_REGS[reg]])
+                .sum::<P>(),
+    );
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
@@ -112,8 +155,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         pc_ticks_up(lv, nv, yield_constr);
 
         // Registers
-        only_rd_changes(lv, nv, yield_constr);
         r0_always_0(lv, yield_constr);
+        only_rd_changes(lv, nv, yield_constr);
+        rd_actually_changes(lv, nv, yield_constr);
+        populate_op1_value(lv, yield_constr);
+        populate_op2_value(lv, yield_constr);
 
         // add constraint
         add::constraints(lv, yield_constr);
