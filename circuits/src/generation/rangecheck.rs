@@ -1,7 +1,7 @@
 use mozak_vm::instruction::Op;
 use mozak_vm::state::Aux;
 use mozak_vm::vm::Row;
-use plonky2::hash::hash_types::RichField;
+use plonky2::field::types::{Field, PrimeField64};
 
 use crate::lookup::permute_cols;
 use crate::rangecheck::columns;
@@ -18,7 +18,7 @@ pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 /// initializing our trace to all [`F::ZERO`]s takes care of this step by
 /// default.
 #[must_use]
-fn init_padded_rc_trace<F: RichField>(len: usize) -> Vec<Vec<F>> {
+fn init_padded_rc_trace<F: Field>(len: usize) -> Vec<Vec<F>> {
     vec![vec![F::ZERO; len.next_power_of_two()]; columns::NUM_RC_COLS]
 }
 
@@ -32,7 +32,7 @@ fn init_padded_rc_trace<F: RichField>(len: usize) -> Vec<Vec<F>> {
 ///    into limbs,
 /// 2. trace width does not match the number of columns.
 #[must_use]
-pub fn generate_rangecheck_trace<F: RichField>(
+pub fn generate_rangecheck_trace<F: PrimeField64>(
     step_rows: &[Row],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace = init_padded_rc_trace(step_rows.len().max(RANGE_CHECK_U16_SIZE));
