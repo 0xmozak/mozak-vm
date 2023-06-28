@@ -43,6 +43,7 @@ pub struct Aux {
     // This could be an Option<u32>, but given how Risc-V instruction are specified,
     // 0 serves as a default value just fine.
     pub dst_val: u32,
+    pub new_pc: u32,
     pub mem_addr: Option<u32>,
     pub will_halt: bool,
 }
