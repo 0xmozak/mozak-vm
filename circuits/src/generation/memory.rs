@@ -92,6 +92,7 @@ pub fn generate_memory_trace<F: Field>(step_rows: Vec<Row>) -> [Vec<F>; mem_cols
 #[cfg(test)]
 mod test {
     use mozak_vm::test_utils::simple_test;
+    use mozak_vm::vm::ExecutionRecord;
     use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
@@ -111,7 +112,10 @@ mod test {
         // 0        100        20        LB        10        0           4
         // 0        200        8         SB        15        100         0
         // 0        200        12        LB        15        0           4
-        let (rows, state) = simple_test(
+        let ExecutionRecord {
+            executed,
+            last_state: state,
+        } = simple_test(
             24,
             &[
                 // Store Byte: M[rs1 + imm] = rs2
@@ -139,7 +143,7 @@ mod test {
         assert_eq!(state.load_u8(200), 15);
         assert_eq!(state.get_register_value(6), 15);
 
-        let trace = super::generate_memory_trace::<F>(rows);
+        let trace = super::generate_memory_trace::<F>(executed);
         let expected_trace = [
             [
                 F::ZERO,

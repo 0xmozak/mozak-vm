@@ -38,21 +38,35 @@ impl From<Program> for State {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct Aux {
+    // This could be an Option<u32>, but given how Risc-V instruction are specified,
+    // 0 serves as a default value just fine.
+    pub dst_val: u32,
+    pub mem_addr: Option<u32>,
+    pub will_halt: bool,
+}
+
 impl State {
     #[must_use]
-    pub fn register_op<F>(self, data: &Data, op: F) -> Self
+    pub fn register_op<F>(self, data: &Data, op: F) -> (Aux, Self)
     where
         F: FnOnce(u32, u32, u32) -> u32,
     {
         let rs1 = self.get_register_value(data.rs1.into());
         let rs2 = self.get_register_value(data.rs2.into());
-        let imm: u32 = data.imm;
-        self.set_register_value(data.rd.into(), op(rs1, rs2, imm))
-            .bump_pc()
+        let dst_val = op(rs1, rs2, data.imm);
+        (
+            Aux {
+                dst_val,
+                ..Aux::default()
+            },
+            self.set_register_value(data.rd.into(), dst_val).bump_pc(),
+        )
     }
 
     #[must_use]
-    pub fn memory_load(self, data: &Data, op: fn(&[u8; 4]) -> u32) -> Self {
+    pub fn memory_load(self, data: &Data, op: fn(&[u8; 4]) -> u32) -> (Aux, Self) {
         let addr: u32 = self
             .get_register_value(data.rs1.into())
             .wrapping_add(data.imm);
@@ -62,18 +76,29 @@ impl State {
             self.load_u8(addr + 2),
             self.load_u8(addr + 3),
         ];
-        self.set_register_value(data.rd.into(), op(&mem)).bump_pc()
+        let dst_val = op(&mem);
+        (
+            Aux {
+                dst_val,
+                mem_addr: Some(addr),
+                ..Default::default()
+            },
+            self.set_register_value(data.rd.into(), dst_val).bump_pc(),
+        )
     }
 
     #[must_use]
-    pub fn branch_op(self, data: &Data, op: fn(u32, u32) -> bool) -> State {
+    pub fn branch_op(self, data: &Data, op: fn(u32, u32) -> bool) -> (Aux, State) {
         let rs1 = self.get_register_value(data.rs1.into());
         let rs2 = self.get_register_value(data.rs2.into());
-        if op(rs1, rs2) {
-            self.set_pc(data.imm)
-        } else {
-            self.bump_pc()
-        }
+        (
+            Aux::default(),
+            if op(rs1, rs2) {
+                self.set_pc(data.imm)
+            } else {
+                self.bump_pc()
+            },
+        )
     }
 }
 

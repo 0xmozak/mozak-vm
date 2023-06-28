@@ -60,6 +60,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(clippy::cast_possible_wrap)]
 mod test {
     use mozak_vm::test_utils::simple_test;
 
@@ -67,18 +68,25 @@ mod test {
 
     #[test]
     fn prove_halt() {
-        let (rows, _state) = simple_test(0, &[], &[]);
-        simple_proof_test(&rows);
+        let record = simple_test(0, &[], &[]);
+        simple_proof_test(&record.executed);
     }
 
     #[test]
     fn prove_add() {
-        let (rows, state) = simple_test(
+        let record = simple_test(
             4,
             &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
             &[(6, 100), (7, 100)],
         );
-        assert_eq!(state.get_register_value(5), 100 + 100);
-        simple_proof_test(&rows);
+        assert_eq!(record.last_state.get_register_value(5), 100 + 100);
+        simple_proof_test(&record.executed);
+    }
+
+    #[test]
+    fn prove_lui() {
+        let record = simple_test(4, &[(0_u32, 0x8000_00b7 /* lui r1, 0x80000 */)], &[]);
+        assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
+        simple_proof_test(&record.executed);
     }
 }
