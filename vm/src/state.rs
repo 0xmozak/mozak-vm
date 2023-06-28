@@ -166,10 +166,6 @@ impl State {
     }
 
     /// Load a byte from memory
-    ///
-    /// # Panics
-    /// This function panics if the conversion from `u32` to a `u8` fails, which
-    /// is an internal error.
     #[must_use]
     pub fn load_u8(&self, addr: u32) -> u8 { self.memory.get(&addr).copied().unwrap_or_default() }
 
