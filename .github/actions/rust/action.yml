@@ -9,17 +9,11 @@ runs:
   using: "composite"
   steps:
     - name: Get rust version
-      shell: python3 {0}
+      shell: sed -f {0} rust-toolchain.toml > $GITHUB_ENV
       run: |
-        import os
-        import tomllib
-
-        with open(os.environ["GITHUB_ENV"], "at") as github_env, open(
-            "rust-toolchain.toml", "rb"
-        ) as rust_toolchain:
-            github_env.write(
-                f'RUST_VERSION="{tomllib.load(rust_toolchain)["toolchain"]["channel"]}"\n'
-            )
+        s/channel[[:space:]]*=[[:space:]]*/RUST_VERSION=/
+        t
+        d
     - name: Install toolchain
       uses: dtolnay/rust-toolchain@master
       with:
