@@ -80,7 +80,6 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             trace[cpu_cols::COL_CMP_ABS_DIFF][i] = from_(abs_diff_fixed);
 
             {
-                // let diff = from_::<_, F>(op1) - from_(op2);
                 let diff = trace[cpu_cols::COL_OP1_VALUE][i]
                     - trace[cpu_cols::COL_OP2_VALUE][i]
                     - trace[cpu_cols::COL_IMM_VALUE][i];

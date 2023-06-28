@@ -16,8 +16,7 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     let p32: P = column_of_xs(1 << 32);
     let p31: P = column_of_xs(1 << 31);
-    // Watch out: possible values are 0, 1, 2;
-    // We only care about zero or non-zero.
+    // Possible values are 0, 1;
     let is_cmp = lv[COL_S_SLT] + lv[COL_S_SLTU];
     let is_signed = lv[COL_S_SLT];
 
@@ -96,7 +95,7 @@ mod test {
                     &[(6, a), (7, b)],
                 );
                 assert_eq!(record.last_state.get_register_value(5), (a < b).into());
-                // assert_eq!(record.last_state.get_register_value(4), ((a as i32) < (b as i32)).into());
+                assert_eq!(record.last_state.get_register_value(4), ((a as i32) < (b as i32)).into());
                 simple_proof_test(&record.executed).unwrap();
             }
     }
