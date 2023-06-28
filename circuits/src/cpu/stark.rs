@@ -1,26 +1,45 @@
 use std::marker::PhantomData;
 
-use plonky2::field::extension::FieldExtension;
+use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
+use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::{field::extension::Extendable, hash::hash_types::RichField};
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::{
-    add,
-    columns::{
-        COL_CLK, COL_RD, COL_REGS, COL_S_ADD, COL_S_ECALL, COL_S_HALT, COL_S_LUI, NUM_CPU_COLS,
-    },
-    lui,
+use super::columns::{
+    COL_CLK, COL_PC, COL_RD, COL_REGS, COL_S_ADD, COL_S_BEQ, COL_S_ECALL, COL_S_HALT, COL_S_SUB,
+    NUM_CPU_COLS,
 };
-use crate::utils::from_;
+use super::{add, sub};
+use crate::utils::{column_of_xs, from_};
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F> {
     pub _f: PhantomData<F>,
+}
+
+use array_concat::{concat_arrays, concat_arrays_size};
+
+pub const STRAIGHTLINE_OPCODES: [usize; 2] = [COL_S_ADD, COL_S_SUB];
+pub const JUMPING_OPCODES: [usize; 2] = [COL_S_BEQ, COL_S_ECALL];
+pub const OPCODES: [usize; concat_arrays_size!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES)] =
+    concat_arrays!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES);
+
+fn pc_ticks_up<P: PackedField>(
+    lv: &[P; NUM_CPU_COLS],
+    nv: &[P; NUM_CPU_COLS],
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    let is_straightline_op: P = STRAIGHTLINE_OPCODES
+        .into_iter()
+        .map(|op_code| lv[op_code])
+        .sum();
+    yield_constr.constraint_transition(
+        is_straightline_op * (nv[COL_PC] - (lv[COL_PC] + column_of_xs::<P>(4))),
+    );
 }
 
 /// Selector of opcode, builtins and halt should be one-hot encoded.
@@ -31,12 +50,12 @@ fn opcode_one_hot<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let op_selectors = [lv[COL_S_ADD], lv[COL_S_ECALL], lv[COL_S_LUI]];
+    let op_selectors: Vec<_> = OPCODES.iter().map(|&op_code| lv[op_code]).collect();
 
     // Op selectors have value 0 or 1.
     op_selectors
-        .into_iter()
-        .for_each(|s| yield_constr.constraint(s * (P::ONES - s)));
+        .iter()
+        .for_each(|&s| yield_constr.constraint(s * (P::ONES - s)));
 
     // Only one opcode selector enabled.
     let sum_s_op: P = op_selectors.into_iter().sum();
@@ -83,31 +102,30 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F> {
         yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>,
-    {
+        P: PackedField<Scalar = FE>, {
         let lv = vars.local_values;
         let nv = vars.next_values;
 
         opcode_one_hot(lv, yield_constr);
 
         clock_ticks(lv, nv, yield_constr);
+        pc_ticks_up(lv, nv, yield_constr);
 
         // Registers
         only_rd_changes(lv, nv, yield_constr);
         r0_always_0(lv, yield_constr);
 
         // add constraint
-        add::constraints(lv, nv, yield_constr);
-        lui::constraints(lv, nv, yield_constr);
+        add::constraints(lv, yield_constr);
+        sub::constraints(lv, yield_constr);
 
         // Last row must be HALT
         yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);
     }
 
-    fn constraint_degree(&self) -> usize {
-        2
-    }
+    fn constraint_degree(&self) -> usize { 3 }
 
+    #[no_coverage]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,

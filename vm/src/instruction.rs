@@ -1,8 +1,8 @@
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
-pub struct Data {
+pub struct Args {
+    pub rd: u8,
     pub rs1: u8,
     pub rs2: u8,
-    pub rd: u8,
     pub imm: u32,
 }
 
@@ -14,21 +14,14 @@ pub enum Op {
     SRL,
     SRA,
     SLL,
-    SLLI,
     SLT,
-    SLTI,
     SLTU,
-    SLTIU,
-    SRAI,
-    SRLI,
     LB,
     LH,
     LW,
     LBU,
     LHU,
     XOR,
-    XORI,
-    JAL,
     JALR,
     BEQ,
     BNE,
@@ -37,9 +30,7 @@ pub enum Op {
     BLTU,
     BGEU,
     AND,
-    ANDI,
     OR,
-    ORI,
     SW,
     SH,
     SB,
@@ -47,25 +38,45 @@ pub enum Op {
     MULH,
     MULHU,
     MULHSU,
-    LUI,
-    AUIPC,
     DIV,
     DIVU,
     REM,
     REMU,
-    FENCE,
-    CSRRW,
-    CSRRS,
-    CSRRWI,
-    MRET,
     ECALL,
-    EBREAK,
     #[default]
     UNKNOWN,
 }
 
+/// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
+pub const NOOP_PAIR: (Op, Args) = (Op::ADD, Args {
+    rd: 0,
+    rs1: 0,
+    rs2: 0,
+    imm: 0,
+});
+/// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
+pub const NOOP: Instruction = Instruction {
+    op: Op::ADD,
+    args: Args {
+        rd: 0,
+        rs1: 0,
+        rs2: 0,
+        imm: 0,
+    },
+};
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct Instruction {
     pub op: Op,
-    pub data: Data,
+    pub args: Args,
+}
+
+impl Instruction {
+    #[must_use]
+    pub fn new(op: Op, rd: u8, rs1: u8, rs2: u8, imm: u32) -> Self {
+        Instruction {
+            op,
+            args: Args { rd, rs1, rs2, imm },
+        }
+    }
 }

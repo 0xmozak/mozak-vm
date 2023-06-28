@@ -15,8 +15,10 @@ plonky2_maybe_rayon = "0.1.0"
 anyhow = { version = "1.0", default-features = false }
 mozak-vm = { path = "../vm" }
 log = "0.4.19"
-itertools = "0.10.0"
+itertools = "0.11.0"
 starky = "0.1.1"
+array-concat = "0.5.2"
 
 [dev-dependencies]
 mozak-vm = { path = "../vm", features = ["test"] }
+proptest = "1.2.0"

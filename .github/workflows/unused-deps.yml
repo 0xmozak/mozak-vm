@@ -1,0 +1,39 @@
+name: Unused dependencies
+
+on:
+  # Triggers the workflow every sunday
+  schedule:
+    - cron: "0 18 * * 0"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  cargo-udeps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        # Main branch is default branch
+        # with:
+        #   ref: main
+
+      - name: Install rust toolkit
+        uses: ./.github/actions/rust
+
+      - name: Install cargo-udeps
+        run: cargo install --locked cargo-udeps
+
+      - name: Check for unused dependencies
+        run: cargo udeps --workspace --all-targets --all-features
+
+      - name: Create github issue for failed action
+        uses: imjohnbo/issue-bot@v3
+        if: ${{ failure() }}
+        with:
+          assignees: "jdkanani, matthiasgoergens"
+          labels: "bug, devtools"
+          title: "Github action for unused deps check failed"
+          body: |
+            Failed reference github action job: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

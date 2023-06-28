@@ -1,8 +1,8 @@
 use im::hashmap::HashMap;
 use log::trace;
 
-use crate::elf::{Code, Program};
-use crate::instruction::{Data, Instruction};
+use crate::elf::{Code, Data, Program};
+use crate::instruction::{Args, Instruction};
 
 /// State of our VM
 ///
@@ -27,7 +27,7 @@ pub struct State {
 
 impl From<Program> for State {
     fn from(program: Program) -> Self {
-        let memory: HashMap<u32, u8> = program.image;
+        let Data(memory) = program.data;
         let code = program.code;
         Self {
             pc: program.entry,
@@ -43,33 +43,31 @@ pub struct Aux {
     // This could be an Option<u32>, but given how Risc-V instruction are specified,
     // 0 serves as a default value just fine.
     pub dst_val: u32,
+    pub new_pc: u32,
     pub mem_addr: Option<u32>,
     pub will_halt: bool,
 }
 
 impl State {
     #[must_use]
-    pub fn register_op<F>(self, data: &Data, op: F) -> (Aux, Self)
+    pub fn register_op<F>(self, data: &Args, op: F) -> (Aux, Self)
     where
-        F: FnOnce(u32, u32, u32) -> u32,
-    {
-        let rs1 = self.get_register_value(data.rs1.into());
-        let rs2 = self.get_register_value(data.rs2.into());
+        F: FnOnce(u32, u32, u32) -> u32, {
+        let rs1 = self.get_register_value(data.rs1);
+        let rs2 = self.get_register_value(data.rs2);
         let dst_val = op(rs1, rs2, data.imm);
         (
             Aux {
                 dst_val,
                 ..Aux::default()
             },
-            self.set_register_value(data.rd.into(), dst_val).bump_pc(),
+            self.set_register_value(data.rd, dst_val).bump_pc(),
         )
     }
 
     #[must_use]
-    pub fn memory_load(self, data: &Data, op: fn(&[u8; 4]) -> u32) -> (Aux, Self) {
-        let addr: u32 = self
-            .get_register_value(data.rs1.into())
-            .wrapping_add(data.imm);
+    pub fn memory_load(self, data: &Args, op: fn(&[u8; 4]) -> u32) -> (Aux, Self) {
+        let addr: u32 = self.get_register_value(data.rs1).wrapping_add(data.imm);
         let mem = [
             self.load_u8(addr),
             self.load_u8(addr + 1),
@@ -83,14 +81,14 @@ impl State {
                 mem_addr: Some(addr),
                 ..Default::default()
             },
-            self.set_register_value(data.rd.into(), dst_val).bump_pc(),
+            self.set_register_value(data.rd, dst_val).bump_pc(),
         )
     }
 
     #[must_use]
-    pub fn branch_op(self, data: &Data, op: fn(u32, u32) -> bool) -> (Aux, State) {
-        let rs1 = self.get_register_value(data.rs1.into());
-        let rs2 = self.get_register_value(data.rs2.into());
+    pub fn branch_op(self, data: &Args, op: fn(u32, u32) -> bool) -> (Aux, State) {
+        let rs1 = self.get_register_value(data.rs1);
+        let rs2 = self.get_register_value(data.rs2);
         (
             Aux::default(),
             if op(rs1, rs2) {
@@ -110,27 +108,23 @@ impl State {
     }
 
     #[must_use]
-    pub fn has_halted(&self) -> bool {
-        self.halted
-    }
+    pub fn has_halted(&self) -> bool { self.halted }
 
     /// Load a byte from memory
     ///
     /// # Panics
     /// This function panics, if you try to load into an invalid register.
     #[must_use]
-    pub fn set_register_value(mut self, index: usize, value: u32) -> Self {
+    pub fn set_register_value(mut self, index: u8, value: u32) -> Self {
         // R0 is always 0
         if index != 0 {
-            self.registers[index] = value;
+            self.registers[usize::from(index)] = value;
         }
         self
     }
 
     #[must_use]
-    pub fn get_register_value(&self, index: usize) -> u32 {
-        self.registers[index]
-    }
+    pub fn get_register_value(&self, index: u8) -> u32 { self.registers[usize::from(index)] }
 
     #[must_use]
     pub fn set_pc(mut self, value: u32) -> Self {
@@ -139,14 +133,10 @@ impl State {
     }
 
     #[must_use]
-    pub fn get_pc(&self) -> u32 {
-        self.pc
-    }
+    pub fn get_pc(&self) -> u32 { self.pc }
 
     #[must_use]
-    pub fn bump_pc(self) -> Self {
-        self.bump_pc_n(4)
-    }
+    pub fn bump_pc(self) -> Self { self.bump_pc_n(4) }
 
     #[must_use]
     pub fn bump_pc_n(self, diff: u32) -> Self {
@@ -176,14 +166,8 @@ impl State {
     }
 
     /// Load a byte from memory
-    ///
-    /// # Panics
-    /// This function panics if the conversion from `u32` to a `u8` fails, which
-    /// is an internal error.
     #[must_use]
-    pub fn load_u8(&self, addr: u32) -> u8 {
-        self.memory.get(&addr).copied().unwrap_or_default()
-    }
+    pub fn load_u8(&self, addr: u32) -> u8 { self.memory.get(&addr).copied().unwrap_or_default() }
 
     /// Store a byte to memory
     ///

@@ -1,12 +1,13 @@
 use anyhow::Result;
-use plonky2::plonk::config::Hasher;
-use plonky2::{
-    field::extension::Extendable, hash::hash_types::RichField, plonk::config::GenericConfig,
-};
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
+use plonky2::plonk::config::{GenericConfig, Hasher};
+use starky::config::StarkConfig;
 use starky::stark::Stark;
-use starky::{config::StarkConfig, verifier::verify_stark_proof};
+use starky::verifier::verify_stark_proof;
 
-use super::{mozak_stark::MozakStark, proof::AllProof};
+use super::mozak_stark::MozakStark;
+use super::proof::AllProof;
 use crate::cpu::stark::CpuStark;
 
 #[allow(clippy::missing_errors_doc)]
@@ -20,8 +21,7 @@ where
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F>::COLUMNS]:,
     [(); CpuStark::<F>::PUBLIC_INPUTS]:,
-    [(); C::Hasher::HASH_SIZE]:,
-{
+    [(); C::Hasher::HASH_SIZE]:, {
     let MozakStark { cpu_stark } = mozak_stark;
     verify_stark_proof(*cpu_stark, all_proof.stark_proofs[0].clone(), config)
 }

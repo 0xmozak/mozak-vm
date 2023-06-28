@@ -7,7 +7,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  NIGHTLY_RUST_VERSION: nightly-2023-05-17
 
 jobs:
   check-riscv-tests:
@@ -30,19 +29,13 @@ jobs:
     if: github.event.pull_request.draft == false
     strategy:
       matrix:
-        # TODO(Matthias): restore `macos-latest` to run only on pushes to main or on a schedule.
-        # MacOS minutes are ten times more expensive than Ubuntu minutes, so this single job was
-        # eating 2/3 of our GitHub action spend.
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Install rust toolkit
+        uses: ./.github/actions/rust
 
       - name: Run tests
         run: cargo test --locked --all-targets
@@ -52,13 +45,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
-          components: clippy
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Install rust toolkit
+        uses: ./.github/actions/rust
 
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
@@ -68,12 +57,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
-
-      - uses: Swatinem/rust-cache@v2
+ 
+      - name: Install rust toolkit
+        uses: ./.github/actions/rust
 
       - name: Run fmt
         run: cargo fmt --all --check
@@ -91,15 +77,12 @@ jobs:
       discussions: write
     steps:
       - uses: actions/checkout@v3
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
-
-      - uses: Swatinem/rust-cache@v2
+  
+      - name: Install rust toolkit
+        uses: ./.github/actions/rust
         with:
           # tarpaulin runs with different RUSTFLAGS, so we need a different cache.
-          prefix-key: "v0-rust-tarpaulin"
+          cache-key: "v0-rust-tarpaulin"
 
       - name: "Install coverage tool: cargo tarpaulin"
         uses: taiki-e/install-action@v2
@@ -121,20 +104,3 @@ jobs:
         with:
           path: cobertura.xml
           minimum_coverage: 0
-
-  cargo-udeps:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.NIGHTLY_RUST_VERSION }}
-
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Run cargo-udeps
-        uses: aig787/cargo-udeps-action@v1
-        with:
-          args: '--workspace --all-targets --all-features'

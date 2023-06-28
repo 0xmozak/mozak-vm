@@ -27,3 +27,7 @@ You can update the tests via:
 cd vm/tests/create_testdata/
 ./update_testdata
 ```
+
+# Updating Rust toolchain
+
+To update the Rust toolchain, change `rust-toolchain.toml`.

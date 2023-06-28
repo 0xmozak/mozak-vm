@@ -1,3 +1,6 @@
+#![feature(stmt_expr_attributes)]
+#![feature(register_tool)]
+#![register_tool(tarpaulin)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
 

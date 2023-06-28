@@ -10,6 +10,7 @@ pub fn get_memory_inst_op<F: Field>(inst: &Instruction) -> F {
     match inst.op {
         Op::LB => F::from_canonical_usize(OPCODE_LB),
         Op::SB => F::from_canonical_usize(OPCODE_SB),
+        #[tarpaulin::skip]
         _ => F::ZERO,
     }
 }
@@ -20,9 +21,7 @@ pub fn get_memory_inst_addr<F: Field>(row: &Row) -> F {
 }
 
 #[must_use]
-pub fn get_memory_inst_clk<F: Field>(row: &Row) -> F {
-    F::from_canonical_u64(row.state.clk)
-}
+pub fn get_memory_inst_clk<F: Field>(row: &Row) -> F { F::from_canonical_u64(row.state.clk) }
 
 #[must_use]
 pub fn get_memory_load_inst_value<F: Field>(row: &Row) -> F {
