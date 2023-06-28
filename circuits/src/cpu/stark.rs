@@ -9,16 +9,37 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{
-    COL_CLK, COL_RD, COL_REGS, COL_S_ADD, COL_S_BEQ, COL_S_ECALL, COL_S_HALT, COL_S_SUB,
+    COL_CLK, COL_PC, COL_RD, COL_REGS, COL_S_ADD, COL_S_BEQ, COL_S_ECALL, COL_S_HALT, COL_S_SUB,
     NUM_CPU_COLS,
 };
 use super::{add, sub};
-use crate::utils::from_;
+use crate::utils::{column_of_xs, from_};
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+use array_concat::{concat_arrays, concat_arrays_size};
+
+pub const STRAIGHTLINE_OPCODES: [usize; 2] = [COL_S_ADD, COL_S_SUB];
+pub const JUMPING_OPCODES: [usize; 2] = [COL_S_BEQ, COL_S_ECALL];
+pub const OPCODES: [usize; concat_arrays_size!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES)] =
+    concat_arrays!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES);
+
+fn pc_ticks_up<P: PackedField>(
+    lv: &[P; NUM_CPU_COLS],
+    nv: &[P; NUM_CPU_COLS],
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    let is_straightline_op: P = STRAIGHTLINE_OPCODES
+        .into_iter()
+        .map(|op_code| lv[op_code])
+        .sum();
+    yield_constr.constraint_transition(
+        is_straightline_op * (nv[COL_PC] - (lv[COL_PC] + column_of_xs::<P>(4))),
+    );
 }
 
 /// Selector of opcode, builtins and halt should be one-hot encoded.
@@ -29,12 +50,12 @@ fn opcode_one_hot<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let op_selectors = [lv[COL_S_ADD], lv[COL_S_BEQ], lv[COL_S_ECALL], lv[COL_S_SUB]];
+    let op_selectors: Vec<_> = OPCODES.iter().map(|&op_code| lv[op_code]).collect();
 
     // Op selectors have value 0 or 1.
     op_selectors
-        .into_iter()
-        .for_each(|s| yield_constr.constraint(s * (P::ONES - s)));
+        .iter()
+        .for_each(|&s| yield_constr.constraint(s * (P::ONES - s)));
 
     // Only one opcode selector enabled.
     let sum_s_op: P = op_selectors.into_iter().sum();
@@ -88,14 +109,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         opcode_one_hot(lv, yield_constr);
 
         clock_ticks(lv, nv, yield_constr);
+        pc_ticks_up(lv, nv, yield_constr);
 
         // Registers
         only_rd_changes(lv, nv, yield_constr);
         r0_always_0(lv, yield_constr);
 
         // add constraint
-        add::constraints(lv, nv, yield_constr);
-        sub::constraints(lv, nv, yield_constr);
+        add::constraints(lv, yield_constr);
+        sub::constraints(lv, yield_constr);
 
         // Last row must be HALT
         yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);

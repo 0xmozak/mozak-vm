@@ -76,15 +76,14 @@ pub fn lw(mem: &[u8; 4]) -> u32 { u32::from_le_bytes(*mem) }
 impl State {
     #[must_use]
     pub fn jalr(self, inst: &Args) -> (Aux, Self) {
-        let pc = self.get_pc();
         let new_pc = self.get_register_value(inst.rs1).wrapping_add(inst.imm) & !1;
+        let dst_val = self.get_pc().wrapping_add(4);
         (
             Aux {
-                dst_val: new_pc,
+                dst_val,
                 ..Default::default()
             },
-            self.set_pc(new_pc)
-                .set_register_value(inst.rd, pc.wrapping_add(4)),
+            self.set_pc(new_pc).set_register_value(inst.rd, dst_val),
         )
     }
 
@@ -183,7 +182,13 @@ impl State {
             Op::REMU => rop!(remu),
             Op::UNKNOWN => unimplemented!("Unknown instruction"),
         };
-        (aux, state.bump_clock())
+        (
+            Aux {
+                new_pc: state.get_pc(),
+                ..aux
+            },
+            state.bump_clock(),
+        )
     }
 }
 
