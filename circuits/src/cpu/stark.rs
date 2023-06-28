@@ -23,8 +23,8 @@ pub struct CpuStark<F, const D: usize> {
 
 use array_concat::{concat_arrays, concat_arrays_size};
 
-pub const STRAIGHTLINE_OPCODES: [usize; 3] = [COL_S_ADD, COL_S_ECALL, COL_S_SUB];
-pub const JUMPING_OPCODES: [usize; 1] = [COL_S_BEQ];
+pub const STRAIGHTLINE_OPCODES: [usize; 2] = [COL_S_ADD, COL_S_SUB];
+pub const JUMPING_OPCODES: [usize; 2] = [COL_S_BEQ, COL_S_ECALL];
 pub const OPCODES: [usize; concat_arrays_size!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES)] =
     concat_arrays!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES);
 
@@ -37,8 +37,9 @@ fn pc_ticks_up<P: PackedField>(
         .into_iter()
         .map(|op_code| lv[op_code])
         .sum();
-    yield_constr
-        .constraint_transition(is_straightline_op * (nv[COL_PC] - (lv[COL_PC] + column_of_xs::<P>(4))));
+    yield_constr.constraint_transition(
+        is_straightline_op * (nv[COL_PC] - (lv[COL_PC] + column_of_xs::<P>(4))),
+    );
 }
 
 /// Selector of opcode, builtins and halt should be one-hot encoded.
