@@ -38,7 +38,7 @@ fn pc_ticks_up<P: PackedField>(
         .map(|op_code| lv[op_code])
         .sum();
     yield_constr
-        .constraint(is_straightline_op * (nv[COL_PC] - (lv[COL_PC] + column_of_xs::<P>(4))));
+        .constraint_transition(is_straightline_op * (nv[COL_PC] - (lv[COL_PC] + column_of_xs::<P>(4))));
 }
 
 /// Selector of opcode, builtins and halt should be one-hot encoded.
