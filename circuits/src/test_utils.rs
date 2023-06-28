@@ -1,10 +1,8 @@
 use anyhow::Result;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
-use plonky2::{
-    plonk::config::{GenericConfig, PoseidonGoldilocksConfig},
-    util::timing::TimingTree,
-};
+use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
 use crate::stark::mozak_stark::MozakStark;

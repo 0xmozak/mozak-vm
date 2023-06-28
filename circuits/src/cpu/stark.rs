@@ -1,20 +1,17 @@
 use std::marker::PhantomData;
 
-use plonky2::field::extension::FieldExtension;
+use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
+use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::{field::extension::Extendable, hash::hash_types::RichField};
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::{
-    add,
-    columns::{
-        COL_CLK, COL_RD, COL_REGS, COL_S_ADD, COL_S_ECALL, COL_S_HALT, COL_S_SUB, NUM_CPU_COLS,
-    },
-    sub,
+use super::columns::{
+    COL_CLK, COL_RD, COL_REGS, COL_S_ADD, COL_S_ECALL, COL_S_HALT, COL_S_SUB, NUM_CPU_COLS,
 };
+use super::{add, sub};
 use crate::utils::from_;
 
 #[derive(Copy, Clone, Default)]
@@ -83,8 +80,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>,
-    {
+        P: PackedField<Scalar = FE>, {
         let lv = vars.local_values;
         let nv = vars.next_values;
 
@@ -104,9 +100,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);
     }
 
-    fn constraint_degree(&self) -> usize {
-        3
-    }
+    fn constraint_degree(&self) -> usize { 3 }
 
     #[no_coverage]
     fn eval_ext_circuit(
