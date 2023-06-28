@@ -96,7 +96,6 @@ mod test {
     }
 
     #[test]
-    #[should_panic]
     fn prove_beq() {
         let record = simple_test_code(
             &[Instruction {
