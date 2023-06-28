@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 
-use plonky2::field::extension::FieldExtension;
+use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
+use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::{field::extension::Extendable, hash::hash_types::RichField};
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
@@ -32,8 +32,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>,
-    {
+        P: PackedField<Scalar = FE>, {
         let lv = vars.local_values;
         let nv = vars.next_values;
 
@@ -78,9 +77,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint((local_new_addr - P::ONES) * lv[COL_MEM_DIFF_ADDR_INV]);
     }
 
-    fn constraint_degree(&self) -> usize {
-        3
-    }
+    fn constraint_degree(&self) -> usize { 3 }
 
     #[no_coverage]
     fn eval_ext_circuit(

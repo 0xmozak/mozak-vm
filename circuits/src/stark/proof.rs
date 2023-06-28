@@ -1,6 +1,6 @@
-use plonky2::{
-    field::extension::Extendable, hash::hash_types::RichField, plonk::config::GenericConfig,
-};
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
+use plonky2::plonk::config::GenericConfig;
 use starky::proof::StarkProofWithPublicInputs;
 
 use super::mozak_stark::NUM_TABLES;

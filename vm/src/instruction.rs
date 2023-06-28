@@ -22,7 +22,6 @@ pub enum Op {
     LBU,
     LHU,
     XOR,
-    JAL,
     JALR,
     BEQ,
     BNE,
@@ -49,15 +48,12 @@ pub enum Op {
 }
 
 /// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
-pub const NOOP_PAIR: (Op, Args) = (
-    Op::ADD,
-    Args {
-        rd: 0,
-        rs1: 0,
-        rs2: 0,
-        imm: 0,
-    },
-);
+pub const NOOP_PAIR: (Op, Args) = (Op::ADD, Args {
+    rd: 0,
+    rs1: 0,
+    rs2: 0,
+    imm: 0,
+});
 /// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
 pub const NOOP: Instruction = Instruction {
     op: Op::ADD,
