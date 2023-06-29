@@ -18,11 +18,8 @@ pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
     type S = MozakStark<F, D>;
-    let mut config = StarkConfig::standard_fast_config();
-    config.fri_config.cap_height = 0;
-    config.fri_config.proof_of_work_bits = 0;
-    config.security_bits = 1;
-    let stark = S::default();
+    let mut stark = S::default();
+    let config = StarkConfig::standard_fast_config();
     let config = StarkConfig {
         security_bits: 1,
         num_challenges: 2,
@@ -35,7 +32,7 @@ pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
             ..config.fri_config
         },
     };
-    let mut stark = S::default();
+
     let all_proof = prove::<F, C, D>(step_rows, &mut stark, &config, &mut TimingTree::default());
     verify_proof(&stark, &all_proof.unwrap(), &config)
 }
