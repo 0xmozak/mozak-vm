@@ -1,5 +1,6 @@
 ![CI status](https://github.com/0xmozak/mozak-vm/actions/workflows/ci.yml/badge.svg)
 ![Unused dependencies status](https://github.com/0xmozak/mozak-vm/actions/workflows/unused-deps.yml/badge.svg)
+![MacOS CI status](https://github.com/0xmozak/mozak-vm/actions/workflows/macos-ci.yml/badge.svg)
 
 # Mozak Risc-V Virtual Machine
 
