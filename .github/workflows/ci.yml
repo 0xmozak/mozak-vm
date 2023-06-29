@@ -14,7 +14,7 @@ env:
 
 jobs:
   check-riscv-tests:
-    name: "Run Risc-V tests"
+    name: "Check Risc-V Tests are up to date"
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
