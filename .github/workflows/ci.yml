@@ -14,7 +14,8 @@ env:
 
 jobs:
   check-riscv-tests:
-    name: "Check Risc-V Tests are up to date"
+    name: "Run Risc-V tests"
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -29,6 +30,7 @@ jobs:
           }
 
   cargo-test:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -40,6 +42,7 @@ jobs:
         run: cargo test --locked --all-targets
 
   cargo-clippy:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -51,6 +54,7 @@ jobs:
         run: cargo clippy --all-features --all-targets -- -D warnings
 
   cargo-fmt:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
