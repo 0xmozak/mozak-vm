@@ -126,7 +126,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);
     }
 
-    fn constraint_degree(&self) -> usize { 4 }
+    fn constraint_degree(&self) -> usize { 3 }
 
     #[no_coverage]
     fn eval_ext_circuit(

@@ -2,7 +2,7 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_PC, COL_RD, COL_S_JALR, NUM_CPU_COLS,
+    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_PC, COL_S_JALR, NUM_CPU_COLS,
 };
 use crate::utils::column_of_xs;
 
@@ -16,10 +16,9 @@ pub(crate) fn constraints<P: PackedField>(
     let return_address = lv[COL_PC] + column_of_xs::<P>(4);
     let wrapped_return_address = return_address - wrap_at;
 
-    // enable-if JALR && RD: aux.dst_val == jmp-inst-pc + 4, wrapped
+    // enable-if JALR: aux.dst_val == jmp-inst-pc + 4, wrapped
     yield_constr.constraint(
         lv[COL_S_JALR]
-            * lv[COL_RD]
             * (lv[COL_DST_VALUE] - return_address)
             * (lv[COL_DST_VALUE] - wrapped_return_address),
     );
