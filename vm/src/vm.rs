@@ -76,7 +76,11 @@ pub fn lw(mem: &[u8; 4]) -> u32 { u32::from_le_bytes(*mem) }
 impl State {
     #[must_use]
     pub fn jalr(self, inst: &Args) -> (Aux, Self) {
-        let new_pc = self.get_register_value(inst.rs1).wrapping_add(inst.imm) & !1;
+        let new_pc = self
+            .get_pc()
+            .wrapping_add(self.get_register_value(inst.rs1))
+            .wrapping_add(inst.imm)
+            & !1;
         let dst_val = self.get_pc().wrapping_add(4);
         (
             Aux {
