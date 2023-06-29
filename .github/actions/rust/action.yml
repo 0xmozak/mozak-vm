@@ -1,10 +1,5 @@
 name: Install rust toolchain
 
-inputs:
-  cache-key:
-    required: false
-    type: string
-
 runs:
   using: "composite"
   steps:
@@ -17,11 +12,3 @@ runs:
       with:
         toolchain: ${{ env.RUST_VERSION }}
         components: rustfmt, clippy
-
-    - uses: Swatinem/rust-cache@v2
-      if: ${{ inputs.cache-key != '' }}
-      with:
-        prefix-key: ${{ inputs.cache-key }}
-    
-    - uses: Swatinem/rust-cache@v2
-      if: ${{ inputs.cache-key == '' }}
