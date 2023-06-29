@@ -76,9 +76,6 @@ jobs:
   
       - name: Install rust toolkit
         uses: ./.github/actions/rust
-        with:
-          # tarpaulin runs with different RUSTFLAGS, so we need a different cache.
-          cache-key: "v0-rust-tarpaulin"
 
       - name: "Install coverage tool: cargo tarpaulin"
         uses: taiki-e/install-action@v2
