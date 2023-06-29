@@ -3,4 +3,3 @@ pub mod columns;
 pub mod slt;
 pub mod stark;
 pub mod sub;
-pub mod utils;

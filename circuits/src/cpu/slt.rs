@@ -6,12 +6,10 @@ use super::columns::{
     COL_OP2_VALUE, COL_S_SLT, COL_S_SLTU, COL_S_SLT_OP1_VAL_FIXED, COL_S_SLT_OP2_VAL_FIXED,
     COL_S_SLT_SIGN1, COL_S_SLT_SIGN2, NUM_CPU_COLS,
 };
-use super::utils::pc_ticks_up;
 use crate::utils::column_of_xs;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
-    nv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let p32: P = column_of_xs(1 << 32);
@@ -55,8 +53,6 @@ pub(crate) fn constraints<P: PackedField>(
     let diff_inv = lv[COL_CMP_DIFF_INV];
     yield_constr.constraint(lt * (P::ONES - diff * diff_inv));
     yield_constr.constraint(is_cmp * (lt - lv[COL_DST_VALUE]));
-
-    yield_constr.constraint_transition(is_cmp * pc_ticks_up(lv, nv));
 }
 
 #[cfg(test)]

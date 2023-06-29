@@ -76,15 +76,14 @@ pub fn lw(mem: &[u8; 4]) -> u32 { u32::from_le_bytes(*mem) }
 impl State {
     #[must_use]
     pub fn jalr(self, inst: &Args) -> (Aux, Self) {
-        let pc = self.get_pc();
         let new_pc = self.get_register_value(inst.rs1).wrapping_add(inst.imm) & !1;
+        let dst_val = self.get_pc().wrapping_add(4);
         (
             Aux {
-                dst_val: new_pc,
+                dst_val,
                 ..Default::default()
             },
-            self.set_pc(new_pc)
-                .set_register_value(inst.rd, pc.wrapping_add(4)),
+            self.set_pc(new_pc).set_register_value(inst.rd, dst_val),
         )
     }
 
@@ -183,7 +182,13 @@ impl State {
             Op::REMU => rop!(remu),
             Op::UNKNOWN => unimplemented!("Unknown instruction"),
         };
-        (aux, state.bump_clock())
+        (
+            Aux {
+                new_pc: state.get_pc(),
+                ..aux
+            },
+            state.bump_clock(),
+        )
     }
 }
 
@@ -243,6 +248,8 @@ pub fn step(mut last_state: State) -> Result<ExecutionRecord> {
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
+    use proptest::prelude::any;
+    use proptest::proptest;
     use test_case::test_case;
 
     use super::ExecutionRecord;
@@ -772,15 +779,18 @@ mod tests {
         assert_eq!(state.get_register_value(5), 100_u32);
     }
 
-    #[test]
-    fn sb() {
-        // at 0 address instruction SB
-        // SB x5, 1200(x0)
-        let ExecutionRecord {
-            last_state: state, ..
-        } = simple_test(4, &[(0, 0x4a50_0823)], &[(5, 0x0000_00FF)]);
+    proptest! {
+        #[test]
+        fn sb(address_reg in 1_u8..32, source_val in any::<u32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(&[Instruction::new(Op::SB, 0, 0, address_reg, 1200)], &[], &[(
+                address_reg,
+                source_val,
+            )]);
 
-        assert_eq!(state.load_u32(1200), 0x0000_00FF);
+            assert_eq!(u32::from(state.load_u8(1200)), source_val & 0xff);
+        }
     }
 
     #[test]

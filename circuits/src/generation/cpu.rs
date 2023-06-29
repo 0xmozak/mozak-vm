@@ -16,9 +16,9 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
         let inst = state.current_instruction();
 
-        trace[cpu_cols::COL_RS1][i] = from_(inst.args.rs1);
-        trace[cpu_cols::COL_RS2][i] = from_(inst.args.rs2);
-        trace[cpu_cols::COL_RD][i] = from_(inst.args.rd);
+        trace[cpu_cols::COL_RS1_SELECT[inst.args.rs1 as usize]][i] = F::ONE;
+        trace[cpu_cols::COL_RS2_SELECT[inst.args.rs2 as usize]][i] = F::ONE;
+        trace[cpu_cols::COL_RD_SELECT[inst.args.rd as usize]][i] = F::ONE;
         trace[cpu_cols::COL_OP1_VALUE][i] = from_(state.get_register_value(inst.args.rs1));
         trace[cpu_cols::COL_OP2_VALUE][i] = from_(state.get_register_value(inst.args.rs2));
         // NOTE: Updated value of DST register is next step.
