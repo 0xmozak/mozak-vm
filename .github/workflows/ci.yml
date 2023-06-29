@@ -15,7 +15,7 @@ env:
 jobs:
   check-riscv-tests:
     name: "Check Risc-V Tests are up to date"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - run: |
@@ -29,7 +29,7 @@ jobs:
           }
 
   cargo-test:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
@@ -40,7 +40,7 @@ jobs:
         run: cargo test --locked --all-targets
 
   cargo-clippy:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
@@ -51,7 +51,7 @@ jobs:
         run: cargo clippy --all-features --all-targets -- -D warnings
 
   cargo-fmt:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
  
@@ -60,43 +60,3 @@ jobs:
 
       - name: Run fmt
         run: cargo fmt --all --check
-
-  coverage:
-    runs-on: self-hosted
-    permissions:
-      issues: read
-      contents: write
-      packages: read
-      pull-requests: write
-      checks: write
-      pages: write
-      discussions: write
-    steps:
-      - uses: actions/checkout@v3
-  
-      - name: Install rust toolkit
-        uses: ./.github/actions/rust
-        with:
-          # tarpaulin runs with different RUSTFLAGS, so we need a different cache.
-          cache-key: "v0-rust-tarpaulin"
-
-      - name: "Install coverage tool: cargo tarpaulin"
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-tarpaulin
-
-      - name: Run tests for coverage
-        # skip-clean is there to make tarpaulin not re-build unnecessarily,
-        # so caching dependencies works.
-        run: cargo tarpaulin --skip-clean --engine llvm --locked --workspace --out Xml --target-dir target-tarpaulin/
-
-      - name: Coverage Comment
-        uses: ewjoachim/coverage-comment-action@v1.0.3
-        with:
-          COVERAGE_FILE: "cobertura.xml"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: 5monkeys/cobertura-action@master
-        with:
-          path: cobertura.xml
-          minimum_coverage: 0

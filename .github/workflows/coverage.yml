@@ -1,0 +1,53 @@
+name: Coverage
+
+on:
+  push:
+    branches: [ "main" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: read
+      contents: write
+      packages: read
+      pull-requests: write
+      checks: write
+      pages: write
+      discussions: write
+    steps:
+      - uses: actions/checkout@v3
+  
+      - name: Install rust toolkit
+        uses: ./.github/actions/rust
+        with:
+          # tarpaulin runs with different RUSTFLAGS, so we need a different cache.
+          cache-key: "v0-rust-tarpaulin"
+
+      - name: "Install coverage tool: cargo tarpaulin"
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
+
+      - name: Run tests for coverage
+        # skip-clean is there to make tarpaulin not re-build unnecessarily,
+        # so caching dependencies works.
+        run: cargo tarpaulin --skip-clean --engine llvm --locked --workspace --out Xml --target-dir target-tarpaulin/
+
+      - name: Coverage Comment
+        uses: ewjoachim/coverage-comment-action@v1.0.3
+        with:
+          COVERAGE_FILE: "cobertura.xml"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: 5monkeys/cobertura-action@master
+        with:
+          path: cobertura.xml
+          minimum_coverage: 0
