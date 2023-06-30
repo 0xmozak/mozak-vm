@@ -17,6 +17,9 @@ ENV RISCV="/root"
 
 # Clone the RISC-V tests repository
 # (Get only the specific commit we want)
+## The ADD is to invalidate the Docker cache, if the repository changes.
+## So that we get a fresh clone.
+ADD https://api.github.com/repos/riscv/riscv-tests/git/refs/heads/master version.json
 RUN git clone --depth=1 https://github.com/riscv/riscv-tests.git
 WORKDIR /root/riscv-tests/
 
