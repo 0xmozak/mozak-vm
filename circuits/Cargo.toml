@@ -17,7 +17,8 @@ mozak-vm = { path = "../vm" }
 log = "0.4.19"
 itertools = "0.10.0"
 thiserror = "1.0.40"
-starky = { path = "../../plonky2/starky" }
+starky = { git = "https://github.com/0xmozak/plonky2.git" }
+# starky = { path = "../../plonky2/starky"}
 
 [dev-dependencies]
 mozak-vm = { path = "../vm", features = ["test"] }
