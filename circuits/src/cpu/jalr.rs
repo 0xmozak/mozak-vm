@@ -23,7 +23,7 @@ pub(crate) fn constraints<P: PackedField>(
             * (lv[COL_DST_VALUE] - wrapped_return_address),
     );
 
-    let jump_address = lv[COL_PC] + lv[COL_IMM_VALUE] + lv[COL_OP1_VALUE];
+    let jump_address = lv[COL_IMM_VALUE] + lv[COL_OP1_VALUE];
     let wrapped_jump_address = jump_address - wrap_at;
 
     yield_constr.constraint_transition(
