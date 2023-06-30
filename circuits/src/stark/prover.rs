@@ -327,7 +327,17 @@ where
         challenger,
         timing,
     )?;
-    Ok([cpu_proof])
+
+    let rangecheck_proof = prove_single_table(
+        &mozak_stark.cpu_stark,
+        config,
+        &traces_poly_values[TableKind::RangeCheck as usize].clone(),
+        &trace_commitments[TableKind::RangeCheck as usize],
+        &ctl_data_per_table[TableKind::RangeCheck as usize].clone(),
+        challenger,
+        timing,
+    )?;
+    Ok([cpu_proof, rangecheck_proof])
 }
 
 #[cfg(test)]

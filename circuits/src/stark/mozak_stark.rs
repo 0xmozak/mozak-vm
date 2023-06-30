@@ -19,4 +19,4 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 1;
+pub(crate) const NUM_TABLES: usize = 2;
