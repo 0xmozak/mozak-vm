@@ -51,7 +51,14 @@ where
         [],
         timing,
     )?;
-    let stark_proofs = [cpu_proof];
+    let bitwise_proof = prove_table(
+        mozak_stark.bitwise_stark,
+        config,
+        trace_poly_values[1].clone(),
+        [],
+        timing,
+    )?;
+    let stark_proofs = [cpu_proof, bitwise_proof];
 
     Ok(AllProof { stark_proofs })
 }

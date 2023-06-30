@@ -7,6 +7,7 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
 
+pub mod bitwise;
 pub mod cpu;
 pub mod generation;
 pub mod lookup;

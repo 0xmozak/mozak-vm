@@ -9,6 +9,15 @@ where
     Field::from_noncanonical_u128(u128::from(x))
 }
 
+pub fn limbs_from_u32(val: u32) -> [u8; 4] {
+    [
+        (val & 0xFF) as u8,
+        ((val >> 8) & 0xFF) as u8,
+        ((val >> 16) & 0xFF) as u8,
+        ((val >> 24) & 0xFF) as u8,
+    ]
+}
+
 #[must_use]
 pub fn column_of_xs<P: PackedField>(x: u64) -> P { from_::<u64, P::Scalar>(x) * P::ONES }
 
