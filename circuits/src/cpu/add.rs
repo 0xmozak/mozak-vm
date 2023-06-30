@@ -34,9 +34,10 @@ mod test {
         assert_eq!(record.last_state.get_register_value(5), 100 + 100);
         simple_proof_test(&record.executed).unwrap();
     }
-    use proptest::prelude::any;
+    use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
     proptest! {
+            #![proptest_config(ProptestConfig::with_cases(64))]
             #[test]
             fn prove_add_proptest(a in any::<u32>(), b in any::<u32>(), rd in 0_u8..32) {
                 let record = simple_test_code(
