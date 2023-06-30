@@ -49,7 +49,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
 
         #[allow(clippy::single_match)]
         match inst.op {
-            Op::ADD => {
+            Op::ADD | Op::BEQ => {
                 let limb_hi = u16::try_from(dst_val >> 16).unwrap();
                 let limb_lo = u16::try_from(dst_val & 0xffff).unwrap();
                 trace[columns::VAL][i] = from_(*dst_val);
