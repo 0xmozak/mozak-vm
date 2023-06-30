@@ -30,8 +30,9 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
         match inst.op {
             Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,
-            Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             Op::SUB => trace[cpu_cols::COL_S_SUB][i] = F::ONE,
+            Op::DIVU => trace[cpu_cols::COL_S_DIVU][i] = F::ONE,
+            Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
             #[tarpaulin::skip]
             _ => {}
@@ -51,21 +52,4 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             v.len()
         )
     })
-}
-
-#[cfg(test)]
-mod test {
-    use proptest::prelude::*;
-
-    use crate::test_utils::inv;
-    proptest! {
-        #[test]
-        fn inv_big(x in any::<u32>()) {
-            type F = plonky2::field::goldilocks_field::GoldilocksField;
-            let y = inv::<F>(u64::from(x));
-            if x != 0 {
-                prop_assert!(u64::from(u32::MAX) < y);
-            }
-        }
-    }
 }

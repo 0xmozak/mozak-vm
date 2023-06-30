@@ -36,7 +36,8 @@ lazy_static! {
 
 pub(crate) const COL_S_ADD: usize = COL_REGS_RANGE.end;
 pub(crate) const COL_S_SUB: usize = COL_S_ADD + 1;
-pub(crate) const COL_S_BEQ: usize = COL_S_SUB + 1;
+pub(crate) const COL_S_DIVU: usize = COL_S_SUB + 1;
+pub(crate) const COL_S_BEQ: usize = COL_S_DIVU + 1;
 pub(crate) const COL_S_ECALL: usize = COL_S_BEQ + 1;
 pub(crate) const COL_S_HALT: usize = COL_S_ECALL + 1;
 
