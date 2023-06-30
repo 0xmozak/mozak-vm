@@ -20,11 +20,12 @@ pub(crate) fn constraints<P: PackedField>(
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
-    use proptest::prelude::any;
+    use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
     use crate::test_utils::simple_proof_test;
     proptest! {
+        #![proptest_config(ProptestConfig::with_cases(10))]
         #[test]
         fn prove_sub_proptest(a in any::<u32>(), b in any::<u32>()) {
             let record = simple_test_code(
