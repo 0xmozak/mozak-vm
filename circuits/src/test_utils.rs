@@ -29,6 +29,7 @@ pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
             rate_bits: log2_ceil(stark.cpu_stark.constraint_degree()),
             cap_height: 0,
             proof_of_work_bits: 0,
+            num_query_rounds: 5,
             ..config.fri_config
         },
     };
