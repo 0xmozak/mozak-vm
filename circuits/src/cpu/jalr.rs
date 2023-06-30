@@ -185,46 +185,5 @@ mod test {
             assert_eq!(state.get_register_value(rd), 4);
             simple_proof_test(&record.executed).unwrap();
         }
-        /*
-        #[test]
-        fn prove_double_jalr_proptest(a in any::<u32>(), b in any::<u32>()) {
-            let record = simple_test_code(
-                &[
-                    Instruction {
-                        op: Op::JALR,
-                        args: Args {
-                            rd: 1,  // return address in x1 will be pc + 4
-                            rs1: 0,
-                            imm: 4, // jump to next instruction
-                            ..Args::default()
-                        },
-                    },
-                    Instruction {
-                        op: Op::ADD,
-                        args: Args {
-                            rd: 1,  // return address in x1 will be pc + 4
-                            rs1: 0,
-                            imm: 4, // jump to next instruction
-                            ..Args::default()
-                        },
-                    },
-                    Instruction {
-                        op: Op::JALR,
-                        args: Args {
-                            rd: 1,  // return address in x1 will be pc + 4
-                            rs1: 0,
-                            imm: 4, // jump to next instruction
-                            ..Args::default()
-                        },
-                }],
-                &[],
-                &[(0x1, 0), (0x2,a),(0x3,b)],
-            );
-            // assert_eq!(record.last_state.get_register_value(5), a.wrapping_sub(b));
-            assert_eq!(record.last_state.get_pc(), 8);
-            simple_proof_test(&record.executed).unwrap();
-        }
-
-         */
     }
 }
