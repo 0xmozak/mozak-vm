@@ -25,7 +25,6 @@ where
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); CpuStark::<F, D>::COLUMNS]:,
-
     [(); C::Hasher::HASH_SIZE]:, {
     let MozakStark {
         cpu_stark,
@@ -34,7 +33,6 @@ where
     let [cpu_proof, _]: [StarkProofWithPublicInputs<F, C, D>; NUM_TABLES] = all_proof.stark_proofs;
 
     verify_stark_proof::<F, C, CpuStark<F, D>, D>(cpu_stark, cpu_proof, config)
-    // verify_stark_proof::<F, C, BitwiseStark<F, D>, D>(bitwise_stark, bitwise_proof, config)
 }
 
 #[allow(clippy::missing_errors_doc)]

@@ -27,10 +27,11 @@ where
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); C::Hasher::HASH_SIZE]:,
-    [(); BitwiseStark::<F, D>::COLUMNS]:, {
+    [(); BitwiseStark::<F, D>::PUBLIC_INPUTS]:,
+    [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); C::Hasher::HASH_SIZE]:, {
     let trace_poly_values = generate_traces(step_rows);
-    prove_with_traces(mozak_stark, config, trace_poly_values, timing)
+    prove_with_traces::<F, C, D>(mozak_stark, config, trace_poly_values, timing)
 }
 
 #[allow(clippy::missing_errors_doc)]
@@ -44,7 +45,7 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
-    // [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
+    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); BitwiseStark::<F, D>::PUBLIC_INPUTS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
@@ -61,7 +62,7 @@ where
         mozak_stark.cpu_stark,
         config,
         cpu_table,
-        [],
+        [F::ZERO],
         timing,
     )?;
     let stark_proofs = [cpu_proof, bitwise_proof];

@@ -137,7 +137,7 @@ fn populate_op2_value<P: PackedField>(
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
     const COLUMNS: usize = NUM_CPU_COLS;
-    const PUBLIC_INPUTS: usize = 0;
+    const PUBLIC_INPUTS: usize = 1;
 
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,

@@ -77,14 +77,14 @@ pub fn generate_bitwise_trace<F: RichField>(
             &trace[bitwise_cols::FIX_RANGE_CHECK_U8],
         );
         trace[bitwise_cols::OP2_LIMBS_PERMUTED.start + i] = permuted_inputs;
-        trace[bitwise_cols::FIX_RANGE_CHECK_U8_PERMUTED.start + 4 + i] = permuted_table;
+        // trace[bitwise_cols::FIX_RANGE_CHECK_U8_PERMUTED.start + 4 + i] = permuted_table;
 
         let (permuted_inputs, permuted_table) = permute_cols(
             &trace[bitwise_cols::RES_LIMBS.start + i],
             &trace[bitwise_cols::FIX_RANGE_CHECK_U8],
         );
         trace[bitwise_cols::RES_LIMBS_PERMUTED.start + i] = permuted_inputs;
-        trace[bitwise_cols::FIX_RANGE_CHECK_U8_PERMUTED.start + 8 + i] = permuted_table;
+        // trace[bitwise_cols::FIX_RANGE_CHECK_U8_PERMUTED.start + 8 + i] = permuted_table;
     }
     let trace_row_vecs = trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(

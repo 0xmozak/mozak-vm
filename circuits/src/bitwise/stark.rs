@@ -150,6 +150,7 @@ mod tests {
 
     use crate::test_utils::simple_proof_test;
 
+    #[test]
     fn prove_xor() {
         let record = simple_test_code(
             &[Instruction {
