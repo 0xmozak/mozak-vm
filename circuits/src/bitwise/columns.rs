@@ -16,7 +16,7 @@ pub(crate) const RES_LIMBS_PERMUTED: Range<usize> =
 
 pub(crate) const FIX_RANGE_CHECK_U8: usize = RES_LIMBS_PERMUTED.end;
 pub(crate) const FIX_RANGE_CHECK_U8_PERMUTED: Range<usize> =
-    FIX_RANGE_CHECK_U8 + 1..FIX_RANGE_CHECK_U8 + 5;
+    FIX_RANGE_CHECK_U8 + 1..FIX_RANGE_CHECK_U8 + 12;
 
 pub(crate) const FIX_BITWISE_OP1: usize = FIX_RANGE_CHECK_U8_PERMUTED.end;
 pub(crate) const FIX_BITWISE_OP2: usize = FIX_BITWISE_OP1 + 1;
