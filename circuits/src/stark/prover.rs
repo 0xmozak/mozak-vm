@@ -25,6 +25,7 @@ use super::proof::AllProof;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData, TableKind};
 use crate::generation::generate_traces;
+use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::permutation::compute_permutation_z_polys;
 use crate::stark::permutation::get_n_grand_product_challenge_sets;
 use crate::stark::permutation::GrandProductChallengeSet;
@@ -42,6 +43,7 @@ where
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
+    [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:,
 {
     let traces_poly_values = generate_traces(step_rows);
@@ -60,6 +62,7 @@ where
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
+    [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:,
 {
     let rate_bits = config.fri_config.rate_bits;
@@ -316,6 +319,7 @@ where
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
+    [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:,
 {
     let cpu_proof = prove_single_table(
