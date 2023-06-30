@@ -11,6 +11,7 @@ use starky::stark::Stark;
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
 use super::proof::AllProof;
+use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::generate_traces;
 
@@ -26,35 +27,40 @@ where
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); C::Hasher::HASH_SIZE]:, {
+    [(); C::Hasher::HASH_SIZE]:,
+    [(); BitwiseStark::<F, D>::COLUMNS]:, {
     let trace_poly_values = generate_traces(step_rows);
-    prove_with_traces(mozak_stark, config, &trace_poly_values, timing)
+    prove_with_traces(mozak_stark, config, trace_poly_values, timing)
 }
 
 #[allow(clippy::missing_errors_doc)]
 pub fn prove_with_traces<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
-    trace_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+    trace_poly_values: [Vec<PolynomialValues<F>>; NUM_TABLES],
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
+    // [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
+    [(); BitwiseStark::<F, D>::PUBLIC_INPUTS]:,
+    [(); BitwiseStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
-    let cpu_proof = prove_table(
-        mozak_stark.cpu_stark,
+    // type G = <C as GenericConfig<D>>::F;
+    let [cpu_table, bitwise_table] = trace_poly_values;
+    let bitwise_proof = prove_table::<F, C, BitwiseStark<F, D>, D>(
+        mozak_stark.bitwise_stark,
         config,
-        trace_poly_values[0].clone(),
+        bitwise_table,
         [],
         timing,
     )?;
-    let bitwise_proof = prove_table(
-        mozak_stark.bitwise_stark,
+    let cpu_proof = prove_table::<F, C, CpuStark<F, D>, D>(
+        mozak_stark.cpu_stark,
         config,
-        trace_poly_values[1].clone(),
+        cpu_table,
         [],
         timing,
     )?;
