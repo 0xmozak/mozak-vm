@@ -9,6 +9,7 @@ where
     Field::from_noncanonical_u128(u128::from(x))
 }
 
+#[must_use]
 pub fn limbs_from_u32(val: u32) -> [u8; 4] {
     [
         (val & 0xFF) as u8,

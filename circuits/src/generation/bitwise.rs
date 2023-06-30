@@ -9,7 +9,7 @@ use crate::utils::{from_, limbs_from_u32};
 #[must_use]
 fn filter_xor_trace(step_rows: &[Row]) -> Vec<Row> {
     step_rows
-        .into_iter()
+        .iter()
         .filter(|row| {
             let inst = row.state.current_instruction();
             inst.op == Op::XOR
@@ -86,12 +86,11 @@ pub fn generate_bitwise_trace<F: RichField>(
         trace[bitwise_cols::RES_LIMBS_PERMUTED.start + i] = permuted_inputs;
         trace[bitwise_cols::FIX_RANGE_CHECK_U8_PERMUTED.start + 8 + i] = permuted_table;
     }
-    let trace_row_vecs = trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
+    trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
             "Expected a Vec of length {} but it was {}",
             bitwise_cols::NUM_BITWISE_COL,
             v.len()
         )
-    });
-    trace_row_vecs
+    })
 }

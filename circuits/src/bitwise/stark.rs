@@ -17,6 +17,7 @@ use crate::lookup::eval_lookups;
 use crate::utils::from_;
 
 #[derive(Clone, Copy, Default)]
+#[allow(clippy::module_name_repetitions)]
 pub struct BitwiseStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
@@ -160,6 +161,14 @@ mod tests {
 
     #[test]
     fn prove_xor() -> Result<()> {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        type S = BitwiseStark<F, D>;
+        let mut config = StarkConfig::standard_fast_config();
+        config.fri_config.cap_height = 0;
+
+        let stark = S::default();
         let record = simple_test_code(
             &[Instruction {
                 op: Op::XOR,
@@ -174,14 +183,6 @@ mod tests {
             &[(5, 1), (6, 2)],
         );
         assert_eq!(record.last_state.get_register_value(7), 3);
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        type S = BitwiseStark<F, D>;
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 0;
-
-        let stark = S::default();
         let trace = generate_bitwise_trace(&record.executed);
         let trace_poly_values = trace_to_poly_values(trace);
 
@@ -197,6 +198,14 @@ mod tests {
 
     #[test]
     fn prove_xori() -> Result<()> {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        type S = BitwiseStark<F, D>;
+        let mut config = StarkConfig::standard_fast_config();
+        config.fri_config.cap_height = 0;
+
+        let stark = S::default();
         let record = simple_test_code(
             &[Instruction {
                 op: Op::XOR,
@@ -211,14 +220,6 @@ mod tests {
             &[(5, 1)],
         );
         assert_eq!(record.last_state.get_register_value(7), 3);
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        type S = BitwiseStark<F, D>;
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 0;
-
-        let stark = S::default();
         let trace = generate_bitwise_trace(&record.executed);
         let trace_poly_values = trace_to_poly_values(trace);
 
