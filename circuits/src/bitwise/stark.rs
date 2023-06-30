@@ -194,4 +194,41 @@ mod tests {
         )?;
         verify_stark_proof(stark, proof, &config)
     }
+
+    #[test]
+    fn prove_xori() -> Result<()> {
+        let record = simple_test_code(
+            &[Instruction {
+                op: Op::XOR,
+                args: Args {
+                    rs1: 5,
+                    rs2: 0,
+                    rd: 7,
+                    imm: 2,
+                },
+            }],
+            &[],
+            &[(5, 1)],
+        );
+        assert_eq!(record.last_state.get_register_value(7), 3);
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        type S = BitwiseStark<F, D>;
+        let mut config = StarkConfig::standard_fast_config();
+        config.fri_config.cap_height = 0;
+
+        let stark = S::default();
+        let trace = generate_bitwise_trace(&record.executed);
+        let trace_poly_values = trace_to_poly_values(trace);
+
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            [],
+            &mut TimingTree::default(),
+        )?;
+        verify_stark_proof(stark, proof, &config)
+    }
 }
