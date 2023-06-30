@@ -145,12 +145,21 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::util::timing::TimingTree;
+    use starky::config::StarkConfig;
+    use starky::prover::prove as prove_table;
+    use starky::verifier::verify_stark_proof;
 
-    use crate::test_utils::simple_proof_test;
+    use crate::bitwise::stark::BitwiseStark;
+    use crate::generation::bitwise::generate_bitwise_trace;
+    use crate::stark::utils::trace_to_poly_values;
 
-    fn prove_xor() {
+    #[test]
+    fn prove_xor() -> Result<()> {
         let record = simple_test_code(
             &[Instruction {
                 op: Op::XOR,
@@ -165,6 +174,24 @@ mod tests {
             &[(5, 1), (6, 2)],
         );
         assert_eq!(record.last_state.get_register_value(7), 3);
-        simple_proof_test(&record.executed).unwrap();
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        type S = BitwiseStark<F, D>;
+        let mut config = StarkConfig::standard_fast_config();
+        config.fri_config.cap_height = 0;
+
+        let stark = S::default();
+        let trace = generate_bitwise_trace(&record.executed);
+        let trace_poly_values = trace_to_poly_values(trace);
+
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            [],
+            &mut TimingTree::default(),
+        )?;
+        verify_stark_proof(stark, proof, &config)
     }
 }
