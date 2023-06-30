@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, ops::Index};
+use std::borrow::Borrow;
 
 use plonky2::{
     field::{
@@ -9,7 +9,7 @@ use plonky2::{
     },
     hash::hash_types::RichField,
     iop::{ext_target::ExtensionTarget, target::Target},
-    plonk::circuit_builder::CircuitBuilder,
+    plonk::{circuit_builder::CircuitBuilder, config::GenericConfig},
 };
 use starky::{
     constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer},
@@ -22,7 +22,7 @@ use crate::{
     cpu, rangecheck,
     stark::{
         mozak_stark::NUM_TABLES,
-        prover::{GrandProductChallenge, GrandProductChallengeSet},
+        permutation::{GrandProductChallenge, GrandProductChallengeSet},
     },
 };
 
@@ -334,7 +334,7 @@ pub struct CtlCheckVarsTarget<'a, F: Field, const D: usize> {
     pub(crate) filter_column: &'a Option<Column<F>>,
 }
 
-pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const D2: usize>(
+pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, C, S, const D: usize, const D2: usize>(
     vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
     consumer: &mut ConstraintConsumer<P>,
@@ -342,6 +342,7 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
     F: RichField + Extendable<D>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
+    C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
 {
     for lookup_vars in ctl_vars {

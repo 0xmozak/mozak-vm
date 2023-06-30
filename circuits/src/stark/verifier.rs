@@ -3,6 +3,7 @@ use plonky2::plonk::config::Hasher;
 use plonky2::{
     field::extension::Extendable, hash::hash_types::RichField, plonk::config::GenericConfig,
 };
+use starky::proof::StarkProofWithPublicInputs;
 use starky::stark::Stark;
 use starky::{config::StarkConfig, verifier::verify_stark_proof};
 
@@ -23,5 +24,10 @@ where
     [(); C::Hasher::HASH_SIZE]:,
 {
     let MozakStark { cpu_stark, .. } = mozak_stark;
-    verify_stark_proof(*cpu_stark, all_proof.stark_proofs[0].clone(), config)
+
+    let cpu_proof = StarkProofWithPublicInputs {
+        proof: all_proof.stark_proofs[0].clone(),
+        public_inputs: Vec::new(),
+    };
+    verify_stark_proof(*cpu_stark, cpu_proof, config)
 }

@@ -5,21 +5,14 @@ use anyhow::Result;
 use itertools::Itertools;
 use mozak_vm::vm::Row;
 use plonky2::field::extension::Extendable;
-use plonky2::field::extension::FieldExtension;
 use plonky2::field::packable::Packable;
-use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::iop::target::Target;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::config::Hasher;
-use plonky2::plonk::plonk_common::reduce_with_powers;
-use plonky2::plonk::plonk_common::reduce_with_powers_ext_circuit;
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
@@ -29,13 +22,15 @@ use starky::proof::{StarkOpeningSet, StarkProof};
 use starky::stark::Stark;
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
+use super::permutation::get_grand_product_challenge_set;
 use super::proof::AllProof;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData, TableKind};
 use crate::generation::generate_traces;
-use crate::stark::poly::compute_permutation_z_polys;
+use crate::stark::permutation::compute_permutation_z_polys;
+use crate::stark::permutation::get_n_grand_product_challenge_sets;
+use crate::stark::permutation::GrandProductChallengeSet;
 use crate::stark::poly::compute_quotient_polys;
-use crate::stark::proof::StarkProofWithMetadata;
 
 #[allow(clippy::missing_errors_doc)]
 pub fn prove<F, C, const D: usize>(
@@ -53,71 +48,6 @@ where
 {
     let traces_poly_values = generate_traces(step_rows);
     prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
-}
-
-/// Randomness for a single instance of a permutation check protocol.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub struct GrandProductChallenge<T: Copy + PartialEq + Eq + Debug> {
-    /// Randomness used to combine multiple columns into one.
-    pub(crate) beta: T,
-    /// Random offset that's added to the beta-reduced column values.
-    pub(crate) gamma: T,
-}
-
-impl<F: RichField> GrandProductChallenge<F> {
-    pub fn from_challenger<H: Hasher<F>>(
-        challenger: &mut Challenger<F, H>,
-    ) -> GrandProductChallenge<F> {
-        GrandProductChallenge {
-            beta: challenger.get_challenge(),
-            gamma: challenger.get_challenge(),
-        }
-    }
-}
-
-impl<F: Field> GrandProductChallenge<F> {
-    pub(crate) fn combine<'a, FE, P, T: IntoIterator<Item = &'a P>, const D2: usize>(
-        &self,
-        terms: T,
-    ) -> P
-    where
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>,
-        T::IntoIter: DoubleEndedIterator,
-    {
-        reduce_with_powers(terms, FE::from_basefield(self.beta)) + FE::from_basefield(self.gamma)
-    }
-}
-
-impl GrandProductChallenge<Target> {
-    pub(crate) fn combine_circuit<F: RichField + Extendable<D>, const D: usize>(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        terms: &[ExtensionTarget<D>],
-    ) -> ExtensionTarget<D> {
-        let reduced = reduce_with_powers_ext_circuit(builder, terms, self.beta);
-        let gamma = builder.convert_to_ext(self.gamma);
-        builder.add_extension(reduced, gamma)
-    }
-}
-
-/// Like `PermutationChallenge`, but with `num_challenges` copies to boost
-/// soundness.
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub(crate) struct GrandProductChallengeSet<T: Copy + PartialEq + Eq + Debug> {
-    pub(crate) challenges: Vec<GrandProductChallenge<T>>,
-}
-
-impl<F: RichField> GrandProductChallengeSet<F> {
-    pub fn from_challenger<H: Hasher<F>>(
-        challenger: &mut Challenger<F, H>,
-        num_challenges: usize,
-    ) -> GrandProductChallengeSet<F> {
-        let challenges = (0..num_challenges)
-            .map(|_| GrandProductChallenge::from_challenger(challenger))
-            .collect();
-        GrandProductChallengeSet { challenges }
-    }
 }
 
 /// Given the traces generated from [`generate_traces`], prove a [`MozakStark`].
@@ -173,15 +103,14 @@ where
         challenger.observe_cap(cap);
     }
 
-    let ctl_challenges =
-        GrandProductChallengeSet::from_challenger(&mut challenger, config.num_challenges);
+    let ctl_challenges = get_grand_product_challenge_set(&mut challenger, config.num_challenges);
     let ctl_data_per_table = timed!(
         timing,
         "compute CTL data",
         cross_table_lookup_data::<F, D>(
             &traces_poly_values,
             &mozak_stark.cross_table_lookups,
-            &ctl_challenges,
+            &ctl_challenges
         )
     );
     let stark_proofs = timed!(
@@ -208,14 +137,15 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     trace_commitment: &PolynomialBatch<F, C, D>,
     ctl_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
-    public_inputs: [F; S::PUBLIC_INPUTS],
     timing: &mut TimingTree,
 ) -> Result<StarkProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
+    [(); C::Hasher::HASH_SIZE]:,
     [(); S::COLUMNS]:,
+    [(); S::PUBLIC_INPUTS]:,
 {
     let degree = trace_poly_values[0].len();
     let degree_bits = log2_strict(degree);
@@ -232,11 +162,11 @@ where
     // Permutation arguments.
     let permutation_challenges: Option<Vec<GrandProductChallengeSet<F>>> =
         stark.uses_permutation_args().then(|| {
-            (0..stark.permutation_batch_size())
-                .map(|_| {
-                    GrandProductChallengeSet::from_challenger(challenger, config.num_challenges)
-                })
-                .collect()
+            get_n_grand_product_challenge_sets(
+                challenger,
+                config.num_challenges,
+                stark.permutation_batch_size(),
+            )
         });
     let permutation_zs = permutation_challenges.as_ref().map(|challenges| {
         timed!(
@@ -287,7 +217,6 @@ where
             &permutation_ctl_zs_commitment,
             permutation_challenges.as_ref(),
             ctl_data,
-            public_inputs,
             alphas,
             degree_bits,
             num_permutation_zs,
@@ -398,7 +327,6 @@ where
         &trace_commitments[TableKind::Cpu as usize],
         &ctl_data_per_table[TableKind::Cpu as usize].clone(),
         challenger,
-        [],
         timing,
     )?;
     Ok([cpu_proof])

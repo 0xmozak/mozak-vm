@@ -10,7 +10,7 @@ keywords = ["crypto", "zero-knowledge", "vm"]
 categories = ["cryptography"]
 
 [dependencies]
-plonky2 = "0.1.3"
+plonky2 = { git = "https://github.com/mir-protocol/plonky2.git" } 
 plonky2_maybe_rayon = "0.1.0"
 anyhow = { version = "1.0", default-features = false }
 mozak-vm = { path = "../vm" }
