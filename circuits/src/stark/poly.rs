@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialCoeffs;
@@ -100,7 +99,7 @@ where
             let vars = StarkEvaluationVars {
                 local_values: &get_trace_values_packed(i_start),
                 next_values: &get_trace_values_packed(i_next_start),
-                public_inputs: &[],
+                public_inputs: &[F::ZERO; S::PUBLIC_INPUTS],
             };
             let permutation_check_vars =
                 permutation_challenges.map(|permutation_challenge_sets| PermutationCheckVars {
@@ -126,7 +125,7 @@ where
                     filter_column: &zs_columns.filter_column,
                 })
                 .collect::<Vec<_>>();
-            eval_vanishing_poly::<F, FE, P, C, S, D, 1>(
+            eval_vanishing_poly::<F, F, P, C, S, D, 1>(
                 stark,
                 config,
                 vars,

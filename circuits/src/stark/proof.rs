@@ -1,7 +1,5 @@
 use plonky2::{
-    field::extension::Extendable,
-    hash::hash_types::RichField,
-    plonk::config::{GenericConfig, Hasher},
+    field::extension::Extendable, hash::hash_types::RichField, plonk::config::GenericConfig,
 };
 use starky::proof::StarkProof;
 
