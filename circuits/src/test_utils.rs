@@ -24,5 +24,5 @@ pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
 
     let mut stark = S::default();
     let all_proof = prove::<F, C, D>(step_rows, &mut stark, &config, &mut TimingTree::default());
-    verify_proof(&stark, &all_proof.unwrap(), &config)
+    verify_proof(stark, &all_proof.unwrap(), &config)
 }

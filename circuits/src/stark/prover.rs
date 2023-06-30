@@ -16,7 +16,7 @@ use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
 use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
-use starky::proof::{StarkOpeningSet, StarkProof};
+use starky::proof::StarkProof;
 use starky::stark::Stark;
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
@@ -30,6 +30,7 @@ use crate::stark::permutation::compute_permutation_z_polys;
 use crate::stark::permutation::get_n_grand_product_challenge_sets;
 use crate::stark::permutation::GrandProductChallengeSet;
 use crate::stark::poly::compute_quotient_polys;
+use crate::stark::proof::StarkOpeningSet;
 
 #[allow(clippy::missing_errors_doc)]
 pub fn prove<F, C, const D: usize>(

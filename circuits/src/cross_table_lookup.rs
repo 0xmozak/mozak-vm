@@ -23,6 +23,7 @@ use crate::{
     stark::{
         mozak_stark::NUM_TABLES,
         permutation::{GrandProductChallenge, GrandProductChallengeSet},
+        proof::StarkProof,
     },
 };
 
@@ -323,6 +324,58 @@ where
     pub(crate) challenges: GrandProductChallenge<F>,
     pub(crate) columns: &'a [Column<F>],
     pub(crate) filter_column: &'a Option<Column<F>>,
+}
+
+impl<'a, F: RichField + Extendable<D>, const D: usize>
+    CtlCheckVars<'a, F, F::Extension, F::Extension, D>
+{
+    pub(crate) fn from_proofs<C: GenericConfig<D, F = F>>(
+        proofs: &[StarkProof<F, C, D>; NUM_TABLES],
+        cross_table_lookups: &'a [CrossTableLookup<F>],
+        ctl_challenges: &'a GrandProductChallengeSet<F>,
+        num_permutation_zs: &[usize; NUM_TABLES],
+    ) -> [Vec<Self>; NUM_TABLES] {
+        let mut ctl_zs = proofs
+            .iter()
+            .zip(num_permutation_zs)
+            .map(|(p, &num_perms)| {
+                let openings = &p.openings;
+                let ctl_zs = openings.permutation_ctl_zs.iter().skip(num_perms);
+                let ctl_zs_next = openings.permutation_ctl_zs_next.iter().skip(num_perms);
+                ctl_zs.zip(ctl_zs_next)
+            })
+            .collect::<Vec<_>>();
+
+        let mut ctl_vars_per_table = [0; NUM_TABLES].map(|_| vec![]);
+        for CrossTableLookup {
+            looking_tables,
+            looked_table,
+        } in cross_table_lookups
+        {
+            for &challenges in &ctl_challenges.challenges {
+                for table in looking_tables {
+                    let (looking_z, looking_z_next) = ctl_zs[table.kind as usize].next().unwrap();
+                    ctl_vars_per_table[table.kind as usize].push(Self {
+                        local_z: *looking_z,
+                        next_z: *looking_z_next,
+                        challenges,
+                        columns: &table.columns,
+                        filter_column: &table.filter_column,
+                    });
+                }
+
+                let (looked_z, looked_z_next) = ctl_zs[looked_table.kind as usize].next().unwrap();
+                ctl_vars_per_table[looked_table.kind as usize].push(Self {
+                    local_z: *looked_z,
+                    next_z: *looked_z_next,
+                    challenges,
+                    columns: &looked_table.columns,
+                    filter_column: &looked_table.filter_column,
+                });
+            }
+        }
+        ctl_vars_per_table
+    }
 }
 
 #[derive(Clone)]
