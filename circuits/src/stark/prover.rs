@@ -5,14 +5,21 @@ use anyhow::Result;
 use itertools::Itertools;
 use mozak_vm::vm::Row;
 use plonky2::field::extension::Extendable;
+use plonky2::field::extension::FieldExtension;
 use plonky2::field::packable::Packable;
+use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::iop::target::Target;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::config::Hasher;
+use plonky2::plonk::plonk_common::reduce_with_powers;
+use plonky2::plonk::plonk_common::reduce_with_powers_ext_circuit;
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
@@ -24,9 +31,11 @@ use starky::stark::Stark;
 use super::mozak_stark::{MozakStark, NUM_TABLES};
 use super::proof::AllProof;
 use crate::cpu::stark::CpuStark;
-use crate::cross_table_lookup::TableKind;
+use crate::cross_table_lookup::{cross_table_lookup_data, CtlData, TableKind};
 use crate::generation::generate_traces;
+use crate::stark::poly::compute_permutation_z_polys;
 use crate::stark::poly::compute_quotient_polys;
+use crate::stark::proof::StarkProofWithMetadata;
 
 #[allow(clippy::missing_errors_doc)]
 pub fn prove<F, C, const D: usize>(
@@ -63,6 +72,32 @@ impl<F: RichField> GrandProductChallenge<F> {
             beta: challenger.get_challenge(),
             gamma: challenger.get_challenge(),
         }
+    }
+}
+
+impl<F: Field> GrandProductChallenge<F> {
+    pub(crate) fn combine<'a, FE, P, T: IntoIterator<Item = &'a P>, const D2: usize>(
+        &self,
+        terms: T,
+    ) -> P
+    where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>,
+        T::IntoIter: DoubleEndedIterator,
+    {
+        reduce_with_powers(terms, FE::from_basefield(self.beta)) + FE::from_basefield(self.gamma)
+    }
+}
+
+impl GrandProductChallenge<Target> {
+    pub(crate) fn combine_circuit<F: RichField + Extendable<D>, const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<F, D>,
+        terms: &[ExtensionTarget<D>],
+    ) -> ExtensionTarget<D> {
+        let reduced = reduce_with_powers_ext_circuit(builder, terms, self.beta);
+        let gamma = builder.convert_to_ext(self.gamma);
+        builder.add_extension(reduced, gamma)
     }
 }
 
@@ -165,7 +200,6 @@ where
 
     Ok(AllProof { stark_proofs })
 }
-
 /// Compute proof for a single STARK table, with lookup data.
 pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     stark: &S,
@@ -174,8 +208,9 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     trace_commitment: &PolynomialBatch<F, C, D>,
     ctl_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
+    public_inputs: [F; S::PUBLIC_INPUTS],
     timing: &mut TimingTree,
-) -> Result<(StarkProof<F, C, D>, <C::Hasher as Hasher<F>>::Permutation)>
+) -> Result<StarkProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -192,7 +227,7 @@ where
         "FRI total reduction arity is too large.",
     );
 
-    let init_challenger_state = challenger.compact();
+    challenger.compact();
 
     // Permutation arguments.
     let permutation_challenges: Option<Vec<GrandProductChallengeSet<F>>> =
@@ -252,6 +287,7 @@ where
             &permutation_ctl_zs_commitment,
             permutation_challenges.as_ref(),
             ctl_data,
+            public_inputs,
             alphas,
             degree_bits,
             num_permutation_zs,
@@ -328,14 +364,13 @@ where
         )
     );
 
-    let proof = StarkProof {
+    Ok(StarkProof {
         trace_cap: trace_commitment.merkle_tree.cap.clone(),
         permutation_zs_cap: Some(permutation_ctl_zs_cap),
         quotient_polys_cap,
         openings,
         opening_proof,
-    };
-    Ok((proof, init_challenger_state))
+    })
 }
 
 /// Given the traces generated from [`generate_traces`] along with their
@@ -348,7 +383,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     ctl_data_per_table: [CtlData<F>; NUM_TABLES],
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<[(StarkProof<F, C, D>, <C::Hasher as Hasher<F>>::Permutation); NUM_TABLES]>
+) -> Result<[StarkProof<F, C, D>; NUM_TABLES]>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -356,16 +391,17 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:,
 {
-    let (cpu_proof, cpu_metadata) = prove_single_table(
+    let cpu_proof = prove_single_table(
         &mozak_stark.cpu_stark,
         config,
         &traces_poly_values[TableKind::Cpu as usize].clone(),
         &trace_commitments[TableKind::Cpu as usize],
-        &ctl_data_per_table[TableKind::Cpu].clone(),
+        &ctl_data_per_table[TableKind::Cpu as usize].clone(),
         challenger,
+        [],
         timing,
     )?;
-    Ok([(cpu_proof, cpu_metadata)])
+    Ok([cpu_proof])
 }
 
 #[cfg(test)]

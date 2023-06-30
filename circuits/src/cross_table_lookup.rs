@@ -1,9 +1,30 @@
 use std::{borrow::Borrow, ops::Index};
 
-use plonky2::field::{polynomial::PolynomialValues, types::Field};
+use plonky2::{
+    field::{
+        extension::{Extendable, FieldExtension},
+        packed::PackedField,
+        polynomial::PolynomialValues,
+        types::Field,
+    },
+    hash::hash_types::RichField,
+    iop::{ext_target::ExtensionTarget, target::Target},
+    plonk::circuit_builder::CircuitBuilder,
+};
+use starky::{
+    constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer},
+    stark::Stark,
+    vars::{StarkEvaluationTargets, StarkEvaluationVars},
+};
 use thiserror::Error;
 
-use crate::{cpu, rangecheck};
+use crate::{
+    cpu, rangecheck,
+    stark::{
+        mozak_stark::NUM_TABLES,
+        prover::{GrandProductChallenge, GrandProductChallengeSet},
+    },
+};
 
 #[derive(Error, Debug)]
 pub enum LookupError {
@@ -11,6 +32,117 @@ pub enum LookupError {
     NonBinaryFilter(usize),
     #[error("Inconsistency found between looking and looked tables")]
     InconsistentTableRows,
+}
+
+#[derive(Clone, Default)]
+pub struct CtlData<F: Field> {
+    pub(crate) zs_columns: Vec<CtlZData<F>>,
+}
+
+impl<F: Field> CtlData<F> {
+    pub fn z_polys(&self) -> Vec<PolynomialValues<F>> {
+        self.zs_columns
+            .iter()
+            .map(|zs_columns| zs_columns.z.clone())
+            .collect()
+    }
+}
+
+/// Cross-table lookup data associated with one Z(x) polynomial.
+#[derive(Clone)]
+pub(crate) struct CtlZData<F: Field> {
+    pub(crate) z: PolynomialValues<F>,
+    pub(crate) challenge: GrandProductChallenge<F>,
+    pub(crate) columns: Vec<Column<F>>,
+    pub(crate) filter_column: Option<Column<F>>,
+}
+
+pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
+    trace_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+    cross_table_lookups: &[CrossTableLookup<F>],
+    ctl_challenges: &GrandProductChallengeSet<F>,
+) -> [CtlData<F>; NUM_TABLES] {
+    let mut ctl_data_per_table = [0; NUM_TABLES].map(|_| CtlData::default());
+    for CrossTableLookup {
+        looking_tables,
+        looked_table,
+    } in cross_table_lookups
+    {
+        log::debug!("Processing CTL for {:?}", looked_table.kind);
+        for &challenge in &ctl_challenges.challenges {
+            let zs_looking = looking_tables.iter().map(|table| {
+                partial_products(
+                    &trace_poly_values[table.kind as usize],
+                    &table.columns,
+                    &table.filter_column,
+                    challenge,
+                )
+            });
+            let z_looked = partial_products(
+                &trace_poly_values[looked_table.kind as usize],
+                &looked_table.columns,
+                &looked_table.filter_column,
+                challenge,
+            );
+
+            debug_assert_eq!(
+                zs_looking
+                    .clone()
+                    .map(|z| *z.values.last().unwrap())
+                    .product::<F>(),
+                *z_looked.values.last().unwrap()
+            );
+
+            for (table, z) in looking_tables.iter().zip(zs_looking) {
+                ctl_data_per_table[table.kind as usize]
+                    .zs_columns
+                    .push(CtlZData {
+                        z,
+                        challenge,
+                        columns: table.columns.clone(),
+                        filter_column: table.filter_column.clone(),
+                    });
+            }
+            ctl_data_per_table[looked_table.kind as usize]
+                .zs_columns
+                .push(CtlZData {
+                    z: z_looked,
+                    challenge,
+                    columns: looked_table.columns.clone(),
+                    filter_column: looked_table.filter_column.clone(),
+                });
+        }
+    }
+    ctl_data_per_table
+}
+
+fn partial_products<F: Field>(
+    trace: &[PolynomialValues<F>],
+    columns: &[Column<F>],
+    filter_column: &Option<Column<F>>,
+    challenge: GrandProductChallenge<F>,
+) -> PolynomialValues<F> {
+    let mut partial_prod = F::ONE;
+    let degree = trace[0].len();
+    let mut res = Vec::with_capacity(degree);
+    for i in 0..degree {
+        let filter = if let Some(column) = filter_column {
+            column.eval_table(trace, i)
+        } else {
+            F::ONE
+        };
+        if filter.is_one() {
+            let evals = columns
+                .iter()
+                .map(|c| c.eval_table(trace, i))
+                .collect::<Vec<_>>();
+            partial_prod *= challenge.combine(evals.iter());
+        } else {
+            assert_eq!(filter, F::ZERO, "Non-binary filter?")
+        };
+        res.push(partial_prod);
+    }
+    res.into()
 }
 
 /// Represent a linear combination of columns.
@@ -35,6 +167,18 @@ impl<F: Field> Column<F> {
         cs.into_iter().map(|c| Self::single(*c.borrow()))
     }
 
+    pub fn eval<FE, P, const D: usize>(&self, v: &[P]) -> P
+    where
+        FE: FieldExtension<D, BaseField = F>,
+        P: PackedField<Scalar = FE>,
+    {
+        self.linear_combination
+            .iter()
+            .map(|&(c, f)| v[c] * FE::from_basefield(f))
+            .sum::<P>()
+            + FE::from_basefield(self.constant)
+    }
+
     /// Evaluate on an row of a table given in column-major form.
     pub fn eval_table(&self, table: &[PolynomialValues<F>], row: usize) -> F {
         self.linear_combination
@@ -42,6 +186,28 @@ impl<F: Field> Column<F> {
             .map(|&(c, f)| table[c].values[row] * f)
             .sum::<F>()
             + self.constant
+    }
+
+    pub fn eval_circuit<const D: usize>(
+        &self,
+        builder: &mut CircuitBuilder<F, D>,
+        v: &[ExtensionTarget<D>],
+    ) -> ExtensionTarget<D>
+    where
+        F: RichField + Extendable<D>,
+    {
+        let pairs = self
+            .linear_combination
+            .iter()
+            .map(|&(c, f)| {
+                (
+                    v[c],
+                    builder.constant_extension(F::Extension::from_basefield(f)),
+                )
+            })
+            .collect::<Vec<_>>();
+        let constant = builder.constant_extension(F::Extension::from_basefield(self.constant));
+        builder.inner_product_extension(F::ONE, constant, pairs)
     }
 }
 
@@ -61,12 +227,6 @@ impl From<TableKind> for usize {
     fn from(value: TableKind) -> usize {
         value as usize
     }
-}
-
-impl Index<TableKind> for std::slice::Slice {
-    type Output = usize;
-
-    fn index(&self, index: TableKind) -> &Self::Output {}
 }
 
 #[derive(Clone, Debug)]
@@ -148,6 +308,133 @@ impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
                 Some(rangecheck::columns::filter_for_cpu()),
             ),
         )
+    }
+}
+
+#[derive(Clone)]
+pub struct CtlCheckVars<'a, F, FE, P, const D2: usize>
+where
+    F: Field,
+    FE: FieldExtension<D2, BaseField = F>,
+    P: PackedField<Scalar = FE>,
+{
+    pub(crate) local_z: P,
+    pub(crate) next_z: P,
+    pub(crate) challenges: GrandProductChallenge<F>,
+    pub(crate) columns: &'a [Column<F>],
+    pub(crate) filter_column: &'a Option<Column<F>>,
+}
+
+#[derive(Clone)]
+pub struct CtlCheckVarsTarget<'a, F: Field, const D: usize> {
+    pub(crate) local_z: ExtensionTarget<D>,
+    pub(crate) next_z: ExtensionTarget<D>,
+    pub(crate) challenges: GrandProductChallenge<Target>,
+    pub(crate) columns: &'a [Column<F>],
+    pub(crate) filter_column: &'a Option<Column<F>>,
+}
+
+pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const D2: usize>(
+    vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
+    ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
+    consumer: &mut ConstraintConsumer<P>,
+) where
+    F: RichField + Extendable<D>,
+    FE: FieldExtension<D2, BaseField = F>,
+    P: PackedField<Scalar = FE>,
+    S: Stark<F, D>,
+{
+    for lookup_vars in ctl_vars {
+        let CtlCheckVars {
+            local_z,
+            next_z,
+            challenges,
+            columns,
+            filter_column,
+        } = lookup_vars;
+        let combine = |v: &[P]| -> P {
+            let evals = columns.iter().map(|c| c.eval(v)).collect::<Vec<_>>();
+            challenges.combine(evals.iter())
+        };
+        let filter = |v: &[P]| -> P {
+            if let Some(column) = filter_column {
+                column.eval(v)
+            } else {
+                P::ONES
+            }
+        };
+        let local_filter = filter(vars.local_values);
+        let next_filter = filter(vars.next_values);
+        let select = |filter, x| filter * x + P::ONES - filter;
+
+        // Check value of `Z(1)`
+        consumer.constraint_first_row(*local_z - select(local_filter, combine(vars.local_values)));
+        // Check `Z(gw) = combination * Z(w)`
+        consumer.constraint_transition(
+            *next_z - *local_z * select(next_filter, combine(vars.next_values)),
+        );
+    }
+}
+
+pub(crate) fn eval_cross_table_lookup_checks_circuit<
+    S: Stark<F, D>,
+    F: RichField + Extendable<D>,
+    const D: usize,
+>(
+    builder: &mut CircuitBuilder<F, D>,
+    vars: StarkEvaluationTargets<D, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
+    ctl_vars: &[CtlCheckVarsTarget<F, D>],
+    consumer: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    for lookup_vars in ctl_vars {
+        let CtlCheckVarsTarget {
+            local_z,
+            next_z,
+            challenges,
+            columns,
+            filter_column,
+        } = lookup_vars;
+
+        let one = builder.one_extension();
+        let local_filter = if let Some(column) = filter_column {
+            column.eval_circuit(builder, vars.local_values)
+        } else {
+            one
+        };
+        let next_filter = if let Some(column) = filter_column {
+            column.eval_circuit(builder, vars.next_values)
+        } else {
+            one
+        };
+        fn select<F: RichField + Extendable<D>, const D: usize>(
+            builder: &mut CircuitBuilder<F, D>,
+            filter: ExtensionTarget<D>,
+            x: ExtensionTarget<D>,
+        ) -> ExtensionTarget<D> {
+            let one = builder.one_extension();
+            let tmp = builder.sub_extension(one, filter);
+            builder.mul_add_extension(filter, x, tmp) // filter * x + 1 - filter
+        }
+
+        // Check value of `Z(1)`
+        let local_columns_eval = columns
+            .iter()
+            .map(|c| c.eval_circuit(builder, vars.local_values))
+            .collect::<Vec<_>>();
+        let combined_local = challenges.combine_circuit(builder, &local_columns_eval);
+        let selected_local = select(builder, local_filter, combined_local);
+        let first_row = builder.sub_extension(*local_z, selected_local);
+        consumer.constraint_first_row(builder, first_row);
+        // Check `Z(gw) = combination * Z(w)`
+        let next_columns_eval = columns
+            .iter()
+            .map(|c| c.eval_circuit(builder, vars.next_values))
+            .collect::<Vec<_>>();
+        let combined_next = challenges.combine_circuit(builder, &next_columns_eval);
+        let selected_next = select(builder, next_filter, combined_next);
+        let mut transition = builder.mul_extension(*local_z, selected_next);
+        transition = builder.sub_extension(*next_z, transition);
+        consumer.constraint_transition(builder, transition);
     }
 }
 
