@@ -2,7 +2,8 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_DIVU, NUM_CPU_COLS,
+    COL_DIVU_M, COL_DIVU_R, COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_DIVU,
+    NUM_CPU_COLS,
 };
 use crate::utils::column_of_xs;
 
@@ -10,6 +11,23 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
+    let p = lv[COL_OP1_VALUE];
+    let q = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
+    // m needs a range-check.
+    let m = lv[COL_DIVU_M];
+    let r = lv[COL_DIVU_R];
+
+    yield_constr.constraint(m * q + r - p);
+    // range check:
+    // 0 =< m =< u32::MAX
+    // 0 =< r =< u32::MAX
+
+    // 0 =< r < p
+
+    // p/q = m Remainder r
+    // We have: m * q + r = p
+    //
+
     // let wrap_at: P = column_of_xs(1 << 32);
     // let added = lv[COL_OP1_VALUE] + lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
     // let wrapped = added - wrap_at;
