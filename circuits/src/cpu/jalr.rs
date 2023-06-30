@@ -116,6 +116,39 @@ mod test {
         simple_proof_test(&record.executed).unwrap();
     }
 
+    #[test]
+    fn prove_double_jalr() {
+        let record = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::JALR,
+                    args: Args {
+                        imm: 8, // goto to pc + 4
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::JALR,
+                    args: Args {
+                        imm: 12, // goto to pc + 4
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::JALR,
+                    args: Args {
+                        imm: 4, // goto to pc + 4
+                        ..Args::default()
+                    },
+                },
+            ],
+            &[],
+            &[],
+        );
+        assert_eq!(record.last_state.get_pc(), 16);
+        simple_proof_test(&record.executed).unwrap();
+    }
+
     proptest! {
         #[test]
         fn jalr_jumps_past_an_instruction(rs1 in 1_u8..32, rs1_val in any::<u32>(), rd in 1_u8..32, sentinel in any::<u32>()) {
