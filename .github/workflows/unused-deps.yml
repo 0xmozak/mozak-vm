@@ -35,5 +35,6 @@ jobs:
           title: "Github action for unused deps check failed"
           body: |
             Failed reference github action job: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            The reference ${{ github.ref_type }} ${{ github.ref }} was at commit ${{ github.sha }} when its run failed.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
