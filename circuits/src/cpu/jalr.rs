@@ -116,27 +116,27 @@ mod test {
     }
 
     #[test]
-    fn prove_double_jalr() {
+    fn prove_triple_jalr() {
         let record = simple_test_code(
             &[
                 Instruction {
                     op: Op::JALR,
                     args: Args {
-                        imm: 8, // goto to pc + 4
+                        imm: 8, // goto to pc = 8
                         ..Args::default()
                     },
                 },
                 Instruction {
                     op: Op::JALR,
                     args: Args {
-                        imm: 12, // goto to pc + 4
+                        imm: 12, // goto to pc = 12
                         ..Args::default()
                     },
                 },
                 Instruction {
                     op: Op::JALR,
                     args: Args {
-                        imm: 4, // goto to pc + 4
+                        imm: 4, // goto to pc = 4
                         ..Args::default()
                     },
                 },
