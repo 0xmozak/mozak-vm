@@ -78,22 +78,22 @@ mod tests {
     use mozak_vm::test_utils::simple_test_code;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use plonky2::util::timing::TimingTree;
-    use starky::config::StarkConfig;
     use starky::prover::prove as prove_table;
     use starky::verifier::verify_stark_proof;
 
     use crate::bitwise::stark::BitwiseStark;
     use crate::generation::bitwise::generate_bitwise_trace;
     use crate::stark::utils::trace_to_poly_values;
+    use crate::test_utils::standard_faster_config;
+
+    const D: usize = 2;
+    type C = PoseidonGoldilocksConfig;
+    type F = <C as GenericConfig<D>>::F;
+    type S = BitwiseStark<F, D>;
 
     #[test]
     fn prove_xor() -> Result<()> {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        type S = BitwiseStark<F, D>;
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 0;
+        let config = standard_faster_config();
 
         let stark = S::default();
         let record = simple_test_code(
@@ -125,12 +125,7 @@ mod tests {
 
     #[test]
     fn prove_xori() -> Result<()> {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-        type S = BitwiseStark<F, D>;
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 0;
+        let config = standard_faster_config();
 
         let stark = S::default();
         let record = simple_test_code(
