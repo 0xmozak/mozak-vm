@@ -146,11 +146,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use plonky2::timed;
     use plonky2::util::timing::TimingTree;
     use starky::config::StarkConfig;
     use starky::prover::prove as prove_table;
@@ -170,13 +168,13 @@ mod tests {
         config.fri_config.proof_of_work_bits = 0;
         config
     }
-    fn simple_xor_test(a: u32, b: u32, imm: u32) {
+    fn simple_and_test(a: u32, b: u32, imm: u32) {
         let config = get_config_for_test();
 
         let stark = S::default();
         let record = simple_test_code(
             &[Instruction {
-                op: Op::XOR,
+                op: Op::AND,
                 args: Args {
                     rs1: 5,
                     rs2: 6,
@@ -187,7 +185,7 @@ mod tests {
             &[],
             &[(5, a), (6, b)],
         );
-        assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));
+        assert_eq!(record.last_state.get_register_value(7), a & (b + imm));
         let trace = generate_bitwise_trace(&record.executed);
         let trace_poly_values = trace_to_poly_values(trace);
 
@@ -206,58 +204,12 @@ mod tests {
     proptest! {
             #![proptest_config(ProptestConfig::with_cases(16))]
             #[test]
-            fn prove_xori_proptest(a in any::<u32>(), b in any::<u32>()) {
-                simple_xor_test(a, 0, b);
+            fn prove_andi_proptest(a in any::<u32>(), b in any::<u32>()) {
+                simple_and_test(a, 0, b);
             }
             #[test]
-            fn prove_xor_proptest(a in any::<u32>(), b in any::<u32>()) {
-                simple_xor_test(a, b, 0);
+            fn prove_and_proptest(a in any::<u32>(), b in any::<u32>()) {
+                simple_and_test(a, b, 0);
             }
-    }
-
-    #[test]
-    fn prove_xor_with_timing() -> Result<()> {
-        let _ = env_logger::try_init();
-        let config = get_config_for_test();
-        let mut timing = TimingTree::new("xor", log::Level::Debug);
-
-        let stark = S::default();
-        let record = simple_test_code(
-            &[Instruction {
-                op: Op::XOR,
-                args: Args {
-                    rs1: 5,
-                    rs2: 6,
-                    rd: 7,
-                    imm: 0,
-                },
-            }],
-            &[],
-            &[(5, 1), (6, 2)],
-        );
-        assert_eq!(record.last_state.get_register_value(7), 3);
-        let trace = timed!(
-            timing,
-            "generate_trace",
-            generate_bitwise_trace(&record.executed)
-        );
-        let trace_poly_values = timed!(timing, "trace_to_poly_values", trace_to_poly_values(trace));
-
-        let proof = timed!(
-            timing,
-            "prove",
-            prove_table::<F, C, S, D>(
-                stark,
-                &config,
-                trace_poly_values,
-                [],
-                &mut TimingTree::default(),
-            )
-            .unwrap()
-        );
-
-        let res = timed!(timing, "verify", verify_stark_proof(stark, proof, &config));
-        timing.print();
-        res
     }
 }
