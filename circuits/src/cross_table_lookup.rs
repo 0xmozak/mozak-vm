@@ -11,11 +11,7 @@ use plonky2::{
     iop::{ext_target::ExtensionTarget, target::Target},
     plonk::{circuit_builder::CircuitBuilder, config::GenericConfig},
 };
-use starky::{
-    constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer},
-    stark::Stark,
-    vars::{StarkEvaluationTargets, StarkEvaluationVars},
-};
+use starky::{constraint_consumer::ConstraintConsumer, stark::Stark, vars::StarkEvaluationVars};
 use thiserror::Error;
 
 use crate::{
@@ -430,68 +426,6 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
         consumer.constraint_transition(
             *next_z - *local_z * select(next_filter, combine(vars.next_values)),
         );
-    }
-}
-
-pub(crate) fn eval_cross_table_lookup_checks_circuit<
-    S: Stark<F, D>,
-    F: RichField + Extendable<D>,
-    const D: usize,
->(
-    builder: &mut CircuitBuilder<F, D>,
-    vars: StarkEvaluationTargets<D, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
-    ctl_vars: &[CtlCheckVarsTarget<F, D>],
-    consumer: &mut RecursiveConstraintConsumer<F, D>,
-) {
-    for lookup_vars in ctl_vars {
-        let CtlCheckVarsTarget {
-            local_z,
-            next_z,
-            challenges,
-            columns,
-            filter_column,
-        } = lookup_vars;
-
-        let one = builder.one_extension();
-        let local_filter = if let Some(column) = filter_column {
-            column.eval_circuit(builder, vars.local_values)
-        } else {
-            one
-        };
-        let next_filter = if let Some(column) = filter_column {
-            column.eval_circuit(builder, vars.next_values)
-        } else {
-            one
-        };
-        fn select<F: RichField + Extendable<D>, const D: usize>(
-            builder: &mut CircuitBuilder<F, D>,
-            filter: ExtensionTarget<D>,
-            x: ExtensionTarget<D>,
-        ) -> ExtensionTarget<D> {
-            let one = builder.one_extension();
-            let tmp = builder.sub_extension(one, filter);
-            builder.mul_add_extension(filter, x, tmp) // filter * x + 1 - filter
-        }
-
-        // Check value of `Z(1)`
-        let local_columns_eval = columns
-            .iter()
-            .map(|c| c.eval_circuit(builder, vars.local_values))
-            .collect::<Vec<_>>();
-        let combined_local = challenges.combine_circuit(builder, &local_columns_eval);
-        let selected_local = select(builder, local_filter, combined_local);
-        let first_row = builder.sub_extension(*local_z, selected_local);
-        consumer.constraint_first_row(builder, first_row);
-        // Check `Z(gw) = combination * Z(w)`
-        let next_columns_eval = columns
-            .iter()
-            .map(|c| c.eval_circuit(builder, vars.next_values))
-            .collect::<Vec<_>>();
-        let combined_next = challenges.combine_circuit(builder, &next_columns_eval);
-        let selected_next = select(builder, next_filter, combined_next);
-        let mut transition = builder.mul_extension(*local_z, selected_next);
-        transition = builder.sub_extension(*next_z, transition);
-        consumer.constraint_transition(builder, transition);
     }
 }
 

@@ -10,11 +10,8 @@ use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::iop::target::Target;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::Hasher;
-use plonky2::plonk::plonk_common::{reduce_with_powers, reduce_with_powers_ext_circuit};
+use plonky2::plonk::plonk_common::reduce_with_powers;
 use plonky2::util::reducing::ReducingFactor;
 use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
@@ -51,19 +48,6 @@ impl<F: Field> GrandProductChallenge<F> {
         reduce_with_powers(terms, FE::from_basefield(self.beta)) + FE::from_basefield(self.gamma)
     }
 }
-
-impl GrandProductChallenge<Target> {
-    pub(crate) fn combine_circuit<F: RichField + Extendable<D>, const D: usize>(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        terms: &[ExtensionTarget<D>],
-    ) -> ExtensionTarget<D> {
-        let reduced = reduce_with_powers_ext_circuit(builder, terms, self.beta);
-        let gamma = builder.convert_to_ext(self.gamma);
-        builder.add_extension(reduced, gamma)
-    }
-}
-
 /// Like `PermutationChallenge`, but with `num_challenges` copies to boost
 /// soundness.
 #[derive(Clone, Eq, PartialEq, Debug)]
