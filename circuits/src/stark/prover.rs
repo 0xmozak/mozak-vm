@@ -131,6 +131,11 @@ where
     Ok(AllProof { stark_proofs })
 }
 /// Compute proof for a single STARK table, with lookup data.
+///
+/// # Errors
+/// Errors if FRI parameters are wrongly configured, or if
+/// there are no z polys, or if our
+/// opening points are in our subgroup `H`,
 pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     stark: &S,
     config: &StarkConfig,
@@ -315,6 +320,9 @@ where
 
 /// Given the traces generated from [`generate_traces`] along with their
 /// commitments, prove a [`MozakStark`].
+///
+/// # Errors
+/// Errors if proving fails.
 pub fn prove_with_commitments<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
