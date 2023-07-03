@@ -30,8 +30,8 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:,
 {
     let AllProofChallenges {
@@ -53,15 +53,22 @@ where
         &nums_permutation_zs,
     );
 
-    let cpu_proof = verify_stark_proof_with_challenges(
+    verify_stark_proof_with_challenges::<F, C, CpuStark<F, D>, D>(
         cpu_stark,
         &all_proof.stark_proofs[TableKind::Cpu as usize],
         &stark_challenges[TableKind::Cpu as usize],
         &ctl_vars_per_table[TableKind::Cpu as usize],
         config,
     )?;
-    // verify_stark_proof(cpu_stark, cpu_proof, config)
-    //
+
+    verify_stark_proof_with_challenges::<F, C, RangeCheckStark<F, D>, D>(
+        rangecheck_stark,
+        &all_proof.stark_proofs[TableKind::RangeCheck as usize],
+        &stark_challenges[TableKind::RangeCheck as usize],
+        &ctl_vars_per_table[TableKind::RangeCheck as usize],
+        config,
+    )?;
+
     Ok(())
 }
 
