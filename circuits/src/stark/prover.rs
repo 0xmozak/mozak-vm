@@ -328,11 +328,12 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
+    //[(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:,
 {
-    let cpu_proof = prove_single_table(
+    let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
         config,
         &traces_poly_values[TableKind::Cpu as usize].clone(),
@@ -343,7 +344,7 @@ where
     )?;
 
     let rangecheck_proof = prove_single_table(
-        &mozak_stark.cpu_stark,
+        &mozak_stark.rangecheck_stark,
         config,
         &traces_poly_values[TableKind::RangeCheck as usize].clone(),
         &trace_commitments[TableKind::RangeCheck as usize],
