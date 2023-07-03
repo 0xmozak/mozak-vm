@@ -391,7 +391,7 @@ pub struct CtlCheckVarsTarget<'a, F: Field, const D: usize> {
     pub(crate) filter_column: &'a Option<Column<F>>,
 }
 
-pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, C, S, const D: usize, const D2: usize>(
+pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const D2: usize>(
     vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
     consumer: &mut ConstraintConsumer<P>,
@@ -399,7 +399,6 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, C, S, const D: usize, con
     F: RichField + Extendable<D>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
-    C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
 {
     for lookup_vars in ctl_vars {

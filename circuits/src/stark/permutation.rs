@@ -225,7 +225,7 @@ where
     pub(crate) permutation_challenge_sets: Vec<GrandProductChallengeSet<F>>,
 }
 
-pub(crate) fn eval_permutation_checks<F, FE, P, C, S, const D: usize, const D2: usize>(
+pub(crate) fn eval_permutation_checks<F, FE, P, S, const D: usize, const D2: usize>(
     stark: &S,
     config: &StarkConfig,
     vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
@@ -235,7 +235,6 @@ pub(crate) fn eval_permutation_checks<F, FE, P, C, S, const D: usize, const D2: 
     F: RichField + Extendable<D>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
-    C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
 {
     let PermutationCheckVars {

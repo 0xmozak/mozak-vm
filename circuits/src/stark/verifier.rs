@@ -55,7 +55,7 @@ where
     );
 
     verify_stark_proof_with_challenges::<F, C, CpuStark<F, D>, D>(
-        cpu_stark,
+        &cpu_stark,
         &all_proof.stark_proofs[TableKind::Cpu as usize],
         &stark_challenges[TableKind::Cpu as usize],
         &ctl_vars_per_table[TableKind::Cpu as usize],
@@ -63,7 +63,7 @@ where
     )?;
 
     verify_stark_proof_with_challenges::<F, C, RangeCheckStark<F, D>, D>(
-        rangecheck_stark,
+        &rangecheck_stark,
         &all_proof.stark_proofs[TableKind::RangeCheck as usize],
         &stark_challenges[TableKind::RangeCheck as usize],
         &ctl_vars_per_table[TableKind::RangeCheck as usize],
@@ -79,7 +79,7 @@ pub(crate) fn verify_stark_proof_with_challenges<
     S: Stark<F, D>,
     const D: usize,
 >(
-    stark: S,
+    stark: &S,
     proof: &StarkProof<F, C, D>,
     challenges: &StarkProofChallenges<F, D>,
     ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
@@ -90,7 +90,7 @@ where
     [(); S::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:,
 {
-    validate_proof_shape(&stark, proof, config, ctl_vars.len())?;
+    validate_proof_shape(stark, proof, config, ctl_vars.len())?;
     let StarkOpeningSet {
         local_values,
         next_values,
@@ -100,8 +100,8 @@ where
         quotient_polys,
     } = &proof.openings;
     let vars = StarkEvaluationVars {
-        local_values: &local_values.to_vec().try_into().unwrap(),
-        next_values: &next_values.to_vec().try_into().unwrap(),
+        local_values: &local_values.clone().try_into().unwrap(),
+        next_values: &next_values.clone().try_into().unwrap(),
         public_inputs: &[F::ZERO.into(); S::PUBLIC_INPUTS],
     };
 
@@ -125,8 +125,8 @@ where
         next_zs: permutation_ctl_zs_next[..num_permutation_zs].to_vec(),
         permutation_challenge_sets: challenges.permutation_challenge_sets.clone().unwrap(),
     });
-    eval_vanishing_poly::<F, F::Extension, F::Extension, C, S, D, D>(
-        &stark,
+    eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
+        stark,
         config,
         vars,
         permutation_data,

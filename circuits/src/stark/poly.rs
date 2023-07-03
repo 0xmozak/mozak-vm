@@ -125,7 +125,7 @@ where
                     filter_column: &zs_columns.filter_column,
                 })
                 .collect::<Vec<_>>();
-            eval_vanishing_poly::<F, F, P, C, S, D, 1>(
+            eval_vanishing_poly::<F, F, P, S, D, 1>(
                 stark,
                 config,
                 vars,

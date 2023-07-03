@@ -17,7 +17,7 @@ use crate::cross_table_lookup::{
     CtlCheckVarsTarget,
 };
 
-pub(crate) fn eval_vanishing_poly<F, FE, P, C, S, const D: usize, const D2: usize>(
+pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark: &S,
     config: &StarkConfig,
     vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
@@ -28,12 +28,11 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, C, S, const D: usize, const D2: usiz
     F: RichField + Extendable<D>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
-    C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
 {
     stark.eval_packed_generic(vars, consumer);
     if let Some(permutation_vars) = permutation_vars {
-        eval_permutation_checks::<F, FE, P, C, S, D, D2>(
+        eval_permutation_checks::<F, FE, P, S, D, D2>(
             stark,
             config,
             vars,
@@ -41,7 +40,7 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, C, S, const D: usize, const D2: usiz
             consumer,
         );
     }
-    eval_cross_table_lookup_checks::<F, FE, P, C, S, D, D2>(vars, ctl_vars, consumer);
+    eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
 }
 
 #[allow(unused)]
