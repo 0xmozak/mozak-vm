@@ -164,9 +164,14 @@ mod tests {
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
     type S = BitwiseStark<F, D>;
-    fn simple_xor_test(a: u32, b: u32, imm: u32) {
+    fn get_config_for_test() -> StarkConfig {
         let mut config = StarkConfig::standard_fast_config();
         config.fri_config.cap_height = 0;
+        config.fri_config.proof_of_work_bits = 0;
+        config
+    }
+    fn simple_xor_test(a: u32, b: u32, imm: u32) {
+        let config = get_config_for_test();
 
         let stark = S::default();
         let record = simple_test_code(
@@ -182,7 +187,7 @@ mod tests {
             &[],
             &[(5, a), (6, b)],
         );
-        assert_eq!(record.last_state.get_register_value(7), a ^ b ^ imm);
+        assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));
         let trace = generate_bitwise_trace(&record.executed);
         let trace_poly_values = trace_to_poly_values(trace);
 
@@ -213,8 +218,7 @@ mod tests {
     #[test]
     fn prove_xor_with_timing() -> Result<()> {
         let _ = env_logger::try_init();
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 0;
+        let config = get_config_for_test();
         let mut timing = TimingTree::new("xor", log::Level::Debug);
 
         let stark = S::default();
