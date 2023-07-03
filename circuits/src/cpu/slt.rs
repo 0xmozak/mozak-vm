@@ -2,7 +2,7 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_CMP_ABS_DIFF, COL_CMP_DIFF_INV, COL_DST_VALUE, COL_IMM_VALUE, COL_LT, COL_OP1_VALUE,
+    COL_CMP_ABS_DIFF, COL_CMP_DIFF_INV, COL_DST_VALUE, COL_IMM_VALUE, COL_LESS_THAN, COL_OP1_VALUE,
     COL_OP2_VALUE, COL_S_SLT, COL_S_SLTU, COL_S_SLT_OP1_VAL_FIXED, COL_S_SLT_OP2_VAL_FIXED,
     COL_S_SLT_SIGN1, COL_S_SLT_SIGN2, NUM_CPU_COLS,
 };
@@ -16,9 +16,9 @@ pub(crate) fn constraints<P: PackedField>(
     let p31: P = column_of_xs(1 << 31);
 
     let is_cmp = lv[COL_S_SLT] + lv[COL_S_SLTU];
-    let is_signed = lv[COL_S_SLT];
+    let is_signed_cmp = lv[COL_S_SLT];
 
-    let lt = lv[COL_LT];
+    let lt = lv[COL_LESS_THAN];
     yield_constr.constraint(lt * (P::ONES - lt));
 
     let sign1 = lv[COL_S_SLT_SIGN1];
@@ -33,16 +33,16 @@ pub(crate) fn constraints<P: PackedField>(
     // TODO: range check
     let op2_fixed = lv[COL_S_SLT_OP2_VAL_FIXED];
 
-    yield_constr.constraint(op1_fixed - (op1 + is_signed * p31 - sign1 * p32));
-    yield_constr.constraint(op2_fixed - (op2 + is_signed * p31 - sign2 * p32));
+    yield_constr.constraint(op1_fixed - (op1 + is_signed_cmp * p31 - sign1 * p32));
+    yield_constr.constraint(op2_fixed - (op2 + is_signed_cmp * p31 - sign2 * p32));
 
-    let diff = op1_fixed - op2_fixed;
+    let diff_fixed = op1_fixed - op2_fixed;
     // TODO: range check
     let abs_diff = lv[COL_CMP_ABS_DIFF];
 
     // abs_diff calculation
-    yield_constr.constraint((P::ONES - lt) * (abs_diff - diff));
-    yield_constr.constraint(lt * (abs_diff + diff));
+    yield_constr.constraint((P::ONES - lt) * (abs_diff - diff_fixed));
+    yield_constr.constraint(lt * (abs_diff + diff_fixed));
 
     let diff = op1 - op2;
     let diff_inv = lv[COL_CMP_DIFF_INV];
