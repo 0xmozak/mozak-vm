@@ -8,7 +8,7 @@ use plonky2::{
         types::Field,
     },
     hash::hash_types::RichField,
-    iop::{ext_target::ExtensionTarget, target::Target},
+    iop::ext_target::ExtensionTarget,
     plonk::{circuit_builder::CircuitBuilder, config::GenericConfig},
 };
 use starky::{constraint_consumer::ConstraintConsumer, stark::Stark, vars::StarkEvaluationVars};
@@ -37,10 +37,17 @@ pub struct CtlData<F: Field> {
 }
 
 impl<F: Field> CtlData<F> {
+    #[must_use]
     pub fn len(&self) -> usize {
         self.zs_columns.len()
     }
 
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.zs_columns.len() == 0
+    }
+
+    #[must_use]
     pub fn z_polys(&self) -> Vec<PolynomialValues<F>> {
         self.zs_columns
             .iter()
@@ -139,7 +146,7 @@ fn partial_products<F: Field>(
                 .collect::<Vec<_>>();
             partial_prod *= challenge.combine(evals.iter());
         } else {
-            assert_eq!(filter, F::ZERO, "Non-binary filter?")
+            assert_eq!(filter, F::ZERO, "Non-binary filter?");
         };
         res.push(partial_prod);
     }
@@ -219,6 +226,7 @@ pub enum TableKind {
 }
 
 impl TableKind {
+    #[must_use]
     pub fn all() -> [TableKind; 2] {
         [TableKind::Cpu, TableKind::RangeCheck]
     }
@@ -377,16 +385,6 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         ctl_vars_per_table
     }
 }
-
-#[derive(Clone)]
-pub struct CtlCheckVarsTarget<'a, F: Field, const D: usize> {
-    pub(crate) local_z: ExtensionTarget<D>,
-    pub(crate) next_z: ExtensionTarget<D>,
-    pub(crate) challenges: GrandProductChallenge<Target>,
-    pub(crate) columns: &'a [Column<F>],
-    pub(crate) filter_column: &'a Option<Column<F>>,
-}
-
 pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const D2: usize>(
     vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
