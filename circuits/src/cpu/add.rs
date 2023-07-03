@@ -63,6 +63,6 @@ mod test {
                 );
                 assert_eq!(record.last_state.get_register_value(5), a.wrapping_add(b));
                 simple_proof_test(&record.executed).unwrap();
-        }
+            }
     }
 }

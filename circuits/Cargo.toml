@@ -10,14 +10,14 @@ keywords = ["crypto", "zero-knowledge", "vm"]
 categories = ["cryptography"]
 
 [dependencies]
-plonky2 = "0.1.3" 
+plonky2 = "0.1.3"
 plonky2_maybe_rayon = "0.1.0"
 anyhow = { version = "1.0", default-features = false }
 mozak-vm = { path = "../vm" }
 log = "0.4.19"
 itertools = "0.10.0"
-thiserror = "1.0.40"
 starky = { git = "https://github.com/0xmozak/plonky2.git" }
+thiserror = "1.0.40"
 
 [dev-dependencies]
 mozak-vm = { path = "../vm", features = ["test"] }
