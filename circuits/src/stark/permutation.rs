@@ -154,10 +154,11 @@ pub(crate) fn get_grand_product_challenge_set<F: RichField, H: Hasher<F>>(
     challenger: &mut Challenger<F, H>,
     num_challenges: usize,
 ) -> GrandProductChallengeSet<F> {
-    let challenges = (0..num_challenges)
-        .map(|_| get_grand_product_challenge(challenger))
-        .collect();
-    GrandProductChallengeSet { challenges }
+    GrandProductChallengeSet {
+        challenges: (0..num_challenges)
+            .map(|_| get_grand_product_challenge(challenger))
+            .collect(),
+    }
 }
 
 pub(crate) fn get_n_grand_product_challenge_sets<F: RichField, H: Hasher<F>>(
