@@ -29,11 +29,11 @@ pub(crate) const NUM_CPU_COLS: usize = COL_S_RC + 1;
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
-    Column::singles([COL_RD]).collect_vec()
+    Column::singles([COL_DST_VALUE]).collect_vec()
 }
 
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> {
-    Column::single(COL_S_RC)
+    Column::single(COL_S_ADD)
 }
