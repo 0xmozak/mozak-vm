@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_lines)]
+
 use anyhow::ensure;
 use anyhow::Result;
 use itertools::Itertools;
@@ -51,6 +53,9 @@ where
 }
 
 /// Given the traces generated from [`generate_traces`], prove a [`MozakStark`].
+///
+/// # Errors
+/// Errors if proving fails.
 pub fn prove_with_traces<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,

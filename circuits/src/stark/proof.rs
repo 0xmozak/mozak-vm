@@ -20,6 +20,7 @@ use super::permutation::{
     get_grand_product_challenge_set, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
 };
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone)]
 pub struct StarkProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     /// Merkle cap of LDEs of trace values.
