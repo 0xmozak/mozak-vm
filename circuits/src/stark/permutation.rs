@@ -81,6 +81,7 @@ where
 }
 
 /// Compute a single Z polynomial.
+#[allow(clippy::similar_names)]
 fn compute_permutation_z_poly<F: Field>(
     instances: &[PermutationInstance<F>],
     trace_poly_values: &[PolynomialValues<F>],
