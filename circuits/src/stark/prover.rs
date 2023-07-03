@@ -14,7 +14,7 @@ use plonky2::plonk::config::Hasher;
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
-use plonky2_maybe_rayon::*;
+use plonky2_maybe_rayon::{MaybeIntoParIter, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::stark::LookupConfig;
 use starky::stark::Stark;
@@ -109,7 +109,7 @@ where
         timing,
         "compute CTL data",
         cross_table_lookup_data::<F, D>(
-            &traces_poly_values,
+            traces_poly_values,
             &mozak_stark.cross_table_lookups,
             &ctl_challenges
         )
@@ -121,8 +121,8 @@ where
             mozak_stark,
             config,
             traces_poly_values,
-            trace_commitments,
-            ctl_data_per_table,
+            &trace_commitments,
+            &ctl_data_per_table,
             &mut challenger,
             timing
         )?
@@ -181,7 +181,7 @@ where
             )
         )
     });
-    let num_permutation_zs = permutation_zs.as_ref().map(|v| v.len()).unwrap_or(0);
+    let num_permutation_zs = permutation_zs.as_ref().map_or(0, Vec::len);
 
     let z_polys = match permutation_zs {
         None => ctl_data.z_polys(),
@@ -319,8 +319,8 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
-    trace_commitments: Vec<PolynomialBatch<F, C, D>>,
-    ctl_data_per_table: [CtlData<F>; NUM_TABLES],
+    trace_commitments: &[PolynomialBatch<F, C, D>],
+    ctl_data_per_table: &[CtlData<F>; NUM_TABLES],
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<[StarkProof<F, C, D>; NUM_TABLES]>
