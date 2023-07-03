@@ -14,7 +14,7 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     let p32: P = column_of_xs(1 << 32);
     let p31: P = column_of_xs(1 << 31);
-    // Possible values are 0, 1;
+
     let is_cmp = lv[COL_S_SLT] + lv[COL_S_SLTU];
     let is_signed = lv[COL_S_SLT];
 
@@ -43,11 +43,6 @@ pub(crate) fn constraints<P: PackedField>(
     // abs_diff calculation
     yield_constr.constraint((P::ONES - lt) * (abs_diff - diff));
     yield_constr.constraint(lt * (abs_diff + diff));
-
-    // abs_diff * abs_diff_inv = 1 when lt = 1
-    // abs_diff * abs_diff_inv = 1 when gte = 0
-    // if lt == 1 => abs_diff * abs_diff_inv = 1
-    // if lt == 0 => no requirement.
 
     let diff = op1 - op2;
     let diff_inv = lv[COL_CMP_DIFF_INV];
