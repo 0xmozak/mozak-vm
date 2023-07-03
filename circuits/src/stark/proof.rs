@@ -120,17 +120,6 @@ pub(crate) struct StarkProofChallenges<F: RichField + Extendable<D>, const D: us
     pub fri_challenges: FriChallenges<F, D>,
 }
 
-/// A `StarkProof` along with some metadata about the initial Fiat-Shamir state,
-/// which is used when creating a recursive wrapper proof around a STARK proof.
-#[derive(Debug, Clone)]
-pub struct StarkProofWithMetadata<F, C, const D: usize>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-{
-    pub(crate) proof: StarkProof<F, C, D>,
-}
-
 /// Purported values of each polynomial at the challenge point.
 #[derive(Debug, Clone)]
 pub struct StarkOpeningSet<F: RichField + Extendable<D>, const D: usize> {

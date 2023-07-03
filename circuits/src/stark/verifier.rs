@@ -20,6 +20,7 @@ use super::{mozak_stark::MozakStark, proof::AllProof};
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{CtlCheckVars, TableKind};
 use crate::rangecheck::stark::RangeCheckStark;
+
 #[allow(clippy::missing_errors_doc)]
 pub fn verify_proof<F, C, const D: usize>(
     mozak_stark: MozakStark<F, D>,
