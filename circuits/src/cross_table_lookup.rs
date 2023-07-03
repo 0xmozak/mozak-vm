@@ -232,12 +232,6 @@ impl TableKind {
     }
 }
 
-impl From<TableKind> for usize {
-    fn from(value: TableKind) -> usize {
-        value as usize
-    }
-}
-
 #[derive(Clone, Debug)]
 #[allow(unused)]
 pub struct Table<F: Field> {
