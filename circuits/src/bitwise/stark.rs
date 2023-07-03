@@ -1,5 +1,4 @@
 use std::marker::PhantomData;
-use std::ops::Range;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -39,89 +38,24 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         // sumcheck for op1, op2, res limbs
         // We enforce the constraint:
         //     opx == Sum(opx_limbs * 2^(8*i))
-        let mut sumcheck = |opx: usize, opx_limbs: Range<usize>| {
+        for (opx, opx_limbs) in [(OP1, OP1_LIMBS), (OP2, OP2_LIMBS), (RES, RES_LIMBS)] {
             let opx_limbs = lv[opx_limbs].to_vec();
             let computed_sum = reduce_with_powers(&opx_limbs, from_(1_u128 << 8));
             yield_constr.constraint(computed_sum - lv[opx]);
-        };
-        sumcheck(OP1, OP1_LIMBS);
-        sumcheck(OP2, OP2_LIMBS);
-        sumcheck(RES, RES_LIMBS);
+        }
 
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP1_LIMBS_PERMUTED.start,
-            FIX_RANGE_CHECK_U8_PERMUTED.start,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP1_LIMBS_PERMUTED.start + 1,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 1,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP1_LIMBS_PERMUTED.start + 2,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 2,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP1_LIMBS_PERMUTED.start + 3,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 3,
-        );
-
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP2_LIMBS_PERMUTED.start,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 4,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP2_LIMBS_PERMUTED.start + 1,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 5,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP2_LIMBS_PERMUTED.start + 2,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 6,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP2_LIMBS_PERMUTED.start + 3,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 7,
-        );
-
-        eval_lookups(
-            vars,
-            yield_constr,
-            RES_LIMBS_PERMUTED.start,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 8,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            RES_LIMBS_PERMUTED.start + 1,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 9,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            RES_LIMBS_PERMUTED.start + 2,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 10,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            RES_LIMBS_PERMUTED.start + 3,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 11,
-        );
+        for (fix_range_check_u8_permuted, opx_limbs_permuted) in FIX_RANGE_CHECK_U8_PERMUTED.zip(
+            OP1_LIMBS_PERMUTED
+                .chain(OP2_LIMBS_PERMUTED)
+                .chain(RES_LIMBS_PERMUTED),
+        ) {
+            eval_lookups(
+                vars,
+                yield_constr,
+                opx_limbs_permuted,
+                fix_range_check_u8_permuted,
+            )
+        }
     }
 
     fn constraint_degree(&self) -> usize { 3 }
