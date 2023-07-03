@@ -38,9 +38,11 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             trace[cpu_cols::COL_START_REG + j as usize][i] = from_(s.get_register_value(j));
         }
 
-        trace[cpu_cols::COL_S_RC][i] = F::ONE;
         match inst.op {
-            Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,
+            Op::ADD => {
+                trace[cpu_cols::COL_S_RC][i] = F::ONE;
+                trace[cpu_cols::COL_S_ADD][i] = F::ONE;
+            }
             Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             Op::SUB => trace[cpu_cols::COL_S_SUB][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
