@@ -228,7 +228,7 @@ where
             &permutation_ctl_zs_commitment,
             permutation_challenges.as_ref(),
             ctl_data,
-            alphas,
+            &alphas,
             degree_bits,
             num_permutation_zs,
             config,

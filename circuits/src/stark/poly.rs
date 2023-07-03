@@ -25,7 +25,7 @@ pub(crate) fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     permutation_ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
     permutation_challenges: Option<&'a Vec<GrandProductChallengeSet<F>>>,
     ctl_data: &CtlData<F>,
-    alphas: Vec<F>,
+    alphas: &[F],
     degree_bits: usize,
     num_permutation_zs: usize,
     config: &StarkConfig,
@@ -91,7 +91,7 @@ where
             let lagrange_basis_last = *P::from_slice(&lagrange_last.values[i_range]);
 
             let mut consumer = ConstraintConsumer::new(
-                alphas.clone(),
+                alphas.to_vec(),
                 z_last,
                 lagrange_basis_first,
                 lagrange_basis_last,
@@ -109,7 +109,7 @@ where
                     next_zs: permutation_ctl_zs_commitment
                         .get_lde_values_packed(i_next_start, step)[..num_permutation_zs]
                         .to_vec(),
-                    permutation_challenge_sets: permutation_challenge_sets.to_vec(),
+                    permutation_challenge_sets: permutation_challenge_sets.clone(),
                 });
             let ctl_vars = ctl_data
                 .zs_columns
