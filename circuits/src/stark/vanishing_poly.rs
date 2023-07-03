@@ -1,20 +1,13 @@
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::config::StarkConfig;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::constraint_consumer::ConstraintConsumer;
 use starky::stark::Stark;
-use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
+use starky::vars::StarkEvaluationVars;
 
-use super::permutation::{
-    eval_permutation_checks, eval_permutation_checks_circuit, PermutationCheckDataTarget,
-    PermutationCheckVars,
-};
-use crate::cross_table_lookup::{
-    eval_cross_table_lookup_checks, eval_cross_table_lookup_checks_circuit, CtlCheckVars,
-    CtlCheckVarsTarget,
-};
+use super::permutation::{eval_permutation_checks, PermutationCheckVars};
+use crate::cross_table_lookup::{eval_cross_table_lookup_checks, CtlCheckVars};
 
 pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark: &S,
