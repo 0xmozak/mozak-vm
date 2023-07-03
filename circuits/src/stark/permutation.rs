@@ -1,4 +1,5 @@
 //! Permutation arguments
+#[allow(clippy::module_name_repetitions)]
 use std::fmt::Debug;
 
 use itertools::Itertools;
@@ -12,15 +13,15 @@ use plonky2::iop::challenger::Challenger;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::config::{GenericConfig, Hasher};
+use plonky2::plonk::config::Hasher;
 use plonky2::plonk::plonk_common::{reduce_with_powers, reduce_with_powers_ext_circuit};
-use plonky2::util::reducing::{ReducingFactor, ReducingFactorTarget};
+use plonky2::util::reducing::ReducingFactor;
 use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::constraint_consumer::ConstraintConsumer;
 use starky::permutation::PermutationPair;
 use starky::stark::Stark;
-use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
+use starky::vars::StarkEvaluationVars;
 
 /// A single instance of a permutation check protocol.
 pub(crate) struct PermutationInstance<'a, T: Copy + Eq + PartialEq + Debug> {
