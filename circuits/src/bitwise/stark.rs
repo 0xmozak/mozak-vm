@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::ops::Range;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -35,25 +36,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         P: PackedField<Scalar = FE>, {
         let lv = vars.local_values;
 
-        let op1 = lv[OP1];
-        let op2 = lv[OP2];
-        let res = lv[RES];
-
         // sumcheck for op1, op2, res limbs
-        // op1 = Sum(op1_limbs_i * 2^(8*i))
-        let op1_limbs: Vec<_> = lv[OP1_LIMBS].to_vec();
-        let computed_sum = reduce_with_powers(&op1_limbs, from_(1_u128 << 8));
-        yield_constr.constraint(computed_sum - op1);
-
-        // op2 = Sum(op2_limbs_i * 2^(8*i))
-        let op2_limbs: Vec<_> = lv[OP2_LIMBS].to_vec();
-        let computed_sum = reduce_with_powers(&op2_limbs, from_(1_u128 << 8));
-        yield_constr.constraint(computed_sum - op2);
-
-        // res = Sum(res_limbs_i * 2^(8*i))
-        let res_limbs: Vec<_> = lv[RES_LIMBS].to_vec();
-        let computed_sum = reduce_with_powers(&res_limbs, from_(1_u128 << 8));
-        yield_constr.constraint(computed_sum - res);
+        // We enforce the constraint:
+        //     opx == Sum(opx_limbs * 2^(8*i))
+        let mut sumcheck = |opx: usize, opx_limbs: Range<usize>| {
+            let opx_limbs = lv[opx_limbs].to_vec();
+            let computed_sum = reduce_with_powers(&opx_limbs, from_(1_u128 << 8));
+            yield_constr.constraint(computed_sum - lv[opx]);
+        };
+        sumcheck(OP1, OP1_LIMBS);
+        sumcheck(OP2, OP2_LIMBS);
+        sumcheck(RES, RES_LIMBS);
 
         eval_lookups(
             vars,
