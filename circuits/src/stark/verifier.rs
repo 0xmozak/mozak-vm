@@ -51,7 +51,8 @@ where
         cpu_stark: _,
         bitwise_stark,
     } = mozak_stark;
-    let [_, bitwise_proof]: [StarkProofWithPublicInputs<F, C, D>; NUM_TABLES] = all_proof.stark_proofs;
+    let [_, bitwise_proof]: [StarkProofWithPublicInputs<F, C, D>; NUM_TABLES] =
+        all_proof.stark_proofs;
 
     verify_stark_proof::<F, C, BitwiseStark<F, D>, D>(bitwise_stark, bitwise_proof, config)
 }

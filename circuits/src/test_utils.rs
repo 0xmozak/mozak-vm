@@ -9,8 +9,7 @@ use starky::stark::Stark;
 
 use crate::stark::mozak_stark::MozakStark;
 use crate::stark::prover::prove;
-use crate::stark::verifier::verify_proof_cpu;
-use crate::stark::verifier::verify_proof_bitwise;
+use crate::stark::verifier::{verify_proof_bitwise, verify_proof_cpu};
 
 #[allow(clippy::missing_panics_doc)]
 #[allow(clippy::missing_errors_doc)]
@@ -35,7 +34,8 @@ pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
         },
     };
 
-    let all_proofs = prove::<F, C, D>(step_rows, &mut stark, &config, &mut TimingTree::default()).unwrap();
+    let all_proofs =
+        prove::<F, C, D>(step_rows, &mut stark, &config, &mut TimingTree::default()).unwrap();
     verify_proof_cpu(stark.clone(), all_proofs.clone(), &config)?;
     verify_proof_bitwise(stark, all_proofs, &config)
 }
