@@ -35,5 +35,5 @@ pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> {
-    Column::single(COL_S_ADD)
+    Column::single(COL_S_RC)
 }
