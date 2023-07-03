@@ -343,7 +343,7 @@ where
         timing,
     )?;
 
-    let rangecheck_proof = prove_single_table(
+    let rangecheck_proof = prove_single_table::<F, C, RangeCheckStark<F, D>, D>(
         &mozak_stark.rangecheck_stark,
         config,
         &traces_poly_values[TableKind::RangeCheck as usize].clone(),
