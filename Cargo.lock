@@ -860,7 +860,6 @@ dependencies = [
 [[package]]
 name = "starky"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#66058befe70d81cd3b37cab84dcb43dac28f575c"
 dependencies = [
  "anyhow",
  "itertools",

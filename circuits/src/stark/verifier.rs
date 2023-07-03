@@ -8,10 +8,10 @@ use plonky2::{
     hash::hash_types::RichField,
     plonk::config::GenericConfig,
 };
+use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
-use starky::stark::Stark;
+use starky::stark::{LookupConfig, Stark};
 use starky::vars::StarkEvaluationVars;
-use starky::{config::StarkConfig, verifier::verify_stark_proof};
 
 use super::permutation::PermutationCheckVars;
 use super::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
@@ -34,18 +34,17 @@ where
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:,
 {
+    let AllProofChallenges {
+        stark_challenges,
+        ctl_challenges,
+    } = all_proof.get_challenges(&mozak_stark, config);
+    let nums_permutation_zs = mozak_stark.nums_permutation_zs(config);
+
     let MozakStark {
         cpu_stark,
         rangecheck_stark,
         cross_table_lookups,
     } = mozak_stark;
-
-    let AllProofChallenges {
-        stark_challenges,
-        ctl_challenges,
-    } = all_proof.get_challenges(&mozak_stark, config);
-
-    let nums_permutation_zs = mozak_stark.nums_permutation_zs(config);
 
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
         &all_proof.stark_proofs,
@@ -95,7 +94,7 @@ where
     let vars = StarkEvaluationVars {
         local_values: &local_values.to_vec().try_into().unwrap(),
         next_values: &next_values.to_vec().try_into().unwrap(),
-        public_inputs: &[],
+        public_inputs: &[F::ZERO.into(); S::PUBLIC_INPUTS],
     };
 
     let degree_bits = proof.recover_degree_bits(config);
@@ -159,9 +158,11 @@ where
         &stark.fri_instance(
             challenges.stark_zeta,
             F::primitive_root_of_unity(degree_bits),
-            degree_bits,
-            ctl_zs_last.len(),
             config,
+            Some(&LookupConfig {
+                degree_bits,
+                num_zs: ctl_zs_last.len(),
+            }),
         ),
         &proof.openings.to_fri_openings(),
         &challenges.fri_challenges,

@@ -16,12 +16,12 @@ use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
 use plonky2_maybe_rayon::*;
 use starky::config::StarkConfig;
-use starky::proof::StarkProof;
+use starky::stark::LookupConfig;
 use starky::stark::Stark;
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
 use super::permutation::get_grand_product_challenge_set;
-use super::proof::AllProof;
+use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData, TableKind};
 use crate::generation::generate_traces;
@@ -30,7 +30,6 @@ use crate::stark::permutation::compute_permutation_z_polys;
 use crate::stark::permutation::get_n_grand_product_challenge_sets;
 use crate::stark::permutation::GrandProductChallengeSet;
 use crate::stark::poly::compute_quotient_polys;
-use crate::stark::proof::StarkOpeningSet;
 
 #[allow(clippy::missing_errors_doc)]
 pub fn prove<F, C, const D: usize>(
@@ -272,8 +271,10 @@ where
         zeta,
         g,
         trace_commitment,
-        Some(&permutation_ctl_zs_commitment),
+        &permutation_ctl_zs_commitment,
         &quotient_commitment,
+        degree_bits,
+        stark.num_permutation_batches(config),
     );
     challenger.observe_openings(&openings.to_fri_openings());
 
@@ -287,7 +288,15 @@ where
         timing,
         "compute openings proof",
         PolynomialBatch::prove_openings(
-            &stark.fri_instance(zeta, g, config),
+            &stark.fri_instance(
+                zeta,
+                g,
+                config,
+                Some(&LookupConfig {
+                    degree_bits,
+                    num_zs: ctl_data.len()
+                })
+            ),
             &initial_merkle_trees,
             challenger,
             &fri_params,
@@ -297,7 +306,7 @@ where
 
     Ok(StarkProof {
         trace_cap: trace_commitment.merkle_tree.cap.clone(),
-        permutation_zs_cap: Some(permutation_ctl_zs_cap),
+        permutation_ctl_zs_cap,
         quotient_polys_cap,
         openings,
         opening_proof,

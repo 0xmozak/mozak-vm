@@ -41,6 +41,10 @@ pub struct CtlData<F: Field> {
 }
 
 impl<F: Field> CtlData<F> {
+    pub fn len(&self) -> usize {
+        self.zs_columns.len()
+    }
+
     pub fn z_polys(&self) -> Vec<PolynomialValues<F>> {
         self.zs_columns
             .iter()
