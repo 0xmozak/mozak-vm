@@ -13,13 +13,15 @@ use starky::constraint_consumer::ConstraintConsumer;
 use starky::stark::{LookupConfig, Stark};
 use starky::vars::StarkEvaluationVars;
 
-use super::permutation::PermutationCheckVars;
-use super::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
-use super::vanishing_poly::eval_vanishing_poly;
 use super::{mozak_stark::MozakStark, proof::AllProof};
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{CtlCheckVars, TableKind};
 use crate::rangecheck::stark::RangeCheckStark;
+use crate::stark::{
+    permutation::PermutationCheckVars,
+    poly::eval_vanishing_poly,
+    proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges},
+};
 
 #[allow(clippy::missing_errors_doc)]
 pub fn verify_proof<F, C, const D: usize>(

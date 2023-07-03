@@ -5,5 +5,4 @@ pub mod poly;
 pub mod proof;
 pub mod prover;
 pub mod utils;
-pub mod vanishing_poly;
 pub mod verifier;
