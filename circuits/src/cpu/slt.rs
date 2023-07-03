@@ -15,8 +15,9 @@ pub(crate) fn constraints<P: PackedField>(
     let p32: P = column_of_xs(1 << 32);
     let p31: P = column_of_xs(1 << 31);
 
-    let is_cmp = lv[COL_S_SLT] + lv[COL_S_SLTU];
-    let is_signed_cmp = lv[COL_S_SLT];
+    let is_slt = lv[COL_S_SLT];
+    let is_sltu = lv[COL_S_SLTU];
+    let is_cmp = is_slt + is_sltu;
 
     let lt = lv[COL_LESS_THAN];
     yield_constr.constraint(lt * (P::ONES - lt));
@@ -33,8 +34,11 @@ pub(crate) fn constraints<P: PackedField>(
     // TODO: range check
     let op2_fixed = lv[COL_S_SLT_OP2_VAL_FIXED];
 
-    yield_constr.constraint(op1_fixed - (op1 + is_signed_cmp * p31 - sign1 * p32));
-    yield_constr.constraint(op2_fixed - (op2 + is_signed_cmp * p31 - sign2 * p32));
+    yield_constr.constraint(is_sltu * (op1_fixed - op1));
+    yield_constr.constraint(is_sltu * (op2_fixed - op2));
+
+    yield_constr.constraint(is_slt * (op1_fixed - (op1 + p31 - sign1 * p32)));
+    yield_constr.constraint(is_slt * (op2_fixed - (op2 + p31 - sign2 * p32)));
 
     let diff_fixed = op1_fixed - op2_fixed;
     // TODO: range check
