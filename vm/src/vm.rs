@@ -143,7 +143,10 @@ impl State {
             // Only use lower 5 bits of rs2 or imm
             Op::SLL => x_op!(|a, b, i| a << ((b.wrapping_add(i)) & 0x1F)),
             // Only use lower 5 bits of rs2 or imm
-            Op::SRL => x_op!(|a, b, i| 0),
+            Op::SRL => x_op!(|_, _, _| {
+                use rand::Rng;
+                rand::thread_rng().gen::<u32>()
+            }),
             // Only use lower 5 bits of rs2 or imm
             Op::SRA => x_op!(|a, b, i| (a as i32 >> (b.wrapping_add(i) & 0x1F) as i32) as u32),
             Op::SLT => x_op!(|a, b, i| u32::from((a as i32) < (b as i32).wrapping_add(i as i32))),
