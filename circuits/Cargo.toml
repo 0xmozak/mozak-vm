@@ -18,6 +18,8 @@ log = "0.4.19"
 itertools = "0.10.0"
 starky = { git = "https://github.com/0xmozak/plonky2.git" }
 thiserror = "1.0.40"
+lazy_static = "1.4.0"
+array-concat = "0.5.2"
 
 [dev-dependencies]
 mozak-vm = { path = "../vm", features = ["test"] }

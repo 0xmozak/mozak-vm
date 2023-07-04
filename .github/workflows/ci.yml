@@ -5,14 +5,17 @@ on:
     branches: [ "main" ]
   pull_request: {}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   check-riscv-tests:
     name: "Check Risc-V Tests are up to date"
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
       - run: |
@@ -26,11 +29,7 @@ jobs:
           }
 
   cargo-test:
-    if: github.event.pull_request.draft == false
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
 
@@ -41,8 +40,7 @@ jobs:
         run: cargo test --locked --all-targets
 
   cargo-clippy:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
 
@@ -53,8 +51,7 @@ jobs:
         run: cargo clippy --all-features --all-targets -- -D warnings
 
   cargo-fmt:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
  
@@ -65,8 +62,7 @@ jobs:
         run: cargo fmt --all --check
 
   coverage:
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       issues: read
       contents: write
@@ -92,7 +88,7 @@ jobs:
       - name: Run tests for coverage
         # skip-clean is there to make tarpaulin not re-build unnecessarily,
         # so caching dependencies works.
-        run: cargo tarpaulin --skip-clean --engine llvm --locked --workspace --out Xml
+        run: cargo tarpaulin --skip-clean --engine llvm --locked --workspace --out Xml --target-dir target-tarpaulin/
 
       - name: Coverage Comment
         uses: ewjoachim/coverage-comment-action@v1.0.3

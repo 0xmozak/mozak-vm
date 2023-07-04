@@ -1,12 +1,11 @@
-use plonky2::{field::extension::Extendable, hash::hash_types::RichField};
+use plonky2::field::extension::Extendable;
+use plonky2::hash::hash_types::RichField;
 use starky::config::StarkConfig;
 use starky::stark::Stark;
 
-use crate::{
-    cpu::stark::CpuStark,
-    cross_table_lookup::{CrossTableLookup, Lookups, RangecheckCpuTable},
-    rangecheck::stark::RangeCheckStark,
-};
+use crate::cpu::stark::CpuStark;
+use crate::cross_table_lookup::{CrossTableLookup, Lookups, RangecheckCpuTable};
+use crate::rangecheck::stark::RangeCheckStark;
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cpu_stark: CpuStark<F, D>,

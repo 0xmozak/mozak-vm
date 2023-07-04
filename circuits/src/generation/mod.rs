@@ -3,10 +3,9 @@ pub mod memory;
 pub mod rangecheck;
 
 use mozak_vm::vm::Row;
-use plonky2::{
-    field::{extension::Extendable, polynomial::PolynomialValues},
-    hash::hash_types::RichField,
-};
+use plonky2::field::extension::Extendable;
+use plonky2::field::polynomial::PolynomialValues;
+use plonky2::hash::hash_types::RichField;
 
 use self::{cpu::generate_cpu_trace, rangecheck::generate_rangecheck_trace};
 use crate::stark::utils::trace_to_poly_values;

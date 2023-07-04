@@ -1,7 +1,6 @@
 #![allow(clippy::too_many_lines)]
 
-use anyhow::ensure;
-use anyhow::Result;
+use anyhow::{ensure, Result};
 use itertools::Itertools;
 use mozak_vm::vm::Row;
 use plonky2::field::extension::Extendable;
@@ -11,15 +10,13 @@ use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
-use plonky2::plonk::config::GenericConfig;
-use plonky2::plonk::config::Hasher;
+use plonky2::plonk::config::{GenericConfig, Hasher};
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
 use plonky2_maybe_rayon::{MaybeIntoParIter, ParallelIterator};
 use starky::config::StarkConfig;
-use starky::stark::LookupConfig;
-use starky::stark::Stark;
+use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
 use super::permutation::get_grand_product_challenge_set;
@@ -28,9 +25,9 @@ use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData, TableKind};
 use crate::generation::generate_traces;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::stark::permutation::compute_permutation_z_polys;
-use crate::stark::permutation::get_n_grand_product_challenge_sets;
-use crate::stark::permutation::GrandProductChallengeSet;
+use crate::stark::permutation::{
+    compute_permutation_z_polys, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
+};
 use crate::stark::poly::compute_quotient_polys;
 
 #[allow(clippy::missing_errors_doc)]
@@ -46,8 +43,7 @@ where
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); C::Hasher::HASH_SIZE]:,
-{
+    [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(step_rows);
     prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
 }
@@ -68,8 +64,7 @@ where
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); C::Hasher::HASH_SIZE]:,
-{
+    [(); C::Hasher::HASH_SIZE]:, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
@@ -156,8 +151,7 @@ where
     S: Stark<F, D>,
     [(); C::Hasher::HASH_SIZE]:,
     [(); S::COLUMNS]:,
-    [(); S::PUBLIC_INPUTS]:,
-{
+    [(); S::PUBLIC_INPUTS]:, {
     let degree = trace_poly_values[0].len();
     let degree_bits = log2_strict(degree);
     let fri_params = config.fri_params(degree_bits);
@@ -344,8 +338,7 @@ where
     //[(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); C::Hasher::HASH_SIZE]:,
-{
+    [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
         config,
@@ -423,6 +416,6 @@ mod test {
             &[(1, 2)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        simple_proof_test(&record.executed).expect_err("FIXME:test-is-expected-to-fail");
+        simple_proof_test(&record.executed).unwrap();
     }
 }

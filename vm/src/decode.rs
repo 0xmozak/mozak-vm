@@ -1,5 +1,4 @@
-use bitfield::bitfield;
-use bitfield::BitRange;
+use bitfield::{bitfield, BitRange};
 
 use crate::instruction::{Args, Instruction, Op, NOOP};
 
@@ -78,26 +77,20 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         ..Default::default()
     };
     // jump type
-    let jtype = add_pc(
-        pc,
-        Args {
-            rd,
-            // NOTE(Matthias): we use absolute addressing here.
-            imm: extract_immediate(word, &[(31, 31), (19, 12), (20, 20), (30, 25), (24, 21)], 1),
-            ..Default::default()
-        },
-    );
+    let jtype = add_pc(pc, Args {
+        rd,
+        // NOTE(Matthias): we use absolute addressing here.
+        imm: extract_immediate(word, &[(31, 31), (19, 12), (20, 20), (30, 25), (24, 21)], 1),
+        ..Default::default()
+    });
     // branch type
-    let btype = add_pc(
-        pc,
-        Args {
-            rs1,
-            rs2,
-            // NOTE(Matthias): we use absolute addressing here.
-            imm: extract_immediate(word, &[(31, 31), (7, 7), (30, 25), (11, 8)], 1),
-            ..Default::default()
-        },
-    );
+    let btype = add_pc(pc, Args {
+        rs1,
+        rs2,
+        // NOTE(Matthias): we use absolute addressing here.
+        imm: extract_immediate(word, &[(31, 31), (7, 7), (30, 25), (11, 8)], 1),
+        ..Default::default()
+    });
     let utype = Args {
         rd,
         imm: extract_immediate(word, &[(31, 12)], 12),
@@ -204,7 +197,8 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             #[tarpaulin::skip]
             _ => Default::default(),
         },
-        0b110_1111 => (Op::JAL, jtype),
+        // For Risc-V its JAL, but we handle it as JALR.
+        0b110_1111 => (Op::JALR, jtype),
         0b110_0111 => match bf.func3() {
             0x0 => (Op::JALR, itype),
             #[tarpaulin::skip]
@@ -468,7 +462,7 @@ mod test {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
-            op: Op::JAL,
+            op: Op::JALR,
             args: Args {
                 rd,
                 imm,

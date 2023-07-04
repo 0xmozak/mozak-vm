@@ -1,27 +1,23 @@
 use anyhow::{ensure, Result};
+use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::types::Field;
 use plonky2::fri::verifier::verify_fri_proof;
-use plonky2::plonk::config::Hasher;
+use plonky2::hash::hash_types::RichField;
+use plonky2::plonk::config::{GenericConfig, Hasher};
 use plonky2::plonk::plonk_common::reduce_with_powers;
-use plonky2::{
-    field::extension::{Extendable, FieldExtension},
-    hash::hash_types::RichField,
-    plonk::config::GenericConfig,
-};
 use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
 use starky::stark::{LookupConfig, Stark};
 use starky::vars::StarkEvaluationVars;
 
-use super::{mozak_stark::MozakStark, proof::AllProof};
+use super::mozak_stark::MozakStark;
+use super::proof::AllProof;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{CtlCheckVars, TableKind};
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::stark::{
-    permutation::PermutationCheckVars,
-    poly::eval_vanishing_poly,
-    proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges},
-};
+use crate::stark::permutation::PermutationCheckVars;
+use crate::stark::poly::eval_vanishing_poly;
+use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
 
 #[allow(clippy::missing_errors_doc)]
 pub fn verify_proof<F, C, const D: usize>(
@@ -35,8 +31,7 @@ where
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); C::Hasher::HASH_SIZE]:,
-{
+    [(); C::Hasher::HASH_SIZE]:, {
     let AllProofChallenges {
         stark_challenges,
         ctl_challenges,
@@ -90,8 +85,7 @@ pub(crate) fn verify_stark_proof_with_challenges<
 where
     [(); S::COLUMNS]:,
     [(); S::PUBLIC_INPUTS]:,
-    [(); C::Hasher::HASH_SIZE]:,
-{
+    [(); C::Hasher::HASH_SIZE]:, {
     validate_proof_shape(stark, proof, config, ctl_vars.len())?;
     let StarkOpeningSet {
         local_values,
@@ -195,8 +189,7 @@ where
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
     [(); S::COLUMNS]:,
-    [(); C::Hasher::HASH_SIZE]:,
-{
+    [(); C::Hasher::HASH_SIZE]:, {
     let StarkProof {
         trace_cap,
         permutation_ctl_zs_cap,

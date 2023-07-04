@@ -1,17 +1,12 @@
 use itertools::Itertools;
-use plonky2::field::extension::FieldExtension;
+use plonky2::field::extension::{Extendable, FieldExtension};
+use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::fri::proof::{FriChallenges, FriProof};
+use plonky2::fri::structure::{FriOpeningBatch, FriOpenings};
+use plonky2::hash::hash_types::RichField;
 use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::iop::challenger::Challenger;
-use plonky2::{
-    field::extension::Extendable,
-    fri::{
-        oracle::PolynomialBatch,
-        structure::{FriOpeningBatch, FriOpenings},
-    },
-    hash::hash_types::RichField,
-    plonk::config::GenericConfig,
-};
+use plonky2::plonk::config::GenericConfig;
 use plonky2_maybe_rayon::{MaybeParIter, ParallelIterator};
 use starky::config::StarkConfig;
 
@@ -46,9 +41,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
         lde_bits - config.fri_config.rate_bits
     }
 
-    pub fn num_ctl_zs(&self) -> usize {
-        self.openings.ctl_zs_last.len()
-    }
+    pub fn num_ctl_zs(&self) -> usize { self.openings.ctl_zs_last.len() }
 
     /// Computes all Fiat-Shamir challenges used in the STARK proof.
     pub(crate) fn get_challenges(

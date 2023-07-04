@@ -28,8 +28,7 @@ fn init_padded_rc_trace<F: RichField>(len: usize) -> Vec<Vec<F>> {
 /// # Panics
 ///
 /// Panics if:
-/// 1. conversion of `dst_val` from u32 to u16 fails when splitting
-///    into limbs,
+/// 1. conversion of `dst_val` from u32 to u16 fails when splitting into limbs,
 /// 2. trace width does not match the number of columns.
 #[must_use]
 pub fn generate_rangecheck_trace<F: RichField>(
@@ -99,7 +98,8 @@ pub fn generate_rangecheck_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
     use mozak_vm::test_utils::simple_test;
-    use plonky2::field::{goldilocks_field::GoldilocksField, types::Field};
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::types::Field;
 
     use super::*;
 

@@ -1,7 +1,5 @@
-use mozak_vm::instruction::{
-    Instruction,
-    Op::{LB, SB},
-};
+use mozak_vm::instruction::Instruction;
+use mozak_vm::instruction::Op::{LB, SB};
 use mozak_vm::test_utils::simple_test_code;
 use mozak_vm::vm::{ExecutionRecord, Row};
 
