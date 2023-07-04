@@ -1,5 +1,5 @@
 use mozak_vm::instruction::{Instruction, Op};
-use mozak_vm::state::{Aux, State};
+use mozak_vm::state::State;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
@@ -31,7 +31,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
         generate_divu_row(&mut trace, &inst, state, i);
         generate_slt_row(&mut trace, &inst, state, i);
-        generate_srl_row(&mut trace, &inst, state, &aux, i);
+        generate_srl_row(&mut trace, &inst, state, i);
         match inst.op {
             Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,
             Op::SLT => trace[cpu_cols::COL_S_SLT][i] = F::ONE,
@@ -66,7 +66,6 @@ fn generate_srl_row<F: RichField>(
     trace: &mut [Vec<F>],
     inst: &Instruction,
     state: &State,
-    aux: &Aux,
     row_idx: usize,
 ) {
     if inst.op != Op::SRL {
@@ -76,7 +75,7 @@ fn generate_srl_row<F: RichField>(
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
     let q = 2_u32.pow(op2);
     trace[cpu_cols::SRL_Q][row_idx] = from_::<_, F>(q);
-    trace[cpu_cols::SRL_R][row_idx] = from_::<_, F>(op1) - from_::<_, F>(aux.dst_val) * from_(q);
+    trace[cpu_cols::SRL_R][row_idx] = from_(op1);
 }
 
 #[allow(clippy::cast_possible_wrap)]
