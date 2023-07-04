@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 
-use plonky2::field::{polynomial::PolynomialValues, types::Field};
+use plonky2::field::polynomial::PolynomialValues;
+use plonky2::field::types::Field;
 use thiserror::Error;
 
 use crate::{cpu, rangecheck};
@@ -135,11 +136,13 @@ impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, ops::Deref};
+    use std::collections::HashMap;
+    use std::ops::Deref;
 
     use anyhow::Result;
     use itertools::Itertools;
-    use plonky2::field::{goldilocks_field::GoldilocksField, polynomial::PolynomialValues};
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::polynomial::PolynomialValues;
 
     use super::*;
 
@@ -148,15 +151,11 @@ mod tests {
     impl<F: Field> Deref for MultiSet<F> {
         type Target = HashMap<Vec<F>, Vec<(TableKind, usize)>>;
 
-        fn deref(&self) -> &Self::Target {
-            &self.0
-        }
+        fn deref(&self) -> &Self::Target { &self.0 }
     }
 
     impl<F: Field> MultiSet<F> {
-        pub fn new() -> Self {
-            MultiSet(HashMap::new())
-        }
+        pub fn new() -> Self { MultiSet(HashMap::new()) }
 
         fn process_row(
             &mut self,
@@ -192,9 +191,7 @@ mod tests {
     }
 
     /// Specify the column index of the filter column used in lookups.
-    fn lookup_filter<F: Field>(col_idx: usize) -> Column<F> {
-        Column::single(col_idx)
-    }
+    fn lookup_filter<F: Field>(col_idx: usize) -> Column<F> { Column::single(col_idx) }
 
     /// A generic cross lookup table.
     struct FooBarTable<F: Field>(CrossTableLookup<F>);
@@ -322,9 +319,7 @@ mod tests {
             self
         }
 
-        pub fn build(self) -> Vec<PolynomialValues<F>> {
-            self.trace
-        }
+        pub fn build(self) -> Vec<PolynomialValues<F>> { self.trace }
     }
     /// A generic cross lookup table.
     struct NonBinaryFilterTable<F: Field>(CrossTableLookup<F>);
