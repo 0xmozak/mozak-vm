@@ -49,15 +49,15 @@ mod test {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(64))]
         #[test]
-        fn inv_is_big(x in any::<u32>()) {
+        fn inv_is_big(x in prop_oneof![Just(0_u32), Just(1_u32), any::<u32>()]) {
             type F = plonky2::field::goldilocks_field::GoldilocksField;
             let y = inv::<F>(u64::from(x));
-            if x != 0 {
+            if x > 1 {
                 prop_assert!(u64::from(u32::MAX) < y);
             }
         }
         #[test]
-        fn prove_divu_proptest(p in any::<u32>(), q in prop_oneof![Just(0_u32), any::<u32>()], rd in 3_u8..32) {
+        fn prove_divu_proptest(p in any::<u32>(), q in prop_oneof![Just(0_u32), Just(1_u32), any::<u32>()], rd in 3_u8..32) {
             let record = simple_test_code(
                 &[Instruction {
                     op: Op::DIVU,
