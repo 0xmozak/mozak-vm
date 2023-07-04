@@ -22,7 +22,7 @@ use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, Stark
 #[allow(clippy::missing_errors_doc)]
 pub fn verify_proof<F, C, const D: usize>(
     mozak_stark: MozakStark<F, D>,
-    all_proof: &AllProof<F, C, D>,
+    all_proof: AllProof<F, C, D>,
     config: &StarkConfig,
 ) -> Result<()>
 where
@@ -67,11 +67,7 @@ where
         config,
     )?;
 
-    verify_cross_table_lookups::<F, D>(
-        &cross_table_lookups,
-        &mut all_proof.all_openings(),
-        config,
-    )?;
+    verify_cross_table_lookups::<F, D>(&cross_table_lookups, &all_proof.all_ctl_zs_last(), config)?;
     Ok(())
 }
 

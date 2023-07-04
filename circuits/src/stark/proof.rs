@@ -250,10 +250,10 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         }
     }
 
-    pub(crate) fn all_openings(&self) -> Vec<impl Iterator<Item = F>> {
-        self.stark_proofs
-            .iter()
-            .map(|p| p.openings.ctl_zs_last.clone().into_iter())
-            .collect::<Vec<_>>()
+    /// Returns the ordered openings of cross-table lookups `Z` polynomials at
+    /// `g^-1`. The order corresponds to the order declared in
+    /// [`TableKind`](crate::cross_table_lookup::TableKind).
+    pub(crate) fn all_ctl_zs_last(self) -> [Vec<F>; NUM_TABLES] {
+        self.stark_proofs.map(|p| p.openings.ctl_zs_last)
     }
 }
