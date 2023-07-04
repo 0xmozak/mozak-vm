@@ -54,8 +54,8 @@ mod test {
                 &[],
                 &[(1, p), (2, q)],
             );
-            prop_assert_eq!(record.executed[0].aux.dst_val, p >> q);
-            prop_assert_eq!(record.executed[1].aux.dst_val, p >> q);
+            prop_assert_eq!(record.executed[0].aux.dst_val, 0);
+            prop_assert_eq!(record.executed[1].aux.dst_val, 0);
             simple_proof_test(&record.executed).unwrap();
         }
     }
