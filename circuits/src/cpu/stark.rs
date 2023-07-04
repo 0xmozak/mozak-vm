@@ -11,9 +11,9 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 use super::columns::{
     COL_CLK, COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_RD_SELECT, COL_REGS,
     COL_RS1_SELECT, COL_RS2_SELECT, COL_S_ADD, COL_S_BEQ, COL_S_ECALL, COL_S_HALT, COL_S_JALR,
-    COL_S_SUB, NUM_CPU_COLS,
+    COL_S_SLT, COL_S_SLTU, COL_S_SUB, NUM_CPU_COLS,
 };
-use super::{add, jalr, sub};
+use super::{add, jalr, slt, sub};
 use crate::utils::column_of_xs;
 
 #[derive(Copy, Clone, Default)]
@@ -24,7 +24,7 @@ pub struct CpuStark<F, const D: usize> {
 
 use array_concat::{concat_arrays, concat_arrays_size};
 
-pub const STRAIGHTLINE_OPCODES: [usize; 2] = [COL_S_ADD, COL_S_SUB];
+pub const STRAIGHTLINE_OPCODES: [usize; 4] = [COL_S_ADD, COL_S_SUB, COL_S_SLT, COL_S_SLTU];
 pub const JUMPING_OPCODES: [usize; 3] = [COL_S_BEQ, COL_S_ECALL, COL_S_JALR];
 pub const OPCODES: [usize; concat_arrays_size!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES)] =
     concat_arrays!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES);
@@ -163,9 +163,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 
         // add constraint
         add::constraints(lv, yield_constr);
-        // sub constraint
         sub::constraints(lv, yield_constr);
-        // jalr constraint
         jalr::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT
