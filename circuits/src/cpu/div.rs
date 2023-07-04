@@ -2,8 +2,8 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_DIVU, DIVU_M, DIVU_R,
-    NUM_CPU_COLS,
+    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_DIVU, COL_S_REMU, DIVU_M,
+    DIVU_Q_INV, DIVU_R, DIVU_R_TOP, NUM_CPU_COLS,
 };
 use crate::utils::column_of_xs;
 
@@ -13,35 +13,36 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     let p = lv[COL_OP1_VALUE];
     let q = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
-    // m needs a range-check.
+    let q_inv = lv[DIVU_Q_INV];
+    // TODO: m, r, rt need range-checks.
     let m = lv[DIVU_M];
     let r = lv[DIVU_R];
+    // We only need rt column for the range check.
+    let rt = lv[DIVU_R_TOP];
 
-    yield_constr.constraint(m * q + r - p);
-    // range check:
-    // 0 =< m =< u32::MAX
-    // 0 =< r =< u32::MAX
+    let is_divu = lv[COL_S_DIVU];
+    let is_remu = lv[COL_S_REMU];
+    let dst = lv[COL_DST_VALUE];
 
-    // 0 =< r < p
+    // Constraints for denominator != 0:
+    yield_constr.constraint(q * (m * q + r - p));
+    yield_constr.constraint(q * (r + rt - q));
 
-    // p/q = m Remainder r
-    // We have: m * q + r = p
-    //
+    // Constraints for denominator == 0.  On Risc-V:
+    // p / 0 == 0xFFFF_FFFF
+    // p % 0 == p
+    yield_constr.constraint((P::ONES - q * q_inv) * (m - column_of_xs::<P>(u32::MAX.into())));
+    yield_constr.constraint((P::ONES - q * q_inv) * (r - p));
 
-    // let wrap_at: P = column_of_xs(1 << 32);
-    // let added = lv[COL_OP1_VALUE] + lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
-    // let wrapped = added - wrap_at;
-
-    // yield_constr
-    //     .constraint(lv[COL_S_ADD] * (lv[COL_DST_VALUE] - added) *
-    // (lv[COL_DST_VALUE] - wrapped));
+    yield_constr.constraint(is_divu * (dst - m));
+    yield_constr.constraint(is_remu * (dst - r));
 }
 
 #[cfg(test)]
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
-    use proptest::prelude::{any, ProptestConfig};
+    use proptest::prelude::{any, prop_assert_eq, prop_oneof, Just, ProptestConfig};
     use proptest::{prop_assert, proptest};
 
     use crate::test_utils::{inv, simple_proof_test};
@@ -55,27 +56,44 @@ mod test {
                 prop_assert!(u64::from(u32::MAX) < y);
             }
         }
-    //     #[test]
-    //     fn prove_divu_proptest(a in any::<u32>(), b in any::<u32>(), rd in
-    // 0_u8..32) {         use crate::test_utils::simple_proof_test;
-    //         let record = simple_test_code(
-    //             &[Instruction {
-    //                 op: Op::DIVU,
-    //                 args: Args {
-    //                     rd,
-    //                     rs1: 6,
-    //                     rs2: 7,
-    //                     ..Args::default()
-    //                 },
-    //             }],
-    //             &[],
-    //             &[(6, a), (7, b)],
-    //         );
-    //         // if rd != 0 {
-    //         //
-    // assert_eq!(record.executed[1].state.get_register_value(rd),
-    // a.wrapping_add(b));         // }
-    //         simple_proof_test(&record.executed).unwrap();
-    //     }
+        #[test]
+        fn prove_divu_proptest(p in any::<u32>(), q in prop_oneof![Just(0_u32), any::<u32>()], rd in 3_u8..32) {
+            let record = simple_test_code(
+                &[Instruction {
+                    op: Op::DIVU,
+                    args: Args {
+                        rd,
+                        rs1: 1,
+                        rs2: 2,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::REMU,
+                    args: Args {
+                        rd,
+                        rs1: 1,
+                        rs2: 2,
+                        ..Args::default()
+                    },
+                }
+                ],
+                &[],
+                &[(1, p), (2, q)],
+            );
+            prop_assert_eq!(record.executed[0].aux.dst_val,
+                if let 0 = q {
+                    0xffff_ffff
+                } else {
+                    p / q
+                });
+            prop_assert_eq!(record.executed[1].aux.dst_val,
+                if let 0 = q {
+                    p
+                } else {
+                    p % q
+                });
+            simple_proof_test(&record.executed).unwrap();
+        }
     }
 }

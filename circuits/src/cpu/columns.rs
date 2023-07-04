@@ -37,7 +37,8 @@ lazy_static! {
 pub(crate) const COL_S_ADD: usize = COL_REGS_RANGE.end;
 pub(crate) const COL_S_SUB: usize = COL_S_ADD + 1;
 pub(crate) const COL_S_DIVU: usize = COL_S_SUB + 1;
-pub(crate) const COL_S_SLT: usize = COL_S_DIVU + 1;
+pub(crate) const COL_S_REMU: usize = COL_S_DIVU + 1;
+pub(crate) const COL_S_SLT: usize = COL_S_REMU + 1;
 pub(crate) const COL_S_SLTU: usize = COL_S_SLT + 1;
 pub(crate) const COL_S_BEQ: usize = COL_S_SLTU + 1;
 pub(crate) const COL_S_ECALL: usize = COL_S_BEQ + 1;
@@ -53,5 +54,7 @@ pub(crate) const COL_LESS_THAN: usize = COL_CMP_DIFF_INV + 1;
 
 pub(crate) const DIVU_M: usize = COL_LESS_THAN + 1;
 pub(crate) const DIVU_R: usize = DIVU_M + 1;
+pub(crate) const DIVU_R_TOP: usize = DIVU_R + 1;
+pub(crate) const DIVU_Q_INV: usize = DIVU_R_TOP + 1;
 
-pub(crate) const NUM_CPU_COLS: usize = DIVU_R + 1;
+pub(crate) const NUM_CPU_COLS: usize = DIVU_Q_INV + 1;
