@@ -8,8 +8,9 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let p = lv[COL_OP1_VALUE];
-    // TODO: srl_q, r need range-checks.
+    // TODO: srl_q needs be check against lookup table [2^0,2^1,2^2...,2^31]
     let srl_q = lv[SRL_Q];
+    // TODO: r need range-checks.
     let r = lv[SRL_R];
 
     let is_srl = lv[COL_S_SRL];
