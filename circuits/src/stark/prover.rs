@@ -77,7 +77,7 @@ where
             .map(|(trace, table)| {
                 timed!(
                     timing,
-                    &format!("compute trace commitment for {:?}", table),
+                    &format!("compute trace commitment for {table:?}"),
                     PolynomialBatch::<F, C, D>::from_values(
                         // TODO: Cloning this isn't great; consider having `from_values` accept a
                         // reference,
