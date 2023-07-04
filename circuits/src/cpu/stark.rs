@@ -164,6 +164,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         // add constraint
         add::constraints(lv, yield_constr);
         sub::constraints(lv, yield_constr);
+        slt::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT
