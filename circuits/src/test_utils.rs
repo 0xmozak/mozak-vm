@@ -39,6 +39,11 @@ pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
     verify_proof(&stark, &all_proof.unwrap(), &config)
 }
 
+/// Interpret a u64 as a field element and try to invert it.
+///
+/// Internally, we are doing something like: inv(a) == a^(p-2)
+/// Specifically that means inv(0) == 0, and inv(a) * a == 1 for everything
+/// else.
 #[must_use]
 pub fn inv<F: RichField>(x: u64) -> u64 {
     F::from_canonical_u64(x)
