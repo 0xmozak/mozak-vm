@@ -41,8 +41,6 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
         lde_bits - config.fri_config.rate_bits
     }
 
-    pub fn ctl_zs(&self) -> &Vec<F> { &self.openings.ctl_zs_last }
-
     pub fn num_ctl_zs(&self) -> usize { self.openings.ctl_zs_last.len() }
 
     /// Computes all Fiat-Shamir challenges used in the STARK proof.
@@ -252,7 +250,10 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         }
     }
 
-    pub(crate) fn all_ctl_zs(&self) -> [Vec<F>; NUM_TABLES] {
-        self.stark_proofs.clone().map(|p| p.openings.ctl_zs_last)
+    pub(crate) fn all_openings(&self) -> Vec<impl Iterator<Item = F>> {
+        self.stark_proofs
+            .iter()
+            .map(|p| p.openings.ctl_zs_last.clone().into_iter())
+            .collect::<Vec<_>>()
     }
 }

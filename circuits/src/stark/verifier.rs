@@ -67,7 +67,11 @@ where
         config,
     )?;
 
-    verify_cross_table_lookups(&cross_table_lookups, &all_proof.all_ctl_zs(), config)?;
+    verify_cross_table_lookups::<F, D>(
+        &cross_table_lookups,
+        &mut all_proof.all_openings(),
+        config,
+    )?;
     Ok(())
 }
 
