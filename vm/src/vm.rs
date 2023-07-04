@@ -252,9 +252,1017 @@ mod tests {
     use proptest::proptest;
     use test_case::test_case;
 
-    use super::ExecutionRecord;
+    use super::{div, divu, lh, lw, ExecutionRecord};
     use crate::instruction::{Instruction, Op};
     use crate::test_utils::{simple_test, simple_test_code};
+
+    fn load_store_address_helper(rs1_value: u32, offset: i16) -> u32 {
+        let mut address: u32 = rs1_value;
+        if offset.is_negative() {
+            let abs_offset = u32::from(offset.unsigned_abs());
+            assert!(abs_offset <= rs1_value);
+            address -= u32::from(offset.unsigned_abs());
+        } else {
+            address += offset as u32;
+        }
+        address
+    }
+
+    proptest! {
+        #[test]
+        fn add_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let sum = rs1_value.wrapping_add(rs2_value);
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::ADD,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value), (rs2, rs2_value)]
+            );
+            assert_eq!(state.get_register_value(rd), sum);
+        }
+
+        #[test]
+        fn addi_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in -2048_i32..2048) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::ADD,
+                    rd,
+                    rs1,
+                    0,
+                    imm as u32,
+                )],
+                &[],
+                &[(rs1, rs1_value)]
+            );
+            let mut expected_value = rs1_value;
+            if imm.is_negative() {
+                expected_value -= imm.unsigned_abs();
+            } else {
+                expected_value += imm as u32;
+            }
+            assert_eq!(state.get_register_value(rd), expected_value);
+        }
+
+        #[test]
+        fn sll_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::SLL,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value), (rs2, rs2_value)]
+            );
+            assert_eq!(
+                state.get_register_value(rd),
+                rs1_value << (rs2_value & 0x1F)
+            );
+        }
+
+        #[test]
+        fn and_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::AND,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value), (rs2, rs2_value)]
+            );
+            assert_eq!(
+                state.get_register_value(rd),
+                rs1_value & rs2_value
+            );
+        }
+
+        #[test]
+        fn andi_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in any::<i32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::AND,
+                    rd,
+                    rs1,
+                    0,
+                    imm as u32,
+                )],
+                &[],
+                &[(rs1, rs1_value)]
+            );
+            let expected_value = (rs1_value as i32 & imm) as u32;
+            assert_eq!(
+                state.get_register_value(rd),
+                expected_value
+            );
+        }
+
+
+        #[test]
+        fn srl_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::SRL,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value), (rs2, rs2_value)]
+            );
+            assert_eq!(
+                state.get_register_value(rd),
+                rs1_value >> (rs2_value & 0x1F)
+            );
+        }
+
+        #[test]
+        fn srli_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in 0_u32..32) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::SRL,
+                    rd,
+                    rs1,
+                    0,
+                    imm,
+                )],
+                &[],
+                &[(rs1, rs1_value)]
+            );
+            assert_eq!(
+                state.get_register_value(rd),
+                rs1_value >> imm
+            );
+        }
+
+        #[test]
+        fn or_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::OR,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value), (rs2, rs2_value)]
+            );
+            assert_eq!(
+                state.get_register_value(rd),
+                rs1_value | rs2_value
+            );
+        }
+
+        #[test]
+        fn ori_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in any::<i32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::OR,
+                    rd,
+                    rs1,
+                    0,
+                    imm as u32,
+                )],
+                &[],
+                &[(rs1, rs1_value)]
+            );
+            let expected_value = (rs1_value as i32 | imm) as u32;
+            assert_eq!(
+                state.get_register_value(rd),
+                expected_value
+            );
+        }
+
+        #[test]
+        fn xor_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::XOR,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value), (rs2, rs2_value)]
+            );
+            assert_eq!(
+                state.get_register_value(rd),
+                rs1_value ^ rs2_value
+            );
+        }
+
+        #[test]
+        fn xori_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in any::<i32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::XOR,
+                    rd,
+                    rs1,
+                    0,
+                    imm as u32,
+                )],
+                &[],
+                &[(rs1, rs1_value)]
+            );
+            let expected_value = (rs1_value as i32 ^ imm) as u32;
+            assert_eq!(
+                state.get_register_value(rd),
+                expected_value
+            );
+        }
+
+        #[test]
+        fn sra_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::SRA,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value), (rs2, rs2_value)]
+            );
+            assert_eq!(
+                state.get_register_value(rd),
+                (rs1_value as i32 >> (rs2_value & 0x1F) as i32) as u32
+            );
+        }
+
+        #[test]
+        fn srai_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in 0_u32..32) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::SRA,
+                    rd,
+                    rs1,
+                    0,
+                    imm,
+                )],
+                &[],
+                &[(rs1, rs1_value)]
+            );
+            let expected_value = (rs1_value as i32 >> imm as i32) as u32;
+            assert_eq!(
+                state.get_register_value(rd),
+                expected_value
+            );
+        }
+
+        #[test]
+        fn slt_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::SLT,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value), (rs2, rs2_value)]
+            );
+            let rs1_value = rs1_value as i32;
+            let rs2_value = rs2_value as i32;
+            assert_eq!(
+                state.get_register_value(rd),
+                u32::from(rs1_value < rs2_value)
+            );
+        }
+
+        #[test]
+        fn sltu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::SLTU,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value), (rs2, rs2_value)]
+            );
+            assert_eq!(
+                state.get_register_value(rd),
+                u32::from(rs1_value < rs2_value)
+            );
+        }
+
+        #[test]
+        fn slti_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in any::<i32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::SLT,
+                    rd,
+                    rs1,
+                    0,
+                    imm as u32,
+                )],
+                &[],
+                &[(rs1, rs1_value)]
+            );
+            assert_eq!(state.get_register_value(rd), u32::from((rs1_value as i32) < imm));
+        }
+
+        #[test]
+        fn sltiu_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in any::<i32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::SLTU,
+                    rd,
+                    rs1,
+                    0,
+                    imm as u32,
+                )],
+                &[],
+                &[(rs1, rs1_value)]
+            );
+            assert_eq!(state.get_register_value(rd), u32::from(rs1_value < imm as u32));
+        }
+
+        #[test]
+        fn slli_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in 0_u32..32) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::SLL,
+                    rd,
+                    rs1,
+                    0,
+                    imm,
+                )],
+                &[],
+                &[(rs1, rs1_value)]
+            );
+            assert_eq!(state.get_register_value(rd), rs1_value << imm);
+        }
+
+        #[test]
+        fn lb_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), offset in any::<i16>(), memory_value in any::<i8>()) {
+            let address = load_store_address_helper(rs1_value,offset);
+
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::LB,
+                    rd,
+                    rs1,
+                    0,
+                    offset as u32,
+                )],
+                &[(address, memory_value as u32)],
+                &[(rs1, rs1_value)]
+            );
+
+            let mut expected_value = memory_value as u32;
+            if memory_value.is_negative() {
+                // extend the sign
+                expected_value |= 0xffff_ff00;
+            }
+            assert_eq!(state.get_register_value(rd), expected_value);
+        }
+
+        #[test]
+        fn lbu_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), offset in any::<i16>(),memory_value in any::<i8>()) {
+            let address = load_store_address_helper(rs1_value,offset);
+
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::LBU,
+                    rd,
+                    rs1,
+                    0,
+                    offset as u32,
+                )],
+                &[(address, memory_value as u32)],
+                &[(rs1, rs1_value)]
+            );
+
+            let expected_value = (memory_value as u32) & 0x0000_00FF;
+            assert_eq!(state.get_register_value(rd), expected_value);
+        }
+
+        #[test]
+        fn lh_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), offset in any::<i16>(),memory_value in any::<i8>()) {
+            let address = load_store_address_helper(rs1_value,offset);
+
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::LH,
+                    rd,
+                    rs1,
+                    0,
+                    offset as u32,
+                )],
+                &[(address, memory_value as u32)],
+                &[(rs1, rs1_value)]
+            );
+
+            let mut expected_value = memory_value as u32;
+            if memory_value.is_negative() {
+                // extend the sign
+                expected_value |= 0xffff_0000;
+            }
+            assert_eq!(state.get_register_value(rd), expected_value);
+        }
+
+        #[test]
+        fn lhu_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), offset in any::<i16>(),memory_value in any::<i8>()) {
+            let address = load_store_address_helper(rs1_value,offset);
+
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::LHU,
+                    rd,
+                    rs1,
+                    0,
+                    offset as u32,
+                )],
+                &[(address, memory_value as u32)],
+                &[(rs1, rs1_value)]
+            );
+
+            let expected_value = (memory_value as u32) & 0x0000_FFFF;
+            assert_eq!(state.get_register_value(rd), expected_value);
+        }
+
+        #[test]
+        fn lw_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), offset in any::<i16>(),memory_value in any::<i8>()) {
+            let address = load_store_address_helper(rs1_value,offset);
+
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::LW,
+                    rd,
+                    rs1,
+                    0,
+                    offset as u32,
+                )],
+                &[(address, memory_value as u32)],
+                &[(rs1, rs1_value)]
+            );
+
+            let expected_value = memory_value as u32;
+            assert_eq!(state.get_register_value(rd), expected_value);
+        }
+
+        #[test]
+        fn sb_proptest(rs1 in 1_u8..15, rs1_val in any::<u32>(), rs2 in 16_u8..32, rs2_val in any::<u32>(), offset in -2048_i16..2048) {
+            let address = load_store_address_helper(rs1_val,offset);
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::SB,
+                    0,
+                    rs1,
+                    rs2,
+                    offset as u32
+                )],
+                &[(address,0x0)],
+                &[(rs1,rs1_val),(rs2,rs2_val)]
+            );
+
+            assert_eq!(u32::from(state.load_u8(address)), rs2_val & 0xff);
+        }
+
+        #[test]
+        fn sh_proptest(rs1 in 1_u8..15, rs1_val in any::<u32>(), rs2 in 16_u8..32, rs2_val in any::<u32>(), offset in -2048_i16..2048) {
+            let address = load_store_address_helper(rs1_val,offset);
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::SH,
+                    0,
+                    rs1,
+                    rs2,
+                    offset as u32
+                )],
+                &[(address,0x0)],
+                &[(rs1,rs1_val),(rs2,rs2_val)]
+            );
+            // lh will return [0,1] as LSBs and will set MSBs to 0xFFFF
+            let memory_value = lh(
+                &[
+                    state.load_u8(address),
+                    state.load_u8(address+1),
+                    state.load_u8(address+2),
+                    state.load_u8(address+3)
+                ]
+            );
+            assert_eq!(memory_value & 0xffff, rs2_val & 0xffff);
+        }
+
+        #[test]
+        fn sw_proptest(rs1 in 1_u8..15, rs1_val in any::<u32>(), rs2 in 16_u8..32, rs2_val in any::<u32>(), offset in -2048_i16..2048) {
+            let address = load_store_address_helper(rs1_val,offset);
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::SW,
+                    0,
+                    rs1,
+                    rs2,
+                    offset as u32
+                )],
+                &[(address,0x0)],
+                &[(rs1,rs1_val),(rs2,rs2_val)]
+            );
+
+            let memory_value = lw(
+                &[
+                    state.load_u8(address),
+                    state.load_u8(address+1),
+                    state.load_u8(address+2),
+                    state.load_u8(address+3)
+                ]
+            );
+            assert_eq!(memory_value, rs2_val);
+        }
+
+        #[test]
+        #[allow(clippy::cast_possible_truncation)]
+        fn mul_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in any::<i32>()) {
+            let prod: i64 = i64::from(rs1_value) * i64::from(rs2_value);
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::MUL,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
+            );
+            assert_eq!(state.get_register_value(rd), prod as u32);
+        }
+
+        #[test]
+        #[allow(clippy::cast_possible_truncation)]
+        fn mulh_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in any::<i32>()) {
+            let prod: i64 = i64::from(rs1_value) * i64::from(rs2_value);
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::MULH,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
+            );
+            assert_eq!(state.get_register_value(rd), (prod >> 32) as u32);
+        }
+
+        #[test]
+        #[allow(clippy::cast_possible_truncation)]
+        fn mulhu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let prod: u64 = u64::from(rs1_value) * u64::from(rs2_value);
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::MULHU,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value), (rs2, rs2_value)]
+            );
+            assert_eq!(state.get_register_value(rd), (prod >> 32) as u32);
+        }
+
+        #[test]
+        #[allow(clippy::cast_possible_truncation)]
+        fn mulhsu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in any::<u32>()) {
+            let prod: i64 = i64::from(rs1_value) * i64::from(rs2_value);
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::MULHSU,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value as u32), (rs2, rs2_value)]
+            );
+            assert_eq!(state.get_register_value(rd), (prod >> 32) as u32);
+        }
+
+        #[test]
+        #[allow(clippy::cast_possible_truncation)]
+        fn div_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in any::<i32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::DIV,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
+            );
+            assert_eq!(state.get_register_value(rd), div(rs1_value as u32,rs2_value as u32));
+        }
+
+        #[test]
+        fn divu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::DIVU,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value), (rs2, rs2_value)]
+            );
+            assert_eq!(state.get_register_value(rd), divu(rs1_value,rs2_value));
+        }
+
+        #[test]
+        fn rem_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in any::<i32>()) {
+            let rem = rs1_value % rs2_value;
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::REM,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
+            );
+            assert_eq!(state.get_register_value(rd), rem as u32);
+        }
+
+        #[test]
+        fn remu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let rem = rs1_value % rs2_value;
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[Instruction::new(
+                    Op::REMU,
+                    rd,
+                    rs1,
+                    rs2,
+                    0,
+                )],
+                &[],
+                &[(rs1, rs1_value), (rs2, rs2_value)]
+            );
+            assert_eq!(state.get_register_value(rd), rem);
+        }
+
+        #[test]
+        fn beq_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[  // rs1 == rs1: take imm-path (8)
+                    Instruction::new(
+                        Op::BEQ,
+                        rd,
+                        rs1,
+                        rs1,
+                        8,
+                    ),
+                    Instruction::new(
+                        Op::SUB,
+                        rs1,
+                        rs1,
+                        rs2,
+                        0,
+                    ),
+                    Instruction::new(
+                        Op::ADD,
+                        rd,
+                        rs1,
+                        rs2,
+                        0,
+                    ),
+                ],
+                &[],
+                &[(rs1, rs1_value), (rs2, rs2_value)]
+            );
+            assert_eq!(state.get_register_value(rd), rs1_value.wrapping_add(rs2_value));
+        }
+
+        #[test]
+        fn bne_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let rs2_value_fixed = if rs1_value == rs2_value { rs2_value + 1 } else { rs2_value };
+
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[  // rs1 != rs2: take imm-path (8)
+                    Instruction::new(
+                        Op::BNE,
+                        rd,
+                        rs1,
+                        rs2,
+                        8,
+                    ),
+                    Instruction::new(
+                        Op::SUB,
+                        rs1,
+                        rs1,
+                        rs2,
+                        0,
+                    ),
+                    Instruction::new(
+                        Op::ADD,
+                        rd,
+                        rs1,
+                        rs2,
+                        0,
+                    ),
+                ],
+                &[],
+                &[(rs1, rs1_value), (rs2, rs2_value_fixed)]
+            );
+            assert_eq!(state.get_register_value(rd), rs1_value.wrapping_add(rs2_value_fixed));
+        }
+
+        #[test]
+        fn blt_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in any::<i32>()) {
+            let mut rs1_value_fixed = rs1_value;
+            let mut rs2_value_fixed = if rs1_value == rs2_value { rs2_value + 1 } else { rs2_value };
+
+            if rs1_value_fixed > rs2_value_fixed {
+                std::mem::swap(&mut rs1_value_fixed, &mut rs2_value_fixed);
+            }
+
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[
+                    Instruction::new(
+                        Op::BLT,
+                        rd,
+                        rs1,
+                        rs2,
+                        8,
+                    ),
+                    Instruction::new(
+                        Op::SUB,
+                        rs1,
+                        rs1,
+                        rs2,
+                        0,
+                    ),
+                    Instruction::new(
+                        Op::ADD,
+                        rd,
+                        rs1,
+                        rs2,
+                        0,
+                    ),
+                ],
+                &[],
+                &[(rs1, rs1_value_fixed as u32), (rs2, rs2_value_fixed as u32)]
+            );
+            assert_eq!(state.get_register_value(rd), rs1_value_fixed.wrapping_add(rs2_value_fixed) as u32);
+        }
+
+        #[test]
+        fn bltu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let mut rs1_value_fixed = rs1_value;
+            let mut rs2_value_fixed = if rs1_value == rs2_value { rs2_value + 1 } else { rs2_value };
+
+            if rs1_value_fixed > rs2_value_fixed {
+                std::mem::swap(&mut rs1_value_fixed, &mut rs2_value_fixed);
+            }
+
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[
+                    Instruction::new(
+                        Op::BLTU,
+                        rd,
+                        rs1,
+                        rs2,
+                        8,
+                    ),
+                    Instruction::new(
+                        Op::SUB,
+                        rs1,
+                        rs1,
+                        rs2,
+                        0,
+                    ),
+                    Instruction::new(
+                        Op::ADD,
+                        rd,
+                        rs1,
+                        rs2,
+                        0,
+                    ),
+                ],
+                &[],
+                &[(rs1, rs1_value_fixed), (rs2, rs2_value_fixed)]
+            );
+            assert_eq!(state.get_register_value(rd), rs1_value_fixed.wrapping_add(rs2_value_fixed));
+        }
+
+        #[test]
+        fn bge_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in any::<i32>()) {
+            let mut rs1_value_fixed = rs1_value;
+            let mut rs2_value_fixed = rs2_value;
+
+            if rs1_value_fixed < rs2_value_fixed {
+                std::mem::swap(&mut rs1_value_fixed, &mut rs2_value_fixed);
+            }
+
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[
+                    Instruction::new(
+                        Op::BGE,
+                        rd,
+                        rs1,
+                        rs2,
+                        8,
+                    ),
+                    Instruction::new(
+                        Op::SUB,
+                        rs1,
+                        rs1,
+                        rs2,
+                        0,
+                    ),
+                    Instruction::new(
+                        Op::ADD,
+                        rd,
+                        rs1,
+                        rs2,
+                        0,
+                    ),
+                ],
+                &[],
+                &[(rs1, rs1_value_fixed as u32), (rs2, rs2_value_fixed as u32)]
+            );
+            assert_eq!(state.get_register_value(rd), rs1_value_fixed.wrapping_add(rs2_value_fixed) as u32);
+        }
+
+        #[test]
+        fn bgeu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let mut rs1_value_fixed = rs1_value;
+            let mut rs2_value_fixed = rs2_value;
+
+            if rs1_value_fixed < rs2_value_fixed {
+                std::mem::swap(&mut rs1_value_fixed, &mut rs2_value_fixed);
+            }
+
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[
+                    Instruction::new(
+                        Op::BGEU,
+                        rd,
+                        rs1,
+                        rs2,
+                        8,
+                    ),
+                    Instruction::new(
+                        Op::SUB,
+                        rs1,
+                        rs1,
+                        rs2,
+                        0,
+                    ),
+                    Instruction::new(
+                        Op::ADD,
+                        rd,
+                        rs1,
+                        rs2,
+                        0,
+                    ),
+                ],
+                &[],
+                &[(rs1, rs1_value_fixed), (rs2, rs2_value_fixed)]
+            );
+            assert_eq!(state.get_register_value(rd), rs1_value_fixed.wrapping_add(rs2_value_fixed));
+        }
+
+        #[test]
+        fn jal_jalr_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+            let ExecutionRecord {
+                last_state: state, ..
+            } = simple_test_code(
+                &[
+                    Instruction::new(
+                        Op::JALR,
+                        0,
+                        0,
+                        0,
+                        8,
+                    ),
+                    Instruction::new(
+                        Op::SUB,
+                        rs1,
+                        rs1,
+                        rs2,
+                        0,
+                    ),
+                    Instruction::new(
+                        Op::ADD,
+                        rd,
+                        rs1,
+                        rs2,
+                        0,
+                    ),
+                ],
+                &[],
+                &[(rs1, rs1_value), (rs2, rs2_value)]
+            );
+            assert_eq!(state.get_register_value(rd), rs1_value.wrapping_add(rs2_value));
+        }
+    }
 
     // NOTE: For writing test cases please follow RISCV
     // calling convention for using registers in instructions.
@@ -540,7 +1548,7 @@ mod tests {
     #[test_case(0x0643_1283, 5, 6, 100, 200, 4096; "lh r5, -100(r6) offset_negative")]
     #[test_case(0x0643_1283, 5, 6, 100, 0, -4095; "lh r5, 100(r6) value_negative")]
     #[test_case(0x0643_1283, 5, 6, 100, 200, -4095; "lh r5, -100(r6) offset_negative_value_negative")]
-    fn lh(word: u32, rd: u8, rs1: u8, offset: i16, rs1_value: u32, memory_value: i16) {
+    fn lh_test(word: u32, rd: u8, rs1: u8, offset: i16, rs1_value: u32, memory_value: i16) {
         let mut address: u32 = rs1_value;
         if offset.is_negative() {
             let abs_offset = u32::from(offset.unsigned_abs());
@@ -588,7 +1596,7 @@ mod tests {
     #[test_case(0x0643_2283, 5, 6, 100, 200, 65535; "lw r5, -100(r6) offset_negative")]
     #[test_case(0x0643_2283, 5, 6, 100, 0, -65535; "lw r5, 100(r6) value_negative")]
     #[test_case(0x0643_2283, 5, 6, 100, 200, -65535; "lw r5, -100(r6) offset_negative_value_negative")]
-    fn lw(word: u32, rd: u8, rs1: u8, offset: i16, rs1_value: u32, memory_value: i32) {
+    fn lw_test(word: u32, rd: u8, rs1: u8, offset: i16, rs1_value: u32, memory_value: i32) {
         let mut address: u32 = rs1_value;
         if offset.is_negative() {
             let abs_offset = u32::from(offset.unsigned_abs());
@@ -929,7 +1937,7 @@ mod tests {
     #[test_case(0x4000_0000 /*2^30*/, 0xFFFF_FFFE /*-2*/, 0xE000_0000 /*-2^29*/; "simple")]
     #[test_case(0x4000_0000, 0x0000_0000, 0xFFFF_FFFF; "div_by_zero")]
     #[test_case(0x8000_0000 /*-2^31*/, 0xFFFF_FFFF /*-1*/, 0x8000_0000; "overflow")]
-    fn div(rs1_value: u32, rs2_value: u32, rd_value: u32) {
+    fn div_test(rs1_value: u32, rs2_value: u32, rd_value: u32) {
         // at 0 address instruction DIV
         // DIV x5, x6, x7
         let ExecutionRecord {
@@ -946,7 +1954,7 @@ mod tests {
 
     #[test_case(0x8000_0000 /*2^31*/, 0x0000_0002 /*2*/, 0x4000_0000 /*2^30*/; "simple")]
     #[test_case(0x4000_0000, 0x0000_0000, 0xFFFF_FFFF; "div_by_zero")]
-    fn divu(rs1_value: u32, rs2_value: u32, rd_value: u32) {
+    fn divu_test(rs1_value: u32, rs2_value: u32, rd_value: u32) {
         // at 0 address instruction DIVU
         // DIVU x5, x6, x7
         let ExecutionRecord {
