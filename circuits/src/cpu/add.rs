@@ -36,7 +36,7 @@ mod test {
         simple_proof_test(&record.executed).unwrap();
     }
 
-    use proptest::prelude::*;
+    use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
     proptest! {

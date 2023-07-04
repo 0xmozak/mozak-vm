@@ -20,7 +20,7 @@ pub(crate) fn constraints<P: PackedField>(
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
-    use proptest::prelude::*;
+    use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
     use crate::test_utils::simple_proof_test;
