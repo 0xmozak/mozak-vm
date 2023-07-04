@@ -1229,7 +1229,8 @@ mod tests {
         }
 
         #[test]
-        fn jal_jalr_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn jal_jalr_proptest(imm in 0_u32..3) {
+            let imm_value_fixed = 4 * imm + 4; // 4 * (0..3) + 4 = 4,8,12,16
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -1239,27 +1240,41 @@ mod tests {
                         0,
                         0,
                         0,
-                        8,
+                        imm_value_fixed,
                     ),
-                    Instruction::new(
-                        Op::SUB,
-                        rs1,
-                        rs1,
-                        rs2,
+                    Instruction::new( // imm = 0, jump = 4, 1+1 + 1 + 1 + 1 = 5
+                        Op::ADD,
+                        2,
+                        2,
+                        2,
                         0,
                     ),
-                    Instruction::new(
+                    Instruction::new( // imm = 1, jump = 8, 1+1 + 1 + 1 = 4
                         Op::ADD,
-                        rd,
-                        rs1,
-                        rs2,
+                        2,
+                        2,
+                        3,
+                        0,
+                    ),
+                    Instruction::new( // imm = 2, jump = 12, 1+1 + 1 = 3
+                        Op::ADD,
+                        2,
+                        2,
+                        3,
+                        0,
+                    ),
+                    Instruction::new( // imm = 3, jump = 16, 1+1 = 2
+                        Op::ADD,
+                        2,
+                        2,
+                        3,
                         0,
                     ),
                 ],
                 &[],
-                &[(rs1, rs1_value), (rs2, rs2_value)]
+                &[(2,1),(3,1)],
             );
-            assert_eq!(state.get_register_value(rd), rs1_value.wrapping_add(rs2_value));
+            assert_eq!(state.get_register_value(2), 5 - imm);
         }
     }
 
