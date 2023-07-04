@@ -13,7 +13,7 @@ use starky::vars::StarkEvaluationVars;
 use super::mozak_stark::MozakStark;
 use super::proof::AllProof;
 use crate::cpu::stark::CpuStark;
-use crate::cross_table_lookup::{CtlCheckVars, TableKind};
+use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars, TableKind};
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::permutation::PermutationCheckVars;
 use crate::stark::poly::eval_vanishing_poly;
@@ -67,6 +67,7 @@ where
         config,
     )?;
 
+    verify_cross_table_lookups(&cross_table_lookups, &all_proof.all_ctl_zs(), config)?;
     Ok(())
 }
 

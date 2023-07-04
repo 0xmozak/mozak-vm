@@ -1,5 +1,6 @@
 use std::borrow::Borrow;
 
+use anyhow::{ensure, Result};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -8,6 +9,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
+use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
 use starky::stark::Stark;
 use starky::vars::StarkEvaluationVars;
@@ -54,6 +56,35 @@ pub(crate) struct CtlZData<F: Field> {
     pub(crate) challenge: GrandProductChallenge<F>,
     pub(crate) columns: Vec<Column<F>>,
     pub(crate) filter_column: Option<Column<F>>,
+}
+
+pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: usize>(
+    cross_table_lookups: &[CrossTableLookup<F>],
+    ctl_zs_lasts: &[Vec<F>; NUM_TABLES],
+    config: &StarkConfig,
+) -> Result<()> {
+    let mut ctl_zs_openings = ctl_zs_lasts.iter().map(|v| v.iter()).collect::<Vec<_>>();
+    for CrossTableLookup {
+        looking_tables,
+        looked_table,
+    } in cross_table_lookups.iter()
+    {
+        for _ in 0..config.num_challenges {
+            let looking_zs_prod = looking_tables
+                .iter()
+                .map(|table| *ctl_zs_openings[table.kind as usize].next().unwrap())
+                .product::<F>();
+            let looked_z = *ctl_zs_openings[looked_table.kind as usize].next().unwrap();
+
+            ensure!(
+                looking_zs_prod == looked_z,
+                "Cross-table lookup verification failed."
+            );
+        }
+    }
+    debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));
+
+    Ok(())
 }
 
 pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
