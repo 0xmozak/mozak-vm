@@ -17,7 +17,7 @@ pub(crate) fn constraints<P: PackedField>(
     // TODO: m, r, rt need range-checks.
     let m = lv[DIVU_M];
     let r = lv[DIVU_R];
-    // We only need rt column for the range check.
+    // We only need rt column to range-check rt := q - r
     let rt = lv[DIVU_R_TOP];
 
     let is_divu = lv[COL_S_DIVU];
