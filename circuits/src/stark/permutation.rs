@@ -43,8 +43,7 @@ impl<F: Field> GrandProductChallenge<F> {
     where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>,
-        T::IntoIter: DoubleEndedIterator,
-    {
+        T::IntoIter: DoubleEndedIterator, {
         reduce_with_powers(terms, FE::from_basefield(self.beta)) + FE::from_basefield(self.gamma)
     }
 }
@@ -64,8 +63,7 @@ pub(crate) fn compute_permutation_z_polys<F, S, const D: usize>(
 ) -> Vec<PolynomialValues<F>>
 where
     F: RichField + Extendable<D>,
-    S: Stark<F, D>,
-{
+    S: Stark<F, D>, {
     let permutation_pairs = stark.permutation_pairs();
     let permutation_batches = get_permutation_batches(
         &permutation_pairs,
@@ -205,8 +203,7 @@ pub struct PermutationCheckVars<F, FE, P, const D2: usize>
 where
     F: Field,
     FE: FieldExtension<D2, BaseField = F>,
-    P: PackedField<Scalar = FE>,
-{
+    P: PackedField<Scalar = FE>, {
     pub(crate) local_zs: Vec<P>,
     pub(crate) next_zs: Vec<P>,
     pub(crate) permutation_challenge_sets: Vec<GrandProductChallengeSet<F>>,
@@ -222,8 +219,7 @@ pub(crate) fn eval_permutation_checks<F, FE, P, S, const D: usize, const D2: usi
     F: RichField + Extendable<D>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
-    S: Stark<F, D>,
-{
+    S: Stark<F, D>, {
     let PermutationCheckVars {
         local_zs,
         next_zs,

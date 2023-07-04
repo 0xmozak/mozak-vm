@@ -1,10 +1,8 @@
 #![allow(clippy::too_many_arguments)]
 
-use plonky2::field::extension::Extendable;
-use plonky2::field::extension::FieldExtension;
+use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
-use plonky2::field::polynomial::PolynomialCoeffs;
-use plonky2::field::polynomial::PolynomialValues;
+use plonky2::field::polynomial::{PolynomialCoeffs, PolynomialValues};
 use plonky2::field::zero_poly_coset::ZeroPolyOnCoset;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
@@ -16,10 +14,8 @@ use starky::constraint_consumer::ConstraintConsumer;
 use starky::stark::Stark;
 use starky::vars::StarkEvaluationVars;
 
-use super::permutation::eval_permutation_checks;
-use super::permutation::{GrandProductChallengeSet, PermutationCheckVars};
-use crate::cross_table_lookup::eval_cross_table_lookup_checks;
-use crate::cross_table_lookup::{CtlCheckVars, CtlData};
+use super::permutation::{eval_permutation_checks, GrandProductChallengeSet, PermutationCheckVars};
+use crate::cross_table_lookup::{eval_cross_table_lookup_checks, CtlCheckVars, CtlData};
 
 /// Computes the quotient polynomials `(sum alpha^i C_i(x)) / Z_H(x)` for
 /// `alpha` in `alphas`, where the `C_i`s are the Stark constraints.
@@ -40,8 +36,7 @@ where
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
     [(); S::COLUMNS]:,
-    [(); S::PUBLIC_INPUTS]:,
-{
+    [(); S::PUBLIC_INPUTS]:, {
     let degree = 1 << degree_bits;
     let rate_bits = config.fri_config.rate_bits;
 
@@ -172,8 +167,7 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     F: RichField + Extendable<D>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
-    S: Stark<F, D>,
-{
+    S: Stark<F, D>, {
     stark.eval_packed_generic(vars, consumer);
     if let Some(permutation_vars) = permutation_vars {
         eval_permutation_checks::<F, FE, P, S, D, D2>(
