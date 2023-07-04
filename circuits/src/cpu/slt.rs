@@ -64,7 +64,7 @@ mod test {
 
     use crate::test_utils::simple_proof_test;
     proptest! {
-            #![proptest_config(ProptestConfig::with_cases(4))]
+            #![proptest_config(ProptestConfig::with_cases(16))]
             #[test]
             fn prove_slt_proptest(a in any::<u32>(), b in any::<u32>()) {
                 let record = simple_test_code(
