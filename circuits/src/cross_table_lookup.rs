@@ -1,27 +1,22 @@
 use std::borrow::Borrow;
 
-use plonky2::{
-    field::{
-        extension::{Extendable, FieldExtension},
-        packed::PackedField,
-        polynomial::PolynomialValues,
-        types::Field,
-    },
-    hash::hash_types::RichField,
-    iop::ext_target::ExtensionTarget,
-    plonk::{circuit_builder::CircuitBuilder, config::GenericConfig},
-};
-use starky::{constraint_consumer::ConstraintConsumer, stark::Stark, vars::StarkEvaluationVars};
+use plonky2::field::extension::{Extendable, FieldExtension};
+use plonky2::field::packed::PackedField;
+use plonky2::field::polynomial::PolynomialValues;
+use plonky2::field::types::Field;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
+use plonky2::plonk::config::GenericConfig;
+use starky::constraint_consumer::ConstraintConsumer;
+use starky::stark::Stark;
+use starky::vars::StarkEvaluationVars;
 use thiserror::Error;
 
-use crate::{
-    cpu, rangecheck,
-    stark::{
-        mozak_stark::NUM_TABLES,
-        permutation::{GrandProductChallenge, GrandProductChallengeSet},
-        proof::StarkProof,
-    },
-};
+use crate::stark::mozak_stark::NUM_TABLES;
+use crate::stark::permutation::{GrandProductChallenge, GrandProductChallengeSet};
+use crate::stark::proof::StarkProof;
+use crate::{cpu, rangecheck};
 
 #[derive(Error, Debug)]
 pub enum LookupError {
@@ -38,14 +33,10 @@ pub struct CtlData<F: Field> {
 
 impl<F: Field> CtlData<F> {
     #[must_use]
-    pub fn len(&self) -> usize {
-        self.zs_columns.len()
-    }
+    pub fn len(&self) -> usize { self.zs_columns.len() }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.zs_columns.len() == 0
-    }
+    pub fn is_empty(&self) -> bool { self.zs_columns.len() == 0 }
 
     #[must_use]
     pub fn z_polys(&self) -> Vec<PolynomialValues<F>> {
@@ -178,8 +169,7 @@ impl<F: Field> Column<F> {
     pub fn eval<FE, P, const D: usize>(&self, v: &[P]) -> P
     where
         FE: FieldExtension<D, BaseField = F>,
-        P: PackedField<Scalar = FE>,
-    {
+        P: PackedField<Scalar = FE>, {
         self.linear_combination
             .iter()
             .map(|&(c, f)| v[c] * FE::from_basefield(f))
@@ -202,8 +192,7 @@ impl<F: Field> Column<F> {
         v: &[ExtensionTarget<D>],
     ) -> ExtensionTarget<D>
     where
-        F: RichField + Extendable<D>,
-    {
+        F: RichField + Extendable<D>, {
         let pairs = self
             .linear_combination
             .iter()
@@ -227,9 +216,7 @@ pub enum TableKind {
 
 impl TableKind {
     #[must_use]
-    pub fn all() -> [TableKind; 2] {
-        [TableKind::Cpu, TableKind::RangeCheck]
-    }
+    pub fn all() -> [TableKind; 2] { [TableKind::Cpu, TableKind::RangeCheck] }
 }
 
 #[derive(Clone, Debug)]
@@ -319,8 +306,7 @@ pub struct CtlCheckVars<'a, F, FE, P, const D2: usize>
 where
     F: Field,
     FE: FieldExtension<D2, BaseField = F>,
-    P: PackedField<Scalar = FE>,
-{
+    P: PackedField<Scalar = FE>, {
     pub(crate) local_z: P,
     pub(crate) next_z: P,
     pub(crate) challenges: GrandProductChallenge<F>,
@@ -387,8 +373,7 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
     F: RichField + Extendable<D>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
-    S: Stark<F, D>,
-{
+    S: Stark<F, D>, {
     for lookup_vars in ctl_vars {
         let CtlCheckVars {
             local_z,
@@ -423,11 +408,13 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, ops::Deref};
+    use std::collections::HashMap;
+    use std::ops::Deref;
 
     use anyhow::Result;
     use itertools::Itertools;
-    use plonky2::field::{goldilocks_field::GoldilocksField, polynomial::PolynomialValues};
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::polynomial::PolynomialValues;
 
     use super::*;
 
@@ -436,15 +423,11 @@ mod tests {
     impl<F: Field> Deref for MultiSet<F> {
         type Target = HashMap<Vec<F>, Vec<(TableKind, usize)>>;
 
-        fn deref(&self) -> &Self::Target {
-            &self.0
-        }
+        fn deref(&self) -> &Self::Target { &self.0 }
     }
 
     impl<F: Field> MultiSet<F> {
-        pub fn new() -> Self {
-            MultiSet(HashMap::new())
-        }
+        pub fn new() -> Self { MultiSet(HashMap::new()) }
 
         fn process_row(
             &mut self,
@@ -480,9 +463,7 @@ mod tests {
     }
 
     /// Specify the column index of the filter column used in lookups.
-    fn lookup_filter<F: Field>(col_idx: usize) -> Column<F> {
-        Column::single(col_idx)
-    }
+    fn lookup_filter<F: Field>(col_idx: usize) -> Column<F> { Column::single(col_idx) }
 
     /// A generic cross lookup table.
     struct FooBarTable<F: Field>(CrossTableLookup<F>);
@@ -610,9 +591,7 @@ mod tests {
             self
         }
 
-        pub fn build(self) -> Vec<PolynomialValues<F>> {
-            self.trace
-        }
+        pub fn build(self) -> Vec<PolynomialValues<F>> { self.trace }
     }
     /// A generic cross lookup table.
     struct NonBinaryFilterTable<F: Field>(CrossTableLookup<F>);
