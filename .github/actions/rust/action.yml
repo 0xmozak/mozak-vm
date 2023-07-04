@@ -9,7 +9,7 @@ runs:
   using: "composite"
   steps:
     - name: Get rust version
-      run: echo "RUST_VERSION=$(grep -P '^channel\s*=' rust-toolchain.toml | cut -d '=' -f2 | sed 's/"//g' | sed -e 's/^[ \t]*//')" >> $GITHUB_ENV
+      run: echo "RUST_VERSION=$(cat rust-toolchain.toml| grep '^channel\s*=' | cut -d '=' -f2 | sed 's/"//g' | sed -e 's/^[ \t]*//')" >> $GITHUB_ENV
       shell: bash
 
     - name: Install toolchain

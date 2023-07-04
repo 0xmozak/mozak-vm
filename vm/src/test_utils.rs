@@ -6,9 +6,7 @@ use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
 
 #[must_use]
-fn create_prog(image: HashMap<u32, u32>) -> State {
-    State::from(Program::from(image))
-}
+fn create_prog(image: HashMap<u32, u32>) -> State { State::from(Program::from(image)) }
 
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
