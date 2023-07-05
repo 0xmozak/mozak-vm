@@ -69,14 +69,10 @@ fn generate_conditional_branch_row<F: RichField>(
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2);
 
-    // trace[cpu_cols::COL_LESS_THAN][row_idx] = from_(u32::from(op1_fixed < op2_fixed));
-
-    let abs_diff = op1.abs_diff(op2);
-    trace[cpu_cols::COL_CMP_ABS_DIFF][row_idx] = from_(abs_diff);
-
+    trace[cpu_cols::COL_EQUAL][row_idx] = from_(u32::from(op1 == op2));
     {
-        let diff = trace[cpu_cols::COL_OP1_VALUE][row_idx]
-            - trace[cpu_cols::COL_OP2_VALUE][row_idx];
+        let diff =
+            trace[cpu_cols::COL_OP1_VALUE][row_idx] - trace[cpu_cols::COL_OP2_VALUE][row_idx];
         let diff_inv = diff.try_inverse().unwrap_or_default();
         trace[cpu_cols::COL_CMP_DIFF_INV][row_idx] = diff_inv;
         let one: F = diff * diff_inv;

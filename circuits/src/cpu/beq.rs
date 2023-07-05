@@ -2,37 +2,33 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_CMP_ABS_DIFF, COL_CMP_DIFF_INV, COL_DST_VALUE, COL_IMM_VALUE, COL_LESS_THAN, COL_OP1_VALUE,
-    COL_OP2_VALUE, COL_S_SLT, COL_S_SLTU, COL_S_SLT_OP1_VAL_FIXED, COL_S_SLT_OP2_VAL_FIXED,
-    COL_S_SLT_SIGN1, COL_S_SLT_SIGN2, NUM_CPU_COLS,
+    COL_CMP_DIFF_INV, COL_EQUAL, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_S_BEQ,
+    NUM_CPU_COLS,
 };
 use crate::utils::column_of_xs;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
+    nv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-
     let is_beq = lv[COL_S_BEQ];
-
-
 
     let op1 = lv[COL_OP1_VALUE];
     let op2 = lv[COL_OP2_VALUE];
 
     let diff = op1 - op2;
-    // TODO: range check
-    let abs_diff = lv[COL_CMP_ABS_DIFF];
-
-    // abs_diff calculation
-    yield_constr.constraint(is_beq * (abs_diff - diff));
-
-    let diff = op1 - op2;
     let diff_inv = lv[COL_CMP_DIFF_INV];
-    let branch =  diff * diff_inv;
-    // either branch is 0 or 1
-    yield_constr.constraint(branch * (P::ONES - branch)); 
-    yield_constr.constraint(is_beq * (((P::ONES - branch) * (lv[COL_DST_VALUE] - lv[COL_IMM_VALUE]))  + (branch *(lv[COL_DST_VALUE] - (lv[COL_PC] + column_of_xs(4))))));
+    let branch = diff * diff_inv;
+    let equal = lv[COL_EQUAL];
+    yield_constr.constraint(is_beq * (branch - (P::ONES - equal)));
+    let updated_pc = nv[COL_PC];
+    // diff_inv is 0 either inst is not BEQ or both opds are same
+    yield_constr.constraint(diff_inv * (P::ONES - diff * diff_inv));
+    let pc_next: P = (P::ONES - equal) * (updated_pc - (lv[COL_PC] + column_of_xs::<P>(4)));
+    let pc_branch: P = equal * (updated_pc - lv[COL_IMM_VALUE]);
+    let pc_cons: P = pc_next + pc_branch;
+    yield_constr.constraint(is_beq * pc_cons);
 }
 
 #[cfg(test)]
