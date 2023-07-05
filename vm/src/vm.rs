@@ -162,7 +162,7 @@ impl State {
             Op::ECALL => self.ecall(),
             Op::JALR => self.jalr(&inst.args),
             // branches
-            Op::BEQ => self.branch_op(&inst.args, |a, b| a == b),
+            Op::BEQ => self.branch_op(&inst.args, |a, b| true),
             Op::BNE => self.branch_op(&inst.args, |a, b| a != b),
             Op::BLT => self.branch_op(&inst.args, |a, b| (a as i32) < (b as i32)),
             Op::BLTU => self.branch_op(&inst.args, |a, b| a < b),

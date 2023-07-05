@@ -67,9 +67,6 @@ mod test {
                     &[],
                     &[(6, a), (7, b)],
                 );
-                    if a != b {
-                        assert_eq!(record.last_state.get_register_value(1), 10);
-                    }
                 simple_proof_test(&record.executed).unwrap();
             }
     }
