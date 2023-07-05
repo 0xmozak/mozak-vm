@@ -30,6 +30,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         }
 
         generate_slt_row(&mut trace, &inst, state, i);
+        generate_conditional_branch_row(&mut trace, &inst, state, i);
         match inst.op {
             Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,
             Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
@@ -55,6 +56,28 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             v.len()
         )
     })
+}
+fn generate_conditional_branch_row<F: RichField>(
+    trace: &mut [Vec<F>],
+    inst: &Instruction,
+    state: &State,
+    row_idx: usize,
+) {
+    if inst.op != Op::BEQ {
+        return;
+    }
+    let op1 = state.get_register_value(inst.args.rs1);
+    let op2 = state.get_register_value(inst.args.rs2);
+
+    trace[cpu_cols::COL_EQUAL][row_idx] = from_(u32::from(op1 == op2));
+    {
+        let diff =
+            trace[cpu_cols::COL_OP1_VALUE][row_idx] - trace[cpu_cols::COL_OP2_VALUE][row_idx];
+        let diff_inv = diff.try_inverse().unwrap_or_default();
+        trace[cpu_cols::COL_CMP_DIFF_INV][row_idx] = diff_inv;
+        let one: F = diff * diff_inv;
+        assert_eq!(one, if op1 == op2 { F::ZERO } else { F::ONE });
+    }
 }
 
 #[allow(clippy::cast_possible_wrap)]
