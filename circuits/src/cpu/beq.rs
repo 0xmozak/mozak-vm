@@ -35,13 +35,17 @@ pub(crate) fn constraints<P: PackedField>(
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
-    use proptest::prelude::any;
-    use proptest::proptest;
+    use proptest::prelude::{any, Just, Strategy};
+    use proptest::{proptest, prop_oneof};
+
+    fn u32_extra() -> impl Strategy<Value = u32> {
+        prop_oneof![Just(0_u32), Just(1_u32), Just(i32::MIN as u32), any::<u32>()]
+    }
 
     use crate::test_utils::simple_proof_test;
     proptest! {
             #[test]
-            fn prove_beq_proptest(a in any::<u32>(), b in any::<u32>()) {
+            fn prove_beq_proptest(a in u32_extra(), b in u32_extra()) {
                 let record = simple_test_code(
                     &[Instruction {
                         op: Op::BEQ,
@@ -66,9 +70,11 @@ mod test {
                     &[],
                     &[(6, a), (7, b)],
                 );
-                    if a != b {
-                        assert_eq!(record.last_state.get_register_value(1), 10);
-                    }
+                if a != b {
+                    assert_eq!(record.last_state.get_register_value(1), 10);
+                } else {
+                    assert_eq!(record.last_state.get_register_value(1), 0);
+                }
                 simple_proof_test(&record.executed).unwrap();
             }
     }
