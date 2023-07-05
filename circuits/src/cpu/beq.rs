@@ -23,8 +23,7 @@ pub(crate) fn constraints<P: PackedField>(
     let equal = lv[COL_EQUAL];
     yield_constr.constraint(is_beq * (branch - (P::ONES - equal)));
     let updated_pc = nv[COL_PC];
-    // diff_inv is 0 either inst is not BEQ or both opds are same
-    yield_constr.constraint(diff_inv * (P::ONES - diff * diff_inv));
+    yield_constr.constraint(equal * (P::ONES - branch));
     let pc_next: P = (P::ONES - equal) * (updated_pc - (lv[COL_PC] + column_of_xs::<P>(4)));
     let pc_branch: P = equal * (updated_pc - lv[COL_IMM_VALUE]);
     let pc_cons: P = pc_next + pc_branch;
