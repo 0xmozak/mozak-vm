@@ -74,8 +74,10 @@ fn generate_srl_row<F: RichField>(
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
     let q = 2_u32.pow(op2);
+    let r = op1 % q;
     trace[cpu_cols::SRL_Q][row_idx] = from_::<_, F>(q);
-    trace[cpu_cols::SRL_R][row_idx] = from_(op1 % q);
+    trace[cpu_cols::SRL_R][row_idx] = from_(r);
+    trace[cpu_cols::SRL_Q_R_1][row_idx] = from_(q - r - 1);
 }
 
 #[allow(clippy::cast_possible_wrap)]

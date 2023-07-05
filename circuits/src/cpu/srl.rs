@@ -1,22 +1,28 @@
 use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::{COL_DST_VALUE, COL_OP1_VALUE, COL_S_SRL, NUM_CPU_COLS, SRL_Q, SRL_R};
+use super::columns::{
+    COL_DST_VALUE, COL_OP1_VALUE, COL_S_SRL, NUM_CPU_COLS, SRL_Q, SRL_Q_R_1, SRL_R,
+};
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let p = lv[COL_OP1_VALUE];
-    // TODO: srl_q needs be check against lookup table [2^0,2^1,2^2...,2^31]
-    let srl_q = lv[SRL_Q];
+    // TODO: q needs be checked against lookup table to ensure:
+    // q == 1 << shift_amount
+    let q = lv[SRL_Q];
     // TODO: r need range-checks.
     let r = lv[SRL_R];
+    // TODO: q_r_1 need range-checks.
+    let q_r_1 = lv[SRL_Q_R_1];
 
     let is_srl = lv[COL_S_SRL];
     let dst = lv[COL_DST_VALUE];
 
-    yield_constr.constraint(is_srl * (dst * srl_q + r - p));
+    yield_constr.constraint(is_srl * (dst * q + r - p));
+    yield_constr.constraint(is_srl * (r + q_r_1 + P::ONES - q));
 }
 
 #[cfg(test)]

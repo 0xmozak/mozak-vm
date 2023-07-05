@@ -60,5 +60,6 @@ pub(crate) const DIVU_Q_INV: usize = DIVU_R_TOP + 1;
 
 pub(crate) const SRL_Q: usize = DIVU_Q_INV + 1;
 pub(crate) const SRL_R: usize = SRL_Q + 1;
+pub(crate) const SRL_Q_R_1: usize = SRL_R + 1;
 
-pub(crate) const NUM_CPU_COLS: usize = SRL_R + 1;
+pub(crate) const NUM_CPU_COLS: usize = SRL_Q_R_1 + 1;
