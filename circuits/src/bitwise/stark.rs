@@ -35,100 +35,27 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         P: PackedField<Scalar = FE>, {
         let lv = vars.local_values;
 
-        let op1 = lv[OP1];
-        let op2 = lv[OP2];
-        let res = lv[RES];
-
         // sumcheck for op1, op2, res limbs
-        // op1 = Sum(op1_limbs_i * 2^(8*i))
-        let op1_limbs: Vec<_> = lv[OP1_LIMBS].to_vec();
-        let computed_sum = reduce_with_powers(&op1_limbs, from_(1_u128 << 8));
-        yield_constr.constraint(computed_sum - op1);
+        // We enforce the constraint:
+        //     opx == Sum(opx_limbs * 2^(8*i))
+        for (opx, opx_limbs) in [(OP1, OP1_LIMBS), (OP2, OP2_LIMBS), (RES, RES_LIMBS)] {
+            let opx_limbs = lv[opx_limbs].to_vec();
+            let computed_sum = reduce_with_powers(&opx_limbs, from_(1_u128 << 8));
+            yield_constr.constraint(computed_sum - lv[opx]);
+        }
 
-        // op2 = Sum(op2_limbs_i * 2^(8*i))
-        let op2_limbs: Vec<_> = lv[OP2_LIMBS].to_vec();
-        let computed_sum = reduce_with_powers(&op2_limbs, from_(1_u128 << 8));
-        yield_constr.constraint(computed_sum - op2);
-
-        // res = Sum(res_limbs_i * 2^(8*i))
-        let res_limbs: Vec<_> = lv[RES_LIMBS].to_vec();
-        let computed_sum = reduce_with_powers(&res_limbs, from_(1_u128 << 8));
-        yield_constr.constraint(computed_sum - res);
-
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP1_LIMBS_PERMUTED.start,
-            FIX_RANGE_CHECK_U8_PERMUTED.start,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP1_LIMBS_PERMUTED.start + 1,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 1,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP1_LIMBS_PERMUTED.start + 2,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 2,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP1_LIMBS_PERMUTED.start + 3,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 3,
-        );
-
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP2_LIMBS_PERMUTED.start,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 4,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP2_LIMBS_PERMUTED.start + 1,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 5,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP2_LIMBS_PERMUTED.start + 2,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 6,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            OP2_LIMBS_PERMUTED.start + 3,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 7,
-        );
-
-        eval_lookups(
-            vars,
-            yield_constr,
-            RES_LIMBS_PERMUTED.start,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 8,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            RES_LIMBS_PERMUTED.start + 1,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 9,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            RES_LIMBS_PERMUTED.start + 2,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 10,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            RES_LIMBS_PERMUTED.start + 3,
-            FIX_RANGE_CHECK_U8_PERMUTED.start + 11,
-        );
+        for (fix_range_check_u8_permuted, opx_limbs_permuted) in FIX_RANGE_CHECK_U8_PERMUTED.zip(
+            OP1_LIMBS_PERMUTED
+                .chain(OP2_LIMBS_PERMUTED)
+                .chain(RES_LIMBS_PERMUTED),
+        ) {
+            eval_lookups(
+                vars,
+                yield_constr,
+                opx_limbs_permuted,
+                fix_range_check_u8_permuted,
+            );
+        }
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -148,28 +75,19 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use plonky2::util::timing::TimingTree;
-    use starky::config::StarkConfig;
     use starky::prover::prove as prove_table;
     use starky::verifier::verify_stark_proof;
 
     use crate::bitwise::stark::BitwiseStark;
     use crate::generation::bitwise::generate_bitwise_trace;
     use crate::stark::utils::trace_to_poly_values;
+    use crate::test_utils::{standard_faster_config, C, D, F};
 
-    const D: usize = 2;
-    type C = PoseidonGoldilocksConfig;
-    type F = <C as GenericConfig<D>>::F;
     type S = BitwiseStark<F, D>;
-    fn get_config_for_test() -> StarkConfig {
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 0;
-        config.fri_config.proof_of_work_bits = 0;
-        config
-    }
+
     fn simple_and_test(a: u32, b: u32, imm: u32) {
-        let config = get_config_for_test();
+        let config = standard_faster_config();
 
         let stark = S::default();
         let record = simple_test_code(
