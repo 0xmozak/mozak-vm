@@ -148,7 +148,10 @@ impl State {
             Op::SRA => x_op!(|a, b, i| (a as i32 >> (b.wrapping_add(i) & 0x1F) as i32) as u32),
             Op::SLT => x_op!(|a, b, i| u32::from((a as i32) < (b as i32).wrapping_add(i as i32))),
             Op::SLTU => x_op!(|a, b, i| u32::from(a < b.wrapping_add(i))),
-            Op::AND => x_op!(|a, b, i| core::ops::BitAnd::bitand(a, b.wrapping_add(i))),
+            Op::AND => x_op!(|_a, _b, _i| core::ops::BitAnd::bitand(
+                // a, b.wrapping_add(i)
+                0_u32, 0_u32
+            )),
             Op::OR => x_op!(|a, b, i| core::ops::BitOr::bitor(a, b.wrapping_add(i))),
             Op::XOR => x_op!(|a, b, i| core::ops::BitXor::bitxor(a, b.wrapping_add(i))),
             Op::SUB => rop!(u32::wrapping_sub),
