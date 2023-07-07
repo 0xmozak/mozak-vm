@@ -16,15 +16,17 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cross_table_lookups: [CrossTableLookup<F>; 1],
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
-    pub fn default() -> Self {
+impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
+    fn default() -> Self {
         Self {
             cpu_stark: CpuStark::default(),
             rangecheck_stark: RangeCheckStark::default(),
             cross_table_lookups: [RangecheckCpuTable::lookups(); 1],
         }
     }
+}
 
+impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
     pub(crate) fn nums_permutation_zs(&self, config: &StarkConfig) -> [usize; NUM_TABLES] {
         [
             self.cpu_stark.num_permutation_batches(config),
