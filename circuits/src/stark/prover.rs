@@ -280,6 +280,7 @@ where
         degree_bits,
         stark.num_permutation_batches(config),
     );
+
     challenger.observe_openings(&openings.to_fri_openings());
 
     let initial_merkle_trees = vec![
@@ -335,9 +336,8 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
-    //[(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
+    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
