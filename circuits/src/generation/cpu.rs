@@ -64,6 +64,9 @@ fn generate_slt_row<F: RichField>(
     state: &State,
     row_idx: usize,
 ) {
+    if inst.op != Op::SLT && inst.op != Op::SLTU {
+        return;
+    }
     let is_signed = inst.op == Op::SLT;
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
