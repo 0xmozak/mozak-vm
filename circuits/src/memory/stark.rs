@@ -95,6 +95,7 @@ mod tests {
     use anyhow::Result;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use plonky2::util::timing::TimingTree;
+    use starky::config::StarkConfig;
     use starky::prover::prove as prove_table;
     use starky::stark_testing::test_stark_low_degree;
     use starky::verifier::verify_stark_proof;
@@ -103,8 +104,6 @@ mod tests {
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::stark::utils::trace_to_poly_values;
-    use crate::test_utils::{standard_faster_config, C, D, F};
-    type S = MemoryStark<F, D>;
 
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
@@ -119,7 +118,8 @@ mod tests {
 
     #[test]
     fn prove_memory_sb_lb() -> Result<()> {
-        let config = standard_faster_config();
+        let mut config = StarkConfig::standard_fast_config();
+        config.fri_config.cap_height = 0;
 
         let stark = S::default();
         let executed = memory_trace_test_case();

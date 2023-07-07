@@ -16,6 +16,7 @@ pub type C = PoseidonGoldilocksConfig;
 pub type F = <C as GenericConfig<D>>::F;
 pub type S = MozakStark<F, D>;
 
+#[must_use]
 pub fn standard_faster_config() -> StarkConfig {
     let config = StarkConfig::standard_fast_config();
     StarkConfig {

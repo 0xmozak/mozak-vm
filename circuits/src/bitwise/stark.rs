@@ -54,7 +54,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
                 yield_constr,
                 opx_limbs_permuted,
                 fix_range_check_u8_permuted,
-            )
+            );
         }
     }
 
