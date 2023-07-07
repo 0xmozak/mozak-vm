@@ -4,7 +4,7 @@ use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use thiserror::Error;
 
-use crate::{cpu, rangecheck};
+use crate::stark::mozak_stark::Table;
 
 #[derive(Error, Debug)]
 pub enum LookupError {
@@ -45,51 +45,6 @@ impl<F: Field> Column<F> {
             + self.constant
     }
 }
-
-#[derive(Debug, Copy, Clone)]
-pub enum TableKind {
-    Cpu = 0,
-    RangeCheck = 1,
-}
-
-#[derive(Clone, Debug)]
-#[allow(unused)]
-pub struct Table<F: Field> {
-    kind: TableKind,
-    columns: Vec<Column<F>>,
-    pub(crate) filter_column: Option<Column<F>>,
-}
-
-impl<F: Field> Table<F> {
-    pub fn new(kind: TableKind, columns: Vec<Column<F>>, filter_column: Option<Column<F>>) -> Self {
-        Self {
-            kind,
-            columns,
-            filter_column,
-        }
-    }
-}
-
-/// Represents a range check table in the Mozak VM.
-pub struct RangeCheckTable<F: Field>(Table<F>);
-
-/// Represents a cpu table in the Mozak VM.
-pub struct CpuTable<F: Field>(Table<F>);
-
-impl<F: Field> RangeCheckTable<F> {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(columns: Vec<Column<F>>, filter_column: Option<Column<F>>) -> Table<F> {
-        Table::new(TableKind::RangeCheck, columns, filter_column)
-    }
-}
-
-impl<F: Field> CpuTable<F> {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(columns: Vec<Column<F>>, filter_column: Option<Column<F>>) -> Table<F> {
-        Table::new(TableKind::Cpu, columns, filter_column)
-    }
-}
-
 #[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct CrossTableLookup<F: Field> {
@@ -113,27 +68,6 @@ impl<F: Field> CrossTableLookup<F> {
     }
 }
 
-pub trait Lookups<F: Field> {
-    fn lookups() -> CrossTableLookup<F>;
-}
-
-pub struct RangecheckCpuTable<F: Field>(CrossTableLookup<F>);
-
-impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
-        CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_rangecheck(),
-                Some(cpu::columns::filter_for_rangecheck()),
-            )],
-            RangeCheckTable::new(
-                rangecheck::columns::data_for_cpu(),
-                Some(rangecheck::columns::filter_for_cpu()),
-            ),
-        )
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -145,6 +79,7 @@ mod tests {
     use plonky2::field::polynomial::PolynomialValues;
 
     use super::*;
+    use crate::stark::mozak_stark::{CpuTable, Lookups, RangeCheckTable, TableKind};
 
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, usize)>>);
 
