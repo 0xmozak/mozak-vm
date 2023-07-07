@@ -10,10 +10,10 @@ use starky::constraint_consumer::ConstraintConsumer;
 use starky::stark::{LookupConfig, Stark};
 use starky::vars::StarkEvaluationVars;
 
-use super::mozak_stark::MozakStark;
+use super::mozak_stark::{MozakStark, TableKind};
 use super::proof::AllProof;
 use crate::cpu::stark::CpuStark;
-use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars, TableKind};
+use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::permutation::PermutationCheckVars;
 use crate::stark::poly::eval_vanishing_poly;
