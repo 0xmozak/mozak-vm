@@ -78,7 +78,11 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
 
             ensure!(
                 looking_zs_prod == looked_z,
-                "Cross-table lookup verification failed."
+                "Cross-table lookup verification failed for {:?}->{:?} ({} != {})",
+                looking_tables[0].kind,
+                looked_table.kind,
+                looking_zs_prod,
+                looked_z
             );
         }
     }
@@ -100,11 +104,11 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     {
         log::debug!("Processing CTL for {:?}", looked_table.kind);
         for &challenge in &ctl_challenges.challenges {
-            let zs_looking = looking_tables.iter().map(|table| {
+            let zs_looking = looking_tables.iter().map(|looking_table| {
                 partial_products(
-                    &trace_poly_values[table.kind as usize],
-                    &table.columns,
-                    &table.filter_column,
+                    &trace_poly_values[looking_table.kind as usize],
+                    &looking_table.columns,
+                    &looking_table.filter_column,
                     challenge,
                 )
             });
@@ -123,14 +127,14 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                 *z_looked.values.last().unwrap()
             );
 
-            for (table, z) in looking_tables.iter().zip(zs_looking) {
-                ctl_data_per_table[table.kind as usize]
+            for (looking_table, z) in looking_tables.iter().zip(zs_looking) {
+                ctl_data_per_table[looking_table.kind as usize]
                     .zs_columns
                     .push(CtlZData {
                         z,
                         challenge,
-                        columns: table.columns.clone(),
-                        filter_column: table.filter_column.clone(),
+                        columns: looking_table.columns.clone(),
+                        filter_column: looking_table.filter_column.clone(),
                     });
             }
             ctl_data_per_table[looked_table.kind as usize]
@@ -161,6 +165,7 @@ fn partial_products<F: Field>(
         } else {
             F::ONE
         };
+
         if filter.is_one() {
             let evals = columns
                 .iter()
