@@ -75,7 +75,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use plonky2::util::timing::TimingTree;
     use starky::prover::prove as prove_table;
     use starky::verifier::verify_stark_proof;
@@ -83,11 +82,8 @@ mod tests {
     use crate::bitwise::stark::BitwiseStark;
     use crate::generation::bitwise::generate_bitwise_trace;
     use crate::stark::utils::trace_to_poly_values;
-    use crate::test_utils::standard_faster_config;
+    use crate::test_utils::{standard_faster_config, C, D, F};
 
-    const D: usize = 2;
-    type C = PoseidonGoldilocksConfig;
-    type F = <C as GenericConfig<D>>::F;
     type S = BitwiseStark<F, D>;
 
     fn simple_and_test(a: u32, b: u32, imm: u32) {
