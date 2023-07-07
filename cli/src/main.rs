@@ -2,7 +2,7 @@
 #![deny(clippy::cargo)]
 use std::io::Read;
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, ValueEnum};
 use clio::Input;
 use log::debug;
 use mozak_circuits::test_utils::simple_proof_test;
@@ -13,40 +13,35 @@ use shadow_rs::shadow;
 
 shadow!(build);
 
-#[derive(Parser)]
+#[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
+    #[clap(flatten)]
+    verbose: clap_verbosity_flag::Verbosity,
+    #[arg(value_enum)]
+    command: Command,
     #[clap(value_parser, default_value = "-")]
     elf: Input,
-    #[command(subcommand)]
-    command: Command,
 }
 
-#[derive(Subcommand, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Parser, PartialEq, ValueEnum)]
 enum Command {
     Decode,
     Run,
     Prove,
 }
 
-// /// Mozak VM: RISC-V ISA based zkVM
-// #[derive(Parser, Debug)]
-// #[command(author, version, about, long_about = None)]
-// struct Args {
-//     /// Name of the person to greet
-//     #[arg(short, long)]
-//     name: String,
-
-//     /// Number of times to greet
-//     #[arg(short, long, default_value_t = 1)]
-//     count: u8,
-// }
-
+/// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi`
 fn main() -> anyhow::Result<()> {
-    env_logger::init();
     let mut cli = Cli::parse();
+    env_logger::Builder::new()
+        .filter_level(cli.verbose.log_level_filter())
+        .init();
+
     let mut elf_bytes = Vec::new();
-    let _x = cli.elf.read_to_end(&mut elf_bytes)?;
+    let bytes_read = cli.elf.read_to_end(&mut elf_bytes)?;
+    debug!("Read {bytes_read} of ELF data.");
+
     match cli.command {
         Command::Decode => {
             let program = Program::load_elf(&elf_bytes)?;
@@ -54,20 +49,14 @@ fn main() -> anyhow::Result<()> {
         }
         Command::Run => {
             let program = Program::load_elf(&elf_bytes)?;
-            debug!("{program:?}");
             let state = State::from(program);
             let state = step(state)?.last_state;
-            let r = state.registers;
-            debug!("{r:?}");
+            debug!("{:?}", state.registers);
         }
         Command::Prove => {
             let program = Program::load_elf(&elf_bytes)?;
-            debug!("{program:?}");
             let state = State::from(program);
             let record = step(state)?;
-            let state = record.last_state;
-            let r = state.registers;
-            debug!("{r:?}");
             simple_proof_test(&record.executed)?;
         }
     }

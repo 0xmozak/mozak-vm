@@ -22,6 +22,8 @@ anyhow = "1.0.71"
 env_logger = "0.10.0"
 log = "0.4.19"
 itertools = "0.11.0"
+clap-verbosity-flag = "2.0.1"
+clap_derive = "4.3.2"
 
 [dev-dependencies]
 mozak-vm = { path = "../vm", features = ["test"] }
