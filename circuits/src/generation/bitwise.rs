@@ -7,12 +7,12 @@ use crate::lookup::permute_cols;
 use crate::utils::{from_, limbs_from_u32};
 
 #[must_use]
-fn filter_xor_trace(step_rows: &[Row]) -> Vec<Row> {
+fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<Row> {
     step_rows
         .iter()
         .filter(|row| {
             let inst = row.state.current_instruction();
-            inst.op == Op::XOR
+            inst.op == Op::AND
         })
         .cloned()
         .collect()
@@ -23,7 +23,7 @@ fn filter_xor_trace(step_rows: &[Row]) -> Vec<Row> {
 pub fn generate_bitwise_trace<F: RichField>(
     step_rows: &[Row],
 ) -> [Vec<F>; bitwise_cols::NUM_BITWISE_COL] {
-    let filtered_step_rows = filter_xor_trace(step_rows);
+    let filtered_step_rows = filter_bitwise_trace(step_rows);
     let trace_len = filtered_step_rows.len();
     let max_trace_len = trace_len.max(bitwise_cols::BITWISE_U8_SIZE);
     let ext_trace_len = max_trace_len.next_power_of_two();
@@ -55,10 +55,10 @@ pub fn generate_bitwise_trace<F: RichField>(
         trace[bitwise_cols::FIX_RANGE_CHECK_U8][op1] = from_(op1 as u128);
 
         for op2 in 0..bitwise_cols::RANGE_CHECK_U8_SIZE {
-            let res_xor = op1 ^ op2;
+            let res_and = op1 & op2;
             trace[bitwise_cols::FIX_BITWISE_OP1][index] = from_(op1 as u128);
             trace[bitwise_cols::FIX_BITWISE_OP2][index] = from_(op2 as u128);
-            trace[bitwise_cols::FIX_BITWISE_RES][index] = from_(res_xor as u128);
+            trace[bitwise_cols::FIX_BITWISE_RES][index] = from_(res_and as u128);
             index += 1;
         }
     }

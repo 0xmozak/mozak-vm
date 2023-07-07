@@ -73,7 +73,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
@@ -91,25 +90,24 @@ mod tests {
     type F = <C as GenericConfig<D>>::F;
     type S = BitwiseStark<F, D>;
 
-    #[test]
-    fn prove_xor() -> Result<()> {
+    fn simple_and_test(a: u32, b: u32, imm: u32) {
         let config = standard_faster_config();
 
         let stark = S::default();
         let record = simple_test_code(
             &[Instruction {
-                op: Op::XOR,
+                op: Op::AND,
                 args: Args {
                     rs1: 5,
                     rs2: 6,
                     rd: 7,
-                    imm: 0,
+                    imm,
                 },
             }],
             &[],
-            &[(5, 1), (6, 2)],
+            &[(5, a), (6, b)],
         );
-        assert_eq!(record.last_state.get_register_value(7), 3);
+        assert_eq!(record.last_state.get_register_value(7), a & (b + imm));
         let trace = generate_bitwise_trace(&record.executed);
         let trace_poly_values = trace_to_poly_values(trace);
 
@@ -119,39 +117,21 @@ mod tests {
             trace_poly_values,
             [],
             &mut TimingTree::default(),
-        )?;
-        verify_stark_proof(stark, proof, &config)
+        )
+        .unwrap();
+        verify_stark_proof(stark, proof, &config).unwrap();
     }
-
-    #[test]
-    fn prove_xori() -> Result<()> {
-        let config = standard_faster_config();
-
-        let stark = S::default();
-        let record = simple_test_code(
-            &[Instruction {
-                op: Op::XOR,
-                args: Args {
-                    rs1: 5,
-                    rs2: 0,
-                    rd: 7,
-                    imm: 2,
-                },
-            }],
-            &[],
-            &[(5, 1)],
-        );
-        assert_eq!(record.last_state.get_register_value(7), 3);
-        let trace = generate_bitwise_trace(&record.executed);
-        let trace_poly_values = trace_to_poly_values(trace);
-
-        let proof = prove_table::<F, C, S, D>(
-            stark,
-            &config,
-            trace_poly_values,
-            [],
-            &mut TimingTree::default(),
-        )?;
-        verify_stark_proof(stark, proof, &config)
+    use proptest::prelude::{any, ProptestConfig};
+    use proptest::proptest;
+    proptest! {
+            #![proptest_config(ProptestConfig::with_cases(16))]
+            #[test]
+            fn prove_andi_proptest(a in any::<u32>(), b in any::<u32>()) {
+                simple_and_test(a, 0, b);
+            }
+            #[test]
+            fn prove_and_proptest(a in any::<u32>(), b in any::<u32>()) {
+                simple_and_test(a, b, 0);
+            }
     }
 }
