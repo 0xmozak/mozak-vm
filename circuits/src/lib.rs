@@ -8,6 +8,7 @@
 #![deny(clippy::cargo)]
 
 pub mod cpu;
+pub mod cross_table_lookup;
 pub mod generation;
 pub mod lookup;
 pub mod memory;
