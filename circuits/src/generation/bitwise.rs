@@ -57,10 +57,10 @@ pub fn generate_bitwise_trace<F: RichField>(
         .map(|op1| from_(op1 as u128))
         .collect();
     trace[bitwise_cols::FIX_RANGE_CHECK_U8].resize(ext_trace_len, F::ZERO);
-    for (index, (op1, op2)) in (0..).zip(
-        (0..bitwise_cols::RANGE_CHECK_U8_SIZE)
-            .cartesian_product(0..bitwise_cols::RANGE_CHECK_U8_SIZE),
-    ) {
+    for (index, (op1, op2)) in (0..bitwise_cols::RANGE_CHECK_U8_SIZE)
+        .cartesian_product(0..bitwise_cols::RANGE_CHECK_U8_SIZE)
+        .enumerate()
+    {
         let res_and = op1 & op2;
         trace[bitwise_cols::FIX_BITWISE_OP1][index] = from_(op1 as u128);
         trace[bitwise_cols::FIX_BITWISE_OP2][index] = from_(op2 as u128);
@@ -69,23 +69,22 @@ pub fn generate_bitwise_trace<F: RichField>(
 
     let mut challenger =
         Challenger::<F, <PoseidonGoldilocksConfig as GenericConfig<2>>::Hasher>::new();
-    for i in 0..bitwise_cols::OP1_LIMBS.len() {
-        challenger.observe_elements(&trace[bitwise_cols::OP1_LIMBS.start + i]);
-    }
-    for i in 0..bitwise_cols::OP2_LIMBS.len() {
-        challenger.observe_elements(&trace[bitwise_cols::OP2_LIMBS.start + i]);
-    }
-    for i in 0..bitwise_cols::RES_LIMBS.len() {
-        challenger.observe_elements(&trace[bitwise_cols::RES_LIMBS.start + i]);
+    for limb in bitwise_cols::OP1_LIMBS
+        .chain(bitwise_cols::OP2_LIMBS)
+        .chain(bitwise_cols::RES_LIMBS)
+    {
+        challenger.observe_elements(&trace[limb]);
     }
     let beta = challenger.get_challenge();
 
     for i in 0..trace[0].len() {
-        for j in 0..4 {
-            trace[bitwise_cols::COMPRESS_LIMBS.start + j][i] = trace
-                [bitwise_cols::OP1_LIMBS.start + j][i]
-                + trace[bitwise_cols::OP2_LIMBS.start + j][i] * beta
-                + trace[bitwise_cols::RES_LIMBS.start + j][i] * beta * beta;
+        // (bitwise_cols::OP1_LIMBS, opd1_value.to_le_bytes()),
+        for (((a, b), c), d) in bitwise_cols::COMPRESS_LIMBS
+            .zip(bitwise_cols::OP1_LIMBS)
+            .zip(bitwise_cols::OP2_LIMBS)
+            .zip(bitwise_cols::RES_LIMBS)
+        {
+            trace[a][i] = trace[b][i] + beta * (trace[c][i] + beta * trace[d][i]);
         }
 
         trace[bitwise_cols::FIX_COMPRESS][i] = trace[bitwise_cols::FIX_BITWISE_OP1][i]
@@ -94,36 +93,31 @@ pub fn generate_bitwise_trace<F: RichField>(
     }
 
     // add the permutation information
-    for i in 0..4 {
-        let (permuted_inputs, permuted_table) = permute_cols(
-            &trace[bitwise_cols::OP1_LIMBS.start + i],
-            &trace[bitwise_cols::FIX_RANGE_CHECK_U8],
-        );
-        trace[bitwise_cols::OP1_LIMBS_PERMUTED.start + i] = permuted_inputs;
-        trace[bitwise_cols::FIX_RANGE_CHECK_U8_PERMUTED.start + i] = permuted_table;
-
-        let (permuted_inputs, permuted_table) = permute_cols(
-            &trace[bitwise_cols::OP2_LIMBS.start + i],
-            &trace[bitwise_cols::FIX_RANGE_CHECK_U8],
-        );
-        trace[bitwise_cols::OP2_LIMBS_PERMUTED.start + i] = permuted_inputs;
-        trace[bitwise_cols::FIX_RANGE_CHECK_U8_PERMUTED.start + 4 + i] = permuted_table;
-
-        let (permuted_inputs, permuted_table) = permute_cols(
-            &trace[bitwise_cols::RES_LIMBS.start + i],
-            &trace[bitwise_cols::FIX_RANGE_CHECK_U8],
-        );
-        trace[bitwise_cols::RES_LIMBS_PERMUTED.start + i] = permuted_inputs;
-        trace[bitwise_cols::FIX_RANGE_CHECK_U8_PERMUTED.start + 8 + i] = permuted_table;
-
-        // permutation for bitwise
-        let (permuted_inputs, permuted_table) = permute_cols(
-            &trace[bitwise_cols::COMPRESS_LIMBS.start + i],
-            &trace[bitwise_cols::FIX_COMPRESS],
-        );
-
-        trace[bitwise_cols::COMPRESS_PERMUTED.start + i] = permuted_inputs;
-        trace[bitwise_cols::FIX_COMPRESS_PERMUTED.start + i] = permuted_table;
+    for (op_limbs_permuted, range_check_permuted, op_limbs) in [
+        (
+            bitwise_cols::OP1_LIMBS_PERMUTED,
+            bitwise_cols::FIX_RANGE_CHECK_U8_PERMUTED.skip(0),
+            bitwise_cols::OP1_LIMBS,
+        ),
+        (
+            bitwise_cols::OP2_LIMBS_PERMUTED,
+            bitwise_cols::FIX_RANGE_CHECK_U8_PERMUTED.skip(4),
+            bitwise_cols::OP2_LIMBS,
+        ),
+        (
+            bitwise_cols::RES_LIMBS_PERMUTED,
+            bitwise_cols::FIX_RANGE_CHECK_U8_PERMUTED.skip(8),
+            bitwise_cols::OP2_LIMBS,
+        ),
+    ] {
+        for ((op_limb_permuted, range_check_limb_permuted), op_limb) in
+            op_limbs_permuted.zip(range_check_permuted).zip(op_limbs)
+        {
+            let (permuted_inputs, permuted_table) =
+                permute_cols(&trace[op_limb], &trace[bitwise_cols::FIX_RANGE_CHECK_U8]);
+            trace[op_limb_permuted] = permuted_inputs;
+            trace[range_check_limb_permuted] = permuted_table;
+        }
     }
     let trace_row_vecs = trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
