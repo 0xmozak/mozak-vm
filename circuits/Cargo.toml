@@ -24,3 +24,6 @@ array-concat = "0.5.2"
 [dev-dependencies]
 mozak-vm = { path = "../vm", features = ["test"] }
 proptest = "1.2.0"
+
+[features]
+test = []
