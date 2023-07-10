@@ -87,47 +87,40 @@ pub fn generate_bitwise_trace<F: RichField>(
     }
 
     // add the permutation information
-    for (op_limbs_permuted, range_check_permuted, op_limbs) in [
+    for (op_limbs_permuted, range_check_permuted, op_limbs, table_col) in [
         (
             cols::OP1_LIMBS_PERMUTED,
             cols::FIX_RANGE_CHECK_U8_PERMUTED.skip(0),
             cols::OP1_LIMBS,
+            cols::FIX_RANGE_CHECK_U8,
         ),
         (
             cols::OP2_LIMBS_PERMUTED,
             cols::FIX_RANGE_CHECK_U8_PERMUTED.skip(4),
             cols::OP2_LIMBS,
+            cols::FIX_RANGE_CHECK_U8,
         ),
         (
             cols::RES_LIMBS_PERMUTED,
             cols::FIX_RANGE_CHECK_U8_PERMUTED.skip(8),
             cols::RES_LIMBS,
+            cols::FIX_RANGE_CHECK_U8,
+        ),
+        (
+            cols::COMPRESS_PERMUTED,
+            cols::FIX_COMPRESS_PERMUTED.skip(0),
+            cols::COMPRESS_LIMBS,
+            cols::FIX_COMPRESS,
         ),
     ] {
         for ((op_limb_permuted, range_check_limb_permuted), op_limb) in
             op_limbs_permuted.zip(range_check_permuted).zip(op_limbs)
         {
             (trace[op_limb_permuted], trace[range_check_limb_permuted]) =
-                permute_cols(&trace[op_limb], &trace[cols::FIX_RANGE_CHECK_U8]);
+                permute_cols(&trace[op_limb], &trace[table_col]);
         }
     }
 
-    for (compress_limbs_permuted, fixed_compress_limbs_permuted, compress_limbs) in [(
-        cols::COMPRESS_PERMUTED,
-        cols::FIX_COMPRESS_PERMUTED,
-        cols::COMPRESS_LIMBS,
-    )] {
-        for ((compress_limb_permuted, fixed_compress_limb_permuted), compress_limb) in
-            compress_limbs_permuted
-                .zip(fixed_compress_limbs_permuted)
-                .zip(compress_limbs)
-        {
-            (
-                trace[compress_limb_permuted],
-                trace[fixed_compress_limb_permuted],
-            ) = permute_cols(&trace[compress_limb], &trace[cols::FIX_COMPRESS]);
-        }
-    }
     let trace_row_vecs = trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
             "Expected a Vec of length {} but it was {}",
