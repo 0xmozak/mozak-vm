@@ -78,7 +78,6 @@ pub fn generate_bitwise_trace<F: RichField>(
     let beta = challenger.get_challenge();
 
     for i in 0..trace[0].len() {
-        // (bitwise_cols::OP1_LIMBS, opd1_value.to_le_bytes()),
         for (((a, b), c), d) in bitwise_cols::COMPRESS_LIMBS
             .zip(bitwise_cols::OP1_LIMBS)
             .zip(bitwise_cols::OP2_LIMBS)
@@ -113,10 +112,8 @@ pub fn generate_bitwise_trace<F: RichField>(
         for ((op_limb_permuted, range_check_limb_permuted), op_limb) in
             op_limbs_permuted.zip(range_check_permuted).zip(op_limbs)
         {
-            let (permuted_inputs, permuted_table) =
+            (trace[op_limb_permuted], trace[range_check_limb_permuted]) =
                 permute_cols(&trace[op_limb], &trace[bitwise_cols::FIX_RANGE_CHECK_U8]);
-            trace[op_limb_permuted] = permuted_inputs;
-            trace[range_check_limb_permuted] = permuted_table;
         }
     }
     let trace_row_vecs = trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
