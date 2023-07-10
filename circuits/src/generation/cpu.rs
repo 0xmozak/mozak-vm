@@ -70,13 +70,13 @@ fn generate_divu_row<F: RichField>(
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
     if let 0 = op2 {
-        trace[cpu_cols::DIVU_M][row_idx] = from_(u32::MAX);
-        trace[cpu_cols::DIVU_R][row_idx] = from_(op1);
-        trace[cpu_cols::DIVU_R_TOP][row_idx] = from_(0_u32);
+        trace[cpu_cols::DIVU_QUOTIENT][row_idx] = from_(u32::MAX);
+        trace[cpu_cols::DIVU_REMAINDER][row_idx] = from_(op1);
+        trace[cpu_cols::DIVU_REMAINDER_SLACK][row_idx] = from_(0_u32);
     } else {
-        trace[cpu_cols::DIVU_M][row_idx] = from_(op1 / op2);
-        trace[cpu_cols::DIVU_R][row_idx] = from_(op1 % op2);
-        trace[cpu_cols::DIVU_R_TOP][row_idx] = from_(op2 - op1 % op2);
+        trace[cpu_cols::DIVU_QUOTIENT][row_idx] = from_(op1 / op2);
+        trace[cpu_cols::DIVU_REMAINDER][row_idx] = from_(op1 % op2);
+        trace[cpu_cols::DIVU_REMAINDER_SLACK][row_idx] = from_(op2 - op1 % op2);
     }
     trace[cpu_cols::DIVU_Q_INV][row_idx] = from_::<_, F>(op2).try_inverse().unwrap_or_default();
 }

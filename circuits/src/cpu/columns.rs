@@ -57,10 +57,10 @@ pub(crate) const COL_CMP_ABS_DIFF: usize = COL_S_SLT_OP2_VAL_FIXED + 1;
 pub(crate) const COL_CMP_DIFF_INV: usize = COL_CMP_ABS_DIFF + 1;
 pub(crate) const COL_LESS_THAN: usize = COL_CMP_DIFF_INV + 1;
 
-pub(crate) const DIVU_M: usize = COL_LESS_THAN + 1;
-pub(crate) const DIVU_R: usize = DIVU_M + 1;
-pub(crate) const DIVU_R_TOP: usize = DIVU_R + 1;
-pub(crate) const DIVU_Q_INV: usize = DIVU_R_TOP + 1;
+pub(crate) const DIVU_QUOTIENT: usize = COL_LESS_THAN + 1;
+pub(crate) const DIVU_REMAINDER: usize = DIVU_QUOTIENT + 1;
+pub(crate) const DIVU_REMAINDER_SLACK: usize = DIVU_REMAINDER + 1;
+pub(crate) const DIVU_Q_INV: usize = DIVU_REMAINDER_SLACK + 1;
 
 pub(crate) const NUM_CPU_COLS: usize = DIVU_Q_INV + 1;
 

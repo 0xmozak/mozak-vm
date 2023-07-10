@@ -2,30 +2,48 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_DIVU, COL_S_REMU, DIVU_M,
-    DIVU_Q_INV, DIVU_R, DIVU_R_TOP, NUM_CPU_COLS,
+    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_DIVU, COL_S_REMU,
+    DIVU_QUOTIENT, DIVU_Q_INV, DIVU_REMAINDER, DIVU_REMAINDER_SLACK, NUM_CPU_COLS,
 };
 use crate::utils::column_of_xs;
 
+/// Constraints for DIVU / REMU instructions
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
+    // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
+    // > For both signed and unsigned division, it holds that dividend = divisor ×
+    // > quotient + remainder.
+    // In the following code, we are looking at p/q.
     let p = lv[COL_OP1_VALUE];
     let q = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
+
+    // The equation from the spec becomes:
+    //  p = q * m + r
+    // (Interestingly, this holds even when q == 0.)
+    let m = lv[DIVU_QUOTIENT];
+    let r = lv[DIVU_REMAINDER];
+    yield_constr.constraint(m * q + r - p);
+
+    // However, that constraint is not enough.
+    // For example, a malicious prover could trivially fulfill it via
+    //  m := 0, r := p
+
+    // The solution is to constrain p:
+    //  0 <= p < q
+
     let q_inv = lv[DIVU_Q_INV];
     // TODO: m, r, rt need range-checks.
-    let m = lv[DIVU_M];
-    let r = lv[DIVU_R];
+
     // We only need rt column to range-check rt := q - r
-    let rt = lv[DIVU_R_TOP];
+    let rt = lv[DIVU_REMAINDER_SLACK];
 
     let is_divu = lv[COL_S_DIVU];
     let is_remu = lv[COL_S_REMU];
     let dst = lv[COL_DST_VALUE];
 
     // Constraints for denominator != 0:
-    yield_constr.constraint(q * (m * q + r - p));
     yield_constr.constraint(q * (r + rt - q));
 
     // Constraints for denominator == 0.  On Risc-V:
