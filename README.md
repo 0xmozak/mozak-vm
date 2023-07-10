@@ -6,7 +6,7 @@
 
 If you are unfamiliar with the Risc-V instruction set, please have a look at the [Risc-V instruction set reference](https://github.com/jameslzhu/riscv-card/blob/master/riscv-card.pdf).
 
-# Installation
+# Build requirements
 
 - [Rust toolchain](https://www.rust-lang.org/tools/install)
 
@@ -15,6 +15,12 @@ The Mozak VM is built in Rust, so the Rust toolchain is a pre-requisite.
 ```bash
 cargo build
 ```
+
+# Running
+
+We have a rudimentary CLI.  You can run it via eg `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi`.
+
+Use `cargo run -- --help` to see what sub-commands are implemented.
 
 # Update official Risc-V tests
 

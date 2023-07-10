@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install --yes curl git autoconf g++ build-essentia
 
 # Download and extract RISC-V GNU toolchain binaries
 RUN curl --fail --silent --show-error --location \
-         https://github.com/riscv-collab/riscv-gnu-toolchain/releases/download/2023.05.19/riscv32-elf-ubuntu-22.04-nightly-2023.05.19-nightly.tar.gz \
+         https://github.com/riscv-collab/riscv-gnu-toolchain/releases/download/2023.07.05/riscv32-elf-ubuntu-22.04-gcc-nightly-2023.07.05-nightly.tar.gz \
          | tar --extract --gzip --verbose
 
 # Set the environment variables

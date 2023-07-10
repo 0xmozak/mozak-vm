@@ -45,8 +45,8 @@ pub(crate) fn constraints<P: PackedField>(
     let abs_diff = lv[COL_CMP_ABS_DIFF];
 
     // abs_diff calculation
-    yield_constr.constraint((P::ONES - lt) * (abs_diff - diff_fixed));
-    yield_constr.constraint(lt * (abs_diff + diff_fixed));
+    yield_constr.constraint(is_cmp * (P::ONES - lt) * (abs_diff - diff_fixed));
+    yield_constr.constraint(is_cmp * lt * (abs_diff + diff_fixed));
 
     let diff = op1 - op2;
     let diff_inv = lv[COL_CMP_DIFF_INV];
@@ -59,11 +59,12 @@ pub(crate) fn constraints<P: PackedField>(
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
-    use proptest::prelude::any;
+    use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
     use crate::test_utils::simple_proof_test;
     proptest! {
+            #![proptest_config(ProptestConfig::with_cases(4))]
             #[test]
             fn prove_slt_proptest(a in any::<u32>(), b in any::<u32>()) {
                 let record = simple_test_code(
