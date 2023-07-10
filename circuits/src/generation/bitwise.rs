@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use mozak_vm::instruction::Op;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -39,30 +40,31 @@ pub fn generate_bitwise_trace<F: RichField>(
         trace[bitwise_cols::OP1][i] = from_(opd1_value);
         trace[bitwise_cols::OP2][i] = from_(opd2_imm_value);
         trace[bitwise_cols::RES][i] = from_(aux.dst_val);
-        let op1_limbs = opd1_value.to_le_bytes();
-        let op2_limbs = opd2_imm_value.to_le_bytes();
-        let dst_limbs = aux.dst_val.to_le_bytes();
-        for j in 0..4 {
-            trace[bitwise_cols::OP1_LIMBS.start + j][i] = from_(op1_limbs[j]);
-            trace[bitwise_cols::OP2_LIMBS.start + j][i] = from_(op2_limbs[j]);
-            trace[bitwise_cols::RES_LIMBS.start + j][i] = from_(dst_limbs[j]);
+        for (cols, limbs) in [
+            (bitwise_cols::OP1_LIMBS, opd1_value.to_le_bytes()),
+            (bitwise_cols::OP2_LIMBS, opd2_imm_value.to_le_bytes()),
+            (bitwise_cols::RES_LIMBS, aux.dst_val.to_le_bytes()),
+        ] {
+            for (c, l) in cols.zip(limbs) {
+                trace[c][i] = from_(l);
+            }
         }
     }
 
     // add FIXED bitwise table
     // 2^8 * 2^8 possible rows
-    let mut index = 0;
-    // trace[bitwise_cols::FIX_RANGE_CHECK_U8] = (0..bitwise_cols::RANGE_CHECK_U8_SIZE).map(|op1| from_(op1 as u128)).collect();
-    for op1 in 0..bitwise_cols::RANGE_CHECK_U8_SIZE {
-        trace[bitwise_cols::FIX_RANGE_CHECK_U8][op1] = from_(op1 as u128);
-
-        for op2 in 0..bitwise_cols::RANGE_CHECK_U8_SIZE {
-            let res_and = op1 & op2;
-            trace[bitwise_cols::FIX_BITWISE_OP1][index] = from_(op1 as u128);
-            trace[bitwise_cols::FIX_BITWISE_OP2][index] = from_(op2 as u128);
-            trace[bitwise_cols::FIX_BITWISE_RES][index] = from_(res_and as u128);
-            index += 1;
-        }
+    trace[bitwise_cols::FIX_RANGE_CHECK_U8] = (0..bitwise_cols::RANGE_CHECK_U8_SIZE)
+        .map(|op1| from_(op1 as u128))
+        .collect();
+    trace[bitwise_cols::FIX_RANGE_CHECK_U8].resize(ext_trace_len, F::ZERO);
+    for (index, (op1, op2)) in (0..).zip(
+        (0..bitwise_cols::RANGE_CHECK_U8_SIZE)
+            .cartesian_product(0..bitwise_cols::RANGE_CHECK_U8_SIZE),
+    ) {
+        let res_and = op1 & op2;
+        trace[bitwise_cols::FIX_BITWISE_OP1][index] = from_(op1 as u128);
+        trace[bitwise_cols::FIX_BITWISE_OP2][index] = from_(op2 as u128);
+        trace[bitwise_cols::FIX_BITWISE_RES][index] = from_(res_and as u128);
     }
 
     let mut challenger =
