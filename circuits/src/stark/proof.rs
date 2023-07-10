@@ -9,11 +9,10 @@ use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::GenericConfig;
 use plonky2_maybe_rayon::{MaybeParIter, ParallelIterator};
 use starky::config::StarkConfig;
+use starky::proof::StarkProofWithPublicInputs;
 
-use super::mozak_stark::{MozakStark, NUM_TABLES};
-use super::permutation::{
-    get_grand_product_challenge_set, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
-};
+use super::mozak_stark::NUM_TABLES;
+use super::permutation::{get_n_grand_product_challenge_sets, GrandProductChallengeSet};
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone)]
@@ -44,6 +43,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
     pub fn num_ctl_zs(&self) -> usize { self.openings.ctl_zs_last.len() }
 
     /// Computes all Fiat-Shamir challenges used in the STARK proof.
+    #[allow(unused)]
     pub(crate) fn get_challenges(
         &self,
         challenger: &mut Challenger<F, C::Hasher>,
@@ -207,53 +207,13 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
 #[derive(Debug, Clone)]
 #[allow(clippy::module_name_repetitions)]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
-    pub stark_proofs: [StarkProof<F, C, D>; NUM_TABLES],
+    pub stark_proofs: [StarkProofWithPublicInputs<F, C, D>; NUM_TABLES],
 }
 
+#[allow(unused)]
 pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {
     pub stark_challenges: [StarkProofChallenges<F, D>; NUM_TABLES],
     pub ctl_challenges: GrandProductChallengeSet<F>,
 }
 
-impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
-    /// Computes all Fiat-Shamir challenges used in the STARK proof.
-    pub(crate) fn get_challenges(
-        &self,
-        all_stark: &MozakStark<F, D>,
-        config: &StarkConfig,
-    ) -> AllProofChallenges<F, D> {
-        let mut challenger = Challenger::<F, C::Hasher>::new();
-
-        for proof in &self.stark_proofs {
-            challenger.observe_cap(&proof.trace_cap);
-        }
-
-        // TODO: Observe public values.
-
-        let ctl_challenges =
-            get_grand_product_challenge_set(&mut challenger, config.num_challenges);
-
-        let num_permutation_zs = all_stark.nums_permutation_zs(config);
-        let num_permutation_batch_sizes = all_stark.permutation_batch_sizes();
-
-        AllProofChallenges {
-            stark_challenges: core::array::from_fn(|i| {
-                challenger.compact();
-                self.stark_proofs[i].get_challenges(
-                    &mut challenger,
-                    num_permutation_zs[i] > 0,
-                    num_permutation_batch_sizes[i],
-                    config,
-                )
-            }),
-            ctl_challenges,
-        }
-    }
-
-    /// Returns the ordered openings of cross-table lookups `Z` polynomials at
-    /// `g^-1`. The order corresponds to the order declared in
-    /// [`TableKind`](crate::cross_table_lookup::TableKind).
-    pub(crate) fn all_ctl_zs_last(self) -> [Vec<F>; NUM_TABLES] {
-        self.stark_proofs.map(|p| p.openings.ctl_zs_last)
-    }
-}
+impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {}

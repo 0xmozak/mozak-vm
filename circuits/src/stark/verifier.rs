@@ -9,68 +9,34 @@ use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
 use starky::stark::{LookupConfig, Stark};
 use starky::vars::StarkEvaluationVars;
+use starky::verifier::verify_stark_proof;
 
-use super::mozak_stark::{MozakStark, TableKind};
+use super::mozak_stark::MozakStark;
 use super::proof::AllProof;
 use crate::cpu::stark::CpuStark;
-use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
-use crate::rangecheck::stark::RangeCheckStark;
+use crate::cross_table_lookup::CtlCheckVars;
 use crate::stark::permutation::PermutationCheckVars;
 use crate::stark::poly::eval_vanishing_poly;
-use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
+use crate::stark::proof::{StarkOpeningSet, StarkProof, StarkProofChallenges};
 
 #[allow(clippy::missing_errors_doc)]
 pub fn verify_proof<F, C, const D: usize>(
-    mozak_stark: MozakStark<F, D>,
-    all_proof: AllProof<F, C, D>,
+    mozak_stark: &MozakStark<F, D>,
+    all_proof: &AllProof<F, C, D>,
     config: &StarkConfig,
 ) -> Result<()>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
+    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:, {
-    let AllProofChallenges {
-        stark_challenges,
-        ctl_challenges,
-    } = all_proof.get_challenges(&mozak_stark, config);
-    let nums_permutation_zs = mozak_stark.nums_permutation_zs(config);
+    let MozakStark { cpu_stark, .. } = mozak_stark;
 
-    let MozakStark {
-        cpu_stark,
-        rangecheck_stark,
-        cross_table_lookups,
-    } = mozak_stark;
-
-    let ctl_vars_per_table = CtlCheckVars::from_proofs(
-        &all_proof.stark_proofs,
-        &cross_table_lookups,
-        &ctl_challenges,
-        &nums_permutation_zs,
-    );
-
-    verify_stark_proof_with_challenges::<F, C, CpuStark<F, D>, D>(
-        &cpu_stark,
-        &all_proof.stark_proofs[TableKind::Cpu as usize],
-        &stark_challenges[TableKind::Cpu as usize],
-        &ctl_vars_per_table[TableKind::Cpu as usize],
-        config,
-    )?;
-
-    verify_stark_proof_with_challenges::<F, C, RangeCheckStark<F, D>, D>(
-        &rangecheck_stark,
-        &all_proof.stark_proofs[TableKind::RangeCheck as usize],
-        &stark_challenges[TableKind::RangeCheck as usize],
-        &ctl_vars_per_table[TableKind::RangeCheck as usize],
-        config,
-    )?;
-
-    verify_cross_table_lookups::<F, D>(&cross_table_lookups, &all_proof.all_ctl_zs_last(), config)?;
-    Ok(())
+    verify_stark_proof(*cpu_stark, all_proof.stark_proofs[0].clone(), config)
 }
 
+#[allow(unused)]
 pub(crate) fn verify_stark_proof_with_challenges<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,

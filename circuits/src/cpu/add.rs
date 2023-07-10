@@ -25,7 +25,6 @@ mod test {
     use mozak_vm::test_utils::{simple_test, simple_test_code};
 
     use crate::test_utils::simple_proof_test;
-
     #[test]
     fn prove_add() {
         let record = simple_test(4, &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)], &[
@@ -35,10 +34,8 @@ mod test {
         assert_eq!(record.last_state.get_register_value(5), 100 + 100);
         simple_proof_test(&record.executed).unwrap();
     }
-
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
-
     proptest! {
             #![proptest_config(ProptestConfig::with_cases(4))]
             #[test]

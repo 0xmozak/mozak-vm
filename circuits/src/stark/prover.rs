@@ -1,7 +1,6 @@
 #![allow(clippy::too_many_lines)]
 
 use anyhow::{ensure, Result};
-use itertools::Itertools;
 use mozak_vm::vm::Row;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
@@ -16,13 +15,13 @@ use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
 use plonky2_maybe_rayon::{MaybeIntoParIter, ParallelIterator};
 use starky::config::StarkConfig;
+use starky::prover::prove as prove_table;
 use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
-use super::permutation::get_grand_product_challenge_set;
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cpu::stark::CpuStark;
-use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
+use crate::cross_table_lookup::CtlData;
 use crate::generation::generate_traces;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::permutation::{
@@ -42,20 +41,16 @@ where
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
-    let traces_poly_values = generate_traces(step_rows);
-    prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
+    let trace_poly_values = generate_traces(step_rows);
+    prove_with_traces(mozak_stark, config, &trace_poly_values, timing)
 }
 
-/// Given the traces generated from [`generate_traces`], prove a [`MozakStark`].
-///
-/// # Errors
-/// Errors if proving fails.
+#[allow(clippy::missing_errors_doc)]
 pub fn prove_with_traces<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
-    traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+    trace_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
 where
@@ -63,73 +58,20 @@ where
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
-    let rate_bits = config.fri_config.rate_bits;
-    let cap_height = config.fri_config.cap_height;
-
-    let trace_commitments = timed!(
+    let cpu_proof = prove_table::<F, C, CpuStark<F, D>, D>(
+        mozak_stark.cpu_stark,
+        config,
+        trace_poly_values[0].clone(),
+        [],
         timing,
-        "compute all trace commitments",
-        traces_poly_values
-            .iter()
-            .zip_eq(TableKind::all())
-            .map(|(trace, table)| {
-                timed!(
-                    timing,
-                    &format!("compute trace commitment for {table:?}"),
-                    PolynomialBatch::<F, C, D>::from_values(
-                        // TODO: Cloning this isn't great; consider having `from_values` accept a
-                        // reference,
-                        // or having `compute_permutation_z_polys` read trace values from the
-                        // `PolynomialBatch`.
-                        trace.clone(),
-                        rate_bits,
-                        false,
-                        cap_height,
-                        timing,
-                        None,
-                    )
-                )
-            })
-            .collect::<Vec<_>>()
-    );
+    )?;
 
-    let trace_caps = trace_commitments
-        .iter()
-        .map(|c| c.merkle_tree.cap.clone())
-        .collect::<Vec<_>>();
-    let mut challenger = Challenger::<F, C::Hasher>::new();
-    for cap in &trace_caps {
-        challenger.observe_cap(cap);
-    }
-
-    let ctl_challenges = get_grand_product_challenge_set(&mut challenger, config.num_challenges);
-    let ctl_data_per_table = timed!(
-        timing,
-        "compute CTL data",
-        cross_table_lookup_data::<F, D>(
-            traces_poly_values,
-            &mozak_stark.cross_table_lookups,
-            &ctl_challenges
-        )
-    );
-    let stark_proofs = timed!(
-        timing,
-        "compute all proofs given commitments",
-        prove_with_commitments(
-            mozak_stark,
-            config,
-            traces_poly_values,
-            &trace_commitments,
-            &ctl_data_per_table,
-            &mut challenger,
-            timing
-        )?
-    );
+    let stark_proofs = [cpu_proof];
 
     Ok(AllProof { stark_proofs })
 }
+
 /// Compute proof for a single STARK table, with lookup data.
 ///
 /// # Errors
@@ -165,36 +107,25 @@ where
     challenger.compact();
 
     // Permutation arguments.
-    let permutation_challenges: Option<Vec<GrandProductChallengeSet<F>>> =
-        stark.uses_permutation_args().then(|| {
-            get_n_grand_product_challenge_sets(
-                challenger,
-                config.num_challenges,
-                stark.permutation_batch_size(),
-            )
-        });
-    let permutation_zs = permutation_challenges.as_ref().map(|challenges| {
-        timed!(
-            timing,
-            "compute permutation Z(x) polys",
-            compute_permutation_z_polys::<F, S, D>(
-                stark,
-                config,
-                trace_poly_values,
-                challenges.as_slice()
-            )
-        )
-    });
-    let num_permutation_zs = permutation_zs.as_ref().map_or(0, Vec::len);
+    let permutation_challenges: Vec<GrandProductChallengeSet<F>> =
+        get_n_grand_product_challenge_sets(
+            challenger,
+            config.num_challenges,
+            stark.permutation_batch_size(),
+        );
 
-    let z_polys = match permutation_zs {
-        None => ctl_data.z_polys(),
-        Some(mut permutation_zs) => {
-            permutation_zs.extend(ctl_data.z_polys());
-            permutation_zs
-        }
-    };
-    assert!(!z_polys.is_empty(), "No CTL?");
+    let z_polys = timed!(
+        timing,
+        "compute permutation Z(x) polys",
+        compute_permutation_z_polys::<F, S, D>(
+            stark,
+            config,
+            trace_poly_values,
+            permutation_challenges.as_slice()
+        )
+    );
+
+    let num_permutation_zs = z_polys.len();
 
     let permutation_ctl_zs_commitment = timed!(
         timing,
@@ -220,7 +151,7 @@ where
             stark,
             trace_commitment,
             &permutation_ctl_zs_commitment,
-            permutation_challenges.as_ref(),
+            Some(permutation_challenges).as_ref(),
             ctl_data,
             &alphas,
             degree_bits,
@@ -348,17 +279,7 @@ where
         challenger,
         timing,
     )?;
-
-    let rangecheck_proof = prove_single_table::<F, C, RangeCheckStark<F, D>, D>(
-        &mozak_stark.rangecheck_stark,
-        config,
-        &traces_poly_values[TableKind::RangeCheck as usize].clone(),
-        &trace_commitments[TableKind::RangeCheck as usize],
-        &ctl_data_per_table[TableKind::RangeCheck as usize].clone(),
-        challenger,
-        timing,
-    )?;
-    Ok([cpu_proof, rangecheck_proof])
+    Ok([cpu_proof])
 }
 
 #[cfg(test)]
