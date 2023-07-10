@@ -6,7 +6,7 @@ use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
 use crate::bitwise::columns as bitwise_cols;
 use crate::lookup::permute_cols;
-use crate::utils::{from_, limbs_from_u32};
+use crate::utils::from_;
 
 #[must_use]
 fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<Row> {
@@ -35,14 +35,13 @@ pub fn generate_bitwise_trace<F: RichField>(
         let opd1_value = state.get_register_value(inst.args.rs1);
         let opd2_value = state.get_register_value(inst.args.rs2);
         let opd2_imm_value = opd2_value.wrapping_add(inst.args.imm);
-        // let dst_value = state.get_register_value(inst.args.rd);
 
         trace[bitwise_cols::OP1][i] = from_(opd1_value);
         trace[bitwise_cols::OP2][i] = from_(opd2_imm_value);
         trace[bitwise_cols::RES][i] = from_(aux.dst_val);
-        let op1_limbs = limbs_from_u32(opd1_value);
-        let op2_limbs = limbs_from_u32(opd2_imm_value);
-        let dst_limbs = limbs_from_u32(aux.dst_val);
+        let op1_limbs = opd1_value.to_le_bytes();
+        let op2_limbs = opd2_imm_value.to_le_bytes();
+        let dst_limbs = aux.dst_val.to_le_bytes();
         for j in 0..4 {
             trace[bitwise_cols::OP1_LIMBS.start + j][i] = from_(op1_limbs[j]);
             trace[bitwise_cols::OP2_LIMBS.start + j][i] = from_(op2_limbs[j]);
@@ -53,6 +52,7 @@ pub fn generate_bitwise_trace<F: RichField>(
     // add FIXED bitwise table
     // 2^8 * 2^8 possible rows
     let mut index = 0;
+    // trace[bitwise_cols::FIX_RANGE_CHECK_U8] = (0..bitwise_cols::RANGE_CHECK_U8_SIZE).map(|op1| from_(op1 as u128)).collect();
     for op1 in 0..bitwise_cols::RANGE_CHECK_U8_SIZE {
         trace[bitwise_cols::FIX_RANGE_CHECK_U8][op1] = from_(op1 as u128);
 
