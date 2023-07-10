@@ -2,8 +2,8 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_DIVU, COL_S_REMU,
-    DIVU_QUOTIENT, DIVU_Q_INV, DIVU_REMAINDER, DIVU_REMAINDER_SLACK, NUM_CPU_COLS,
+    COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_DIVU, COL_S_REMU, DIVU_QUOTIENT, DIVU_Q_INV,
+    DIVU_REMAINDER, DIVU_REMAINDER_SLACK, NUM_CPU_COLS,
 };
 use crate::utils::column_of_xs;
 
@@ -22,7 +22,7 @@ pub(crate) fn constraints<P: PackedField>(
     // > quotient + remainder.
     // In the following code, we are looking at p/q.
     let p = lv[COL_OP1_VALUE];
-    let q = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
+    let q = lv[COL_OP2_VALUE];
 
     // The equation from the spec becomes:
     //  p = q * m + r
