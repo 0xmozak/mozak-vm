@@ -35,16 +35,16 @@ pub(crate) fn constraints<P: PackedField>(
     // For example, a malicious prover could trivially fulfill it via
     //  m := 0, r := p
 
-    // The solution is to constrain p further:
+    // The solution is to constrain r further:
     //  0 <= r < q
     // (This only works when q != 0.)
 
     // Logically, these are two independent constraints:
-    //      (A) 0 <= p
-    //      (B) p < q
-    // Part A is easy: we range-check p.
+    //      (A) 0 <= r
+    //      (B) r < q
+    // Part A is easy: we range-check r.
     // Part B is only slightly harder: borrowing the concept of 'slack variables' from linear programming (https://en.wikipedia.org/wiki/Slack_variable) we get:
-    // (B') p + slack + 1 = q
+    // (B') r + slack + 1 = q
     //      with range_check(slack)
 
     let slack = lv[DIVU_REMAINDER_SLACK];
