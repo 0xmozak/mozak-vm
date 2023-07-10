@@ -26,9 +26,14 @@ struct Cli {
 
 #[derive(Copy, Clone, Debug, Parser, PartialEq, ValueEnum)]
 enum Command {
+    /// Show build info available to shadow_rs
     BuildInfo,
+    /// Decode a given ELF and prints the program
     Decode,
+    /// Decode and execute a given ELF. Prints the final state of
+    /// the registers
     Run,
+    /// Prove and verify the execution of a given ELF
     Prove,
 }
 
