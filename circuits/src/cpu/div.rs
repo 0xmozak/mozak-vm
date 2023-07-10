@@ -8,10 +8,15 @@ use super::columns::{
 use crate::utils::column_of_xs;
 
 /// Constraints for DIVU / REMU instructions
+/// TODO: m, r, slack need range-checks.
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
+    let is_divu = lv[COL_S_DIVU];
+    let is_remu = lv[COL_S_REMU];
+    let dst = lv[COL_DST_VALUE];
+
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
     // > For both signed and unsigned division, it holds that dividend = divisor ×
     // > quotient + remainder.
@@ -30,28 +35,30 @@ pub(crate) fn constraints<P: PackedField>(
     // For example, a malicious prover could trivially fulfill it via
     //  m := 0, r := p
 
-    // The solution is to constrain p:
+    // The solution is to constrain p further:
     //  0 <= p < q
+    // (This only works when q != 0.)
+
+    // Logically, these are two independent constraints:
+    //      (A) 0 <= p
+    //      (B) p < q
+    // Part A is easy: we range-check p.
+    // Part B is only slightly harder: borrowing the concept of 'slack variables' from linear programming (https://en.wikipedia.org/wiki/Slack_variable) we get:
+    // (B') p + slack + 1 = q
+    //      with range_check(slack)
+
+    let slack = lv[DIVU_REMAINDER_SLACK];
+    yield_constr.constraint(q * (r + slack + P::ONES - q));
+
+    // Now we need to deal with division by zero.  The Risc-V spec says:
+    //      p / 0 == 0xFFFF_FFFF
+    //      p % 0 == p
 
     let q_inv = lv[DIVU_Q_INV];
-    // TODO: m, r, rt need range-checks.
-
-    // We only need rt column to range-check rt := q - r
-    let rt = lv[DIVU_REMAINDER_SLACK];
-
-    let is_divu = lv[COL_S_DIVU];
-    let is_remu = lv[COL_S_REMU];
-    let dst = lv[COL_DST_VALUE];
-
-    // Constraints for denominator != 0:
-    yield_constr.constraint(q * (r + rt - q));
-
-    // Constraints for denominator == 0.  On Risc-V:
-    // p / 0 == 0xFFFF_FFFF
-    // p % 0 == p
     yield_constr.constraint((P::ONES - q * q_inv) * (m - column_of_xs::<P>(u32::MAX.into())));
     yield_constr.constraint((P::ONES - q * q_inv) * (r - p));
 
+    // Last, we 'copy' our results:
     yield_constr.constraint(is_divu * (dst - m));
     yield_constr.constraint(is_remu * (dst - r));
 }
