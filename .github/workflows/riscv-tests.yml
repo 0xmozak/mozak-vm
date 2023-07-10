@@ -1,0 +1,44 @@
+name: Check Risc-V Tests are up to date
+
+on:
+  push:
+    branches:
+      - release/*
+    tags:
+      - "*"
+
+  # Triggers the workflow every sunday
+  schedule:
+    - cron: "0 18 * * 0"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-riscv-tests:
+    name: "Check Risc-V Tests are up to date"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          git ls-remote --quiet --heads https://github.com/riscv/riscv-tests.git master |
+              grep --only '^[^[:space:]]*' |
+              tee vm/tests/testdata/.testdata_generated_from_this_commit
+          git diff --exit-code || {
+              echo "::error RiscV tests are out of date";
+              cat vm/tests/create_testdata/error_message.markdown >> ${GITHUB_STEP_SUMMARY};
+              false
+          }
+
+      - name: Create github issue for failed action
+        uses: imjohnbo/issue-bot@v3
+        if: ${{ failure() }}
+        with:
+            assignees: "jdkanani, matthiasgoergens"
+            labels: "devtools"
+            title: "Risc-V tests are out of date"
+            body: |
+              Failed reference github action job: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              The reference ${{ github.ref_type }} ${{ github.ref }} was at commit ${{ github.sha }} when its run failed.
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
