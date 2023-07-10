@@ -40,7 +40,9 @@ lazy_static! {
 
 pub(crate) const COL_S_ADD: usize = COL_REGS_RANGE.end;
 pub(crate) const COL_S_SUB: usize = COL_S_ADD + 1;
-pub(crate) const COL_S_SLT: usize = COL_S_SUB + 1;
+pub(crate) const COL_S_DIVU: usize = COL_S_SUB + 1;
+pub(crate) const COL_S_REMU: usize = COL_S_DIVU + 1;
+pub(crate) const COL_S_SLT: usize = COL_S_REMU + 1;
 pub(crate) const COL_S_SLTU: usize = COL_S_SLT + 1;
 pub(crate) const COL_S_BEQ: usize = COL_S_SLTU + 1;
 pub(crate) const COL_S_ECALL: usize = COL_S_BEQ + 1;
@@ -55,7 +57,12 @@ pub(crate) const COL_CMP_ABS_DIFF: usize = COL_S_SLT_OP2_VAL_FIXED + 1;
 pub(crate) const COL_CMP_DIFF_INV: usize = COL_CMP_ABS_DIFF + 1;
 pub(crate) const COL_LESS_THAN: usize = COL_CMP_DIFF_INV + 1;
 
-pub(crate) const NUM_CPU_COLS: usize = COL_LESS_THAN + 1;
+pub(crate) const DIVU_QUOTIENT: usize = COL_LESS_THAN + 1;
+pub(crate) const DIVU_REMAINDER: usize = DIVU_QUOTIENT + 1;
+pub(crate) const DIVU_REMAINDER_SLACK: usize = DIVU_REMAINDER + 1;
+pub(crate) const DIVU_Q_INV: usize = DIVU_REMAINDER_SLACK + 1;
+
+pub(crate) const NUM_CPU_COLS: usize = DIVU_Q_INV + 1;
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
