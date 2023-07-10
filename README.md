@@ -35,7 +35,7 @@ You can update the tests via:
 
 ```bash
 cd vm/tests/create_testdata/
-./update_testdata
+./update_testdata.sh
 ```
 
 # Updating Rust toolchain
