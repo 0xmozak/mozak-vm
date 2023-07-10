@@ -36,7 +36,7 @@ pub(crate) fn constraints<P: PackedField>(
     //  m := 0, r := p
 
     // The solution is to constrain p further:
-    //  0 <= p < q
+    //  0 <= r < q
     // (This only works when q != 0.)
 
     // Logically, these are two independent constraints:
