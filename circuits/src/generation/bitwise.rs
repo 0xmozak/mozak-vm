@@ -101,7 +101,7 @@ pub fn generate_bitwise_trace<F: RichField>(
         (
             cols::RES_LIMBS_PERMUTED,
             cols::FIX_RANGE_CHECK_U8_PERMUTED.skip(8),
-            cols::OP2_LIMBS,
+            cols::RES_LIMBS,
         ),
     ] {
         for ((op_limb_permuted, range_check_limb_permuted), op_limb) in
@@ -109,6 +109,23 @@ pub fn generate_bitwise_trace<F: RichField>(
         {
             (trace[op_limb_permuted], trace[range_check_limb_permuted]) =
                 permute_cols(&trace[op_limb], &trace[cols::FIX_RANGE_CHECK_U8]);
+        }
+    }
+
+    for (compress_limbs_permuted, fixed_compress_limbs_permuted, compress_limbs) in [(
+        cols::COMPRESS_PERMUTED,
+        cols::FIX_COMPRESS_PERMUTED,
+        cols::COMPRESS_LIMBS,
+    )] {
+        for ((compress_limb_permuted, fixed_compress_limb_permuted), compress_limb) in
+            compress_limbs_permuted
+                .zip(fixed_compress_limbs_permuted)
+                .zip(compress_limbs)
+        {
+            (
+                trace[compress_limb_permuted],
+                trace[fixed_compress_limb_permuted],
+            ) = permute_cols(&trace[compress_limb], &trace[cols::FIX_COMPRESS]);
         }
     }
     let trace_row_vecs = trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
