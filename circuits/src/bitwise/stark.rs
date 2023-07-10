@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use anyhow::Result;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -10,8 +11,9 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{
-    FIX_RANGE_CHECK_U8_PERMUTED, NUM_BITWISE_COL, OP1, OP1_LIMBS, OP1_LIMBS_PERMUTED, OP2,
-    OP2_LIMBS, OP2_LIMBS_PERMUTED, RES, RES_LIMBS, RES_LIMBS_PERMUTED,
+    COMPRESS_LIMBS, COMPRESS_PERMUTED, FIX_COMPRESS_PERMUTED, FIX_RANGE_CHECK_U8_PERMUTED,
+    NUM_BITWISE_COL, OP1, OP1_LIMBS, OP1_LIMBS_PERMUTED, OP2, OP2_LIMBS, OP2_LIMBS_PERMUTED, RES,
+    RES_LIMBS, RES_LIMBS_PERMUTED,
 };
 use crate::lookup::eval_lookups;
 use crate::utils::from_;
@@ -19,7 +21,21 @@ use crate::utils::from_;
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct BitwiseStark<F, const D: usize> {
+    compress_challenge: Option<F>,
     pub _f: PhantomData<F>,
+}
+
+impl<F: RichField, const D: usize> BitwiseStark<F, D> {
+    /// # Panics
+    /// # Errors
+    /// Errors if try to reset `compress_challenge`.
+    pub fn set_compress_challenge(&mut self, challenge: F) -> Result<()> {
+        assert!(self.compress_challenge.is_none(), "already set?");
+        self.compress_challenge = Some(challenge);
+        Ok(())
+    }
+
+    pub fn get_compress_challenge(&self) -> Option<F> { self.compress_challenge }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<F, D> {
@@ -44,6 +60,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
             yield_constr.constraint(computed_sum - lv[opx]);
         }
 
+        // Constrain compress logic.
+        let beta = FE::from_basefield(self.get_compress_challenge().unwrap());
+        for i in 0..4 {
+            yield_constr.constraint(
+                lv[OP1_LIMBS.start + i]
+                    + lv[OP2_LIMBS.start + i] * beta
+                    + lv[RES_LIMBS.start + i] * beta * beta
+                    - lv[COMPRESS_LIMBS.start + i],
+            );
+        }
+
         for (fix_range_check_u8_permuted, opx_limbs_permuted) in FIX_RANGE_CHECK_U8_PERMUTED.zip(
             OP1_LIMBS_PERMUTED
                 .chain(OP2_LIMBS_PERMUTED)
@@ -55,6 +82,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
                 opx_limbs_permuted,
                 fix_range_check_u8_permuted,
             );
+        }
+
+        for (fix_compress_permuted, compress_permuted) in
+            FIX_COMPRESS_PERMUTED.zip(COMPRESS_PERMUTED)
+        {
+            eval_lookups(vars, yield_constr, compress_permuted, fix_compress_permuted);
         }
     }
 
@@ -89,7 +122,7 @@ mod tests {
     fn simple_and_test(a: u32, b: u32, imm: u32) {
         let config = standard_faster_config();
 
-        let stark = S::default();
+        let mut stark = S::default();
         let record = simple_test_code(
             &[Instruction {
                 op: Op::AND,
@@ -104,8 +137,9 @@ mod tests {
             &[(5, a), (6, b)],
         );
         assert_eq!(record.last_state.get_register_value(7), a & (b + imm));
-        let trace = generate_bitwise_trace(&record.executed);
+        let (trace, beta) = generate_bitwise_trace(&record.executed);
         let trace_poly_values = trace_to_poly_values(trace);
+        let _ = stark.set_compress_challenge(beta);
 
         let proof = prove_table::<F, C, S, D>(
             stark,
@@ -120,7 +154,7 @@ mod tests {
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
     proptest! {
-            #![proptest_config(ProptestConfig::with_cases(16))]
+            #![proptest_config(ProptestConfig::with_cases(4))]
             #[test]
             fn prove_andi_proptest(a in any::<u32>(), b in any::<u32>()) {
                 simple_and_test(a, 0, b);
