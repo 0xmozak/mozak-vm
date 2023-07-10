@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use anyhow::Result;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -21,21 +20,17 @@ use crate::utils::from_;
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct BitwiseStark<F, const D: usize> {
-    compress_challenge: Option<F>,
+    pub compress_challenge: F,
     pub _f: PhantomData<F>,
 }
 
 impl<F: RichField, const D: usize> BitwiseStark<F, D> {
-    /// # Panics
-    /// # Errors
-    /// Errors if try to reset `compress_challenge`.
-    pub fn set_compress_challenge(&mut self, challenge: F) -> Result<()> {
-        assert!(self.compress_challenge.is_none(), "already set?");
-        self.compress_challenge = Some(challenge);
-        Ok(())
+    pub fn new(compress_challenge: F) -> Self {
+        Self {
+            compress_challenge,
+            ..Self::default()
+        }
     }
-
-    pub fn get_compress_challenge(&self) -> Option<F> { self.compress_challenge }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<F, D> {
@@ -61,7 +56,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         }
 
         // Constrain compress logic.
-        let beta = FE::from_basefield(self.get_compress_challenge().unwrap());
+        let beta = FE::from_basefield(self.compress_challenge);
         for i in 0..4 {
             yield_constr.constraint(
                 lv[OP1_LIMBS.start + i]
@@ -122,7 +117,6 @@ mod tests {
     fn simple_and_test(a: u32, b: u32, imm: u32) {
         let config = standard_faster_config();
 
-        let mut stark = S::default();
         let record = simple_test_code(
             &[Instruction {
                 op: Op::AND,
@@ -139,7 +133,7 @@ mod tests {
         assert_eq!(record.last_state.get_register_value(7), a & (b + imm));
         let (trace, beta) = generate_bitwise_trace(&record.executed);
         let trace_poly_values = trace_to_poly_values(trace);
-        let _ = stark.set_compress_challenge(beta);
+        let stark = S::new(beta);
 
         let proof = prove_table::<F, C, S, D>(
             stark,
