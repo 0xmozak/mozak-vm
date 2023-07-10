@@ -48,7 +48,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "update: RISC-V tests files"
-          committer: GitHub <noreply@github.com>
+          committer: Mozak Bot <bot@mozak.com>
           author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
           signoff: false
           branch: github/actions/update-riscv-tests
