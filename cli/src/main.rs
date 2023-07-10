@@ -39,28 +39,27 @@ fn build_info() {
     println!("git_clean:{}", shadow_rs::git_clean()); // get current project clean. e.g 'true/false'
     println!("git_status_file:{}", shadow_rs::git_status_file()); // get current project statue file. e.g '  * examples/builtin_fn.rs (dirty)'
 
-    println!("{}", build::VERSION); //print version const
-    println!("{}", build::CLAP_LONG_VERSION); //print CLAP_LONG_VERSION const
-    println!("{}", build::BRANCH); //master
-    println!("{}", build::SHORT_COMMIT);//8405e28e
-    println!("{}", build::COMMIT_HASH);//8405e28e64080a09525a6cf1b07c22fcaf71a5c5
-    println!("{}", build::COMMIT_DATE);//2021-08-04 12:34:03 +00:00
-    println!("{}", build::COMMIT_AUTHOR);//baoyachi
-    println!("{}", build::COMMIT_EMAIL);//xxx@gmail.com
+    println!("{}", build::VERSION);
+    println!("{}", build::CLAP_LONG_VERSION);
+    println!("{}", build::BRANCH);
+    println!("{}", build::COMMIT_HASH);
+    println!("{}", build::COMMIT_DATE);
+    println!("{}", build::COMMIT_AUTHOR);
+    println!("{}", build::COMMIT_EMAIL);
 
-    println!("{}", build::BUILD_OS);//macos-x86_64
-    println!("{}", build::RUST_VERSION);//rustc 1.45.0 (5c1f21c3b 2020-07-13)
-    println!("{}", build::RUST_CHANNEL);//stable-x86_64-apple-darwin (default)
-    println!("{}", build::CARGO_VERSION);//cargo 1.45.0 (744bd1fbb 2020-06-15)
-    println!("{}", build::PKG_VERSION);//0.3.13
-    println!("{}", build::CARGO_TREE); //like command:cargo tree
-    println!("{}", build::CARGO_MANIFEST_DIR); // /User/baoyachi/shadow-rs/ |
+    println!("{}", build::BUILD_OS);
+    println!("{}", build::RUST_VERSION);
+    println!("{}", build::RUST_CHANNEL);
+    println!("{}", build::CARGO_VERSION);
+    println!("{}", build::PKG_VERSION);
+    println!("{}", build::CARGO_TREE);
+    println!("{}", build::CARGO_MANIFEST_DIR);
 
-    println!("{}", build::PROJECT_NAME);//shadow-rs
-    println!("{}", build::BUILD_TIME);//2020-08-16 14:50:25
-    println!("{}", build::BUILD_RUST_CHANNEL);//debug
-    println!("{}", build::GIT_CLEAN);//false
-    println!("{}", build::GIT_STATUS_FILE);//* src/lib.rs (dirty)
+    println!("{}", build::PROJECT_NAME);
+    println!("{}", build::BUILD_TIME);
+    println!("{}", build::BUILD_RUST_CHANNEL);
+    println!("{}", build::GIT_CLEAN);
+    println!("{}", build::GIT_STATUS_FILE);
 }
 
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi`
