@@ -45,8 +45,8 @@ pub fn generate_bitwise_trace<F: RichField>(
             (bitwise_cols::OP2_LIMBS, opd2_imm_value.to_le_bytes()),
             (bitwise_cols::RES_LIMBS, aux.dst_val.to_le_bytes()),
         ] {
-            for (c, l) in cols.zip(limbs) {
-                trace[c][i] = from_(l);
+            for (col, limb) in cols.zip(limbs) {
+                trace[col][i] = from_(limb);
             }
         }
     }
