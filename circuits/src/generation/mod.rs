@@ -8,13 +8,15 @@ use plonky2::field::polynomial::PolynomialValues;
 use plonky2::hash::hash_types::RichField;
 
 use self::cpu::generate_cpu_trace;
+use crate::stark::mozak_stark::NUM_TABLES;
 use crate::stark::utils::trace_to_poly_values;
 
 #[must_use]
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     step_rows: &[Row],
-) -> [Vec<PolynomialValues<F>>; 1] {
+) -> [Vec<PolynomialValues<F>>; NUM_TABLES] {
     let cpu_rows = generate_cpu_trace::<F>(step_rows);
     let cpu_trace = trace_to_poly_values(cpu_rows);
+
     [cpu_trace]
 }

@@ -793,7 +793,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "array-concat",
- "itertools 0.11.0",
+ "itertools 0.10.5",
  "lazy_static",
  "log",
  "mozak-vm",
@@ -1400,8 +1400,7 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "starky"
 version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73e8e3cedd5a3dd61a00cc83150002e7609947b5a4a20244ef34fcbd1a17f649"
+source = "git+https://github.com/0xmozak/plonky2.git#88258415a5e35a9f849fa906fa6cca44f75dc1e0"
 dependencies = [
  "anyhow",
  "itertools 0.10.5",
