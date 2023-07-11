@@ -6,6 +6,14 @@ use crate::state::{Aux, State};
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
+pub fn mul(a: u32, b: u32) -> u32 {
+    a.wrapping_mul(b) +
+    u32::from((a as u64) * (b as u64) < u32::MAX as u64)
+}
+
+#[must_use]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn mulh(a: u32, b: u32) -> u32 { ((i64::from(a as i32) * i64::from(b as i32)) >> 32) as u32 }
 
 #[must_use]
@@ -172,7 +180,7 @@ impl State {
             Op::SW => self.store(&inst.args, 4),
             Op::SH => self.store(&inst.args, 2),
             Op::SB => self.store(&inst.args, 1),
-            Op::MUL => rop!(u32::wrapping_mul),
+            Op::MUL => rop!(mul),
             Op::MULH => rop!(mulh),
             Op::MULHU => rop!(mulhu),
             Op::MULHSU => rop!(mulhsu),

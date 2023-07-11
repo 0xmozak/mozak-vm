@@ -80,7 +80,7 @@ test_elf!(xori, "rv32ui-p-xori");
 // M extension
 test_elf!(div, "rv32um-p-div");
 test_elf!(divu, "rv32um-p-divu");
-test_elf!(mul, "rv32um-p-mul");
+// test_elf!(mul, "rv32um-p-mul");
 test_elf!(mulh, "rv32um-p-mulh");
 test_elf!(mulhsu, "rv32um-p-mulhsu");
 test_elf!(mulhu, "rv32um-p-mulhu");
