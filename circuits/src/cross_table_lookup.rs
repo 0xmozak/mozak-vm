@@ -54,7 +54,7 @@ pub struct CrossTableLookup<F: Field> {
 
 impl<F: Field> CrossTableLookup<F> {
     /// Instantiates a new cross table lookup between 2 tables.
-    ///  
+    ///
     /// # Panics
     /// Panics if the two tables do not have equal number of columns.
     pub fn new(looking_tables: Vec<Table<F>>, looked_table: Table<F>) -> Self {

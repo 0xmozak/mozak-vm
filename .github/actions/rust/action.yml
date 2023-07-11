@@ -22,6 +22,6 @@ runs:
       if: ${{ inputs.cache-key != '' }}
       with:
         prefix-key: ${{ inputs.cache-key }}
-    
+
     - uses: Swatinem/rust-cache@v2
       if: ${{ inputs.cache-key == '' }}
