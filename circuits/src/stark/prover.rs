@@ -130,6 +130,7 @@ where
 
     Ok(AllProof { stark_proofs })
 }
+
 /// Compute proof for a single STARK table, with lookup data.
 ///
 /// # Errors
