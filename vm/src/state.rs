@@ -13,16 +13,16 @@ use crate::instruction::{Args, Instruction};
 #[derive(Clone, Debug, Default)]
 pub struct State {
     pub clk: u64,
-    halted: bool,
-    registers: [u32; 32],
-    pc: u32,
-    memory: HashMap<u32, u8>,
+    pub halted: bool,
+    pub registers: [u32; 32],
+    pub pc: u32,
+    pub memory: HashMap<u32, u8>,
     // NOTE: meant to be immutable.
     // TODO(Matthias): replace with an immutable reference,
     // but need to sort out life-times first
     // (ie sort out where the original lives.)
     // This ain't super-urgent, because im::hashmap::HashMap is O(1) to clone.
-    code: Code,
+    pub code: Code,
 }
 
 impl From<Program> for State {
