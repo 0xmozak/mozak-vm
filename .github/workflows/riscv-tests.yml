@@ -1,0 +1,68 @@
+name: Check Risc-V Tests are up to date
+
+on:
+  push:
+    branches:
+      - release/*
+    tags:
+      - "*"
+
+  # Triggers the workflow every sunday
+  schedule:
+    - cron: "0 18 * * 0"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-riscv-tests:
+    name: "Check Risc-V Tests are up to date"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check if Risc-V tests are up to date
+        run: |
+          git ls-remote --quiet --heads https://github.com/riscv/riscv-tests.git master |
+              grep --only '^[^[:space:]]*' |
+              tee vm/tests/testdata/.testdata_generated_from_this_commit
+          git diff --exit-code || {
+              echo "::error RiscV tests are out of date";
+              cat vm/tests/create_testdata/error_message.markdown >> ${GITHUB_STEP_SUMMARY};
+              false
+          }
+
+      - name: Update Risc-V tests
+        if: ${{ failure() }}
+        id: update-risc-v-tests
+        run: ./update_testdata
+
+      - name: Create Pull Request using new test files
+        id: create-pr
+        if: ${{ failure() && steps.update-risc-v-tests.outcome == 'success' }}
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "update: RISC-V tests files"
+          committer: Mozak Bot <bot@mozak.com>
+          author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
+          signoff: false
+          branch: github/actions/update-riscv-tests
+          delete-branch: true
+          title: "Update RISC-V tests"
+          add-paths: |
+            vm/
+          body: |
+            This PR is automatically generated as part of Github actions.
+            Here is the action job: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          labels: |
+            risc-v tests
+            automated pr
+
+      - name: Check PR outputs
+        if: ${{ failure() && steps.create-pr.outputs.pull-request-number }}
+        run: |
+          echo "Pull Request Number - ${{ steps.create-pr.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.create-pr.outputs.pull-request-url }}"
