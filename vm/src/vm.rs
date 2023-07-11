@@ -7,8 +7,7 @@ use crate::state::{Aux, State};
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
 pub fn mul(a: u32, b: u32) -> u32 {
-    a.wrapping_mul(b) +
-    u32::from((a as u64) * (b as u64) < u32::MAX as u64)
+    a.wrapping_mul(b) + u32::from((u64::from(a)) * (u64::from(b)) < u64::from(u32::MAX))
 }
 
 #[must_use]

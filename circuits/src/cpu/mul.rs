@@ -2,7 +2,7 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_MUL, NUM_CPU_COLS, MUL_HIGH_BITS,
+    COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_MUL, MUL_HIGH_BITS, NUM_CPU_COLS,
 };
 use crate::utils::from_;
 
