@@ -19,8 +19,12 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         trace[cpu_cols::COL_RS1_SELECT[inst.args.rs1 as usize]][i] = F::ONE;
         trace[cpu_cols::COL_RS2_SELECT[inst.args.rs2 as usize]][i] = F::ONE;
         trace[cpu_cols::COL_RD_SELECT[inst.args.rd as usize]][i] = F::ONE;
-        trace[cpu_cols::COL_OP1_VALUE][i] = from_(state.get_register_value(inst.args.rs1));
-        trace[cpu_cols::COL_OP2_VALUE][i] = from_(state.get_register_value(inst.args.rs2));
+        let op1_value = state.get_register_value(inst.args.rs1);
+        let op2_value = state.get_register_value(inst.args.rs2);
+        trace[cpu_cols::COL_OP1_VALUE][i] = from_(op1_value);
+        trace[cpu_cols::COL_OP2_VALUE][i] = from_(op2_value);
+        let mul_high_bits = (u64::from(op1_value) * u64::from(op2_value)) / (1_u64 << 32_u64);
+        trace[cpu_cols::MUL_HIGH_BITS][i] = from_(mul_high_bits);
         // NOTE: Updated value of DST register is next step.
         trace[cpu_cols::COL_DST_VALUE][i] = from_(aux.dst_val);
         trace[cpu_cols::COL_IMM_VALUE][i] = from_(inst.args.imm);
@@ -41,6 +45,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             Op::SUB => trace[cpu_cols::COL_S_SUB][i] = F::ONE,
             Op::DIVU => trace[cpu_cols::COL_S_DIVU][i] = F::ONE,
             Op::REMU => trace[cpu_cols::COL_S_REMU][i] = F::ONE,
+            Op::MUL => trace[cpu_cols::COL_S_MUL][i] = F::ONE,
             Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
             #[tarpaulin::skip]
