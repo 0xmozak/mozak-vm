@@ -63,8 +63,9 @@ pub(crate) const DIVU_REMAINDER: usize = DIVU_QUOTIENT + 1;
 pub(crate) const DIVU_REMAINDER_SLACK: usize = DIVU_REMAINDER + 1;
 pub(crate) const DIVU_Q_INV: usize = DIVU_REMAINDER_SLACK + 1;
 pub(crate) const MUL_HIGH_BITS: usize = DIVU_Q_INV + 1;
+pub(crate) const MUL_HIGH_DIFF_INV: usize = MUL_HIGH_BITS + 1;
 
-pub(crate) const NUM_CPU_COLS: usize = MUL_HIGH_BITS + 1;
+pub(crate) const NUM_CPU_COLS: usize = MUL_HIGH_DIFF_INV + 1;
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).

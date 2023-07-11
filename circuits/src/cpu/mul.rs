@@ -2,9 +2,10 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_MUL, NUM_CPU_COLS, MUL_HIGH_BITS,
+    COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_MUL, MUL_HIGH_BITS, MUL_HIGH_DIFF_INV,
+    NUM_CPU_COLS,
 };
-use crate::utils::from_;
+use crate::utils::{column_of_xs, from_};
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
@@ -12,6 +13,10 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     let base: P::Scalar = from_(1_u128 << 32);
     let multiplied = lv[COL_OP1_VALUE] * lv[COL_OP2_VALUE];
+    let u32_max = column_of_xs::<P>(u64::from(u32::MAX));
+    let diff = u32_max - lv[MUL_HIGH_BITS];
+    // MUL_HIGH_BITS should not be equal to u32::MAX
+    yield_constr.constraint(diff * lv[MUL_HIGH_DIFF_INV] - P::ONES);
     let high_part = lv[MUL_HIGH_BITS] * base;
 
     yield_constr.constraint(lv[COL_S_MUL] * (multiplied - (lv[COL_DST_VALUE] + high_part)));

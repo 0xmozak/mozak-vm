@@ -25,6 +25,9 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         trace[cpu_cols::COL_OP2_VALUE][i] = from_(op2_value);
         let mul_high_bits = (u64::from(op1_value) * u64::from(op2_value)) / (1_u64 << 32_u64);
         trace[cpu_cols::MUL_HIGH_BITS][i] = from_(mul_high_bits);
+        let mul_high_diff = u32::MAX - mul_high_bits as u32;
+        let mul_high_diff_f: F = from_(mul_high_diff);
+        trace[cpu_cols::MUL_HIGH_DIFF_INV][i] = mul_high_diff_f.try_inverse().unwrap_or_default();
         // NOTE: Updated value of DST register is next step.
         trace[cpu_cols::COL_DST_VALUE][i] = from_(aux.dst_val);
         trace[cpu_cols::COL_IMM_VALUE][i] = from_(inst.args.imm);
