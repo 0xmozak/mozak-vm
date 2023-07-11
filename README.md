@@ -31,12 +31,7 @@ Updating the official Risc-V tests relies on Docker to install the RISC-V toolch
 The Mozak VM implements the base RV32I instruction set with the M-extension,
 so we are using rv32ui and rv32um ELF files from the [riscv-software-src/riscv-tests](https://github.com/riscv-software-src/riscv-tests) repo.
 
-You can update the tests via:
-
-```bash
-cd vm/tests/create_testdata/
-./update_testdata.sh
-```
+You can update the tests via `./update_testdata` in the root of the repository.
 
 # Updating Rust toolchain
 

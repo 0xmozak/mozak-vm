@@ -37,9 +37,7 @@ jobs:
       - name: Update Risc-V tests
         if: ${{ failure() }}
         id: update-risc-v-tests
-        run: |
-          cd vm/tests/create_testdata
-          bash update_testdata.sh
+        run: ./update_testdata
 
       - name: Create Pull Request using new test files
         id: create-pr
