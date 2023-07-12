@@ -13,9 +13,9 @@ pub(crate) fn constraints<P: PackedField>(
     // TODO: q needs be checked against lookup table to ensure:
     // q == 1 << shift_amount
     let q = lv[SRL_QUOTIENT];
-    // TODO: r need range-checks.
+    // TODO: r needs range-check.
     let r = lv[SRL_REMAINDER];
-    // TODO: q_r_1 need range-checks.
+    // TODO: q_r_1 needs range-check.
     let q_r_1 = lv[SRL_REMAINDER_SLACK];
 
     let is_srl = lv[COL_S_SRL];
