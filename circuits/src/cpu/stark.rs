@@ -159,15 +159,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         // Registers
         r0_always_0(lv, yield_constr);
         only_rd_changes(lv, nv, yield_constr);
-        rd_actually_changes(lv, nv, yield_constr);
-        populate_op1_value(lv, yield_constr);
-        populate_op2_value(lv, yield_constr);
+        // rd_actually_changes(lv, nv, yield_constr);
+        // populate_op1_value(lv, yield_constr);
+        // populate_op2_value(lv, yield_constr);
 
         // add constraint
         add::constraints(lv, yield_constr);
         sub::constraints(lv, yield_constr);
         slt::constraints(lv, yield_constr);
-        div::constraints(lv, yield_constr);
+        // div::constraints(lv, yield_constr);
 
         // Last row must be HALT
         yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);

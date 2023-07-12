@@ -35,6 +35,13 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             Op::ADD => {
                 trace[cpu_cols::COL_S_RC][i] = F::ONE;
                 trace[cpu_cols::COL_S_ADD][i] = F::ONE;
+                // test for range check
+                if inst.args.imm == 0 {
+                    trace[cpu_cols::COL_OP1_VALUE][i] = from_(0xFFFF_FFFF_u128);
+                    trace[cpu_cols::COL_OP2_VALUE][i] = from_(0x1_u128);
+                    trace[cpu_cols::COL_DST_VALUE][i] = from_(0x1_0000_0000_u128);
+                }
+
             }
             Op::SLT => trace[cpu_cols::COL_S_SLT][i] = F::ONE,
             Op::SLTU => trace[cpu_cols::COL_S_SLTU][i] = F::ONE,
