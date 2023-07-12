@@ -78,9 +78,9 @@ fn generate_srl_row<F: RichField>(
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
     let q = 2_u32.pow(op2);
     let r = op1 % q;
-    trace[cpu_cols::SRL_Q][row_idx] = from_::<_, F>(q);
-    trace[cpu_cols::SRL_R][row_idx] = from_(r);
-    trace[cpu_cols::SRL_Q_R_1][row_idx] = from_(q - r - 1);
+    trace[cpu_cols::SRL_QUOTIENT][row_idx] = from_::<_, F>(q);
+    trace[cpu_cols::SRL_REMAINDER][row_idx] = from_(r);
+    trace[cpu_cols::SRL_REMAINDER_SLACK][row_idx] = from_(q - r - 1);
 }
 
 #[allow(clippy::cast_possible_wrap)]

@@ -2,7 +2,7 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_DST_VALUE, COL_OP1_VALUE, COL_S_SRL, NUM_CPU_COLS, SRL_Q, SRL_Q_R_1, SRL_R,
+    COL_DST_VALUE, COL_OP1_VALUE, COL_S_SRL, NUM_CPU_COLS, SRL_QUOTIENT, SRL_REMAINDER_SLACK, SRL_REMAINDER,
 };
 
 pub(crate) fn constraints<P: PackedField>(
@@ -12,11 +12,11 @@ pub(crate) fn constraints<P: PackedField>(
     let p = lv[COL_OP1_VALUE];
     // TODO: q needs be checked against lookup table to ensure:
     // q == 1 << shift_amount
-    let q = lv[SRL_Q];
+    let q = lv[SRL_QUOTIENT];
     // TODO: r need range-checks.
-    let r = lv[SRL_R];
+    let r = lv[SRL_REMAINDER];
     // TODO: q_r_1 need range-checks.
-    let q_r_1 = lv[SRL_Q_R_1];
+    let q_r_1 = lv[SRL_REMAINDER_SLACK];
 
     let is_srl = lv[COL_S_SRL];
     let dst = lv[COL_DST_VALUE];

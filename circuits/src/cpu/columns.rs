@@ -63,11 +63,11 @@ pub(crate) const DIVU_REMAINDER: usize = DIVU_QUOTIENT + 1;
 pub(crate) const DIVU_REMAINDER_SLACK: usize = DIVU_REMAINDER + 1;
 pub(crate) const DIVU_Q_INV: usize = DIVU_REMAINDER_SLACK + 1;
 
-pub(crate) const SRL_Q: usize = DIVU_Q_INV + 1;
-pub(crate) const SRL_R: usize = SRL_Q + 1;
-pub(crate) const SRL_Q_R_1: usize = SRL_R + 1;
+pub(crate) const SRL_QUOTIENT: usize = DIVU_Q_INV + 1;
+pub(crate) const SRL_REMAINDER: usize = SRL_QUOTIENT + 1;
+pub(crate) const SRL_REMAINDER_SLACK: usize = SRL_REMAINDER + 1;
 
-pub(crate) const NUM_CPU_COLS: usize = SRL_Q_R_1 + 1;
+pub(crate) const NUM_CPU_COLS: usize = SRL_REMAINDER_SLACK + 1;
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
