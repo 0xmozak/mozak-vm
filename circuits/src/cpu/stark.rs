@@ -13,7 +13,7 @@ use super::columns::{
     COL_RS1_SELECT, COL_RS2_SELECT, COL_S_ADD, COL_S_BEQ, COL_S_DIVU, COL_S_ECALL, COL_S_HALT,
     COL_S_REMU, COL_S_SLT, COL_S_SLTU, COL_S_SRL, COL_S_SUB, NUM_CPU_COLS,
 };
-use super::{add, div, slt, srl, sub};
+use super::{add, div, slt, sub};
 use crate::utils::column_of_xs;
 
 #[derive(Copy, Clone, Default)]
@@ -168,7 +168,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         sub::constraints(lv, yield_constr);
         slt::constraints(lv, yield_constr);
         div::constraints(lv, yield_constr);
-        srl::constraints(lv, yield_constr);
 
         // Last row must be HALT
         yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);

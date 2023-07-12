@@ -58,16 +58,14 @@ pub(crate) const COL_CMP_ABS_DIFF: usize = COL_S_SLT_OP2_VAL_FIXED + 1;
 pub(crate) const COL_CMP_DIFF_INV: usize = COL_CMP_ABS_DIFF + 1;
 pub(crate) const COL_LESS_THAN: usize = COL_CMP_DIFF_INV + 1;
 
-pub(crate) const DIVU_QUOTIENT: usize = COL_LESS_THAN + 1;
-pub(crate) const DIVU_REMAINDER: usize = DIVU_QUOTIENT + 1;
-pub(crate) const DIVU_REMAINDER_SLACK: usize = DIVU_REMAINDER + 1;
-pub(crate) const DIVU_Q_INV: usize = DIVU_REMAINDER_SLACK + 1;
+pub(crate) const QUOTIENT: usize = COL_LESS_THAN + 1;
+pub(crate) const REMAINDER: usize = QUOTIENT + 1;
+pub(crate) const REMAINDER_SLACK: usize = REMAINDER + 1;
+pub(crate) const DIVISOR_INV: usize = REMAINDER_SLACK + 1;
 
-pub(crate) const SRL_QUOTIENT: usize = DIVU_Q_INV + 1;
-pub(crate) const SRL_REMAINDER: usize = SRL_QUOTIENT + 1;
-pub(crate) const SRL_REMAINDER_SLACK: usize = SRL_REMAINDER + 1;
+pub(crate) const DIVISOR: usize = DIVISOR_INV + 1;
 
-pub(crate) const NUM_CPU_COLS: usize = SRL_REMAINDER_SLACK + 1;
+pub(crate) const NUM_CPU_COLS: usize = DIVISOR + 1;
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
