@@ -33,7 +33,10 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         generate_slt_row(&mut trace, &inst, state, i);
         generate_srl_row(&mut trace, &inst, state, i);
         match inst.op {
-            Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,
+            Op::ADD => {
+                trace[cpu_cols::COL_S_RC][i] = F::ONE;
+                trace[cpu_cols::COL_S_ADD][i] = F::ONE;
+            }
             Op::SLT => trace[cpu_cols::COL_S_SLT][i] = F::ONE,
             Op::SLTU => trace[cpu_cols::COL_S_SLTU][i] = F::ONE,
             Op::SRL => trace[cpu_cols::COL_S_SRL][i] = F::ONE,
@@ -88,15 +91,15 @@ fn generate_divu_row<F: RichField>(
     row_idx: usize,
 ) {
     let op1 = state.get_register_value(inst.args.rs1);
-    let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
+    let op2 = state.get_register_value(inst.args.rs2);
     if let 0 = op2 {
-        trace[cpu_cols::DIVU_M][row_idx] = from_(u32::MAX);
-        trace[cpu_cols::DIVU_R][row_idx] = from_(op1);
-        trace[cpu_cols::DIVU_R_TOP][row_idx] = from_(0_u32);
+        trace[cpu_cols::DIVU_QUOTIENT][row_idx] = from_(u32::MAX);
+        trace[cpu_cols::DIVU_REMAINDER][row_idx] = from_(op1);
+        trace[cpu_cols::DIVU_REMAINDER_SLACK][row_idx] = from_(0_u32);
     } else {
-        trace[cpu_cols::DIVU_M][row_idx] = from_(op1 / op2);
-        trace[cpu_cols::DIVU_R][row_idx] = from_(op1 % op2);
-        trace[cpu_cols::DIVU_R_TOP][row_idx] = from_(op2 - op1 % op2);
+        trace[cpu_cols::DIVU_QUOTIENT][row_idx] = from_(op1 / op2);
+        trace[cpu_cols::DIVU_REMAINDER][row_idx] = from_(op1 % op2);
+        trace[cpu_cols::DIVU_REMAINDER_SLACK][row_idx] = from_(op2 - op1 % op2 - 1);
     }
     trace[cpu_cols::DIVU_Q_INV][row_idx] = from_::<_, F>(op2).try_inverse().unwrap_or_default();
 }
