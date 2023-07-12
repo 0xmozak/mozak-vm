@@ -2,12 +2,16 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_DIVU, COL_S_REMU, DIVU_QUOTIENT, DIVU_Q_INV,
-    DIVU_REMAINDER, DIVU_REMAINDER_SLACK, NUM_CPU_COLS,
+    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_DIVU, COL_S_REMU, COL_S_SRL,
+    DIVISOR, DIVISOR_INV, NUM_CPU_COLS, QUOTIENT, REMAINDER, REMAINDER_SLACK,
 };
 use crate::utils::column_of_xs;
 
-/// Constraints for DIVU / REMU instructions
+/// Constraints for DIVU / REMU / SRL instructions
+///
+/// SRL stands for 'shift right logical'.  We can treat it as a variant of
+/// unsigned division.
+///
 /// TODO: m, r, slack need range-checks.
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
@@ -15,6 +19,7 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     let is_divu = lv[COL_S_DIVU];
     let is_remu = lv[COL_S_REMU];
+    let is_srl = lv[COL_S_SRL];
     let dst = lv[COL_DST_VALUE];
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
@@ -22,13 +27,17 @@ pub(crate) fn constraints<P: PackedField>(
     // > quotient + remainder.
     // In the following code, we are looking at p/q.
     let p = lv[COL_OP1_VALUE];
-    let q = lv[COL_OP2_VALUE];
+    let op2 = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
+    let q = lv[DIVISOR];
+    yield_constr.constraint((is_divu + is_remu) * (q - op2));
+    // TODO: for SRL `q` needs be checked against lookup table to ensure:
+    //     q == 1 << shift_amount
 
     // The equation from the spec becomes:
     //  p = q * m + r
     // (Interestingly, this holds even when q == 0.)
-    let m = lv[DIVU_QUOTIENT];
-    let r = lv[DIVU_REMAINDER];
+    let m = lv[QUOTIENT];
+    let r = lv[REMAINDER];
     yield_constr.constraint(m * q + r - p);
 
     // However, that constraint is not enough.
@@ -47,19 +56,19 @@ pub(crate) fn constraints<P: PackedField>(
     // (B') r + slack + 1 = q
     //      with range_check(slack)
 
-    let slack = lv[DIVU_REMAINDER_SLACK];
+    let slack = lv[REMAINDER_SLACK];
     yield_constr.constraint(q * (r + slack + P::ONES - q));
 
     // Now we need to deal with division by zero.  The Risc-V spec says:
     //      p / 0 == 0xFFFF_FFFF
     //      p % 0 == p
 
-    let q_inv = lv[DIVU_Q_INV];
+    let q_inv = lv[DIVISOR_INV];
     yield_constr.constraint((P::ONES - q * q_inv) * (m - column_of_xs::<P>(u32::MAX.into())));
     yield_constr.constraint((P::ONES - q * q_inv) * (r - p));
 
     // Last, we 'copy' our results:
-    yield_constr.constraint(is_divu * (dst - m));
+    yield_constr.constraint((is_divu + is_srl) * (dst - m));
     yield_constr.constraint(is_remu * (dst - r));
 }
 
@@ -118,6 +127,35 @@ mod test {
                 } else {
                     p % q
                 });
+            simple_proof_test(&record.executed).unwrap();
+        }
+        #[test]
+        fn prove_srl_proptest(p in any::<u32>(), q in 0_u32..32, rd in 3_u8..32) {
+            let record = simple_test_code(
+                &[Instruction {
+                    op: Op::SRL,
+                    args: Args {
+                        rd,
+                        rs1: 1,
+                        rs2: 2,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::SRL,
+                    args: Args {
+                        rd,
+                        rs1: 1,
+                        rs2: 0,
+                        imm: q,
+                    },
+                }
+                ],
+                &[],
+                &[(1, p), (2, q)],
+            );
+            prop_assert_eq!(record.executed[0].aux.dst_val, p >> q);
+            prop_assert_eq!(record.executed[1].aux.dst_val, p >> q);
             simple_proof_test(&record.executed).unwrap();
         }
     }
