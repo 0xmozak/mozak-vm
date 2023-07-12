@@ -71,6 +71,9 @@ pub fn generate_bitwise_trace<F: RichField>(
         challenger.observe_elements(&trace[limb]);
     }
     let beta = challenger.get_challenge();
+    // TODO: Fix following issues related to possible security risks due to this
+    // randomness. https://github.com/0xmozak/mozak-vm/issues/310
+    // https://github.com/0xmozak/mozak-vm/issues/309
 
     for i in 0..trace[0].len() {
         for (((compress_limb, op1_limb), op2_limb), res_limb) in cols::COMPRESS_LIMBS

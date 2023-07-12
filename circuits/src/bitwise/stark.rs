@@ -47,6 +47,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         let lv = vars.local_values;
 
         // sumcheck for op1, op2, res limbs
+        // to ensure indeed limbs are generated from given value.
         // We enforce the constraint:
         //     opx == Sum(opx_limbs * 2^(8*i))
         for (opx, opx_limbs) in [(OP1, OP1_LIMBS), (OP2, OP2_LIMBS), (RES, RES_LIMBS)] {
@@ -114,7 +115,7 @@ mod tests {
 
     type S = BitwiseStark<F, D>;
 
-    fn simple_and_test(a: u32, b: u32, imm: u32) {
+    fn test_bitwise_and_stark(a: u32, b: u32, imm: u32) {
         let config = standard_faster_config();
 
         let record = simple_test_code(
@@ -151,11 +152,11 @@ mod tests {
             #![proptest_config(ProptestConfig::with_cases(4))]
             #[test]
             fn prove_andi_proptest(a in any::<u32>(), b in any::<u32>()) {
-                simple_and_test(a, 0, b);
+                test_bitwise_and_stark(a, 0, b);
             }
             #[test]
             fn prove_and_proptest(a in any::<u32>(), b in any::<u32>()) {
-                simple_and_test(a, b, 0);
+                test_bitwise_and_stark(a, b, 0);
             }
     }
 }
