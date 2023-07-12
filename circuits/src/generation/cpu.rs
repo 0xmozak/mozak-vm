@@ -31,6 +31,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
         generate_divu_row(&mut trace, &inst, state, i);
         generate_slt_row(&mut trace, &inst, state, i);
+        generate_srl_row(&mut trace, &inst, state, i);
         match inst.op {
             Op::ADD => {
                 trace[cpu_cols::COL_S_RC][i] = F::ONE;
@@ -38,6 +39,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             }
             Op::SLT => trace[cpu_cols::COL_S_SLT][i] = F::ONE,
             Op::SLTU => trace[cpu_cols::COL_S_SLTU][i] = F::ONE,
+            Op::SRL => trace[cpu_cols::COL_S_SRL][i] = F::ONE,
             Op::SUB => trace[cpu_cols::COL_S_SUB][i] = F::ONE,
             Op::DIVU => trace[cpu_cols::COL_S_DIVU][i] = F::ONE,
             Op::REMU => trace[cpu_cols::COL_S_REMU][i] = F::ONE,
@@ -61,6 +63,24 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             v.len()
         )
     })
+}
+
+fn generate_srl_row<F: RichField>(
+    trace: &mut [Vec<F>],
+    inst: &Instruction,
+    state: &State,
+    row_idx: usize,
+) {
+    if inst.op != Op::SRL {
+        return;
+    }
+    let op1 = state.get_register_value(inst.args.rs1);
+    let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
+    let q = 2_u32.pow(op2);
+    let r = op1 % q;
+    trace[cpu_cols::SRL_QUOTIENT][row_idx] = from_::<_, F>(q);
+    trace[cpu_cols::SRL_REMAINDER][row_idx] = from_(r);
+    trace[cpu_cols::SRL_REMAINDER_SLACK][row_idx] = from_(q - r - 1);
 }
 
 #[allow(clippy::cast_possible_wrap)]
