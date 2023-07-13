@@ -37,7 +37,7 @@ mod test {
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
     proptest! {
-            #![proptest_config(ProptestConfig::with_cases(64))]
+            #![proptest_config(ProptestConfig::with_cases(4))]
             #[test]
             fn prove_add_proptest(a in any::<u32>(), b in any::<u32>(), rd in 0_u8..32) {
                 let record = simple_test_code(

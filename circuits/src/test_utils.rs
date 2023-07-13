@@ -1,6 +1,7 @@
 use anyhow::Result;
 use mozak_vm::vm::Row;
 use plonky2::fri::FriConfig;
+use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
@@ -35,5 +36,18 @@ pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
     };
 
     let all_proof = prove::<F, C, D>(step_rows, &mut stark, &config, &mut TimingTree::default());
-    verify_proof(&stark, &all_proof.unwrap(), &config)
+    verify_proof(stark, all_proof.unwrap(), &config)
+}
+
+/// Interpret a u64 as a field element and try to invert it.
+///
+/// Internally, we are doing something like: inv(a) == a^(p-2)
+/// Specifically that means inv(0) == 0, and inv(a) * a == 1 for everything
+/// else.
+#[must_use]
+pub fn inv<F: RichField>(x: u64) -> u64 {
+    F::from_canonical_u64(x)
+        .try_inverse()
+        .unwrap_or_default()
+        .to_canonical_u64()
 }
