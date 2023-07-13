@@ -57,7 +57,6 @@ pub(crate) struct CtlZData<F: Field> {
     pub(crate) filter_column: Option<Column<F>>,
 }
 
-#[allow(unused)]
 pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: usize>(
     cross_table_lookups: &[CrossTableLookup<F>],
     ctl_zs_lasts: &[Vec<F>; NUM_TABLES],
@@ -91,7 +90,6 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     Ok(())
 }
 
-#[allow(unused)]
 pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     trace_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     cross_table_lookups: &[CrossTableLookup<F>],
@@ -151,7 +149,6 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     ctl_data_per_table
 }
 
-#[allow(unused)]
 fn partial_products<F: Field>(
     trace: &[PolynomialValues<F>],
     columns: &[Column<F>],
@@ -285,17 +282,16 @@ where
 impl<'a, F: RichField + Extendable<D>, const D: usize>
     CtlCheckVars<'a, F, F::Extension, F::Extension, D>
 {
-    #[allow(unused)]
     pub(crate) fn from_proofs<C: GenericConfig<D, F = F>>(
         proofs: &[StarkProof<F, C, D>; NUM_TABLES],
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
-        num_permutation_zs: [usize; NUM_TABLES],
+        num_permutation_zs: &[usize; NUM_TABLES],
     ) -> [Vec<Self>; NUM_TABLES] {
         let mut ctl_zs = proofs
             .iter()
             .zip(num_permutation_zs)
-            .map(|(p, num_perms)| {
+            .map(|(p, &num_perms)| {
                 let openings = &p.openings;
                 let ctl_zs = openings.permutation_ctl_zs.iter().skip(num_perms);
                 let ctl_zs_next = openings.permutation_ctl_zs_next.iter().skip(num_perms);
