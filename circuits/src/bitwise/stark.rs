@@ -52,12 +52,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         // We enforce the constraint:
         //     opx == Sum(opx_limbs * 2^(8*i))
         for (opx, opx_limbs) in [(OP1, OP1_LIMBS), (OP2, OP2_LIMBS), (RES, RES_LIMBS)] {
-            let opx_limbs = lv[opx_limbs].to_vec();
-            let computed_sum = reduce_with_powers(&opx_limbs, from_(1_u128 << 8));
+            let computed_sum = reduce_with_powers(&lv[opx_limbs], from_(1_u128 << 8));
             yield_constr.constraint(computed_sum - lv[opx]);
         }
 
         // Constrain compress logic.
+        // Can we use manual limbs?
         let beta = FE::from_basefield(self.compress_challenge);
         for (op1_limb, op2_limb, res_limb, compress_limb) in
             izip!(OP1_LIMBS, OP2_LIMBS, RES_LIMBS, COMPRESS_LIMBS)
