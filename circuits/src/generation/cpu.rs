@@ -32,7 +32,10 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         generate_divu_row(&mut trace, &inst, state, i);
         generate_slt_row(&mut trace, &inst, state, i);
         match inst.op {
-            Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,
+            Op::ADD => {
+                trace[cpu_cols::COL_S_RC][i] = F::ONE;
+                trace[cpu_cols::COL_S_ADD][i] = F::ONE;
+            }
             Op::JALR => trace[cpu_cols::COL_S_JALR][i] = F::ONE,
             Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             Op::SLT => trace[cpu_cols::COL_S_SLT][i] = F::ONE,
@@ -41,7 +44,6 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             Op::SUB => trace[cpu_cols::COL_S_SUB][i] = F::ONE,
             Op::DIVU => trace[cpu_cols::COL_S_DIVU][i] = F::ONE,
             Op::REMU => trace[cpu_cols::COL_S_REMU][i] = F::ONE,
-            Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
             #[tarpaulin::skip]
             _ => {}
