@@ -15,7 +15,8 @@ build = "build.rs"
 mozak-vm = { path = "../vm", features = ["test"] }
 mozak-circuits = { path = "../circuits", features = ["test"]}
 clap = { version = "4.3.11", features = ["derive", "cargo", "env", "unicode", "wrap_help"] }
-clap_complete = "4.3.2"
+# TODO(Matthias): implement shell completion for CLI via clap_complete
+# clap_complete = "4.3.2"
 shadow-rs = "0.23.0"
 clio = { version = "0.3.3", features = ["http-ureq", "clap-parse"] }
 anyhow = "1.0.71"
