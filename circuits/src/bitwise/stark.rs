@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use itertools::izip;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -58,12 +59,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
 
         // Constrain compress logic.
         let beta = FE::from_basefield(self.compress_challenge);
-        for i in 0..4 {
+        for (op1_limb, op2_limb, res_limb, compress_limb) in
+            izip!(OP1_LIMBS, OP2_LIMBS, RES_LIMBS, COMPRESS_LIMBS)
+        {
             yield_constr.constraint(
-                lv[OP1_LIMBS.start + i]
-                    + lv[OP2_LIMBS.start + i] * beta
-                    + lv[RES_LIMBS.start + i] * beta * beta
-                    - lv[COMPRESS_LIMBS.start + i],
+                lv[op1_limb] + lv[op2_limb] * beta + lv[res_limb] * beta * beta - lv[compress_limb],
             );
         }
 
