@@ -63,7 +63,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
             izip!(OP1_LIMBS, OP2_LIMBS, RES_LIMBS, COMPRESS_LIMBS)
         {
             yield_constr.constraint(
-                lv[op1_limb] + lv[op2_limb] * beta + lv[res_limb] * beta * beta - lv[compress_limb],
+                reduce_with_powers(&[lv[op1_limb], lv[op2_limb], lv[res_limb]], beta)
+                    - lv[compress_limb],
             );
         }
 
