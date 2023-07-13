@@ -59,10 +59,11 @@ mod test {
         ]
     }
     proptest! {
-            #[test]
-            fn prove_beq_proptest(a in u32_extra(), b in u32_extra()) {
-                let record = simple_test_code(
-                    &[Instruction {
+        #[test]
+        fn prove_beq_proptest(a in u32_extra(), b in u32_extra()) {
+            let record = simple_test_code(
+                &[
+                    Instruction {
                         op: Op::BEQ,
                         args: Args {
                             rd: 0,
@@ -80,17 +81,17 @@ mod test {
                             rs2: 0,
                             imm: 10,
                         },
-                    }
-                    ],
-                    &[],
-                    &[(6, a), (7, b)],
-                );
-                    if a == b {
-                        assert_eq!(record.last_state.get_register_value(1), 0);
-                    } else {
-                        assert_eq!(record.last_state.get_register_value(1), 10);
-                    }
-                simple_proof_test(&record.executed).unwrap();
+                    },
+                ],
+                &[],
+                &[(6, a), (7, b)],
+            );
+            if a == b {
+                assert_eq!(record.last_state.get_register_value(1), 0);
+            } else {
+                assert_eq!(record.last_state.get_register_value(1), 10);
             }
+            simple_proof_test(&record.executed).unwrap();
+        }
     }
 }
