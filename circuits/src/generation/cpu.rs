@@ -23,13 +23,15 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         let op2_value = state.get_register_value(inst.args.rs2);
         trace[cpu_cols::COL_OP1_VALUE][i] = from_(op1_value);
         trace[cpu_cols::COL_OP2_VALUE][i] = from_(op2_value);
-        let mul_high_bits = (u64::from(op1_value) * u64::from(op2_value)) >> 32;
-        trace[cpu_cols::MUL_HIGH_BITS][i] = from_(mul_high_bits);
-        let mul_high_diff = u32::MAX - mul_high_bits as u32;
-        let mul_high_diff_f: F = from_(mul_high_diff);
+        // let mul_high_bits = (u64::from(op1_value) * u64::from(op2_value)) >> 32;
+        let mul_high_bits = from_::<u128, F>(10_u128) / from_(0x10000_0000_u128);
+        trace[cpu_cols::MUL_HIGH_BITS][i] = mul_high_bits;
+        // let mul_high_diff = u32::MAX - mul_high_bits as u32;
+        // let mul_high_diff_f: F = from_(mul_high_diff);
+        let mul_high_diff_f: F = from_::<u128, F>(u128::from(u32::MAX)) - mul_high_bits;
         trace[cpu_cols::MUL_HIGH_DIFF_INV][i] = mul_high_diff_f.try_inverse().unwrap_or_default();
         // NOTE: Updated value of DST register is next step.
-        trace[cpu_cols::COL_DST_VALUE][i] = from_(aux.dst_val);
+        trace[cpu_cols::COL_DST_VALUE][i] = from_(10_u128);
         trace[cpu_cols::COL_IMM_VALUE][i] = from_(inst.args.imm);
         trace[cpu_cols::COL_S_HALT][i] = from_(u32::from(aux.will_halt));
         for j in 0..32 {

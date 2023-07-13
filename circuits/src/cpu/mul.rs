@@ -33,6 +33,27 @@ mod test {
     use proptest::proptest;
 
     use crate::test_utils::simple_proof_test;
+            #[test]
+            fn prove_mul_vivek() {
+                let a = 5;
+                let b = 4;
+                let rd = 5;
+                let record = simple_test_code(
+                    &[Instruction {
+                        op: Op::MUL,
+                        args: Args {
+                            rd,
+                            rs1: 6,
+                            rs2: 7,
+                            ..Args::default()
+                        },
+                    }],
+                    &[],
+                    &[(6, a), (7, b)],
+                );
+                    assert_eq!(record.executed[1].state.get_register_value(rd), a.wrapping_mul(b));
+                simple_proof_test(&record.executed).unwrap();
+            }
     proptest! {
             #![proptest_config(ProptestConfig::with_cases(4))]
             #[test]
