@@ -1,4 +1,10 @@
 use im::hashmap::HashMap;
+#[cfg(any(feature = "test", test))]
+use proptest::prelude::any;
+#[cfg(any(feature = "test", test))]
+use proptest::prop_oneof;
+#[cfg(any(feature = "test", test))]
+use proptest::strategy::{Just, Strategy};
 
 use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction, Op};
@@ -88,4 +94,15 @@ pub fn simple_test(exit_at: u32, mem: &[(u32, u32)], regs: &[(u8, u32)]) -> Exec
     let record = step(state).unwrap();
     assert!(record.last_state.has_halted());
     record
+}
+
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_sign_loss)]
+pub fn u32_extra() -> impl Strategy<Value = u32> {
+    prop_oneof![
+        Just(0_u32),
+        Just(1_u32),
+        Just(i32::MIN as u32),
+        any::<u32>()
+    ]
 }
