@@ -29,14 +29,20 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             trace[cpu_cols::COL_START_REG + j as usize][i] = from_(state.get_register_value(j));
         }
 
+        generate_divu_row(&mut trace, &inst, state, i);
         generate_slt_row(&mut trace, &inst, state, i);
         generate_conditional_branch_row(&mut trace, &inst, state, i);
         match inst.op {
-            Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,
-            Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
+            Op::ADD => {
+                trace[cpu_cols::COL_S_RC][i] = F::ONE;
+                trace[cpu_cols::COL_S_ADD][i] = F::ONE;
+            }
             Op::SLT => trace[cpu_cols::COL_S_SLT][i] = F::ONE,
             Op::SLTU => trace[cpu_cols::COL_S_SLTU][i] = F::ONE,
             Op::SUB => trace[cpu_cols::COL_S_SUB][i] = F::ONE,
+            Op::DIVU => trace[cpu_cols::COL_S_DIVU][i] = F::ONE,
+            Op::REMU => trace[cpu_cols::COL_S_REMU][i] = F::ONE,
+            Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
             #[tarpaulin::skip]
             _ => {}
@@ -78,6 +84,27 @@ fn generate_conditional_branch_row<F: RichField>(
         let one: F = diff * diff_inv;
         assert_eq!(one, if op1 == op2 { F::ZERO } else { F::ONE });
     }
+}
+
+#[allow(clippy::cast_possible_wrap)]
+fn generate_divu_row<F: RichField>(
+    trace: &mut [Vec<F>],
+    inst: &Instruction,
+    state: &State,
+    row_idx: usize,
+) {
+    let op1 = state.get_register_value(inst.args.rs1);
+    let op2 = state.get_register_value(inst.args.rs2);
+    if let 0 = op2 {
+        trace[cpu_cols::DIVU_QUOTIENT][row_idx] = from_(u32::MAX);
+        trace[cpu_cols::DIVU_REMAINDER][row_idx] = from_(op1);
+        trace[cpu_cols::DIVU_REMAINDER_SLACK][row_idx] = from_(0_u32);
+    } else {
+        trace[cpu_cols::DIVU_QUOTIENT][row_idx] = from_(op1 / op2);
+        trace[cpu_cols::DIVU_REMAINDER][row_idx] = from_(op1 % op2);
+        trace[cpu_cols::DIVU_REMAINDER_SLACK][row_idx] = from_(op2 - op1 % op2 - 1);
+    }
+    trace[cpu_cols::DIVU_Q_INV][row_idx] = from_::<_, F>(op2).try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]
