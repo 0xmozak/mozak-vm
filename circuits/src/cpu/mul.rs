@@ -11,11 +11,13 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
+    // TODO: Need range check for COL_OP1_VALUE, COL_OP2_VALUE and MUL_HIGH_BITS.
     let base: P::Scalar = from_(1_u128 << 32);
     let multiplied = lv[COL_OP1_VALUE] * lv[COL_OP2_VALUE];
     let u32_max = column_of_xs::<P>(u64::from(u32::MAX));
     let diff = u32_max - lv[MUL_HIGH_BITS];
     // MUL_HIGH_BITS should not be equal to u32::MAX
+    // as for u32::MAX * u32::MAX MUL_HIGH_BITS will be 0xFFFF_FFFE
     yield_constr.constraint(diff * lv[MUL_HIGH_DIFF_INV] - P::ONES);
     let high_part = lv[MUL_HIGH_BITS] * base;
 
