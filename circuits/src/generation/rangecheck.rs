@@ -4,7 +4,7 @@ use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::lookup::permute_cols;
-use crate::rangecheck::columns;
+use crate::rangecheck::columns::{self, LimbKind};
 use crate::utils::from_;
 
 pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
@@ -52,8 +52,8 @@ pub fn generate_rangecheck_trace<F: RichField>(
                 let limb_hi = u16::try_from(dst_val >> 16).unwrap();
                 let limb_lo = u16::try_from(dst_val & 0xffff).unwrap();
                 trace[columns::VAL][i] = from_(*dst_val);
-                trace[columns::LIMB_HI][i] = from_(limb_hi);
-                trace[columns::LIMB_LO][i] = from_(limb_lo);
+                trace[LimbKind::col(columns::VAL, LimbKind::Hi)][i] = from_(limb_hi);
+                trace[LimbKind::col(columns::VAL, LimbKind::Lo)][i] = from_(limb_lo);
                 trace[columns::CPU_FILTER][i] = F::ONE;
             }
             _ => {}
@@ -69,21 +69,21 @@ pub fn generate_rangecheck_trace<F: RichField>(
     // This permutation is done in accordance to the [Halo2 lookup argument
     // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
     let (col_input_permuted, col_table_permuted) = permute_cols(
-        &trace[columns::LIMB_LO],
+        &trace[LimbKind::col(columns::VAL, LimbKind::Lo)],
         &trace[columns::FIXED_RANGE_CHECK_U16],
     );
 
     // We need a column for the lower limb.
-    trace[columns::LIMB_LO_PERMUTED] = col_input_permuted;
+    trace[LimbKind::col(columns::VAL, LimbKind::LoPermuted)] = col_input_permuted;
     trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO] = col_table_permuted;
 
     let (col_input_permuted, col_table_permuted) = permute_cols(
-        &trace[columns::LIMB_HI],
+        &trace[LimbKind::col(columns::VAL, LimbKind::Hi)],
         &trace[columns::FIXED_RANGE_CHECK_U16],
     );
 
     // And we also need a column for the upper limb.
-    trace[columns::LIMB_HI_PERMUTED] = col_input_permuted;
+    trace[LimbKind::col(columns::VAL, LimbKind::HiPermuted)] = col_input_permuted;
     trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI] = col_table_permuted;
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
@@ -120,9 +120,18 @@ mod tests {
         assert_eq!(trace[columns::CPU_FILTER][1], F::ONE);
         assert_eq!(trace[columns::VAL][0], GoldilocksField(0x0001_fffe));
         assert_eq!(trace[columns::VAL][1], GoldilocksField(93));
-        assert_eq!(trace[columns::LIMB_HI][0], GoldilocksField(0x0001));
-        assert_eq!(trace[columns::LIMB_LO][0], GoldilocksField(0xfffe));
-        assert_eq!(trace[columns::LIMB_LO][1], GoldilocksField(93));
+        assert_eq!(
+            trace[LimbKind::col(columns::VAL, LimbKind::Hi)][0],
+            GoldilocksField(0x0001)
+        );
+        assert_eq!(
+            trace[LimbKind::col(columns::VAL, LimbKind::Lo)][0],
+            GoldilocksField(0xfffe)
+        );
+        assert_eq!(
+            trace[LimbKind::col(columns::VAL, LimbKind::Lo)][1],
+            GoldilocksField(93)
+        );
 
         // Ensure rest of trace is zeroed out
         for cpu_filter in trace[columns::CPU_FILTER][2..].iter() {
@@ -131,10 +140,10 @@ mod tests {
         for value in trace[columns::VAL][2..].iter() {
             assert_eq!(value, &F::ZERO);
         }
-        for limb_hi in trace[columns::LIMB_HI][1..].iter() {
+        for limb_hi in trace[LimbKind::col(columns::VAL, LimbKind::Hi)][1..].iter() {
             assert_eq!(limb_hi, &F::ZERO);
         }
-        for limb_lo in trace[columns::LIMB_LO][2..].iter() {
+        for limb_lo in trace[LimbKind::col(columns::VAL, LimbKind::Lo)][2..].iter() {
             assert_eq!(limb_lo, &F::ZERO);
         }
     }

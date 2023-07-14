@@ -9,7 +9,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns;
+use super::columns::{self, LimbKind};
 use crate::lookup::{eval_lookups, eval_lookups_circuit};
 
 #[derive(Copy, Clone, Default)]
@@ -25,8 +25,8 @@ fn constrain_value<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let val = local_values[columns::VAL];
-    let limb_lo = local_values[columns::LIMB_LO];
-    let limb_hi = local_values[columns::LIMB_HI];
+    let limb_lo = local_values[LimbKind::col(columns::VAL, LimbKind::Lo)];
+    let limb_hi = local_values[LimbKind::col(columns::VAL, LimbKind::Hi)];
     yield_constr.constraint(val - (limb_lo + limb_hi * base));
 }
 
@@ -57,13 +57,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         eval_lookups(
             vars,
             yield_constr,
-            columns::LIMB_LO_PERMUTED,
+            LimbKind::col(columns::VAL, LimbKind::LoPermuted),
             columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
         );
         eval_lookups(
             vars,
             yield_constr,
-            columns::LIMB_HI_PERMUTED,
+            LimbKind::col(columns::VAL, LimbKind::HiPermuted),
             columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
         );
     }
@@ -79,8 +79,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         let val = vars.local_values[columns::VAL];
-        let limb_lo = vars.local_values[columns::LIMB_LO];
-        let limb_hi = vars.local_values[columns::LIMB_HI];
+        let limb_lo = vars.local_values[LimbKind::col(columns::VAL, LimbKind::Lo)];
+        let limb_hi = vars.local_values[LimbKind::col(columns::VAL, LimbKind::Hi)];
 
         let base = builder.constant_extension(F::Extension::from_canonical_usize(Self::BASE));
         let sum = builder.mul_add_extension(limb_hi, base, limb_lo);
@@ -91,14 +91,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
             builder,
             vars,
             yield_constr,
-            columns::LIMB_LO_PERMUTED,
+            LimbKind::col(columns::VAL, LimbKind::LoPermuted),
             columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
         );
         eval_lookups_circuit(
             builder,
             vars,
             yield_constr,
-            columns::LIMB_HI_PERMUTED,
+            LimbKind::col(columns::VAL, LimbKind::HiPermuted),
             columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
         );
     }
