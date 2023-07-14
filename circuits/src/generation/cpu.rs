@@ -75,7 +75,7 @@ fn generate_mul_row<F: RichField>(
     state: &State,
     row_idx: usize,
 ) {
-    if inst.op != Op::MUL && inst.op != Op::MULHU && inst.op != Op::SLL {
+    if !matches!(inst.op, Op::MUL | Op::MULHU | Op::SLL) {
         return;
     }
     let op1 = state.get_register_value(inst.args.rs1);
