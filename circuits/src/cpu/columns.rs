@@ -1,6 +1,10 @@
 use std::ops::Range;
 
+use itertools::Itertools;
 use lazy_static::lazy_static;
+use plonky2::field::types::Field;
+
+use crate::cross_table_lookup::Column;
 
 pub(crate) const COL_CLK: usize = 0;
 pub(crate) const COL_PC: usize = COL_CLK + 1;
@@ -40,13 +44,17 @@ pub(crate) const COL_S_XOR: usize = COL_S_SUB + 1;
 pub(crate) const COL_S_OR: usize = COL_S_XOR + 1;
 pub(crate) const COL_S_AND: usize = COL_S_OR + 1;
 
-pub(crate) const COL_S_SLT: usize = COL_S_AND + 1;
+pub(crate) const COL_S_DIVU: usize = COL_S_AND + 1;
+pub(crate) const COL_S_REMU: usize = COL_S_DIVU + 1;
+pub(crate) const COL_S_SLT: usize = COL_S_REMU + 1;
 pub(crate) const COL_S_SLTU: usize = COL_S_SLT + 1;
-pub(crate) const COL_S_BEQ: usize = COL_S_SLTU + 1;
+pub(crate) const COL_S_SRL: usize = COL_S_SLTU + 1;
+pub(crate) const COL_S_BEQ: usize = COL_S_SRL + 1;
 pub(crate) const COL_S_ECALL: usize = COL_S_BEQ + 1;
 pub(crate) const COL_S_HALT: usize = COL_S_ECALL + 1;
+pub(crate) const COL_S_RC: usize = COL_S_HALT + 1;
 
-pub(crate) const COL_S_SLT_SIGN1: usize = COL_S_HALT + 1;
+pub(crate) const COL_S_SLT_SIGN1: usize = COL_S_RC + 1;
 pub(crate) const COL_S_SLT_SIGN2: usize = COL_S_SLT_SIGN1 + 1;
 pub(crate) const COL_S_SLT_OP1_VAL_FIXED: usize = COL_S_SLT_SIGN2 + 1;
 pub(crate) const COL_S_SLT_OP2_VAL_FIXED: usize = COL_S_SLT_OP1_VAL_FIXED + 1;
@@ -58,4 +66,21 @@ pub(crate) const AND_A: usize = COL_LESS_THAN + 1;
 pub(crate) const AND_B: usize = AND_A + 1;
 pub(crate) const AND_OUT: usize = AND_B + 1;
 
-pub(crate) const NUM_CPU_COLS: usize = AND_OUT + 1;
+pub(crate) const QUOTIENT: usize = AND_OUT + 1;
+pub(crate) const REMAINDER: usize = QUOTIENT + 1;
+pub(crate) const REMAINDER_SLACK: usize = REMAINDER + 1;
+pub(crate) const DIVISOR_INV: usize = REMAINDER_SLACK + 1;
+
+pub(crate) const DIVISOR: usize = DIVISOR_INV + 1;
+
+pub(crate) const NUM_CPU_COLS: usize = DIVISOR + 1;
+
+/// Columns containing the data to be range checked in the Mozak
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
+    Column::singles([COL_DST_VALUE]).collect_vec()
+}
+
+/// Column for a binary filter for our range check in the Mozak
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(COL_S_RC) }

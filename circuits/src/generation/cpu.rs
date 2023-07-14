@@ -29,16 +29,23 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             trace[cpu_cols::COL_START_REG + j as usize][i] = from_(state.get_register_value(j));
         }
 
+        generate_divu_row(&mut trace, &inst, state, i);
         generate_slt_row(&mut trace, &inst, state, i);
 
         generate_bitwise_row(&mut trace, &inst, state, i);
 
         match inst.op {
-            Op::ADD => trace[cpu_cols::COL_S_ADD][i] = F::ONE,
-            Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
+            Op::ADD => {
+                trace[cpu_cols::COL_S_RC][i] = F::ONE;
+                trace[cpu_cols::COL_S_ADD][i] = F::ONE;
+            }
             Op::SLT => trace[cpu_cols::COL_S_SLT][i] = F::ONE,
             Op::SLTU => trace[cpu_cols::COL_S_SLTU][i] = F::ONE,
+            Op::SRL => trace[cpu_cols::COL_S_SRL][i] = F::ONE,
             Op::SUB => trace[cpu_cols::COL_S_SUB][i] = F::ONE,
+            Op::DIVU => trace[cpu_cols::COL_S_DIVU][i] = F::ONE,
+            Op::REMU => trace[cpu_cols::COL_S_REMU][i] = F::ONE,
+            Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
             Op::XOR => trace[cpu_cols::COL_S_XOR][i] = F::ONE,
             Op::OR => trace[cpu_cols::COL_S_OR][i] = F::ONE,
@@ -61,6 +68,34 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             v.len()
         )
     })
+}
+
+#[allow(clippy::cast_possible_wrap)]
+fn generate_divu_row<F: RichField>(
+    trace: &mut [Vec<F>],
+    inst: &Instruction,
+    state: &State,
+    row_idx: usize,
+) {
+    let op1 = state.get_register_value(inst.args.rs1);
+    let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
+    let divisor = if let Op::SRL = inst.op {
+        1 << (op2 & 0x1F)
+    } else {
+        op2
+    };
+    trace[cpu_cols::DIVISOR][row_idx] = from_(divisor);
+    if let 0 = divisor {
+        trace[cpu_cols::QUOTIENT][row_idx] = from_(u32::MAX);
+        trace[cpu_cols::REMAINDER][row_idx] = from_(op1);
+        trace[cpu_cols::REMAINDER_SLACK][row_idx] = from_(0_u32);
+    } else {
+        trace[cpu_cols::QUOTIENT][row_idx] = from_(op1 / divisor);
+        trace[cpu_cols::REMAINDER][row_idx] = from_(op1 % divisor);
+        trace[cpu_cols::REMAINDER_SLACK][row_idx] = from_(divisor - op1 % divisor - 1);
+    }
+    trace[cpu_cols::DIVISOR_INV][row_idx] =
+        from_::<_, F>(divisor).try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]

@@ -45,8 +45,8 @@ pub(crate) fn constraints<P: PackedField>(
     let abs_diff = lv[COL_CMP_ABS_DIFF];
 
     // abs_diff calculation
-    yield_constr.constraint((P::ONES - lt) * (abs_diff - diff_fixed));
-    yield_constr.constraint(lt * (abs_diff + diff_fixed));
+    yield_constr.constraint(is_cmp * (P::ONES - lt) * (abs_diff - diff_fixed));
+    yield_constr.constraint(is_cmp * lt * (abs_diff + diff_fixed));
 
     let diff = op1 - op2;
     let diff_inv = lv[COL_CMP_DIFF_INV];
@@ -58,22 +58,25 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::simple_test_code;
-    use proptest::prelude::any;
+    use mozak_vm::test_utils::{simple_test_code, u32_extra};
+    use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
     use crate::test_utils::simple_proof_test;
     proptest! {
-            #[test]
-            fn prove_slt_proptest(a in any::<u32>(), b in any::<u32>()) {
-                let record = simple_test_code(
-                    &[Instruction {
+        #![proptest_config(ProptestConfig::with_cases(4))]
+        #[test]
+        fn prove_slt_proptest(a in u32_extra(), op2 in u32_extra(), use_imm in any::<bool>()) {
+            let (b, imm) = if use_imm { (0, op2) } else { (op2, 0) };
+            let record = simple_test_code(
+                &[
+                    Instruction {
                         op: Op::SLTU,
                         args: Args {
                             rd: 5,
                             rs1: 6,
                             rs2: 7,
-                            ..Args::default()
+                            imm,
                         },
                     },
                     Instruction {
@@ -82,16 +85,19 @@ mod test {
                             rd: 4,
                             rs1: 6,
                             rs2: 7,
-                            ..Args::default()
+                            imm,
                         },
-                    }
-                    ],
-                    &[],
-                    &[(6, a), (7, b)],
-                );
-                assert_eq!(record.last_state.get_register_value(5), (a < b).into());
-                assert_eq!(record.last_state.get_register_value(4), ((a as i32) < (b as i32)).into());
-                simple_proof_test(&record.executed).unwrap();
-            }
+                    },
+                ],
+                &[],
+                &[(6, a), (7, b)],
+            );
+            assert_eq!(record.last_state.get_register_value(5), (a < op2).into());
+            assert_eq!(
+                record.last_state.get_register_value(4),
+                ((a as i32) < (op2 as i32)).into()
+            );
+            simple_proof_test(&record.executed).unwrap();
+        }
     }
 }
