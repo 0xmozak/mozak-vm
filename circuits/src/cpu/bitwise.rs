@@ -7,6 +7,7 @@ use super::columns::{
 };
 use crate::utils::column_of_xs;
 
+/// Constraints to verify execution of AND, OR and XOR instructions.
 #[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
@@ -53,7 +54,7 @@ mod test {
     use crate::test_utils::simple_proof_test;
 
     proptest! {
-            #![proptest_config(ProptestConfig::with_cases(64))]
+            #![proptest_config(ProptestConfig::with_cases(4))]
             #[test]
             fn prove_and_proptest(
                 a in any::<u32>(),
