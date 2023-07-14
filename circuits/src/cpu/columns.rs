@@ -64,6 +64,8 @@ pub(crate) const COL_CMP_ABS_DIFF: usize = COL_S_SLT_OP2_VAL_FIXED + 1;
 pub(crate) const COL_CMP_DIFF_INV: usize = COL_CMP_ABS_DIFF + 1;
 pub(crate) const COL_LESS_THAN: usize = COL_CMP_DIFF_INV + 1;
 
+// TODO(Matthias): we could get rid of XOR_A and XOR_B, and just always do the
+// XOR lookup for every VM cpu cycle.
 pub(crate) const XOR_A: usize = COL_LESS_THAN + 1;
 pub(crate) const XOR_B: usize = XOR_A + 1;
 pub(crate) const XOR_OUT: usize = XOR_B + 1;
