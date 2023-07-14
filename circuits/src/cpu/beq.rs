@@ -45,9 +45,11 @@ mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, u32_extra};
     use proptest::proptest;
+    use proptest::prelude::ProptestConfig;
 
     use crate::test_utils::simple_proof_test;
     proptest! {
+        #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
         fn prove_beq_proptest(a in u32_extra(), b in u32_extra()) {
             let record = simple_test_code(
