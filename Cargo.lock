@@ -506,10 +506,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be4136b2a15dd319360be1c07d9933517ccf0be8f16bf62a3bee4f0d618df427"
 dependencies = [
  "cfg-if",
- "js-sys",
  "libc",
  "wasi",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -643,7 +641,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb0889898416213fab133e1d33a0e5858a48177452750691bde3666d0fdbaf8b"
 dependencies = [
  "hermit-abi 0.3.2",
- "rustix 0.38.4",
+ "rustix 0.38.3",
  "windows-sys 0.48.0",
 ]
 
@@ -800,8 +798,8 @@ dependencies = [
  "lazy_static",
  "log",
  "mozak-vm",
- "plonky2 0.1.3 (git+https://github.com/mir-protocol/plonky2.git)",
- "plonky2_maybe_rayon 0.1.0 (git+https://github.com/mir-protocol/plonky2.git)",
+ "plonky2",
+ "plonky2_maybe_rayon",
  "proptest",
  "starky",
  "thiserror",
@@ -844,9 +842,9 @@ dependencies = [
 
 [[package]]
 name = "num"
-version = "0.4.1"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b05180d69e3da0e530ba2a1dae5110317e49e3b7f3d41be227dc5f92e49ee7af"
+checksum = "43db66d1170d347f9a065114077f7dccb00c1b9478c89384490a3425279a4606"
 dependencies = [
  "num-bigint",
  "num-complex",
@@ -981,34 +979,11 @@ dependencies = [
  "log",
  "num",
  "plonky2_field",
- "plonky2_maybe_rayon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "plonky2_util",
- "rand",
- "serde",
- "static_assertions",
- "unroll",
-]
-
-[[package]]
-name = "plonky2"
-version = "0.1.3"
-source = "git+https://github.com/mir-protocol/plonky2.git#ee5d1aa6c8ed782a2238e9ef6aa8ace89e452c41"
-dependencies = [
- "ahash",
- "anyhow",
- "getrandom",
- "hashbrown",
- "itertools 0.10.5",
- "keccak-hash",
- "log",
- "num",
- "plonky2_field",
- "plonky2_maybe_rayon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "plonky2_maybe_rayon",
  "plonky2_util",
  "rand",
  "rand_chacha",
  "serde",
- "serde_json",
  "static_assertions",
  "unroll",
 ]
@@ -1037,11 +1012,6 @@ checksum = "655cdcdb13c260cdb42b29b55247f2f66479d14342b6be3dc688efc54d3e24c4"
 dependencies = [
  "rayon",
 ]
-
-[[package]]
-name = "plonky2_maybe_rayon"
-version = "0.1.0"
-source = "git+https://github.com/mir-protocol/plonky2.git#ee5d1aa6c8ed782a2238e9ef6aa8ace89e452c41"
 
 [[package]]
 name = "plonky2_util"
@@ -1227,18 +1197,18 @@ dependencies = [
  "aho-corasick",
  "memchr",
  "regex-automata",
- "regex-syntax 0.7.4",
+ "regex-syntax 0.7.3",
 ]
 
 [[package]]
 name = "regex-automata"
-version = "0.3.3"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39354c10dd07468c2e73926b23bb9c2caca74c5501e38a35da70406f1d923310"
+checksum = "83d3daa6976cffb758ec878f108ba0e062a45b2d6ca3a2cca965338855476caf"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-syntax 0.7.4",
+ "regex-syntax 0.7.3",
 ]
 
 [[package]]
@@ -1249,9 +1219,9 @@ checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 
 [[package]]
 name = "regex-syntax"
-version = "0.7.4"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5ea92a5b6195c6ef2a0295ea818b312502c6fc94dde986c5553242e18fd4ce2"
+checksum = "2ab07dc67230e4a4718e70fd5c20055a4334b121f1f9db8fe63ef39ce9b8c846"
 
 [[package]]
 name = "ring"
@@ -1293,9 +1263,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.4"
+version = "0.38.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a962918ea88d644592894bc6dc55acc6c0956488adcebbfb6e273506b7fd6e5"
+checksum = "ac5ffa1efe7548069688cd7028f32591853cd7b5b756d41bcffd2353e4fc75b4"
 dependencies = [
  "bitflags 2.3.3",
  "errno",
@@ -1306,9 +1276,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.21.5"
+version = "0.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79ea77c539259495ce8ca47f53e66ae0330a8819f67e23ac96ca02f50e7b7d36"
+checksum = "b19faa85ecb5197342b54f987b142fb3e30d0c90da40f80ef4fa9a726e6676ed"
 dependencies = [
  "log",
  "ring",
@@ -1347,12 +1317,6 @@ dependencies = [
  "tempfile",
  "wait-timeout",
 ]
-
-[[package]]
-name = "ryu"
-version = "1.0.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe232bdf6be8c8de797b22184ee71118d63780ea42ac85b61d1baa6d3b782ae9"
 
 [[package]]
 name = "same-file"
@@ -1406,17 +1370,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_json"
-version = "1.0.102"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5062a995d481b2308b6064e9af76011f2921c35f97b0468811ed9f6cd91dfed"
-dependencies = [
- "itoa",
- "ryu",
- "serde",
-]
-
-[[package]]
 name = "shadow-rs"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1448,13 +1401,13 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "starky"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#7ebf1f8f71cc5470bb2b4b78b1df0b504f2530c5"
+source = "git+https://github.com/0xmozak/plonky2.git#88258415a5e35a9f849fa906fa6cca44f75dc1e0"
 dependencies = [
  "anyhow",
  "itertools 0.10.5",
  "log",
- "plonky2 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "plonky2_maybe_rayon 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "plonky2",
+ "plonky2_maybe_rayon",
 ]
 
 [[package]]
