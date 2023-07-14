@@ -22,6 +22,12 @@ pub(crate) fn constraints<P: PackedField>(
     let high_part = lv[MUL_HIGH_BITS] * base;
 
     yield_constr.constraint(lv[COL_S_MUL] * (multiplied - (lv[COL_DST_VALUE] + high_part)));
+    // op1 * op2 - res - high_bits = 0
+    // if malicious user wants to prove op1* op2 = X (where X != res)
+    // then set high_bits = (op1 * op2 - X) / 2^32
+
+    // however we apply constraints such that high_bits is in [0, 0xFFFF_FFFE]
+    // hence above exploit is not possible.
 }
 
 #[cfg(test)]
