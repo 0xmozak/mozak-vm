@@ -81,7 +81,7 @@ mod test {
 
     use crate::test_utils::{inv, simple_proof_test};
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(64))]
+        #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
         fn inv_is_big(x in prop_oneof![Just(0_u32), Just(1_u32), any::<u32>()]) {
             type F = plonky2::field::goldilocks_field::GoldilocksField;

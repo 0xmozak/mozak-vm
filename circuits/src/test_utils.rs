@@ -36,7 +36,7 @@ pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
     };
 
     let all_proof = prove::<F, C, D>(step_rows, &mut stark, &config, &mut TimingTree::default());
-    verify_proof(&stark, &all_proof.unwrap(), &config)
+    verify_proof(stark, all_proof.unwrap(), &config)
 }
 
 /// Interpret a u64 as a field element and try to invert it.
