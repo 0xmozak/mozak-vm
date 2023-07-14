@@ -30,7 +30,7 @@ pub(crate) fn constraints<P: PackedField>(
     let q = lv[DIVISOR];
     yield_constr.constraint((is_divu + is_remu) * (q - lv[COL_OP2_VALUE]));
     // TODO: for SRL `q` needs be checked against lookup table to ensure:
-    //     q == 1 << (shift_amount % 0x1F)
+    //     q == 1 << ((lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE]) & 0x1F)
 
     // The equation from the spec becomes:
     //  p = q * m + r
