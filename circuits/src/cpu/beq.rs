@@ -44,8 +44,8 @@ pub(crate) fn constraints<P: PackedField>(
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, u32_extra};
-    use proptest::proptest;
     use proptest::prelude::ProptestConfig;
+    use proptest::proptest;
 
     use crate::test_utils::simple_proof_test;
     proptest! {
