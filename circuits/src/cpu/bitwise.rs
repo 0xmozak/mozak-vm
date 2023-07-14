@@ -13,11 +13,15 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // We use two basic identities to implement AND, OR and XOR:
+    // We use two basic identities to implement AND, and OR in terms of:
     //  a | b = (a ^ b) + (a & b)
     //  a + b = (a ^ b) + 2 * (a & b)
     // The identities might seem a bit mysterious at first, but contemplating
     // a half-adder circuit should make them clear.
+    //
+    // Re-arranging and substituing yields:
+    //  2 * (x & y) = x + y - (x ^ y)
+    //  2 * (x | y) = x + y + (x ^ y)
     let is_and = lv[COL_S_AND];
     let is_or = lv[COL_S_OR];
     let is_xor = lv[COL_S_XOR];
@@ -30,20 +34,13 @@ pub(crate) fn constraints<P: PackedField>(
     let xor_b = lv[XOR_B];
     let xor_out = lv[XOR_OUT];
 
-    yield_constr.constraint((is_and + is_xor + is_or) * (op1 - xor_a));
-    yield_constr.constraint((is_and + is_xor + is_or) * (op2 - xor_b));
+    yield_constr.constraint(xor_a - op1);
+    yield_constr.constraint(xor_b - op2);
 
     yield_constr.constraint(is_xor * (xor_out - dst));
-    // We implement AND in terms of XOR:
-    // 2 * (x & y) = x + y - (x ^ y)
     let two: P::Scalar = from_(2_u32);
-    let and2_out: P = op1 + op2 - xor_out;
-    yield_constr.constraint(is_and * (dst * two - and2_out));
-
-    // We implement OR in terms of XOR:
-    // 2 * (x | y) = x + y + (x ^ y)
-    let or2_out = op1 + op2 + xor_out;
-    yield_constr.constraint(is_or * (dst * two - or2_out));
+    yield_constr.constraint(is_and * (op1 + op2 - xor_out - dst * two));
+    yield_constr.constraint(is_or * (op1 + op2 + xor_out - dst * two));
 }
 
 #[cfg(test)]
