@@ -186,16 +186,7 @@ fn generate_bitwise_row<F: RichField>(
 ) {
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
-    let (a, b) = match inst.op {
-        // x ^ y == x + y - 2 * (x & y)
-        Op::AND | Op::XOR => (op1, op2),
-        // x | y == !(!x & !y)
-        // with !z == u32::MAX - z
-        Op::OR => (!op1, !op2),
-        #[tarpaulin::skip]
-        _ => (0, 0),
-    };
-    trace[cpu_cols::AND_A][i] = from_(a);
-    trace[cpu_cols::AND_B][i] = from_(b);
-    trace[cpu_cols::AND_OUT][i] = from_(a & b);
+    trace[cpu_cols::XOR_A][i] = from_(op1);
+    trace[cpu_cols::XOR_B][i] = from_(op2);
+    trace[cpu_cols::XOR_OUT][i] = from_(op1 ^ op2);
 }

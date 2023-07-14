@@ -64,11 +64,11 @@ pub(crate) const COL_CMP_ABS_DIFF: usize = COL_S_SLT_OP2_VAL_FIXED + 1;
 pub(crate) const COL_CMP_DIFF_INV: usize = COL_CMP_ABS_DIFF + 1;
 pub(crate) const COL_LESS_THAN: usize = COL_CMP_DIFF_INV + 1;
 
-pub(crate) const AND_A: usize = COL_LESS_THAN + 1;
-pub(crate) const AND_B: usize = AND_A + 1;
-pub(crate) const AND_OUT: usize = AND_B + 1;
+pub(crate) const XOR_A: usize = COL_LESS_THAN + 1;
+pub(crate) const XOR_B: usize = XOR_A + 1;
+pub(crate) const XOR_OUT: usize = XOR_B + 1;
 
-pub(crate) const QUOTIENT: usize = AND_OUT + 1;
+pub(crate) const QUOTIENT: usize = XOR_OUT + 1;
 pub(crate) const REMAINDER: usize = QUOTIENT + 1;
 pub(crate) const REMAINDER_SLACK: usize = REMAINDER + 1;
 pub(crate) const DIVISOR_INV: usize = REMAINDER_SLACK + 1;

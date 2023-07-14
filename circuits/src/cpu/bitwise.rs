@@ -2,10 +2,10 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    AND_A, AND_B, AND_OUT, COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_AND,
-    COL_S_OR, COL_S_XOR, NUM_CPU_COLS,
+    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_AND, COL_S_OR, COL_S_XOR,
+    NUM_CPU_COLS, XOR_A, XOR_B, XOR_OUT,
 };
-use crate::utils::column_of_xs;
+use crate::utils::from_;
 
 /// Constraints to verify execution of AND, OR and XOR instructions.
 #[allow(clippy::similar_names)]
@@ -21,26 +21,24 @@ pub(crate) fn constraints<P: PackedField>(
     let op2 = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
     let dst = lv[COL_DST_VALUE];
 
-    let and_a = lv[AND_A];
-    let and_b = lv[AND_B];
-    let and_out = lv[AND_OUT];
+    let xor_a = lv[XOR_A];
+    let xor_b = lv[XOR_B];
+    let xor_out = lv[XOR_OUT];
 
-    yield_constr.constraint((is_and + is_xor) * (op1 - and_a));
-    yield_constr.constraint((is_and + is_xor) * (op2 - and_b));
+    yield_constr.constraint((is_and + is_xor + is_or) * (op1 - xor_a));
+    yield_constr.constraint((is_and + is_xor + is_or) * (op2 - xor_b));
 
-    yield_constr.constraint(is_and * (and_out - dst));
-    // We implement XOR in terms of AND:
-    // x ^ y == x + y - 2 * (x & y)
-    yield_constr.constraint(is_xor * (op1 + op2 - column_of_xs::<P>(2) * and_out - dst));
+    yield_constr.constraint(is_xor * (xor_out - dst));
+    // We implement AND in terms of XOR:
+    // 2 * (x & y) = x + y - (x ^ y)
+    let two: P::Scalar = from_(2_u32);
+    let and_out: P = (op1 + op2 - xor_out) / two;
+    yield_constr.constraint(is_and * (dst - and_out));
 
-    let u32_max: P = column_of_xs(u32::MAX.into());
-
-    // We implement OR in terms of AND thanks to De Morgan's law:
-    // a | b == !(!a & !b)
-    // with !a == u32::max - a
-    yield_constr.constraint(is_or * (u32_max - op1 - and_a));
-    yield_constr.constraint(is_or * (u32_max - op2 - and_b));
-    yield_constr.constraint(is_or * (u32_max - dst - and_out));
+    // We implement OR in terms of XOR:
+    // 2 * (x | y) = x + y + (x ^ y)
+    let or_out = (op1 + op2 + xor_out) / two;
+    yield_constr.constraint(is_or * (dst - or_out));
 }
 
 #[cfg(test)]
@@ -48,34 +46,33 @@ pub(crate) fn constraints<P: PackedField>(
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
-    use proptest::prelude::{any, prop_oneof, Just, ProptestConfig};
+    use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
     use crate::test_utils::simple_proof_test;
 
     proptest! {
-            #![proptest_config(ProptestConfig::with_cases(4))]
-            #[test]
-            fn prove_and_proptest(
-                a in any::<u32>(),
-                b in any::<u32>(),
-                rd in 0_u8..32,
-                kind in prop_oneof![Just(Op::AND), Just(Op::OR), Just(Op::XOR)])
-            {
-                let record = simple_test_code(
-                    &[Instruction {
-                        op: kind,
-                        args: Args {
-                            rd,
-                            rs1: 6,
-                            rs2: 7,
-                            ..Args::default()
-                        },
-                    }],
-                    &[],
-                    &[(6, a), (7, b)],
-                );
-                simple_proof_test(&record.executed).unwrap();
-            }
+        #![proptest_config(ProptestConfig::with_cases(4))]
+        #[test]
+        fn prove_bitwise_proptest(
+            a in any::<u32>(),
+            b in any::<u32>())
+        {
+            let code: Vec<_> = [Op::AND, Op::OR, Op::XOR]
+            .into_iter()
+            .map(|kind| Instruction {
+                op: kind,
+                args: Args {
+                    rd: 8,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            })
+            .collect();
+
+            let record = simple_test_code(&code, &[], &[(6, a), (7, b)]);
+            simple_proof_test(&record.executed).unwrap();
+        }
     }
 }
