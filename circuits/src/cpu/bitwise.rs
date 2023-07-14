@@ -56,7 +56,8 @@ mod test {
         #[test]
         fn prove_bitwise_proptest(
             a in any::<u32>(),
-            b in any::<u32>())
+            b in any::<u32>(),
+            imm in any::<u32>())
         {
             let code: Vec<_> = [Op::AND, Op::OR, Op::XOR]
             .into_iter()
@@ -66,7 +67,7 @@ mod test {
                     rd: 8,
                     rs1: 6,
                     rs2: 7,
-                    ..Args::default()
+                    imm,
                 },
             })
             .collect();
