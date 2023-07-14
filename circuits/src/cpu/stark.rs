@@ -11,7 +11,7 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 use super::columns::{
     COL_CLK, COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_RD_SELECT, COL_REGS,
     COL_RS1_SELECT, COL_RS2_SELECT, COL_S_ADD, COL_S_BEQ, COL_S_DIVU, COL_S_ECALL, COL_S_HALT,
-    COL_S_MUL, COL_S_REMU, COL_S_SLT, COL_S_SLTU, COL_S_SRL, COL_S_SUB, NUM_CPU_COLS,
+    COL_S_MUL, COL_S_MULHU, COL_S_REMU, COL_S_SLT, COL_S_SLTU, COL_S_SRL, COL_S_SUB, NUM_CPU_COLS,
 };
 use super::{add, div, mul, slt, sub};
 use crate::utils::column_of_xs;
@@ -24,8 +24,16 @@ pub struct CpuStark<F, const D: usize> {
 
 use array_concat::{concat_arrays, concat_arrays_size};
 
-pub const STRAIGHTLINE_OPCODES: [usize; 8] = [
-    COL_S_ADD, COL_S_SUB, COL_S_DIVU, COL_S_MUL, COL_S_REMU, COL_S_SLT, COL_S_SLTU, COL_S_SRL,
+pub const STRAIGHTLINE_OPCODES: [usize; 9] = [
+    COL_S_ADD,
+    COL_S_SUB,
+    COL_S_DIVU,
+    COL_S_MUL,
+    COL_S_MULHU,
+    COL_S_REMU,
+    COL_S_SLT,
+    COL_S_SLTU,
+    COL_S_SRL,
 ];
 pub const JUMPING_OPCODES: [usize; 2] = [COL_S_BEQ, COL_S_ECALL];
 pub const OPCODES: [usize; concat_arrays_size!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES)] =
