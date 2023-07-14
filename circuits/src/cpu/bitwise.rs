@@ -13,6 +13,11 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
+    // We use two basic identities to implement AND, OR and XOR:
+    //  a | b = (a ^ b) + (a & b)
+    //  a + b = (a ^ b) + 2 * (a & b)
+    // The identities might seem a bit mysterious at first, but contemplating
+    // a half-adder circuit should make them clear.
     let is_and = lv[COL_S_AND];
     let is_or = lv[COL_S_OR];
     let is_xor = lv[COL_S_XOR];
@@ -57,8 +62,14 @@ mod test {
         fn prove_bitwise_proptest(
             a in any::<u32>(),
             b in any::<u32>(),
-            imm in any::<u32>())
+            imm in any::<u32>(),
+            use_imm in any::<bool>())
         {
+            let (b, imm) = if use_imm {
+                (0, imm)
+            } else {
+                (b, 0)
+            };
             let code: Vec<_> = [Op::AND, Op::OR, Op::XOR]
             .into_iter()
             .map(|kind| Instruction {
