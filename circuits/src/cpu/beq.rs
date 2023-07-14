@@ -43,21 +43,10 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::simple_test_code;
-    use proptest::prelude::any;
-    use proptest::strategy::{Just, Strategy};
-    use proptest::{prop_oneof, proptest};
+    use mozak_vm::test_utils::{simple_test_code, u32_extra};
+    use proptest::proptest;
 
     use crate::test_utils::simple_proof_test;
-    #[allow(clippy::cast_sign_loss)]
-    fn u32_extra() -> impl Strategy<Value = u32> {
-        prop_oneof![
-            Just(0_u32),
-            Just(1_u32),
-            Just(i32::MIN as u32),
-            any::<u32>()
-        ]
-    }
     proptest! {
         #[test]
         fn prove_beq_proptest(a in u32_extra(), b in u32_extra()) {
