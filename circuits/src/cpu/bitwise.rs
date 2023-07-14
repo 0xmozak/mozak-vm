@@ -37,13 +37,13 @@ pub(crate) fn constraints<P: PackedField>(
     // We implement AND in terms of XOR:
     // 2 * (x & y) = x + y - (x ^ y)
     let two: P::Scalar = from_(2_u32);
-    let and_out: P = (op1 + op2 - xor_out) / two;
-    yield_constr.constraint(is_and * (dst - and_out));
+    let and2_out: P = op1 + op2 - xor_out;
+    yield_constr.constraint(is_and * (dst * two - and2_out));
 
     // We implement OR in terms of XOR:
     // 2 * (x | y) = x + y + (x ^ y)
-    let or_out = (op1 + op2 + xor_out) / two;
-    yield_constr.constraint(is_or * (dst - or_out));
+    let or2_out = op1 + op2 + xor_out;
+    yield_constr.constraint(is_or * (dst * two - or2_out));
 }
 
 #[cfg(test)]
