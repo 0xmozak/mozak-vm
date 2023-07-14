@@ -19,15 +19,8 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         trace[cpu_cols::COL_RS1_SELECT[inst.args.rs1 as usize]][i] = F::ONE;
         trace[cpu_cols::COL_RS2_SELECT[inst.args.rs2 as usize]][i] = F::ONE;
         trace[cpu_cols::COL_RD_SELECT[inst.args.rd as usize]][i] = F::ONE;
-        let op1_value = state.get_register_value(inst.args.rs1);
-        let op2_value = state.get_register_value(inst.args.rs2);
-        trace[cpu_cols::COL_OP1_VALUE][i] = from_(op1_value);
-        trace[cpu_cols::COL_OP2_VALUE][i] = from_(op2_value);
-        let mul_high_bits = (u64::from(op1_value) * u64::from(op2_value)) >> 32;
-        trace[cpu_cols::MUL_HIGH_BITS][i] = from_(mul_high_bits);
-        let mul_high_diff = u32::MAX - mul_high_bits as u32;
-        let mul_high_diff_f: F = from_(mul_high_diff);
-        trace[cpu_cols::MUL_HIGH_DIFF_INV][i] = mul_high_diff_f.try_inverse().unwrap_or_default();
+        trace[cpu_cols::COL_OP1_VALUE][i] = from_(state.get_register_value(inst.args.rs1));
+        trace[cpu_cols::COL_OP2_VALUE][i] = from_(state.get_register_value(inst.args.rs2));
         // NOTE: Updated value of DST register is next step.
         trace[cpu_cols::COL_DST_VALUE][i] = from_(aux.dst_val);
         trace[cpu_cols::COL_IMM_VALUE][i] = from_(inst.args.imm);
@@ -36,6 +29,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             trace[cpu_cols::COL_START_REG + j as usize][i] = from_(state.get_register_value(j));
         }
 
+        generate_mul_row(&mut trace, &inst, state, i);
         generate_divu_row(&mut trace, &inst, state, i);
         generate_slt_row(&mut trace, &inst, state, i);
         match inst.op {
@@ -50,6 +44,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             Op::DIVU => trace[cpu_cols::COL_S_DIVU][i] = F::ONE,
             Op::REMU => trace[cpu_cols::COL_S_REMU][i] = F::ONE,
             Op::MUL => trace[cpu_cols::COL_S_MUL][i] = F::ONE,
+            Op::MULHU => trace[cpu_cols::COL_S_MULHU][i] = F::ONE,
             Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
             #[tarpaulin::skip]
@@ -70,6 +65,24 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             v.len()
         )
     })
+}
+
+#[allow(clippy::cast_possible_wrap)]
+fn generate_mul_row<F: RichField>(
+    trace: &mut [Vec<F>],
+    inst: &Instruction,
+    state: &State,
+    row_idx: usize,
+) {
+    let op1 = state.get_register_value(inst.args.rs1);
+    let op2 = state.get_register_value(inst.args.rs2);
+    let (low, high) = op1.widening_mul(op2);
+    trace[cpu_cols::MUL_LOW_BITS][row_idx] = from_(low);
+    trace[cpu_cols::MUL_HIGH_BITS][row_idx] = from_(high);
+
+    // Prove that the high limb is different from `u32::MAX`:
+    let high_diff: F = from_(u32::MAX - high);
+    trace[cpu_cols::MUL_HIGH_DIFF_INV][row_idx] = high_diff.try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]
