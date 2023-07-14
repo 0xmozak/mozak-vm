@@ -37,6 +37,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
                 trace[cpu_cols::COL_S_RC][i] = F::ONE;
                 trace[cpu_cols::COL_S_ADD][i] = F::ONE;
             }
+            Op::SLL => trace[cpu_cols::COL_S_SLL][i] = F::ONE,
             Op::SLT => trace[cpu_cols::COL_S_SLT][i] = F::ONE,
             Op::SLTU => trace[cpu_cols::COL_S_SLTU][i] = F::ONE,
             Op::SRL => trace[cpu_cols::COL_S_SRL][i] = F::ONE,
@@ -74,15 +75,24 @@ fn generate_mul_row<F: RichField>(
     state: &State,
     row_idx: usize,
 ) {
+    if inst.op != Op::MUL && inst.op != Op::MULHU && inst.op != Op::SLL {
+        return;
+    }
     let op1 = state.get_register_value(inst.args.rs1);
-    let op2 = state.get_register_value(inst.args.rs2);
+    let op2 = if let Op::SLL = inst.op {
+        let shamt = state.get_register_value(inst.args.rs2) + inst.args.imm;
+        1 << (shamt & 0x1F)
+    } else {
+        state.get_register_value(inst.args.rs2)
+    };
+    trace[cpu_cols::MULTIPLIER][row_idx] = from_(op2);
     let (low, high) = op1.widening_mul(op2);
-    trace[cpu_cols::MUL_LOW_BITS][row_idx] = from_(low);
-    trace[cpu_cols::MUL_HIGH_BITS][row_idx] = from_(high);
+    trace[cpu_cols::PRODUCT_LOW_BITS][row_idx] = from_(low);
+    trace[cpu_cols::PRODUCT_HIGH_BITS][row_idx] = from_(high);
 
     // Prove that the high limb is different from `u32::MAX`:
     let high_diff: F = from_(u32::MAX - high);
-    trace[cpu_cols::MUL_HIGH_DIFF_INV][row_idx] = high_diff.try_inverse().unwrap_or_default();
+    trace[cpu_cols::PRODUCT_HIGH_DIFF_INV][row_idx] = high_diff.try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]

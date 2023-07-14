@@ -2,8 +2,8 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_MUL, COL_S_MULHU, MUL_HIGH_BITS,
-    MUL_HIGH_DIFF_INV, MUL_LOW_BITS, NUM_CPU_COLS,
+    COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_MUL, COL_S_MULHU, COL_S_SLL, MULTIPLIER,
+    NUM_CPU_COLS, PRODUCT_HIGH_BITS, PRODUCT_HIGH_DIFF_INV, PRODUCT_LOW_BITS,
 };
 use crate::utils::column_of_xs;
 
@@ -11,26 +11,30 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // TODO: MUL_LOW_BITS and MUL_HIGH_BITS need range checking.
+    // TODO: PRODUCT_LOW_BITS and PRODUCT_HIGH_BITS need range checking.
 
+    let is_mul = lv[COL_S_MUL];
+    let is_mulhu = lv[COL_S_MULHU];
+    let is_sll = lv[COL_S_SLL];
     // The Goldilocks field is carefully chosen to allow multiplication of u32
     // values without overflow.
     let base: P = column_of_xs::<P>(1_u64 << 32);
 
-    let op1 = lv[COL_OP1_VALUE];
-    let op2 = lv[COL_OP2_VALUE];
-    let low_limb = lv[MUL_LOW_BITS];
-    let high_limb = lv[MUL_HIGH_BITS];
+    let multiplicand = lv[COL_OP1_VALUE];
+    let multiplier = lv[MULTIPLIER];
+    let low_limb = lv[PRODUCT_LOW_BITS];
+    let high_limb = lv[PRODUCT_HIGH_BITS];
     let product = low_limb + base * high_limb;
 
-    yield_constr.constraint(product - op1 * op2);
+    yield_constr.constraint((is_mul + is_mulhu + is_sll) * (product - multiplicand * multiplier));
+    yield_constr.constraint((is_mul + is_mulhu) * (multiplier - lv[COL_OP2_VALUE]));
+    // TODO: for SLL `multiplier` needs be checked against lookup table to ensure:
+    //     multiplier == 1 << (shift_amount % 0x1F)
 
     // Now, let's copy our results to the destination register:
-    let is_mul = lv[COL_S_MUL];
-    let is_mulhu = lv[COL_S_MULHU];
 
     let destination = lv[COL_DST_VALUE];
-    yield_constr.constraint(is_mul * (destination - low_limb));
+    yield_constr.constraint((is_mul + is_sll) * (destination - low_limb));
     yield_constr.constraint(is_mulhu * (destination - high_limb));
 
     // The constraints above would be enough, if our field was large enough.
@@ -48,8 +52,9 @@ pub(crate) fn constraints<P: PackedField>(
     //
     // That curtails the exploit without invalidating any honest proofs.
 
-    let diff = column_of_xs::<P>(u64::from(u32::MAX)) - lv[MUL_HIGH_BITS];
-    yield_constr.constraint(diff * lv[MUL_HIGH_DIFF_INV] - P::ONES);
+    let diff = column_of_xs::<P>(u64::from(u32::MAX)) - lv[PRODUCT_HIGH_BITS];
+    yield_constr
+        .constraint((is_mul + is_mulhu + is_sll) * (diff * lv[PRODUCT_HIGH_DIFF_INV] - P::ONES));
 }
 
 #[cfg(test)]
@@ -57,8 +62,8 @@ pub(crate) fn constraints<P: PackedField>(
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, u32_extra};
-    use proptest::prelude::ProptestConfig;
-    use proptest::proptest;
+    use proptest::prelude::{any, ProptestConfig};
+    use proptest::{prop_assert_eq, proptest};
 
     use crate::test_utils::simple_proof_test;
     proptest! {
@@ -90,8 +95,37 @@ mod test {
                 &[(6, a), (7, b)],
             );
             let (low, high) = a.widening_mul(b);
-            assert_eq!(record.executed[1].state.get_register_value(8), low);
-            assert_eq!(record.executed[2].state.get_register_value(9), high);
+            prop_assert_eq!(record.executed[0].aux.dst_val, low);
+            prop_assert_eq!(record.executed[1].aux.dst_val, high);
+            simple_proof_test(&record.executed).unwrap();
+        }
+        #[test]
+        fn prove_sll_proptest(p in any::<u32>(), q in 0_u32..32, rd in 3_u8..32) {
+            let record = simple_test_code(
+                &[Instruction {
+                    op: Op::SLL,
+                    args: Args {
+                        rd,
+                        rs1: 1,
+                        rs2: 2,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::SLL,
+                    args: Args {
+                        rd,
+                        rs1: 1,
+                        rs2: 0,
+                        imm: q,
+                    },
+                }
+                ],
+                &[],
+                &[(1, p), (2, q)],
+            );
+            prop_assert_eq!(record.executed[0].aux.dst_val, p << q);
+            prop_assert_eq!(record.executed[1].aux.dst_val, p << q);
             simple_proof_test(&record.executed).unwrap();
         }
     }

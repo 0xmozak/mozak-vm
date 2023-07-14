@@ -44,7 +44,8 @@ pub(crate) const COL_S_DIVU: usize = COL_S_SUB + 1;
 pub(crate) const COL_S_REMU: usize = COL_S_DIVU + 1;
 pub(crate) const COL_S_MUL: usize = COL_S_REMU + 1;
 pub(crate) const COL_S_MULHU: usize = COL_S_MUL + 1;
-pub(crate) const COL_S_SLT: usize = COL_S_MULHU + 1;
+pub(crate) const COL_S_SLL: usize = COL_S_MULHU + 1;
+pub(crate) const COL_S_SLT: usize = COL_S_SLL + 1;
 pub(crate) const COL_S_SLTU: usize = COL_S_SLT + 1;
 pub(crate) const COL_S_SRL: usize = COL_S_SLTU + 1;
 pub(crate) const COL_S_BEQ: usize = COL_S_SRL + 1;
@@ -67,12 +68,13 @@ pub(crate) const DIVISOR_INV: usize = REMAINDER_SLACK + 1;
 
 pub(crate) const DIVISOR: usize = DIVISOR_INV + 1;
 
-// TODO: MUL_LOW_BITS and MUL_HIGH_BITS need range checking.
-pub(crate) const MUL_LOW_BITS: usize = DIVISOR + 1;
-pub(crate) const MUL_HIGH_BITS: usize = MUL_LOW_BITS + 1;
-pub(crate) const MUL_HIGH_DIFF_INV: usize = MUL_HIGH_BITS + 1;
+// TODO: PRODUCT_LOW_BITS and PRODUCT_HIGH_BITS need range checking.
+pub(crate) const MULTIPLIER: usize = DIVISOR + 1;
+pub(crate) const PRODUCT_LOW_BITS: usize = MULTIPLIER + 1;
+pub(crate) const PRODUCT_HIGH_BITS: usize = PRODUCT_LOW_BITS + 1;
+pub(crate) const PRODUCT_HIGH_DIFF_INV: usize = PRODUCT_HIGH_BITS + 1;
 
-pub(crate) const NUM_CPU_COLS: usize = MUL_HIGH_DIFF_INV + 1;
+pub(crate) const NUM_CPU_COLS: usize = PRODUCT_HIGH_DIFF_INV + 1;
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
