@@ -6,14 +6,14 @@ use super::columns::{
     COL_OP2_VALUE, COL_S_SLT, COL_S_SLTU, COL_S_SLT_OP1_VAL_FIXED, COL_S_SLT_OP2_VAL_FIXED,
     COL_S_SLT_SIGN1, COL_S_SLT_SIGN2, NUM_CPU_COLS,
 };
-use crate::utils::column_of_xs;
+use crate::utils::from_;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let p32: P = column_of_xs(1 << 32);
-    let p31: P = column_of_xs(1 << 31);
+    let p32 = from_::<u64, P::Scalar>(1 << 32);
+    let p31 = from_::<u64, P::Scalar>(1 << 31);
 
     let is_slt = lv[COL_S_SLT];
     let is_sltu = lv[COL_S_SLTU];
