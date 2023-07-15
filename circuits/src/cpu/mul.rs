@@ -1,4 +1,5 @@
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::bitwise::and_gadget;
@@ -7,7 +8,6 @@ use super::columns::{
     MULTIPLIER, NUM_CPU_COLS, POWERS_OF_2_IN, POWERS_OF_2_OUT, PRODUCT_HIGH_BITS,
     PRODUCT_HIGH_DIFF_INV, PRODUCT_LOW_BITS,
 };
-use crate::utils::from_;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
@@ -20,7 +20,7 @@ pub(crate) fn constraints<P: PackedField>(
     let is_sll = lv[COL_S_SLL];
     // The Goldilocks field is carefully chosen to allow multiplication of u32
     // values without overflow.
-    let base = from_::<u64, P::Scalar>(1 << 32);
+    let base = P::Scalar::from_noncanonical_u64(1 << 32);
 
     let multiplicand = lv[COL_OP1_VALUE];
     let multiplier = lv[MULTIPLIER];
@@ -33,7 +33,8 @@ pub(crate) fn constraints<P: PackedField>(
     // The following constraints are for SLL.
     {
         let and_gadget = and_gadget(lv);
-        yield_constr.constraint(is_sll * (and_gadget.input_a - from_::<u8, P::Scalar>(0x1F)));
+        yield_constr
+            .constraint(is_sll * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
         let op2 = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
         yield_constr.constraint(is_sll * (and_gadget.input_b - op2));
 
@@ -62,7 +63,7 @@ pub(crate) fn constraints<P: PackedField>(
     //
     // That curtails the exploit without invalidating any honest proofs.
 
-    let diff = from_::<u64, P::Scalar>(u32::MAX.into()) - lv[PRODUCT_HIGH_BITS];
+    let diff = P::Scalar::from_noncanonical_u64(u32::MAX.into()) - lv[PRODUCT_HIGH_BITS];
     yield_constr
         .constraint((is_mul + is_mulhu + is_sll) * (diff * lv[PRODUCT_HIGH_DIFF_INV] - P::ONES));
 }

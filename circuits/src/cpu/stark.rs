@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
@@ -15,7 +16,6 @@ use super::columns::{
     COL_S_SRL, COL_S_SUB, COL_S_XOR, NUM_CPU_COLS,
 };
 use super::{add, bitwise, div, mul, slt, sub};
-use crate::utils::from_;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -54,7 +54,7 @@ fn pc_ticks_up<P: PackedField>(
         .map(|op_code| lv[op_code])
         .sum();
     yield_constr.constraint_transition(
-        is_straightline_op * (nv[COL_PC] - (lv[COL_PC] + from_::<u32, P::Scalar>(4))),
+        is_straightline_op * (nv[COL_PC] - (lv[COL_PC] + P::Scalar::from_noncanonical_u64(4))),
     );
 }
 
