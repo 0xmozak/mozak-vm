@@ -127,6 +127,10 @@ pub fn i8_extra() -> impl Strategy<Value = i8> { i32_extra().prop_map(|x| x as i
 
 #[cfg(any(feature = "test", test))]
 #[allow(clippy::cast_possible_truncation)]
+pub fn u16_extra() -> impl Strategy<Value = u16> { u32_extra().prop_map(|x| x as u16) }
+
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_possible_truncation)]
 pub fn u8_extra() -> impl Strategy<Value = u8> { u32_extra().prop_map(|x| x as u8) }
 
 #[cfg(any(feature = "test", test))]

@@ -254,8 +254,8 @@ mod tests {
     use super::{div, divu, lh, lw, ExecutionRecord};
     use crate::instruction::{Instruction, Op};
     use crate::test_utils::{
-        i32_extra, i8_extra, last_but_coda, reg, simple_test, simple_test_code,
-        u32_extra,
+        i16_extra, i32_extra, i8_extra, last_but_coda, reg, simple_test, simple_test_code,
+        u16_extra, u32_extra, u8_extra,
     };
 
     proptest! {
@@ -625,7 +625,7 @@ mod tests {
         }
 
         #[test]
-        fn lbu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in i8_extra()) {
+        fn lbu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in u8_extra()) {
             let address = rs1_value.wrapping_add(offset);
 
             let e = simple_test_code(
@@ -636,16 +636,14 @@ mod tests {
                     0,
                     offset,
                 )],
-                &[(address, memory_value as u32)],
+                &[(address, u32::from(memory_value))],
                 &[(rs1, rs1_value)]
             );
-
-            let expected_value = (memory_value as u32) & 0x0000_00FF;
-            assert_eq!(last_but_coda(&e).get_register_value(rd), expected_value);
+            assert_eq!(last_but_coda(&e).get_register_value(rd), u32::from(memory_value));
         }
 
         #[test]
-        fn lh_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in i8_extra()) {
+        fn lh_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in i16_extra()) {
             let address = rs1_value.wrapping_add(offset);
 
             let e = simple_test_code(
@@ -656,16 +654,14 @@ mod tests {
                     0,
                     offset,
                 )],
-                &[(address, memory_value as u32)],
+                &[(address, u32::from(memory_value as u16))],
                 &[(rs1, rs1_value)]
             );
-
-            let expected_value = i32::from(memory_value) as u32;
-            assert_eq!(last_but_coda(&e).get_register_value(rd), expected_value);
+            assert_eq!(last_but_coda(&e).get_register_value(rd), i32::from(memory_value) as u32);
         }
 
         #[test]
-        fn lhu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in i8_extra()) {
+        fn lhu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in u16_extra()) {
             let address = rs1_value.wrapping_add(offset);
 
             let e = simple_test_code(
@@ -676,16 +672,15 @@ mod tests {
                     0,
                     offset,
                 )],
-                &[(address, memory_value as u32)],
+                &[(address, u32::from(memory_value))],
                 &[(rs1, rs1_value)]
             );
 
-            let expected_value = (memory_value as u32) & 0x0000_FFFF;
-            assert_eq!(last_but_coda(&e).get_register_value(rd), expected_value);
+            assert_eq!(last_but_coda(&e).get_register_value(rd), u32::from(memory_value));
         }
 
         #[test]
-        fn lw_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in i8_extra()) {
+        fn lw_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in u32_extra()) {
             let address = rs1_value.wrapping_add(offset);
 
             let e = simple_test_code(
@@ -696,12 +691,10 @@ mod tests {
                     0,
                     offset,
                 )],
-                &[(address, memory_value as u32)],
+                &[(address, memory_value)],
                 &[(rs1, rs1_value)]
             );
-
-            let expected_value = memory_value as u32;
-            assert_eq!(last_but_coda(&e).get_register_value(rd), expected_value);
+            assert_eq!(last_but_coda(&e).get_register_value(rd), memory_value);
         }
 
         #[test]
