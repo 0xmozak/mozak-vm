@@ -120,3 +120,11 @@ pub fn i16_extra() -> impl Strategy<Value = i16> { i32_extra().prop_map(|x| x as
 #[cfg(any(feature = "test", test))]
 #[allow(clippy::cast_sign_loss)]
 pub fn i8_extra() -> impl Strategy<Value = i8> { i32_extra().prop_map(|x| x as i8) }
+
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_sign_loss)]
+pub fn u8_extra() -> impl Strategy<Value = u8> { i32_extra().prop_map(|x| x as u8) }
+
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_sign_loss)]
+pub fn reg() -> impl Strategy<Value = u8> { u8_extra().prop_map(|x| 1 + (x % 31)) }
