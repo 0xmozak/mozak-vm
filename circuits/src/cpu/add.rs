@@ -4,13 +4,13 @@ use starky::constraint_consumer::ConstraintConsumer;
 use super::columns::{
     COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_ADD, NUM_CPU_COLS,
 };
-use crate::utils::column_of_xs;
+use crate::utils::from_;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let wrap_at: P = column_of_xs(1 << 32);
+    let wrap_at = from_::<u64, P::Scalar>(1 << 32);
     let added = lv[COL_OP1_VALUE] + lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
     let wrapped = added - wrap_at;
 
