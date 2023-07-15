@@ -634,7 +634,7 @@ mod tests {
                     rd,
                     rs1,
                     0,
-                    offset as u32,
+                    offset,
                 )],
                 &[(address, memory_value as u32)],
                 &[(rs1, rs1_value)]
@@ -654,7 +654,7 @@ mod tests {
                     rd,
                     rs1,
                     0,
-                    offset as u32,
+                    offset,
                 )],
                 &[(address, memory_value as u32)],
                 &[(rs1, rs1_value)]
@@ -674,7 +674,7 @@ mod tests {
                     rd,
                     rs1,
                     0,
-                    offset as u32,
+                    offset,
                 )],
                 &[(address, memory_value as u32)],
                 &[(rs1, rs1_value)]
@@ -800,9 +800,9 @@ mod tests {
 
         #[test]
         #[allow(clippy::cast_possible_truncation)]
-        fn mulh_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
+        fn mulh_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in i32_extra(), rs2_value in i32_extra()) {
             prop_assume!(rs1 != rs2);
-            let prod: i64 = i64::from(rs1_value as i32) * i64::from(rs2_value as i32);
+            let prod: i64 = i64::from(rs1_value) * i64::from(rs2_value);
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::MULH,
@@ -812,7 +812,7 @@ mod tests {
                     0,
                 )],
                 &[],
-                &[(rs1, rs1_value), (rs2, rs2_value)]
+                &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
             );
             assert_eq!(last_but_coda(&e).get_register_value(rd), (prod >> 32) as u32);
         }
