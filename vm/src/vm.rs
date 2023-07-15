@@ -495,7 +495,7 @@ mod tests {
         }
 
         #[test]
-        fn srai_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in 0_u32..32) {
+        fn srai_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SRA,
@@ -507,7 +507,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value)]
             );
-            let expected_value = (rs1_value as i32 >> imm as i32) as u32;
+            let expected_value = (rs1_value as i32 >> (imm & 0x1f)) as u32;
             assert_eq!(
                 last_but_coda(&e).get_register_value(rd),
                 expected_value
@@ -589,7 +589,7 @@ mod tests {
         }
 
         #[test]
-        fn slli_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in 0_u32..32) {
+        fn slli_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SLL,
@@ -601,7 +601,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), rs1_value << imm);
+            assert_eq!(last_but_coda(&e).get_register_value(rd), rs1_value << (imm & 0x1F));
         }
 
         #[test]
@@ -620,13 +620,13 @@ mod tests {
                 &[(rs1, rs1_value)]
             );
 
-            let expected_value = memory_value as i32 as u32;
+            let expected_value = i32::from(memory_value) as u32;
             assert_eq!(last_but_coda(&e).get_register_value(rd), expected_value);
         }
 
         #[test]
-        fn lbu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in i16_extra(),memory_value in i8_extra()) {
-            let address = rs1_value.wrapping_add(offset as i32 as u32);
+        fn lbu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in i16_extra(), memory_value in i8_extra()) {
+            let address = rs1_value.wrapping_add(i32::from(offset) as u32);
 
             let e = simple_test_code(
                 &[Instruction::new(
@@ -645,8 +645,8 @@ mod tests {
         }
 
         #[test]
-        fn lh_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in i16_extra(),memory_value in i8_extra()) {
-            let address = rs1_value.wrapping_add(offset as i32 as u32);
+        fn lh_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in i16_extra(), memory_value in i8_extra()) {
+            let address = rs1_value.wrapping_add(i32::from(offset) as u32);
 
             let e = simple_test_code(
                 &[Instruction::new(
@@ -660,13 +660,13 @@ mod tests {
                 &[(rs1, rs1_value)]
             );
 
-            let expected_value = memory_value as i32 as u32;
+            let expected_value = i32::from(memory_value) as u32;
             assert_eq!(last_but_coda(&e).get_register_value(rd), expected_value);
         }
 
         #[test]
-        fn lhu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in i16_extra(),memory_value in i8_extra()) {
-            let address = rs1_value.wrapping_add(offset as i32 as u32);
+        fn lhu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in i16_extra(), memory_value in i8_extra()) {
+            let address = rs1_value.wrapping_add(i32::from(offset) as u32);
 
             let e = simple_test_code(
                 &[Instruction::new(
@@ -685,8 +685,8 @@ mod tests {
         }
 
         #[test]
-        fn lw_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in i16_extra(),memory_value in i8_extra()) {
-            let address = rs1_value.wrapping_add(offset as i32 as u32);
+        fn lw_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in i16_extra(), memory_value in i8_extra()) {
+            let address = rs1_value.wrapping_add(i32::from(offset) as u32);
 
             let e = simple_test_code(
                 &[Instruction::new(
@@ -714,31 +714,31 @@ mod tests {
                     0,
                     rs1,
                     rs2,
-                    offset as u32
+                    offset
                 )],
-                &[(address,0x0)],
-                &[(rs1,rs1_val),(rs2,rs2_val)]
+                &[(address, 0x0)],
+                &[(rs1, rs1_val), (rs2, rs2_val)]
             );
 
             assert_eq!(u32::from(last_but_coda(&e).load_u8(address)), rs2_val & 0xff);
         }
 
         #[test]
-        fn sh_proptest(rs1 in reg(), rs1_val in u32_extra(), rs2 in reg(), rs2_val in u32_extra(), offset in -2048_i16..2048) {
+        fn sh_proptest(rs1 in reg(), rs1_val in u32_extra(), rs2 in reg(), rs2_val in u32_extra(), offset in u32_extra()) {
             prop_assume!(rs1 != rs2);
-            let address = rs1_val.wrapping_add(offset as i32 as u32);
+            let address = rs1_val.wrapping_add(offset);
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SH,
                     0,
                     rs1,
                     rs2,
-                    offset as u32
+                    offset
                 )],
-                &[(address,0x0)],
-                &[(rs1,rs1_val),(rs2,rs2_val)]
+                &[(address, 0x0)],
+                &[(rs1, rs1_val), (rs2, rs2_val)]
             );
-            // lh will return [0,1] as LSBs and will set MSBs to 0xFFFF
+            // lh will return [0, 1] as LSBs and will set MSBs to 0xFFFF
             let state = last_but_coda(&e);
             let memory_value = lh(
                 &[
@@ -752,19 +752,19 @@ mod tests {
         }
 
         #[test]
-        fn sw_proptest(rs1 in reg(), rs1_val in u32_extra(), rs2 in reg(), rs2_val in u32_extra(), offset in -2048_i16..2048) {
+        fn sw_proptest(rs1 in reg(), rs1_val in u32_extra(), rs2 in reg(), rs2_val in u32_extra(), offset in u32_extra()) {
             prop_assume!(rs1 != rs2);
-            let address = rs1_val.wrapping_add(offset as i32 as u32);
+            let address = rs1_val.wrapping_add(offset);
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SW,
                     0,
                     rs1,
                     rs2,
-                    offset as u32
+                    offset
                 )],
-                &[(address,0x0)],
-                &[(rs1,rs1_val),(rs2,rs2_val)]
+                &[(address, 0x0)],
+                &[(rs1, rs1_val), (rs2, rs2_val)]
             );
 
             let state = last_but_coda(&e);
@@ -871,7 +871,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), div(rs1_value as u32,rs2_value as u32));
+            assert_eq!(last_but_coda(&e).get_register_value(rd), div(rs1_value as u32, rs2_value as u32));
         }
 
         #[test]
@@ -889,7 +889,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), divu(rs1_value,rs2_value));
+            assert_eq!(last_but_coda(&e).get_register_value(rd), divu(rs1_value, rs2_value));
         }
 
         #[test]
@@ -1151,7 +1151,7 @@ mod tests {
 
         #[test]
         fn jal_jalr_proptest(imm in 0_u32..3) {
-            let imm_value_fixed = 4 * imm + 4; // 4 * (0..3) + 4 = 4,8,12,16
+            let imm_value_fixed = 4 * imm + 4; // 4 * (0..3) + 4 = 4, 8, 12, 16
             let e = simple_test_code(
                 &[
                     Instruction::new(
@@ -1191,7 +1191,7 @@ mod tests {
                     ),
                 ],
                 &[],
-                &[(2,1),(3,1)],
+                &[(2, 1), (3, 1)],
             );
             assert_eq!(last_but_coda(&e).get_register_value(2), 5 - imm);
         }
@@ -1210,10 +1210,7 @@ mod tests {
         // LUI x1, -524288
         let ExecutionRecord { last_state, .. } = simple_test(4, &[(0_u32, 0x8000_00b7)], &[]);
         assert_eq!(last_state.get_register_value(1), 0x8000_0000);
-        assert_eq!(
-            last_state.get_register_value(1) as i32,
-            -2_147_483_648
-        );
+        assert_eq!(last_state.get_register_value(1) as i32, -2_147_483_648);
     }
 
     #[test]

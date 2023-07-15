@@ -67,12 +67,13 @@ impl From<HashMap<u32, u8>> for Program {
 }
 
 impl From<HashMap<u32, u32>> for Data {
+    #[allow(clippy::cast_possible_truncation)]
     fn from(image: HashMap<u32, u32>) -> Self {
         Data(
             image
                 .iter()
                 .flat_map(move |(k, v)| {
-                    (*k as u64..)
+                    (u64::from(*k)..)
                         .map(|k| k as u32)
                         .zip(v.to_le_bytes().into_iter())
                 })

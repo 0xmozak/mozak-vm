@@ -114,20 +114,20 @@ pub fn u32_extra() -> impl Strategy<Value = u32> {
 
 #[cfg(any(feature = "test", test))]
 #[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
 pub fn i32_extra() -> impl Strategy<Value = i32> { u32_extra().prop_map(|x| x as i32) }
 
 #[cfg(any(feature = "test", test))]
-#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_truncation)]
 pub fn i16_extra() -> impl Strategy<Value = i16> { i32_extra().prop_map(|x| x as i16) }
 
 #[cfg(any(feature = "test", test))]
-#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_truncation)]
 pub fn i8_extra() -> impl Strategy<Value = i8> { i32_extra().prop_map(|x| x as i8) }
 
 #[cfg(any(feature = "test", test))]
-#[allow(clippy::cast_sign_loss)]
-pub fn u8_extra() -> impl Strategy<Value = u8> { i32_extra().prop_map(|x| x as u8) }
+#[allow(clippy::cast_possible_truncation)]
+pub fn u8_extra() -> impl Strategy<Value = u8> { u32_extra().prop_map(|x| x as u8) }
 
 #[cfg(any(feature = "test", test))]
-#[allow(clippy::cast_sign_loss)]
 pub fn reg() -> impl Strategy<Value = u8> { u8_extra().prop_map(|x| 1 + (x % 31)) }
