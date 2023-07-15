@@ -944,7 +944,7 @@ mod tests {
         #[test]
         fn rem_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in i32_extra(), rs2_value in i32_extra()) {
             prop_assume!(rs2_value != 0);
-            prop_assume!(rs1_value == i32::min_value() && rs2_value == -1);
+            prop_assume!(rs1_value != i32::min_value() && rs2_value != -1);
             let rem = rs1_value % rs2_value;
             let ExecutionRecord {
                 last_state: state, ..
