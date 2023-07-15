@@ -248,24 +248,13 @@ pub fn step(mut last_state: State) -> Result<ExecutionRecord> {
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-    use proptest::prelude::any;
-    use proptest::proptest;
+    use proptest::{prop_assume, proptest};
 
     use super::{div, divu, lh, lw, ExecutionRecord};
     use crate::instruction::{Instruction, Op};
-    use crate::test_utils::{simple_test, simple_test_code, u32_extra};
-
-    fn load_store_address_helper(rs1_value: u32, offset: i16) -> u32 {
-        let mut address: u32 = rs1_value;
-        if offset.is_negative() {
-            let abs_offset = u32::from(offset.unsigned_abs());
-            assert!(abs_offset <= rs1_value);
-            address -= u32::from(offset.unsigned_abs());
-        } else {
-            address += offset as u32;
-        }
-        address
-    }
+    use crate::test_utils::{
+        i16_extra, i32_extra, i8_extra, simple_test, simple_test_code, u32_extra,
+    };
 
     proptest! {
         #[test]
@@ -302,13 +291,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value)]
             );
-            let mut expected_value = rs1_value;
-            if imm.is_negative() {
-                expected_value -= imm.unsigned_abs();
-            } else {
-                expected_value += imm as u32;
-            }
-            assert_eq!(state.get_register_value(rd), expected_value);
+            assert_eq!(state.get_register_value(rd), rs1_value.wrapping_add(imm as u32));
         }
 
         #[test]
@@ -354,7 +337,7 @@ mod tests {
         }
 
         #[test]
-        fn andi_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in any::<i32>()) {
+        fn andi_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in i32_extra()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -440,7 +423,7 @@ mod tests {
         }
 
         #[test]
-        fn ori_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in any::<i32>()) {
+        fn ori_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in i32_extra()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -483,7 +466,7 @@ mod tests {
         }
 
         #[test]
-        fn xori_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in any::<i32>()) {
+        fn xori_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in i32_extra()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -592,7 +575,7 @@ mod tests {
         }
 
         #[test]
-        fn slti_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in any::<i32>()) {
+        fn slti_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in i32_extra()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -610,7 +593,7 @@ mod tests {
         }
 
         #[test]
-        fn sltiu_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in any::<i32>()) {
+        fn sltiu_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in i32_extra()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -646,8 +629,8 @@ mod tests {
         }
 
         #[test]
-        fn lb_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), offset in any::<i16>(), memory_value in any::<i8>()) {
-            let address = load_store_address_helper(rs1_value,offset);
+        fn lb_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), offset in i16_extra(), memory_value in i8_extra()) {
+            let address = rs1_value.wrapping_add(offset as i32 as u32);
 
             let ExecutionRecord {
                 last_state: state, ..
@@ -672,8 +655,8 @@ mod tests {
         }
 
         #[test]
-        fn lbu_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), offset in any::<i16>(),memory_value in any::<i8>()) {
-            let address = load_store_address_helper(rs1_value,offset);
+        fn lbu_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), offset in i16_extra(),memory_value in i8_extra()) {
+            let address = rs1_value.wrapping_add(offset as i32 as u32);
 
             let ExecutionRecord {
                 last_state: state, ..
@@ -694,8 +677,8 @@ mod tests {
         }
 
         #[test]
-        fn lh_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), offset in any::<i16>(),memory_value in any::<i8>()) {
-            let address = load_store_address_helper(rs1_value,offset);
+        fn lh_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), offset in i16_extra(),memory_value in i8_extra()) {
+            let address = rs1_value.wrapping_add(offset as i32 as u32);
 
             let ExecutionRecord {
                 last_state: state, ..
@@ -720,8 +703,8 @@ mod tests {
         }
 
         #[test]
-        fn lhu_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), offset in any::<i16>(),memory_value in any::<i8>()) {
-            let address = load_store_address_helper(rs1_value,offset);
+        fn lhu_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), offset in i16_extra(),memory_value in i8_extra()) {
+            let address = rs1_value.wrapping_add(offset as i32 as u32);
 
             let ExecutionRecord {
                 last_state: state, ..
@@ -742,8 +725,8 @@ mod tests {
         }
 
         #[test]
-        fn lw_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), offset in any::<i16>(),memory_value in any::<i8>()) {
-            let address = load_store_address_helper(rs1_value,offset);
+        fn lw_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), offset in i16_extra(),memory_value in i8_extra()) {
+            let address = rs1_value.wrapping_add(offset as i32 as u32);
 
             let ExecutionRecord {
                 last_state: state, ..
@@ -765,7 +748,7 @@ mod tests {
 
         #[test]
         fn sb_proptest(rs1 in 1_u8..15, rs1_val in u32_extra(), rs2 in 16_u8..32, rs2_val in u32_extra(), offset in -2048_i16..2048) {
-            let address = load_store_address_helper(rs1_val,offset);
+            let address = rs1_val.wrapping_add(offset as i32 as u32);
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -785,7 +768,7 @@ mod tests {
 
         #[test]
         fn sh_proptest(rs1 in 1_u8..15, rs1_val in u32_extra(), rs2 in 16_u8..32, rs2_val in u32_extra(), offset in -2048_i16..2048) {
-            let address = load_store_address_helper(rs1_val,offset);
+            let address = rs1_val.wrapping_add(offset as i32 as u32);
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -813,7 +796,7 @@ mod tests {
 
         #[test]
         fn sw_proptest(rs1 in 1_u8..15, rs1_val in u32_extra(), rs2 in 16_u8..32, rs2_val in u32_extra(), offset in -2048_i16..2048) {
-            let address = load_store_address_helper(rs1_val,offset);
+            let address = rs1_val.wrapping_add(offset as i32 as u32);
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -841,7 +824,7 @@ mod tests {
 
         #[test]
         #[allow(clippy::cast_possible_truncation)]
-        fn mul_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in any::<i32>()) {
+        fn mul_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in i32_extra(), rs2_value in i32_extra()) {
             let prod: i64 = i64::from(rs1_value) * i64::from(rs2_value);
             let ExecutionRecord {
                 last_state: state, ..
@@ -861,7 +844,7 @@ mod tests {
 
         #[test]
         #[allow(clippy::cast_possible_truncation)]
-        fn mulh_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in any::<i32>()) {
+        fn mulh_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in i32_extra(), rs2_value in i32_extra()) {
             let prod: i64 = i64::from(rs1_value) * i64::from(rs2_value);
             let ExecutionRecord {
                 last_state: state, ..
@@ -901,7 +884,7 @@ mod tests {
 
         #[test]
         #[allow(clippy::cast_possible_truncation)]
-        fn mulhsu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in u32_extra()) {
+        fn mulhsu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in i32_extra(), rs2_value in u32_extra()) {
             let prod: i64 = i64::from(rs1_value) * i64::from(rs2_value);
             let ExecutionRecord {
                 last_state: state, ..
@@ -921,7 +904,8 @@ mod tests {
 
         #[test]
         #[allow(clippy::cast_possible_truncation)]
-        fn div_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in any::<i32>()) {
+        fn div_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in i32_extra(), rs2_value in i32_extra()) {
+            prop_assume!(rs2_value != 0);
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -940,6 +924,7 @@ mod tests {
 
         #[test]
         fn divu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
+            prop_assume!(rs2_value != 0);
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -957,7 +942,9 @@ mod tests {
         }
 
         #[test]
-        fn rem_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in any::<i32>()) {
+        fn rem_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in i32_extra(), rs2_value in i32_extra()) {
+            prop_assume!(rs2_value != 0);
+            prop_assume!(rs1_value == i32::min_value() && rs2_value == -1);
             let rem = rs1_value % rs2_value;
             let ExecutionRecord {
                 last_state: state, ..
@@ -977,6 +964,7 @@ mod tests {
 
         #[test]
         fn remu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
+            prop_assume!(rs2_value != 0);
             let rem = rs1_value % rs2_value;
             let ExecutionRecord {
                 last_state: state, ..
@@ -1030,7 +1018,7 @@ mod tests {
 
         #[test]
         fn bne_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
-            let rs2_value_fixed = if rs1_value == rs2_value { rs2_value + 1 } else { rs2_value };
+            let rs2_value_fixed = if rs1_value == rs2_value { rs2_value.wrapping_add(1) } else { rs2_value };
 
             let ExecutionRecord {
                 last_state: state, ..
@@ -1065,13 +1053,8 @@ mod tests {
         }
 
         #[test]
-        fn blt_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in any::<i32>()) {
-            let mut rs1_value_fixed = rs1_value;
-            let mut rs2_value_fixed = if rs1_value == rs2_value { rs2_value + 1 } else { rs2_value };
-
-            if rs1_value_fixed > rs2_value_fixed {
-                std::mem::swap(&mut rs1_value_fixed, &mut rs2_value_fixed);
-            }
+        fn blt_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in i32_extra(), rs2_value in i32_extra()) {
+            prop_assume!(rs1_value < rs2_value);
 
             let ExecutionRecord {
                 last_state: state, ..
@@ -1100,19 +1083,14 @@ mod tests {
                     ),
                 ],
                 &[],
-                &[(rs1, rs1_value_fixed as u32), (rs2, rs2_value_fixed as u32)]
+                &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
             );
-            assert_eq!(state.get_register_value(rd), rs1_value_fixed.wrapping_add(rs2_value_fixed) as u32);
+            assert_eq!(state.get_register_value(rd), rs1_value.wrapping_add(rs2_value) as u32);
         }
 
         #[test]
         fn bltu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
-            let mut rs1_value_fixed = rs1_value;
-            let mut rs2_value_fixed = if rs1_value == rs2_value { rs2_value + 1 } else { rs2_value };
-
-            if rs1_value_fixed > rs2_value_fixed {
-                std::mem::swap(&mut rs1_value_fixed, &mut rs2_value_fixed);
-            }
+            prop_assume!(rs1_value < rs2_value);
 
             let ExecutionRecord {
                 last_state: state, ..
@@ -1141,13 +1119,13 @@ mod tests {
                     ),
                 ],
                 &[],
-                &[(rs1, rs1_value_fixed), (rs2, rs2_value_fixed)]
+                &[(rs1, rs1_value), (rs2, rs2_value)]
             );
-            assert_eq!(state.get_register_value(rd), rs1_value_fixed.wrapping_add(rs2_value_fixed));
+            assert_eq!(state.get_register_value(rd), rs1_value.wrapping_add(rs2_value));
         }
 
         #[test]
-        fn bge_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in any::<i32>()) {
+        fn bge_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in i32_extra(), rs2_value in i32_extra()) {
             let mut rs1_value_fixed = rs1_value;
             let mut rs2_value_fixed = rs2_value;
 

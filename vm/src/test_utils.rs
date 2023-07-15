@@ -108,3 +108,15 @@ pub fn u32_extra() -> impl Strategy<Value = u32> {
         Just(i32::MAX as u32),
     ]
 }
+
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_sign_loss)]
+pub fn i32_extra() -> impl Strategy<Value = i32> { u32_extra().prop_map(|x| x as i32) }
+
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_sign_loss)]
+pub fn i16_extra() -> impl Strategy<Value = i16> { i32_extra().prop_map(|x| x as i16) }
+
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_sign_loss)]
+pub fn i8_extra() -> impl Strategy<Value = i8> { i32_extra().prop_map(|x| x as i8) }
