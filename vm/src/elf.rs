@@ -71,7 +71,11 @@ impl From<HashMap<u32, u32>> for Data {
         Data(
             image
                 .iter()
-                .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes().into_iter()))
+                .flat_map(move |(k, v)| {
+                    (*k as u64..)
+                        .map(|k| k as u32)
+                        .zip(v.to_le_bytes().into_iter())
+                })
                 .collect(),
         )
     }
