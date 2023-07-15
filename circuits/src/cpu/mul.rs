@@ -1,11 +1,11 @@
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
     COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_MUL, COL_S_MULHU, MUL_HIGH_BITS,
     MUL_HIGH_DIFF_INV, MUL_LOW_BITS, NUM_CPU_COLS,
 };
-use crate::utils::from_;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
@@ -15,7 +15,7 @@ pub(crate) fn constraints<P: PackedField>(
 
     // The Goldilocks field is carefully chosen to allow multiplication of u32
     // values without overflow.
-    let base = from_::<u64, P::Scalar>(1 << 32);
+    let base = P::Scalar::from_noncanonical_u64(1 << 32);
 
     let op1 = lv[COL_OP1_VALUE];
     let op2 = lv[COL_OP2_VALUE];
@@ -48,7 +48,7 @@ pub(crate) fn constraints<P: PackedField>(
     //
     // That curtails the exploit without invalidating any honest proofs.
 
-    let diff = from_::<u64, P::Scalar>(u32::MAX.into()) - lv[MUL_HIGH_BITS];
+    let diff = P::Scalar::from_noncanonical_u64(u32::MAX.into()) - lv[MUL_HIGH_BITS];
     yield_constr.constraint(diff * lv[MUL_HIGH_DIFF_INV] - P::ONES);
 }
 

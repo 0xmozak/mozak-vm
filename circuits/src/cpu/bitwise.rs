@@ -1,11 +1,11 @@
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
     COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_AND, COL_S_OR, COL_S_XOR,
     NUM_CPU_COLS, XOR_A, XOR_B, XOR_OUT,
 };
-use crate::utils::from_;
 
 /// Constraints to verify execution of AND, OR and XOR instructions.
 #[allow(clippy::similar_names)]
@@ -38,7 +38,7 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(xor_b - op2);
 
     yield_constr.constraint(is_xor * (xor_out - dst));
-    let two: P::Scalar = from_(2_u32);
+    let two = P::Scalar::from_noncanonical_u64(2);
     yield_constr.constraint(is_and * (op1 + op2 - xor_out - dst * two));
     yield_constr.constraint(is_or * (op1 + op2 + xor_out - dst * two));
 }

@@ -1,16 +1,16 @@
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
     COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_ADD, NUM_CPU_COLS,
 };
-use crate::utils::from_;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let wrap_at = from_::<u64, P::Scalar>(1 << 32);
+    let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
     let added = lv[COL_OP1_VALUE] + lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
     let wrapped = added - wrap_at;
 

@@ -1,11 +1,11 @@
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
     COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_DIVU, COL_S_REMU, COL_S_SRL, DIVISOR,
     DIVISOR_INV, NUM_CPU_COLS, QUOTIENT, REMAINDER, REMAINDER_SLACK,
 };
-use crate::utils::from_;
 
 /// Constraints for DIVU / REMU / SRL instructions
 ///
@@ -63,7 +63,9 @@ pub(crate) fn constraints<P: PackedField>(
     //      p % 0 == p
 
     let q_inv = lv[DIVISOR_INV];
-    yield_constr.constraint((P::ONES - q * q_inv) * (m - from_::<u64, P::Scalar>(u32::MAX.into())));
+    yield_constr.constraint(
+        (P::ONES - q * q_inv) * (m - P::Scalar::from_noncanonical_u64(u32::MAX.into())),
+    );
     yield_constr.constraint((P::ONES - q * q_inv) * (r - p));
 
     // Last, we 'copy' our results:
