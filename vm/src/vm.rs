@@ -401,7 +401,7 @@ mod tests {
             );
             assert_eq!(
                 executed[1].state.get_register_value(rd),
-                rs1_value >> imm
+                rs1_value >> (imm & 0x1f)
             );
         }
 
