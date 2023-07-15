@@ -40,7 +40,11 @@ lazy_static! {
 
 pub(crate) const COL_S_ADD: usize = COL_REGS_RANGE.end;
 pub(crate) const COL_S_SUB: usize = COL_S_ADD + 1;
-pub(crate) const COL_S_DIVU: usize = COL_S_SUB + 1;
+pub(crate) const COL_S_XOR: usize = COL_S_SUB + 1;
+pub(crate) const COL_S_OR: usize = COL_S_XOR + 1;
+pub(crate) const COL_S_AND: usize = COL_S_OR + 1;
+
+pub(crate) const COL_S_DIVU: usize = COL_S_AND + 1;
 pub(crate) const COL_S_REMU: usize = COL_S_DIVU + 1;
 pub(crate) const COL_S_MUL: usize = COL_S_REMU + 1;
 pub(crate) const COL_S_MULHU: usize = COL_S_MUL + 1;
@@ -60,7 +64,13 @@ pub(crate) const COL_CMP_ABS_DIFF: usize = COL_S_SLT_OP2_VAL_FIXED + 1;
 pub(crate) const COL_CMP_DIFF_INV: usize = COL_CMP_ABS_DIFF + 1;
 pub(crate) const COL_LESS_THAN: usize = COL_CMP_DIFF_INV + 1;
 
-pub(crate) const QUOTIENT: usize = COL_LESS_THAN + 1;
+// TODO(Matthias): we could get rid of XOR_A and XOR_B, and just always do the
+// XOR lookup for every VM cpu cycle.
+pub(crate) const XOR_A: usize = COL_LESS_THAN + 1;
+pub(crate) const XOR_B: usize = XOR_A + 1;
+pub(crate) const XOR_OUT: usize = XOR_B + 1;
+
+pub(crate) const QUOTIENT: usize = XOR_OUT + 1;
 pub(crate) const REMAINDER: usize = QUOTIENT + 1;
 pub(crate) const REMAINDER_SLACK: usize = REMAINDER + 1;
 pub(crate) const DIVISOR_INV: usize = REMAINDER_SLACK + 1;
