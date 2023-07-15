@@ -249,6 +249,7 @@ pub fn step(mut last_state: State) -> Result<ExecutionRecord> {
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use proptest::{prop_assume, proptest};
+    use proptest::prelude::ProptestConfig;
 
     use super::{div, divu, lh, lw, ExecutionRecord};
     use crate::instruction::{Instruction, Op};
@@ -257,6 +258,7 @@ mod tests {
     };
 
     proptest! {
+        #![proptest_config(ProptestConfig { max_global_rejects: 100_000, .. Default::default() })]
         #[test]
         fn add_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
