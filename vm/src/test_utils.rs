@@ -15,6 +15,11 @@ use crate::vm::{step, ExecutionRecord};
 fn create_prog(image: HashMap<u32, u32>) -> State { State::from(Program::from(image)) }
 
 #[must_use]
+pub fn last_but_coda(e: &ExecutionRecord) -> &State {
+    &e.executed[e.executed.len() - 2].state
+}
+
+#[must_use]
 #[allow(clippy::missing_panics_doc)]
 pub fn simple_test_code(
     code: &[Instruction],
