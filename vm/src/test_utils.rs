@@ -102,8 +102,9 @@ pub fn u32_extra() -> impl Strategy<Value = u32> {
     prop_oneof![
         Just(0_u32),
         Just(1_u32),
+        Just(u32::MAX),
         any::<u32>(),
         Just(i32::MIN as u32),
-        Just(u32::MAX),
+        Just(i32::MAX as u32),
     ]
 }

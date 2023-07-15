@@ -253,7 +253,7 @@ mod tests {
 
     use super::{div, divu, lh, lw, ExecutionRecord};
     use crate::instruction::{Instruction, Op};
-    use crate::test_utils::{simple_test, simple_test_code};
+    use crate::test_utils::{simple_test, simple_test_code, u32_extra};
 
     fn load_store_address_helper(rs1_value: u32, offset: i16) -> u32 {
         let mut address: u32 = rs1_value;
@@ -269,7 +269,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn add_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn add_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let sum = rs1_value.wrapping_add(rs2_value);
             let ExecutionRecord {
                 last_state: state, ..
@@ -288,7 +288,7 @@ mod tests {
         }
 
         #[test]
-        fn addi_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in -2048_i32..2048) {
+        fn addi_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in -2048_i32..2048) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -312,7 +312,7 @@ mod tests {
         }
 
         #[test]
-        fn sll_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn sll_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -333,7 +333,7 @@ mod tests {
         }
 
         #[test]
-        fn and_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn and_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -354,7 +354,7 @@ mod tests {
         }
 
         #[test]
-        fn andi_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in any::<i32>()) {
+        fn andi_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in any::<i32>()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -377,7 +377,7 @@ mod tests {
 
 
         #[test]
-        fn srl_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn srl_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -398,7 +398,7 @@ mod tests {
         }
 
         #[test]
-        fn srli_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in 0_u32..32) {
+        fn srli_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in 0_u32..32) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -419,7 +419,7 @@ mod tests {
         }
 
         #[test]
-        fn or_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn or_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -440,7 +440,7 @@ mod tests {
         }
 
         #[test]
-        fn ori_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in any::<i32>()) {
+        fn ori_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in any::<i32>()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -462,7 +462,7 @@ mod tests {
         }
 
         #[test]
-        fn xor_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn xor_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -483,7 +483,7 @@ mod tests {
         }
 
         #[test]
-        fn xori_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in any::<i32>()) {
+        fn xori_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in any::<i32>()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -505,7 +505,7 @@ mod tests {
         }
 
         #[test]
-        fn sra_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn sra_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -526,7 +526,7 @@ mod tests {
         }
 
         #[test]
-        fn srai_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in 0_u32..32) {
+        fn srai_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in 0_u32..32) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -548,7 +548,7 @@ mod tests {
         }
 
         #[test]
-        fn slt_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn slt_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -571,7 +571,7 @@ mod tests {
         }
 
         #[test]
-        fn sltu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn sltu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -592,7 +592,7 @@ mod tests {
         }
 
         #[test]
-        fn slti_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in any::<i32>()) {
+        fn slti_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in any::<i32>()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -610,7 +610,7 @@ mod tests {
         }
 
         #[test]
-        fn sltiu_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in any::<i32>()) {
+        fn sltiu_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in any::<i32>()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -628,7 +628,7 @@ mod tests {
         }
 
         #[test]
-        fn slli_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), imm in 0_u32..32) {
+        fn slli_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), imm in 0_u32..32) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -646,7 +646,7 @@ mod tests {
         }
 
         #[test]
-        fn lb_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), offset in any::<i16>(), memory_value in any::<i8>()) {
+        fn lb_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), offset in any::<i16>(), memory_value in any::<i8>()) {
             let address = load_store_address_helper(rs1_value,offset);
 
             let ExecutionRecord {
@@ -672,7 +672,7 @@ mod tests {
         }
 
         #[test]
-        fn lbu_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), offset in any::<i16>(),memory_value in any::<i8>()) {
+        fn lbu_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), offset in any::<i16>(),memory_value in any::<i8>()) {
             let address = load_store_address_helper(rs1_value,offset);
 
             let ExecutionRecord {
@@ -694,7 +694,7 @@ mod tests {
         }
 
         #[test]
-        fn lh_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), offset in any::<i16>(),memory_value in any::<i8>()) {
+        fn lh_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), offset in any::<i16>(),memory_value in any::<i8>()) {
             let address = load_store_address_helper(rs1_value,offset);
 
             let ExecutionRecord {
@@ -720,7 +720,7 @@ mod tests {
         }
 
         #[test]
-        fn lhu_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), offset in any::<i16>(),memory_value in any::<i8>()) {
+        fn lhu_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), offset in any::<i16>(),memory_value in any::<i8>()) {
             let address = load_store_address_helper(rs1_value,offset);
 
             let ExecutionRecord {
@@ -742,7 +742,7 @@ mod tests {
         }
 
         #[test]
-        fn lw_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in any::<u32>(), offset in any::<i16>(),memory_value in any::<i8>()) {
+        fn lw_proptest(rd in 1_u8..15, rs1 in 16_u8..32, rs1_value in u32_extra(), offset in any::<i16>(),memory_value in any::<i8>()) {
             let address = load_store_address_helper(rs1_value,offset);
 
             let ExecutionRecord {
@@ -764,7 +764,7 @@ mod tests {
         }
 
         #[test]
-        fn sb_proptest(rs1 in 1_u8..15, rs1_val in any::<u32>(), rs2 in 16_u8..32, rs2_val in any::<u32>(), offset in -2048_i16..2048) {
+        fn sb_proptest(rs1 in 1_u8..15, rs1_val in u32_extra(), rs2 in 16_u8..32, rs2_val in u32_extra(), offset in -2048_i16..2048) {
             let address = load_store_address_helper(rs1_val,offset);
             let ExecutionRecord {
                 last_state: state, ..
@@ -784,7 +784,7 @@ mod tests {
         }
 
         #[test]
-        fn sh_proptest(rs1 in 1_u8..15, rs1_val in any::<u32>(), rs2 in 16_u8..32, rs2_val in any::<u32>(), offset in -2048_i16..2048) {
+        fn sh_proptest(rs1 in 1_u8..15, rs1_val in u32_extra(), rs2 in 16_u8..32, rs2_val in u32_extra(), offset in -2048_i16..2048) {
             let address = load_store_address_helper(rs1_val,offset);
             let ExecutionRecord {
                 last_state: state, ..
@@ -812,7 +812,7 @@ mod tests {
         }
 
         #[test]
-        fn sw_proptest(rs1 in 1_u8..15, rs1_val in any::<u32>(), rs2 in 16_u8..32, rs2_val in any::<u32>(), offset in -2048_i16..2048) {
+        fn sw_proptest(rs1 in 1_u8..15, rs1_val in u32_extra(), rs2 in 16_u8..32, rs2_val in u32_extra(), offset in -2048_i16..2048) {
             let address = load_store_address_helper(rs1_val,offset);
             let ExecutionRecord {
                 last_state: state, ..
@@ -881,7 +881,7 @@ mod tests {
 
         #[test]
         #[allow(clippy::cast_possible_truncation)]
-        fn mulhu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn mulhu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let prod: u64 = u64::from(rs1_value) * u64::from(rs2_value);
             let ExecutionRecord {
                 last_state: state, ..
@@ -901,7 +901,7 @@ mod tests {
 
         #[test]
         #[allow(clippy::cast_possible_truncation)]
-        fn mulhsu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in any::<u32>()) {
+        fn mulhsu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<i32>(), rs2_value in u32_extra()) {
             let prod: i64 = i64::from(rs1_value) * i64::from(rs2_value);
             let ExecutionRecord {
                 last_state: state, ..
@@ -939,7 +939,7 @@ mod tests {
         }
 
         #[test]
-        fn divu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn divu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -976,7 +976,7 @@ mod tests {
         }
 
         #[test]
-        fn remu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn remu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let rem = rs1_value % rs2_value;
             let ExecutionRecord {
                 last_state: state, ..
@@ -995,7 +995,7 @@ mod tests {
         }
 
         #[test]
-        fn beq_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn beq_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let ExecutionRecord {
                 last_state: state, ..
             } = simple_test_code(
@@ -1029,7 +1029,7 @@ mod tests {
         }
 
         #[test]
-        fn bne_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn bne_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let rs2_value_fixed = if rs1_value == rs2_value { rs2_value + 1 } else { rs2_value };
 
             let ExecutionRecord {
@@ -1106,7 +1106,7 @@ mod tests {
         }
 
         #[test]
-        fn bltu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn bltu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let mut rs1_value_fixed = rs1_value;
             let mut rs2_value_fixed = if rs1_value == rs2_value { rs2_value + 1 } else { rs2_value };
 
@@ -1188,7 +1188,7 @@ mod tests {
         }
 
         #[test]
-        fn bgeu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in any::<u32>(), rs2_value in any::<u32>()) {
+        fn bgeu_proptest(rd in 1_u8..8, rs1 in 9_u8..23, rs2 in 24_u8..32, rs1_value in u32_extra(), rs2_value in u32_extra()) {
             let mut rs1_value_fixed = rs1_value;
             let mut rs2_value_fixed = rs2_value;
 
