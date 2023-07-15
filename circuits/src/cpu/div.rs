@@ -76,15 +76,15 @@ pub(crate) fn constraints<P: PackedField>(
 #[cfg(test)]
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::simple_test_code;
-    use proptest::prelude::{any, prop_assert_eq, prop_oneof, Just, ProptestConfig};
+    use mozak_vm::test_utils::{simple_test_code, u32_extra};
+    use proptest::prelude::{prop_assert_eq, ProptestConfig};
     use proptest::{prop_assert, proptest};
 
     use crate::test_utils::{inv, simple_proof_test};
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
-        fn inv_is_big(x in prop_oneof![Just(0_u32), Just(1_u32), any::<u32>()]) {
+        fn inv_is_big(x in u32_extra()) {
             type F = plonky2::field::goldilocks_field::GoldilocksField;
             let y = inv::<F>(u64::from(x));
             if x > 1 {
@@ -92,7 +92,7 @@ mod test {
             }
         }
         #[test]
-        fn prove_divu_proptest(p in any::<u32>(), q in prop_oneof![Just(0_u32), Just(1_u32), any::<u32>()], rd in 3_u8..32) {
+        fn prove_divu_proptest(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
             let record = simple_test_code(
                 &[Instruction {
                     op: Op::DIVU,
@@ -131,7 +131,7 @@ mod test {
             simple_proof_test(&record.executed).unwrap();
         }
         #[test]
-        fn prove_srl_proptest(p in any::<u32>(), q in 0_u32..32, rd in 3_u8..32) {
+        fn prove_srl_proptest(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
             let record = simple_test_code(
                 &[Instruction {
                     op: Op::SRL,
