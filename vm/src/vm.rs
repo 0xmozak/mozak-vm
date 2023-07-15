@@ -254,7 +254,7 @@ mod tests {
     use super::{div, divu, lh, lw, ExecutionRecord};
     use crate::instruction::{Instruction, Op};
     use crate::test_utils::{
-        i16_extra, i32_extra, i8_extra, last_but_coda, reg, simple_test, simple_test_code,
+        i32_extra, i8_extra, last_but_coda, reg, simple_test, simple_test_code,
         u32_extra,
     };
 
@@ -625,8 +625,8 @@ mod tests {
         }
 
         #[test]
-        fn lbu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in i16_extra(), memory_value in i8_extra()) {
-            let address = rs1_value.wrapping_add(i32::from(offset) as u32);
+        fn lbu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in i8_extra()) {
+            let address = rs1_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
@@ -645,8 +645,8 @@ mod tests {
         }
 
         #[test]
-        fn lh_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in i16_extra(), memory_value in i8_extra()) {
-            let address = rs1_value.wrapping_add(i32::from(offset) as u32);
+        fn lh_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in i8_extra()) {
+            let address = rs1_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
@@ -665,8 +665,8 @@ mod tests {
         }
 
         #[test]
-        fn lhu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in i16_extra(), memory_value in i8_extra()) {
-            let address = rs1_value.wrapping_add(i32::from(offset) as u32);
+        fn lhu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in i8_extra()) {
+            let address = rs1_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
@@ -685,8 +685,8 @@ mod tests {
         }
 
         #[test]
-        fn lw_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in i16_extra(), memory_value in i8_extra()) {
-            let address = rs1_value.wrapping_add(i32::from(offset) as u32);
+        fn lw_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in i8_extra()) {
+            let address = rs1_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
@@ -694,7 +694,7 @@ mod tests {
                     rd,
                     rs1,
                     0,
-                    offset as u32,
+                    offset,
                 )],
                 &[(address, memory_value as u32)],
                 &[(rs1, rs1_value)]
@@ -781,9 +781,9 @@ mod tests {
 
         #[test]
         #[allow(clippy::cast_possible_truncation)]
-        fn mul_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in i32_extra(), rs2_value in i32_extra()) {
+        fn mul_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
-            let prod: i64 = i64::from(rs1_value) * i64::from(rs2_value);
+            let prod = rs1_value.wrapping_mul(rs2_value);
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::MUL,
@@ -793,16 +793,16 @@ mod tests {
                     0,
                 )],
                 &[],
-                &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
+                &[(rs1, rs1_value), (rs2, rs2_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), prod as u32);
+            assert_eq!(last_but_coda(&e).get_register_value(rd), prod);
         }
 
         #[test]
         #[allow(clippy::cast_possible_truncation)]
-        fn mulh_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in i32_extra(), rs2_value in i32_extra()) {
+        fn mulh_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
-            let prod: i64 = i64::from(rs1_value) * i64::from(rs2_value);
+            let prod: i64 = i64::from(rs1_value as i32) * i64::from(rs2_value as i32);
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::MULH,
@@ -812,7 +812,7 @@ mod tests {
                     0,
                 )],
                 &[],
-                &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
+                &[(rs1, rs1_value), (rs2, rs2_value)]
             );
             assert_eq!(last_but_coda(&e).get_register_value(rd), (prod >> 32) as u32);
         }
