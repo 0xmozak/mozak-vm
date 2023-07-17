@@ -121,7 +121,7 @@ mod tests {
 
         let record = simple_test_code(
             &[Instruction {
-                op: Op::AND,
+                op: Op::XOR,
                 args: Args {
                     rs1: 5,
                     rs2: 6,

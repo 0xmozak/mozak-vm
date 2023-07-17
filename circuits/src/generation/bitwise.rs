@@ -13,7 +13,12 @@ use crate::utils::from_;
 fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<&Row> {
     step_rows
         .iter()
-        .filter(|row| matches!(row.state.current_instruction().op, Op::AND | Op::OR | Op::XOR))
+        .filter(|row| {
+            matches!(
+                row.state.current_instruction().op,
+                Op::AND | Op::OR | Op::XOR
+            )
+        })
         .collect()
 }
 
