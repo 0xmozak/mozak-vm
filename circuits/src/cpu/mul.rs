@@ -7,7 +7,7 @@ use super::columns::{
     MULTIPLIER, NUM_CPU_COLS, POWERS_OF_2_IN, POWERS_OF_2_OUT, PRODUCT_HIGH_BITS,
     PRODUCT_HIGH_DIFF_INV, PRODUCT_LOW_BITS,
 };
-use crate::utils::{column_of_xs, from_};
+use crate::utils::from_;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
@@ -20,7 +20,7 @@ pub(crate) fn constraints<P: PackedField>(
     let is_sll = lv[COL_S_SLL];
     // The Goldilocks field is carefully chosen to allow multiplication of u32
     // values without overflow.
-    let base: P = column_of_xs::<P>(1_u64 << 32);
+    let base = from_::<u64, P::Scalar>(1 << 32);
 
     let multiplicand = lv[COL_OP1_VALUE];
     let multiplier = lv[MULTIPLIER];
@@ -62,7 +62,7 @@ pub(crate) fn constraints<P: PackedField>(
     //
     // That curtails the exploit without invalidating any honest proofs.
 
-    let diff = column_of_xs::<P>(u64::from(u32::MAX)) - lv[PRODUCT_HIGH_BITS];
+    let diff = from_::<u64, P::Scalar>(u32::MAX.into()) - lv[PRODUCT_HIGH_BITS];
     yield_constr
         .constraint((is_mul + is_mulhu + is_sll) * (diff * lv[PRODUCT_HIGH_DIFF_INV] - P::ONES));
 }

@@ -7,7 +7,7 @@ use super::columns::{
     DIVISOR, DIVISOR_INV, NUM_CPU_COLS, POWERS_OF_2_IN, POWERS_OF_2_OUT, QUOTIENT, REMAINDER,
     REMAINDER_SLACK,
 };
-use crate::utils::{column_of_xs, from_};
+use crate::utils::from_;
 
 /// Constraints for DIVU / REMU / SRL instructions
 ///
@@ -74,7 +74,7 @@ pub(crate) fn constraints<P: PackedField>(
     //      p % 0 == p
 
     let q_inv = lv[DIVISOR_INV];
-    yield_constr.constraint((P::ONES - q * q_inv) * (m - column_of_xs::<P>(u32::MAX.into())));
+    yield_constr.constraint((P::ONES - q * q_inv) * (m - from_::<u64, P::Scalar>(u32::MAX.into())));
     yield_constr.constraint((P::ONES - q * q_inv) * (r - p));
 
     // Last, we 'copy' our results:

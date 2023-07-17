@@ -2,14 +2,14 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_SUB, NUM_CPU_COLS};
-use crate::utils::column_of_xs;
+use crate::utils::from_;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let expected_value = lv[COL_OP1_VALUE] - lv[COL_OP2_VALUE];
-    let wrapped = column_of_xs::<P>(1 << 32) + expected_value;
+    let wrapped = from_::<u64, P::Scalar>(1 << 32) + expected_value;
     yield_constr.constraint(
         lv[COL_S_SUB] * ((lv[COL_DST_VALUE] - expected_value) * (lv[COL_DST_VALUE] - wrapped)),
     );

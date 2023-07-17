@@ -15,7 +15,7 @@ use super::columns::{
     COL_S_SRL, COL_S_SUB, COL_S_XOR, NUM_CPU_COLS,
 };
 use super::{add, bitwise, div, mul, slt, sub};
-use crate::utils::column_of_xs;
+use crate::utils::from_;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -54,7 +54,7 @@ fn pc_ticks_up<P: PackedField>(
         .map(|op_code| lv[op_code])
         .sum();
     yield_constr.constraint_transition(
-        is_straightline_op * (nv[COL_PC] - (lv[COL_PC] + column_of_xs::<P>(4))),
+        is_straightline_op * (nv[COL_PC] - (lv[COL_PC] + from_::<u32, P::Scalar>(4))),
     );
 }
 
