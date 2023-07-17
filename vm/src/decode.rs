@@ -232,7 +232,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
 #[cfg(test)]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
-mod test {
+mod tests {
     use proptest::prelude::*;
     use test_case::test_case;
 
