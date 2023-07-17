@@ -784,7 +784,6 @@ dependencies = [
  "plonky2",
  "plonky2_maybe_rayon",
  "proptest",
- "serde",
  "starky",
  "thiserror",
 ]

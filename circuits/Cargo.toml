@@ -20,9 +20,6 @@ starky = { git = "https://github.com/0xmozak/plonky2.git" }
 thiserror = "1.0.40"
 lazy_static = "1.4.0"
 array-concat = "0.5.2"
-# We mention serde just to override the default features to make plonky2 work.
-# We use a loose version bound, to let plonky2 choose.
-serde = { version = "*", default-features = false, features = ["rc"] }
 
 [dev-dependencies]
 mozak-vm = { path = "../vm", features = ["test"] }
