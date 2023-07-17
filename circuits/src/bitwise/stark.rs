@@ -47,16 +47,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         P: PackedField<Scalar = FE>, {
         let lv = vars.local_values;
 
-        // sumcheck for op1, op2, res limbs
-        // to ensure indeed limbs are generated from given value.
-        // We enforce the constraint:
-        //     opx == Sum(opx_limbs * 2^(8*i))
+        // check limbs sum to our given value.
+        // We interpret limbs as digits in base 256 == 2**8.
         for (opx, opx_limbs) in [(OP1, OP1_LIMBS), (OP2, OP2_LIMBS), (RES, RES_LIMBS)] {
-            yield_constr
-                .constraint(reduce_with_powers(&lv[opx_limbs], from_(1_u128 << 8)) - lv[opx]);
+            yield_constr.constraint(reduce_with_powers(&lv[opx_limbs], from_(256_u32)) - lv[opx]);
         }
 
         // Constrain compress logic.
+        // FIXME(Matthias): we need to verify (with constraints or similar) that the
+        // prover gaves us an honest compress_challenge.  And we need to either take the
+        // compress_challenge from at least the quadratic extension field, or take two
+        // challenges.
         let beta = FE::from_basefield(self.compress_challenge);
         for (op1_limb, op2_limb, res_limb, compress_limb) in
             izip!(OP1_LIMBS, OP2_LIMBS, RES_LIMBS, COMPRESS_LIMBS)

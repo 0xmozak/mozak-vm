@@ -10,14 +10,10 @@ use crate::lookup::permute_cols;
 use crate::utils::from_;
 
 #[must_use]
-fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<Row> {
+fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<&Row> {
     step_rows
         .iter()
-        .filter(|row| {
-            let inst = row.state.current_instruction();
-            inst.op == Op::AND
-        })
-        .cloned()
+        .filter(|row| matches!(row.state.current_instruction().op, Op::AND))
         .collect()
 }
 
@@ -28,8 +24,7 @@ pub fn generate_bitwise_trace<F: RichField>(
 ) -> ([Vec<F>; cols::NUM_BITWISE_COL], F) {
     let filtered_step_rows = filter_bitwise_trace(step_rows);
     let trace_len = filtered_step_rows.len();
-    let max_trace_len = trace_len.max(cols::BITWISE_U8_SIZE);
-    let ext_trace_len = max_trace_len.next_power_of_two();
+    let ext_trace_len = trace_len.max(cols::BITWISE_U8_SIZE).next_power_of_two();
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; cols::NUM_BITWISE_COL];
     for (i, Row { state, aux }) in filtered_step_rows.iter().enumerate() {
         let inst = state.current_instruction();
