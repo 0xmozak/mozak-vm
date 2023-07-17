@@ -7,13 +7,10 @@
 use std::collections::VecDeque;
 
 use itertools::Itertools;
-use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::{Field, PrimeField64};
-use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
+use starky::constraint_consumer::ConstraintConsumer;
+use starky::vars::StarkEvaluationVars;
 
 pub(crate) fn eval_lookups<
     F: Field,
@@ -41,36 +38,6 @@ pub(crate) fn eval_lookups<
     // `diff_input_table` is a diff of the next row's values. In the context of
     // `constraint_last_row`, the next row is the first row.
     yield_constr.constraint_last_row(diff_input_table);
-}
-
-pub(crate) fn eval_lookups_circuit<
-    F: RichField + Extendable<D>,
-    const D: usize,
-    const COLS: usize,
-    const PUBLIC_INPUTS: usize,
->(
-    builder: &mut CircuitBuilder<F, D>,
-    vars: StarkEvaluationTargets<D, COLS, PUBLIC_INPUTS>,
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-    col_permuted_input: usize,
-    col_permuted_table: usize,
-) {
-    let local_perm_input = vars.local_values[col_permuted_input];
-    let next_perm_table = vars.next_values[col_permuted_table];
-    let next_perm_input = vars.next_values[col_permuted_input];
-
-    // A "vertical" diff between the local and next permuted inputs.
-    let diff_input_prev = builder.sub_extension(next_perm_input, local_perm_input);
-    // A "horizontal" diff between the next permuted input and permuted table value.
-    let diff_input_table = builder.sub_extension(next_perm_input, next_perm_table);
-
-    let diff_product = builder.mul_extension(diff_input_prev, diff_input_table);
-    yield_constr.constraint(builder, diff_product);
-
-    // This is actually constraining the first row, as per the spec, since
-    // `diff_input_table` is a diff of the next row's values. In the context of
-    // `constraint_last_row`, the next row is the first row.
-    yield_constr.constraint_last_row(builder, diff_input_table);
 }
 
 /// Given an input column and a table column, Prepares the permuted input column
@@ -149,7 +116,7 @@ pub fn permute_cols<F: PrimeField64>(col_input: &[F], col_table: &[F]) -> (Vec<F
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use plonky2::field::types::{Field64, PrimeField64};
     use proptest::prelude::*;
 

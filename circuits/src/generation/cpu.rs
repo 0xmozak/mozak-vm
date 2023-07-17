@@ -110,12 +110,18 @@ fn generate_divu_row<F: RichField>(
 ) {
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
-    let divisor = if let Op::SRL = inst.op {
-        1 << (op2 & 0x1F)
+    let (raw_divisor, shift_amount) = if let Op::SRL = inst.op {
+        (1, op2 & 0x1F)
     } else {
-        op2
+        (op2, 0)
     };
+    let shift_power = 1_u32 << shift_amount;
+    let divisor = raw_divisor * shift_power;
+
+    trace[cpu_cols::POWERS_OF_2_IN][row_idx] = from_(shift_amount);
+    trace[cpu_cols::POWERS_OF_2_OUT][row_idx] = from_(shift_power);
     trace[cpu_cols::DIVISOR][row_idx] = from_(divisor);
+
     if let 0 = divisor {
         trace[cpu_cols::QUOTIENT][row_idx] = from_(u32::MAX);
         trace[cpu_cols::REMAINDER][row_idx] = from_(op1);
@@ -194,7 +200,11 @@ fn generate_bitwise_row<F: RichField>(
     state: &State,
     i: usize,
 ) {
-    let op1 = state.get_register_value(inst.args.rs1);
+    let op1 = match inst.op {
+        Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
+        Op::SRL => 0x1F,
+        _ => 0,
+    };
     let op2 = state
         .get_register_value(inst.args.rs2)
         .wrapping_add(inst.args.imm);
