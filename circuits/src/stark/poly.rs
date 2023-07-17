@@ -75,6 +75,7 @@ where
         size,
     );
 
+    println!("Before quotient_values");
     // We will step by `P::WIDTH`, and in each iteration, evaluate the quotient
     // polynomial at a batch of `P::WIDTH` points.
     let quotient_values = (0..size)
@@ -124,6 +125,8 @@ where
                     filter_column: &zs_columns.filter_column,
                 })
                 .collect::<Vec<_>>();
+            // This gets executed a lot:
+            // println!("Before eval_vanishing_poly");
             eval_vanishing_poly::<F, F, P, S, D, 1>(
                 stark,
                 config,
@@ -168,7 +171,9 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
     S: Stark<F, D>, {
+    println!("Before eval_packed_generic");
     stark.eval_packed_generic(vars, consumer);
+    println!("After eval_packed_generic");
     if let Some(permutation_vars) = permutation_vars {
         eval_permutation_checks::<F, FE, P, S, D, D2>(
             stark,

@@ -16,6 +16,7 @@ pub(crate) fn constraints<P: PackedField>(
 
     yield_constr
         .constraint(lv[COL_S_ADD] * (lv[COL_DST_VALUE] - added) * (lv[COL_DST_VALUE] - wrapped));
+    println!("Add has constraints");
 }
 
 #[cfg(test)]
@@ -26,7 +27,7 @@ mod tests {
 
     use crate::test_utils::simple_proof_test;
     #[test]
-    fn prove_add() {
+    fn prove_add_one() {
         let record = simple_test(4, &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)], &[
             (6, 100),
             (7, 100),

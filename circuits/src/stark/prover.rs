@@ -45,6 +45,7 @@ where
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(step_rows);
+    println!("After generate_traces");
     prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
 }
 
@@ -75,6 +76,7 @@ where
             .iter()
             .zip_eq(TableKind::all())
             .map(|(trace, table)| {
+                println!("Before from_values");
                 timed!(
                     timing,
                     &format!("compute trace commitment for {table:?}"),
@@ -103,6 +105,7 @@ where
     for cap in &trace_caps {
         challenger.observe_cap(cap);
     }
+    println!("After observing challenger caps");
 
     let ctl_challenges = get_grand_product_challenge_set(&mut challenger, config.num_challenges);
     let ctl_data_per_table = timed!(
@@ -213,6 +216,7 @@ where
     let permutation_ctl_zs_cap = permutation_ctl_zs_commitment.merkle_tree.cap.clone();
     challenger.observe_cap(&permutation_ctl_zs_cap);
 
+    println!("Before quotient_polys");
     let alphas = challenger.get_n_challenges(config.num_challenges);
     let quotient_polys = timed!(
         timing,
@@ -229,6 +233,7 @@ where
             config,
         )
     );
+    println!("After quotient_polys");
 
     let all_quotient_chunks = timed!(
         timing,
@@ -271,6 +276,7 @@ where
         zeta.exp_power_of_2(degree_bits) != F::Extension::ONE,
         "Opening point is in the subgroup."
     );
+    println!("Before openings");
 
     let openings = StarkOpeningSet::new(
         zeta,
@@ -290,6 +296,7 @@ where
         &quotient_commitment,
     ];
 
+    println!("before openings proof");
     let opening_proof = timed!(
         timing,
         "compute openings proof",

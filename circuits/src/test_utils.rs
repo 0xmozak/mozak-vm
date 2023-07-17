@@ -23,7 +23,7 @@ pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
     let config = StarkConfig::standard_fast_config();
     let config = StarkConfig {
         security_bits: 1,
-        num_challenges: 2,
+        num_challenges: 1,
         fri_config: FriConfig {
             // Plonky2 says: "Having constraints of degree higher than the rate is not supported
             // yet." So we automatically set the rate here as required by plonky2.
@@ -35,8 +35,11 @@ pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
         },
     };
 
+    println!("Before prover");
     let all_proof = prove::<F, C, D>(step_rows, &mut stark, &config, &mut TimingTree::default());
-    verify_proof(stark, all_proof.unwrap(), &config)
+    println!("Before verifier");
+    verify_proof(stark, all_proof.unwrap(), &config).unwrap();
+    Ok(())
 }
 
 /// Interpret a u64 as a field element and try to invert it.
