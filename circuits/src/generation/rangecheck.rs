@@ -22,6 +22,13 @@ fn init_padded_rc_trace<F: RichField>(len: usize) -> Vec<Vec<F>> {
     vec![vec![F::ZERO; len.next_power_of_two()]; columns::NUM_RC_COLS]
 }
 
+fn limbs_from_u32(value: u32) -> (u16, u16) {
+    let limb_hi = u16::try_from(value >> 16).unwrap();
+    let limb_lo = u16::try_from(value & 0xffff).unwrap();
+
+    (limb_hi, limb_lo)
+}
+
 /// Generates a trace table for range checks, used in building a
 /// `RangeCheckStark` proof.
 ///
@@ -56,8 +63,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
         #[allow(clippy::single_match)]
         match inst.op {
             Op::ADD => {
-                let limb_hi = u16::try_from(dst_val >> 16).unwrap();
-                let limb_lo = u16::try_from(dst_val & 0xffff).unwrap();
+                let (limb_hi, limb_lo) = limbs_from_u32(*dst_val);
                 trace[columns::VAL][i] = from_(*dst_val);
                 trace[LimbKind::col(columns::VAL, LimbKind::Hi)][i] = from_(limb_hi);
                 trace[LimbKind::col(columns::VAL, LimbKind::Lo)][i] = from_(limb_lo);
@@ -71,14 +77,12 @@ pub fn generate_rangecheck_trace<F: RichField>(
                 let op2_fixed = rs_2.wrapping_add(sign_adjust);
                 let abs_diff_fixed: u32 = op1_fixed.abs_diff(op2_fixed);
 
-                let limb_hi = u16::try_from(op1_fixed >> 16).unwrap();
-                let limb_lo = u16::try_from(op2_fixed & 0xffff).unwrap();
+                let (limb_hi, limb_lo) = limbs_from_u32(op1_fixed);
 
                 println!("generating SLT: val={} op1_fixed={}", dst_val, op1_fixed);
-                trace[columns::OP1_FIXED][i] = from_(op1_fixed);
-
-                trace[LimbKind::col(columns::OP1_FIXED, LimbKind::Hi)][i] = from_(limb_hi);
-                trace[LimbKind::col(columns::OP1_FIXED, LimbKind::Lo)][i] = from_(limb_lo);
+                trace[columns::VAL][i] = from_(op1_fixed);
+                trace[LimbKind::col(columns::VAL, LimbKind::Hi)][i] = from_(limb_hi);
+                trace[LimbKind::col(columns::VAL, LimbKind::Lo)][i] = from_(limb_lo);
                 trace[columns::CPU_ADD][i] = F::ONE;
             }
 

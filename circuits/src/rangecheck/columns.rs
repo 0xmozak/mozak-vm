@@ -66,7 +66,7 @@ pub(crate) const NUM_RC_COLS: usize = FIXED_RANGE_CHECK_U16 + 1;
 /// Columns containing the data to be range checked in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles([OP1_FIXED]).collect_vec() }
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles([VAL]).collect_vec() }
 
 /// Column for a binary filter to indicate a range check from the
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable) in the Mozak
