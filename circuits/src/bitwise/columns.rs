@@ -32,3 +32,4 @@ pub(crate) const NUM_BITWISE_COL: usize = FIX_COMPRESS_PERMUTED.end;
 
 pub(crate) const RANGE_U8: RangeInclusive<u8> = u8::MIN..=u8::MAX; // 256 different values
 pub(crate) const BITWISE_U8_SIZE: usize = 1 << 16; // 256 * 256 different possible combinations
+pub(crate) const BETA: u16 = 256;

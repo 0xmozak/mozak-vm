@@ -11,7 +11,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{
-    COMPRESS_LIMBS, COMPRESS_PERMUTED, FIX_COMPRESS_PERMUTED, FIX_RANGE_CHECK_U8_PERMUTED,
+    BETA, COMPRESS_LIMBS, COMPRESS_PERMUTED, FIX_COMPRESS_PERMUTED, FIX_RANGE_CHECK_U8_PERMUTED,
     NUM_BITWISE_COL, OP1, OP1_LIMBS, OP1_LIMBS_PERMUTED, OP2, OP2_LIMBS, OP2_LIMBS_PERMUTED, RES,
     RES_LIMBS, RES_LIMBS_PERMUTED,
 };
@@ -21,17 +21,7 @@ use crate::utils::from_;
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct BitwiseStark<F, const D: usize> {
-    pub compress_challenge: F,
     pub _f: PhantomData<F>,
-}
-
-impl<F: RichField, const D: usize> BitwiseStark<F, D> {
-    pub fn new(compress_challenge: F) -> Self {
-        Self {
-            compress_challenge,
-            ..Self::default()
-        }
-    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<F, D> {
@@ -58,7 +48,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         // prover gaves us an honest compress_challenge.  And we need to either take the
         // compress_challenge from at least the quadratic extension field, or take two
         // challenges.
-        let beta = FE::from_basefield(self.compress_challenge);
+        let beta = FE::from_basefield(from_(BETA));
         for (op1_limb, op2_limb, res_limb, compress_limb) in
             izip!(OP1_LIMBS, OP2_LIMBS, RES_LIMBS, COMPRESS_LIMBS)
         {
@@ -133,9 +123,9 @@ mod tests {
             &[(5, a), (6, b)],
         );
         assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));
-        let (trace, beta) = generate_bitwise_trace(&record.executed);
+        let trace = generate_bitwise_trace(&record.executed);
         let trace_poly_values = trace_to_poly_values(trace);
-        let stark = S::new(beta);
+        let stark = S::default();
 
         let proof = prove_table::<F, C, S, D>(
             stark,

@@ -2,8 +2,6 @@ use itertools::Itertools;
 use mozak_vm::instruction::Op;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::challenger::Challenger;
-use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
 use crate::bitwise::columns as cols;
 use crate::lookup::permute_cols;
@@ -24,9 +22,7 @@ fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<&Row> {
 
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
-pub fn generate_bitwise_trace<F: RichField>(
-    step_rows: &[Row],
-) -> ([Vec<F>; cols::NUM_BITWISE_COL], F) {
+pub fn generate_bitwise_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cols::NUM_BITWISE_COL] {
     let filtered_step_rows = filter_bitwise_trace(step_rows);
     let trace_len = filtered_step_rows.len();
     let ext_trace_len = trace_len.max(cols::BITWISE_U8_SIZE).next_power_of_two();
@@ -62,15 +58,7 @@ pub fn generate_bitwise_trace<F: RichField>(
         trace[cols::FIX_BITWISE_RES][index] = from_(op1 ^ op2);
     }
 
-    let mut challenger =
-        Challenger::<F, <PoseidonGoldilocksConfig as GenericConfig<2>>::Hasher>::new();
-    for limb in cols::OP1_LIMBS
-        .chain(cols::OP2_LIMBS)
-        .chain(cols::RES_LIMBS)
-    {
-        challenger.observe_elements(&trace[limb]);
-    }
-    let beta = challenger.get_challenge();
+    let beta: F = from_(cols::BETA);
     // TODO: Fix following issues related to possible security risks due to this
     // randomness. https://github.com/0xmozak/mozak-vm/issues/310
     // https://github.com/0xmozak/mozak-vm/issues/309
@@ -132,5 +120,5 @@ pub fn generate_bitwise_trace<F: RichField>(
         )
     });
     log::trace!("trace {:?}", trace_row_vecs);
-    (trace_row_vecs, beta)
+    trace_row_vecs
 }
