@@ -68,12 +68,17 @@ pub(crate) const XOR_A: usize = COL_LESS_THAN + 1;
 pub(crate) const XOR_B: usize = XOR_A + 1;
 pub(crate) const XOR_OUT: usize = XOR_B + 1;
 
-// TODO: for shift operations, we need to hook up POWERS_OF_2_IN and
-// POWERS_OF_2_OUT to a cross-table lookup for input values 0..32.
-pub(crate) const POWERS_OF_2_IN: usize = XOR_OUT + 1;
-pub(crate) const POWERS_OF_2_OUT: usize = POWERS_OF_2_IN + 1;
+// TODO: for shift operations, we need to hook up ALMOST_POWERS_OF_2_IN and
+// ALMOST_POWERS_OF_2_OUT to a cross-table lookup for input values 0..32.
+//
+// The corresponding relation is
+//      ALMOST_POWERS_OF_2_OUT + 1 == 1 << ALMOST_POWERS_OF_2_IN
+// (We didn't pick powers of 2 directly, so that (0, 0) is a valid tuple.  This
+// makes trace generation more convenient, because our values default to 0.)
+pub(crate) const ALMOST_POWERS_OF_2_IN: usize = XOR_OUT + 1;
+pub(crate) const ALMOST_POWERS_OF_2_OUT: usize = ALMOST_POWERS_OF_2_IN + 1;
 
-pub(crate) const QUOTIENT: usize = POWERS_OF_2_OUT + 1;
+pub(crate) const QUOTIENT: usize = ALMOST_POWERS_OF_2_OUT + 1;
 pub(crate) const REMAINDER: usize = QUOTIENT + 1;
 pub(crate) const REMAINDER_SLACK: usize = REMAINDER + 1;
 pub(crate) const DIVISOR_INV: usize = REMAINDER_SLACK + 1;

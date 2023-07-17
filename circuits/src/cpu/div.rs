@@ -3,9 +3,9 @@ use starky::constraint_consumer::ConstraintConsumer;
 
 use super::bitwise::and_gadget;
 use super::columns::{
-    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_DIVU, COL_S_REMU, COL_S_SRL,
-    DIVISOR, DIVISOR_INV, NUM_CPU_COLS, POWERS_OF_2_IN, POWERS_OF_2_OUT, QUOTIENT, REMAINDER,
-    REMAINDER_SLACK,
+    ALMOST_POWERS_OF_2_IN, ALMOST_POWERS_OF_2_OUT, COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE,
+    COL_OP2_VALUE, COL_S_DIVU, COL_S_REMU, COL_S_SRL, DIVISOR, DIVISOR_INV, NUM_CPU_COLS, QUOTIENT,
+    REMAINDER, REMAINDER_SLACK,
 };
 use crate::utils::from_;
 
@@ -39,8 +39,8 @@ pub(crate) fn constraints<P: PackedField>(
         let op2 = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
         yield_constr.constraint(is_srl * (and_gadget.input_b - op2));
 
-        yield_constr.constraint(is_srl * (and_gadget.output - lv[POWERS_OF_2_IN]));
-        yield_constr.constraint(is_srl * (q - lv[POWERS_OF_2_OUT]));
+        yield_constr.constraint(is_srl * (and_gadget.output - lv[ALMOST_POWERS_OF_2_IN]));
+        yield_constr.constraint(is_srl * (q - lv[ALMOST_POWERS_OF_2_OUT] - P::ONES));
     }
 
     // The equation from the spec becomes:

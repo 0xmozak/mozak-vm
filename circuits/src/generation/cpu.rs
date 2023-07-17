@@ -98,28 +98,28 @@ fn generate_divu_row<F: RichField>(
     state: &State,
     row_idx: usize,
 ) {
-    let op1 = state.get_register_value(inst.args.rs1);
-    let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
-    let (raw_divisor, shift_amount) = if let Op::SRL = inst.op {
-        (1, op2 & 0x1F)
-    } else {
-        (op2, 0)
-    };
-    let shift_power = 1_u32 << shift_amount;
-    let divisor = raw_divisor * shift_power;
+    let dividend = state.get_register_value(inst.args.rs1);
 
-    trace[cpu_cols::POWERS_OF_2_IN][row_idx] = from_(shift_amount);
-    trace[cpu_cols::POWERS_OF_2_OUT][row_idx] = from_(shift_power);
+    let divisor = if let Op::SRL = inst.op {
+        let shift_amount = (state.get_register_value(inst.args.rs2) + inst.args.imm) & 0x1F;
+        trace[cpu_cols::ALMOST_POWERS_OF_2_IN][row_idx] = from_(shift_amount);
+        let shift_power = 1_u32 << shift_amount;
+        trace[cpu_cols::ALMOST_POWERS_OF_2_OUT][row_idx] = from_(shift_power - 1);
+        shift_power
+    } else {
+        state.get_register_value(inst.args.rs2)
+    };
+
     trace[cpu_cols::DIVISOR][row_idx] = from_(divisor);
 
     if let 0 = divisor {
         trace[cpu_cols::QUOTIENT][row_idx] = from_(u32::MAX);
-        trace[cpu_cols::REMAINDER][row_idx] = from_(op1);
+        trace[cpu_cols::REMAINDER][row_idx] = from_(dividend);
         trace[cpu_cols::REMAINDER_SLACK][row_idx] = from_(0_u32);
     } else {
-        trace[cpu_cols::QUOTIENT][row_idx] = from_(op1 / divisor);
-        trace[cpu_cols::REMAINDER][row_idx] = from_(op1 % divisor);
-        trace[cpu_cols::REMAINDER_SLACK][row_idx] = from_(divisor - op1 % divisor - 1);
+        trace[cpu_cols::QUOTIENT][row_idx] = from_(dividend / divisor);
+        trace[cpu_cols::REMAINDER][row_idx] = from_(dividend % divisor);
+        trace[cpu_cols::REMAINDER_SLACK][row_idx] = from_(divisor - dividend % divisor - 1);
     }
     trace[cpu_cols::DIVISOR_INV][row_idx] =
         from_::<_, F>(divisor).try_inverse().unwrap_or_default();
