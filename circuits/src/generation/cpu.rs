@@ -98,6 +98,15 @@ fn generate_divu_row<F: RichField>(
     state: &State,
     row_idx: usize,
 ) {
+    if !matches!(inst.op, Op::DIVU | Op::REMU | Op::SRL) {
+        // set DIVISOR and DIVISOR_INV to 1 in order to prevent
+        // constraints for division by zero to fail.
+        // The constraints for division zero are not restricted only to DIVU/REMU and
+        // SRL as doing so increases degree of cpu constraints to 4.
+        trace[cpu_cols::DIVISOR][row_idx] = from_(1_u32);
+        trace[cpu_cols::DIVISOR_INV][row_idx] = from_(1_u32);
+        return;
+    }
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
     let (raw_divisor, shift_amount) = if let Op::SRL = inst.op {

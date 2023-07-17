@@ -48,7 +48,7 @@ pub(crate) fn constraints<P: PackedField>(
     // (Interestingly, this holds even when q == 0.)
     let m = lv[QUOTIENT];
     let r = lv[REMAINDER];
-    yield_constr.constraint(m * q + r - p);
+    yield_constr.constraint((is_divu + is_remu + is_srl) * (m * q + r - p));
 
     // However, that constraint is not enough.
     // For example, a malicious prover could trivially fulfill it via
@@ -67,7 +67,7 @@ pub(crate) fn constraints<P: PackedField>(
     //      with range_check(slack)
 
     let slack = lv[REMAINDER_SLACK];
-    yield_constr.constraint(q * (r + slack + P::ONES - q));
+    yield_constr.constraint((is_divu + is_remu + is_srl) * (q * (r + slack + P::ONES - q)));
 
     // Now we need to deal with division by zero.  The Risc-V spec says:
     //      p / 0 == 0xFFFF_FFFF
