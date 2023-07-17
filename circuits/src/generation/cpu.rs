@@ -85,14 +85,21 @@ fn generate_mul_row<F: RichField>(
         return;
     }
     let op1 = state.get_register_value(inst.args.rs1);
-    let op2 = if let Op::SLL = inst.op {
-        let shamt = state.get_register_value(inst.args.rs2) + inst.args.imm;
-        1 << (shamt & 0x1F)
+    let op2 = state.get_register_value(inst.args.rs2);
+    let (raw_multiplier, shift_amount) = if let Op::SLL = inst.op {
+        let shamt = op2 + inst.args.imm;
+        (1, shamt & 0x1F)
     } else {
-        state.get_register_value(inst.args.rs2)
+        (op2, 0)
     };
-    trace[cpu_cols::MULTIPLIER][row_idx] = from_(op2);
-    let (low, high) = op1.widening_mul(op2);
+    let shift_power = 1_u32 << shift_amount;
+    let multiplier = raw_multiplier * shift_power;
+    if inst.op == Op::SLL {
+        trace[cpu_cols::POWERS_OF_2_IN][row_idx] = from_(shift_amount);
+        trace[cpu_cols::POWERS_OF_2_OUT][row_idx] = from_(shift_power);
+    }
+    trace[cpu_cols::MULTIPLIER][row_idx] = from_(multiplier);
+    let (low, high) = op1.widening_mul(multiplier);
     trace[cpu_cols::PRODUCT_LOW_BITS][row_idx] = from_(low);
     trace[cpu_cols::PRODUCT_HIGH_BITS][row_idx] = from_(high);
 
@@ -118,8 +125,10 @@ fn generate_divu_row<F: RichField>(
     let shift_power = 1_u32 << shift_amount;
     let divisor = raw_divisor * shift_power;
 
-    trace[cpu_cols::POWERS_OF_2_IN][row_idx] = from_(shift_amount);
-    trace[cpu_cols::POWERS_OF_2_OUT][row_idx] = from_(shift_power);
+    if inst.op == Op::SRL {
+        trace[cpu_cols::POWERS_OF_2_IN][row_idx] = from_(shift_amount);
+        trace[cpu_cols::POWERS_OF_2_OUT][row_idx] = from_(shift_power);
+    }
     trace[cpu_cols::DIVISOR][row_idx] = from_(divisor);
 
     if let 0 = divisor {
@@ -202,7 +211,7 @@ fn generate_bitwise_row<F: RichField>(
 ) {
     let op1 = match inst.op {
         Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
-        Op::SRL => 0x1F,
+        Op::SRL | Op::SLL => 0x1F,
         _ => 0,
     };
     let op2 = state

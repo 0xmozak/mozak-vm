@@ -1,11 +1,13 @@
 use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
+use super::bitwise::and_gadget;
 use super::columns::{
-    COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_MUL, COL_S_MULHU, COL_S_SLL, MULTIPLIER,
-    NUM_CPU_COLS, PRODUCT_HIGH_BITS, PRODUCT_HIGH_DIFF_INV, PRODUCT_LOW_BITS,
+    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_MUL, COL_S_MULHU, COL_S_SLL,
+    MULTIPLIER, NUM_CPU_COLS, POWERS_OF_2_IN, POWERS_OF_2_OUT, PRODUCT_HIGH_BITS,
+    PRODUCT_HIGH_DIFF_INV, PRODUCT_LOW_BITS,
 };
-use crate::utils::column_of_xs;
+use crate::utils::{column_of_xs, from_};
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
@@ -28,8 +30,16 @@ pub(crate) fn constraints<P: PackedField>(
 
     yield_constr.constraint((is_mul + is_mulhu + is_sll) * (product - multiplicand * multiplier));
     yield_constr.constraint((is_mul + is_mulhu) * (multiplier - lv[COL_OP2_VALUE]));
-    // TODO: for SLL `multiplier` needs be checked against lookup table to ensure:
-    //     multiplier == 1 << (shift_amount & 0x1F)
+    // The following constraints are for SLL.
+    {
+        let and_gadget = and_gadget(lv);
+        yield_constr.constraint(is_sll * (and_gadget.input_a - from_::<u8, P::Scalar>(0x1F)));
+        let op2 = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
+        yield_constr.constraint(is_sll * (and_gadget.input_b - op2));
+
+        yield_constr.constraint(is_sll * (and_gadget.output - lv[POWERS_OF_2_IN]));
+        yield_constr.constraint(is_sll * (multiplier - lv[POWERS_OF_2_OUT]));
+    }
 
     // Now, let's copy our results to the destination register:
 
@@ -99,6 +109,7 @@ mod tests {
             prop_assert_eq!(record.executed[1].aux.dst_val, high);
             simple_proof_test(&record.executed).unwrap();
         }
+
         #[test]
         fn prove_sll_proptest(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
             let record = simple_test_code(
