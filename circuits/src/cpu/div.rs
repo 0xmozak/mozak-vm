@@ -2,8 +2,8 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_DIVU, COL_S_REMU, COL_S_SRL,
-    DIVISOR, DIVISOR_INV, NUM_CPU_COLS, QUOTIENT, REMAINDER, REMAINDER_SLACK,
+    COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_DIVU, COL_S_REMU, COL_S_SRL, DIVISOR,
+    DIVISOR_INV, NUM_CPU_COLS, QUOTIENT, REMAINDER, REMAINDER_SLACK,
 };
 use crate::utils::column_of_xs;
 
@@ -27,11 +27,10 @@ pub(crate) fn constraints<P: PackedField>(
     // > quotient + remainder.
     // In the following code, we are looking at p/q.
     let p = lv[COL_OP1_VALUE];
-    let op2 = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
     let q = lv[DIVISOR];
-    yield_constr.constraint((is_divu + is_remu) * (q - op2));
+    yield_constr.constraint((is_divu + is_remu) * (q - lv[COL_OP2_VALUE]));
     // TODO: for SRL `q` needs be checked against lookup table to ensure:
-    //     q == 1 << (shift_amount % 0x1F)
+    //     q == 1 << ((lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE]) & 0x1F)
 
     // The equation from the spec becomes:
     //  p = q * m + r
@@ -75,15 +74,15 @@ pub(crate) fn constraints<P: PackedField>(
 #[cfg(test)]
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::simple_test_code;
-    use proptest::prelude::{any, prop_assert_eq, prop_oneof, Just, ProptestConfig};
+    use mozak_vm::test_utils::{simple_test_code, u32_extra};
+    use proptest::prelude::{prop_assert_eq, ProptestConfig};
     use proptest::{prop_assert, proptest};
 
     use crate::test_utils::{inv, simple_proof_test};
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
-        fn inv_is_big(x in prop_oneof![Just(0_u32), Just(1_u32), any::<u32>()]) {
+        fn inv_is_big(x in u32_extra()) {
             type F = plonky2::field::goldilocks_field::GoldilocksField;
             let y = inv::<F>(u64::from(x));
             if x > 1 {
@@ -91,7 +90,7 @@ mod test {
             }
         }
         #[test]
-        fn prove_divu_proptest(p in any::<u32>(), q in prop_oneof![Just(0_u32), Just(1_u32), any::<u32>()], rd in 3_u8..32) {
+        fn prove_divu_proptest(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
             let record = simple_test_code(
                 &[Instruction {
                     op: Op::DIVU,
@@ -130,7 +129,7 @@ mod test {
             simple_proof_test(&record.executed).unwrap();
         }
         #[test]
-        fn prove_srl_proptest(p in any::<u32>(), q in 0_u32..32, rd in 3_u8..32) {
+        fn prove_srl_proptest(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
             let record = simple_test_code(
                 &[Instruction {
                     op: Op::SRL,

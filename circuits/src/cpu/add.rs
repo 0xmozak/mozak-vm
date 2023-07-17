@@ -22,7 +22,7 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test, simple_test_code};
+    use mozak_vm::test_utils::{simple_test, simple_test_code, u32_extra};
 
     use crate::test_utils::simple_proof_test;
     #[test]
@@ -34,12 +34,12 @@ mod test {
         assert_eq!(record.last_state.get_register_value(5), 100 + 100);
         simple_proof_test(&record.executed).unwrap();
     }
-    use proptest::prelude::{any, ProptestConfig};
+    use proptest::prelude::ProptestConfig;
     use proptest::proptest;
     proptest! {
             #![proptest_config(ProptestConfig::with_cases(4))]
             #[test]
-            fn prove_add_proptest(a in any::<u32>(), b in any::<u32>(), rd in 0_u8..32) {
+            fn prove_add_proptest(a in u32_extra(), b in u32_extra(), rd in 0_u8..32) {
                 let record = simple_test_code(
                     &[Instruction {
                         op: Op::ADD,

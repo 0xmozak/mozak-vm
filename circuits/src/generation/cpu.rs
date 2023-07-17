@@ -29,8 +29,12 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             trace[cpu_cols::COL_START_REG + j as usize][i] = from_(state.get_register_value(j));
         }
 
+        generate_mul_row(&mut trace, &inst, state, i);
         generate_divu_row(&mut trace, &inst, state, i);
         generate_slt_row(&mut trace, &inst, state, i);
+
+        generate_bitwise_row(&mut trace, &inst, state, i);
+
         match inst.op {
             Op::ADD => {
                 trace[cpu_cols::COL_S_RC][i] = F::ONE;
@@ -42,8 +46,13 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             Op::SUB => trace[cpu_cols::COL_S_SUB][i] = F::ONE,
             Op::DIVU => trace[cpu_cols::COL_S_DIVU][i] = F::ONE,
             Op::REMU => trace[cpu_cols::COL_S_REMU][i] = F::ONE,
+            Op::MUL => trace[cpu_cols::COL_S_MUL][i] = F::ONE,
+            Op::MULHU => trace[cpu_cols::COL_S_MULHU][i] = F::ONE,
             Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
+            Op::XOR => trace[cpu_cols::COL_S_XOR][i] = F::ONE,
+            Op::OR => trace[cpu_cols::COL_S_OR][i] = F::ONE,
+            Op::AND => trace[cpu_cols::COL_S_AND][i] = F::ONE,
             #[tarpaulin::skip]
             _ => {}
         }
@@ -62,6 +71,24 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             v.len()
         )
     })
+}
+
+#[allow(clippy::cast_possible_wrap)]
+fn generate_mul_row<F: RichField>(
+    trace: &mut [Vec<F>],
+    inst: &Instruction,
+    state: &State,
+    row_idx: usize,
+) {
+    let op1 = state.get_register_value(inst.args.rs1);
+    let op2 = state.get_register_value(inst.args.rs2);
+    let (low, high) = op1.widening_mul(op2);
+    trace[cpu_cols::MUL_LOW_BITS][row_idx] = from_(low);
+    trace[cpu_cols::MUL_HIGH_BITS][row_idx] = from_(high);
+
+    // Prove that the high limb is different from `u32::MAX`:
+    let high_diff: F = from_(u32::MAX - high);
+    trace[cpu_cols::MUL_HIGH_DIFF_INV][row_idx] = high_diff.try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -149,4 +176,19 @@ fn generate_slt_row<F: RichField>(
         let one: F = diff * diff_inv;
         assert_eq!(one, if op1 == op2 { F::ZERO } else { F::ONE });
     }
+}
+
+fn generate_bitwise_row<F: RichField>(
+    trace: &mut [Vec<F>],
+    inst: &Instruction,
+    state: &State,
+    i: usize,
+) {
+    let op1 = state.get_register_value(inst.args.rs1);
+    let op2 = state
+        .get_register_value(inst.args.rs2)
+        .wrapping_add(inst.args.imm);
+    trace[cpu_cols::XOR_A][i] = from_(op1);
+    trace[cpu_cols::XOR_B][i] = from_(op2);
+    trace[cpu_cols::XOR_OUT][i] = from_(op1 ^ op2);
 }
