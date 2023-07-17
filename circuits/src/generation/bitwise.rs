@@ -13,7 +13,7 @@ use crate::utils::from_;
 fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<&Row> {
     step_rows
         .iter()
-        .filter(|row| matches!(row.state.current_instruction().op, Op::AND))
+        .filter(|row| matches!(row.state.current_instruction().op, Op::AND | Op::OR | Op::XOR))
         .collect()
 }
 
@@ -54,7 +54,7 @@ pub fn generate_bitwise_trace<F: RichField>(
     for (index, (op1, op2)) in cols::RANGE_U8.cartesian_product(cols::RANGE_U8).enumerate() {
         trace[cols::FIX_BITWISE_OP1][index] = from_(op1);
         trace[cols::FIX_BITWISE_OP2][index] = from_(op2);
-        trace[cols::FIX_BITWISE_RES][index] = from_(op1 & op2);
+        trace[cols::FIX_BITWISE_RES][index] = from_(op1 ^ op2);
     }
 
     let mut challenger =
