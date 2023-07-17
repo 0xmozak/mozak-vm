@@ -132,7 +132,7 @@ mod tests {
             &[],
             &[(5, a), (6, b)],
         );
-        assert_eq!(record.last_state.get_register_value(7), a & (b + imm));
+        assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));
         let (trace, beta) = generate_bitwise_trace(&record.executed);
         let trace_poly_values = trace_to_poly_values(trace);
         let stark = S::new(beta);
