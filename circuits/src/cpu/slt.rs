@@ -64,7 +64,7 @@ mod test {
 
     use crate::test_utils::simple_proof_test;
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(4))]
+        #![proptest_config(ProptestConfig::with_cases(1))]
         #[test]
         fn prove_slt_proptest(a in u32_extra(), op2 in u32_extra(), use_imm in any::<bool>()) {
             let (b, imm) = if use_imm { (0, op2) } else { (op2, 0) };

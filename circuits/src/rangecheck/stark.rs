@@ -18,18 +18,6 @@ pub struct RangeCheckStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-/// Constrain `val` - (`limb_hi` ** base + `limb_lo`) == 0
-fn constrain_value<P: PackedField>(
-    base: P::Scalar,
-    local_values: &[P; columns::NUM_RC_COLS],
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    let val = local_values[columns::VAL];
-    let limb_lo = local_values[LimbKind::col(columns::VAL, LimbKind::Lo)];
-    let limb_hi = local_values[LimbKind::col(columns::VAL, LimbKind::Hi)];
-    yield_constr.constraint(val - (limb_lo + limb_hi * base));
-}
-
 impl<F: RichField, const D: usize> RangeCheckStark<F, D> {
     const BASE: usize = 1 << 16;
 }
@@ -49,23 +37,29 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        constrain_value(
-            P::Scalar::from_canonical_usize(Self::BASE),
-            vars.local_values,
-            yield_constr,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            LimbKind::col(columns::VAL, LimbKind::LoPermuted),
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            LimbKind::col(columns::VAL, LimbKind::HiPermuted),
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
-        );
+        for col in [columns::VAL, columns::OP1_FIXED] {
+            // Constrain `val` - (`limb_hi` ** base + `limb_lo`) == 0
+            let val = vars.local_values[col];
+            let filter = vars.local_values[columns::FILTER_START + col];
+            let limb_lo = vars.local_values[LimbKind::col(col, LimbKind::Lo)];
+            let limb_hi = vars.local_values[LimbKind::col(col, LimbKind::Hi)];
+            yield_constr.constraint(
+                filter * (val - (limb_lo + limb_hi * P::Scalar::from_canonical_usize(Self::BASE))),
+            );
+
+            eval_lookups(
+                vars,
+                yield_constr,
+                LimbKind::col(col, LimbKind::LoPermuted),
+                LimbKind::col(col, LimbKind::LoFixedPermuted),
+            );
+            eval_lookups(
+                vars,
+                yield_constr,
+                LimbKind::col(col, LimbKind::HiPermuted),
+                LimbKind::col(col, LimbKind::HiFixedPermuted),
+            );
+        }
     }
 
     /// Given the u32 value and the u16 limbs found in our variables to be
@@ -78,29 +72,32 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         vars: StarkEvaluationTargets<D, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let val = vars.local_values[columns::VAL];
-        let limb_lo = vars.local_values[LimbKind::col(columns::VAL, LimbKind::Lo)];
-        let limb_hi = vars.local_values[LimbKind::col(columns::VAL, LimbKind::Hi)];
+        for idx in [columns::VAL, columns::OP1_FIXED] {
+            let val = vars.local_values[idx];
+            let filter = vars.local_values[columns::FILTER_START + idx];
+            let limb_lo = vars.local_values[LimbKind::col(idx, LimbKind::Lo)];
+            let limb_hi = vars.local_values[LimbKind::col(idx, LimbKind::Hi)];
+            let base = builder.constant_extension(F::Extension::from_canonical_usize(Self::BASE));
+            let sum = builder.mul_add_extension(limb_hi, base, limb_lo);
+            let val_sum_diff = builder.sub_extension(val, sum);
+            let filtered_val_sum_diff = builder.mul_extension(filter, val_sum_diff);
+            yield_constr.constraint(builder, filtered_val_sum_diff);
 
-        let base = builder.constant_extension(F::Extension::from_canonical_usize(Self::BASE));
-        let sum = builder.mul_add_extension(limb_hi, base, limb_lo);
-        let val_sum_diff = builder.sub_extension(val, sum);
-        yield_constr.constraint(builder, val_sum_diff);
-
-        eval_lookups_circuit(
-            builder,
-            vars,
-            yield_constr,
-            LimbKind::col(columns::VAL, LimbKind::LoPermuted),
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
-        );
-        eval_lookups_circuit(
-            builder,
-            vars,
-            yield_constr,
-            LimbKind::col(columns::VAL, LimbKind::HiPermuted),
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
-        );
+            eval_lookups_circuit(
+                builder,
+                vars,
+                yield_constr,
+                LimbKind::col(idx, LimbKind::LoPermuted),
+                LimbKind::col(idx, LimbKind::LoFixedPermuted),
+            );
+            eval_lookups_circuit(
+                builder,
+                vars,
+                yield_constr,
+                LimbKind::col(idx, LimbKind::HiPermuted),
+                LimbKind::col(idx, LimbKind::HiFixedPermuted),
+            );
+        }
     }
 
     fn constraint_degree(&self) -> usize { 3 }

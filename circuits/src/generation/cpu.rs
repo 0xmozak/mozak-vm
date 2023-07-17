@@ -138,7 +138,10 @@ fn generate_slt_row<F: RichField>(
     }
     let abs_diff_fixed: u32 = op1_fixed.abs_diff(op2_fixed);
     assert_eq!(abs_diff, abs_diff_fixed);
+
+    println!("actual SLT: {}", op1_fixed);
     trace[cpu_cols::COL_CMP_ABS_DIFF][row_idx] = from_(abs_diff_fixed);
+    trace[cpu_cols::COL_S_RC][row_idx] = F::ONE;
 
     {
         let diff = trace[cpu_cols::COL_OP1_VALUE][row_idx]

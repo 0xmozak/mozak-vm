@@ -1,6 +1,8 @@
 use std::borrow::Borrow;
+use std::iter::repeat;
 
 use anyhow::{ensure, Result};
+use itertools::Itertools;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -240,6 +242,31 @@ impl<F: Field> Column<F> {
             .collect::<Vec<_>>();
         let constant = builder.constant_extension(F::Extension::from_basefield(self.constant));
         builder.inner_product_extension(F::ONE, constant, pairs)
+    }
+
+    pub fn linear_combination_with_constant<I: IntoIterator<Item = (usize, F)>>(
+        iter: I,
+        constant: F,
+    ) -> Self {
+        let v = iter.into_iter().collect::<Vec<_>>();
+        assert!(!v.is_empty());
+        debug_assert_eq!(
+            v.iter().map(|(c, _)| c).unique().count(),
+            v.len(),
+            "Duplicate columns."
+        );
+        Self {
+            linear_combination: v,
+            constant,
+        }
+    }
+
+    pub fn linear_combination<I: IntoIterator<Item = (usize, F)>>(iter: I) -> Self {
+        Self::linear_combination_with_constant(iter, F::ZERO)
+    }
+
+    pub fn sum<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
+        Self::linear_combination(cs.into_iter().map(|c| *c.borrow()).zip(repeat(F::ONE)))
     }
 }
 

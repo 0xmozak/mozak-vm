@@ -43,6 +43,8 @@ pub struct Aux {
     // This could be an Option<u32>, but given how Risc-V instruction are specified,
     // 0 serves as a default value just fine.
     pub dst_val: u32,
+    pub rs_1: u32,
+    pub rs_2: u32,
     pub new_pc: u32,
     pub mem_addr: Option<u32>,
     pub will_halt: bool,
@@ -59,6 +61,8 @@ impl State {
         (
             Aux {
                 dst_val,
+                rs_1: rs1,
+                rs_2: rs2,
                 ..Aux::default()
             },
             self.set_register_value(data.rd, dst_val).bump_pc(),

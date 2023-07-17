@@ -40,7 +40,13 @@ pub fn generate_rangecheck_trace<F: RichField>(
         i,
         Row {
             state: s,
-            aux: Aux { dst_val, .. },
+            aux:
+                Aux {
+                    dst_val,
+                    rs_1,
+                    rs_2,
+                    ..
+                },
         },
     ) in step_rows.iter().enumerate()
     {
@@ -54,8 +60,21 @@ pub fn generate_rangecheck_trace<F: RichField>(
                 trace[columns::VAL][i] = from_(*dst_val);
                 trace[LimbKind::col(columns::VAL, LimbKind::Hi)][i] = from_(limb_hi);
                 trace[LimbKind::col(columns::VAL, LimbKind::Lo)][i] = from_(limb_lo);
-                trace[columns::CPU_FILTER][i] = F::ONE;
+                trace[columns::CPU_ADD][i] = F::ONE;
             }
+            Op::SLT | Op::SLTU => {
+                let is_signed = inst.op == Op::SLT;
+
+                let sign_adjust = if is_signed { 1 << 31 } else { 0 };
+                let op1_fixed = rs_1.wrapping_add(sign_adjust);
+                let op2_fixed = rs_2.wrapping_add(sign_adjust);
+                let abs_diff_fixed: u32 = op1_fixed.abs_diff(op2_fixed);
+
+                println!("generating SLT: {}", op1_fixed);
+                trace[columns::OP1_FIXED][i] = from_(op1_fixed);
+                trace[columns::CPU_SLT][i] = F::ONE;
+            }
+
             _ => {}
         }
     }
@@ -66,25 +85,27 @@ pub fn generate_rangecheck_trace<F: RichField>(
     trace[columns::FIXED_RANGE_CHECK_U16] =
         (0..RANGE_CHECK_U16_SIZE).map(|i| from_(i as u64)).collect();
 
-    // This permutation is done in accordance to the [Halo2 lookup argument
-    // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
-    let (col_input_permuted, col_table_permuted) = permute_cols(
-        &trace[LimbKind::col(columns::VAL, LimbKind::Lo)],
-        &trace[columns::FIXED_RANGE_CHECK_U16],
-    );
+    for idx in [columns::VAL, columns::OP1_FIXED] {
+        // This permutation is done i accordance to the [Halo2 lookup argument
+        // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
+        let (col_input_permuted, col_table_permuted) = permute_cols(
+            &trace[LimbKind::col(idx, LimbKind::Lo)],
+            &trace[columns::FIXED_RANGE_CHECK_U16],
+        );
 
-    // We need a column for the lower limb.
-    trace[LimbKind::col(columns::VAL, LimbKind::LoPermuted)] = col_input_permuted;
-    trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO] = col_table_permuted;
+        // We need a column for the lower limb.
+        trace[LimbKind::col(idx, LimbKind::LoPermuted)] = col_input_permuted;
+        trace[LimbKind::col(idx, LimbKind::LoFixedPermuted)] = col_table_permuted;
 
-    let (col_input_permuted, col_table_permuted) = permute_cols(
-        &trace[LimbKind::col(columns::VAL, LimbKind::Hi)],
-        &trace[columns::FIXED_RANGE_CHECK_U16],
-    );
+        let (col_input_permuted, col_table_permuted) = permute_cols(
+            &trace[LimbKind::col(idx, LimbKind::Hi)],
+            &trace[columns::FIXED_RANGE_CHECK_U16],
+        );
 
-    // And we also need a column for the upper limb.
-    trace[LimbKind::col(columns::VAL, LimbKind::HiPermuted)] = col_input_permuted;
-    trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI] = col_table_permuted;
+        // And we also need a column for the upper limb.
+        trace[LimbKind::col(idx, LimbKind::HiPermuted)] = col_input_permuted;
+        trace[LimbKind::col(idx, LimbKind::HiFixedPermuted)] = col_table_permuted;
+    }
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
@@ -116,8 +137,8 @@ mod tests {
         let trace = generate_rangecheck_trace::<F>(&record.executed);
 
         // Check values that we are interested in
-        assert_eq!(trace[columns::CPU_FILTER][0], F::ONE);
-        assert_eq!(trace[columns::CPU_FILTER][1], F::ONE);
+        assert_eq!(trace[columns::CPU_ADD][0], F::ONE);
+        assert_eq!(trace[columns::CPU_ADD][1], F::ONE);
         assert_eq!(trace[columns::VAL][0], GoldilocksField(0x0001_fffe));
         assert_eq!(trace[columns::VAL][1], GoldilocksField(93));
         assert_eq!(
@@ -134,7 +155,7 @@ mod tests {
         );
 
         // Ensure rest of trace is zeroed out
-        for cpu_filter in trace[columns::CPU_FILTER][2..].iter() {
+        for cpu_filter in trace[columns::CPU_ADD][2..].iter() {
             assert_eq!(cpu_filter, &F::ZERO);
         }
         for value in trace[columns::VAL][2..].iter() {
