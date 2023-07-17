@@ -40,7 +40,7 @@ mod tests {
             #![proptest_config(ProptestConfig::with_cases(4))]
             #[test]
             #[ignore]
-            fn prove_add_proptest(a in any::<u32>(), b in any::<u32>(), rd in 0_u8..32) {
+            fn prove_add_proptest(a in u32_extra(), b in u32_extra(), rd in 0_u8..32) {
                 let record = simple_test_code(
                     &[Instruction {
                         op: Op::ADD,
