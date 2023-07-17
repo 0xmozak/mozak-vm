@@ -36,6 +36,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace = init_padded_rc_trace(step_rows.len().max(RANGE_CHECK_U16_SIZE));
 
+    println!("generate rangecheck trace ");
     for (
         i,
         Row {
@@ -62,7 +63,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
                 trace[LimbKind::col(columns::VAL, LimbKind::Lo)][i] = from_(limb_lo);
                 trace[columns::CPU_ADD][i] = F::ONE;
             }
-            Op::SLT | Op::SLTU => {
+            Op::SLT => {
                 let is_signed = inst.op == Op::SLT;
 
                 let sign_adjust = if is_signed { 1 << 31 } else { 0 };
@@ -70,9 +71,15 @@ pub fn generate_rangecheck_trace<F: RichField>(
                 let op2_fixed = rs_2.wrapping_add(sign_adjust);
                 let abs_diff_fixed: u32 = op1_fixed.abs_diff(op2_fixed);
 
-                println!("generating SLT: {}", op1_fixed);
+                let limb_hi = u16::try_from(op1_fixed >> 16).unwrap();
+                let limb_lo = u16::try_from(op2_fixed & 0xffff).unwrap();
+
+                println!("generating SLT: val={} op1_fixed={}", dst_val, op1_fixed);
                 trace[columns::OP1_FIXED][i] = from_(op1_fixed);
-                trace[columns::CPU_SLT][i] = F::ONE;
+
+                trace[LimbKind::col(columns::OP1_FIXED, LimbKind::Hi)][i] = from_(limb_hi);
+                trace[LimbKind::col(columns::OP1_FIXED, LimbKind::Lo)][i] = from_(limb_lo);
+                trace[columns::CPU_ADD][i] = F::ONE;
             }
 
             _ => {}

@@ -116,6 +116,7 @@ fn generate_slt_row<F: RichField>(
     trace[cpu_cols::COL_S_SLT_OP1_VAL_FIXED][row_idx] = from_(op1_fixed);
     trace[cpu_cols::COL_S_SLT_OP2_VAL_FIXED][row_idx] = from_(op2_fixed);
     trace[cpu_cols::COL_LESS_THAN][row_idx] = from_(u32::from(op1_fixed < op2_fixed));
+    trace[cpu_cols::COL_S_RC][row_idx] = F::ONE;
 
     let abs_diff = if is_signed {
         (op1 as i32).abs_diff(op2 as i32)

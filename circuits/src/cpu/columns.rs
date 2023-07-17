@@ -73,6 +73,16 @@ pub(crate) fn add_rc_data<F: Field>() -> Vec<Column<F>> {
     Column::singles([COL_DST_VALUE]).collect_vec()
 }
 
+/// Columns containing the data to be range checked in the Mozak
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+pub(crate) fn slt_rc_data<F: Field>() -> Vec<Column<F>> {
+    Column::singles([COL_S_SLT_OP1_VAL_FIXED]).collect_vec()
+}
+
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 pub(crate) fn add_rc_filter<F: Field>() -> Column<F> { Column::single(COL_S_ADD) }
+
+/// Column for a binary filter for our range check in the Mozak
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+pub(crate) fn slt_rc_filter<F: Field>() -> Column<F> { Column::single(COL_S_SLT) }
