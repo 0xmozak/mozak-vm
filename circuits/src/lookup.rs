@@ -149,7 +149,7 @@ pub fn permute_cols<F: PrimeField64>(col_input: &[F], col_table: &[F]) -> (Vec<F
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use plonky2::field::types::{Field64, PrimeField64};
     use proptest::prelude::*;
 
