@@ -238,10 +238,11 @@ mod test {
 
     use super::{decode_instruction, extract_immediate};
     use crate::instruction::{Args, Instruction, Op, NOOP};
+    use crate::test_utils::u32_extra;
     proptest! {
         /// This just tests that we don't panic during decoding.
         #[test]
-        fn fuzz_decode(pc in any::<u32>(), word in any::<u32>()) {
+        fn fuzz_decode(pc in u32_extra(), word in u32_extra()) {
             let _ = decode_instruction(pc, word);
         }
     }
