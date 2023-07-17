@@ -458,9 +458,9 @@ dependencies = [
 
 [[package]]
 name = "fixed-hash"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfcf0ed7fe52a17a03854ec54a9f76d6d84508d1c0e66bc1793301c73fc8493c"
+checksum = "835c052cb0c08c1acf6ffd71c022172e18723949c8282f2b9f27efbc51e64534"
 dependencies = [
  "static_assertions",
 ]
@@ -679,9 +679,9 @@ dependencies = [
 
 [[package]]
 name = "keccak-hash"
-version = "0.8.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce2bd4c29270e724d3eaadf7bdc8700af4221fc0ed771b855eadcd1b98d52851"
+checksum = "4b286e6b663fb926e1eeb68528e69cb70ed46c6d65871a21b2215ae8154c6d3c"
 dependencies = [
  "primitive-types",
  "tiny-keccak",
@@ -951,7 +951,7 @@ checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
 [[package]]
 name = "plonky2"
 version = "0.1.3"
-source = "git+https://github.com/mir-protocol/plonky2.git#4893a86001af2d55e82545c731bb7e4c50231a70"
+source = "git+https://github.com/0xmozak/plonky2.git#c6e21a7e69f91cc75779290357db16299aabc034"
 dependencies = [
  "ahash",
  "anyhow",
@@ -975,7 +975,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.0"
-source = "git+https://github.com/mir-protocol/plonky2.git#4893a86001af2d55e82545c731bb7e4c50231a70"
+source = "git+https://github.com/0xmozak/plonky2.git#c6e21a7e69f91cc75779290357db16299aabc034"
 dependencies = [
  "anyhow",
  "itertools",
@@ -990,7 +990,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.0"
-source = "git+https://github.com/mir-protocol/plonky2.git#4893a86001af2d55e82545c731bb7e4c50231a70"
+source = "git+https://github.com/0xmozak/plonky2.git#c6e21a7e69f91cc75779290357db16299aabc034"
 dependencies = [
  "rayon",
 ]
@@ -998,7 +998,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.1.0"
-source = "git+https://github.com/mir-protocol/plonky2.git#4893a86001af2d55e82545c731bb7e4c50231a70"
+source = "git+https://github.com/0xmozak/plonky2.git#c6e21a7e69f91cc75779290357db16299aabc034"
 
 [[package]]
 name = "ppv-lite86"
@@ -1008,9 +1008,9 @@ checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 
 [[package]]
 name = "primitive-types"
-version = "0.10.1"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05e4722c697a58a99d5d06a08c30821d7c082a4632198de1eaa5a6c22ef42373"
+checksum = "9f3486ccba82358b11a77516035647c34ba167dfa53312630de83b12bd4f3d66"
 dependencies = [
  "fixed-hash",
  "uint",
