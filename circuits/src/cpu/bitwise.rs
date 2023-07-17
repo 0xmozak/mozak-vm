@@ -47,7 +47,7 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::simple_test_code;
+    use mozak_vm::test_utils::{simple_test_code, u32_extra};
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
@@ -57,9 +57,9 @@ mod test {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
         fn prove_bitwise_proptest(
-            a in any::<u32>(),
-            b in any::<u32>(),
-            imm in any::<u32>(),
+            a in u32_extra(),
+            b in u32_extra(),
+            imm in u32_extra(),
             use_imm in any::<bool>())
         {
             let (b, imm) = if use_imm {

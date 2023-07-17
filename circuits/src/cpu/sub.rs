@@ -19,15 +19,15 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::simple_test_code;
-    use proptest::prelude::{any, ProptestConfig};
+    use mozak_vm::test_utils::{simple_test_code, u32_extra};
+    use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
     use crate::test_utils::simple_proof_test;
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
-        fn prove_sub_proptest(a in any::<u32>(), b in any::<u32>()) {
+        fn prove_sub_proptest(a in u32_extra(), b in u32_extra()) {
             let record = simple_test_code(
                 &[Instruction {
                     op: Op::SUB,
