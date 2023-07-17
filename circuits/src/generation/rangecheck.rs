@@ -79,6 +79,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
 
                 let (limb_hi, limb_lo) = limbs_from_u32(op1_fixed);
 
+                trace[columns::CMP_ABS_DIFF][i] = from_(abs_diff_fixed);
                 println!("generating SLT: val={} op1_fixed={}", dst_val, op1_fixed);
                 trace[columns::VAL][i] = from_(op1_fixed);
                 trace[LimbKind::col(columns::VAL, LimbKind::Hi)][i] = from_(limb_hi);
@@ -96,7 +97,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
     trace[columns::FIXED_RANGE_CHECK_U16] =
         (0..RANGE_CHECK_U16_SIZE).map(|i| from_(i as u64)).collect();
 
-    for idx in [columns::VAL, columns::OP1_FIXED] {
+    for idx in [columns::VAL, columns::CMP_ABS_DIFF] {
         // This permutation is done i accordance to the [Halo2 lookup argument
         // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
         let (col_input_permuted, col_table_permuted) = permute_cols(

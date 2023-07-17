@@ -36,7 +36,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        for col in [columns::VAL, columns::OP1_FIXED] {
+        for col in [columns::VAL, columns::CMP_ABS_DIFF] {
             // Constrain `val` - (`limb_hi` ** base + `limb_lo`) == 0
             let val = vars.local_values[col];
             let filter = vars.local_values[columns::FILTER_START + col];

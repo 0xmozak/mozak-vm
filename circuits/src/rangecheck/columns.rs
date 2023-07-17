@@ -9,14 +9,14 @@ use crate::cross_table_lookup::Column;
 pub(crate) const VAL: usize = 0;
 
 /// Column containing the value (in u32) to be range checked.
-pub(crate) const OP1_FIXED: usize = VAL + 1;
+pub(crate) const CMP_ABS_DIFF: usize = VAL + 1;
 
 /// Total number of values to be range checked. This value determines the number
 /// of [`LIMBS`] columns.
-pub(crate) const NUM_VALUES_TO_RANGECHECK: usize = OP1_FIXED + 1;
+pub(crate) const NUM_VALUES_TO_RANGECHECK: usize = CMP_ABS_DIFF + 1;
 
 /// Column to indicate that a value to be range checked is from the CPU table.
-pub(crate) const CPU_ADD: usize = OP1_FIXED + 1;
+pub(crate) const CPU_ADD: usize = CMP_ABS_DIFF + 1;
 
 pub(crate) const FILTER_START: usize = CPU_ADD;
 
