@@ -17,7 +17,7 @@ pub(crate) fn constraints<P: PackedField>(
 
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
-mod test {
+mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, u32_extra};
     use proptest::prelude::ProptestConfig;

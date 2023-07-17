@@ -103,7 +103,7 @@ pub fn generate_memory_trace<F: RichField>(
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use itertools::Itertools;
     use plonky2::hash::hash_types::RichField;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
