@@ -20,9 +20,9 @@ pub(crate) fn constraints<P: PackedField>(
 
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
-mod test {
+mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test, simple_test_code};
+    use mozak_vm::test_utils::{simple_test, simple_test_code, u32_extra};
 
     use crate::test_utils::simple_proof_test;
     #[test]
@@ -34,7 +34,7 @@ mod test {
         assert_eq!(record.last_state.get_register_value(5), 100 + 100);
         simple_proof_test(&record.executed).unwrap();
     }
-    use proptest::prelude::{any, ProptestConfig};
+    use proptest::prelude::ProptestConfig;
     use proptest::proptest;
     proptest! {
             #![proptest_config(ProptestConfig::with_cases(4))]

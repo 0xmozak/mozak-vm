@@ -74,9 +74,9 @@ impl State {
         let addr: u32 = self.get_register_value(data.rs1).wrapping_add(data.imm);
         let mem = [
             self.load_u8(addr),
-            self.load_u8(addr + 1),
-            self.load_u8(addr + 2),
-            self.load_u8(addr + 3),
+            self.load_u8(addr.wrapping_add(1)),
+            self.load_u8(addr.wrapping_add(2)),
+            self.load_u8(addr.wrapping_add(3)),
         ];
         let dst_val = op(&mem);
         (

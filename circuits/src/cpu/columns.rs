@@ -40,9 +40,15 @@ lazy_static! {
 
 pub(crate) const COL_S_ADD: usize = COL_REGS_RANGE.end;
 pub(crate) const COL_S_SUB: usize = COL_S_ADD + 1;
-pub(crate) const COL_S_DIVU: usize = COL_S_SUB + 1;
+pub(crate) const COL_S_XOR: usize = COL_S_SUB + 1;
+pub(crate) const COL_S_OR: usize = COL_S_XOR + 1;
+pub(crate) const COL_S_AND: usize = COL_S_OR + 1;
+
+pub(crate) const COL_S_DIVU: usize = COL_S_AND + 1;
 pub(crate) const COL_S_REMU: usize = COL_S_DIVU + 1;
-pub(crate) const COL_S_SLT: usize = COL_S_REMU + 1;
+pub(crate) const COL_S_MUL: usize = COL_S_REMU + 1;
+pub(crate) const COL_S_MULHU: usize = COL_S_MUL + 1;
+pub(crate) const COL_S_SLT: usize = COL_S_MULHU + 1;
 pub(crate) const COL_S_SLTU: usize = COL_S_SLT + 1;
 pub(crate) const COL_S_SRL: usize = COL_S_SLTU + 1;
 pub(crate) const COL_S_BEQ: usize = COL_S_SRL + 1;
@@ -58,14 +64,28 @@ pub(crate) const COL_CMP_ABS_DIFF: usize = COL_S_SLT_OP2_VAL_FIXED + 1;
 pub(crate) const COL_CMP_DIFF_INV: usize = COL_CMP_ABS_DIFF + 1;
 pub(crate) const COL_LESS_THAN: usize = COL_CMP_DIFF_INV + 1;
 
-pub(crate) const QUOTIENT: usize = COL_LESS_THAN + 1;
+pub(crate) const XOR_A: usize = COL_LESS_THAN + 1;
+pub(crate) const XOR_B: usize = XOR_A + 1;
+pub(crate) const XOR_OUT: usize = XOR_B + 1;
+
+// TODO: for shift operations, we need to hook up POWERS_OF_2_IN and
+// POWERS_OF_2_OUT to a cross-table lookup for input values 0..32.
+pub(crate) const POWERS_OF_2_IN: usize = XOR_OUT + 1;
+pub(crate) const POWERS_OF_2_OUT: usize = POWERS_OF_2_IN + 1;
+
+pub(crate) const QUOTIENT: usize = POWERS_OF_2_OUT + 1;
 pub(crate) const REMAINDER: usize = QUOTIENT + 1;
 pub(crate) const REMAINDER_SLACK: usize = REMAINDER + 1;
 pub(crate) const DIVISOR_INV: usize = REMAINDER_SLACK + 1;
 
 pub(crate) const DIVISOR: usize = DIVISOR_INV + 1;
 
-pub(crate) const NUM_CPU_COLS: usize = DIVISOR + 1;
+// TODO: MUL_LOW_BITS and MUL_HIGH_BITS need range checking.
+pub(crate) const MUL_LOW_BITS: usize = DIVISOR + 1;
+pub(crate) const MUL_HIGH_BITS: usize = MUL_LOW_BITS + 1;
+pub(crate) const MUL_HIGH_DIFF_INV: usize = MUL_HIGH_BITS + 1;
+
+pub(crate) const NUM_CPU_COLS: usize = MUL_HIGH_DIFF_INV + 1;
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
