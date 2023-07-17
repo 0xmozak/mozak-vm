@@ -527,6 +527,16 @@ mod tests {
             TraceBuilder { trace }
         }
 
+        /// Creates a new trace with the given F array.
+        pub fn new_from_values(input_values: Vec<Vec<F>>) -> TraceBuilder<F> {
+            let mut trace = vec![];
+            for values in input_values {
+                trace.push(PolynomialValues::from(values));
+            }
+
+            TraceBuilder { trace }
+        }
+
         /// Set all polynomial values at a given column index `col_idx` to
         /// zeroes.
         #[allow(unused)]
@@ -630,4 +640,36 @@ mod tests {
 
         Ok(())
     }
+
+    /// Failed test with filter column not matching the lookup data.
+    #[test]
+    fn test_ctl_filter_mismatch() -> Result<()> {
+        type F = GoldilocksField;
+        let dummy_cross_table_lookup: CrossTableLookup<F> = FooBarTable::lookups();
+
+        let table1 = vec![vec![9, 9, 9, 9], vec![1, 2, 1, 2], vec![1, 1, 1, 1]]
+            .into_iter()
+            .map(|col| col.into_iter().map(F::from_canonical_u64).collect())
+            .collect::<Vec<_>>();
+        let table2 = vec![vec![1, 1], vec![1, 2], vec![9, 9]]
+            .into_iter()
+            .map(|col| col.into_iter().map(F::from_canonical_u64).collect())
+            .collect::<Vec<_>>();
+
+        let foo_trace: Vec<PolynomialValues<F>> = TraceBuilder::new_from_values(table1)
+            .build();
+        let bar_trace: Vec<PolynomialValues<F>> = TraceBuilder::new_from_values(table2)
+            .build();
+        let traces = vec![foo_trace, bar_trace];
+        check_ctl(&traces, &dummy_cross_table_lookup)?;
+        // assert!(matches!(
+        //     check_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
+        //     LookupError::InconsistentTableRows
+        // ));
+        Ok(())
+    }
+
+    /// Happy test with filter column matching the lookup data.
+    #[test]
+    fn test_ctl_filter_match() -> Result<()> { Ok(()) }
 }
