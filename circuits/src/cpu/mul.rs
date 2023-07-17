@@ -29,7 +29,7 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint((is_mul + is_mulhu + is_sll) * (product - multiplicand * multiplier));
     yield_constr.constraint((is_mul + is_mulhu) * (multiplier - lv[COL_OP2_VALUE]));
     // TODO: for SLL `multiplier` needs be checked against lookup table to ensure:
-    //     multiplier == 1 << (shift_amount % 0x1F)
+    //     multiplier == 1 << (shift_amount & 0x1F)
 
     // Now, let's copy our results to the destination register:
 
@@ -62,7 +62,7 @@ pub(crate) fn constraints<P: PackedField>(
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, u32_extra};
-    use proptest::prelude::{any, ProptestConfig};
+    use proptest::prelude::ProptestConfig;
     use proptest::{prop_assert_eq, proptest};
 
     use crate::test_utils::simple_proof_test;
@@ -100,7 +100,7 @@ mod test {
             simple_proof_test(&record.executed).unwrap();
         }
         #[test]
-        fn prove_sll_proptest(p in any::<u32>(), q in 0_u32..32, rd in 3_u8..32) {
+        fn prove_sll_proptest(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
             let record = simple_test_code(
                 &[Instruction {
                     op: Op::SLL,
