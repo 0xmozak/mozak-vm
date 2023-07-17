@@ -64,13 +64,16 @@ pub(crate) const COL_CMP_ABS_DIFF: usize = COL_S_SLT_OP2_VAL_FIXED + 1;
 pub(crate) const COL_CMP_DIFF_INV: usize = COL_CMP_ABS_DIFF + 1;
 pub(crate) const COL_LESS_THAN: usize = COL_CMP_DIFF_INV + 1;
 
-// TODO(Matthias): we could get rid of XOR_A and XOR_B, and just always do the
-// XOR lookup for every VM cpu cycle.
 pub(crate) const XOR_A: usize = COL_LESS_THAN + 1;
 pub(crate) const XOR_B: usize = XOR_A + 1;
 pub(crate) const XOR_OUT: usize = XOR_B + 1;
 
-pub(crate) const QUOTIENT: usize = XOR_OUT + 1;
+// TODO: for shift operations, we need to hook up POWERS_OF_2_IN and
+// POWERS_OF_2_OUT to a cross-table lookup for input values 0..32.
+pub(crate) const POWERS_OF_2_IN: usize = XOR_OUT + 1;
+pub(crate) const POWERS_OF_2_OUT: usize = POWERS_OF_2_IN + 1;
+
+pub(crate) const QUOTIENT: usize = POWERS_OF_2_OUT + 1;
 pub(crate) const REMAINDER: usize = QUOTIENT + 1;
 pub(crate) const REMAINDER_SLACK: usize = REMAINDER + 1;
 pub(crate) const DIVISOR_INV: usize = REMAINDER_SLACK + 1;
