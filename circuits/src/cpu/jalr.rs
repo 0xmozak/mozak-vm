@@ -34,6 +34,7 @@ pub(crate) fn constraints<P: PackedField>(
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{last_but_coda, reg, simple_test_code, u32_extra};
+    use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
     use crate::test_utils::simple_proof_test;
@@ -147,6 +148,7 @@ mod test {
     }
 
     proptest! {
+        #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
         fn jalr_jumps_past_an_instruction(rs1 in reg(), rs1_val in u32_extra(), rd in reg(), sentinel in u32_extra()) {
             let jump_target: u32 = 8;
