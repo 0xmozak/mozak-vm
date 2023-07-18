@@ -71,8 +71,8 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test_code, u32_extra};
-    use proptest::prelude::ProptestConfig;
+    use mozak_vm::test_utils::{reg, simple_test_code, u32_extra};
+    use proptest::prelude::{prop_assume, ProptestConfig};
     use proptest::{prop_assert_eq, proptest};
 
     use crate::test_utils::simple_proof_test;
@@ -111,14 +111,17 @@ mod tests {
         }
 
         #[test]
-        fn prove_sll_proptest(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
+        fn prove_sll_proptest(p in u32_extra(), q in u32_extra(), rs1 in reg(), rs2 in reg(), rd in reg()) {
+            prop_assume!(rs1 != rs2);
+            prop_assume!(rs1 != rd);
+            prop_assume!(rs2 != rd);
             let record = simple_test_code(
                 &[Instruction {
                     op: Op::SLL,
                     args: Args {
                         rd,
-                        rs1: 1,
-                        rs2: 2,
+                        rs1,
+                        rs2,
                         ..Args::default()
                     },
                 },
@@ -126,14 +129,14 @@ mod tests {
                     op: Op::SLL,
                     args: Args {
                         rd,
-                        rs1: 1,
-                        rs2: 0,
+                        rs1,
+                        rs2,
                         imm: q,
                     },
                 }
                 ],
                 &[],
-                &[(1, p), (2, q)],
+                &[(rs1, p), (rs2, q)],
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p << q);
             prop_assert_eq!(record.executed[1].aux.dst_val, p << q);
