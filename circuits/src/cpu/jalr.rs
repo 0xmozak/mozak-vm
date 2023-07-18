@@ -11,31 +11,29 @@ pub(crate) fn constraints<P: PackedField>(
     nv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
+    let is_jalr = lv[COL_S_JALR];
     let wrap_at = from_::<u64, P::Scalar>(1 << 32);
 
     let return_address = lv[COL_PC] + from_::<u64, P::Scalar>(4);
     let wrapped_return_address = return_address - wrap_at;
 
+    let destination = lv[COL_DST_VALUE];
     // enable-if JALR: aux.dst_val == jmp-inst-pc + 4, wrapped
     yield_constr.constraint(
-        lv[COL_S_JALR]
-            * (lv[COL_DST_VALUE] - return_address)
-            * (lv[COL_DST_VALUE] - wrapped_return_address),
+        is_jalr * (destination - return_address) * (destination - wrapped_return_address),
     );
 
-    let jump_address = lv[COL_IMM_VALUE] + lv[COL_OP1_VALUE];
-    let wrapped_jump_address = jump_address - wrap_at;
+    let jump_target = lv[COL_IMM_VALUE] + lv[COL_OP1_VALUE];
+    let wrapped_jump_target = jump_target - wrap_at;
+    let new_pc = nv[COL_PC];
 
-    yield_constr.constraint_transition(
-        lv[COL_S_JALR] * (nv[COL_PC] - jump_address) * (nv[COL_PC] - wrapped_jump_address),
-    );
+    yield_constr
+        .constraint_transition(is_jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target));
 }
 #[cfg(test)]
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::simple_test_code;
-    use mozak_vm::vm::Row;
-    use proptest::prelude::any;
+    use mozak_vm::test_utils::{last_but_coda, reg, simple_test_code, u32_extra};
     use proptest::proptest;
 
     use crate::test_utils::simple_proof_test;
@@ -150,7 +148,7 @@ mod test {
 
     proptest! {
         #[test]
-        fn jalr_jumps_past_an_instruction(rs1 in 1_u8..32, rs1_val in any::<u32>(), rd in 1_u8..32, sentinel in any::<u32>()) {
+        fn jalr_jumps_past_an_instruction(rs1 in reg(), rs1_val in u32_extra(), rd in reg(), sentinel in u32_extra()) {
             let jump_target: u32 = 8;
             let imm = jump_target.wrapping_sub(rs1_val);
             let record = simple_test_code(
@@ -177,11 +175,7 @@ mod test {
                 &[(rs1, rs1_val)],
             );
             assert_eq!(record.executed.len(), 3);
-            // simple_test_code adds a simple coda to the end of the program to ensure it halts.
-            // We are interested in the state just before entering the coda.
-            let [.., Row {state, ..}, _] = &record.executed[..]
-                else { unreachable!() };
-            assert_eq!(state.get_register_value(rd), 4);
+            assert_eq!(last_but_coda(&record).get_register_value(rd), 4);
             simple_proof_test(&record.executed).unwrap();
         }
     }
