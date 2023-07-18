@@ -1,4 +1,5 @@
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::bitwise::and_gadget;
@@ -7,7 +8,6 @@ use super::columns::{
     DIVISOR, DIVISOR_INV, NUM_CPU_COLS, POWERS_OF_2_IN, POWERS_OF_2_OUT, QUOTIENT, REMAINDER,
     REMAINDER_SLACK,
 };
-use crate::utils::from_;
 
 /// Constraints for DIVU / REMU / SRL instructions
 ///
@@ -35,7 +35,8 @@ pub(crate) fn constraints<P: PackedField>(
     // The following constraints are for SRL.
     {
         let and_gadget = and_gadget(lv);
-        yield_constr.constraint(is_srl * (and_gadget.input_a - from_::<u8, P::Scalar>(0x1F)));
+        yield_constr
+            .constraint(is_srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
         let op2 = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
         yield_constr.constraint(is_srl * (and_gadget.input_b - op2));
 
@@ -74,7 +75,9 @@ pub(crate) fn constraints<P: PackedField>(
     //      p % 0 == p
 
     let q_inv = lv[DIVISOR_INV];
-    yield_constr.constraint((P::ONES - q * q_inv) * (m - from_::<u64, P::Scalar>(u32::MAX.into())));
+    yield_constr.constraint(
+        (P::ONES - q * q_inv) * (m - P::Scalar::from_noncanonical_u64(u32::MAX.into())),
+    );
     yield_constr.constraint((P::ONES - q * q_inv) * (r - p));
 
     // Last, we 'copy' our results:

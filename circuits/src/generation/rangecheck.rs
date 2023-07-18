@@ -5,7 +5,6 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::lookup::permute_cols;
 use crate::rangecheck::columns;
-use crate::utils::from_;
 
 pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 
@@ -51,9 +50,9 @@ pub fn generate_rangecheck_trace<F: RichField>(
             Op::ADD => {
                 let limb_hi = u16::try_from(dst_val >> 16).unwrap();
                 let limb_lo = u16::try_from(dst_val & 0xffff).unwrap();
-                trace[columns::VAL][i] = from_(*dst_val);
-                trace[columns::LIMB_HI][i] = from_(limb_hi);
-                trace[columns::LIMB_LO][i] = from_(limb_lo);
+                trace[columns::VAL][i] = F::from_noncanonical_u64((*dst_val).into());
+                trace[columns::LIMB_HI][i] = F::from_noncanonical_u64(limb_hi.into());
+                trace[columns::LIMB_LO][i] = F::from_noncanonical_u64(limb_lo.into());
                 trace[columns::CPU_FILTER][i] = F::ONE;
             }
             _ => {}
@@ -63,8 +62,9 @@ pub fn generate_rangecheck_trace<F: RichField>(
     // Here, we generate fixed columns for the table, used in inner table lookups.
     // We are interested in range checking 16-bit values, hence we populate with
     // values 0, 1, .., 2^16 - 1.
-    trace[columns::FIXED_RANGE_CHECK_U16] =
-        (0..RANGE_CHECK_U16_SIZE).map(|i| from_(i as u64)).collect();
+    trace[columns::FIXED_RANGE_CHECK_U16] = (0..RANGE_CHECK_U16_SIZE as u64)
+        .map(F::from_noncanonical_u64)
+        .collect();
 
     // This permutation is done in accordance to the [Halo2 lookup argument
     // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
