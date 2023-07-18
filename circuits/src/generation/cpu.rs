@@ -29,6 +29,13 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             trace[cpu_cols::COL_START_REG + j as usize][i] = from_(state.get_register_value(j));
         }
 
+        // Valid defaults for the powers-of-two gadget.
+        // To be overridden by users of the gadget.
+        // TODO(Matthias): find a way to make either compiler or runtime complain
+        // if we have two (conflicting) users in the same row.
+        trace[cpu_cols::POWERS_OF_2_IN][i] = F::ZERO;
+        trace[cpu_cols::POWERS_OF_2_OUT][i] = F::ONE;
+
         generate_mul_row(&mut trace, &inst, state, i);
         generate_divu_row(&mut trace, &inst, state, i);
         generate_slt_row(&mut trace, &inst, state, i);
@@ -102,9 +109,9 @@ fn generate_divu_row<F: RichField>(
 
     let divisor = if let Op::SRL = inst.op {
         let shift_amount = (state.get_register_value(inst.args.rs2) + inst.args.imm) & 0x1F;
-        trace[cpu_cols::ALMOST_POWERS_OF_2_IN][row_idx] = from_(shift_amount);
+        trace[cpu_cols::POWERS_OF_2_IN][row_idx] = from_(shift_amount);
         let shift_power = 1_u32 << shift_amount;
-        trace[cpu_cols::ALMOST_POWERS_OF_2_OUT][row_idx] = from_(shift_power - 1);
+        trace[cpu_cols::POWERS_OF_2_OUT][row_idx] = from_(shift_power);
         shift_power
     } else {
         state.get_register_value(inst.args.rs2)
