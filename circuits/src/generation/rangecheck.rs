@@ -66,7 +66,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
                 trace[columns::VALUE_1][i] = from_(*dst_val);
                 trace[LimbKind::col(columns::VALUE_1, LimbKind::Hi)][i] = from_(limb_hi);
                 trace[LimbKind::col(columns::VALUE_1, LimbKind::Lo)][i] = from_(limb_lo);
-                trace[columns::CPU_ADD][i] = F::ONE;
+                trace[columns::CPU_FILTER][i] = F::ONE;
             }
             Op::SLT => {
                 let is_signed = inst.op == Op::SLT;
@@ -82,12 +82,10 @@ pub fn generate_rangecheck_trace<F: RichField>(
                 trace[LimbKind::col(columns::VALUE_2, LimbKind::Lo)][i] = from_(limb_lo);
 
                 trace[columns::VALUE_3][i] = from_(abs_diff_fixed);
-
                 let (limb_hi, limb_lo) = limbs_from_u32(abs_diff_fixed);
                 trace[LimbKind::col(columns::VALUE_3, LimbKind::Hi)][i] = from_(limb_hi);
                 trace[LimbKind::col(columns::VALUE_3, LimbKind::Lo)][i] = from_(limb_lo);
-
-                trace[columns::CPU_ADD][i] = F::ONE;
+                trace[columns::CPU_FILTER][i] = F::ONE;
             }
 
             _ => {}
@@ -152,8 +150,8 @@ mod tests {
         let trace = generate_rangecheck_trace::<F>(&record.executed);
 
         // Check values that we are interested in
-        assert_eq!(trace[columns::CPU_ADD][0], F::ONE);
-        assert_eq!(trace[columns::CPU_ADD][1], F::ONE);
+        assert_eq!(trace[columns::CPU_FILTER][0], F::ONE);
+        assert_eq!(trace[columns::CPU_FILTER][1], F::ONE);
         assert_eq!(trace[columns::VALUE_1][0], GoldilocksField(0x0001_fffe));
         assert_eq!(trace[columns::VALUE_1][1], GoldilocksField(93));
         assert_eq!(
@@ -170,7 +168,7 @@ mod tests {
         );
 
         // Ensure rest of trace is zeroed out
-        for cpu_filter in trace[columns::CPU_ADD][2..].iter() {
+        for cpu_filter in trace[columns::CPU_FILTER][2..].iter() {
             assert_eq!(cpu_filter, &F::ZERO);
         }
         for value in trace[columns::VALUE_1][2..].iter() {

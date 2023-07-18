@@ -85,8 +85,6 @@ pub(crate) const MUL_LOW_BITS: usize = DIVISOR + 1;
 pub(crate) const MUL_HIGH_BITS: usize = MUL_LOW_BITS + 1;
 pub(crate) const MUL_HIGH_DIFF_INV: usize = MUL_HIGH_BITS + 1;
 
-pub(crate) const NUM_RC_COLS: usize = 2;
-
 pub(crate) const RC_VALUE_1: usize = MUL_HIGH_DIFF_INV + 1;
 pub(crate) const RC_VALUE_2: usize = RC_VALUE_1 + 1;
 pub(crate) const RC_VALUE_3: usize = RC_VALUE_2 + 1;
@@ -95,14 +93,10 @@ pub(crate) const NUM_CPU_COLS: usize = RC_VALUE_3 + 1;
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-pub(crate) fn add_rc_data<F: Field>() -> Vec<Column<F>> {
+pub(crate) fn rc_data<F: Field>() -> Vec<Column<F>> {
     Column::singles([RC_VALUE_1, RC_VALUE_2, RC_VALUE_3]).collect_vec()
 }
 
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-pub(crate) fn add_rc_filter<F: Field>() -> Column<F> { Column::single(COL_S_RC) }
-
-/// Column for a binary filter for our range check in the Mozak
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-pub(crate) fn slt_rc_filter<F: Field>() -> Column<F> { Column::single(COL_S_SLT) }
+pub(crate) fn rc_filter<F: Field>() -> Column<F> { Column::single(COL_S_RC) }

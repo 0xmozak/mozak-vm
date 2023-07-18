@@ -37,23 +37,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         for col in 0..columns::NUM_VALUES_TO_RANGECHECK {
+            println!("col: {}", col);
             // Constrain `val` - (`limb_hi` ** base + `limb_lo`) == 0
-            // let val = vars.local_values[col];
-            // let limb_lo = vars.local_values[LimbKind::col(col, LimbKind::Lo)];
-            // let limb_hi = vars.local_values[LimbKind::col(col, LimbKind::Hi)];
-            // yield_constr.constraint(
-            //     val - (limb_lo + limb_hi * P::Scalar::from_canonical_usize(Self::BASE)),
-            // );
-            //
-            println!(
-                "Eval lookups for: {}->{}",
-                LimbKind::col(col, LimbKind::LoPermuted),
-                LimbKind::col(col, LimbKind::LoFixedPermuted)
-            );
-            println!(
-                "Eval lookups for: {}->{}",
-                LimbKind::col(col, LimbKind::HiPermuted),
-                LimbKind::col(col, LimbKind::HiFixedPermuted)
+            let val = vars.local_values[col];
+            let limb_lo = vars.local_values[LimbKind::col(col, LimbKind::Lo)];
+            let limb_hi = vars.local_values[LimbKind::col(col, LimbKind::Hi)];
+            yield_constr.constraint(
+                val - (limb_lo + limb_hi * P::Scalar::from_canonical_usize(Self::BASE)),
             );
 
             eval_lookups(

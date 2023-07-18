@@ -19,12 +19,7 @@ pub(crate) const VALUE_3: usize = VALUE_2 + 1;
 pub(crate) const NUM_VALUES_TO_RANGECHECK: usize = VALUE_3 + 1;
 
 /// Column to indicate that a value to be range checked is from the CPU table.
-pub(crate) const CPU_ADD: usize = VALUE_3 + 1;
-
-pub(crate) const FILTER_START: usize = CPU_ADD;
-
-/// Column to indicate that a value to be range checked is from the CPU table.
-pub(crate) const CPU_SLT: usize = CPU_ADD + 1;
+pub(crate) const CPU_FILTER: usize = VALUE_3 + 1;
 
 /// We need 6 columns for each value to be range checked:
 /// 1) Limb for hi bits,
@@ -33,8 +28,8 @@ pub(crate) const CPU_SLT: usize = CPU_ADD + 1;
 /// 4) Permuted limb for lo bits.
 /// 5) Permuted limb for table (hi).
 /// 6) Permuted limb for table (lo).
-pub(crate) const LIMBS: Range<usize> = CPU_SLT + 1
-    ..(CPU_SLT + 1 + (LimbKind::LoFixedPermuted as usize + 1) * NUM_VALUES_TO_RANGECHECK);
+pub(crate) const LIMBS: Range<usize> = CPU_FILTER + 1
+    ..(CPU_FILTER + 1 + (LimbKind::LoFixedPermuted as usize + 1) * NUM_VALUES_TO_RANGECHECK);
 
 /// Offset into [`LIMBS`] range.
 pub(crate) enum LimbKind {
@@ -77,4 +72,4 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable) in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(CPU_ADD) }
+pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(CPU_FILTER) }
