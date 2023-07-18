@@ -1,14 +1,10 @@
 use mozak_vm::instruction::{Instruction, Op};
 use mozak_vm::state::State;
 use mozak_vm::vm::Row;
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns as cpu_cols;
-use crate::utils::pad_trace;
-
-#[must_use]
-pub(crate) fn from_u32<F: Field>(x: u32) -> F { Field::from_noncanonical_u64(x.into()) }
+use crate::utils::{from_u32, pad_trace};
 
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {

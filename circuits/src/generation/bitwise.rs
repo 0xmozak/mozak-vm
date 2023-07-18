@@ -5,7 +5,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::bitwise::columns as cols;
 use crate::lookup::permute_cols;
-use crate::utils::from_;
+use crate::utils::from_u32;
 
 #[must_use]
 fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<&Row> {
@@ -33,32 +33,32 @@ pub fn generate_bitwise_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cols:
         let opd2_value = state.get_register_value(inst.args.rs2);
         let opd2_imm_value = opd2_value.wrapping_add(inst.args.imm);
 
-        trace[cols::OP1][i] = from_(opd1_value);
-        trace[cols::OP2][i] = from_(opd2_imm_value);
-        trace[cols::RES][i] = from_(aux.dst_val);
+        trace[cols::OP1][i] = from_u32(opd1_value);
+        trace[cols::OP2][i] = from_u32(opd2_imm_value);
+        trace[cols::RES][i] = from_u32(aux.dst_val);
         for (cols, limbs) in [
             (cols::OP1_LIMBS, opd1_value.to_le_bytes()),
             (cols::OP2_LIMBS, opd2_imm_value.to_le_bytes()),
             (cols::RES_LIMBS, aux.dst_val.to_le_bytes()),
         ] {
             for (col, limb) in cols.zip(limbs) {
-                trace[col][i] = from_(limb);
+                trace[col][i] = from_u32(limb.into());
             }
         }
     }
 
     // add FIXED bitwise table
     // 2^8 * 2^8 possible rows
-    trace[cols::FIX_RANGE_CHECK_U8] = cols::RANGE_U8.map(from_).collect();
+    trace[cols::FIX_RANGE_CHECK_U8] = cols::RANGE_U8.map(|x| from_u32(x.into())).collect();
     trace[cols::FIX_RANGE_CHECK_U8].resize(ext_trace_len, F::ZERO);
 
     for (index, (op1, op2)) in cols::RANGE_U8.cartesian_product(cols::RANGE_U8).enumerate() {
-        trace[cols::FIX_BITWISE_OP1][index] = from_(op1);
-        trace[cols::FIX_BITWISE_OP2][index] = from_(op2);
-        trace[cols::FIX_BITWISE_RES][index] = from_(op1 ^ op2);
+        trace[cols::FIX_BITWISE_OP1][index] = from_u32(op1.into());
+        trace[cols::FIX_BITWISE_OP2][index] = from_u32(op2.into());
+        trace[cols::FIX_BITWISE_RES][index] = from_u32((op1 ^ op2).into());
     }
 
-    let beta: F = from_(cols::BETA);
+    let beta: F = from_u32(cols::BETA.into());
     // TODO: Fix following issues related to possible security risks due to this
     // randomness. https://github.com/0xmozak/mozak-vm/issues/310
     // https://github.com/0xmozak/mozak-vm/issues/309

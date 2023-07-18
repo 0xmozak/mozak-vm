@@ -16,7 +16,6 @@ use super::columns::{
     RES_LIMBS, RES_LIMBS_PERMUTED,
 };
 use crate::lookup::eval_lookups;
-use crate::utils::from_;
 
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -40,7 +39,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         // check limbs sum to our given value.
         // We interpret limbs as digits in base 256 == 2**8.
         for (opx, opx_limbs) in [(OP1, OP1_LIMBS), (OP2, OP2_LIMBS), (RES, RES_LIMBS)] {
-            yield_constr.constraint(reduce_with_powers(&lv[opx_limbs], from_(256_u32)) - lv[opx]);
+            yield_constr.constraint(
+                reduce_with_powers(&lv[opx_limbs], P::Scalar::from_noncanonical_u64(256_u64))
+                    - lv[opx],
+            );
         }
 
         // Constrain compress logic.
@@ -48,7 +50,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         // prover gaves us an honest compress_challenge.  And we need to either take the
         // compress_challenge from at least the quadratic extension field, or take two
         // challenges.
-        let beta = FE::from_basefield(from_(BETA));
+        let beta = FE::from_basefield(F::from_noncanonical_u64(BETA.into()));
         for (op1_limb, op2_limb, res_limb, compress_limb) in
             izip!(OP1_LIMBS, OP2_LIMBS, RES_LIMBS, COMPRESS_LIMBS)
         {

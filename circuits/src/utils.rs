@@ -29,3 +29,6 @@ pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>, clk_col: Option<usize>) -> Ve
     });
     trace
 }
+
+#[must_use]
+pub(crate) fn from_u32<F: Field>(x: u32) -> F { Field::from_noncanonical_u64(x.into()) }
