@@ -14,6 +14,7 @@ pub(crate) const OP2_LIMBS_PERMUTED: Range<usize> =
 pub(crate) const RES_LIMBS_PERMUTED: Range<usize> =
     OP2_LIMBS_PERMUTED.end..OP2_LIMBS_PERMUTED.end + 4; // 27
 
+// Each row holds result of compression of OP1_LIMB, OP2_LIMB and RES_LIMBS.
 pub(crate) const COMPRESS_LIMBS: Range<usize> = RES_LIMBS_PERMUTED.end..RES_LIMBS_PERMUTED.end + 4; // 31
 pub(crate) const COMPRESS_PERMUTED: Range<usize> = COMPRESS_LIMBS.end..COMPRESS_LIMBS.end + 4; // 35
 
@@ -32,4 +33,4 @@ pub(crate) const NUM_BITWISE_COL: usize = FIX_COMPRESS_PERMUTED.end;
 
 pub(crate) const RANGE_U8: RangeInclusive<u8> = u8::MIN..=u8::MAX; // 256 different values
 pub(crate) const BITWISE_U8_SIZE: usize = 1 << 16; // 256 * 256 different possible combinations
-pub(crate) const BETA: u16 = 256;
+pub(crate) const BASE: u16 = 256;

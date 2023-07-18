@@ -58,7 +58,7 @@ pub fn generate_bitwise_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cols:
         trace[cols::FIX_BITWISE_RES][index] = from_u32((op1 ^ op2).into());
     }
 
-    let beta: F = from_u32(cols::BETA.into());
+    let base: F = from_u32(cols::BASE.into());
     // TODO: Fix following issues related to possible security risks due to this
     // randomness. https://github.com/0xmozak/mozak-vm/issues/310
     // https://github.com/0xmozak/mozak-vm/issues/309
@@ -70,11 +70,11 @@ pub fn generate_bitwise_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cols:
             .zip(cols::RES_LIMBS)
         {
             trace[compress_limb][i] =
-                trace[op1_limb][i] + beta * (trace[op2_limb][i] + beta * trace[res_limb][i]);
+                trace[op1_limb][i] + base * (trace[op2_limb][i] + base * trace[res_limb][i]);
         }
 
         trace[cols::FIX_COMPRESS][i] = trace[cols::FIX_BITWISE_OP1][i]
-            + beta * (trace[cols::FIX_BITWISE_OP2][i] + beta * trace[cols::FIX_BITWISE_RES][i]);
+            + base * (trace[cols::FIX_BITWISE_OP2][i] + base * trace[cols::FIX_BITWISE_RES][i]);
     }
 
     // add the permutation information

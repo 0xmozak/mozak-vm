@@ -11,7 +11,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{
-    BETA, COMPRESS_LIMBS, COMPRESS_PERMUTED, FIX_COMPRESS_PERMUTED, FIX_RANGE_CHECK_U8_PERMUTED,
+    BASE, COMPRESS_LIMBS, COMPRESS_PERMUTED, FIX_COMPRESS_PERMUTED, FIX_RANGE_CHECK_U8_PERMUTED,
     NUM_BITWISE_COL, OP1, OP1_LIMBS, OP1_LIMBS_PERMUTED, OP2, OP2_LIMBS, OP2_LIMBS_PERMUTED, RES,
     RES_LIMBS, RES_LIMBS_PERMUTED,
 };
@@ -46,16 +46,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         }
 
         // Constrain compress logic.
-        // FIXME(Matthias): we need to verify (with constraints or similar) that the
-        // prover gaves us an honest compress_challenge.  And we need to either take the
-        // compress_challenge from at least the quadratic extension field, or take two
-        // challenges.
-        let beta = FE::from_basefield(F::from_noncanonical_u64(BETA.into()));
+        let base = FE::from_basefield(F::from_noncanonical_u64(BASE.into()));
         for (op1_limb, op2_limb, res_limb, compress_limb) in
             izip!(OP1_LIMBS, OP2_LIMBS, RES_LIMBS, COMPRESS_LIMBS)
         {
             yield_constr.constraint(
-                reduce_with_powers(&[lv[op1_limb], lv[op2_limb], lv[res_limb]], beta)
+                reduce_with_powers(&[lv[op1_limb], lv[op2_limb], lv[res_limb]], base)
                     - lv[compress_limb],
             );
         }
@@ -95,10 +91,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
     use plonky2::util::timing::TimingTree;
     use starky::prover::prove as prove_table;
+    use starky::stark_testing::test_stark_low_degree;
     use starky::verifier::verify_stark_proof;
 
     use crate::bitwise::stark::BitwiseStark;
@@ -107,6 +105,11 @@ mod tests {
     use crate::test_utils::{standard_faster_config, C, D, F};
 
     type S = BitwiseStark<F, D>;
+    #[test]
+    fn test_degree() -> Result<()> {
+        let stark = S::default();
+        test_stark_low_degree(stark)
+    }
 
     fn test_bitwise_and_stark(a: u32, b: u32, imm: u32) {
         let config = standard_faster_config();
