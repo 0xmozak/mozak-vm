@@ -104,13 +104,7 @@ impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
             cpu::columns::add_rc_data(),
             Some(cpu::columns::add_rc_filter()),
         );
-
-        let cpu_slt_rc = CpuTable::new(
-            cpu::columns::slt_rc_data(),
-            Some(cpu::columns::slt_rc_filter()),
-        );
-
-        let all_cpu_lookers = vec![cpu_add_rc, cpu_slt_rc];
+        let all_cpu_lookers = vec![cpu_add_rc];
 
         CrossTableLookup::new(
             all_cpu_lookers,

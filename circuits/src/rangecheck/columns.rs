@@ -6,17 +6,20 @@ use plonky2::field::types::Field;
 use crate::cross_table_lookup::Column;
 
 /// Column containing the value (in u32) to be range checked.
-pub(crate) const VAL: usize = 0;
+pub(crate) const VALUE_1: usize = 0;
 
 /// Column containing the value (in u32) to be range checked.
-pub(crate) const CMP_ABS_DIFF: usize = VAL + 1;
+pub(crate) const VALUE_2: usize = VALUE_1 + 1;
+
+/// Column containing the value (in u32) to be range checked.
+pub(crate) const VALUE_3: usize = VALUE_2 + 1;
 
 /// Total number of values to be range checked. This value determines the number
 /// of [`LIMBS`] columns.
-pub(crate) const NUM_VALUES_TO_RANGECHECK: usize = CMP_ABS_DIFF + 1;
+pub(crate) const NUM_VALUES_TO_RANGECHECK: usize = VALUE_3 + 1;
 
 /// Column to indicate that a value to be range checked is from the CPU table.
-pub(crate) const CPU_ADD: usize = CMP_ABS_DIFF + 1;
+pub(crate) const CPU_ADD: usize = VALUE_3 + 1;
 
 pub(crate) const FILTER_START: usize = CPU_ADD;
 
@@ -66,7 +69,9 @@ pub(crate) const NUM_RC_COLS: usize = FIXED_RANGE_CHECK_U16 + 1;
 /// Columns containing the data to be range checked in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles([VAL]).collect_vec() }
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
+    Column::singles([VALUE_1, VALUE_2, VALUE_3]).collect_vec()
+}
 
 /// Column for a binary filter to indicate a range check from the
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable) in the Mozak

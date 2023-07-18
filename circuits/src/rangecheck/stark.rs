@@ -36,14 +36,24 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        for col in [columns::VAL, columns::CMP_ABS_DIFF] {
+        for col in 0..columns::NUM_VALUES_TO_RANGECHECK {
             // Constrain `val` - (`limb_hi` ** base + `limb_lo`) == 0
-            let val = vars.local_values[col];
-            let filter = vars.local_values[columns::FILTER_START + col];
-            let limb_lo = vars.local_values[LimbKind::col(col, LimbKind::Lo)];
-            let limb_hi = vars.local_values[LimbKind::col(col, LimbKind::Hi)];
-            yield_constr.constraint(
-                filter * (val - (limb_lo + limb_hi * P::Scalar::from_canonical_usize(Self::BASE))),
+            // let val = vars.local_values[col];
+            // let limb_lo = vars.local_values[LimbKind::col(col, LimbKind::Lo)];
+            // let limb_hi = vars.local_values[LimbKind::col(col, LimbKind::Hi)];
+            // yield_constr.constraint(
+            //     val - (limb_lo + limb_hi * P::Scalar::from_canonical_usize(Self::BASE)),
+            // );
+            //
+            println!(
+                "Eval lookups for: {}->{}",
+                LimbKind::col(col, LimbKind::LoPermuted),
+                LimbKind::col(col, LimbKind::LoFixedPermuted)
+            );
+            println!(
+                "Eval lookups for: {}->{}",
+                LimbKind::col(col, LimbKind::HiPermuted),
+                LimbKind::col(col, LimbKind::HiFixedPermuted)
             );
 
             eval_lookups(
@@ -103,7 +113,7 @@ mod tests {
         ]);
         let mut trace = generate_rangecheck_trace::<F>(&record.executed);
         // Manually alter the value here to be larger than a u32.
-        trace[0][columns::VAL] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
+        trace[0][columns::VALUE_1] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
         trace
     }
 

@@ -43,7 +43,6 @@ pub fn generate_rangecheck_trace<F: RichField>(
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace = init_padded_rc_trace(step_rows.len().max(RANGE_CHECK_U16_SIZE));
 
-    println!("generate rangecheck trace ");
     for (
         i,
         Row {
@@ -64,9 +63,9 @@ pub fn generate_rangecheck_trace<F: RichField>(
         match inst.op {
             Op::ADD => {
                 let (limb_hi, limb_lo) = limbs_from_u32(*dst_val);
-                trace[columns::VAL][i] = from_(*dst_val);
-                trace[LimbKind::col(columns::VAL, LimbKind::Hi)][i] = from_(limb_hi);
-                trace[LimbKind::col(columns::VAL, LimbKind::Lo)][i] = from_(limb_lo);
+                trace[columns::VALUE_1][i] = from_(*dst_val);
+                trace[LimbKind::col(columns::VALUE_1, LimbKind::Hi)][i] = from_(limb_hi);
+                trace[LimbKind::col(columns::VALUE_1, LimbKind::Lo)][i] = from_(limb_lo);
                 trace[columns::CPU_ADD][i] = F::ONE;
             }
             Op::SLT => {
@@ -77,13 +76,17 @@ pub fn generate_rangecheck_trace<F: RichField>(
                 let op2_fixed = rs_2.wrapping_add(sign_adjust);
                 let abs_diff_fixed: u32 = op1_fixed.abs_diff(op2_fixed);
 
+                trace[columns::VALUE_2][i] = from_(op1_fixed);
                 let (limb_hi, limb_lo) = limbs_from_u32(op1_fixed);
+                trace[LimbKind::col(columns::VALUE_2, LimbKind::Hi)][i] = from_(limb_hi);
+                trace[LimbKind::col(columns::VALUE_2, LimbKind::Lo)][i] = from_(limb_lo);
 
-                trace[columns::CMP_ABS_DIFF][i] = from_(abs_diff_fixed);
-                println!("generating SLT: val={} op1_fixed={}", dst_val, op1_fixed);
-                trace[columns::VAL][i] = from_(op1_fixed);
-                trace[LimbKind::col(columns::VAL, LimbKind::Hi)][i] = from_(limb_hi);
-                trace[LimbKind::col(columns::VAL, LimbKind::Lo)][i] = from_(limb_lo);
+                trace[columns::VALUE_3][i] = from_(abs_diff_fixed);
+
+                let (limb_hi, limb_lo) = limbs_from_u32(abs_diff_fixed);
+                trace[LimbKind::col(columns::VALUE_3, LimbKind::Hi)][i] = from_(limb_hi);
+                trace[LimbKind::col(columns::VALUE_3, LimbKind::Lo)][i] = from_(limb_lo);
+
                 trace[columns::CPU_ADD][i] = F::ONE;
             }
 
@@ -97,7 +100,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
     trace[columns::FIXED_RANGE_CHECK_U16] =
         (0..RANGE_CHECK_U16_SIZE).map(|i| from_(i as u64)).collect();
 
-    for idx in [columns::VAL, columns::CMP_ABS_DIFF] {
+    for idx in [columns::VALUE_1, columns::VALUE_2, columns::VALUE_3] {
         // This permutation is done i accordance to the [Halo2 lookup argument
         // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
         let (col_input_permuted, col_table_permuted) = permute_cols(
@@ -151,18 +154,18 @@ mod tests {
         // Check values that we are interested in
         assert_eq!(trace[columns::CPU_ADD][0], F::ONE);
         assert_eq!(trace[columns::CPU_ADD][1], F::ONE);
-        assert_eq!(trace[columns::VAL][0], GoldilocksField(0x0001_fffe));
-        assert_eq!(trace[columns::VAL][1], GoldilocksField(93));
+        assert_eq!(trace[columns::VALUE_1][0], GoldilocksField(0x0001_fffe));
+        assert_eq!(trace[columns::VALUE_1][1], GoldilocksField(93));
         assert_eq!(
-            trace[LimbKind::col(columns::VAL, LimbKind::Hi)][0],
+            trace[LimbKind::col(columns::VALUE_1, LimbKind::Hi)][0],
             GoldilocksField(0x0001)
         );
         assert_eq!(
-            trace[LimbKind::col(columns::VAL, LimbKind::Lo)][0],
+            trace[LimbKind::col(columns::VALUE_1, LimbKind::Lo)][0],
             GoldilocksField(0xfffe)
         );
         assert_eq!(
-            trace[LimbKind::col(columns::VAL, LimbKind::Lo)][1],
+            trace[LimbKind::col(columns::VALUE_1, LimbKind::Lo)][1],
             GoldilocksField(93)
         );
 
@@ -170,13 +173,13 @@ mod tests {
         for cpu_filter in trace[columns::CPU_ADD][2..].iter() {
             assert_eq!(cpu_filter, &F::ZERO);
         }
-        for value in trace[columns::VAL][2..].iter() {
+        for value in trace[columns::VALUE_1][2..].iter() {
             assert_eq!(value, &F::ZERO);
         }
-        for limb_hi in trace[LimbKind::col(columns::VAL, LimbKind::Hi)][1..].iter() {
+        for limb_hi in trace[LimbKind::col(columns::VALUE_1, LimbKind::Hi)][1..].iter() {
             assert_eq!(limb_hi, &F::ZERO);
         }
-        for limb_lo in trace[LimbKind::col(columns::VAL, LimbKind::Lo)][2..].iter() {
+        for limb_lo in trace[LimbKind::col(columns::VALUE_1, LimbKind::Lo)][2..].iter() {
             assert_eq!(limb_lo, &F::ZERO);
         }
     }

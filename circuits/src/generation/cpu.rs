@@ -39,8 +39,12 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             Op::ADD => {
                 trace[cpu_cols::COL_S_RC][i] = F::ONE;
                 trace[cpu_cols::COL_S_ADD][i] = F::ONE;
+                trace[cpu_cols::RC_VALUE_1][i] = from_(aux.dst_val);
             }
-            Op::SLT => trace[cpu_cols::COL_S_SLT][i] = F::ONE,
+            Op::SLT => {
+                trace[cpu_cols::COL_S_RC][i] = F::ONE;
+                trace[cpu_cols::COL_S_SLT][i] = F::ONE;
+            }
             Op::SLTU => trace[cpu_cols::COL_S_SLTU][i] = F::ONE,
             Op::SRL => trace[cpu_cols::COL_S_SRL][i] = F::ONE,
             Op::SUB => trace[cpu_cols::COL_S_SUB][i] = F::ONE,
@@ -174,7 +178,8 @@ fn generate_slt_row<F: RichField>(
 
     println!("actual SLT: {}", op1_fixed);
     trace[cpu_cols::COL_CMP_ABS_DIFF][row_idx] = from_(abs_diff_fixed);
-    trace[cpu_cols::COL_S_RC][row_idx] = F::ONE;
+    trace[cpu_cols::RC_VALUE_2][row_idx] = from_(op1_fixed);
+    trace[cpu_cols::RC_VALUE_3][row_idx] = from_(abs_diff_fixed);
 
     {
         let diff = trace[cpu_cols::COL_OP1_VALUE][row_idx]
