@@ -109,8 +109,8 @@ fn generate_divu_row<F: RichField>(
 
     let divisor = if let Op::SRL = inst.op {
         let shift_amount = (state.get_register_value(inst.args.rs2) + inst.args.imm) & 0x1F;
-        trace[cpu_cols::POWERS_OF_2_IN][row_idx] = from_(shift_amount);
         let shift_power = 1_u32 << shift_amount;
+        trace[cpu_cols::POWERS_OF_2_IN][row_idx] = from_(shift_amount);
         trace[cpu_cols::POWERS_OF_2_OUT][row_idx] = from_(shift_power);
         shift_power
     } else {
