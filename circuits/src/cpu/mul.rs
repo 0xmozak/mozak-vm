@@ -130,7 +130,7 @@ mod tests {
                     args: Args {
                         rd,
                         rs1,
-                        rs2,
+                        rs2: 0,
                         imm: q,
                     },
                 }
