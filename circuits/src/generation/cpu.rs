@@ -47,6 +47,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
                 trace[cpu_cols::COL_S_RC][i] = F::ONE;
                 trace[cpu_cols::COL_S_ADD][i] = F::ONE;
             }
+            Op::SLL => trace[cpu_cols::COL_S_SLL][i] = F::ONE,
             Op::SLT => trace[cpu_cols::COL_S_SLT][i] = F::ONE,
             Op::SLTU => trace[cpu_cols::COL_S_SLTU][i] = F::ONE,
             Op::SRL => trace[cpu_cols::COL_S_SRL][i] = F::ONE,
@@ -87,15 +88,29 @@ fn generate_mul_row<F: RichField>(
     state: &State,
     row_idx: usize,
 ) {
+    if !matches!(inst.op, Op::MUL | Op::MULHU | Op::SLL) {
+        return;
+    }
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2);
-    let (low, high) = op1.widening_mul(op2);
-    trace[cpu_cols::MUL_LOW_BITS][row_idx] = from_(low);
-    trace[cpu_cols::MUL_HIGH_BITS][row_idx] = from_(high);
+    let multiplier = if let Op::SLL = inst.op {
+        let shift_amount = (state.get_register_value(inst.args.rs2) + inst.args.imm) & 0x1F;
+        let shift_power = 1_u32 << shift_amount;
+        trace[cpu_cols::POWERS_OF_2_IN][row_idx] = from_(shift_amount);
+        trace[cpu_cols::POWERS_OF_2_OUT][row_idx] = from_(shift_power);
+        shift_power
+    } else {
+        op2
+    };
+
+    trace[cpu_cols::MULTIPLIER][row_idx] = from_(multiplier);
+    let (low, high) = op1.widening_mul(multiplier);
+    trace[cpu_cols::PRODUCT_LOW_BITS][row_idx] = from_(low);
+    trace[cpu_cols::PRODUCT_HIGH_BITS][row_idx] = from_(high);
 
     // Prove that the high limb is different from `u32::MAX`:
     let high_diff: F = from_(u32::MAX - high);
-    trace[cpu_cols::MUL_HIGH_DIFF_INV][row_idx] = high_diff.try_inverse().unwrap_or_default();
+    trace[cpu_cols::PRODUCT_HIGH_DIFF_INV][row_idx] = high_diff.try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -199,7 +214,7 @@ fn generate_bitwise_row<F: RichField>(
 ) {
     let op1 = match inst.op {
         Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
-        Op::SRL => 0x1F,
+        Op::SRL | Op::SLL => 0x1F,
         _ => 0,
     };
     let op2 = state
