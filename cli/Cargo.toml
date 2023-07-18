@@ -19,7 +19,7 @@ clap = { version = "4.3.11", features = ["derive", "cargo", "env", "unicode", "w
 # clap_complete = "4.3.2"
 shadow-rs = "0.23.0"
 clio = { version = "0.3.3", features = ["http-ureq", "clap-parse"] }
-anyhow = "1.0.71"
+anyhow = "1.0.72"
 env_logger = "0.10.0"
 log = "0.4.19"
 itertools = "0.11.0"
