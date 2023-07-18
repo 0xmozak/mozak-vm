@@ -6,6 +6,11 @@ members = [
     "circuits",
 ]
 
+[profile.release]
+# We are running our tests in release mode to make them faster.
+# But we want to catch overflow errors, so we enable overflow checks here for now:
+overflow-checks = true
+
 [patch.crates-io]
 plonky2_field =  { git = "https://github.com/0xmozak/plonky2.git" }
 plonky2_maybe_rayon =  { git = "https://github.com/0xmozak/plonky2.git" }
