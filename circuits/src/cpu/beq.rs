@@ -3,7 +3,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_CMP_DIFF_INV, COL_EQUAL, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_S_BEQ,
+    BRANCH_DIFF_INV, COL_EQUAL, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_S_BEQ,
     NUM_CPU_COLS,
 };
 
@@ -18,7 +18,7 @@ pub(crate) fn constraints<P: PackedField>(
     let op2 = lv[COL_OP2_VALUE];
 
     let diff = op1 - op2;
-    let diff_inv = lv[COL_CMP_DIFF_INV];
+    let diff_inv = lv[BRANCH_DIFF_INV];
     let branch = P::ONES - diff * diff_inv;
     let equal = lv[COL_EQUAL];
     let updated_pc = nv[COL_PC];
