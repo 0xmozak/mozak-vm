@@ -138,8 +138,8 @@ mod tests {
                 &[],
                 &[(rs1, p), (rs2, q)],
             );
-            prop_assert_eq!(record.executed[0].aux.dst_val, p << q);
-            prop_assert_eq!(record.executed[1].aux.dst_val, p << q);
+            prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
+            prop_assert_eq!(record.executed[1].aux.dst_val, p << (q & 0x1F));
             simple_proof_test(&record.executed).unwrap();
         }
     }
