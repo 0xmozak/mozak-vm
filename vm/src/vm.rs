@@ -116,7 +116,7 @@ impl State {
             },
             (0..bytes)
                 .map(|i| addr.wrapping_add(i))
-                .zip(dst_val.to_le_bytes().into_iter())
+                .zip(dst_val.to_le_bytes())
                 .fold(self, |acc, (i, byte)| acc.store_u8(i, byte))
                 .bump_pc(),
         )

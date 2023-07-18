@@ -72,11 +72,7 @@ impl From<HashMap<u32, u32>> for Data {
         Data(
             image
                 .iter()
-                .flat_map(move |(k, v)| {
-                    (u64::from(*k)..)
-                        .map(|k| k as u32)
-                        .zip(v.to_le_bytes().into_iter())
-                })
+                .flat_map(move |(k, v)| (u64::from(*k)..).map(|k| k as u32).zip(v.to_le_bytes()))
                 .collect(),
         )
     }
@@ -86,7 +82,7 @@ impl From<HashMap<u32, u32>> for Program {
     fn from(image: HashMap<u32, u32>) -> Self {
         let image = image
             .iter()
-            .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes().into_iter()))
+            .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes()))
             .collect();
         Self {
             entry: 0_u32,
