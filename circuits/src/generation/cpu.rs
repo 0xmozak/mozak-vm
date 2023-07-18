@@ -29,22 +29,39 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             trace[cpu_cols::COL_START_REG + j as usize][i] = from_(state.get_register_value(j));
         }
 
+        // Valid defaults for the powers-of-two gadget.
+        // To be overridden by users of the gadget.
+        // TODO(Matthias): find a way to make either compiler or runtime complain
+        // if we have two (conflicting) users in the same row.
+        trace[cpu_cols::POWERS_OF_2_IN][i] = F::ZERO;
+        trace[cpu_cols::POWERS_OF_2_OUT][i] = F::ONE;
+
+        generate_mul_row(&mut trace, &inst, state, i);
         generate_divu_row(&mut trace, &inst, state, i);
         generate_slt_row(&mut trace, &inst, state, i);
+
+        generate_bitwise_row(&mut trace, &inst, state, i);
+
         match inst.op {
             Op::ADD => {
                 trace[cpu_cols::COL_S_RC][i] = F::ONE;
                 trace[cpu_cols::COL_S_ADD][i] = F::ONE;
             }
-            Op::JALR => trace[cpu_cols::COL_S_JALR][i] = F::ONE,
-            Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
+            Op::SLL => trace[cpu_cols::COL_S_SLL][i] = F::ONE,
             Op::SLT => trace[cpu_cols::COL_S_SLT][i] = F::ONE,
             Op::SLTU => trace[cpu_cols::COL_S_SLTU][i] = F::ONE,
             Op::SRL => trace[cpu_cols::COL_S_SRL][i] = F::ONE,
             Op::SUB => trace[cpu_cols::COL_S_SUB][i] = F::ONE,
             Op::DIVU => trace[cpu_cols::COL_S_DIVU][i] = F::ONE,
             Op::REMU => trace[cpu_cols::COL_S_REMU][i] = F::ONE,
+            Op::MUL => trace[cpu_cols::COL_S_MUL][i] = F::ONE,
+            Op::MULHU => trace[cpu_cols::COL_S_MULHU][i] = F::ONE,
+            Op::JALR => trace[cpu_cols::COL_S_JALR][i] = F::ONE,
+            Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
+            Op::XOR => trace[cpu_cols::COL_S_XOR][i] = F::ONE,
+            Op::OR => trace[cpu_cols::COL_S_OR][i] = F::ONE,
+            Op::AND => trace[cpu_cols::COL_S_AND][i] = F::ONE,
             #[tarpaulin::skip]
             _ => {}
         }
@@ -66,28 +83,66 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 }
 
 #[allow(clippy::cast_possible_wrap)]
+fn generate_mul_row<F: RichField>(
+    trace: &mut [Vec<F>],
+    inst: &Instruction,
+    state: &State,
+    row_idx: usize,
+) {
+    if !matches!(inst.op, Op::MUL | Op::MULHU | Op::SLL) {
+        return;
+    }
+    let op1 = state.get_register_value(inst.args.rs1);
+    let op2 = state.get_register_value(inst.args.rs2);
+    let multiplier = if let Op::SLL = inst.op {
+        let shift_amount = (state.get_register_value(inst.args.rs2) + inst.args.imm) & 0x1F;
+        let shift_power = 1_u32 << shift_amount;
+        trace[cpu_cols::POWERS_OF_2_IN][row_idx] = from_(shift_amount);
+        trace[cpu_cols::POWERS_OF_2_OUT][row_idx] = from_(shift_power);
+        shift_power
+    } else {
+        op2
+    };
+
+    trace[cpu_cols::MULTIPLIER][row_idx] = from_(multiplier);
+    let (low, high) = op1.widening_mul(multiplier);
+    trace[cpu_cols::PRODUCT_LOW_BITS][row_idx] = from_(low);
+    trace[cpu_cols::PRODUCT_HIGH_BITS][row_idx] = from_(high);
+
+    // Prove that the high limb is different from `u32::MAX`:
+    let high_diff: F = from_(u32::MAX - high);
+    trace[cpu_cols::PRODUCT_HIGH_DIFF_INV][row_idx] = high_diff.try_inverse().unwrap_or_default();
+}
+
+#[allow(clippy::cast_possible_wrap)]
 fn generate_divu_row<F: RichField>(
     trace: &mut [Vec<F>],
     inst: &Instruction,
     state: &State,
     row_idx: usize,
 ) {
-    let op1 = state.get_register_value(inst.args.rs1);
-    let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
+    let dividend = state.get_register_value(inst.args.rs1);
+
     let divisor = if let Op::SRL = inst.op {
-        1 << (op2 & 0x1F)
+        let shift_amount = (state.get_register_value(inst.args.rs2) + inst.args.imm) & 0x1F;
+        let shift_power = 1_u32 << shift_amount;
+        trace[cpu_cols::POWERS_OF_2_IN][row_idx] = from_(shift_amount);
+        trace[cpu_cols::POWERS_OF_2_OUT][row_idx] = from_(shift_power);
+        shift_power
     } else {
-        op2
+        state.get_register_value(inst.args.rs2)
     };
+
     trace[cpu_cols::DIVISOR][row_idx] = from_(divisor);
+
     if let 0 = divisor {
         trace[cpu_cols::QUOTIENT][row_idx] = from_(u32::MAX);
-        trace[cpu_cols::REMAINDER][row_idx] = from_(op1);
+        trace[cpu_cols::REMAINDER][row_idx] = from_(dividend);
         trace[cpu_cols::REMAINDER_SLACK][row_idx] = from_(0_u32);
     } else {
-        trace[cpu_cols::QUOTIENT][row_idx] = from_(op1 / divisor);
-        trace[cpu_cols::REMAINDER][row_idx] = from_(op1 % divisor);
-        trace[cpu_cols::REMAINDER_SLACK][row_idx] = from_(divisor - op1 % divisor - 1);
+        trace[cpu_cols::QUOTIENT][row_idx] = from_(dividend / divisor);
+        trace[cpu_cols::REMAINDER][row_idx] = from_(dividend % divisor);
+        trace[cpu_cols::REMAINDER_SLACK][row_idx] = from_(divisor - dividend % divisor - 1);
     }
     trace[cpu_cols::DIVISOR_INV][row_idx] =
         from_::<_, F>(divisor).try_inverse().unwrap_or_default();
@@ -150,4 +205,23 @@ fn generate_slt_row<F: RichField>(
         let one: F = diff * diff_inv;
         assert_eq!(one, if op1 == op2 { F::ZERO } else { F::ONE });
     }
+}
+
+fn generate_bitwise_row<F: RichField>(
+    trace: &mut [Vec<F>],
+    inst: &Instruction,
+    state: &State,
+    i: usize,
+) {
+    let op1 = match inst.op {
+        Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
+        Op::SRL | Op::SLL => 0x1F,
+        _ => 0,
+    };
+    let op2 = state
+        .get_register_value(inst.args.rs2)
+        .wrapping_add(inst.args.imm);
+    trace[cpu_cols::XOR_A][i] = from_(op1);
+    trace[cpu_cols::XOR_B][i] = from_(op2);
+    trace[cpu_cols::XOR_OUT][i] = from_(op1 ^ op2);
 }

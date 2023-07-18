@@ -4,16 +4,16 @@ use starky::constraint_consumer::ConstraintConsumer;
 use super::columns::{
     COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_PC, COL_S_JALR, NUM_CPU_COLS,
 };
-use crate::utils::column_of_xs;
+use crate::utils::from_;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     nv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let wrap_at: P = column_of_xs(1 << 32);
+    let wrap_at = from_::<u64, P::Scalar>(1 << 32);
 
-    let return_address = lv[COL_PC] + column_of_xs::<P>(4);
+    let return_address = lv[COL_PC] + from_::<u64, P::Scalar>(4);
     let wrapped_return_address = return_address - wrap_at;
 
     // enable-if JALR: aux.dst_val == jmp-inst-pc + 4, wrapped
