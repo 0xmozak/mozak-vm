@@ -30,13 +30,10 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
 /// Returns the rows sorted in the order of the instruction address.
 #[must_use]
 pub fn filter_memory_trace(mut step_rows: Vec<Row>) -> Vec<Row> {
-    step_rows = step_rows
-        .into_iter()
-        .filter(|row| {
-            let inst = row.state.current_instruction();
-            inst.op == Op::LB || inst.op == Op::SB
-        })
-        .collect();
+    step_rows.retain(|row| {
+        let inst = row.state.current_instruction();
+        inst.op == Op::LB || inst.op == Op::SB
+    });
 
     // Sorting is stable, and rows are already ordered by row.state.clk
     step_rows.sort_by_key(|row| {
