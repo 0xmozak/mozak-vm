@@ -1,10 +1,10 @@
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
     COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_PC, COL_S_JALR, NUM_CPU_COLS,
 };
-use crate::utils::from_;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
@@ -12,9 +12,9 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let is_jalr = lv[COL_S_JALR];
-    let wrap_at = from_::<u64, P::Scalar>(1 << 32);
+    let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
 
-    let return_address = lv[COL_PC] + from_::<u64, P::Scalar>(4);
+    let return_address = lv[COL_PC] + P::Scalar::from_noncanonical_u64(4);
     let wrapped_return_address = return_address - wrap_at;
 
     let destination = lv[COL_DST_VALUE];
