@@ -3,9 +3,8 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_CMP_ABS_DIFF, COL_CMP_DIFF_INV, COL_DST_VALUE, COL_IMM_VALUE, COL_LESS_THAN, COL_OP1_VALUE,
-    COL_OP2_VALUE, COL_S_SLT, COL_S_SLTU, COL_S_SLT_OP1_VAL_FIXED, COL_S_SLT_OP2_VAL_FIXED,
-    COL_S_SLT_SIGN1, COL_S_SLT_SIGN2, NUM_CPU_COLS,
+    CMP_ABS_DIFF, CMP_DIFF_INV, DST_VALUE, IMM_VALUE, LESS_THAN, NUM_CPU_COLS, OP1_VALUE,
+    OP2_VALUE, S_SLT, S_SLTU, S_SLT_OP1_VAL_FIXED, S_SLT_OP2_VAL_FIXED, S_SLT_SIGN1, S_SLT_SIGN2,
 };
 
 pub(crate) fn constraints<P: PackedField>(
@@ -15,24 +14,24 @@ pub(crate) fn constraints<P: PackedField>(
     let p32 = P::Scalar::from_noncanonical_u64(1 << 32);
     let p31 = P::Scalar::from_noncanonical_u64(1 << 31);
 
-    let is_slt = lv[COL_S_SLT];
-    let is_sltu = lv[COL_S_SLTU];
+    let is_slt = lv[S_SLT];
+    let is_sltu = lv[S_SLTU];
     let is_cmp = is_slt + is_sltu;
 
-    let lt = lv[COL_LESS_THAN];
+    let lt = lv[LESS_THAN];
     yield_constr.constraint(lt * (P::ONES - lt));
 
-    let sign1 = lv[COL_S_SLT_SIGN1];
+    let sign1 = lv[S_SLT_SIGN1];
     yield_constr.constraint(sign1 * (P::ONES - sign1));
-    let sign2 = lv[COL_S_SLT_SIGN2];
+    let sign2 = lv[S_SLT_SIGN2];
     yield_constr.constraint(sign2 * (P::ONES - sign2));
 
-    let op1 = lv[COL_OP1_VALUE];
-    let op2 = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
+    let op1 = lv[OP1_VALUE];
+    let op2 = lv[OP2_VALUE] + lv[IMM_VALUE];
     // TODO: range check
-    let op1_fixed = lv[COL_S_SLT_OP1_VAL_FIXED];
+    let op1_fixed = lv[S_SLT_OP1_VAL_FIXED];
     // TODO: range check
-    let op2_fixed = lv[COL_S_SLT_OP2_VAL_FIXED];
+    let op2_fixed = lv[S_SLT_OP2_VAL_FIXED];
 
     yield_constr.constraint(is_sltu * (op1_fixed - op1));
     yield_constr.constraint(is_sltu * (op2_fixed - op2));
@@ -42,16 +41,16 @@ pub(crate) fn constraints<P: PackedField>(
 
     let diff_fixed = op1_fixed - op2_fixed;
     // TODO: range check
-    let abs_diff = lv[COL_CMP_ABS_DIFF];
+    let abs_diff = lv[CMP_ABS_DIFF];
 
     // abs_diff calculation
     yield_constr.constraint(is_cmp * (P::ONES - lt) * (abs_diff - diff_fixed));
     yield_constr.constraint(is_cmp * lt * (abs_diff + diff_fixed));
 
     let diff = op1 - op2;
-    let diff_inv = lv[COL_CMP_DIFF_INV];
+    let diff_inv = lv[CMP_DIFF_INV];
     yield_constr.constraint(lt * (P::ONES - diff * diff_inv));
-    yield_constr.constraint(is_cmp * (lt - lv[COL_DST_VALUE]));
+    yield_constr.constraint(is_cmp * (lt - lv[DST_VALUE]));
 }
 
 #[cfg(test)]
