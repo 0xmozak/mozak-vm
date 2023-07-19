@@ -12,28 +12,36 @@ use crate::stark::mozak_stark::MozakStark;
 use crate::stark::prover::prove;
 use crate::stark::verifier::verify_proof;
 
-#[allow(clippy::missing_panics_doc)]
-#[allow(clippy::missing_errors_doc)]
-pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
-    const D: usize = 2;
-    type C = PoseidonGoldilocksConfig;
-    type F = <C as GenericConfig<D>>::F;
-    type S = MozakStark<F, D>;
-    let stark = S::default();
+pub const D: usize = 2;
+pub type C = PoseidonGoldilocksConfig;
+pub type F = <C as GenericConfig<D>>::F;
+pub type S = MozakStark<F, D>;
+
+#[must_use]
+pub fn standard_faster_config() -> StarkConfig {
     let config = StarkConfig::standard_fast_config();
-    let config = StarkConfig {
+    StarkConfig {
         security_bits: 1,
         num_challenges: 2,
         fri_config: FriConfig {
             // Plonky2 says: "Having constraints of degree higher than the rate is not supported
             // yet." So we automatically set the rate here as required by plonky2.
-            rate_bits: log2_ceil(stark.cpu_stark.constraint_degree()),
+            // TODO(Matthias): Change to maximum of constraint degrees of all starks, as we
+            // accumulate more types of starks.
+            rate_bits: log2_ceil(S::default().cpu_stark.constraint_degree()),
             cap_height: 0,
             proof_of_work_bits: 0,
             num_query_rounds: 5,
             ..config.fri_config
         },
-    };
+    }
+}
+
+#[allow(clippy::missing_panics_doc)]
+#[allow(clippy::missing_errors_doc)]
+pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
+    let stark = S::default();
+    let config = standard_faster_config();
 
     let all_proof = prove::<F, C, D>(step_rows, &stark, &config, &mut TimingTree::default());
     verify_proof(stark, all_proof.unwrap(), &config)
