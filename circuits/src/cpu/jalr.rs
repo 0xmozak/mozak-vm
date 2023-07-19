@@ -31,7 +31,7 @@ pub(crate) fn constraints<P: PackedField>(
         .constraint_transition(is_jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target));
 }
 #[cfg(test)]
-mod test {
+mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{last_but_coda, reg, simple_test_code, u32_extra};
     use proptest::prelude::ProptestConfig;
