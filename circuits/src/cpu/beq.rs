@@ -3,7 +3,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    BRANCH_DIFF_INV, COL_EQUAL, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_S_BEQ,
+    BRANCH_DIFF_INV, BRANCH_EQUAL, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_S_BEQ,
     NUM_CPU_COLS,
 };
 
@@ -13,36 +13,25 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let is_beq = lv[COL_S_BEQ];
+    let bumped_pc = lv[COL_PC] + P::Scalar::from_noncanonical_u64(4);
+    let branched_pc = lv[COL_IMM_VALUE];
+    let diff = lv[COL_OP1_VALUE] - lv[COL_OP2_VALUE];
 
-    let op1 = lv[COL_OP1_VALUE];
-    let op2 = lv[COL_OP2_VALUE];
-
-    let diff = op1 - op2;
+    // if `diff == 0`, then `equal != 0`.
+    // We only need this intermediate variable to keep the constraint degree <= 3.
+    // You could also call `not_diff` by the name `equal`.
+    let is_equal = lv[BRANCH_EQUAL];
     let diff_inv = lv[BRANCH_DIFF_INV];
-    let branch = P::ONES - diff * diff_inv;
-    let equal = lv[COL_EQUAL];
-    let updated_pc = nv[COL_PC];
+    yield_constr.constraint(diff * diff_inv + is_equal - P::ONES);
 
-    // check equal is 0 or 1
-    yield_constr.constraint(is_beq * equal * (P::ONES - equal));
-
-    // if equal is 1 then diff should be 0
-    yield_constr.constraint(is_beq * equal * diff);
-
-    // equal should match with branch
-    yield_constr.constraint(is_beq * (branch - equal));
-
-    // check PC updated correctly
-    let pc_next: P =
-        (P::ONES - equal) * (updated_pc - (lv[COL_PC] + P::Scalar::from_noncanonical_u64(4)));
-    let pc_branch: P = equal * (updated_pc - lv[COL_IMM_VALUE]);
-    yield_constr.constraint(is_beq * pc_next);
-    yield_constr.constraint(is_beq * pc_branch);
+    let next_pc = nv[COL_PC];
+    yield_constr.constraint(is_beq * is_equal * (next_pc - branched_pc));
+    yield_constr.constraint(is_beq * diff * (next_pc - bumped_pc));
 }
 
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
-mod test {
+mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, u32_extra};
     use proptest::prelude::ProptestConfig;

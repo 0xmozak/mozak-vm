@@ -65,9 +65,9 @@ pub(crate) const COL_S_SLT_OP2_VAL_FIXED: usize = COL_S_SLT_OP1_VAL_FIXED + 1;
 pub(crate) const COL_CMP_ABS_DIFF: usize = COL_S_SLT_OP2_VAL_FIXED + 1;
 pub(crate) const COL_CMP_DIFF_INV: usize = COL_CMP_ABS_DIFF + 1;
 pub(crate) const COL_LESS_THAN: usize = COL_CMP_DIFF_INV + 1;
-pub(crate) const COL_EQUAL: usize = COL_LESS_THAN + 1;
+pub(crate) const BRANCH_EQUAL: usize = COL_LESS_THAN + 1;
 
-pub(crate) const XOR_A: usize = COL_EQUAL + 1;
+pub(crate) const XOR_A: usize = BRANCH_EQUAL + 1;
 pub(crate) const XOR_B: usize = XOR_A + 1;
 pub(crate) const XOR_OUT: usize = XOR_B + 1;
 

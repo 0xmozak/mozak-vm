@@ -91,21 +91,12 @@ fn generate_conditional_branch_row<F: RichField>(
     state: &State,
     row_idx: usize,
 ) {
-    if inst.op != Op::BEQ {
-        return;
-    }
-    let op1 = state.get_register_value(inst.args.rs1);
-    let op2 = state.get_register_value(inst.args.rs2);
+    let op1: F = from_u32(state.get_register_value(inst.args.rs1));
+    let op2: F = from_u32(state.get_register_value(inst.args.rs2));
+    let diff = op1 - op2;
 
-    trace[cpu_cols::COL_EQUAL][row_idx] = Field::from_noncanonical_u64((op1 == op2).into());
-    {
-        let diff =
-            trace[cpu_cols::COL_OP1_VALUE][row_idx] - trace[cpu_cols::COL_OP2_VALUE][row_idx];
-        let diff_inv = diff.try_inverse().unwrap_or_default();
-        trace[cpu_cols::BRANCH_DIFF_INV][row_idx] = diff_inv;
-        let one: F = diff * diff_inv;
-        assert_eq!(one, if op1 == op2 { F::ZERO } else { F::ONE });
-    }
+    trace[cpu_cols::BRANCH_EQUAL][row_idx] = F::from_noncanonical_u64(u64::from(diff == F::ZERO));
+    trace[cpu_cols::BRANCH_DIFF_INV][row_idx] = diff.try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]
