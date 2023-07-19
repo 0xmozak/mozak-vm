@@ -54,7 +54,8 @@ pub(crate) const COL_S_SLTU: usize = COL_S_SLT + 1;
 pub(crate) const COL_S_SRL: usize = COL_S_SLTU + 1;
 pub(crate) const COL_S_JALR: usize = COL_S_SRL + 1;
 pub(crate) const COL_S_BEQ: usize = COL_S_JALR + 1;
-pub(crate) const COL_S_ECALL: usize = COL_S_BEQ + 1;
+pub(crate) const COL_S_BNE: usize = COL_S_BEQ + 1;
+pub(crate) const COL_S_ECALL: usize = COL_S_BNE + 1;
 pub(crate) const COL_S_HALT: usize = COL_S_ECALL + 1;
 pub(crate) const COL_S_RC: usize = COL_S_HALT + 1;
 

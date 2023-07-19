@@ -4,15 +4,17 @@ use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
     BRANCH_DIFF_INV, BRANCH_EQUAL, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_S_BEQ,
-    NUM_CPU_COLS,
+    COL_S_BNE, NUM_CPU_COLS,
 };
 
+/// Constraints for BEQ and BNE.
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     nv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let is_beq = lv[COL_S_BEQ];
+    let is_bne = lv[COL_S_BNE];
     let bumped_pc = lv[COL_PC] + P::Scalar::from_noncanonical_u64(4);
     let branched_pc = lv[COL_IMM_VALUE];
     let diff = lv[COL_OP1_VALUE] - lv[COL_OP2_VALUE];
@@ -26,6 +28,11 @@ pub(crate) fn constraints<P: PackedField>(
     let next_pc = nv[COL_PC];
     yield_constr.constraint(is_beq * is_equal * (next_pc - branched_pc));
     yield_constr.constraint(is_beq * diff * (next_pc - bumped_pc));
+
+    // For BNE branch happens when both operands are not equal so swap above
+    // constraints.
+    yield_constr.constraint(is_bne * diff * (next_pc - branched_pc));
+    yield_constr.constraint(is_bne * is_equal * (next_pc - bumped_pc));
 }
 
 #[cfg(test)]
@@ -70,6 +77,40 @@ mod tests {
                 assert_eq!(record.last_state.get_register_value(1), 0);
             } else {
                 assert_eq!(record.last_state.get_register_value(1), 10);
+            }
+            simple_proof_test(&record.executed).unwrap();
+        }
+        #[test]
+        fn prove_bne_proptest(a in u32_extra(), b in u32_extra()) {
+            let record = simple_test_code(
+                &[
+                    Instruction {
+                        op: Op::BNE,
+                        args: Args {
+                            rd: 0,
+                            rs1: 6,
+                            rs2: 7,
+                            imm: 8,
+                        },
+                    },
+                    // if above branch is not taken R1 has value 10.
+                    Instruction {
+                        op: Op::ADD,
+                        args: Args {
+                            rd: 1,
+                            rs1: 0,
+                            rs2: 0,
+                            imm: 10,
+                        },
+                    },
+                ],
+                &[],
+                &[(6, a), (7, b)],
+            );
+            if a == b {
+                assert_eq!(record.last_state.get_register_value(1), 10);
+            } else {
+                assert_eq!(record.last_state.get_register_value(1), 0);
             }
             simple_proof_test(&record.executed).unwrap();
         }
