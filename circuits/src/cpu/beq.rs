@@ -17,9 +17,8 @@ pub(crate) fn constraints<P: PackedField>(
     let branched_pc = lv[COL_IMM_VALUE];
     let diff = lv[COL_OP1_VALUE] - lv[COL_OP2_VALUE];
 
-    // if `diff == 0`, then `equal != 0`.
+    // if `diff == 0`, then `is_equal != 0`.
     // We only need this intermediate variable to keep the constraint degree <= 3.
-    // You could also call `not_diff` by the name `equal`.
     let is_equal = lv[BRANCH_EQUAL];
     let diff_inv = lv[BRANCH_DIFF_INV];
     yield_constr.constraint(diff * diff_inv + is_equal - P::ONES);
