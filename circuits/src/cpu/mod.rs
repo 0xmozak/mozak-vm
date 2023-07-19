@@ -1,4 +1,5 @@
 pub mod add;
+pub mod beq;
 pub mod bitwise;
 pub mod columns;
 pub mod div;

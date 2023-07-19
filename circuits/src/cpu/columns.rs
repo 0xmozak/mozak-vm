@@ -65,8 +65,9 @@ pub(crate) const COL_S_SLT_OP2_VAL_FIXED: usize = COL_S_SLT_OP1_VAL_FIXED + 1;
 pub(crate) const COL_CMP_ABS_DIFF: usize = COL_S_SLT_OP2_VAL_FIXED + 1;
 pub(crate) const COL_CMP_DIFF_INV: usize = COL_CMP_ABS_DIFF + 1;
 pub(crate) const COL_LESS_THAN: usize = COL_CMP_DIFF_INV + 1;
+pub(crate) const BRANCH_EQUAL: usize = COL_LESS_THAN + 1;
 
-pub(crate) const XOR_A: usize = COL_LESS_THAN + 1;
+pub(crate) const XOR_A: usize = BRANCH_EQUAL + 1;
 pub(crate) const XOR_B: usize = XOR_A + 1;
 pub(crate) const XOR_OUT: usize = XOR_B + 1;
 
@@ -88,7 +89,9 @@ pub(crate) const PRODUCT_LOW_BITS: usize = MULTIPLIER + 1;
 pub(crate) const PRODUCT_HIGH_BITS: usize = PRODUCT_LOW_BITS + 1;
 pub(crate) const PRODUCT_HIGH_DIFF_INV: usize = PRODUCT_HIGH_BITS + 1;
 
-pub(crate) const NUM_CPU_COLS: usize = PRODUCT_HIGH_DIFF_INV + 1;
+// TODO: In future we may want to merge BRANCH_DIFF_INV and COL_CMP_DIFF_INV
+pub(crate) const BRANCH_DIFF_INV: usize = PRODUCT_HIGH_DIFF_INV + 1;
+pub(crate) const NUM_CPU_COLS: usize = BRANCH_DIFF_INV + 1;
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).

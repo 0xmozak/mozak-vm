@@ -39,7 +39,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         generate_mul_row(&mut trace, &inst, state, i);
         generate_divu_row(&mut trace, &inst, state, i);
         generate_slt_row(&mut trace, &inst, state, i);
-
+        generate_conditional_branch_row(&mut trace, &inst, state, i);
         generate_bitwise_row(&mut trace, &inst, state, i);
 
         match inst.op {
@@ -80,6 +80,19 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             v.len()
         )
     })
+}
+fn generate_conditional_branch_row<F: RichField>(
+    trace: &mut [Vec<F>],
+    inst: &Instruction,
+    state: &State,
+    row_idx: usize,
+) {
+    let op1: F = from_u32(state.get_register_value(inst.args.rs1));
+    let op2: F = from_u32(state.get_register_value(inst.args.rs2));
+    let diff = op1 - op2;
+
+    trace[cpu_cols::BRANCH_EQUAL][row_idx] = F::from_noncanonical_u64(u64::from(diff == F::ZERO));
+    trace[cpu_cols::BRANCH_DIFF_INV][row_idx] = diff.try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]
