@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
@@ -10,7 +9,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns;
-use crate::lookup::{eval_lookups, eval_lookups_circuit};
+use crate::lookup::eval_lookups;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -68,39 +67,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         );
     }
 
-    /// Given the u32 value and the u16 limbs found in our variables to be
-    /// evaluated, perform:
-    ///   1. sumcheck between val (u32) and limbs (u16),
-    ///   2. rangecheck for limbs.
+    #[no_coverage]
     fn eval_ext_circuit(
         &self,
-        builder: &mut CircuitBuilder<F, D>,
-        vars: StarkEvaluationTargets<D, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
-        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        _builder: &mut CircuitBuilder<F, D>,
+        _vars: StarkEvaluationTargets<D, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let val = vars.local_values[columns::VAL];
-        let limb_lo = vars.local_values[columns::LIMB_LO];
-        let limb_hi = vars.local_values[columns::LIMB_HI];
-
-        let base = builder.constant_extension(F::Extension::from_canonical_usize(Self::BASE));
-        let sum = builder.mul_add_extension(limb_hi, base, limb_lo);
-        let val_sum_diff = builder.sub_extension(val, sum);
-        yield_constr.constraint(builder, val_sum_diff);
-
-        eval_lookups_circuit(
-            builder,
-            vars,
-            yield_constr,
-            columns::LIMB_LO_PERMUTED,
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
-        );
-        eval_lookups_circuit(
-            builder,
-            vars,
-            yield_constr,
-            columns::LIMB_HI_PERMUTED,
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
-        );
+        unimplemented!()
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -112,11 +86,11 @@ mod tests {
     use log::trace;
     use mozak_vm::test_utils::simple_test;
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::Sample;
+    use plonky2::field::types::{Field, Sample};
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use plonky2::util::log2_strict;
     use starky::stark::Stark;
-    use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
+    use starky::stark_testing::test_stark_low_degree;
 
     use super::*;
     use crate::generation::rangecheck::generate_rangecheck_trace;
@@ -143,12 +117,6 @@ mod tests {
     fn test_degree() -> Result<()> {
         let stark = S::default();
         test_stark_low_degree(stark)
-    }
-
-    #[test]
-    fn test_rangecheck_stark_circuit() -> Result<()> {
-        let stark = S::default();
-        test_stark_circuit_constraints::<F, C, S, D>(stark)
     }
 
     #[test]

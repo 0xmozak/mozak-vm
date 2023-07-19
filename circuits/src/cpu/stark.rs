@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
@@ -10,11 +11,11 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{
     COL_CLK, COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_RD_SELECT, COL_REGS,
-    COL_RS1_SELECT, COL_RS2_SELECT, COL_S_ADD, COL_S_BEQ, COL_S_DIVU, COL_S_ECALL, COL_S_HALT,
-    COL_S_REMU, COL_S_SLT, COL_S_SLTU, COL_S_SRL, COL_S_SUB, NUM_CPU_COLS,
+    COL_RS1_SELECT, COL_RS2_SELECT, COL_S_ADD, COL_S_AND, COL_S_BEQ, COL_S_DIVU, COL_S_ECALL,
+    COL_S_HALT, COL_S_JALR, COL_S_MUL, COL_S_MULHU, COL_S_OR, COL_S_REMU, COL_S_SLL, COL_S_SLT,
+    COL_S_SLTU, COL_S_SRL, COL_S_SUB, COL_S_XOR, NUM_CPU_COLS,
 };
-use super::{add, beq, div, slt, sub};
-use crate::utils::column_of_xs;
+use super::{add, beq, bitwise, div, jalr, mul, slt, sub};
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -24,10 +25,22 @@ pub struct CpuStark<F, const D: usize> {
 
 use array_concat::{concat_arrays, concat_arrays_size};
 
-pub const STRAIGHTLINE_OPCODES: [usize; 7] = [
-    COL_S_ADD, COL_S_SUB, COL_S_DIVU, COL_S_REMU, COL_S_SLT, COL_S_SLTU, COL_S_SRL,
+pub const STRAIGHTLINE_OPCODES: [usize; 13] = [
+    COL_S_ADD,
+    COL_S_SUB,
+    COL_S_AND,
+    COL_S_OR,
+    COL_S_XOR,
+    COL_S_DIVU,
+    COL_S_MUL,
+    COL_S_MULHU,
+    COL_S_REMU,
+    COL_S_SLL,
+    COL_S_SLT,
+    COL_S_SLTU,
+    COL_S_SRL,
 ];
-pub const JUMPING_OPCODES: [usize; 2] = [COL_S_BEQ, COL_S_ECALL];
+pub const JUMPING_OPCODES: [usize; 3] = [COL_S_BEQ, COL_S_ECALL, COL_S_JALR];
 pub const OPCODES: [usize; concat_arrays_size!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES)] =
     concat_arrays!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES);
 
@@ -41,7 +54,7 @@ fn pc_ticks_up<P: PackedField>(
         .map(|op_code| lv[op_code])
         .sum();
     yield_constr.constraint_transition(
-        is_straightline_op * (nv[COL_PC] - (lv[COL_PC] + column_of_xs::<P>(4))),
+        is_straightline_op * (nv[COL_PC] - (lv[COL_PC] + P::Scalar::from_noncanonical_u64(4))),
     );
 }
 
@@ -166,9 +179,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         // add constraint
         add::constraints(lv, yield_constr);
         sub::constraints(lv, yield_constr);
+        bitwise::constraints(lv, yield_constr);
         slt::constraints(lv, yield_constr);
         beq::constraints(lv, nv, yield_constr);
         div::constraints(lv, yield_constr);
+        mul::constraints(lv, yield_constr);
+        jalr::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT
         yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);

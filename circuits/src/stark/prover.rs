@@ -33,7 +33,7 @@ use crate::stark::poly::compute_quotient_polys;
 #[allow(clippy::missing_errors_doc)]
 pub fn prove<F, C, const D: usize>(
     step_rows: &[Row],
-    mozak_stark: &mut MozakStark<F, D>,
+    mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
@@ -364,7 +364,7 @@ where
 
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
-mod test {
+mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test, simple_test_code};
 

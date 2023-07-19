@@ -1,11 +1,11 @@
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
     COL_CMP_DIFF_INV, COL_EQUAL, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_S_BEQ,
     NUM_CPU_COLS,
 };
-use crate::utils::column_of_xs;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
@@ -33,7 +33,8 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(is_beq * (branch - equal));
 
     // check PC updated correctly
-    let pc_next: P = (P::ONES - equal) * (updated_pc - (lv[COL_PC] + column_of_xs::<P>(4)));
+    let pc_next: P =
+        (P::ONES - equal) * (updated_pc - (lv[COL_PC] + P::Scalar::from_noncanonical_u64(4)));
     let pc_branch: P = equal * (updated_pc - lv[COL_IMM_VALUE]);
     yield_constr.constraint(is_beq * pc_next);
     yield_constr.constraint(is_beq * pc_branch);
