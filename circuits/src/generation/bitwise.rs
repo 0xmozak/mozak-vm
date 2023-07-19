@@ -1,4 +1,4 @@
-use itertools::Itertools;
+use itertools::{izip, Itertools};
 use mozak_vm::instruction::Op;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -41,7 +41,7 @@ pub fn generate_bitwise_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cols:
             (cols::OP2_LIMBS, opd2_imm_value.to_le_bytes()),
             (cols::RES_LIMBS, aux.dst_val.to_le_bytes()),
         ] {
-            for (col, limb) in cols.zip(limbs) {
+            for (col, limb) in izip!(cols, limbs) {
                 trace[col][i] = from_u32(limb.into());
             }
         }
@@ -59,16 +59,19 @@ pub fn generate_bitwise_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cols:
     }
 
     let base: F = from_u32(cols::BASE.into());
-    // TODO: Fix following issues related to possible security risks due to this
-    // randomness. https://github.com/0xmozak/mozak-vm/issues/310
-    // https://github.com/0xmozak/mozak-vm/issues/309
+    // FIXME: make the verifier check that we used the right bitwise lookup table.
+    // See https://github.com/0xmozak/mozak-vm/issues/309
+    // TODO: use a random linear combination of the table columns to 'compress'
+    // them. That would save us a bunch of range checks on the limbs.
+    // However see https://github.com/0xmozak/mozak-vm/issues/310 for some potential issues with that.
 
     for i in 0..trace[0].len() {
-        for (((compress_limb, op1_limb), op2_limb), res_limb) in cols::COMPRESS_LIMBS
-            .zip(cols::OP1_LIMBS)
-            .zip(cols::OP2_LIMBS)
-            .zip(cols::RES_LIMBS)
-        {
+        for (compress_limb, op1_limb, op2_limb, res_limb) in izip!(
+            cols::COMPRESS_LIMBS,
+            cols::OP1_LIMBS,
+            cols::OP2_LIMBS,
+            cols::RES_LIMBS
+        ) {
             trace[compress_limb][i] =
                 trace[op1_limb][i] + base * (trace[op2_limb][i] + base * trace[res_limb][i]);
         }
@@ -104,8 +107,8 @@ pub fn generate_bitwise_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cols:
             cols::FIX_COMPRESS,
         ),
     ] {
-        for ((op_limb_permuted, range_check_limb_permuted), op_limb) in
-            op_limbs_permuted.zip(range_check_permuted).zip(op_limbs)
+        for (op_limb_permuted, range_check_limb_permuted, op_limb) in
+            izip!(op_limbs_permuted, range_check_permuted, op_limbs)
         {
             (trace[op_limb_permuted], trace[range_check_limb_permuted]) =
                 permute_cols(&trace[op_limb], &trace[table_col]);
