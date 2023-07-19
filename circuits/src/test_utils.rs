@@ -40,10 +40,10 @@ pub fn standard_faster_config() -> StarkConfig {
 #[allow(clippy::missing_panics_doc)]
 #[allow(clippy::missing_errors_doc)]
 pub fn simple_proof_test(step_rows: &[Row]) -> Result<()> {
-    let mut stark = S::default();
+    let stark = S::default();
     let config = standard_faster_config();
 
-    let all_proof = prove::<F, C, D>(step_rows, &mut stark, &config, &mut TimingTree::default());
+    let all_proof = prove::<F, C, D>(step_rows, &stark, &config, &mut TimingTree::default());
     verify_proof(stark, all_proof.unwrap(), &config)
 }
 
