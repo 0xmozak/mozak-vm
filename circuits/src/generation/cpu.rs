@@ -102,7 +102,7 @@ fn generate_conditional_branch_row<F: RichField>(
         let diff =
             trace[cpu_cols::COL_OP1_VALUE][row_idx] - trace[cpu_cols::COL_OP2_VALUE][row_idx];
         let diff_inv = diff.try_inverse().unwrap_or_default();
-        trace[cpu_cols::COL_CMP_DIFF_INV][row_idx] = diff_inv;
+        trace[cpu_cols::BRANCH_DIFF_INV][row_idx] = diff_inv;
         let one: F = diff * diff_inv;
         assert_eq!(one, if op1 == op2 { F::ZERO } else { F::ONE });
     }

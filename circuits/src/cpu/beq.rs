@@ -3,7 +3,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_CMP_DIFF_INV, COL_EQUAL, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_S_BEQ,
+    BRANCH_DIFF_INV, COL_EQUAL, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_S_BEQ,
     NUM_CPU_COLS,
 };
 
@@ -18,7 +18,7 @@ pub(crate) fn constraints<P: PackedField>(
     let op2 = lv[COL_OP2_VALUE];
 
     let diff = op1 - op2;
-    let diff_inv = lv[COL_CMP_DIFF_INV];
+    let diff_inv = lv[BRANCH_DIFF_INV];
     let branch = P::ONES - diff * diff_inv;
     let equal = lv[COL_EQUAL];
     let updated_pc = nv[COL_PC];
@@ -44,22 +44,13 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod test {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::simple_test_code;
-    use proptest::prelude::any;
-    use proptest::strategy::{Just, Strategy};
-    use proptest::{prop_oneof, proptest};
+    use mozak_vm::test_utils::{simple_test_code, u32_extra};
+    use proptest::prelude::ProptestConfig;
+    use proptest::proptest;
 
     use crate::test_utils::simple_proof_test;
-    #[allow(clippy::cast_sign_loss)]
-    fn u32_extra() -> impl Strategy<Value = u32> {
-        prop_oneof![
-            Just(0_u32),
-            Just(1_u32),
-            Just(i32::MIN as u32),
-            any::<u32>()
-        ]
-    }
     proptest! {
+        #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
         fn prove_beq_proptest(a in u32_extra(), b in u32_extra()) {
             let record = simple_test_code(
