@@ -54,7 +54,11 @@ pub(crate) const COL_S_SLTU: usize = COL_S_SLT + 1;
 pub(crate) const COL_S_SRL: usize = COL_S_SLTU + 1;
 pub(crate) const COL_S_JALR: usize = COL_S_SRL + 1;
 pub(crate) const COL_S_BEQ: usize = COL_S_JALR + 1;
-pub(crate) const COL_S_ECALL: usize = COL_S_BEQ + 1;
+pub(crate) const COL_S_BLT: usize = COL_S_BEQ + 1;
+pub(crate) const COL_S_BLTU: usize = COL_S_BLT + 1;
+pub(crate) const COL_S_BGE: usize = COL_S_BLTU + 1;
+pub(crate) const COL_S_BGEU: usize = COL_S_BGE + 1;
+pub(crate) const COL_S_ECALL: usize = COL_S_BGEU + 1;
 pub(crate) const COL_S_HALT: usize = COL_S_ECALL + 1;
 pub(crate) const COL_S_RC: usize = COL_S_HALT + 1;
 
@@ -64,8 +68,9 @@ pub(crate) const OP1_VAL_FIXED: usize = OP2_SIGN + 1;
 pub(crate) const OP2_VAL_FIXED: usize = OP1_VAL_FIXED + 1;
 pub(crate) const COL_CMP_ABS_DIFF: usize = OP2_VAL_FIXED + 1;
 pub(crate) const COL_CMP_DIFF_INV: usize = COL_CMP_ABS_DIFF + 1;
-pub(crate) const COL_LESS_THAN: usize = COL_CMP_DIFF_INV + 1;
-pub(crate) const BRANCH_EQUAL: usize = COL_LESS_THAN + 1;
+pub(crate) const COL_LESS_THAN_FOR_SLT: usize = COL_CMP_DIFF_INV + 1;
+pub(crate) const COL_LESS_THAN_FOR_BRANCH: usize = COL_LESS_THAN_FOR_SLT + 1;
+pub(crate) const BRANCH_EQUAL: usize = COL_LESS_THAN_FOR_BRANCH + 1;
 
 pub(crate) const XOR_A: usize = BRANCH_EQUAL + 1;
 pub(crate) const XOR_B: usize = XOR_A + 1;

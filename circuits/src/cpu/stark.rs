@@ -11,11 +11,12 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{
     COL_CLK, COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_RD_SELECT, COL_REGS,
-    COL_RS1_SELECT, COL_RS2_SELECT, COL_S_ADD, COL_S_AND, COL_S_BEQ, COL_S_DIVU, COL_S_ECALL,
-    COL_S_HALT, COL_S_JALR, COL_S_MUL, COL_S_MULHU, COL_S_OR, COL_S_REMU, COL_S_SLL, COL_S_SLT,
-    COL_S_SLTU, COL_S_SRL, COL_S_SUB, COL_S_XOR, NUM_CPU_COLS,
+    COL_RS1_SELECT, COL_RS2_SELECT, COL_S_ADD, COL_S_AND, COL_S_BEQ, COL_S_BGE, COL_S_BGEU,
+    COL_S_BLT, COL_S_BLTU, COL_S_DIVU, COL_S_ECALL, COL_S_HALT, COL_S_JALR, COL_S_MUL, COL_S_MULHU,
+    COL_S_OR, COL_S_REMU, COL_S_SLL, COL_S_SLT, COL_S_SLTU, COL_S_SRL, COL_S_SUB, COL_S_XOR,
+    NUM_CPU_COLS,
 };
-use super::{add, beq, bitwise, div, jalr, mul, slt, sub};
+use super::{add, beq, bitwise, cond_branch, div, jalr, mul, slt, sub};
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -40,7 +41,15 @@ pub const STRAIGHTLINE_OPCODES: [usize; 13] = [
     COL_S_SLTU,
     COL_S_SRL,
 ];
-pub const JUMPING_OPCODES: [usize; 3] = [COL_S_BEQ, COL_S_ECALL, COL_S_JALR];
+pub const JUMPING_OPCODES: [usize; 7] = [
+    COL_S_BEQ,
+    COL_S_BGE,
+    COL_S_BGEU,
+    COL_S_BLT,
+    COL_S_BLTU,
+    COL_S_ECALL,
+    COL_S_JALR,
+];
 pub const OPCODES: [usize; concat_arrays_size!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES)] =
     concat_arrays!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES);
 
@@ -182,6 +191,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         bitwise::constraints(lv, yield_constr);
         slt::constraints(lv, yield_constr);
         beq::constraints(lv, nv, yield_constr);
+        cond_branch::constraints(lv, nv, yield_constr);
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);

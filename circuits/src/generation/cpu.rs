@@ -58,6 +58,10 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             Op::MULHU => trace[cpu_cols::COL_S_MULHU][i] = F::ONE,
             Op::JALR => trace[cpu_cols::COL_S_JALR][i] = F::ONE,
             Op::BEQ => trace[cpu_cols::COL_S_BEQ][i] = F::ONE,
+            Op::BLT => trace[cpu_cols::COL_S_BLT][i] = F::ONE,
+            Op::BLTU => trace[cpu_cols::COL_S_BLTU][i] = F::ONE,
+            Op::BGEU => trace[cpu_cols::COL_S_BGEU][i] = F::ONE,
+            Op::BGE => trace[cpu_cols::COL_S_BGE][i] = F::ONE,
             Op::ECALL => trace[cpu_cols::COL_S_ECALL][i] = F::ONE,
             Op::XOR => trace[cpu_cols::COL_S_XOR][i] = F::ONE,
             Op::OR => trace[cpu_cols::COL_S_OR][i] = F::ONE,
@@ -87,12 +91,23 @@ fn generate_conditional_branch_row<F: RichField>(
     state: &State,
     row_idx: usize,
 ) {
-    let op1: F = from_u32(state.get_register_value(inst.args.rs1));
-    let op2: F = from_u32(state.get_register_value(inst.args.rs2));
-    let diff = op1 - op2;
+    if inst.op == Op::BEQ || inst.op == Op::BNE {
+        let op1: F = from_u32(state.get_register_value(inst.args.rs1));
+        let op2: F = from_u32(state.get_register_value(inst.args.rs2));
+        let diff = op1 - op2;
 
-    trace[cpu_cols::BRANCH_EQUAL][row_idx] = F::from_noncanonical_u64(u64::from(diff == F::ZERO));
-    trace[cpu_cols::BRANCH_DIFF_INV][row_idx] = diff.try_inverse().unwrap_or_default();
+        trace[cpu_cols::BRANCH_EQUAL][row_idx] =
+            F::from_noncanonical_u64(u64::from(diff == F::ZERO));
+        trace[cpu_cols::BRANCH_DIFF_INV][row_idx] = diff.try_inverse().unwrap_or_default();
+    }
+    if matches!(inst.op, Op::BLT | Op::BLTU | Op::BGE | Op::BGEU) {
+        let is_signed = matches!(inst.op, Op::BLT | Op::BGE);
+        let op1 = state.get_register_value(inst.args.rs1);
+        let op2 = state.get_register_value(inst.args.rs2);
+        let use_imm = false;
+        let is_slt = false;
+        polulate_condition_columns(trace, row_idx, is_signed, use_imm, is_slt, op1, op2)
+    }
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -162,18 +177,15 @@ fn generate_divu_row<F: RichField>(
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn generate_slt_row<F: RichField>(
+fn polulate_condition_columns<F: RichField>(
     trace: &mut [Vec<F>],
-    inst: &Instruction,
-    state: &State,
     row_idx: usize,
+    is_signed: bool,
+    use_imm: bool,
+    is_slt: bool,
+    op1: u32,
+    op2: u32,
 ) {
-    if inst.op != Op::SLT && inst.op != Op::SLTU {
-        return;
-    }
-    let is_signed = inst.op == Op::SLT;
-    let op1 = state.get_register_value(inst.args.rs1);
-    let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
     let sign1: u32 = (is_signed && (op1 as i32) < 0).into();
     let sign2: u32 = (is_signed && (op2 as i32) < 0).into();
     trace[cpu_cols::OP1_SIGN][row_idx] = from_u32(sign1);
@@ -184,7 +196,12 @@ fn generate_slt_row<F: RichField>(
     let op2_fixed = op2.wrapping_add(sign_adjust);
     trace[cpu_cols::OP1_VAL_FIXED][row_idx] = from_u32(op1_fixed);
     trace[cpu_cols::OP2_VAL_FIXED][row_idx] = from_u32(op2_fixed);
-    trace[cpu_cols::COL_LESS_THAN][row_idx] = from_u32(u32::from(op1_fixed < op2_fixed));
+    let is_less_than = from_u32(u32::from(op1_fixed < op2_fixed));
+    if is_slt {
+        trace[cpu_cols::COL_LESS_THAN_FOR_SLT][row_idx] = is_less_than;
+    } else {
+        trace[cpu_cols::COL_LESS_THAN_FOR_BRANCH][row_idx] = is_less_than;
+    }
 
     let abs_diff = if is_signed {
         (op1 as i32).abs_diff(op2 as i32)
@@ -210,14 +227,36 @@ fn generate_slt_row<F: RichField>(
     trace[cpu_cols::COL_CMP_ABS_DIFF][row_idx] = from_u32(abs_diff_fixed);
 
     {
-        let diff = trace[cpu_cols::COL_OP1_VALUE][row_idx]
-            - trace[cpu_cols::COL_OP2_VALUE][row_idx]
-            - trace[cpu_cols::COL_IMM_VALUE][row_idx];
+        let imm = if use_imm {
+            trace[cpu_cols::COL_IMM_VALUE][row_idx]
+        } else {
+            F::ZERO
+        };
+        let diff =
+            trace[cpu_cols::COL_OP1_VALUE][row_idx] - trace[cpu_cols::COL_OP2_VALUE][row_idx] - imm;
         let diff_inv = diff.try_inverse().unwrap_or_default();
         trace[cpu_cols::COL_CMP_DIFF_INV][row_idx] = diff_inv;
         let one: F = diff * diff_inv;
         assert_eq!(one, if op1 == op2 { F::ZERO } else { F::ONE });
     }
+}
+
+#[allow(clippy::cast_possible_wrap)]
+fn generate_slt_row<F: RichField>(
+    trace: &mut [Vec<F>],
+    inst: &Instruction,
+    state: &State,
+    row_idx: usize,
+) {
+    if inst.op != Op::SLT && inst.op != Op::SLTU {
+        return;
+    }
+    let is_signed = inst.op == Op::SLT;
+    let op1 = state.get_register_value(inst.args.rs1);
+    let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
+    let use_imm = true;
+    let is_slt = true;
+    polulate_condition_columns(trace, row_idx, is_signed, use_imm, is_slt, op1, op2)
 }
 
 fn generate_bitwise_row<F: RichField>(

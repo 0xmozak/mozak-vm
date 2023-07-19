@@ -21,7 +21,7 @@ pub(crate) fn constraints<P: PackedField>(
     // We only need this intermediate variable to keep the constraint degree <= 3.
     let is_equal = lv[BRANCH_EQUAL];
     let diff_inv = lv[BRANCH_DIFF_INV];
-    yield_constr.constraint(diff * diff_inv + is_equal - P::ONES);
+    yield_constr.constraint(is_beq * ((diff * diff_inv) + is_equal - P::ONES));
 
     let next_pc = nv[COL_PC];
     yield_constr.constraint(is_beq * is_equal * (next_pc - branched_pc));

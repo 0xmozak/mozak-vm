@@ -3,9 +3,9 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_CMP_ABS_DIFF, COL_CMP_DIFF_INV, COL_DST_VALUE, COL_IMM_VALUE, COL_LESS_THAN, COL_OP1_VALUE,
-    COL_OP2_VALUE, COL_S_SLT, COL_S_SLTU, NUM_CPU_COLS, OP1_SIGN, OP1_VAL_FIXED, OP2_SIGN,
-    OP2_VAL_FIXED,
+    COL_CMP_ABS_DIFF, COL_CMP_DIFF_INV, COL_DST_VALUE, COL_IMM_VALUE, COL_LESS_THAN_FOR_SLT,
+    COL_OP1_VALUE, COL_OP2_VALUE, COL_S_SLT, COL_S_SLTU, NUM_CPU_COLS, OP1_SIGN, OP1_VAL_FIXED,
+    OP2_SIGN, OP2_VAL_FIXED,
 };
 
 pub(crate) fn constraints<P: PackedField>(
@@ -19,13 +19,13 @@ pub(crate) fn constraints<P: PackedField>(
     let is_sltu = lv[COL_S_SLTU];
     let is_cmp = is_slt + is_sltu;
 
-    let lt = lv[COL_LESS_THAN];
-    yield_constr.constraint(lt * (P::ONES - lt));
+    let lt = lv[COL_LESS_THAN_FOR_SLT];
+    yield_constr.constraint(is_cmp * (lt * (P::ONES - lt)));
 
     let sign1 = lv[OP1_SIGN];
-    yield_constr.constraint(sign1 * (P::ONES - sign1));
+    yield_constr.constraint(is_cmp * (sign1 * (P::ONES - sign1)));
     let sign2 = lv[OP2_SIGN];
-    yield_constr.constraint(sign2 * (P::ONES - sign2));
+    yield_constr.constraint(is_cmp * (sign2 * (P::ONES - sign2)));
 
     let op1 = lv[COL_OP1_VALUE];
     let op2 = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
