@@ -24,6 +24,7 @@ thiserror = "1.0.43"
 [dev-dependencies]
 mozak-vm = { path = "../vm", features = ["test"] }
 proptest = "1.2.0"
+env_logger = {version = "0.10.0"}
 
 [features]
 test = []

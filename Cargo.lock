@@ -756,6 +756,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "array-concat",
+ "env_logger",
  "itertools",
  "lazy_static",
  "log",

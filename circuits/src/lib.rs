@@ -8,6 +8,7 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
 
+pub mod bitwise;
 pub mod cpu;
 pub mod cross_table_lookup;
 pub mod generation;

@@ -1,3 +1,4 @@
+pub mod bitwise;
 pub mod cpu;
 pub mod memory;
 pub mod rangecheck;
