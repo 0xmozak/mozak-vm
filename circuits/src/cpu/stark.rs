@@ -15,7 +15,7 @@ use super::columns::{
     COL_S_HALT, COL_S_JALR, COL_S_MUL, COL_S_MULHU, COL_S_OR, COL_S_REMU, COL_S_SLL, COL_S_SLT,
     COL_S_SLTU, COL_S_SRL, COL_S_SUB, COL_S_XOR, NUM_CPU_COLS,
 };
-use super::{add, bitwise, div, jalr, mul, slt, sub};
+use super::{add, beq, bitwise, div, jalr, mul, slt, sub};
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -181,6 +181,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         sub::constraints(lv, yield_constr);
         bitwise::constraints(lv, yield_constr);
         slt::constraints(lv, yield_constr);
+        beq::constraints(lv, nv, yield_constr);
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
