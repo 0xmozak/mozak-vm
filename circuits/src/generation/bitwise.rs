@@ -27,6 +27,7 @@ fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<usize> {
 
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
+#[allow(clippy::cast_possible_truncation)]
 pub fn generate_bitwise_trace<F: RichField>(
     step_rows: &[Row],
     cpu_trace: &[Vec<F>; cpu_cols::NUM_CPU_COLS],
