@@ -90,7 +90,7 @@ pub(crate) const PRODUCT_HIGH_BITS: usize = PRODUCT_LOW_BITS + 1;
 pub(crate) const PRODUCT_HIGH_DIFF_INV: usize = PRODUCT_HIGH_BITS + 1;
 
 // TODO: In future we may want to merge BRANCH_DIFF_INV and COL_CMP_DIFF_INV
-pub(crate) const BRANCH_DIFF_INV: usize = PRODUCT_HIGH_BITS + 1;
+pub(crate) const BRANCH_DIFF_INV: usize = PRODUCT_HIGH_DIFF_INV + 1;
 pub(crate) const NUM_CPU_COLS: usize = BRANCH_DIFF_INV + 1;
 
 /// Columns containing the data to be range checked in the Mozak
