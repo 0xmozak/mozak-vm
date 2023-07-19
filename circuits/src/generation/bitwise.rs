@@ -4,42 +4,60 @@ use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::bitwise::columns as cols;
+use crate::cpu::columns::{self as cpu_cols};
 use crate::lookup::permute_cols;
 use crate::utils::from_u32;
 
 #[must_use]
-fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<&Row> {
+fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<usize> {
     step_rows
         .iter()
-        .filter(|row| {
+        .enumerate()
+        .filter(|(_, row)| {
             matches!(
                 row.state.current_instruction().op,
-                Op::AND | Op::OR | Op::XOR
+                // TODO: Figure out a less error-prone way to check whether we need to deal with a
+                // column.
+                Op::AND | Op::OR | Op::XOR | Op::SLL | Op::SRL | Op::SRA
             )
         })
+        .map(|(i, _row)| i)
         .collect()
 }
 
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
-pub fn generate_bitwise_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cols::NUM_BITWISE_COL] {
+pub fn generate_bitwise_trace<F: RichField>(
+    step_rows: &[Row],
+    cpu_trace: &[Vec<F>; cpu_cols::NUM_CPU_COLS],
+) -> [Vec<F>; cols::NUM_BITWISE_COL] {
     let filtered_step_rows = filter_bitwise_trace(step_rows);
     let trace_len = filtered_step_rows.len();
     let ext_trace_len = trace_len.max(cols::BITWISE_U8_SIZE).next_power_of_two();
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; cols::NUM_BITWISE_COL];
-    for (i, Row { state, aux }) in filtered_step_rows.iter().enumerate() {
-        let inst = state.current_instruction();
-        let opd1_value = state.get_register_value(inst.args.rs1);
-        let opd2_value = state.get_register_value(inst.args.rs2);
-        let opd2_imm_value = opd2_value.wrapping_add(inst.args.imm);
+    for (i, clk) in filtered_step_rows.iter().enumerate() {
+        let xor_a = cpu_trace[cpu_cols::XOR_A][*clk];
+        let xor_b = cpu_trace[cpu_cols::XOR_B][*clk];
+        let xor_out = cpu_trace[cpu_cols::XOR_OUT][*clk];
 
-        trace[cols::OP1][i] = from_u32(opd1_value);
-        trace[cols::OP2][i] = from_u32(opd2_imm_value);
-        trace[cols::RES][i] = from_u32(aux.dst_val);
+        trace[cols::OP1][i] = xor_a;
+        trace[cols::OP2][i] = xor_b;
+        trace[cols::RES][i] = xor_out;
+        // TODO: make the CPU trace somehow pass the u32 values as well, not just the
+        // field elements. So we don't have to reverse engineer them here.
         for (cols, limbs) in [
-            (cols::OP1_LIMBS, opd1_value.to_le_bytes()),
-            (cols::OP2_LIMBS, opd2_imm_value.to_le_bytes()),
-            (cols::RES_LIMBS, aux.dst_val.to_le_bytes()),
+            (
+                cols::OP1_LIMBS,
+                (xor_a.to_canonical_u64() as u32).to_le_bytes(),
+            ),
+            (
+                cols::OP2_LIMBS,
+                (xor_b.to_canonical_u64() as u32).to_le_bytes(),
+            ),
+            (
+                cols::RES_LIMBS,
+                (xor_out.to_canonical_u64() as u32).to_le_bytes(),
+            ),
         ] {
             for (col, limb) in izip!(cols, limbs) {
                 trace[col][i] = from_u32(limb.into());

@@ -101,6 +101,7 @@ mod tests {
 
     use crate::bitwise::stark::BitwiseStark;
     use crate::generation::bitwise::generate_bitwise_trace;
+    use crate::generation::cpu::generate_cpu_trace;
     use crate::stark::utils::trace_to_poly_values;
     use crate::test_utils::{standard_faster_config, C, D, F};
 
@@ -115,39 +116,41 @@ mod tests {
         let config = standard_faster_config();
 
         let record = simple_test_code(
-            &[Instruction {
-                op: Op::XOR,
-                args: Args {
-                    rs1: 5,
-                    rs2: 6,
-                    rd: 7,
-                    imm,
+            &[
+                Instruction {
+                    op: Op::XOR,
+                    args: Args {
+                        rs1: 5,
+                        rs2: 6,
+                        rd: 7,
+                        imm,
+                    },
                 },
-            },
-            Instruction {
-                op: Op::AND,
-                args: Args {
-                    rs1: 5,
-                    rs2: 6,
-                    rd: 7,
-                    imm,
+                Instruction {
+                    op: Op::AND,
+                    args: Args {
+                        rs1: 5,
+                        rs2: 6,
+                        rd: 7,
+                        imm,
+                    },
                 },
-            },
-            Instruction {
-                op: Op::OR,
-                args: Args {
-                    rs1: 5,
-                    rs2: 6,
-                    rd: 7,
-                    imm,
+                Instruction {
+                    op: Op::OR,
+                    args: Args {
+                        rs1: 5,
+                        rs2: 6,
+                        rd: 7,
+                        imm,
+                    },
                 },
-            }
             ],
             &[],
             &[(5, a), (6, b)],
         );
         // assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));
-        let trace = generate_bitwise_trace(&record.executed);
+        let cpu_trace = generate_cpu_trace(&record.executed);
+        let trace = generate_bitwise_trace(&record.executed, &cpu_trace);
         let trace_poly_values = trace_to_poly_values(trace);
         let stark = S::default();
 
