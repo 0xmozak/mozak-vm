@@ -106,7 +106,7 @@ fn generate_conditional_branch_row<F: RichField>(
         let op2 = state.get_register_value(inst.args.rs2);
         let use_imm = false;
         let is_slt = false;
-        polulate_condition_columns(trace, row_idx, is_signed, use_imm, is_slt, op1, op2)
+        polulate_condition_columns(trace, row_idx, is_signed, use_imm, is_slt, op1, op2);
     }
 }
 
@@ -256,7 +256,7 @@ fn generate_slt_row<F: RichField>(
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
     let use_imm = true;
     let is_slt = true;
-    polulate_condition_columns(trace, row_idx, is_signed, use_imm, is_slt, op1, op2)
+    polulate_condition_columns(trace, row_idx, is_signed, use_imm, is_slt, op1, op2);
 }
 
 fn generate_bitwise_row<F: RichField>(

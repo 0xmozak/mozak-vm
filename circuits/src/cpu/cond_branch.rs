@@ -135,19 +135,19 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
         fn prove_blt_proptest(a in u32_extra(), b in u32_extra()) {
-            test_cond_branch(a, b, Op::BLT)
+            test_cond_branch(a, b, Op::BLT);
         }
         #[test]
         fn prove_bltu_proptest(a in u32_extra(), b in u32_extra()) {
-            test_cond_branch(a, b, Op::BLTU)
+            test_cond_branch(a, b, Op::BLTU);
         }
         #[test]
         fn prove_bge_proptest(a in u32_extra(), b in u32_extra()) {
-            test_cond_branch(a, b, Op::BGE)
+            test_cond_branch(a, b, Op::BGE);
         }
         #[test]
         fn prove_bgeu_proptest(a in u32_extra(), b in u32_extra()) {
-            test_cond_branch(a, b, Op::BGEU)
+            test_cond_branch(a, b, Op::BGEU);
         }
     }
 }
