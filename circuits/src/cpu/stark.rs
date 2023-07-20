@@ -11,8 +11,8 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{
     CLK, DST_VALUE, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, PC, RD_SELECT, REGS, RS1_SELECT,
-    RS2_SELECT, S_ADD, S_AND, S_BEQ, S_DIVU, S_ECALL, S_HALT, S_JALR, S_MUL, S_MULHU, S_OR, S_REMU,
-    S_SLL, S_SLT, S_SLTU, S_SRL, S_SUB, S_XOR,
+    RS2_SELECT, S_ADD, S_AND, S_BEQ, S_BNE, S_DIVU, S_ECALL, S_HALT, S_JALR, S_MUL, S_MULHU, S_OR,
+    S_REMU, S_SLL, S_SLT, S_SLTU, S_SRL, S_SUB, S_XOR,
 };
 use super::{add, beq, bitwise, div, jalr, mul, slt, sub};
 
@@ -27,7 +27,7 @@ use array_concat::{concat_arrays, concat_arrays_size};
 pub const STRAIGHTLINE_OPCODES: [usize; 13] = [
     S_ADD, S_SUB, S_AND, S_OR, S_XOR, S_DIVU, S_MUL, S_MULHU, S_REMU, S_SLL, S_SLT, S_SLTU, S_SRL,
 ];
-pub const JUMPING_OPCODES: [usize; 3] = [S_BEQ, S_ECALL, S_JALR];
+pub const JUMPING_OPCODES: [usize; 4] = [S_BEQ, S_BNE, S_ECALL, S_JALR];
 pub const OPCODES: [usize; concat_arrays_size!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES)] =
     concat_arrays!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES);
 
