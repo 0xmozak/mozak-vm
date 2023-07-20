@@ -3,8 +3,8 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    CMP_ABS_DIFF, CMP_DIFF_INV, DST_VALUE, IMM_VALUE, LESS_THAN, NUM_CPU_COLS, OP1_VALUE,
-    OP2_VALUE, S_SLT, S_SLTU, S_SLT_OP1_VAL_FIXED, S_SLT_OP2_VAL_FIXED, S_SLT_SIGN1, S_SLT_SIGN2,
+    CMP_ABS_DIFF, CMP_DIFF_INV, DST_VALUE, IMM_VALUE, LESS_THAN, NUM_CPU_COLS, OP1_SIGN, OP1_VALUE,
+    OP1_VAL_FIXED, OP2_SIGN, OP2_VALUE, OP2_VAL_FIXED, S_SLT, S_SLTU,
 };
 
 pub(crate) fn constraints<P: PackedField>(
@@ -21,17 +21,17 @@ pub(crate) fn constraints<P: PackedField>(
     let lt = lv[LESS_THAN];
     yield_constr.constraint(lt * (P::ONES - lt));
 
-    let sign1 = lv[S_SLT_SIGN1];
+    let sign1 = lv[OP1_SIGN];
     yield_constr.constraint(sign1 * (P::ONES - sign1));
-    let sign2 = lv[S_SLT_SIGN2];
+    let sign2 = lv[OP2_SIGN];
     yield_constr.constraint(sign2 * (P::ONES - sign2));
 
     let op1 = lv[OP1_VALUE];
     let op2 = lv[OP2_VALUE] + lv[IMM_VALUE];
     // TODO: range check
-    let op1_fixed = lv[S_SLT_OP1_VAL_FIXED];
+    let op1_fixed = lv[OP1_VAL_FIXED];
     // TODO: range check
-    let op2_fixed = lv[S_SLT_OP2_VAL_FIXED];
+    let op2_fixed = lv[OP2_VAL_FIXED];
 
     yield_constr.constraint(is_sltu * (op1_fixed - op1));
     yield_constr.constraint(is_sltu * (op2_fixed - op2));
