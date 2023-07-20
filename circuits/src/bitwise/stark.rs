@@ -7,13 +7,14 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::plonk_common::reduce_with_powers;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::permutation::PermutationPair;
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{
-    BASE, COMPRESS_LIMBS, COMPRESS_PERMUTED, FIX_COMPRESS_PERMUTED, FIX_RANGE_CHECK_U8_PERMUTED,
-    NUM_BITWISE_COL, OP1, OP1_LIMBS, OP1_LIMBS_PERMUTED, OP2, OP2_LIMBS, OP2_LIMBS_PERMUTED, RES,
-    RES_LIMBS, RES_LIMBS_PERMUTED,
+    BASE, COMPRESS_LIMBS, COMPRESS_PERMUTED, FIX_COMPRESS, FIX_COMPRESS_PERMUTED,
+    FIX_RANGE_CHECK_U8_PERMUTED, NUM_BITWISE_COL, OP1, OP1_LIMBS, OP1_LIMBS_PERMUTED, OP2,
+    OP2_LIMBS, OP2_LIMBS_PERMUTED, RES, RES_LIMBS, RES_LIMBS_PERMUTED,
 };
 use crate::lookup::eval_lookups;
 
@@ -77,6 +78,19 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
     }
 
     fn constraint_degree(&self) -> usize { 3 }
+
+    fn permutation_pairs(&self) -> Vec<PermutationPair> {
+        vec![
+            PermutationPair::singletons(COMPRESS_LIMBS.start, COMPRESS_PERMUTED.start),
+            PermutationPair::singletons(COMPRESS_LIMBS.start + 1, COMPRESS_PERMUTED.start + 1),
+            PermutationPair::singletons(COMPRESS_LIMBS.start + 2, COMPRESS_PERMUTED.start + 2),
+            PermutationPair::singletons(COMPRESS_LIMBS.start + 3, COMPRESS_PERMUTED.start + 3),
+            PermutationPair::singletons(FIX_COMPRESS, FIX_COMPRESS_PERMUTED.start),
+            PermutationPair::singletons(FIX_COMPRESS, FIX_COMPRESS_PERMUTED.start + 1),
+            PermutationPair::singletons(FIX_COMPRESS, FIX_COMPRESS_PERMUTED.start + 2),
+            PermutationPair::singletons(FIX_COMPRESS, FIX_COMPRESS_PERMUTED.start + 3),
+        ]
+    }
 
     #[no_coverage]
     fn eval_ext_circuit(
