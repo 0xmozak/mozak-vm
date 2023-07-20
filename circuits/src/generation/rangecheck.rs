@@ -65,6 +65,8 @@ pub fn generate_rangecheck_trace<F: RichField>(
     // values 0, 1, .., 2^16 - 1.
     trace[columns::FIXED_RANGE_CHECK_U16] =
         (0..RANGE_CHECK_U16_SIZE).map(|i| from_(i as u64)).collect();
+    let num_rows = trace[columns::VAL].len();
+    trace[columns::FIXED_RANGE_CHECK_U16].resize(num_rows, F::ZERO);
 
     // This permutation is done in accordance to the [Halo2 lookup argument
     // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
