@@ -125,16 +125,16 @@ mod tests {
         assert_eq!(trace[columns::LIMB_LO][1], GoldilocksField(93));
 
         // Ensure rest of trace is zeroed out
-        for cpu_filter in trace[columns::CPU_FILTER][2..].iter() {
+        for cpu_filter in &trace[columns::CPU_FILTER][2..] {
             assert_eq!(cpu_filter, &F::ZERO);
         }
-        for value in trace[columns::VAL][2..].iter() {
+        for value in &trace[columns::VAL][2..] {
             assert_eq!(value, &F::ZERO);
         }
-        for limb_hi in trace[columns::LIMB_HI][1..].iter() {
+        for limb_hi in &trace[columns::LIMB_HI][1..] {
             assert_eq!(limb_hi, &F::ZERO);
         }
-        for limb_lo in trace[columns::LIMB_LO][2..].iter() {
+        for limb_lo in &trace[columns::LIMB_LO][2..] {
             assert_eq!(limb_lo, &F::ZERO);
         }
     }

@@ -176,7 +176,7 @@ mod tests {
         let rows = memory_trace_test_case();
         let trace = super::generate_memory_trace::<F>(rows[..4].to_vec());
 
-        let indices = vec![0, 1, 4, 5];
+        let indices = [0, 1, 4, 5];
         let expected_trace_vec: Vec<Vec<F>> = expected_trace()
             .iter()
             .map(|v| indices.iter().filter_map(|&i| v.get(i).copied()).collect())
