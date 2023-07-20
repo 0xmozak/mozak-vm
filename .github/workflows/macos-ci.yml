@@ -24,7 +24,7 @@ jobs:
         uses: ./.github/actions/rust
 
       - name: Run tests
-        run: cargo test --locked --all-targets
+        run: cargo test --locked --all-targets --release
 
       - name: Create github issue for failed action
         uses: imjohnbo/issue-bot@v3
