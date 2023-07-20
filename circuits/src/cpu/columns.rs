@@ -93,10 +93,28 @@ pub(crate) const NUM_CPU_COLS: usize = BRANCH_DIFF_INV + 1;
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
+pub(crate) fn data_dst_value_rangecheck<F: Field>() -> Vec<Column<F>> {
     Column::singles([DST_VALUE]).collect_vec()
+}
+
+/// Columns containing the data to be range checked in the Mozak
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+pub(crate) fn data_op1_val_fixed_rangecheck<F: Field>() -> Vec<Column<F>> {
+    Column::singles([OP1_VAL_FIXED]).collect_vec()
+}
+
+pub(crate) fn data_op2_val_fixed_rangecheck<F: Field>() -> Vec<Column<F>> {
+    Column::singles([OP2_VAL_FIXED]).collect_vec()
+}
+
+pub(crate) fn data_cmp_abs_diff_rangecheck<F: Field>() -> Vec<Column<F>> {
+    Column::singles([CMP_ABS_DIFF]).collect_vec()
 }
 
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(S_ADD) }
+pub(crate) fn filter_for_add_rangecheck<F: Field>() -> Column<F> { Column::single(S_ADD) }
+
+/// Column for a binary filter for our range check in the Mozak
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+pub(crate) fn filter_for_slt_rangecheck<F: Field>() -> Column<F> { Column::single(S_SLT) }

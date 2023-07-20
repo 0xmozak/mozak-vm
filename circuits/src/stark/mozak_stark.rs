@@ -13,7 +13,7 @@ use crate::{cpu, rangecheck};
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cpu_stark: CpuStark<F, D>,
     pub rangecheck_stark: RangeCheckStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 1],
+    pub cross_table_lookups: [CrossTableLookup<F>; 2],
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -21,7 +21,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
         Self {
             cpu_stark: CpuStark::default(),
             rangecheck_stark: RangeCheckStark::default(),
-            cross_table_lookups: [RangecheckCpuTable::lookups(); 1],
+            cross_table_lookups: [
+                CpuDstValueRangeCheckTable::lookups(),
+                CpuOp1ValueFixedRangeCheckTable::lookups(),
+            ],
         }
     }
 }
@@ -96,18 +99,64 @@ pub trait Lookups<F: Field> {
     fn lookups() -> CrossTableLookup<F>;
 }
 
-pub struct RangecheckCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct CpuDstValueRangeCheckTable<F: Field>(CrossTableLookup<F>);
+pub struct CpuOp1ValueFixedRangeCheckTable<F: Field>(CrossTableLookup<F>);
+pub struct CpuOp2ValueFixedRangeCheckTable<F: Field>(CrossTableLookup<F>);
+pub struct CpuCmpAbsDiffRangeCheckTable<F: Field>(CrossTableLookup<F>);
 
-impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
+impl<F: Field> Lookups<F> for CpuDstValueRangeCheckTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
-                cpu::columns::data_for_rangecheck(),
-                Some(cpu::columns::filter_for_rangecheck()),
+                cpu::columns::data_dst_value_rangecheck(),
+                Some(cpu::columns::filter_for_add_rangecheck()),
             )],
             RangeCheckTable::new(
                 rangecheck::columns::data_for_cpu(),
-                Some(rangecheck::columns::filter_for_cpu()),
+                Some(rangecheck::columns::filter_cpu_dst_value()),
+            ),
+        )
+    }
+}
+
+impl<F: Field> Lookups<F> for CpuOp1ValueFixedRangeCheckTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_op1_val_fixed_rangecheck(),
+                Some(cpu::columns::filter_for_slt_rangecheck()),
+            )],
+            RangeCheckTable::new(
+                rangecheck::columns::data_for_cpu(),
+                Some(rangecheck::columns::filter_cpu_op1_val_fixed()),
+            ),
+        )
+    }
+}
+impl<F: Field> Lookups<F> for CpuOp2ValueFixedRangeCheckTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_op2_val_fixed_rangecheck(),
+                Some(cpu::columns::filter_for_slt_rangecheck()),
+            )],
+            RangeCheckTable::new(
+                rangecheck::columns::data_for_cpu(),
+                Some(rangecheck::columns::filter_cpu_op2_val_fixed()),
+            ),
+        )
+    }
+}
+impl<F: Field> Lookups<F> for CpuCmpAbsDiffRangeCheckTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_cmp_abs_diff_rangecheck(),
+                Some(cpu::columns::filter_for_slt_rangecheck()),
+            )],
+            RangeCheckTable::new(
+                rangecheck::columns::data_for_cpu(),
+                Some(rangecheck::columns::filter_cpu_cmp_abs_diff()),
             ),
         )
     }

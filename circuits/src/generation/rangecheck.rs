@@ -69,8 +69,44 @@ pub fn generate_rangecheck_trace<F: RichField>(
             rangecheck_row[columns::DST_VALUE] = cpu_trace[cpu_cols::DST_VALUE][i];
             rangecheck_row[columns::LIMB_HI] = limb_hi;
             rangecheck_row[columns::LIMB_LO] = limb_lo;
-            rangecheck_row[columns::CPU_FILTER] = F::ONE;
+            rangecheck_row[columns::S_DST_VALUE] = F::ONE;
 
+            push_rangecheck_row(&mut trace, rangecheck_row);
+        }
+        if cpu_trace[cpu_cols::S_SLT][i].is_one() {
+            let op1_val_fixed =
+                u32::try_from(cpu_trace[cpu_cols::OP1_VAL_FIXED][i].to_canonical_u64())
+                    .expect("casting COL_DST_VALUE to u32 should succeed");
+
+            let op2_val_fixed =
+                u32::try_from(cpu_trace[cpu_cols::OP2_VAL_FIXED][i].to_canonical_u64())
+                    .expect("casting COL_DST_VALUE to u32 should succeed");
+
+            let cmp_abs_diff =
+                u32::try_from(cpu_trace[cpu_cols::CMP_ABS_DIFF][i].to_canonical_u64())
+                    .expect("casting COL_DST_VALUE to u32 should succeed");
+
+            let (limb_hi, limb_lo) = limbs_from_u32(op1_val_fixed);
+            rangecheck_row[columns::DST_VALUE] = cpu_trace[cpu_cols::OP1_VAL_FIXED][i];
+            rangecheck_row[columns::LIMB_HI] = limb_hi;
+            rangecheck_row[columns::LIMB_LO] = limb_lo;
+            rangecheck_row[columns::S_OP1_VAL_FIXED] = F::ONE;
+            push_rangecheck_row(&mut trace, rangecheck_row);
+
+            rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
+            let (limb_hi, limb_lo) = limbs_from_u32(op2_val_fixed);
+            rangecheck_row[columns::DST_VALUE] = cpu_trace[cpu_cols::OP2_VAL_FIXED][i];
+            rangecheck_row[columns::LIMB_HI] = limb_hi;
+            rangecheck_row[columns::LIMB_LO] = limb_lo;
+            rangecheck_row[columns::S_OP2_VAL_FIXED] = F::ONE;
+            push_rangecheck_row(&mut trace, rangecheck_row);
+
+            rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
+            let (limb_hi, limb_lo) = limbs_from_u32(cmp_abs_diff);
+            rangecheck_row[columns::DST_VALUE] = cpu_trace[cpu_cols::CMP_ABS_DIFF][i];
+            rangecheck_row[columns::LIMB_HI] = limb_hi;
+            rangecheck_row[columns::LIMB_LO] = limb_lo;
+            rangecheck_row[columns::S_CMP_ABS_DIFF] = F::ONE;
             push_rangecheck_row(&mut trace, rangecheck_row);
         }
     }
@@ -136,8 +172,8 @@ mod tests {
         let trace = generate_rangecheck_trace::<F>(&cpu_rows);
 
         // Check values that we are interested in
-        assert_eq!(trace[columns::CPU_FILTER][0], F::ONE);
-        assert_eq!(trace[columns::CPU_FILTER][1], F::ONE);
+        assert_eq!(trace[columns::S_DST_VALUE][0], F::ONE);
+        assert_eq!(trace[columns::S_DST_VALUE][1], F::ONE);
         assert_eq!(trace[columns::DST_VALUE][0], GoldilocksField(0x0001_fffe));
         assert_eq!(trace[columns::DST_VALUE][1], GoldilocksField(93));
         assert_eq!(trace[columns::LIMB_HI][0], GoldilocksField(0x0001));
@@ -145,7 +181,7 @@ mod tests {
         assert_eq!(trace[columns::LIMB_LO][1], GoldilocksField(93));
 
         // Ensure rest of trace is zeroed out
-        for cpu_filter in &trace[columns::CPU_FILTER][2..] {
+        for cpu_filter in &trace[columns::S_DST_VALUE][2..] {
             assert_eq!(cpu_filter, &F::ZERO);
         }
         for value in &trace[columns::DST_VALUE][2..] {
