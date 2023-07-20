@@ -13,7 +13,7 @@ use crate::{cpu, rangecheck};
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cpu_stark: CpuStark<F, D>,
     pub rangecheck_stark: RangeCheckStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 2],
+    pub cross_table_lookups: [CrossTableLookup<F>; 4],
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -24,6 +24,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             cross_table_lookups: [
                 CpuDstValueRangeCheckTable::lookups(),
                 CpuOp1ValueFixedRangeCheckTable::lookups(),
+                CpuOp2ValueFixedRangeCheckTable::lookups(),
+                CpuCmpAbsDiffRangeCheckTable::lookups(),
             ],
         }
     }
