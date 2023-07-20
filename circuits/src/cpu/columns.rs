@@ -52,7 +52,8 @@ pub(crate) const S_SLTU: usize = S_SLT + 1;
 pub(crate) const S_SRL: usize = S_SLTU + 1;
 pub(crate) const S_JALR: usize = S_SRL + 1;
 pub(crate) const S_BEQ: usize = S_JALR + 1;
-pub(crate) const S_ECALL: usize = S_BEQ + 1;
+pub(crate) const S_BNE: usize = S_BEQ + 1;
+pub(crate) const S_ECALL: usize = S_BNE + 1;
 pub(crate) const S_HALT: usize = S_ECALL + 1;
 pub(crate) const S_RC: usize = S_HALT + 1;
 
