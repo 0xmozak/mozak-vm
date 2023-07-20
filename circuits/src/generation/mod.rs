@@ -17,10 +17,10 @@ use crate::stark::utils::trace_to_poly_values;
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     step_rows: &[Row],
 ) -> [Vec<PolynomialValues<F>>; NUM_TABLES] {
-    let cpu_rows = generate_cpu_trace::<F>(step_rows);
-    let cpu_trace = trace_to_poly_values(cpu_rows);
+    let cpu_trace = generate_cpu_trace::<F>(step_rows);
+    let rangecheck_trace = generate_rangecheck_trace::<F>(&cpu_trace);
 
-    let rangecheck_rows = generate_rangecheck_trace::<F>(step_rows);
-    let rangecheck_trace = trace_to_poly_values(rangecheck_rows);
-    [cpu_trace, rangecheck_trace]
+    let cpu_trace_polys = trace_to_poly_values(cpu_trace);
+    let rangecheck_trace_polys = trace_to_poly_values(rangecheck_trace);
+    [cpu_trace_polys, rangecheck_trace_polys]
 }

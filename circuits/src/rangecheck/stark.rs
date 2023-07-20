@@ -23,7 +23,7 @@ fn constrain_value<P: PackedField>(
     local_values: &[P; columns::NUM_RC_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let val = local_values[columns::VAL];
+    let val = local_values[columns::DST_VALUE];
     let limb_lo = local_values[columns::LIMB_LO];
     let limb_hi = local_values[columns::LIMB_HI];
     yield_constr.constraint(val - (limb_lo + limb_hi * base));
@@ -93,6 +93,7 @@ mod tests {
     use starky::stark_testing::test_stark_low_degree;
 
     use super::*;
+    use crate::generation::cpu::generate_cpu_trace;
     use crate::generation::rangecheck::generate_rangecheck_trace;
 
     const D: usize = 2;
@@ -107,9 +108,10 @@ mod tests {
             (6, 100),
             (7, 100),
         ]);
-        let mut trace = generate_rangecheck_trace::<F>(&record.executed);
+        let cpu_trace = generate_cpu_trace::<F>(&record.executed);
+        let mut trace = generate_rangecheck_trace::<F>(&cpu_trace);
         // Manually alter the value here to be larger than a u32.
-        trace[0][columns::VAL] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
+        trace[0][columns::DST_VALUE] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
         trace
     }
 
@@ -130,7 +132,8 @@ mod tests {
         }
         let record = simple_test(4, &mem, &[(6, 100), (7, 100)]);
 
-        let trace = generate_rangecheck_trace::<F>(&record.executed);
+        let cpu_rows = generate_cpu_trace::<F>(&record.executed);
+        let trace = generate_rangecheck_trace::<F>(&cpu_rows);
 
         let len = trace[0].len();
         let last = F::primitive_root_of_unity(log2_strict(len)).inverse();
