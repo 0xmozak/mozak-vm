@@ -343,9 +343,9 @@ where
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
         config,
-        &traces_poly_values[TableKind::Cpu as usize].clone(),
+        &traces_poly_values[TableKind::Cpu as usize],
         &trace_commitments[TableKind::Cpu as usize],
-        &ctl_data_per_table[TableKind::Cpu as usize].clone(),
+        &ctl_data_per_table[TableKind::Cpu as usize],
         challenger,
         timing,
     )?;
@@ -353,9 +353,9 @@ where
     let rangecheck_proof = prove_single_table::<F, C, RangeCheckStark<F, D>, D>(
         &mozak_stark.rangecheck_stark,
         config,
-        &traces_poly_values[TableKind::RangeCheck as usize].clone(),
+        &traces_poly_values[TableKind::RangeCheck as usize],
         &trace_commitments[TableKind::RangeCheck as usize],
-        &ctl_data_per_table[TableKind::RangeCheck as usize].clone(),
+        &ctl_data_per_table[TableKind::RangeCheck as usize],
         challenger,
         timing,
     )?;
