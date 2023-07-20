@@ -56,9 +56,8 @@ pub(crate) const COL_S_JALR: usize = COL_S_SRL + 1;
 pub(crate) const COL_S_BEQ: usize = COL_S_JALR + 1;
 pub(crate) const COL_S_ECALL: usize = COL_S_BEQ + 1;
 pub(crate) const COL_S_HALT: usize = COL_S_ECALL + 1;
-pub(crate) const COL_S_RC: usize = COL_S_HALT + 1;
 
-pub(crate) const OP1_SIGN: usize = COL_S_RC + 1;
+pub(crate) const OP1_SIGN: usize = COL_S_HALT + 1;
 pub(crate) const OP2_SIGN: usize = OP1_SIGN + 1;
 pub(crate) const OP1_VAL_FIXED: usize = OP2_SIGN + 1;
 pub(crate) const OP2_VAL_FIXED: usize = OP1_VAL_FIXED + 1;
