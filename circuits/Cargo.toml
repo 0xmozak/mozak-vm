@@ -25,6 +25,8 @@ thiserror = "1.0.43"
 mozak-vm = { path = "../vm", features = ["test"] }
 proptest = "1.2.0"
 env_logger = {version = "0.10.0"}
+rand = "0.8.5"
+
 
 [features]
 test = []

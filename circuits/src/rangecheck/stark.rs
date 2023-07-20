@@ -105,11 +105,14 @@ mod tests {
     use plonky2::field::types::{Field, Sample};
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use plonky2::util::log2_strict;
+    use rand::Rng;
     use starky::stark::Stark;
     use starky::stark_testing::test_stark_low_degree;
 
     use super::*;
-    use crate::generation::rangecheck::generate_rangecheck_trace;
+    use crate::generation::rangecheck::{generate_rangecheck_trace, RANGE_CHECK_U16_SIZE};
+    use crate::lookup::permute_cols;
+    use crate::rangecheck::columns::FIXED_RANGE_CHECK_U16;
 
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
@@ -129,6 +132,63 @@ mod tests {
         trace
     }
 
+    /// Generates a trace with the next power of 2 after
+    /// [`RANGECHECK_U16_SIZE`](RANGECHECK_U16_SIZE) for its number of rows.
+    fn generate_big_trace() -> [Vec<GoldilocksField>; columns::NUM_RC_COLS] {
+        let record = simple_test(4, &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)], &[
+            (6, 100),
+            (7, 100),
+        ]);
+        let big_len = (RANGE_CHECK_U16_SIZE + 1).next_power_of_two();
+        let extension = big_len - RANGE_CHECK_U16_SIZE;
+        let mut trace = generate_rangecheck_trace::<F>(&record.executed);
+        let mut rng = rand::thread_rng();
+
+        for (i, col) in trace.iter_mut().enumerate() {
+            let value: u32 = rng.gen();
+            let field = F::from_canonical_u32(value);
+
+            let limb_hi = F::from_canonical_u16(u16::try_from(value >> 16).unwrap());
+            let limb_lo = F::from_canonical_u16(u16::try_from(value & 0xffff).unwrap());
+            match i {
+                columns::VAL => col.extend(vec![field; extension]),
+                columns::CPU_FILTER => col.extend(vec![F::ONE; extension]),
+                columns::LIMB_HI => col.extend(vec![limb_hi; extension]),
+                columns::LIMB_LO => col.extend(vec![limb_lo; extension]),
+                _ => col.extend(vec![
+                    F::from_canonical_u16(
+                        u16::try_from(RANGE_CHECK_U16_SIZE - 1).unwrap()
+                    );
+                    extension
+                ]),
+            }
+        }
+
+        let (col_input_permuted, col_table_permuted) = permute_cols(
+            &trace[columns::LIMB_LO],
+            &trace[columns::FIXED_RANGE_CHECK_U16],
+        );
+
+        // We need a column for the lower limb.
+        trace[columns::LIMB_LO_PERMUTED] = col_input_permuted;
+        trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO] = col_table_permuted;
+
+        let (col_input_permuted, col_table_permuted) = permute_cols(
+            &trace[columns::LIMB_HI],
+            &trace[columns::FIXED_RANGE_CHECK_U16],
+        );
+
+        // And we also need a column for the upper limb.
+        trace[columns::LIMB_HI_PERMUTED] = col_input_permuted;
+        trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI] = col_table_permuted;
+
+        for i in trace.iter() {
+            println!("{:?}", &i[big_len - 5..]);
+        }
+
+        trace
+    }
+
     #[test]
     fn test_degree() -> Result<()> {
         let stark = S::default();
@@ -138,21 +198,15 @@ mod tests {
     #[test]
     fn test_rangecheck_stark_big_trace() {
         let stark = S::default();
-        let inst = 0x0073_02b3 /* add r5, r6, r7 */;
-
-        let mut mem = vec![];
-        for i in 0..=u32::from(u16::MAX) {
-            mem.push((i * 4, inst));
-        }
-        let record = simple_test(4, &mem, &[(6, 100), (7, 100)]);
-
-        let trace = generate_rangecheck_trace::<F>(&record.executed);
+        let trace = generate_big_trace();
 
         let len = trace[0].len();
         let last = F::primitive_root_of_unity(log2_strict(len)).inverse();
         let subgroup =
             F::cyclic_subgroup_known_order(F::primitive_root_of_unity(log2_strict(len)), len);
 
+        // Ensure that our length of trace is bigger than u16::MAX.
+        assert_eq!(len, (RANGE_CHECK_U16_SIZE + 1).next_power_of_two());
         for i in 0..len {
             let local_values = trace
                 .iter()
