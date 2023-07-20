@@ -37,10 +37,18 @@ fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
     )
 }
 
-fn push_rangecheck_row<F: RichField>(
-    trace: &mut [Vec<F>],
-    rangecheck_row: [F; columns::NUM_RC_COLS],
-) {
+fn push_rangecheck_row<F: RichField>(trace: &mut [Vec<F>], value: F, selector: usize) {
+    let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
+
+    let (limb_hi, limb_lo) = limbs_from_u32(
+        u32::try_from(value.to_canonical_u64())
+            .expect("casting COL_DST_VALUE to u32 should succeed"),
+    );
+    rangecheck_row[columns::DST_VALUE] = value;
+    rangecheck_row[columns::LIMB_HI] = limb_hi;
+    rangecheck_row[columns::LIMB_LO] = limb_lo;
+    rangecheck_row[selector] = F::ONE;
+
     for (i, col) in rangecheck_row.iter().enumerate() {
         trace[i].push(*col);
     }
@@ -61,53 +69,29 @@ pub fn generate_rangecheck_trace<F: RichField>(
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
 
     for (i, _) in cpu_trace[0].iter().enumerate() {
-        let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
         if cpu_trace[cpu_cols::S_ADD][i].is_one() {
-            let dst_val = u32::try_from(cpu_trace[cpu_cols::DST_VALUE][i].to_canonical_u64())
-                .expect("casting COL_DST_VALUE to u32 should succeed");
-            let (limb_hi, limb_lo) = limbs_from_u32(dst_val);
-            rangecheck_row[columns::DST_VALUE] = cpu_trace[cpu_cols::DST_VALUE][i];
-            rangecheck_row[columns::LIMB_HI] = limb_hi;
-            rangecheck_row[columns::LIMB_LO] = limb_lo;
-            rangecheck_row[columns::S_DST_VALUE] = F::ONE;
-
-            push_rangecheck_row(&mut trace, rangecheck_row);
+            push_rangecheck_row(
+                &mut trace,
+                cpu_trace[cpu_cols::DST_VALUE][i],
+                columns::S_DST_VALUE,
+            );
         }
         if cpu_trace[cpu_cols::S_SLT][i].is_one() {
-            let op1_val_fixed =
-                u32::try_from(cpu_trace[cpu_cols::OP1_VAL_FIXED][i].to_canonical_u64())
-                    .expect("casting COL_DST_VALUE to u32 should succeed");
-
-            let op2_val_fixed =
-                u32::try_from(cpu_trace[cpu_cols::OP2_VAL_FIXED][i].to_canonical_u64())
-                    .expect("casting COL_DST_VALUE to u32 should succeed");
-
-            let cmp_abs_diff =
-                u32::try_from(cpu_trace[cpu_cols::CMP_ABS_DIFF][i].to_canonical_u64())
-                    .expect("casting COL_DST_VALUE to u32 should succeed");
-
-            let (limb_hi, limb_lo) = limbs_from_u32(op1_val_fixed);
-            rangecheck_row[columns::DST_VALUE] = cpu_trace[cpu_cols::OP1_VAL_FIXED][i];
-            rangecheck_row[columns::LIMB_HI] = limb_hi;
-            rangecheck_row[columns::LIMB_LO] = limb_lo;
-            rangecheck_row[columns::S_OP1_VAL_FIXED] = F::ONE;
-            push_rangecheck_row(&mut trace, rangecheck_row);
-
-            rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
-            let (limb_hi, limb_lo) = limbs_from_u32(op2_val_fixed);
-            rangecheck_row[columns::DST_VALUE] = cpu_trace[cpu_cols::OP2_VAL_FIXED][i];
-            rangecheck_row[columns::LIMB_HI] = limb_hi;
-            rangecheck_row[columns::LIMB_LO] = limb_lo;
-            rangecheck_row[columns::S_OP2_VAL_FIXED] = F::ONE;
-            push_rangecheck_row(&mut trace, rangecheck_row);
-
-            rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
-            let (limb_hi, limb_lo) = limbs_from_u32(cmp_abs_diff);
-            rangecheck_row[columns::DST_VALUE] = cpu_trace[cpu_cols::CMP_ABS_DIFF][i];
-            rangecheck_row[columns::LIMB_HI] = limb_hi;
-            rangecheck_row[columns::LIMB_LO] = limb_lo;
-            rangecheck_row[columns::S_CMP_ABS_DIFF] = F::ONE;
-            push_rangecheck_row(&mut trace, rangecheck_row);
+            push_rangecheck_row(
+                &mut trace,
+                cpu_trace[cpu_cols::DST_VALUE][i],
+                columns::S_OP1_VAL_FIXED,
+            );
+            push_rangecheck_row(
+                &mut trace,
+                cpu_trace[cpu_cols::DST_VALUE][i],
+                columns::S_OP2_VAL_FIXED,
+            );
+            push_rangecheck_row(
+                &mut trace,
+                cpu_trace[cpu_cols::DST_VALUE][i],
+                columns::S_CMP_ABS_DIFF,
+            );
         }
     }
 
