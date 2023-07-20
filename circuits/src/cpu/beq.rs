@@ -3,8 +3,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    BRANCH_DIFF_INV, BRANCH_EQUAL, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_S_BEQ,
-    NUM_CPU_COLS,
+    BRANCH_DIFF_INV, BRANCH_EQUAL, IMM_VALUE, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, PC, S_BEQ,
 };
 
 pub(crate) fn constraints<P: PackedField>(
@@ -12,10 +11,10 @@ pub(crate) fn constraints<P: PackedField>(
     nv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_beq = lv[COL_S_BEQ];
-    let bumped_pc = lv[COL_PC] + P::Scalar::from_noncanonical_u64(4);
-    let branched_pc = lv[COL_IMM_VALUE];
-    let diff = lv[COL_OP1_VALUE] - lv[COL_OP2_VALUE];
+    let is_beq = lv[S_BEQ];
+    let bumped_pc = lv[PC] + P::Scalar::from_noncanonical_u64(4);
+    let branched_pc = lv[IMM_VALUE];
+    let diff = lv[OP1_VALUE] - lv[OP2_VALUE];
 
     // if `diff == 0`, then `is_equal != 0`.
     // We only need this intermediate variable to keep the constraint degree <= 3.
@@ -23,7 +22,7 @@ pub(crate) fn constraints<P: PackedField>(
     let diff_inv = lv[BRANCH_DIFF_INV];
     yield_constr.constraint(diff * diff_inv + is_equal - P::ONES);
 
-    let next_pc = nv[COL_PC];
+    let next_pc = nv[PC];
     yield_constr.constraint(is_beq * is_equal * (next_pc - branched_pc));
     yield_constr.constraint(is_beq * diff * (next_pc - bumped_pc));
 }

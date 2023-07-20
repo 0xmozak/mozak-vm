@@ -9,8 +9,8 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use crate::memory::columns::{
-    COL_MEM_ADDR, COL_MEM_CLK, COL_MEM_DIFF_ADDR, COL_MEM_DIFF_ADDR_INV, COL_MEM_DIFF_CLK,
-    COL_MEM_OP, COL_MEM_PADDING, COL_MEM_VALUE, NUM_MEM_COLS,
+    MEM_ADDR, MEM_CLK, MEM_DIFF_ADDR, MEM_DIFF_ADDR_INV, MEM_DIFF_CLK, MEM_OP, MEM_PADDING,
+    MEM_VALUE, NUM_MEM_COLS,
 };
 use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
 
@@ -36,45 +36,44 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv = vars.local_values;
         let nv = vars.next_values;
 
-        let local_new_addr = lv[COL_MEM_DIFF_ADDR] * lv[COL_MEM_DIFF_ADDR_INV];
-        let next_new_addr = nv[COL_MEM_DIFF_ADDR] * nv[COL_MEM_DIFF_ADDR_INV];
-        yield_constr.constraint_first_row(lv[COL_MEM_OP] - FE::from_canonical_usize(OPCODE_SB));
-        yield_constr.constraint_first_row(lv[COL_MEM_DIFF_ADDR] - lv[COL_MEM_ADDR]);
+        let local_new_addr = lv[MEM_DIFF_ADDR] * lv[MEM_DIFF_ADDR_INV];
+        let next_new_addr = nv[MEM_DIFF_ADDR] * nv[MEM_DIFF_ADDR_INV];
+        yield_constr.constraint_first_row(lv[MEM_OP] - FE::from_canonical_usize(OPCODE_SB));
+        yield_constr.constraint_first_row(lv[MEM_DIFF_ADDR] - lv[MEM_ADDR]);
         yield_constr.constraint_first_row(local_new_addr - P::ONES);
-        yield_constr.constraint_first_row(lv[COL_MEM_DIFF_CLK]);
+        yield_constr.constraint_first_row(lv[MEM_DIFF_CLK]);
 
-        // lv[COL_MEM_PADDING] is {0, 1}
-        yield_constr.constraint(lv[COL_MEM_PADDING] * (lv[COL_MEM_PADDING] - P::ONES));
+        // lv[MEM_PADDING] is {0, 1}
+        yield_constr.constraint(lv[MEM_PADDING] * (lv[MEM_PADDING] - P::ONES));
 
-        // lv[COL_MEM_OP] in {0, 1}
-        yield_constr.constraint(lv[COL_MEM_OP] * (lv[COL_MEM_OP] - P::ONES));
+        // lv[MEM_OP] in {0, 1}
+        yield_constr.constraint(lv[MEM_OP] * (lv[MEM_OP] - P::ONES));
 
         // a) if new_addr: op === sb
         yield_constr
-            .constraint(local_new_addr * (lv[COL_MEM_OP] - FE::from_canonical_usize(OPCODE_SB)));
+            .constraint(local_new_addr * (lv[MEM_OP] - FE::from_canonical_usize(OPCODE_SB)));
 
         // b) if not new_addr: diff_clk_next <== clk_next - clk_cur
         yield_constr.constraint_transition(
-            (nv[COL_MEM_DIFF_CLK] - nv[COL_MEM_CLK] + lv[COL_MEM_CLK]) * (next_new_addr - P::ONES),
+            (nv[MEM_DIFF_CLK] - nv[MEM_CLK] + lv[MEM_CLK]) * (next_new_addr - P::ONES),
         );
 
         // c) if new_addr: diff_clk === 0
-        yield_constr.constraint(local_new_addr * lv[COL_MEM_DIFF_CLK]);
+        yield_constr.constraint(local_new_addr * lv[MEM_DIFF_CLK]);
 
         // d) diff_addr_next <== addr_next - addr_cur
-        yield_constr
-            .constraint_transition(nv[COL_MEM_DIFF_ADDR] - nv[COL_MEM_ADDR] + lv[COL_MEM_ADDR]);
+        yield_constr.constraint_transition(nv[MEM_DIFF_ADDR] - nv[MEM_ADDR] + lv[MEM_ADDR]);
 
         // e) if op_next == lb: value_next === value_cur
         yield_constr.constraint(
-            (nv[COL_MEM_VALUE] - lv[COL_MEM_VALUE])
-                * (P::ONES - nv[COL_MEM_OP] + FE::from_canonical_usize(OPCODE_LB)),
+            (nv[MEM_VALUE] - lv[MEM_VALUE])
+                * (P::ONES - nv[MEM_OP] + FE::from_canonical_usize(OPCODE_LB)),
         );
 
         // f) (new_addr - 1)*diff_addr===0
         //    (new_addr - 1)*diff_addr_inv===0
-        yield_constr.constraint((local_new_addr - P::ONES) * lv[COL_MEM_DIFF_ADDR]);
-        yield_constr.constraint((local_new_addr - P::ONES) * lv[COL_MEM_DIFF_ADDR_INV]);
+        yield_constr.constraint((local_new_addr - P::ONES) * lv[MEM_DIFF_ADDR]);
+        yield_constr.constraint((local_new_addr - P::ONES) * lv[MEM_DIFF_ADDR_INV]);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
