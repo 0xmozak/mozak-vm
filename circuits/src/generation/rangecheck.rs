@@ -41,10 +41,9 @@ fn push_rangecheck_row<F: RichField>(trace: &mut [Vec<F>], value: F, selector: u
     let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
 
     let (limb_hi, limb_lo) = limbs_from_u32(
-        u32::try_from(value.to_canonical_u64())
-            .expect("casting COL_DST_VALUE to u32 should succeed"),
+        u32::try_from(value.to_canonical_u64()).expect("casting field to u32 should succeed"),
     );
-    rangecheck_row[columns::DST_VALUE] = value;
+    rangecheck_row[columns::VALUE] = value;
     rangecheck_row[columns::LIMB_HI] = limb_hi;
     rangecheck_row[columns::LIMB_LO] = limb_lo;
     rangecheck_row[selector] = F::ONE;
@@ -79,17 +78,17 @@ pub fn generate_rangecheck_trace<F: RichField>(
         if cpu_trace[cpu_cols::S_SLT][i].is_one() {
             push_rangecheck_row(
                 &mut trace,
-                cpu_trace[cpu_cols::DST_VALUE][i],
+                cpu_trace[cpu_cols::OP1_VAL_FIXED][i],
                 columns::S_OP1_VAL_FIXED,
             );
             push_rangecheck_row(
                 &mut trace,
-                cpu_trace[cpu_cols::DST_VALUE][i],
+                cpu_trace[cpu_cols::OP2_VAL_FIXED][i],
                 columns::S_OP2_VAL_FIXED,
             );
             push_rangecheck_row(
                 &mut trace,
-                cpu_trace[cpu_cols::DST_VALUE][i],
+                cpu_trace[cpu_cols::CMP_ABS_DIFF][i],
                 columns::S_CMP_ABS_DIFF,
             );
         }
@@ -158,8 +157,8 @@ mod tests {
         // Check values that we are interested in
         assert_eq!(trace[columns::S_DST_VALUE][0], F::ONE);
         assert_eq!(trace[columns::S_DST_VALUE][1], F::ONE);
-        assert_eq!(trace[columns::DST_VALUE][0], GoldilocksField(0x0001_fffe));
-        assert_eq!(trace[columns::DST_VALUE][1], GoldilocksField(93));
+        assert_eq!(trace[columns::VALUE][0], GoldilocksField(0x0001_fffe));
+        assert_eq!(trace[columns::VALUE][1], GoldilocksField(93));
         assert_eq!(trace[columns::LIMB_HI][0], GoldilocksField(0x0001));
         assert_eq!(trace[columns::LIMB_LO][0], GoldilocksField(0xfffe));
         assert_eq!(trace[columns::LIMB_LO][1], GoldilocksField(93));
@@ -168,7 +167,7 @@ mod tests {
         for cpu_filter in &trace[columns::S_DST_VALUE][2..] {
             assert_eq!(cpu_filter, &F::ZERO);
         }
-        for value in &trace[columns::DST_VALUE][2..] {
+        for value in &trace[columns::VALUE][2..] {
             assert_eq!(value, &F::ZERO);
         }
         for limb_hi in &trace[columns::LIMB_HI][1..] {

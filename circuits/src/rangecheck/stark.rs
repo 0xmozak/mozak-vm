@@ -23,7 +23,7 @@ fn constrain_value<P: PackedField>(
     local_values: &[P; columns::NUM_RC_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let val = local_values[columns::DST_VALUE];
+    let val = local_values[columns::VALUE];
     let limb_lo = local_values[columns::LIMB_LO];
     let limb_hi = local_values[columns::LIMB_HI];
     yield_constr.constraint(val - (limb_lo + limb_hi * base));
@@ -111,7 +111,7 @@ mod tests {
         let cpu_trace = generate_cpu_trace::<F>(&record.executed);
         let mut trace = generate_rangecheck_trace::<F>(&cpu_trace);
         // Manually alter the value here to be larger than a u32.
-        trace[0][columns::DST_VALUE] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
+        trace[0][columns::VALUE] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
         trace
     }
 

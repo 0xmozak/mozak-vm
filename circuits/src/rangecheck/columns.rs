@@ -4,10 +4,10 @@ use plonky2::field::types::Field;
 use crate::cross_table_lookup::Column;
 
 /// Column containing the value (in u32) to be range checked.
-pub(crate) const DST_VALUE: usize = 0;
+pub(crate) const VALUE: usize = 0;
 
 /// Column containing the lower limb (u16) of the u32 value to be range checked.
-pub(crate) const LIMB_LO: usize = DST_VALUE + 1;
+pub(crate) const LIMB_LO: usize = VALUE + 1;
 
 /// Column containing the upper limb (u16) of the u32 value to be range checked.
 pub(crate) const LIMB_HI: usize = LIMB_LO + 1;
@@ -49,7 +49,7 @@ pub(crate) const NUM_RC_COLS: usize = FIXED_RANGE_CHECK_U16_PERMUTED_HI + 1;
 /// Columns containing the data to be range checked in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles([DST_VALUE]).collect_vec() }
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles([VALUE]).collect_vec() }
 
 #[must_use]
 pub fn filter_cpu_op1_val_fixed<F: Field>() -> Column<F> { Column::single(S_OP1_VAL_FIXED) }
