@@ -37,6 +37,15 @@ fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
     )
 }
 
+fn push_rangecheck_row<F: RichField>(
+    trace: &mut [Vec<F>],
+    rangecheck_row: [F; columns::NUM_RC_COLS],
+) {
+    for (i, col) in rangecheck_row.iter().enumerate() {
+        trace[i].push(*col);
+    }
+}
+
 /// Generates a trace table for range checks, used in building a
 /// `RangeCheckStark` proof.
 ///
@@ -52,14 +61,17 @@ pub fn generate_rangecheck_trace<F: RichField>(
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
 
     for (i, _) in cpu_trace[0].iter().enumerate() {
+        let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
         if cpu_trace[cpu_cols::S_ADD][i].is_one() {
             let dst_val = u32::try_from(cpu_trace[cpu_cols::DST_VALUE][i].to_canonical_u64())
                 .expect("casting COL_DST_VALUE to u32 should succeed");
             let (limb_hi, limb_lo) = limbs_from_u32(dst_val);
-            trace[columns::DST_VALUE].push(cpu_trace[cpu_cols::DST_VALUE][i]);
-            trace[columns::LIMB_HI].push(limb_hi);
-            trace[columns::LIMB_LO].push(limb_lo);
-            trace[columns::CPU_FILTER].push(F::ONE);
+            rangecheck_row[columns::DST_VALUE] = cpu_trace[cpu_cols::DST_VALUE][i];
+            rangecheck_row[columns::LIMB_HI] = limb_hi;
+            rangecheck_row[columns::LIMB_LO] = limb_lo;
+            rangecheck_row[columns::CPU_FILTER] = F::ONE;
+
+            push_rangecheck_row(&mut trace, rangecheck_row);
         }
     }
 
