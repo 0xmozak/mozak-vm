@@ -52,11 +52,11 @@ pub fn generate_rangecheck_trace<F: RichField>(
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
 
     for (i, _) in cpu_trace[0].iter().enumerate() {
-        if cpu_trace[cpu_cols::COL_S_ADD][i].is_one() {
-            let dst_val = u32::try_from(cpu_trace[cpu_cols::COL_DST_VALUE][i].to_canonical_u64())
+        if cpu_trace[cpu_cols::S_ADD][i].is_one() {
+            let dst_val = u32::try_from(cpu_trace[cpu_cols::DST_VALUE][i].to_canonical_u64())
                 .expect("casting COL_DST_VALUE to u32 should succeed");
             let (limb_hi, limb_lo) = limbs_from_u32(dst_val);
-            trace[columns::DST_VALUE].push(cpu_trace[cpu_cols::COL_DST_VALUE][i]);
+            trace[columns::DST_VALUE].push(cpu_trace[cpu_cols::DST_VALUE][i]);
             trace[columns::LIMB_HI].push(limb_hi);
             trace[columns::LIMB_LO].push(limb_lo);
             trace[columns::CPU_FILTER].push(F::ONE);
@@ -133,16 +133,16 @@ mod tests {
         assert_eq!(trace[columns::LIMB_LO][1], GoldilocksField(93));
 
         // Ensure rest of trace is zeroed out
-        for cpu_filter in trace[columns::CPU_FILTER][2..].iter() {
+        for cpu_filter in &trace[columns::CPU_FILTER][2..] {
             assert_eq!(cpu_filter, &F::ZERO);
         }
-        for value in trace[columns::DST_VALUE][2..].iter() {
+        for value in &trace[columns::DST_VALUE][2..] {
             assert_eq!(value, &F::ZERO);
         }
-        for limb_hi in trace[columns::LIMB_HI][1..].iter() {
+        for limb_hi in &trace[columns::LIMB_HI][1..] {
             assert_eq!(limb_hi, &F::ZERO);
         }
-        for limb_lo in trace[columns::LIMB_LO][2..].iter() {
+        for limb_lo in &trace[columns::LIMB_LO][2..] {
             assert_eq!(limb_lo, &F::ZERO);
         }
     }
