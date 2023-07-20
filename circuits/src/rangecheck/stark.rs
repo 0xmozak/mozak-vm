@@ -5,6 +5,7 @@ use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::permutation::PermutationPair;
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
@@ -78,6 +79,21 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     }
 
     fn constraint_degree(&self) -> usize { 3 }
+
+    fn permutation_pairs(&self) -> Vec<PermutationPair> {
+        vec![
+            PermutationPair::singletons(columns::LIMB_LO, columns::LIMB_LO_PERMUTED),
+            PermutationPair::singletons(columns::LIMB_HI, columns::LIMB_HI_PERMUTED),
+            PermutationPair::singletons(
+                columns::FIXED_RANGE_CHECK_U16,
+                columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
+            ),
+            PermutationPair::singletons(
+                columns::FIXED_RANGE_CHECK_U16,
+                columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
+            ),
+        ]
+    }
 }
 
 #[cfg(test)]
