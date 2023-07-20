@@ -10,10 +10,9 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{
-    COL_CLK, COL_DST_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_PC, COL_RD_SELECT, COL_REGS,
-    COL_RS1_SELECT, COL_RS2_SELECT, COL_S_ADD, COL_S_AND, COL_S_BEQ, COL_S_BNE, COL_S_DIVU,
-    COL_S_ECALL, COL_S_HALT, COL_S_JALR, COL_S_MUL, COL_S_MULHU, COL_S_OR, COL_S_REMU, COL_S_SLL,
-    COL_S_SLT, COL_S_SLTU, COL_S_SRL, COL_S_SUB, COL_S_XOR, NUM_CPU_COLS,
+    CLK, DST_VALUE, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, PC, RD_SELECT, REGS, RS1_SELECT,
+    RS2_SELECT, S_ADD, S_AND, S_BEQ, S_BNE, S_DIVU, S_ECALL, S_HALT, S_JALR, S_MUL, S_MULHU, S_OR,
+    S_REMU, S_SLL, S_SLT, S_SLTU, S_SRL, S_SUB, S_XOR,
 };
 use super::{add, beq, bitwise, div, jalr, mul, slt, sub};
 
@@ -26,21 +25,9 @@ pub struct CpuStark<F, const D: usize> {
 use array_concat::{concat_arrays, concat_arrays_size};
 
 pub const STRAIGHTLINE_OPCODES: [usize; 13] = [
-    COL_S_ADD,
-    COL_S_SUB,
-    COL_S_AND,
-    COL_S_OR,
-    COL_S_XOR,
-    COL_S_DIVU,
-    COL_S_MUL,
-    COL_S_MULHU,
-    COL_S_REMU,
-    COL_S_SLL,
-    COL_S_SLT,
-    COL_S_SLTU,
-    COL_S_SRL,
+    S_ADD, S_SUB, S_AND, S_OR, S_XOR, S_DIVU, S_MUL, S_MULHU, S_REMU, S_SLL, S_SLT, S_SLTU, S_SRL,
 ];
-pub const JUMPING_OPCODES: [usize; 4] = [COL_S_BEQ, COL_S_BNE, COL_S_ECALL, COL_S_JALR];
+pub const JUMPING_OPCODES: [usize; 4] = [S_BEQ, S_BNE, S_ECALL, S_JALR];
 pub const OPCODES: [usize; concat_arrays_size!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES)] =
     concat_arrays!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES);
 
@@ -54,7 +41,7 @@ fn pc_ticks_up<P: PackedField>(
         .map(|op_code| lv[op_code])
         .sum();
     yield_constr.constraint_transition(
-        is_straightline_op * (nv[COL_PC] - (lv[COL_PC] + P::Scalar::from_noncanonical_u64(4))),
+        is_straightline_op * (nv[PC] - (lv[PC] + P::Scalar::from_noncanonical_u64(4))),
     );
 }
 
@@ -84,12 +71,12 @@ fn clock_ticks<P: PackedField>(
     nv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    yield_constr.constraint_transition(nv[COL_CLK] - (lv[COL_CLK] + P::ONES));
+    yield_constr.constraint_transition(nv[CLK] - (lv[CLK] + P::ONES));
 }
 
 /// Register 0 is always 0
 fn r0_always_0<P: PackedField>(lv: &[P; NUM_CPU_COLS], yield_constr: &mut ConstraintConsumer<P>) {
-    yield_constr.constraint(lv[COL_REGS[0]]);
+    yield_constr.constraint(lv[REGS[0]]);
 }
 
 /// Register used as destination register can have different value, all
@@ -103,7 +90,7 @@ fn only_rd_changes<P: PackedField>(
     // But we keep the constraints simple here.
     (0..32).for_each(|reg| {
         yield_constr.constraint_transition(
-            (P::ONES - lv[COL_RD_SELECT[reg]]) * (lv[COL_REGS[reg]] - nv[COL_REGS[reg]]),
+            (P::ONES - lv[RD_SELECT[reg]]) * (lv[REGS[reg]] - nv[REGS[reg]]),
         );
     });
 }
@@ -116,9 +103,7 @@ fn rd_actually_changes<P: PackedField>(
     // Note: we skip 0 here, because it's already forced to 0 permanently by
     // `r0_always_0`
     (1..32).for_each(|reg| {
-        yield_constr.constraint_transition(
-            (lv[COL_RD_SELECT[reg]]) * (lv[COL_DST_VALUE] - nv[COL_REGS[reg]]),
-        );
+        yield_constr.constraint_transition((lv[RD_SELECT[reg]]) * (lv[DST_VALUE] - nv[REGS[reg]]));
     });
 }
 
@@ -127,11 +112,11 @@ fn populate_op1_value<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(
-        lv[COL_OP1_VALUE]
+        lv[OP1_VALUE]
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
-                .map(|reg| lv[COL_RS1_SELECT[reg]] * lv[COL_REGS[reg]])
+                .map(|reg| lv[RS1_SELECT[reg]] * lv[REGS[reg]])
                 .sum::<P>(),
     );
 }
@@ -141,11 +126,11 @@ fn populate_op2_value<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(
-        lv[COL_OP2_VALUE]
+        lv[OP2_VALUE]
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
-                .map(|reg| lv[COL_RS2_SELECT[reg]] * lv[COL_REGS[reg]])
+                .map(|reg| lv[RS2_SELECT[reg]] * lv[REGS[reg]])
                 .sum::<P>(),
     );
 }
@@ -187,7 +172,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         jalr::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT
-        yield_constr.constraint_last_row(lv[COL_S_HALT] - P::ONES);
+        yield_constr.constraint_last_row(lv[S_HALT] - P::ONES);
     }
 
     fn constraint_degree(&self) -> usize { 3 }

@@ -6,67 +6,65 @@ use plonky2::field::types::Field;
 
 use crate::cross_table_lookup::Column;
 
-pub(crate) const COL_CLK: usize = 0;
-pub(crate) const COL_PC: usize = COL_CLK + 1;
+pub(crate) const CLK: usize = 0;
+pub(crate) const PC: usize = CLK + 1;
 
-pub(crate) const COL_RS1_SELECT_START: usize = COL_PC + 1;
-pub(crate) const COL_RS1_SELECT_RANGE: Range<usize> =
-    COL_RS1_SELECT_START..COL_RS1_SELECT_START + 32;
+pub(crate) const RS1_SELECT_START: usize = PC + 1;
+pub(crate) const RS1_SELECT_RANGE: Range<usize> = RS1_SELECT_START..RS1_SELECT_START + 32;
 lazy_static! {
-    pub(crate) static ref COL_RS1_SELECT: Vec<usize> = COL_RS1_SELECT_RANGE.collect();
+    pub(crate) static ref RS1_SELECT: Vec<usize> = RS1_SELECT_RANGE.collect();
 }
 
-pub(crate) const COL_RS2_SELECT_START: usize = COL_RS1_SELECT_RANGE.end + 1;
-pub(crate) const COL_RS2_SELECT_RANGE: Range<usize> =
-    COL_RS2_SELECT_START..COL_RS2_SELECT_START + 32;
+pub(crate) const RS2_SELECT_START: usize = RS1_SELECT_RANGE.end + 1;
+pub(crate) const RS2_SELECT_RANGE: Range<usize> = RS2_SELECT_START..RS2_SELECT_START + 32;
 lazy_static! {
-    pub(crate) static ref COL_RS2_SELECT: Vec<usize> = COL_RS2_SELECT_RANGE.collect();
+    pub(crate) static ref RS2_SELECT: Vec<usize> = RS2_SELECT_RANGE.collect();
 }
-pub(crate) const COL_RD_SELECT_START: usize = COL_RS2_SELECT_RANGE.end + 1;
-pub(crate) const COL_RD_SELECT_RANGE: Range<usize> = COL_RD_SELECT_START..COL_RD_SELECT_START + 32;
+pub(crate) const RD_SELECT_START: usize = RS2_SELECT_RANGE.end + 1;
+pub(crate) const RD_SELECT_RANGE: Range<usize> = RD_SELECT_START..RD_SELECT_START + 32;
 lazy_static! {
-    pub(crate) static ref COL_RD_SELECT: Vec<usize> = COL_RD_SELECT_RANGE.collect();
-}
-
-pub(crate) const COL_OP1_VALUE: usize = COL_RD_SELECT_RANGE.end + 1;
-pub(crate) const COL_OP2_VALUE: usize = COL_OP1_VALUE + 1;
-pub(crate) const COL_IMM_VALUE: usize = COL_OP2_VALUE + 1;
-pub(crate) const COL_DST_VALUE: usize = COL_IMM_VALUE + 1;
-pub(crate) const COL_START_REG: usize = COL_DST_VALUE + 1;
-pub(crate) const COL_REGS_RANGE: Range<usize> = COL_START_REG..COL_START_REG + 32;
-lazy_static! {
-    pub(crate) static ref COL_REGS: Vec<usize> = COL_REGS_RANGE.collect();
+    pub(crate) static ref RD_SELECT: Vec<usize> = RD_SELECT_RANGE.collect();
 }
 
-pub(crate) const COL_S_ADD: usize = COL_REGS_RANGE.end;
-pub(crate) const COL_S_SUB: usize = COL_S_ADD + 1;
-pub(crate) const COL_S_XOR: usize = COL_S_SUB + 1;
-pub(crate) const COL_S_OR: usize = COL_S_XOR + 1;
-pub(crate) const COL_S_AND: usize = COL_S_OR + 1;
+pub(crate) const OP1_VALUE: usize = RD_SELECT_RANGE.end + 1;
+pub(crate) const OP2_VALUE: usize = OP1_VALUE + 1;
+pub(crate) const IMM_VALUE: usize = OP2_VALUE + 1;
+pub(crate) const DST_VALUE: usize = IMM_VALUE + 1;
+pub(crate) const START_REG: usize = DST_VALUE + 1;
+pub(crate) const REGS_RANGE: Range<usize> = START_REG..START_REG + 32;
+lazy_static! {
+    pub(crate) static ref REGS: Vec<usize> = REGS_RANGE.collect();
+}
 
-pub(crate) const COL_S_DIVU: usize = COL_S_AND + 1;
-pub(crate) const COL_S_REMU: usize = COL_S_DIVU + 1;
-pub(crate) const COL_S_MUL: usize = COL_S_REMU + 1;
-pub(crate) const COL_S_MULHU: usize = COL_S_MUL + 1;
-pub(crate) const COL_S_SLL: usize = COL_S_MULHU + 1;
-pub(crate) const COL_S_SLT: usize = COL_S_SLL + 1;
-pub(crate) const COL_S_SLTU: usize = COL_S_SLT + 1;
-pub(crate) const COL_S_SRL: usize = COL_S_SLTU + 1;
-pub(crate) const COL_S_JALR: usize = COL_S_SRL + 1;
-pub(crate) const COL_S_BEQ: usize = COL_S_JALR + 1;
-pub(crate) const COL_S_BNE: usize = COL_S_BEQ + 1;
-pub(crate) const COL_S_ECALL: usize = COL_S_BNE + 1;
-pub(crate) const COL_S_HALT: usize = COL_S_ECALL + 1;
-pub(crate) const COL_S_RC: usize = COL_S_HALT + 1;
+pub(crate) const S_ADD: usize = REGS_RANGE.end;
+pub(crate) const S_SUB: usize = S_ADD + 1;
+pub(crate) const S_XOR: usize = S_SUB + 1;
+pub(crate) const S_OR: usize = S_XOR + 1;
+pub(crate) const S_AND: usize = S_OR + 1;
 
-pub(crate) const OP1_SIGN: usize = COL_S_RC + 1;
+pub(crate) const S_DIVU: usize = S_AND + 1;
+pub(crate) const S_REMU: usize = S_DIVU + 1;
+pub(crate) const S_MUL: usize = S_REMU + 1;
+pub(crate) const S_MULHU: usize = S_MUL + 1;
+pub(crate) const S_SLL: usize = S_MULHU + 1;
+pub(crate) const S_SLT: usize = S_SLL + 1;
+pub(crate) const S_SLTU: usize = S_SLT + 1;
+pub(crate) const S_SRL: usize = S_SLTU + 1;
+pub(crate) const S_JALR: usize = S_SRL + 1;
+pub(crate) const S_BEQ: usize = S_JALR + 1;
+pub(crate) const S_BNE: usize = S_BEQ + 1;
+pub(crate) const S_ECALL: usize = S_BNE + 1;
+pub(crate) const S_HALT: usize = S_ECALL + 1;
+pub(crate) const S_RC: usize = S_HALT + 1;
+
+pub(crate) const OP1_SIGN: usize = S_RC + 1;
 pub(crate) const OP2_SIGN: usize = OP1_SIGN + 1;
 pub(crate) const OP1_VAL_FIXED: usize = OP2_SIGN + 1;
 pub(crate) const OP2_VAL_FIXED: usize = OP1_VAL_FIXED + 1;
-pub(crate) const COL_CMP_ABS_DIFF: usize = OP2_VAL_FIXED + 1;
-pub(crate) const COL_CMP_DIFF_INV: usize = COL_CMP_ABS_DIFF + 1;
-pub(crate) const COL_LESS_THAN: usize = COL_CMP_DIFF_INV + 1;
-pub(crate) const BRANCH_EQUAL: usize = COL_LESS_THAN + 1;
+pub(crate) const CMP_ABS_DIFF: usize = OP2_VAL_FIXED + 1;
+pub(crate) const CMP_DIFF_INV: usize = CMP_ABS_DIFF + 1;
+pub(crate) const LESS_THAN: usize = CMP_DIFF_INV + 1;
+pub(crate) const BRANCH_EQUAL: usize = LESS_THAN + 1;
 
 pub(crate) const XOR_A: usize = BRANCH_EQUAL + 1;
 pub(crate) const XOR_B: usize = XOR_A + 1;
@@ -90,16 +88,16 @@ pub(crate) const PRODUCT_LOW_BITS: usize = MULTIPLIER + 1;
 pub(crate) const PRODUCT_HIGH_BITS: usize = PRODUCT_LOW_BITS + 1;
 pub(crate) const PRODUCT_HIGH_DIFF_INV: usize = PRODUCT_HIGH_BITS + 1;
 
-// TODO: In future we may want to merge BRANCH_DIFF_INV and COL_CMP_DIFF_INV
+// TODO: In future we may want to merge BRANCH_DIFF_INV and CMP_DIFF_INV
 pub(crate) const BRANCH_DIFF_INV: usize = PRODUCT_HIGH_DIFF_INV + 1;
 pub(crate) const NUM_CPU_COLS: usize = BRANCH_DIFF_INV + 1;
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
-    Column::singles([COL_DST_VALUE]).collect_vec()
+    Column::singles([DST_VALUE]).collect_vec()
 }
 
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(COL_S_RC) }
+pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(S_RC) }

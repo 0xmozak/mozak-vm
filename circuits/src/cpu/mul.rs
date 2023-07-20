@@ -4,9 +4,9 @@ use starky::constraint_consumer::ConstraintConsumer;
 
 use super::bitwise::and_gadget;
 use super::columns::{
-    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_MUL, COL_S_MULHU, COL_S_SLL,
-    MULTIPLIER, NUM_CPU_COLS, POWERS_OF_2_IN, POWERS_OF_2_OUT, PRODUCT_HIGH_BITS,
-    PRODUCT_HIGH_DIFF_INV, PRODUCT_LOW_BITS,
+    DST_VALUE, IMM_VALUE, MULTIPLIER, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, POWERS_OF_2_IN,
+    POWERS_OF_2_OUT, PRODUCT_HIGH_BITS, PRODUCT_HIGH_DIFF_INV, PRODUCT_LOW_BITS, S_MUL, S_MULHU,
+    S_SLL,
 };
 
 pub(crate) fn constraints<P: PackedField>(
@@ -15,27 +15,27 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     // TODO: PRODUCT_LOW_BITS and PRODUCT_HIGH_BITS need range checking.
 
-    let is_mul = lv[COL_S_MUL];
-    let is_mulhu = lv[COL_S_MULHU];
-    let is_sll = lv[COL_S_SLL];
+    let is_mul = lv[S_MUL];
+    let is_mulhu = lv[S_MULHU];
+    let is_sll = lv[S_SLL];
     // The Goldilocks field is carefully chosen to allow multiplication of u32
     // values without overflow.
     let base = P::Scalar::from_noncanonical_u64(1 << 32);
 
-    let multiplicand = lv[COL_OP1_VALUE];
+    let multiplicand = lv[OP1_VALUE];
     let multiplier = lv[MULTIPLIER];
     let low_limb = lv[PRODUCT_LOW_BITS];
     let high_limb = lv[PRODUCT_HIGH_BITS];
     let product = low_limb + base * high_limb;
 
     yield_constr.constraint((is_mul + is_mulhu + is_sll) * (product - multiplicand * multiplier));
-    yield_constr.constraint((is_mul + is_mulhu) * (multiplier - lv[COL_OP2_VALUE]));
+    yield_constr.constraint((is_mul + is_mulhu) * (multiplier - lv[OP2_VALUE]));
     // The following constraints are for SLL.
     {
         let and_gadget = and_gadget(lv);
         yield_constr
             .constraint(is_sll * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
-        let op2 = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
+        let op2 = lv[OP2_VALUE] + lv[IMM_VALUE];
         yield_constr.constraint(is_sll * (and_gadget.input_b - op2));
 
         yield_constr.constraint(is_sll * (and_gadget.output - lv[POWERS_OF_2_IN]));
@@ -44,7 +44,7 @@ pub(crate) fn constraints<P: PackedField>(
 
     // Now, let's copy our results to the destination register:
 
-    let destination = lv[COL_DST_VALUE];
+    let destination = lv[DST_VALUE];
     yield_constr.constraint((is_mul + is_sll) * (destination - low_limb));
     yield_constr.constraint(is_mulhu * (destination - high_limb));
 

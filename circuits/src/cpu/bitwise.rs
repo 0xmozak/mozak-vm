@@ -18,8 +18,8 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_AND, COL_S_OR, COL_S_XOR,
-    NUM_CPU_COLS, XOR_A, XOR_B, XOR_OUT,
+    DST_VALUE, IMM_VALUE, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, S_AND, S_OR, S_XOR, XOR_A, XOR_B,
+    XOR_OUT,
 };
 
 /// A struct to represent the output of binary operations
@@ -79,14 +79,14 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let op1 = lv[COL_OP1_VALUE];
-    let op2 = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
-    let dst = lv[COL_DST_VALUE];
+    let op1 = lv[OP1_VALUE];
+    let op2 = lv[OP2_VALUE] + lv[IMM_VALUE];
+    let dst = lv[DST_VALUE];
 
     for (selector, gadget) in [
-        (lv[COL_S_AND], and_gadget(lv)),
-        (lv[COL_S_OR], or_gadget(lv)),
-        (lv[COL_S_XOR], xor_gadget(lv)),
+        (lv[S_AND], and_gadget(lv)),
+        (lv[S_OR], or_gadget(lv)),
+        (lv[S_XOR], xor_gadget(lv)),
     ] {
         yield_constr.constraint(selector * (gadget.input_a - op1));
         yield_constr.constraint(selector * (gadget.input_b - op2));
