@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use itertools::izip;
+use itertools::{iproduct, izip};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -80,16 +80,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
     fn constraint_degree(&self) -> usize { 3 }
 
     fn permutation_pairs(&self) -> Vec<PermutationPair> {
-        vec![
-            PermutationPair::singletons(COMPRESS_LIMBS.start, COMPRESS_PERMUTED.start),
-            PermutationPair::singletons(COMPRESS_LIMBS.start + 1, COMPRESS_PERMUTED.start + 1),
-            PermutationPair::singletons(COMPRESS_LIMBS.start + 2, COMPRESS_PERMUTED.start + 2),
-            PermutationPair::singletons(COMPRESS_LIMBS.start + 3, COMPRESS_PERMUTED.start + 3),
-            PermutationPair::singletons(FIX_COMPRESS, FIX_COMPRESS_PERMUTED.start),
-            PermutationPair::singletons(FIX_COMPRESS, FIX_COMPRESS_PERMUTED.start + 1),
-            PermutationPair::singletons(FIX_COMPRESS, FIX_COMPRESS_PERMUTED.start + 2),
-            PermutationPair::singletons(FIX_COMPRESS, FIX_COMPRESS_PERMUTED.start + 3),
-        ]
+        izip!(COMPRESS_LIMBS, COMPRESS_PERMUTED)
+            .chain(iproduct!([FIX_COMPRESS], FIX_COMPRESS_PERMUTED))
+            .map(|(a, b)| PermutationPair::singletons(a, b))
+            .collect()
     }
 
     #[no_coverage]
