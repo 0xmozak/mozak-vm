@@ -177,14 +177,14 @@ fn generate_slt_row<F: RichField>(
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
     let sign1: u32 = (is_signed && (op1 as i32) < 0).into();
     let sign2: u32 = (is_signed && (op2 as i32) < 0).into();
-    trace[cpu_cols::COL_S_SLT_SIGN1][row_idx] = from_u32(sign1);
-    trace[cpu_cols::COL_S_SLT_SIGN2][row_idx] = from_u32(sign2);
+    trace[cpu_cols::OP1_SIGN][row_idx] = from_u32(sign1);
+    trace[cpu_cols::OP2_SIGN][row_idx] = from_u32(sign2);
 
     let sign_adjust = if is_signed { 1 << 31 } else { 0 };
     let op1_fixed = op1.wrapping_add(sign_adjust);
     let op2_fixed = op2.wrapping_add(sign_adjust);
-    trace[cpu_cols::COL_S_SLT_OP1_VAL_FIXED][row_idx] = from_u32(op1_fixed);
-    trace[cpu_cols::COL_S_SLT_OP2_VAL_FIXED][row_idx] = from_u32(op2_fixed);
+    trace[cpu_cols::OP1_VAL_FIXED][row_idx] = from_u32(op1_fixed);
+    trace[cpu_cols::OP2_VAL_FIXED][row_idx] = from_u32(op2_fixed);
     trace[cpu_cols::COL_LESS_THAN][row_idx] = from_u32(u32::from(op1_fixed < op2_fixed));
 
     let abs_diff = if is_signed {
