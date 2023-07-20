@@ -94,10 +94,44 @@ pub(crate) const NUM_CPU_COLS: usize = BRANCH_DIFF_INV + 1;
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
 pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
     Column::singles([DST_VALUE]).collect_vec()
 }
 
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
 pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(S_RC) }
+
+/// Columns containing the data to be match against XOR Bitwise stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> {
+    Column::singles([XOR_A, XOR_B, XOR_OUT]).collect_vec()
+}
+
+/// Column for a binary filter for XOR instruction in Bitwise stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_bitwise_xor<F: Field>() -> Column<F> { Column::single(S_XOR) }
+
+/// Column for a binary filter for OR instruction in Bitwise stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_bitwise_or<F: Field>() -> Column<F> { Column::single(S_OR) }
+
+/// Column for a binary filter for AND instruction in Bitwise stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_bitwise_and<F: Field>() -> Column<F> { Column::single(S_AND) }
+
+/// Column for a binary filter for SRL instruction in Bitwise stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_bitwise_srl<F: Field>() -> Column<F> { Column::single(S_SRL) }
+
+/// Column for a binary filter for SLL instruction in Bitwise stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_bitwise_sll<F: Field>() -> Column<F> { Column::single(S_SLL) }

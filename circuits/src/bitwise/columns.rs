@@ -1,5 +1,10 @@
 use std::ops::{Range, RangeInclusive};
 
+use itertools::Itertools;
+use plonky2::field::types::Field;
+
+use crate::cross_table_lookup::Column;
+
 pub(crate) const OP1: usize = 0;
 pub(crate) const OP2: usize = OP1 + 1;
 pub(crate) const RES: usize = OP2 + 1;
@@ -28,9 +33,22 @@ pub(crate) const FIX_BITWISE_RES: usize = FIX_BITWISE_OP2 + 1; // 51
 
 pub(crate) const FIX_COMPRESS: usize = FIX_BITWISE_RES + 1; // 52
 pub(crate) const FIX_COMPRESS_PERMUTED: Range<usize> = FIX_COMPRESS + 1..FIX_COMPRESS + 5; // 56
+pub(crate) const FILTER: usize = FIX_COMPRESS_PERMUTED.end; // 57
 
-pub(crate) const NUM_BITWISE_COL: usize = FIX_COMPRESS_PERMUTED.end;
+pub(crate) const NUM_BITWISE_COL: usize = FIX_COMPRESS_PERMUTED.end + 1;
 
 pub(crate) const RANGE_U8: RangeInclusive<u8> = u8::MIN..=u8::MAX; // 256 different values
 pub(crate) const BITWISE_U8_SIZE: usize = 1 << 16; // 256 * 256 different possible combinations
 pub(crate) const BASE: u16 = 256;
+
+/// Columns containing the data which are looked from cpu table into Bitwise
+/// stark. [`CpuTable`](crate::cross_table_lookup::CpuTable)
+/// [`BitwiseTable`](crate::cross_table_lookup::BitwiseTable).
+#[must_use]
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles([OP1, OP2, RES]).collect_vec() }
+
+/// Column for a binary filter to indicate a lookup from the
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable) in the Mozak
+/// [`BitwiseTable`](crate::cross_table_lookup::BitwiseTable).
+#[must_use]
+pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(FILTER) }

@@ -41,6 +41,7 @@ pub fn generate_bitwise_trace<F: RichField>(
         let xor_b = cpu_trace[cpu_cols::XOR_B][*clk];
         let xor_out = cpu_trace[cpu_cols::XOR_OUT][*clk];
 
+        trace[cols::FILTER][i] = from_u32(1_u32);
         trace[cols::OP1][i] = xor_a;
         trace[cols::OP2][i] = xor_b;
         trace[cols::RES][i] = xor_out;
