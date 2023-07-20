@@ -58,11 +58,11 @@ pub(crate) const COL_S_ECALL: usize = COL_S_BEQ + 1;
 pub(crate) const COL_S_HALT: usize = COL_S_ECALL + 1;
 pub(crate) const COL_S_RC: usize = COL_S_HALT + 1;
 
-pub(crate) const COL_S_SLT_SIGN1: usize = COL_S_RC + 1;
-pub(crate) const COL_S_SLT_SIGN2: usize = COL_S_SLT_SIGN1 + 1;
-pub(crate) const COL_S_SLT_OP1_VAL_FIXED: usize = COL_S_SLT_SIGN2 + 1;
-pub(crate) const COL_S_SLT_OP2_VAL_FIXED: usize = COL_S_SLT_OP1_VAL_FIXED + 1;
-pub(crate) const COL_CMP_ABS_DIFF: usize = COL_S_SLT_OP2_VAL_FIXED + 1;
+pub(crate) const OP1_SIGN: usize = COL_S_RC + 1;
+pub(crate) const OP2_SIGN: usize = OP1_SIGN + 1;
+pub(crate) const OP1_VAL_FIXED: usize = OP2_SIGN + 1;
+pub(crate) const OP2_VAL_FIXED: usize = OP1_VAL_FIXED + 1;
+pub(crate) const COL_CMP_ABS_DIFF: usize = OP2_VAL_FIXED + 1;
 pub(crate) const COL_CMP_DIFF_INV: usize = COL_CMP_ABS_DIFF + 1;
 pub(crate) const COL_LESS_THAN: usize = COL_CMP_DIFF_INV + 1;
 pub(crate) const BRANCH_EQUAL: usize = COL_LESS_THAN + 1;
