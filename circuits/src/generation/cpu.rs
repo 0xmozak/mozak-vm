@@ -20,10 +20,15 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         trace[cpu_cols::RS2_SELECT[inst.args.rs2 as usize]][i] = F::ONE;
         trace[cpu_cols::RD_SELECT[inst.args.rd as usize]][i] = F::ONE;
         trace[cpu_cols::OP1_VALUE][i] = from_u32(state.get_register_value(inst.args.rs1));
-        trace[cpu_cols::OP2_VALUE][i] = from_u32(state.get_register_value(inst.args.rs2));
+        trace[cpu_cols::OP2_VALUE][i] = from_u32(
+            state
+                .get_register_value(inst.args.rs2)
+                .wrapping_add(inst.args.imm),
+        );
         // NOTE: Updated value of DST register is next step.
         trace[cpu_cols::DST_VALUE][i] = from_u32(aux.dst_val);
         trace[cpu_cols::IMM_VALUE][i] = from_u32(inst.args.imm);
+        trace[cpu_cols::BRANCH_TARGET][i] = from_u32(inst.args.branch_target);
         trace[cpu_cols::S_HALT][i] = from_u32(u32::from(aux.will_halt));
         for j in 0..32 {
             trace[cpu_cols::START_REG + j as usize][i] = from_u32(state.get_register_value(j));
@@ -39,7 +44,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         generate_mul_row(&mut trace, &inst, state, i);
         generate_divu_row(&mut trace, &inst, state, i);
         generate_slt_row(&mut trace, &inst, state, i);
-        generate_conditional_branch_row(&mut trace, &inst, state, i);
+        generate_conditional_branch_row(&mut trace, i);
         generate_bitwise_row(&mut trace, &inst, state, i);
 
         match inst.op {
@@ -82,18 +87,11 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         )
     })
 }
-fn generate_conditional_branch_row<F: RichField>(
-    trace: &mut [Vec<F>],
-    inst: &Instruction,
-    state: &State,
-    row_idx: usize,
-) {
-    let op1: F = from_u32(state.get_register_value(inst.args.rs1));
-    let op2: F = from_u32(state.get_register_value(inst.args.rs2));
-    let diff = op1 - op2;
-
-    trace[cpu_cols::BRANCH_EQUAL][row_idx] = F::from_noncanonical_u64(u64::from(diff == F::ZERO));
-    trace[cpu_cols::BRANCH_DIFF_INV][row_idx] = diff.try_inverse().unwrap_or_default();
+fn generate_conditional_branch_row<F: RichField>(trace: &mut [Vec<F>], row_idx: usize) {
+    let diff = trace[cpu_cols::OP1_VALUE][row_idx] - trace[cpu_cols::OP2_VALUE][row_idx];
+    let diff_inv = diff.try_inverse().unwrap_or_default();
+    trace[cpu_cols::CMP_DIFF_INV][row_idx] = diff_inv;
+    trace[cpu_cols::BRANCH_EQUAL][row_idx] = F::ONE - diff * diff_inv;
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -107,9 +105,11 @@ fn generate_mul_row<F: RichField>(
         return;
     }
     let op1 = state.get_register_value(inst.args.rs1);
-    let op2 = state.get_register_value(inst.args.rs2);
+    let op2 = state
+        .get_register_value(inst.args.rs2)
+        .wrapping_add(inst.args.imm);
     let multiplier = if let Op::SLL = inst.op {
-        let shift_amount = (state.get_register_value(inst.args.rs2) + inst.args.imm) & 0x1F;
+        let shift_amount = op2 & 0x1F;
         let shift_power = 1_u32 << shift_amount;
         trace[cpu_cols::POWERS_OF_2_IN][row_idx] = from_u32(shift_amount);
         trace[cpu_cols::POWERS_OF_2_OUT][row_idx] = from_u32(shift_power);
@@ -136,15 +136,18 @@ fn generate_divu_row<F: RichField>(
     row_idx: usize,
 ) {
     let dividend = state.get_register_value(inst.args.rs1);
+    let op2 = state
+        .get_register_value(inst.args.rs2)
+        .wrapping_add(inst.args.imm);
 
     let divisor = if let Op::SRL = inst.op {
-        let shift_amount = (state.get_register_value(inst.args.rs2) + inst.args.imm) & 0x1F;
+        let shift_amount = op2 & 0x1F;
         let shift_power = 1_u32 << shift_amount;
         trace[cpu_cols::POWERS_OF_2_IN][row_idx] = from_u32(shift_amount);
         trace[cpu_cols::POWERS_OF_2_OUT][row_idx] = from_u32(shift_power);
         shift_power
     } else {
-        state.get_register_value(inst.args.rs2)
+        op2
     };
 
     trace[cpu_cols::DIVISOR][row_idx] = from_u32(divisor);
@@ -169,9 +172,6 @@ fn generate_slt_row<F: RichField>(
     state: &State,
     row_idx: usize,
 ) {
-    if inst.op != Op::SLT && inst.op != Op::SLTU {
-        return;
-    }
     let is_signed = inst.op == Op::SLT;
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
@@ -209,16 +209,6 @@ fn generate_slt_row<F: RichField>(
     let abs_diff_fixed: u32 = op1_fixed.abs_diff(op2_fixed);
     assert_eq!(abs_diff, abs_diff_fixed);
     trace[cpu_cols::CMP_ABS_DIFF][row_idx] = from_u32(abs_diff_fixed);
-
-    {
-        let diff = trace[cpu_cols::OP1_VALUE][row_idx]
-            - trace[cpu_cols::OP2_VALUE][row_idx]
-            - trace[cpu_cols::IMM_VALUE][row_idx];
-        let diff_inv = diff.try_inverse().unwrap_or_default();
-        trace[cpu_cols::CMP_DIFF_INV][row_idx] = diff_inv;
-        let one: F = diff * diff_inv;
-        assert_eq!(one, if op1 == op2 { F::ZERO } else { F::ONE });
-    }
 }
 
 fn generate_bitwise_row<F: RichField>(
