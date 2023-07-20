@@ -1,8 +1,9 @@
 name: Coverage
 
 on:
-  push:
-    branches: [ "main" ]
+  # Triggers the workflow every sunday (7pm)
+  schedule:
+    - cron: "0 19 * * 0"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
