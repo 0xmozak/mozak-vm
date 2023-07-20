@@ -367,9 +367,9 @@ where
     let bitwise_proof = prove_single_table::<F, C, BitwiseStark<F, D>, D>(
         &mozak_stark.bitwise_stark,
         config,
-        &traces_poly_values[TableKind::Bitwise as usize].clone(),
+        &traces_poly_values[TableKind::Bitwise as usize],
         &trace_commitments[TableKind::Bitwise as usize],
-        &ctl_data_per_table[TableKind::Bitwise as usize].clone(),
+        &ctl_data_per_table[TableKind::Bitwise as usize],
         challenger,
         timing,
     )?;
