@@ -11,6 +11,8 @@ use crate::utils::{indices_arr, transmute_without_compile_time_size_checks};
 pub(crate) struct BitwiseColumnsView<T: Copy> {
     pub(crate) execution: BitwiseExecutionColumnsView<T>,
 
+    // TODO(Matthias): separate out the permutation columns etc into a suitable separate structs,
+    // too.
     pub(crate) op1_limbs_permuted: [T; 4],
     pub(crate) op2_limbs_permuted: [T; 4],
     pub(crate) res_limbs_permuted: [T; 4],
