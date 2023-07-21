@@ -33,6 +33,7 @@ pub fn generate_bitwise_trace<F: RichField>(
     step_rows: &[Row],
     cpu_trace: &[Vec<F>; cpu_cols::NUM_CPU_COLS],
 ) -> [Vec<F>; cols::NUM_BITWISE_COL] {
+    // TODO(Matthias): really use the new BitwiseColumnsView for generation, too.
     let filtered_step_rows = filter_bitwise_trace(step_rows);
     let trace_len = filtered_step_rows.len();
     let ext_trace_len = trace_len.max(cols::BITWISE_U8_SIZE).next_power_of_two();
