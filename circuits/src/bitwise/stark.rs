@@ -37,9 +37,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         // check limbs sum to our given value.
         // We interpret limbs as digits in base 256 == 2**8.
         for (opx, opx_limbs) in [
-            (lv.OP1, lv.OP1_LIMBS),
-            (lv.OP2, lv.OP2_LIMBS),
-            (lv.RES, lv.RES_LIMBS),
+            (lv.trace.OP1, lv.trace.OP1_LIMBS),
+            (lv.trace.OP2, lv.trace.OP2_LIMBS),
+            (lv.trace.RES, lv.trace.RES_LIMBS),
         ] {
             yield_constr.constraint(
                 reduce_with_powers(&opx_limbs, P::Scalar::from_noncanonical_u64(256_u64)) - opx,
@@ -49,7 +49,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         // Constrain compress logic.
         let base = FE::from_noncanonical_u64(BASE.into());
         for (op1_limb, op2_limb, res_limb, compress_limb) in
-            izip!(lv.OP1_LIMBS, lv.OP2_LIMBS, lv.RES_LIMBS, lv.COMPRESS_LIMBS)
+            izip!(lv.trace.OP1_LIMBS, lv.trace.OP2_LIMBS, lv.trace.RES_LIMBS, lv.COMPRESS_LIMBS)
         {
             yield_constr.constraint(
                 reduce_with_powers(&[op1_limb, op2_limb, res_limb], base) - compress_limb,
@@ -57,7 +57,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         }
 
         // TODO(Matthias): we can probaly remove the `iter()` somehow.
-        // Also, once we fix `eval_lookups` we can probably the COL_MAP.
+        // Also, once we fix `eval_lookups` we can probably drop the COL_MAP here.
         for (&fix_range_check_u8_permuted, &opx_limbs_permuted) in
             (COL_MAP.FIX_RANGE_CHECK_U8_PERMUTED.iter()).zip(
                 (COL_MAP.OP1_LIMBS_PERMUTED.iter())
@@ -118,7 +118,7 @@ mod tests {
     use crate::bitwise::stark::BitwiseStark;
     use crate::generation::bitwise::generate_bitwise_trace;
     use crate::generation::cpu::generate_cpu_trace;
-    use crate::stark::utils::trace_to_poly_values;
+    use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{standard_faster_config, C, D, F};
 
     type S = BitwiseStark<F, D>;
@@ -167,7 +167,8 @@ mod tests {
         // assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));
         let cpu_trace = generate_cpu_trace(&record.executed);
         let trace = generate_bitwise_trace(&record.executed, &cpu_trace);
-        let trace_poly_values = trace_to_poly_values(trace);
+        let trace = trace.into_iter().map(Into::into).collect();
+        let trace_poly_values = trace_rows_to_poly_values(trace);
         let stark = S::default();
 
         let proof = prove_table::<F, C, S, D>(

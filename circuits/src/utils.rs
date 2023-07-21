@@ -2,6 +2,8 @@ use std::mem::{size_of, transmute_copy, ManuallyDrop};
 
 use itertools::Itertools;
 use plonky2::field::types::Field;
+use plonky2::util::transpose;
+use plonky2::field::polynomial::PolynomialValues;
 
 /// Pad the trace to a power of 2.
 ///
@@ -45,3 +47,17 @@ pub(crate) unsafe fn transmute_without_compile_time_size_checks<T, U>(t: T) -> U
 }
 
 pub(crate) const fn indices_arr<const N: usize>() -> [usize; N] { core::array::from_fn(|i| i) }
+
+
+// TODO: rewrite or adapt from transpose in memory module.
+/// A helper function to transpose a row-wise trace and put it in the format that `prove` expects.
+pub fn trace_rows_to_poly_values<F: Field, const COLUMNS: usize>(
+    trace_rows: Vec<[F; COLUMNS]>,
+) -> Vec<PolynomialValues<F>> {
+    let trace_row_vecs = trace_rows.into_iter().map(|row| row.to_vec()).collect_vec();
+    let trace_col_vecs: Vec<Vec<F>> = transpose(&trace_row_vecs);
+    trace_col_vecs
+        .into_iter()
+        .map(|column| PolynomialValues::new(column))
+        .collect()
+}

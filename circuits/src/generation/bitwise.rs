@@ -3,10 +3,11 @@ use mozak_vm::instruction::Op;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
-use crate::bitwise::columns as cols;
+use crate::bitwise::columns::{self as cols, BitwiseColumnsView, BitwiseTraceColumnsView};
 use crate::cpu::columns::{self as cpu_cols};
 use crate::lookup::permute_cols;
 use crate::utils::from_u32;
+// use super::columns::{BitwiseColumnsView, BASE, COL_MAP, NUM_BITWISE_COL};
 
 #[must_use]
 fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<usize> {
@@ -31,40 +32,48 @@ fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<usize> {
 pub fn generate_bitwise_trace<F: RichField>(
     step_rows: &[Row],
     cpu_trace: &[Vec<F>; cpu_cols::NUM_CPU_COLS],
-) -> [Vec<F>; cols::NUM_BITWISE_COL] {
+) -> Vec<BitwiseColumnsView<F>> {
     let filtered_step_rows = filter_bitwise_trace(step_rows);
     let trace_len = filtered_step_rows.len();
     let ext_trace_len = trace_len.max(cols::BITWISE_U8_SIZE).next_power_of_two();
-    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; cols::NUM_BITWISE_COL];
+    // let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; cols::NUM_BITWISE_COL];
+    let mut trace_ = vec![];
     for (i, clk) in filtered_step_rows.iter().enumerate() {
+        let mut row_trace = BitwiseTraceColumnsView::default();
+        // TODO: get cpu trace as View of rows.
         let xor_a = cpu_trace[cpu_cols::XOR_A][*clk];
         let xor_b = cpu_trace[cpu_cols::XOR_B][*clk];
         let xor_out = cpu_trace[cpu_cols::XOR_OUT][*clk];
 
-        trace[cols::OP1][i] = xor_a;
-        trace[cols::OP2][i] = xor_b;
-        trace[cols::RES][i] = xor_out;
+        row_trace.OP1 = xor_a;
+        row_trace.OP2 = xor_b;
+        row_trace.RES = xor_out;
         // TODO: make the CPU trace somehow pass the u32 values as well, not just the
         // field elements. So we don't have to reverse engineer them here.
         for (cols, limbs) in [
             (
-                cols::OP1_LIMBS,
+                &mut row_trace.OP1_LIMBS,
                 (xor_a.to_canonical_u64() as u32).to_le_bytes(),
             ),
             (
-                cols::OP2_LIMBS,
+                &mut row_trace.OP2_LIMBS,
                 (xor_b.to_canonical_u64() as u32).to_le_bytes(),
             ),
             (
-                cols::RES_LIMBS,
+                &mut row_trace.RES_LIMBS,
                 (xor_out.to_canonical_u64() as u32).to_le_bytes(),
             ),
         ] {
-            for (col, limb) in izip!(cols, limbs) {
-                trace[col][i] = from_u32(limb.into());
+            for (&mut col, limb) in izip!(cols, limbs) {
+                col = from_u32(limb.into());
+                // trace[col][i] = from_u32(limb.into());
             }
         }
+        trace_.push(row_trace);
     }
+    // TODO(Matthias): our problem is that we are building essentially two or three independent tables
+    // next to each other.  But our current 'row' view doesn't help with that.
+    // Perhaps break up the row view, and concatenate them horizontally afterwards?
 
     // add FIXED bitwise table
     // 2^8 * 2^8 possible rows
