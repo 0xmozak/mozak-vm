@@ -1,36 +1,109 @@
-use std::ops::{Range, RangeInclusive};
+use std::borrow::{Borrow, BorrowMut};
+use std::mem::{size_of, transmute, transmute_copy, ManuallyDrop};
+use std::ops::{Index, IndexMut, RangeInclusive};
 
-pub(crate) const OP1: usize = 0;
-pub(crate) const OP2: usize = OP1 + 1;
-pub(crate) const RES: usize = OP2 + 1;
+use plonky2::field::types::Field;
 
-pub(crate) const OP1_LIMBS: Range<usize> = RES + 1..RES + 5; // 7
-pub(crate) const OP2_LIMBS: Range<usize> = OP1_LIMBS.end..OP1_LIMBS.end + 4; // 11
-pub(crate) const RES_LIMBS: Range<usize> = OP2_LIMBS.end..OP2_LIMBS.end + 4; // 15
+use crate::utils::{indices_arr, transmute_without_compile_time_size_checks};
 
-pub(crate) const OP1_LIMBS_PERMUTED: Range<usize> = RES_LIMBS.end..RES_LIMBS.end + 4; // 19
-pub(crate) const OP2_LIMBS_PERMUTED: Range<usize> =
-    OP1_LIMBS_PERMUTED.end..OP1_LIMBS_PERMUTED.end + 4; // 23
-pub(crate) const RES_LIMBS_PERMUTED: Range<usize> =
-    OP2_LIMBS_PERMUTED.end..OP2_LIMBS_PERMUTED.end + 4; // 27
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub(crate) struct BitwiseColumnsView<T: Copy> {
+    pub(crate) OP1: T,
+    pub(crate) OP2: T,
+    pub(crate) RES: T,
 
-// Each row holds result of compression of OP1_LIMB, OP2_LIMB and RES_LIMBS.
-pub(crate) const COMPRESS_LIMBS: Range<usize> = RES_LIMBS_PERMUTED.end..RES_LIMBS_PERMUTED.end + 4; // 31
-pub(crate) const COMPRESS_PERMUTED: Range<usize> = COMPRESS_LIMBS.end..COMPRESS_LIMBS.end + 4; // 35
+    pub(crate) OP1_LIMBS: [T; 4],
+    pub(crate) OP2_LIMBS: [T; 4],
+    pub(crate) RES_LIMBS: [T; 4],
 
-pub(crate) const FIX_RANGE_CHECK_U8: usize = COMPRESS_PERMUTED.end; // 36
-pub(crate) const FIX_RANGE_CHECK_U8_PERMUTED: Range<usize> =
-    FIX_RANGE_CHECK_U8 + 1..FIX_RANGE_CHECK_U8 + 13; // 48
+    pub(crate) OP1_LIMBS_PERMUTED: [T; 4],
+    pub(crate) OP2_LIMBS_PERMUTED: [T; 4],
+    pub(crate) RES_LIMBS_PERMUTED: [T; 4],
 
-pub(crate) const FIX_BITWISE_OP1: usize = FIX_RANGE_CHECK_U8_PERMUTED.end; // 49
-pub(crate) const FIX_BITWISE_OP2: usize = FIX_BITWISE_OP1 + 1; // 50
-pub(crate) const FIX_BITWISE_RES: usize = FIX_BITWISE_OP2 + 1; // 51
+    // Each row holds result of compression of OP1_LIMB, OP2_LIMB and RES_LIMBS.
+    pub(crate) COMPRESS_LIMBS: [T; 4],
+    pub(crate) COMPRESS_LIMBS_PERMUTED: [T; 4],
 
-pub(crate) const FIX_COMPRESS: usize = FIX_BITWISE_RES + 1; // 52
-pub(crate) const FIX_COMPRESS_PERMUTED: Range<usize> = FIX_COMPRESS + 1..FIX_COMPRESS + 5; // 56
+    pub(crate) FIX_RANGE_CHECK_U8: T,
+    pub(crate) FIX_RANGE_CHECK_U8_PERMUTED: [T; 12],
 
-pub(crate) const NUM_BITWISE_COL: usize = FIX_COMPRESS_PERMUTED.end;
+    pub(crate) FIX_BITWISE_OP1: T,
+    pub(crate) FIX_BITWISE_OP2: T,
+    pub(crate) FIX_BITWISE_RES: T,
 
+    pub(crate) FIX_COMPRESS: T,
+    pub(crate) FIX_COMPRESS_PERMUTED: [T; 4],
+}
+
+// `u8` is guaranteed to have a `size_of` of 1.
+pub(crate) const NUM_BITWISE_COL: usize = size_of::<BitwiseColumnsView<u8>>();
+
+// TODO(Matthias): we could probably make a derive-macro for this?
+impl<F: Field> Default for BitwiseColumnsView<F> {
+    fn default() -> Self { Self::from([F::ZERO; NUM_BITWISE_COL]) }
+}
+
+impl<T: Copy> From<[T; NUM_BITWISE_COL]> for BitwiseColumnsView<T> {
+    fn from(value: [T; NUM_BITWISE_COL]) -> Self {
+        unsafe { transmute_without_compile_time_size_checks(value) }
+    }
+}
+
+impl<T: Copy> From<BitwiseColumnsView<T>> for [T; NUM_BITWISE_COL] {
+    fn from(value: BitwiseColumnsView<T>) -> Self {
+        unsafe { transmute_without_compile_time_size_checks(value) }
+    }
+}
+
+impl<T: Copy> Borrow<BitwiseColumnsView<T>> for [T; NUM_BITWISE_COL] {
+    fn borrow(&self) -> &BitwiseColumnsView<T> { unsafe { transmute(self) } }
+}
+
+impl<T: Copy> BorrowMut<BitwiseColumnsView<T>> for [T; NUM_BITWISE_COL] {
+    fn borrow_mut(&mut self) -> &mut BitwiseColumnsView<T> { unsafe { transmute(self) } }
+}
+
+impl<T: Copy> Borrow<[T; NUM_BITWISE_COL]> for BitwiseColumnsView<T> {
+    fn borrow(&self) -> &[T; NUM_BITWISE_COL] { unsafe { transmute(self) } }
+}
+
+impl<T: Copy> BorrowMut<[T; NUM_BITWISE_COL]> for BitwiseColumnsView<T> {
+    fn borrow_mut(&mut self) -> &mut [T; NUM_BITWISE_COL] { unsafe { transmute(self) } }
+}
+
+impl<T: Copy, I> Index<I> for BitwiseColumnsView<T>
+where
+    [T]: Index<I>,
+{
+    type Output = <[T] as Index<I>>::Output;
+
+    fn index(&self, index: I) -> &Self::Output {
+        let arr: &[T; NUM_BITWISE_COL] = self.borrow();
+        <[T] as Index<I>>::index(arr, index)
+    }
+}
+
+impl<T: Copy, I> IndexMut<I> for BitwiseColumnsView<T>
+where
+    [T]: IndexMut<I>,
+{
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        let arr: &mut [T; NUM_BITWISE_COL] = self.borrow_mut();
+        <[T] as IndexMut<I>>::index_mut(arr, index)
+    }
+}
+
+const fn make_col_map() -> BitwiseColumnsView<usize> {
+    let indices_arr = indices_arr::<NUM_BITWISE_COL>();
+    unsafe { transmute::<[usize; NUM_BITWISE_COL], BitwiseColumnsView<usize>>(indices_arr) }
+}
+
+pub const COL_MAP: BitwiseColumnsView<usize> = make_col_map();
+
+// ---
 pub(crate) const RANGE_U8: RangeInclusive<u8> = u8::MIN..=u8::MAX; // 256 different values
 pub(crate) const BITWISE_U8_SIZE: usize = 1 << 16; // 256 * 256 different possible combinations
 pub(crate) const BASE: u16 = 256;
+
+// --- Move to circuit utils:
