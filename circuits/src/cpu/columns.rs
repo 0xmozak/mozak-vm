@@ -27,6 +27,8 @@ lazy_static! {
 }
 
 pub(crate) const OP1_VALUE: usize = RD_SELECT_RANGE.end + 1;
+// OP2_VALUE is the sum of the value of the second operand register and the
+// immediate value.
 pub(crate) const OP2_VALUE: usize = OP1_VALUE + 1;
 pub(crate) const IMM_VALUE: usize = OP2_VALUE + 1;
 pub(crate) const DST_VALUE: usize = IMM_VALUE + 1;

@@ -121,6 +121,8 @@ fn populate_op1_value<P: PackedField>(
     );
 }
 
+/// `OP2_VALUE` is the sum of the value of the second operand register and the
+/// immediate value.
 fn populate_op2_value<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,

@@ -20,6 +20,8 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         trace[cpu_cols::RS2_SELECT[inst.args.rs2 as usize]][i] = F::ONE;
         trace[cpu_cols::RD_SELECT[inst.args.rd as usize]][i] = F::ONE;
         trace[cpu_cols::OP1_VALUE][i] = from_u32(state.get_register_value(inst.args.rs1));
+        // OP2_VALUE is the sum of the value of the second operand register and the
+        // immediate value.
         trace[cpu_cols::OP2_VALUE][i] = from_u32(
             state
                 .get_register_value(inst.args.rs2)
