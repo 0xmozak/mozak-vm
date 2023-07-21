@@ -49,9 +49,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
+        let lv = vars.local_values;
+        let nv = vars.next_values;
         constrain_value(
             P::Scalar::from_canonical_usize(Self::BASE),
-            vars.local_values,
+            lv,
             yield_constr,
         );
         eval_lookups(
@@ -65,6 +67,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
             yield_constr,
             columns::LIMB_HI_PERMUTED,
             columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
+        );
+        yield_constr.constraint_first_row(lv[columns::FIXED_RANGE_CHECK_U16]);
+        yield_constr.constraint_transition(
+            (nv[columns::FIXED_RANGE_CHECK_U16] - lv[columns::FIXED_RANGE_CHECK_U16] - FE::ONE)
+                * (nv[columns::FIXED_RANGE_CHECK_U16]
+                    - FE::from_canonical_u64(u64::from(u16::MAX))),
+        );
+        yield_constr.constraint_last_row(
+            lv[columns::FIXED_RANGE_CHECK_U16] - FE::from_canonical_u64(u64::from(u16::MAX)),
         );
     }
 
