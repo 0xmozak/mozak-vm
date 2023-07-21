@@ -3,11 +3,11 @@ use mozak_vm::instruction::Op;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
-use crate::bitwise::columns::{self as cols, BitwiseColumnsView, BitwiseTraceColumnsView};
+use crate::bitwise::columns as cols;
+use crate::bitwise::columns::COL_MAP;
 use crate::cpu::columns::{self as cpu_cols};
 use crate::lookup::permute_cols;
 use crate::utils::from_u32;
-// use super::columns::{BitwiseColumnsView, BASE, COL_MAP, NUM_BITWISE_COL};
 
 #[must_use]
 fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<usize> {
@@ -32,58 +32,50 @@ fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<usize> {
 pub fn generate_bitwise_trace<F: RichField>(
     step_rows: &[Row],
     cpu_trace: &[Vec<F>; cpu_cols::NUM_CPU_COLS],
-) -> Vec<BitwiseColumnsView<F>> {
+) -> [Vec<F>; cols::NUM_BITWISE_COL] {
     let filtered_step_rows = filter_bitwise_trace(step_rows);
     let trace_len = filtered_step_rows.len();
     let ext_trace_len = trace_len.max(cols::BITWISE_U8_SIZE).next_power_of_two();
-    // let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; cols::NUM_BITWISE_COL];
-    let mut trace_ = vec![];
+    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; cols::NUM_BITWISE_COL];
     for (i, clk) in filtered_step_rows.iter().enumerate() {
-        let mut row_trace = BitwiseTraceColumnsView::default();
-        // TODO: get cpu trace as View of rows.
         let xor_a = cpu_trace[cpu_cols::XOR_A][*clk];
         let xor_b = cpu_trace[cpu_cols::XOR_B][*clk];
         let xor_out = cpu_trace[cpu_cols::XOR_OUT][*clk];
 
-        row_trace.OP1 = xor_a;
-        row_trace.OP2 = xor_b;
-        row_trace.RES = xor_out;
+        trace[COL_MAP.trace.OP1][i] = xor_a;
+        trace[COL_MAP.trace.OP2][i] = xor_b;
+        trace[COL_MAP.trace.RES][i] = xor_out;
         // TODO: make the CPU trace somehow pass the u32 values as well, not just the
         // field elements. So we don't have to reverse engineer them here.
         for (cols, limbs) in [
             (
-                &mut row_trace.OP1_LIMBS,
+                COL_MAP.trace.OP1_LIMBS,
                 (xor_a.to_canonical_u64() as u32).to_le_bytes(),
             ),
             (
-                &mut row_trace.OP2_LIMBS,
+                COL_MAP.trace.OP2_LIMBS,
                 (xor_b.to_canonical_u64() as u32).to_le_bytes(),
             ),
             (
-                &mut row_trace.RES_LIMBS,
+                COL_MAP.trace.RES_LIMBS,
                 (xor_out.to_canonical_u64() as u32).to_le_bytes(),
             ),
         ] {
-            for (&mut col, limb) in izip!(cols, limbs) {
-                col = from_u32(limb.into());
-                // trace[col][i] = from_u32(limb.into());
+            for (col, limb) in izip!(cols, limbs) {
+                trace[col][i] = from_u32(limb.into());
             }
         }
-        trace_.push(row_trace);
     }
-    // TODO(Matthias): our problem is that we are building essentially two or three independent tables
-    // next to each other.  But our current 'row' view doesn't help with that.
-    // Perhaps break up the row view, and concatenate them horizontally afterwards?
 
     // add FIXED bitwise table
     // 2^8 * 2^8 possible rows
-    trace[cols::FIX_RANGE_CHECK_U8] = cols::RANGE_U8.map(|x| from_u32(x.into())).collect();
-    trace[cols::FIX_RANGE_CHECK_U8].resize(ext_trace_len, F::ZERO);
+    trace[COL_MAP.FIX_RANGE_CHECK_U8] = cols::RANGE_U8.map(|x| from_u32(x.into())).collect();
+    trace[COL_MAP.FIX_RANGE_CHECK_U8].resize(ext_trace_len, F::ZERO);
 
     for (index, (op1, op2)) in cols::RANGE_U8.cartesian_product(cols::RANGE_U8).enumerate() {
-        trace[cols::FIX_BITWISE_OP1][index] = from_u32(op1.into());
-        trace[cols::FIX_BITWISE_OP2][index] = from_u32(op2.into());
-        trace[cols::FIX_BITWISE_RES][index] = from_u32((op1 ^ op2).into());
+        trace[COL_MAP.FIX_BITWISE_OP1][index] = from_u32(op1.into());
+        trace[COL_MAP.FIX_BITWISE_OP2][index] = from_u32(op2.into());
+        trace[COL_MAP.FIX_BITWISE_RES][index] = from_u32((op1 ^ op2).into());
     }
 
     let base: F = from_u32(cols::BASE.into());
@@ -95,47 +87,47 @@ pub fn generate_bitwise_trace<F: RichField>(
 
     for i in 0..trace[0].len() {
         for (compress_limb, op1_limb, op2_limb, res_limb) in izip!(
-            cols::COMPRESS_LIMBS,
-            cols::OP1_LIMBS,
-            cols::OP2_LIMBS,
-            cols::RES_LIMBS
+            COL_MAP.COMPRESS_LIMBS,
+            COL_MAP.trace.OP1_LIMBS,
+            COL_MAP.trace.OP2_LIMBS,
+            COL_MAP.trace.RES_LIMBS
         ) {
             trace[compress_limb][i] =
                 trace[op1_limb][i] + base * (trace[op2_limb][i] + base * trace[res_limb][i]);
         }
 
-        trace[cols::FIX_COMPRESS][i] = trace[cols::FIX_BITWISE_OP1][i]
-            + base * (trace[cols::FIX_BITWISE_OP2][i] + base * trace[cols::FIX_BITWISE_RES][i]);
+        trace[COL_MAP.FIX_COMPRESS][i] = trace[COL_MAP.FIX_BITWISE_OP1][i]
+            + base * (trace[COL_MAP.FIX_BITWISE_OP2][i] + base * trace[COL_MAP.FIX_BITWISE_RES][i]);
     }
 
     // add the permutation information
-    for (op_limbs_permuted, range_check_permuted, op_limbs, table_col) in [
+    for (op_limbs_permuted, range_check_permuted, op_limbs, &table_col) in [
         (
-            cols::OP1_LIMBS_PERMUTED,
-            cols::FIX_RANGE_CHECK_U8_PERMUTED.skip(0),
-            cols::OP1_LIMBS,
-            cols::FIX_RANGE_CHECK_U8,
+            &COL_MAP.OP1_LIMBS_PERMUTED,
+            &COL_MAP.FIX_RANGE_CHECK_U8_PERMUTED[0..],
+            &COL_MAP.trace.OP1_LIMBS,
+            &COL_MAP.FIX_RANGE_CHECK_U8,
         ),
         (
-            cols::OP2_LIMBS_PERMUTED,
-            cols::FIX_RANGE_CHECK_U8_PERMUTED.skip(4),
-            cols::OP2_LIMBS,
-            cols::FIX_RANGE_CHECK_U8,
+            &COL_MAP.OP2_LIMBS_PERMUTED,
+            &COL_MAP.FIX_RANGE_CHECK_U8_PERMUTED[4..],
+            &COL_MAP.trace.OP2_LIMBS,
+            &COL_MAP.FIX_RANGE_CHECK_U8,
         ),
         (
-            cols::RES_LIMBS_PERMUTED,
-            cols::FIX_RANGE_CHECK_U8_PERMUTED.skip(8),
-            cols::RES_LIMBS,
-            cols::FIX_RANGE_CHECK_U8,
+            &COL_MAP.RES_LIMBS_PERMUTED,
+            &COL_MAP.FIX_RANGE_CHECK_U8_PERMUTED[8..],
+            &COL_MAP.trace.RES_LIMBS,
+            &COL_MAP.FIX_RANGE_CHECK_U8,
         ),
         (
-            cols::COMPRESS_PERMUTED,
-            cols::FIX_COMPRESS_PERMUTED.skip(0),
-            cols::COMPRESS_LIMBS,
-            cols::FIX_COMPRESS,
+            &COL_MAP.COMPRESS_PERMUTED,
+            &COL_MAP.FIX_COMPRESS_PERMUTED[0..],
+            &COL_MAP.COMPRESS_LIMBS,
+            &COL_MAP.FIX_COMPRESS,
         ),
     ] {
-        for (op_limb_permuted, range_check_limb_permuted, op_limb) in
+        for (&op_limb_permuted, &range_check_limb_permuted, &op_limb) in
             izip!(op_limbs_permuted, range_check_permuted, op_limbs)
         {
             (trace[op_limb_permuted], trace[range_check_limb_permuted]) =

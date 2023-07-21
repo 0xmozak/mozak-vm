@@ -118,7 +118,7 @@ mod tests {
     use crate::bitwise::stark::BitwiseStark;
     use crate::generation::bitwise::generate_bitwise_trace;
     use crate::generation::cpu::generate_cpu_trace;
-    use crate::stark::utils::trace_rows_to_poly_values;
+    use crate::stark::utils::trace_to_poly_values;
     use crate::test_utils::{standard_faster_config, C, D, F};
 
     type S = BitwiseStark<F, D>;
@@ -167,8 +167,7 @@ mod tests {
         // assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));
         let cpu_trace = generate_cpu_trace(&record.executed);
         let trace = generate_bitwise_trace(&record.executed, &cpu_trace);
-        let trace = trace.into_iter().map(Into::into).collect();
-        let trace_poly_values = trace_rows_to_poly_values(trace);
+        let trace_poly_values = trace_to_poly_values(trace);
         let stark = S::default();
 
         let proof = prove_table::<F, C, S, D>(
