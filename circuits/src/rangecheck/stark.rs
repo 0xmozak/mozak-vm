@@ -5,6 +5,7 @@ use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::permutation::PermutationPair;
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
@@ -48,9 +49,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
+        let lv = vars.local_values;
+        let nv = vars.next_values;
         constrain_value(
             P::Scalar::from_canonical_usize(Self::BASE),
-            vars.local_values,
+            lv,
             yield_constr,
         );
         eval_lookups(
@@ -65,6 +68,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
             columns::LIMB_HI_PERMUTED,
             columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
         );
+        yield_constr.constraint_first_row(lv[columns::FIXED_RANGE_CHECK_U16]);
+        yield_constr.constraint_transition(
+            (nv[columns::FIXED_RANGE_CHECK_U16] - lv[columns::FIXED_RANGE_CHECK_U16] - FE::ONE)
+                * (nv[columns::FIXED_RANGE_CHECK_U16]
+                    - FE::from_canonical_u64(u64::from(u16::MAX))),
+        );
+        yield_constr.constraint_last_row(
+            lv[columns::FIXED_RANGE_CHECK_U16] - FE::from_canonical_u64(u64::from(u16::MAX)),
+        );
     }
 
     #[no_coverage]
@@ -78,6 +90,21 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     }
 
     fn constraint_degree(&self) -> usize { 3 }
+
+    fn permutation_pairs(&self) -> Vec<PermutationPair> {
+        vec![
+            PermutationPair::singletons(columns::LIMB_LO, columns::LIMB_LO_PERMUTED),
+            PermutationPair::singletons(columns::LIMB_HI, columns::LIMB_HI_PERMUTED),
+            PermutationPair::singletons(
+                columns::FIXED_RANGE_CHECK_U16,
+                columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
+            ),
+            PermutationPair::singletons(
+                columns::FIXED_RANGE_CHECK_U16,
+                columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
+            ),
+        ]
+    }
 }
 
 #[cfg(test)]

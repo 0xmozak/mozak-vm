@@ -1,13 +1,12 @@
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::bitwise::and_gadget;
 use super::columns::{
-    COL_DST_VALUE, COL_IMM_VALUE, COL_OP1_VALUE, COL_OP2_VALUE, COL_S_DIVU, COL_S_REMU, COL_S_SRL,
-    DIVISOR, DIVISOR_INV, NUM_CPU_COLS, POWERS_OF_2_IN, POWERS_OF_2_OUT, QUOTIENT, REMAINDER,
-    REMAINDER_SLACK,
+    DIVISOR, DIVISOR_INV, DST_VALUE, IMM_VALUE, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, POWERS_OF_2_IN,
+    POWERS_OF_2_OUT, QUOTIENT, REMAINDER, REMAINDER_SLACK, S_DIVU, S_REMU, S_SRL,
 };
-use crate::utils::from_;
 
 /// Constraints for DIVU / REMU / SRL instructions
 ///
@@ -19,24 +18,25 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_divu = lv[COL_S_DIVU];
-    let is_remu = lv[COL_S_REMU];
-    let is_srl = lv[COL_S_SRL];
-    let dst = lv[COL_DST_VALUE];
+    let is_divu = lv[S_DIVU];
+    let is_remu = lv[S_REMU];
+    let is_srl = lv[S_SRL];
+    let dst = lv[DST_VALUE];
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
     // > For both signed and unsigned division, it holds that dividend = divisor ×
     // > quotient + remainder.
     // In the following code, we are looking at p/q.
-    let p = lv[COL_OP1_VALUE];
+    let p = lv[OP1_VALUE];
     let q = lv[DIVISOR];
-    yield_constr.constraint((is_divu + is_remu) * (q - lv[COL_OP2_VALUE]));
+    yield_constr.constraint((is_divu + is_remu) * (q - lv[OP2_VALUE]));
 
     // The following constraints are for SRL.
     {
         let and_gadget = and_gadget(lv);
-        yield_constr.constraint(is_srl * (and_gadget.input_a - from_::<u8, P::Scalar>(0x1F)));
-        let op2 = lv[COL_OP2_VALUE] + lv[COL_IMM_VALUE];
+        yield_constr
+            .constraint(is_srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
+        let op2 = lv[OP2_VALUE] + lv[IMM_VALUE];
         yield_constr.constraint(is_srl * (and_gadget.input_b - op2));
 
         yield_constr.constraint(is_srl * (and_gadget.output - lv[POWERS_OF_2_IN]));
@@ -74,7 +74,9 @@ pub(crate) fn constraints<P: PackedField>(
     //      p % 0 == p
 
     let q_inv = lv[DIVISOR_INV];
-    yield_constr.constraint((P::ONES - q * q_inv) * (m - from_::<u64, P::Scalar>(u32::MAX.into())));
+    yield_constr.constraint(
+        (P::ONES - q * q_inv) * (m - P::Scalar::from_noncanonical_u64(u32::MAX.into())),
+    );
     yield_constr.constraint((P::ONES - q * q_inv) * (r - p));
 
     // Last, we 'copy' our results:
