@@ -30,12 +30,11 @@ pub(crate) struct BitwiseColumnsView<T: Copy> {
     pub(crate) fix_compress_permuted: [T; 4],
 }
 
-macro_rules! defs {
+macro_rules! boilerplate_implementations {
     ($s: ident, $num: ident) => {
         // `u8` is guaranteed to have a `size_of` of 1.
         pub(crate) const $num: usize = size_of::<$s<u8>>();
 
-        // TODO(Matthias): we could probably make a derive-macro for this?
         impl<F: Field> Default for $s<F> {
             fn default() -> Self { Self::from([F::ZERO; $num]) }
         }
@@ -98,7 +97,7 @@ macro_rules! defs {
     };
 }
 
-defs!(BitwiseColumnsView, NUM_BITWISE_COL);
+boilerplate_implementations!(BitwiseColumnsView, NUM_BITWISE_COL);
 
 const fn make_col_map() -> BitwiseColumnsView<usize> {
     let indices_arr = indices_arr::<NUM_BITWISE_COL>();
@@ -119,11 +118,8 @@ pub(crate) struct BitwiseExecutionColumnsView<T: Copy> {
     pub(crate) res_limbs: [T; 4],
 }
 
-defs!(BitwiseExecutionColumnsView, NUM_BITWISE_TRACE_COL);
+boilerplate_implementations!(BitwiseExecutionColumnsView, NUM_BITWISE_TRACE_COL);
 
-// ---
 pub(crate) const RANGE_U8: RangeInclusive<u8> = u8::MIN..=u8::MAX; // 256 different values
 pub(crate) const BITWISE_U8_SIZE: usize = 1 << 16; // 256 * 256 different possible combinations
 pub(crate) const BASE: u16 = 256;
-
-// --- Move to circuit utils:
