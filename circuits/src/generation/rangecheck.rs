@@ -19,7 +19,6 @@ pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 /// default.
 #[must_use]
 fn init_padded_rc_trace<F: RichField>(len: usize) -> Vec<Vec<F>> {
-    println!("Len: {}", len.next_power_of_two());
     vec![vec![F::ZERO; len.next_power_of_two()]; columns::NUM_RC_COLS]
 }
 
