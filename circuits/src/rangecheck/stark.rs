@@ -93,7 +93,7 @@ mod tests {
     use starky::stark_testing::test_stark_low_degree;
 
     use super::*;
-    use crate::generation::rangecheck::generate_rangecheck_trace;
+    use crate::generation::rangecheck::{generate_rangecheck_trace, RANGE_CHECK_U16_SIZE};
 
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
@@ -138,6 +138,7 @@ mod tests {
         let subgroup =
             F::cyclic_subgroup_known_order(F::primitive_root_of_unity(log2_strict(len)), len);
 
+        assert_eq!(len, (RANGE_CHECK_U16_SIZE + 1).next_power_of_two());
         for i in 0..len {
             let local_values = trace
                 .iter()

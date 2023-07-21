@@ -19,6 +19,7 @@ pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 /// default.
 #[must_use]
 fn init_padded_rc_trace<F: RichField>(len: usize) -> Vec<Vec<F>> {
+    println!("Len: {}", len.next_power_of_two());
     vec![vec![F::ZERO; len.next_power_of_two()]; columns::NUM_RC_COLS]
 }
 
@@ -63,10 +64,9 @@ pub fn generate_rangecheck_trace<F: RichField>(
     // Here, we generate fixed columns for the table, used in inner table lookups.
     // We are interested in range checking 16-bit values, hence we populate with
     // values 0, 1, .., 2^16 - 1.
-    trace[columns::FIXED_RANGE_CHECK_U16] =
-        (0..RANGE_CHECK_U16_SIZE).map(|i| from_(i as u64)).collect();
-    let num_rows = trace[columns::VAL].len();
-    trace[columns::FIXED_RANGE_CHECK_U16].resize(num_rows, F::ZERO);
+    for i in 0..RANGE_CHECK_U16_SIZE {
+        trace[columns::FIXED_RANGE_CHECK_U16][i] = from_(i as u64);
+    }
 
     // This permutation is done in accordance to the [Halo2 lookup argument
     // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
