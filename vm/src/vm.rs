@@ -107,6 +107,7 @@ impl State {
     #[must_use]
     pub fn store(self, inst: &Args, bytes: u32) -> (Aux, Self) {
         let addr = self.get_register_value(inst.rs1).wrapping_add(inst.imm);
+        assert_ne!(addr, 0, "Cannot store to address 0");
         let dst_val: u32 = self.get_register_value(inst.rs2);
         (
             Aux {
