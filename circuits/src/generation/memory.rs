@@ -94,6 +94,7 @@ pub fn generate_memory_trace<F: RichField>(
     })
 }
 
+#[must_use]
 pub fn fake_trace<F: RichField>() -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
     use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
     let sb = OPCODE_SB as u64;
@@ -130,11 +131,7 @@ pub fn fake_trace<F: RichField>() -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
 }
 
 #[must_use]
-pub fn neg<F: RichField>(x: u64) -> u64 {
-    F::from_canonical_u64(x)
-        .neg()
-        .to_canonical_u64()
-}
+pub fn neg<F: RichField>(x: u64) -> u64 { F::from_canonical_u64(x).neg().to_canonical_u64() }
 
 // #[cfg(test)]
 pub mod tests {
@@ -172,6 +169,8 @@ pub mod tests {
             .collect()
     }
 
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)]
     pub fn prep_table<F: RichField>(table: &[&[u64]]) -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
         transpose(table)
             .into_iter()
