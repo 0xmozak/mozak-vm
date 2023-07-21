@@ -77,6 +77,7 @@ pub fn generate_memory_trace<F: RichField>(
             trace[mem_cols::MEM_CLK][i] - trace[mem_cols::MEM_CLK][i - 1]
         };
     }
+    trace = fake_trace::<F>().into();
 
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
@@ -93,15 +94,61 @@ pub fn generate_memory_trace<F: RichField>(
     })
 }
 
-#[cfg(test)]
-mod tests {
+pub fn fake_trace<F: RichField>() -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
+    use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
+    let sb = OPCODE_SB as u64;
+    let lb = OPCODE_LB as u64;
+    let inv = crate::test_utils::inv::<F>;
+    #[rustfmt::skip]
+    let neg = neg::<F>;
+    // // Honest trace
+    // crate::generation::memory::tests::prep_table(&[
+    //     // PADDING  ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV  DIFF_CLK
+    //     &[ 0,         1,  0,    sb,   0,       1,      inv(1),               0],
+    //     &[ 0,         1,  2,    sb,   2,       0,           0,               2],
+    //     &[ 0,         1,  3,    lb,   2,       0,           0,               1],
+    //     &[ 0,         2,  1,    sb,   1,       1,           1,               0],
+    // ])
+    // // Fraudulent trace that fails to validate:
+    // #[rustfmt::skip]
+    // crate::generation::memory::tests::prep_table(&[
+    //     // PADDING  ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV  DIFF_CLK
+    //     &[ 0,         1,  0,    sb,   0,       1,      inv(1),               0],
+    //     &[ 0,         1,  2,    sb,   2,       0,           0,               2],
+    //     &[ 0,         1,  3,    lb,   0,       0,           0,               1],
+    //     &[ 0,         2,  1,    sb,   1,       1,           1,               0],
+    // ])
+    // // Fraudulent trace that succeeds in sneaking past validation:
+    #[rustfmt::skip]
+    crate::generation::memory::tests::prep_table(&[
+        // PADDING  ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV  DIFF_CLK
+        &[ 0,         1,  0,    sb,   0,       1,           1,             0],
+        &[ 0,         1,  3,    lb,   0,       0,           0,             3],
+        &[ 0,         2,  1,    sb,   1,       1,      inv(1),             0],
+        &[ 0,         1,  2,    sb,   2,   neg(1), inv(neg(1)),            0],
+    ])
+}
+
+#[must_use]
+pub fn neg<F: RichField>(x: u64) -> u64 {
+    F::from_canonical_u64(x)
+        .neg()
+        .to_canonical_u64()
+}
+
+// #[cfg(test)]
+pub mod tests {
     use itertools::Itertools;
     use plonky2::hash::hash_types::RichField;
+    #[cfg(test)]
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use crate::memory::columns as mem_cols;
+    #[cfg(test)]
     use crate::memory::test_utils::memory_trace_test_case;
+    #[cfg(test)]
     use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
+    #[cfg(test)]
     use crate::test_utils::inv;
 
     /// Transposes a table
@@ -125,7 +172,7 @@ mod tests {
             .collect()
     }
 
-    fn prep_table<F: RichField>(table: &[&[u64]]) -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
+    pub fn prep_table<F: RichField>(table: &[&[u64]]) -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
         transpose(table)
             .into_iter()
             .map(|col| col.into_iter().map(F::from_canonical_u64).collect())
@@ -134,6 +181,7 @@ mod tests {
             .unwrap()
     }
 
+    #[cfg(test)]
     fn expected_trace<F: RichField>() -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
         let sb = OPCODE_SB as u64;
         let lb = OPCODE_LB as u64;
