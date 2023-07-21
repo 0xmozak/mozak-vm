@@ -53,19 +53,25 @@ macro_rules! defs {
         }
 
         impl<T: Copy> Borrow<$s<T>> for [T; $num] {
-            fn borrow(&self) -> &$s<T> { unsafe { transmute(self) } }
+            fn borrow(&self) -> &$s<T> { unsafe { &*(self as *const [T; $num]).cast::<$s<T>>() } }
         }
 
         impl<T: Copy> BorrowMut<$s<T>> for [T; $num] {
-            fn borrow_mut(&mut self) -> &mut $s<T> { unsafe { transmute(self) } }
+            fn borrow_mut(&mut self) -> &mut $s<T> {
+                unsafe { &mut *(self as *mut [T; $num]).cast::<$s<T>>() }
+            }
         }
 
         impl<T: Copy> Borrow<[T; $num]> for $s<T> {
-            fn borrow(&self) -> &[T; $num] { unsafe { transmute(self) } }
+            fn borrow(&self) -> &[T; $num] {
+                unsafe { &*(self as *const $s<T>).cast::<[T; $num]>() }
+            }
         }
 
         impl<T: Copy> BorrowMut<[T; $num]> for $s<T> {
-            fn borrow_mut(&mut self) -> &mut [T; $num] { unsafe { transmute(self) } }
+            fn borrow_mut(&mut self) -> &mut [T; $num] {
+                unsafe { &mut *(self as *mut $s<T>).cast::<[T; $num]>() }
+            }
         }
 
         impl<T: Copy, I> Index<I> for $s<T>

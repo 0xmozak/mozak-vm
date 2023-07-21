@@ -12,6 +12,7 @@ pub fn trace_to_poly_values<F: Field, const COLUMNS: usize>(
 // TODO: rewrite or adapt from transpose in memory module.
 /// A helper function to transpose a row-wise trace and put it in the format
 /// that `prove` expects.
+#[must_use]
 pub fn trace_rows_to_poly_values<F: Field, const COLUMNS: usize>(
     trace_rows: Vec<[F; COLUMNS]>,
 ) -> Vec<PolynomialValues<F>> {
