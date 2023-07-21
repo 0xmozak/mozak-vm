@@ -9,25 +9,25 @@ use crate::utils::{indices_arr, transmute_without_compile_time_size_checks};
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct BitwiseColumnsView<T: Copy> {
-    pub(crate) trace: BitwiseTraceColumnsView<T>,
+    pub(crate) execution: BitwiseExecutionColumnsView<T>,
 
-    pub(crate) OP1_LIMBS_PERMUTED: [T; 4],
-    pub(crate) OP2_LIMBS_PERMUTED: [T; 4],
-    pub(crate) RES_LIMBS_PERMUTED: [T; 4],
+    pub(crate) op1_limbs_permuted: [T; 4],
+    pub(crate) op2_limbs_permuted: [T; 4],
+    pub(crate) res_limbs_permuted: [T; 4],
 
     // Each row holds result of compression of OP1_LIMB, OP2_LIMB and RES_LIMBS.
-    pub(crate) COMPRESS_LIMBS: [T; 4],
-    pub(crate) COMPRESS_PERMUTED: [T; 4],
+    pub(crate) compress_limbs: [T; 4],
+    pub(crate) compress_permuted: [T; 4],
 
-    pub(crate) FIX_RANGE_CHECK_U8: T,
-    pub(crate) FIX_RANGE_CHECK_U8_PERMUTED: [T; 12],
+    pub(crate) fix_range_check_u8: T,
+    pub(crate) fix_range_check_u8_permuted: [T; 12],
 
-    pub(crate) FIX_BITWISE_OP1: T,
-    pub(crate) FIX_BITWISE_OP2: T,
-    pub(crate) FIX_BITWISE_RES: T,
+    pub(crate) fix_bitwise_op1: T,
+    pub(crate) fix_bitwise_op2: T,
+    pub(crate) fix_bitwise_res: T,
 
-    pub(crate) FIX_COMPRESS: T,
-    pub(crate) FIX_COMPRESS_PERMUTED: [T; 4],
+    pub(crate) fix_compress: T,
+    pub(crate) fix_compress_permuted: [T; 4],
 }
 
 macro_rules! defs {
@@ -89,7 +89,6 @@ macro_rules! defs {
                 <[T] as IndexMut<I>>::index_mut(arr, index)
             }
         }
-
     };
 }
 
@@ -100,21 +99,21 @@ const fn make_col_map() -> BitwiseColumnsView<usize> {
     unsafe { transmute::<[usize; NUM_BITWISE_COL], BitwiseColumnsView<usize>>(indices_arr) }
 }
 
-pub const COL_MAP: BitwiseColumnsView<usize> = make_col_map();
+pub(crate) const COL_MAP: BitwiseColumnsView<usize> = make_col_map();
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub(crate) struct BitwiseTraceColumnsView<T: Copy> {
-    pub(crate) OP1: T,
-    pub(crate) OP2: T,
-    pub(crate) RES: T,
+pub(crate) struct BitwiseExecutionColumnsView<T: Copy> {
+    pub(crate) op1: T,
+    pub(crate) op2: T,
+    pub(crate) res: T,
 
-    pub(crate) OP1_LIMBS: [T; 4],
-    pub(crate) OP2_LIMBS: [T; 4],
-    pub(crate) RES_LIMBS: [T; 4],
+    pub(crate) op1_limbs: [T; 4],
+    pub(crate) op2_limbs: [T; 4],
+    pub(crate) res_limbs: [T; 4],
 }
 
-defs!(BitwiseTraceColumnsView, NUM_BITWISE_TRACE_COL);
+defs!(BitwiseExecutionColumnsView, NUM_BITWISE_TRACE_COL);
 
 // ---
 pub(crate) const RANGE_U8: RangeInclusive<u8> = u8::MIN..=u8::MAX; // 256 different values

@@ -37,9 +37,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         // check limbs sum to our given value.
         // We interpret limbs as digits in base 256 == 2**8.
         for (opx, opx_limbs) in [
-            (lv.trace.OP1, lv.trace.OP1_LIMBS),
-            (lv.trace.OP2, lv.trace.OP2_LIMBS),
-            (lv.trace.RES, lv.trace.RES_LIMBS),
+            (lv.execution.op1, lv.execution.op1_limbs),
+            (lv.execution.op2, lv.execution.op2_limbs),
+            (lv.execution.res, lv.execution.res_limbs),
         ] {
             yield_constr.constraint(
                 reduce_with_powers(&opx_limbs, P::Scalar::from_noncanonical_u64(256_u64)) - opx,
@@ -48,9 +48,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
 
         // Constrain compress logic.
         let base = FE::from_noncanonical_u64(BASE.into());
-        for (op1_limb, op2_limb, res_limb, compress_limb) in
-            izip!(lv.trace.OP1_LIMBS, lv.trace.OP2_LIMBS, lv.trace.RES_LIMBS, lv.COMPRESS_LIMBS)
-        {
+        for (op1_limb, op2_limb, res_limb, compress_limb) in izip!(
+            lv.execution.op1_limbs,
+            lv.execution.op2_limbs,
+            lv.execution.res_limbs,
+            lv.compress_limbs
+        ) {
             yield_constr.constraint(
                 reduce_with_powers(&[op1_limb, op2_limb, res_limb], base) - compress_limb,
             );
@@ -59,10 +62,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         // TODO(Matthias): we can probaly remove the `iter()` somehow.
         // Also, once we fix `eval_lookups` we can probably drop the COL_MAP here.
         for (&fix_range_check_u8_permuted, &opx_limbs_permuted) in
-            (COL_MAP.FIX_RANGE_CHECK_U8_PERMUTED.iter()).zip(
-                (COL_MAP.OP1_LIMBS_PERMUTED.iter())
-                    .chain(COL_MAP.OP2_LIMBS_PERMUTED.iter())
-                    .chain(COL_MAP.RES_LIMBS_PERMUTED.iter()),
+            (COL_MAP.fix_range_check_u8_permuted.iter()).zip(
+                (COL_MAP.op1_limbs_permuted.iter())
+                    .chain(COL_MAP.op2_limbs_permuted.iter())
+                    .chain(COL_MAP.res_limbs_permuted.iter()),
             )
         {
             eval_lookups(
@@ -74,9 +77,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         }
 
         for (&fix_compress_permuted, &compress_permuted) in COL_MAP
-            .FIX_COMPRESS_PERMUTED
+            .fix_compress_permuted
             .iter()
-            .zip(COL_MAP.COMPRESS_PERMUTED.iter())
+            .zip(COL_MAP.compress_permuted.iter())
         {
             eval_lookups(vars, yield_constr, compress_permuted, fix_compress_permuted);
         }
@@ -85,10 +88,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
     fn constraint_degree(&self) -> usize { 3 }
 
     fn permutation_pairs(&self) -> Vec<PermutationPair> {
-        izip!(COL_MAP.COMPRESS_LIMBS, COL_MAP.COMPRESS_PERMUTED)
+        izip!(COL_MAP.compress_limbs, COL_MAP.compress_permuted)
             .chain(iproduct!(
-                [COL_MAP.FIX_COMPRESS],
-                COL_MAP.FIX_COMPRESS_PERMUTED
+                [COL_MAP.fix_compress],
+                COL_MAP.fix_compress_permuted
             ))
             .map(|(a, b)| PermutationPair::singletons(a, b))
             .collect()

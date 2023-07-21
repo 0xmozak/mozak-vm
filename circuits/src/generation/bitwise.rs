@@ -42,22 +42,22 @@ pub fn generate_bitwise_trace<F: RichField>(
         let xor_b = cpu_trace[cpu_cols::XOR_B][*clk];
         let xor_out = cpu_trace[cpu_cols::XOR_OUT][*clk];
 
-        trace[COL_MAP.trace.OP1][i] = xor_a;
-        trace[COL_MAP.trace.OP2][i] = xor_b;
-        trace[COL_MAP.trace.RES][i] = xor_out;
+        trace[COL_MAP.execution.op1][i] = xor_a;
+        trace[COL_MAP.execution.op2][i] = xor_b;
+        trace[COL_MAP.execution.res][i] = xor_out;
         // TODO: make the CPU trace somehow pass the u32 values as well, not just the
         // field elements. So we don't have to reverse engineer them here.
         for (cols, limbs) in [
             (
-                COL_MAP.trace.OP1_LIMBS,
+                COL_MAP.execution.op1_limbs,
                 (xor_a.to_canonical_u64() as u32).to_le_bytes(),
             ),
             (
-                COL_MAP.trace.OP2_LIMBS,
+                COL_MAP.execution.op2_limbs,
                 (xor_b.to_canonical_u64() as u32).to_le_bytes(),
             ),
             (
-                COL_MAP.trace.RES_LIMBS,
+                COL_MAP.execution.res_limbs,
                 (xor_out.to_canonical_u64() as u32).to_le_bytes(),
             ),
         ] {
@@ -69,13 +69,13 @@ pub fn generate_bitwise_trace<F: RichField>(
 
     // add FIXED bitwise table
     // 2^8 * 2^8 possible rows
-    trace[COL_MAP.FIX_RANGE_CHECK_U8] = cols::RANGE_U8.map(|x| from_u32(x.into())).collect();
-    trace[COL_MAP.FIX_RANGE_CHECK_U8].resize(ext_trace_len, F::ZERO);
+    trace[COL_MAP.fix_range_check_u8] = cols::RANGE_U8.map(|x| from_u32(x.into())).collect();
+    trace[COL_MAP.fix_range_check_u8].resize(ext_trace_len, F::ZERO);
 
     for (index, (op1, op2)) in cols::RANGE_U8.cartesian_product(cols::RANGE_U8).enumerate() {
-        trace[COL_MAP.FIX_BITWISE_OP1][index] = from_u32(op1.into());
-        trace[COL_MAP.FIX_BITWISE_OP2][index] = from_u32(op2.into());
-        trace[COL_MAP.FIX_BITWISE_RES][index] = from_u32((op1 ^ op2).into());
+        trace[COL_MAP.fix_bitwise_op1][index] = from_u32(op1.into());
+        trace[COL_MAP.fix_bitwise_op2][index] = from_u32(op2.into());
+        trace[COL_MAP.fix_bitwise_res][index] = from_u32((op1 ^ op2).into());
     }
 
     let base: F = from_u32(cols::BASE.into());
@@ -87,44 +87,44 @@ pub fn generate_bitwise_trace<F: RichField>(
 
     for i in 0..trace[0].len() {
         for (compress_limb, op1_limb, op2_limb, res_limb) in izip!(
-            COL_MAP.COMPRESS_LIMBS,
-            COL_MAP.trace.OP1_LIMBS,
-            COL_MAP.trace.OP2_LIMBS,
-            COL_MAP.trace.RES_LIMBS
+            COL_MAP.compress_limbs,
+            COL_MAP.execution.op1_limbs,
+            COL_MAP.execution.op2_limbs,
+            COL_MAP.execution.res_limbs
         ) {
             trace[compress_limb][i] =
                 trace[op1_limb][i] + base * (trace[op2_limb][i] + base * trace[res_limb][i]);
         }
 
-        trace[COL_MAP.FIX_COMPRESS][i] = trace[COL_MAP.FIX_BITWISE_OP1][i]
-            + base * (trace[COL_MAP.FIX_BITWISE_OP2][i] + base * trace[COL_MAP.FIX_BITWISE_RES][i]);
+        trace[COL_MAP.fix_compress][i] = trace[COL_MAP.fix_bitwise_op1][i]
+            + base * (trace[COL_MAP.fix_bitwise_op2][i] + base * trace[COL_MAP.fix_bitwise_res][i]);
     }
 
     // add the permutation information
     for (op_limbs_permuted, range_check_permuted, op_limbs, &table_col) in [
         (
-            &COL_MAP.OP1_LIMBS_PERMUTED,
-            &COL_MAP.FIX_RANGE_CHECK_U8_PERMUTED[0..],
-            &COL_MAP.trace.OP1_LIMBS,
-            &COL_MAP.FIX_RANGE_CHECK_U8,
+            &COL_MAP.op1_limbs_permuted,
+            &COL_MAP.fix_range_check_u8_permuted[0..],
+            &COL_MAP.execution.op1_limbs,
+            &COL_MAP.fix_range_check_u8,
         ),
         (
-            &COL_MAP.OP2_LIMBS_PERMUTED,
-            &COL_MAP.FIX_RANGE_CHECK_U8_PERMUTED[4..],
-            &COL_MAP.trace.OP2_LIMBS,
-            &COL_MAP.FIX_RANGE_CHECK_U8,
+            &COL_MAP.op2_limbs_permuted,
+            &COL_MAP.fix_range_check_u8_permuted[4..],
+            &COL_MAP.execution.op2_limbs,
+            &COL_MAP.fix_range_check_u8,
         ),
         (
-            &COL_MAP.RES_LIMBS_PERMUTED,
-            &COL_MAP.FIX_RANGE_CHECK_U8_PERMUTED[8..],
-            &COL_MAP.trace.RES_LIMBS,
-            &COL_MAP.FIX_RANGE_CHECK_U8,
+            &COL_MAP.res_limbs_permuted,
+            &COL_MAP.fix_range_check_u8_permuted[8..],
+            &COL_MAP.execution.res_limbs,
+            &COL_MAP.fix_range_check_u8,
         ),
         (
-            &COL_MAP.COMPRESS_PERMUTED,
-            &COL_MAP.FIX_COMPRESS_PERMUTED[0..],
-            &COL_MAP.COMPRESS_LIMBS,
-            &COL_MAP.FIX_COMPRESS,
+            &COL_MAP.compress_permuted,
+            &COL_MAP.fix_compress_permuted[0..],
+            &COL_MAP.compress_limbs,
+            &COL_MAP.fix_compress,
         ),
     ] {
         for (&op_limb_permuted, &range_check_limb_permuted, &op_limb) in

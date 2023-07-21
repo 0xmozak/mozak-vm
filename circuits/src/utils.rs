@@ -45,7 +45,8 @@ pub(crate) unsafe fn transmute_without_compile_time_size_checks<T, U>(t: T) -> U
 }
 
 // TODO(Matthias): sort out const'ness and replace with:
-// pub(crate) const fn indices_arr<const N: usize>() -> [usize; N] { core::array::from_fn(|i| i) }
+// pub(crate) const fn indices_arr<const N: usize>() -> [usize; N] {
+// core::array::from_fn(|i| i) }
 pub(crate) const fn indices_arr<const N: usize>() -> [usize; N] {
     let mut indices_arr = [0; N];
     let mut i = 0;
