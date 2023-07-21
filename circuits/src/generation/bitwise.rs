@@ -105,25 +105,25 @@ pub fn generate_bitwise_trace<F: RichField>(
     for (op_limbs_permuted, range_check_permuted, op_limbs, &table_col) in [
         (
             &COL_MAP.op1_limbs_permuted,
-            &COL_MAP.fix_range_check_u8_permuted[0..],
+            &COL_MAP.fix_range_check_u8_permuted[0..4],
             &COL_MAP.execution.op1_limbs,
             &COL_MAP.fix_range_check_u8,
         ),
         (
             &COL_MAP.op2_limbs_permuted,
-            &COL_MAP.fix_range_check_u8_permuted[4..],
+            &COL_MAP.fix_range_check_u8_permuted[4..8],
             &COL_MAP.execution.op2_limbs,
             &COL_MAP.fix_range_check_u8,
         ),
         (
             &COL_MAP.res_limbs_permuted,
-            &COL_MAP.fix_range_check_u8_permuted[8..],
+            &COL_MAP.fix_range_check_u8_permuted[8..12],
             &COL_MAP.execution.res_limbs,
             &COL_MAP.fix_range_check_u8,
         ),
         (
             &COL_MAP.compress_permuted,
-            &COL_MAP.fix_compress_permuted[0..],
+            &COL_MAP.fix_compress_permuted,
             &COL_MAP.compress_limbs,
             &COL_MAP.fix_compress,
         ),
