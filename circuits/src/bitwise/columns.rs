@@ -1,5 +1,5 @@
 use std::borrow::{Borrow, BorrowMut};
-use std::mem::{size_of, transmute, transmute_copy, ManuallyDrop};
+use std::mem::{size_of, transmute};
 use std::ops::{Index, IndexMut, RangeInclusive};
 
 use plonky2::field::types::Field;
@@ -23,7 +23,7 @@ pub(crate) struct BitwiseColumnsView<T: Copy> {
 
     // Each row holds result of compression of OP1_LIMB, OP2_LIMB and RES_LIMBS.
     pub(crate) COMPRESS_LIMBS: [T; 4],
-    pub(crate) COMPRESS_LIMBS_PERMUTED: [T; 4],
+    pub(crate) COMPRESS_PERMUTED: [T; 4],
 
     pub(crate) FIX_RANGE_CHECK_U8: T,
     pub(crate) FIX_RANGE_CHECK_U8_PERMUTED: [T; 12],
