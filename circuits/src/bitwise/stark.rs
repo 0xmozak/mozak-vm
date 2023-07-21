@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 
-use itertools::{iproduct, izip};
+use itertools::{chain, iproduct, izip};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -59,15 +59,16 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
             );
         }
 
-        // TODO(Matthias): we can probaly remove the `iter()` somehow.
-        // Also, once we fix `eval_lookups` we can probably drop the COL_MAP here.
-        for (&fix_range_check_u8_permuted, &opx_limbs_permuted) in
-            (COL_MAP.fix_range_check_u8_permuted.iter()).zip(
-                (COL_MAP.op1_limbs_permuted.iter())
-                    .chain(COL_MAP.op2_limbs_permuted.iter())
-                    .chain(COL_MAP.res_limbs_permuted.iter()),
+        // TODO(Matthias): Once we fix `eval_lookups` we can probably drop the COL_MAP
+        // here.
+        for (fix_range_check_u8_permuted, opx_limbs_permuted) in izip!(
+            COL_MAP.fix_range_check_u8_permuted,
+            chain!(
+                COL_MAP.op1_limbs_permuted,
+                COL_MAP.op2_limbs_permuted,
+                COL_MAP.res_limbs_permuted
             )
-        {
+        ) {
             eval_lookups(
                 vars,
                 yield_constr,
@@ -76,10 +77,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
             );
         }
 
-        for (&fix_compress_permuted, &compress_permuted) in COL_MAP
-            .fix_compress_permuted
-            .iter()
-            .zip(COL_MAP.compress_permuted.iter())
+        for (fix_compress_permuted, compress_permuted) in
+            izip!(COL_MAP.fix_compress_permuted, COL_MAP.compress_permuted)
         {
             eval_lookups(vars, yield_constr, compress_permuted, fix_compress_permuted);
         }
