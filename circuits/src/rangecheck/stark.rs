@@ -66,6 +66,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
             columns::LIMB_HI_PERMUTED,
             columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
         );
+        let lv = vars.local_values;
+        let nv = vars.next_values;
+        yield_constr.constraint_first_row(lv[columns::FIXED_RANGE_CHECK_U16]);
+        yield_constr.constraint_transition(
+            (nv[columns::FIXED_RANGE_CHECK_U16] - lv[columns::FIXED_RANGE_CHECK_U16] - FE::ONE)
+                * (nv[columns::FIXED_RANGE_CHECK_U16] - FE::from_canonical_u64(u32::MAX as u64)),
+        );
     }
 
     #[no_coverage]
