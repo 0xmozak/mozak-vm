@@ -33,8 +33,8 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         // To be overridden by users of the gadget.
         // TODO(Matthias): find a way to make either compiler or runtime complain
         // if we have two (conflicting) users in the same row.
-        trace[cpu_cols::COL_MAP.POWERS_OF_2_IN][i] = F::ZERO;
-        trace[cpu_cols::COL_MAP.POWERS_OF_2_OUT][i] = F::ONE;
+        trace[cpu_cols::COL_MAP.powers_of_2_in][i] = F::ZERO;
+        trace[cpu_cols::COL_MAP.powers_of_2_out][i] = F::ONE;
 
         generate_mul_row(&mut trace, &inst, state, i);
         generate_divu_row(&mut trace, &inst, state, i);
@@ -44,25 +44,25 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
         match inst.op {
             Op::ADD => {
-                trace[cpu_cols::COL_MAP.S_RC][i] = F::ONE;
-                trace[cpu_cols::COL_MAP.S_ADD][i] = F::ONE;
+                trace[cpu_cols::COL_MAP.rc][i] = F::ONE;
+                trace[cpu_cols::COL_MAP.ops.add][i] = F::ONE;
             }
-            Op::SLL => trace[cpu_cols::COL_MAP.S_SLL][i] = F::ONE,
-            Op::SLT => trace[cpu_cols::COL_MAP.S_SLT][i] = F::ONE,
-            Op::SLTU => trace[cpu_cols::COL_MAP.S_SLTU][i] = F::ONE,
-            Op::SRL => trace[cpu_cols::COL_MAP.S_SRL][i] = F::ONE,
-            Op::SUB => trace[cpu_cols::COL_MAP.S_SUB][i] = F::ONE,
-            Op::DIVU => trace[cpu_cols::COL_MAP.S_DIVU][i] = F::ONE,
-            Op::REMU => trace[cpu_cols::COL_MAP.S_REMU][i] = F::ONE,
-            Op::MUL => trace[cpu_cols::COL_MAP.S_MUL][i] = F::ONE,
-            Op::MULHU => trace[cpu_cols::COL_MAP.S_MULHU][i] = F::ONE,
-            Op::JALR => trace[cpu_cols::COL_MAP.S_JALR][i] = F::ONE,
-            Op::BEQ => trace[cpu_cols::COL_MAP.S_BEQ][i] = F::ONE,
-            Op::BNE => trace[cpu_cols::COL_MAP.S_BNE][i] = F::ONE,
-            Op::ECALL => trace[cpu_cols::COL_MAP.S_ECALL][i] = F::ONE,
-            Op::XOR => trace[cpu_cols::COL_MAP.S_XOR][i] = F::ONE,
-            Op::OR => trace[cpu_cols::COL_MAP.S_OR][i] = F::ONE,
-            Op::AND => trace[cpu_cols::COL_MAP.S_AND][i] = F::ONE,
+            Op::SLL => trace[cpu_cols::COL_MAP.ops.sll][i] = F::ONE,
+            Op::SLT => trace[cpu_cols::COL_MAP.ops.slt][i] = F::ONE,
+            Op::SLTU => trace[cpu_cols::COL_MAP.ops.sltu][i] = F::ONE,
+            Op::SRL => trace[cpu_cols::COL_MAP.ops.srl][i] = F::ONE,
+            Op::SUB => trace[cpu_cols::COL_MAP.ops.sub][i] = F::ONE,
+            Op::DIVU => trace[cpu_cols::COL_MAP.ops.divu][i] = F::ONE,
+            Op::REMU => trace[cpu_cols::COL_MAP.ops.remu][i] = F::ONE,
+            Op::MUL => trace[cpu_cols::COL_MAP.ops.mul][i] = F::ONE,
+            Op::MULHU => trace[cpu_cols::COL_MAP.ops.mulhu][i] = F::ONE,
+            Op::JALR => trace[cpu_cols::COL_MAP.ops.jalr][i] = F::ONE,
+            Op::BEQ => trace[cpu_cols::COL_MAP.ops.beq][i] = F::ONE,
+            Op::BNE => trace[cpu_cols::COL_MAP.ops.bne][i] = F::ONE,
+            Op::ECALL => trace[cpu_cols::COL_MAP.ops.ecall][i] = F::ONE,
+            Op::XOR => trace[cpu_cols::COL_MAP.ops.xor][i] = F::ONE,
+            Op::OR => trace[cpu_cols::COL_MAP.ops.or][i] = F::ONE,
+            Op::AND => trace[cpu_cols::COL_MAP.ops.and][i] = F::ONE,
             #[tarpaulin::skip]
             _ => {}
         }
@@ -111,8 +111,8 @@ fn generate_mul_row<F: RichField>(
     let multiplier = if let Op::SLL = inst.op {
         let shift_amount = (state.get_register_value(inst.args.rs2) + inst.args.imm) & 0x1F;
         let shift_power = 1_u32 << shift_amount;
-        trace[cpu_cols::COL_MAP.POWERS_OF_2_IN][row_idx] = from_u32(shift_amount);
-        trace[cpu_cols::COL_MAP.POWERS_OF_2_OUT][row_idx] = from_u32(shift_power);
+        trace[cpu_cols::COL_MAP.powers_of_2_in][row_idx] = from_u32(shift_amount);
+        trace[cpu_cols::COL_MAP.powers_of_2_out][row_idx] = from_u32(shift_power);
         shift_power
     } else {
         op2
@@ -140,8 +140,8 @@ fn generate_divu_row<F: RichField>(
     let divisor = if let Op::SRL = inst.op {
         let shift_amount = (state.get_register_value(inst.args.rs2) + inst.args.imm) & 0x1F;
         let shift_power = 1_u32 << shift_amount;
-        trace[cpu_cols::COL_MAP.POWERS_OF_2_IN][row_idx] = from_u32(shift_amount);
-        trace[cpu_cols::COL_MAP.POWERS_OF_2_OUT][row_idx] = from_u32(shift_power);
+        trace[cpu_cols::COL_MAP.powers_of_2_in][row_idx] = from_u32(shift_amount);
+        trace[cpu_cols::COL_MAP.powers_of_2_out][row_idx] = from_u32(shift_power);
         shift_power
     } else {
         state.get_register_value(inst.args.rs2)
