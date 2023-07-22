@@ -63,14 +63,14 @@ pub(crate) fn constraints<P: PackedField>(
     // (B') r + slack + 1 = q
     //      with range_check(slack)
 
-    let slack = lv[REMAINDER_SLACK];
+    let slack = lv.ops.remainder_slack;
     yield_constr.constraint(q * (r + slack + P::ONES - q));
 
     // Now we need to deal with division by zero.  The Risc-V spec says:
     //      p / 0 == 0xFFFF_FFFF
     //      p % 0 == p
 
-    let q_inv = lv[DIVISOR_INV];
+    let q_inv = lv.ops.divisor_inv;
     yield_constr.constraint(
         (P::ONES - q * q_inv) * (m - P::Scalar::from_noncanonical_u64(u32::MAX.into())),
     );
