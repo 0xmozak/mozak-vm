@@ -112,7 +112,7 @@ fn populate_op1_value<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(
-        lv[OP1_VALUE]
+        lv.ops.op1_value
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
@@ -126,7 +126,7 @@ fn populate_op2_value<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(
-        lv[OP2_VALUE]
+        lv.ops.op2_value
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)

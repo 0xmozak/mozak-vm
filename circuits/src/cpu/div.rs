@@ -24,16 +24,16 @@ pub(crate) fn constraints<P: PackedField>(
     // > For both signed and unsigned division, it holds that dividend = divisor ×
     // > quotient + remainder.
     // In the following code, we are looking at p/q.
-    let p = lv[OP1_VALUE];
+    let p = lv.ops.op1_value;
     let q = lv[DIVISOR];
-    yield_constr.constraint((is_divu + is_remu) * (q - lv[OP2_VALUE]));
+    yield_constr.constraint((is_divu + is_remu) * (q - lv.ops.op2_value));
 
     // The following constraints are for SRL.
     {
         let and_gadget = and_gadget(lv);
         yield_constr
             .constraint(is_srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
-        let op2 = lv[OP2_VALUE] + lv.imm_value;
+        let op2 = lv.ops.op2_value + lv.imm_value;
         yield_constr.constraint(is_srl * (and_gadget.input_b - op2));
 
         yield_constr.constraint(is_srl * (and_gadget.output - lv[POWERS_OF_2_IN]));

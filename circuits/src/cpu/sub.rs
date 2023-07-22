@@ -8,7 +8,7 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let expected_value = lv[OP1_VALUE] - lv[OP2_VALUE];
+    let expected_value = lv.ops.op1_value - lv.ops.op2_value;
     let wrapped = P::Scalar::from_noncanonical_u64(1 << 32) + expected_value;
     yield_constr
         .constraint(lv[S_SUB] * ((lv.dst_value - expected_value) * (lv.dst_value - wrapped)));
