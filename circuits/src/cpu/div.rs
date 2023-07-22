@@ -16,8 +16,8 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let is_divu = lv.ops.divu;
-    let is_remu = lv.ops.remuu;
-    let is_srl = lv[S_SRL];
+    let is_remu = lv.ops.remu;
+    let is_srl = lv.ops.srl;
     let dst = lv.dst_value;
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
