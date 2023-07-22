@@ -95,10 +95,7 @@ pub(crate) const COL_MAP: CpuColumnsView<usize> = {
     unsafe { transmute::<[usize; COLUMNS], CpuColumnsView<usize>>(indices_arr) }
 };
 
-pub const NUM_BITWISE_COL: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
-
-
-// pub(crate) const NUM_CPU_COLS: usize = BRANCH_DIFF_INV + 1;
+pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).

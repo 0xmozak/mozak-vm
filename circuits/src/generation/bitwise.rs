@@ -39,9 +39,9 @@ pub fn generate_bitwise_trace<F: RichField>(
     let ext_trace_len = trace_len.max(cols::BITWISE_U8_SIZE).next_power_of_two();
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; cols::NUM_BITWISE_COL];
     for (i, clk) in filtered_step_rows.iter().enumerate() {
-        let xor_a = cpu_trace[cpu_cols::XOR_A][*clk];
-        let xor_b = cpu_trace[cpu_cols::XOR_B][*clk];
-        let xor_out = cpu_trace[cpu_cols::XOR_OUT][*clk];
+        let xor_a = cpu_trace[cpu_cols::COL_MAP.xor_a][*clk];
+        let xor_b = cpu_trace[cpu_cols::COL_MAP.xor_b][*clk];
+        let xor_out = cpu_trace[cpu_cols::COL_MAP.xor_out][*clk];
 
         trace[COL_MAP.execution.op1][i] = xor_a;
         trace[COL_MAP.execution.op2][i] = xor_b;
