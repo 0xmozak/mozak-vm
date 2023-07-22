@@ -27,7 +27,7 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(sign2 * (P::ONES - sign2));
 
     let op1 = lv[OP1_VALUE];
-    let op2 = lv[OP2_VALUE] + lv[IMM_VALUE];
+    let op2 = lv[OP2_VALUE] + lv.imm_value;
     // TODO: range check
     let op1_fixed = lv[OP1_VAL_FIXED];
     // TODO: range check

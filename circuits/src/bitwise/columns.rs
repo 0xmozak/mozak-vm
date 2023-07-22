@@ -1,5 +1,5 @@
 use std::borrow::{Borrow, BorrowMut};
-use std::mem::{size_of, transmute};
+use std::mem::transmute;
 use std::ops::{Index, IndexMut, RangeInclusive};
 
 use plonky2::field::types::Field;
@@ -8,8 +8,6 @@ use crate::utils::{
     boilerplate_implementations, indices_arr, transmute_without_compile_time_size_checks,
     NumberOfColumns,
 };
-
-boilerplate_implementations!(BitwiseColumnsView);
 
 // TODO: re-use this logic for CPU col map.
 pub(crate) const COL_MAP: BitwiseColumnsView<usize> = {
@@ -20,6 +18,7 @@ pub(crate) const COL_MAP: BitwiseColumnsView<usize> = {
 
 pub const NUM_BITWISE_COL: usize = BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS;
 
+boilerplate_implementations!(BitwiseColumnsView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct BitwiseColumnsView<T: Copy> {

@@ -21,7 +21,7 @@ pub(crate) fn constraints<P: PackedField>(
         is_jalr * (destination - return_address) * (destination - wrapped_return_address),
     );
 
-    let jump_target = lv[IMM_VALUE] + lv[OP1_VALUE];
+    let jump_target = lv.imm_value + lv[OP1_VALUE];
     let wrapped_jump_target = jump_target - wrap_at;
     let new_pc = nv[PC];
 
