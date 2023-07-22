@@ -27,10 +27,13 @@ lazy_static! {
 }
 
 pub(crate) const OP1_VALUE: usize = RD_SELECT_RANGE.end + 1;
+// OP2_VALUE is the sum of the value of the second operand register and the
+// immediate value.
 pub(crate) const OP2_VALUE: usize = OP1_VALUE + 1;
 pub(crate) const IMM_VALUE: usize = OP2_VALUE + 1;
 pub(crate) const DST_VALUE: usize = IMM_VALUE + 1;
-pub(crate) const START_REG: usize = DST_VALUE + 1;
+pub(crate) const BRANCH_TARGET: usize = DST_VALUE + 1;
+pub(crate) const START_REG: usize = BRANCH_TARGET + 1;
 pub(crate) const REGS_RANGE: Range<usize> = START_REG..START_REG + 32;
 lazy_static! {
     pub(crate) static ref REGS: Vec<usize> = REGS_RANGE.collect();
@@ -88,9 +91,7 @@ pub(crate) const PRODUCT_LOW_BITS: usize = MULTIPLIER + 1;
 pub(crate) const PRODUCT_HIGH_BITS: usize = PRODUCT_LOW_BITS + 1;
 pub(crate) const PRODUCT_HIGH_DIFF_INV: usize = PRODUCT_HIGH_BITS + 1;
 
-// TODO: In future we may want to merge BRANCH_DIFF_INV and CMP_DIFF_INV
-pub(crate) const BRANCH_DIFF_INV: usize = PRODUCT_HIGH_DIFF_INV + 1;
-pub(crate) const NUM_CPU_COLS: usize = BRANCH_DIFF_INV + 1;
+pub(crate) const NUM_CPU_COLS: usize = PRODUCT_HIGH_DIFF_INV + 1;
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).

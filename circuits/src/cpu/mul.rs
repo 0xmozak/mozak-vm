@@ -4,9 +4,8 @@ use starky::constraint_consumer::ConstraintConsumer;
 
 use super::bitwise::and_gadget;
 use super::columns::{
-    DST_VALUE, IMM_VALUE, MULTIPLIER, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, POWERS_OF_2_IN,
-    POWERS_OF_2_OUT, PRODUCT_HIGH_BITS, PRODUCT_HIGH_DIFF_INV, PRODUCT_LOW_BITS, S_MUL, S_MULHU,
-    S_SLL,
+    DST_VALUE, MULTIPLIER, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, POWERS_OF_2_IN, POWERS_OF_2_OUT,
+    PRODUCT_HIGH_BITS, PRODUCT_HIGH_DIFF_INV, PRODUCT_LOW_BITS, S_MUL, S_MULHU, S_SLL,
 };
 
 pub(crate) fn constraints<P: PackedField>(
@@ -35,7 +34,7 @@ pub(crate) fn constraints<P: PackedField>(
         let and_gadget = and_gadget(lv);
         yield_constr
             .constraint(is_sll * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
-        let op2 = lv[OP2_VALUE] + lv[IMM_VALUE];
+        let op2 = lv[OP2_VALUE];
         yield_constr.constraint(is_sll * (and_gadget.input_b - op2));
 
         yield_constr.constraint(is_sll * (and_gadget.output - lv[POWERS_OF_2_IN]));
@@ -131,8 +130,8 @@ mod tests {
                     args: Args {
                         rd,
                         rs1,
-                        rs2: 0,
                         imm: q,
+                        ..Args::default()
                     },
                 }
                 ],

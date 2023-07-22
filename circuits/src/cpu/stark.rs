@@ -10,7 +10,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{
-    CLK, DST_VALUE, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, PC, RD_SELECT, REGS, RS1_SELECT,
+    CLK, DST_VALUE, IMM_VALUE, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, PC, RD_SELECT, REGS, RS1_SELECT,
     RS2_SELECT, S_ADD, S_AND, S_BEQ, S_BNE, S_DIVU, S_ECALL, S_HALT, S_JALR, S_MUL, S_MULHU, S_OR,
     S_REMU, S_SLL, S_SLT, S_SLTU, S_SRL, S_SUB, S_XOR,
 };
@@ -121,12 +121,15 @@ fn populate_op1_value<P: PackedField>(
     );
 }
 
+/// `OP2_VALUE` is the sum of the value of the second operand register and the
+/// immediate value.
 fn populate_op2_value<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(
         lv[OP2_VALUE]
+            - lv[IMM_VALUE]
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
