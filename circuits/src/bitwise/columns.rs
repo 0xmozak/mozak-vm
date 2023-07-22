@@ -9,16 +9,17 @@ use crate::utils::{
     NumberOfColumns,
 };
 
-const fn make_col_map() -> BitwiseColumnsView<usize> {
-    let indices_arr = indices_arr::<{ BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS }>();
-    unsafe { transmute::<[usize; NUM_BITWISE_COL], BitwiseColumnsView<usize>>(indices_arr) }
-}
+boilerplate_implementations!(BitwiseColumnsView);
 
-boilerplate_implementations!(BitwiseColumnsView, NUM_BITWISE_COL);
+// TODO: re-use this logic for CPU col map.
 pub(crate) const COL_MAP: BitwiseColumnsView<usize> = {
-    let indices_arr = indices_arr::<{ BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS }>();
-    unsafe { transmute::<[usize; NUM_BITWISE_COL], BitwiseColumnsView<usize>>(indices_arr) }
+    const COLUMNS: usize = BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS;
+    let indices_arr = indices_arr::<COLUMNS>();
+    unsafe { transmute::<[usize; COLUMNS], BitwiseColumnsView<usize>>(indices_arr) }
 };
+
+pub const NUM_BITWISE_COL: usize = BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS;
+
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct BitwiseColumnsView<T: Copy> {
@@ -45,7 +46,7 @@ pub(crate) struct BitwiseColumnsView<T: Copy> {
     pub(crate) fix_compress_permuted: [T; 4],
 }
 
-boilerplate_implementations!(BitwiseExecutionColumnsView, NUM_BITWISE_TRACE_COL);
+boilerplate_implementations!(BitwiseExecutionColumnsView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct BitwiseExecutionColumnsView<T: Copy> {
