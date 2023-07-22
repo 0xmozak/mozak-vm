@@ -183,9 +183,9 @@ fn generate_slt_row<F: RichField>(
     let sign_adjust = if is_signed { 1 << 31 } else { 0 };
     let op1_fixed = op1.wrapping_add(sign_adjust);
     let op2_fixed = op2.wrapping_add(sign_adjust);
-    trace[cpu_cols::COL_MAP.OP1_VAL_FIXED][row_idx] = from_u32(op1_fixed);
-    trace[cpu_cols::COL_MAP.OP2_VAL_FIXED][row_idx] = from_u32(op2_fixed);
-    trace[cpu_cols::COL_MAP.LESS_THAN][row_idx] = from_u32(u32::from(op1_fixed < op2_fixed));
+    trace[cpu_cols::COL_MAP.op1_val_fixed][row_idx] = from_u32(op1_fixed);
+    trace[cpu_cols::COL_MAP.op2_val_fixed][row_idx] = from_u32(op2_fixed);
+    trace[cpu_cols::COL_MAP.less_than][row_idx] = from_u32(u32::from(op1_fixed < op2_fixed));
 
     let abs_diff = if is_signed {
         (op1 as i32).abs_diff(op2 as i32)
@@ -208,14 +208,14 @@ fn generate_slt_row<F: RichField>(
     }
     let abs_diff_fixed: u32 = op1_fixed.abs_diff(op2_fixed);
     assert_eq!(abs_diff, abs_diff_fixed);
-    trace[cpu_cols::COL_MAP.CMP_ABS_DIFF][row_idx] = from_u32(abs_diff_fixed);
+    trace[cpu_cols::COL_MAP.cmp_abs_diff][row_idx] = from_u32(abs_diff_fixed);
 
     {
         let diff = trace[cpu_cols::COL_MAP.op1_value][row_idx]
             - trace[cpu_cols::COL_MAP.op2_value][row_idx]
             - trace[cpu_cols::COL_MAP.imm_value][row_idx];
         let diff_inv = diff.try_inverse().unwrap_or_default();
-        trace[cpu_cols::COL_MAP.CMP_DIFF_INV][row_idx] = diff_inv;
+        trace[cpu_cols::COL_MAP.cmp_diff_inv][row_idx] = diff_inv;
         let one: F = diff * diff_inv;
         assert_eq!(one, if op1 == op2 { F::ZERO } else { F::ONE });
     }
