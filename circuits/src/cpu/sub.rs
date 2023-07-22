@@ -2,7 +2,7 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::{DST_VALUE, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, S_SUB};
+use super::columns::CpuColumnsView;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuColumnsView<P>,
@@ -11,7 +11,7 @@ pub(crate) fn constraints<P: PackedField>(
     let expected_value = lv.op1_value - lv.op2_value;
     let wrapped = P::Scalar::from_noncanonical_u64(1 << 32) + expected_value;
     yield_constr
-        .constraint(lv[S_SUB] * ((lv.dst_value - expected_value) * (lv.dst_value - wrapped)));
+        .constraint(lv.ops.sub * ((lv.dst_value - expected_value) * (lv.dst_value - wrapped)));
 }
 
 #[cfg(test)]
