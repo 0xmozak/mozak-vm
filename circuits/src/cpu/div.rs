@@ -15,7 +15,7 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_divu = lv.ops.divu;
+    let is_divu = lv.divu;
     let is_remu = lv.ops.remu;
     let is_srl = lv.ops.srl;
     let dst = lv.dst_value;
@@ -24,8 +24,8 @@ pub(crate) fn constraints<P: PackedField>(
     // > For both signed and unsigned division, it holds that dividend = divisor ×
     // > quotient + remainder.
     // In the following code, we are looking at p/q.
-    let p = lv.ops.op1_value;
-    let q = lv.ops.divisor;
+    let p = lv.op1_value;
+    let q = lv.divisor;
     yield_constr.constraint((is_divu + is_remu) * (q - lv.ops.op2_value));
 
     // The following constraints are for SRL.
@@ -36,8 +36,8 @@ pub(crate) fn constraints<P: PackedField>(
         let op2 = lv.ops.op2_value + lv.imm_value;
         yield_constr.constraint(is_srl * (and_gadget.input_b - op2));
 
-        yield_constr.constraint(is_srl * (and_gadget.output - lv.ops.powers_of_2_in));
-        yield_constr.constraint(is_srl * (q - lv.ops.powers_of_2_out));
+        yield_constr.constraint(is_srl * (and_gadget.output - lv.powers_of_2_in));
+        yield_constr.constraint(is_srl * (q - lv.powers_of_2_out));
     }
 
     // The equation from the spec becomes:
@@ -70,7 +70,7 @@ pub(crate) fn constraints<P: PackedField>(
     //      p / 0 == 0xFFFF_FFFF
     //      p % 0 == p
 
-    let q_inv = lv.ops.divisor_inv;
+    let q_inv = lv.divisor_inv;
     yield_constr.constraint(
         (P::ONES - q * q_inv) * (m - P::Scalar::from_noncanonical_u64(u32::MAX.into())),
     );
