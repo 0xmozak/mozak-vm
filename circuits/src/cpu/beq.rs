@@ -2,36 +2,33 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::{
-    BRANCH_EQUAL, BRANCH_TARGET, CMP_DIFF_INV, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, PC, S_BEQ, S_BNE,
-};
+use super::columns::CpuColumnsView;
 
 /// Constraints for BEQ and BNE.
 pub(crate) fn constraints<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
-    nv: &[P; NUM_CPU_COLS],
+    lv: &CpuColumnsView<P>,
+    nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_beq = lv[S_BEQ];
-    let is_bne = lv[S_BNE];
-    let bumped_pc = lv[PC] + P::Scalar::from_noncanonical_u64(4);
-    let branched_pc = lv[BRANCH_TARGET];
-    let diff = lv[OP1_VALUE] - lv[OP2_VALUE];
+    let bumped_pc = lv.pc + P::Scalar::from_noncanonical_u64(4);
+    let branched_pc = lv.branch_target;
+    // TODO: make diff a function on CpuColumnsView.
+    let diff = lv.op1_value - lv.op2_value;
 
     // if `diff == 0`, then `is_equal != 0`.
     // We only need this intermediate variable to keep the constraint degree <= 3.
-    let is_equal = lv[BRANCH_EQUAL];
-    let diff_inv = lv[CMP_DIFF_INV];
+    let is_equal = lv.branch_equal;
+    let diff_inv = lv.cmp_diff_inv;
     yield_constr.constraint(diff * diff_inv + is_equal - P::ONES);
 
-    let next_pc = nv[PC];
-    yield_constr.constraint(is_beq * is_equal * (next_pc - branched_pc));
-    yield_constr.constraint(is_beq * diff * (next_pc - bumped_pc));
+    let next_pc = nv.pc;
+    yield_constr.constraint(lv.ops.beq * is_equal * (next_pc - branched_pc));
+    yield_constr.constraint(lv.ops.beq * diff * (next_pc - bumped_pc));
 
     // For BNE branch happens when both operands are not equal so swap above
     // constraints.
-    yield_constr.constraint(is_bne * diff * (next_pc - branched_pc));
-    yield_constr.constraint(is_bne * is_equal * (next_pc - bumped_pc));
+    yield_constr.constraint(lv.ops.bne * diff * (next_pc - branched_pc));
+    yield_constr.constraint(lv.ops.bne * is_equal * (next_pc - bumped_pc));
 }
 
 #[cfg(test)]

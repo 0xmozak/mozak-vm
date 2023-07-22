@@ -3,10 +3,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::bitwise::and_gadget;
-use super::columns::{
-    DIVISOR, DIVISOR_INV, DST_VALUE, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, POWERS_OF_2_IN,
-    POWERS_OF_2_OUT, QUOTIENT, REMAINDER, REMAINDER_SLACK, S_DIVU, S_REMU, S_SRL,
-};
+use super::columns::CpuColumnsView;
 
 /// Constraints for DIVU / REMU / SRL instructions
 ///
@@ -15,39 +12,36 @@ use super::columns::{
 ///
 /// TODO: m, r, slack need range-checks.
 pub(crate) fn constraints<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
+    lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_divu = lv[S_DIVU];
-    let is_remu = lv[S_REMU];
-    let is_srl = lv[S_SRL];
-    let dst = lv[DST_VALUE];
+    let dst = lv.dst_value;
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
     // > For both signed and unsigned division, it holds that dividend = divisor ×
     // > quotient + remainder.
     // In the following code, we are looking at p/q.
-    let p = lv[OP1_VALUE];
-    let q = lv[DIVISOR];
-    yield_constr.constraint((is_divu + is_remu) * (q - lv[OP2_VALUE]));
+    let p = lv.op1_value;
+    let q = lv.divisor;
+    yield_constr.constraint((lv.ops.divu + lv.ops.remu) * (q - lv.op2_value));
 
     // The following constraints are for SRL.
     {
         let and_gadget = and_gadget(lv);
         yield_constr
-            .constraint(is_srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
-        let op2 = lv[OP2_VALUE];
-        yield_constr.constraint(is_srl * (and_gadget.input_b - op2));
+            .constraint(lv.ops.srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
+        let op2 = lv.op2_value;
+        yield_constr.constraint(lv.ops.srl * (and_gadget.input_b - op2));
 
-        yield_constr.constraint(is_srl * (and_gadget.output - lv[POWERS_OF_2_IN]));
-        yield_constr.constraint(is_srl * (q - lv[POWERS_OF_2_OUT]));
+        yield_constr.constraint(lv.ops.srl * (and_gadget.output - lv.powers_of_2_in));
+        yield_constr.constraint(lv.ops.srl * (q - lv.powers_of_2_out));
     }
 
     // The equation from the spec becomes:
     //  p = q * m + r
     // (Interestingly, this holds even when q == 0.)
-    let m = lv[QUOTIENT];
-    let r = lv[REMAINDER];
+    let m = lv.quotient;
+    let r = lv.remainder;
     yield_constr.constraint(m * q + r - p);
 
     // However, that constraint is not enough.
@@ -66,22 +60,22 @@ pub(crate) fn constraints<P: PackedField>(
     // (B') r + slack + 1 = q
     //      with range_check(slack)
 
-    let slack = lv[REMAINDER_SLACK];
+    let slack = lv.remainder_slack;
     yield_constr.constraint(q * (r + slack + P::ONES - q));
 
     // Now we need to deal with division by zero.  The Risc-V spec says:
     //      p / 0 == 0xFFFF_FFFF
     //      p % 0 == p
 
-    let q_inv = lv[DIVISOR_INV];
+    let q_inv = lv.divisor_inv;
     yield_constr.constraint(
         (P::ONES - q * q_inv) * (m - P::Scalar::from_noncanonical_u64(u32::MAX.into())),
     );
     yield_constr.constraint((P::ONES - q * q_inv) * (r - p));
 
     // Last, we 'copy' our results:
-    yield_constr.constraint((is_divu + is_srl) * (dst - m));
-    yield_constr.constraint(is_remu * (dst - r));
+    yield_constr.constraint((lv.ops.divu + lv.ops.srl) * (dst - m));
+    yield_constr.constraint(lv.ops.remu * (dst - r));
 }
 
 #[cfg(test)]

@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -10,6 +11,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns;
+use super::columns::{RangeCheckColumnsView, MAP};
 use crate::lookup::eval_lookups;
 
 #[derive(Copy, Clone, Default)]
@@ -21,12 +23,12 @@ pub struct RangeCheckStark<F, const D: usize> {
 /// Constrain `val` - (`limb_hi` ** base + `limb_lo`) == 0
 fn constrain_value<P: PackedField>(
     base: P::Scalar,
-    local_values: &[P; columns::NUM_RC_COLS],
+    local_values: &RangeCheckColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let val = local_values[columns::VAL];
-    let limb_lo = local_values[columns::LIMB_LO];
-    let limb_hi = local_values[columns::LIMB_HI];
+    let val = local_values.val;
+    let limb_lo = local_values.limb_lo;
+    let limb_hi = local_values.limb_hi;
     yield_constr.constraint(val - (limb_lo + limb_hi * base));
 }
 
@@ -49,8 +51,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv = vars.local_values;
-        let nv = vars.next_values;
+        let lv = vars.local_values.borrow();
+        let nv: &RangeCheckColumnsView<P> = vars.next_values.borrow();
         constrain_value(
             P::Scalar::from_canonical_usize(Self::BASE),
             lv,
@@ -59,23 +61,22 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         eval_lookups(
             vars,
             yield_constr,
-            columns::LIMB_LO_PERMUTED,
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
+            MAP.limb_lo_permuted,
+            MAP.fixed_range_check_u16_permuted_lo,
         );
         eval_lookups(
             vars,
             yield_constr,
-            columns::LIMB_HI_PERMUTED,
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
+            MAP.limb_hi_permuted,
+            MAP.fixed_range_check_u16_permuted_hi,
         );
-        yield_constr.constraint_first_row(lv[columns::FIXED_RANGE_CHECK_U16]);
+        yield_constr.constraint_first_row(lv.fixed_range_check_u16);
         yield_constr.constraint_transition(
-            (nv[columns::FIXED_RANGE_CHECK_U16] - lv[columns::FIXED_RANGE_CHECK_U16] - FE::ONE)
-                * (nv[columns::FIXED_RANGE_CHECK_U16]
-                    - FE::from_canonical_u64(u64::from(u16::MAX))),
+            (nv.fixed_range_check_u16 - lv.fixed_range_check_u16 - FE::ONE)
+                * (nv.fixed_range_check_u16 - FE::from_canonical_u64(u64::from(u16::MAX))),
         );
         yield_constr.constraint_last_row(
-            lv[columns::FIXED_RANGE_CHECK_U16] - FE::from_canonical_u64(u64::from(u16::MAX)),
+            lv.fixed_range_check_u16 - FE::from_canonical_u64(u64::from(u16::MAX)),
         );
     }
 
@@ -93,15 +94,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
 
     fn permutation_pairs(&self) -> Vec<PermutationPair> {
         vec![
-            PermutationPair::singletons(columns::LIMB_LO, columns::LIMB_LO_PERMUTED),
-            PermutationPair::singletons(columns::LIMB_HI, columns::LIMB_HI_PERMUTED),
+            PermutationPair::singletons(MAP.limb_lo, MAP.limb_lo_permuted),
+            PermutationPair::singletons(MAP.limb_hi, MAP.limb_hi_permuted),
             PermutationPair::singletons(
-                columns::FIXED_RANGE_CHECK_U16,
-                columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
+                MAP.fixed_range_check_u16,
+                MAP.fixed_range_check_u16_permuted_lo,
             ),
             PermutationPair::singletons(
-                columns::FIXED_RANGE_CHECK_U16,
-                columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
+                MAP.fixed_range_check_u16,
+                MAP.fixed_range_check_u16_permuted_hi,
             ),
         ]
     }
@@ -136,7 +137,7 @@ mod tests {
         ]);
         let mut trace = generate_rangecheck_trace::<F>(&record.executed);
         // Manually alter the value here to be larger than a u32.
-        trace[0][columns::VAL] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
+        trace[0][MAP.val] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
         trace
     }
 

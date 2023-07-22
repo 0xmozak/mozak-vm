@@ -1,6 +1,7 @@
+use std::borrow::Borrow;
 use std::marker::PhantomData;
 
-use itertools::{iproduct, izip};
+use itertools::{chain, iproduct, izip};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -11,12 +12,9 @@ use starky::permutation::PermutationPair;
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{
-    BASE, COMPRESS_LIMBS, COMPRESS_PERMUTED, FIX_COMPRESS, FIX_COMPRESS_PERMUTED,
-    FIX_RANGE_CHECK_U8_PERMUTED, NUM_BITWISE_COL, OP1, OP1_LIMBS, OP1_LIMBS_PERMUTED, OP2,
-    OP2_LIMBS, OP2_LIMBS_PERMUTED, RES, RES_LIMBS, RES_LIMBS_PERMUTED,
-};
+use super::columns::{BitwiseColumnsView, BASE, MAP};
 use crate::lookup::eval_lookups;
+use crate::utils::NumberOfColumns;
 
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -25,7 +23,7 @@ pub struct BitwiseStark<F, const D: usize> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<F, D> {
-    const COLUMNS: usize = NUM_BITWISE_COL;
+    const COLUMNS: usize = BitwiseColumnsView::<F>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
 
     fn eval_packed_generic<FE, P, const D2: usize>(
@@ -35,32 +33,40 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv = vars.local_values;
+        let lv: &BitwiseColumnsView<_> = vars.local_values.borrow();
+        let e = &lv.execution;
 
         // check limbs sum to our given value.
         // We interpret limbs as digits in base 256 == 2**8.
-        for (opx, opx_limbs) in [(OP1, OP1_LIMBS), (OP2, OP2_LIMBS), (RES, RES_LIMBS)] {
+        for (opx, opx_limbs) in [
+            (e.op1, e.op1_limbs),
+            (e.op2, e.op2_limbs),
+            (e.res, e.res_limbs),
+        ] {
             yield_constr.constraint(
-                reduce_with_powers(&lv[opx_limbs], P::Scalar::from_noncanonical_u64(256_u64))
-                    - lv[opx],
+                reduce_with_powers(&opx_limbs, P::Scalar::from_noncanonical_u64(256_u64)) - opx,
             );
         }
 
         // Constrain compress logic.
         let base = FE::from_noncanonical_u64(BASE.into());
         for (op1_limb, op2_limb, res_limb, compress_limb) in
-            izip!(OP1_LIMBS, OP2_LIMBS, RES_LIMBS, COMPRESS_LIMBS)
+            izip!(e.op1_limbs, e.op2_limbs, e.res_limbs, lv.compress_limbs)
         {
             yield_constr.constraint(
-                reduce_with_powers(&[lv[op1_limb], lv[op2_limb], lv[res_limb]], base)
-                    - lv[compress_limb],
+                reduce_with_powers(&[op1_limb, op2_limb, res_limb], base) - compress_limb,
             );
         }
 
-        for (fix_range_check_u8_permuted, opx_limbs_permuted) in FIX_RANGE_CHECK_U8_PERMUTED.zip(
-            OP1_LIMBS_PERMUTED
-                .chain(OP2_LIMBS_PERMUTED)
-                .chain(RES_LIMBS_PERMUTED),
+        // TODO(Matthias): Once we fix `eval_lookups` we can probably drop the MAP
+        // here.
+        for (fix_range_check_u8_permuted, opx_limbs_permuted) in izip!(
+            MAP.fix_range_check_u8_permuted,
+            chain!(
+                MAP.op1_limbs_permuted,
+                MAP.op2_limbs_permuted,
+                MAP.res_limbs_permuted
+            )
         ) {
             eval_lookups(
                 vars,
@@ -71,7 +77,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         }
 
         for (fix_compress_permuted, compress_permuted) in
-            FIX_COMPRESS_PERMUTED.zip(COMPRESS_PERMUTED)
+            izip!(MAP.fix_compress_permuted, MAP.compress_permuted)
         {
             eval_lookups(vars, yield_constr, compress_permuted, fix_compress_permuted);
         }
@@ -80,10 +86,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
     fn constraint_degree(&self) -> usize { 3 }
 
     fn permutation_pairs(&self) -> Vec<PermutationPair> {
-        izip!(COMPRESS_LIMBS, COMPRESS_PERMUTED)
-            .chain(iproduct!([FIX_COMPRESS], FIX_COMPRESS_PERMUTED))
-            .map(|(a, b)| PermutationPair::singletons(a, b))
-            .collect()
+        chain!(
+            izip!(MAP.compress_limbs, MAP.compress_permuted),
+            iproduct!([MAP.fix_compress], MAP.fix_compress_permuted)
+        )
+        .map(|(a, b)| PermutationPair::singletons(a, b))
+        .collect()
     }
 
     #[no_coverage]
