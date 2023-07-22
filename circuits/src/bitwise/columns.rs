@@ -6,6 +6,8 @@ use plonky2::field::types::Field;
 
 use crate::utils::{indices_arr, transmute_without_compile_time_size_checks, boilerplate_implementations};
 
+boilerplate_implementations!(BitwiseColumnsView, NUM_BITWISE_COL);
+pub(crate) const COL_MAP: BitwiseColumnsView<usize> = make_col_map();
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct BitwiseColumnsView<T: Copy> {
@@ -32,15 +34,12 @@ pub(crate) struct BitwiseColumnsView<T: Copy> {
     pub(crate) fix_compress_permuted: [T; 4],
 }
 
-boilerplate_implementations!(BitwiseColumnsView, NUM_BITWISE_COL);
-
 const fn make_col_map() -> BitwiseColumnsView<usize> {
     let indices_arr = indices_arr::<NUM_BITWISE_COL>();
     unsafe { transmute::<[usize; NUM_BITWISE_COL], BitwiseColumnsView<usize>>(indices_arr) }
 }
 
-pub(crate) const COL_MAP: BitwiseColumnsView<usize> = make_col_map();
-
+boilerplate_implementations!(BitwiseExecutionColumnsView, NUM_BITWISE_TRACE_COL);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct BitwiseExecutionColumnsView<T: Copy> {
@@ -52,8 +51,6 @@ pub(crate) struct BitwiseExecutionColumnsView<T: Copy> {
     pub(crate) op2_limbs: [T; 4],
     pub(crate) res_limbs: [T; 4],
 }
-
-boilerplate_implementations!(BitwiseExecutionColumnsView, NUM_BITWISE_TRACE_COL);
 
 pub(crate) const RANGE_U8: RangeInclusive<u8> = u8::MIN..=u8::MAX; // 256 different values
 pub(crate) const BITWISE_U8_SIZE: usize = 1 << 16; // 256 * 256 different possible combinations

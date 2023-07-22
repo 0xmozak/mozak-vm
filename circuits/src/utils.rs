@@ -57,6 +57,7 @@ pub(crate) const fn indices_arr<const N: usize>() -> [usize; N] {
     indices_arr
 }
 
+// TODO(Matthias): this could probably be a custom derive macro?
 macro_rules! boilerplate_implementations {
     ($s: ident, $num: ident) => {
         // `u8` is guaranteed to have a `size_of` of 1.
