@@ -41,7 +41,7 @@ fn pc_ticks_up<P: PackedField>(
         .map(|op_code| lv[op_code])
         .sum();
     yield_constr.constraint_transition(
-        is_straightline_op * (nv[PC] - (lv[PC] + P::Scalar::from_noncanonical_u64(4))),
+        is_straightline_op * (nv.pc - (lv.pc + P::Scalar::from_noncanonical_u64(4))),
     );
 }
 
@@ -126,7 +126,7 @@ fn populate_op2_value<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(
-        lv.ops.op2_value
+        lv.op2_value
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)

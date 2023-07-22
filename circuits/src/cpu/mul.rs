@@ -29,13 +29,13 @@ pub(crate) fn constraints<P: PackedField>(
     let product = low_limb + base * high_limb;
 
     yield_constr.constraint((is_mul + is_mulhu + is_sll) * (product - multiplicand * multiplier));
-    yield_constr.constraint((is_mul + is_mulhu) * (multiplier - lv.ops.op2_value));
+    yield_constr.constraint((is_mul + is_mulhu) * (multiplier - lv.op2_value));
     // The following constraints are for SLL.
     {
         let and_gadget = and_gadget(lv);
         yield_constr
             .constraint(is_sll * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
-        let op2 = lv.ops.op2_value + lv.imm_value;
+        let op2 = lv.op2_value + lv.imm_value;
         yield_constr.constraint(is_sll * (and_gadget.input_b - op2));
 
         yield_constr.constraint(is_sll * (and_gadget.output - lv.powers_of_2_in));

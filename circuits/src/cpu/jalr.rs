@@ -5,14 +5,14 @@ use starky::constraint_consumer::ConstraintConsumer;
 use super::columns::CpuColumnsView;
 
 pub(crate) fn constraints<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
-    nv: &[P; NUM_CPU_COLS],
+    lv: &CpuColumnsView<P>,
+    nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let is_jalr = lv.ops.jalr;
     let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
 
-    let return_address = lv[PC] + P::Scalar::from_noncanonical_u64(4);
+    let return_address = lv.pc + P::Scalar::from_noncanonical_u64(4);
     let wrapped_return_address = return_address - wrap_at;
 
     let destination = lv.dst_value;
@@ -23,7 +23,7 @@ pub(crate) fn constraints<P: PackedField>(
 
     let jump_target = lv.imm_value + lv.op1_value;
     let wrapped_jump_target = jump_target - wrap_at;
-    let new_pc = nv[PC];
+    let new_pc = nv.pc;
 
     yield_constr
         .constraint_transition(is_jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target));

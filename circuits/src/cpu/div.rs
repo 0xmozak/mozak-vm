@@ -26,14 +26,14 @@ pub(crate) fn constraints<P: PackedField>(
     // In the following code, we are looking at p/q.
     let p = lv.op1_value;
     let q = lv.divisor;
-    yield_constr.constraint((is_divu + is_remu) * (q - lv.ops.op2_value));
+    yield_constr.constraint((is_divu + is_remu) * (q - lv.op2_value));
 
     // The following constraints are for SRL.
     {
         let and_gadget = and_gadget(lv);
         yield_constr
             .constraint(is_srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
-        let op2 = lv.ops.op2_value + lv.imm_value;
+        let op2 = lv.op2_value + lv.imm_value;
         yield_constr.constraint(is_srl * (and_gadget.input_b - op2));
 
         yield_constr.constraint(is_srl * (and_gadget.output - lv.powers_of_2_in));
@@ -43,8 +43,8 @@ pub(crate) fn constraints<P: PackedField>(
     // The equation from the spec becomes:
     //  p = q * m + r
     // (Interestingly, this holds even when q == 0.)
-    let m = lv.ops.quotient;
-    let r = lv.ops.remainder;
+    let m = lv.quotient;
+    let r = lv.remainder;
     yield_constr.constraint(m * q + r - p);
 
     // However, that constraint is not enough.
@@ -63,7 +63,7 @@ pub(crate) fn constraints<P: PackedField>(
     // (B') r + slack + 1 = q
     //      with range_check(slack)
 
-    let slack = lv.ops.remainder_slack;
+    let slack = lv.remainder_slack;
     yield_constr.constraint(q * (r + slack + P::ONES - q));
 
     // Now we need to deal with division by zero.  The Risc-V spec says:
