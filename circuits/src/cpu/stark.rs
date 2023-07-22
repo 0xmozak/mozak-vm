@@ -9,11 +9,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{
-    CLK, DST_VALUE, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, PC, RD_SELECT, REGS, RS1_SELECT,
-    RS2_SELECT, S_ADD, S_AND, S_BEQ, S_BNE, S_DIVU, S_ECALL, S_HALT, S_JALR, S_MUL, S_MULHU, S_OR,
-    S_REMU, S_SLL, S_SLT, S_SLTU, S_SRL, S_SUB, S_XOR,
-};
+use super::columns::{CpuColumnsView, OpSelectorView};
 use super::{add, beq, bitwise, div, jalr, mul, slt, sub};
 
 #[derive(Copy, Clone, Default)]
@@ -24,22 +20,27 @@ pub struct CpuStark<F, const D: usize> {
 
 use array_concat::{concat_arrays, concat_arrays_size};
 
-pub const STRAIGHTLINE_OPCODES: [usize; 13] = [
-    S_ADD, S_SUB, S_AND, S_OR, S_XOR, S_DIVU, S_MUL, S_MULHU, S_REMU, S_SLL, S_SLT, S_SLTU, S_SRL,
-];
-pub const JUMPING_OPCODES: [usize; 4] = [S_BEQ, S_BNE, S_ECALL, S_JALR];
-pub const OPCODES: [usize; concat_arrays_size!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES)] =
-    concat_arrays!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES);
+impl<P: Copy> OpSelectorView<P> {
+    fn straightline_opcodes(&self) -> Vec<P> {
+        vec![self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu, self.remu, self.sll, self.slt, self.sltu, self.srl]
+    }
+    fn jumping_opcodes(&self) -> Vec<P> {
+        vec![self.beq, self.bne, self.ecall, self.jalr]
+    }
+    fn opcodes(&self) -> Vec<P> {
+        let mut res = self.straightline_opcodes();
+        res.extend(self.jumping_opcodes().into_iter());
+        res
+    }
+}
 
 fn pc_ticks_up<P: PackedField>(
     lv: &CpuColumnsView<P>,
     nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_straightline_op: P = STRAIGHTLINE_OPCODES
-        .into_iter()
-        .map(|op_code| lv[op_code])
-        .sum();
+    let is_straightline_op: P = lv.ops.straightline_opcodes().into_iter().sum();
+
     yield_constr.constraint_transition(
         is_straightline_op * (nv.pc - (lv.pc + P::Scalar::from_noncanonical_u64(4))),
     );
