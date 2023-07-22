@@ -1,6 +1,7 @@
 use std::mem::transmute;
 
 use itertools::Itertools;
+use lazy_static::lazy_static;
 use plonky2::field::types::Field;
 
 use crate::cross_table_lookup::Column;
@@ -88,12 +89,14 @@ pub(crate) struct CpuColumnsView<T: Copy> {
     pub branch_diff_inv: T,
 }
 
-// TODO: re-use this logic for CPU col map.
-pub(crate) const COL_MAP: CpuColumnsView<usize> = {
-    const COLUMNS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
-    let indices_arr = indices_arr::<COLUMNS>();
-    unsafe { transmute::<[usize; COLUMNS], CpuColumnsView<usize>>(indices_arr) }
-};
+lazy_static! {
+    // TODO: abstract out the boilerplate and deduplicate with bitwise.
+    pub(crate) static ref COL_MAP: CpuColumnsView<usize> = {
+        const COLUMNS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
+        let indices_arr = indices_arr::<COLUMNS>();
+        unsafe { transmute::<[usize; COLUMNS], CpuColumnsView<usize>>(indices_arr) }
+    };
+}
 
 pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
 

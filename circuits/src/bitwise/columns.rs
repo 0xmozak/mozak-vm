@@ -1,6 +1,7 @@
 use std::mem::transmute;
 use std::ops::RangeInclusive;
 
+use lazy_static::lazy_static;
 use plonky2::field::types::Field;
 
 use crate::utils::{
@@ -9,11 +10,13 @@ use crate::utils::{
 };
 
 // TODO: re-use this logic for CPU col map.
-pub(crate) const COL_MAP: BitwiseColumnsView<usize> = {
-    const COLUMNS: usize = BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS;
-    let indices_arr = indices_arr::<COLUMNS>();
-    unsafe { transmute::<[usize; COLUMNS], BitwiseColumnsView<usize>>(indices_arr) }
-};
+lazy_static! {
+    pub(crate) static ref COL_MAP: BitwiseColumnsView<usize> = {
+        const COLUMNS: usize = BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS;
+        let indices_arr = indices_arr::<COLUMNS>();
+        unsafe { transmute::<[usize; COLUMNS], BitwiseColumnsView<usize>>(indices_arr) }
+    };
+}
 
 pub const NUM_BITWISE_COL: usize = BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS;
 
