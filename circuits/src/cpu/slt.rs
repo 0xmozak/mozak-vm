@@ -8,7 +8,7 @@ use super::columns::{
 };
 
 pub(crate) fn constraints<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
+    lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let p32 = P::Scalar::from_noncanonical_u64(1 << 32);

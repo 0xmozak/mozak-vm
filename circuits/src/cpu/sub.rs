@@ -5,7 +5,7 @@ use starky::constraint_consumer::ConstraintConsumer;
 use super::columns::{DST_VALUE, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, S_SUB};
 
 pub(crate) fn constraints<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
+    lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let expected_value = lv.op1_value - lv.op2_value;

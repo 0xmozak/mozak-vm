@@ -32,8 +32,8 @@ pub const OPCODES: [usize; concat_arrays_size!(STRAIGHTLINE_OPCODES, JUMPING_OPC
     concat_arrays!(STRAIGHTLINE_OPCODES, JUMPING_OPCODES);
 
 fn pc_ticks_up<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
-    nv: &[P; NUM_CPU_COLS],
+    lv: &CpuColumnsView<P>,
+    nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let is_straightline_op: P = STRAIGHTLINE_OPCODES
@@ -50,7 +50,7 @@ fn pc_ticks_up<P: PackedField>(
 /// Ie exactly one of them should be by 1, all others by 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
 fn opcode_one_hot<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
+    lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let op_selectors: Vec<_> = OPCODES.iter().map(|&op_code| lv[op_code]).collect();
@@ -67,23 +67,23 @@ fn opcode_one_hot<P: PackedField>(
 
 /// Ensure clock is ticking up
 fn clock_ticks<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
-    nv: &[P; NUM_CPU_COLS],
+    lv: &CpuColumnsView<P>,
+    nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint_transition(nv[CLK] - (lv[CLK] + P::ONES));
 }
 
 /// Register 0 is always 0
-fn r0_always_0<P: PackedField>(lv: &[P; NUM_CPU_COLS], yield_constr: &mut ConstraintConsumer<P>) {
+fn r0_always_0<P: PackedField>(lv: &CpuColumnsView<P>, yield_constr: &mut ConstraintConsumer<P>) {
     yield_constr.constraint(lv[REGS[0]]);
 }
 
 /// Register used as destination register can have different value, all
 /// other regs have same value as of previous row.
 fn only_rd_changes<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
-    nv: &[P; NUM_CPU_COLS],
+    lv: &CpuColumnsView<P>,
+    nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // Note: register 0 is already always 0.
@@ -96,8 +96,8 @@ fn only_rd_changes<P: PackedField>(
 }
 
 fn rd_actually_changes<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
-    nv: &[P; NUM_CPU_COLS],
+    lv: &CpuColumnsView<P>,
+    nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // Note: we skip 0 here, because it's already forced to 0 permanently by
@@ -108,7 +108,7 @@ fn rd_actually_changes<P: PackedField>(
 }
 
 fn populate_op1_value<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
+    lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(
@@ -122,7 +122,7 @@ fn populate_op1_value<P: PackedField>(
 }
 
 fn populate_op2_value<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
+    lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(
