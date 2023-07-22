@@ -44,7 +44,7 @@ pub(crate) fn constraints<P: PackedField>(
 
     // Now, let's copy our results to the destination register:
 
-    let destination = lv[DST_VALUE];
+    let destination = lv.dst_value;
     yield_constr.constraint((is_mul + is_sll) * (destination - low_limb));
     yield_constr.constraint(is_mulhu * (destination - high_limb));
 

@@ -11,7 +11,7 @@ pub(crate) fn constraints<P: PackedField>(
     let expected_value = lv[OP1_VALUE] - lv[OP2_VALUE];
     let wrapped = P::Scalar::from_noncanonical_u64(1 << 32) + expected_value;
     yield_constr
-        .constraint(lv[S_SUB] * ((lv[DST_VALUE] - expected_value) * (lv[DST_VALUE] - wrapped)));
+        .constraint(lv[S_SUB] * ((lv.dst_value - expected_value) * (lv.dst_value - wrapped)));
 }
 
 #[cfg(test)]

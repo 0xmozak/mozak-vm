@@ -103,7 +103,7 @@ fn rd_actually_changes<P: PackedField>(
     // Note: we skip 0 here, because it's already forced to 0 permanently by
     // `r0_always_0`
     (1..32).for_each(|reg| {
-        yield_constr.constraint_transition((lv[RD_SELECT[reg]]) * (lv[DST_VALUE] - nv[REGS[reg]]));
+        yield_constr.constraint_transition((lv[RD_SELECT[reg]]) * (lv.dst_value - nv[REGS[reg]]));
     });
 }
 

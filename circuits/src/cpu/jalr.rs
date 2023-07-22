@@ -15,7 +15,7 @@ pub(crate) fn constraints<P: PackedField>(
     let return_address = lv[PC] + P::Scalar::from_noncanonical_u64(4);
     let wrapped_return_address = return_address - wrap_at;
 
-    let destination = lv[DST_VALUE];
+    let destination = lv.dst_value;
     // enable-if JALR: aux.dst_val == jmp-inst-pc + 4, wrapped
     yield_constr.constraint(
         is_jalr * (destination - return_address) * (destination - wrapped_return_address),

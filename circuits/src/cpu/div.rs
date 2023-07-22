@@ -21,7 +21,7 @@ pub(crate) fn constraints<P: PackedField>(
     let is_divu = lv[S_DIVU];
     let is_remu = lv[S_REMU];
     let is_srl = lv[S_SRL];
-    let dst = lv[DST_VALUE];
+    let dst = lv.dst_value;
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
     // > For both signed and unsigned division, it holds that dividend = divisor ×

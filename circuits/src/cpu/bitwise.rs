@@ -78,7 +78,7 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     let op1 = lv.op1_value;
     let op2 = lv.op2_value + lv.imm_value;
-    let dst = lv[DST_VALUE];
+    let dst = lv.dst_value;
 
     for (selector, gadget) in [
         (lv[S_AND], and_gadget(lv)),

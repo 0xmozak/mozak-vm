@@ -50,7 +50,7 @@ pub(crate) fn constraints<P: PackedField>(
     let diff = op1 - op2;
     let diff_inv = lv[CMP_DIFF_INV];
     yield_constr.constraint(lt * (P::ONES - diff * diff_inv));
-    yield_constr.constraint(is_cmp * (lt - lv[DST_VALUE]));
+    yield_constr.constraint(is_cmp * (lt - lv.dst_value));
 }
 
 #[cfg(test)]
