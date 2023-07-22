@@ -5,22 +5,10 @@ use lazy_static::lazy_static;
 use plonky2::field::types::Field;
 
 use crate::utils::{
-    boilerplate_implementations, indices_arr, transmute_without_compile_time_size_checks,
-    NumberOfColumns,
+    boilerplate_implementations, indices_arr, make_col_map,
+    transmute_without_compile_time_size_checks, NumberOfColumns,
 };
 
-// TODO: re-use this logic for CPU col map.
-lazy_static! {
-    pub(crate) static ref COL_MAP: BitwiseColumnsView<usize> = {
-        const COLUMNS: usize = BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS;
-        let indices_arr = indices_arr::<COLUMNS>();
-        unsafe { transmute::<[usize; COLUMNS], BitwiseColumnsView<usize>>(indices_arr) }
-    };
-}
-
-pub const NUM_BITWISE_COL: usize = BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS;
-
-boilerplate_implementations!(BitwiseColumnsView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct BitwiseColumnsView<T: Copy> {
@@ -46,8 +34,9 @@ pub(crate) struct BitwiseColumnsView<T: Copy> {
     pub(crate) fix_compress: T,
     pub(crate) fix_compress_permuted: [T; 4],
 }
+boilerplate_implementations!(BitwiseColumnsView);
+make_col_map!(BitwiseColumnsView);
 
-boilerplate_implementations!(BitwiseExecutionColumnsView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct BitwiseExecutionColumnsView<T: Copy> {
@@ -59,6 +48,7 @@ pub(crate) struct BitwiseExecutionColumnsView<T: Copy> {
     pub(crate) op2_limbs: [T; 4],
     pub(crate) res_limbs: [T; 4],
 }
+boilerplate_implementations!(BitwiseExecutionColumnsView);
 
 pub(crate) const RANGE_U8: RangeInclusive<u8> = u8::MIN..=u8::MAX; // 256 different values
 pub(crate) const BITWISE_U8_SIZE: usize = 1 << 16; // 256 * 256 different possible combinations

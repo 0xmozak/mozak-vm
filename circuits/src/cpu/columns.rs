@@ -6,8 +6,8 @@ use plonky2::field::types::Field;
 
 use crate::cross_table_lookup::Column;
 use crate::utils::{
-    boilerplate_implementations, indices_arr, transmute_without_compile_time_size_checks,
-    NumberOfColumns,
+    boilerplate_implementations, indices_arr, make_col_map,
+    transmute_without_compile_time_size_checks, NumberOfColumns,
 };
 
 #[repr(C)]
@@ -89,14 +89,7 @@ pub(crate) struct CpuColumnsView<T: Copy> {
     pub branch_diff_inv: T,
 }
 
-lazy_static! {
-    // TODO: abstract out the boilerplate and deduplicate with bitwise.
-    pub(crate) static ref COL_MAP: CpuColumnsView<usize> = {
-        const COLUMNS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
-        let indices_arr = indices_arr::<COLUMNS>();
-        unsafe { transmute::<[usize; COLUMNS], CpuColumnsView<usize>>(indices_arr) }
-    };
-}
+make_col_map!(CpuColumnsView);
 
 pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
 

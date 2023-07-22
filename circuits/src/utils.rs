@@ -124,3 +124,16 @@ macro_rules! boilerplate_implementations {
     };
 }
 pub(crate) use boilerplate_implementations;
+
+macro_rules! make_col_map {
+    ($s: ident) => {
+        lazy_static! {
+            pub(crate) static ref COL_MAP: $s<usize> = {
+                const COLUMNS: usize = $s::<()>::NUMBER_OF_COLUMNS;
+                let indices_arr = indices_arr::<COLUMNS>();
+                unsafe { transmute::<[usize; COLUMNS], $s<usize>>(indices_arr) }
+            };
+        }
+    };
+}
+pub(crate) use make_col_map;

@@ -4,10 +4,12 @@ use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::bitwise::columns as cols;
-use crate::bitwise::columns::COL_MAP;
+use crate::bitwise::columns::{BitwiseColumnsView, COL_MAP};
 use crate::cpu::columns::{self as cpu_cols};
 use crate::lookup::permute_cols;
-use crate::utils::from_u32;
+use crate::utils::{from_u32, NumberOfColumns};
+
+const NUM_BITWISE_COL: usize = BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
 fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<usize> {
@@ -32,12 +34,12 @@ fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<usize> {
 pub fn generate_bitwise_trace<F: RichField>(
     step_rows: &[Row],
     cpu_trace: &[Vec<F>; cpu_cols::NUM_CPU_COLS],
-) -> [Vec<F>; cols::NUM_BITWISE_COL] {
+) -> [Vec<F>; NUM_BITWISE_COL] {
     // TODO(Matthias): really use the new BitwiseColumnsView for generation, too.
     let filtered_step_rows = filter_bitwise_trace(step_rows);
     let trace_len = filtered_step_rows.len();
     let ext_trace_len = trace_len.max(cols::BITWISE_U8_SIZE).next_power_of_two();
-    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; cols::NUM_BITWISE_COL];
+    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; NUM_BITWISE_COL];
     for (i, clk) in filtered_step_rows.iter().enumerate() {
         let xor_a = cpu_trace[cpu_cols::COL_MAP.xor_a][*clk];
         let xor_b = cpu_trace[cpu_cols::COL_MAP.xor_b][*clk];
@@ -139,7 +141,7 @@ pub fn generate_bitwise_trace<F: RichField>(
     let trace_row_vecs = trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
             "Expected a Vec of length {} but it was {}",
-            cols::NUM_BITWISE_COL,
+            NUM_BITWISE_COL,
             v.len()
         )
     });
