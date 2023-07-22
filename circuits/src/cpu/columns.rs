@@ -1,9 +1,9 @@
-use itertools::Itertools;
 use std::mem::transmute;
+
+use itertools::Itertools;
 use plonky2::field::types::Field;
 
 use crate::cross_table_lookup::Column;
-
 use crate::utils::{
     boilerplate_implementations, indices_arr, transmute_without_compile_time_size_checks,
     NumberOfColumns,
@@ -39,11 +39,11 @@ boilerplate_implementations!(CpuColumnsView);
 pub(crate) struct CpuColumnsView<T: Copy> {
     pub clk: T,
     pub pc: T,
-    
+
     pub rs1_select: [T; 32],
     pub rs2_select: [T; 32],
     pub rd_select: [T; 32],
-    
+
     pub op1_value: T,
     pub op2_value: T,
     pub imm_value: T,
@@ -62,28 +62,28 @@ pub(crate) struct CpuColumnsView<T: Copy> {
     pub cmp_diff_inv: T,
     pub less_than: T,
     pub branch_equal: T,
-    
+
     pub xor_a: T,
     pub xor_b: T,
     pub xor_out: T,
-    
+
     // TODO: for shift operations, we need to hook up POWERS_OF_2_IN and
     // POWERS_OF_2_OUT to a cross-table lookup for input values 0..32.
     pub powers_of_2_in: T,
     pub powers_of_2_out: T,
-    
+
     pub quotient: T,
     pub remainder: T,
     pub remainder_slack: T,
-    pub divisor_inv: T,    
+    pub divisor_inv: T,
     pub divisor: T,
-    
+
     // TODO: PRODUCT_LOW_BITS and PRODUCT_HIGH_BITS need range checking.
     pub multiplier: T,
     pub product_low_bits: T,
     pub product_high_bits: T,
     pub product_high_diff_inv: T,
-    
+
     // TODO: In future we may want to merge BRANCH_DIFF_INV and CMP_DIFF_INV
     pub branch_diff_inv: T,
 }

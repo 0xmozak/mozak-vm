@@ -66,68 +66,70 @@ macro_rules! boilerplate_implementations {
     ($s: ident) => {
         impl<T: Copy> crate::utils::NumberOfColumns for $s<T> {
             // `u8` is guaranteed to have a `size_of` of 1.
-            const NUMBER_OF_COLUMNS: usize = size_of::<$s<u8>>();
+            const NUMBER_OF_COLUMNS: usize = std::mem::size_of::<$s<u8>>();
         }
 
         impl<F: Field> Default for $s<F> {
-            fn default() -> Self { Self::from([F::ZERO; size_of::<$s<u8>>()]) }
+            fn default() -> Self { Self::from([F::ZERO; std::mem::size_of::<$s<u8>>()]) }
         }
 
-        impl<T: Copy> From<[T; size_of::<$s<u8>>()]> for $s<T> {
-            fn from(value: [T; size_of::<$s<u8>>()]) -> Self {
+        impl<T: Copy> From<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
+            fn from(value: [T; std::mem::size_of::<$s<u8>>()]) -> Self {
                 unsafe { transmute_without_compile_time_size_checks(value) }
             }
         }
 
-        impl<T: Copy> From<$s<T>> for [T; size_of::<$s<u8>>()] {
+        impl<T: Copy> From<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
             fn from(value: $s<T>) -> Self {
                 unsafe { transmute_without_compile_time_size_checks(value) }
             }
         }
 
-        impl<T: Copy> Borrow<$s<T>> for [T; size_of::<$s<u8>>()] {
+        impl<T: Copy> std::borrow::Borrow<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
             fn borrow(&self) -> &$s<T> {
-                unsafe { &*(self as *const [T; size_of::<$s<u8>>()]).cast::<$s<T>>() }
+                unsafe { &*(self as *const [T; std::mem::size_of::<$s<u8>>()]).cast::<$s<T>>() }
             }
         }
 
-        impl<T: Copy> BorrowMut<$s<T>> for [T; size_of::<$s<u8>>()] {
+        impl<T: Copy> std::borrow::BorrowMut<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
             fn borrow_mut(&mut self) -> &mut $s<T> {
-                unsafe { &mut *(self as *mut [T; size_of::<$s<u8>>()]).cast::<$s<T>>() }
+                unsafe { &mut *(self as *mut [T; std::mem::size_of::<$s<u8>>()]).cast::<$s<T>>() }
             }
         }
 
-        impl<T: Copy> Borrow<[T; size_of::<$s<u8>>()]> for $s<T> {
-            fn borrow(&self) -> &[T; size_of::<$s<u8>>()] {
-                unsafe { &*(self as *const $s<T>).cast::<[T; size_of::<$s<u8>>()]>() }
+        impl<T: Copy> std::borrow::Borrow<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
+            fn borrow(&self) -> &[T; std::mem::size_of::<$s<u8>>()] {
+                unsafe { &*(self as *const $s<T>).cast::<[T; std::mem::size_of::<$s<u8>>()]>() }
             }
         }
 
-        impl<T: Copy> BorrowMut<[T; size_of::<$s<u8>>()]> for $s<T> {
-            fn borrow_mut(&mut self) -> &mut [T; size_of::<$s<u8>>()] {
-                unsafe { &mut *(self as *mut $s<T>).cast::<[T; size_of::<$s<u8>>()]>() }
+        impl<T: Copy> std::borrow::BorrowMut<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
+            fn borrow_mut(&mut self) -> &mut [T; std::mem::size_of::<$s<u8>>()] {
+                unsafe { &mut *(self as *mut $s<T>).cast::<[T; std::mem::size_of::<$s<u8>>()]>() }
             }
         }
 
-        impl<T: Copy, I> Index<I> for $s<T>
+        impl<T: Copy, I> std::ops::Index<I> for $s<T>
         where
-            [T]: Index<I>,
+            [T]: std::ops::Index<I>,
         {
-            type Output = <[T] as Index<I>>::Output;
+            type Output = <[T] as std::ops::Index<I>>::Output;
 
             fn index(&self, index: I) -> &Self::Output {
-                let arr: &[T; size_of::<$s<u8>>()] = self.borrow();
-                <[T] as Index<I>>::index(arr, index)
+                use std::borrow::Borrow;
+                let arr: &[T; std::mem::size_of::<$s<u8>>()] = self.borrow();
+                <[T] as std::ops::Index<I>>::index(arr, index)
             }
         }
 
-        impl<T: Copy, I> IndexMut<I> for $s<T>
+        impl<T: Copy, I> std::ops::IndexMut<I> for $s<T>
         where
-            [T]: IndexMut<I>,
+            [T]: std::ops::IndexMut<I>,
         {
             fn index_mut(&mut self, index: I) -> &mut Self::Output {
-                let arr: &mut [T; size_of::<$s<u8>>()] = self.borrow_mut();
-                <[T] as IndexMut<I>>::index_mut(arr, index)
+                use std::borrow::BorrowMut;
+                let arr: &mut [T; std::mem::size_of::<$s<u8>>()] = self.borrow_mut();
+                <[T] as std::ops::IndexMut<I>>::index_mut(arr, index)
             }
         }
     };
