@@ -70,7 +70,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
     // For expanded trace from `trace_len` to `trace_len's power of two`,
     // we use last row `HALT` to pad them.
-    let trace = pad_trace(trace, Some(cpu_cols::COL_MAP.CLK));
+    let trace = pad_trace(trace, Some(cpu_cols::COL_MAP.clk));
 
     log::trace!("trace {:?}", trace);
     #[tarpaulin::skip]
@@ -92,8 +92,8 @@ fn generate_conditional_branch_row<F: RichField>(
     let op2: F = from_u32(state.get_register_value(inst.args.rs2));
     let diff = op1 - op2;
 
-    trace[cpu_cols::COL_MAP.BRANCH_EQUAL][row_idx] = F::from_noncanonical_u64(u64::from(diff == F::ZERO));
-    trace[cpu_cols::COL_MAP.BRANCH_DIFF_INV][row_idx] = diff.try_inverse().unwrap_or_default();
+    trace[cpu_cols::COL_MAP.branch_equal][row_idx] = F::from_noncanonical_u64(u64::from(diff == F::ZERO));
+    trace[cpu_cols::COL_MAP.branch_diff_inv][row_idx] = diff.try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -118,14 +118,14 @@ fn generate_mul_row<F: RichField>(
         op2
     };
 
-    trace[cpu_cols::COL_MAP.MULTIPLIER][row_idx] = from_u32(multiplier);
+    trace[cpu_cols::COL_MAP.multiplier][row_idx] = from_u32(multiplier);
     let (low, high) = op1.widening_mul(multiplier);
-    trace[cpu_cols::COL_MAP.PRODUCT_LOW_BITS][row_idx] = from_u32(low);
-    trace[cpu_cols::COL_MAP.PRODUCT_HIGH_BITS][row_idx] = from_u32(high);
+    trace[cpu_cols::COL_MAP.product_low_bits][row_idx] = from_u32(low);
+    trace[cpu_cols::COL_MAP.product_high_bits][row_idx] = from_u32(high);
 
     // Prove that the high limb is different from `u32::MAX`:
     let high_diff: F = from_u32(u32::MAX - high);
-    trace[cpu_cols::COL_MAP.PRODUCT_HIGH_DIFF_INV][row_idx] = high_diff.try_inverse().unwrap_or_default();
+    trace[cpu_cols::COL_MAP.product_high_diff_inv][row_idx] = high_diff.try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -147,18 +147,18 @@ fn generate_divu_row<F: RichField>(
         state.get_register_value(inst.args.rs2)
     };
 
-    trace[cpu_cols::COL_MAP.DIVISOR][row_idx] = from_u32(divisor);
+    trace[cpu_cols::COL_MAP.divisor][row_idx] = from_u32(divisor);
 
     if let 0 = divisor {
-        trace[cpu_cols::COL_MAP.QUOTIENT][row_idx] = from_u32(u32::MAX);
-        trace[cpu_cols::COL_MAP.REMAINDER][row_idx] = from_u32(dividend);
-        trace[cpu_cols::COL_MAP.REMAINDER_SLACK][row_idx] = from_u32(0_u32);
+        trace[cpu_cols::COL_MAP.quotient][row_idx] = from_u32(u32::MAX);
+        trace[cpu_cols::COL_MAP.remainder][row_idx] = from_u32(dividend);
+        trace[cpu_cols::COL_MAP.remainder_slack][row_idx] = from_u32(0_u32);
     } else {
-        trace[cpu_cols::COL_MAP.QUOTIENT][row_idx] = from_u32(dividend / divisor);
-        trace[cpu_cols::COL_MAP.REMAINDER][row_idx] = from_u32(dividend % divisor);
-        trace[cpu_cols::COL_MAP.REMAINDER_SLACK][row_idx] = from_u32(divisor - dividend % divisor - 1);
+        trace[cpu_cols::COL_MAP.quotient][row_idx] = from_u32(dividend / divisor);
+        trace[cpu_cols::COL_MAP.remainder][row_idx] = from_u32(dividend % divisor);
+        trace[cpu_cols::COL_MAP.remainder_slack][row_idx] = from_u32(divisor - dividend % divisor - 1);
     }
-    trace[cpu_cols::COL_MAP.DIVISOR_INV][row_idx] =
+    trace[cpu_cols::COL_MAP.divisor_inv][row_idx] =
         from_u32::<F>(divisor).try_inverse().unwrap_or_default();
 }
 
@@ -177,8 +177,8 @@ fn generate_slt_row<F: RichField>(
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
     let sign1: u32 = (is_signed && (op1 as i32) < 0).into();
     let sign2: u32 = (is_signed && (op2 as i32) < 0).into();
-    trace[cpu_cols::COL_MAP.OP1_SIGN][row_idx] = from_u32(sign1);
-    trace[cpu_cols::COL_MAP.OP2_SIGN][row_idx] = from_u32(sign2);
+    trace[cpu_cols::COL_MAP.op1_sign][row_idx] = from_u32(sign1);
+    trace[cpu_cols::COL_MAP.op2_sign][row_idx] = from_u32(sign2);
 
     let sign_adjust = if is_signed { 1 << 31 } else { 0 };
     let op1_fixed = op1.wrapping_add(sign_adjust);
