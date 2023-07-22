@@ -43,8 +43,8 @@ pub(crate) fn constraints<P: PackedField>(
     // The equation from the spec becomes:
     //  p = q * m + r
     // (Interestingly, this holds even when q == 0.)
-    let m = lv[QUOTIENT];
-    let r = lv[REMAINDER];
+    let m = lv.ops.quotient;
+    let r = lv.ops.remainder;
     yield_constr.constraint(m * q + r - p);
 
     // However, that constraint is not enough.
