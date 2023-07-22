@@ -15,7 +15,10 @@ const fn make_col_map() -> BitwiseColumnsView<usize> {
 }
 
 boilerplate_implementations!(BitwiseColumnsView, NUM_BITWISE_COL);
-pub(crate) const COL_MAP: BitwiseColumnsView<usize> = make_col_map();
+pub(crate) const COL_MAP: BitwiseColumnsView<usize> = {
+    let indices_arr = indices_arr::<{ BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS }>();
+    unsafe { transmute::<[usize; NUM_BITWISE_COL], BitwiseColumnsView<usize>>(indices_arr) }
+};
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct BitwiseColumnsView<T: Copy> {
