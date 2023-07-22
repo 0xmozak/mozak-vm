@@ -38,8 +38,8 @@ pub(crate) fn constraints<P: PackedField>(
         let op2 = lv.ops.op2_value + lv.imm_value;
         yield_constr.constraint(is_sll * (and_gadget.input_b - op2));
 
-        yield_constr.constraint(is_sll * (and_gadget.output - lv[POWERS_OF_2_IN]));
-        yield_constr.constraint(is_sll * (multiplier - lv[POWERS_OF_2_OUT]));
+        yield_constr.constraint(is_sll * (and_gadget.output - lv.ops.powers_of_2_in));
+        yield_constr.constraint(is_sll * (multiplier - lv.ops.powers_of_2_out));
     }
 
     // Now, let's copy our results to the destination register:
