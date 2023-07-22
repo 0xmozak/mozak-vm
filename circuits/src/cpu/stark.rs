@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::borrow::Borrow;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -8,6 +9,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
+use crate::utils::NumberOfColumns;
 
 use super::columns::{CpuColumnsView, OpSelectorView};
 use super::{add, beq, bitwise, div, jalr, mul, slt, sub};
@@ -54,7 +56,7 @@ fn opcode_one_hot<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let op_selectors: Vec<_> = OPCODES.iter().map(|&op_code| lv[op_code]).collect();
+    let op_selectors: Vec<_> = lv.ops.opcodes();
 
     // Op selectors have value 0 or 1.
     op_selectors
@@ -72,12 +74,12 @@ fn clock_ticks<P: PackedField>(
     nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    yield_constr.constraint_transition(nv[CLK] - (lv[CLK] + P::ONES));
+    yield_constr.constraint_transition(nv.clk - (lv.clk + P::ONES));
 }
 
 /// Register 0 is always 0
 fn r0_always_0<P: PackedField>(lv: &CpuColumnsView<P>, yield_constr: &mut ConstraintConsumer<P>) {
-    yield_constr.constraint(lv[REGS[0]]);
+    yield_constr.constraint(lv.regs[0]);
 }
 
 /// Register used as destination register can have different value, all
@@ -91,7 +93,7 @@ fn only_rd_changes<P: PackedField>(
     // But we keep the constraints simple here.
     (0..32).for_each(|reg| {
         yield_constr.constraint_transition(
-            (P::ONES - lv[RD_SELECT[reg]]) * (lv[REGS[reg]] - nv[REGS[reg]]),
+            (P::ONES - lv.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]),
         );
     });
 }
@@ -104,7 +106,7 @@ fn rd_actually_changes<P: PackedField>(
     // Note: we skip 0 here, because it's already forced to 0 permanently by
     // `r0_always_0`
     (1..32).for_each(|reg| {
-        yield_constr.constraint_transition((lv[RD_SELECT[reg]]) * (lv.dst_value - nv[REGS[reg]]));
+        yield_constr.constraint_transition((lv.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
     });
 }
 
@@ -117,7 +119,7 @@ fn populate_op1_value<P: PackedField>(
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
-                .map(|reg| lv[RS1_SELECT[reg]] * lv[REGS[reg]])
+                .map(|reg| lv.rs1_select[reg] * lv.regs[reg])
                 .sum::<P>(),
     );
 }
@@ -131,13 +133,13 @@ fn populate_op2_value<P: PackedField>(
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
-                .map(|reg| lv[RS2_SELECT[reg]] * lv[REGS[reg]])
+                .map(|reg| lv.rs2_select[reg] * lv.regs[reg])
                 .sum::<P>(),
     );
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
-    const COLUMNS: usize = NUM_CPU_COLS;
+    const COLUMNS: usize = CpuColumnsView::<F>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
 
     fn eval_packed_generic<FE, P, const D2: usize>(
@@ -147,8 +149,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv = vars.local_values;
-        let nv = vars.next_values;
+        let lv = vars.local_values.borrow();
+        let nv = vars.next_values.borrow();
+        // let lv: &BitwiseColumnsView<_> = vars.local_values.borrow();
 
         opcode_one_hot(lv, yield_constr);
 
@@ -173,7 +176,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         jalr::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT
-        yield_constr.constraint_last_row(lv[S_HALT] - P::ONES);
+        yield_constr.constraint_last_row(lv.ops.halt - P::ONES);
     }
 
     fn constraint_degree(&self) -> usize { 3 }

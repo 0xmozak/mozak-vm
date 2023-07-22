@@ -11,30 +11,30 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; step_rows.len()]; cpu_cols::NUM_CPU_COLS];
 
     for (i, Row { state, aux }) in step_rows.iter().enumerate() {
-        trace[cpu_cols::CLK][i] = F::from_noncanonical_u64(state.clk);
-        trace[cpu_cols::PC][i] = from_u32(state.get_pc());
+        trace[cpu_cols::COL_MAP.clk][i] = F::from_noncanonical_u64(state.clk);
+        trace[cpu_cols::COL_MAP.pc][i] = from_u32(state.get_pc());
 
         let inst = state.current_instruction();
 
-        trace[cpu_cols::RS1_SELECT[inst.args.rs1 as usize]][i] = F::ONE;
-        trace[cpu_cols::RS2_SELECT[inst.args.rs2 as usize]][i] = F::ONE;
-        trace[cpu_cols::RD_SELECT[inst.args.rd as usize]][i] = F::ONE;
-        trace[cpu_cols::OP1_VALUE][i] = from_u32(state.get_register_value(inst.args.rs1));
-        trace[cpu_cols::OP2_VALUE][i] = from_u32(state.get_register_value(inst.args.rs2));
+        trace[cpu_cols::COL_MAP.rs1_select[inst.args.rs1 as usize]][i] = F::ONE;
+        trace[cpu_cols::COL_MAP.rs2_select[inst.args.rs2 as usize]][i] = F::ONE;
+        trace[cpu_cols::COL_MAP.rd_select[inst.args.rd as usize]][i] = F::ONE;
+        trace[cpu_cols::COL_MAP.op1_value][i] = from_u32(state.get_register_value(inst.args.rs1));
+        trace[cpu_cols::COL_MAP.op2_value][i] = from_u32(state.get_register_value(inst.args.rs2));
         // NOTE: Updated value of DST register is next step.
-        trace[cpu_cols::DST_VALUE][i] = from_u32(aux.dst_val);
-        trace[cpu_cols::IMM_VALUE][i] = from_u32(inst.args.imm);
-        trace[cpu_cols::S_HALT][i] = from_u32(u32::from(aux.will_halt));
+        trace[cpu_cols::COL_MAP.dst_value][i] = from_u32(aux.dst_val);
+        trace[cpu_cols::COL_MAP.imm_value][i] = from_u32(inst.args.imm);
+        trace[cpu_cols::COL_MAP.ops.halt][i] = from_u32(u32::from(aux.will_halt));
         for j in 0..32 {
-            trace[cpu_cols::START_REG + j as usize][i] = from_u32(state.get_register_value(j));
+            trace[cpu_cols::COL_MAP.regs[j as usize]][i] = from_u32(state.get_register_value(j));
         }
 
         // Valid defaults for the powers-of-two gadget.
         // To be overridden by users of the gadget.
         // TODO(Matthias): find a way to make either compiler or runtime complain
         // if we have two (conflicting) users in the same row.
-        trace[cpu_cols::POWERS_OF_2_IN][i] = F::ZERO;
-        trace[cpu_cols::POWERS_OF_2_OUT][i] = F::ONE;
+        trace[cpu_cols::COL_MAP.POWERS_OF_2_IN][i] = F::ZERO;
+        trace[cpu_cols::COL_MAP.POWERS_OF_2_OUT][i] = F::ONE;
 
         generate_mul_row(&mut trace, &inst, state, i);
         generate_divu_row(&mut trace, &inst, state, i);
@@ -44,25 +44,25 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
         match inst.op {
             Op::ADD => {
-                trace[cpu_cols::S_RC][i] = F::ONE;
-                trace[cpu_cols::S_ADD][i] = F::ONE;
+                trace[cpu_cols::COL_MAP.S_RC][i] = F::ONE;
+                trace[cpu_cols::COL_MAP.S_ADD][i] = F::ONE;
             }
-            Op::SLL => trace[cpu_cols::S_SLL][i] = F::ONE,
-            Op::SLT => trace[cpu_cols::S_SLT][i] = F::ONE,
-            Op::SLTU => trace[cpu_cols::S_SLTU][i] = F::ONE,
-            Op::SRL => trace[cpu_cols::S_SRL][i] = F::ONE,
-            Op::SUB => trace[cpu_cols::S_SUB][i] = F::ONE,
-            Op::DIVU => trace[cpu_cols::S_DIVU][i] = F::ONE,
-            Op::REMU => trace[cpu_cols::S_REMU][i] = F::ONE,
-            Op::MUL => trace[cpu_cols::S_MUL][i] = F::ONE,
-            Op::MULHU => trace[cpu_cols::S_MULHU][i] = F::ONE,
-            Op::JALR => trace[cpu_cols::S_JALR][i] = F::ONE,
-            Op::BEQ => trace[cpu_cols::S_BEQ][i] = F::ONE,
-            Op::BNE => trace[cpu_cols::S_BNE][i] = F::ONE,
-            Op::ECALL => trace[cpu_cols::S_ECALL][i] = F::ONE,
-            Op::XOR => trace[cpu_cols::S_XOR][i] = F::ONE,
-            Op::OR => trace[cpu_cols::S_OR][i] = F::ONE,
-            Op::AND => trace[cpu_cols::S_AND][i] = F::ONE,
+            Op::SLL => trace[cpu_cols::COL_MAP.S_SLL][i] = F::ONE,
+            Op::SLT => trace[cpu_cols::COL_MAP.S_SLT][i] = F::ONE,
+            Op::SLTU => trace[cpu_cols::COL_MAP.S_SLTU][i] = F::ONE,
+            Op::SRL => trace[cpu_cols::COL_MAP.S_SRL][i] = F::ONE,
+            Op::SUB => trace[cpu_cols::COL_MAP.S_SUB][i] = F::ONE,
+            Op::DIVU => trace[cpu_cols::COL_MAP.S_DIVU][i] = F::ONE,
+            Op::REMU => trace[cpu_cols::COL_MAP.S_REMU][i] = F::ONE,
+            Op::MUL => trace[cpu_cols::COL_MAP.S_MUL][i] = F::ONE,
+            Op::MULHU => trace[cpu_cols::COL_MAP.S_MULHU][i] = F::ONE,
+            Op::JALR => trace[cpu_cols::COL_MAP.S_JALR][i] = F::ONE,
+            Op::BEQ => trace[cpu_cols::COL_MAP.S_BEQ][i] = F::ONE,
+            Op::BNE => trace[cpu_cols::COL_MAP.S_BNE][i] = F::ONE,
+            Op::ECALL => trace[cpu_cols::COL_MAP.S_ECALL][i] = F::ONE,
+            Op::XOR => trace[cpu_cols::COL_MAP.S_XOR][i] = F::ONE,
+            Op::OR => trace[cpu_cols::COL_MAP.S_OR][i] = F::ONE,
+            Op::AND => trace[cpu_cols::COL_MAP.S_AND][i] = F::ONE,
             #[tarpaulin::skip]
             _ => {}
         }
@@ -70,7 +70,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
     // For expanded trace from `trace_len` to `trace_len's power of two`,
     // we use last row `HALT` to pad them.
-    let trace = pad_trace(trace, Some(cpu_cols::CLK));
+    let trace = pad_trace(trace, Some(cpu_cols::COL_MAP.CLK));
 
     log::trace!("trace {:?}", trace);
     #[tarpaulin::skip]
@@ -92,8 +92,8 @@ fn generate_conditional_branch_row<F: RichField>(
     let op2: F = from_u32(state.get_register_value(inst.args.rs2));
     let diff = op1 - op2;
 
-    trace[cpu_cols::BRANCH_EQUAL][row_idx] = F::from_noncanonical_u64(u64::from(diff == F::ZERO));
-    trace[cpu_cols::BRANCH_DIFF_INV][row_idx] = diff.try_inverse().unwrap_or_default();
+    trace[cpu_cols::COL_MAP.BRANCH_EQUAL][row_idx] = F::from_noncanonical_u64(u64::from(diff == F::ZERO));
+    trace[cpu_cols::COL_MAP.BRANCH_DIFF_INV][row_idx] = diff.try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -111,21 +111,21 @@ fn generate_mul_row<F: RichField>(
     let multiplier = if let Op::SLL = inst.op {
         let shift_amount = (state.get_register_value(inst.args.rs2) + inst.args.imm) & 0x1F;
         let shift_power = 1_u32 << shift_amount;
-        trace[cpu_cols::POWERS_OF_2_IN][row_idx] = from_u32(shift_amount);
-        trace[cpu_cols::POWERS_OF_2_OUT][row_idx] = from_u32(shift_power);
+        trace[cpu_cols::COL_MAP.POWERS_OF_2_IN][row_idx] = from_u32(shift_amount);
+        trace[cpu_cols::COL_MAP.POWERS_OF_2_OUT][row_idx] = from_u32(shift_power);
         shift_power
     } else {
         op2
     };
 
-    trace[cpu_cols::MULTIPLIER][row_idx] = from_u32(multiplier);
+    trace[cpu_cols::COL_MAP.MULTIPLIER][row_idx] = from_u32(multiplier);
     let (low, high) = op1.widening_mul(multiplier);
-    trace[cpu_cols::PRODUCT_LOW_BITS][row_idx] = from_u32(low);
-    trace[cpu_cols::PRODUCT_HIGH_BITS][row_idx] = from_u32(high);
+    trace[cpu_cols::COL_MAP.PRODUCT_LOW_BITS][row_idx] = from_u32(low);
+    trace[cpu_cols::COL_MAP.PRODUCT_HIGH_BITS][row_idx] = from_u32(high);
 
     // Prove that the high limb is different from `u32::MAX`:
     let high_diff: F = from_u32(u32::MAX - high);
-    trace[cpu_cols::PRODUCT_HIGH_DIFF_INV][row_idx] = high_diff.try_inverse().unwrap_or_default();
+    trace[cpu_cols::COL_MAP.PRODUCT_HIGH_DIFF_INV][row_idx] = high_diff.try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -140,25 +140,25 @@ fn generate_divu_row<F: RichField>(
     let divisor = if let Op::SRL = inst.op {
         let shift_amount = (state.get_register_value(inst.args.rs2) + inst.args.imm) & 0x1F;
         let shift_power = 1_u32 << shift_amount;
-        trace[cpu_cols::POWERS_OF_2_IN][row_idx] = from_u32(shift_amount);
-        trace[cpu_cols::POWERS_OF_2_OUT][row_idx] = from_u32(shift_power);
+        trace[cpu_cols::COL_MAP.POWERS_OF_2_IN][row_idx] = from_u32(shift_amount);
+        trace[cpu_cols::COL_MAP.POWERS_OF_2_OUT][row_idx] = from_u32(shift_power);
         shift_power
     } else {
         state.get_register_value(inst.args.rs2)
     };
 
-    trace[cpu_cols::DIVISOR][row_idx] = from_u32(divisor);
+    trace[cpu_cols::COL_MAP.DIVISOR][row_idx] = from_u32(divisor);
 
     if let 0 = divisor {
-        trace[cpu_cols::QUOTIENT][row_idx] = from_u32(u32::MAX);
-        trace[cpu_cols::REMAINDER][row_idx] = from_u32(dividend);
-        trace[cpu_cols::REMAINDER_SLACK][row_idx] = from_u32(0_u32);
+        trace[cpu_cols::COL_MAP.QUOTIENT][row_idx] = from_u32(u32::MAX);
+        trace[cpu_cols::COL_MAP.REMAINDER][row_idx] = from_u32(dividend);
+        trace[cpu_cols::COL_MAP.REMAINDER_SLACK][row_idx] = from_u32(0_u32);
     } else {
-        trace[cpu_cols::QUOTIENT][row_idx] = from_u32(dividend / divisor);
-        trace[cpu_cols::REMAINDER][row_idx] = from_u32(dividend % divisor);
-        trace[cpu_cols::REMAINDER_SLACK][row_idx] = from_u32(divisor - dividend % divisor - 1);
+        trace[cpu_cols::COL_MAP.QUOTIENT][row_idx] = from_u32(dividend / divisor);
+        trace[cpu_cols::COL_MAP.REMAINDER][row_idx] = from_u32(dividend % divisor);
+        trace[cpu_cols::COL_MAP.REMAINDER_SLACK][row_idx] = from_u32(divisor - dividend % divisor - 1);
     }
-    trace[cpu_cols::DIVISOR_INV][row_idx] =
+    trace[cpu_cols::COL_MAP.DIVISOR_INV][row_idx] =
         from_u32::<F>(divisor).try_inverse().unwrap_or_default();
 }
 
@@ -177,15 +177,15 @@ fn generate_slt_row<F: RichField>(
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
     let sign1: u32 = (is_signed && (op1 as i32) < 0).into();
     let sign2: u32 = (is_signed && (op2 as i32) < 0).into();
-    trace[cpu_cols::OP1_SIGN][row_idx] = from_u32(sign1);
-    trace[cpu_cols::OP2_SIGN][row_idx] = from_u32(sign2);
+    trace[cpu_cols::COL_MAP.OP1_SIGN][row_idx] = from_u32(sign1);
+    trace[cpu_cols::COL_MAP.OP2_SIGN][row_idx] = from_u32(sign2);
 
     let sign_adjust = if is_signed { 1 << 31 } else { 0 };
     let op1_fixed = op1.wrapping_add(sign_adjust);
     let op2_fixed = op2.wrapping_add(sign_adjust);
-    trace[cpu_cols::OP1_VAL_FIXED][row_idx] = from_u32(op1_fixed);
-    trace[cpu_cols::OP2_VAL_FIXED][row_idx] = from_u32(op2_fixed);
-    trace[cpu_cols::LESS_THAN][row_idx] = from_u32(u32::from(op1_fixed < op2_fixed));
+    trace[cpu_cols::COL_MAP.OP1_VAL_FIXED][row_idx] = from_u32(op1_fixed);
+    trace[cpu_cols::COL_MAP.OP2_VAL_FIXED][row_idx] = from_u32(op2_fixed);
+    trace[cpu_cols::COL_MAP.LESS_THAN][row_idx] = from_u32(u32::from(op1_fixed < op2_fixed));
 
     let abs_diff = if is_signed {
         (op1 as i32).abs_diff(op2 as i32)
@@ -208,14 +208,14 @@ fn generate_slt_row<F: RichField>(
     }
     let abs_diff_fixed: u32 = op1_fixed.abs_diff(op2_fixed);
     assert_eq!(abs_diff, abs_diff_fixed);
-    trace[cpu_cols::CMP_ABS_DIFF][row_idx] = from_u32(abs_diff_fixed);
+    trace[cpu_cols::COL_MAP.CMP_ABS_DIFF][row_idx] = from_u32(abs_diff_fixed);
 
     {
-        let diff = trace[cpu_cols::OP1_VALUE][row_idx]
-            - trace[cpu_cols::OP2_VALUE][row_idx]
-            - trace[cpu_cols::IMM_VALUE][row_idx];
+        let diff = trace[cpu_cols::COL_MAP.op1_value][row_idx]
+            - trace[cpu_cols::COL_MAP.op2_value][row_idx]
+            - trace[cpu_cols::COL_MAP.imm_value][row_idx];
         let diff_inv = diff.try_inverse().unwrap_or_default();
-        trace[cpu_cols::CMP_DIFF_INV][row_idx] = diff_inv;
+        trace[cpu_cols::COL_MAP.CMP_DIFF_INV][row_idx] = diff_inv;
         let one: F = diff * diff_inv;
         assert_eq!(one, if op1 == op2 { F::ZERO } else { F::ONE });
     }
@@ -235,7 +235,7 @@ fn generate_bitwise_row<F: RichField>(
     let op2 = state
         .get_register_value(inst.args.rs2)
         .wrapping_add(inst.args.imm);
-    trace[cpu_cols::XOR_A][i] = from_u32(op1);
-    trace[cpu_cols::XOR_B][i] = from_u32(op2);
-    trace[cpu_cols::XOR_OUT][i] = from_u32(op1 ^ op2);
+    trace[cpu_cols::COL_MAP.XOR_A][i] = from_u32(op1);
+    trace[cpu_cols::COL_MAP.XOR_B][i] = from_u32(op2);
+    trace[cpu_cols::COL_MAP.XOR_OUT][i] = from_u32(op1 ^ op2);
 }
