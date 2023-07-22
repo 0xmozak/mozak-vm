@@ -19,9 +19,9 @@ pub(crate) fn constraints<P: PackedField>(
     let base = P::Scalar::from_noncanonical_u64(1 << 32);
 
     let multiplicand = lv.op1_value;
-    let multiplier = lv[MULTIPLIER];
-    let low_limb = lv[PRODUCT_LOW_BITS];
-    let high_limb = lv[PRODUCT_HIGH_BITS];
+    let multiplier = lv.multiplier;
+    let low_limb = lv.product_low_bits;
+    let high_limb = lv.product_high_bits;
     let product = low_limb + base * high_limb;
 
     yield_constr.constraint((is_mul + is_mulhu + is_sll) * (product - multiplicand * multiplier));
@@ -59,9 +59,9 @@ pub(crate) fn constraints<P: PackedField>(
     //
     // That curtails the exploit without invalidating any honest proofs.
 
-    let diff = P::Scalar::from_noncanonical_u64(u32::MAX.into()) - lv[PRODUCT_HIGH_BITS];
+    let diff = P::Scalar::from_noncanonical_u64(u32::MAX.into()) - lv.product_high_bits;
     yield_constr
-        .constraint((is_mul + is_mulhu + is_sll) * (diff * lv[PRODUCT_HIGH_DIFF_INV] - P::ONES));
+        .constraint((is_mul + is_mulhu + is_sll) * (diff * lv.product_high_diff_inv - P::ONES));
 }
 
 #[cfg(test)]
