@@ -92,7 +92,8 @@ fn generate_conditional_branch_row<F: RichField>(
     let op2: F = from_u32(state.get_register_value(inst.args.rs2));
     let diff = op1 - op2;
 
-    trace[cpu_cols::COL_MAP.branch_equal][row_idx] = F::from_noncanonical_u64(u64::from(diff == F::ZERO));
+    trace[cpu_cols::COL_MAP.branch_equal][row_idx] =
+        F::from_noncanonical_u64(u64::from(diff == F::ZERO));
     trace[cpu_cols::COL_MAP.branch_diff_inv][row_idx] = diff.try_inverse().unwrap_or_default();
 }
 
@@ -125,7 +126,8 @@ fn generate_mul_row<F: RichField>(
 
     // Prove that the high limb is different from `u32::MAX`:
     let high_diff: F = from_u32(u32::MAX - high);
-    trace[cpu_cols::COL_MAP.product_high_diff_inv][row_idx] = high_diff.try_inverse().unwrap_or_default();
+    trace[cpu_cols::COL_MAP.product_high_diff_inv][row_idx] =
+        high_diff.try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -156,7 +158,8 @@ fn generate_divu_row<F: RichField>(
     } else {
         trace[cpu_cols::COL_MAP.quotient][row_idx] = from_u32(dividend / divisor);
         trace[cpu_cols::COL_MAP.remainder][row_idx] = from_u32(dividend % divisor);
-        trace[cpu_cols::COL_MAP.remainder_slack][row_idx] = from_u32(divisor - dividend % divisor - 1);
+        trace[cpu_cols::COL_MAP.remainder_slack][row_idx] =
+            from_u32(divisor - dividend % divisor - 1);
     }
     trace[cpu_cols::COL_MAP.divisor_inv][row_idx] =
         from_u32::<F>(divisor).try_inverse().unwrap_or_default();
@@ -235,7 +238,7 @@ fn generate_bitwise_row<F: RichField>(
     let op2 = state
         .get_register_value(inst.args.rs2)
         .wrapping_add(inst.args.imm);
-    trace[cpu_cols::COL_MAP.XOR_A][i] = from_u32(op1);
-    trace[cpu_cols::COL_MAP.XOR_B][i] = from_u32(op2);
-    trace[cpu_cols::COL_MAP.XOR_OUT][i] = from_u32(op1 ^ op2);
+    trace[cpu_cols::COL_MAP.xor_a][i] = from_u32(op1);
+    trace[cpu_cols::COL_MAP.xor_b][i] = from_u32(op2);
+    trace[cpu_cols::COL_MAP.xor_out][i] = from_u32(op1 ^ op2);
 }

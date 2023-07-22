@@ -1,5 +1,5 @@
-use std::marker::PhantomData;
 use std::borrow::Borrow;
+use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -9,10 +9,10 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
-use crate::utils::NumberOfColumns;
 
 use super::columns::{CpuColumnsView, OpSelectorView};
 use super::{add, beq, bitwise, div, jalr, mul, slt, sub};
+use crate::utils::NumberOfColumns;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -20,18 +20,19 @@ pub struct CpuStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-use array_concat::{concat_arrays, concat_arrays_size};
-
 impl<P: Copy> OpSelectorView<P> {
     fn straightline_opcodes(&self) -> Vec<P> {
-        vec![self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu, self.remu, self.sll, self.slt, self.sltu, self.srl]
+        vec![
+            self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu,
+            self.remu, self.sll, self.slt, self.sltu, self.srl,
+        ]
     }
-    fn jumping_opcodes(&self) -> Vec<P> {
-        vec![self.beq, self.bne, self.ecall, self.jalr]
-    }
+
+    fn jumping_opcodes(&self) -> Vec<P> { vec![self.beq, self.bne, self.ecall, self.jalr] }
+
     fn opcodes(&self) -> Vec<P> {
         let mut res = self.straightline_opcodes();
-        res.extend(self.jumping_opcodes().into_iter());
+        res.extend(self.jumping_opcodes());
         res
     }
 }
@@ -92,9 +93,8 @@ fn only_rd_changes<P: PackedField>(
     // Note: register 0 is already always 0.
     // But we keep the constraints simple here.
     (0..32).for_each(|reg| {
-        yield_constr.constraint_transition(
-            (P::ONES - lv.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]),
-        );
+        yield_constr
+            .constraint_transition((P::ONES - lv.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]));
     });
 }
 

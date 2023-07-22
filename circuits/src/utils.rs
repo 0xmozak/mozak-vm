@@ -35,7 +35,6 @@ pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>, clk_col: Option<usize>) -> Ve
 #[must_use]
 pub(crate) fn from_u32<F: Field>(x: u32) -> F { Field::from_noncanonical_u64(x.into()) }
 
-// TODO: rename
 pub(crate) unsafe fn transmute_without_compile_time_size_checks<T, U>(t: T) -> U {
     debug_assert_eq!(size_of::<T>(), size_of::<U>());
     // We need to avoid `t` being dropped automatically, so we use ManuallyDrop.
