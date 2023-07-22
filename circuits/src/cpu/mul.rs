@@ -11,9 +11,9 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     // TODO: PRODUCT_LOW_BITS and PRODUCT_HIGH_BITS need range checking.
 
-    let is_mul = lv[S_MUL];
-    let is_mulhu = lv[S_MULHU];
-    let is_sll = lv[S_SLL];
+    let is_mul = lv.ops.mul;
+    let is_mulhu = lv.ops.mulhu;
+    let is_sll = lv.ops.sll;
     // The Goldilocks field is carefully chosen to allow multiplication of u32
     // values without overflow.
     let base = P::Scalar::from_noncanonical_u64(1 << 32);
