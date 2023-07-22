@@ -43,9 +43,6 @@ pub(crate) unsafe fn transmute_without_compile_time_size_checks<T, U>(t: T) -> U
     transmute_copy(&ManuallyDrop::<T>::new(t))
 }
 
-// TODO(Matthias): sort out const'ness and replace with:
-pub(crate) fn indices_arr<const N: usize>() -> [usize; N] { core::array::from_fn(|i| i) }
-
 pub trait NumberOfColumns {
     const NUMBER_OF_COLUMNS: usize;
 }
@@ -128,9 +125,10 @@ pub(crate) use boilerplate_implementations;
 macro_rules! make_col_map {
     ($s: ident) => {
         lazy_static! {
+            // TODO(Matthias): sort out const'ness of from_fn, and declare as a const instead of static:
             pub(crate) static ref COL_MAP: $s<usize> = {
                 const COLUMNS: usize = $s::<()>::NUMBER_OF_COLUMNS;
-                let indices_arr = indices_arr::<COLUMNS>();
+                let indices_arr: [usize; COLUMNS] = core::array::from_fn(|i| i);
                 unsafe { transmute::<[usize; COLUMNS], $s<usize>>(indices_arr) }
             };
         }

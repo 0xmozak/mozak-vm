@@ -5,8 +5,8 @@ use lazy_static::lazy_static;
 use plonky2::field::types::Field;
 
 use crate::utils::{
-    boilerplate_implementations, indices_arr, make_col_map,
-    transmute_without_compile_time_size_checks, NumberOfColumns,
+    boilerplate_implementations, make_col_map, transmute_without_compile_time_size_checks,
+    NumberOfColumns,
 };
 
 #[repr(C)]
