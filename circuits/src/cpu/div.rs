@@ -15,7 +15,7 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_divu = lv.divu;
+    let is_divu = lv.ops.divu;
     let is_remu = lv.ops.remu;
     let is_srl = lv.ops.srl;
     let dst = lv.dst_value;

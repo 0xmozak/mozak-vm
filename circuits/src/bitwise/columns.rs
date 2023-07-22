@@ -1,6 +1,5 @@
-use std::borrow::{Borrow, BorrowMut};
 use std::mem::transmute;
-use std::ops::{Index, IndexMut, RangeInclusive};
+use std::ops::RangeInclusive;
 
 use plonky2::field::types::Field;
 
