@@ -25,7 +25,7 @@ pub(crate) fn constraints<P: PackedField>(
     // > quotient + remainder.
     // In the following code, we are looking at p/q.
     let p = lv.ops.op1_value;
-    let q = lv[DIVISOR];
+    let q = lv.ops.divisor;
     yield_constr.constraint((is_divu + is_remu) * (q - lv.ops.op2_value));
 
     // The following constraints are for SRL.
