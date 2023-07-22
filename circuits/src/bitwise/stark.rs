@@ -12,8 +12,9 @@ use starky::permutation::PermutationPair;
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{BitwiseColumnsView, BASE, COL_MAP, NUM_BITWISE_COL};
+use super::columns::{BitwiseColumnsView, BASE, COL_MAP};
 use crate::lookup::eval_lookups;
+use crate::utils::NumberOfColumns;
 
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -22,7 +23,7 @@ pub struct BitwiseStark<F, const D: usize> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<F, D> {
-    const COLUMNS: usize = NUM_BITWISE_COL;
+    const COLUMNS: usize = BitwiseColumnsView::<F>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
 
     fn eval_packed_generic<FE, P, const D2: usize>(

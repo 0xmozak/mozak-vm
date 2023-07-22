@@ -4,7 +4,15 @@ use std::ops::{Index, IndexMut, RangeInclusive};
 
 use plonky2::field::types::Field;
 
-use crate::utils::{indices_arr, transmute_without_compile_time_size_checks, boilerplate_implementations};
+use crate::utils::{
+    boilerplate_implementations, indices_arr, transmute_without_compile_time_size_checks,
+    NumberOfColumns,
+};
+
+const fn make_col_map() -> BitwiseColumnsView<usize> {
+    let indices_arr = indices_arr::<{ BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS }>();
+    unsafe { transmute::<[usize; NUM_BITWISE_COL], BitwiseColumnsView<usize>>(indices_arr) }
+}
 
 boilerplate_implementations!(BitwiseColumnsView, NUM_BITWISE_COL);
 pub(crate) const COL_MAP: BitwiseColumnsView<usize> = make_col_map();
@@ -32,11 +40,6 @@ pub(crate) struct BitwiseColumnsView<T: Copy> {
 
     pub(crate) fix_compress: T,
     pub(crate) fix_compress_permuted: [T; 4],
-}
-
-const fn make_col_map() -> BitwiseColumnsView<usize> {
-    let indices_arr = indices_arr::<NUM_BITWISE_COL>();
-    unsafe { transmute::<[usize; NUM_BITWISE_COL], BitwiseColumnsView<usize>>(indices_arr) }
 }
 
 boilerplate_implementations!(BitwiseExecutionColumnsView, NUM_BITWISE_TRACE_COL);

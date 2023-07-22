@@ -57,11 +57,19 @@ pub(crate) const fn indices_arr<const N: usize>() -> [usize; N] {
     indices_arr
 }
 
+pub trait NumberOfColumns {
+    const NUMBER_OF_COLUMNS: usize;
+}
+
 // TODO(Matthias): this could probably be a custom derive macro?
 macro_rules! boilerplate_implementations {
     ($s: ident, $num: ident) => {
-        // `u8` is guaranteed to have a `size_of` of 1.
         pub(crate) const $num: usize = size_of::<$s<u8>>();
+
+        impl<T: Copy> crate::utils::NumberOfColumns for $s<T> {
+            // `u8` is guaranteed to have a `size_of` of 1.
+            const NUMBER_OF_COLUMNS: usize = size_of::<$s<u8>>();
+        }
 
         impl<F: Field> Default for $s<F> {
             fn default() -> Self { Self::from([F::ZERO; $num]) }
