@@ -73,62 +73,62 @@ pub fn generate_bitwise_trace<F: RichField>(
 
     // add FIXED bitwise table
     // 2^8 * 2^8 possible rows
-    trace[MAP.fix_range_check_u8] = cols::RANGE_U8.map(|x| from_u32(x.into())).collect();
-    trace[MAP.fix_range_check_u8].resize(ext_trace_len, F::ZERO);
+    trace[MAP.fixed_range_check_u8] = cols::RANGE_U8.map(|x| from_u32(x.into())).collect();
+    trace[MAP.fixed_range_check_u8].resize(ext_trace_len, F::ZERO);
 
     for (index, (op1, op2)) in cols::RANGE_U8.cartesian_product(cols::RANGE_U8).enumerate() {
-        trace[MAP.fix_bitwise_op1][index] = from_u32(op1.into());
-        trace[MAP.fix_bitwise_op2][index] = from_u32(op2.into());
-        trace[MAP.fix_bitwise_res][index] = from_u32((op1 ^ op2).into());
+        trace[MAP.fixed_bitwise_op1][index] = from_u32(op1.into());
+        trace[MAP.fixed_bitwise_op2][index] = from_u32(op2.into());
+        trace[MAP.fixed_bitwise_res][index] = from_u32((op1 ^ op2).into());
     }
 
     let base: F = from_u32(cols::BASE.into());
     // FIXME: make the verifier check that we used the right bitwise lookup table.
     // See https://github.com/0xmozak/mozak-vm/issues/309
-    // TODO: use a random linear combination of the table columns to 'compress'
+    // TODO: use a random linear combination of the table columns to 'compressed'
     // them. That would save us a bunch of range checks on the limbs.
     // However see https://github.com/0xmozak/mozak-vm/issues/310 for some potential issues with that.
 
     for i in 0..trace[0].len() {
-        for (compress_limb, op1_limb, op2_limb, res_limb) in izip!(
-            MAP.compress_limbs,
+        for (compressed_limb, op1_limb, op2_limb, res_limb) in izip!(
+            MAP.compressed_limbs,
             MAP.execution.op1_limbs,
             MAP.execution.op2_limbs,
             MAP.execution.res_limbs
         ) {
-            trace[compress_limb][i] =
+            trace[compressed_limb][i] =
                 trace[op1_limb][i] + base * (trace[op2_limb][i] + base * trace[res_limb][i]);
         }
 
-        trace[MAP.fix_compress][i] = trace[MAP.fix_bitwise_op1][i]
-            + base * (trace[MAP.fix_bitwise_op2][i] + base * trace[MAP.fix_bitwise_res][i]);
+        trace[MAP.fixed_compressed][i] = trace[MAP.fixed_bitwise_op1][i]
+            + base * (trace[MAP.fixed_bitwise_op2][i] + base * trace[MAP.fixed_bitwise_res][i]);
     }
 
     // add the permutation information
     for (op_limbs_permuted, range_check_permuted, op_limbs, &table_col) in [
         (
             &MAP.op1_limbs_permuted,
-            &MAP.fix_range_check_u8_permuted[0..4],
+            &MAP.fixed_range_check_u8_permuted[0..4],
             &MAP.execution.op1_limbs,
-            &MAP.fix_range_check_u8,
+            &MAP.fixed_range_check_u8,
         ),
         (
             &MAP.op2_limbs_permuted,
-            &MAP.fix_range_check_u8_permuted[4..8],
+            &MAP.fixed_range_check_u8_permuted[4..8],
             &MAP.execution.op2_limbs,
-            &MAP.fix_range_check_u8,
+            &MAP.fixed_range_check_u8,
         ),
         (
             &MAP.res_limbs_permuted,
-            &MAP.fix_range_check_u8_permuted[8..12],
+            &MAP.fixed_range_check_u8_permuted[8..12],
             &MAP.execution.res_limbs,
-            &MAP.fix_range_check_u8,
+            &MAP.fixed_range_check_u8,
         ),
         (
-            &MAP.compress_permuted,
-            &MAP.fix_compress_permuted,
-            &MAP.compress_limbs,
-            &MAP.fix_compress,
+            &MAP.compressed_permuted,
+            &MAP.fixed_compressed_permuted,
+            &MAP.compressed_limbs,
+            &MAP.fixed_compressed,
         ),
     ] {
         for (&op_limb_permuted, &range_check_limb_permuted, &op_limb) in

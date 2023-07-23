@@ -14,18 +14,18 @@ pub(crate) struct BitwiseColumnsView<T: Copy> {
     pub(crate) res_limbs_permuted: [T; 4],
 
     // Each row holds result of compression of OP1_LIMB, OP2_LIMB and RES_LIMBS.
-    pub(crate) compress_limbs: [T; 4],
-    pub(crate) compress_permuted: [T; 4],
+    pub(crate) compressed_limbs: [T; 4],
+    pub(crate) compressed_permuted: [T; 4],
 
-    pub(crate) fix_range_check_u8: T,
-    pub(crate) fix_range_check_u8_permuted: [T; 12],
+    pub(crate) fixed_range_check_u8: T,
+    pub(crate) fixed_range_check_u8_permuted: [T; 12],
 
-    pub(crate) fix_bitwise_op1: T,
-    pub(crate) fix_bitwise_op2: T,
-    pub(crate) fix_bitwise_res: T,
+    pub(crate) fixed_bitwise_op1: T,
+    pub(crate) fixed_bitwise_op2: T,
+    pub(crate) fixed_bitwise_res: T,
 
-    pub(crate) fix_compress: T,
-    pub(crate) fix_compress_permuted: [T; 4],
+    pub(crate) fixed_compressed: T,
+    pub(crate) fixed_compressed_permuted: [T; 4],
 }
 columns_view_impl!(BitwiseColumnsView);
 make_col_map!(BitwiseColumnsView);
