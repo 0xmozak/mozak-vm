@@ -2,31 +2,31 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::{DST_VALUE, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, PC, S_JALR};
+use super::columns::CpuColumnsView;
 
 pub(crate) fn constraints<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
-    nv: &[P; NUM_CPU_COLS],
+    lv: &CpuColumnsView<P>,
+    nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_jalr = lv[S_JALR];
     let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
 
-    let return_address = lv[PC] + P::Scalar::from_noncanonical_u64(4);
+    let return_address = lv.pc + P::Scalar::from_noncanonical_u64(4);
     let wrapped_return_address = return_address - wrap_at;
 
-    let destination = lv[DST_VALUE];
+    let destination = lv.dst_value;
     // enable-if JALR: aux.dst_val == jmp-inst-pc + 4, wrapped
     yield_constr.constraint(
-        is_jalr * (destination - return_address) * (destination - wrapped_return_address),
+        lv.ops.jalr * (destination - return_address) * (destination - wrapped_return_address),
     );
 
-    let jump_target = lv[OP1_VALUE] + lv[OP2_VALUE];
+    let jump_target = lv.op1_value + lv.op2_value;
     let wrapped_jump_target = jump_target - wrap_at;
-    let new_pc = nv[PC];
+    let new_pc = nv.pc;
 
-    yield_constr
-        .constraint_transition(is_jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target));
+    yield_constr.constraint_transition(
+        lv.ops.jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target),
+    );
 }
 #[cfg(test)]
 mod tests {

@@ -9,6 +9,7 @@
 #![deny(clippy::cargo)]
 
 pub mod bitwise;
+pub mod columns_view;
 pub mod cpu;
 pub mod cross_table_lookup;
 pub mod generation;

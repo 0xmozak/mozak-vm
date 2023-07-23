@@ -5,6 +5,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::lookup::permute_cols;
 use crate::rangecheck::columns;
+use crate::rangecheck::columns::MAP;
 
 pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 
@@ -50,10 +51,10 @@ pub fn generate_rangecheck_trace<F: RichField>(
             Op::ADD => {
                 let limb_hi = u16::try_from(dst_val >> 16).unwrap();
                 let limb_lo = u16::try_from(dst_val & 0xffff).unwrap();
-                trace[columns::VAL][i] = F::from_noncanonical_u64((*dst_val).into());
-                trace[columns::LIMB_HI][i] = F::from_noncanonical_u64(limb_hi.into());
-                trace[columns::LIMB_LO][i] = F::from_noncanonical_u64(limb_lo.into());
-                trace[columns::CPU_FILTER][i] = F::ONE;
+                trace[MAP.val][i] = F::from_noncanonical_u64((*dst_val).into());
+                trace[MAP.limb_hi][i] = F::from_noncanonical_u64(limb_hi.into());
+                trace[MAP.limb_lo][i] = F::from_noncanonical_u64(limb_lo.into());
+                trace[MAP.cpu_filter][i] = F::ONE;
             }
             _ => {}
         }
@@ -62,32 +63,27 @@ pub fn generate_rangecheck_trace<F: RichField>(
     // Here, we generate fixed columns for the table, used in inner table lookups.
     // We are interested in range checking 16-bit values, hence we populate with
     // values 0, 1, .., 2^16 - 1.
-    trace[columns::FIXED_RANGE_CHECK_U16] = (0..RANGE_CHECK_U16_SIZE as u64)
+    trace[MAP.fixed_range_check_u16] = (0..RANGE_CHECK_U16_SIZE as u64)
         .map(F::from_noncanonical_u64)
         .collect();
-    let num_rows = trace[columns::VAL].len();
-    trace[columns::FIXED_RANGE_CHECK_U16]
-        .resize(num_rows, F::from_canonical_u64(u64::from(u16::MAX)));
+    let num_rows = trace[MAP.val].len();
+    trace[MAP.fixed_range_check_u16].resize(num_rows, F::from_canonical_u64(u64::from(u16::MAX)));
 
     // This permutation is done in accordance to the [Halo2 lookup argument
     // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
-    let (col_input_permuted, col_table_permuted) = permute_cols(
-        &trace[columns::LIMB_LO],
-        &trace[columns::FIXED_RANGE_CHECK_U16],
-    );
+    let (col_input_permuted, col_table_permuted) =
+        permute_cols(&trace[MAP.limb_lo], &trace[MAP.fixed_range_check_u16]);
 
     // We need a column for the lower limb.
-    trace[columns::LIMB_LO_PERMUTED] = col_input_permuted;
-    trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO] = col_table_permuted;
+    trace[MAP.limb_lo_permuted] = col_input_permuted;
+    trace[MAP.fixed_range_check_u16_permuted_lo] = col_table_permuted;
 
-    let (col_input_permuted, col_table_permuted) = permute_cols(
-        &trace[columns::LIMB_HI],
-        &trace[columns::FIXED_RANGE_CHECK_U16],
-    );
+    let (col_input_permuted, col_table_permuted) =
+        permute_cols(&trace[MAP.limb_hi], &trace[MAP.fixed_range_check_u16]);
 
     // And we also need a column for the upper limb.
-    trace[columns::LIMB_HI_PERMUTED] = col_input_permuted;
-    trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI] = col_table_permuted;
+    trace[MAP.limb_hi_permuted] = col_input_permuted;
+    trace[MAP.fixed_range_check_u16_permuted_hi] = col_table_permuted;
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
@@ -119,25 +115,25 @@ mod tests {
         let trace = generate_rangecheck_trace::<F>(&record.executed);
 
         // Check values that we are interested in
-        assert_eq!(trace[columns::CPU_FILTER][0], F::ONE);
-        assert_eq!(trace[columns::CPU_FILTER][1], F::ONE);
-        assert_eq!(trace[columns::VAL][0], GoldilocksField(0x0001_fffe));
-        assert_eq!(trace[columns::VAL][1], GoldilocksField(93));
-        assert_eq!(trace[columns::LIMB_HI][0], GoldilocksField(0x0001));
-        assert_eq!(trace[columns::LIMB_LO][0], GoldilocksField(0xfffe));
-        assert_eq!(trace[columns::LIMB_LO][1], GoldilocksField(93));
+        assert_eq!(trace[MAP.cpu_filter][0], F::ONE);
+        assert_eq!(trace[MAP.cpu_filter][1], F::ONE);
+        assert_eq!(trace[MAP.val][0], GoldilocksField(0x0001_fffe));
+        assert_eq!(trace[MAP.val][1], GoldilocksField(93));
+        assert_eq!(trace[MAP.limb_hi][0], GoldilocksField(0x0001));
+        assert_eq!(trace[MAP.limb_lo][0], GoldilocksField(0xfffe));
+        assert_eq!(trace[MAP.limb_lo][1], GoldilocksField(93));
 
         // Ensure rest of trace is zeroed out
-        for cpu_filter in &trace[columns::CPU_FILTER][2..] {
+        for cpu_filter in &trace[MAP.cpu_filter][2..] {
             assert_eq!(cpu_filter, &F::ZERO);
         }
-        for value in &trace[columns::VAL][2..] {
+        for value in &trace[MAP.val][2..] {
             assert_eq!(value, &F::ZERO);
         }
-        for limb_hi in &trace[columns::LIMB_HI][1..] {
+        for limb_hi in &trace[MAP.limb_hi][1..] {
             assert_eq!(limb_hi, &F::ZERO);
         }
-        for limb_lo in &trace[columns::LIMB_LO][2..] {
+        for limb_lo in &trace[MAP.limb_lo][2..] {
             assert_eq!(limb_lo, &F::ZERO);
         }
     }
