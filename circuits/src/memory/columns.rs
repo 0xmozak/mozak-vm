@@ -1,26 +1,34 @@
-// Indicates if memory is padding.
-pub(crate) const MEM_PADDING: usize = 0;
+use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 
-// Memory address.
-pub(crate) const MEM_ADDR: usize = 1;
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub(crate) struct MemoryColumnsView<T: Copy> {
+    // Indicates if memory is padding.
+    pub(crate) mem_padding: T,
 
-// Clock at memory access.
-pub(crate) const MEM_CLK: usize = 2;
+    // Memory address.
+    pub(crate) mem_addr: T,
 
-// Opcode of memory access.
-pub(crate) const MEM_OP: usize = 3;
+    // Clock at memory access.
+    pub(crate) mem_clk: T,
 
-// Value of memory access.
-pub(crate) const MEM_VALUE: usize = 4;
+    // Opcode of memory access.
+    pub(crate) mem_op: T,
 
-// Difference between current and previous address.
-pub(crate) const MEM_DIFF_ADDR: usize = 5;
+    // Value of memory access.
+    pub(crate) mem_value: T,
 
-// Inverse of the above column. 0 if the above column is 0.
-pub(crate) const MEM_DIFF_ADDR_INV: usize = 6;
+    // Difference between current and previous address.
+    pub(crate) mem_diff_addr: T,
 
-// Difference between current and previous clock.
-pub(crate) const MEM_DIFF_CLK: usize = 7;
+    // Inverse of the above column. 0 if the above column is 0.
+    pub(crate) mem_diff_addr_inv: T,
+
+    // Difference between current and previous clock.
+    pub(crate) mem_diff_clk: T,
+}
+columns_view_impl!(MemoryColumnsView);
+make_col_map!(MemoryColumnsView);
 
 // Total number of columns.
-pub(crate) const NUM_MEM_COLS: usize = 8;
+pub(crate) const NUM_MEM_COLS: usize = MemoryColumnsView::<()>::NUMBER_OF_COLUMNS;

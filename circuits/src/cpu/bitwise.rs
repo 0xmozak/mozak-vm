@@ -17,9 +17,7 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::{
-    DST_VALUE, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, S_AND, S_OR, S_XOR, XOR_A, XOR_B, XOR_OUT,
-};
+use super::columns::CpuColumnsView;
 
 /// A struct to represent the output of binary operations
 ///
@@ -33,10 +31,10 @@ pub struct BinaryOp<P: PackedField> {
 
 /// Re-usable gadget for AND constraints
 /// Highest degree is one.
-pub(crate) fn and_gadget<P: PackedField>(lv: &[P; NUM_CPU_COLS]) -> BinaryOp<P> {
-    let input_a = lv[XOR_A];
-    let input_b = lv[XOR_B];
-    let xor_out = lv[XOR_OUT];
+pub(crate) fn and_gadget<P: PackedField>(lv: &CpuColumnsView<P>) -> BinaryOp<P> {
+    let input_a = lv.xor_a;
+    let input_b = lv.xor_b;
+    let xor_out = lv.xor_out;
     let two = P::Scalar::from_noncanonical_u64(2);
     BinaryOp {
         input_a,
@@ -47,10 +45,10 @@ pub(crate) fn and_gadget<P: PackedField>(lv: &[P; NUM_CPU_COLS]) -> BinaryOp<P> 
 
 /// Re-usable gadget for OR constraints
 /// Highest degree is one.
-pub(crate) fn or_gadget<P: PackedField>(lv: &[P; NUM_CPU_COLS]) -> BinaryOp<P> {
-    let input_a = lv[XOR_A];
-    let input_b = lv[XOR_B];
-    let xor_out = lv[XOR_OUT];
+pub(crate) fn or_gadget<P: PackedField>(lv: &CpuColumnsView<P>) -> BinaryOp<P> {
+    let input_a = lv.xor_a;
+    let input_b = lv.xor_b;
+    let xor_out = lv.xor_out;
     let two = P::Scalar::from_noncanonical_u64(2);
     BinaryOp {
         input_a,
@@ -61,10 +59,10 @@ pub(crate) fn or_gadget<P: PackedField>(lv: &[P; NUM_CPU_COLS]) -> BinaryOp<P> {
 
 /// Re-usable gadget for XOR constraints
 /// Highest degree is one.
-pub(crate) fn xor_gadget<P: PackedField>(lv: &[P; NUM_CPU_COLS]) -> BinaryOp<P> {
-    let input_a = lv[XOR_A];
-    let input_b = lv[XOR_B];
-    let output = lv[XOR_OUT];
+pub(crate) fn xor_gadget<P: PackedField>(lv: &CpuColumnsView<P>) -> BinaryOp<P> {
+    let input_a = lv.xor_a;
+    let input_b = lv.xor_b;
+    let output = lv.xor_out;
     BinaryOp {
         input_a,
         input_b,
@@ -75,17 +73,17 @@ pub(crate) fn xor_gadget<P: PackedField>(lv: &[P; NUM_CPU_COLS]) -> BinaryOp<P> 
 /// Constraints to verify execution of AND, OR and XOR instructions.
 #[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
+    lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let op1 = lv[OP1_VALUE];
-    let op2 = lv[OP2_VALUE];
-    let dst = lv[DST_VALUE];
+    let op1 = lv.op1_value;
+    let op2 = lv.op2_value;
+    let dst = lv.dst_value;
 
     for (selector, gadget) in [
-        (lv[S_AND], and_gadget(lv)),
-        (lv[S_OR], or_gadget(lv)),
-        (lv[S_XOR], xor_gadget(lv)),
+        (lv.ops.and, and_gadget(lv)),
+        (lv.ops.or, or_gadget(lv)),
+        (lv.ops.xor, xor_gadget(lv)),
     ] {
         yield_constr.constraint(selector * (gadget.input_a - op1));
         yield_constr.constraint(selector * (gadget.input_b - op2));
