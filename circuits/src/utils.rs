@@ -48,7 +48,7 @@ pub trait NumberOfColumns {
 }
 
 // TODO(Matthias): this could probably be a custom derive macro?
-macro_rules! boilerplate_implementations {
+macro_rules! columns_view_impl {
     ($s: ident) => {
         impl<T: Copy> crate::utils::NumberOfColumns for $s<T> {
             // `u8` is guaranteed to have a `size_of` of 1.
@@ -120,7 +120,7 @@ macro_rules! boilerplate_implementations {
         }
     };
 }
-pub(crate) use boilerplate_implementations;
+pub(crate) use columns_view_impl;
 
 macro_rules! make_col_map {
     ($s: ident) => {

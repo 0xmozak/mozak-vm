@@ -2,7 +2,7 @@ use itertools::Itertools;
 use plonky2::field::types::Field;
 
 use crate::cross_table_lookup::Column;
-use crate::utils::{boilerplate_implementations, make_col_map, NumberOfColumns};
+use crate::utils::{columns_view_impl, make_col_map, NumberOfColumns};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
@@ -27,7 +27,7 @@ pub(crate) struct OpSelectorView<T: Copy> {
     pub halt: T,
 }
 
-boilerplate_implementations!(CpuColumnsView);
+columns_view_impl!(CpuColumnsView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct CpuColumnsView<T: Copy> {

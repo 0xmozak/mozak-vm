@@ -2,7 +2,7 @@ use itertools::Itertools;
 use plonky2::field::types::Field;
 
 use crate::cross_table_lookup::Column;
-use crate::utils::{boilerplate_implementations, make_col_map, NumberOfColumns};
+use crate::utils::{columns_view_impl, make_col_map, NumberOfColumns};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
@@ -40,7 +40,7 @@ pub(crate) struct RangeCheckColumnsView<T: Copy> {
     /// fixed table lookup argument for the upper 16-bit limb.
     pub(crate) fixed_range_check_u16_permuted_hi: T,
 }
-boilerplate_implementations!(RangeCheckColumnsView);
+columns_view_impl!(RangeCheckColumnsView);
 make_col_map!(RangeCheckColumnsView);
 
 /// Total number of columns for the range check table.

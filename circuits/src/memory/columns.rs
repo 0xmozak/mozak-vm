@@ -1,4 +1,4 @@
-use crate::utils::{boilerplate_implementations, make_col_map, NumberOfColumns};
+use crate::utils::{columns_view_impl, make_col_map, NumberOfColumns};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
@@ -27,7 +27,7 @@ pub(crate) struct MemoryColumnsView<T: Copy> {
     // Difference between current and previous clock.
     pub(crate) mem_diff_clk: T,
 }
-boilerplate_implementations!(MemoryColumnsView);
+columns_view_impl!(MemoryColumnsView);
 make_col_map!(MemoryColumnsView);
 
 // Total number of columns.
