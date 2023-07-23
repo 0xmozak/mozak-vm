@@ -153,10 +153,11 @@ mod tests {
         let inst = 0x0073_02b3 /* add r5, r6, r7 */;
 
         let mut mem = vec![];
-        for i in 0..=u32::from(u16::MAX) {
+        let u16max = u32::from(u16::MAX);
+        for i in 0..=u16max {
             mem.push((i * 4, inst));
         }
-        let record = simple_test(4, &mem, &[(6, 100), (7, 100)]);
+        let record = simple_test(4 * u16max, &mem, &[(6, 100), (7, 100)]);
 
         let trace = generate_rangecheck_trace::<F>(&record.executed);
 
