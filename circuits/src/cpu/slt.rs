@@ -3,7 +3,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    CMP_ABS_DIFF, CMP_DIFF_INV, DST_VALUE, IMM_VALUE, LESS_THAN, NUM_CPU_COLS, OP1_SIGN, OP1_VALUE,
+    CMP_ABS_DIFF, CMP_DIFF_INV, DST_VALUE, LESS_THAN, NUM_CPU_COLS, OP1_SIGN, OP1_VALUE,
     OP1_VAL_FIXED, OP2_SIGN, OP2_VALUE, OP2_VAL_FIXED, S_SLT, S_SLTU,
 };
 
@@ -27,7 +27,7 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(sign2 * (P::ONES - sign2));
 
     let op1 = lv[OP1_VALUE];
-    let op2 = lv[OP2_VALUE] + lv[IMM_VALUE];
+    let op2 = lv[OP2_VALUE];
     // TODO: range check
     let op1_fixed = lv[OP1_VAL_FIXED];
     // TODO: range check
@@ -76,6 +76,7 @@ mod tests {
                             rs1: 6,
                             rs2: 7,
                             imm,
+                            ..Args::default()
                         },
                     },
                     Instruction {
@@ -85,6 +86,7 @@ mod tests {
                             rs1: 6,
                             rs2: 7,
                             imm,
+                            ..Args::default()
                         },
                     },
                 ],

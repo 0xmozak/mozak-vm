@@ -3,7 +3,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::{
-    BRANCH_DIFF_INV, BRANCH_EQUAL, IMM_VALUE, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, PC, S_BEQ, S_BNE,
+    BRANCH_EQUAL, BRANCH_TARGET, CMP_DIFF_INV, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, PC, S_BEQ, S_BNE,
 };
 
 /// Constraints for BEQ and BNE.
@@ -15,13 +15,13 @@ pub(crate) fn constraints<P: PackedField>(
     let is_beq = lv[S_BEQ];
     let is_bne = lv[S_BNE];
     let bumped_pc = lv[PC] + P::Scalar::from_noncanonical_u64(4);
-    let branched_pc = lv[IMM_VALUE];
+    let branched_pc = lv[BRANCH_TARGET];
     let diff = lv[OP1_VALUE] - lv[OP2_VALUE];
 
     // if `diff == 0`, then `is_equal != 0`.
     // We only need this intermediate variable to keep the constraint degree <= 3.
     let is_equal = lv[BRANCH_EQUAL];
-    let diff_inv = lv[BRANCH_DIFF_INV];
+    let diff_inv = lv[CMP_DIFF_INV];
     yield_constr.constraint(diff * diff_inv + is_equal - P::ONES);
 
     let next_pc = nv[PC];
@@ -38,7 +38,7 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test_code, u32_extra};
+    use mozak_vm::test_utils::{last_but_coda, simple_test_code, u32_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
@@ -52,10 +52,10 @@ mod tests {
                     Instruction {
                         op: Op::BEQ,
                         args: Args {
-                            rd: 0,
                             rs1: 6,
                             rs2: 7,
-                            imm: 8,
+                            branch_target: 8,
+                            ..Args::default()
                         },
                     },
                     // if above branch is not taken R1 has value 10.
@@ -63,9 +63,8 @@ mod tests {
                         op: Op::ADD,
                         args: Args {
                             rd: 1,
-                            rs1: 0,
-                            rs2: 0,
                             imm: 10,
+                            ..Args::default()
                         },
                     },
                 ],
@@ -73,9 +72,9 @@ mod tests {
                 &[(6, a), (7, b)],
             );
             if a == b {
-                assert_eq!(record.last_state.get_register_value(1), 0);
+                assert_eq!(last_but_coda(&record).get_register_value(1), 0);
             } else {
-                assert_eq!(record.last_state.get_register_value(1), 10);
+                assert_eq!(last_but_coda(&record).get_register_value(1), 10);
             }
             simple_proof_test(&record.executed).unwrap();
         }
@@ -86,10 +85,10 @@ mod tests {
                     Instruction {
                         op: Op::BNE,
                         args: Args {
-                            rd: 0,
                             rs1: 6,
                             rs2: 7,
-                            imm: 8,
+                            branch_target: 8,
+                            ..Args::default()
                         },
                     },
                     // if above branch is not taken R1 has value 10.
@@ -97,9 +96,8 @@ mod tests {
                         op: Op::ADD,
                         args: Args {
                             rd: 1,
-                            rs1: 0,
-                            rs2: 0,
                             imm: 10,
+                            ..Args::default()
                         },
                     },
                 ],
@@ -107,9 +105,9 @@ mod tests {
                 &[(6, a), (7, b)],
             );
             if a == b {
-                assert_eq!(record.last_state.get_register_value(1), 10);
+                assert_eq!(last_but_coda(&record).get_register_value(1), 10);
             } else {
-                assert_eq!(record.last_state.get_register_value(1), 0);
+                assert_eq!(last_but_coda(&record).get_register_value(1), 0);
             }
             simple_proof_test(&record.executed).unwrap();
         }

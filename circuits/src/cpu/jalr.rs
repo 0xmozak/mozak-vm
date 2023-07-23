@@ -2,7 +2,7 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::{DST_VALUE, IMM_VALUE, NUM_CPU_COLS, OP1_VALUE, PC, S_JALR};
+use super::columns::{DST_VALUE, NUM_CPU_COLS, OP1_VALUE, OP2_VALUE, PC, S_JALR};
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &[P; NUM_CPU_COLS],
@@ -21,7 +21,7 @@ pub(crate) fn constraints<P: PackedField>(
         is_jalr * (destination - return_address) * (destination - wrapped_return_address),
     );
 
-    let jump_target = lv[IMM_VALUE] + lv[OP1_VALUE];
+    let jump_target = lv[OP1_VALUE] + lv[OP2_VALUE];
     let wrapped_jump_target = jump_target - wrap_at;
     let new_pc = nv[PC];
 
