@@ -5,9 +5,10 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::bitwise::columns as cols;
 use crate::bitwise::columns::{BitwiseColumnsView, MAP};
+use crate::columns_view::NumberOfColumns;
 use crate::cpu::columns::{self as cpu_cols};
 use crate::lookup::permute_cols;
-use crate::utils::{from_u32, NumberOfColumns};
+use crate::utils::from_u32;
 
 const NUM_BITWISE_COL: usize = BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS;
 

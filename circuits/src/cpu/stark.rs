@@ -12,7 +12,7 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{CpuColumnsView, OpSelectorView};
 use super::{add, beq, bitwise, div, jalr, mul, slt, sub};
-use crate::utils::NumberOfColumns;
+use crate::columns_view::NumberOfColumns;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]

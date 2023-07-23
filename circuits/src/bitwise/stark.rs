@@ -13,8 +13,8 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{BitwiseColumnsView, BASE, MAP};
+use crate::columns_view::NumberOfColumns;
 use crate::lookup::eval_lookups;
-use crate::utils::NumberOfColumns;
 
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]

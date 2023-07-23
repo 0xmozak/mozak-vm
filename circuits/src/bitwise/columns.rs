@@ -1,6 +1,6 @@
 use std::ops::RangeInclusive;
 
-use crate::utils::{columns_view_impl, make_col_map};
+use crate::columns_view::{columns_view_impl, make_col_map};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]

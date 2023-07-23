@@ -1,4 +1,4 @@
-use crate::utils::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
