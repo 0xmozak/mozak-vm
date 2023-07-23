@@ -48,7 +48,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
             );
         }
 
-        // Constrain compressed logic.
+        // Constrain compression logic.
         let base = FE::from_noncanonical_u64(BASE.into());
         for (op1_limb, op2_limb, res_limb, compressed_limb) in
             izip!(e.op1_limbs, e.op2_limbs, e.res_limbs, lv.compressed_limbs)
