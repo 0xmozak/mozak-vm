@@ -31,6 +31,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         // NOTE: Updated value of DST register is next step.
         trace[MAP.dst_value][i] = from_u32(aux.dst_val);
         trace[MAP.imm_value][i] = from_u32(inst.args.imm);
+        trace[MAP.branch_target][i] = from_u32(inst.args.branch_target);
         trace[MAP.ops.halt][i] = from_u32(u32::from(aux.will_halt));
         for j in 0..32 {
             trace[MAP.regs[j as usize]][i] = from_u32(state.get_register_value(j));
