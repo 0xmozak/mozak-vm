@@ -21,19 +21,28 @@ pub struct CpuStark<F, const D: usize> {
 }
 
 impl<P: Copy> OpSelectorView<P> {
-    fn straightline_opcodes(&self) -> Vec<P> {
+    pub fn straightline_opcodes(&self) -> Vec<P> {
         vec![
             self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu,
             self.remu, self.sll, self.slt, self.sltu, self.srl,
         ]
     }
 
-    fn jumping_opcodes(&self) -> Vec<P> { vec![self.beq, self.bne, self.ecall, self.jalr] }
+    pub fn jumping_opcodes(&self) -> Vec<P> { vec![self.beq, self.bne, self.ecall, self.jalr] }
 
-    fn opcodes(&self) -> Vec<P> {
+    pub fn opcodes(&self) -> Vec<P> {
         let mut res = self.straightline_opcodes();
         res.extend(self.jumping_opcodes());
         res
+    }
+
+    pub fn signed1_opcodes(&self) -> Vec<P> {
+        vec![self.slt]
+    }
+
+    // Later, MULHSU will go into signed1_opcodes but not signed2_opcodes
+    pub fn signed2_opcodes(&self) -> Vec<P> {
+        vec![self.slt]
     }
 }
 
