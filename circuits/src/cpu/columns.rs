@@ -95,7 +95,7 @@ pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
     Column::singles([MAP.dst_value]).collect_vec()
 }
 
-/// Columns containing the data to be match against XOR Bitwise stark.
+/// Columns containing the data to be matched against XOR Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> {
