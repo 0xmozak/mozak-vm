@@ -34,6 +34,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let lv: &BitwiseColumnsView<_> = vars.local_values.borrow();
+        let nv: &BitwiseColumnsView<_> = vars.next_values.borrow();
         let e = &lv.execution;
 
         // check limbs sum to our given value.
@@ -47,6 +48,16 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
                 reduce_with_powers(&opx_limbs, P::Scalar::from_noncanonical_u64(256_u64)) - opx,
             );
         }
+
+        // Constraint fix_range_check_u8.
+        yield_constr.constraint_first_row(lv.fixed_range_check_u8);
+        yield_constr.constraint_transition(
+            (nv.fixed_range_check_u8 - lv.fixed_range_check_u8 - FE::ONE)
+                * (nv.fixed_range_check_u8 - lv.fixed_range_check_u8),
+        );
+        yield_constr.constraint_last_row(
+            lv.fixed_range_check_u8 - FE::from_canonical_u64(u64::from(u8::MAX)),
+        );
 
         // Constrain compression logic.
         let base = FE::from_noncanonical_u64(BASE.into());
