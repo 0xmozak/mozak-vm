@@ -8,7 +8,6 @@ use crate::bitwise::columns::{BitwiseColumnsView, MAP};
 use crate::columns_view::NumberOfColumns;
 use crate::cpu::columns::{self as cpu_cols};
 use crate::lookup::permute_cols;
-use crate::utils::from_u32;
 
 const NUM_BITWISE_COL: usize = BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS;
 
@@ -67,24 +66,23 @@ pub fn generate_bitwise_trace<F: RichField>(
             ),
         ] {
             for (col, limb) in izip!(cols, limbs) {
-                trace[col][i] = from_u32(limb.into());
+                trace[col][i] = F::from_canonical_u8(limb);
             }
         }
     }
 
     // add FIXED bitwise table
     // 2^8 * 2^8 possible rows
-    trace[MAP.fixed_range_check_u8] = cols::RANGE_U8.map(|x| from_u32(x.into())).collect();
-    trace[MAP.fixed_range_check_u8]
-        .resize(ext_trace_len, F::from_canonical_u64(u64::from(u8::MAX)));
+    trace[MAP.fixed_range_check_u8] = cols::RANGE_U8.map(F::from_canonical_u8).collect();
+    trace[MAP.fixed_range_check_u8].resize(ext_trace_len, F::from_canonical_u8(u8::MAX));
 
     for (index, (op1, op2)) in cols::RANGE_U8.cartesian_product(cols::RANGE_U8).enumerate() {
-        trace[MAP.fixed_bitwise_op1][index] = from_u32(op1.into());
-        trace[MAP.fixed_bitwise_op2][index] = from_u32(op2.into());
-        trace[MAP.fixed_bitwise_res][index] = from_u32((op1 ^ op2).into());
+        trace[MAP.fixed_bitwise_op1][index] = F::from_canonical_u8(op1);
+        trace[MAP.fixed_bitwise_op2][index] = F::from_canonical_u8(op2);
+        trace[MAP.fixed_bitwise_res][index] = F::from_canonical_u8(op1 ^ op2);
     }
 
-    let base: F = from_u32(cols::BASE.into());
+    let base: F = F::from_canonical_u16(cols::BASE);
     // FIXME: make the verifier check that we used the right bitwise lookup table.
     // See https://github.com/0xmozak/mozak-vm/issues/309
     // TODO: use a random linear combination of the table columns to 'compressed'
