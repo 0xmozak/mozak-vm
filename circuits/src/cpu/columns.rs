@@ -47,7 +47,6 @@ pub(crate) struct CpuColumnsView<T: Copy> {
     pub regs: [T; 32],
 
     pub ops: OpSelectorView<T>,
-    pub rc: T,
 
     pub op1_sign: T,
     pub op2_sign: T,
@@ -92,4 +91,4 @@ pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
 
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MAP.rc) }
+pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MAP.ops.add) }

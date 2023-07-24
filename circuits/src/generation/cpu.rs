@@ -51,10 +51,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         generate_bitwise_row(&mut trace, &inst, state, i);
 
         match inst.op {
-            Op::ADD => {
-                trace[MAP.rc][i] = F::ONE;
-                trace[MAP.ops.add][i] = F::ONE;
-            }
+            Op::ADD => trace[MAP.ops.add][i] = F::ONE,
             Op::SLL => trace[MAP.ops.sll][i] = F::ONE,
             Op::SLT => trace[MAP.ops.slt][i] = F::ONE,
             Op::SLTU => trace[MAP.ops.sltu][i] = F::ONE,
