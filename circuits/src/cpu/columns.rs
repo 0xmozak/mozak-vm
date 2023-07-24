@@ -1,137 +1,128 @@
-use std::ops::Range;
-
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use plonky2::field::types::Field;
 
+use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
-pub(crate) const CLK: usize = 0;
-pub(crate) const PC: usize = CLK + 1;
-
-pub(crate) const RS1_SELECT_START: usize = PC + 1;
-pub(crate) const RS1_SELECT_RANGE: Range<usize> = RS1_SELECT_START..RS1_SELECT_START + 32;
-lazy_static! {
-    pub(crate) static ref RS1_SELECT: Vec<usize> = RS1_SELECT_RANGE.collect();
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub(crate) struct OpSelectorView<T: Copy> {
+    pub add: T,
+    pub sub: T,
+    pub xor: T,
+    pub or: T,
+    pub and: T,
+    pub divu: T,
+    pub remu: T,
+    pub mul: T,
+    pub mulhu: T,
+    pub sll: T,
+    pub slt: T,
+    pub sltu: T,
+    pub srl: T,
+    pub jalr: T,
+    pub beq: T,
+    pub bne: T,
+    pub ecall: T,
+    pub halt: T,
 }
 
-pub(crate) const RS2_SELECT_START: usize = RS1_SELECT_RANGE.end + 1;
-pub(crate) const RS2_SELECT_RANGE: Range<usize> = RS2_SELECT_START..RS2_SELECT_START + 32;
-lazy_static! {
-    pub(crate) static ref RS2_SELECT: Vec<usize> = RS2_SELECT_RANGE.collect();
+columns_view_impl!(CpuColumnsView);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub(crate) struct CpuColumnsView<T: Copy> {
+    pub clk: T,
+    pub pc: T,
+
+    pub rs1_select: [T; 32],
+    pub rs2_select: [T; 32],
+    pub rd_select: [T; 32],
+
+    pub op1_value: T,
+    pub op2_value: T,
+    pub imm_value: T,
+    pub dst_value: T,
+    pub branch_target: T,
+
+    pub regs: [T; 32],
+
+    pub ops: OpSelectorView<T>,
+
+    pub op1_sign: T,
+    pub op2_sign: T,
+    pub op1_val_fixed: T,
+    pub op2_val_fixed: T,
+    pub cmp_abs_diff: T,
+    pub cmp_diff_inv: T,
+    pub less_than: T,
+    pub branch_equal: T,
+
+    pub xor_a: T,
+    pub xor_b: T,
+    pub xor_out: T,
+
+    // TODO: for shift operations, we need to hook up POWERS_OF_2_IN and
+    // POWERS_OF_2_OUT to a cross-table lookup for input values 0..32.
+    pub powers_of_2_in: T,
+    pub powers_of_2_out: T,
+
+    pub quotient: T,
+    pub remainder: T,
+    pub remainder_slack: T,
+    pub divisor_inv: T,
+    pub divisor: T,
+
+    // TODO: PRODUCT_LOW_BITS and PRODUCT_HIGH_BITS need range checking.
+    pub multiplier: T,
+    pub product_low_bits: T,
+    pub product_high_bits: T,
+    pub product_high_diff_inv: T,
 }
-pub(crate) const RD_SELECT_START: usize = RS2_SELECT_RANGE.end + 1;
-pub(crate) const RD_SELECT_RANGE: Range<usize> = RD_SELECT_START..RD_SELECT_START + 32;
-lazy_static! {
-    pub(crate) static ref RD_SELECT: Vec<usize> = RD_SELECT_RANGE.collect();
-}
 
-pub(crate) const OP1_VALUE: usize = RD_SELECT_RANGE.end + 1;
-pub(crate) const OP2_VALUE: usize = OP1_VALUE + 1;
-pub(crate) const IMM_VALUE: usize = OP2_VALUE + 1;
-pub(crate) const DST_VALUE: usize = IMM_VALUE + 1;
-pub(crate) const START_REG: usize = DST_VALUE + 1;
-pub(crate) const REGS_RANGE: Range<usize> = START_REG..START_REG + 32;
-lazy_static! {
-    pub(crate) static ref REGS: Vec<usize> = REGS_RANGE.collect();
-}
+make_col_map!(CpuColumnsView);
 
-pub(crate) const S_ADD: usize = REGS_RANGE.end;
-pub(crate) const S_SUB: usize = S_ADD + 1;
-pub(crate) const S_XOR: usize = S_SUB + 1;
-pub(crate) const S_OR: usize = S_XOR + 1;
-pub(crate) const S_AND: usize = S_OR + 1;
+pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
 
-pub(crate) const S_DIVU: usize = S_AND + 1;
-pub(crate) const S_REMU: usize = S_DIVU + 1;
-pub(crate) const S_MUL: usize = S_REMU + 1;
-pub(crate) const S_MULHU: usize = S_MUL + 1;
-pub(crate) const S_SLL: usize = S_MULHU + 1;
-pub(crate) const S_SLT: usize = S_SLL + 1;
-pub(crate) const S_SLTU: usize = S_SLT + 1;
-pub(crate) const S_SRL: usize = S_SLTU + 1;
-pub(crate) const S_JALR: usize = S_SRL + 1;
-pub(crate) const S_BEQ: usize = S_JALR + 1;
-pub(crate) const S_BNE: usize = S_BEQ + 1;
-pub(crate) const S_ECALL: usize = S_BNE + 1;
-pub(crate) const S_HALT: usize = S_ECALL + 1;
-pub(crate) const S_RC: usize = S_HALT + 1;
-
-pub(crate) const OP1_SIGN: usize = S_RC + 1;
-pub(crate) const OP2_SIGN: usize = OP1_SIGN + 1;
-pub(crate) const OP1_VAL_FIXED: usize = OP2_SIGN + 1;
-pub(crate) const OP2_VAL_FIXED: usize = OP1_VAL_FIXED + 1;
-pub(crate) const CMP_ABS_DIFF: usize = OP2_VAL_FIXED + 1;
-pub(crate) const CMP_DIFF_INV: usize = CMP_ABS_DIFF + 1;
-pub(crate) const LESS_THAN: usize = CMP_DIFF_INV + 1;
-pub(crate) const BRANCH_EQUAL: usize = LESS_THAN + 1;
-
-pub(crate) const XOR_A: usize = BRANCH_EQUAL + 1;
-pub(crate) const XOR_B: usize = XOR_A + 1;
-pub(crate) const XOR_OUT: usize = XOR_B + 1;
-
-// TODO: for shift operations, we need to hook up POWERS_OF_2_IN and
-// POWERS_OF_2_OUT to a cross-table lookup for input values 0..32.
-pub(crate) const POWERS_OF_2_IN: usize = XOR_OUT + 1;
-pub(crate) const POWERS_OF_2_OUT: usize = POWERS_OF_2_IN + 1;
-
-pub(crate) const QUOTIENT: usize = POWERS_OF_2_OUT + 1;
-pub(crate) const REMAINDER: usize = QUOTIENT + 1;
-pub(crate) const REMAINDER_SLACK: usize = REMAINDER + 1;
-pub(crate) const DIVISOR_INV: usize = REMAINDER_SLACK + 1;
-
-pub(crate) const DIVISOR: usize = DIVISOR_INV + 1;
-
-// TODO: PRODUCT_LOW_BITS and PRODUCT_HIGH_BITS need range checking.
-pub(crate) const MULTIPLIER: usize = DIVISOR + 1;
-pub(crate) const PRODUCT_LOW_BITS: usize = MULTIPLIER + 1;
-pub(crate) const PRODUCT_HIGH_BITS: usize = PRODUCT_LOW_BITS + 1;
-pub(crate) const PRODUCT_HIGH_DIFF_INV: usize = PRODUCT_HIGH_BITS + 1;
-
-// TODO: In future we may want to merge BRANCH_DIFF_INV and CMP_DIFF_INV
-pub(crate) const BRANCH_DIFF_INV: usize = PRODUCT_HIGH_DIFF_INV + 1;
-pub(crate) const NUM_CPU_COLS: usize = BRANCH_DIFF_INV + 1;
+/// Column for a binary filter for our range check in the Mozak
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MAP.ops.add) }
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
-    Column::singles([DST_VALUE]).collect_vec()
+    Column::singles([MAP.dst_value]).collect_vec()
 }
-
-/// Column for a binary filter for our range check in the Mozak
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(S_RC) }
 
 /// Columns containing the data to be match against XOR Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> {
-    Column::singles([XOR_A, XOR_B, XOR_OUT]).collect_vec()
+    Column::singles([MAP.xor_a, MAP.xor_b, MAP.xor_out]).collect_vec()
 }
 
 /// Column for a binary filter for XOR instruction in Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_bitwise_xor<F: Field>() -> Column<F> { Column::single(S_XOR) }
+pub fn filter_for_bitwise_xor<F: Field>() -> Column<F> { Column::single(MAP.ops.xor) }
 
 /// Column for a binary filter for OR instruction in Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_bitwise_or<F: Field>() -> Column<F> { Column::single(S_OR) }
+pub fn filter_for_bitwise_or<F: Field>() -> Column<F> { Column::single(MAP.ops.or) }
 
 /// Column for a binary filter for AND instruction in Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_bitwise_and<F: Field>() -> Column<F> { Column::single(S_AND) }
+pub fn filter_for_bitwise_and<F: Field>() -> Column<F> { Column::single(MAP.ops.and) }
 
 /// Column for a binary filter for SRL instruction in Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_bitwise_srl<F: Field>() -> Column<F> { Column::single(S_SRL) }
+pub fn filter_for_bitwise_srl<F: Field>() -> Column<F> { Column::single(MAP.ops.srl) }
 
 /// Column for a binary filter for SLL instruction in Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_bitwise_sll<F: Field>() -> Column<F> { Column::single(S_SLL) }
+pub fn filter_for_bitwise_sll<F: Field>() -> Column<F> { Column::single(MAP.ops.sll) }

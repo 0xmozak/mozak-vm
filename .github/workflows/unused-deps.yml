@@ -10,7 +10,7 @@ env:
 
 jobs:
   cargo-udeps:
-    runs-on: ubuntu-latest-m
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         # Main branch is default branch

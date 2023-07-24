@@ -3,6 +3,7 @@ use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::memory::columns as mem_cols;
+use crate::memory::columns::MAP;
 use crate::memory::trace::{
     get_memory_inst_addr, get_memory_inst_clk, get_memory_inst_op, get_memory_load_inst_value,
     get_memory_store_inst_value,
@@ -14,10 +15,10 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
     let ext_trace_len = trace[0].len().next_power_of_two();
 
     // Some columns need special treatment..
-    trace[mem_cols::MEM_PADDING].resize(ext_trace_len, F::ONE);
-    trace[mem_cols::MEM_DIFF_ADDR].resize(ext_trace_len, F::ZERO);
-    trace[mem_cols::MEM_DIFF_ADDR_INV].resize(ext_trace_len, F::ZERO);
-    trace[mem_cols::MEM_DIFF_CLK].resize(ext_trace_len, F::ZERO);
+    trace[MAP.mem_padding].resize(ext_trace_len, F::ONE);
+    trace[MAP.mem_diff_addr].resize(ext_trace_len, F::ZERO);
+    trace[MAP.mem_diff_addr_inv].resize(ext_trace_len, F::ZERO);
+    trace[MAP.mem_diff_clk].resize(ext_trace_len, F::ZERO);
 
     // .. and all other columns just have their last value duplicated.
     for row in &mut trace {
@@ -48,33 +49,32 @@ pub fn generate_memory_trace<F: RichField>(
 
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; trace_len]; mem_cols::NUM_MEM_COLS];
     for (i, s) in filtered_step_rows.iter().enumerate() {
-        trace[mem_cols::MEM_ADDR][i] = get_memory_inst_addr(s);
-        trace[mem_cols::MEM_CLK][i] = get_memory_inst_clk(s);
-        trace[mem_cols::MEM_OP][i] = get_memory_inst_op(&s.state.current_instruction());
+        trace[MAP.mem_addr][i] = get_memory_inst_addr(s);
+        trace[MAP.mem_clk][i] = get_memory_inst_clk(s);
+        trace[MAP.mem_op][i] = get_memory_inst_op(&s.state.current_instruction());
 
-        trace[mem_cols::MEM_VALUE][i] = match s.state.current_instruction().op {
+        trace[MAP.mem_value][i] = match s.state.current_instruction().op {
             Op::LB => get_memory_load_inst_value(s),
             Op::SB => get_memory_store_inst_value(s),
             #[tarpaulin::skip]
             _ => F::ZERO,
         };
 
-        trace[mem_cols::MEM_DIFF_ADDR][i] = trace[mem_cols::MEM_ADDR][i]
+        trace[MAP.mem_diff_addr][i] = trace[MAP.mem_addr][i]
             - if i == 0 {
                 F::ZERO
             } else {
-                trace[mem_cols::MEM_ADDR][i - 1]
+                trace[MAP.mem_addr][i - 1]
             };
 
-        trace[mem_cols::MEM_DIFF_ADDR_INV][i] = trace[mem_cols::MEM_DIFF_ADDR][i]
+        trace[MAP.mem_diff_addr_inv][i] = trace[MAP.mem_diff_addr][i]
             .try_inverse()
             .unwrap_or_default();
 
-        trace[mem_cols::MEM_DIFF_CLK][i] = if i == 0 || trace[mem_cols::MEM_DIFF_ADDR][i] != F::ZERO
-        {
+        trace[MAP.mem_diff_clk][i] = if i == 0 || trace[MAP.mem_diff_addr][i] != F::ZERO {
             F::ZERO
         } else {
-            trace[mem_cols::MEM_CLK][i] - trace[mem_cols::MEM_CLK][i - 1]
+            trace[MAP.mem_clk][i] - trace[MAP.mem_clk][i - 1]
         };
     }
 
