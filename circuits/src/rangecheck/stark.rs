@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -5,10 +6,12 @@ use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::permutation::PermutationPair;
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns;
+use super::columns::{RangeCheckColumnsView, MAP};
 use crate::lookup::eval_lookups;
 
 #[derive(Copy, Clone, Default)]
@@ -20,12 +23,12 @@ pub struct RangeCheckStark<F, const D: usize> {
 /// Constrain `val` - (`limb_hi` ** base + `limb_lo`) == 0
 fn constrain_value<P: PackedField>(
     base: P::Scalar,
-    local_values: &[P; columns::NUM_RC_COLS],
+    local_values: &RangeCheckColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let val = local_values[columns::DST_VALUE];
-    let limb_lo = local_values[columns::LIMB_LO];
-    let limb_hi = local_values[columns::LIMB_HI];
+    let val = local_values.val;
+    let limb_lo = local_values.limb_lo;
+    let limb_hi = local_values.limb_hi;
     yield_constr.constraint(val - (limb_lo + limb_hi * base));
 }
 
@@ -48,22 +51,32 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
+        let lv = vars.local_values.borrow();
+        let nv: &RangeCheckColumnsView<P> = vars.next_values.borrow();
         constrain_value(
             P::Scalar::from_canonical_usize(Self::BASE),
-            vars.local_values,
+            lv,
             yield_constr,
         );
         eval_lookups(
             vars,
             yield_constr,
-            columns::LIMB_LO_PERMUTED,
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO,
+            MAP.limb_lo_permuted,
+            MAP.fixed_range_check_u16_permuted_lo,
         );
         eval_lookups(
             vars,
             yield_constr,
-            columns::LIMB_HI_PERMUTED,
-            columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI,
+            MAP.limb_hi_permuted,
+            MAP.fixed_range_check_u16_permuted_hi,
+        );
+        yield_constr.constraint_first_row(lv.fixed_range_check_u16);
+        yield_constr.constraint_transition(
+            (nv.fixed_range_check_u16 - lv.fixed_range_check_u16 - FE::ONE)
+                * (nv.fixed_range_check_u16 - FE::from_canonical_u64(u64::from(u16::MAX))),
+        );
+        yield_constr.constraint_last_row(
+            lv.fixed_range_check_u16 - FE::from_canonical_u64(u64::from(u16::MAX)),
         );
     }
 
@@ -78,6 +91,21 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     }
 
     fn constraint_degree(&self) -> usize { 3 }
+
+    fn permutation_pairs(&self) -> Vec<PermutationPair> {
+        vec![
+            PermutationPair::singletons(MAP.limb_lo, MAP.limb_lo_permuted),
+            PermutationPair::singletons(MAP.limb_hi, MAP.limb_hi_permuted),
+            PermutationPair::singletons(
+                MAP.fixed_range_check_u16,
+                MAP.fixed_range_check_u16_permuted_lo,
+            ),
+            PermutationPair::singletons(
+                MAP.fixed_range_check_u16,
+                MAP.fixed_range_check_u16_permuted_hi,
+            ),
+        ]
+    }
 }
 
 #[cfg(test)]
@@ -111,7 +139,7 @@ mod tests {
         let cpu_trace = generate_cpu_trace::<F>(&record.executed);
         let mut trace = generate_rangecheck_trace::<F>(&cpu_trace);
         // Manually alter the value here to be larger than a u32.
-        trace[0][columns::DST_VALUE] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
+        trace[0][MAP.val] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
         trace
     }
 
@@ -127,10 +155,11 @@ mod tests {
         let inst = 0x0073_02b3 /* add r5, r6, r7 */;
 
         let mut mem = vec![];
-        for i in 0..=u32::from(u16::MAX) {
+        let u16max = u32::from(u16::MAX);
+        for i in 0..=u16max {
             mem.push((i * 4, inst));
         }
-        let record = simple_test(4, &mem, &[(6, 100), (7, 100)]);
+        let record = simple_test(4 * u16max, &mem, &[(6, 100), (7, 100)]);
 
         let cpu_rows = generate_cpu_trace::<F>(&record.executed);
         let trace = generate_rangecheck_trace::<F>(&cpu_rows);
