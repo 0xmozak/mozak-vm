@@ -9,7 +9,6 @@ use crate::cross_table_lookup::Column;
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct BitwiseColumnsView<T: Copy> {
-    pub(crate) filter: T,
     pub(crate) execution: BitwiseExecutionColumnsView<T>,
 
     // TODO(Matthias): separate out the permutation columns etc into suitable separate structs,
@@ -59,9 +58,3 @@ pub(crate) const BASE: u16 = 256;
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
     Column::singles([MAP.execution.op1, MAP.execution.op2, MAP.execution.res]).collect_vec()
 }
-
-/// Column for a binary filter to indicate a lookup from the
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable) in the Mozak
-/// [`BitwiseTable`](crate::cross_table_lookup::BitwiseTable).
-#[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(MAP.filter) }

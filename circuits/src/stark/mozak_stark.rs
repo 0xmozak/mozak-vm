@@ -139,10 +139,7 @@ impl<F: Field> Lookups<F> for BitwiseCpuTable<F> {
                 cpu::columns::data_for_bitwise(),
                 cpu::columns::filter_for_bitwise(),
             )],
-            BitwiseTable::new(
-                bitwise::columns::data_for_cpu(),
-                bitwise::columns::filter_for_cpu(),
-            ),
+            BitwiseTable::new(bitwise::columns::data_for_cpu(), Column::always()),
         )
     }
 }

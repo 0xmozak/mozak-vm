@@ -46,7 +46,6 @@ pub fn generate_bitwise_trace<F: RichField>(
         let xor_b = cpu_trace[cpu_cols::MAP.xor_b][*clk];
         let xor_out = cpu_trace[cpu_cols::MAP.xor_out][*clk];
 
-        trace[MAP.filter][i] = F::ONE;
         trace[MAP.execution.op1][i] = xor_a;
         trace[MAP.execution.op2][i] = xor_b;
         trace[MAP.execution.res][i] = xor_out;
