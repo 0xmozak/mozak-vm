@@ -48,20 +48,20 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
             );
         }
 
-        // Constrain compress logic.
+        // Constrain compression logic.
         let base = FE::from_noncanonical_u64(BASE.into());
-        for (op1_limb, op2_limb, res_limb, compress_limb) in
-            izip!(e.op1_limbs, e.op2_limbs, e.res_limbs, lv.compress_limbs)
+        for (op1_limb, op2_limb, res_limb, compressed_limb) in
+            izip!(e.op1_limbs, e.op2_limbs, e.res_limbs, lv.compressed_limbs)
         {
             yield_constr.constraint(
-                reduce_with_powers(&[op1_limb, op2_limb, res_limb], base) - compress_limb,
+                reduce_with_powers(&[op1_limb, op2_limb, res_limb], base) - compressed_limb,
             );
         }
 
         // TODO(Matthias): Once we fix `eval_lookups` we can probably drop the MAP
         // here.
-        for (fix_range_check_u8_permuted, opx_limbs_permuted) in izip!(
-            MAP.fix_range_check_u8_permuted,
+        for (fixed_range_check_u8_permuted, opx_limbs_permuted) in izip!(
+            MAP.fixed_range_check_u8_permuted,
             chain!(
                 MAP.op1_limbs_permuted,
                 MAP.op2_limbs_permuted,
@@ -72,14 +72,19 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
                 vars,
                 yield_constr,
                 opx_limbs_permuted,
-                fix_range_check_u8_permuted,
+                fixed_range_check_u8_permuted,
             );
         }
 
-        for (fix_compress_permuted, compress_permuted) in
-            izip!(MAP.fix_compress_permuted, MAP.compress_permuted)
+        for (fixed_compressed_permuted, compressed_permuted) in
+            izip!(MAP.fixed_compressed_permuted, MAP.compressed_permuted)
         {
-            eval_lookups(vars, yield_constr, compress_permuted, fix_compress_permuted);
+            eval_lookups(
+                vars,
+                yield_constr,
+                compressed_permuted,
+                fixed_compressed_permuted,
+            );
         }
     }
 
@@ -87,8 +92,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
 
     fn permutation_pairs(&self) -> Vec<PermutationPair> {
         chain!(
-            izip!(MAP.compress_limbs, MAP.compress_permuted),
-            iproduct!([MAP.fix_compress], MAP.fix_compress_permuted)
+            izip!(MAP.compressed_limbs, MAP.compressed_permuted),
+            iproduct!([MAP.fixed_compressed], MAP.fixed_compressed_permuted)
         )
         .map(|(a, b)| PermutationPair::singletons(a, b))
         .collect()
