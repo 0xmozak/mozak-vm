@@ -104,7 +104,7 @@ impl<F: Field> CpuTable<F> {
 
 impl<F: Field> BitwiseTable<F> {
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(columns: Vec<Column<F>>, filter_column: Option<Column<F>>) -> Table<F> {
+    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
         Table::new(TableKind::Bitwise, columns, filter_column)
     }
 }
@@ -135,31 +135,13 @@ pub struct BitwiseCpuTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for BitwiseCpuTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
-            vec![
-                CpuTable::new(
-                    cpu::columns::data_for_bitwise(),
-                    Some(cpu::columns::filter_for_bitwise_xor()),
-                ),
-                CpuTable::new(
-                    cpu::columns::data_for_bitwise(),
-                    Some(cpu::columns::filter_for_bitwise_or()),
-                ),
-                CpuTable::new(
-                    cpu::columns::data_for_bitwise(),
-                    Some(cpu::columns::filter_for_bitwise_and()),
-                ),
-                CpuTable::new(
-                    cpu::columns::data_for_bitwise(),
-                    Some(cpu::columns::filter_for_bitwise_sll()),
-                ),
-                CpuTable::new(
-                    cpu::columns::data_for_bitwise(),
-                    Some(cpu::columns::filter_for_bitwise_srl()),
-                ),
-            ],
+            vec![CpuTable::new(
+                cpu::columns::data_for_bitwise(),
+                cpu::columns::filter_for_bitwise(),
+            )],
             BitwiseTable::new(
                 bitwise::columns::data_for_cpu(),
-                Some(bitwise::columns::filter_for_cpu()),
+                bitwise::columns::filter_for_cpu(),
             ),
         )
     }

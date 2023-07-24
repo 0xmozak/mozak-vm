@@ -92,7 +92,7 @@ pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MA
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.dst_value]).collect_vec()
+    vec![Column::single(MAP.dst_value)]
 }
 
 /// Columns containing the data to be matched against XOR Bitwise stark.
@@ -102,27 +102,15 @@ pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> {
     Column::singles([MAP.xor_a, MAP.xor_b, MAP.xor_out]).collect_vec()
 }
 
-/// Column for a binary filter for XOR instruction in Bitwise stark.
+/// Column for a binary filter for bitwise instruction in Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_bitwise_xor<F: Field>() -> Column<F> { Column::single(MAP.ops.xor) }
-
-/// Column for a binary filter for OR instruction in Bitwise stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_bitwise_or<F: Field>() -> Column<F> { Column::single(MAP.ops.or) }
-
-/// Column for a binary filter for AND instruction in Bitwise stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_bitwise_and<F: Field>() -> Column<F> { Column::single(MAP.ops.and) }
-
-/// Column for a binary filter for SRL instruction in Bitwise stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_bitwise_srl<F: Field>() -> Column<F> { Column::single(MAP.ops.srl) }
-
-/// Column for a binary filter for SLL instruction in Bitwise stark.
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn filter_for_bitwise_sll<F: Field>() -> Column<F> { Column::single(MAP.ops.sll) }
+pub fn filter_for_bitwise<F: Field>() -> Column<F> {
+    Column::many([
+        MAP.ops.xor,
+        MAP.ops.or,
+        MAP.ops.and,
+        MAP.ops.srl,
+        MAP.ops.sll,
+    ])
+}
