@@ -74,7 +74,8 @@ pub fn generate_bitwise_trace<F: RichField>(
     // add FIXED bitwise table
     // 2^8 * 2^8 possible rows
     trace[MAP.fixed_range_check_u8] = cols::RANGE_U8.map(|x| from_u32(x.into())).collect();
-    trace[MAP.fixed_range_check_u8].resize(ext_trace_len, F::ZERO);
+    trace[MAP.fixed_range_check_u8]
+        .resize(ext_trace_len, F::from_canonical_u64(u64::from(u8::MAX)));
 
     for (index, (op1, op2)) in cols::RANGE_U8.cartesian_product(cols::RANGE_U8).enumerate() {
         trace[MAP.fixed_bitwise_op1][index] = from_u32(op1.into());
