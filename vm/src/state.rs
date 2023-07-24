@@ -52,10 +52,10 @@ impl State {
     #[must_use]
     pub fn register_op<F>(self, data: &Args, op: F) -> (Aux, Self)
     where
-        F: FnOnce(u32, u32, u32) -> u32, {
-        let rs1 = self.get_register_value(data.rs1);
-        let rs2 = self.get_register_value(data.rs2);
-        let dst_val = op(rs1, rs2, data.imm);
+        F: FnOnce(u32, u32) -> u32, {
+        let op1 = self.get_register_value(data.rs1);
+        let op2 = self.get_register_value(data.rs2).wrapping_add(data.imm);
+        let dst_val = op(op1, op2);
         (
             Aux {
                 dst_val,
@@ -86,13 +86,15 @@ impl State {
     }
 
     #[must_use]
+    #[allow(clippy::missing_panics_doc)]
     pub fn branch_op(self, data: &Args, op: fn(u32, u32) -> bool) -> (Aux, State) {
-        let rs1 = self.get_register_value(data.rs1);
-        let rs2 = self.get_register_value(data.rs2);
+        let op1 = self.get_register_value(data.rs1);
+        assert_eq!(data.imm, 0, "{:#?}", self.current_instruction());
+        let op2 = self.get_register_value(data.rs2).wrapping_add(data.imm);
         (
             Aux::default(),
-            if op(rs1, rs2) {
-                self.set_pc(data.imm)
+            if op(op1, op2) {
+                self.set_pc(data.branch_target)
             } else {
                 self.bump_pc()
             },

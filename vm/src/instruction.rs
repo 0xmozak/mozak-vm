@@ -4,6 +4,7 @@ pub struct Args {
     pub rs1: u8,
     pub rs2: u8,
     pub imm: u32,
+    pub branch_target: u32,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
@@ -48,12 +49,7 @@ pub enum Op {
 }
 
 /// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
-pub const NOOP_PAIR: (Op, Args) = (Op::ADD, Args {
-    rd: 0,
-    rs1: 0,
-    rs2: 0,
-    imm: 0,
-});
+pub const NOOP_PAIR: (Op, Args) = (NOOP.op, NOOP.args);
 /// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
 pub const NOOP: Instruction = Instruction {
     op: Op::ADD,
@@ -62,6 +58,7 @@ pub const NOOP: Instruction = Instruction {
         rs1: 0,
         rs2: 0,
         imm: 0,
+        branch_target: 0,
     },
 };
 
@@ -73,10 +70,24 @@ pub struct Instruction {
 
 impl Instruction {
     #[must_use]
-    pub fn new(op: Op, rd: u8, rs1: u8, rs2: u8, imm: u32) -> Self {
+    pub fn new(op: Op, rd: u8, rs1: u8, rs2: u8, imm_or_branch_target: u32) -> Self {
+        let (imm, branch_target) = if matches!(
+            op,
+            Op::BEQ | Op::BNE | Op::BLT | Op::BGE | Op::BLTU | Op::BGEU
+        ) {
+            (0, imm_or_branch_target)
+        } else {
+            (imm_or_branch_target, 0)
+        };
         Instruction {
             op,
-            args: Args { rd, rs1, rs2, imm },
+            args: Args {
+                rd,
+                rs1,
+                rs2,
+                imm,
+                branch_target,
+            },
         }
     }
 }
