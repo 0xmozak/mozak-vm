@@ -92,7 +92,7 @@ pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MA
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.dst_value]).collect_vec()
+    vec![Column::single(MAP.dst_value)]
 }
 
 /// Columns containing the data to be match against XOR Bitwise stark.
