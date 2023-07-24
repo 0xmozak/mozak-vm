@@ -23,9 +23,7 @@ pub(crate) fn constraints<P: PackedField>(
 
     let op1 = lv.op1_value;
     let op2 = lv.op2_value;
-    // TODO: range check
     let op1_fixed = lv.op1_val_fixed;
-    // TODO: range check
     let op2_fixed = lv.op2_val_fixed;
 
     yield_constr.constraint(lv.ops.sltu * (op1_fixed - op1));
@@ -35,7 +33,6 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(lv.ops.slt * (op2_fixed - (op2 + p31 - sign2 * p32)));
 
     let diff_fixed = op1_fixed - op2_fixed;
-    // TODO: range check
     let abs_diff = lv.cmp_abs_diff;
 
     // abs_diff calculation
