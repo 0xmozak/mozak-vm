@@ -26,12 +26,9 @@ fn pad_rc_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
 
 /// Converts a u32 into 2 u16 limbs represented in [`RichField`].
 fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
-    let limb_hi = u16::try_from(value >> 16).unwrap();
-    let limb_lo = u16::try_from(value & 0xffff).unwrap();
-
     (
-        F::from_noncanonical_u64(limb_hi.into()),
-        F::from_noncanonical_u64(limb_lo.into()),
+        F::from_noncanonical_u64((value >> 16).into()),
+        F::from_noncanonical_u64((value & 0xffff).into()),
     )
 }
 
