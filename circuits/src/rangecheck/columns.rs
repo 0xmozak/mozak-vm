@@ -9,6 +9,7 @@ use crate::cross_table_lookup::Column;
 pub(crate) struct RangeCheckColumnsView<T: Copy> {
     /// Column containing the value (in u32) to be range checked.
     pub(crate) val: T,
+
     /// Column containing the lower limb (u16) of the u32 value to be range
     /// checked.
     pub(crate) limb_lo: T,
@@ -25,12 +26,8 @@ pub(crate) struct RangeCheckColumnsView<T: Copy> {
     /// range checked.
     pub(crate) limb_hi_permuted: T,
 
-    /// Column to indicate that a value to be range checked is from the CPU
-    /// table.
+    // Selector columns
     pub(crate) s_dst_value: T,
-
-    /// Column to indicate that a value to be range checked is from the CPU
-    /// table.
     pub(crate) s_op1_val_fixed: T,
     pub(crate) s_op2_val_fixed: T,
     pub(crate) s_cmp_abs_diff: T,

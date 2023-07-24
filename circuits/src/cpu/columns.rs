@@ -83,14 +83,10 @@ make_col_map!(CpuColumnsView);
 
 pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
 
-/// Columns containing the data to be range checked in the Mozak
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 pub(crate) fn data_dst_value_for_rangecheck<F: Field>() -> Vec<Column<F>> {
     Column::singles([MAP.dst_value]).collect_vec()
 }
 
-/// Columns containing the data to be range checked in the Mozak
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 pub(crate) fn data_op1_val_fixed_rangecheck<F: Field>() -> Vec<Column<F>> {
     Column::singles([MAP.op1_val_fixed]).collect_vec()
 }
