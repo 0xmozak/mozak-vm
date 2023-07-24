@@ -73,7 +73,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         yield_constr.constraint_first_row(lv.fixed_range_check_u16);
         yield_constr.constraint_transition(
             (nv.fixed_range_check_u16 - lv.fixed_range_check_u16 - FE::ONE)
-                * (nv.fixed_range_check_u16 - FE::from_canonical_u64(u64::from(u16::MAX))),
+                * (nv.fixed_range_check_u16 - lv.fixed_range_check_u16),
         );
         yield_constr.constraint_last_row(
             lv.fixed_range_check_u16 - FE::from_canonical_u64(u64::from(u16::MAX)),
