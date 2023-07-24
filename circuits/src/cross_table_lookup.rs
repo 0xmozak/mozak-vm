@@ -55,7 +55,7 @@ pub(crate) struct CtlZData<F: Field> {
     pub(crate) z: PolynomialValues<F>,
     pub(crate) challenge: GrandProductChallenge<F>,
     pub(crate) columns: Vec<Column<F>>,
-    pub(crate) filter_column: Option<Column<F>>,
+    pub(crate) filter_column: Column<F>,
 }
 
 pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: usize>(
@@ -153,18 +153,14 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
 fn partial_products<F: Field>(
     trace: &[PolynomialValues<F>],
     columns: &[Column<F>],
-    filter_column: &Option<Column<F>>,
+    filter_column: &Column<F>,
     challenge: GrandProductChallenge<F>,
 ) -> PolynomialValues<F> {
     let mut partial_prod = F::ONE;
     let degree = trace[0].len();
     let mut res = Vec::with_capacity(degree);
     for i in 0..degree {
-        let filter = if let Some(column) = filter_column {
-            column.eval_table(trace, i)
-        } else {
-            F::ONE
-        };
+        let filter = filter_column.eval_table(trace, i);
 
         if filter.is_one() {
             let evals = columns
@@ -188,6 +184,14 @@ pub struct Column<F: Field> {
 }
 
 impl<F: Field> Column<F> {
+    #[must_use]
+    pub fn always() -> Self {
+        Column {
+            linear_combination: vec![],
+            constant: F::ONE,
+        }
+    }
+
     #[must_use]
     pub fn single(c: usize) -> Self {
         Self {
@@ -285,7 +289,7 @@ where
     pub(crate) next_z: P,
     pub(crate) challenges: GrandProductChallenge<F>,
     pub(crate) columns: &'a [Column<F>],
-    pub(crate) filter_column: &'a Option<Column<F>>,
+    pub(crate) filter_column: &'a Column<F>,
 }
 
 impl<'a, F: RichField + Extendable<D>, const D: usize>
@@ -360,13 +364,7 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
             let evals = columns.iter().map(|c| c.eval(v)).collect::<Vec<_>>();
             challenges.combine(evals.iter())
         };
-        let filter = |v: &[P]| -> P {
-            if let Some(column) = filter_column {
-                column.eval(v)
-            } else {
-                P::ONES
-            }
-        };
+        let filter = |v: &[P]| -> P { filter_column.eval(v) };
         let local_filter = filter(vars.local_values);
         let next_filter = filter(vars.next_values);
         let select = |filter, x| filter * x + P::ONES - filter;
@@ -411,11 +409,7 @@ mod tests {
         ) -> Result<(), LookupError> {
             let trace = &trace_poly_values[table.kind as usize];
             for i in 0..trace[0].len() {
-                let filter = if let Some(column) = &table.filter_column {
-                    column.eval_table(trace, i)
-                } else {
-                    F::ONE
-                };
+                let filter = table.filter_column.eval_table(trace, i);
                 if filter.is_one() {
                     let row = table
                         .columns
@@ -449,8 +443,8 @@ mod tests {
         /// be used generically for tests.
         fn lookups() -> CrossTableLookup<F> {
             CrossTableLookup {
-                looking_tables: vec![CpuTable::new(lookup_data(&[1]), Some(lookup_filter(2)))],
-                looked_table: RangeCheckTable::new(lookup_data(&[1]), Some(lookup_filter(0))),
+                looking_tables: vec![CpuTable::new(lookup_data(&[1]), lookup_filter(2))],
+                looked_table: RangeCheckTable::new(lookup_data(&[1]), lookup_filter(0)),
             }
         }
     }
@@ -577,8 +571,8 @@ mod tests {
         /// be used generically for tests.
         fn lookups() -> CrossTableLookup<F> {
             CrossTableLookup {
-                looking_tables: vec![CpuTable::new(lookup_data(&[0]), Some(lookup_filter(0)))],
-                looked_table: RangeCheckTable::new(lookup_data(&[1]), Some(lookup_filter(0))),
+                looking_tables: vec![CpuTable::new(lookup_data(&[0]), lookup_filter(0))],
+                looked_table: RangeCheckTable::new(lookup_data(&[1]), lookup_filter(0)),
             }
         }
     }
