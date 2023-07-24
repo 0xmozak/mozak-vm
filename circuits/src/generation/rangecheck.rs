@@ -18,11 +18,8 @@ pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 #[must_use]
 fn pad_rc_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
     let len = trace[0].len().max(RANGE_CHECK_U16_SIZE).next_power_of_two();
-    let extra = len - trace[0].len();
 
-    for col in &mut trace {
-        col.extend(vec![F::ZERO; extra]);
-    }
+    trace.iter_mut().for_each(move |c| c.resize(len, F::ZERO));
 
     trace
 }
