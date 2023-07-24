@@ -135,28 +135,10 @@ pub struct BitwiseCpuTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for BitwiseCpuTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
-            vec![
-                CpuTable::new(
-                    cpu::columns::data_for_bitwise(),
-                    Some(cpu::columns::filter_for_bitwise_xor()),
-                ),
-                CpuTable::new(
-                    cpu::columns::data_for_bitwise(),
-                    Some(cpu::columns::filter_for_bitwise_or()),
-                ),
-                CpuTable::new(
-                    cpu::columns::data_for_bitwise(),
-                    Some(cpu::columns::filter_for_bitwise_and()),
-                ),
-                CpuTable::new(
-                    cpu::columns::data_for_bitwise(),
-                    Some(cpu::columns::filter_for_bitwise_sll()),
-                ),
-                CpuTable::new(
-                    cpu::columns::data_for_bitwise(),
-                    Some(cpu::columns::filter_for_bitwise_srl()),
-                ),
-            ],
+            vec![CpuTable::new(
+                cpu::columns::data_for_bitwise(),
+                Some(cpu::columns::filter_for_bitwise()),
+            )],
             BitwiseTable::new(
                 bitwise::columns::data_for_cpu(),
                 Some(bitwise::columns::filter_for_cpu()),

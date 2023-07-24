@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 
 use anyhow::{ensure, Result};
+use itertools::Itertools;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -199,6 +200,14 @@ impl<F: Field> Column<F> {
         cs: I,
     ) -> impl Iterator<Item = Self> {
         cs.into_iter().map(|c| Self::single(*c.borrow()))
+    }
+
+    #[must_use]
+    pub fn many<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
+        Column {
+            linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect_vec(),
+            constant: F::ZERO,
+        }
     }
 
     pub fn eval<FE, P, const D: usize>(&self, v: &[P]) -> P

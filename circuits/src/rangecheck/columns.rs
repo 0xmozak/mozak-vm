@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
