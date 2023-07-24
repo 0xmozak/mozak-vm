@@ -17,6 +17,8 @@ env:
 jobs:
   cargo-test:
     runs-on: macos-latest
+    permissions:
+      issues: write
     steps:
       - uses: actions/checkout@v3
 
