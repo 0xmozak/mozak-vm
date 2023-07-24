@@ -1,14 +1,13 @@
-use mozak_vm::instruction::Op;
-use mozak_vm::state::Aux;
-use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
+use crate::cpu::columns::{MAP as cpu_map, NUM_CPU_COLS};
 use crate::lookup::permute_cols;
 use crate::rangecheck::columns;
+use crate::rangecheck::columns::MAP;
 
 pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 
-/// Initializes the rangecheck trace table to the size of 2^k rows in
+/// Pad the rangecheck trace table to the size of 2^k rows in
 /// preparation for the Halo2 lookup argument.
 ///
 /// Note that by right the column to be checked (A) and the fixed column (S)
@@ -17,8 +16,29 @@ pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 /// initializing our trace to all [`F::ZERO`]s takes care of this step by
 /// default.
 #[must_use]
-fn init_padded_rc_trace<F: RichField>(len: usize) -> Vec<Vec<F>> {
-    vec![vec![F::ZERO; len.next_power_of_two()]; columns::NUM_RC_COLS]
+fn pad_rc_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
+    let len = trace[0].len().max(RANGE_CHECK_U16_SIZE).next_power_of_two();
+
+    trace.iter_mut().for_each(move |c| c.resize(len, F::ZERO));
+
+    trace
+}
+
+/// Converts a u32 into 2 u16 limbs represented in [`RichField`].
+fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
+    (
+        F::from_noncanonical_u64((value >> 16).into()),
+        F::from_noncanonical_u64((value & 0xffff).into()),
+    )
+}
+
+fn push_rangecheck_row<F: RichField>(
+    trace: &mut [Vec<F>],
+    rangecheck_row: [F; columns::NUM_RC_COLS],
+) {
+    for (i, col) in rangecheck_row.iter().enumerate() {
+        trace[i].push(*col);
+    }
 }
 
 /// Generates a trace table for range checks, used in building a
@@ -31,60 +51,52 @@ fn init_padded_rc_trace<F: RichField>(len: usize) -> Vec<Vec<F>> {
 /// 2. trace width does not match the number of columns.
 #[must_use]
 pub fn generate_rangecheck_trace<F: RichField>(
-    step_rows: &[Row],
+    cpu_trace: &[Vec<F>; NUM_CPU_COLS],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
-    let mut trace = init_padded_rc_trace(step_rows.len().max(RANGE_CHECK_U16_SIZE));
+    let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
 
-    for (
-        i,
-        Row {
-            state: s,
-            aux: Aux { dst_val, .. },
-        },
-    ) in step_rows.iter().enumerate()
-    {
-        let inst = s.current_instruction();
+    for (i, _) in cpu_trace[0].iter().enumerate() {
+        let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
+        if cpu_trace[cpu_map.ops.add][i].is_one() {
+            let dst_val = u32::try_from(cpu_trace[cpu_map.dst_value][i].to_canonical_u64())
+                .expect("casting COL_DST_VALUE to u32 should succeed");
+            let (limb_hi, limb_lo) = limbs_from_u32(dst_val);
+            rangecheck_row[MAP.val] = cpu_trace[cpu_map.dst_value][i];
+            rangecheck_row[MAP.limb_hi] = limb_hi;
+            rangecheck_row[MAP.limb_lo] = limb_lo;
+            rangecheck_row[MAP.cpu_filter] = F::ONE;
 
-        #[allow(clippy::single_match)]
-        match inst.op {
-            Op::ADD => {
-                let limb_hi = u16::try_from(dst_val >> 16).unwrap();
-                let limb_lo = u16::try_from(dst_val & 0xffff).unwrap();
-                trace[columns::VAL][i] = F::from_noncanonical_u64((*dst_val).into());
-                trace[columns::LIMB_HI][i] = F::from_noncanonical_u64(limb_hi.into());
-                trace[columns::LIMB_LO][i] = F::from_noncanonical_u64(limb_lo.into());
-                trace[columns::CPU_FILTER][i] = F::ONE;
-            }
-            _ => {}
+            push_rangecheck_row(&mut trace, rangecheck_row);
         }
     }
+
+    // Pad our trace to max(RANGE_CHECK_U16_SIZE, trace[0].len())
+    trace = pad_rc_trace(trace);
 
     // Here, we generate fixed columns for the table, used in inner table lookups.
     // We are interested in range checking 16-bit values, hence we populate with
     // values 0, 1, .., 2^16 - 1.
-    trace[columns::FIXED_RANGE_CHECK_U16] = (0..RANGE_CHECK_U16_SIZE as u64)
+    trace[MAP.fixed_range_check_u16] = (0..RANGE_CHECK_U16_SIZE as u64)
         .map(F::from_noncanonical_u64)
         .collect();
+    let num_rows = trace[MAP.val].len();
+    trace[MAP.fixed_range_check_u16].resize(num_rows, F::from_canonical_u64(u64::from(u16::MAX)));
 
     // This permutation is done in accordance to the [Halo2 lookup argument
     // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
-    let (col_input_permuted, col_table_permuted) = permute_cols(
-        &trace[columns::LIMB_LO],
-        &trace[columns::FIXED_RANGE_CHECK_U16],
-    );
+    let (col_input_permuted, col_table_permuted) =
+        permute_cols(&trace[MAP.limb_lo], &trace[MAP.fixed_range_check_u16]);
 
     // We need a column for the lower limb.
-    trace[columns::LIMB_LO_PERMUTED] = col_input_permuted;
-    trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_LO] = col_table_permuted;
+    trace[MAP.limb_lo_permuted] = col_input_permuted;
+    trace[MAP.fixed_range_check_u16_permuted_lo] = col_table_permuted;
 
-    let (col_input_permuted, col_table_permuted) = permute_cols(
-        &trace[columns::LIMB_HI],
-        &trace[columns::FIXED_RANGE_CHECK_U16],
-    );
+    let (col_input_permuted, col_table_permuted) =
+        permute_cols(&trace[MAP.limb_hi], &trace[MAP.fixed_range_check_u16]);
 
     // And we also need a column for the upper limb.
-    trace[columns::LIMB_HI_PERMUTED] = col_input_permuted;
-    trace[columns::FIXED_RANGE_CHECK_U16_PERMUTED_HI] = col_table_permuted;
+    trace[MAP.limb_hi_permuted] = col_input_permuted;
+    trace[MAP.fixed_range_check_u16_permuted_hi] = col_table_permuted;
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
@@ -102,6 +114,7 @@ mod tests {
     use plonky2::field::types::Field;
 
     use super::*;
+    use crate::generation::cpu::generate_cpu_trace;
 
     #[test]
     fn test_add_instruction_inserts_rangecheck() {
@@ -113,28 +126,29 @@ mod tests {
             &[(6, 0xffff), (7, 0xffff)],
         );
 
-        let trace = generate_rangecheck_trace::<F>(&record.executed);
+        let cpu_rows = generate_cpu_trace::<F>(&record.executed);
+        let trace = generate_rangecheck_trace::<F>(&cpu_rows);
 
         // Check values that we are interested in
-        assert_eq!(trace[columns::CPU_FILTER][0], F::ONE);
-        assert_eq!(trace[columns::CPU_FILTER][1], F::ONE);
-        assert_eq!(trace[columns::VAL][0], GoldilocksField(0x0001_fffe));
-        assert_eq!(trace[columns::VAL][1], GoldilocksField(93));
-        assert_eq!(trace[columns::LIMB_HI][0], GoldilocksField(0x0001));
-        assert_eq!(trace[columns::LIMB_LO][0], GoldilocksField(0xfffe));
-        assert_eq!(trace[columns::LIMB_LO][1], GoldilocksField(93));
+        assert_eq!(trace[MAP.cpu_filter][0], F::ONE);
+        assert_eq!(trace[MAP.cpu_filter][1], F::ONE);
+        assert_eq!(trace[MAP.val][0], GoldilocksField(0x0001_fffe));
+        assert_eq!(trace[MAP.val][1], GoldilocksField(93));
+        assert_eq!(trace[MAP.limb_hi][0], GoldilocksField(0x0001));
+        assert_eq!(trace[MAP.limb_lo][0], GoldilocksField(0xfffe));
+        assert_eq!(trace[MAP.limb_lo][1], GoldilocksField(93));
 
         // Ensure rest of trace is zeroed out
-        for cpu_filter in trace[columns::CPU_FILTER][2..].iter() {
+        for cpu_filter in &trace[MAP.cpu_filter][2..] {
             assert_eq!(cpu_filter, &F::ZERO);
         }
-        for value in trace[columns::VAL][2..].iter() {
+        for value in &trace[MAP.val][2..] {
             assert_eq!(value, &F::ZERO);
         }
-        for limb_hi in trace[columns::LIMB_HI][1..].iter() {
+        for limb_hi in &trace[MAP.limb_hi][1..] {
             assert_eq!(limb_hi, &F::ZERO);
         }
-        for limb_lo in trace[columns::LIMB_LO][2..].iter() {
+        for limb_lo in &trace[MAP.limb_lo][2..] {
             assert_eq!(limb_lo, &F::ZERO);
         }
     }

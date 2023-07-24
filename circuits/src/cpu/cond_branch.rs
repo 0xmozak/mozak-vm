@@ -2,44 +2,40 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::{
-    COL_CMP_ABS_DIFF, COL_CMP_DIFF_INV, COL_IMM_VALUE, COL_LESS_THAN_FOR_BRANCH, COL_OP1_VALUE,
-    COL_OP2_VALUE, COL_PC, COL_S_BGE, COL_S_BGEU, COL_S_BLT, COL_S_BLTU, NUM_CPU_COLS, OP1_SIGN,
-    OP1_VAL_FIXED, OP2_SIGN, OP2_VAL_FIXED,
-};
+use super::columns::CpuColumnsView;
 
 pub(crate) fn constraints<P: PackedField>(
-    lv: &[P; NUM_CPU_COLS],
-    nv: &[P; NUM_CPU_COLS],
+    lv: &CpuColumnsView<P>,
+    nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let p32 = P::Scalar::from_noncanonical_u64(1 << 32);
     let p31 = P::Scalar::from_noncanonical_u64(1 << 31);
 
-    let is_blt = lv[COL_S_BLT];
-    let is_bltu = lv[COL_S_BLTU];
-    let is_bge = lv[COL_S_BGE];
-    let is_bgeu = lv[COL_S_BGEU];
+    let is_blt = lv.ops.blt;
+    let is_bltu = lv.ops.bltu;
+    let is_bge = lv.ops.bge;
+    let is_bgeu = lv.ops.bgeu;
     let is_branch = is_blt + is_bltu + is_bge + is_bgeu;
 
-    let bumped_pc = lv[COL_PC] + P::Scalar::from_noncanonical_u64(4);
-    let branched_pc = lv[COL_IMM_VALUE];
-    let next_pc = nv[COL_PC];
+    let bumped_pc = lv.pc + P::Scalar::from_noncanonical_u64(4);
+    let branched_pc = lv.branch_target;
+    let next_pc = nv.pc;
 
-    let lt = lv[COL_LESS_THAN_FOR_BRANCH];
+    let lt = lv.less_than;
     yield_constr.constraint(is_branch * (lt * (P::ONES - lt)));
 
-    let sign1 = lv[OP1_SIGN];
+    let sign1 = lv.op1_sign;
     yield_constr.constraint(is_branch * (sign1 * (P::ONES - sign1)));
-    let sign2 = lv[OP2_SIGN];
+    let sign2 = lv.op2_sign;
     yield_constr.constraint(is_branch * (sign2 * (P::ONES - sign2)));
 
-    let op1 = lv[COL_OP1_VALUE];
-    let op2 = lv[COL_OP2_VALUE];
+    let op1 = lv.op1_value;
+    let op2 = lv.op2_value;
     // TODO: range check
-    let op1_fixed = lv[OP1_VAL_FIXED];
+    let op1_fixed = lv.op1_val_fixed;
     // TODO: range check
-    let op2_fixed = lv[OP2_VAL_FIXED];
+    let op2_fixed = lv.op2_val_fixed;
 
     yield_constr.constraint((is_bltu + is_bgeu) * (op1_fixed - op1));
     yield_constr.constraint((is_bltu + is_bgeu) * (op2_fixed - op2));
@@ -49,14 +45,14 @@ pub(crate) fn constraints<P: PackedField>(
 
     let diff_fixed = op1_fixed - op2_fixed;
     // TODO: range check
-    let abs_diff = lv[COL_CMP_ABS_DIFF];
+    let abs_diff = lv.cmp_abs_diff;
 
     // abs_diff calculation
     yield_constr.constraint(is_branch * (P::ONES - lt) * (abs_diff - diff_fixed));
     yield_constr.constraint(is_branch * lt * (abs_diff + diff_fixed));
 
     let diff = op1 - op2;
-    let diff_inv = lv[COL_CMP_DIFF_INV];
+    let diff_inv = lv.cmp_diff_inv;
     yield_constr.constraint(lt * (P::ONES - diff * diff_inv));
 
     yield_constr.constraint((is_blt + is_bltu) * lt * (next_pc - branched_pc));
@@ -85,7 +81,8 @@ mod tests {
                         rd: 0,
                         rs1: 6,
                         rs2: 7,
-                        imm: 8,
+                        branch_target: 8,
+                        ..Args::default()
                     },
                 },
                 // if above branch is not taken R1 has value 10.
@@ -93,9 +90,8 @@ mod tests {
                     op: Op::ADD,
                     args: Args {
                         rd: 1,
-                        rs1: 0,
-                        rs2: 0,
                         imm: 10,
+                        ..Args::default()
                     },
                 },
             ],

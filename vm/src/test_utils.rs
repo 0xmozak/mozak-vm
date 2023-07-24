@@ -36,21 +36,15 @@ pub fn simple_test_code(
                             Instruction {
                                 op: Op::ADD,
                                 args: Args {
-                                    rs1: 0,
-                                    rs2: 0,
                                     rd: 17,
                                     imm: 93,
+                                    ..Args::default()
                                 },
                             },
                             // add ECALL to halt the program
                             Instruction {
                                 op: Op::ECALL,
-                                args: Args {
-                                    rs1: 0,
-                                    rs2: 0,
-                                    rd: 0,
-                                    imm: 0,
-                                },
+                                ..Default::default()
                             },
                         ]
                         .iter(),

@@ -128,29 +128,25 @@ impl State {
     #[allow(clippy::cast_possible_wrap)]
     pub fn execute_instruction(self) -> (Aux, Self) {
         let inst = self.current_instruction();
-        macro_rules! x_op {
+        macro_rules! rop {
             ($op: expr) => {
                 self.register_op(&inst.args, $op)
             };
         }
-        macro_rules! rop {
-            ($op: expr) => {
-                self.register_op(&inst.args, |a, b, _i| $op(a, b))
-            };
-        }
+
         let (aux, state) = match inst.op {
-            Op::ADD => x_op!(|a, b, i| a.wrapping_add(b.wrapping_add(i))),
+            Op::ADD => rop!(u32::wrapping_add),
             // Only use lower 5 bits of rs2 or imm
-            Op::SLL => x_op!(|a, b, i| a << ((b.wrapping_add(i)) & 0x1F)),
+            Op::SLL => rop!(|a, b| a << (b & 0x1F)),
             // Only use lower 5 bits of rs2 or imm
-            Op::SRL => x_op!(|a, b, i| a >> ((b.wrapping_add(i)) & 0x1F)),
+            Op::SRL => rop!(|a, b| a >> (b & 0x1F)),
             // Only use lower 5 bits of rs2 or imm
-            Op::SRA => x_op!(|a, b, i| (a as i32 >> (b.wrapping_add(i) & 0x1F) as i32) as u32),
-            Op::SLT => x_op!(|a, b, i| u32::from((a as i32) < (b as i32).wrapping_add(i as i32))),
-            Op::SLTU => x_op!(|a, b, i| u32::from(a < b.wrapping_add(i))),
-            Op::AND => x_op!(|a, b, i| core::ops::BitAnd::bitand(a, b.wrapping_add(i))),
-            Op::OR => x_op!(|a, b, i| core::ops::BitOr::bitor(a, b.wrapping_add(i))),
-            Op::XOR => x_op!(|a, b, i| core::ops::BitXor::bitxor(a, b.wrapping_add(i))),
+            Op::SRA => rop!(|a, b| (a as i32 >> (b & 0x1F) as i32) as u32),
+            Op::SLT => rop!(|a, b| u32::from((a as i32) < (b as i32))),
+            Op::SLTU => rop!(|a, b| u32::from(a < b)),
+            Op::AND => rop!(core::ops::BitAnd::bitand),
+            Op::OR => rop!(core::ops::BitOr::bitor),
+            Op::XOR => rop!(core::ops::BitXor::bitxor),
             Op::SUB => rop!(u32::wrapping_sub),
 
             Op::LB => self.memory_load(&inst.args, lb),
