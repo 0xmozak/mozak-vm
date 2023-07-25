@@ -85,12 +85,34 @@ make_col_map!(CpuColumnsView);
 
 pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
 
-/// Columns containing the data to be range checked in the Mozak
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.dst_value]).collect_vec()
-}
-
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
 pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MAP.ops.add) }
+
+/// Columns containing the data to be range checked in the Mozak
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
+    vec![Column::single(MAP.dst_value)]
+}
+
+/// Columns containing the data to be matched against XOR Bitwise stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> {
+    Column::singles([MAP.xor_a, MAP.xor_b, MAP.xor_out]).collect_vec()
+}
+
+/// Column for a binary filter for bitwise instruction in Bitwise stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_bitwise<F: Field>() -> Column<F> {
+    Column::many([
+        MAP.ops.xor,
+        MAP.ops.or,
+        MAP.ops.and,
+        MAP.ops.srl,
+        MAP.ops.sll,
+    ])
+}
