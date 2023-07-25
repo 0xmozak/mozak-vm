@@ -24,7 +24,7 @@ impl<P: Copy> OpSelectorView<P> {
     fn straightline_opcodes(&self) -> Vec<P> {
         vec![
             self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu,
-            self.remu, self.sll, self.slt, self.sltu, self.srl,
+            self.remu, self.sll, self.slt, self.sltu, self.srl, self.sbu, self.lbu,
         ]
     }
 

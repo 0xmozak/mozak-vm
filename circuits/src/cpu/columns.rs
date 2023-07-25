@@ -23,8 +23,8 @@ pub(crate) struct OpSelectorView<T: Copy> {
     pub jalr: T,
     pub beq: T,
     pub bne: T,
-    pub sb: T,
-    pub lb: T,
+    pub sbu: T,
+    pub lbu: T,
     pub ecall: T,
     pub halt: T,
 }
