@@ -151,7 +151,7 @@ fn constraints_on_shamt<P: PackedField>(
     yield_constr.constraint_transition(
         (nv.fixed_shamt - lv.fixed_shamt - P::ONES) * (nv.fixed_shamt - lv.fixed_shamt),
     );
-    yield_constr.constraint_last_row(lv.fixed_shamt - P::Scalar::from_canonical_u8(31_u8));
+    yield_constr.constraint_last_row(lv.fixed_shamt - P::Scalar::from_canonical_u8(31));
 }
 
 fn constraints_on_power_of_2_shamt<P: PackedField>(
@@ -161,13 +161,11 @@ fn constraints_on_power_of_2_shamt<P: PackedField>(
 ) {
     yield_constr.constraint_first_row(lv.fixed_power_of_2_shamt - P::ONES);
     yield_constr.constraint_transition(
-        (nv.fixed_power_of_2_shamt
-            - (lv.fixed_power_of_2_shamt * P::Scalar::from_canonical_u8(2_u8)))
+        (nv.fixed_power_of_2_shamt - (lv.fixed_power_of_2_shamt * P::Scalar::from_canonical_u8(2)))
             * (nv.fixed_power_of_2_shamt - lv.fixed_power_of_2_shamt),
     );
-    yield_constr.constraint_last_row(
-        lv.fixed_power_of_2_shamt - P::Scalar::from_canonical_u32(2_u32.pow(31_u32)),
-    );
+    yield_constr
+        .constraint_last_row(lv.fixed_power_of_2_shamt - P::Scalar::from_canonical_u32(1 << 31));
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {

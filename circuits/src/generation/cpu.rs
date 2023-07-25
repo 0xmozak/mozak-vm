@@ -82,11 +82,11 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
     trace[MAP.fixed_shamt] = cpu_cols::FIXED_SHAMT_RANGE
         .map(F::from_canonical_u8)
         .collect();
-    trace[MAP.fixed_shamt].resize(num_of_rows, F::from_canonical_u8(31_u8));
+    trace[MAP.fixed_shamt].resize(num_of_rows, F::from_canonical_u8(31));
     trace[MAP.fixed_power_of_2_shamt] = cpu_cols::FIXED_SHAMT_RANGE
-        .map(|shamt| F::from_canonical_u32(2_u32.pow(shamt.into())))
+        .map(|shamt| F::from_canonical_u32(1 << shamt))
         .collect();
-    trace[MAP.fixed_power_of_2_shamt].resize(num_of_rows, F::from_canonical_u32(2_u32.pow(31_u32)));
+    trace[MAP.fixed_power_of_2_shamt].resize(num_of_rows, F::from_canonical_u32(1 << 31));
     (
         trace[MAP.powers_of_2_in_permuted],
         trace[MAP.fixed_shamt_permuted],
