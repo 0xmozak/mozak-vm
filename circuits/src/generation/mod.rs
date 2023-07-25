@@ -10,20 +10,24 @@ use plonky2::hash::hash_types::RichField;
 
 use self::bitwise::generate_bitwise_trace;
 use self::cpu::generate_cpu_trace;
+use self::memory::generate_memory_trace;
 use self::rangecheck::generate_rangecheck_trace;
 use crate::stark::mozak_stark::NUM_TABLES;
-use crate::stark::utils::trace_to_poly_values;
+use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 
 #[must_use]
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     step_rows: &[Row],
 ) -> [Vec<PolynomialValues<F>>; NUM_TABLES] {
     let cpu_rows = generate_cpu_trace::<F>(step_rows);
-    let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows);
+    let memory_rows = generate_memory_trace::<F>(step_rows.to_vec());
+    let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
     let bitwise_rows = generate_bitwise_trace(step_rows, &cpu_rows);
 
     let cpu_trace = trace_to_poly_values(cpu_rows);
     let rangecheck_trace = trace_to_poly_values(rangecheck_rows);
     let bitwise_trace = trace_to_poly_values(bitwise_rows);
-    [cpu_trace, rangecheck_trace, bitwise_trace]
+    let memory_trace = trace_rows_to_poly_values(memory_rows);
+
+    [cpu_trace, rangecheck_trace, bitwise_trace, memory_trace]
 }

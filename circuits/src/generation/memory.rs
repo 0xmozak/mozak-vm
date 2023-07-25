@@ -11,6 +11,7 @@ use crate::memory::trace::{
 /// Pad the memory trace to a power of 2.
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<MemoryColumnsView<F>>) -> Vec<MemoryColumnsView<F>> {
+    println!("resizing to: {}", trace.len().next_power_of_two());
     trace.resize(trace.len().next_power_of_two(), MemoryColumnsView {
         // Some columns need special treatment..
         mem_padding: F::ONE,
@@ -38,6 +39,10 @@ pub fn filter_memory_trace(mut step_rows: Vec<Row>) -> Vec<Row> {
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_memory_trace<F: RichField>(step_rows: Vec<Row>) -> Vec<MemoryColumnsView<F>> {
     let filtered_step_rows = filter_memory_trace(step_rows);
+
+    if filtered_step_rows.len() == 0 {
+        return vec![];
+    }
 
     let mut trace: Vec<MemoryColumnsView<F>> = vec![];
     for s in &filtered_step_rows {

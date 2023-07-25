@@ -1,4 +1,8 @@
+use itertools::Itertools;
+use plonky2::field::types::Field;
+
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::cross_table_lookup::Column;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
@@ -32,3 +36,13 @@ make_col_map!(MemoryColumnsView);
 
 // Total number of columns.
 pub const NUM_MEM_COLS: usize = MemoryColumnsView::<()>::NUMBER_OF_COLUMNS;
+
+/// Columns containing the data to be range checked in the Mozak
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
+    Column::singles([MAP.mem_addr]).collect_vec()
+}
+
+/// Column for a binary filter for our range check in the Mozak
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+pub(crate) fn filter_for_cpu<F: Field>() -> Column<F> { Column::zero() }

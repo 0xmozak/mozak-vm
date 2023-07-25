@@ -100,6 +100,7 @@ mod tests {
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::stark::utils::trace_rows_to_poly_values;
+    use crate::test_utils::simple_proof_test;
 
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
@@ -113,7 +114,7 @@ mod tests {
     }
 
     #[test]
-    fn prove_memory_sb_lb() -> Result<()> {
+    fn prove_memory_sb_lb_single() -> Result<()> {
         let mut config = StarkConfig::standard_fast_config();
         config.fri_config.cap_height = 0;
 
@@ -130,5 +131,16 @@ mod tests {
             &mut TimingTree::default(),
         )?;
         verify_stark_proof(stark, proof, &config)
+    }
+
+    #[test]
+    fn prove_memory_sb_lb() -> Result<()> {
+        let mut config = StarkConfig::standard_fast_config();
+        config.fri_config.cap_height = 0;
+
+        let executed = memory_trace_test_case();
+        simple_proof_test(&executed).unwrap();
+
+        Ok(())
     }
 }

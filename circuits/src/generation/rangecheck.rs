@@ -2,6 +2,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::{MAP as cpu_map, NUM_CPU_COLS};
 use crate::lookup::permute_cols;
+use crate::memory::columns::{MemoryColumnsView, NUM_MEM_COLS};
 use crate::rangecheck::columns;
 use crate::rangecheck::columns::MAP;
 
@@ -52,9 +53,9 @@ fn push_rangecheck_row<F: RichField>(
 #[must_use]
 pub fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[Vec<F>; NUM_CPU_COLS],
+    memory_trace: &[MemoryColumnsView<F>],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
-
     for (i, _) in cpu_trace[0].iter().enumerate() {
         let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
         if cpu_trace[cpu_map.ops.add][i].is_one() {
@@ -115,6 +116,7 @@ mod tests {
 
     use super::*;
     use crate::generation::cpu::generate_cpu_trace;
+    use crate::generation::memory::generate_memory_trace;
 
     #[test]
     fn test_add_instruction_inserts_rangecheck() {
@@ -127,7 +129,8 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&record.executed);
-        let trace = generate_rangecheck_trace::<F>(&cpu_rows);
+        let memory_rows = generate_memory_trace::<F>(record.executed);
+        let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
         // Check values that we are interested in
         assert_eq!(trace[MAP.cpu_filter][0], F::ONE);
