@@ -5,6 +5,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::MAP;
+use crate::lookup::permute_cols;
 use crate::utils::{from_u32, pad_trace};
 
 #[allow(clippy::missing_panics_doc)]
@@ -75,8 +76,28 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
     // For expanded trace from `trace_len` to `trace_len's power of two`,
     // we use last row `HALT` to pad them.
-    let trace = pad_trace(trace, Some(MAP.clk));
+    let mut trace = pad_trace(trace, Some(MAP.clk));
 
+    let num_of_rows = trace[MAP.clk].len();
+    trace[MAP.fixed_shamt] = cpu_cols::FIXED_SHAMT_RANGE
+        .map(F::from_canonical_u8)
+        .collect();
+    trace[MAP.fixed_shamt].resize(num_of_rows, F::from_canonical_u8(31_u8));
+    trace[MAP.fixed_power_of_2_shamt] = cpu_cols::FIXED_SHAMT_RANGE
+        .map(|shamt| F::from_canonical_u32(2_u32.pow(shamt.into())))
+        .collect();
+    trace[MAP.fixed_power_of_2_shamt].resize(num_of_rows, F::from_canonical_u32(2_u32.pow(31_u32)));
+    (
+        trace[MAP.powers_of_2_in_permuted],
+        trace[MAP.fixed_shamt_permuted],
+    ) = permute_cols(&trace[MAP.powers_of_2_in], &trace[MAP.fixed_shamt]);
+    (
+        trace[MAP.powers_of_2_out_permuted],
+        trace[MAP.fixed_power_of_2_shamt_permuted],
+    ) = permute_cols(
+        &trace[MAP.powers_of_2_out],
+        &trace[MAP.fixed_power_of_2_shamt],
+    );
     log::trace!("trace {:?}", trace);
     #[tarpaulin::skip]
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
