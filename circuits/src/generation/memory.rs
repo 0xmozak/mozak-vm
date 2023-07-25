@@ -70,7 +70,6 @@ pub fn generate_memory_trace<F: RichField>(step_rows: Vec<Row>) -> Vec<MemoryCol
 
 #[cfg(test)]
 mod tests {
-    use itertools::Itertools;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::hash::hash_types::RichField;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
@@ -81,26 +80,12 @@ mod tests {
     use crate::test_utils::inv;
 
     fn prep_table<F: RichField>(
-        table: &[&[u64; mem_cols::NUM_MEM_COLS]],
+        table: Vec<[u64; mem_cols::NUM_MEM_COLS]>,
     ) -> Vec<MemoryColumnsView<F>> {
         table
-            .iter()
-            .map(|row| {
-                let row: [F; mem_cols::NUM_MEM_COLS] = row
-                    .iter()
-                    .map(|&x| F::from_canonical_u64(x))
-                    .collect_vec()
-                    .try_into()
-                    .unwrap();
-                row.into()
-            })
+            .into_iter()
+            .map(|row| row.into_iter().map(F::from_canonical_u64).collect())
             .collect()
-        // table
-        //     .into_iter()
-        //     .map(|row: &&[u64]|
-        // row.into_iter().map(F::from_canonical_u64).collect())
-        //     .collect::<Vec<_>>()
-        //     .unwrap()
     }
 
     fn expected_trace<F: RichField>() -> Vec<MemoryColumnsView<F>> {
@@ -108,16 +93,16 @@ mod tests {
         let lb = OPCODE_LB as u64;
         let inv = inv::<F>;
         #[rustfmt::skip]
-        prep_table(&[
+        prep_table(vec![
             // PADDING  ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV  DIFF_CLK
-            &[ 0,       100,  0,    sb,   5,    100,     inv(100),              0],
-            &[ 0,       100,  1,    lb,   5,      0,           0,               1],
-            &[ 0,       100,  4,    sb,  10,      0,           0,               3],
-            &[ 0,       100,  5,    lb,  10,      0,           0,               1],
-            &[ 0,       200,  2,    sb,  15,    100,     inv(100),              0],
-            &[ 0,       200,  3,    lb,  15,      0,           0,               1],
-            &[ 1,       200,  3,    lb,  15,      0,           0,               0],
-            &[ 1,       200,  3,    lb , 15,      0,           0,               0],
+            [ 0,       100,  0,    sb,   5,    100,     inv(100),              0],
+            [ 0,       100,  1,    lb,   5,      0,           0,               1],
+            [ 0,       100,  4,    sb,  10,      0,           0,               3],
+            [ 0,       100,  5,    lb,  10,      0,           0,               1],
+            [ 0,       200,  2,    sb,  15,    100,     inv(100),              0],
+            [ 0,       200,  3,    lb,  15,      0,           0,               1],
+            [ 1,       200,  3,    lb,  15,      0,           0,               0],
+            [ 1,       200,  3,    lb , 15,      0,           0,               0],
         ])
     }
 

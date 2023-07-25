@@ -23,6 +23,6 @@ pub fn trace_rows_to_poly_values<F: Field, Row: IntoIterator<Item = F>>(
     let trace_col_vecs: Vec<Vec<F>> = transpose(&trace_row_vecs);
     trace_col_vecs
         .into_iter()
-        .map(|column| PolynomialValues::new(column))
+        .map(PolynomialValues::new)
         .collect()
 }
