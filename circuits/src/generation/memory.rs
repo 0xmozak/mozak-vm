@@ -2,8 +2,7 @@ use mozak_vm::instruction::Op;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
-use crate::memory::columns as mem_cols;
-use crate::memory::columns::MAP;
+use crate::memory::columns::MemoryColumnsView;
 use crate::memory::trace::{
     get_memory_inst_addr, get_memory_inst_clk, get_memory_inst_op, get_memory_load_inst_value,
     get_memory_store_inst_value,
@@ -11,20 +10,16 @@ use crate::memory::trace::{
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
-fn pad_mem_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
-    let ext_trace_len = trace[0].len().next_power_of_two();
-
-    // Some columns need special treatment..
-    trace[MAP.mem_padding].resize(ext_trace_len, F::ONE);
-    trace[MAP.mem_diff_addr].resize(ext_trace_len, F::ZERO);
-    trace[MAP.mem_diff_addr_inv].resize(ext_trace_len, F::ZERO);
-    trace[MAP.mem_diff_clk].resize(ext_trace_len, F::ZERO);
-
-    // .. and all other columns just have their last value duplicated.
-    for row in &mut trace {
-        row.resize(ext_trace_len, *row.last().unwrap());
-    }
-
+fn pad_mem_trace<F: RichField>(mut trace: Vec<MemoryColumnsView<F>>) -> Vec<MemoryColumnsView<F>> {
+    trace.resize(trace.len().next_power_of_two(), MemoryColumnsView {
+        // Some columns need special treatment..
+        mem_padding: F::ONE,
+        mem_diff_addr: F::ZERO,
+        mem_diff_addr_inv: F::ZERO,
+        mem_diff_clk: F::ZERO,
+        // .. and all other columns just have their last value duplicated.
+        ..*trace.last().unwrap()
+    });
     trace
 }
 
@@ -41,100 +36,74 @@ pub fn filter_memory_trace(mut step_rows: Vec<Row>) -> Vec<Row> {
 
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
-pub fn generate_memory_trace<F: RichField>(
-    step_rows: Vec<Row>,
-) -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
+pub fn generate_memory_trace<F: RichField>(step_rows: Vec<Row>) -> Vec<MemoryColumnsView<F>> {
     let filtered_step_rows = filter_memory_trace(step_rows);
-    let trace_len = filtered_step_rows.len();
 
-    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; trace_len]; mem_cols::NUM_MEM_COLS];
-    for (i, s) in filtered_step_rows.iter().enumerate() {
-        trace[MAP.mem_addr][i] = get_memory_inst_addr(s);
-        trace[MAP.mem_clk][i] = get_memory_inst_clk(s);
-        trace[MAP.mem_op][i] = get_memory_inst_op(&s.state.current_instruction());
+    let mut trace: Vec<MemoryColumnsView<F>> = vec![];
+    for s in &filtered_step_rows {
+        let mut row = MemoryColumnsView::default();
+        row.mem_addr = get_memory_inst_addr(s);
+        row.mem_clk = get_memory_inst_clk(s);
+        row.mem_op = get_memory_inst_op(&s.state.current_instruction());
 
-        trace[MAP.mem_value][i] = match s.state.current_instruction().op {
+        row.mem_value = match s.state.current_instruction().op {
             Op::LB => get_memory_load_inst_value(s),
             Op::SB => get_memory_store_inst_value(s),
             #[tarpaulin::skip]
             _ => F::ZERO,
         };
 
-        trace[MAP.mem_diff_addr][i] = trace[MAP.mem_addr][i]
-            - if i == 0 {
-                F::ZERO
-            } else {
-                trace[MAP.mem_addr][i - 1]
-            };
-
-        trace[MAP.mem_diff_addr_inv][i] = trace[MAP.mem_diff_addr][i]
-            .try_inverse()
-            .unwrap_or_default();
-
-        trace[MAP.mem_diff_clk][i] = if i == 0 || trace[MAP.mem_diff_addr][i] != F::ZERO {
-            F::ZERO
-        } else {
-            trace[MAP.mem_clk][i] - trace[MAP.mem_clk][i - 1]
+        row.mem_diff_addr = row.mem_addr - trace.last().map_or(F::ZERO, |last| last.mem_addr);
+        row.mem_diff_addr_inv = row.mem_diff_addr.try_inverse().unwrap_or_default();
+        row.mem_diff_clk = match trace.last() {
+            Some(last) if row.mem_diff_addr == F::ZERO => row.mem_clk - last.mem_clk,
+            _ => F::ZERO,
         };
+        trace.push(row);
     }
 
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
     // of the trace.
-    trace = pad_mem_trace(trace);
-
-    #[tarpaulin::skip]
-    trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
-        panic!(
-            "Expected a Vec of length {} but it was {}",
-            mem_cols::NUM_MEM_COLS,
-            v.len()
-        )
-    })
+    pad_mem_trace(trace)
 }
 
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
+    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::hash::hash_types::RichField;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use crate::memory::columns as mem_cols;
+    use crate::memory::columns::{self as mem_cols, MemoryColumnsView};
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
     use crate::test_utils::inv;
 
-    /// Transposes a table
-    ///
-    /// Like x[i][j] == transpose(x)[j][i]
-    fn transpose<A: Clone>(table: &[&[A]]) -> Vec<Vec<A>> {
-        // TODO(Matthias): find something in itertools or so to transpose, instead of
-        // doing it manually. Otherwise, move this function to its own crate,
-        // polish and publish it?
-        // In any case, this is probably useful for some of the other tests as well.
-        let mut table: Vec<(usize, &A)> = table
-            .iter()
-            .flat_map(|row| row.iter().enumerate())
-            .collect();
-        table.sort_by_key(|(col, _item)| *col);
+    fn prep_table<F: RichField>(
+        table: &[&[u64; mem_cols::NUM_MEM_COLS]],
+    ) -> Vec<MemoryColumnsView<F>> {
         table
-            .into_iter()
-            .group_by(|(col, _item)| *col)
-            .into_iter()
-            .map(|(_, col)| col.map(|(_, item)| item).cloned().collect())
+            .iter()
+            .map(|row| {
+                let row: [F; mem_cols::NUM_MEM_COLS] = row
+                    .iter()
+                    .map(|&x| F::from_canonical_u64(x))
+                    .collect_vec()
+                    .try_into()
+                    .unwrap();
+                row.into()
+            })
             .collect()
+        // table
+        //     .into_iter()
+        //     .map(|row: &&[u64]|
+        // row.into_iter().map(F::from_canonical_u64).collect())
+        //     .collect::<Vec<_>>()
+        //     .unwrap()
     }
 
-    fn prep_table<F: RichField>(table: &[&[u64]]) -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
-        transpose(table)
-            .into_iter()
-            .map(|col| col.into_iter().map(F::from_canonical_u64).collect())
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap()
-    }
-
-    fn expected_trace<F: RichField>() -> [Vec<F>; mem_cols::NUM_MEM_COLS] {
+    fn expected_trace<F: RichField>() -> Vec<MemoryColumnsView<F>> {
         let sb = OPCODE_SB as u64;
         let lb = OPCODE_LB as u64;
         let inv = inv::<F>;
@@ -157,13 +126,9 @@ mod tests {
     // to memory and then checks if the memory trace is generated correctly.
     #[test]
     fn generate_memory_trace() {
-        const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<D>>::F;
-
         let rows = memory_trace_test_case();
 
-        let trace = super::generate_memory_trace::<F>(rows);
+        let trace = super::generate_memory_trace::<GoldilocksField>(rows);
         assert_eq!(trace, expected_trace());
     }
 
@@ -176,14 +141,13 @@ mod tests {
         let rows = memory_trace_test_case();
         let trace = super::generate_memory_trace::<F>(rows[..4].to_vec());
 
-        let indices = [0, 1, 4, 5];
-        let expected_trace_vec: Vec<Vec<F>> = expected_trace()
-            .iter()
-            .map(|v| indices.iter().filter_map(|&i| v.get(i).copied()).collect())
-            .collect();
-
-        let expected_trace: [Vec<F>; mem_cols::NUM_MEM_COLS] =
-            expected_trace_vec.try_into().expect("Mismatched lengths");
+        let expected_trace: Vec<MemoryColumnsView<GoldilocksField>> = expected_trace();
+        let expected_trace: Vec<MemoryColumnsView<GoldilocksField>> = vec![
+            expected_trace[0],
+            expected_trace[1],
+            expected_trace[4],
+            expected_trace[5],
+        ];
 
         assert_eq!(trace, expected_trace);
     }
