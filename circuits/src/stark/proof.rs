@@ -103,7 +103,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
 
 pub(crate) struct StarkProofChallenges<F: RichField + Extendable<D>, const D: usize> {
     /// Randomness used in any permutation arguments.
-    pub permutation_challenge_sets: Option<Vec<GrandProductChallengeSet<F, D>>>,
+    pub permutation_challenge_sets: Option<Vec<GrandProductChallengeSet<F>>>,
 
     /// Random values used to combine STARK constraints.
     pub stark_alphas: Vec<F>,
@@ -212,7 +212,7 @@ pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, co
 
 pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {
     pub stark_challenges: [StarkProofChallenges<F, D>; NUM_TABLES],
-    pub ctl_challenges: GrandProductChallengeSet<F, D>,
+    pub ctl_challenges: GrandProductChallengeSet<F>,
 }
 
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {

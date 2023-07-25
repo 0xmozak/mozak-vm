@@ -21,38 +21,37 @@ use starky::stark::Stark;
 use starky::vars::StarkEvaluationVars;
 
 /// A single instance of a permutation check protocol.
-pub(crate) struct PermutationInstance<'a, T: RichField + Copy + Eq + PartialEq + Debug, const D2: usize> {
+pub(crate) struct PermutationInstance<'a, T: Copy + Eq + PartialEq + Debug> {
     pub(crate) pair: &'a PermutationPair,
-    pub(crate) challenge: GrandProductChallenge<T, D2>,
+    pub(crate) challenge: GrandProductChallenge<T>,
 }
 
 /// Randomness for a single instance of a permutation check protocol.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub(crate) struct GrandProductChallenge<
-    T: RichField + Extendable<D> + Copy + Eq + PartialEq + Debug,
-    const D: usize,
-> {
+pub(crate) struct GrandProductChallenge<T: Copy + Eq + PartialEq + Debug> {
     /// Randomness used to combine multiple columns into one.
-    pub(crate) beta: T::Extension,
+    pub(crate) beta: T,
     /// Random offset that's added to the beta-reduced column values.
-    pub(crate) gamma: T::Extension,
+    pub(crate) gamma: T,
 }
 
-impl<F: Field, const D2: usize> GrandProductChallenge<F, D2> {
-    pub(crate) fn combine<'a, FE, P, T: IntoIterator<Item = &'a P>>(&self, terms: T) -> P
+impl<F: Field> GrandProductChallenge<F> {
+    pub(crate) fn combine<'a, FE, P, T: IntoIterator<Item = &'a P>, const D2: usize>(
+        &self,
+        terms: T,
+    ) -> P
     where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>,
         T::IntoIter: DoubleEndedIterator, {
-        reduce_with_powers(terms, self.beta)
-            + self.gamma
+        reduce_with_powers(terms, FE::from_basefield(self.beta)) + FE::from_basefield(self.gamma)
     }
 }
 /// Like `PermutationChallenge`, but with `num_challenges` copies to boost
 /// soundness.
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub(crate) struct GrandProductChallengeSet<T: Copy + Eq + PartialEq + Debug, const D2: usize> {
-    pub(crate) challenges: Vec<GrandProductChallenge<T, D2>>,
+pub(crate) struct GrandProductChallengeSet<T: Copy + Eq + PartialEq + Debug> {
+    pub(crate) challenges: Vec<GrandProductChallenge<T>>,
 }
 
 /// Compute all Z polynomials (for permutation arguments).
@@ -60,7 +59,7 @@ pub(crate) fn compute_permutation_z_polys<F, S, const D: usize>(
     stark: &S,
     config: &StarkConfig,
     trace_poly_values: &[PolynomialValues<F>],
-    permutation_challenge_sets: &[GrandProductChallengeSet<F, D>],
+    permutation_challenge_sets: &[GrandProductChallengeSet<F>],
 ) -> Vec<PolynomialValues<F>>
 where
     F: RichField + Extendable<D>,
@@ -81,8 +80,8 @@ where
 
 /// Compute a single Z polynomial.
 #[allow(clippy::similar_names)]
-fn compute_permutation_z_poly<F: Field, const D2: usize>(
-    instances: &[PermutationInstance<F, D2>],
+fn compute_permutation_z_poly<F: Field>(
+    instances: &[PermutationInstance<F>],
     trace_poly_values: &[PolynomialValues<F>],
 ) -> PolynomialValues<F> {
     let degree = trace_poly_values[0].len();
@@ -111,8 +110,8 @@ fn compute_permutation_z_poly<F: Field, const D2: usize>(
 
 /// Computes the reduced polynomial, `\sum beta^i f_i(x) + gamma`, for both the
 /// "left" and "right" sides of a given `PermutationPair`.
-fn permutation_reduced_polys<F: Field, const D2: usize>(
-    instance: &PermutationInstance<F, D2>,
+fn permutation_reduced_polys<F: Field>(
+    instance: &PermutationInstance<F>,
     trace_poly_values: &[PolynomialValues<F>],
     degree: usize,
 ) -> (PolynomialValues<F>, PolynomialValues<F>) {
@@ -142,18 +141,18 @@ fn poly_product_elementwise<F: Field>(
     product
 }
 
-fn get_grand_product_challenge<F: RichField, H: Hasher<F>, const D2: usize>(
+fn get_grand_product_challenge<F: RichField, H: Hasher<F>>(
     challenger: &mut Challenger<F, H>,
-) -> GrandProductChallenge<F, D2> {
+) -> GrandProductChallenge<F> {
     let beta = challenger.get_challenge();
     let gamma = challenger.get_challenge();
     GrandProductChallenge { beta, gamma }
 }
 
-pub(crate) fn get_grand_product_challenge_set<F: RichField, H: Hasher<F>, const D: usize>(
+pub(crate) fn get_grand_product_challenge_set<F: RichField, H: Hasher<F>>(
     challenger: &mut Challenger<F, H>,
     num_challenges: usize,
-) -> GrandProductChallengeSet<F, D> {
+) -> GrandProductChallengeSet<F> {
     GrandProductChallengeSet {
         challenges: (0..num_challenges)
             .map(|_| get_grand_product_challenge(challenger))
@@ -161,11 +160,11 @@ pub(crate) fn get_grand_product_challenge_set<F: RichField, H: Hasher<F>, const 
     }
 }
 
-pub(crate) fn get_n_grand_product_challenge_sets<F: RichField, H: Hasher<F>, const D: usize>(
+pub(crate) fn get_n_grand_product_challenge_sets<F: RichField, H: Hasher<F>>(
     challenger: &mut Challenger<F, H>,
     num_challenges: usize,
     num_sets: usize,
-) -> Vec<GrandProductChallengeSet<F, D>> {
+) -> Vec<GrandProductChallengeSet<F>> {
     (0..num_sets)
         .map(|_| get_grand_product_challenge_set(challenger, num_challenges))
         .collect()
@@ -177,12 +176,12 @@ pub(crate) fn get_n_grand_product_challenge_sets<F: RichField, H: Hasher<F>, con
 /// `num_challenges` permutation arguments, so we start with the cartesian
 /// product of `permutation_pairs` and `0..num_challenges`. Then we chunk these
 /// arguments based on our batch size.
-pub(crate) fn get_permutation_batches<'a, T: Copy + Eq + PartialEq + Debug, const D: usize>(
+pub(crate) fn get_permutation_batches<'a, T: Copy + Eq + PartialEq + Debug>(
     permutation_pairs: &'a [PermutationPair],
-    permutation_challenge_sets: &[GrandProductChallengeSet<T, D>],
+    permutation_challenge_sets: &[GrandProductChallengeSet<T>],
     num_challenges: usize,
     batch_size: usize,
-) -> Vec<Vec<PermutationInstance<'a, T, D>>> {
+) -> Vec<Vec<PermutationInstance<'a, T>>> {
     permutation_pairs
         .iter()
         .cartesian_product(0..num_challenges)
@@ -207,7 +206,7 @@ where
     P: PackedField<Scalar = FE>, {
     pub(crate) local_zs: Vec<P>,
     pub(crate) next_zs: Vec<P>,
-    pub(crate) permutation_challenge_sets: Vec<GrandProductChallengeSet<F, D2>>,
+    pub(crate) permutation_challenge_sets: Vec<GrandProductChallengeSet<F>>,
 }
 
 pub(crate) fn eval_permutation_checks<F, FE, P, S, const D: usize, const D2: usize>(

@@ -145,7 +145,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     config: &StarkConfig,
     trace_poly_values: &[PolynomialValues<F>],
     trace_commitment: &PolynomialBatch<F, C, D>,
-    ctl_data: &CtlData<F, D>,
+    ctl_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<StarkProof<F, C, D>>
@@ -332,7 +332,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     config: &StarkConfig,
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     trace_commitments: &[PolynomialBatch<F, C, D>],
-    ctl_data_per_table: &[CtlData<F, D>; NUM_TABLES],
+    ctl_data_per_table: &[CtlData<F>; NUM_TABLES],
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<[StarkProof<F, C, D>; NUM_TABLES]>
