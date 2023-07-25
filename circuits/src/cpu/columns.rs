@@ -30,6 +30,20 @@ pub(crate) struct OpSelectorView<T: Copy> {
 }
 
 columns_view_impl!(CpuColumnsView);
+
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub(crate) struct ShiftAmountView<T: Copy> {
+    pub powers_of_2_in: T,
+    pub powers_of_2_out: T,
+    pub fixed_shamt: T,
+    pub fixed_power_of_2_shamt: T,
+    pub powers_of_2_in_permuted: T,
+    pub powers_of_2_out_permuted: T,
+    pub fixed_shamt_permuted: T,
+    pub fixed_power_of_2_shamt_permuted: T,
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct CpuColumnsView<T: Copy> {
@@ -63,14 +77,7 @@ pub(crate) struct CpuColumnsView<T: Copy> {
     pub xor_b: T,
     pub xor_out: T,
 
-    pub powers_of_2_in: T,
-    pub powers_of_2_out: T,
-    pub fixed_shamt: T,
-    pub fixed_power_of_2_shamt: T,
-    pub powers_of_2_in_permuted: T,
-    pub powers_of_2_out_permuted: T,
-    pub fixed_shamt_permuted: T,
-    pub fixed_power_of_2_shamt_permuted: T,
+    pub shift_amount: ShiftAmountView<T>,
 
     pub quotient: T,
     pub remainder: T,

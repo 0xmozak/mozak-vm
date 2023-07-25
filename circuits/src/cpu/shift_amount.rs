@@ -17,17 +17,18 @@ pub fn constraints_on_shamt<
 ) {
     let lv = vars.local_values;
     let nv = vars.next_values;
-    yield_constr.constraint_first_row(lv[MAP.fixed_shamt]);
+    yield_constr.constraint_first_row(lv[MAP.shift_amount.fixed_shamt]);
     yield_constr.constraint_transition(
-        (nv[MAP.fixed_shamt] - lv[MAP.fixed_shamt] - P::ONES)
-            * (nv[MAP.fixed_shamt] - lv[MAP.fixed_shamt]),
+        (nv[MAP.shift_amount.fixed_shamt] - lv[MAP.shift_amount.fixed_shamt] - P::ONES)
+            * (nv[MAP.shift_amount.fixed_shamt] - lv[MAP.shift_amount.fixed_shamt]),
     );
-    yield_constr.constraint_last_row(lv[MAP.fixed_shamt] - P::Scalar::from_canonical_u8(31));
+    yield_constr
+        .constraint_last_row(lv[MAP.shift_amount.fixed_shamt] - P::Scalar::from_canonical_u8(31));
     eval_lookups(
         vars,
         yield_constr,
-        MAP.powers_of_2_in_permuted,
-        MAP.fixed_shamt_permuted,
+        MAP.shift_amount.powers_of_2_in_permuted,
+        MAP.shift_amount.fixed_shamt_permuted,
     );
 }
 
@@ -42,18 +43,19 @@ pub fn constraints_on_power_of_2_shamt<
 ) {
     let lv = vars.local_values;
     let nv = vars.next_values;
-    let diff = nv[MAP.fixed_shamt] - lv[MAP.fixed_shamt];
-    yield_constr.constraint_first_row(lv[MAP.fixed_power_of_2_shamt] - P::ONES);
+    let diff = nv[MAP.shift_amount.fixed_shamt] - lv[MAP.shift_amount.fixed_shamt];
+    yield_constr.constraint_first_row(lv[MAP.shift_amount.fixed_power_of_2_shamt] - P::ONES);
     yield_constr.constraint_transition(
-        nv[MAP.fixed_power_of_2_shamt] - (P::ONES + diff) * lv[MAP.fixed_power_of_2_shamt],
+        nv[MAP.shift_amount.fixed_power_of_2_shamt]
+            - (P::ONES + diff) * lv[MAP.shift_amount.fixed_power_of_2_shamt],
     );
     yield_constr.constraint_last_row(
-        lv[MAP.fixed_power_of_2_shamt] - P::Scalar::from_canonical_u32(1 << 31),
+        lv[MAP.shift_amount.fixed_power_of_2_shamt] - P::Scalar::from_canonical_u32(1 << 31),
     );
     eval_lookups(
         vars,
         yield_constr,
-        MAP.powers_of_2_out_permuted,
-        MAP.fixed_power_of_2_shamt_permuted,
+        MAP.shift_amount.powers_of_2_out_permuted,
+        MAP.shift_amount.fixed_power_of_2_shamt_permuted,
     );
 }

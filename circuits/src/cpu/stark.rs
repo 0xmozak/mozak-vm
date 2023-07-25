@@ -186,8 +186,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 
     fn permutation_pairs(&self) -> Vec<PermutationPair> {
         vec![
-            PermutationPair::singletons(MAP.powers_of_2_in, MAP.powers_of_2_in_permuted),
-            PermutationPair::singletons(MAP.powers_of_2_out, MAP.powers_of_2_out_permuted),
+            PermutationPair::singletons(
+                MAP.shift_amount.powers_of_2_in,
+                MAP.shift_amount.powers_of_2_in_permuted,
+            ),
+            PermutationPair::singletons(
+                MAP.shift_amount.powers_of_2_out,
+                MAP.shift_amount.powers_of_2_out_permuted,
+            ),
         ]
     }
 
