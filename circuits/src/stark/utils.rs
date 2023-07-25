@@ -9,7 +9,6 @@ pub fn trace_to_poly_values<F: Field, Grid: IntoIterator<Item = Vec<F>>>(
     trace.into_iter().map(PolynomialValues::new).collect()
 }
 
-// TODO: rewrite or adapt from transpose in memory module.
 /// A helper function to transpose a row-wise trace and put it in the format
 /// that `prove` expects.
 #[must_use]
