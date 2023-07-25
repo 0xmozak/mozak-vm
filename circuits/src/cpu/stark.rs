@@ -12,9 +12,8 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{CpuColumnsView, OpSelectorView, MAP};
-use super::{add, beq, bitwise, div, jalr, mul, slt, sub};
+use super::{add, beq, bitwise, div, jalr, mul, shift_amount, slt, sub};
 use crate::columns_view::NumberOfColumns;
-use crate::lookup::eval_lookups;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -142,32 +141,6 @@ fn populate_op2_value<P: PackedField>(
     );
 }
 
-fn constraints_on_shamt<P: PackedField>(
-    lv: &CpuColumnsView<P>,
-    nv: &CpuColumnsView<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    yield_constr.constraint_first_row(lv.fixed_shamt);
-    yield_constr.constraint_transition(
-        (nv.fixed_shamt - lv.fixed_shamt - P::ONES) * (nv.fixed_shamt - lv.fixed_shamt),
-    );
-    yield_constr.constraint_last_row(lv.fixed_shamt - P::Scalar::from_canonical_u8(31));
-}
-
-fn constraints_on_power_of_2_shamt<P: PackedField>(
-    lv: &CpuColumnsView<P>,
-    nv: &CpuColumnsView<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    yield_constr.constraint_first_row(lv.fixed_power_of_2_shamt - P::ONES);
-    yield_constr.constraint_transition(
-        (nv.fixed_power_of_2_shamt - (lv.fixed_power_of_2_shamt * P::Scalar::from_canonical_u8(2)))
-            * (nv.fixed_power_of_2_shamt - lv.fixed_power_of_2_shamt),
-    );
-    yield_constr
-        .constraint_last_row(lv.fixed_power_of_2_shamt - P::Scalar::from_canonical_u32(1 << 31));
-}
-
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
     const COLUMNS: usize = CpuColumnsView::<F>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
@@ -195,21 +168,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         populate_op1_value(lv, yield_constr);
         populate_op2_value(lv, yield_constr);
 
-        constraints_on_shamt(lv, nv, yield_constr);
-        eval_lookups(
-            vars,
-            yield_constr,
-            MAP.powers_of_2_in_permuted,
-            MAP.fixed_shamt_permuted,
-        );
-        constraints_on_power_of_2_shamt(lv, nv, yield_constr);
-        eval_lookups(
-            vars,
-            yield_constr,
-            MAP.powers_of_2_out_permuted,
-            MAP.fixed_power_of_2_shamt_permuted,
-        );
-
         // add constraint
         add::constraints(lv, yield_constr);
         sub::constraints(lv, yield_constr);
@@ -219,6 +177,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
+        shift_amount::constraints_on_shamt(vars, yield_constr);
+        shift_amount::constraints_on_power_of_2_shamt(vars, yield_constr);
 
         // Last row must be HALT
         yield_constr.constraint_last_row(lv.ops.halt - P::ONES);

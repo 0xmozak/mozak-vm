@@ -78,6 +78,20 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
     // we use last row `HALT` to pad them.
     let mut trace = pad_trace(trace, Some(MAP.clk));
 
+    populate_shift_amount_related_columns(&mut trace);
+
+    log::trace!("trace {:?}", trace);
+    #[tarpaulin::skip]
+    trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
+        panic!(
+            "Expected a Vec of length {} but it was {}",
+            cpu_cols::NUM_CPU_COLS,
+            v.len()
+        )
+    })
+}
+
+fn populate_shift_amount_related_columns<F: RichField>(trace: &mut [Vec<F>]) {
     let num_of_rows = trace[MAP.clk].len();
     trace[MAP.fixed_shamt] = cpu_cols::FIXED_SHAMT_RANGE
         .map(F::from_canonical_u8)
@@ -98,16 +112,8 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         &trace[MAP.powers_of_2_out],
         &trace[MAP.fixed_power_of_2_shamt],
     );
-    log::trace!("trace {:?}", trace);
-    #[tarpaulin::skip]
-    trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
-        panic!(
-            "Expected a Vec of length {} but it was {}",
-            cpu_cols::NUM_CPU_COLS,
-            v.len()
-        )
-    })
 }
+
 fn generate_conditional_branch_row<F: RichField>(trace: &mut [Vec<F>], row_idx: usize) {
     let diff = trace[MAP.op1_value][row_idx] - trace[MAP.op2_value][row_idx];
     let diff_inv = diff.try_inverse().unwrap_or_default();
