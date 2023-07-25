@@ -106,7 +106,7 @@ fn generate_conditional_branch_row<F: RichField>(
         let is_signed = matches!(inst.op, Op::BLT | Op::BGE);
         let op1 = state.get_register_value(inst.args.rs1);
         let op2 = state.get_register_value(inst.args.rs2);
-        polulate_condition_columns(trace, row_idx, is_signed, op1, op2);
+        populate_condition_columns(trace, row_idx, is_signed, op1, op2);
     }
 }
 
@@ -181,7 +181,7 @@ fn generate_divu_row<F: RichField>(
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn polulate_condition_columns<F: RichField>(
+fn populate_condition_columns<F: RichField>(
     trace: &mut [Vec<F>],
     row_idx: usize,
     is_signed: bool,
@@ -237,7 +237,7 @@ fn generate_slt_row<F: RichField>(
     let is_signed = inst.op == Op::SLT;
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
-    polulate_condition_columns(trace, row_idx, is_signed, op1, op2);
+    populate_condition_columns(trace, row_idx, is_signed, op1, op2);
 }
 
 fn generate_bitwise_row<F: RichField>(
