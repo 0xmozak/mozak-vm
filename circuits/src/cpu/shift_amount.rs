@@ -42,11 +42,10 @@ pub fn constraints_on_power_of_2_shamt<
 ) {
     let lv = vars.local_values;
     let nv = vars.next_values;
+    let diff = nv[MAP.fixed_shamt] - lv[MAP.fixed_shamt];
     yield_constr.constraint_first_row(lv[MAP.fixed_power_of_2_shamt] - P::ONES);
     yield_constr.constraint_transition(
-        (nv[MAP.fixed_power_of_2_shamt]
-            - (lv[MAP.fixed_power_of_2_shamt] * P::Scalar::from_canonical_u8(2)))
-            * (nv[MAP.fixed_power_of_2_shamt] - lv[MAP.fixed_power_of_2_shamt]),
+        nv[MAP.fixed_power_of_2_shamt] - (P::ONES + diff) * lv[MAP.fixed_power_of_2_shamt],
     );
     yield_constr.constraint_last_row(
         lv[MAP.fixed_power_of_2_shamt] - P::Scalar::from_canonical_u32(1 << 31),
