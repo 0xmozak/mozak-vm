@@ -83,6 +83,24 @@ macro_rules! columns_view_impl {
                 <[T] as std::ops::IndexMut<I>>::index_mut(arr, index)
             }
         }
+
+        impl<T: Copy> std::iter::IntoIterator for $s<T> {
+            type IntoIter = std::array::IntoIter<T, { std::mem::size_of::<$s<u8>>() }>;
+            type Item = T;
+
+            fn into_iter(self) -> Self::IntoIter {
+                let array: [T; std::mem::size_of::<$s<u8>>()] = self.into();
+                array.into_iter()
+            }
+        }
+
+        impl<T: plonky2::field::types::Field> std::iter::FromIterator<T> for $s<T> {
+            fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+                let vec: Vec<T> = iter.into_iter().collect();
+                let array: [T; std::mem::size_of::<$s<u8>>()] = vec.try_into().unwrap();
+                array.into()
+            }
+        }
     };
 }
 pub(crate) use columns_view_impl;
