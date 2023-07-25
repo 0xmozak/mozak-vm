@@ -1,20 +1,15 @@
 use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuColumnsView;
 
-pub(crate) fn constraints<P: PackedField>(
+pub(crate) fn signed_constraints<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let p32 = P::Scalar::from_noncanonical_u64(1 << 32);
-    let p31 = P::Scalar::from_noncanonical_u64(1 << 31);
-
-    let is_cmp = lv.ops.slt + lv.ops.sltu;
-
-    let lt = lv.less_than;
-    yield_constr.constraint(lt * (P::ONES - lt));
+    let p32 = CpuColumnsView::<P>::p32();
+    let p31 = CpuColumnsView::<P>::p31();
+    let is_signed = lv.is_signed();
 
     let sign1 = lv.op1_sign;
     yield_constr.constraint(sign1 * (P::ONES - sign1));
@@ -28,24 +23,15 @@ pub(crate) fn constraints<P: PackedField>(
     // TODO: range check
     let op2_fixed = lv.op2_val_fixed;
 
-    yield_constr.constraint(lv.ops.sltu * (op1_fixed - op1));
-    yield_constr.constraint(lv.ops.sltu * (op2_fixed - op2));
+    yield_constr.constraint(op1_fixed - (op1 + is_signed * p31 - sign1 * p32));
+    yield_constr.constraint(op2_fixed - (op2 + is_signed * p31 - sign2 * p32));
+}
 
-    yield_constr.constraint(lv.ops.slt * (op1_fixed - (op1 + p31 - sign1 * p32)));
-    yield_constr.constraint(lv.ops.slt * (op2_fixed - (op2 + p31 - sign2 * p32)));
-
-    let diff_fixed = op1_fixed - op2_fixed;
-    // TODO: range check
-    let abs_diff = lv.cmp_abs_diff;
-
-    // abs_diff calculation
-    yield_constr.constraint(is_cmp * (P::ONES - lt) * (abs_diff - diff_fixed));
-    yield_constr.constraint(is_cmp * lt * (abs_diff + diff_fixed));
-
-    let diff = op1 - op2;
-    let diff_inv = lv.cmp_diff_inv;
-    yield_constr.constraint(lt * (P::ONES - diff * diff_inv));
-    yield_constr.constraint(is_cmp * (lt - lv.dst_value));
+pub(crate) fn slt_constraints<P: PackedField>(
+    lv: &CpuColumnsView<P>,
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    yield_constr.constraint((lv.ops.slt + lv.ops.sltu) * (lv.less_than - lv.dst_value));
 }
 
 #[cfg(test)]

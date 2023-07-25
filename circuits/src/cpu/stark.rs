@@ -11,7 +11,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{CpuColumnsView, OpSelectorView};
-use super::{add, beq, bitwise, div, jalr, mul, slt, sub};
+use super::{add, bitwise, branches, div, jalr, mul, signed_comparison, sub};
 use crate::columns_view::NumberOfColumns;
 
 #[derive(Copy, Clone, Default)]
@@ -28,7 +28,11 @@ impl<P: Copy> OpSelectorView<P> {
         ]
     }
 
-    fn jumping_opcodes(&self) -> Vec<P> { vec![self.beq, self.bne, self.ecall, self.jalr] }
+    fn jumping_opcodes(&self) -> Vec<P> {
+        vec![
+            self.beq, self.bne, self.blt, self.bltu, self.bge, self.bgeu, self.ecall, self.jalr,
+        ]
+    }
 
     fn opcodes(&self) -> Vec<P> {
         let mut res = self.straightline_opcodes();
@@ -171,8 +175,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         add::constraints(lv, yield_constr);
         sub::constraints(lv, yield_constr);
         bitwise::constraints(lv, yield_constr);
-        slt::constraints(lv, yield_constr);
-        beq::constraints(lv, nv, yield_constr);
+        branches::comparison_constraints(lv, yield_constr);
+        branches::constraints(lv, nv, yield_constr);
+        signed_comparison::signed_constraints(lv, yield_constr);
+        signed_comparison::slt_constraints(lv, yield_constr);
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);

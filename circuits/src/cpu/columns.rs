@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
@@ -23,6 +24,10 @@ pub(crate) struct OpSelectorView<T: Copy> {
     pub jalr: T,
     pub beq: T,
     pub bne: T,
+    pub blt: T,
+    pub bltu: T,
+    pub bge: T,
+    pub bgeu: T,
     pub ecall: T,
     pub halt: T,
 }
@@ -50,12 +55,15 @@ pub(crate) struct CpuColumnsView<T: Copy> {
 
     pub op1_sign: T,
     pub op2_sign: T,
+    // TODO: range check
     pub op1_val_fixed: T,
+    // TODO: range check
     pub op2_val_fixed: T,
+    // TODO: range check
     pub cmp_abs_diff: T,
     pub cmp_diff_inv: T,
     pub less_than: T,
-    pub branch_equal: T,
+    pub ops_are_equal: T,
 
     pub xor_a: T,
     pub xor_b: T,
@@ -82,6 +90,28 @@ pub(crate) struct CpuColumnsView<T: Copy> {
 make_col_map!(CpuColumnsView);
 
 pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
+
+impl<T: PackedField> CpuColumnsView<T> {
+    pub fn p31() -> T::Scalar { T::Scalar::from_canonical_u32(1 << 31) }
+
+    pub fn p32() -> T::Scalar { T::Scalar::from_noncanonical_u64(1 << 32) }
+
+    pub fn op_diff(&self) -> T { self.op1_value - self.op2_value }
+
+    // TODO(Matthias): unify where we specify `is_signed` for constraints and trace
+    // generation. Also, later, take mixed sign (for MULHSU) into account.
+    pub fn is_signed(&self) -> T { self.ops.slt + self.ops.bge + self.ops.blt }
+
+    /// Value of the first operand, as if converted to i64.
+    ///
+    /// So range is `i32::MIN..=u32::MAX`
+    pub fn op1_full_range(&self) -> T { self.op1_val_fixed - self.is_signed() * Self::p31() }
+
+    /// Value of the first operand, as if converted to i64.
+    ///
+    /// So range is `i32::MIN..=u32::MAX`
+    pub fn op2_full_range(&self) -> T { self.op2_val_fixed - self.is_signed() * Self::p31() }
+}
 
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).

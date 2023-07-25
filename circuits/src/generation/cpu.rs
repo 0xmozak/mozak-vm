@@ -46,8 +46,8 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
         generate_mul_row(&mut trace, &inst, state, i);
         generate_divu_row(&mut trace, &inst, state, i);
-        generate_slt_row(&mut trace, &inst, state, i);
-        generate_conditional_branch_row(&mut trace, i);
+        populate_comparison_columns(&mut trace, state, i);
+        populate_equality_testing_columns(&mut trace, i);
         generate_bitwise_row(&mut trace, &inst, state, i);
 
         match inst.op {
@@ -64,6 +64,10 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             Op::JALR => trace[MAP.ops.jalr][i] = F::ONE,
             Op::BEQ => trace[MAP.ops.beq][i] = F::ONE,
             Op::BNE => trace[MAP.ops.bne][i] = F::ONE,
+            Op::BLT => trace[MAP.ops.blt][i] = F::ONE,
+            Op::BLTU => trace[MAP.ops.bltu][i] = F::ONE,
+            Op::BGE => trace[MAP.ops.bge][i] = F::ONE,
+            Op::BGEU => trace[MAP.ops.bgeu][i] = F::ONE,
             Op::ECALL => trace[MAP.ops.ecall][i] = F::ONE,
             Op::XOR => trace[MAP.ops.xor][i] = F::ONE,
             Op::OR => trace[MAP.ops.or][i] = F::ONE,
@@ -87,12 +91,12 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         )
     })
 }
-fn generate_conditional_branch_row<F: RichField>(trace: &mut [Vec<F>], row_idx: usize) {
+fn populate_equality_testing_columns<F: RichField>(trace: &mut [Vec<F>], row_idx: usize) {
     let diff = trace[MAP.op1_value][row_idx] - trace[MAP.op2_value][row_idx];
     let diff_inv = diff.try_inverse().unwrap_or_default();
 
     trace[MAP.cmp_diff_inv][row_idx] = diff_inv;
-    trace[MAP.branch_equal][row_idx] = F::ONE - diff * diff_inv;
+    trace[MAP.ops_are_equal][row_idx] = F::ONE - diff * diff_inv;
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -166,17 +170,15 @@ fn generate_divu_row<F: RichField>(
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn generate_slt_row<F: RichField>(
-    trace: &mut [Vec<F>],
-    inst: &Instruction,
-    state: &State,
-    row_idx: usize,
-) {
-    let is_signed = inst.op == Op::SLT;
+fn populate_comparison_columns<F: RichField>(trace: &mut [Vec<F>], state: &State, row_idx: usize) {
+    let inst = state.current_instruction();
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
-    let sign1: u32 = (is_signed && (op1 as i32) < 0).into();
-    let sign2: u32 = (is_signed && (op2 as i32) < 0).into();
+
+    let is_signed = matches!(inst.op, Op::BLT | Op::BGE | Op::SLT);
+
+    let sign1: u32 = (is_signed && (op1 as i32).is_negative()).into();
+    let sign2: u32 = (is_signed && (op2 as i32).is_negative()).into();
     trace[MAP.op1_sign][row_idx] = from_u32(sign1);
     trace[MAP.op2_sign][row_idx] = from_u32(sign2);
 

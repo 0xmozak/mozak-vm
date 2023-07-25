@@ -23,7 +23,7 @@ mod tests {
 
     use crate::test_utils::simple_proof_test;
     #[test]
-    fn prove_add() {
+    fn prove_add_example() {
         let record = simple_test(4, &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)], &[
             (6, 100),
             (7, 100),
