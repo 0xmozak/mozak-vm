@@ -382,19 +382,19 @@ mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test, simple_test_code};
 
-    use crate::test_utils::simple_proof_test;
+    use crate::test_utils::prove_and_verify_mozak_stark;
 
     #[test]
     fn prove_halt() {
         let record = simple_test(0, &[], &[]);
-        simple_proof_test(&record.executed).unwrap();
+        prove_and_verify_mozak_stark(&record.executed).unwrap();
     }
 
     #[test]
     fn prove_lui() {
         let record = simple_test(4, &[(0_u32, 0x8000_00b7 /* lui r1, 0x80000 */)], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
-        simple_proof_test(&record.executed).unwrap();
+        prove_and_verify_mozak_stark(&record.executed).unwrap();
     }
 
     #[test]
@@ -412,7 +412,7 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_register_value(1), 0xDEAD_BEEF,);
-        simple_proof_test(&record.executed).unwrap();
+        prove_and_verify_mozak_stark(&record.executed).unwrap();
     }
 
     #[test]
@@ -431,6 +431,6 @@ mod tests {
             &[(1, 2)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        simple_proof_test(&record.executed).unwrap();
+        prove_and_verify_mozak_stark(&record.executed).unwrap();
     }
 }

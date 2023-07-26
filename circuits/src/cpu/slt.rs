@@ -56,7 +56,8 @@ mod tests {
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
-    use crate::test_utils::simple_proof_test;
+    use crate::stark::mozak_stark::TableKind;
+    use crate::test_utils::prove_and_verify_single_stark;
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -93,7 +94,7 @@ mod tests {
                 record.last_state.get_register_value(4),
                 ((a as i32) < (op2 as i32)).into()
             );
-            simple_proof_test(&record.executed).unwrap();
+            prove_and_verify_single_stark(TableKind::Cpu, &record.executed).unwrap();
         }
     }
 }
