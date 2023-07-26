@@ -29,11 +29,17 @@ pub enum LookupError {
 }
 
 #[derive(Clone, Default)]
-pub struct CtlData<F: Field> {
-    pub(crate) zs_columns: Vec<CtlZData<F>>,
+pub struct CtlData<
+    F: RichField + Extendable<D2, Extension=FE>,
+    const D2: usize,
+    FE: FieldExtension<D2, BaseField = F>,
+> {
+    pub(crate) zs_columns: Vec<CtlZData<F, D2, FE>>,
 }
 
-impl<F: Field> CtlData<F> {
+impl<F: RichField + Extendable<D2>, const D2: usize, FE: FieldExtension<D2, BaseField = F>>
+    CtlData<F, D2, FE>
+{
     #[must_use]
     pub fn len(&self) -> usize { self.zs_columns.len() }
 
@@ -51,9 +57,13 @@ impl<F: Field> CtlData<F> {
 
 /// Cross-table lookup data associated with one Z(x) polynomial.
 #[derive(Clone)]
-pub(crate) struct CtlZData<F: Field> {
+pub(crate) struct CtlZData<
+    F: RichField + Extendable<D2, Extension = FE>,
+    const D2: usize,
+    FE: FieldExtension<D2, BaseField = F>,
+> {
     pub(crate) z: PolynomialValues<F>,
-    pub(crate) challenge: GrandProductChallenge<F>,
+    pub(crate) challenge: GrandProductChallenge<F, D2, FE>,
     pub(crate) columns: Vec<Column<F>>,
     pub(crate) filter_column: Column<F>,
 }
@@ -91,11 +101,16 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     Ok(())
 }
 
-pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
+pub(crate) fn cross_table_lookup_data<
+    F: RichField + Extendable<D2>,
+    const D: usize,
+    const D2: usize,
+    FE: FieldExtension<D2, BaseField = F>,
+>(
     trace_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     cross_table_lookups: &[CrossTableLookup<F>],
-    ctl_challenges: &GrandProductChallengeSet<F>,
-) -> [CtlData<F>; NUM_TABLES] {
+    ctl_challenges: &GrandProductChallengeSet<F, D2, FE>,
+) -> [CtlData<F, D2, FE>; NUM_TABLES] {
     let mut ctl_data_per_table = [0; NUM_TABLES].map(|_| CtlData::default());
     for CrossTableLookup {
         looking_tables,
@@ -150,11 +165,15 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     ctl_data_per_table
 }
 
-fn partial_products<F: Field>(
+fn partial_products<
+    F: RichField + Extendable<D2>,
+    const D2: usize,
+    FE: FieldExtension<D2, BaseField = F>,
+>(
     trace: &[PolynomialValues<F>],
     columns: &[Column<F>],
     filter_column: &Column<F>,
-    challenge: GrandProductChallenge<F>,
+    challenge: GrandProductChallenge<F, D2, FE>,
 ) -> PolynomialValues<F> {
     let mut partial_prod = F::ONE;
     let degree = trace[0].len();
@@ -282,25 +301,31 @@ impl<F: Field> CrossTableLookup<F> {
 #[derive(Clone)]
 pub struct CtlCheckVars<'a, F, FE, P, const D2: usize>
 where
-    F: Field,
+    F: RichField + Extendable<D2>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
     pub(crate) local_z: P,
     pub(crate) next_z: P,
-    pub(crate) challenges: GrandProductChallenge<F>,
+    pub(crate) challenges: GrandProductChallenge<F, D2, FE>,
     pub(crate) columns: &'a [Column<F>],
     pub(crate) filter_column: &'a Column<F>,
 }
 
 impl<'a, F: RichField + Extendable<D>, const D: usize>
-    CtlCheckVars<'a, F, F::Extension, F::Extension, D>
+    CtlCheckVars<'a, F, <F as Extendable<D>>::Extension, <F as Extendable<D>>::Extension, D>
 {
-    pub(crate) fn from_proofs<C: GenericConfig<D, F = F>>(
-        proofs: &[StarkProof<F, C, D>; NUM_TABLES],
+    pub(crate) fn from_proofs<
+        C: GenericConfig<D, F = F>,
+        const D2: usize,
+        FE: FieldExtension<D2, BaseField = F>,
+    >(
+        proofs: &[StarkProof<F, C, D, D2, FE>; NUM_TABLES],
         cross_table_lookups: &'a [CrossTableLookup<F>],
-        ctl_challenges: &'a GrandProductChallengeSet<F>,
+        ctl_challenges: &'a GrandProductChallengeSet<F, D2, FE>,
         num_permutation_zs: &[usize; NUM_TABLES],
-    ) -> [Vec<Self>; NUM_TABLES] {
+    ) -> [Vec<Self>; NUM_TABLES]
+    where
+        F: Extendable<D2>, {
         let mut ctl_zs = proofs
             .iter()
             .zip(num_permutation_zs)
@@ -348,7 +373,7 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
     consumer: &mut ConstraintConsumer<P>,
 ) where
-    F: RichField + Extendable<D>,
+    F: RichField + Extendable<D> + Extendable<D2>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
     S: Stark<F, D>, {
