@@ -1,6 +1,7 @@
 pub mod bitwise;
 pub mod cpu;
 pub mod memory;
+pub mod program;
 pub mod rangecheck;
 
 use mozak_vm::vm::Row;
