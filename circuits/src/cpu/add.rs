@@ -55,7 +55,7 @@ mod tests {
                 if rd != 0 {
                     assert_eq!(record.executed[1].state.get_register_value(rd), a.wrapping_add(b));
                 }
-                prove_and_verify_single_stark(TableKind::Cpu, &record.executed).unwrap()
+                prove_and_verify_single_stark(TableKind::Cpu, &record.executed).unwrap();
             }
     }
 }

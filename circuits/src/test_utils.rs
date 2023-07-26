@@ -46,11 +46,14 @@ pub fn standard_faster_config() -> StarkConfig {
     }
 }
 
-/// Prove and verify a single ['Stark'](starky::stark::Stark) based on a given
+/// Prove and verify a single [`Stark`] based on a given
 /// [`TableKind`] and [`Row`]s. It is suggested to use this for its performance
 /// over [`prove_and_verify_mozak_stark`] for unit tests since it only proves
 /// and verifies ONE stark associated with the [`TableKind`], and does not
 /// include lookups.
+///
+/// # Errors
+/// Errors if proving or verifying the STARK fails.
 pub fn prove_and_verify_single_stark(table: TableKind, step_rows: &[Row]) -> Result<()> {
     let config = standard_faster_config();
 
@@ -105,11 +108,11 @@ pub fn prove_and_verify_single_stark(table: TableKind, step_rows: &[Row]) -> Res
 
 #[allow(clippy::missing_panics_doc)]
 #[allow(clippy::missing_errors_doc)]
-/// Prove and verify a ['MozakStark'](crate::stark::mozak_stark::MozakStark)
-/// based on given [`Row`]s. Note that this is a lot slower than
-/// [`prove_and_verify_single_stark`] because this proves and verifies ALL
-/// starks and lookups within the Mozak ZKVM. This should be preferred if
-/// the test is concerned about the consistency of the final [`MozakStark`].
+/// Prove and verify a [`MozakStark`] based on given [`Row`]s. Note that this is
+/// a lot slower than [`prove_and_verify_single_stark`] because this proves and
+/// verifies ALL starks and lookups within the Mozak ZKVM. This should be
+/// preferred if the test is concerned about the consistency of the final
+/// [`MozakStark`].
 pub fn prove_and_verify_mozak_stark(step_rows: &[Row]) -> Result<()> {
     let stark = S::default();
     let config = standard_faster_config();
