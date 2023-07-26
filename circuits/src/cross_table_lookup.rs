@@ -287,7 +287,7 @@ where
     P: PackedField<Scalar = FE>, {
     pub(crate) local_z: P,
     pub(crate) next_z: P,
-    pub(crate) challenges: GrandProductChallenge<F>,
+    pub(crate) challenges: GrandProductChallenge<FE>,
     pub(crate) columns: &'a [Column<F>],
     pub(crate) filter_column: &'a Column<F>,
 }
@@ -298,7 +298,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
     pub(crate) fn from_proofs<C: GenericConfig<D, F = F>>(
         proofs: &[StarkProof<F, C, D>; NUM_TABLES],
         cross_table_lookups: &'a [CrossTableLookup<F>],
-        ctl_challenges: &'a GrandProductChallengeSet<F>,
+        ctl_challenges: &'a GrandProductChallengeSet<F::Extension>,
         num_permutation_zs: &[usize; NUM_TABLES],
     ) -> [Vec<Self>; NUM_TABLES] {
         let mut ctl_zs = proofs

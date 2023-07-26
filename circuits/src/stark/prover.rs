@@ -61,7 +61,7 @@ pub fn prove_with_traces<F, C, const D: usize>(
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
 where
-    F: RichField + Extendable<D>,
+    F: RichField + Extendable<D, Extension = C::FE>,
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
@@ -107,7 +107,7 @@ where
         challenger.observe_cap(cap);
     }
 
-    let ctl_challenges = get_grand_product_challenge_set(&mut challenger, config.num_challenges);
+    let ctl_challenges: GrandProductChallengeSet<<C as GenericConfig<D>>::FE> = get_grand_product_challenge_set(&mut challenger, config.num_challenges);
     let ctl_data_per_table = timed!(
         timing,
         "compute CTL data",
