@@ -38,7 +38,7 @@ pub fn generate_shift_amount_trace<F: RichField>(
     });
     for (i, clk) in filtered_step_rows.iter().enumerate() {
         trace[i].shamt = cpu_trace[cpu_cols::MAP.powers_of_2_in][*clk];
-        trace[i].multiplier = cpu_trace[cpu_cols::MAP.powers_of_2_in][*clk];
+        trace[i].multiplier = cpu_trace[cpu_cols::MAP.powers_of_2_out][*clk];
     }
     for (i, value) in trace.iter_mut().enumerate().take(trace_len) {
         if i < FIXED_SHAMT_RANGE.end.into() {

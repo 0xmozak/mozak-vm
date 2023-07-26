@@ -80,3 +80,83 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ShiftAmountSt
         unimplemented!()
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::cast_possible_wrap)]
+mod tests {
+    use anyhow::Result;
+    use mozak_vm::instruction::{Args, Instruction, Op};
+    use mozak_vm::test_utils::{simple_test_code, u32_extra};
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::util::timing::TimingTree;
+    use proptest::{prop_assert_eq, proptest};
+    use starky::config::StarkConfig;
+    use starky::prover::prove as prove_table;
+    use starky::stark_testing::test_stark_low_degree;
+    use starky::verifier::verify_stark_proof;
+
+    use super::ShiftAmountStark;
+    use crate::generation::cpu::generate_cpu_trace;
+    use crate::generation::shift_amount::generate_shift_amount_trace;
+    use crate::stark::utils::trace_rows_to_poly_values;
+
+    const D: usize = 2;
+    type C = PoseidonGoldilocksConfig;
+    type F = <C as GenericConfig<D>>::F;
+    type S = ShiftAmountStark<F, D>;
+
+    #[test]
+    fn test_degree() -> Result<()> {
+        let stark = S::default();
+        test_stark_low_degree(stark)
+    }
+
+    proptest! {
+        #[test]
+        fn prove_shift_amount_proptest(p in u32_extra(), q in u32_extra()) {
+            let record = simple_test_code(
+                &[Instruction {
+                    op: Op::SLL,
+                    args: Args {
+                        rd: 5,
+                        rs1: 7,
+                        rs2: 8,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::SRL,
+                    args: Args {
+                        rd: 6,
+                        rs1: 7,
+                        imm: q,
+                        ..Args::default()
+                    },
+                }
+                ],
+                &[],
+                &[(7, p), (8, q)],
+            );
+            prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
+            prop_assert_eq!(record.executed[1].aux.dst_val, p >> (q & 0x1F));
+
+        let mut config = StarkConfig::standard_fast_config();
+        config.fri_config.cap_height = 0;
+
+        let stark = S::default();
+        let cpu_rows = generate_cpu_trace::<F>(&record.executed);
+        let trace = generate_shift_amount_trace(&record.executed, &cpu_rows);
+        let trace_poly_values = trace_rows_to_poly_values(trace);
+
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            [],
+            &mut TimingTree::default(),
+        ).unwrap();
+
+        verify_stark_proof(stark, proof, &config).unwrap();
+        }
+    }
+}
