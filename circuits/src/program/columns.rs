@@ -5,7 +5,7 @@ use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 pub struct ProgramColumnsView<T: Copy> {
     pub program_is_inst: T,
     pub program_pc: T,
-    pub program_inst: T,
+    pub program_opcode: T,
     pub program_rs1: T,
     pub program_rs2: T,
     pub program_rd: T,

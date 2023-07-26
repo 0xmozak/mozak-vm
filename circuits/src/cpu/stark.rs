@@ -73,7 +73,7 @@ fn opcode_one_hot<P: PackedField>(
         .enumerate()
         .map(|(i, op_selector)| *op_selector * P::Scalar::from_canonical_usize(i))
         .sum();
-    yield_constr.constraint(lv.inst - op_index);
+    yield_constr.constraint(lv.opcode - op_index);
 }
 
 /// Ensure clock is ticking up

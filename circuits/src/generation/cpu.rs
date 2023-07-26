@@ -71,6 +71,16 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             #[tarpaulin::skip]
             _ => {}
         }
+
+        trace[MAP.rs1][i] = from_u32(u32::from(inst.args.rs1));
+        trace[MAP.rs2][i] = from_u32(u32::from(inst.args.rs2));
+        trace[MAP.rd][i] = from_u32(u32::from(inst.args.rd));
+        trace[MAP.opcode][i] = MAP
+            .ops
+            .into_iter()
+            .enumerate()
+            .map(|(i, op_selector)| trace[op_selector][i] * F::from_canonical_usize(i))
+            .sum();
     }
 
     // For expanded trace from `trace_len` to `trace_len's power of two`,

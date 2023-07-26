@@ -27,15 +27,17 @@ pub(crate) struct OpSelectorView<T: Copy> {
     pub halt: T,
 }
 
+columns_view_impl!(OpSelectorView);
 columns_view_impl!(CpuColumnsView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct CpuColumnsView<T: Copy> {
     pub clk: T,
 
-    /// The original instruction (+ imm_value) used for program cross-table-lookup.
+    /// The original instruction (+ imm_value) used for program
+    /// cross-table-lookup.
     pub pc: T,
-    pub inst: T,
+    pub opcode: T, // internal opcode, not the opcode from RISC-V
     pub rs1: T,
     pub rs2: T,
     pub rd: T,
