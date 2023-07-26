@@ -23,7 +23,7 @@ pub(crate) fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     stark: &S,
     trace_commitment: &'a PolynomialBatch<F, C, D>,
     permutation_ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
-    permutation_challenges: &'a Vec<GrandProductChallengeSet<F>>,
+    permutation_challenges: &'a [GrandProductChallengeSet<F>],
     ctl_data: &CtlData<F>,
     alphas: &[F],
     degree_bits: usize,
@@ -107,7 +107,7 @@ where
                 next_zs: permutation_ctl_zs_commitment.get_lde_values_packed(i_next_start, step)
                     [..num_permutation_zs]
                     .to_vec(),
-                permutation_challenge_sets: permutation_challenges.clone(),
+                permutation_challenge_sets: permutation_challenges.to_owned(),
             };
             let ctl_vars = ctl_data
                 .zs_columns
