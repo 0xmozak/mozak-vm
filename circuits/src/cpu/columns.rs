@@ -43,7 +43,7 @@ pub(crate) struct CpuColumnsView<T: Copy> {
     pub rd: T,
 
     pub permuted_pc: T,
-    pub permuted_inst: T,
+    pub permuted_opcode: T,
     pub permuted_rs1: T,
     pub permuted_rs2: T,
     pub permuted_rd: T,

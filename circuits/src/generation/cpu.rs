@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use mozak_vm::instruction::{Instruction, Op};
 use mozak_vm::state::State;
 use mozak_vm::vm::Row;
@@ -86,6 +87,8 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
     // For expanded trace from `trace_len` to `trace_len's power of two`,
     // we use last row `HALT` to pad them.
     let trace = pad_trace(trace, Some(MAP.clk));
+
+    let trace = generate_permuted_inst_trace(trace);
 
     log::trace!("trace {:?}", trace);
     #[tarpaulin::skip]
@@ -238,4 +241,88 @@ fn generate_bitwise_row<F: RichField>(
     trace[MAP.xor_a][i] = from_u32(op1);
     trace[MAP.xor_b][i] = from_u32(op2);
     trace[MAP.xor_out][i] = from_u32(op1 ^ op2);
+}
+
+#[must_use]
+pub fn generate_permuted_inst_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
+    // Get the index order after sorting by pc
+    let permuted_index: Vec<usize> = (0..trace[MAP.pc].len())
+        .map(|i| (trace[MAP.pc][i], i))
+        .sorted_by(|(pc_a, _), (pc_b, _)| pc_a.to_canonical_u64().cmp(&pc_b.to_canonical_u64()))
+        .map(|(_, i)| i)
+        .collect();
+
+    // Create permuted columns
+    trace[MAP.permuted_pc] = permuted_index.iter().map(|&i| trace[MAP.pc][i]).collect();
+    trace[MAP.permuted_opcode] = permuted_index
+        .iter()
+        .map(|&i| trace[MAP.opcode][i])
+        .collect();
+    trace[MAP.permuted_rs1] = permuted_index.iter().map(|&i| trace[MAP.rs1][i]).collect();
+    trace[MAP.permuted_rs2] = permuted_index.iter().map(|&i| trace[MAP.rs2][i]).collect();
+    trace[MAP.permuted_rd] = permuted_index.iter().map(|&i| trace[MAP.rd][i]).collect();
+    trace[MAP.permuted_imm] = permuted_index
+        .iter()
+        .map(|&i| trace[MAP.imm_value][i])
+        .collect();
+
+    trace
+}
+
+#[cfg(test)]
+mod tests {
+    use plonky2::field::types::Field;
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+
+    use super::*;
+    use crate::cpu::columns::NUM_CPU_COLS;
+
+    #[test]
+    fn test_generate_permuted_inst_trace() {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; 3]; NUM_CPU_COLS];
+
+        trace[MAP.pc] = vec![from_u32(3), from_u32(1), from_u32(2)];
+        trace[MAP.opcode] = vec![from_u32(2), from_u32(3), from_u32(1)];
+        trace[MAP.rs1] = vec![from_u32(1), from_u32(2), from_u32(3)];
+        trace[MAP.rs2] = vec![from_u32(2), from_u32(1), from_u32(3)];
+        trace[MAP.rd] = vec![from_u32(3), from_u32(1), from_u32(2)];
+        trace[MAP.imm_value] = vec![from_u32(1), from_u32(3), from_u32(2)];
+
+        let permuted_trace = generate_permuted_inst_trace(trace);
+
+        assert_eq!(permuted_trace[MAP.permuted_pc], [
+            from_u32(1),
+            from_u32(2),
+            from_u32(3)
+        ]);
+        assert_eq!(permuted_trace[MAP.permuted_opcode], [
+            from_u32(3),
+            from_u32(1),
+            from_u32(2)
+        ]);
+        assert_eq!(permuted_trace[MAP.permuted_rs1], [
+            from_u32(2),
+            from_u32(3),
+            from_u32(1)
+        ]);
+        assert_eq!(permuted_trace[MAP.permuted_rs2], [
+            from_u32(1),
+            from_u32(3),
+            from_u32(2)
+        ]);
+        assert_eq!(permuted_trace[MAP.permuted_rd], [
+            from_u32(1),
+            from_u32(2),
+            from_u32(3)
+        ]);
+        assert_eq!(permuted_trace[MAP.permuted_imm], [
+            from_u32(3),
+            from_u32(2),
+            from_u32(1)
+        ]);
+    }
 }
