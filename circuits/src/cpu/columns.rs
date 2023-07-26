@@ -32,7 +32,23 @@ columns_view_impl!(CpuColumnsView);
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct CpuColumnsView<T: Copy> {
     pub clk: T,
+
+    /// The original instruction (+ imm_value) used for program cross-table-lookup.
     pub pc: T,
+    pub inst: T,
+    pub rs1: T,
+    pub rs2: T,
+    pub rd: T,
+
+    pub permuted_pc: T,
+    pub permuted_inst: T,
+    pub permuted_rs1: T,
+    pub permuted_rs2: T,
+    pub permuted_rd: T,
+    pub permuted_imm: T,
+
+    /// Used to filter out instructions that appear more than once in the trace.
+    pub inst_filter: T,
 
     pub rs1_select: [T; 32],
     pub rs2_select: [T; 32],
