@@ -5,7 +5,6 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::MAP;
-use crate::lookup::permute_cols;
 use crate::utils::{from_u32, pad_trace};
 
 #[allow(clippy::missing_panics_doc)]
@@ -42,8 +41,8 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         // To be overridden by users of the gadget.
         // TODO(Matthias): find a way to make either compiler or runtime complain
         // if we have two (conflicting) users in the same row.
-        trace[MAP.shift_amount.powers_of_2_in][i] = F::ZERO;
-        trace[MAP.shift_amount.powers_of_2_out][i] = F::ONE;
+        trace[MAP.powers_of_2_in][i] = F::ZERO;
+        trace[MAP.powers_of_2_out][i] = F::ONE;
 
         generate_mul_row(&mut trace, &inst, state, i);
         generate_divu_row(&mut trace, &inst, state, i);
@@ -76,9 +75,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
     // For expanded trace from `trace_len` to `trace_len's power of two`,
     // we use last row `HALT` to pad them.
-    let mut trace = pad_trace(trace, Some(MAP.clk));
-
-    populate_shift_amount_related_columns(&mut trace);
+    let trace = pad_trace(trace, Some(MAP.clk));
 
     log::trace!("trace {:?}", trace);
     #[tarpaulin::skip]
@@ -89,33 +86,6 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             v.len()
         )
     })
-}
-
-fn populate_shift_amount_related_columns<F: RichField>(trace: &mut [Vec<F>]) {
-    let num_of_rows = trace[MAP.clk].len();
-    trace[MAP.shift_amount.fixed_shamt] = cpu_cols::FIXED_SHAMT_RANGE
-        .map(F::from_canonical_u8)
-        .collect();
-    trace[MAP.shift_amount.fixed_shamt].resize(num_of_rows, F::from_canonical_u8(31));
-    trace[MAP.shift_amount.fixed_power_of_2_shamt] = cpu_cols::FIXED_SHAMT_RANGE
-        .map(|shamt| F::from_canonical_u32(1 << shamt))
-        .collect();
-    trace[MAP.shift_amount.fixed_power_of_2_shamt]
-        .resize(num_of_rows, F::from_canonical_u32(1 << 31));
-    (
-        trace[MAP.shift_amount.powers_of_2_in_permuted],
-        trace[MAP.shift_amount.fixed_shamt_permuted],
-    ) = permute_cols(
-        &trace[MAP.shift_amount.powers_of_2_in],
-        &trace[MAP.shift_amount.fixed_shamt],
-    );
-    (
-        trace[MAP.shift_amount.powers_of_2_out_permuted],
-        trace[MAP.shift_amount.fixed_power_of_2_shamt_permuted],
-    ) = permute_cols(
-        &trace[MAP.shift_amount.powers_of_2_out],
-        &trace[MAP.shift_amount.fixed_power_of_2_shamt],
-    );
 }
 
 fn generate_conditional_branch_row<F: RichField>(trace: &mut [Vec<F>], row_idx: usize) {
@@ -143,8 +113,8 @@ fn generate_mul_row<F: RichField>(
     let multiplier = if let Op::SLL = inst.op {
         let shift_amount = op2 & 0x1F;
         let shift_power = 1_u32 << shift_amount;
-        trace[MAP.shift_amount.powers_of_2_in][row_idx] = from_u32(shift_amount);
-        trace[MAP.shift_amount.powers_of_2_out][row_idx] = from_u32(shift_power);
+        trace[MAP.powers_of_2_in][row_idx] = from_u32(shift_amount);
+        trace[MAP.powers_of_2_out][row_idx] = from_u32(shift_power);
         shift_power
     } else {
         op2
@@ -175,8 +145,8 @@ fn generate_divu_row<F: RichField>(
     let divisor = if let Op::SRL = inst.op {
         let shift_amount = op2 & 0x1F;
         let shift_power = 1_u32 << shift_amount;
-        trace[MAP.shift_amount.powers_of_2_in][row_idx] = from_u32(shift_amount);
-        trace[MAP.shift_amount.powers_of_2_out][row_idx] = from_u32(shift_power);
+        trace[MAP.powers_of_2_in][row_idx] = from_u32(shift_amount);
+        trace[MAP.powers_of_2_out][row_idx] = from_u32(shift_power);
         shift_power
     } else {
         op2

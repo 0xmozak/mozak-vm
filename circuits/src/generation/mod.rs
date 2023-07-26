@@ -2,6 +2,7 @@ pub mod bitwise;
 pub mod cpu;
 pub mod memory;
 pub mod rangecheck;
+pub mod shift_amount;
 
 use mozak_vm::vm::Row;
 use plonky2::field::extension::Extendable;

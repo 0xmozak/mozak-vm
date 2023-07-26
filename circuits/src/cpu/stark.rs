@@ -7,12 +7,11 @@ use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::permutation::PermutationPair;
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{CpuColumnsView, OpSelectorView, MAP};
-use super::{add, beq, bitwise, div, jalr, mul, shift_amount, slt, sub};
+use super::columns::{CpuColumnsView, OpSelectorView};
+use super::{add, beq, bitwise, div, jalr, mul, slt, sub};
 use crate::columns_view::NumberOfColumns;
 
 #[derive(Copy, Clone, Default)]
@@ -177,24 +176,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
-        shift_amount::constraints_on_shamt(vars, yield_constr);
-        shift_amount::constraints_on_power_of_2_shamt(vars, yield_constr);
 
         // Last row must be HALT
         yield_constr.constraint_last_row(lv.ops.halt - P::ONES);
-    }
-
-    fn permutation_pairs(&self) -> Vec<PermutationPair> {
-        vec![
-            PermutationPair::singletons(
-                MAP.shift_amount.powers_of_2_in,
-                MAP.shift_amount.powers_of_2_in_permuted,
-            ),
-            PermutationPair::singletons(
-                MAP.shift_amount.powers_of_2_out,
-                MAP.shift_amount.powers_of_2_out_permuted,
-            ),
-        ]
     }
 
     fn constraint_degree(&self) -> usize { 3 }
