@@ -4,6 +4,7 @@ use plonky2::field::types::Field;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
+columns_view_impl!(OpSelectorView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct OpSelectorView<T: Copy> {
@@ -27,7 +28,6 @@ pub(crate) struct OpSelectorView<T: Copy> {
     pub halt: T,
 }
 
-columns_view_impl!(OpSelectorView);
 columns_view_impl!(CpuColumnsView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
@@ -49,8 +49,9 @@ pub(crate) struct CpuColumnsView<T: Copy> {
     pub permuted_rd: T,
     pub permuted_imm: T,
 
-    /// Used to filter out instructions that appear more than once in the trace.
-    pub inst_filter: T,
+    /// Used to filter out instructions that are not unique (i.e., appear more
+    /// than once) in the trace.
+    pub unique_inst_filter: T,
 
     pub rs1_select: [T; 32],
     pub rs2_select: [T; 32],

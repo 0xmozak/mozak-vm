@@ -73,9 +73,9 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
             _ => {}
         }
 
-        trace[MAP.rs1][i] = from_u32(u32::from(inst.args.rs1));
-        trace[MAP.rs2][i] = from_u32(u32::from(inst.args.rs2));
-        trace[MAP.rd][i] = from_u32(u32::from(inst.args.rd));
+        trace[MAP.rs1][i] = F::from_canonical_u8(inst.args.rs1);
+        trace[MAP.rs2][i] = F::from_canonical_u8(inst.args.rs2);
+        trace[MAP.rd][i] = F::from_canonical_u8(inst.args.rd);
         trace[MAP.opcode][i] = MAP
             .ops
             .into_iter()
