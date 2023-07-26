@@ -65,8 +65,15 @@ fn opcode_one_hot<P: PackedField>(
         .for_each(|&s| yield_constr.constraint(s * (P::ONES - s)));
 
     // Only one opcode selector enabled.
-    let sum_s_op: P = op_selectors.into_iter().sum();
+    let sum_s_op: P = op_selectors.clone().into_iter().sum();
     yield_constr.constraint(P::ONES - sum_s_op);
+
+    let op_index: P = op_selectors
+        .iter()
+        .enumerate()
+        .map(|(i, op_selector)| *op_selector * P::Scalar::from_canonical_usize(i))
+        .sum();
+    yield_constr.constraint(lv.inst - op_index);
 }
 
 /// Ensure clock is ticking up
@@ -81,6 +88,25 @@ fn clock_ticks<P: PackedField>(
 /// Register 0 is always 0
 fn r0_always_0<P: PackedField>(lv: &CpuColumnsView<P>, yield_constr: &mut ConstraintConsumer<P>) {
     yield_constr.constraint(lv.regs[0]);
+}
+
+/// Ensures the correct register values are set.
+fn ensure_correct_register_selection<P: PackedField>(
+    lv: &CpuColumnsView<P>,
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    let cols = [&lv.rs1, &lv.rs2, &lv.rd];
+    let target_cols = [&lv.rs1_select, &lv.rs2_select, &lv.rd_select];
+
+    cols.iter()
+        .zip(target_cols.iter())
+        .for_each(|(&col, target_col)| {
+            let constraint_val = (0..32)
+                .map(|i| target_col[i] * P::Scalar::from_canonical_usize(i))
+                .sum::<P>();
+
+            yield_constr.constraint(*col - constraint_val);
+        });
 }
 
 /// Register used as destination register can have different value, all
@@ -156,6 +182,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         // let lv: &BitwiseColumnsView<_> = vars.local_values.borrow();
 
         opcode_one_hot(lv, yield_constr);
+        ensure_correct_register_selection(lv, yield_constr);
 
         clock_ticks(lv, nv, yield_constr);
         pc_ticks_up(lv, nv, yield_constr);
@@ -191,5 +218,25 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         unimplemented!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use starky::stark_testing::test_stark_low_degree;
+
+    use crate::cpu::stark::CpuStark;
+
+    #[test]
+    fn test_degree() -> Result<()> {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        type S = CpuStark<F, D>;
+
+        let stark = S::default();
+        test_stark_low_degree(stark)
     }
 }
