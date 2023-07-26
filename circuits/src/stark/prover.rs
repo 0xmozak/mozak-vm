@@ -3,7 +3,7 @@
 use anyhow::{ensure, Result};
 use itertools::Itertools;
 use mozak_vm::vm::Row;
-use plonky2::field::extension::{Extendable, FieldExtension};
+use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
@@ -32,14 +32,14 @@ use crate::stark::permutation::{
 use crate::stark::poly::compute_quotient_polys;
 
 #[allow(clippy::missing_errors_doc)]
-pub fn prove<F, C, const D: usize, const D2: usize, FE: FieldExtension<D2, BaseField = F>>(
+pub fn prove<F, C, const D: usize>(
     step_rows: &[Row],
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     timing: &mut TimingTree,
-) -> Result<AllProof<F, C, D, D2, FE>>
+) -> Result<AllProof<F, C, D>>
 where
-    F: RichField + Extendable<D> + Extendable<D2>,
+    F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
@@ -54,20 +54,14 @@ where
 ///
 /// # Errors
 /// Errors if proving fails.
-pub fn prove_with_traces<
-    F,
-    C,
-    const D: usize,
-    const D2: usize,
-    FE: FieldExtension<D2, BaseField = F>,
->(
+pub fn prove_with_traces<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     timing: &mut TimingTree,
-) -> Result<AllProof<F, C, D, D2, FE>>
+) -> Result<AllProof<F, C, D>>
 where
-    F: RichField + Extendable<D> + Extendable<D2>,
+    F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
@@ -146,24 +140,17 @@ where
 /// Errors if FRI parameters are wrongly configured, or if
 /// there are no z polys, or if our
 /// opening points are in our subgroup `H`,
-pub(crate) fn prove_single_table<
-    F,
-    C,
-    S,
-    const D: usize,
-    const D2: usize,
-    FE: FieldExtension<D2, BaseField = F>,
->(
+pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     stark: &S,
     config: &StarkConfig,
     trace_poly_values: &[PolynomialValues<F>],
     trace_commitment: &PolynomialBatch<F, C, D>,
-    ctl_data: &CtlData<F, D2, FE>,
+    ctl_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<StarkProof<F, C, D, D2, FE>>
+) -> Result<StarkProof<F, C, D>>
 where
-    F: RichField + Extendable<D> + Extendable<D2>,
+    F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
     [(); C::Hasher::HASH_SIZE]:,
@@ -340,23 +327,17 @@ where
 ///
 /// # Errors
 /// Errors if proving fails.
-pub fn prove_with_commitments<
-    F,
-    C,
-    const D: usize,
-    const D2: usize,
-    FE: FieldExtension<D2, BaseField = F>,
->(
+pub fn prove_with_commitments<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     trace_commitments: &[PolynomialBatch<F, C, D>],
-    ctl_data_per_table: &[CtlData<F, D2, FE>; NUM_TABLES],
+    ctl_data_per_table: &[CtlData<F>; NUM_TABLES],
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<[StarkProof<F, C, D, D2, FE>; NUM_TABLES]>
+) -> Result<[StarkProof<F, C, D>; NUM_TABLES]>
 where
-    F: RichField + Extendable<D> + Extendable<D2>,
+    F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,

@@ -21,19 +21,13 @@ use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
 
 #[allow(clippy::missing_errors_doc)]
-pub fn verify_proof<
-    F,
-    C,
-    const D: usize,
-    const D2: usize,
-    FE: FieldExtension<D2, BaseField = F>,
->(
+pub fn verify_proof<F, C, const D: usize>(
     mozak_stark: MozakStark<F, D>,
-    all_proof: AllProof<F, C, D, D2, FE>,
+    all_proof: AllProof<F, C, D>,
     config: &StarkConfig,
 ) -> Result<()>
 where
-    F: RichField + Extendable<D> + Extendable<D2>,
+    F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
@@ -89,22 +83,15 @@ where
 }
 
 pub(crate) fn verify_stark_proof_with_challenges<
-    F: RichField + Extendable<D> + Extendable<D2>,
+    F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
     const D: usize,
-    const D2: usize,
-    FE: FieldExtension<D2, BaseField = F>,
 >(
     stark: &S,
-    proof: &StarkProof<F, C, D, D2, FE>,
-    challenges: &StarkProofChallenges<F, D, D2, FE>,
-    ctl_vars: &[CtlCheckVars<
-        F,
-        <F as Extendable<D>>::Extension,
-        <F as Extendable<D>>::Extension,
-        D,
-    >],
+    proof: &StarkProof<F, C, D>,
+    challenges: &StarkProofChallenges<F, D>,
+    ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
     config: &StarkConfig,
 ) -> Result<()>
 where
@@ -203,21 +190,14 @@ where
     Ok(())
 }
 
-fn validate_proof_shape<
-    F,
-    C,
-    S,
-    const D: usize,
-    const D2: usize,
-    FE: FieldExtension<D2, BaseField = F>,
->(
+fn validate_proof_shape<F, C, S, const D: usize>(
     stark: &S,
-    proof: &StarkProof<F, C, D, D2, FE>,
+    proof: &StarkProof<F, C, D>,
     config: &StarkConfig,
     num_ctl_zs: usize,
 ) -> anyhow::Result<()>
 where
-    F: RichField + Extendable<D> + Extendable<D2>,
+    F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
     [(); S::COLUMNS]:,

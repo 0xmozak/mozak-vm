@@ -17,13 +17,7 @@ use super::permutation::{
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone)]
-pub struct StarkProof<
-    F: RichField + Extendable<D> + Extendable<D2>,
-    C: GenericConfig<D, F = F>,
-    const D: usize,
-    const D2: usize,
-    FE: FieldExtension<D2, BaseField = F>,
-> {
+pub struct StarkProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     /// Merkle cap of LDEs of trace values.
     pub trace_cap: MerkleCap<F, C::Hasher>,
     /// Merkle cap of LDEs of permutation Z values.
@@ -36,14 +30,7 @@ pub struct StarkProof<
     pub opening_proof: FriProof<F, C::Hasher, D>,
 }
 
-impl<
-        F: RichField + Extendable<D> + Extendable<D2>,
-        C: GenericConfig<D, F = F>,
-        const D: usize,
-        const D2: usize,
-        FE: FieldExtension<D2, BaseField = F>,
-    > StarkProof<F, C, D, D2, FE>
-{
+impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> StarkProof<F, C, D> {
     /// Recover the length of the trace from a STARK proof and a STARK config.
     pub fn recover_degree_bits(&self, config: &StarkConfig) -> usize {
         let initial_merkle_proof = &self.opening_proof.query_round_proofs[0]
@@ -63,7 +50,7 @@ impl<
         stark_use_permutation: bool,
         stark_permutation_batch_size: usize,
         config: &StarkConfig,
-    ) -> StarkProofChallenges<F, D, D2, FE> {
+    ) -> StarkProofChallenges<F, D> {
         let degree_bits = self.recover_degree_bits(config);
 
         let StarkProof {
@@ -114,20 +101,15 @@ impl<
     }
 }
 
-pub(crate) struct StarkProofChallenges<
-    F: RichField + Extendable<D> + Extendable<D2>,
-    const D: usize,
-    const D2: usize,
-    FE: FieldExtension<D2, BaseField = F>,
-> {
+pub(crate) struct StarkProofChallenges<F: RichField + Extendable<D>, const D: usize> {
     /// Randomness used in any permutation arguments.
-    pub permutation_challenge_sets: Option<Vec<GrandProductChallengeSet<F, D2, FE>>>,
+    pub permutation_challenge_sets: Option<Vec<GrandProductChallengeSet<F>>>,
 
     /// Random values used to combine STARK constraints.
     pub stark_alphas: Vec<F>,
 
     /// Point at which the STARK polynomials are opened.
-    pub stark_zeta: <F as Extendable<D>>::Extension,
+    pub stark_zeta: F::Extension,
 
     pub fri_challenges: FriChallenges<F, D>,
 }
@@ -224,40 +206,22 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
 
 #[derive(Debug, Clone)]
 #[allow(clippy::module_name_repetitions)]
-pub struct AllProof<
-    F: RichField + Extendable<D> + Extendable<D2>,
-    C: GenericConfig<D, F = F>,
-    const D: usize,
-    const D2: usize,
-    FE: FieldExtension<D2, BaseField = F>,
-> {
-    pub stark_proofs: [StarkProof<F, C, D, D2, FE>; NUM_TABLES],
+pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
+    pub stark_proofs: [StarkProof<F, C, D>; NUM_TABLES],
 }
 
-pub(crate) struct AllProofChallenges<
-    F: RichField + Extendable<D> + Extendable<D2>,
-    const D: usize,
-    const D2: usize,
-    FE: FieldExtension<D2, BaseField = F>,
-> {
-    pub stark_challenges: [StarkProofChallenges<F, D, D2, FE>; NUM_TABLES],
-    pub ctl_challenges: GrandProductChallengeSet<F, D2, FE>,
+pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {
+    pub stark_challenges: [StarkProofChallenges<F, D>; NUM_TABLES],
+    pub ctl_challenges: GrandProductChallengeSet<F>,
 }
 
-impl<
-        F: RichField + Extendable<D> + Extendable<D2>,
-        C: GenericConfig<D, F = F>,
-        const D: usize,
-        const D2: usize,
-        FE: FieldExtension<D2, BaseField = F>,
-    > AllProof<F, C, D, D2, FE>
-{
+impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
     /// Computes all Fiat-Shamir challenges used in the STARK proof.
     pub(crate) fn get_challenges(
         &self,
         all_stark: &MozakStark<F, D>,
         config: &StarkConfig,
-    ) -> AllProofChallenges<F, D, D2, FE> {
+    ) -> AllProofChallenges<F, D> {
         let mut challenger = Challenger::<F, C::Hasher>::new();
 
         for proof in &self.stark_proofs {

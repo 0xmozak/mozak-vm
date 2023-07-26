@@ -19,28 +19,19 @@ use crate::cross_table_lookup::{eval_cross_table_lookup_checks, CtlCheckVars, Ct
 
 /// Computes the quotient polynomials `(sum alpha^i C_i(x)) / Z_H(x)` for
 /// `alpha` in `alphas`, where the `C_i`s are the Stark constraints.
-pub(crate) fn compute_quotient_polys<
-    'a,
-    F,
-    P,
-    C,
-    S,
-    const D: usize,
-    const D2: usize,
-    FE: FieldExtension<D2, BaseField = F>,
->(
+pub(crate) fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     stark: &S,
     trace_commitment: &'a PolynomialBatch<F, C, D>,
     permutation_ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
-    permutation_challenges: Option<&'a Vec<GrandProductChallengeSet<F, D2, FE>>>,
-    ctl_data: &CtlData<F, D2, FE>,
+    permutation_challenges: Option<&'a Vec<GrandProductChallengeSet<F>>>,
+    ctl_data: &CtlData<F>,
     alphas: &[F],
     degree_bits: usize,
     num_permutation_zs: usize,
     config: &StarkConfig,
 ) -> Vec<PolynomialCoeffs<F>>
 where
-    F: RichField + Extendable<D> + Extendable<D2>,
+    F: RichField + Extendable<D>,
     P: PackedField<Scalar = F>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
@@ -173,7 +164,7 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
     consumer: &mut ConstraintConsumer<P>,
 ) where
-    F: RichField + Extendable<D> + Extendable<D2>,
+    F: RichField + Extendable<D>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
     S: Stark<F, D>, {
