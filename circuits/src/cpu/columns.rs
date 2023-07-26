@@ -49,9 +49,9 @@ pub(crate) struct CpuColumnsView<T: Copy> {
     pub permuted_rd: T,
     pub permuted_imm: T,
 
-    /// Used to filter out instructions that are not unique (i.e., appear more
+    /// Used to filter out instructions that are duplicate (i.e., appear more
     /// than once) in the trace.
-    pub unique_inst_filter: T,
+    pub duplicate_inst_filter: T,
 
     pub rs1_select: [T; 32],
     pub rs2_select: [T; 32],

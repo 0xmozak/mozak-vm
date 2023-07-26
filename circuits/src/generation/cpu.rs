@@ -267,6 +267,15 @@ pub fn generate_permuted_inst_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec
         .map(|&i| trace[MAP.imm_value][i])
         .collect();
 
+    // Mark unique permuted_pc
+    let mut last_pc = None;
+    for (i, &pc) in trace[MAP.permuted_pc].clone().iter().enumerate() {
+        if Some(pc) != last_pc {
+            trace[MAP.duplicate_inst_filter][i] = F::ONE;
+            last_pc = Some(pc);
+        }
+    }
+
     trace
 }
 
@@ -284,45 +293,57 @@ mod tests {
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; 3]; NUM_CPU_COLS];
+        let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; 4]; NUM_CPU_COLS];
 
-        trace[MAP.pc] = vec![from_u32(3), from_u32(1), from_u32(2)];
-        trace[MAP.opcode] = vec![from_u32(2), from_u32(3), from_u32(1)];
-        trace[MAP.rs1] = vec![from_u32(1), from_u32(2), from_u32(3)];
-        trace[MAP.rs2] = vec![from_u32(2), from_u32(1), from_u32(3)];
-        trace[MAP.rd] = vec![from_u32(3), from_u32(1), from_u32(2)];
-        trace[MAP.imm_value] = vec![from_u32(1), from_u32(3), from_u32(2)];
+        trace[MAP.pc] = vec![from_u32(3), from_u32(1), from_u32(2), from_u32(1)];
+        trace[MAP.opcode] = vec![from_u32(2), from_u32(3), from_u32(1), from_u32(4)];
+        trace[MAP.rs1] = vec![from_u32(1), from_u32(2), from_u32(3), from_u32(4)];
+        trace[MAP.rs2] = vec![from_u32(2), from_u32(1), from_u32(3), from_u32(4)];
+        trace[MAP.rd] = vec![from_u32(3), from_u32(1), from_u32(2), from_u32(4)];
+        trace[MAP.imm_value] = vec![from_u32(1), from_u32(3), from_u32(2), from_u32(4)];
 
         let permuted_trace = generate_permuted_inst_trace(trace);
 
         assert_eq!(permuted_trace[MAP.permuted_pc], [
+            from_u32(1),
             from_u32(1),
             from_u32(2),
             from_u32(3)
         ]);
         assert_eq!(permuted_trace[MAP.permuted_opcode], [
             from_u32(3),
+            from_u32(4),
             from_u32(1),
             from_u32(2)
         ]);
         assert_eq!(permuted_trace[MAP.permuted_rs1], [
             from_u32(2),
+            from_u32(4),
             from_u32(3),
             from_u32(1)
         ]);
         assert_eq!(permuted_trace[MAP.permuted_rs2], [
             from_u32(1),
+            from_u32(4),
             from_u32(3),
             from_u32(2)
         ]);
         assert_eq!(permuted_trace[MAP.permuted_rd], [
             from_u32(1),
+            from_u32(4),
             from_u32(2),
             from_u32(3)
         ]);
         assert_eq!(permuted_trace[MAP.permuted_imm], [
             from_u32(3),
+            from_u32(4),
             from_u32(2),
+            from_u32(1)
+        ]);
+        assert_eq!(permuted_trace[MAP.duplicate_inst_filter], [
+            from_u32(1),
+            from_u32(0),
+            from_u32(1),
             from_u32(1)
         ]);
     }

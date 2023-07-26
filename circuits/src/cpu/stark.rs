@@ -111,6 +111,20 @@ fn ensure_correct_register_selection<P: PackedField>(
         });
 }
 
+/// Ensures that if [`duplicate_inst_filter`] is 0, then duplicate instructions are present.
+/// Note that this function doesn't check whether every instruction is unique. Rather, it ensures
+/// that no unique instruction present in the trace is omitted.
+/// It also doesn't verify the execution order of the instructions.
+fn check_permuted_inst_cols<P: PackedField>(
+    lv: &CpuColumnsView<P>,
+    nv: &CpuColumnsView<P>,
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    yield_constr.constraint(lv.duplicate_inst_filter * (lv.duplicate_inst_filter - P::ONES));
+    yield_constr.constraint_first_row(lv.duplicate_inst_filter - P::ONES);
+    yield_constr.constraint((nv.duplicate_inst_filter - P::ONES) * (lv.permuted_pc - nv.permuted_pc));
+}
+
 /// Register used as destination register can have different value, all
 /// other regs have same value as of previous row.
 fn only_rd_changes<P: PackedField>(
@@ -185,6 +199,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 
         opcode_one_hot(lv, yield_constr);
         ensure_correct_register_selection(lv, yield_constr);
+        check_permuted_inst_cols(lv, nv, yield_constr);
 
         clock_ticks(lv, nv, yield_constr);
         pc_ticks_up(lv, nv, yield_constr);
