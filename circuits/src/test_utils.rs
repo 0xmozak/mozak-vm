@@ -128,8 +128,6 @@ impl ProveAndVerify for MozakStark<F, D> {
     /// this proves and verifies ALL starks and lookups within the Mozak
     /// ZKVM. This should be preferred if the test is concerned with the
     /// consistency of the final [`MozakStark`].
-    #[allow(clippy::missing_panics_doc)]
-    #[allow(clippy::missing_errors_doc)]
     fn prove_and_verify(step_rows: &[Row]) -> Result<()> {
         let stark = S::default();
         let config = standard_faster_config();
