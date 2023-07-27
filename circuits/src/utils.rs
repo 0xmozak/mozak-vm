@@ -2,7 +2,6 @@ use itertools::Itertools;
 use plonky2::field::types::Field;
 
 /// Pad the trace to a power of 2.
-/// Padded length is at least 32.
 ///
 /// # Panics
 /// There's an assert that makes sure all columns passed in have the same
