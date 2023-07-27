@@ -15,6 +15,7 @@ pub mod cross_table_lookup;
 pub mod generation;
 pub mod lookup;
 pub mod memory;
+pub mod program;
 pub mod rangecheck;
 pub mod stark;
 #[cfg(any(feature = "test", test))]

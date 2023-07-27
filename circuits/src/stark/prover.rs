@@ -25,6 +25,7 @@ use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::generate_traces;
+use crate::program::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::permutation::{
     compute_permutation_z_polys, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
@@ -45,6 +46,7 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(step_rows);
     prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
@@ -67,6 +69,7 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
@@ -336,6 +339,7 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
@@ -366,7 +370,18 @@ where
         challenger,
         timing,
     )?;
-    Ok([cpu_proof, rangecheck_proof, bitwise_proof])
+
+    let program_proof = prove_single_table::<F, C, ProgramStark<F, D>, D>(
+        &mozak_stark.program_stark,
+        config,
+        &traces_poly_values[TableKind::Program as usize],
+        &trace_commitments[TableKind::Program as usize],
+        &ctl_data_per_table[TableKind::Program as usize],
+        challenger,
+        timing,
+    )?;
+
+    Ok([cpu_proof, rangecheck_proof, bitwise_proof, program_proof])
 }
 
 #[cfg(test)]

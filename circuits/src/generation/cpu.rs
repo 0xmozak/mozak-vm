@@ -75,7 +75,12 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
     // For expanded trace from `trace_len` to `trace_len's power of two`,
     // we use last row `HALT` to pad them.
-    let trace = pad_trace(trace, Some(MAP.clk));
+    let mut trace = pad_trace(trace, Some(MAP.clk));
+    for i in 0..trace[0].len() {
+        trace[MAP.filter][i] = F::ONE;
+    }
+    // trace[MAP.filter][0] = F::ZERO;
+    dbg!(trace[MAP.filter].clone());
 
     log::trace!("trace {:?}", trace);
     #[tarpaulin::skip]

@@ -33,6 +33,7 @@ columns_view_impl!(CpuColumnsView);
 pub(crate) struct CpuColumnsView<T: Copy> {
     pub clk: T,
     pub pc: T,
+    pub filter: T,
 
     pub rs1_select: [T; 32],
     pub rs2_select: [T; 32],
@@ -114,3 +115,8 @@ pub fn filter_for_bitwise<F: Field>() -> Column<F> {
         MAP.ops.sll,
     ])
 }
+
+#[must_use]
+pub fn data_for_program<F: Field>() -> Vec<Column<F>> { Column::singles([MAP.pc]).collect_vec() }
+#[must_use]
+pub fn filter_for_program<F: Field>() -> Column<F> { Column::single(MAP.filter) }
