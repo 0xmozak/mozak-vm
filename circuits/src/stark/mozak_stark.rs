@@ -8,7 +8,7 @@ use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::{bitwise, cpu, rangecheck};
+use crate::{bitwise, cpu, program, rangecheck};
 
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
@@ -58,6 +58,7 @@ pub enum TableKind {
     Cpu = 0,
     RangeCheck = 1,
     Bitwise = 2,
+    Program = 3,
 }
 
 impl TableKind {
@@ -92,6 +93,9 @@ pub struct CpuTable<F: Field>(Table<F>);
 /// Represents a bitwise trace table in the Mozak VM.
 pub struct BitwiseTable<F: Field>(Table<F>);
 
+/// Represents a program trace table in the Mozak VM.
+pub struct ProgramTable<F: Field>(Table<F>);
+
 impl<F: Field> RangeCheckTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
@@ -110,6 +114,13 @@ impl<F: Field> BitwiseTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
         Table::new(TableKind::Bitwise, columns, filter_column)
+    }
+}
+
+impl<F: Field> ProgramTable<F> {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
+        Table::new(TableKind::Program, columns, filter_column)
     }
 }
 
@@ -161,6 +172,23 @@ impl<F: Field> Lookups<F> for InnerCpuTable<F> {
                 Column::always(),
             )],
             CpuTable::new(cpu::columns::data_for_permuted_inst(), Column::always()),
+        )
+    }
+}
+
+pub struct ProgramCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_permuted_inst(),
+                Column::single(cpu::columns::MAP.duplicate_inst_filter),
+            )],
+            ProgramTable::new(
+                program::columns::data_for_ctl(),
+                Column::single(program::columns::MAP.program_is_inst),
+            ),
         )
     }
 }
