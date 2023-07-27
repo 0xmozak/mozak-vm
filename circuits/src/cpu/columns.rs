@@ -27,26 +27,33 @@ pub(crate) struct OpSelectorView<T: Copy> {
     pub halt: T,
 }
 
+columns_view_impl!(Instruction);
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub(crate) struct Instruction<T: Copy> {
+    /// The original instruction (+ imm_value) used for program
+    /// cross-table-lookup.
+    pub pc: T,
+
+    pub ops: OpSelectorView<T>,
+    pub rs1_select: [T; 32],
+    pub rs2_select: [T; 32],
+    pub rd_select: [T; 32],
+    pub imm_value: T,
+    pub branch_target: T,
+}
+
 columns_view_impl!(CpuColumnsView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub(crate) struct CpuColumnsView<T: Copy> {
     pub clk: T,
-    pub pc: T,
-
-    pub rs1_select: [T; 32],
-    pub rs2_select: [T; 32],
-    pub rd_select: [T; 32],
+    pub inst: Instruction<T>,
 
     pub op1_value: T,
     pub op2_value: T,
-    pub imm_value: T,
     pub dst_value: T,
-    pub branch_target: T,
 
     pub regs: [T; 32],
-
-    pub ops: OpSelectorView<T>,
 
     pub op1_sign: T,
     pub op2_sign: T,

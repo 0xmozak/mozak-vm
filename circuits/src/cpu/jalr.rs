@@ -17,7 +17,7 @@ pub(crate) fn constraints<P: PackedField>(
     let destination = lv.dst_value;
     // enable-if JALR: aux.dst_val == jmp-inst-pc + 4, wrapped
     yield_constr.constraint(
-        lv.ops.jalr * (destination - return_address) * (destination - wrapped_return_address),
+        lv.inst.ops.jalr * (destination - return_address) * (destination - wrapped_return_address),
     );
 
     let jump_target = lv.op1_value + lv.op2_value;
@@ -25,7 +25,7 @@ pub(crate) fn constraints<P: PackedField>(
     let new_pc = nv.pc;
 
     yield_constr.constraint_transition(
-        lv.ops.jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target),
+        lv.inst.ops.jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target),
     );
 }
 #[cfg(test)]

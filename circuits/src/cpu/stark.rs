@@ -42,7 +42,7 @@ fn pc_ticks_up<P: PackedField>(
     nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_straightline_op: P = lv.ops.straightline_opcodes().into_iter().sum();
+    let is_straightline_op: P = lv.inst.ops.straightline_opcodes().into_iter().sum();
 
     yield_constr.constraint_transition(
         is_straightline_op * (nv.pc - (lv.pc + P::Scalar::from_noncanonical_u64(4))),
@@ -57,7 +57,7 @@ fn opcode_one_hot<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let op_selectors: Vec<_> = lv.ops.opcodes();
+    let op_selectors: Vec<_> = lv.inst.ops.opcodes();
 
     // Op selectors have value 0 or 1.
     op_selectors
@@ -178,7 +178,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         jalr::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT
-        yield_constr.constraint_last_row(lv.ops.halt - P::ONES);
+        yield_constr.constraint_last_row(lv.inst.ops.halt - P::ONES);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
