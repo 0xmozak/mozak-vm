@@ -6,7 +6,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitwise::columns as cols;
 use crate::bitwise::columns::{BitwiseColumnsView, MAP};
 use crate::columns_view::NumberOfColumns;
-use crate::cpu::columns::{self as cpu_cols};
+use crate::cpu::columns::{self as cpu_cols, CpuColumnsView};
 use crate::lookup::permute_cols;
 
 const NUM_BITWISE_COL: usize = BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS;
@@ -33,7 +33,7 @@ fn filter_bitwise_trace(step_rows: &[Row]) -> Vec<usize> {
 #[allow(clippy::cast_possible_truncation)]
 pub fn generate_bitwise_trace<F: RichField>(
     step_rows: &[Row],
-    cpu_trace: &[Vec<F>; cpu_cols::NUM_CPU_COLS],
+    cpu_trace: &[CpuColumnsView<F>],
 ) -> [Vec<F>; NUM_BITWISE_COL] {
     // TODO(Matthias): really use the new BitwiseColumnsView for generation, too.
     let filtered_step_rows = filter_bitwise_trace(step_rows);

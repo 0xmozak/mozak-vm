@@ -69,13 +69,13 @@ fn opcode_one_hot<P: PackedField>(
     yield_constr.constraint(P::ONES - sum_s_op);
 }
 
-/// Ensure clock is ticking up
+/// Ensure clock is ticking up, until halt is reached.
 fn clock_ticks<P: PackedField>(
     lv: &CpuColumnsView<P>,
     nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    yield_constr.constraint_transition(nv.clk - (lv.clk + P::ONES));
+    yield_constr.constraint_transition(nv.clk - (lv.clk + (P::ONES - lv.halt)));
 }
 
 /// Register 0 is always 0

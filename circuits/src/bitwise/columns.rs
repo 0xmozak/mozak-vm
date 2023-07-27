@@ -8,7 +8,7 @@ use crate::cross_table_lookup::Column;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub(crate) struct BitwiseColumnsView<T: Copy> {
+pub(crate) struct BitwiseColumnsView<T> {
     pub(crate) execution: BitwiseExecutionColumnsView<T>,
 
     // TODO(Matthias): separate out the permutation columns etc into suitable separate structs,
@@ -36,7 +36,7 @@ make_col_map!(BitwiseColumnsView);
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub(crate) struct BitwiseExecutionColumnsView<T: Copy> {
+pub(crate) struct BitwiseExecutionColumnsView<T> {
     pub(crate) is_execution_row: T,
     pub(crate) op1: T,
     pub(crate) op2: T,

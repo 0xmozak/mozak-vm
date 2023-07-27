@@ -6,7 +6,7 @@ use crate::cross_table_lookup::Column;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub(crate) struct OpSelectorView<T> {
+pub struct OpSelectorView<T> {
     pub add: T,
     pub sub: T,
     pub xor: T,
@@ -28,7 +28,7 @@ pub(crate) struct OpSelectorView<T> {
 
 columns_view_impl!(InstructionView);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub(crate) struct InstructionView<T> {
+pub struct InstructionView<T> {
     /// The original instruction (+ imm_value) used for program
     /// cross-table-lookup.
     pub pc: T,
@@ -41,22 +41,10 @@ pub(crate) struct InstructionView<T> {
     pub branch_target: T,
 }
 
-impl<T> InstructionView<T> {
-    pub fn map<B, F>(self, f: F) -> InstructionView<B> where
-    // Self: Sized,
-    F: FnMut(T) -> B, {
-        // use std::borrow::Borrow;
-        // use std::iter::FromIterator;
-        // let a =self.borrow().map(f);
-        // a.from_iter()
-        unimplemented!()
-    }
-}
-
 columns_view_impl!(CpuColumnsView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub(crate) struct CpuColumnsView<T> {
+pub struct CpuColumnsView<T> {
     pub clk: T,
     pub inst: InstructionView<T>,
 
@@ -106,14 +94,12 @@ pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MAP.inst.ops.add) }
+pub fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MAP.inst.ops.add) }
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
-    vec![Column::single(MAP.dst_value)]
-}
+pub fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.dst_value)] }
 
 /// Columns containing the data to be matched against XOR Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
