@@ -8,11 +8,11 @@ use mozak_vm::vm::Row;
 use plonky2::field::extension::Extendable;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::hash::hash_types::RichField;
-use crate::generation::program::generate_program_trace;
 
 use self::bitwise::generate_bitwise_trace;
 use self::cpu::generate_cpu_trace;
 use self::rangecheck::generate_rangecheck_trace;
+use crate::generation::program::generate_program_trace;
 use crate::stark::mozak_stark::NUM_TABLES;
 use crate::stark::utils::trace_to_poly_values;
 

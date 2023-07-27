@@ -7,6 +7,7 @@ use starky::stark::Stark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
+use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::{bitwise, cpu, program, rangecheck};
 
@@ -15,7 +16,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cpu_stark: CpuStark<F, D>,
     pub rangecheck_stark: RangeCheckStark<F, D>,
     pub bitwise_stark: BitwiseStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 3],
+    pub program_stark: ProgramStark<F, D>,
+    pub cross_table_lookups: [CrossTableLookup<F>; 4],
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -24,10 +26,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             cpu_stark: CpuStark::default(),
             rangecheck_stark: RangeCheckStark::default(),
             bitwise_stark: BitwiseStark::default(),
+            program_stark: ProgramStark::default(),
             cross_table_lookups: [
                 RangecheckCpuTable::lookups(),
                 BitwiseCpuTable::lookups(),
                 InnerCpuTable::lookups(),
+                ProgramCpuTable::lookups(),
             ],
         }
     }
@@ -39,6 +43,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.cpu_stark.num_permutation_batches(config),
             self.rangecheck_stark.num_permutation_batches(config),
             self.bitwise_stark.num_permutation_batches(config),
+            self.program_stark.num_permutation_batches(config),
         ]
     }
 
@@ -47,11 +52,12 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.cpu_stark.permutation_batch_size(),
             self.rangecheck_stark.permutation_batch_size(),
             self.bitwise_stark.permutation_batch_size(),
+            self.program_stark.permutation_batch_size(),
         ]
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 3;
+pub(crate) const NUM_TABLES: usize = 4;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TableKind {
@@ -63,7 +69,14 @@ pub enum TableKind {
 
 impl TableKind {
     #[must_use]
-    pub fn all() -> [TableKind; 3] { [TableKind::Cpu, TableKind::RangeCheck, TableKind::Bitwise] }
+    pub fn all() -> [TableKind; 4] {
+        [
+            TableKind::Cpu,
+            TableKind::RangeCheck,
+            TableKind::Bitwise,
+            TableKind::Program,
+        ]
+    }
 }
 
 #[derive(Debug, Clone)]

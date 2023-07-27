@@ -1,13 +1,16 @@
 use std::collections::HashSet;
+
 use plonky2::hash::hash_types::RichField;
+
 use crate::cpu::columns::{self as cpu_cols};
 use crate::program::columns::{MAP, NUM_PROGRAM_COLS};
 
 /// Generates a program trace from CPU traces.
 ///
-/// Note: The ideal source for generating the program trace should be ELF file instructions
-/// instead of CPU traces. This approach would require a substantial refactoring, including
-/// the separation of local opcode decoding from CPU trace generation.
+/// Note: The ideal source for generating the program trace should be ELF file
+/// instructions instead of CPU traces. This approach would require a
+/// substantial refactoring, including the separation of local opcode decoding
+/// from CPU trace generation.
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_program_trace<F: RichField>(
