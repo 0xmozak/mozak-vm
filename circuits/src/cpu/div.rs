@@ -85,8 +85,8 @@ mod tests {
     use proptest::prelude::{prop_assert_eq, ProptestConfig};
     use proptest::{prop_assert, proptest};
 
-    use crate::stark::mozak_stark::TableKind;
-    use crate::test_utils::{inv, prove_and_verify_single_stark};
+    use crate::cpu::stark::CpuStark;
+    use crate::test_utils::{inv, ProveAndVerify};
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -134,7 +134,7 @@ mod tests {
                 } else {
                     p % q
                 });
-            prove_and_verify_single_stark(TableKind::Cpu, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
         #[test]
         fn prove_srl_proptest(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
@@ -163,7 +163,7 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p >> q);
             prop_assert_eq!(record.executed[1].aux.dst_val, p >> q);
-            prove_and_verify_single_stark(TableKind::Cpu, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
     }
 }

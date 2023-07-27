@@ -5,7 +5,8 @@ use std::io::Read;
 use clap::{Parser, ValueEnum};
 use clio::Input;
 use log::debug;
-use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
+use mozak_circuits::stark::mozak_stark::MozakStark;
+use mozak_circuits::test_utils::ProveAndVerify;
 use mozak_vm::elf::Program;
 use mozak_vm::state::State;
 use mozak_vm::vm::step;
@@ -95,7 +96,7 @@ fn main() -> anyhow::Result<()> {
                 let program = Program::load_elf(&elf_bytes)?;
                 let state = State::from(program);
                 let record = step(state)?;
-                prove_and_verify_mozak_stark(&record.executed)?;
+                MozakStark::prove_and_verify(&record.executed)?;
             }
             Command::BuildInfo => unreachable!(),
         }

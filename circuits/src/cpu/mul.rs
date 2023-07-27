@@ -72,8 +72,8 @@ mod tests {
     use proptest::prelude::{prop_assume, ProptestConfig};
     use proptest::{prop_assert_eq, proptest};
 
-    use crate::stark::mozak_stark::TableKind;
-    use crate::test_utils::prove_and_verify_single_stark;
+    use crate::cpu::stark::CpuStark;
+    use crate::test_utils::ProveAndVerify;
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -105,7 +105,7 @@ mod tests {
             let (low, high) = a.widening_mul(b);
             prop_assert_eq!(record.executed[0].aux.dst_val, low);
             prop_assert_eq!(record.executed[1].aux.dst_val, high);
-            prove_and_verify_single_stark(TableKind::Cpu, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
 
         #[test]
@@ -138,7 +138,7 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
             prop_assert_eq!(record.executed[1].aux.dst_val, p << (q & 0x1F));
-            prove_and_verify_single_stark(TableKind::Cpu, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
     }
 }

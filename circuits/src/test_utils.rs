@@ -16,7 +16,7 @@ use crate::generation::bitwise::generate_bitwise_trace;
 use crate::generation::cpu::generate_cpu_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::stark::mozak_stark::{MozakStark, TableKind};
+use crate::stark::mozak_stark::MozakStark;
 use crate::stark::prover::prove;
 use crate::stark::utils::trace_to_poly_values;
 use crate::stark::verifier::verify_proof;
@@ -46,79 +46,98 @@ pub fn standard_faster_config() -> StarkConfig {
     }
 }
 
-/// Prove and verify a single [`Stark`] based on a given
-/// [`TableKind`] and [`Row`]s. It is suggested to use this for its performance
-/// over [`prove_and_verify_mozak_stark`] for unit tests since it only proves
-/// and verifies ONE stark associated with the [`TableKind`], and does not
-/// include lookups.
-///
-/// # Errors
-/// Errors if proving or verifying the STARK fails.
-pub fn prove_and_verify_single_stark(table: TableKind, step_rows: &[Row]) -> Result<()> {
-    let config = standard_faster_config();
+pub trait ProveAndVerify {
+    /// Prove and verify a [`Stark`].
+    ///
+    /// Depending on the implementation this verifies either a single STARK,
+    /// or a [`MozakStark`]. Proving and verifying a single STARK will be
+    /// faster, but does not include cross table lookups; proving and verifying
+    /// a [`MozakStark`] will prove and verify all STARKs and include cross
+    /// table lookups, but will be much more expensive.
+    ///
+    /// # Errors
+    /// Errors if proving or verifying the STARK fails.
+    fn prove_and_verify(step_rows: &[Row]) -> Result<()>;
+}
 
-    match table {
-        TableKind::Cpu => {
-            type S = CpuStark<F, D>;
-            let stark = S::default();
-            let trace_poly_values = trace_to_poly_values(generate_cpu_trace(step_rows));
-            let proof = prove_table::<F, C, S, D>(
-                stark,
-                &config,
-                trace_poly_values,
-                [],
-                &mut TimingTree::default(),
-            )?;
+impl ProveAndVerify for CpuStark<F, D> {
+    fn prove_and_verify(step_rows: &[Row]) -> Result<()> {
+        type S = CpuStark<F, D>;
 
-            verify_stark_proof(stark, proof, &config)
-        }
-        TableKind::RangeCheck => {
-            type S = RangeCheckStark<F, D>;
-            let stark = S::default();
-            let cpu_trace = generate_cpu_trace(step_rows);
-            let trace_poly_values = trace_to_poly_values(generate_rangecheck_trace(&cpu_trace));
-            let proof = prove_table::<F, C, S, D>(
-                stark,
-                &config,
-                trace_poly_values,
-                [],
-                &mut TimingTree::default(),
-            )?;
+        let config = standard_faster_config();
 
-            verify_stark_proof(stark, proof, &config)
-        }
-        TableKind::Bitwise => {
-            type S = BitwiseStark<F, D>;
-            let stark = S::default();
-            let cpu_trace = generate_cpu_trace(step_rows);
-            let trace_poly_values =
-                trace_to_poly_values(generate_bitwise_trace(step_rows, &cpu_trace));
-            let proof = prove_table::<F, C, S, D>(
-                stark,
-                &config,
-                trace_poly_values,
-                [],
-                &mut TimingTree::default(),
-            )?;
+        let stark = S::default();
+        let trace_poly_values = trace_to_poly_values(generate_cpu_trace(step_rows));
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            [],
+            &mut TimingTree::default(),
+        )?;
 
-            verify_stark_proof(stark, proof, &config)
-        }
+        verify_stark_proof(stark, proof, &config)
     }
 }
 
-#[allow(clippy::missing_panics_doc)]
-#[allow(clippy::missing_errors_doc)]
-/// Prove and verify a [`MozakStark`] based on given [`Row`]s. Note that this is
-/// a lot slower than [`prove_and_verify_single_stark`] because this proves and
-/// verifies ALL starks and lookups within the Mozak ZKVM. This should be
-/// preferred if the test is concerned with the consistency of the final
-/// [`MozakStark`].
-pub fn prove_and_verify_mozak_stark(step_rows: &[Row]) -> Result<()> {
-    let stark = S::default();
-    let config = standard_faster_config();
+impl ProveAndVerify for RangeCheckStark<F, D> {
+    fn prove_and_verify(step_rows: &[Row]) -> Result<()> {
+        type S = RangeCheckStark<F, D>;
 
-    let all_proof = prove::<F, C, D>(step_rows, &stark, &config, &mut TimingTree::default());
-    verify_proof(stark, all_proof.unwrap(), &config)
+        let config = standard_faster_config();
+
+        let stark = S::default();
+        let cpu_trace = generate_cpu_trace(step_rows);
+        let trace_poly_values = trace_to_poly_values(generate_rangecheck_trace(&cpu_trace));
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            [],
+            &mut TimingTree::default(),
+        )?;
+
+        verify_stark_proof(stark, proof, &config)
+    }
+}
+
+impl ProveAndVerify for BitwiseStark<F, D> {
+    fn prove_and_verify(step_rows: &[Row]) -> Result<()> {
+        type S = BitwiseStark<F, D>;
+
+        let config = standard_faster_config();
+
+        let stark = S::default();
+        let cpu_trace = generate_cpu_trace(step_rows);
+        let trace_poly_values = trace_to_poly_values(generate_bitwise_trace(step_rows, &cpu_trace));
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            [],
+            &mut TimingTree::default(),
+        )?;
+
+        verify_stark_proof(stark, proof, &config)
+    }
+}
+impl ProveAndVerify for MozakStark<F, D> {
+    /// Prove and verify a [`MozakStark`].
+    ///
+    /// Note that
+    /// this variant is a lot slower than the others, because
+    /// this proves and verifies ALL starks and lookups within the Mozak
+    /// ZKVM. This should be preferred if the test is concerned with the
+    /// consistency of the final [`MozakStark`].
+    #[allow(clippy::missing_panics_doc)]
+    #[allow(clippy::missing_errors_doc)]
+    fn prove_and_verify(step_rows: &[Row]) -> Result<()> {
+        let stark = S::default();
+        let config = standard_faster_config();
+
+        let all_proof = prove::<F, C, D>(step_rows, &stark, &config, &mut TimingTree::default());
+        verify_proof(stark, all_proof.unwrap(), &config)
+    }
 }
 
 /// Interpret a u64 as a field element and try to invert it.

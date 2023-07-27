@@ -35,8 +35,8 @@ mod tests {
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
-    use crate::stark::mozak_stark::TableKind;
-    use crate::test_utils::prove_and_verify_single_stark;
+    use crate::cpu::stark::CpuStark;
+    use crate::test_utils::ProveAndVerify;
 
     #[test]
     fn prove_jalr_goto_no_rs1() {
@@ -54,7 +54,7 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        prove_and_verify_single_stark(TableKind::Cpu, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&record.executed).unwrap();
     }
 
     #[test]
@@ -73,7 +73,7 @@ mod tests {
             &[(0x1, 0)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        prove_and_verify_single_stark(TableKind::Cpu, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&record.executed).unwrap();
     }
     #[test]
     fn prove_jalr_goto_imm_zero_rs1_not_zero() {
@@ -91,7 +91,7 @@ mod tests {
             &[(0x1, 4)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        prove_and_verify_single_stark(TableKind::Cpu, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&record.executed).unwrap();
     }
 
     #[test]
@@ -110,7 +110,7 @@ mod tests {
             &[(0x1, 0)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        prove_and_verify_single_stark(TableKind::Cpu, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&record.executed).unwrap();
     }
 
     #[test]
@@ -143,7 +143,7 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_pc(), 16);
-        prove_and_verify_single_stark(TableKind::Cpu, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&record.executed).unwrap();
     }
 
     proptest! {
@@ -177,7 +177,7 @@ mod tests {
             );
             assert_eq!(record.executed.len(), 3);
             assert_eq!(last_but_coda(&record).get_register_value(rd), 4);
-            prove_and_verify_single_stark(TableKind::Cpu, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
     }
 }

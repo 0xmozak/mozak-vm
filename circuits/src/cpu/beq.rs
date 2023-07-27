@@ -39,8 +39,8 @@ mod tests {
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
-    use crate::stark::mozak_stark::TableKind;
-    use crate::test_utils::prove_and_verify_single_stark;
+    use crate::cpu::stark::CpuStark;
+    use crate::test_utils::ProveAndVerify;
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -75,7 +75,8 @@ mod tests {
             } else {
                 assert_eq!(last_but_coda(&record).get_register_value(1), 10);
             }
-            prove_and_verify_single_stark(TableKind::Cpu, &record.executed).unwrap();
+
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
         #[test]
         fn prove_bne_proptest(a in u32_extra(), b in u32_extra()) {
@@ -108,7 +109,7 @@ mod tests {
             } else {
                 assert_eq!(last_but_coda(&record).get_register_value(1), 0);
             }
-            prove_and_verify_single_stark(TableKind::Cpu, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
     }
 }

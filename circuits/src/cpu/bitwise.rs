@@ -99,8 +99,8 @@ mod tests {
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
-    use crate::stark::mozak_stark::TableKind;
-    use crate::test_utils::prove_and_verify_single_stark;
+    use crate::bitwise::stark::BitwiseStark;
+    use crate::test_utils::ProveAndVerify;
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
@@ -131,7 +131,7 @@ mod tests {
             .collect();
 
             let record = simple_test_code(&code, &[], &[(6, a), (7, b)]);
-            prove_and_verify_single_stark(TableKind::Bitwise, &record.executed).unwrap();
+            BitwiseStark::prove_and_verify(&record.executed).unwrap();
         }
     }
 }
