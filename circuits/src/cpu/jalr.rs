@@ -11,7 +11,7 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
 
-    let return_address = lv.pc + P::Scalar::from_noncanonical_u64(4);
+    let return_address = lv.inst.pc + P::Scalar::from_noncanonical_u64(4);
     let wrapped_return_address = return_address - wrap_at;
 
     let destination = lv.dst_value;

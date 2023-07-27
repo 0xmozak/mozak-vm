@@ -45,7 +45,7 @@ fn pc_ticks_up<P: PackedField>(
     let is_straightline_op: P = lv.inst.ops.straightline_opcodes().into_iter().sum();
 
     yield_constr.constraint_transition(
-        is_straightline_op * (nv.inst.pc - (lv.pc + P::Scalar::from_noncanonical_u64(4))),
+        is_straightline_op * (nv.inst.pc - (lv.inst.pc + P::Scalar::from_noncanonical_u64(4))),
     );
 }
 
@@ -94,7 +94,7 @@ fn only_rd_changes<P: PackedField>(
     // But we keep the constraints simple here.
     (0..32).for_each(|reg| {
         yield_constr
-            .constraint_transition((P::ONES - lv.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]));
+            .constraint_transition((P::ONES - lv.inst.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]));
     });
 }
 
@@ -106,7 +106,7 @@ fn rd_actually_changes<P: PackedField>(
     // Note: we skip 0 here, because it's already forced to 0 permanently by
     // `r0_always_0`
     (1..32).for_each(|reg| {
-        yield_constr.constraint_transition((lv.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
+        yield_constr.constraint_transition((lv.inst.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
     });
 }
 
