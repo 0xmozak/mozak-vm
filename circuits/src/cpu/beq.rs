@@ -39,7 +39,8 @@ mod tests {
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
-    use crate::test_utils::simple_proof_test;
+    use crate::cpu::stark::CpuStark;
+    use crate::test_utils::ProveAndVerify;
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -68,12 +69,14 @@ mod tests {
                 &[],
                 &[(6, a), (7, b)],
             );
+
             if a == b {
                 assert_eq!(last_but_coda(&record).get_register_value(1), 0);
             } else {
                 assert_eq!(last_but_coda(&record).get_register_value(1), 10);
             }
-            simple_proof_test(&record.executed).unwrap();
+
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
         #[test]
         fn prove_bne_proptest(a in u32_extra(), b in u32_extra()) {
@@ -106,7 +109,7 @@ mod tests {
             } else {
                 assert_eq!(last_but_coda(&record).get_register_value(1), 0);
             }
-            simple_proof_test(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
     }
 }

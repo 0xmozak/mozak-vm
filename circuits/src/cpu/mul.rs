@@ -75,7 +75,8 @@ mod tests {
     use proptest::prelude::{prop_assume, ProptestConfig};
     use proptest::{prop_assert_eq, proptest};
 
-    use crate::test_utils::simple_proof_test;
+    use crate::cpu::stark::CpuStark;
+    use crate::test_utils::ProveAndVerify;
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -107,7 +108,7 @@ mod tests {
             let (low, high) = a.widening_mul(b);
             prop_assert_eq!(record.executed[0].aux.dst_val, low);
             prop_assert_eq!(record.executed[1].aux.dst_val, high);
-            simple_proof_test(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
 
         #[test]
@@ -140,7 +141,7 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
             prop_assert_eq!(record.executed[1].aux.dst_val, p << (q & 0x1F));
-            simple_proof_test(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
     }
 }

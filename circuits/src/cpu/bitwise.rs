@@ -99,7 +99,8 @@ mod tests {
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
-    use crate::test_utils::simple_proof_test;
+    use crate::bitwise::stark::BitwiseStark;
+    use crate::test_utils::ProveAndVerify;
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
@@ -130,7 +131,7 @@ mod tests {
             .collect();
 
             let record = simple_test_code(&code, &[], &[(6, a), (7, b)]);
-            simple_proof_test(&record.executed).unwrap();
+            BitwiseStark::prove_and_verify(&record.executed).unwrap();
         }
     }
 }

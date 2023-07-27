@@ -22,7 +22,8 @@ mod tests {
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
-    use crate::test_utils::simple_proof_test;
+    use crate::cpu::stark::CpuStark;
+    use crate::test_utils::ProveAndVerify;
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -41,7 +42,7 @@ mod tests {
                 &[(6, a), (7, b)],
             );
             assert_eq!(record.last_state.get_register_value(5), a.wrapping_sub(b));
-            simple_proof_test(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
     }
 }
