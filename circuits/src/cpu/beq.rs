@@ -21,7 +21,7 @@ pub(crate) fn constraints<P: PackedField>(
     let diff_inv = lv.cmp_diff_inv;
     yield_constr.constraint(diff * diff_inv + is_equal - P::ONES);
 
-    let next_pc = nv.pc;
+    let next_pc = nv.inst.pc;
     yield_constr.constraint(lv.inst.ops.beq * is_equal * (next_pc - branched_pc));
     yield_constr.constraint(lv.inst.ops.beq * diff * (next_pc - bumped_pc));
 

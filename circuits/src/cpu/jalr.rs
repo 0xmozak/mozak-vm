@@ -22,7 +22,7 @@ pub(crate) fn constraints<P: PackedField>(
 
     let jump_target = lv.op1_value + lv.op2_value;
     let wrapped_jump_target = jump_target - wrap_at;
-    let new_pc = nv.pc;
+    let new_pc = nv.inst.pc;
 
     yield_constr.constraint_transition(
         lv.inst.ops.jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target),

@@ -45,7 +45,7 @@ fn pc_ticks_up<P: PackedField>(
     let is_straightline_op: P = lv.inst.ops.straightline_opcodes().into_iter().sum();
 
     yield_constr.constraint_transition(
-        is_straightline_op * (nv.pc - (lv.pc + P::Scalar::from_noncanonical_u64(4))),
+        is_straightline_op * (nv.inst.pc - (lv.pc + P::Scalar::from_noncanonical_u64(4))),
     );
 }
 
