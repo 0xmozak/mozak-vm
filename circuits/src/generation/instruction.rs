@@ -1,12 +1,6 @@
 use mozak_vm::instruction::{Instruction, Op};
-use mozak_vm::state::State;
-use mozak_vm::vm::Row;
-use plonky2::field::types::Field;
-use plonky2::hash::hash_types::RichField;
 
-use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::InstructionView;
-use crate::utils::{from_u32, pad_trace};
 
 impl From<(u32, Instruction)> for InstructionView<u32> {
     fn from((pc, inst): (u32, Instruction)) -> Self {
