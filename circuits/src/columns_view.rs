@@ -20,10 +20,6 @@ macro_rules! columns_view_impl {
             const NUMBER_OF_COLUMNS: usize = std::mem::size_of::<$s<u8>>();
         }
 
-        impl<F: plonky2::field::types::Field> Default for $s<F> {
-            fn default() -> Self { Self::from([F::ZERO; std::mem::size_of::<$s<u8>>()]) }
-        }
-
         impl<T: Copy> From<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
             fn from(value: [T; std::mem::size_of::<$s<u8>>()]) -> Self {
                 unsafe { crate::columns_view::transmute_without_compile_time_size_checks(value) }

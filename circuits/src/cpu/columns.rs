@@ -5,8 +5,8 @@ use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub(crate) struct OpSelectorView<T: Copy> {
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub(crate) struct OpSelectorView<T> {
     pub add: T,
     pub sub: T,
     pub xor: T,
@@ -24,12 +24,11 @@ pub(crate) struct OpSelectorView<T: Copy> {
     pub beq: T,
     pub bne: T,
     pub ecall: T,
-    pub halt: T,
 }
 
-columns_view_impl!(Instruction);
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub(crate) struct Instruction<T: Copy> {
+columns_view_impl!(InstructionView);
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub(crate) struct InstructionView<T> {
     /// The original instruction (+ imm_value) used for program
     /// cross-table-lookup.
     pub pc: T,
@@ -44,10 +43,12 @@ pub(crate) struct Instruction<T: Copy> {
 
 columns_view_impl!(CpuColumnsView);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub(crate) struct CpuColumnsView<T: Copy> {
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub(crate) struct CpuColumnsView<T> {
     pub clk: T,
-    pub inst: Instruction<T>,
+    pub inst: InstructionView<T>,
+
+    pub halt: T,
 
     pub op1_value: T,
     pub op2_value: T,

@@ -180,7 +180,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         jalr::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT
-        yield_constr.constraint_last_row(lv.inst.ops.halt - P::ONES);
+        yield_constr.constraint_last_row(lv.halt - P::ONES);
     }
 
     fn constraint_degree(&self) -> usize { 3 }

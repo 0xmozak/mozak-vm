@@ -32,7 +32,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         trace[MAP.dst_value][i] = from_u32(aux.dst_val);
         trace[MAP.inst.imm_value][i] = from_u32(inst.args.imm);
         trace[MAP.inst.branch_target][i] = from_u32(inst.args.branch_target);
-        trace[MAP.inst.ops.halt][i] = from_u32(u32::from(aux.will_halt));
+        trace[MAP.halt][i] = from_u32(u32::from(aux.will_halt));
         for j in 0..32 {
             trace[MAP.regs[j as usize]][i] = from_u32(state.get_register_value(j));
         }
