@@ -32,7 +32,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         trace[MAP.dst_value][i] = from_u32(aux.dst_val);
         trace[MAP.imm_value][i] = from_u32(inst.args.imm);
         trace[MAP.branch_target][i] = from_u32(inst.args.branch_target);
-        trace[MAP.ops.halt][i] = from_u32(u32::from(aux.will_halt));
+        trace[MAP.inst.ops.halt][i] = from_u32(u32::from(aux.will_halt));
         for j in 0..32 {
             trace[MAP.regs[j as usize]][i] = from_u32(state.get_register_value(j));
         }
@@ -51,23 +51,23 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         generate_bitwise_row(&mut trace, &inst, state, i);
 
         match inst.op {
-            Op::ADD => trace[MAP.ops.add][i] = F::ONE,
-            Op::SLL => trace[MAP.ops.sll][i] = F::ONE,
-            Op::SLT => trace[MAP.ops.slt][i] = F::ONE,
-            Op::SLTU => trace[MAP.ops.sltu][i] = F::ONE,
-            Op::SRL => trace[MAP.ops.srl][i] = F::ONE,
-            Op::SUB => trace[MAP.ops.sub][i] = F::ONE,
-            Op::DIVU => trace[MAP.ops.divu][i] = F::ONE,
-            Op::REMU => trace[MAP.ops.remu][i] = F::ONE,
-            Op::MUL => trace[MAP.ops.mul][i] = F::ONE,
-            Op::MULHU => trace[MAP.ops.mulhu][i] = F::ONE,
-            Op::JALR => trace[MAP.ops.jalr][i] = F::ONE,
-            Op::BEQ => trace[MAP.ops.beq][i] = F::ONE,
-            Op::BNE => trace[MAP.ops.bne][i] = F::ONE,
-            Op::ECALL => trace[MAP.ops.ecall][i] = F::ONE,
-            Op::XOR => trace[MAP.ops.xor][i] = F::ONE,
-            Op::OR => trace[MAP.ops.or][i] = F::ONE,
-            Op::AND => trace[MAP.ops.and][i] = F::ONE,
+            Op::ADD => trace[MAP.inst.ops.add][i] = F::ONE,
+            Op::SLL => trace[MAP.inst.ops.sll][i] = F::ONE,
+            Op::SLT => trace[MAP.inst.ops.slt][i] = F::ONE,
+            Op::SLTU => trace[MAP.inst.ops.sltu][i] = F::ONE,
+            Op::SRL => trace[MAP.inst.ops.srl][i] = F::ONE,
+            Op::SUB => trace[MAP.inst.ops.sub][i] = F::ONE,
+            Op::DIVU => trace[MAP.inst.ops.divu][i] = F::ONE,
+            Op::REMU => trace[MAP.inst.ops.remu][i] = F::ONE,
+            Op::MUL => trace[MAP.inst.ops.mul][i] = F::ONE,
+            Op::MULHU => trace[MAP.inst.ops.mulhu][i] = F::ONE,
+            Op::JALR => trace[MAP.inst.ops.jalr][i] = F::ONE,
+            Op::BEQ => trace[MAP.inst.ops.beq][i] = F::ONE,
+            Op::BNE => trace[MAP.inst.ops.bne][i] = F::ONE,
+            Op::ECALL => trace[MAP.inst.ops.ecall][i] = F::ONE,
+            Op::XOR => trace[MAP.inst.ops.xor][i] = F::ONE,
+            Op::OR => trace[MAP.inst.ops.or][i] = F::ONE,
+            Op::AND => trace[MAP.inst.ops.and][i] = F::ONE,
             #[tarpaulin::skip]
             _ => {}
         }
