@@ -15,7 +15,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cpu_stark: CpuStark<F, D>,
     pub rangecheck_stark: RangeCheckStark<F, D>,
     pub bitwise_stark: BitwiseStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 2],
+    pub cross_table_lookups: [CrossTableLookup<F>; 3],
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -24,7 +24,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             cpu_stark: CpuStark::default(),
             rangecheck_stark: RangeCheckStark::default(),
             bitwise_stark: BitwiseStark::default(),
-            cross_table_lookups: [RangecheckCpuTable::lookups(), BitwiseCpuTable::lookups()],
+            cross_table_lookups: [
+                RangecheckCpuTable::lookups(),
+                BitwiseCpuTable::lookups(),
+                InnerCpuTable::lookups(),
+            ],
         }
     }
 }
@@ -143,6 +147,20 @@ impl<F: Field> Lookups<F> for BitwiseCpuTable<F> {
                 bitwise::columns::data_for_cpu(),
                 bitwise::columns::filter_for_cpu(),
             ),
+        )
+    }
+}
+
+pub struct InnerCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for InnerCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_inst(),
+                Column::always(),
+            )],
+            CpuTable::new(cpu::columns::data_for_permuted_inst(), Column::always()),
         )
     }
 }

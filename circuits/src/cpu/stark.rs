@@ -111,10 +111,11 @@ fn ensure_correct_register_selection<P: PackedField>(
         });
 }
 
-/// Ensures that if [`duplicate_inst_filter`] is 0, then duplicate instructions are present.
-/// Note that this function doesn't check whether every instruction is unique. Rather, it ensures
-/// that no unique instruction present in the trace is omitted.
-/// It also doesn't verify the execution order of the instructions.
+/// Ensures that if [`duplicate_inst_filter`] is 0, then duplicate instructions
+/// are present. Note that this function doesn't check whether every instruction
+/// is unique. Rather, it ensures that no unique instruction present in the
+/// trace is omitted. It also doesn't verify the execution order of the
+/// instructions.
 fn check_permuted_inst_cols<P: PackedField>(
     lv: &CpuColumnsView<P>,
     nv: &CpuColumnsView<P>,
@@ -122,7 +123,8 @@ fn check_permuted_inst_cols<P: PackedField>(
 ) {
     yield_constr.constraint(lv.duplicate_inst_filter * (lv.duplicate_inst_filter - P::ONES));
     yield_constr.constraint_first_row(lv.duplicate_inst_filter - P::ONES);
-    yield_constr.constraint((nv.duplicate_inst_filter - P::ONES) * (lv.permuted_pc - nv.permuted_pc));
+    yield_constr
+        .constraint((nv.duplicate_inst_filter - P::ONES) * (lv.permuted_pc - nv.permuted_pc));
 }
 
 /// Register used as destination register can have different value, all

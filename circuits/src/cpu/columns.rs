@@ -49,8 +49,8 @@ pub(crate) struct CpuColumnsView<T: Copy> {
     pub permuted_rd: T,
     pub permuted_imm: T,
 
-    /// Used to filter out instructions that are duplicate (i.e., appear more
-    /// than once) in the trace.
+    /// Filters out instructions that are duplicates, i.e., appear more than
+    /// once in the trace.
     pub duplicate_inst_filter: T,
 
     pub rs1_select: [T; 32],
@@ -132,4 +132,24 @@ pub fn filter_for_bitwise<F: Field>() -> Column<F> {
         MAP.ops.srl,
         MAP.ops.sll,
     ])
+}
+
+/// Columns containing the data of original instructions.
+#[must_use]
+pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
+    Column::singles([MAP.pc, MAP.opcode, MAP.rs1, MAP.rs2, MAP.rd, MAP.imm_value]).collect_vec()
+}
+
+/// Columns containing the data of permuted instructions.
+#[must_use]
+pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> {
+    Column::singles([
+        MAP.permuted_pc,
+        MAP.permuted_opcode,
+        MAP.permuted_rs1,
+        MAP.permuted_rs2,
+        MAP.permuted_rd,
+        MAP.permuted_imm,
+    ])
+    .collect_vec()
 }
