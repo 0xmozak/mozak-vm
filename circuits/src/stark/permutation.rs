@@ -170,6 +170,43 @@ pub(crate) fn get_n_grand_product_challenge_sets<F: RichField, H: Hasher<F>>(
         .collect()
 }
 
+fn get_grand_product_challenge_ext<F: RichField + Extendable<D>, const D: usize, H: Hasher<F>>(
+    challenger: &mut Challenger<F, H>,
+) -> GrandProductChallenge<F::Extension> {
+    let beta = challenger.get_extension_challenge();
+    let gamma = challenger.get_extension_challenge();
+    GrandProductChallenge { beta, gamma }
+}
+
+pub(crate) fn get_grand_product_challenge_set_ext<
+    F: RichField + Extendable<D>,
+    const D: usize,
+    H: Hasher<F>,
+>(
+    challenger: &mut Challenger<F, H>,
+    num_challenges: usize,
+) -> GrandProductChallengeSet<F::Extension> {
+    GrandProductChallengeSet {
+        challenges: (0..num_challenges)
+            .map(|_| get_grand_product_challenge_ext(challenger))
+            .collect(),
+    }
+}
+
+pub(crate) fn get_n_grand_product_challenge_sets_ext<
+    F: RichField + Extendable<D>,
+    const D: usize,
+    H: Hasher<F>,
+>(
+    challenger: &mut Challenger<F, H>,
+    num_challenges: usize,
+    num_sets: usize,
+) -> Vec<GrandProductChallengeSet<F::Extension>> {
+    (0..num_sets)
+        .map(|_| get_grand_product_challenge_set_ext(challenger, num_challenges))
+        .collect()
+}
+
 /// Get a list of instances of our batch-permutation argument. These are
 /// permutation arguments where the same `Z(x)` polynomial is used to check more
 /// than one permutation. Before batching, each permutation pair leads to

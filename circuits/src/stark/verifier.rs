@@ -87,11 +87,12 @@ pub(crate) fn verify_stark_proof_with_challenges<
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
     const D: usize,
+    const D2: usize,
 >(
     stark: &S,
     proof: &StarkProof<F, C, D>,
     challenges: &StarkProofChallenges<F, D>,
-    ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
+    ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D, D2>],
     config: &StarkConfig,
 ) -> Result<()>
 where

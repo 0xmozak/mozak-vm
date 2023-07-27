@@ -24,7 +24,7 @@ pub(crate) fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     trace_commitment: &'a PolynomialBatch<F, C, D>,
     permutation_ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
     permutation_challenges: Option<&'a Vec<GrandProductChallengeSet<F>>>,
-    ctl_data: &CtlData<F>,
+    ctl_data: &CtlData<F, D>,
     alphas: &[F],
     degree_bits: usize,
     num_permutation_zs: usize,
@@ -114,7 +114,7 @@ where
                 .zs_columns
                 .iter()
                 .enumerate()
-                .map(|(i, zs_columns)| CtlCheckVars::<F, F, P, 1> {
+                .map(|(i, zs_columns)| CtlCheckVars::<F, F, P, 1, 1> {
                     local_z: permutation_ctl_zs_commitment.get_lde_values_packed(i_start, step)
                         [num_permutation_zs + i],
                     next_z: permutation_ctl_zs_commitment.get_lde_values_packed(i_next_start, step)
@@ -161,7 +161,7 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     config: &StarkConfig,
     vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
     permutation_vars: Option<PermutationCheckVars<F, FE, P, D2>>,
-    ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
+    ctl_vars: &[CtlCheckVars<F, FE, P, D, D2>],
     consumer: &mut ConstraintConsumer<P>,
 ) where
     F: RichField + Extendable<D>,

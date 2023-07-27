@@ -27,7 +27,8 @@ use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::generate_traces;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::permutation::{
-    compute_permutation_z_polys, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
+    compute_permutation_z_polys, get_grand_product_challenge_set_ext,
+    get_n_grand_product_challenge_sets, GrandProductChallengeSet,
 };
 use crate::stark::poly::compute_quotient_polys;
 
@@ -107,7 +108,8 @@ where
         challenger.observe_cap(cap);
     }
 
-    let ctl_challenges = get_grand_product_challenge_set(&mut challenger, config.num_challenges);
+    let ctl_challenges =
+        get_grand_product_challenge_set_ext(&mut challenger, config.num_challenges);
     let ctl_data_per_table = timed!(
         timing,
         "compute CTL data",
@@ -145,7 +147,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     config: &StarkConfig,
     trace_poly_values: &[PolynomialValues<F>],
     trace_commitment: &PolynomialBatch<F, C, D>,
-    ctl_data: &CtlData<F>,
+    ctl_data: &CtlData<F, D>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<StarkProof<F, C, D>>
@@ -332,7 +334,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     config: &StarkConfig,
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     trace_commitments: &[PolynomialBatch<F, C, D>],
-    ctl_data_per_table: &[CtlData<F>; NUM_TABLES],
+    ctl_data_per_table: &[CtlData<F, D>; NUM_TABLES],
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
 ) -> Result<[StarkProof<F, C, D>; NUM_TABLES]>
