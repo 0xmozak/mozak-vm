@@ -124,8 +124,7 @@ impl ProveAndVerify for BitwiseStark<F, D> {
 impl ProveAndVerify for MozakStark<F, D> {
     /// Prove and verify a [`MozakStark`].
     ///
-    /// Note that
-    /// this variant is a lot slower than the others, because
+    /// Note that this variant is a lot slower than the others, because
     /// this proves and verifies ALL starks and lookups within the Mozak
     /// ZKVM. This should be preferred if the test is concerned with the
     /// consistency of the final [`MozakStark`].
