@@ -62,7 +62,6 @@ impl TableKind {
 }
 
 #[derive(Debug, Clone)]
-#[allow(unused)]
 pub struct Table<F: Field> {
     pub(crate) kind: TableKind,
     pub(crate) columns: Vec<Column<F>>,

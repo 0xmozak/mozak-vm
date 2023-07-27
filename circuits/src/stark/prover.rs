@@ -169,34 +169,27 @@ where
     challenger.compact();
 
     // Permutation arguments.
-    let permutation_challenges: Option<Vec<GrandProductChallengeSet<F>>> =
-        stark.uses_permutation_args().then(|| {
-            get_n_grand_product_challenge_sets(
-                challenger,
-                config.num_challenges,
-                stark.permutation_batch_size(),
-            )
-        });
-    let permutation_zs = permutation_challenges.as_ref().map(|challenges| {
-        timed!(
-            timing,
-            "compute permutation Z(x) polys",
-            compute_permutation_z_polys::<F, S, D>(
-                stark,
-                config,
-                trace_poly_values,
-                challenges.as_slice()
-            )
+    let permutation_challenges: Vec<GrandProductChallengeSet<F>> =
+        get_n_grand_product_challenge_sets(
+            challenger,
+            config.num_challenges,
+            stark.permutation_batch_size(),
+        );
+    let mut permutation_zs = timed!(
+        timing,
+        "compute permutation Z(x) polys",
+        compute_permutation_z_polys::<F, S, D>(
+            stark,
+            config,
+            trace_poly_values,
+            &permutation_challenges
         )
-    });
-    let num_permutation_zs = permutation_zs.as_ref().map_or(0, Vec::len);
+    );
+    let num_permutation_zs = permutation_zs.len();
 
-    let z_polys = match permutation_zs {
-        None => ctl_data.z_polys(),
-        Some(mut permutation_zs) => {
-            permutation_zs.extend(ctl_data.z_polys());
-            permutation_zs
-        }
+    let z_polys = {
+        permutation_zs.extend(ctl_data.z_polys());
+        permutation_zs
     };
     assert!(!z_polys.is_empty(), "No CTL?");
 
@@ -224,7 +217,7 @@ where
             stark,
             trace_commitment,
             &permutation_ctl_zs_commitment,
-            permutation_challenges.as_ref(),
+            &permutation_challenges,
             ctl_data,
             &alphas,
             degree_bits,
