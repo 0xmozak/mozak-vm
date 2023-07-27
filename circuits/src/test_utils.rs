@@ -15,10 +15,12 @@ use crate::cpu::stark::CpuStark;
 use crate::generation::bitwise::generate_bitwise_trace;
 use crate::generation::cpu::generate_cpu_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
+use crate::generation::shift_amount::generate_shift_amount_trace;
 use crate::rangecheck::stark::RangeCheckStark;
+use crate::shift_amount::stark::ShiftAmountStark;
 use crate::stark::mozak_stark::MozakStark;
 use crate::stark::prover::prove;
-use crate::stark::utils::trace_to_poly_values;
+use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 use crate::stark::verifier::verify_proof;
 
 pub type S = MozakStark<F, D>;
@@ -121,6 +123,29 @@ impl ProveAndVerify for BitwiseStark<F, D> {
         verify_stark_proof(stark, proof, &config)
     }
 }
+
+impl ProveAndVerify for ShiftAmountStark<F, D> {
+    fn prove_and_verify(step_rows: &[Row]) -> Result<()> {
+        type S = ShiftAmountStark<F, D>;
+
+        let config = standard_faster_config();
+
+        let stark = S::default();
+        let cpu_rows = generate_cpu_trace::<F>(step_rows);
+        let trace = generate_shift_amount_trace(step_rows, &cpu_rows);
+        let trace_poly_values = trace_rows_to_poly_values(trace);
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            [],
+            &mut TimingTree::default(),
+        )?;
+
+        verify_stark_proof(stark, proof, &config)
+    }
+}
+
 impl ProveAndVerify for MozakStark<F, D> {
     /// Prove and verify a [`MozakStark`].
     ///
