@@ -93,8 +93,9 @@ fn only_rd_changes<P: PackedField>(
     // Note: register 0 is already always 0.
     // But we keep the constraints simple here.
     (0..32).for_each(|reg| {
-        yield_constr
-            .constraint_transition((P::ONES - lv.inst.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]));
+        yield_constr.constraint_transition(
+            (P::ONES - lv.inst.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]),
+        );
     });
 }
 
@@ -106,7 +107,8 @@ fn rd_actually_changes<P: PackedField>(
     // Note: we skip 0 here, because it's already forced to 0 permanently by
     // `r0_always_0`
     (1..32).for_each(|reg| {
-        yield_constr.constraint_transition((lv.inst.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
+        yield_constr
+            .constraint_transition((lv.inst.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
     });
 }
 
@@ -119,7 +121,7 @@ fn populate_op1_value<P: PackedField>(
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
-                .map(|reg| lv.rs1_select[reg] * lv.regs[reg])
+                .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
                 .sum::<P>(),
     );
 }
@@ -131,11 +133,11 @@ fn populate_op2_value<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(
-        lv.op2_value - lv.imm_value
+        lv.op2_value - lv.inst.imm_value
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
-                .map(|reg| lv.rs2_select[reg] * lv.regs[reg])
+                .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
                 .sum::<P>(),
     );
 }

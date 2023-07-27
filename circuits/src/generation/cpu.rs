@@ -13,13 +13,13 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
     for (i, Row { state, aux }) in step_rows.iter().enumerate() {
         trace[MAP.clk][i] = F::from_noncanonical_u64(state.clk);
-        trace[MAP.pc][i] = from_u32(state.get_pc());
+        trace[MAP.inst.pc][i] = from_u32(state.get_pc());
 
         let inst = state.current_instruction();
 
-        trace[MAP.rs1_select[inst.args.rs1 as usize]][i] = F::ONE;
-        trace[MAP.rs2_select[inst.args.rs2 as usize]][i] = F::ONE;
-        trace[MAP.rd_select[inst.args.rd as usize]][i] = F::ONE;
+        trace[MAP.inst.rs1_select[inst.args.rs1 as usize]][i] = F::ONE;
+        trace[MAP.inst.rs2_select[inst.args.rs2 as usize]][i] = F::ONE;
+        trace[MAP.inst.rd_select[inst.args.rd as usize]][i] = F::ONE;
         trace[MAP.op1_value][i] = from_u32(state.get_register_value(inst.args.rs1));
         // OP2_VALUE is the sum of the value of the second operand register and the
         // immediate value.
@@ -30,8 +30,8 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         );
         // NOTE: Updated value of DST register is next step.
         trace[MAP.dst_value][i] = from_u32(aux.dst_val);
-        trace[MAP.imm_value][i] = from_u32(inst.args.imm);
-        trace[MAP.branch_target][i] = from_u32(inst.args.branch_target);
+        trace[MAP.inst.imm_value][i] = from_u32(inst.args.imm);
+        trace[MAP.inst.branch_target][i] = from_u32(inst.args.branch_target);
         trace[MAP.inst.ops.halt][i] = from_u32(u32::from(aux.will_halt));
         for j in 0..32 {
             trace[MAP.regs[j as usize]][i] = from_u32(state.get_register_value(j));

@@ -28,8 +28,9 @@ pub(crate) fn constraints<P: PackedField>(
     // The following constraints are for SRL.
     {
         let and_gadget = and_gadget(lv);
-        yield_constr
-            .constraint(lv.inst.ops.srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
+        yield_constr.constraint(
+            lv.inst.ops.srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)),
+        );
         let op2 = lv.op2_value;
         yield_constr.constraint(lv.inst.ops.srl * (and_gadget.input_b - op2));
 

@@ -57,7 +57,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
 
     for (i, _) in cpu_trace[0].iter().enumerate() {
         let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
-        if cpu_trace[cpu_map.ops.add][i].is_one() {
+        if cpu_trace[cpu_map.inst.ops.add][i].is_one() {
             let dst_val = u32::try_from(cpu_trace[cpu_map.dst_value][i].to_canonical_u64())
                 .expect("casting COL_DST_VALUE to u32 should succeed");
             let (limb_hi, limb_lo) = limbs_from_u32(dst_val);

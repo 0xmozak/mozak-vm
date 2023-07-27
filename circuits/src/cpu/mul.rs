@@ -22,14 +22,16 @@ pub(crate) fn constraints<P: PackedField>(
     let product = low_limb + base * high_limb;
 
     yield_constr.constraint(
-        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.sll) * (product - multiplicand * multiplier),
+        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.sll)
+            * (product - multiplicand * multiplier),
     );
     yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.mulhu) * (multiplier - lv.op2_value));
     // The following constraints are for SLL.
     {
         let and_gadget = and_gadget(lv);
-        yield_constr
-            .constraint(lv.inst.ops.sll * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
+        yield_constr.constraint(
+            lv.inst.ops.sll * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)),
+        );
         let op2 = lv.op2_value;
         yield_constr.constraint(lv.inst.ops.sll * (and_gadget.input_b - op2));
 
@@ -60,7 +62,8 @@ pub(crate) fn constraints<P: PackedField>(
 
     let diff = P::Scalar::from_noncanonical_u64(u32::MAX.into()) - lv.product_high_bits;
     yield_constr.constraint(
-        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.sll) * (diff * lv.product_high_diff_inv - P::ONES),
+        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.sll)
+            * (diff * lv.product_high_diff_inv - P::ONES),
     );
 }
 
