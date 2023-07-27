@@ -4,18 +4,21 @@ use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns as cpu_cols;
-use crate::cpu::columns::MAP;
+use crate::cpu::columns::CpuColumnsView;
 use crate::utils::{from_u32, pad_trace};
 
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols::NUM_CPU_COLS] {
-    let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; step_rows.len()]; cpu_cols::NUM_CPU_COLS];
+    // let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; step_rows.len()]; cpu_cols::NUM_CPU_COLS];
+    let mut trace: Vec<CpuColumnsView<F>> = vec![];
 
     for (i, Row { state, aux }) in step_rows.iter().enumerate() {
+        let mut row = CpuColumnsView::default();
         trace[MAP.clk][i] = F::from_noncanonical_u64(state.clk);
         trace[MAP.inst.pc][i] = from_u32(state.get_pc());
 
         let inst = state.current_instruction();
+        let _inst_view = cpu_cols::InstructionView::from((state.get_pc(), inst));
 
         trace[MAP.inst.rs1_select[inst.args.rs1 as usize]][i] = F::ONE;
         trace[MAP.inst.rs2_select[inst.args.rs2 as usize]][i] = F::ONE;

@@ -41,6 +41,18 @@ pub(crate) struct InstructionView<T> {
     pub branch_target: T,
 }
 
+impl<T> InstructionView<T> {
+    pub fn map<B, F>(self, f: F) -> InstructionView<B> where
+    // Self: Sized,
+    F: FnMut(T) -> B, {
+        // use std::borrow::Borrow;
+        // use std::iter::FromIterator;
+        // let a =self.borrow().map(f);
+        // a.from_iter()
+        unimplemented!()
+    }
+}
+
 columns_view_impl!(CpuColumnsView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
