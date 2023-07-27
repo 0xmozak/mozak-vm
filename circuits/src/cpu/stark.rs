@@ -11,7 +11,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{CpuColumnsView, OpSelectorView};
-use super::{add, beq, bitwise, div, jalr, mul, slt, sub};
+use super::{add, beq, bitwise, div, jalr, memory, mul, slt, sub};
 use crate::columns_view::NumberOfColumns;
 
 #[derive(Copy, Clone, Default)]
@@ -24,7 +24,7 @@ impl<P: Copy> OpSelectorView<P> {
     fn straightline_opcodes(&self) -> Vec<P> {
         vec![
             self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu,
-            self.remu, self.sll, self.slt, self.sltu, self.srl, self.sbu, self.lbu,
+            self.remu, self.sll, self.slt, self.sltu, self.srl, self.sb, self.lbu,
         ]
     }
 
@@ -176,6 +176,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
+        memory::constraints(lv, yield_constr);
 
         // Last row must be HALT
         yield_constr.constraint_last_row(lv.ops.halt - P::ONES);

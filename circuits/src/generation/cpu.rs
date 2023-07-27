@@ -52,8 +52,8 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
         match inst.op {
             Op::ADD => trace[MAP.ops.add][i] = F::ONE,
-            Op::SB => trace[MAP.ops.sbu][i] = F::ONE,
-            Op::LB => trace[MAP.ops.lbu][i] = F::ONE,
+            Op::SB => trace[MAP.ops.sb][i] = F::ONE,
+            Op::LBU => trace[MAP.ops.lbu][i] = F::ONE,
             Op::SLL => trace[MAP.ops.sll][i] = F::ONE,
             Op::SLT => trace[MAP.ops.slt][i] = F::ONE,
             Op::SLTU => trace[MAP.ops.sltu][i] = F::ONE,
@@ -89,6 +89,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         )
     })
 }
+
 fn generate_conditional_branch_row<F: RichField>(trace: &mut [Vec<F>], row_idx: usize) {
     let diff = trace[MAP.op1_value][row_idx] - trace[MAP.op2_value][row_idx];
     let diff_inv = diff.try_inverse().unwrap_or_default();
