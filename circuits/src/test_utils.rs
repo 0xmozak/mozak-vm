@@ -111,7 +111,7 @@ pub fn prove_and_verify_single_stark(table: TableKind, step_rows: &[Row]) -> Res
 /// Prove and verify a [`MozakStark`] based on given [`Row`]s. Note that this is
 /// a lot slower than [`prove_and_verify_single_stark`] because this proves and
 /// verifies ALL starks and lookups within the Mozak ZKVM. This should be
-/// preferred if the test is concerned about the consistency of the final
+/// preferred if the test is concerned with the consistency of the final
 /// [`MozakStark`].
 pub fn prove_and_verify_mozak_stark(step_rows: &[Row]) -> Result<()> {
     let stark = S::default();
