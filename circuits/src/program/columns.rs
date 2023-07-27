@@ -4,6 +4,7 @@ use plonky2::field::types::Field;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
+// TODO: re-use this struct both here and inside the Cpu table
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct ProgramColumnsView<T: Copy> {

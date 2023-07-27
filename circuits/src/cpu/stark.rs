@@ -20,6 +20,8 @@ pub struct CpuStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
+// Use the same order they are defined in cpu/columns.rs
+// TODO: add check to the order of the opcodes
 impl<P: Copy> OpSelectorView<P> {
     fn straightline_opcodes(&self) -> Vec<P> {
         vec![
