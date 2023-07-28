@@ -18,7 +18,7 @@ use crate::generation::rangecheck::generate_rangecheck_trace;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::mozak_stark::MozakStark;
 use crate::stark::prover::prove;
-use crate::stark::utils::trace_to_poly_values;
+use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 use crate::stark::verifier::verify_proof;
 
 pub type S = MozakStark<F, D>;
@@ -67,7 +67,7 @@ impl ProveAndVerify for CpuStark<F, D> {
         let config = standard_faster_config();
 
         let stark = S::default();
-        let trace_poly_values = trace_to_poly_values(generate_cpu_trace(step_rows));
+        let trace_poly_values = trace_rows_to_poly_values(generate_cpu_trace(step_rows));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
