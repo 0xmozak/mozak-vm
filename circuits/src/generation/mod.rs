@@ -23,16 +23,16 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let cpu_rows = generate_cpu_trace::<F>(step_rows);
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows);
     let bitwise_rows = generate_bitwise_trace(step_rows, &cpu_rows);
-    let shift_amount_rows = generate_shift_amount_trace(step_rows, &cpu_rows);
+    // let shift_amount_rows = generate_shift_amount_trace(step_rows, &cpu_rows);
 
     let cpu_trace = trace_to_poly_values(cpu_rows);
     let rangecheck_trace = trace_to_poly_values(rangecheck_rows);
     let bitwise_trace = trace_to_poly_values(bitwise_rows);
-    let shift_amount_trace = trace_rows_to_poly_values(shift_amount_rows);
+    // let shift_amount_trace = trace_rows_to_poly_values(shift_amount_rows);
     [
         cpu_trace,
         rangecheck_trace,
         bitwise_trace,
-        shift_amount_trace,
+        // shift_amount_trace,
     ]
 }
