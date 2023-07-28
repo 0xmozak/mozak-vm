@@ -131,8 +131,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let config = standard_faster_config();
 
         let stark = S::default();
-        let trace_poly_values =
-            trace_rows_to_poly_values(generate_memory_trace(step_rows.to_vec()));
+        let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(step_rows));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
