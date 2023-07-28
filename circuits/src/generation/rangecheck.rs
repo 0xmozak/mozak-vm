@@ -53,7 +53,7 @@ fn push_rangecheck_row<F: RichField>(
 #[must_use]
 pub fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[Vec<F>; NUM_CPU_COLS],
-    memory_trace: &[MemoryColumnsView<F>],
+    _memory_trace: &[MemoryColumnsView<F>],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
     for (i, _) in cpu_trace[0].iter().enumerate() {
