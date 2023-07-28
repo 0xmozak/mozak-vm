@@ -43,5 +43,5 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ProgramStark<
         unimplemented!()
     }
 
-    fn constraint_degree(&self) -> usize { 2 }
+    fn constraint_degree(&self) -> usize { 3 }
 }
