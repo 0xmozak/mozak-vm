@@ -67,7 +67,6 @@ pub fn generate_memory_trace<F: RichField>(step_rows: Vec<Row>) -> Vec<MemoryCol
         trace.push(row);
     }
 
-    println!("last: {:?}", trace);
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
     // of the trace.
