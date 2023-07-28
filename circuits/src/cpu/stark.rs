@@ -72,9 +72,7 @@ fn opcode_one_hot<P: PackedField>(
     let sum_s_op: P = op_selectors.clone().into_iter().sum();
     yield_constr.constraint(P::ONES - sum_s_op);
 
-    let mut all_op = op_selectors.clone();
-    all_op.extend(vec![lv.ops.halt]);
-    let opcode: P = all_op
+    let opcode: P = op_selectors
         .iter()
         .enumerate()
         .map(|(i, op_selector)| *op_selector * P::Scalar::from_canonical_usize(i))

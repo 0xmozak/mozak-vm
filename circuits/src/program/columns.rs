@@ -6,8 +6,8 @@ use crate::cross_table_lookup::Column;
 
 // TODO: re-use this struct both here and inside the Cpu table
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub struct ProgramColumnsView<T: Copy> {
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct ProgramColumnsView<T> {
     pub program_is_inst: T,
     pub program_pc: T,
     pub program_opcode: T,
