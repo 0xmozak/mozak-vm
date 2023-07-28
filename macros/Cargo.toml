@@ -1,0 +1,18 @@
+[package]
+name = "mozak-vm-macros"
+description = "MozakVM macros"
+version = "0.1.0"
+edition = "2021"
+repository = "https://github.com/0xmozak/mozak-vm"
+readme = "README.md"
+license = "All rights reserved"
+keywords = ["crypto", "zero-knowledge", "vm"]
+categories = ["cryptography"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+# NOTE(Matthias): not sure we need proc_macro2.
+proc-macro2 = "1.0.66"
+reflect = "0.0.12"

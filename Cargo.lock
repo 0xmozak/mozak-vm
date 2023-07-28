@@ -784,6 +784,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mozak-vm-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "reflect",
+]
+
+[[package]]
 name = "num"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1127,6 +1135,50 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "567664f262709473930a4bf9e51bf2ebf3348f2e748ccc50dea20646858f8f29"
 dependencies = [
  "bitflags 1.3.2",
+]
+
+[[package]]
+name = "ref-cast"
+version = "1.0.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61ef7e18e8841942ddb1cf845054f8008410030a3997875d9e49b7a363063df1"
+dependencies = [
+ "ref-cast-impl",
+]
+
+[[package]]
+name = "ref-cast-impl"
+version = "1.0.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2dfaf0c85b766276c797f3791f5bc6d5bd116b41d53049af2789666b0c0bc9fa"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.27",
+]
+
+[[package]]
+name = "reflect"
+version = "0.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e691f16a53d8b00d6a52a542e61bc3e27aea0e970bc2e6ea751b0396d30ff1bb"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "ref-cast",
+ "reflect-internal",
+ "syn 2.0.27",
+]
+
+[[package]]
+name = "reflect-internal"
+version = "0.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d95786d90d275ad85e0b65f832e8b256b948c986e04c8f464a630a7cb3b26fd4"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.27",
 ]
 
 [[package]]
