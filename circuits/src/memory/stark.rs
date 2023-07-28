@@ -90,7 +90,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 mod tests {
     use anyhow::Result;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use starky::config::StarkConfig;
     use starky::stark_testing::test_stark_low_degree;
 
     use crate::memory::stark::MemoryStark;
@@ -110,8 +109,6 @@ mod tests {
 
     #[test]
     fn prove_memory_sb_lb() -> Result<()> {
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 0;
         let executed = memory_trace_test_case();
         MemoryStark::prove_and_verify(&executed)
     }
