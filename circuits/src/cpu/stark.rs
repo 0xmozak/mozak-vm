@@ -11,7 +11,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{CpuColumnsView, OpSelectorView};
-use super::{add, beq, bitwise, div, jalr, mul, slt, sub};
+use super::{add, beq, bitwise, div, ecall, jalr, mul, slt, sub};
 use crate::columns_view::NumberOfColumns;
 
 #[derive(Copy, Clone, Default)]
@@ -30,6 +30,8 @@ impl<P: Copy> OpSelectorView<P> {
         ]
     }
 
+    // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
+    // PC. It sort-of jumps back to itself.
     fn jumping_opcodes(&self) -> Vec<P> { vec![self.beq, self.bne, self.ecall, self.jalr] }
 
     fn opcodes(&self) -> Vec<P> {
@@ -80,13 +82,15 @@ fn opcode_one_hot<P: PackedField>(
     yield_constr.constraint(lv.opcode - opcode);
 }
 
-/// Ensure clock is ticking up
+/// Ensure clock is ticking up, iff CPU is still running.
 fn clock_ticks<P: PackedField>(
     lv: &CpuColumnsView<P>,
     nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    yield_constr.constraint_transition(nv.clk - (lv.clk + P::ONES));
+    let clock_diff = nv.clk - lv.clk;
+    let still_running = P::ONES - lv.halt;
+    yield_constr.constraint_transition(clock_diff - still_running);
 }
 
 /// Register 0 is always 0
@@ -224,9 +228,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
+        ecall::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT
-        yield_constr.constraint_last_row(lv.ops.halt - P::ONES);
+        yield_constr.constraint_last_row(lv.halt - P::ONES);
     }
 
     fn constraint_degree(&self) -> usize { 3 }

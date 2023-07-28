@@ -33,7 +33,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
         trace[MAP.dst_value][i] = from_u32(aux.dst_val);
         trace[MAP.imm_value][i] = from_u32(inst.args.imm);
         trace[MAP.branch_target][i] = from_u32(inst.args.branch_target);
-        trace[MAP.ops.halt][i] = from_u32(u32::from(aux.will_halt));
+        trace[MAP.halt][i] = from_u32(u32::from(aux.will_halt));
         for j in 0..32 {
             trace[MAP.regs[j as usize]][i] = from_u32(state.get_register_value(j));
         }
@@ -86,7 +86,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
 
     // For expanded trace from `trace_len` to `trace_len's power of two`,
     // we use last row `HALT` to pad them.
-    let trace = pad_trace(trace, Some(MAP.clk));
+    let trace = pad_trace(trace);
 
     let trace = generate_permuted_inst_trace(trace);
 

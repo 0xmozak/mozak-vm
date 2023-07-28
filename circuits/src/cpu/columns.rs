@@ -6,8 +6,8 @@ use crate::cross_table_lookup::Column;
 
 columns_view_impl!(OpSelectorView);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub(crate) struct OpSelectorView<T: Copy> {
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub(crate) struct OpSelectorView<T> {
     pub add: T,
     pub sub: T,
     pub and: T,
@@ -25,13 +25,12 @@ pub(crate) struct OpSelectorView<T: Copy> {
     pub bne: T,
     pub ecall: T,
     pub jalr: T,
-    pub halt: T,
 }
 
 columns_view_impl!(CpuColumnsView);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub(crate) struct CpuColumnsView<T: Copy> {
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub(crate) struct CpuColumnsView<T> {
     pub clk: T,
 
     /// The original instruction (+ imm_value) used for program
@@ -56,6 +55,8 @@ pub(crate) struct CpuColumnsView<T: Copy> {
     pub rs1_select: [T; 32],
     pub rs2_select: [T; 32],
     pub rd_select: [T; 32],
+
+    pub halt: T,
 
     pub op1_value: T,
     pub op2_value: T,

@@ -47,7 +47,6 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
     pub(crate) fn get_challenges(
         &self,
         challenger: &mut Challenger<F, C::Hasher>,
-        stark_use_permutation: bool,
         stark_permutation_batch_size: usize,
         config: &StarkConfig,
     ) -> StarkProofChallenges<F, D> {
@@ -69,13 +68,11 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
 
         let num_challenges = config.num_challenges;
 
-        let permutation_challenge_sets = stark_use_permutation.then(|| {
-            get_n_grand_product_challenge_sets(
-                challenger,
-                num_challenges,
-                stark_permutation_batch_size,
-            )
-        });
+        let permutation_challenge_sets = get_n_grand_product_challenge_sets(
+            challenger,
+            num_challenges,
+            stark_permutation_batch_size,
+        );
 
         challenger.observe_cap(permutation_ctl_zs_cap);
 
@@ -103,7 +100,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
 
 pub(crate) struct StarkProofChallenges<F: RichField + Extendable<D>, const D: usize> {
     /// Randomness used in any permutation arguments.
-    pub permutation_challenge_sets: Option<Vec<GrandProductChallengeSet<F>>>,
+    pub permutation_challenge_sets: Vec<GrandProductChallengeSet<F>>,
 
     /// Random values used to combine STARK constraints.
     pub stark_alphas: Vec<F>,
@@ -233,7 +230,6 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         let ctl_challenges =
             get_grand_product_challenge_set(&mut challenger, config.num_challenges);
 
-        let num_permutation_zs = all_stark.nums_permutation_zs(config);
         let num_permutation_batch_sizes = all_stark.permutation_batch_sizes();
 
         AllProofChallenges {
@@ -241,7 +237,6 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
                 challenger.compact();
                 self.stark_proofs[i].get_challenges(
                     &mut challenger,
-                    num_permutation_zs[i] > 0,
                     num_permutation_batch_sizes[i],
                     config,
                 )

@@ -23,7 +23,7 @@ pub(crate) fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     stark: &S,
     trace_commitment: &'a PolynomialBatch<F, C, D>,
     permutation_ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
-    permutation_challenges: Option<&'a Vec<GrandProductChallengeSet<F>>>,
+    permutation_challenges: &'a [GrandProductChallengeSet<F>],
     ctl_data: &CtlData<F>,
     alphas: &[F],
     degree_bits: usize,
@@ -100,16 +100,15 @@ where
                 next_values: &get_trace_values_packed(i_next_start),
                 public_inputs: &[F::ZERO; S::PUBLIC_INPUTS],
             };
-            let permutation_check_vars =
-                permutation_challenges.map(|permutation_challenge_sets| PermutationCheckVars {
-                    local_zs: permutation_ctl_zs_commitment.get_lde_values_packed(i_start, step)
-                        [..num_permutation_zs]
-                        .to_vec(),
-                    next_zs: permutation_ctl_zs_commitment
-                        .get_lde_values_packed(i_next_start, step)[..num_permutation_zs]
-                        .to_vec(),
-                    permutation_challenge_sets: permutation_challenge_sets.clone(),
-                });
+            let permutation_check_vars = PermutationCheckVars {
+                local_zs: permutation_ctl_zs_commitment.get_lde_values_packed(i_start, step)
+                    [..num_permutation_zs]
+                    .to_vec(),
+                next_zs: permutation_ctl_zs_commitment.get_lde_values_packed(i_next_start, step)
+                    [..num_permutation_zs]
+                    .to_vec(),
+                permutation_challenge_sets: permutation_challenges.to_owned(),
+            };
             let ctl_vars = ctl_data
                 .zs_columns
                 .iter()
@@ -160,7 +159,7 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark: &S,
     config: &StarkConfig,
     vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
-    permutation_vars: Option<PermutationCheckVars<F, FE, P, D2>>,
+    permutation_vars: PermutationCheckVars<F, FE, P, D2>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
     consumer: &mut ConstraintConsumer<P>,
 ) where
@@ -169,14 +168,6 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     P: PackedField<Scalar = FE>,
     S: Stark<F, D>, {
     stark.eval_packed_generic(vars, consumer);
-    if let Some(permutation_vars) = permutation_vars {
-        eval_permutation_checks::<F, FE, P, S, D, D2>(
-            stark,
-            config,
-            vars,
-            permutation_vars,
-            consumer,
-        );
-    }
+    eval_permutation_checks::<F, FE, P, S, D, D2>(stark, config, vars, permutation_vars, consumer);
     eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
 }
