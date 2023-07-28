@@ -5,7 +5,7 @@ use crate::cross_table_lookup::Column;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub(crate) struct RangeCheckColumnsView<T: Copy> {
+pub(crate) struct RangeCheckColumnsView<T> {
     /// Column containing the value (in u32) to be range checked.
     pub(crate) val: T,
     /// Column containing the lower limb (u16) of the u32 value to be range
