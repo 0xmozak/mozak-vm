@@ -5,8 +5,8 @@ use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub(crate) struct OpSelectorView<T: Copy> {
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub(crate) struct OpSelectorView<T> {
     pub add: T,
     pub sub: T,
     pub xor: T,
@@ -24,20 +24,21 @@ pub(crate) struct OpSelectorView<T: Copy> {
     pub beq: T,
     pub bne: T,
     pub ecall: T,
-    pub halt: T,
 }
 
 columns_view_impl!(CpuColumnsView);
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub(crate) struct CpuColumnsView<T: Copy> {
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub(crate) struct CpuColumnsView<T> {
     pub clk: T,
     pub pc: T,
 
     pub rs1_select: [T; 32],
     pub rs2_select: [T; 32],
     pub rd_select: [T; 32],
+
+    pub halt: T,
 
     pub op1_value: T,
     pub op2_value: T,
@@ -113,3 +114,15 @@ pub fn filter_for_bitwise<F: Field>() -> Column<F> {
         MAP.ops.sll,
     ])
 }
+
+/// Columns containing the data to be matched against ShiftAmount stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> {
+    Column::singles([MAP.powers_of_2_in, MAP.powers_of_2_out]).collect_vec()
+}
+
+/// Column for a binary filter for shft instruction in ShiftAmount stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_shift_amount<F: Field>() -> Column<F> { Column::many([MAP.ops.srl, MAP.ops.sll]) }

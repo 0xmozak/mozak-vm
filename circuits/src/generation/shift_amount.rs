@@ -37,6 +37,7 @@ pub fn generate_shift_amount_trace<F: RichField>(
         ..Default::default()
     });
     for (i, clk) in filtered_step_rows.iter().enumerate() {
+        trace[i].is_executed = F::ONE;
         trace[i].shamt = cpu_trace[cpu_cols::MAP.powers_of_2_in][*clk];
         trace[i].multiplier = cpu_trace[cpu_cols::MAP.powers_of_2_out][*clk];
     }
