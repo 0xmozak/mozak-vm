@@ -24,7 +24,6 @@ pub(crate) struct OpSelectorView<T> {
     pub beq: T,
     pub bne: T,
     pub ecall: T,
-    pub halt: T,
 }
 
 columns_view_impl!(CpuColumnsView);
@@ -37,6 +36,8 @@ pub(crate) struct CpuColumnsView<T> {
     pub rs1_select: [T; 32],
     pub rs2_select: [T; 32],
     pub rd_select: [T; 32],
+
+    pub halt: T,
 
     pub op1_value: T,
     pub op2_value: T,
