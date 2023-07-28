@@ -4,7 +4,7 @@ use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub(crate) struct RangeCheckColumnsView<T: Copy> {
     /// Column containing the value (in u32) to be range checked.
     pub(crate) val: T,
