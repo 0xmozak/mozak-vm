@@ -88,7 +88,9 @@ pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MAP.ops.add) }
+pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> {
+    Column::many([MAP.ops.add, MAP.ops.sb, MAP.ops.lbu])
+}
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
