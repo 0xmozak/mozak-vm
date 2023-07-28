@@ -11,7 +11,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{CpuColumnsView, OpSelectorView};
-use super::{add, beq, bitwise, div, jalr, mul, slt, sub};
+use super::{add, beq, bitwise, div, ecall, jalr, mul, slt, sub};
 use crate::columns_view::NumberOfColumns;
 
 #[derive(Copy, Clone, Default)]
@@ -28,6 +28,8 @@ impl<P: Copy> OpSelectorView<P> {
         ]
     }
 
+    // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
+    // PC. It sort-of jumps back to itself.
     fn jumping_opcodes(&self) -> Vec<P> { vec![self.beq, self.bne, self.ecall, self.jalr] }
 
     fn opcodes(&self) -> Vec<P> {
@@ -178,6 +180,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
+        ecall::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT
         yield_constr.constraint_last_row(lv.halt - P::ONES);
