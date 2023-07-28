@@ -11,16 +11,20 @@ use crate::memory::trace::{
 /// Pad the memory trace to a power of 2.
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<MemoryColumnsView<F>>) -> Vec<MemoryColumnsView<F>> {
-    println!("resizing to: {}", trace.len().next_power_of_two());
-    trace.resize(trace.len().next_power_of_two(), MemoryColumnsView {
-        // Some columns need special treatment..
-        mem_padding: F::ONE,
-        mem_diff_addr: F::ZERO,
-        mem_diff_addr_inv: F::ZERO,
-        mem_diff_clk: F::ZERO,
-        // .. and all other columns just have their last value duplicated.
-        ..*trace.last().unwrap()
-    });
+    let padding = match trace.last() {
+        Some(l) => MemoryColumnsView {
+            // Some columns need special treatment..
+            mem_padding: F::ONE,
+            mem_diff_addr: F::ZERO,
+            mem_diff_addr_inv: F::ZERO,
+            mem_diff_clk: F::ZERO,
+            // .. and all other columns just have their last value duplicated.
+            ..*l
+        },
+        None => MemoryColumnsView::default(),
+    };
+    trace.resize(trace.len().next_power_of_two(), padding);
+
     trace
 }
 
@@ -39,10 +43,6 @@ pub fn filter_memory_trace(mut step_rows: Vec<Row>) -> Vec<Row> {
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_memory_trace<F: RichField>(step_rows: Vec<Row>) -> Vec<MemoryColumnsView<F>> {
     let filtered_step_rows = filter_memory_trace(step_rows);
-
-    if filtered_step_rows.len() == 0 {
-        return vec![];
-    }
 
     let mut trace: Vec<MemoryColumnsView<F>> = vec![];
     for s in &filtered_step_rows {
@@ -67,6 +67,7 @@ pub fn generate_memory_trace<F: RichField>(step_rows: Vec<Row>) -> Vec<MemoryCol
         trace.push(row);
     }
 
+    println!("last: {:?}", trace);
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
     // of the trace.
