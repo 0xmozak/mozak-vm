@@ -6,7 +6,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitwise::columns as cols;
 use crate::bitwise::columns::{BitwiseColumnsView, MAP};
 use crate::columns_view::NumberOfColumns;
-use crate::cpu::columns::{self as cpu_cols, CpuColumnsView};
+use crate::cpu::columns::CpuColumnsView;
 use crate::lookup::permute_cols;
 
 const NUM_BITWISE_COL: usize = BitwiseColumnsView::<()>::NUMBER_OF_COLUMNS;
@@ -36,14 +36,15 @@ pub fn generate_bitwise_trace<F: RichField>(
     cpu_trace: &[CpuColumnsView<F>],
 ) -> [Vec<F>; NUM_BITWISE_COL] {
     // TODO(Matthias): really use the new BitwiseColumnsView for generation, too.
+    // izip!(step_rows, cpu_trace);
     let filtered_step_rows = filter_bitwise_trace(step_rows);
     let trace_len = filtered_step_rows.len();
     let ext_trace_len = trace_len.max(cols::BITWISE_U8_SIZE).next_power_of_two();
     let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; ext_trace_len]; NUM_BITWISE_COL];
     for (i, clk) in filtered_step_rows.iter().enumerate() {
-        let xor_a = cpu_trace[cpu_cols::MAP.xor_a][*clk];
-        let xor_b = cpu_trace[cpu_cols::MAP.xor_b][*clk];
-        let xor_out = cpu_trace[cpu_cols::MAP.xor_out][*clk];
+        let xor_a = cpu_trace[*clk].xor_a;
+        let xor_b = cpu_trace[*clk].xor_b;
+        let xor_out = cpu_trace[*clk].xor_out;
 
         trace[MAP.execution.is_execution_row][i] = F::ONE;
         trace[MAP.execution.op1][i] = xor_a;
