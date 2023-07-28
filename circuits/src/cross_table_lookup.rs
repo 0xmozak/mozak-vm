@@ -200,15 +200,6 @@ impl<F: Field> Column<F> {
         }
     }
 
-    pub fn constant(constant: F) -> Self {
-        Self {
-            linear_combination: vec![],
-            constant,
-        }
-    }
-
-    pub fn zero() -> Self { Self::constant(F::ZERO) }
-
     pub fn singles<I: IntoIterator<Item = impl Borrow<usize>>>(
         cs: I,
     ) -> impl Iterator<Item = Self> {
