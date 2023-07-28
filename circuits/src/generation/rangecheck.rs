@@ -27,8 +27,8 @@ fn pad_rc_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
 /// Converts a u32 into 2 u16 limbs represented in [`RichField`].
 fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
     (
-        F::from_noncanonical_u64((value >> 16).into()),
-        F::from_noncanonical_u64((value & 0xffff).into()),
+        F::from_canonical_u32(value >> 16),
+        F::from_canonical_u32(value & 0xffff),
     )
 }
 
@@ -80,7 +80,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
         .map(F::from_noncanonical_u64)
         .collect();
     let num_rows = trace[MAP.val].len();
-    trace[MAP.fixed_range_check_u16].resize(num_rows, F::from_canonical_u64(u64::from(u16::MAX)));
+    trace[MAP.fixed_range_check_u16].resize(num_rows, F::from_canonical_u16(u16::MAX));
 
     // This permutation is done in accordance to the [Halo2 lookup argument
     // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)

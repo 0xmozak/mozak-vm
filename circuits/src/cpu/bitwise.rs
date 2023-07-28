@@ -35,7 +35,7 @@ pub(crate) fn and_gadget<P: PackedField>(lv: &CpuColumnsView<P>) -> BinaryOp<P> 
     let input_a = lv.xor_a;
     let input_b = lv.xor_b;
     let xor_out = lv.xor_out;
-    let two = P::Scalar::from_noncanonical_u64(2);
+    let two = P::Scalar::from_canonical_u8(2);
     BinaryOp {
         input_a,
         input_b,
@@ -49,7 +49,7 @@ pub(crate) fn or_gadget<P: PackedField>(lv: &CpuColumnsView<P>) -> BinaryOp<P> {
     let input_a = lv.xor_a;
     let input_b = lv.xor_b;
     let xor_out = lv.xor_out;
-    let two = P::Scalar::from_noncanonical_u64(2);
+    let two = P::Scalar::from_canonical_u8(2);
     BinaryOp {
         input_a,
         input_b,

@@ -45,7 +45,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
             (e.res, e.res_limbs),
         ] {
             yield_constr.constraint(
-                reduce_with_powers(&opx_limbs, P::Scalar::from_noncanonical_u64(256_u64)) - opx,
+                reduce_with_powers(&opx_limbs, P::Scalar::from_canonical_u16(256)) - opx,
             );
         }
 
@@ -55,12 +55,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
             (nv.fixed_range_check_u8 - lv.fixed_range_check_u8 - FE::ONE)
                 * (nv.fixed_range_check_u8 - lv.fixed_range_check_u8),
         );
-        yield_constr.constraint_last_row(
-            lv.fixed_range_check_u8 - FE::from_canonical_u64(u64::from(u8::MAX)),
-        );
+        yield_constr.constraint_last_row(lv.fixed_range_check_u8 - FE::from_canonical_u8(u8::MAX));
 
         // Constrain compression logic.
-        let base = FE::from_noncanonical_u64(BASE.into());
+        let base = FE::from_canonical_u16(BASE);
         for (op1_limb, op2_limb, res_limb, compressed_limb) in
             izip!(e.op1_limbs, e.op2_limbs, e.res_limbs, lv.compressed_limbs)
         {

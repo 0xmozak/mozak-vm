@@ -29,7 +29,7 @@ pub(crate) fn constraints<P: PackedField>(
     {
         let and_gadget = and_gadget(lv);
         yield_constr
-            .constraint(lv.ops.sll * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
+            .constraint(lv.ops.sll * (and_gadget.input_a - P::Scalar::from_canonical_u8(0x1F)));
         let op2 = lv.op2_value;
         yield_constr.constraint(lv.ops.sll * (and_gadget.input_b - op2));
 

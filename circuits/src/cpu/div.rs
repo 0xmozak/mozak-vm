@@ -29,7 +29,7 @@ pub(crate) fn constraints<P: PackedField>(
     {
         let and_gadget = and_gadget(lv);
         yield_constr
-            .constraint(lv.ops.srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
+            .constraint(lv.ops.srl * (and_gadget.input_a - P::Scalar::from_canonical_u8(0x1F)));
         let op2 = lv.op2_value;
         yield_constr.constraint(lv.ops.srl * (and_gadget.input_b - op2));
 
@@ -68,9 +68,7 @@ pub(crate) fn constraints<P: PackedField>(
     //      p % 0 == p
 
     let q_inv = lv.divisor_inv;
-    yield_constr.constraint(
-        (P::ONES - q * q_inv) * (m - P::Scalar::from_noncanonical_u64(u32::MAX.into())),
-    );
+    yield_constr.constraint((P::ONES - q * q_inv) * (m - P::Scalar::from_canonical_u32(u32::MAX)));
     yield_constr.constraint((P::ONES - q * q_inv) * (r - p));
 
     // Last, we 'copy' our results:
