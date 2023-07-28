@@ -90,7 +90,7 @@ macro_rules! columns_view_impl {
             }
         }
 
-        impl<T: plonky2::field::types::Field> std::iter::FromIterator<T> for $s<T> {
+        impl<T: std::fmt::Debug> std::iter::FromIterator<T> for $s<T> {
             fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
                 let vec: Vec<T> = iter.into_iter().collect();
                 let array: [T; std::mem::size_of::<$s<u8>>()] = vec.try_into().unwrap();
