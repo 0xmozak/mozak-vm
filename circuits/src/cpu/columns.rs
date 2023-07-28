@@ -6,7 +6,7 @@ use crate::cross_table_lookup::Column;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub(crate) struct OpSelectorView<T: Copy> {
+pub(crate) struct OpSelectorView<T> {
     pub add: T,
     pub sub: T,
     pub xor: T,
@@ -30,7 +30,7 @@ pub(crate) struct OpSelectorView<T: Copy> {
 columns_view_impl!(CpuColumnsView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub(crate) struct CpuColumnsView<T: Copy> {
+pub(crate) struct CpuColumnsView<T> {
     pub clk: T,
     pub pc: T,
 
