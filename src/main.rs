@@ -1,9 +1,8 @@
 #![no_std]
 #![no_main]
 use core::mem::transmute;
-// use std::ptr::read;
 use core::convert::TryInto;
-//use rand::Rng;
+use core::assert_eq;
 
 fn to_f32(v: &[u8]) -> f32 {
     let ptr = v.as_ptr() as *const f32;
@@ -40,8 +39,8 @@ pub extern "C" fn _start() {
 
         // println!("{:x?} [{alignment}]: {repr:02x?} : {f} =? {f2} = {f3}", ptr.as_ptr());
     
-        // assert_eq!(f, f2);
-        // assert_eq!(f, f3);
+        assert_eq!(f, f2);
+        assert_eq!(f, f3);
     }
 }
 use core::panic::PanicInfo;

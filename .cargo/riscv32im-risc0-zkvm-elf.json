@@ -16,6 +16,6 @@
   "relocation-model": "static",
   "singlethread": true,
   "target-pointer-width": "32",
-  "vendor": "risc0",
+  "vendor": "mozak",
   "main-needs-argc-argv": false
 }
