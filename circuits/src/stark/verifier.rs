@@ -46,7 +46,7 @@ where
         cpu_stark,
         rangecheck_stark,
         bitwise_stark,
-        // shift_amount_stark,
+        shift_amount_stark,
         cross_table_lookups,
     } = mozak_stark;
 
@@ -81,13 +81,13 @@ where
         config,
     )?;
 
-    // verify_stark_proof_with_challenges::<F, C, ShiftAmountStark<F, D>, D>(
-    //     &shift_amount_stark,
-    //     &all_proof.stark_proofs[TableKind::ShiftAmount as usize],
-    //     &stark_challenges[TableKind::ShiftAmount as usize],
-    //     &ctl_vars_per_table[TableKind::ShiftAmount as usize],
-    //     config,
-    // )?;
+    verify_stark_proof_with_challenges::<F, C, ShiftAmountStark<F, D>, D>(
+        &shift_amount_stark,
+        &all_proof.stark_proofs[TableKind::ShiftAmount as usize],
+        &stark_challenges[TableKind::ShiftAmount as usize],
+        &ctl_vars_per_table[TableKind::ShiftAmount as usize],
+        config,
+    )?;
 
     verify_cross_table_lookups::<F, D>(&cross_table_lookups, &all_proof.all_ctl_zs_last(), config)?;
     Ok(())

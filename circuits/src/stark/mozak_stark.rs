@@ -16,8 +16,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cpu_stark: CpuStark<F, D>,
     pub rangecheck_stark: RangeCheckStark<F, D>,
     pub bitwise_stark: BitwiseStark<F, D>,
-    // pub shift_amount_stark: ShiftAmountStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 3],
+    pub shift_amount_stark: ShiftAmountStark<F, D>,
+    pub cross_table_lookups: [CrossTableLookup<F>; 4],
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -26,12 +26,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             cpu_stark: CpuStark::default(),
             rangecheck_stark: RangeCheckStark::default(),
             bitwise_stark: BitwiseStark::default(),
-            // shift_amount_stark: ShiftAmountStark::default(),
+            shift_amount_stark: ShiftAmountStark::default(),
             cross_table_lookups: [
                 RangecheckCpuTable::lookups(),
                 BitwiseCpuTable::lookups(),
+                ShiftAmountCpuTable::lookups(),
                 InnerShiftAmountTable::lookups(),
-                // ShiftAmountCpuTable::lookups(),
             ],
         }
     }
@@ -43,7 +43,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.cpu_stark.num_permutation_batches(config),
             self.rangecheck_stark.num_permutation_batches(config),
             self.bitwise_stark.num_permutation_batches(config),
-            // self.shift_amount_stark.num_permutation_batches(config),
+            self.shift_amount_stark.num_permutation_batches(config),
         ]
     }
 
@@ -52,12 +52,12 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.cpu_stark.permutation_batch_size(),
             self.rangecheck_stark.permutation_batch_size(),
             self.bitwise_stark.permutation_batch_size(),
-            // self.shift_amount_stark.permutation_batch_size(),
+            self.shift_amount_stark.permutation_batch_size(),
         ]
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 3;
+pub(crate) const NUM_TABLES: usize = 4;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TableKind {
@@ -69,7 +69,7 @@ pub enum TableKind {
 
 impl TableKind {
     #[must_use]
-    pub fn all() -> [TableKind; 4] {
+    pub fn all() -> [TableKind; NUM_TABLES] {
         [
             TableKind::Cpu,
             TableKind::RangeCheck,

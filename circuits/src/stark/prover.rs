@@ -371,20 +371,20 @@ where
         timing,
     )?;
 
-    // let shift_amount_proof = prove_single_table::<F, C, ShiftAmountStark<F, D>, D>(
-    //     &mozak_stark.shift_amount_stark,
-    //     config,
-    //     &traces_poly_values[TableKind::ShiftAmount as usize],
-    //     &trace_commitments[TableKind::ShiftAmount as usize],
-    //     &ctl_data_per_table[TableKind::ShiftAmount as usize],
-    //     challenger,
-    //     timing,
-    // )?;
+    let shift_amount_proof = prove_single_table::<F, C, ShiftAmountStark<F, D>, D>(
+        &mozak_stark.shift_amount_stark,
+        config,
+        &traces_poly_values[TableKind::ShiftAmount as usize],
+        &trace_commitments[TableKind::ShiftAmount as usize],
+        &ctl_data_per_table[TableKind::ShiftAmount as usize],
+        challenger,
+        timing,
+    )?;
     Ok([
         cpu_proof,
         rangecheck_proof,
         bitwise_proof,
-        // shift_amount_proof,
+        shift_amount_proof,
     ])
 }
 
