@@ -2,7 +2,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::{MAP as cpu_map, NUM_CPU_COLS};
 use crate::lookup::permute_cols;
-use crate::memory::columns::{MemoryColumnsView, NUM_MEM_COLS};
+use crate::memory::columns::MemoryColumnsView;
 use crate::rangecheck::columns;
 use crate::rangecheck::columns::MAP;
 

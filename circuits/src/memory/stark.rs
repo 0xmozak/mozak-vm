@@ -100,7 +100,7 @@ mod tests {
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::stark::utils::trace_rows_to_poly_values;
-    use crate::test_utils::simple_proof_test;
+    use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
@@ -139,7 +139,7 @@ mod tests {
         config.fri_config.cap_height = 0;
 
         let executed = memory_trace_test_case();
-        simple_proof_test(&executed).unwrap();
+        MemoryStark::prove_and_verify(&executed).unwrap();
 
         Ok(())
     }

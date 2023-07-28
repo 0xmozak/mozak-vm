@@ -5,8 +5,8 @@ use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub struct MemoryColumnsView<T: Copy> {
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct MemoryColumnsView<T> {
     // Indicates if memory is padding.
     pub mem_padding: T,
 

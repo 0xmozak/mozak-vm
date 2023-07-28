@@ -139,11 +139,11 @@ where
         l_last,
     );
     let num_permutation_zs = stark.num_permutation_batches(config);
-    let permutation_data = stark.uses_permutation_args().then(|| PermutationCheckVars {
+    let permutation_data = PermutationCheckVars {
         local_zs: permutation_ctl_zs[..num_permutation_zs].to_vec(),
         next_zs: permutation_ctl_zs_next[..num_permutation_zs].to_vec(),
-        permutation_challenge_sets: challenges.permutation_challenge_sets.clone().unwrap(),
-    });
+        permutation_challenge_sets: challenges.permutation_challenge_sets.clone(),
+    };
     eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
         stark,
         config,

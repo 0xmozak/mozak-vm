@@ -20,9 +20,5 @@ pub fn trace_rows_to_poly_values<F: Field, Row: IntoIterator<Item = F>>(
         .map(|row| row.into_iter().collect_vec())
         .collect_vec();
 
-    println!("trv: {:?}", trace_row_vecs);
-    if trace_row_vecs.is_empty() {
-        return trace_to_poly_values(PolynomialValues::new(vec![]).collect());
-    }
     trace_to_poly_values(transpose(&trace_row_vecs))
 }
