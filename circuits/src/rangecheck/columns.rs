@@ -1,12 +1,11 @@
-use itertools::Itertools;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub(crate) struct RangeCheckColumnsView<T: Copy> {
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub(crate) struct RangeCheckColumnsView<T> {
     /// Column containing the value (in u32) to be range checked.
     pub(crate) val: T,
 
@@ -52,7 +51,7 @@ pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COL
 /// Columns containing the data to be range checked in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles([MAP.val]).collect_vec() }
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.val)] }
 
 #[must_use]
 pub fn filter_cpu_op1_val_fixed<F: Field>() -> Column<F> { Column::single(MAP.s_op1_val_fixed) }

@@ -53,7 +53,8 @@ mod tests {
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
-    use crate::test_utils::simple_proof_test;
+    use crate::cpu::stark::CpuStark;
+    use crate::test_utils::ProveAndVerify;
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -90,7 +91,7 @@ mod tests {
                 record.last_state.get_register_value(4),
                 ((a as i32) < (op2 as i32)).into()
             );
-            simple_proof_test(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
     }
 }

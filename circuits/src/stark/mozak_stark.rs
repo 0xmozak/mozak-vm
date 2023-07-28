@@ -8,14 +8,14 @@ use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::{cpu, rangecheck};
+use crate::{bitwise, cpu, rangecheck};
 
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cpu_stark: CpuStark<F, D>,
     pub rangecheck_stark: RangeCheckStark<F, D>,
     pub bitwise_stark: BitwiseStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 4],
+    pub cross_table_lookups: [CrossTableLookup<F>; 5],
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -24,11 +24,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             cpu_stark: CpuStark::default(),
             rangecheck_stark: RangeCheckStark::default(),
             bitwise_stark: BitwiseStark::default(),
+
             cross_table_lookups: [
                 CpuDstValueRangeCheckTable::lookups(),
                 CpuOp1ValueFixedRangeCheckTable::lookups(),
                 CpuOp2ValueFixedRangeCheckTable::lookups(),
                 CpuCmpAbsDiffRangeCheckTable::lookups(),
+                BitwiseCpuTable::lookups(),
             ],
         }
     }
@@ -67,7 +69,6 @@ impl TableKind {
 }
 
 #[derive(Debug, Clone)]
-#[allow(unused)]
 pub struct Table<F: Field> {
     pub(crate) kind: TableKind,
     pub(crate) columns: Vec<Column<F>>,
@@ -90,6 +91,9 @@ pub struct RangeCheckTable<F: Field>(Table<F>);
 /// Represents a cpu trace table in the Mozak VM.
 pub struct CpuTable<F: Field>(Table<F>);
 
+/// Represents a bitwise trace table in the Mozak VM.
+pub struct BitwiseTable<F: Field>(Table<F>);
+
 impl<F: Field> RangeCheckTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
@@ -103,6 +107,14 @@ impl<F: Field> CpuTable<F> {
         Table::new(TableKind::Cpu, columns, filter_column)
     }
 }
+
+impl<F: Field> BitwiseTable<F> {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
+        Table::new(TableKind::Bitwise, columns, filter_column)
+    }
+}
+
 pub trait Lookups<F: Field> {
     fn lookups() -> CrossTableLookup<F>;
 }
@@ -165,6 +177,23 @@ impl<F: Field> Lookups<F> for CpuCmpAbsDiffRangeCheckTable<F> {
             RangeCheckTable::new(
                 rangecheck::columns::data_for_cpu(),
                 rangecheck::columns::filter_cpu_cmp_abs_diff(),
+            ),
+        )
+    }
+}
+
+pub struct BitwiseCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for BitwiseCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_bitwise(),
+                cpu::columns::filter_for_bitwise(),
+            )],
+            BitwiseTable::new(
+                bitwise::columns::data_for_cpu(),
+                bitwise::columns::filter_for_cpu(),
             ),
         )
     }

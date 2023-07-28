@@ -99,7 +99,7 @@ mod tests {
     use crate::generation::memory::generate_memory_trace;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::stark::utils::trace_to_poly_values;
+    use crate::stark::utils::trace_rows_to_poly_values;
 
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
@@ -120,7 +120,7 @@ mod tests {
         let stark = S::default();
         let executed = memory_trace_test_case();
         let trace = generate_memory_trace(executed);
-        let trace_poly_values = trace_to_poly_values(trace);
+        let trace_poly_values = trace_rows_to_poly_values(trace);
 
         let proof = prove_table::<F, C, S, D>(
             stark,
