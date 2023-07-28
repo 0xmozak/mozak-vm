@@ -2,7 +2,7 @@ use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct MemoryColumnsView<T: Copy> {
+pub struct MemoryColumnsView<T> {
     // Indicates if memory is padding.
     pub mem_padding: T,
 
