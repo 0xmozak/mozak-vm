@@ -1,20 +1,18 @@
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 
-use itertools::{chain, iproduct, izip};
+use itertools::izip;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::plonk_common::reduce_with_powers;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::permutation::PermutationPair;
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{BitwiseColumnsView, BASE, MAP};
+use super::columns::BitwiseColumnsView;
 use crate::columns_view::NumberOfColumns;
-use crate::lookup::eval_lookups;
 
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -34,81 +32,28 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let lv: &BitwiseColumnsView<_> = vars.local_values.borrow();
-        let nv: &BitwiseColumnsView<_> = vars.next_values.borrow();
+        let _nv: &BitwiseColumnsView<_> = vars.next_values.borrow();
         let e = &lv.execution;
 
         // check limbs sum to our given value.
-        // We interpret limbs as digits in base 256 == 2**8.
+        // We interpret limbs as digits in base 2.
         for (opx, opx_limbs) in [
-            (e.op1, e.op1_limbs),
-            (e.op2, e.op2_limbs),
-            (e.res, e.res_limbs),
+            (e.op1, lv.op1_limbs),
+            (e.op2, lv.op2_limbs),
+            (e.res, lv.res_limbs),
         ] {
             yield_constr.constraint(
-                reduce_with_powers(&opx_limbs, P::Scalar::from_noncanonical_u64(256_u64)) - opx,
+                reduce_with_powers(&opx_limbs, P::Scalar::from_noncanonical_u64(2_u64)) - opx,
             );
         }
 
-        // Constraint fix_range_check_u8.
-        yield_constr.constraint_first_row(lv.fixed_range_check_u8);
-        yield_constr.constraint_transition(
-            (nv.fixed_range_check_u8 - lv.fixed_range_check_u8 - FE::ONE)
-                * (nv.fixed_range_check_u8 - lv.fixed_range_check_u8),
-        );
-        yield_constr.constraint_last_row(
-            lv.fixed_range_check_u8 - FE::from_canonical_u64(u64::from(u8::MAX)),
-        );
-
-        // Constrain compression logic.
-        let base = FE::from_noncanonical_u64(BASE.into());
-        for (op1_limb, op2_limb, res_limb, compressed_limb) in
-            izip!(e.op1_limbs, e.op2_limbs, e.res_limbs, lv.compressed_limbs)
-        {
-            yield_constr.constraint(
-                reduce_with_powers(&[op1_limb, op2_limb, res_limb], base) - compressed_limb,
-            );
-        }
-
-        // TODO(Matthias): Once we fix `eval_lookups` we can probably drop the MAP
-        // here.
-        for (fixed_range_check_u8_permuted, opx_limbs_permuted) in izip!(
-            MAP.fixed_range_check_u8_permuted,
-            chain!(
-                MAP.op1_limbs_permuted,
-                MAP.op2_limbs_permuted,
-                MAP.res_limbs_permuted
-            )
-        ) {
-            eval_lookups(
-                vars,
-                yield_constr,
-                opx_limbs_permuted,
-                fixed_range_check_u8_permuted,
-            );
-        }
-
-        for (fixed_compressed_permuted, compressed_permuted) in
-            izip!(MAP.fixed_compressed_permuted, MAP.compressed_permuted)
-        {
-            eval_lookups(
-                vars,
-                yield_constr,
-                compressed_permuted,
-                fixed_compressed_permuted,
-            );
+        for (op1_bit, op2_bit, res_bit) in izip!(lv.op1_limbs, lv.op2_limbs, lv.res_limbs) {
+            let xor = (op1_bit + op2_bit) - (op1_bit * op2_bit) * FE::from_canonical_u8(2);
+            yield_constr.constraint(res_bit - xor);
         }
     }
 
     fn constraint_degree(&self) -> usize { 3 }
-
-    fn permutation_pairs(&self) -> Vec<PermutationPair> {
-        chain!(
-            izip!(MAP.compressed_limbs, MAP.compressed_permuted),
-            iproduct!([MAP.fixed_compressed], MAP.fixed_compressed_permuted)
-        )
-        .map(|(a, b)| PermutationPair::singletons(a, b))
-        .collect()
-    }
 
     #[no_coverage]
     fn eval_ext_circuit(
@@ -126,6 +71,7 @@ mod tests {
     use anyhow::Result;
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
+    use plonky2::timed;
     use plonky2::util::timing::TimingTree;
     use starky::prover::prove as prove_table;
     use starky::stark_testing::test_stark_low_degree;
@@ -184,20 +130,29 @@ mod tests {
             &[(5, a), (6, b)],
         );
         // assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));
+        let mut timing = TimingTree::new("bitwise", log::Level::Debug);
         let cpu_trace = generate_cpu_trace(&record.executed);
-        let trace = generate_bitwise_trace(&record.executed, &cpu_trace);
-        let trace_poly_values = trace_to_poly_values(trace);
+        let trace = timed!(
+            timing,
+            "generate_bitwise_trace",
+            generate_bitwise_trace(&record.executed, &cpu_trace)
+        );
+        let trace_poly_values = timed!(timing, "trace to poly", trace_to_poly_values(trace));
         let stark = S::default();
 
-        let proof = prove_table::<F, C, S, D>(
-            stark,
-            &config,
-            trace_poly_values,
-            [],
-            &mut TimingTree::default(),
-        )
-        .unwrap();
-        verify_stark_proof(stark, proof, &config).unwrap();
+        let proof = timed!(
+            timing,
+            "bitwise proof",
+            prove_table::<F, C, S, D>(stark, &config, trace_poly_values, [], &mut timing,)
+        );
+        let proof = proof.unwrap();
+        let verification_res = timed!(
+            timing,
+            "bitwise verification",
+            verify_stark_proof(stark, proof, &config)
+        );
+        verification_res.unwrap();
+        timing.print();
     }
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
