@@ -17,7 +17,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub rangecheck_stark: RangeCheckStark<F, D>,
     pub bitwise_stark: BitwiseStark<F, D>,
     pub memory_stark: MemoryStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 2],
+    pub cross_table_lookups: [CrossTableLookup<F>; 3],
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -27,7 +27,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             rangecheck_stark: RangeCheckStark::default(),
             bitwise_stark: BitwiseStark::default(),
             memory_stark: MemoryStark::default(),
-            cross_table_lookups: [RangecheckCpuTable::lookups(), BitwiseCpuTable::lookups()],
+            cross_table_lookups: [
+                RangecheckCpuTable::lookups(),
+                BitwiseCpuTable::lookups(),
+                MemoryRangeCheckTable::lookups(),
+            ],
         }
     }
 }
@@ -149,9 +153,9 @@ impl<F: Field> Lookups<F> for MemoryRangeCheckTable<F> {
         CrossTableLookup::new(
             vec![MemoryTable::new(
                 memory::columns::data_for_rangecheck(),
-                Column::zero(),
+                Column::always(),
             )],
-            RangeCheckTable::new(vec![Column::zero()], Column::zero()),
+            RangeCheckTable::new(vec![Column::always()], Column::always()),
         )
     }
 }
