@@ -52,8 +52,8 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
     let rd = bf.rd();
 
     let stype = Args {
-        rs1,
-        rs2,
+        rs1: rs2,
+        rs2: rs1,
         imm: extract_immediate(word, &[(31, 31), (30, 25), (11, 8), (7, 7)], 0),
         ..Default::default()
     };
@@ -678,8 +678,8 @@ mod tests {
         let match_ins = Instruction {
             op: Op::SB,
             args: Args {
-                rs1,
-                rs2,
+                rs1: rs2,
+                rs2: rs1,
                 imm,
                 ..Default::default()
             },
@@ -695,8 +695,8 @@ mod tests {
         let match_ins = Instruction {
             op: Op::SH,
             args: Args {
-                rs1,
-                rs2,
+                rs1: rs2,
+                rs2: rs1,
                 imm,
                 ..Default::default()
             },
@@ -712,8 +712,8 @@ mod tests {
         let match_ins = Instruction {
             op: Op::SW,
             args: Args {
-                rs1,
-                rs2,
+                rs1: rs2,
+                rs2: rs1,
                 imm,
                 ..Default::default()
             },
