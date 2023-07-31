@@ -8,11 +8,9 @@ use crate::cpu::columns::CpuColumnsView;
 fn filter_bitwise_trace<F: RichField>(
     step_rows: &[CpuColumnsView<F>],
 ) -> impl Iterator<Item = &CpuColumnsView<F>> {
-    step_rows.iter().filter(|row| {
-        let ops = row.inst.ops;
-        ops.and + ops.or + ops.xor + ops.sll + ops.srl != F::ZERO
-        // TODO: add ops.sra once it's implemented.
-    })
+    step_rows
+        .iter()
+        .filter(|row| row.inst.ops.ops_that_use_xor().into_iter().sum::<F>() != F::ZERO)
 }
 
 #[must_use]

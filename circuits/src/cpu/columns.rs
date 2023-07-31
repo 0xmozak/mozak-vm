@@ -110,12 +110,12 @@ pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> {
 /// Column for a binary filter for bitwise instruction in Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_bitwise<F: Field>() -> Column<F> {
-    Column::many([
-        MAP.inst.ops.xor,
-        MAP.inst.ops.or,
-        MAP.inst.ops.and,
-        MAP.inst.ops.srl,
-        MAP.inst.ops.sll,
-    ])
+pub fn filter_for_bitwise<F: Field>() -> Column<F> { Column::many(MAP.inst.ops.ops_that_use_xor()) }
+
+impl<T: Copy> OpSelectorView<T> {
+    #[must_use]
+    pub fn ops_that_use_xor(&self) -> [T; 5] {
+        // TODO: Add SRA, once we implement its constraints.
+        [self.xor, self.or, self.and, self.srl, self.sll]
+    }
 }
