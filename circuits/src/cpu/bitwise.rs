@@ -81,9 +81,9 @@ pub(crate) fn constraints<P: PackedField>(
     let dst = lv.dst_value;
 
     for (selector, gadget) in [
-        (lv.ops.and, and_gadget(lv)),
-        (lv.ops.or, or_gadget(lv)),
-        (lv.ops.xor, xor_gadget(lv)),
+        (lv.inst.ops.and, and_gadget(lv)),
+        (lv.inst.ops.or, or_gadget(lv)),
+        (lv.inst.ops.xor, xor_gadget(lv)),
     ] {
         yield_constr.constraint(selector * (gadget.input_a - op1));
         yield_constr.constraint(selector * (gadget.input_b - op2));
