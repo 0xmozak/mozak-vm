@@ -18,7 +18,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuColumnsView;
-use crate::bitwise::columns::BitwiseExecutionColumnsView;
+use crate::bitwise::columns::XorView;
 
 /// A struct to represent the output of binary operations
 ///
@@ -32,42 +32,33 @@ pub struct BinaryOp<P: PackedField> {
 
 /// Re-usable gadget for AND constraints
 /// Highest degree is one.
-pub(crate) fn and_gadget<P: PackedField>(xor: &BitwiseExecutionColumnsView<P>) -> BinaryOp<P> {
-    let input_a = xor.a;
-    let input_b = xor.b;
-    let xor_out = xor.out;
+pub(crate) fn and_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     let two = P::Scalar::from_noncanonical_u64(2);
     BinaryOp {
-        input_a,
-        input_b,
-        output: (input_a + input_b - xor_out) / two,
+        input_a: xor.a,
+        input_b: xor.b,
+        output: (xor.a + xor.b - xor.out) / two,
     }
 }
 
 /// Re-usable gadget for OR constraints
 /// Highest degree is one.
-pub(crate) fn or_gadget<P: PackedField>(xor: &BitwiseExecutionColumnsView<P>) -> BinaryOp<P> {
-    let input_a = xor.a;
-    let input_b = xor.b;
-    let xor_out = xor.out;
+pub(crate) fn or_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     let two = P::Scalar::from_noncanonical_u64(2);
     BinaryOp {
-        input_a,
-        input_b,
-        output: (input_a + input_b + xor_out) / two,
+        input_a: xor.a,
+        input_b: xor.b,
+        output: (xor.a + xor.b +  xor.out) / two,
     }
 }
 
 /// Re-usable gadget for XOR constraints
 /// Highest degree is one.
-pub(crate) fn xor_gadget<P: PackedField>(xor: &BitwiseExecutionColumnsView<P>) -> BinaryOp<P> {
-    let input_a = xor.a;
-    let input_b = xor.b;
-    let output = xor.out;
+pub(crate) fn xor_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     BinaryOp {
-        input_a,
-        input_b,
-        output,
+        input_a: xor.a,
+        input_b:  xor.b,
+        output: xor.out,
     }
 }
 
