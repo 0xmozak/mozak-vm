@@ -163,7 +163,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         P: PackedField<Scalar = FE>, {
         let lv = vars.local_values.borrow();
         let nv = vars.next_values.borrow();
-        // let lv: &BitwiseColumnsView<_> = vars.local_values.borrow();
 
         opcode_one_hot(lv, yield_constr);
 

@@ -737,6 +737,7 @@ name = "mozak-circuits"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bitfield",
  "env_logger",
  "itertools",
  "lazy_static",
