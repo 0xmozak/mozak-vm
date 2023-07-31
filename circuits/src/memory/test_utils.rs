@@ -19,11 +19,11 @@ pub fn memory_trace_test_case() -> Vec<Row> {
         last_state: state,
     } = simple_test_code(
         &[
-            new(SB, 0, 1, 0, 100),
+            new(SB, 0, 0, 1, 100),
             new(LB, 4, 0, 0, 100),
-            new(SB, 0, 3, 0, 200),
+            new(SB, 0, 0, 3, 200),
             new(LB, 6, 0, 0, 200),
-            new(SB, 0, 2, 0, 100),
+            new(SB, 0, 0, 2, 100),
             new(LB, 5, 0, 0, 100),
         ],
         &[],

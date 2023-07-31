@@ -32,6 +32,8 @@ impl<P: Copy> OpSelectorView<P> {
     // PC. It sort-of jumps back to itself.
     fn jumping_opcodes(&self) -> Vec<P> { vec![self.beq, self.bne, self.ecall, self.jalr] }
 
+    pub(crate) fn memory_opcodes(&self) -> Vec<P> { vec![self.sb, self.lbu] }
+
     fn opcodes(&self) -> Vec<P> {
         let mut res = self.straightline_opcodes();
         res.extend(self.jumping_opcodes());
@@ -134,13 +136,15 @@ fn populate_op2_value<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
+    let is_not_memory_op: P = P::ONES - lv.ops.memory_opcodes().into_iter().sum::<P>();
     yield_constr.constraint(
-        lv.op2_value - lv.imm_value
+        is_not_memory_op
+            * (lv.op2_value - lv.imm_value
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
                 .map(|reg| lv.rs2_select[reg] * lv.regs[reg])
-                .sum::<P>(),
+                .sum::<P>()),
     );
 }
 

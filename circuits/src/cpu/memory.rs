@@ -1,4 +1,5 @@
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuColumnsView;
@@ -7,8 +8,12 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // We do not need to constrain memory address because it is range checked.
-    yield_constr.constraint(lv.ops.sb * (lv.dst_value - lv.op1_value));
+    let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
+    let rs2_value = lv.op2_value - lv.imm_value;
+    let wrapped = rs2_value + wrap_at;
+
+    let is_memory_op: P = lv.ops.memory_opcodes().into_iter().sum::<P>();
+    yield_constr.constraint(is_memory_op * ((lv.op2_value - wrapped) * (lv.op2_value - rs2_value)));
     // TODO: support for SH / SW
 }
 
@@ -39,6 +44,18 @@ mod tests {
                             ..Args::default()
                         },
                     },
+                ],
+                &[],
+                &[(6, a), (7, b)],
+            );
+
+            CpuStark::prove_and_verify(&record.executed).unwrap();
+        }
+
+        #[test]
+        fn prove_lbu_proptest(a in u32_extra(), b in u32_extra()) {
+            let record = simple_test_code(
+                &[
                     Instruction {
                         op: Op::LBU,
                         args: Args {
@@ -54,5 +71,6 @@ mod tests {
 
             CpuStark::prove_and_verify(&record.executed).unwrap();
         }
+
     }
 }

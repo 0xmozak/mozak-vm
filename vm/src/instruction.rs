@@ -49,7 +49,9 @@ pub enum Op {
 }
 
 impl Op {
-    pub(crate) fn is_mem_op(self) -> bool { self == Self::LBU }
+    pub(crate) fn is_mem_op(self) -> bool {
+        [Self::SB, Self::SH, Self::SW, Self::LBU, Self::LH, Self::LW].contains(&self)
+    }
 }
 
 /// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
@@ -85,8 +87,7 @@ impl Instruction {
         };
 
         if op.is_mem_op() {
-            rs1 = rs2;
-            rs2 = rs1;
+            std::mem::swap(&mut rs1, &mut rs2);
         };
 
         Instruction {
