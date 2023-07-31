@@ -63,8 +63,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ShiftAmountSt
 
     fn permutation_pairs(&self) -> Vec<PermutationPair> {
         vec![
-            PermutationPair::singletons(MAP.shamt, MAP.shamt_permuted),
-            PermutationPair::singletons(MAP.multiplier, MAP.multiplier_permuted),
+            PermutationPair::singletons(MAP.executed.shamt, MAP.shamt_permuted),
+            PermutationPair::singletons(MAP.executed.multiplier, MAP.multiplier_permuted),
         ]
     }
 

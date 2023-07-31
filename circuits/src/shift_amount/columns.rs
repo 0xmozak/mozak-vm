@@ -6,12 +6,21 @@ use plonky2::field::types::Field;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
+columns_view_impl!(Executed);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct Executed<T> {
+    pub shamt: T,
+    pub multiplier: T,
+}
+
+make_col_map!(ShiftAmountView);
+columns_view_impl!(ShiftAmountView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct ShiftAmountView<T> {
     pub is_executed: T,
-    pub shamt: T,
-    pub multiplier: T,
+    pub executed: Executed<T>,
     pub fixed_shamt: T,
     pub fixed_multiplier: T,
     pub shamt_permuted: T,
@@ -21,17 +30,13 @@ pub struct ShiftAmountView<T> {
 }
 
 pub const FIXED_SHAMT_RANGE: Range<u8> = 0..32;
-columns_view_impl!(ShiftAmountView);
-make_col_map!(ShiftAmountView);
 
 // Total number of columns.
 pub const NUM_SHAMT_COLS: usize = ShiftAmountView::<()>::NUMBER_OF_COLUMNS;
 
 /// Columns containing data from CPU table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.shamt, MAP.multiplier]).collect_vec()
-}
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.executed).collect_vec() }
 
 /// Column containing filter from CPU table.
 #[must_use]

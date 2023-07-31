@@ -115,14 +115,14 @@ pub fn filter_for_bitwise<F: Field>() -> Column<F> {
     ])
 }
 
-/// Columns containing the data to be matched against ShiftAmount stark.
+/// Columns containing the data to be matched against `ShiftAmount` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> {
     Column::singles([MAP.powers_of_2_in, MAP.powers_of_2_out]).collect_vec()
 }
 
-/// Column for a binary filter for shft instruction in ShiftAmount stark.
+/// Column for a binary filter for shft instruction in `ShiftAmount` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_shift_amount<F: Field>() -> Column<F> { Column::many([MAP.ops.srl, MAP.ops.sll]) }

@@ -4,7 +4,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::{self as cpu_cols};
 use crate::lookup::permute_cols;
-use crate::shift_amount::columns::{ShiftAmountView, FIXED_SHAMT_RANGE};
+use crate::shift_amount::columns::{Executed, ShiftAmountView, FIXED_SHAMT_RANGE};
 
 /// Returns the rows for shift instructions.
 #[must_use]
@@ -32,14 +32,16 @@ pub fn generate_shift_amount_trace<F: RichField>(
     let mut trace: Vec<ShiftAmountView<F>> = vec![];
     let trace_len = filtered_step_rows.len().max(FIXED_SHAMT_RANGE.end.into());
     trace.resize(trace_len, ShiftAmountView {
-        shamt: F::ZERO,
-        multiplier: F::ONE,
+        executed: Executed {
+            shamt: F::ZERO,
+            multiplier: F::ONE,
+        },
         ..Default::default()
     });
     for (i, clk) in filtered_step_rows.iter().enumerate() {
         trace[i].is_executed = F::ONE;
-        trace[i].shamt = cpu_trace[cpu_cols::MAP.powers_of_2_in][*clk];
-        trace[i].multiplier = cpu_trace[cpu_cols::MAP.powers_of_2_out][*clk];
+        trace[i].executed.shamt = cpu_trace[cpu_cols::MAP.powers_of_2_in][*clk];
+        trace[i].executed.multiplier = cpu_trace[cpu_cols::MAP.powers_of_2_out][*clk];
     }
     for (i, value) in trace.iter_mut().enumerate().take(trace_len) {
         if i < FIXED_SHAMT_RANGE.end.into() {
@@ -50,7 +52,7 @@ pub fn generate_shift_amount_trace<F: RichField>(
             value.fixed_multiplier = F::from_canonical_usize(1 << 31);
         }
     }
-    let shamt: Vec<F> = trace.iter().map(|v| v.shamt).collect();
+    let shamt: Vec<F> = trace.iter().map(|v| v.executed.shamt).collect();
     let fixed_shamt: Vec<F> = trace.iter().map(|v| v.fixed_shamt).collect();
     let (shamt_permuted, fixed_shamt_permuted) = permute_cols(&shamt, &fixed_shamt);
     assert!(shamt_permuted.len() == trace_len);
@@ -63,7 +65,7 @@ pub fn generate_shift_amount_trace<F: RichField>(
         trace[i].shamt_permuted = *p;
         trace[i].fixed_shamt_permuted = *v;
     }
-    let multiplier: Vec<F> = trace.iter().map(|v| v.multiplier).collect();
+    let multiplier: Vec<F> = trace.iter().map(|v| v.executed.multiplier).collect();
     let fixed_multiplier: Vec<F> = trace.iter().map(|v| v.fixed_multiplier).collect();
     let (multiplier_permuted, fixed_multiplier_permuted) =
         permute_cols(&multiplier, &fixed_multiplier);
