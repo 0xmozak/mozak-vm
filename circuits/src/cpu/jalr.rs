@@ -11,21 +11,21 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
 
-    let return_address = lv.pc + P::Scalar::from_noncanonical_u64(4);
+    let return_address = lv.inst.pc + P::Scalar::from_noncanonical_u64(4);
     let wrapped_return_address = return_address - wrap_at;
 
     let destination = lv.dst_value;
     // enable-if JALR: aux.dst_val == jmp-inst-pc + 4, wrapped
     yield_constr.constraint(
-        lv.ops.jalr * (destination - return_address) * (destination - wrapped_return_address),
+        lv.inst.ops.jalr * (destination - return_address) * (destination - wrapped_return_address),
     );
 
     let jump_target = lv.op1_value + lv.op2_value;
     let wrapped_jump_target = jump_target - wrap_at;
-    let new_pc = nv.pc;
+    let new_pc = nv.inst.pc;
 
     yield_constr.constraint_transition(
-        lv.ops.jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target),
+        lv.inst.ops.jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target),
     );
 }
 #[cfg(test)]
