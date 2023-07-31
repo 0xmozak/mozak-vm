@@ -46,10 +46,10 @@ fn pc_ticks_up<P: PackedField>(
     nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_straightline_op: P = lv.ops.straightline_opcodes().into_iter().sum();
+    let is_straightline_op: P = lv.inst.ops.straightline_opcodes().into_iter().sum();
 
     yield_constr.constraint_transition(
-        is_straightline_op * (nv.pc - (lv.pc + P::Scalar::from_noncanonical_u64(4))),
+        is_straightline_op * (nv.inst.pc - (lv.inst.pc + P::Scalar::from_noncanonical_u64(4))),
     );
 }
 
@@ -61,7 +61,7 @@ fn opcode_one_hot<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let op_selectors: Vec<_> = lv.ops.opcodes();
+    let op_selectors: Vec<_> = lv.inst.ops.opcodes();
 
     // Op selectors have value 0 or 1.
     op_selectors
@@ -99,8 +99,9 @@ fn only_rd_changes<P: PackedField>(
     // Note: register 0 is already always 0.
     // But we keep the constraints simple here.
     (0..32).for_each(|reg| {
-        yield_constr
-            .constraint_transition((P::ONES - lv.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]));
+        yield_constr.constraint_transition(
+            (P::ONES - lv.inst.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]),
+        );
     });
 }
 
@@ -112,7 +113,8 @@ fn rd_actually_changes<P: PackedField>(
     // Note: we skip 0 here, because it's already forced to 0 permanently by
     // `r0_always_0`
     (1..32).for_each(|reg| {
-        yield_constr.constraint_transition((lv.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
+        yield_constr
+            .constraint_transition((lv.inst.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
     });
 }
 
@@ -125,7 +127,7 @@ fn populate_op1_value<P: PackedField>(
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
-                .map(|reg| lv.rs1_select[reg] * lv.regs[reg])
+                .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
                 .sum::<P>(),
     );
 }
@@ -136,14 +138,14 @@ fn populate_op2_value<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_not_memory_op: P = P::ONES - lv.ops.memory_opcodes().into_iter().sum::<P>();
+    let is_not_memory_op: P = P::ONES - lv.inst.ops.memory_opcodes().into_iter().sum::<P>();
     yield_constr.constraint(
         is_not_memory_op
-            * (lv.op2_value - lv.imm_value
+            * (lv.op2_value - lv.inst.imm_value
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
-                .map(|reg| lv.rs2_select[reg] * lv.regs[reg])
+                .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
                 .sum::<P>()),
     );
 }

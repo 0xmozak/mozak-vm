@@ -6,7 +6,7 @@ use crate::cross_table_lookup::Column;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub(crate) struct OpSelectorView<T> {
+pub struct OpSelectorView<T> {
     pub add: T,
     pub sub: T,
     pub xor: T,
@@ -28,28 +28,35 @@ pub(crate) struct OpSelectorView<T> {
     pub ecall: T,
 }
 
-columns_view_impl!(CpuColumnsView);
-#[repr(C)]
+columns_view_impl!(InstructionView);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub(crate) struct CpuColumnsView<T> {
-    pub clk: T,
+pub struct InstructionView<T> {
+    /// The original instruction (+ imm_value) used for program
+    /// cross-table-lookup.
     pub pc: T,
 
+    pub ops: OpSelectorView<T>,
     pub rs1_select: [T; 32],
     pub rs2_select: [T; 32],
     pub rd_select: [T; 32],
+    pub imm_value: T,
+    pub branch_target: T,
+}
+
+columns_view_impl!(CpuColumnsView);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct CpuColumnsView<T> {
+    pub clk: T,
+    pub inst: InstructionView<T>,
 
     pub halt: T,
 
     pub op1_value: T,
     pub op2_value: T,
-    pub imm_value: T,
     pub dst_value: T,
-    pub branch_target: T,
 
     pub regs: [T; 32],
-
-    pub ops: OpSelectorView<T>,
 
     pub op1_sign: T,
     pub op2_sign: T,
@@ -90,15 +97,13 @@ pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> {
-    Column::many([MAP.ops.add, MAP.ops.sb, MAP.ops.lbu])
+    Column::many([MAP.inst.ops.add, MAP.inst.ops.sb, MAP.inst.ops.lbu])
 }
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
-    vec![Column::single(MAP.dst_value)]
-}
+pub fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.dst_value)] }
 
 /// Columns containing the data to be matched against XOR Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -112,10 +117,10 @@ pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> {
 #[must_use]
 pub fn filter_for_bitwise<F: Field>() -> Column<F> {
     Column::many([
-        MAP.ops.xor,
-        MAP.ops.or,
-        MAP.ops.and,
-        MAP.ops.srl,
-        MAP.ops.sll,
+        MAP.inst.ops.xor,
+        MAP.inst.ops.or,
+        MAP.inst.ops.and,
+        MAP.inst.ops.srl,
+        MAP.inst.ops.sll,
     ])
 }

@@ -12,7 +12,7 @@ pub(crate) fn constraints<P: PackedField>(
     let added = lv.op1_value + lv.op2_value;
     let wrapped = added - wrap_at;
 
-    yield_constr.constraint(lv.ops.add * (lv.dst_value - added) * (lv.dst_value - wrapped));
+    yield_constr.constraint(lv.inst.ops.add * (lv.dst_value - added) * (lv.dst_value - wrapped));
 }
 
 #[cfg(test)]

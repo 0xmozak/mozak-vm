@@ -9,10 +9,10 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
-    let rs2_value = lv.op2_value - lv.imm_value;
+    let rs2_value = lv.op2_value - lv.inst.imm_value;
     let wrapped = rs2_value + wrap_at;
 
-    let is_memory_op: P = lv.ops.memory_opcodes().into_iter().sum::<P>();
+    let is_memory_op: P = lv.inst.ops.memory_opcodes().into_iter().sum::<P>();
     yield_constr.constraint(is_memory_op * ((lv.op2_value - wrapped) * (lv.op2_value - rs2_value)));
     // TODO: support for SH / SW
 }
