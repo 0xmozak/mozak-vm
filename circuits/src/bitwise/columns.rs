@@ -8,22 +8,20 @@ use crate::cross_table_lookup::Column;
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct BitwiseColumnsView<T> {
     pub is_execution_row: T,
-    pub execution: BitwiseExecutionColumnsView<T>,
-    pub op1_limbs: [T; 32],
-    pub op2_limbs: [T; 32],
-    pub res_limbs: [T; 32],
+    pub execution: XorView<T>,
+    pub limbs: XorView<[T; 32]>,
 }
 columns_view_impl!(BitwiseColumnsView);
 make_col_map!(BitwiseColumnsView);
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct BitwiseExecutionColumnsView<T> {
+pub struct XorView<T> {
     pub a: T,
     pub b: T,
     pub out: T,
 }
-columns_view_impl!(BitwiseExecutionColumnsView);
+columns_view_impl!(XorView);
 
 /// Columns containing the data which are looked from cpu table into Bitwise
 /// stark. [`CpuTable`](crate::cross_table_lookup::CpuTable)

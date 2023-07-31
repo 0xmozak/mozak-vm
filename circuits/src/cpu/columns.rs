@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use plonky2::field::types::Field;
 
-use crate::bitwise::columns::BitwiseExecutionColumnsView;
+use crate::bitwise::columns::XorView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
@@ -66,7 +66,7 @@ pub struct CpuColumnsView<T> {
     pub less_than: T,
     pub branch_equal: T,
 
-    pub xor: BitwiseExecutionColumnsView<T>,
+    pub xor: XorView<T>,
 
     // TODO: for shift operations, we need to hook up POWERS_OF_2_IN and
     // POWERS_OF_2_OUT to a cross-table lookup for input values 0..32.
