@@ -27,7 +27,6 @@ pub(crate) struct OpSelectorView<T> {
 }
 
 columns_view_impl!(CpuColumnsView);
-
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub(crate) struct CpuColumnsView<T> {
