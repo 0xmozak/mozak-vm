@@ -110,6 +110,15 @@ macro_rules! columns_view_impl {
                 array.into()
             }
         }
+        impl<T> std::ops::Deref for $s<T> {
+            type Target = [T; std::mem::size_of::<$s<u8>>()];
+
+            fn deref(&self) -> &Self::Target { unsafe { std::mem::transmute(self) } }
+        }
+
+        impl<T: Copy> std::ops::DerefMut for $s<T> {
+            fn deref_mut(&mut self) -> &mut Self::Target { unsafe { std::mem::transmute(self) } }
+        }
     };
 }
 pub(crate) use columns_view_impl;
