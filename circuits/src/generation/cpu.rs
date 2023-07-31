@@ -185,17 +185,13 @@ fn generate_bitwise_row<F: RichField>(
     inst: &Instruction,
     state: &State,
 ) -> BitwiseExecutionColumnsView<F> {
-    let op1 = match inst.op {
+    let a = match inst.op {
         Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
         Op::SRL | Op::SLL => 0x1F,
         _ => 0,
     };
-    let op2 = state
+    let b = state
         .get_register_value(inst.args.rs2)
         .wrapping_add(inst.args.imm);
-    BitwiseExecutionColumnsView {
-        a: from_u32(op1),
-        b: from_u32(op2),
-        out: from_u32(op1 ^ op2),
-    }
+    BitwiseExecutionColumnsView { a, b, out: a ^ b }.map(from_u32)
 }
