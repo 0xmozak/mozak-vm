@@ -41,6 +41,8 @@ pub(crate) struct CpuColumnsView<T> {
     pub rs2: T,
     pub rd: T,
 
+    // TODO: Remove these and the filter column, and add support to the cross-table lookup instead:
+    // https://github.com/0xmozak/mozak-vm/pull/398#issuecomment-1657404905
     pub permuted_pc: T,
     pub permuted_opcode: T,
     pub permuted_rs1: T,
