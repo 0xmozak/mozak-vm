@@ -90,16 +90,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 mod tests {
     use anyhow::Result;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use plonky2::util::timing::TimingTree;
-    use starky::config::StarkConfig;
-    use starky::prover::prove as prove_table;
     use starky::stark_testing::test_stark_low_degree;
-    use starky::verifier::verify_stark_proof;
 
-    use crate::generation::memory::generate_memory_trace;
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::stark::utils::trace_rows_to_poly_values;
+    use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
@@ -114,21 +109,7 @@ mod tests {
 
     #[test]
     fn prove_memory_sb_lb() -> Result<()> {
-        let mut config = StarkConfig::standard_fast_config();
-        config.fri_config.cap_height = 0;
-
-        let stark = S::default();
         let executed = memory_trace_test_case();
-        let trace = generate_memory_trace(executed);
-        let trace_poly_values = trace_rows_to_poly_values(trace);
-
-        let proof = prove_table::<F, C, S, D>(
-            stark,
-            &config,
-            trace_poly_values,
-            [],
-            &mut TimingTree::default(),
-        )?;
-        verify_stark_proof(stark, proof, &config)
+        MemoryStark::prove_and_verify(&executed)
     }
 }

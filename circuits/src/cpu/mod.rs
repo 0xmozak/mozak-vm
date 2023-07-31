@@ -3,6 +3,7 @@ pub mod beq;
 pub mod bitwise;
 pub mod columns;
 pub mod div;
+pub mod ecall;
 pub mod jalr;
 pub mod memory;
 pub mod mul;
