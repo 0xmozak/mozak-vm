@@ -48,7 +48,7 @@ pub(crate) fn or_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     BinaryOp {
         input_a: xor.a,
         input_b: xor.b,
-        output: (xor.a + xor.b +  xor.out) / two,
+        output: (xor.a + xor.b + xor.out) / two,
     }
 }
 
@@ -57,7 +57,7 @@ pub(crate) fn or_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
 pub(crate) fn xor_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     BinaryOp {
         input_a: xor.a,
-        input_b:  xor.b,
+        input_b: xor.b,
         output: xor.out,
     }
 }

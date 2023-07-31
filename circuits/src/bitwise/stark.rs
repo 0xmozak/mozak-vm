@@ -32,7 +32,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let lv: &BitwiseColumnsView<_> = vars.local_values.borrow();
-        let e = &lv.execution;
 
         // Each limb must be a either 0 or 1.
         for bit_value in chain!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
@@ -41,7 +40,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
 
         // Check limbs sum to our given value.
         // We interpret limbs as digits in base 2.
-        for (opx, opx_limbs) in [(e.a, lv.limbs.a), (e.b, lv.limbs.b), (e.out, lv.limbs.out)] {
+        for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
             yield_constr
                 .constraint(reduce_with_powers(&opx_limbs, P::Scalar::from_canonical_u8(2)) - opx);
         }
