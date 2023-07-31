@@ -7,7 +7,7 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // We do not need to constrain memory address because it will be range checked.
+    // We do not need to constrain memory address because it is range checked.
     yield_constr.constraint(lv.ops.sb * (lv.dst_value - lv.op2_value));
     // TODO: support for SH / SW
 }
