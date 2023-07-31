@@ -14,7 +14,9 @@ use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::bitwise::generate_bitwise_trace;
 use crate::generation::cpu::generate_cpu_trace;
+use crate::generation::memory::generate_memory_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
+use crate::memory::stark::MemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::mozak_stark::MozakStark;
 use crate::stark::prover::prove;
@@ -121,6 +123,27 @@ impl ProveAndVerify for BitwiseStark<F, D> {
         verify_stark_proof(stark, proof, &config)
     }
 }
+
+impl ProveAndVerify for MemoryStark<F, D> {
+    fn prove_and_verify(step_rows: &[Row]) -> Result<()> {
+        type S = MemoryStark<F, D>;
+
+        let config = standard_faster_config();
+
+        let stark = S::default();
+        let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(step_rows));
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            [],
+            &mut TimingTree::default(),
+        )?;
+
+        verify_stark_proof(stark, proof, &config)
+    }
+}
+
 impl ProveAndVerify for MozakStark<F, D> {
     /// Prove and verify a [`MozakStark`].
     ///
