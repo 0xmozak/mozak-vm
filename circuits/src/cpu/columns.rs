@@ -1,6 +1,7 @@
 use itertools::Itertools;
 use plonky2::field::types::Field;
 
+use crate::bitwise::columns::BitwiseExecutionColumnsView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
@@ -65,9 +66,7 @@ pub struct CpuColumnsView<T> {
     pub less_than: T,
     pub branch_equal: T,
 
-    pub xor_a: T,
-    pub xor_b: T,
-    pub xor_out: T,
+    pub xor: BitwiseExecutionColumnsView<T>,
 
     // TODO: for shift operations, we need to hook up POWERS_OF_2_IN and
     // POWERS_OF_2_OUT to a cross-table lookup for input values 0..32.
@@ -105,7 +104,7 @@ pub fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> { vec![Column::single(M
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.xor_a, MAP.xor_b, MAP.xor_out]).collect_vec()
+    Column::singles([MAP.xor.a, MAP.xor.b, MAP.xor.out]).collect_vec()
 }
 
 /// Column for a binary filter for bitwise instruction in Bitwise stark.
