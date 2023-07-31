@@ -122,13 +122,8 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             _ => Default::default(),
         },
         0b000_0011 => {
-            itype = Args {
-                rs2: rs1,
-                rd,
-                imm: extract_immediate(word, &[(31, 20)], 0),
-                ..Default::default()
-            };
-
+            // Special case for itypes: For memory ops, we swap rs1 and rs2.
+            std::mem::swap(&mut itype.rs1, &mut itype.rs2);
             match bf.func3() {
                 0x0 => (Op::LB, itype),
                 0x1 => (Op::LH, itype),
