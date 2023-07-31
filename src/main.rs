@@ -3,6 +3,8 @@
 #![feature(lang_items)]
 
 use core::arch::asm;
+use core::assert;
+use core::assert_eq;
 
 fn fibonacci(n: u32) -> u64 {
     if n == 0 {
@@ -24,7 +26,10 @@ fn fibonacci(n: u32) -> u64 {
 
 #[no_mangle]
 pub fn _start() -> ! {
-    exit(fibonacci(80));
+    let res = fibonacci(8);
+    assert!(res == 13);
+    assert_eq!(res, 13);
+    exit(res);
 }
 
 /// Exit syscall
@@ -40,4 +45,10 @@ pub fn exit(_code: u64) -> ! {
 #[panic_handler]
 fn panic_handler(_: &core::panic::PanicInfo) -> ! {
     loop {}
+}
+
+// TODO: we can remove this once https://github.com/rust-lang/rust/issues/85736 is fixed.
+#[no_mangle]
+pub fn __atomic_load_4(arg: *const usize, _ordering: usize) -> usize {
+    unsafe { *arg }
 }
