@@ -50,14 +50,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
                 .constraint(reduce_with_powers(&opx_limbs, P::Scalar::from_canonical_u8(2)) - opx);
         }
 
-        for (a, b, res_bit) in izip!(lv.op1_limbs, lv.op2_limbs, lv.res_limbs) {
+        for (a, b, res) in izip!(lv.op1_limbs, lv.op2_limbs, lv.res_limbs) {
             // For two binary digits a and b, we want to compute a ^ b.
             // Conventiently, adding with carry gives:
             // a + b == (a & b, a ^ b) == 2 * (a & b) + (a ^ b)
             // Solving for (a ^ b) gives:
             // (a ^ b) := a + b - 2 * (a & b) == a + b - 2 * a * b
             let xor = (a + b) - (a * b) * FE::from_canonical_u8(2);
-            yield_constr.constraint(res_bit - xor);
+            yield_constr.constraint(res - xor);
         }
     }
 
