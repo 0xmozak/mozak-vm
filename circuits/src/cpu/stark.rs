@@ -138,9 +138,9 @@ fn populate_op2_value<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_not_memory_op: P = P::ONES - lv.inst.ops.memory_opcodes().into_iter().sum::<P>();
+    let is_memory_op: P = lv.inst.ops.memory_opcodes().into_iter().sum::<P>();
     yield_constr.constraint(
-        is_not_memory_op
+        (P::ONES - is_memory_op)
             * (lv.op2_value - lv.inst.imm_value
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
