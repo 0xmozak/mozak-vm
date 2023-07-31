@@ -50,7 +50,10 @@ pub enum Op {
 
 impl Op {
     pub(crate) fn is_mem_op(self) -> bool {
-        [Self::SB, Self::SH, Self::SW, Self::LBU, Self::LH, Self::LW].contains(&self)
+        matches!(
+            self,
+            Self::SB | Self::SH | Self::SW | Self::LBU | Self::LH | Self::LW
+        )
     }
 }
 
