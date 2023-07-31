@@ -1,3 +1,4 @@
+use bitfield::Bit;
 use mozak_vm::instruction::Op;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -49,13 +50,13 @@ pub fn generate_bitwise_trace<F: RichField>(
         trace[MAP.execution.res][i] = xor_out;
         // TODO: make the CPU trace somehow pass the u32 values as well, not just the
         // field elements. So we don't have to reverse engineer them here.
-        for (cols, u32_value) in [
-            (MAP.op1_limbs, xor_a.to_canonical_u64() as u32),
-            (MAP.op2_limbs, xor_b.to_canonical_u64() as u32),
-            (MAP.res_limbs, xor_out.to_canonical_u64() as u32),
+        for (cols, val) in [
+            (MAP.op1_limbs, xor_a.to_canonical_u64()),
+            (MAP.op2_limbs, xor_b.to_canonical_u64()),
+            (MAP.res_limbs, xor_out.to_canonical_u64()),
         ] {
             for (j, col) in cols.iter().enumerate() {
-                trace[*col][i] = F::from_canonical_u32((u32_value >> j) & 0x0000_0001);
+                trace[*col][i] = F::from_bool(val.bit(j));
             }
         }
     }

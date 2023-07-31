@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 
-use itertools::izip;
+use itertools::{chain, izip};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -35,12 +35,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         let e = &lv.execution;
 
         // Each limb must be a either 0 or 1.
-        for bit_value in lv
-            .op1_limbs
-            .iter()
-            .chain(lv.op2_limbs.iter().chain(lv.res_limbs.iter()))
-        {
-            yield_constr.constraint(*bit_value * (*bit_value - P::ONES));
+        for bit_value in chain!(lv.op1_limbs, lv.op2_limbs, lv.res_limbs) {
+            yield_constr.constraint(bit_value * (bit_value - P::ONES));
         }
 
         // Check limbs sum to our given value.
@@ -54,10 +50,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
                 .constraint(reduce_with_powers(&opx_limbs, P::Scalar::from_canonical_u8(2)) - opx);
         }
 
-        // For single bit binary value we check following constraint
-        // op1_bit + op2_bit - 2 * op1_bit * op2_bit = xor_res
-        for (op1_bit, op2_bit, res_bit) in izip!(lv.op1_limbs, lv.op2_limbs, lv.res_limbs) {
-            let xor = (op1_bit + op2_bit) - (op1_bit * op2_bit) * FE::from_canonical_u8(2);
+        for (a, b, res_bit) in izip!(lv.op1_limbs, lv.op2_limbs, lv.res_limbs) {
+            // For two binary digits a and b, we want to compute a ^ b.
+            // Conventiently, adding with carry gives:
+            // a + b == (a & b, a ^ b) == 2 * (a & b) + (a ^ b)
+            // Solving for (a ^ b) gives:
+            // (a ^ b) := a + b - 2 * (a & b) == a + b - 2 * a * b
+            let xor = (a + b) - (a * b) * FE::from_canonical_u8(2);
             yield_constr.constraint(res_bit - xor);
         }
     }
