@@ -18,6 +18,8 @@ macro_rules! columns_view_impl {
         impl<T> $s<T> {
             // At the moment we only use `map` InstructionView,
             // so it's dead code for the other callers of `columns_view_impl`.
+            // TODO(Matthias): remove this marker, once we use it for the other structs,
+            // too.
             #[allow(dead_code)]
             pub fn map<B: std::fmt::Debug, F>(self, f: F) -> $s<B>
             where
