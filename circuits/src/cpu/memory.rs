@@ -28,8 +28,6 @@ mod tests {
     use crate::cpu::stark::CpuStark;
     use crate::test_utils::ProveAndVerify;
 
-    // TODO: use memory_trace_test_case when other ops supported.
-    //
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
