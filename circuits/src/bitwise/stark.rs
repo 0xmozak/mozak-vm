@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 
-use itertools::izip;
+use itertools::{chain, izip};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -35,20 +35,16 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         let e = &lv.execution;
 
         // Each limb must be a either 0 or 1.
-        for bit_value in lv
-            .op1_limbs
-            .iter()
-            .chain(lv.op2_limbs.iter().chain(lv.res_limbs.iter()))
-        {
-            yield_constr.constraint(*bit_value * (*bit_value - P::ONES));
+        for bit_value in chain!(lv.op1_limbs, lv.op2_limbs, lv.res_limbs) {
+            yield_constr.constraint(bit_value * (bit_value - P::ONES));
         }
 
         // Check limbs sum to our given value.
         // We interpret limbs as digits in base 2.
         for (opx, opx_limbs) in [
-            (e.op1, lv.op1_limbs),
-            (e.op2, lv.op2_limbs),
-            (e.res, lv.res_limbs),
+            (e.a, lv.op1_limbs),
+            (e.b, lv.op2_limbs),
+            (e.out, lv.res_limbs),
         ] {
             yield_constr
                 .constraint(reduce_with_powers(&opx_limbs, P::Scalar::from_canonical_u8(2)) - opx);
@@ -92,7 +88,7 @@ mod tests {
     use crate::bitwise::stark::BitwiseStark;
     use crate::generation::bitwise::generate_bitwise_trace;
     use crate::generation::cpu::generate_cpu_trace;
-    use crate::stark::utils::trace_to_poly_values;
+    use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{standard_faster_config, C, D, F};
 
     type S = BitwiseStark<F, D>;
@@ -147,9 +143,9 @@ mod tests {
         let trace = timed!(
             timing,
             "generate_bitwise_trace",
-            generate_bitwise_trace(&record.executed, &cpu_trace)
+            generate_bitwise_trace(&cpu_trace)
         );
-        let trace_poly_values = timed!(timing, "trace to poly", trace_to_poly_values(trace));
+        let trace_poly_values = timed!(timing, "trace to poly", trace_rows_to_poly_values(trace));
         let stark = S::default();
 
         let proof = timed!(
