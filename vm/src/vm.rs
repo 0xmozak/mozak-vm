@@ -601,19 +601,19 @@ mod tests {
         }
 
         #[test]
-        fn lb_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in i8_extra()) {
-            let address = rs1_value.wrapping_add(offset);
+        fn lb_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in i8_extra()) {
+            let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LB,
                     rd,
-                    rs1,
                     0,
+                    rs2,
                     offset,
                 )],
                 &[(address, memory_value as u32)],
-                &[(rs1, rs1_value)]
+                &[(rs2, rs2_value)]
             );
 
             let expected_value = i32::from(memory_value) as u32;
@@ -621,74 +621,74 @@ mod tests {
         }
 
         #[test]
-        fn lbu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in u8_extra()) {
-            let address = rs1_value.wrapping_add(offset);
+        fn lbu_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in u8_extra()) {
+            let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LBU,
                     rd,
-                    rs1,
                     0,
+                    rs2,
                     offset,
                 )],
                 &[(address, u32::from(memory_value))],
-                &[(rs1, rs1_value)]
+                &[(rs2, rs2_value)]
             );
             assert_eq!(last_but_coda(&e).get_register_value(rd), u32::from(memory_value));
         }
 
         #[test]
-        fn lh_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in i16_extra()) {
-            let address = rs1_value.wrapping_add(offset);
+        fn lh_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in i16_extra()) {
+            let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LH,
                     rd,
-                    rs1,
                     0,
+                    rs2,
                     offset,
                 )],
                 &[(address, u32::from(memory_value as u16))],
-                &[(rs1, rs1_value)]
+                &[(rs2, rs2_value)]
             );
             assert_eq!(last_but_coda(&e).get_register_value(rd), i32::from(memory_value) as u32);
         }
 
         #[test]
-        fn lhu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in u16_extra()) {
-            let address = rs1_value.wrapping_add(offset);
+        fn lhu_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in u16_extra()) {
+            let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LHU,
                     rd,
-                    rs1,
                     0,
+                    rs2,
                     offset,
                 )],
                 &[(address, u32::from(memory_value))],
-                &[(rs1, rs1_value)]
+                &[(rs2, rs2_value)]
             );
 
             assert_eq!(last_but_coda(&e).get_register_value(rd), u32::from(memory_value));
         }
 
         #[test]
-        fn lw_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in u32_extra()) {
-            let address = rs1_value.wrapping_add(offset);
+        fn lw_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in u32_extra()) {
+            let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LW,
                     rd,
-                    rs1,
                     0,
+                    rs2,
                     offset,
                 )],
                 &[(address, memory_value)],
-                &[(rs1, rs1_value)]
+                &[(rs2, rs2_value)]
             );
             assert_eq!(last_but_coda(&e).get_register_value(rd), memory_value);
         }

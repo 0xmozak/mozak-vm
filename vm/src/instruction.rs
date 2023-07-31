@@ -48,6 +48,10 @@ pub enum Op {
     UNKNOWN,
 }
 
+impl Op {
+    pub(crate) fn is_mem_op(self) -> bool { self == Self::LBU }
+}
+
 /// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
 pub const NOOP_PAIR: (Op, Args) = (NOOP.op, NOOP.args);
 /// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
@@ -70,7 +74,7 @@ pub struct Instruction {
 
 impl Instruction {
     #[must_use]
-    pub fn new(op: Op, rd: u8, rs1: u8, rs2: u8, imm_or_branch_target: u32) -> Self {
+    pub fn new(op: Op, rd: u8, mut rs1: u8, mut rs2: u8, imm_or_branch_target: u32) -> Self {
         let (imm, branch_target) = if matches!(
             op,
             Op::BEQ | Op::BNE | Op::BLT | Op::BGE | Op::BLTU | Op::BGEU
@@ -79,6 +83,12 @@ impl Instruction {
         } else {
             (imm_or_branch_target, 0)
         };
+
+        if op.is_mem_op() {
+            rs1 = rs2;
+            rs2 = rs1;
+        };
+
         Instruction {
             op,
             args: Args {
