@@ -1,0 +1,195 @@
+[Scia Reto](https://sciareto.org) mind map   
+> __version__=`1.1`,showJumps=`true`
+---
+
+# Prove/Verify
+
+## 1\. prove: F = RichField \+ Ext\<D\>
+
+### generate\_traces \- return traces\_poly\_values\<PolynomialValues\<F\>\>
+
+### prove\_with\_traces
+
+#### trace\_commitments: Vec\<PolynomialBatch\<F\>\>
+
+#### trace\_caps: Vec\<MerkleCap\<F\>\>
+
+#### ctl\_challenges: GrandProductChallengeSet\<F\>
+
+##### get\_grand\_product\_challenge\_set
+
+###### GrandProductChallenge\<F\>
+
+####### beta \- challenger\<F\>\.get\_challenge 
+
+####### gamma \- challenger\<F\>\.get\_challenge
+
+#### ctl\_data\_per\_table: \[CtlData\<F\>; NUM\_TABLES\]
+
+##### cross\_table\_lookup\_data\<F,D\>\(trace\_pv, ctl\_lookups, ctl\_challenges\)
+
+###### partial\_products
+
+####### challenge\.combine
+> fillColor=`#FFC800`
+
+
+###### RETURN: CtlData\<F\>
+
+#### prove\_with\_commitments
+
+##### 3 x prove\_single\_table\(trace\_pv, trace\_comm, ctl\_data\_per\_table: CtlData\<F\>\)
+
+###### permutation\_challenges: Vec\<GrandProductChallengeSet\<F\>\>
+
+###### permutation\_zs: Vec\<PolynomialValues\<F\>\>
+
+####### compute\_permutation\_z\_polys\<F,S,D\> \( trace\_pv, permutation\_challenges \)
+
+###### z\_polys: Vec\<PolynomialValues\<F\>\> 
+
+####### permutation\_zs\.extend with ctl\_data\<F\>\.z\_polys\(\)
+
+###### permutation\_ctl\_zs\_commitment: Vec\<PolynomialBatch\<F\>\>
+
+####### PolynomialBatch::from\_values \(\.\.\. z\_polys \)
+
+###### permutation\_ctl\_zs\_cap: MerkleCap\<F\>
+
+####### permutation\_ctl\_zs\_commitment\.merkle\_tree\.cap
+
+###### alphas: Vec\<F\>
+
+####### challenger\<F\>\.get\_n\_challenges
+
+###### quotient\_polys: Vec\<PolyCoeffs\<F\>\>
+
+####### compute\_quotient\_polys::\<F, \<F as Packable\>::Packing, D\>
+
+######## IN: trace\_comm\<F\>
+
+######## IN: perm\_ctl\_zs\_comm\<F\>
+
+######## IN: perm\_challendges\<F\>
+
+######## IN: ctl\_data\<F\>, alphas\<F\> \.\.\. 
+
+######## lagrange\_first: PV\<F\>
+
+######### lagrange\_last: PV\<F\>
+
+########## z\_h\_on\_coset: ZeroPolyOnCoset\<F\>
+
+######## quotient\_values: Vec\<Vec\<F\>\>
+
+######### \.\.\.eval\_vanishing\_poly\<F,F,P = PackedField\<Scalar = F\>,S,D,1\>
+> fillColor=`#FFD000`
+
+
+########## IN: vars: StarkEvaluationVars\<F,P\>
+
+########## IN: permutation\_check\_vars = PermutationCheckVars\(perm\_ctl\_zs\_comm, perm\_chalanges\)
+
+########## IN: ctl\_vars: Vec\<CtlCheckVars\<F\>\> = ctl\_data\.zs\_columns
+
+########## stark\.eval\_packed\_generic
+
+########## eval\_permutation\_checks\<F,F,P,S,D,D2=1\>
+> fillColor=`#FFC800`
+
+
+########### factor\.reduce\_ext
+> fillColor=`#FFC800`
+
+
+########## eval\_cross\_table\_lookup\_checks\<F\<F,P,S,D,D2=1\>
+> fillColor=`#FFC800`
+
+
+########### challenges\.combine
+> fillColor=`#FFC800`
+
+
+######### constraints\_evals = consumer\<F\>\.accumulators
+
+###### quotient\_commitment: PolynomialBatch\<F\> 
+
+####### PolynomialBatch::from\_coeffs\(\.\.\. all\_quotient\_chunks \.\.\.\)
+
+###### quotient\_polys\_cap: MerkleCap\<F\>
+
+####### quotient\_commitment\.merkle\_tree\.cap
+
+###### openings: StarkOpeningSet\<F\>
+
+####### IN: zeta\<F::Ext\>
+
+####### IN: g\<F\>
+
+####### IN: trace\_comm\<F\>
+
+####### IN: permutation\_ctl\_zs\_commitment\<F\>
+
+####### IN: quotient\_commitment\<F\>
+
+###### initial\_merkle\_trees = \{trace\_comm, perm\_ctl\_zs\_comm, quotient\_comm\}
+
+###### opening\_proof: FriProof
+
+####### PolynomialBatch::prove\_openings\(fri\_instance, initial\_mt, \.\.\.\)
+
+###### RETURN: StarkProof
+
+## 2\. verify
+
+### verify\_proof
+
+#### IN: MozakStark\<F,D\>
+
+#### IN: AllProof\<F,D\>
+
+#### AllProofChallenges\<F\>
+
+##### all\_proof\.get\_challenges
+
+#### ctl\_vars\_per\_table: Vec\<CtlCheckVars\<F,F::Ext,\.\.\.\>\>
+
+##### CtlCheckVars::from\_proofs
+
+###### IN: all\_proof\.stark\_proofs
+
+###### IN: cross\_table\_lookups, ctl\_challenges: GP\<F\>
+
+#### 4 x verify\_stark\_proof\_with\_challenges::\<F, C, CpuStark\<F, D\>, D\>
+
+##### validate\_proof\_shape
+
+##### vars = StarkEvaluationVars\<F::Ext\>
+
+##### consumer = ConstraintConsumer::\<F::Extension\>
+
+##### permutation\_data = PermutationCheckVars \<F::Ext,F::Ext,F\>
+
+##### eval\_vanishing\_poly::\<F, F::Ext, F::Ext, S, D, D\>
+> fillColor=`#FFC800`
+
+
+###### eval\_permutation\_checks::\<F, FE = FieldExtension\<D2 = D, BaseField = F\> = F::Ext, P = PackedField\<Scalar = FE\> = F::Ext, S, D, D2 = D\>
+> fillColor=`#FFC800`
+
+
+####### factor\.reduce\_ext
+> fillColor=`#FFC800`
+
+
+###### eval\_cross\_table\_lookup\_checks::\<F, FE = FieldExtension\<D2 = D, BaseField = F\> = F::Ext, P = PackedField\<Scalar = FE\> = F::Ext, S, D, D2 = D\>
+> fillColor=`#FFC800`
+
+
+####### challenges\.combine
+> fillColor=`#FFC800`
+
+
+##### vanishing\_polys\_zeta = consumer\.accumulators
+
+##### verify\_fri\_proof::\<F, C, D\>
