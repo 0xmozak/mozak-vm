@@ -14,6 +14,7 @@ pub struct BitwiseColumnsView<T> {
 columns_view_impl!(BitwiseColumnsView);
 make_col_map!(BitwiseColumnsView);
 
+columns_view_impl!(XorView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct XorView<T> {
@@ -21,7 +22,6 @@ pub struct XorView<T> {
     pub b: T,
     pub out: T,
 }
-columns_view_impl!(XorView);
 
 /// Columns containing the data which are looked from cpu table into Bitwise
 /// stark. [`CpuTable`](crate::cross_table_lookup::CpuTable)

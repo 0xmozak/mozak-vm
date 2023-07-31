@@ -45,6 +45,12 @@ macro_rules! columns_view_impl {
             }
         }
 
+        impl<T> AsRef<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
+            fn as_ref(&self) -> &[T; std::mem::size_of::<$s<u8>>()] {
+                unsafe { &*(self as *const $s<T>).cast::<[T; std::mem::size_of::<$s<u8>>()]>() }
+            }
+        }
+
         impl<T> std::borrow::Borrow<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
             fn borrow(&self) -> &$s<T> {
                 unsafe { &*(self as *const [T; std::mem::size_of::<$s<u8>>()]).cast::<$s<T>>() }
@@ -113,11 +119,15 @@ macro_rules! columns_view_impl {
         impl<T> std::ops::Deref for $s<T> {
             type Target = [T; std::mem::size_of::<$s<u8>>()];
 
-            fn deref(&self) -> &Self::Target { unsafe { std::mem::transmute(self) } }
+            fn deref(&self) -> &Self::Target {
+                unsafe { &*(self as *const $s<T>).cast::<[T; std::mem::size_of::<$s<u8>>()]>() }
+            }
         }
 
-        impl<T: Copy> std::ops::DerefMut for $s<T> {
-            fn deref_mut(&mut self) -> &mut Self::Target { unsafe { std::mem::transmute(self) } }
+        impl<T> std::ops::DerefMut for $s<T> {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                unsafe { &mut *(self as *mut $s<T>).cast::<[T; std::mem::size_of::<$s<u8>>()]>() }
+            }
         }
     };
 }
