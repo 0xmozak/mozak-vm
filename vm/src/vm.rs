@@ -106,8 +106,8 @@ impl State {
 
     #[must_use]
     pub fn store(self, inst: &Args, bytes: u32) -> (Aux, Self) {
-        let addr = self.get_register_value(inst.rs1).wrapping_add(inst.imm);
-        let dst_val: u32 = self.get_register_value(inst.rs2);
+        let dst_val: u32 = self.get_register_value(inst.rs1);
+        let addr = self.get_register_value(inst.rs2).wrapping_add(inst.imm);
         (
             Aux {
                 dst_val,
@@ -696,7 +696,7 @@ mod tests {
         #[test]
         fn sb_proptest(rs1 in reg(), rs1_val in u32_extra(), rs2 in reg(), rs2_val in u32_extra(), offset in u32_extra()) {
             prop_assume!(rs1 != rs2);
-            let address = rs1_val.wrapping_add(offset);
+            let address = rs2_val.wrapping_add(offset);
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SB,
@@ -709,13 +709,13 @@ mod tests {
                 &[(rs1, rs1_val), (rs2, rs2_val)]
             );
 
-            assert_eq!(u32::from(last_but_coda(&e).load_u8(address)), rs2_val & 0xff);
+            assert_eq!(u32::from(last_but_coda(&e).load_u8(address)), rs1_val & 0xff);
         }
 
         #[test]
         fn sh_proptest(rs1 in reg(), rs1_val in u32_extra(), rs2 in reg(), rs2_val in u32_extra(), offset in u32_extra()) {
             prop_assume!(rs1 != rs2);
-            let address = rs1_val.wrapping_add(offset);
+            let address = rs2_val.wrapping_add(offset);
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SH,
@@ -737,13 +737,13 @@ mod tests {
                     state.load_u8(address.wrapping_add(3))
                 ]
             );
-            assert_eq!(memory_value & 0xffff, rs2_val & 0xffff);
+            assert_eq!(memory_value & 0xffff, rs1_val & 0xffff);
         }
 
         #[test]
         fn sw_proptest(rs1 in reg(), rs1_val in u32_extra(), rs2 in reg(), rs2_val in u32_extra(), offset in u32_extra()) {
             prop_assume!(rs1 != rs2);
-            let address = rs1_val.wrapping_add(offset);
+            let address = rs2_val.wrapping_add(offset);
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SW,
@@ -765,7 +765,7 @@ mod tests {
                     state.load_u8(address.wrapping_add(3))
                 ]
             );
-            assert_eq!(memory_value, rs2_val);
+            assert_eq!(memory_value, rs1_val);
         }
 
         #[test]
