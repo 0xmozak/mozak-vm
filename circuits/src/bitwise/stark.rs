@@ -32,21 +32,30 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let lv: &BitwiseColumnsView<_> = vars.local_values.borrow();
-        let _nv: &BitwiseColumnsView<_> = vars.next_values.borrow();
         let e = &lv.execution;
 
-        // check limbs sum to our given value.
+        // Each limb must be a either 0 or 1.
+        for bit_value in lv
+            .op1_limbs
+            .iter()
+            .chain(lv.op2_limbs.iter().chain(lv.res_limbs.iter()))
+        {
+            yield_constr.constraint(*bit_value * (*bit_value - P::ONES));
+        }
+
+        // Check limbs sum to our given value.
         // We interpret limbs as digits in base 2.
         for (opx, opx_limbs) in [
             (e.op1, lv.op1_limbs),
             (e.op2, lv.op2_limbs),
             (e.res, lv.res_limbs),
         ] {
-            yield_constr.constraint(
-                reduce_with_powers(&opx_limbs, P::Scalar::from_noncanonical_u64(2_u64)) - opx,
-            );
+            yield_constr
+                .constraint(reduce_with_powers(&opx_limbs, P::Scalar::from_canonical_u8(2)) - opx);
         }
 
+        // For single bit binary value we check following constraint
+        // op1_bit + op2_bit - 2 * op1_bit * op2_bit = xor_res
         for (op1_bit, op2_bit, res_bit) in izip!(lv.op1_limbs, lv.op2_limbs, lv.res_limbs) {
             let xor = (op1_bit + op2_bit) - (op1_bit * op2_bit) * FE::from_canonical_u8(2);
             yield_constr.constraint(res_bit - xor);
