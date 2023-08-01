@@ -1,6 +1,6 @@
 use plonky2::hash::hash_types::RichField;
 
-use crate::cpu::columns::{MAP as cpu_map, NUM_CPU_COLS};
+use crate::cpu::columns::CpuColumnsView;
 use crate::lookup::permute_cols;
 use crate::rangecheck::columns;
 use crate::rangecheck::columns::MAP;
@@ -58,30 +58,18 @@ fn push_rangecheck_row<F: RichField>(trace: &mut [Vec<F>], value: F, selector: u
 /// 2. trace width does not match the number of columns.
 #[must_use]
 pub fn generate_rangecheck_trace<F: RichField>(
-    cpu_trace: &[Vec<F>; NUM_CPU_COLS],
+    cpu_trace: &[CpuColumnsView<F>],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
 
-    for (i, _) in cpu_trace[0].iter().enumerate() {
-        if cpu_trace[cpu_map.ops.add][i].is_one() {
-            push_rangecheck_row(&mut trace, cpu_trace[cpu_map.dst_value][i], MAP.s_dst_value);
+    for cpu_row in cpu_trace {
+        if cpu_row.inst.ops.add.is_one() {
+            push_rangecheck_row(&mut trace, cpu_row.dst_value, MAP.s_dst_value);
         }
-        if cpu_trace[cpu_map.ops.slt][i].is_one() {
-            push_rangecheck_row(
-                &mut trace,
-                cpu_trace[cpu_map.op1_val_fixed][i],
-                MAP.s_op1_val_fixed,
-            );
-            push_rangecheck_row(
-                &mut trace,
-                cpu_trace[cpu_map.op2_val_fixed][i],
-                MAP.s_op2_val_fixed,
-            );
-            push_rangecheck_row(
-                &mut trace,
-                cpu_trace[cpu_map.cmp_abs_diff][i],
-                MAP.s_cmp_abs_diff,
-            );
+        if cpu_row.inst.ops.slt.is_one() {
+            push_rangecheck_row(&mut trace, cpu_row.op1_val_fixed, MAP.s_op1_val_fixed);
+            push_rangecheck_row(&mut trace, cpu_row.op2_val_fixed, MAP.s_op2_val_fixed);
+            push_rangecheck_row(&mut trace, cpu_row.cmp_abs_diff, MAP.s_cmp_abs_diff);
         }
     }
 

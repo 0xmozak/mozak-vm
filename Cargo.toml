@@ -22,7 +22,3 @@ plonky2_maybe_rayon =  { git = "https://github.com/0xmozak/plonky2.git" }
 plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
 starky = { git = "https://github.com/0xmozak/plonky2.git" }
 plonky2_util =  { git = "https://github.com/0xmozak/plonky2.git" }
-
-# Temporary override until a version that includes
-# https://github.com/aj-bagwell/clio/pull/21 is released on crates.io
-clio = { git = "https://github.com/aj-bagwell/clio.git" }

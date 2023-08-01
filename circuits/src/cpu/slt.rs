@@ -11,7 +11,7 @@ pub(crate) fn constraints<P: PackedField>(
     let p32 = P::Scalar::from_noncanonical_u64(1 << 32);
     let p31 = P::Scalar::from_noncanonical_u64(1 << 31);
 
-    let is_cmp = lv.ops.slt + lv.ops.sltu;
+    let is_cmp = lv.inst.ops.slt + lv.inst.ops.sltu;
 
     let lt = lv.less_than;
     yield_constr.constraint(lt * (P::ONES - lt));
@@ -26,11 +26,11 @@ pub(crate) fn constraints<P: PackedField>(
     let op1_fixed = lv.op1_val_fixed;
     let op2_fixed = lv.op2_val_fixed;
 
-    yield_constr.constraint(lv.ops.sltu * (op1_fixed - op1));
-    yield_constr.constraint(lv.ops.sltu * (op2_fixed - op2));
+    yield_constr.constraint(lv.inst.ops.sltu * (op1_fixed - op1));
+    yield_constr.constraint(lv.inst.ops.sltu * (op2_fixed - op2));
 
-    yield_constr.constraint(lv.ops.slt * (op1_fixed - (op1 + p31 - sign1 * p32)));
-    yield_constr.constraint(lv.ops.slt * (op2_fixed - (op2 + p31 - sign2 * p32)));
+    yield_constr.constraint(lv.inst.ops.slt * (op1_fixed - (op1 + p31 - sign1 * p32)));
+    yield_constr.constraint(lv.inst.ops.slt * (op2_fixed - (op2 + p31 - sign2 * p32)));
 
     let diff_fixed = op1_fixed - op2_fixed;
     let abs_diff = lv.cmp_abs_diff;
