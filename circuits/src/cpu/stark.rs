@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 
+use itertools::izip;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
@@ -104,15 +105,13 @@ fn ensure_correct_register_selection<P: PackedField>(
     let cols = [&lv.rs1, &lv.rs2, &lv.rd];
     let target_cols = [&lv.rs1_select, &lv.rs2_select, &lv.rd_select];
 
-    cols.iter()
-        .zip(target_cols.iter())
-        .for_each(|(&col, target_col)| {
-            let constraint_val = (0..32)
-                .map(|i| target_col[i] * P::Scalar::from_canonical_usize(i))
-                .sum::<P>();
+    izip!(cols, target_cols).for_each(|(col, target_col)| {
+        let constraint_val = (0..32)
+            .map(|i| target_col[i] * P::Scalar::from_canonical_usize(i))
+            .sum::<P>();
 
-            yield_constr.constraint(*col - constraint_val);
-        });
+        yield_constr.constraint(*col - constraint_val);
+    });
 }
 
 /// Ensures that if [`duplicate_inst_filter`] is 0, then duplicate instructions
