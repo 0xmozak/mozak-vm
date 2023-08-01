@@ -9,7 +9,8 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{ShiftAmountView, NUM_SHAMT_COLS};
+use super::columns::ShiftAmountView;
+use crate::columns_view::NumberOfColumns;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -18,7 +19,7 @@ pub struct ShiftAmountStark<F, const D: usize> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ShiftAmountStark<F, D> {
-    const COLUMNS: usize = NUM_SHAMT_COLS;
+    const COLUMNS: usize = ShiftAmountView::<()>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
 
     fn eval_packed_generic<FE, P, const D2: usize>(

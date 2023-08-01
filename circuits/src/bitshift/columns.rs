@@ -3,7 +3,7 @@ use core::ops::Range;
 use itertools::Itertools;
 use plonky2::field::types::Field;
 
-use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 
 columns_view_impl!(Bitshift);
@@ -33,9 +33,6 @@ pub struct ShiftAmountView<T> {
 }
 
 pub const FIXED_SHAMT_RANGE: Range<u64> = 0..32;
-
-// Total number of columns.
-pub const NUM_SHAMT_COLS: usize = ShiftAmountView::<()>::NUMBER_OF_COLUMNS;
 
 /// Columns containing data from CPU table.
 #[must_use]
