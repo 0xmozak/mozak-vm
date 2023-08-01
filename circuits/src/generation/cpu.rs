@@ -89,6 +89,9 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> [Vec<F>; cpu_cols:
     let trace = pad_trace(trace);
 
     let trace = generate_permuted_inst_trace(trace);
+    // TODO: Pad the instructions that are in the program table but not in the trace.
+    // Design doc here:
+    // https://www.notion.so/0xmozak/Cross-Table-Lookup-bbe98d9471114c36a278f0c491f203e5#c3876d13c1f94b7ab154ea1f8b908181
 
     log::trace!("trace {:?}", trace);
     #[tarpaulin::skip]
