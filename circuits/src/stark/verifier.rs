@@ -12,7 +12,7 @@ use starky::vars::StarkEvaluationVars;
 
 use super::mozak_stark::{MozakStark, TableKind};
 use super::proof::AllProof;
-use crate::bitshift::stark::ShiftAmountStark;
+use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
@@ -34,7 +34,7 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
-    [(); ShiftAmountStark::<F, D>::COLUMNS]:,
+    [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let AllProofChallenges {
         stark_challenges,
@@ -81,11 +81,11 @@ where
         config,
     )?;
 
-    verify_stark_proof_with_challenges::<F, C, ShiftAmountStark<F, D>, D>(
+    verify_stark_proof_with_challenges::<F, C, BitshiftStark<F, D>, D>(
         &shift_amount_stark,
-        &all_proof.stark_proofs[TableKind::ShiftAmount as usize],
-        &stark_challenges[TableKind::ShiftAmount as usize],
-        &ctl_vars_per_table[TableKind::ShiftAmount as usize],
+        &all_proof.stark_proofs[TableKind::Bitshift as usize],
+        &stark_challenges[TableKind::Bitshift as usize],
+        &ctl_vars_per_table[TableKind::Bitshift as usize],
         config,
     )?;
 

@@ -9,17 +9,17 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{Bitshift, ShiftAmountView};
+use super::columns::{Bitshift, BitshiftView};
 use crate::columns_view::NumberOfColumns;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
-pub struct ShiftAmountStark<F, const D: usize> {
+pub struct BitshiftStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ShiftAmountStark<F, D> {
-    const COLUMNS: usize = ShiftAmountView::<()>::NUMBER_OF_COLUMNS;
+impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark<F, D> {
+    const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
 
     fn eval_packed_generic<FE, P, const D2: usize>(
@@ -29,8 +29,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ShiftAmountSt
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &ShiftAmountView<P> = vars.local_values.borrow();
-        let nv: &ShiftAmountView<P> = vars.next_values.borrow();
+        let lv: &BitshiftView<P> = vars.local_values.borrow();
+        let nv: &BitshiftView<P> = vars.next_values.borrow();
         let lv: &Bitshift<P> = &lv.executed;
         let nv: &Bitshift<P> = &nv.executed;
 
@@ -69,13 +69,13 @@ mod tests {
     use proptest::{prop_assert_eq, proptest};
     use starky::stark_testing::test_stark_low_degree;
 
-    use super::ShiftAmountStark;
+    use super::BitshiftStark;
     use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
-    type S = ShiftAmountStark<F, D>;
+    type S = BitshiftStark<F, D>;
 
     #[test]
     fn test_degree() -> Result<()> {
@@ -111,7 +111,7 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
             prop_assert_eq!(record.executed[1].aux.dst_val, p >> (q & 0x1F));
-            ShiftAmountStark::prove_and_verify(&record.executed).unwrap();
+            BitshiftStark::prove_and_verify(&record.executed).unwrap();
         }
     }
 }

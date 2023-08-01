@@ -10,7 +10,7 @@ use starky::prover::prove as prove_table;
 use starky::stark::Stark;
 use starky::verifier::verify_stark_proof;
 
-use crate::bitshift::stark::ShiftAmountStark;
+use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::bitshift::generate_shift_amount_trace;
@@ -145,9 +145,9 @@ impl ProveAndVerify for MemoryStark<F, D> {
     }
 }
 
-impl ProveAndVerify for ShiftAmountStark<F, D> {
+impl ProveAndVerify for BitshiftStark<F, D> {
     fn prove_and_verify(step_rows: &[Row]) -> Result<()> {
-        type S = ShiftAmountStark<F, D>;
+        type S = BitshiftStark<F, D>;
         let config = standard_faster_config();
 
         let stark = S::default();

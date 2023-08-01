@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
-use crate::bitshift::columns::ShiftAmountView;
+use crate::bitshift::columns::BitshiftView;
 use crate::cpu::columns::CpuColumnsView;
 
 fn filter_shift_trace<F: RichField>(
@@ -22,20 +22,20 @@ pub fn pad_trace<Row: Copy>(mut trace: Vec<Row>, default: Row) -> Vec<Row> {
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_shift_amount_trace<F: RichField>(
     cpu_trace: &[CpuColumnsView<F>],
-) -> Vec<ShiftAmountView<F>> {
+) -> Vec<BitshiftView<F>> {
     pad_trace(
         filter_shift_trace(cpu_trace)
             .sorted()
             .merge_join_by(0..32, u64::cmp)
             .map(|dummy_or_executed| {
-                ShiftAmountView {
+                BitshiftView {
                     is_executed: dummy_or_executed.is_left().into(),
                     executed: dummy_or_executed.into_left().into(),
                 }
                 .map(F::from_canonical_u64)
             })
             .collect(),
-        ShiftAmountView {
+        BitshiftView {
             is_executed: false.into(),
             executed: 31_u64.into(),
         }

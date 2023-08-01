@@ -119,14 +119,14 @@ impl<T: Copy> OpSelectorView<T> {
     pub fn ops_that_shift(&self) -> [T; 2] { [self.sll, self.srl] }
 }
 
-/// Columns containing the data to be matched against `ShiftAmount` stark.
+/// Columns containing the data to be matched against `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> {
     Column::singles(MAP.bitshift).collect_vec()
 }
 
-/// Column for a binary filter for shft instruction in `ShiftAmount` stark.
+/// Column for a binary filter for shft instruction in `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_shift_amount<F: Field>() -> Column<F> {
