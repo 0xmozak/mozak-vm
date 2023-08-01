@@ -4,12 +4,12 @@ use plonky2::hash::hash_types::RichField;
 use starky::config::StarkConfig;
 use starky::stark::Stark;
 
+use crate::bitshift::stark::ShiftAmountStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::bitshift::stark::ShiftAmountStark;
-use crate::{bitwise, cpu, rangecheck, bitshift};
+use crate::{bitshift, bitwise, cpu, rangecheck};
 
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {

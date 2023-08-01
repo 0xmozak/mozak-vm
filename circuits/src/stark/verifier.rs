@@ -12,11 +12,11 @@ use starky::vars::StarkEvaluationVars;
 
 use super::mozak_stark::{MozakStark, TableKind};
 use super::proof::AllProof;
+use crate::bitshift::stark::ShiftAmountStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::bitshift::stark::ShiftAmountStark;
 use crate::stark::permutation::PermutationCheckVars;
 use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};

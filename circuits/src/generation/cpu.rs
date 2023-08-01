@@ -3,11 +3,11 @@ use mozak_vm::state::State;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
+use crate::bitshift::columns::Bitshift as BitShift;
 use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuColumnsView;
-use crate::bitshift::columns::Bitshift as BitShift;
-use crate::utils::{pad_trace_with_last, from_u32};
+use crate::utils::{from_u32, pad_trace_with_last};
 
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> Vec<CpuColumnsView<F>> {

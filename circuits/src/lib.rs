@@ -8,6 +8,7 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
 
+pub mod bitshift;
 pub mod bitwise;
 pub mod columns_view;
 pub mod cpu;
@@ -16,7 +17,6 @@ pub mod generation;
 pub mod lookup;
 pub mod memory;
 pub mod rangecheck;
-pub mod bitshift;
 pub mod stark;
 #[cfg(any(feature = "test", test))]
 pub mod test_utils;

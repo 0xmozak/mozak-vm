@@ -21,12 +21,12 @@ use starky::stark::{LookupConfig, Stark};
 use super::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
 use super::permutation::get_grand_product_challenge_set;
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
+use crate::bitshift::stark::ShiftAmountStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::generate_traces;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::bitshift::stark::ShiftAmountStark;
 use crate::stark::permutation::{
     compute_permutation_z_polys, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
 };
