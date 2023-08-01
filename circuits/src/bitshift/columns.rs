@@ -14,6 +14,15 @@ pub struct Bitshift<T> {
     pub multiplier: T,
 }
 
+impl From<u64> for Bitshift<u64> {
+    fn from(shamt: u64) -> Self {
+        Self {
+            shamt,
+            multiplier: 1 << shamt,
+        }
+    }
+}
+
 make_col_map!(ShiftAmountView);
 columns_view_impl!(ShiftAmountView);
 #[repr(C)]
