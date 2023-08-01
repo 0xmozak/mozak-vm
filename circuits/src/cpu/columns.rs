@@ -129,4 +129,6 @@ pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> {
 /// Column for a binary filter for shft instruction in `ShiftAmount` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_shift_amount<F: Field>() -> Column<F> { Column::many(MAP.inst.ops.ops_that_shift()) }
+pub fn filter_for_shift_amount<F: Field>() -> Column<F> {
+    Column::many(MAP.inst.ops.ops_that_shift())
+}

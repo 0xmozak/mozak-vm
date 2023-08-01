@@ -21,7 +21,6 @@ columns_view_impl!(ShiftAmountView);
 pub struct ShiftAmountView<T> {
     pub is_executed: T,
     pub executed: Executed<T>,
-
     // pub permuted: Executed<T>,
     // pub fixed: Executed<T>,
 

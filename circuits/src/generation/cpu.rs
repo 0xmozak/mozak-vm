@@ -6,8 +6,8 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuColumnsView;
-use crate::utils::from_u32;
 use crate::shift_amount::columns::Executed as BitShift;
+use crate::utils::from_u32;
 
 /// Pad the trace to a power of 2.
 ///
@@ -99,7 +99,8 @@ fn generate_mul_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructio
         row.bitshift = BitShift {
             shamt: shift_amount,
             multiplier: shift_power,
-        }.map(from_u32);
+        }
+        .map(from_u32);
         shift_power
     } else {
         op2
@@ -128,7 +129,8 @@ fn generate_divu_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructi
         row.bitshift = BitShift {
             shamt: shift_amount,
             multiplier: shift_power,
-        }.map(from_u32);
+        }
+        .map(from_u32);
         shift_power
     } else {
         op2
