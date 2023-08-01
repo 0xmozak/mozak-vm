@@ -20,14 +20,14 @@ pub(crate) fn constraints<P: PackedField>(
 mod tests {
     use anyhow::Result;
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test, simple_test_code, u32_extra};
+    use mozak_vm::test_utils::{simple_test_code, u32_extra};
 
     use crate::cpu::stark::CpuStark;
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
     #[test]
     fn prove_add() -> Result<()> {
-        let record = simple_test(4, &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)], &[
+        let record = simple_test_code(&[Instruction::new(Op::ADD, 5, 6, 7, 0)], &[], &[
             (6, 100),
             (7, 100),
         ]);

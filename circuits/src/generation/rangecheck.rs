@@ -109,7 +109,8 @@ pub fn generate_rangecheck_trace<F: RichField>(
 
 #[cfg(test)]
 mod tests {
-    use mozak_vm::test_utils::simple_test;
+    use mozak_vm::instruction::{Instruction, Op};
+    use mozak_vm::test_utils::simple_test_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
 
@@ -119,10 +120,10 @@ mod tests {
     #[test]
     fn test_add_instruction_inserts_rangecheck() {
         type F = GoldilocksField;
-        let record = simple_test(
-            4,
-            &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
+        let record = simple_test_code(
+            &[Instruction::new(Op::ADD, 5, 6, 7, 0)],
             // Use values that would become limbs later
+            &[],
             &[(6, 0xffff), (7, 0xffff)],
         );
 
