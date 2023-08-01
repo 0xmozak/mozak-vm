@@ -12,11 +12,11 @@ use starky::verifier::verify_stark_proof;
 
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
+use crate::generation::bitshift::generate_shift_amount_trace;
 use crate::generation::bitwise::generate_bitwise_trace;
 use crate::generation::cpu::generate_cpu_trace;
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
-use crate::generation::shift_amount::generate_shift_amount_trace;
 use crate::memory::stark::MemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::shift_amount::stark::ShiftAmountStark;
