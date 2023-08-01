@@ -2,7 +2,7 @@ use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuColumnsView;
-use crate::shift_amount::columns::{Bitshift, ShiftAmountView, FIXED_SHAMT_RANGE};
+use crate::bitshift::columns::{Bitshift, ShiftAmountView, FIXED_SHAMT_RANGE};
 
 // /// Returns the rows for shift instructions.
 // #[must_use]

@@ -8,8 +8,8 @@ use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::shift_amount::stark::ShiftAmountStark;
-use crate::{bitwise, cpu, rangecheck, shift_amount};
+use crate::bitshift::stark::ShiftAmountStark;
+use crate::{bitwise, cpu, rangecheck, bitshift};
 
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
@@ -183,8 +183,8 @@ impl<F: Field> Lookups<F> for ShiftAmountCpuTable<F> {
                 cpu::columns::filter_for_shift_amount(),
             )],
             ShiftAmountTable::new(
-                shift_amount::columns::data_for_cpu(),
-                shift_amount::columns::filter_for_cpu(),
+                bitshift::columns::data_for_cpu(),
+                bitshift::columns::filter_for_cpu(),
             ),
         )
     }

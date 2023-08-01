@@ -19,7 +19,7 @@ use crate::generation::memory::generate_memory_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
 use crate::memory::stark::MemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::shift_amount::stark::ShiftAmountStark;
+use crate::bitshift::stark::ShiftAmountStark;
 use crate::stark::mozak_stark::MozakStark;
 use crate::stark::prover::prove;
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};

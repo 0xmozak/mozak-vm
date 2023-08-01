@@ -16,7 +16,7 @@ pub mod generation;
 pub mod lookup;
 pub mod memory;
 pub mod rangecheck;
-pub mod shift_amount;
+pub mod bitshift;
 pub mod stark;
 #[cfg(any(feature = "test", test))]
 pub mod test_utils;

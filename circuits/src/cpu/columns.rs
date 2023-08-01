@@ -4,7 +4,7 @@ use plonky2::field::types::Field;
 use crate::bitwise::columns::XorView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
-use crate::shift_amount::columns::Bitshift;
+use crate::bitshift::columns::Bitshift;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
