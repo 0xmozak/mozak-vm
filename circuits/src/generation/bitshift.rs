@@ -35,10 +35,10 @@ pub fn generate_shift_amount_trace<F: RichField>(
                 .map(F::from_canonical_u64)
             })
             .collect(),
-            ShiftAmountView {
-                is_executed: false.into(),
-                executed: 31_u64.into(),
-            }
-            .map(F::from_canonical_u64)
+        ShiftAmountView {
+            is_executed: false.into(),
+            executed: 31_u64.into(),
+        }
+        .map(F::from_canonical_u64),
     )
 }
