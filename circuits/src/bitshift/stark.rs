@@ -9,7 +9,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::ShiftAmountView;
+use super::columns::{Bitshift, ShiftAmountView};
 use crate::columns_view::NumberOfColumns;
 
 #[derive(Copy, Clone, Default)]
@@ -31,23 +31,19 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ShiftAmountSt
         P: PackedField<Scalar = FE>, {
         let lv: &ShiftAmountView<P> = vars.local_values.borrow();
         let nv: &ShiftAmountView<P> = vars.next_values.borrow();
+        let lv: &Bitshift<P> = &lv.executed;
+        let nv: &Bitshift<P> = &nv.executed;
 
         // Constraints on shift amount
-        yield_constr.constraint_first_row(lv.executed.amount);
-        yield_constr.constraint_transition(
-            (nv.executed.amount - lv.executed.amount - P::ONES)
-                * (nv.executed.amount - lv.executed.amount),
-        );
-        yield_constr.constraint_last_row(lv.executed.amount - P::Scalar::from_canonical_u8(31));
+        let diff = nv.amount - lv.amount;
+        yield_constr.constraint_first_row(lv.amount);
+        yield_constr.constraint_transition(diff * (diff - P::ONES));
+        yield_constr.constraint_last_row(lv.amount - P::Scalar::from_canonical_u8(31));
 
         // Constraints on multiplier
-        let diff = nv.executed.amount - lv.executed.amount;
-        yield_constr.constraint_first_row(lv.executed.multiplier - P::ONES);
-        yield_constr.constraint_transition(
-            nv.executed.multiplier - (P::ONES + diff) * lv.executed.multiplier,
-        );
-        yield_constr
-            .constraint_last_row(lv.executed.multiplier - P::Scalar::from_canonical_u32(1 << 31));
+        yield_constr.constraint_first_row(lv.multiplier - P::ONES);
+        yield_constr.constraint_transition(nv.multiplier - (P::ONES + diff) * lv.multiplier);
+        yield_constr.constraint_last_row(lv.multiplier - P::Scalar::from_canonical_u32(1 << 31));
     }
 
     fn constraint_degree(&self) -> usize { 3 }
