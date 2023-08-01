@@ -1,5 +1,3 @@
-use core::ops::Range;
-
 use itertools::Itertools;
 use plonky2::field::types::Field;
 
@@ -31,8 +29,6 @@ pub struct ShiftAmountView<T> {
     pub is_executed: T,
     pub executed: Bitshift<T>,
 }
-
-pub const FIXED_SHAMT_RANGE: Range<u64> = 0..32;
 
 /// Columns containing data from CPU table.
 #[must_use]

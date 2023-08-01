@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
-use crate::bitshift::columns::{ShiftAmountView, FIXED_SHAMT_RANGE};
+use crate::bitshift::columns::ShiftAmountView;
 use crate::cpu::columns::CpuColumnsView;
 
 fn filter_shift_trace<F: RichField>(
@@ -26,7 +26,7 @@ pub fn generate_shift_amount_trace<F: RichField>(
     pad_trace(
         filter_shift_trace(cpu_trace)
             .sorted()
-            .merge_join_by(FIXED_SHAMT_RANGE, u64::cmp)
+            .merge_join_by(0..32, u64::cmp)
             .map(|dummy_or_executed| {
                 ShiftAmountView {
                     is_executed: dummy_or_executed.is_left().into(),
