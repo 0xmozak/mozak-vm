@@ -5,9 +5,9 @@ use crate::bitshift::columns::ShiftAmountView;
 use crate::cpu::columns::CpuColumnsView;
 
 fn filter_shift_trace<F: RichField>(
-    step_rows: &[CpuColumnsView<F>],
+    cpu_trace: &[CpuColumnsView<F>],
 ) -> impl Iterator<Item = u64> + '_ {
-    step_rows.iter().filter_map(|row| {
+    cpu_trace.iter().filter_map(|row| {
         (row.inst.ops.ops_that_shift().into_iter().sum::<F>() != F::ZERO)
             .then_some(row.bitshift.amount.to_noncanonical_u64())
     })
