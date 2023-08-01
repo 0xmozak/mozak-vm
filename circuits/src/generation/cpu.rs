@@ -47,10 +47,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> Vec<CpuColumnsView
             // To be overridden by users of the gadget.
             // TODO(Matthias): find a way to make either compiler or runtime complain
             // if we have two (conflicting) users in the same row.
-            bitshift: Bitshift {
-                amount: F::ZERO,
-                multiplier: F::ONE,
-            },
+            bitshift: Bitshift::from(0).map(F::from_canonical_u64),
             xor: generate_bitwise_row(&inst, state),
 
             ..CpuColumnsView::default()
