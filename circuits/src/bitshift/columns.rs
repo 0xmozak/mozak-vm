@@ -30,15 +30,6 @@ columns_view_impl!(ShiftAmountView);
 pub struct ShiftAmountView<T> {
     pub is_executed: T,
     pub executed: Bitshift<T>,
-    // pub permuted: Executed<T>,
-    // pub fixed: Executed<T>,
-
-    // pub fixed_shamt: T,
-    // pub fixed_multiplier: T,
-    // pub shamt_permuted: T,
-    // pub multiplier_permuted: T,
-    // pub fixed_shamt_permuted: T,
-    // pub fixed_multiplier_permuted: T,
 }
 
 pub const FIXED_SHAMT_RANGE: Range<u64> = 0..32;

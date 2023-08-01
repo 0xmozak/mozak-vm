@@ -7,7 +7,18 @@ use crate::bitshift::columns::Bitshift as BitShift;
 use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuColumnsView;
-use crate::utils::{from_u32, pad_trace_with_last};
+use crate::utils::from_u32;
+
+/// Pad the trace to a power of 2.
+///
+/// # Panics
+/// There's an assert that makes sure all columns passed in have the same
+/// length.
+#[must_use]
+pub fn pad_trace<F: RichField>(mut trace: Vec<CpuColumnsView<F>>) -> Vec<CpuColumnsView<F>> {
+    trace.resize(trace.len().next_power_of_two(), *trace.last().unwrap());
+    trace
+}
 
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> Vec<CpuColumnsView<F>> {
@@ -58,7 +69,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> Vec<CpuColumnsView
 
     // For expanded trace from `trace_len` to `trace_len's power of two`,
     // we use last row `HALT` to pad them.
-    let trace = pad_trace_with_last(trace);
+    let trace = pad_trace(trace);
 
     log::trace!("trace {:?}", trace);
     trace

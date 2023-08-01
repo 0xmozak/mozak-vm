@@ -3,7 +3,6 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::{ShiftAmountView, FIXED_SHAMT_RANGE};
 use crate::cpu::columns::CpuColumnsView;
-use crate::utils::pad_trace_with_last;
 
 fn filter_shift_trace<F: RichField>(
     step_rows: &[CpuColumnsView<F>],
@@ -14,12 +13,17 @@ fn filter_shift_trace<F: RichField>(
     })
 }
 
+pub fn pad_trace<Row: Copy>(mut trace: Vec<Row>, default: Row) -> Vec<Row> {
+    trace.resize(trace.len().next_power_of_two(), default);
+    trace
+}
+
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_shift_amount_trace<F: RichField>(
     cpu_trace: &[CpuColumnsView<F>],
 ) -> Vec<ShiftAmountView<F>> {
-    pad_trace_with_last(
+    pad_trace(
         filter_shift_trace(cpu_trace)
             .sorted()
             .merge_join_by(FIXED_SHAMT_RANGE, u64::cmp)
@@ -31,5 +35,10 @@ pub fn generate_shift_amount_trace<F: RichField>(
                 .map(F::from_canonical_u64)
             })
             .collect(),
+            ShiftAmountView {
+                is_executed: false.into(),
+                executed: 31_u64.into(),
+            }
+            .map(F::from_canonical_u64)
     )
 }
