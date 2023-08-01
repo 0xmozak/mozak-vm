@@ -4,18 +4,20 @@ use plonky2::hash::hash_types::RichField;
 use starky::config::StarkConfig;
 use starky::stark::Stark;
 
+use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::{bitwise, cpu, rangecheck};
+use crate::{bitshift, bitwise, cpu, rangecheck};
 
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cpu_stark: CpuStark<F, D>,
     pub rangecheck_stark: RangeCheckStark<F, D>,
     pub bitwise_stark: BitwiseStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 2],
+    pub shift_amount_stark: BitshiftStark<F, D>,
+    pub cross_table_lookups: [CrossTableLookup<F>; 3],
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -24,7 +26,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             cpu_stark: CpuStark::default(),
             rangecheck_stark: RangeCheckStark::default(),
             bitwise_stark: BitwiseStark::default(),
-            cross_table_lookups: [RangecheckCpuTable::lookups(), BitwiseCpuTable::lookups()],
+            shift_amount_stark: BitshiftStark::default(),
+            cross_table_lookups: [
+                RangecheckCpuTable::lookups(),
+                BitwiseCpuTable::lookups(),
+                BitshiftCpuTable::lookups(),
+            ],
         }
     }
 }
@@ -35,6 +42,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.cpu_stark.num_permutation_batches(config),
             self.rangecheck_stark.num_permutation_batches(config),
             self.bitwise_stark.num_permutation_batches(config),
+            self.shift_amount_stark.num_permutation_batches(config),
         ]
     }
 
@@ -43,22 +51,31 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.cpu_stark.permutation_batch_size(),
             self.rangecheck_stark.permutation_batch_size(),
             self.bitwise_stark.permutation_batch_size(),
+            self.shift_amount_stark.permutation_batch_size(),
         ]
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 3;
+pub(crate) const NUM_TABLES: usize = 4;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TableKind {
     Cpu = 0,
     RangeCheck = 1,
     Bitwise = 2,
+    Bitshift = 3,
 }
 
 impl TableKind {
     #[must_use]
-    pub fn all() -> [TableKind; 3] { [TableKind::Cpu, TableKind::RangeCheck, TableKind::Bitwise] }
+    pub fn all() -> [TableKind; NUM_TABLES] {
+        [
+            TableKind::Cpu,
+            TableKind::RangeCheck,
+            TableKind::Bitwise,
+            TableKind::Bitshift,
+        ]
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -87,6 +104,9 @@ pub struct CpuTable<F: Field>(Table<F>);
 /// Represents a bitwise trace table in the Mozak VM.
 pub struct BitwiseTable<F: Field>(Table<F>);
 
+/// Represents a shift amount trace table in the Mozak VM.
+pub struct BitshiftTable<F: Field>(Table<F>);
+
 impl<F: Field> RangeCheckTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
@@ -105,6 +125,13 @@ impl<F: Field> BitwiseTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
         Table::new(TableKind::Bitwise, columns, filter_column)
+    }
+}
+
+impl<F: Field> BitshiftTable<F> {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
+        Table::new(TableKind::Bitshift, columns, filter_column)
     }
 }
 
@@ -141,6 +168,23 @@ impl<F: Field> Lookups<F> for BitwiseCpuTable<F> {
             BitwiseTable::new(
                 bitwise::columns::data_for_cpu(),
                 bitwise::columns::filter_for_cpu(),
+            ),
+        )
+    }
+}
+
+pub struct BitshiftCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for BitshiftCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_shift_amount(),
+                cpu::columns::filter_for_shift_amount(),
+            )],
+            BitshiftTable::new(
+                bitshift::columns::data_for_cpu(),
+                bitshift::columns::filter_for_cpu(),
             ),
         )
     }
