@@ -6,7 +6,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuColumnsView;
-use crate::shift_amount::columns::Executed as BitShift;
+use crate::shift_amount::columns::Bitshift as BitShift;
 use crate::utils::from_u32;
 
 /// Pad the trace to a power of 2.

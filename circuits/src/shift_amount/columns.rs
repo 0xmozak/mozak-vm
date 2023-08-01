@@ -6,10 +6,10 @@ use plonky2::field::types::Field;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
-columns_view_impl!(Executed);
+columns_view_impl!(Bitshift);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct Executed<T> {
+pub struct Bitshift<T> {
     pub shamt: T,
     pub multiplier: T,
 }
@@ -20,7 +20,7 @@ columns_view_impl!(ShiftAmountView);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct ShiftAmountView<T> {
     pub is_executed: T,
-    pub executed: Executed<T>,
+    pub executed: Bitshift<T>,
     // pub permuted: Executed<T>,
     // pub fixed: Executed<T>,
 
