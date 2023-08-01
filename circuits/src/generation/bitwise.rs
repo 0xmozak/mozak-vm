@@ -2,15 +2,28 @@ use bitfield::Bit;
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
-use crate::bitwise::columns::{BitwiseColumnsView, BitwiseExecutionColumnsView};
+use crate::bitwise::columns::{BitwiseColumnsView, XorView};
 use crate::cpu::columns::CpuColumnsView;
 
 fn filter_bitwise_trace<F: RichField>(
     step_rows: &[CpuColumnsView<F>],
-) -> impl Iterator<Item = &CpuColumnsView<F>> {
-    step_rows
-        .iter()
-        .filter(|row| row.inst.ops.ops_that_use_xor().into_iter().sum::<F>() != F::ZERO)
+) -> impl Iterator<Item = XorView<F>> + '_ {
+    step_rows.iter().filter_map(|row| {
+        (row.inst.ops.ops_that_use_xor().into_iter().sum::<F>() != F::ZERO).then_some(row.xor)
+    })
+}
+
+fn pad_trace_with_default<Row: Default + Clone>(mut trace: Vec<Row>) -> Vec<Row> {
+    trace.resize(trace.len().next_power_of_two(), Row::default());
+    trace
+}
+
+fn to_bits<F: RichField>(val: F) -> [F; u32::BITS as usize] {
+    (0_usize..32)
+        .map(|j| F::from_bool(val.to_canonical_u64().bit(j)))
+        .collect_vec()
+        .try_into()
+        .unwrap()
 }
 
 #[must_use]
@@ -19,33 +32,13 @@ fn filter_bitwise_trace<F: RichField>(
 pub fn generate_bitwise_trace<F: RichField>(
     cpu_trace: &[CpuColumnsView<F>],
 ) -> Vec<BitwiseColumnsView<F>> {
-    let mut trace: Vec<BitwiseColumnsView<F>> = vec![];
-    for cpu_row in filter_bitwise_trace(cpu_trace) {
-        let a = cpu_row.xor.a;
-        let b = cpu_row.xor.b;
-        let out = cpu_row.xor.out;
-
-        let to_bits = |val: F| {
-            (0_usize..32)
-                .map(|j| F::from_bool(val.to_canonical_u64().bit(j)))
-                .collect_vec()
-                .try_into()
-                .unwrap()
-        };
-
-        let row = BitwiseColumnsView {
-            is_execution_row: F::ONE,
-            execution: BitwiseExecutionColumnsView { a, b, out },
-            op1_limbs: to_bits(a),
-            op2_limbs: to_bits(b),
-            res_limbs: to_bits(out),
-        };
-        trace.push(row);
-    }
-
-    trace.resize(
-        trace.len().next_power_of_two(),
-        BitwiseColumnsView::default(),
-    );
-    trace
+    pad_trace_with_default(
+        filter_bitwise_trace(cpu_trace)
+            .map(|execution| BitwiseColumnsView {
+                is_execution_row: F::ONE,
+                execution,
+                limbs: execution.map(to_bits),
+            })
+            .collect_vec(),
+    )
 }

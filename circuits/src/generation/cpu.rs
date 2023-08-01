@@ -3,7 +3,7 @@ use mozak_vm::state::State;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
-use crate::bitwise::columns::BitwiseExecutionColumnsView;
+use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuColumnsView;
 use crate::utils::from_u32;
@@ -189,10 +189,7 @@ fn generate_slt_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructio
     row.cmp_abs_diff = from_u32(abs_diff_fixed);
 }
 
-fn generate_bitwise_row<F: RichField>(
-    inst: &Instruction,
-    state: &State,
-) -> BitwiseExecutionColumnsView<F> {
+fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {
     let a = match inst.op {
         Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
         Op::SRL | Op::SLL => 0x1F,
@@ -201,5 +198,5 @@ fn generate_bitwise_row<F: RichField>(
     let b = state
         .get_register_value(inst.args.rs2)
         .wrapping_add(inst.args.imm);
-    BitwiseExecutionColumnsView { a, b, out: a ^ b }.map(from_u32)
+    XorView { a, b, out: a ^ b }.map(from_u32)
 }
