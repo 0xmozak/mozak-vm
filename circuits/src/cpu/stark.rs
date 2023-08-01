@@ -127,8 +127,13 @@ fn check_permuted_inst_cols<P: PackedField>(
 ) {
     yield_constr.constraint(lv.duplicate_inst_filter * (lv.duplicate_inst_filter - P::ONES));
     yield_constr.constraint_first_row(lv.duplicate_inst_filter - P::ONES);
-    yield_constr
-        .constraint((nv.duplicate_inst_filter - P::ONES) * (lv.permuted_pc - nv.permuted_pc));
+    let duplicate_inst = nv.duplicate_inst_filter - P::ONES;
+    yield_constr.constraint(duplicate_inst * (lv.permuted_pc - nv.permuted_pc));
+    yield_constr.constraint(duplicate_inst * (lv.permuted_opcode - nv.permuted_opcode));
+    yield_constr.constraint(duplicate_inst * (lv.permuted_rs1 - nv.permuted_rs1));
+    yield_constr.constraint(duplicate_inst * (lv.permuted_rs2 - nv.permuted_rs2));
+    yield_constr.constraint(duplicate_inst * (lv.permuted_rd - nv.permuted_rd));
+    yield_constr.constraint(duplicate_inst * (lv.permuted_imm - nv.permuted_imm));
 }
 
 /// Register used as destination register can have different value, all
