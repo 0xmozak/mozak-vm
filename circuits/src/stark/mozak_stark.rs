@@ -17,7 +17,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub rangecheck_stark: RangeCheckStark<F, D>,
     pub bitwise_stark: BitwiseStark<F, D>,
     pub shift_amount_stark: ShiftAmountStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 4],
+    pub cross_table_lookups: [CrossTableLookup<F>; 3],
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -31,7 +31,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 RangecheckCpuTable::lookups(),
                 BitwiseCpuTable::lookups(),
                 ShiftAmountCpuTable::lookups(),
-                InnerShiftAmountTable::lookups(),
             ],
         }
     }
@@ -170,20 +169,6 @@ impl<F: Field> Lookups<F> for BitwiseCpuTable<F> {
                 bitwise::columns::data_for_cpu(),
                 bitwise::columns::filter_for_cpu(),
             ),
-        )
-    }
-}
-
-pub struct InnerShiftAmountTable<F: Field>(CrossTableLookup<F>);
-
-impl<F: Field> Lookups<F> for InnerShiftAmountTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
-        CrossTableLookup::new(
-            vec![ShiftAmountTable::new(
-                shift_amount::columns::data_for_fixed_value(),
-                Column::always(),
-            )],
-            ShiftAmountTable::new(shift_amount::columns::data_for_inst(), Column::always()),
         )
     }
 }

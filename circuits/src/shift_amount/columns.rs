@@ -21,15 +21,19 @@ columns_view_impl!(ShiftAmountView);
 pub struct ShiftAmountView<T> {
     pub is_executed: T,
     pub executed: Executed<T>,
-    pub fixed_shamt: T,
-    pub fixed_multiplier: T,
-    pub shamt_permuted: T,
-    pub multiplier_permuted: T,
-    pub fixed_shamt_permuted: T,
-    pub fixed_multiplier_permuted: T,
+
+    // pub permuted: Executed<T>,
+    // pub fixed: Executed<T>,
+
+    // pub fixed_shamt: T,
+    // pub fixed_multiplier: T,
+    // pub shamt_permuted: T,
+    // pub multiplier_permuted: T,
+    // pub fixed_shamt_permuted: T,
+    // pub fixed_multiplier_permuted: T,
 }
 
-pub const FIXED_SHAMT_RANGE: Range<u8> = 0..32;
+pub const FIXED_SHAMT_RANGE: Range<u64> = 0..32;
 
 // Total number of columns.
 pub const NUM_SHAMT_COLS: usize = ShiftAmountView::<()>::NUMBER_OF_COLUMNS;
@@ -41,15 +45,3 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.executed
 /// Column containing filter from CPU table.
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(MAP.is_executed) }
-
-/// Columns containing the permuted data of executed instructions.
-#[must_use]
-pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.shamt_permuted, MAP.multiplier_permuted]).collect_vec()
-}
-
-/// Columns containing the permuted data for fixed values.
-#[must_use]
-pub fn data_for_fixed_value<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.fixed_shamt_permuted, MAP.fixed_multiplier_permuted]).collect_vec()
-}

@@ -71,7 +71,7 @@ impl ProveAndVerify for CpuStark<F, D> {
         let config = standard_faster_config();
 
         let stark = S::default();
-        let trace_poly_values = trace_to_poly_values(generate_cpu_trace(step_rows));
+        let trace_poly_values = trace_rows_to_poly_values(generate_cpu_trace(step_rows));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -113,7 +113,7 @@ impl ProveAndVerify for BitwiseStark<F, D> {
 
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(step_rows);
-        let trace_poly_values = trace_to_poly_values(generate_bitwise_trace(step_rows, &cpu_trace));
+        let trace_poly_values = trace_rows_to_poly_values(generate_bitwise_trace(&cpu_trace));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -132,8 +132,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let config = standard_faster_config();
 
         let stark = S::default();
-        let trace_poly_values =
-            trace_rows_to_poly_values(generate_memory_trace(step_rows.to_vec()));
+        let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(step_rows));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -153,7 +152,7 @@ impl ProveAndVerify for ShiftAmountStark<F, D> {
 
         let stark = S::default();
         let cpu_rows = generate_cpu_trace::<F>(step_rows);
-        let trace = generate_shift_amount_trace(step_rows, &cpu_rows);
+        let trace = generate_shift_amount_trace(&cpu_rows);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
             stark,

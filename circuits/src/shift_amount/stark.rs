@@ -6,12 +6,10 @@ use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::permutation::PermutationPair;
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{ShiftAmountView, MAP, NUM_SHAMT_COLS};
-use crate::lookup::eval_lookups;
+use super::columns::{ShiftAmountView, NUM_SHAMT_COLS};
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -34,38 +32,19 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ShiftAmountSt
         let nv: &ShiftAmountView<P> = vars.next_values.borrow();
 
         // Constraints on shift amount
-        yield_constr.constraint_first_row(lv.fixed_shamt);
+        yield_constr.constraint_first_row(lv.executed.shamt);
         yield_constr.constraint_transition(
-            (nv.fixed_shamt - lv.fixed_shamt - P::ONES) * (nv.fixed_shamt - lv.fixed_shamt),
+            (nv.executed.shamt - lv.executed.shamt - P::ONES) * (nv.executed.shamt - lv.executed.shamt),
         );
-        yield_constr.constraint_last_row(lv.fixed_shamt - P::Scalar::from_canonical_u8(31));
-        eval_lookups(
-            vars,
-            yield_constr,
-            MAP.shamt_permuted,
-            MAP.fixed_shamt_permuted,
-        );
+        yield_constr.constraint_last_row(lv.executed.shamt - P::Scalar::from_canonical_u8(31));
 
         // Constraints on multiplier
-        let diff = nv.fixed_shamt - lv.fixed_shamt;
-        yield_constr.constraint_first_row(lv.fixed_multiplier - P::ONES);
+        let diff = nv.executed.shamt - lv.executed.shamt;
+        yield_constr.constraint_first_row(lv.executed.multiplier - P::ONES);
         yield_constr
-            .constraint_transition(nv.fixed_multiplier - (P::ONES + diff) * lv.fixed_multiplier);
+            .constraint_transition(nv.executed.multiplier - (P::ONES + diff) * lv.executed.multiplier);
         yield_constr
-            .constraint_last_row(lv.fixed_multiplier - P::Scalar::from_canonical_u32(1 << 31));
-        eval_lookups(
-            vars,
-            yield_constr,
-            MAP.multiplier_permuted,
-            MAP.fixed_multiplier_permuted,
-        );
-    }
-
-    fn permutation_pairs(&self) -> Vec<PermutationPair> {
-        vec![
-            PermutationPair::singletons(MAP.executed.shamt, MAP.shamt_permuted),
-            PermutationPair::singletons(MAP.executed.multiplier, MAP.multiplier_permuted),
-        ]
+            .constraint_last_row(lv.executed.multiplier - P::Scalar::from_canonical_u32(1 << 31));
     }
 
     fn constraint_degree(&self) -> usize { 3 }
