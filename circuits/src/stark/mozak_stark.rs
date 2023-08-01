@@ -153,9 +153,9 @@ impl<F: Field> Lookups<F> for MemoryRangeCheckTable<F> {
         CrossTableLookup::new(
             vec![MemoryTable::new(
                 memory::columns::data_for_rangecheck(),
-                Column::always(),
+                Column::never(),
             )],
-            RangeCheckTable::new(vec![Column::always()], Column::always()),
+            RangeCheckTable::new(rangecheck::columns::data_for_cpu(), Column::never()),
         )
     }
 }

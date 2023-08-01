@@ -28,6 +28,10 @@ pub(crate) struct RangeCheckColumnsView<T> {
     /// table.
     pub(crate) cpu_filter: T,
 
+    /// Column to indicate that a value to be range checked is from the Memory
+    /// table.
+    pub(crate) memory_filter: T,
+
     /// Fixed column containing values 0, 1, .., 2^16 - 1.
     pub(crate) fixed_range_check_u16: T,
 
@@ -55,3 +59,9 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.val)
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(MAP.cpu_filter) }
+
+/// Column for a binary filter to indicate a range check from the
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable) in the Mozak
+/// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
+#[must_use]
+pub fn filter_for_memory<F: Field>() -> Column<F> { Column::never() }

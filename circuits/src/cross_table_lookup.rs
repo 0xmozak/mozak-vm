@@ -192,6 +192,13 @@ impl<F: Field> Column<F> {
         }
     }
 
+    pub fn never() -> Self {
+        Column {
+            linear_combination: vec![],
+            constant: F::ZERO,
+        }
+    }
+
     #[must_use]
     pub fn single(c: usize) -> Self {
         Self {

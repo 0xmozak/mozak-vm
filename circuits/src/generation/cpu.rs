@@ -3,6 +3,7 @@ use mozak_vm::state::State;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
+use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuColumnsView;
 use crate::utils::from_u32;
@@ -47,6 +48,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> Vec<CpuColumnsView
             // if we have two (conflicting) users in the same row.
             powers_of_2_in: F::ZERO,
             powers_of_2_out: F::ONE,
+            xor: generate_bitwise_row(&inst, state),
 
             ..CpuColumnsView::default()
         };
@@ -59,7 +61,6 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> Vec<CpuColumnsView
         generate_divu_row(&mut row, &inst, state);
         generate_slt_row(&mut row, &inst, state);
         generate_conditional_branch_row(&mut row);
-        generate_bitwise_row(&mut row, &inst, state);
         trace.push(row);
     }
 
@@ -180,20 +181,14 @@ fn generate_slt_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructio
     row.cmp_abs_diff = from_u32(abs_diff_fixed);
 }
 
-fn generate_bitwise_row<F: RichField>(
-    row: &mut CpuColumnsView<F>,
-    inst: &Instruction,
-    state: &State,
-) {
-    let op1 = match inst.op {
+fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {
+    let a = match inst.op {
         Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
         Op::SRL | Op::SLL => 0x1F,
         _ => 0,
     };
-    let op2 = state
+    let b = state
         .get_register_value(inst.args.rs2)
         .wrapping_add(inst.args.imm);
-    row.xor_a = from_u32(op1);
-    row.xor_b = from_u32(op2);
-    row.xor_out = from_u32(op1 ^ op2);
+    XorView { a, b, out: a ^ b }.map(from_u32)
 }
