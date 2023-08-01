@@ -10,15 +10,15 @@ columns_view_impl!(Bitshift);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Bitshift<T> {
-    pub shamt: T,
+    pub amount: T,
     pub multiplier: T,
 }
 
 impl From<u64> for Bitshift<u64> {
-    fn from(shamt: u64) -> Self {
+    fn from(amount: u64) -> Self {
         Self {
-            shamt,
-            multiplier: 1 << shamt,
+            amount,
+            multiplier: 1 << amount,
         }
     }
 }

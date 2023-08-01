@@ -33,15 +33,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ShiftAmountSt
         let nv: &ShiftAmountView<P> = vars.next_values.borrow();
 
         // Constraints on shift amount
-        yield_constr.constraint_first_row(lv.executed.shamt);
+        yield_constr.constraint_first_row(lv.executed.amount);
         yield_constr.constraint_transition(
-            (nv.executed.shamt - lv.executed.shamt - P::ONES)
-                * (nv.executed.shamt - lv.executed.shamt),
+            (nv.executed.amount - lv.executed.amount - P::ONES)
+                * (nv.executed.amount - lv.executed.amount),
         );
-        yield_constr.constraint_last_row(lv.executed.shamt - P::Scalar::from_canonical_u8(31));
+        yield_constr.constraint_last_row(lv.executed.amount - P::Scalar::from_canonical_u8(31));
 
         // Constraints on multiplier
-        let diff = nv.executed.shamt - lv.executed.shamt;
+        let diff = nv.executed.amount - lv.executed.amount;
         yield_constr.constraint_first_row(lv.executed.multiplier - P::ONES);
         yield_constr.constraint_transition(
             nv.executed.multiplier - (P::ONES + diff) * lv.executed.multiplier,

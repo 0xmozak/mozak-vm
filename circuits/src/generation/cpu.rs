@@ -48,7 +48,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> Vec<CpuColumnsView
             // TODO(Matthias): find a way to make either compiler or runtime complain
             // if we have two (conflicting) users in the same row.
             bitshift: BitShift {
-                shamt: F::ZERO,
+                amount: F::ZERO,
                 multiplier: F::ONE,
             },
             xor: generate_bitwise_row(&inst, state),
@@ -97,7 +97,7 @@ fn generate_mul_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructio
         let shift_amount = op2 & 0x1F;
         let shift_power = 1_u32 << shift_amount;
         row.bitshift = BitShift {
-            shamt: shift_amount,
+            amount: shift_amount,
             multiplier: shift_power,
         }
         .map(from_u32);
@@ -127,7 +127,7 @@ fn generate_divu_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructi
         let shift_amount = op2 & 0x1F;
         let shift_power = 1_u32 << shift_amount;
         row.bitshift = BitShift {
-            shamt: shift_amount,
+            amount: shift_amount,
             multiplier: shift_power,
         }
         .map(from_u32);
