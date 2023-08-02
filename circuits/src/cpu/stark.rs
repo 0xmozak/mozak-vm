@@ -111,10 +111,7 @@ fn check_permuted_inst_cols<P: PackedField>(
     yield_constr.constraint_first_row(lv.filter - P::ONES);
 
     for (lv_col, nv_col) in izip![lv.inst, nv.inst] {
-        yield_constr
-            // TODO: this needs to take __all__ of the fileds into account.  Or perhaps we use the
-            // randomised linear combo.
-            .constraint((nv.filter - P::ONES) * (lv_col - nv_col));
+        yield_constr.constraint((nv.filter - P::ONES) * (lv_col - nv_col));
     }
 }
 
