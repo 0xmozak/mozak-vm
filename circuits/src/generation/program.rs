@@ -21,14 +21,11 @@ pub fn generate_program_trace<F: RichField>(
     let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
 
     code.iter()
-        .map(|(&pc, &inst)| {
-            let i: InstructionView<F> =
-                InstructionView::from((pc, inst)).map(F::from_canonical_u32);
-            let pc = &F::from_canonical_u32(pc);
-            ProgramColumnsView {
-                filter: F::from_bool(used_pcs.contains(pc)),
-                inst: InstColumnsView::from(i),
-            }
+        .map(|(&pc, &inst)| ProgramColumnsView {
+            filter: F::from_bool(used_pcs.contains(&F::from_canonical_u32(pc))),
+            inst: InstColumnsView::from(
+                InstructionView::from((pc, inst)).map(F::from_canonical_u32),
+            ),
         })
         .collect()
 
