@@ -16,7 +16,7 @@ use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_program_trace<F: RichField>(
     code: &Code,
-    cpu_trace: &Vec<CpuColumnsView<F>>,
+    cpu_trace: &[CpuColumnsView<F>],
 ) -> Vec<ProgramColumnsView<F>> {
     let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
 

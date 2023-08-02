@@ -213,7 +213,7 @@ fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorV
 
 #[must_use]
 pub fn generate_permuted_inst_trace<F: RichField>(
-    trace: &Vec<CpuColumnsView<F>>,
+    trace: &[CpuColumnsView<F>],
 ) -> Vec<ProgramColumnsView<F>> {
     trace
         .iter()

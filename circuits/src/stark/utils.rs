@@ -3,12 +3,14 @@ use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::util::transpose;
 
+#[must_use]
 pub fn trace_to_poly_values<F: Field, Grid: IntoIterator<Item = Vec<F>>>(
     trace: Grid,
 ) -> Vec<PolynomialValues<F>> {
     trace.into_iter().map(PolynomialValues::new).collect()
 }
 
+#[must_use]
 pub fn transpose_trace<F: Field, Row: IntoIterator<Item = F>>(trace_rows: Vec<Row>) -> Vec<Vec<F>> {
     transpose(
         &trace_rows
