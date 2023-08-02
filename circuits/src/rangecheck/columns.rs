@@ -48,10 +48,10 @@ pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COL
 /// Columns containing the data to be range checked in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub(crate) fn data_for_cpu<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.val)] }
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.val)] }
 
 /// Column for a binary filter to indicate a range check from the
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable) in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub(crate) fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(MAP.cpu_filter) }
+pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(MAP.cpu_filter) }
