@@ -67,7 +67,7 @@ fn opcode_one_hot<P: PackedField>(
         .for_each(|&s| yield_constr.constraint(s * (P::ONES - s)));
 
     // Only one opcode selector enabled.
-    let sum_s_op: P = op_selectors.clone().into_iter().sum();
+    let sum_s_op: P = op_selectors.into_iter().sum();
     yield_constr.constraint(P::ONES - sum_s_op);
 }
 
