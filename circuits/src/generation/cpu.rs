@@ -1,4 +1,4 @@
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use mozak_vm::instruction::{Instruction, Op};
 use mozak_vm::state::State;
 use mozak_vm::vm::Row;
@@ -9,6 +9,7 @@ use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuColumnsView};
 use crate::program::columns::{InstColumnsView, ProgramColumnsView};
+use crate::stark::utils::transpose_trace;
 use crate::utils::from_u32;
 
 /// Pad the trace to a power of 2.
@@ -23,12 +24,13 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<CpuColumnsView<F>>) -> Vec<CpuColu
 }
 
 #[allow(clippy::missing_panics_doc)]
+#[must_use]
 pub fn generate_cpu_trace_extended<F: RichField>(
-    _cpu_trace: Vec<CpuColumnsView<F>>,
+    cpu_trace: Vec<CpuColumnsView<F>>,
 ) -> CpuColumnsExtended<Vec<F>> {
-    // let cpu_trace: Vec<CpuColumnsView<F>> = generate_cpu_trace(step_rows);
-
-    unreachable!()
+    let permuted = generate_permuted_inst_trace(&cpu_trace);
+    let x = (chain!(transpose_trace(cpu_trace), transpose_trace(permuted))).collect();
+    x
 }
 
 #[allow(clippy::missing_panics_doc)]

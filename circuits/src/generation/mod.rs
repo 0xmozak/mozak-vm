@@ -36,7 +36,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let program_trace = trace_rows_to_poly_values(generate_program_trace(code, &cpu_rows));
 
     let cpu_trace = trace_to_poly_values(generate_cpu_trace_extended(cpu_rows));
-    // let cpu_trace = trace_rows_to_poly_values(cpu_rows);
     [
         cpu_trace,
         rangecheck_trace,
