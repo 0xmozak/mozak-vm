@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 
-use itertools::{chain, izip};
+use itertools::izip;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
@@ -85,16 +85,6 @@ fn clock_ticks<P: PackedField>(
 /// Register 0 is always 0
 fn r0_always_0<P: PackedField>(lv: &CpuColumnsView<P>, yield_constr: &mut ConstraintConsumer<P>) {
     yield_constr.constraint(lv.regs[0]);
-}
-
-/// Ensures the correct register values are set.
-fn ensure_correct_register_selection<P: PackedField>(
-    lv: &CpuColumnsView<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    for selector in chain![lv.inst.rs1_select, lv.inst.rs2_select, lv.inst.rd_select] {
-        yield_constr.constraint(selector * (P::ONES - selector));
-    }
 }
 
 /// Ensures that if [`duplicate_inst_filter`] is 0, then duplicate instructions
@@ -192,7 +182,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         let nv = &nve.cpu;
 
         one_hots(lv, yield_constr);
-        ensure_correct_register_selection(lv, yield_constr);
         check_permuted_inst_cols(&lve.permuted, &nve.permuted, yield_constr);
 
         clock_ticks(lv, nv, yield_constr);
