@@ -64,4 +64,4 @@ pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(MAP.cpu_filter) 
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable) in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> { Column::never() }
+pub fn filter_for_memory<F: Field>() -> Column<F> { Column::single(MAP.memory_filter) }
