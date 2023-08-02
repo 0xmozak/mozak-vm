@@ -13,21 +13,21 @@ columns_view_impl!(OpSelectorView);
 pub struct OpSelectorView<T> {
     pub add: T,
     pub sub: T,
-    pub and: T,
-    pub or: T,
     pub xor: T,
+    pub or: T,
+    pub and: T,
     pub divu: T,
+    pub remu: T,
     pub mul: T,
     pub mulhu: T,
-    pub remu: T,
     pub sll: T,
     pub slt: T,
     pub sltu: T,
     pub srl: T,
+    pub jalr: T,
     pub beq: T,
     pub bne: T,
     pub ecall: T,
-    pub jalr: T,
 }
 
 columns_view_impl!(InstructionView);
