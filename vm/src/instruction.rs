@@ -79,29 +79,5 @@ pub struct Instruction {
 
 impl Instruction {
     #[must_use]
-    pub fn new(op: Op, rd: u8, mut rs1: u8, mut rs2: u8, imm_or_branch_target: u32) -> Self {
-        let (imm, branch_target) = if matches!(
-            op,
-            Op::BEQ | Op::BNE | Op::BLT | Op::BGE | Op::BLTU | Op::BGEU
-        ) {
-            (0, imm_or_branch_target)
-        } else {
-            (imm_or_branch_target, 0)
-        };
-
-        if op.is_mem_op() {
-            std::mem::swap(&mut rs1, &mut rs2);
-        };
-
-        Instruction {
-            op,
-            args: Args {
-                rd,
-                rs1,
-                rs2,
-                imm,
-                branch_target,
-            },
-        }
-    }
+    pub fn new(op: Op, args: Args) -> Self { Instruction { op, args } }
 }

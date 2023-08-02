@@ -1,7 +1,8 @@
 use itertools::Itertools;
 use plonky2::field::types::Field;
 
-use crate::bitwise::columns::BitwiseExecutionColumnsView;
+use crate::bitshift::columns::Bitshift;
+use crate::bitwise::columns::XorView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
@@ -68,12 +69,9 @@ pub struct CpuColumnsView<T> {
     pub less_than: T,
     pub branch_equal: T,
 
-    pub xor: BitwiseExecutionColumnsView<T>,
+    pub xor: XorView<T>,
 
-    // TODO: for shift operations, we need to hook up POWERS_OF_2_IN and
-    // POWERS_OF_2_OUT to a cross-table lookup for input values 0..32.
-    pub powers_of_2_in: T,
-    pub powers_of_2_out: T,
+    pub bitshift: Bitshift<T>,
 
     pub quotient: T,
     pub remainder: T,
@@ -120,4 +118,21 @@ impl<T: Copy> OpSelectorView<T> {
         // TODO: Add SRA, once we implement its constraints.
         [self.xor, self.or, self.and, self.srl, self.sll]
     }
+
+    // TODO: Add SRA, once we implement its constraints.
+    pub fn ops_that_shift(&self) -> [T; 2] { [self.sll, self.srl] }
+}
+
+/// Columns containing the data to be matched against `Bitshift` stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> {
+    Column::singles(MAP.bitshift).collect_vec()
+}
+
+/// Column for a binary filter for shft instruction in `Bitshift` stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_shift_amount<F: Field>() -> Column<F> {
+    Column::many(MAP.inst.ops.ops_that_shift())
 }

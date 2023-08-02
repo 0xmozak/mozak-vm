@@ -248,7 +248,7 @@ mod tests {
     use proptest::{prop_assume, proptest};
 
     use super::{div, divu, lh, lw, ExecutionRecord};
-    use crate::instruction::{Instruction, Op};
+    use crate::instruction::{Args, Instruction, Op};
     use crate::test_utils::{
         i16_extra, i32_extra, i8_extra, last_but_coda, reg, simple_test, simple_test_code,
         u16_extra, u32_extra, u8_extra,
@@ -263,10 +263,12 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::ADD,
-                    rd,
-                    rs1,
-                    rs2,
-                    0,
+                    Args {
+                        rd,
+                        rs1,
+                        rs2,
+                        ..Args::default()
+                    }
                 )],
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
@@ -279,10 +281,12 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::ADD,
-                    rd,
-                    rs1,
-                    0,
-                    imm,
+                    Args {
+                        rd,
+                        rs1,
+                        imm,
+                        ..Args::default()
+                    }
                 )],
                 &[],
                 &[(rs1, rs1_value)]
@@ -296,10 +300,12 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SLL,
-                    rd,
-                    rs1,
-                    rs2,
-                    0,
+                    Args {
+                        rd,
+                        rs1,
+                        rs2,
+                        ..Args::default()
+                    }
                 )],
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
@@ -316,10 +322,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::AND,
-                    rd,
+                    Args { rd,
                     rs1,
                     rs2,
-                    0,
+                        ..Args::default()
+                        }
                 )],
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
@@ -335,10 +342,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::AND,
-                    rd,
+                    Args { rd,
                     rs1,
-                    0,
                     imm,
+                        ..Args::default()
+                        }
                 )],
                 &[],
                 &[(rs1, rs1_value)]
@@ -357,10 +365,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SRL,
-                    rd,
+                    Args { rd,
                     rs1,
                     rs2,
-                    0,
+                        ..Args::default()
+                        }
                 )],
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
@@ -376,10 +385,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SRL,
-                    rd,
+                    Args { rd,
                     rs1,
-                    0,
                     imm,
+                        ..Args::default()
+                        }
                 )],
                 &[],
                 &[(rs1, rs1_value)]
@@ -396,10 +406,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::OR,
-                    rd,
+                    Args { rd,
                     rs1,
                     rs2,
-                    0,
+                        ..Args::default()
+                        }
                 )],
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
@@ -415,10 +426,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::OR,
-                    rd,
+                    Args { rd,
                     rs1,
-                    0,
                     imm,
+                        ..Args::default()
+                        }
                 )],
                 &[],
                 &[(rs1, rs1_value)]
@@ -436,10 +448,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::XOR,
-                    rd,
+                    Args { rd,
                     rs1,
                     rs2,
-                    0,
+                        ..Args::default()
+                        }
                 )],
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
@@ -455,10 +468,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::XOR,
-                    rd,
+                    Args { rd,
                     rs1,
-                    0,
                     imm ,
+                        ..Args::default()
+                        }
                 )],
                 &[],
                 &[(rs1, rs1_value)]
@@ -476,10 +490,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SRA,
-                    rd,
+                    Args { rd,
                     rs1,
                     rs2,
-                    0,
+                        ..Args::default()
+                        }
                 )],
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
@@ -495,10 +510,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SRA,
-                    rd,
+                    Args { rd,
                     rs1,
-                    0,
                     imm,
+                        ..Args::default()
+                        }
                 )],
                 &[],
                 &[(rs1, rs1_value)]
@@ -516,10 +532,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SLT,
-                    rd,
+                    Args { rd,
                     rs1,
                     rs2,
-                    0,
+                        ..Args::default()
+                        }
                 )],
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
@@ -538,10 +555,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SLTU,
-                    rd,
+                    Args { rd,
                     rs1,
                     rs2,
-                    0,
+                    ..Args::default()
+                }
                 )],
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
@@ -557,10 +575,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SLT,
-                    rd,
+                    Args { rd,
                     rs1,
-                    0,
                     imm,
+                    ..Args::default()
+                }
                 )],
                 &[],
                 &[(rs1, rs1_value)]
@@ -573,10 +592,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SLTU,
-                    rd,
+                    Args { rd,
                     rs1,
-                    0,
                     imm,
+                    ..Args::default()
+                }
                 )],
                 &[],
                 &[(rs1, rs1_value)]
@@ -589,10 +609,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SLL,
-                    rd,
+                    Args { rd,
                     rs1,
-                    0,
                     imm,
+                    ..Args::default()
+                }
                 )],
                 &[],
                 &[(rs1, rs1_value)]
@@ -607,10 +628,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LB,
-                    rd,
-                    0,
+                    Args { rd,
                     rs2,
-                    offset,
+                    imm: offset,
+                    ..Args::default()
+                }
                 )],
                 &[(address, memory_value as u32)],
                 &[(rs2, rs2_value)]
@@ -627,10 +649,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LBU,
-                    rd,
+                    Args { rd,
                     rs1,
-                    0,
-                    offset,
+                    imm: offset,
+                    ..Args::default()
+                }
                 )],
                 &[(address, u32::from(memory_value))],
                 &[(rs1, rs1_value)]
@@ -645,10 +668,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LH,
-                    rd,
+                    Args { rd,
                     rs1,
-                    0,
-                    offset,
+                    imm: offset,
+                    ..Args::default()
+                }
                 )],
                 &[(address, u32::from(memory_value as u16))],
                 &[(rs1, rs1_value)]
@@ -663,10 +687,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LHU,
-                    rd,
-                    0,
+                    Args { rd,
                     rs2,
-                    offset,
+                    imm: offset,
+                    ..Args::default()
+                }
                 )],
                 &[(address, u32::from(memory_value))],
                 &[(rs2, rs2_value)]
@@ -682,10 +707,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LW,
-                    rd,
+                    Args { rd,
                     rs1,
-                    0,
-                    offset,
+                    imm: offset,
+                    ..Args::default()
+                }
                 )],
                 &[(address, memory_value)],
                 &[(rs1, rs1_value)]
@@ -700,10 +726,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SB,
-                    0,
-                    rs1,
+                    Args {rs1,
                     rs2,
-                    offset
+                    imm: offset,
+                    ..Args::default()
+                }
                 )],
                 &[(address, 0x0)],
                 &[(rs1, rs1_val), (rs2, rs2_val)]
@@ -719,10 +746,13 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SH,
-                    0,
+                    Args {
                     rs1,
                     rs2,
-                    offset
+                    imm: offset,
+                    ..Args::default()
+                }
+
                 )],
                 &[(address, 0x0)],
                 &[(rs1, rs1_val), (rs2, rs2_val)]
@@ -747,10 +777,12 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SW,
-                    0,
+                Args {
                     rs1,
                     rs2,
-                    offset
+                    imm: offset,
+                    ..Args::default()
+                }
                 )],
                 &[(address, 0x0)],
                 &[(rs1, rs1_val), (rs2, rs2_val)]
@@ -776,10 +808,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::MUL,
-                    rd,
+                    Args { rd,
                     rs1,
                     rs2,
-                    0,
+                    ..Args::default()
+                }
                 )],
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
@@ -795,10 +828,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::MULH,
-                    rd,
+                    Args { rd,
                     rs1,
                     rs2,
-                    0,
+                    ..Args::default()
+                }
                 )],
                 &[],
                 &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
@@ -814,10 +848,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::MULHU,
-                    rd,
+                    Args { rd,
                     rs1,
                     rs2,
-                    0,
+                    ..Args::default()
+                }
                 )],
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
@@ -833,10 +868,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::MULHSU,
-                    rd,
+                    Args { rd,
                     rs1,
                     rs2,
-                    0,
+                    ..Args::default()
+                }
                 )],
                 &[],
                 &[(rs1, rs1_value as u32), (rs2, rs2_value)]
@@ -852,10 +888,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::DIV,
-                    rd,
+                    Args { rd,
                     rs1,
                     rs2,
-                    0,
+                    ..Args::default()
+                }
                 )],
                 &[],
                 &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
@@ -870,10 +907,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::DIVU,
-                    rd,
+                    Args { rd,
                     rs1,
                     rs2,
-                    0,
+                    ..Args::default()
+                }
                 )],
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
@@ -890,10 +928,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::REM,
-                    rd,
+                    Args { rd,
                     rs1,
                     rs2,
-                    0,
+                    ..Args::default()
+                }
                 )],
                 &[],
                 &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
@@ -909,10 +948,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::REMU,
-                    rd,
+                    Args { rd,
                     rs1,
                     rs2,
-                    0,
+                    ..Args::default()
+                }
                 )],
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
@@ -929,24 +969,29 @@ mod tests {
                 &[  // rs1 == rs1: take imm-path (8)
                     Instruction::new(
                         Op::BEQ,
-                        rd,
+                        Args { rd,
                         rs1,
-                        rs1,
-                        8,
+                        rs2: rs1,
+                        branch_target: 8,
+                    ..Args::default()
+                }
                     ),
                     Instruction::new(
                         Op::SUB,
-                        rs1,
+                        Args { rd: rs1,
                         rs1,
                         rs2,
-                        0,
+
+                    ..Args::default()
+                }
                     ),
                     Instruction::new(
                         Op::ADD,
-                        rd,
+                        Args { rd,
                         rs1,
                         rs2,
-                        0,
+                        ..Args::default()
+                    }
                     ),
                 ],
                 &[],
@@ -964,24 +1009,28 @@ mod tests {
                 &[  // rs1 != rs2: take imm-path (8)
                     Instruction::new(
                         Op::BNE,
-                        rd,
+                        Args { rd,
                         rs1,
                         rs2,
-                        8,
+                        branch_target: 8,
+                        ..Args::default()
+                    }
                     ),
                     Instruction::new(
                         Op::SUB,
-                        rs1,
+                        Args { rd: rs1,
                         rs1,
                         rs2,
-                        0,
+                        ..Args::default()
+                    }
                     ),
                     Instruction::new(
                         Op::ADD,
-                        rd,
+                        Args { rd,
                         rs1,
                         rs2,
-                        0,
+                        ..Args::default()
+                    }
                     ),
                 ],
                 &[],
@@ -1001,24 +1050,28 @@ mod tests {
                 &[
                     Instruction::new(
                         Op::BLT,
-                        rd,
+                        Args { rd,
                         rs1,
                         rs2,
-                        8,
+                        branch_target: 8,
+                        ..Args::default()
+                    }
                     ),
                     Instruction::new(
                         Op::SUB,
-                        rs1,
+                        Args {rd: rs1,
                         rs1,
                         rs2,
-                        0,
+                        ..Args::default()
+                    }
                     ),
                     Instruction::new(
                         Op::ADD,
-                        rd,
+                        Args { rd,
                         rs1,
                         rs2,
-                        0,
+                        ..Args::default()
+                    }
                     ),
                 ],
                 &[],
@@ -1038,24 +1091,28 @@ mod tests {
                 &[
                     Instruction::new(
                         Op::BLTU,
-                        rd,
+                        Args { rd,
                         rs1,
                         rs2,
-                        8,
+                        branch_target: 8,
+                        ..Args::default()
+                    }
                     ),
                     Instruction::new(
                         Op::SUB,
-                        rs1,
+                        Args { rd: rs1,
                         rs1,
                         rs2,
-                        0,
+                        ..Args::default()
+                        }
                     ),
                     Instruction::new(
                         Op::ADD,
-                        rd,
+                        Args { rd,
                         rs1,
                         rs2,
-                        0,
+                        ..Args::default()
+                        }
                     ),
                 ],
                 &[],
@@ -1075,24 +1132,28 @@ mod tests {
                 &[
                     Instruction::new(
                         Op::BGE,
-                        rd,
+                        Args { rd,
                         rs1,
                         rs2,
-                        8,
+                        branch_target: 8,
+                        ..Args::default()
+                        }
                     ),
                     Instruction::new(
                         Op::SUB,
-                        rs1,
+                        Args { rd: rs1,
                         rs1,
                         rs2,
-                        0,
+                        ..Args::default()
+                        }
                     ),
                     Instruction::new(
                         Op::ADD,
-                        rd,
+                        Args { rd,
                         rs1,
                         rs2,
-                        0,
+                        ..Args::default()
+                        }
                     ),
                 ],
                 &[],
@@ -1112,24 +1173,32 @@ mod tests {
                 &[
                     Instruction::new(
                         Op::BGEU,
-                        rd,
+                        Args {
+                                    rd,
                         rs1,
                         rs2,
-                        8,
+                        branch_target: 8,
+                        ..Args::default()
+                        }
                     ),
                     Instruction::new(
                         Op::SUB,
-                        rs1,
+                                Args {
+                        rd: rs1,
                         rs1,
                         rs2,
-                        0,
+                        branch_target: 0,
+                        ..Args::default()
+                        }
                     ),
                     Instruction::new(
                         Op::ADD,
+                        Args {
                         rd,
                         rs1,
                         rs2,
-                        0,
+                        ..Args::default()
+                        }
                     ),
                 ],
                 &[],
@@ -1141,43 +1210,28 @@ mod tests {
         #[test]
         fn jal_jalr_proptest(imm in 0_u32..3) {
             let imm_value_fixed = 4 * imm + 4; // 4 * (0..3) + 4 = 4, 8, 12, 16
+            let inst = Instruction::new( // imm = 0, jump = 4, 1+1 + 1 + 1 + 1 = 5
+                        Op::ADD,
+                        Args {
+                        rd: 2,
+                        rs1: 2,
+                        rs2: 3,
+                    ..Args::default()
+            }
+                    );
             let e = simple_test_code(
                 &[
                     Instruction::new(
                         Op::JALR,
-                        0,
-                        0,
-                        0,
-                        imm_value_fixed,
+                        Args {
+                            imm: imm_value_fixed,
+                            ..Args::default()
+                        }
                     ),
-                    Instruction::new( // imm = 0, jump = 4, 1+1 + 1 + 1 + 1 = 5
-                        Op::ADD,
-                        2,
-                        2,
-                        2,
-                        0,
-                    ),
-                    Instruction::new( // imm = 1, jump = 8, 1+1 + 1 + 1 = 4
-                        Op::ADD,
-                        2,
-                        2,
-                        3,
-                        0,
-                    ),
-                    Instruction::new( // imm = 2, jump = 12, 1+1 + 1 = 3
-                        Op::ADD,
-                        2,
-                        2,
-                        3,
-                        0,
-                    ),
-                    Instruction::new( // imm = 3, jump = 16, 1+1 = 2
-                        Op::ADD,
-                        2,
-                        2,
-                        3,
-                        0,
-                    ),
+                    inst,
+                    inst,
+                    inst,
+                    inst,
                 ],
                 &[],
                 &[(2, 1), (3, 1)],
@@ -1191,7 +1245,9 @@ mod tests {
     // Please check https://en.wikichip.org/wiki/risc-v/registers
 
     #[test]
-    fn ecall() { let _ = simple_test_code(&[Instruction::new(Op::ECALL, 0, 0, 0, 0)], &[], &[]); }
+    fn ecall() {
+        let _ = simple_test_code(&[Instruction::new(Op::ECALL, Args::default())], &[], &[]);
+    }
 
     #[test]
     fn lui() {

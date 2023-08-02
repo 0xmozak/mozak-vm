@@ -230,7 +230,8 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         #[tarpaulin::skip]
         _ => Default::default(),
     };
-    Instruction { op, args }
+
+    Instruction::new(op, args)
 }
 
 #[cfg(test)]
