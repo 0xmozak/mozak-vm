@@ -92,7 +92,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
 
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(step_rows);
-        let memory_trace = generate_memory_trace(&step_rows);
+        let memory_trace = generate_memory_trace(step_rows);
         let trace_poly_values =
             trace_to_poly_values(generate_rangecheck_trace(&cpu_trace, &memory_trace));
         let proof = prove_table::<F, C, S, D>(
@@ -134,7 +134,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let config = standard_faster_config();
 
         let stark = S::default();
-        let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(&step_rows));
+        let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(step_rows));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
