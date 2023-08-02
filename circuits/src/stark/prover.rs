@@ -375,6 +375,16 @@ where
         timing,
     )?;
 
+    let shift_amount_proof = prove_single_table::<F, C, BitshiftStark<F, D>, D>(
+        &mozak_stark.shift_amount_stark,
+        config,
+        &traces_poly_values[TableKind::Bitshift as usize],
+        &trace_commitments[TableKind::Bitshift as usize],
+        &ctl_data_per_table[TableKind::Bitshift as usize],
+        challenger,
+        timing,
+    )?;
+
     let memory_proof = prove_single_table::<F, C, MemoryStark<F, D>, D>(
         &mozak_stark.memory_stark,
         config,
@@ -385,15 +395,6 @@ where
         timing,
     )?;
 
-    let shift_amount_proof = prove_single_table::<F, C, BitshiftStark<F, D>, D>(
-        &mozak_stark.shift_amount_stark,
-        config,
-        &traces_poly_values[TableKind::Bitshift as usize],
-        &trace_commitments[TableKind::Bitshift as usize],
-        &ctl_data_per_table[TableKind::Bitshift as usize],
-        challenger,
-        timing,
-    )?;
     Ok([
         cpu_proof,
         rangecheck_proof,
