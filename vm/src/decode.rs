@@ -1,6 +1,6 @@
 use bitfield::{bitfield, BitRange};
 
-use crate::instruction::{Args, Instruction, Op, NOOP};
+use crate::instruction::{Args, Instruction, Op, NOOP, NOOP_PAIR};
 
 /// Builds a i32 from segments, and right pads with zeroes
 ///
@@ -96,7 +96,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         imm: extract_immediate(word, &[(31, 12)], 12).wrapping_add(pc),
         ..Default::default()
     };
-    let noop = (NOOP.op, NOOP.args);
+    let noop = NOOP_PAIR;
 
     let (op, args) = match bf.opcode() {
         0b011_0011 => match (bf.func3(), bf.func7()) {

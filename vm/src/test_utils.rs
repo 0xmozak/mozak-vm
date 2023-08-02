@@ -14,6 +14,8 @@ use crate::vm::{step, ExecutionRecord};
 #[must_use]
 fn create_prog(image: HashMap<u32, u32>) -> State { State::from(Program::from(image)) }
 
+/// Returns the state before last
+/// For reference: `coda` is a term used for last element
 #[must_use]
 pub fn last_but_coda(e: &ExecutionRecord) -> &State { &e.executed[e.executed.len() - 2].state }
 

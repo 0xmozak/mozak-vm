@@ -48,7 +48,6 @@ pub enum Op {
     UNKNOWN,
 }
 
-/// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
 pub const NOOP_PAIR: (Op, Args) = (NOOP.op, NOOP.args);
 /// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
 pub const NOOP: Instruction = Instruction {
