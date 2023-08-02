@@ -34,8 +34,8 @@ pub(crate) fn constraints<P: PackedField>(
         let op2 = lv.op2_value;
         yield_constr.constraint(lv.inst.ops.srl * (and_gadget.input_b - op2));
 
-        yield_constr.constraint(lv.inst.ops.srl * (and_gadget.output - lv.powers_of_2_in));
-        yield_constr.constraint(lv.inst.ops.srl * (q - lv.powers_of_2_out));
+        yield_constr.constraint(lv.inst.ops.srl * (and_gadget.output - lv.bitshift.amount));
+        yield_constr.constraint(lv.inst.ops.srl * (q - lv.bitshift.multiplier));
     }
 
     // The equation from the spec becomes:
