@@ -106,8 +106,8 @@ impl State {
 
     #[must_use]
     pub fn store(self, inst: &Args, bytes: u32) -> (Aux, Self) {
-        let addr = self.get_register_value(inst.rs1).wrapping_add(inst.imm);
         let dst_val: u32 = self.get_register_value(inst.rs2);
+        let addr = self.get_register_value(inst.rs1).wrapping_add(inst.imm);
         (
             Aux {
                 dst_val,
@@ -248,7 +248,7 @@ mod tests {
     use proptest::{prop_assume, proptest};
 
     use super::{div, divu, lh, lw, ExecutionRecord};
-    use crate::instruction::{Instruction, Op};
+    use crate::instruction::{Args, Instruction, Op};
     use crate::test_utils::{
         i16_extra, i32_extra, i8_extra, last_but_coda, reg, simple_test, simple_test_code,
         u16_extra, u32_extra, u8_extra,
@@ -621,37 +621,39 @@ mod tests {
         }
 
         #[test]
-        fn lbu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in u8_extra()) {
-            let address = rs1_value.wrapping_add(offset);
+        fn lbu_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in u8_extra()) {
+            let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LBU,
-                    rd,
-                    rs1,
-                    0,
-                    offset,
+                    Args { rd,
+                    rs2,
+                    imm: offset,
+                    ..Args::default()
+                }
                 )],
                 &[(address, u32::from(memory_value))],
-                &[(rs1, rs1_value)]
+                &[(rs2, rs2_value)]
             );
             assert_eq!(last_but_coda(&e).get_register_value(rd), u32::from(memory_value));
         }
 
         #[test]
-        fn lh_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in i16_extra()) {
-            let address = rs1_value.wrapping_add(offset);
+        fn lh_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in i16_extra()) {
+            let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LH,
-                    rd,
-                    rs1,
-                    0,
-                    offset,
+                    Args { rd,
+                    rs2,
+                    imm: offset,
+                    ..Args::default()
+                }
                 )],
                 &[(address, u32::from(memory_value as u16))],
-                &[(rs1, rs1_value)]
+                &[(rs2, rs2_value)]
             );
             assert_eq!(last_but_coda(&e).get_register_value(rd), i32::from(memory_value) as u32);
         }
@@ -676,19 +678,20 @@ mod tests {
         }
 
         #[test]
-        fn lw_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in u32_extra()) {
-            let address = rs1_value.wrapping_add(offset);
+        fn lw_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in u32_extra()) {
+            let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LW,
-                    rd,
-                    rs1,
-                    0,
-                    offset,
+                    Args { rd,
+                    rs2,
+                    imm: offset,
+                    ..Args::default()
+                }
                 )],
                 &[(address, memory_value)],
-                &[(rs1, rs1_value)]
+                &[(rs2, rs2_value)]
             );
             assert_eq!(last_but_coda(&e).get_register_value(rd), memory_value);
         }
@@ -700,10 +703,11 @@ mod tests {
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SB,
-                    0,
+                    Args {
                     rs1,
                     rs2,
-                    offset
+                    imm: offset
+                    },
                 )],
                 &[(address, 0x0)],
                 &[(rs1, rs1_val), (rs2, rs2_val)]
