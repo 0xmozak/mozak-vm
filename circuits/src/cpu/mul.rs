@@ -22,26 +22,28 @@ pub(crate) fn constraints<P: PackedField>(
     let product = low_limb + base * high_limb;
 
     yield_constr.constraint(
-        (lv.ops.mul + lv.ops.mulhu + lv.ops.sll) * (product - multiplicand * multiplier),
+        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.sll)
+            * (product - multiplicand * multiplier),
     );
-    yield_constr.constraint((lv.ops.mul + lv.ops.mulhu) * (multiplier - lv.op2_value));
+    yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.mulhu) * (multiplier - lv.op2_value));
     // The following constraints are for SLL.
     {
-        let and_gadget = and_gadget(lv);
-        yield_constr
-            .constraint(lv.ops.sll * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
+        let and_gadget = and_gadget(&lv.xor);
+        yield_constr.constraint(
+            lv.inst.ops.sll * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)),
+        );
         let op2 = lv.op2_value;
-        yield_constr.constraint(lv.ops.sll * (and_gadget.input_b - op2));
+        yield_constr.constraint(lv.inst.ops.sll * (and_gadget.input_b - op2));
 
-        yield_constr.constraint(lv.ops.sll * (and_gadget.output - lv.powers_of_2_in));
-        yield_constr.constraint(lv.ops.sll * (multiplier - lv.powers_of_2_out));
+        yield_constr.constraint(lv.inst.ops.sll * (and_gadget.output - lv.bitshift.amount));
+        yield_constr.constraint(lv.inst.ops.sll * (multiplier - lv.bitshift.multiplier));
     }
 
     // Now, let's copy our results to the destination register:
 
     let destination = lv.dst_value;
-    yield_constr.constraint((lv.ops.mul + lv.ops.sll) * (destination - low_limb));
-    yield_constr.constraint(lv.ops.mulhu * (destination - high_limb));
+    yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.sll) * (destination - low_limb));
+    yield_constr.constraint(lv.inst.ops.mulhu * (destination - high_limb));
 
     // The constraints above would be enough, if our field was large enough.
     // However Goldilocks field is just a bit too small at order 2^64 - 2^32 + 1.
@@ -60,7 +62,8 @@ pub(crate) fn constraints<P: PackedField>(
 
     let diff = P::Scalar::from_noncanonical_u64(u32::MAX.into()) - lv.product_high_bits;
     yield_constr.constraint(
-        (lv.ops.mul + lv.ops.mulhu + lv.ops.sll) * (diff * lv.product_high_diff_inv - P::ONES),
+        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.sll)
+            * (diff * lv.product_high_diff_inv - P::ONES),
     );
 }
 
@@ -105,7 +108,7 @@ mod tests {
             let (low, high) = a.widening_mul(b);
             prop_assert_eq!(record.executed[0].aux.dst_val, low);
             prop_assert_eq!(record.executed[1].aux.dst_val, high);
-            CpuStark::prove_and_verify(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
         }
 
         #[test]
@@ -138,7 +141,7 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
             prop_assert_eq!(record.executed[1].aux.dst_val, p << (q & 0x1F));
-            CpuStark::prove_and_verify(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
         }
     }
 }

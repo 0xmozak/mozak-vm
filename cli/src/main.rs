@@ -94,9 +94,12 @@ fn main() -> anyhow::Result<()> {
             }
             Command::Prove => {
                 let program = Program::load_elf(&elf_bytes)?;
+                // TODO: make State take a reference to Program only,
+                // but need to sort out the lifetime issues.
+                let code = program.code.clone();
                 let state = State::from(program);
                 let record = step(state)?;
-                MozakStark::prove_and_verify(&record.executed)?;
+                MozakStark::prove_and_verify(&code, &record.executed)?;
             }
             Command::BuildInfo => unreachable!(),
         }

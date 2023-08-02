@@ -1,13 +1,16 @@
 use itertools::Itertools;
 use plonky2::field::types::Field;
 
+use crate::bitshift::columns::Bitshift;
+use crate::bitwise::columns::XorView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
+use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 
 columns_view_impl!(OpSelectorView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub(crate) struct OpSelectorView<T> {
+pub struct OpSelectorView<T> {
     pub add: T,
     pub sub: T,
     pub and: T,
@@ -27,48 +30,38 @@ pub(crate) struct OpSelectorView<T> {
     pub jalr: T,
 }
 
-columns_view_impl!(CpuColumnsView);
-#[repr(C)]
+columns_view_impl!(InstructionView);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub(crate) struct CpuColumnsView<T> {
-    pub clk: T,
-
+pub struct InstructionView<T> {
     /// The original instruction (+ imm_value) used for program
     /// cross-table-lookup.
     pub pc: T,
-    pub opcode: T, // internal opcode, not the opcode from RISC-V
-    pub rs1: T,
-    pub rs2: T,
-    pub rd: T,
-
-    // Desgin doc for CPU <> Program cross-table-lookup:
-    // https://www.notion.so/0xmozak/Cross-Table-Lookup-bbe98d9471114c36a278f0c491f203e5#c3876d13c1f94b7ab154ea1f8b908181
-    pub permuted_pc: T,
-    pub permuted_opcode: T,
-    pub permuted_rs1: T,
-    pub permuted_rs2: T,
-    pub permuted_rd: T,
-    pub permuted_imm: T,
-
-    /// Filters out instructions that are duplicates, i.e., appear more than
-    /// once in the trace.
-    pub duplicate_inst_filter: T,
-
+    // pub opcode: T, // internal opcode, not the opcode from RISC-V
+    // pub rs1: T,
+    // pub rs2: T,
+    // pub rd: T,
+    pub ops: OpSelectorView<T>,
     pub rs1_select: [T; 32],
     pub rs2_select: [T; 32],
     pub rd_select: [T; 32],
+    pub imm_value: T,
+    pub branch_target: T,
+}
+
+columns_view_impl!(CpuColumnsView);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct CpuColumnsView<T> {
+    pub clk: T,
+    pub inst: InstructionView<T>,
 
     pub halt: T,
 
     pub op1_value: T,
     pub op2_value: T,
-    pub imm_value: T,
     pub dst_value: T,
-    pub branch_target: T,
 
     pub regs: [T; 32],
-
-    pub ops: OpSelectorView<T>,
 
     pub op1_sign: T,
     pub op2_sign: T,
@@ -79,14 +72,9 @@ pub(crate) struct CpuColumnsView<T> {
     pub less_than: T,
     pub branch_equal: T,
 
-    pub xor_a: T,
-    pub xor_b: T,
-    pub xor_out: T,
+    pub xor: XorView<T>,
 
-    // TODO: for shift operations, we need to hook up POWERS_OF_2_IN and
-    // POWERS_OF_2_OUT to a cross-table lookup for input values 0..32.
-    pub powers_of_2_in: T,
-    pub powers_of_2_out: T,
+    pub bitshift: Bitshift<T>,
 
     pub quotient: T,
     pub remainder: T,
@@ -100,59 +88,90 @@ pub(crate) struct CpuColumnsView<T> {
     pub product_high_bits: T,
     pub product_high_diff_inv: T,
 }
+lazy_static::lazy_static! {
+    pub static ref CPU_MAP: CpuColumnsView<usize> = MAP.cpu;
+    pub static ref PC_MAP: InstColumnsView<usize> = MAP.permuted.inst;
+}
 
-make_col_map!(CpuColumnsView);
+make_col_map!(MAP, CpuColumnsExtended);
+columns_view_impl!(CpuColumnsExtended);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct CpuColumnsExtended<T> {
+    pub cpu: CpuColumnsView<T>,
+    pub permuted: ProgramColumnsView<T>,
+}
 
 pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
 
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MAP.ops.add) }
+pub fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MAP.cpu.inst.ops.add) }
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
-    vec![Column::single(MAP.dst_value)]
-}
+pub fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.cpu.dst_value)] }
 
 /// Columns containing the data to be matched against XOR Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.xor_a, MAP.xor_b, MAP.xor_out]).collect_vec()
-}
+pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor).collect_vec() }
 
 /// Column for a binary filter for bitwise instruction in Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_bitwise<F: Field>() -> Column<F> {
-    Column::many([
-        MAP.ops.xor,
-        MAP.ops.or,
-        MAP.ops.and,
-        MAP.ops.srl,
-        MAP.ops.sll,
-    ])
+    Column::many(MAP.cpu.inst.ops.ops_that_use_xor())
+}
+
+impl<T: Copy> OpSelectorView<T> {
+    #[must_use]
+    pub fn ops_that_use_xor(&self) -> [T; 5] {
+        // TODO: Add SRA, once we implement its constraints.
+        [self.xor, self.or, self.and, self.srl, self.sll]
+    }
+
+    // TODO: Add SRA, once we implement its constraints.
+    pub fn ops_that_shift(&self) -> [T; 2] { [self.sll, self.srl] }
+}
+
+/// Columns containing the data to be matched against `Bitshift` stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> {
+    Column::singles(MAP.cpu.bitshift).collect_vec()
+}
+
+/// Column for a binary filter for shft instruction in `Bitshift` stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_shift_amount<F: Field>() -> Column<F> {
+    Column::many(MAP.cpu.inst.ops.ops_that_shift())
 }
 
 /// Columns containing the data of original instructions.
 #[must_use]
 pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.pc, MAP.opcode, MAP.rs1, MAP.rs2, MAP.rd, MAP.imm_value]).collect_vec()
+    let inst = MAP.cpu.inst;
+    let opcode = Column::ascending_sum(inst.ops.opcodes());
+    let rs1 = Column::ascending_sum(inst.rs1_select);
+    let rs2 = Column::ascending_sum(inst.rs2_select);
+    let rd = Column::ascending_sum(inst.rd_select);
+
+    vec![
+        Column::single(inst.pc),
+        opcode,
+        rs1,
+        rs2,
+        rd,
+        Column::single(inst.imm_value),
+    ]
 }
 
 /// Columns containing the data of permuted instructions.
 #[must_use]
 pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> {
-    Column::singles([
-        MAP.permuted_pc,
-        MAP.permuted_opcode,
-        MAP.permuted_rs1,
-        MAP.permuted_rs2,
-        MAP.permuted_rd,
-        MAP.permuted_imm,
-    ])
-    .collect_vec()
+    Column::singles(MAP.permuted.inst).collect_vec()
 }

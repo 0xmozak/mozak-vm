@@ -10,8 +10,8 @@ pub(crate) fn constraints<P: PackedField>(
     nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let bumped_pc = lv.pc + P::Scalar::from_noncanonical_u64(4);
-    let branched_pc = lv.branch_target;
+    let bumped_pc = lv.inst.pc + P::Scalar::from_noncanonical_u64(4);
+    let branched_pc = lv.inst.branch_target;
     // TODO: make diff a function on CpuColumnsView.
     let diff = lv.op1_value - lv.op2_value;
 
@@ -21,14 +21,14 @@ pub(crate) fn constraints<P: PackedField>(
     let diff_inv = lv.cmp_diff_inv;
     yield_constr.constraint(diff * diff_inv + is_equal - P::ONES);
 
-    let next_pc = nv.pc;
-    yield_constr.constraint(lv.ops.beq * is_equal * (next_pc - branched_pc));
-    yield_constr.constraint(lv.ops.beq * diff * (next_pc - bumped_pc));
+    let next_pc = nv.inst.pc;
+    yield_constr.constraint(lv.inst.ops.beq * is_equal * (next_pc - branched_pc));
+    yield_constr.constraint(lv.inst.ops.beq * diff * (next_pc - bumped_pc));
 
     // For BNE branch happens when both operands are not equal so swap above
     // constraints.
-    yield_constr.constraint(lv.ops.bne * diff * (next_pc - branched_pc));
-    yield_constr.constraint(lv.ops.bne * is_equal * (next_pc - bumped_pc));
+    yield_constr.constraint(lv.inst.ops.bne * diff * (next_pc - branched_pc));
+    yield_constr.constraint(lv.inst.ops.bne * is_equal * (next_pc - bumped_pc));
 }
 
 #[cfg(test)]
@@ -76,7 +76,7 @@ mod tests {
                 assert_eq!(last_but_coda(&record).get_register_value(1), 10);
             }
 
-            CpuStark::prove_and_verify(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
         }
         #[test]
         fn prove_bne_proptest(a in u32_extra(), b in u32_extra()) {
@@ -109,7 +109,7 @@ mod tests {
             } else {
                 assert_eq!(last_but_coda(&record).get_register_value(1), 0);
             }
-            CpuStark::prove_and_verify(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
         }
     }
 }

@@ -110,6 +110,8 @@ mod tests {
     #[test]
     fn prove_memory_sb_lb() -> Result<()> {
         let executed = memory_trace_test_case();
-        MemoryStark::prove_and_verify(&executed)
+        // FIXME: provide code.
+        // MemoryStark::prove_and_verify(&executed)
+        unimplemented!()
     }
 }

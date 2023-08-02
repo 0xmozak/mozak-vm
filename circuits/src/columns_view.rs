@@ -15,6 +15,19 @@ pub trait NumberOfColumns {
 // TODO(Matthias): this could probably be a custom derive macro?
 macro_rules! columns_view_impl {
     ($s: ident) => {
+        impl<T> $s<T> {
+            // At the moment we only use `map` InstructionView,
+            // so it's dead code for the other callers of `columns_view_impl`.
+            // TODO(Matthias): remove this marker, once we use it for the other structs,
+            // too.
+            #[allow(dead_code)]
+            pub fn map<B: std::fmt::Debug, F>(self, f: F) -> $s<B>
+            where
+                F: FnMut(T) -> B, {
+                self.into_iter().map(f).collect()
+            }
+        }
+
         impl<T> crate::columns_view::NumberOfColumns for $s<T> {
             // `u8` is guaranteed to have a `size_of` of 1.
             const NUMBER_OF_COLUMNS: usize = std::mem::size_of::<$s<u8>>();
@@ -102,10 +115,10 @@ macro_rules! columns_view_impl {
 pub(crate) use columns_view_impl;
 
 macro_rules! make_col_map {
-    ($s: ident) => {
+    ($map: ident, $s: ident) => {
         lazy_static::lazy_static! {
             // TODO(Matthias): sort out const'ness of from_fn, and declare as a const instead of static:
-            pub(crate) static ref MAP: $s<usize> = {
+            pub static ref $map: $s<usize> = {
                 use crate::columns_view::NumberOfColumns;
                 const COLUMNS: usize = $s::<()>::NUMBER_OF_COLUMNS;
                 let indices_arr: [usize; COLUMNS] = core::array::from_fn(|i| i);

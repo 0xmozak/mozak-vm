@@ -12,7 +12,7 @@ pub(crate) fn constraints<P: PackedField>(
     let added = lv.op1_value + lv.op2_value;
     let wrapped = added - wrap_at;
 
-    yield_constr.constraint(lv.ops.add * (lv.dst_value - added) * (lv.dst_value - wrapped));
+    yield_constr.constraint(lv.inst.ops.add * (lv.dst_value - added) * (lv.dst_value - wrapped));
 }
 
 #[cfg(test)]
@@ -32,7 +32,7 @@ mod tests {
             (7, 100),
         ]);
         assert_eq!(record.last_state.get_register_value(5), 100 + 100);
-        MozakStark::prove_and_verify(&record.executed)
+        MozakStark::prove_and_verify(&record.last_state.code, &record.executed)
     }
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
@@ -56,7 +56,7 @@ mod tests {
                 if rd != 0 {
                     assert_eq!(record.executed[1].state.get_register_value(rd), a.wrapping_add(b));
                 }
-                CpuStark::prove_and_verify(&record.executed).unwrap();
+                CpuStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
             }
     }
 }

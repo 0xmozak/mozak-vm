@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 
-use itertools::izip;
+use itertools::{chain, izip};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
@@ -11,9 +11,10 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{CpuColumnsView, OpSelectorView};
+use super::columns::{CpuColumnsExtended, CpuColumnsView, OpSelectorView};
 use super::{add, beq, bitwise, div, ecall, jalr, mul, slt, sub};
 use crate::columns_view::NumberOfColumns;
+use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -24,7 +25,7 @@ pub struct CpuStark<F, const D: usize> {
 // Use the same order they are defined in cpu/columns.rs
 // TODO: add check to the order of the opcodes
 impl<P: Copy> OpSelectorView<P> {
-    fn straightline_opcodes(&self) -> Vec<P> {
+    pub fn straightline_opcodes(&self) -> Vec<P> {
         vec![
             self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu,
             self.remu, self.sll, self.slt, self.sltu, self.srl,
@@ -33,9 +34,9 @@ impl<P: Copy> OpSelectorView<P> {
 
     // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
     // PC. It sort-of jumps back to itself.
-    fn jumping_opcodes(&self) -> Vec<P> { vec![self.beq, self.bne, self.ecall, self.jalr] }
+    pub fn jumping_opcodes(&self) -> Vec<P> { vec![self.beq, self.bne, self.ecall, self.jalr] }
 
-    fn opcodes(&self) -> Vec<P> {
+    pub fn opcodes(&self) -> Vec<P> {
         let mut res = self.straightline_opcodes();
         res.extend(self.jumping_opcodes());
         res
@@ -47,10 +48,10 @@ fn pc_ticks_up<P: PackedField>(
     nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_straightline_op: P = lv.ops.straightline_opcodes().into_iter().sum();
+    let is_straightline_op: P = lv.inst.ops.straightline_opcodes().into_iter().sum();
 
     yield_constr.constraint_transition(
-        is_straightline_op * (nv.pc - (lv.pc + P::Scalar::from_noncanonical_u64(4))),
+        is_straightline_op * (nv.inst.pc - (lv.inst.pc + P::Scalar::from_noncanonical_u64(4))),
     );
 }
 
@@ -62,7 +63,7 @@ fn opcode_one_hot<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let op_selectors: Vec<_> = lv.ops.opcodes();
+    let op_selectors: Vec<_> = lv.inst.ops.opcodes();
 
     // Op selectors have value 0 or 1.
     op_selectors
@@ -72,13 +73,6 @@ fn opcode_one_hot<P: PackedField>(
     // Only one opcode selector enabled.
     let sum_s_op: P = op_selectors.clone().into_iter().sum();
     yield_constr.constraint(P::ONES - sum_s_op);
-
-    let opcode: P = op_selectors
-        .iter()
-        .enumerate()
-        .map(|(i, op_selector)| *op_selector * P::Scalar::from_canonical_usize(i))
-        .sum();
-    yield_constr.constraint(lv.opcode - opcode);
 }
 
 /// Ensure clock is ticking up, iff CPU is still running.
@@ -102,16 +96,9 @@ fn ensure_correct_register_selection<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let cols = [&lv.rs1, &lv.rs2, &lv.rd];
-    let target_cols = [&lv.rs1_select, &lv.rs2_select, &lv.rd_select];
-
-    izip!(cols, target_cols).for_each(|(col, target_col)| {
-        let constraint_val = (0..32)
-            .map(|i| target_col[i] * P::Scalar::from_canonical_usize(i))
-            .sum::<P>();
-
-        yield_constr.constraint(*col - constraint_val);
-    });
+    for selector in chain![lv.inst.rs1_select, lv.inst.rs2_select, lv.inst.rd_select] {
+        yield_constr.constraint(selector * (P::ONES - selector));
+    }
 }
 
 /// Ensures that if [`duplicate_inst_filter`] is 0, then duplicate instructions
@@ -120,14 +107,19 @@ fn ensure_correct_register_selection<P: PackedField>(
 /// trace is omitted. It also doesn't verify the execution order of the
 /// instructions.
 fn check_permuted_inst_cols<P: PackedField>(
-    lv: &CpuColumnsView<P>,
-    nv: &CpuColumnsView<P>,
+    lv: &ProgramColumnsView<P>,
+    nv: &ProgramColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    yield_constr.constraint(lv.duplicate_inst_filter * (lv.duplicate_inst_filter - P::ONES));
-    yield_constr.constraint_first_row(lv.duplicate_inst_filter - P::ONES);
-    yield_constr
-        .constraint((nv.duplicate_inst_filter - P::ONES) * (lv.permuted_pc - nv.permuted_pc));
+    yield_constr.constraint(lv.filter * (lv.filter - P::ONES));
+    yield_constr.constraint_first_row(lv.filter - P::ONES);
+
+    for (lv_col, nv_col) in izip![lv.inst, nv.inst] {
+        yield_constr
+            // TODO: this needs to take __all__ of the fileds into account.  Or perhaps we use the
+            // randomised linear combo.
+            .constraint((nv.filter - P::ONES) * (lv_col - nv_col));
+    }
 }
 
 /// Register used as destination register can have different value, all
@@ -140,8 +132,9 @@ fn only_rd_changes<P: PackedField>(
     // Note: register 0 is already always 0.
     // But we keep the constraints simple here.
     (0..32).for_each(|reg| {
-        yield_constr
-            .constraint_transition((P::ONES - lv.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]));
+        yield_constr.constraint_transition(
+            (P::ONES - lv.inst.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]),
+        );
     });
 }
 
@@ -153,7 +146,8 @@ fn rd_actually_changes<P: PackedField>(
     // Note: we skip 0 here, because it's already forced to 0 permanently by
     // `r0_always_0`
     (1..32).for_each(|reg| {
-        yield_constr.constraint_transition((lv.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
+        yield_constr
+            .constraint_transition((lv.inst.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
     });
 }
 
@@ -166,7 +160,7 @@ fn populate_op1_value<P: PackedField>(
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
-                .map(|reg| lv.rs1_select[reg] * lv.regs[reg])
+                .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
                 .sum::<P>(),
     );
 }
@@ -178,17 +172,17 @@ fn populate_op2_value<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(
-        lv.op2_value - lv.imm_value
+        lv.op2_value - lv.inst.imm_value
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
-                .map(|reg| lv.rs2_select[reg] * lv.regs[reg])
+                .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
                 .sum::<P>(),
     );
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
-    const COLUMNS: usize = CpuColumnsView::<F>::NUMBER_OF_COLUMNS;
+    const COLUMNS: usize = CpuColumnsExtended::<F>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
 
     fn eval_packed_generic<FE, P, const D2: usize>(
@@ -198,13 +192,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv = vars.local_values.borrow();
-        let nv = vars.next_values.borrow();
-        // let lv: &BitwiseColumnsView<_> = vars.local_values.borrow();
+        let lve: &CpuColumnsExtended<_> = vars.local_values.borrow();
+        let nve: &CpuColumnsExtended<_> = vars.next_values.borrow();
+        let lv = &lve.cpu;
+        let nv = &nve.cpu;
 
         opcode_one_hot(lv, yield_constr);
         ensure_correct_register_selection(lv, yield_constr);
-        check_permuted_inst_cols(lv, nv, yield_constr);
+        check_permuted_inst_cols(&lve.permuted, &nve.permuted, yield_constr);
 
         clock_ticks(lv, nv, yield_constr);
         pc_ticks_up(lv, nv, yield_constr);

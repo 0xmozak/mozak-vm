@@ -1,9 +1,13 @@
 use std::collections::HashSet;
+use std::hash::Hash;
 
+use mozak_vm::elf::Code;
 use plonky2::hash::hash_types::RichField;
 
-use crate::cpu::columns::{self as cpu_cols};
-use crate::program::columns::{MAP, NUM_PROGRAM_COLS};
+use crate::cpu;
+use crate::cpu::columns::{self as cpu_cols, CpuColumnsView, InstructionView};
+use crate::generation::instruction;
+use crate::program::columns::{InstColumnsView, ProgramColumnsView, MAP, NUM_PROGRAM_COLS};
 
 /// Generates a program trace from CPU traces.
 ///
@@ -14,39 +18,27 @@ use crate::program::columns::{MAP, NUM_PROGRAM_COLS};
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_program_trace<F: RichField>(
-    cpu_trace: &[Vec<F>; cpu_cols::NUM_CPU_COLS],
-) -> [Vec<F>; NUM_PROGRAM_COLS] {
-    let mut unique_instructions = HashSet::new();
+    code: &Code,
+    cpu_trace: &Vec<CpuColumnsView<F>>,
+) -> Vec<ProgramColumnsView<F>> {
+    let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
 
-    for i in 0..cpu_trace[cpu_cols::MAP.pc].len() {
-        let instruction = (
-            cpu_trace[cpu_cols::MAP.pc][i],
-            cpu_trace[cpu_cols::MAP.opcode][i],
-            cpu_trace[cpu_cols::MAP.rs1][i],
-            cpu_trace[cpu_cols::MAP.rs2][i],
-            cpu_trace[cpu_cols::MAP.rd][i],
-            cpu_trace[cpu_cols::MAP.imm_value][i],
-        );
-        unique_instructions.insert(instruction);
-    }
+    code.iter()
+        .map(|(&pc, &inst)| {
+            let i: InstructionView<F> =
+                InstructionView::from((pc, inst)).map(F::from_canonical_u32);
+            let pc = &F::from_canonical_u32(pc);
+            ProgramColumnsView {
+                filter: F::from_bool(used_pcs.contains(pc)),
+                inst: InstColumnsView::from(i),
+            }
+        })
+        .collect()
 
-    let trace_len = unique_instructions.len().next_power_of_two();
-    let mut trace_res: [Vec<F>; NUM_PROGRAM_COLS] = Default::default();
+    // let trace_len = unique_instructions.len().next_power_of_two();
+    // let mut trace_res: [Vec<F>; NUM_PROGRAM_COLS] = Default::default();
 
-    for vec in &mut trace_res {
-        vec.resize(trace_len, F::ZERO);
-    }
-
-    for (i, instruction) in unique_instructions.into_iter().enumerate() {
-        let (pc, opcode, rs1, rs2, rd, imm) = instruction;
-        trace_res[MAP.program_is_inst][i] = F::ONE;
-        trace_res[MAP.program_pc][i] = pc;
-        trace_res[MAP.program_opcode][i] = opcode;
-        trace_res[MAP.program_rs1][i] = rs1;
-        trace_res[MAP.program_rs2][i] = rs2;
-        trace_res[MAP.program_rd][i] = rd;
-        trace_res[MAP.program_imm][i] = imm;
-    }
-
-    trace_res
+    // for vec in &mut trace_res {
+    //     vec.resize(trace_len, F::ZERO);
+    // }
 }

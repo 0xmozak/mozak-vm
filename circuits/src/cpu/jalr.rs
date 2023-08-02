@@ -11,21 +11,21 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
 
-    let return_address = lv.pc + P::Scalar::from_noncanonical_u64(4);
+    let return_address = lv.inst.pc + P::Scalar::from_noncanonical_u64(4);
     let wrapped_return_address = return_address - wrap_at;
 
     let destination = lv.dst_value;
     // enable-if JALR: aux.dst_val == jmp-inst-pc + 4, wrapped
     yield_constr.constraint(
-        lv.ops.jalr * (destination - return_address) * (destination - wrapped_return_address),
+        lv.inst.ops.jalr * (destination - return_address) * (destination - wrapped_return_address),
     );
 
     let jump_target = lv.op1_value + lv.op2_value;
     let wrapped_jump_target = jump_target - wrap_at;
-    let new_pc = nv.pc;
+    let new_pc = nv.inst.pc;
 
     yield_constr.constraint_transition(
-        lv.ops.jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target),
+        lv.inst.ops.jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target),
     );
 }
 #[cfg(test)]
@@ -54,7 +54,7 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&record.executed).unwrap();
+        CpuStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
     }
 
     #[test]
@@ -73,7 +73,7 @@ mod tests {
             &[(0x1, 0)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&record.executed).unwrap();
+        CpuStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
     }
     #[test]
     fn prove_jalr_goto_imm_zero_rs1_not_zero() {
@@ -91,7 +91,7 @@ mod tests {
             &[(0x1, 4)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&record.executed).unwrap();
+        CpuStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
     }
 
     #[test]
@@ -110,7 +110,7 @@ mod tests {
             &[(0x1, 0)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&record.executed).unwrap();
+        CpuStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
     }
 
     #[test]
@@ -143,7 +143,7 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_pc(), 16);
-        CpuStark::prove_and_verify(&record.executed).unwrap();
+        CpuStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
     }
 
     proptest! {
@@ -177,7 +177,7 @@ mod tests {
             );
             assert_eq!(record.executed.len(), 3);
             assert_eq!(last_but_coda(&record).get_register_value(rd), 4);
-            CpuStark::prove_and_verify(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
         }
     }
 }

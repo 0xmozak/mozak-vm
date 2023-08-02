@@ -2,6 +2,7 @@
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
+use mozak_vm::elf::Code;
 use mozak_vm::vm::Row;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
@@ -21,6 +22,7 @@ use starky::stark::{LookupConfig, Stark};
 use super::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
 use super::permutation::get_grand_product_challenge_set;
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
+use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
@@ -34,6 +36,7 @@ use crate::stark::poly::compute_quotient_polys;
 
 #[allow(clippy::missing_errors_doc)]
 pub fn prove<F, C, const D: usize>(
+    code: &Code,
     step_rows: &[Row],
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
@@ -46,9 +49,10 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
-    let traces_poly_values = generate_traces(step_rows);
+    let traces_poly_values = generate_traces(code, step_rows);
     prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
 }
 
@@ -69,6 +73,7 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let rate_bits = config.fri_config.rate_bits;
@@ -340,6 +345,7 @@ where
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
+    [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
@@ -371,6 +377,16 @@ where
         timing,
     )?;
 
+    let shift_amount_proof = prove_single_table::<F, C, BitshiftStark<F, D>, D>(
+        &mozak_stark.shift_amount_stark,
+        config,
+        &traces_poly_values[TableKind::Bitshift as usize],
+        &trace_commitments[TableKind::Bitshift as usize],
+        &ctl_data_per_table[TableKind::Bitshift as usize],
+        challenger,
+        timing,
+    )?;
+
     let program_proof = prove_single_table::<F, C, ProgramStark<F, D>, D>(
         &mozak_stark.program_stark,
         config,
@@ -381,7 +397,13 @@ where
         timing,
     )?;
 
-    Ok([cpu_proof, rangecheck_proof, bitwise_proof, program_proof])
+    Ok([
+        cpu_proof,
+        rangecheck_proof,
+        bitwise_proof,
+        shift_amount_proof,
+        program_proof,
+    ])
 }
 
 #[cfg(test)]
@@ -396,14 +418,14 @@ mod tests {
     #[test]
     fn prove_halt() {
         let record = simple_test(0, &[], &[]);
-        MozakStark::prove_and_verify(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
     }
 
     #[test]
     fn prove_lui() {
         let record = simple_test(4, &[(0_u32, 0x8000_00b7 /* lui r1, 0x80000 */)], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
-        MozakStark::prove_and_verify(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
     }
 
     #[test]
@@ -421,7 +443,7 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_register_value(1), 0xDEAD_BEEF,);
-        MozakStark::prove_and_verify(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
     }
 
     #[test]
@@ -440,6 +462,6 @@ mod tests {
             &[(1, 2)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        MozakStark::prove_and_verify(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
     }
 }

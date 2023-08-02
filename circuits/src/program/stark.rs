@@ -30,7 +30,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ProgramStark<
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let lv: &ProgramColumnsView<P> = vars.local_values.borrow();
-        yield_constr.constraint(lv.program_is_inst * (lv.program_is_inst - P::ONES));
+        yield_constr.constraint(lv.filter * (lv.filter - P::ONES));
     }
 
     #[no_coverage]
