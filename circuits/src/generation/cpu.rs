@@ -29,8 +29,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     cpu_trace: Vec<CpuColumnsView<F>>,
 ) -> CpuColumnsExtended<Vec<F>> {
     let permuted = generate_permuted_inst_trace(&cpu_trace);
-    let x = (chain!(transpose_trace(cpu_trace), transpose_trace(permuted))).collect();
-    x
+    (chain!(transpose_trace(cpu_trace), transpose_trace(permuted))).collect()
 }
 
 #[allow(clippy::missing_panics_doc)]
