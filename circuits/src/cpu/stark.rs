@@ -23,7 +23,7 @@ pub struct CpuStark<F, const D: usize> {
 }
 
 impl<P: Copy> OpSelectorView<P> {
-    pub fn straightline_opcodes(&self) -> Vec<P> {
+    fn straightline_opcodes(&self) -> Vec<P> {
         vec![
             self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu,
             self.remu, self.sll, self.slt, self.sltu, self.srl,
@@ -32,9 +32,9 @@ impl<P: Copy> OpSelectorView<P> {
 
     // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
     // PC. It sort-of jumps back to itself.
-    pub fn jumping_opcodes(&self) -> Vec<P> { vec![self.beq, self.bne, self.ecall, self.jalr] }
+    fn jumping_opcodes(&self) -> Vec<P> { vec![self.beq, self.bne, self.ecall, self.jalr] }
 
-    pub fn opcodes(&self) -> Vec<P> {
+    fn opcodes(&self) -> Vec<P> {
         chain![self.straightline_opcodes(), self.jumping_opcodes()].collect()
     }
 }
