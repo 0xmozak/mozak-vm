@@ -18,6 +18,7 @@ pub fn generate_program_trace<F: RichField>(
     code: &Code,
     cpu_trace: &[CpuColumnsView<F>],
 ) -> Vec<ProgramColumnsView<F>> {
+    // NOTE: We expect CpuColumnsView to already be padded to the right size.
     let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
 
     code.iter()
@@ -28,11 +29,4 @@ pub fn generate_program_trace<F: RichField>(
             ),
         })
         .collect()
-
-    // let trace_len = unique_instructions.len().next_power_of_two();
-    // let mut trace_res: [Vec<F>; NUM_PROGRAM_COLS] = Default::default();
-
-    // for vec in &mut trace_res {
-    //     vec.resize(trace_len, F::ZERO);
-    // }
 }
