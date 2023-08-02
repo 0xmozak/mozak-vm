@@ -21,6 +21,7 @@ use starky::stark::{LookupConfig, Stark};
 use super::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
 use super::permutation::get_grand_product_challenge_set;
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
+use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
@@ -46,6 +47,7 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(step_rows);
@@ -69,6 +71,7 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let rate_bits = config.fri_config.rate_bits;
@@ -339,6 +342,7 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
@@ -381,7 +385,22 @@ where
         timing,
     )?;
 
-    Ok([cpu_proof, rangecheck_proof, bitwise_proof, memory_proof])
+    let shift_amount_proof = prove_single_table::<F, C, BitshiftStark<F, D>, D>(
+        &mozak_stark.shift_amount_stark,
+        config,
+        &traces_poly_values[TableKind::Bitshift as usize],
+        &trace_commitments[TableKind::Bitshift as usize],
+        &ctl_data_per_table[TableKind::Bitshift as usize],
+        challenger,
+        timing,
+    )?;
+    Ok([
+        cpu_proof,
+        rangecheck_proof,
+        bitwise_proof,
+        shift_amount_proof,
+        memory_proof,
+    ])
 }
 
 #[cfg(test)]

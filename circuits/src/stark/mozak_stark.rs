@@ -4,12 +4,13 @@ use plonky2::hash::hash_types::RichField;
 use starky::config::StarkConfig;
 use starky::stark::Stark;
 
+use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::memory::stark::MemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::{bitwise, cpu, memory, rangecheck};
+use crate::{bitshift, bitwise, cpu, memory, rangecheck};
 
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
@@ -17,7 +18,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub rangecheck_stark: RangeCheckStark<F, D>,
     pub bitwise_stark: BitwiseStark<F, D>,
     pub memory_stark: MemoryStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 3],
+    pub shift_amount_stark: BitshiftStark<F, D>,
+    pub cross_table_lookups: [CrossTableLookup<F>; 4],
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -26,20 +28,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             cpu_stark: CpuStark::default(),
             rangecheck_stark: RangeCheckStark::default(),
             bitwise_stark: BitwiseStark::default(),
+
             memory_stark: MemoryStark::default(),
+            shift_amount_stark: BitshiftStark::default(),
             cross_table_lookups: [
                 RangecheckCpuTable::lookups(),
                 BitwiseCpuTable::lookups(),
+                BitshiftCpuTable::lookups(),
                 MemoryRangeCheckTable::lookups(),
             ],
         }
     }
-}
-
-fn cross_table_lookups<F: RichField>() -> [CrossTableLookup<F>; 2] {
-    let rangecheck_cpu_lookups = RangecheckCpuTable::lookups();
-    let memory_rangecheck_lookups = MemoryRangeCheckTable::lookups();
-    return [rangecheck_cpu_lookups, memory_rangecheck_lookups];
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
@@ -49,6 +48,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.rangecheck_stark.num_permutation_batches(config),
             self.bitwise_stark.num_permutation_batches(config),
             self.memory_stark.num_permutation_batches(config),
+            self.shift_amount_stark.num_permutation_batches(config),
         ]
     }
 
@@ -58,18 +58,20 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.rangecheck_stark.permutation_batch_size(),
             self.bitwise_stark.permutation_batch_size(),
             self.memory_stark.permutation_batch_size(),
+            self.shift_amount_stark.permutation_batch_size(),
         ]
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 4;
+pub(crate) const NUM_TABLES: usize = 5;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TableKind {
     Cpu = 0,
     RangeCheck = 1,
     Bitwise = 2,
-    Memory = 3,
+    Bitshift = 3,
+    Memory = 4,
 }
 
 impl TableKind {
@@ -79,6 +81,7 @@ impl TableKind {
             TableKind::Cpu,
             TableKind::RangeCheck,
             TableKind::Bitwise,
+            TableKind::Bitshift,
             TableKind::Memory,
         ]
     }
@@ -113,6 +116,9 @@ pub struct MemoryTable<F: Field>(Table<F>);
 /// Represents a bitwise trace table in the Mozak VM.
 pub struct BitwiseTable<F: Field>(Table<F>);
 
+/// Represents a shift amount trace table in the Mozak VM.
+pub struct BitshiftTable<F: Field>(Table<F>);
+
 impl<F: Field> RangeCheckTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
@@ -138,6 +144,13 @@ impl<F: Field> BitwiseTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
         Table::new(TableKind::Bitwise, columns, filter_column)
+    }
+}
+
+impl<F: Field> BitshiftTable<F> {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
+        Table::new(TableKind::Bitshift, columns, filter_column)
     }
 }
 
@@ -187,6 +200,23 @@ impl<F: Field> Lookups<F> for BitwiseCpuTable<F> {
             BitwiseTable::new(
                 bitwise::columns::data_for_cpu(),
                 bitwise::columns::filter_for_cpu(),
+            ),
+        )
+    }
+}
+
+pub struct BitshiftCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for BitshiftCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_shift_amount(),
+                cpu::columns::filter_for_shift_amount(),
+            )],
+            BitshiftTable::new(
+                bitshift::columns::data_for_cpu(),
+                bitshift::columns::filter_for_cpu(),
             ),
         )
     }

@@ -10,8 +10,10 @@ use starky::prover::prove as prove_table;
 use starky::stark::Stark;
 use starky::verifier::verify_stark_proof;
 
+use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
+use crate::generation::bitshift::generate_shift_amount_trace;
 use crate::generation::bitwise::generate_bitwise_trace;
 use crate::generation::cpu::generate_cpu_trace;
 use crate::generation::memory::generate_memory_trace;
@@ -129,11 +131,31 @@ impl ProveAndVerify for BitwiseStark<F, D> {
 impl ProveAndVerify for MemoryStark<F, D> {
     fn prove_and_verify(step_rows: &[Row]) -> Result<()> {
         type S = MemoryStark<F, D>;
-
         let config = standard_faster_config();
 
         let stark = S::default();
         let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(&step_rows));
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            [],
+            &mut TimingTree::default(),
+        )?;
+
+        verify_stark_proof(stark, proof, &config)
+    }
+}
+
+impl ProveAndVerify for BitshiftStark<F, D> {
+    fn prove_and_verify(step_rows: &[Row]) -> Result<()> {
+        type S = BitshiftStark<F, D>;
+        let config = standard_faster_config();
+
+        let stark = S::default();
+        let cpu_rows = generate_cpu_trace::<F>(step_rows);
+        let trace = generate_shift_amount_trace(&cpu_rows);
+        let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
