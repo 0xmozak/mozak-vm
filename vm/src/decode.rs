@@ -234,7 +234,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         _ => Default::default(),
     };
 
-    Instruction::new(op, args)
+    Instruction { op, args }
 }
 
 #[cfg(test)]
@@ -791,14 +791,14 @@ mod tests {
 
     #[test_case(0x7ff0_af83, 31, 1, 2047; "lw r31, 2047(r1)")]
     #[test_case(0x8000_af83, 31, 1, -2048; "lw r31, -2048(r1)")]
-    fn lw(word: u32, rd: u8, rs1: u8, imm: i32) {
+    fn lw(word: u32, rd: u8, rs2: u8, imm: i32) {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::LW,
             args: Args {
                 rd,
-                rs1,
+                rs2,
                 imm,
                 ..Default::default()
             },
@@ -808,14 +808,14 @@ mod tests {
 
     #[test_case(0x7ff0_9f83, 31, 1, 2047; "lh r31, 2047(r1)")]
     #[test_case(0x8000_9f83, 31, 1, -2048; "lh r31, -2048(r1)")]
-    fn lh(word: u32, rd: u8, rs1: u8, imm: i32) {
+    fn lh(word: u32, rd: u8, rs2: u8, imm: i32) {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::LH,
             args: Args {
                 rd,
-                rs1,
+                rs2,
                 imm,
                 ..Default::default()
             },
@@ -825,14 +825,14 @@ mod tests {
 
     #[test_case(0x7ff0_df83, 31, 1, 2047; "lhu r31, 2047(r1)")]
     #[test_case(0x8000_df83, 31, 1, -2048; "lhu r31, -2048(r1)")]
-    fn lhu(word: u32, rd: u8, rs1: u8, imm: i32) {
+    fn lhu(word: u32, rd: u8, rs2: u8, imm: i32) {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::LHU,
             args: Args {
                 rd,
-                rs1,
+                rs2,
                 imm,
                 ..Default::default()
             },
@@ -842,14 +842,14 @@ mod tests {
 
     #[test_case(0x7ff0_8f83, 31, 1, 2047; "lb r31, 2047(r1)")]
     #[test_case(0x8000_8f83, 31, 1, -2048; "lb r31, -2048(r1)")]
-    fn lb(word: u32, rd: u8, rs1: u8, imm: i32) {
+    fn lb(word: u32, rd: u8, rs2: u8, imm: i32) {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::LB,
             args: Args {
                 rd,
-                rs1,
+                rs2,
                 imm,
                 ..Default::default()
             },
@@ -859,14 +859,14 @@ mod tests {
 
     #[test_case(0x7ff0_cf83, 31, 1, 2047; "lbu r31, 2047(r1)")]
     #[test_case(0x8000_cf83, 31, 1, -2048; "lbu r31, -2048(r1)")]
-    fn lbu(word: u32, rd: u8, rs1: u8, imm: i32) {
+    fn lbu(word: u32, rd: u8, rs2: u8, imm: i32) {
         let ins: Instruction = decode_instruction(0, word);
         let imm = imm as u32;
         let match_ins = Instruction {
             op: Op::LBU,
             args: Args {
                 rd,
-                rs1,
+                rs2,
                 imm,
                 ..Default::default()
             },
