@@ -1,8 +1,8 @@
-use flexbuffers::FlexbufferSerializer;
+use flexbuffers::{FlexbufferSerializer, Reader};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::GenericConfig;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::proof::AllProof;
 
@@ -13,6 +13,11 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         self.serialize(&mut s).unwrap();
         s
     }
+
+    #[allow(dead_code)]
+    fn deserialize_proof_from_flexbuffer(reader: Reader<&[u8]>) -> Self {
+        AllProof::deserialize(reader).unwrap()
+    }
 }
 
 #[cfg(test)]
@@ -21,10 +26,12 @@ mod tests {
     use mozak_vm::test_utils::simple_test;
     use plonky2::util::timing::TimingTree;
 
+    use crate::stark::proof::AllProof;
     use crate::stark::prover::prove;
+    use crate::stark::verifier::verify_proof;
     use crate::test_utils::{standard_faster_config, C, D, F, S};
     #[test]
-    fn test_serialization() {
+    fn test_serialization_deserialization() {
         let record = simple_test(0, &[], &[]);
         let stark = S::default();
         let config = standard_faster_config();
@@ -37,6 +44,8 @@ mod tests {
         )
         .unwrap();
         let s = all_proof.serialize_proof_to_flexbuffer();
-        println!("AllProof stored in {:?} bytes", s.view().len());
+        let r = flexbuffers::Reader::get_root(s.view()).unwrap();
+        let all_proof_deserialized = AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(r);
+        verify_proof(stark, all_proof_deserialized, &config).unwrap();
     }
 }
