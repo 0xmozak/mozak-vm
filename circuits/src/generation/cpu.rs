@@ -215,16 +215,13 @@ fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorV
 pub fn generate_permuted_inst_trace<F: RichField>(
     trace: &Vec<CpuColumnsView<F>>,
 ) -> Vec<ProgramColumnsView<F>> {
-    // Get the index order after sorting by pc
     trace
         .iter()
         .map(|row| row.inst)
         .sorted_by_key(|inst| inst.pc.to_noncanonical_u64())
         .scan(None, |previous_pc, inst| {
-            let filter = F::from_bool(&Some(inst.pc) == previous_pc);
-            *previous_pc = Some(inst.pc);
             Some(ProgramColumnsView {
-                filter,
+                filter: F::from_bool(Some(inst.pc) == previous_pc.replace(inst.pc)),
                 inst: InstColumnsView::from(inst),
             })
         })
