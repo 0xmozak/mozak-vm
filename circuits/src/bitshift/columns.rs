@@ -21,7 +21,7 @@ impl From<u64> for Bitshift<u64> {
     }
 }
 
-make_col_map!(MAP, BitshiftView);
+make_col_map!(BitshiftView);
 columns_view_impl!(BitshiftView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]

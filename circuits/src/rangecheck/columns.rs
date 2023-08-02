@@ -40,7 +40,7 @@ pub struct RangeCheckColumnsView<T> {
     pub fixed_range_check_u16_permuted_hi: T,
 }
 columns_view_impl!(RangeCheckColumnsView);
-make_col_map!(MAP, RangeCheckColumnsView);
+make_col_map!(RangeCheckColumnsView);
 
 /// Total number of columns for the range check table.
 pub const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COLUMNS;

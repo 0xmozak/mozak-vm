@@ -19,7 +19,7 @@ pub struct InstColumnsView<T> {
 }
 
 columns_view_impl!(ProgramColumnsView);
-make_col_map!(MAP, ProgramColumnsView);
+make_col_map!(ProgramColumnsView);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct ProgramColumnsView<T> {
     pub inst: InstColumnsView<T>,

@@ -28,7 +28,7 @@ pub struct MemoryColumnsView<T> {
     pub mem_diff_clk: T,
 }
 columns_view_impl!(MemoryColumnsView);
-make_col_map!(MAP, MemoryColumnsView);
+make_col_map!(MemoryColumnsView);
 
 // Total number of columns.
 pub const NUM_MEM_COLS: usize = MemoryColumnsView::<()>::NUMBER_OF_COLUMNS;

@@ -12,7 +12,7 @@ pub struct BitwiseColumnsView<T> {
     pub limbs: XorView<[T; 32]>,
 }
 columns_view_impl!(BitwiseColumnsView);
-make_col_map!(MAP, BitwiseColumnsView);
+make_col_map!(BitwiseColumnsView);
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]

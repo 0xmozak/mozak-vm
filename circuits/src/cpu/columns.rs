@@ -5,7 +5,7 @@ use crate::bitshift::columns::Bitshift;
 use crate::bitwise::columns::XorView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
-use crate::program::columns::{InstColumnsView, ProgramColumnsView};
+use crate::program::columns::ProgramColumnsView;
 
 columns_view_impl!(OpSelectorView);
 #[repr(C)]
@@ -88,12 +88,8 @@ pub struct CpuColumnsView<T> {
     pub product_high_bits: T,
     pub product_high_diff_inv: T,
 }
-lazy_static::lazy_static! {
-    pub static ref CPU_MAP: CpuColumnsView<usize> = MAP.cpu;
-    pub static ref PC_MAP: InstColumnsView<usize> = MAP.permuted.inst;
-}
 
-make_col_map!(MAP, CpuColumnsExtended);
+make_col_map!(CpuColumnsExtended);
 columns_view_impl!(CpuColumnsExtended);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
