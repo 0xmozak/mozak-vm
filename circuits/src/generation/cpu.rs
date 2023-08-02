@@ -1,4 +1,4 @@
-use itertools::{izip, Itertools};
+use itertools::Itertools;
 use mozak_vm::instruction::{Instruction, Op};
 use mozak_vm::state::State;
 use mozak_vm::vm::Row;
@@ -7,7 +7,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitshift::columns::Bitshift;
 use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
-use crate::cpu::columns::{CpuColumnsExtended, CpuColumnsView, MAP};
+use crate::cpu::columns::{CpuColumnsExtended, CpuColumnsView};
 use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 use crate::utils::from_u32;
 
@@ -24,7 +24,7 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<CpuColumnsView<F>>) -> Vec<CpuColu
 
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_cpu_trace_extended<F: RichField>(
-    cpu_trace: Vec<CpuColumnsView<F>>,
+    _cpu_trace: Vec<CpuColumnsView<F>>,
 ) -> CpuColumnsExtended<Vec<F>> {
     // let cpu_trace: Vec<CpuColumnsView<F>> = generate_cpu_trace(step_rows);
 
@@ -242,7 +242,6 @@ mod tests {
     use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use super::*;
     use crate::cpu::columns::NUM_CPU_COLS;
 
     #[test]
@@ -251,7 +250,7 @@ mod tests {
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; 4]; NUM_CPU_COLS];
+        let _trace: Vec<Vec<F>> = vec![vec![F::ZERO; 4]; NUM_CPU_COLS];
 
         // trace[MAP.inst.pc] = vec![from_u32(3), from_u32(1), from_u32(2),
         // from_u32(1)]; trace[MAP.opcode] = vec![from_u32(2),

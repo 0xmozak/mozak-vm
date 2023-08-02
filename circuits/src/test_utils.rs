@@ -66,7 +66,7 @@ pub trait ProveAndVerify {
 }
 
 impl ProveAndVerify for CpuStark<F, D> {
-    fn prove_and_verify(code: &Code, step_rows: &[Row]) -> Result<()> {
+    fn prove_and_verify(_code: &Code, step_rows: &[Row]) -> Result<()> {
         type S = CpuStark<F, D>;
 
         let config = standard_faster_config();
@@ -86,7 +86,7 @@ impl ProveAndVerify for CpuStark<F, D> {
 }
 
 impl ProveAndVerify for RangeCheckStark<F, D> {
-    fn prove_and_verify(code: &Code, step_rows: &[Row]) -> Result<()> {
+    fn prove_and_verify(_code: &Code, step_rows: &[Row]) -> Result<()> {
         type S = RangeCheckStark<F, D>;
 
         let config = standard_faster_config();
@@ -107,7 +107,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
 }
 
 impl ProveAndVerify for BitwiseStark<F, D> {
-    fn prove_and_verify(code: &Code, step_rows: &[Row]) -> Result<()> {
+    fn prove_and_verify(_code: &Code, step_rows: &[Row]) -> Result<()> {
         type S = BitwiseStark<F, D>;
 
         let config = standard_faster_config();
@@ -128,7 +128,7 @@ impl ProveAndVerify for BitwiseStark<F, D> {
 }
 
 impl ProveAndVerify for MemoryStark<F, D> {
-    fn prove_and_verify(code: &Code, step_rows: &[Row]) -> Result<()> {
+    fn prove_and_verify(_code: &Code, step_rows: &[Row]) -> Result<()> {
         type S = MemoryStark<F, D>;
         let config = standard_faster_config();
 
@@ -147,7 +147,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
 }
 
 impl ProveAndVerify for BitshiftStark<F, D> {
-    fn prove_and_verify(code: &Code, step_rows: &[Row]) -> Result<()> {
+    fn prove_and_verify(_code: &Code, step_rows: &[Row]) -> Result<()> {
         type S = BitshiftStark<F, D>;
         let config = standard_faster_config();
 

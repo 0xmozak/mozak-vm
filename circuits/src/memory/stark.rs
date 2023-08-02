@@ -94,7 +94,6 @@ mod tests {
 
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
@@ -109,7 +108,7 @@ mod tests {
 
     #[test]
     fn prove_memory_sb_lb() -> Result<()> {
-        let executed = memory_trace_test_case();
+        let _executed = memory_trace_test_case();
         // FIXME: provide code.
         // MemoryStark::prove_and_verify(&executed)
         unimplemented!()

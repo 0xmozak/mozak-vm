@@ -1,13 +1,10 @@
 use std::collections::HashSet;
-use std::hash::Hash;
 
 use mozak_vm::elf::Code;
 use plonky2::hash::hash_types::RichField;
 
-use crate::cpu;
-use crate::cpu::columns::{self as cpu_cols, CpuColumnsView, InstructionView};
-use crate::generation::instruction;
-use crate::program::columns::{InstColumnsView, ProgramColumnsView, MAP, NUM_PROGRAM_COLS};
+use crate::cpu::columns::{CpuColumnsView, InstructionView};
+use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 
 /// Generates a program trace from CPU traces.
 ///
