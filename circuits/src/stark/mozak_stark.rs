@@ -192,6 +192,8 @@ impl<F: Field> Lookups<F> for BitwiseCpuTable<F> {
     }
 }
 
+pub struct BitshiftCpuTable<F: Field>(CrossTableLookup<F>);
+
 impl<F: Field> Lookups<F> for BitshiftCpuTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
@@ -237,4 +239,3 @@ impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
         )
     }
 }
-pub struct BitshiftCpuTable<F: Field>(CrossTableLookup<F>);
