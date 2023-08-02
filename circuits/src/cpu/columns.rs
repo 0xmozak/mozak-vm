@@ -150,7 +150,7 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
     let inst = MAP.cpu.inst;
     vec![
         Column::single(inst.pc),
-        Column::ascending_sum(inst.ops.opcodes()),
+        Column::ascending_sum(inst.ops),
         Column::ascending_sum(inst.rs1_select),
         Column::ascending_sum(inst.rs2_select),
         Column::ascending_sum(inst.rd_select),
