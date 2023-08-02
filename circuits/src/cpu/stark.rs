@@ -35,9 +35,7 @@ impl<P: Copy> OpSelectorView<P> {
     pub fn jumping_opcodes(&self) -> Vec<P> { vec![self.beq, self.bne, self.ecall, self.jalr] }
 
     pub fn opcodes(&self) -> Vec<P> {
-        let mut res = self.straightline_opcodes();
-        res.extend(self.jumping_opcodes());
-        res
+        chain![self.straightline_opcodes(), self.jumping_opcodes()].collect()
     }
 }
 
