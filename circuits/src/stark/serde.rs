@@ -3,20 +3,28 @@ use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::GenericConfig;
 use serde::{Deserialize, Serialize};
+use anyhow::Result;
 
 use super::proof::AllProof;
 
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
-    #[allow(dead_code)]
-    fn serialize_proof_to_flexbuffer(self) -> FlexbufferSerializer {
-        let mut s = flexbuffers::FlexbufferSerializer::new();
-        self.serialize(&mut s).unwrap();
-        s
+    /// Serialize `AllProof` to flexbuffer.
+    ///
+    /// # Errors
+    /// Errors if serialization fails.
+    pub fn serialize_proof_to_flexbuffer(self) -> Result<FlexbufferSerializer> {
+        let mut s = FlexbufferSerializer::new();
+        self.serialize(&mut s)?;
+        Ok(s)
     }
 
-    #[allow(dead_code)]
-    fn deserialize_proof_from_flexbuffer(reader: Reader<&[u8]>) -> Self {
-        AllProof::deserialize(reader).unwrap()
+    /// Deserialize `AllProof` from flexbuffer.
+    ///
+    /// # Errors
+    /// Errors if deserialization fails.
+    pub fn deserialize_proof_from_flexbuffer(proof_bytes: &[u8]) -> Result<Self> {
+        let r = Reader::get_root(proof_bytes)?;
+        Ok(AllProof::deserialize(r)?)
     }
 }
 
@@ -43,9 +51,9 @@ mod tests {
             &mut TimingTree::default(),
         )
         .unwrap();
-        let s = all_proof.serialize_proof_to_flexbuffer();
-        let r = flexbuffers::Reader::get_root(s.view()).unwrap();
-        let all_proof_deserialized = AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(r);
+        let s = all_proof.serialize_proof_to_flexbuffer().expect("serialization failed");
+        let all_proof_deserialized =
+            AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(s.view()).expect("deserialization failed");
         verify_proof(stark, all_proof_deserialized, &config).unwrap();
     }
 }

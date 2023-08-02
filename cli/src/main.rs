@@ -1,15 +1,19 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
-use std::io::Read;
+use std::io::{Read, Write};
 
 use clap::{Parser, ValueEnum};
-use clio::Input;
+use clio::{ClioPath, Input, Output};
 use log::debug;
 use mozak_circuits::stark::mozak_stark::MozakStark;
-use mozak_circuits::test_utils::ProveAndVerify;
+use mozak_circuits::stark::proof::AllProof;
+use mozak_circuits::stark::prover::prove;
+use mozak_circuits::stark::verifier::verify_proof;
+use mozak_circuits::test_utils::{standard_faster_config, ProveAndVerify, C, D, F, S};
 use mozak_vm::elf::Program;
 use mozak_vm::state::State;
 use mozak_vm::vm::step;
+use plonky2::util::timing::TimingTree;
 use shadow_rs::shadow;
 
 shadow!(build);
@@ -23,6 +27,8 @@ struct Cli {
     command: Command,
     #[clap(value_parser, default_value = "-")]
     elf: Input,
+    #[clap(value_parser = clap::value_parser!(ClioPath).default_name("proof.bin"), default_value = "proof.bin")]
+    proof_bin_path: ClioPath,
 }
 
 #[derive(Copy, Clone, Debug, Parser, PartialEq, ValueEnum)]
@@ -35,7 +41,11 @@ enum Command {
     /// the registers
     Run,
     /// Prove and verify the execution of a given ELF
+    ProveAndVerify,
+    /// Prove the execution of given ELF and write proof to file.
     Prove,
+    /// Verify the given proof from file.
+    Verify,
 }
 
 fn build_info() {
@@ -92,11 +102,40 @@ fn main() -> anyhow::Result<()> {
                 let state = step(state)?.last_state;
                 debug!("{:?}", state.registers);
             }
-            Command::Prove => {
+            Command::ProveAndVerify => {
                 let program = Program::load_elf(&elf_bytes)?;
                 let state = State::from(program);
                 let record = step(state)?;
                 MozakStark::prove_and_verify(&record.executed)?;
+            }
+            Command::Prove => {
+                let program = Program::load_elf(&elf_bytes)?;
+                let state = State::from(program);
+                let record = step(state)?;
+                let stark = S::default();
+                let config = standard_faster_config();
+
+                let all_proof = prove::<F, C, D>(
+                    &record.executed,
+                    &stark,
+                    &config,
+                    &mut TimingTree::default(),
+                )?;
+                let s = all_proof.serialize_proof_to_flexbuffer()?;
+                let mut output = Output::new(cli.proof_bin_path)?;
+                output.write_all(s.view())?;
+                debug!("proof generated successfully!");
+            }
+            Command::Verify => {
+                let stark = S::default();
+                let config = standard_faster_config();
+
+                let mut input = Input::new(cli.proof_bin_path)?;
+                let mut buffer: Vec<u8> = vec![];
+                input.read_to_end(&mut buffer)?;
+                let proof = AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(&buffer)?;
+                verify_proof(stark, proof, &config)?;
+                debug!("proof verified successfully!");
             }
             Command::BuildInfo => unreachable!(),
         }

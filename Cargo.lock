@@ -803,6 +803,7 @@ dependencies = [
  "log",
  "mozak-circuits",
  "mozak-vm",
+ "plonky2",
  "proptest",
  "shadow-rs",
 ]
