@@ -7,10 +7,13 @@ use crate::cross_table_lookup::Column;
 columns_view_impl!(InstColumnsView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+/// The original instruction (+ imm_value) used for program
+/// cross-table-lookup.
 pub struct InstColumnsView<T> {
     // Desgin doc for CPU <> Program cross-table-lookup:
     // https://www.notion.so/0xmozak/Cross-Table-Lookup-bbe98d9471114c36a278f0c491f203e5#c3876d13c1f94b7ab154ea1f8b908181
     pub pc: T,
+    /// internal opcode, not the opcode from RISC-V
     pub opcode: T,
     pub rs1: T,
     pub rs2: T,

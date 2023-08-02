@@ -33,13 +33,7 @@ pub struct OpSelectorView<T> {
 columns_view_impl!(InstructionView);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct InstructionView<T> {
-    /// The original instruction (+ imm_value) used for program
-    /// cross-table-lookup.
     pub pc: T,
-    // pub opcode: T, // internal opcode, not the opcode from RISC-V
-    // pub rs1: T,
-    // pub rs2: T,
-    // pub rd: T,
     pub ops: OpSelectorView<T>,
     pub rs1_select: [T; 32],
     pub rs2_select: [T; 32],
