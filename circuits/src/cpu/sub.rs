@@ -42,7 +42,7 @@ mod tests {
                 &[(6, a), (7, b)],
             );
             assert_eq!(record.last_state.get_register_value(5), a.wrapping_sub(b));
-            CpuStark::prove_and_verify(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
     }
 }

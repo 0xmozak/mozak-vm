@@ -400,14 +400,14 @@ mod tests {
     #[test]
     fn prove_halt() {
         let record = simple_test(0, &[], &[]);
-        MozakStark::prove_and_verify(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&program, &record.executed).unwrap();
     }
 
     #[test]
     fn prove_lui() {
         let record = simple_test(4, &[(0_u32, 0x8000_00b7 /* lui r1, 0x80000 */)], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
-        MozakStark::prove_and_verify(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&program, &record.executed).unwrap();
     }
 
     #[test]
@@ -425,7 +425,7 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_register_value(1), 0xDEAD_BEEF,);
-        MozakStark::prove_and_verify(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&program, &record.executed).unwrap();
     }
 
     #[test]
@@ -444,6 +444,6 @@ mod tests {
             &[(1, 2)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        MozakStark::prove_and_verify(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&program, &record.executed).unwrap();
     }
 }

@@ -109,7 +109,7 @@ mod tests {
             } else {
                 assert_eq!(last_but_coda(&record).get_register_value(1), 0);
             }
-            CpuStark::prove_and_verify(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
     }
 }

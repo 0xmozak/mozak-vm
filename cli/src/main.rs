@@ -96,7 +96,7 @@ fn main() -> anyhow::Result<()> {
                 let program = Program::load_elf(&elf_bytes)?;
                 let state = State::from(program);
                 let record = step(state)?;
-                MozakStark::prove_and_verify(&record.executed)?;
+                MozakStark::prove_and_verify(&program, &record.executed)?;
             }
             Command::BuildInfo => unreachable!(),
         }
