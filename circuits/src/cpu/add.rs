@@ -27,7 +27,7 @@ mod tests {
     use crate::test_utils::ProveAndVerify;
     #[test]
     fn prove_add() -> Result<()> {
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::ADD,
                 args: Args {
@@ -41,7 +41,7 @@ mod tests {
             &[(6, 100), (7, 100)],
         );
         assert_eq!(record.last_state.get_register_value(5), 100 + 100);
-        MozakStark::prove_and_verify(&record.executed)
+        MozakStark::prove_and_verify(&program, &record.executed)
     }
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
@@ -49,7 +49,7 @@ mod tests {
             #![proptest_config(ProptestConfig::with_cases(4))]
             #[test]
             fn prove_add_proptest(a in u32_extra(), b in u32_extra(), rd in 0_u8..32) {
-                let record = simple_test_code(
+                let (program, record) = simple_test_code(
                     &[Instruction {
                         op: Op::ADD,
                         args: Args {
@@ -65,7 +65,7 @@ mod tests {
                 if rd != 0 {
                     assert_eq!(record.executed[1].state.get_register_value(rd), a.wrapping_add(b));
                 }
-                CpuStark::prove_and_verify(&record.executed).unwrap();
+                CpuStark::prove_and_verify(&program, &record.executed).unwrap();
             }
     }
 }

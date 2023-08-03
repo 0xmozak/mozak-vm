@@ -96,7 +96,7 @@ mod tests {
     fn test_bitwise_stark(a: u32, b: u32, imm: u32) {
         let config = standard_faster_config();
 
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[
                 Instruction {
                     op: Op::XOR,
@@ -134,7 +134,7 @@ mod tests {
         );
         // assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));
         let mut timing = TimingTree::new("bitwise", log::Level::Debug);
-        let cpu_trace = generate_cpu_trace(&record.executed);
+        let cpu_trace = generate_cpu_trace(&program, &record.executed);
         let trace = timed!(
             timing,
             "generate_bitwise_trace",

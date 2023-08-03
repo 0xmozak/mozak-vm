@@ -120,7 +120,7 @@ mod tests {
     #[test]
     fn test_add_instruction_inserts_rangecheck() {
         type F = GoldilocksField;
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::ADD,
                 args: Args {
@@ -135,7 +135,7 @@ mod tests {
             &[(6, 0xffff), (7, 0xffff)],
         );
 
-        let cpu_rows = generate_cpu_trace::<F>(&record.executed);
+        let cpu_rows = generate_cpu_trace::<F>(&program, &record.executed);
         let trace = generate_rangecheck_trace::<F>(&cpu_rows);
 
         // Check values that we are interested in
