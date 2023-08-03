@@ -8,10 +8,9 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
-// use crate::program::stark::ProgramStark;
+use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::{bitshift, bitwise, cpu, rangecheck};
-// use crate::program;
+use crate::{bitshift, bitwise, cpu, program, rangecheck};
 
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
