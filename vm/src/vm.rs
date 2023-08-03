@@ -107,8 +107,8 @@ impl State {
 
     #[must_use]
     pub fn store(self, inst: &Args, bytes: u32) -> (Aux, Self) {
-        let addr = self.get_register_value(inst.rs1).wrapping_add(inst.imm);
-        let dst_val: u32 = self.get_register_value(inst.rs2);
+        let dst_val: u32 = self.get_register_value(inst.rs1);
+        let addr = self.get_register_value(inst.rs2).wrapping_add(inst.imm);
         (
             Aux {
                 dst_val,
@@ -253,7 +253,7 @@ mod tests {
     use crate::elf::Program;
     use crate::instruction::{Args, Instruction, Op};
     use crate::test_utils::{
-        i16_extra, i32_extra, i8_extra, last_but_coda, reg, u16_extra, u32_extra, u8_extra,
+        i16_extra, i32_extra, i8_extra, reg, state_before_final, u16_extra, u32_extra, u8_extra,
     };
     use crate::vm::step;
 
@@ -284,7 +284,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), sum);
+            assert_eq!(state_before_final(&e).get_register_value(rd), sum);
         }
 
         #[test]
@@ -302,7 +302,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), rs1_value.wrapping_add(imm));
+            assert_eq!(state_before_final(&e).get_register_value(rd), rs1_value.wrapping_add(imm));
         }
 
         #[test]
@@ -322,7 +322,7 @@ mod tests {
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
             assert_eq!(
-                last_but_coda(&e).get_register_value(rd),
+                state_before_final(&e).get_register_value(rd),
                 rs1_value << (rs2_value & 0x1F)
             );
         }
@@ -343,7 +343,7 @@ mod tests {
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
             assert_eq!(
-                last_but_coda(&e).get_register_value(rd),
+                state_before_final(&e).get_register_value(rd),
                 rs1_value & rs2_value
             );
         }
@@ -364,7 +364,7 @@ mod tests {
             );
             let expected_value = rs1_value & imm;
             assert_eq!(
-                last_but_coda(&e).get_register_value(rd),
+                state_before_final(&e).get_register_value(rd),
                 expected_value
             );
         }
@@ -386,7 +386,7 @@ mod tests {
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
             assert_eq!(
-                last_but_coda(&e).get_register_value(rd),
+                state_before_final(&e).get_register_value(rd),
                 rs1_value >> (rs2_value & 0x1F)
             );
         }
@@ -406,7 +406,7 @@ mod tests {
                 &[(rs1, rs1_value)]
             );
             assert_eq!(
-                last_but_coda(&e).get_register_value(rd),
+                state_before_final(&e).get_register_value(rd),
                 rs1_value >> (imm & 0x1f)
             );
         }
@@ -427,7 +427,7 @@ mod tests {
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
             assert_eq!(
-                last_but_coda(&e).get_register_value(rd),
+                state_before_final(&e).get_register_value(rd),
                 rs1_value | rs2_value
             );
         }
@@ -448,7 +448,7 @@ mod tests {
             );
             let expected_value = rs1_value | imm;
             assert_eq!(
-                last_but_coda(&e).get_register_value(rd),
+                state_before_final(&e).get_register_value(rd),
                 expected_value
             );
         }
@@ -469,7 +469,7 @@ mod tests {
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
             assert_eq!(
-                last_but_coda(&e).get_register_value(rd),
+                state_before_final(&e).get_register_value(rd),
                 rs1_value ^ rs2_value
             );
         }
@@ -490,7 +490,7 @@ mod tests {
             );
             let expected_value = rs1_value ^ imm;
             assert_eq!(
-                last_but_coda(&e).get_register_value(rd),
+                state_before_final(&e).get_register_value(rd),
                 expected_value
             );
         }
@@ -511,7 +511,7 @@ mod tests {
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
             assert_eq!(
-                last_but_coda(&e).get_register_value(rd),
+                state_before_final(&e).get_register_value(rd),
                 (rs1_value as i32 >> (rs2_value & 0x1F) as i32) as u32
             );
         }
@@ -532,7 +532,7 @@ mod tests {
             );
             let expected_value = (rs1_value as i32 >> (imm & 0x1f)) as u32;
             assert_eq!(
-                last_but_coda(&e).get_register_value(rd),
+                state_before_final(&e).get_register_value(rd),
                 expected_value
             );
         }
@@ -555,7 +555,7 @@ mod tests {
             let rs1_value = rs1_value as i32;
             let rs2_value = rs2_value as i32;
             assert_eq!(
-                last_but_coda(&e).get_register_value(rd),
+                state_before_final(&e).get_register_value(rd),
                 u32::from(rs1_value < rs2_value)
             );
         }
@@ -576,7 +576,7 @@ mod tests {
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
             assert_eq!(
-                last_but_coda(&e).get_register_value(rd),
+                state_before_final(&e).get_register_value(rd),
                 u32::from(rs1_value < rs2_value)
             );
         }
@@ -595,7 +595,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), u32::from((rs1_value as i32) < (imm as i32)));
+            assert_eq!(state_before_final(&e).get_register_value(rd), u32::from((rs1_value as i32) < (imm as i32)));
         }
 
         #[test]
@@ -612,7 +612,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), u32::from(rs1_value < imm));
+            assert_eq!(state_before_final(&e).get_register_value(rd), u32::from(rs1_value < imm));
         }
 
         #[test]
@@ -629,111 +629,115 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), rs1_value << (imm & 0x1F));
+            assert_eq!(state_before_final(&e).get_register_value(rd), rs1_value << (imm & 0x1F));
         }
 
         #[test]
-        fn lb_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in i8_extra()) {
-            let address = rs1_value.wrapping_add(offset);
+        fn lb_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in i8_extra()) {
+            let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LB,
                     Args { rd,
-                    rs1,
+                    rs2,
                     imm: offset,
                     ..Args::default()
                 }
+
                 )],
                 &[(address, memory_value as u32)],
-                &[(rs1, rs1_value)]
+                &[(rs2, rs2_value)]
             );
 
             let expected_value = i32::from(memory_value) as u32;
-            assert_eq!(last_but_coda(&e).get_register_value(rd), expected_value);
+            assert_eq!(state_before_final(&e).get_register_value(rd), expected_value);
         }
 
         #[test]
-        fn lbu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in u8_extra()) {
-            let address = rs1_value.wrapping_add(offset);
+        fn lbu_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in u8_extra()) {
+            let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LBU,
                     Args { rd,
-                    rs1,
+                    rs2,
                     imm: offset,
                     ..Args::default()
                 }
+
                 )],
                 &[(address, u32::from(memory_value))],
-                &[(rs1, rs1_value)]
+                &[(rs2, rs2_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), u32::from(memory_value));
+            assert_eq!(state_before_final(&e).get_register_value(rd), u32::from(memory_value));
         }
 
         #[test]
-        fn lh_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in i16_extra()) {
-            let address = rs1_value.wrapping_add(offset);
+        fn lh_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in i16_extra()) {
+            let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LH,
                     Args { rd,
-                    rs1,
+                    rs2,
                     imm: offset,
                     ..Args::default()
                 }
+
                 )],
                 &[(address, u32::from(memory_value as u16))],
-                &[(rs1, rs1_value)]
+                &[(rs2, rs2_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), i32::from(memory_value) as u32);
+            assert_eq!(state_before_final(&e).get_register_value(rd), i32::from(memory_value) as u32);
         }
 
         #[test]
-        fn lhu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in u16_extra()) {
-            let address = rs1_value.wrapping_add(offset);
+        fn lhu_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in u16_extra()) {
+            let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LHU,
                     Args { rd,
-                    rs1,
+                    rs2,
                     imm: offset,
                     ..Args::default()
                 }
+
                 )],
                 &[(address, u32::from(memory_value))],
-                &[(rs1, rs1_value)]
+                &[(rs2, rs2_value)]
             );
 
-            assert_eq!(last_but_coda(&e).get_register_value(rd), u32::from(memory_value));
+            assert_eq!(state_before_final(&e).get_register_value(rd), u32::from(memory_value));
         }
 
         #[test]
-        fn lw_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), offset in u32_extra(), memory_value in u32_extra()) {
-            let address = rs1_value.wrapping_add(offset);
+        fn lw_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in u32_extra()) {
+            let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::LW,
                     Args { rd,
-                    rs1,
+                    rs2,
                     imm: offset,
                     ..Args::default()
                 }
                 )],
                 &[(address, memory_value)],
-                &[(rs1, rs1_value)]
+                &[(rs2, rs2_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), memory_value);
+            assert_eq!(state_before_final(&e).get_register_value(rd), memory_value);
         }
 
         #[test]
         fn sb_proptest(rs1 in reg(), rs1_val in u32_extra(), rs2 in reg(), rs2_val in u32_extra(), offset in u32_extra()) {
             prop_assume!(rs1 != rs2);
-            let address = rs1_val.wrapping_add(offset);
+            let address = rs2_val.wrapping_add(offset);
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SB,
@@ -747,13 +751,13 @@ mod tests {
                 &[(rs1, rs1_val), (rs2, rs2_val)]
             );
 
-            assert_eq!(u32::from(last_but_coda(&e).load_u8(address)), rs2_val & 0xff);
+            assert_eq!(u32::from(state_before_final(&e).load_u8(address)), rs1_val & 0xff);
         }
 
         #[test]
         fn sh_proptest(rs1 in reg(), rs1_val in u32_extra(), rs2 in reg(), rs2_val in u32_extra(), offset in u32_extra()) {
             prop_assume!(rs1 != rs2);
-            let address = rs1_val.wrapping_add(offset);
+            let address = rs2_val.wrapping_add(offset);
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SH,
@@ -769,7 +773,7 @@ mod tests {
                 &[(rs1, rs1_val), (rs2, rs2_val)]
             );
             // lh will return [0, 1] as LSBs and will set MSBs to 0xFFFF
-            let state = last_but_coda(&e);
+            let state = state_before_final(&e);
             let memory_value = lh(
                 &[
                     state.load_u8(address),
@@ -778,13 +782,13 @@ mod tests {
                     state.load_u8(address.wrapping_add(3))
                 ]
             );
-            assert_eq!(memory_value & 0xffff, rs2_val & 0xffff);
+            assert_eq!(memory_value & 0xffff, rs1_val & 0xffff);
         }
 
         #[test]
         fn sw_proptest(rs1 in reg(), rs1_val in u32_extra(), rs2 in reg(), rs2_val in u32_extra(), offset in u32_extra()) {
             prop_assume!(rs1 != rs2);
-            let address = rs1_val.wrapping_add(offset);
+            let address = rs2_val.wrapping_add(offset);
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SW,
@@ -799,7 +803,7 @@ mod tests {
                 &[(rs1, rs1_val), (rs2, rs2_val)]
             );
 
-            let state = last_but_coda(&e);
+            let state = state_before_final(&e);
             let memory_value = lw(
                 &[
                     state.load_u8(address),
@@ -808,7 +812,7 @@ mod tests {
                     state.load_u8(address.wrapping_add(3))
                 ]
             );
-            assert_eq!(memory_value, rs2_val);
+            assert_eq!(memory_value, rs1_val);
         }
 
         #[test]
@@ -828,7 +832,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), prod);
+            assert_eq!(state_before_final(&e).get_register_value(rd), prod);
         }
 
         #[test]
@@ -848,7 +852,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), (prod >> 32) as u32);
+            assert_eq!(state_before_final(&e).get_register_value(rd), (prod >> 32) as u32);
         }
 
         #[test]
@@ -868,7 +872,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), (prod >> 32) as u32);
+            assert_eq!(state_before_final(&e).get_register_value(rd), (prod >> 32) as u32);
         }
 
         #[test]
@@ -888,7 +892,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value as u32), (rs2, rs2_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), (prod >> 32) as u32);
+            assert_eq!(state_before_final(&e).get_register_value(rd), (prod >> 32) as u32);
         }
 
         #[test]
@@ -908,7 +912,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), div(rs1_value as u32, rs2_value as u32));
+            assert_eq!(state_before_final(&e).get_register_value(rd), div(rs1_value as u32, rs2_value as u32));
         }
 
         #[test]
@@ -927,7 +931,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), divu(rs1_value, rs2_value));
+            assert_eq!(state_before_final(&e).get_register_value(rd), divu(rs1_value, rs2_value));
         }
 
         #[test]
@@ -948,7 +952,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), rem as u32);
+            assert_eq!(state_before_final(&e).get_register_value(rd), rem as u32);
         }
 
         #[test]
@@ -968,7 +972,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), rem);
+            assert_eq!(state_before_final(&e).get_register_value(rd), rem);
         }
 
         #[test]
@@ -1008,7 +1012,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), rs1_value.wrapping_add(rs2_value));
+            assert_eq!(state_before_final(&e).get_register_value(rd), rs1_value.wrapping_add(rs2_value));
         }
 
         #[test]
@@ -1047,7 +1051,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), rs1_value.wrapping_add(rs2_value));
+            assert_eq!(state_before_final(&e).get_register_value(rd), rs1_value.wrapping_add(rs2_value));
         }
 
         #[test]
@@ -1088,7 +1092,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), rs1_value.wrapping_add(rs2_value) as u32);
+            assert_eq!(state_before_final(&e).get_register_value(rd), rs1_value.wrapping_add(rs2_value) as u32);
         }
 
         #[test]
@@ -1129,7 +1133,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), rs1_value.wrapping_add(rs2_value));
+            assert_eq!(state_before_final(&e).get_register_value(rd), rs1_value.wrapping_add(rs2_value));
         }
 
         #[test]
@@ -1170,7 +1174,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), rs1_value.wrapping_add(rs2_value) as u32);
+            assert_eq!(state_before_final(&e).get_register_value(rd), rs1_value.wrapping_add(rs2_value) as u32);
         }
 
         #[test]
@@ -1215,7 +1219,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
-            assert_eq!(last_but_coda(&e).get_register_value(rd), rs1_value.wrapping_add(rs2_value));
+            assert_eq!(state_before_final(&e).get_register_value(rd), rs1_value.wrapping_add(rs2_value));
         }
 
         #[test]
@@ -1247,7 +1251,7 @@ mod tests {
                 &[],
                 &[(2, 1), (3, 1)],
             );
-            assert_eq!(last_but_coda(&e).get_register_value(2), 5 - imm);
+            assert_eq!(state_before_final(&e).get_register_value(2), 5 - imm);
         }
     }
 
