@@ -1,3 +1,4 @@
+# Configuration doc: https://taplo.tamasfe.dev/configuration/formatter-options.html
 [formatting]
 align_comments = false
 array_auto_collapse = false
