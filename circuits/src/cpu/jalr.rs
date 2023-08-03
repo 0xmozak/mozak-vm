@@ -31,7 +31,7 @@ pub(crate) fn constraints<P: PackedField>(
 #[cfg(test)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{last_but_coda, reg, simple_test_code, u32_extra};
+    use mozak_vm::test_utils::{reg, simple_test_code, state_before_final, u32_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
@@ -176,7 +176,7 @@ mod tests {
                 &[(rs1, rs1_val)],
             );
             assert_eq!(record.executed.len(), 3);
-            assert_eq!(last_but_coda(&record).get_register_value(rd), 4);
+            assert_eq!(state_before_final(&record).get_register_value(rd), 4);
             CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
     }
