@@ -10,7 +10,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{CpuColumnsView, OpSelectorView};
+use super::columns::{CpuColumnsView, InstructionView, OpSelectorView};
 use super::{add, beq, bitwise, div, ecall, jalr, memory, mul, slt, sub};
 use crate::columns_view::NumberOfColumns;
 
@@ -45,22 +45,29 @@ fn pc_ticks_up<P: PackedField>(
     );
 }
 
-/// Selector of opcode, builtins and halt should be one-hot encoded.
+/// Selector of opcode, and registers should be one-hot encoded.
 ///
 /// Ie exactly one of them should be by 1, all others by 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
-fn opcode_one_hot<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+fn one_hots<P: PackedField>(inst: &InstructionView<P>, yield_constr: &mut ConstraintConsumer<P>) {
+    one_hot(inst.ops, yield_constr);
+    one_hot(inst.rs1_select, yield_constr);
+    one_hot(inst.rs2_select, yield_constr);
+    one_hot(inst.rd_select, yield_constr);
+}
+
+fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
+    selectors: Selectors,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // Op selectors have value 0 or 1.
-    lv.inst
-        .ops
+    // selectors have value 0 or 1.
+    selectors
+        .clone()
         .into_iter()
         .for_each(|s| yield_constr.constraint(s * (P::ONES - s)));
 
-    // Only one opcode selector enabled.
-    let sum_s_op: P = lv.inst.ops.into_iter().sum();
+    // Only one selector enabled.
+    let sum_s_op: P = selectors.into_iter().sum();
     yield_constr.constraint(P::ONES - sum_s_op);
 }
 
@@ -155,10 +162,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         let lv = vars.local_values.borrow();
         let nv = vars.next_values.borrow();
 
-        opcode_one_hot(lv, yield_constr);
-
         clock_ticks(lv, nv, yield_constr);
         pc_ticks_up(lv, nv, yield_constr);
+
+        one_hots(&lv.inst, yield_constr);
 
         // Registers
         r0_always_0(lv, yield_constr);
