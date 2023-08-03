@@ -8,17 +8,18 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
-use crate::program::stark::ProgramStark;
+// use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::{bitshift, bitwise, cpu, program, rangecheck};
+use crate::{bitshift, bitwise, cpu, rangecheck};
+// use crate::program;
 
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cpu_stark: CpuStark<F, D>,
     pub rangecheck_stark: RangeCheckStark<F, D>,
     pub bitwise_stark: BitwiseStark<F, D>,
-    pub program_stark: ProgramStark<F, D>,
     pub shift_amount_stark: BitshiftStark<F, D>,
+    pub program_stark: ProgramStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 5],
 }
 

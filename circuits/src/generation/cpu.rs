@@ -225,7 +225,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
         .sorted_by_key(|inst| inst.pc.to_noncanonical_u64())
         .scan(None, |previous_pc, inst| {
             Some(ProgramColumnsView {
-                filter: F::from_bool(Some(inst.pc) == previous_pc.replace(inst.pc)),
+                filter: F::from_bool(Some(inst.pc) != previous_pc.replace(inst.pc)),
                 inst: InstColumnsView::from(inst),
             })
         })

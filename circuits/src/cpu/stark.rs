@@ -87,7 +87,7 @@ fn r0_always_0<P: PackedField>(lv: &CpuColumnsView<P>, yield_constr: &mut Constr
     yield_constr.constraint(lv.regs[0]);
 }
 
-/// Ensures that if [`duplicate_inst_filter`] is 0, then duplicate instructions
+/// Ensures that if [`filter`] is 0, then duplicate instructions
 /// are present. Note that this function doesn't check whether every instruction
 /// is unique. Rather, it ensures that no unique instruction present in the
 /// trace is omitted. It also doesn't verify the execution order of the
