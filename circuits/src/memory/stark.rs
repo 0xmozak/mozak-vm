@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn prove_memory_sb_lb() -> Result<()> {
-        let executed = memory_trace_test_case();
-        MemoryStark::prove_and_verify(&executed)
+        let (program, executed) = memory_trace_test_case();
+        MemoryStark::prove_and_verify(&program, &executed)
     }
 }

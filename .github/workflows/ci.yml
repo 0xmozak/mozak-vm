@@ -48,3 +48,18 @@ jobs:
 
       - name: Run fmt
         run: cargo fmt --all --check
+
+  taplo-fmt:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install rust toolkit
+        uses: ./.github/actions/rust
+
+      - name: Install taplo
+        run: cargo install taplo-cli
+
+      - name: taplo fmt
+        run: taplo fmt --check
