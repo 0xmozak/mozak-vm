@@ -1,5 +1,6 @@
 use anyhow::Result;
 
+use crate::elf::Program;
 use crate::instruction::{Args, Op};
 use crate::state::{Aux, State};
 
@@ -126,8 +127,8 @@ impl State {
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
-    pub fn execute_instruction(self) -> (Aux, Self) {
-        let inst = self.current_instruction();
+    pub fn execute_instruction(self, program: &Program) -> (Aux, Self) {
+        let inst = self.current_instruction(program);
         macro_rules! rop {
             ($op: expr) => {
                 self.register_op(&inst.args, $op)
@@ -215,10 +216,10 @@ pub struct ExecutionRecord {
 /// This is a temporary measure to catch problems with accidental infinite
 /// loops. (Matthias had some trouble debugging a problem with jumps
 /// earlier.)
-pub fn step(mut last_state: State) -> Result<ExecutionRecord> {
+pub fn step(program: &Program, mut last_state: State) -> Result<ExecutionRecord> {
     let mut executed = vec![];
     while !last_state.has_halted() {
-        let (aux, new_state) = last_state.clone().execute_instruction();
+        let (aux, new_state) = last_state.clone().execute_instruction(program);
         executed.push(Row {
             state: last_state,
             aux,
@@ -252,10 +253,17 @@ mod tests {
     use crate::elf::Program;
     use crate::instruction::{Args, Instruction, Op};
     use crate::test_utils::{
-        i16_extra, i32_extra, i8_extra, last_but_coda, reg, simple_test_code, u16_extra, u32_extra,
-        u8_extra,
+        i16_extra, i32_extra, i8_extra, last_but_coda, reg, u16_extra, u32_extra, u8_extra,
     };
     use crate::vm::step;
+
+    fn simple_test_code(
+        code: &[Instruction],
+        mem: &[(u32, u32)],
+        regs: &[(u8, u32)],
+    ) -> ExecutionRecord {
+        crate::test_utils::simple_test_code(code, mem, regs).1
+    }
 
     proptest! {
         #![proptest_config(ProptestConfig { max_global_rejects: 100_000, .. Default::default() })]
@@ -1255,14 +1263,13 @@ mod tests {
         (exit_at + 4, 0x0000_0073_u32)];
 
         let image: HashMap<u32, u32> = mem.iter().chain(exit_inst.iter()).copied().collect();
+        let program = Program::from(image);
 
-        let state = regs
-            .iter()
-            .fold(State::from(Program::from(image)), |state, (rs, val)| {
-                state.set_register_value(*rs, *val)
-            });
+        let state = regs.iter().fold(State::from(&program), |state, (rs, val)| {
+            state.set_register_value(*rs, *val)
+        });
 
-        let record = step(state).unwrap();
+        let record = step(&program, state).unwrap();
         assert!(record.last_state.has_halted());
         record
     }

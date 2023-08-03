@@ -1,0 +1,6 @@
+[unstable]
+build-std = ["core", "compiler_builtins", "std", "panic_abort"]
+build-std-features = ["compiler-builtins-mem"]
+
+[build]
+target = "./.cargo/riscv32im-risc0-zkvm-elf.json"
