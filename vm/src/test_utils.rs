@@ -12,7 +12,8 @@ use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
 
 // #[must_use]
-// fn create_prog(image: HashMap<u32, u32>) -> State { State::from(&Program::from(image)) }
+// fn create_prog(image: HashMap<u32, u32>) -> State {
+// State::from(&Program::from(image)) }
 
 #[must_use]
 pub fn last_but_coda(e: &ExecutionRecord) -> &State { &e.executed[e.executed.len() - 2].state }
@@ -74,7 +75,11 @@ pub fn simple_test_code(
 
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
-pub fn simple_test(exit_at: u32, mem: &[(u32, u32)], regs: &[(u8, u32)]) -> (Program, ExecutionRecord) {
+pub fn simple_test(
+    exit_at: u32,
+    mem: &[(u32, u32)],
+    regs: &[(u8, u32)],
+) -> (Program, ExecutionRecord) {
     // TODO(Matthias): stick this line into proper common setup?
     let _ = env_logger::try_init();
     let exit_inst =

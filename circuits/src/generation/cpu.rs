@@ -1,3 +1,4 @@
+use mozak_vm::elf::Program;
 use mozak_vm::instruction::{Instruction, Op};
 use mozak_vm::state::State;
 use mozak_vm::vm::Row;
@@ -8,7 +9,6 @@ use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuColumnsView;
 use crate::utils::from_u32;
-use crate::elf::Program;
 
 /// Pad the trace to a power of 2.
 ///
@@ -22,7 +22,10 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<CpuColumnsView<F>>) -> Vec<CpuColu
 }
 
 #[allow(clippy::missing_panics_doc)]
-pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) -> Vec<CpuColumnsView<F>> {
+pub fn generate_cpu_trace<F: RichField>(
+    program: &Program,
+    step_rows: &[Row],
+) -> Vec<CpuColumnsView<F>> {
     // let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; step_rows.len()];
     // cpu_cols::NUM_CPU_COLS];
     let mut trace: Vec<CpuColumnsView<F>> = vec![];
@@ -31,8 +34,7 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
         let inst = state.current_instruction(program);
         let mut row = CpuColumnsView {
             clk: F::from_noncanonical_u64(state.clk),
-            inst: cpu_cols::InstructionView::from((state.get_pc(), inst))
-                .map(from_u32),
+            inst: cpu_cols::InstructionView::from((state.get_pc(), inst)).map(from_u32),
             op1_value: from_u32(state.get_register_value(inst.args.rs1)),
             // OP2_VALUE is the sum of the value of the second operand register and the
             // immediate value.

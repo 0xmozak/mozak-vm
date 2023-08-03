@@ -132,11 +132,11 @@ mod tests {
     /// Generates a trace which contains a value that should fail the range
     /// check.
     fn generate_failing_trace() -> [Vec<GoldilocksField>; columns::NUM_RC_COLS] {
-        let record = simple_test(4, &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)], &[
+        let (program, record) = simple_test(4, &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)], &[
             (6, 100),
             (7, 100),
         ]);
-        let cpu_trace = generate_cpu_trace::<F>(&record.executed);
+        let cpu_trace = generate_cpu_trace::<F>(&program, &record.executed);
         let mut trace = generate_rangecheck_trace::<F>(&cpu_trace);
         // Manually alter the value here to be larger than a u32.
         trace[0][MAP.val] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
@@ -159,9 +159,9 @@ mod tests {
         for i in 0..=u16max {
             mem.push((i * 4, inst));
         }
-        let record = simple_test(4 * u16max, &mem, &[(6, 100), (7, 100)]);
+        let (program, record) = simple_test(4 * u16max, &mem, &[(6, 100), (7, 100)]);
 
-        let cpu_rows = generate_cpu_trace::<F>(&record.executed);
+        let cpu_rows = generate_cpu_trace::<F>(&program, &record.executed);
         let trace = generate_rangecheck_trace::<F>(&cpu_rows);
 
         let len = trace[0].len();

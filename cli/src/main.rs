@@ -88,14 +88,14 @@ fn main() -> anyhow::Result<()> {
             }
             Command::Run => {
                 let program = Program::load_elf(&elf_bytes)?;
-                let state = State::from(program);
-                let state = step(state)?.last_state;
+                let state = State::from(&program);
+                let state = step(&program, state)?.last_state;
                 debug!("{:?}", state.registers);
             }
             Command::Prove => {
                 let program = Program::load_elf(&elf_bytes)?;
-                let state = State::from(program);
-                let record = step(state)?;
+                let state = State::from(&program);
+                let record = step(&program, state)?;
                 MozakStark::prove_and_verify(&program, &record.executed)?;
             }
             Command::BuildInfo => unreachable!(),

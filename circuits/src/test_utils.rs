@@ -1,4 +1,5 @@
 use anyhow::Result;
+use mozak_vm::elf::Program;
 use mozak_vm::vm::Row;
 use plonky2::fri::FriConfig;
 use plonky2::hash::hash_types::RichField;
@@ -7,7 +8,6 @@ use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 use starky::prover::prove as prove_table;
-use mozak_vm::elf::Program;
 use starky::stark::Stark;
 use starky::verifier::verify_stark_proof;
 
@@ -66,13 +66,13 @@ pub trait ProveAndVerify {
 }
 
 impl ProveAndVerify for CpuStark<F, D> {
-    fn prove_and_verify(step_rows: &[Row]) -> Result<()> {
+    fn prove_and_verify(program: &Program, step_rows: &[Row]) -> Result<()> {
         type S = CpuStark<F, D>;
 
         let config = standard_faster_config();
 
         let stark = S::default();
-        let trace_poly_values = trace_rows_to_poly_values(generate_cpu_trace(step_rows));
+        let trace_poly_values = trace_rows_to_poly_values(generate_cpu_trace(&program, step_rows));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -86,13 +86,13 @@ impl ProveAndVerify for CpuStark<F, D> {
 }
 
 impl ProveAndVerify for RangeCheckStark<F, D> {
-    fn prove_and_verify(step_rows: &[Row]) -> Result<()> {
+    fn prove_and_verify(program: &Program, step_rows: &[Row]) -> Result<()> {
         type S = RangeCheckStark<F, D>;
 
         let config = standard_faster_config();
 
         let stark = S::default();
-        let cpu_trace = generate_cpu_trace(step_rows);
+        let cpu_trace = generate_cpu_trace(&program, step_rows);
         let trace_poly_values = trace_to_poly_values(generate_rangecheck_trace(&cpu_trace));
         let proof = prove_table::<F, C, S, D>(
             stark,
@@ -107,13 +107,13 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
 }
 
 impl ProveAndVerify for BitwiseStark<F, D> {
-    fn prove_and_verify(step_rows: &[Row]) -> Result<()> {
+    fn prove_and_verify(program: &Program, step_rows: &[Row]) -> Result<()> {
         type S = BitwiseStark<F, D>;
 
         let config = standard_faster_config();
 
         let stark = S::default();
-        let cpu_trace = generate_cpu_trace(step_rows);
+        let cpu_trace = generate_cpu_trace(&program, step_rows);
         let trace_poly_values = trace_rows_to_poly_values(generate_bitwise_trace(&cpu_trace));
         let proof = prove_table::<F, C, S, D>(
             stark,
@@ -128,12 +128,13 @@ impl ProveAndVerify for BitwiseStark<F, D> {
 }
 
 impl ProveAndVerify for MemoryStark<F, D> {
-    fn prove_and_verify(step_rows: &[Row]) -> Result<()> {
+    fn prove_and_verify(program: &Program, step_rows: &[Row]) -> Result<()> {
         type S = MemoryStark<F, D>;
         let config = standard_faster_config();
 
         let stark = S::default();
-        let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(step_rows));
+        let trace_poly_values =
+            trace_rows_to_poly_values(generate_memory_trace(program, step_rows));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -152,7 +153,7 @@ impl ProveAndVerify for BitshiftStark<F, D> {
         let config = standard_faster_config();
 
         let stark = S::default();
-        let cpu_rows = generate_cpu_trace::<F>(step_rows);
+        let cpu_rows = generate_cpu_trace::<F>(program, step_rows);
         let trace = generate_shift_amount_trace(&cpu_rows);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
@@ -174,11 +175,17 @@ impl ProveAndVerify for MozakStark<F, D> {
     /// this proves and verifies ALL starks and lookups within the Mozak
     /// ZKVM. This should be preferred if the test is concerned with the
     /// consistency of the final [`MozakStark`].
-    fn prove_and_verify(step_rows: &[Row]) -> Result<()> {
+    fn prove_and_verify(program: &Program, step_rows: &[Row]) -> Result<()> {
         let stark = S::default();
         let config = standard_faster_config();
 
-        let all_proof = prove::<F, C, D>(step_rows, &stark, &config, &mut TimingTree::default());
+        let all_proof = prove::<F, C, D>(
+            program,
+            step_rows,
+            &stark,
+            &config,
+            &mut TimingTree::default(),
+        );
         verify_proof(stark, all_proof.unwrap(), &config)
     }
 }
