@@ -135,8 +135,8 @@ mod tests {
     fn generate_failing_trace() -> [Vec<GoldilocksField>; columns::NUM_RC_COLS] {
         let record = simple_test_code(
             &[Instruction::new(Op::ADD, 5, 6, 7, 0)],
-            // Use values that would become limbs later
             &[],
+            // Use values that would become limbs later
             &[(6, 0xffff), (7, 0xffff)],
         );
 
