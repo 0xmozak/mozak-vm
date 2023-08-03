@@ -122,8 +122,8 @@ mod tests {
             })
             .collect();
 
-            let record = simple_test_code(&code, &[], &[(6, a), (7, b)]);
-            BitwiseStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
+            let (program, record) = simple_test_code(&code, &[], &[(6, a), (7, b)]);
+            BitwiseStark::prove_and_verify(&program, &record.executed).unwrap();
         }
     }
 }

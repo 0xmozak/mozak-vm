@@ -63,7 +63,7 @@ mod tests {
         #[test]
         fn prove_slt_proptest(a in u32_extra(), op2 in u32_extra(), use_imm in any::<bool>()) {
             let (b, imm) = if use_imm { (0, op2) } else { (op2, 0) };
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[
                     Instruction {
                         op: Op::SLTU,
@@ -94,7 +94,7 @@ mod tests {
                 record.last_state.get_register_value(4),
                 ((a as i32) < (op2 as i32)).into()
             );
-            CpuStark::prove_and_verify(&record.last_state.code, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
     }
 }

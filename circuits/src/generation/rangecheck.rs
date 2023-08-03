@@ -119,14 +119,14 @@ mod tests {
     #[test]
     fn test_add_instruction_inserts_rangecheck() {
         type F = GoldilocksField;
-        let record = simple_test(
+        let (program, record) = simple_test(
             4,
             &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
             // Use values that would become limbs later
             &[(6, 0xffff), (7, 0xffff)],
         );
 
-        let cpu_rows = generate_cpu_trace::<F>(&record.executed);
+        let cpu_rows = generate_cpu_trace::<F>(&program, &record.executed);
         let trace = generate_rangecheck_trace::<F>(&cpu_rows);
 
         // Check values that we are interested in

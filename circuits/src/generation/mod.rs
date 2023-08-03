@@ -6,7 +6,7 @@ pub mod memory;
 pub mod program;
 pub mod rangecheck;
 
-use mozak_vm::elf::Code;
+use mozak_vm::elf::Program;
 use mozak_vm::vm::Row;
 use plonky2::field::extension::Extendable;
 use plonky2::field::polynomial::PolynomialValues;
@@ -22,10 +22,10 @@ use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 
 #[must_use]
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
-    code: &Code,
+    program: &Program,
     step_rows: &[Row],
 ) -> [Vec<PolynomialValues<F>>; NUM_TABLES] {
-    let cpu_rows = generate_cpu_trace::<F>(step_rows);
+    let cpu_rows = generate_cpu_trace::<F>(program, step_rows);
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows);
     let bitwise_rows = generate_bitwise_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
@@ -33,7 +33,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let rangecheck_trace = trace_to_poly_values(rangecheck_rows);
     let bitwise_trace = trace_rows_to_poly_values(bitwise_rows);
     let shift_amount_trace = trace_rows_to_poly_values(shift_amount_rows);
-    let program_trace = trace_rows_to_poly_values(generate_program_trace(code, &cpu_rows));
+    let program_trace = trace_rows_to_poly_values(generate_program_trace(program, &cpu_rows));
 
     let cpu_trace = trace_to_poly_values(generate_cpu_trace_extended(cpu_rows));
     [

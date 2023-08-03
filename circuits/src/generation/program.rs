@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use mozak_vm::elf::Code;
+use mozak_vm::elf::Program;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::{CpuColumnsView, InstructionView};
@@ -15,13 +15,15 @@ use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_program_trace<F: RichField>(
-    code: &Code,
+    program: &Program,
     cpu_trace: &[CpuColumnsView<F>],
 ) -> Vec<ProgramColumnsView<F>> {
     // NOTE: We expect CpuColumnsView to already be padded to the right size.
     let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
 
-    code.iter()
+    program
+        .code
+        .iter()
         .map(|(&pc, &inst)| ProgramColumnsView {
             filter: F::from_bool(used_pcs.contains(&F::from_canonical_u32(pc))),
             inst: InstColumnsView::from(
