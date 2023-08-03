@@ -72,7 +72,7 @@ impl ProveAndVerify for CpuStark<F, D> {
         let config = standard_faster_config();
 
         let stark = S::default();
-        let trace_poly_values = trace_rows_to_poly_values(generate_cpu_trace(&program, step_rows));
+        let trace_poly_values = trace_rows_to_poly_values(generate_cpu_trace(program, step_rows));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -92,7 +92,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let config = standard_faster_config();
 
         let stark = S::default();
-        let cpu_trace = generate_cpu_trace(&program, step_rows);
+        let cpu_trace = generate_cpu_trace(program, step_rows);
         let trace_poly_values = trace_to_poly_values(generate_rangecheck_trace(&cpu_trace));
         let proof = prove_table::<F, C, S, D>(
             stark,
@@ -113,7 +113,7 @@ impl ProveAndVerify for BitwiseStark<F, D> {
         let config = standard_faster_config();
 
         let stark = S::default();
-        let cpu_trace = generate_cpu_trace(&program, step_rows);
+        let cpu_trace = generate_cpu_trace(program, step_rows);
         let trace_poly_values = trace_rows_to_poly_values(generate_bitwise_trace(&cpu_trace));
         let proof = prove_table::<F, C, S, D>(
             stark,

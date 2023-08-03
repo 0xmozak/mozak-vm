@@ -50,7 +50,7 @@ where
     [(); BitwiseStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
-    let traces_poly_values = generate_traces(&program, step_rows);
+    let traces_poly_values = generate_traces(program, step_rows);
     prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
 }
 

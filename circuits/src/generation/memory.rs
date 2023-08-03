@@ -47,9 +47,12 @@ pub fn generate_memory_trace<F: RichField>(
     let mut trace: Vec<MemoryColumnsView<F>> = vec![];
     for s in &filtered_step_rows {
         let inst = s.state.current_instruction(program);
-        let mut row = MemoryColumnsView {
-            mem_addr: get_memory_inst_addr(s),
-            mem_clk: get_memory_inst_clk(s),
+        let mem_clk = get_memory_inst_clk(s);
+        let mem_addr = get_memory_inst_addr(s);
+        let mem_diff_addr = mem_addr - trace.last().map_or(F::ZERO, |last| last.mem_addr);
+        trace.push(MemoryColumnsView {
+            mem_addr,
+            mem_clk,
             mem_op: get_memory_inst_op(&inst),
             mem_value: match inst.op {
                 Op::LB => get_memory_load_inst_value(s),
@@ -57,17 +60,14 @@ pub fn generate_memory_trace<F: RichField>(
                 #[tarpaulin::skip]
                 _ => F::ZERO,
             },
-
-            ..MemoryColumnsView::default()
-        };
-
-        row.mem_diff_addr = row.mem_addr - trace.last().map_or(F::ZERO, |last| last.mem_addr);
-        row.mem_diff_addr_inv = row.mem_diff_addr.try_inverse().unwrap_or_default();
-        row.mem_diff_clk = match trace.last() {
-            Some(last) if row.mem_diff_addr == F::ZERO => row.mem_clk - last.mem_clk,
-            _ => F::ZERO,
-        };
-        trace.push(row);
+            mem_diff_addr,
+            mem_diff_addr_inv: mem_diff_addr.try_inverse().unwrap_or_default(),
+            mem_diff_clk: match trace.last() {
+                Some(last) if mem_diff_addr == F::ZERO => mem_clk - last.mem_clk,
+                _ => F::ZERO,
+            },
+            mem_padding: F::ZERO,
+        });
     }
 
     // If the trace length is not a power of two, we need to extend the trace to the
