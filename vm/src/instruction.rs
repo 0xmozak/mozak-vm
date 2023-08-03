@@ -48,15 +48,6 @@ pub enum Op {
     UNKNOWN,
 }
 
-impl Op {
-    pub(crate) fn is_mem_op(self) -> bool {
-        matches!(
-            self,
-            Self::SB | Self::SH | Self::SW | Self::LBU | Self::LH | Self::LW
-        )
-    }
-}
-
 /// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
 pub const NOOP_PAIR: (Op, Args) = (NOOP.op, NOOP.args);
 /// Adding 0 to register 0 is the official way to encode a noop in Risc-V.
