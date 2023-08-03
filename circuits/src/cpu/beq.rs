@@ -45,7 +45,7 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
         fn prove_beq_proptest(a in u32_extra(), b in u32_extra()) {
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[
                     Instruction {
                         op: Op::BEQ,
@@ -76,11 +76,11 @@ mod tests {
                 assert_eq!(last_but_coda(&record).get_register_value(1), 10);
             }
 
-            CpuStark::prove_and_verify(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
         #[test]
         fn prove_bne_proptest(a in u32_extra(), b in u32_extra()) {
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[
                     Instruction {
                         op: Op::BNE,
@@ -109,7 +109,7 @@ mod tests {
             } else {
                 assert_eq!(last_but_coda(&record).get_register_value(1), 0);
             }
-            CpuStark::prove_and_verify(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
     }
 }

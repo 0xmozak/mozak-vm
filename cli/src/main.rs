@@ -98,24 +98,25 @@ fn main() -> Result<()> {
             }
             Command::Run { elf } => {
                 let program = load_program(elf)?;
-                let state = State::from(program);
-                let state = step(state)?.last_state;
+                let state = State::from(&program);
+                let state = step(&program, state)?.last_state;
                 debug!("{:?}", state.registers);
             }
             Command::ProveAndVerify { elf } => {
                 let program = load_program(elf)?;
-                let state = State::from(program);
-                let record = step(state)?;
-                MozakStark::prove_and_verify(&record.executed)?;
+                let state = State::from(&program);
+                let record = step(&program, state)?;
+                MozakStark::prove_and_verify(&program, &record.executed)?;
             }
             Command::Prove { elf, mut proof } => {
                 let program = load_program(elf)?;
-                let state = State::from(program);
-                let record = step(state)?;
+                let state = State::from(&program);
+                let record = step(&program, state)?;
                 let stark = S::default();
                 let config = standard_faster_config();
 
                 let all_proof = prove::<F, C, D>(
+                    &program,
                     &record.executed,
                     &stark,
                     &config,

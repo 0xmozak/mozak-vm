@@ -1,9 +1,9 @@
+use anyhow::Result;
 use flexbuffers::{FlexbufferSerializer, Reader};
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::GenericConfig;
 use serde::{Deserialize, Serialize};
-use anyhow::Result;
 
 use super::proof::AllProof;
 
@@ -31,7 +31,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 #[cfg(test)]
 mod tests {
 
-    use mozak_vm::test_utils::simple_test;
+    use mozak_vm::test_utils::simple_test_code;
     use plonky2::util::timing::TimingTree;
 
     use crate::stark::proof::AllProof;
@@ -40,20 +40,24 @@ mod tests {
     use crate::test_utils::{standard_faster_config, C, D, F, S};
     #[test]
     fn test_serialization_deserialization() {
-        let record = simple_test(0, &[], &[]);
+        let (program, record) = simple_test_code(&[], &[], &[]);
         let stark = S::default();
         let config = standard_faster_config();
 
         let all_proof = prove::<F, C, D>(
+            &program,
             &record.executed,
             &stark,
             &config,
             &mut TimingTree::default(),
         )
         .unwrap();
-        let s = all_proof.serialize_proof_to_flexbuffer().expect("serialization failed");
+        let s = all_proof
+            .serialize_proof_to_flexbuffer()
+            .expect("serialization failed");
         let all_proof_deserialized =
-            AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(s.view()).expect("deserialization failed");
+            AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(s.view())
+                .expect("deserialization failed");
         verify_proof(stark, all_proof_deserialized, &config).unwrap();
     }
 }
