@@ -35,7 +35,7 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{last_but_coda, simple_test_code, u32_extra};
+    use mozak_vm::test_utils::{simple_test_code, state_before_final, u32_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
@@ -71,9 +71,9 @@ mod tests {
             );
 
             if a == b {
-                assert_eq!(last_but_coda(&record).get_register_value(1), 0);
+                assert_eq!(state_before_final(&record).get_register_value(1), 0);
             } else {
-                assert_eq!(last_but_coda(&record).get_register_value(1), 10);
+                assert_eq!(state_before_final(&record).get_register_value(1), 10);
             }
 
             CpuStark::prove_and_verify(&record.executed).unwrap();
@@ -105,9 +105,9 @@ mod tests {
                 &[(6, a), (7, b)],
             );
             if a == b {
-                assert_eq!(last_but_coda(&record).get_register_value(1), 10);
+                assert_eq!(state_before_final(&record).get_register_value(1), 10);
             } else {
-                assert_eq!(last_but_coda(&record).get_register_value(1), 0);
+                assert_eq!(state_before_final(&record).get_register_value(1), 0);
             }
             CpuStark::prove_and_verify(&record.executed).unwrap();
         }
