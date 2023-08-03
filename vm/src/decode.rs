@@ -51,6 +51,8 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
     let rs2 = bf.rs2();
     let rd = bf.rd();
 
+    // For store instructions, we use rs1 as rs2 for the convenience of trace
+    // generation.
     let stype = Args {
         rs1: rs2,
         rs2: rs1,
@@ -69,7 +71,8 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         imm: extract_immediate(word, &[(31, 20)], 0),
         ..Default::default()
     };
-    // Special case for itypes: For memory ops, we use rs1 as rs2.
+    // Special case for itypes: For load instructions, we use rs1 as rs2 for the
+    // convenience of trace generation.
     let itype_load = Args {
         rs2: rs1,
         rd,
