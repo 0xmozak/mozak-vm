@@ -1,0 +1,10 @@
+brace_style = "PreferSameLine"
+fn_single_line = true
+group_imports = "StdExternalCrate"
+imports_granularity = "Module"
+match_arm_blocks = false
+normalize_comments = true
+overflow_delimited_expr = true
+reorder_impl_items = true
+use_field_init_shorthand = true
+wrap_comments = true

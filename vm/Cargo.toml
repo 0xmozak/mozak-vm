@@ -1,0 +1,31 @@
+[package]
+categories = ["cryptography"]
+description = "RISC V ISA based knowledge argument VM"
+edition = "2021"
+keywords = ["crypto", "zero-knowledge", "vm"]
+license = "All rights reserved"
+name = "mozak-vm"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-vm"
+version = "0.1.0"
+
+[dependencies]
+anyhow = { version = "1.0", default-features = false }
+bitfield = "0.14.0"
+derive_more = "0.99.17"
+elf = { version = "0.7" }
+env_logger = { version = "0.10.0", optional = true }
+im = "15.1.0"
+itertools = "0.11.0"
+log = "0.4.19"
+proptest = { version = "1.2.0", optional = true }
+
+[dev-dependencies]
+env_logger = { version = "0.10.0" }
+proptest = "1.2.0"
+test-case = "3.1.0"
+
+[features]
+default = ["std"]
+std = ["anyhow/std"]
+test = ["env_logger", "proptest"]
