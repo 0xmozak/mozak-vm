@@ -10,7 +10,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{CpuColumnsView, OpSelectorView};
+use super::columns::{CpuColumnsView, InstructionView, OpSelectorView};
 use super::{add, beq, bitwise, div, ecall, jalr, mul, slt, sub};
 use crate::columns_view::NumberOfColumns;
 
@@ -21,21 +21,13 @@ pub struct CpuStark<F, const D: usize> {
 }
 
 impl<P: Copy> OpSelectorView<P> {
+    // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
+    // PC. It sort-of jumps back to itself.
     fn straightline_opcodes(&self) -> Vec<P> {
         vec![
             self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu,
             self.remu, self.sll, self.slt, self.sltu, self.srl,
         ]
-    }
-
-    // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
-    // PC. It sort-of jumps back to itself.
-    fn jumping_opcodes(&self) -> Vec<P> { vec![self.beq, self.bne, self.ecall, self.jalr] }
-
-    fn opcodes(&self) -> Vec<P> {
-        let mut res = self.straightline_opcodes();
-        res.extend(self.jumping_opcodes());
-        res
     }
 }
 
@@ -51,23 +43,29 @@ fn pc_ticks_up<P: PackedField>(
     );
 }
 
-/// Selector of opcode, builtins and halt should be one-hot encoded.
+/// Selector of opcode, and registers should be one-hot encoded.
 ///
 /// Ie exactly one of them should be by 1, all others by 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
-fn opcode_one_hot<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+fn one_hots<P: PackedField>(inst: &InstructionView<P>, yield_constr: &mut ConstraintConsumer<P>) {
+    one_hot(inst.ops, yield_constr);
+    one_hot(inst.rs1_select, yield_constr);
+    one_hot(inst.rs2_select, yield_constr);
+    one_hot(inst.rd_select, yield_constr);
+}
+
+fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
+    selectors: Selectors,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let op_selectors: Vec<_> = lv.inst.ops.opcodes();
+    // selectors have value 0 or 1.
+    selectors
+        .clone()
+        .into_iter()
+        .for_each(|s| yield_constr.constraint(s * (P::ONES - s)));
 
-    // Op selectors have value 0 or 1.
-    op_selectors
-        .iter()
-        .for_each(|&s| yield_constr.constraint(s * (P::ONES - s)));
-
-    // Only one opcode selector enabled.
-    let sum_s_op: P = op_selectors.into_iter().sum();
+    // Only one selector enabled.
+    let sum_s_op: P = selectors.into_iter().sum();
     yield_constr.constraint(P::ONES - sum_s_op);
 }
 
@@ -160,10 +158,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         let lv = vars.local_values.borrow();
         let nv = vars.next_values.borrow();
 
-        opcode_one_hot(lv, yield_constr);
-
         clock_ticks(lv, nv, yield_constr);
         pc_ticks_up(lv, nv, yield_constr);
+
+        one_hots(&lv.inst, yield_constr);
 
         // Registers
         r0_always_0(lv, yield_constr);

@@ -40,7 +40,7 @@ mod tests {
 
     #[test]
     fn prove_jalr_goto_no_rs1() {
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::JALR,
                 args: Args {
@@ -54,12 +54,12 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
     }
 
     #[test]
     fn prove_jalr_goto_rs1_zero() {
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::JALR,
                 args: Args {
@@ -73,11 +73,11 @@ mod tests {
             &[(0x1, 0)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
     }
     #[test]
     fn prove_jalr_goto_imm_zero_rs1_not_zero() {
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::JALR,
                 args: Args {
@@ -91,12 +91,12 @@ mod tests {
             &[(0x1, 4)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
     }
 
     #[test]
     fn prove_jalr() {
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::JALR,
                 args: Args {
@@ -110,12 +110,12 @@ mod tests {
             &[(0x1, 0)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
     }
 
     #[test]
     fn prove_triple_jalr() {
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[
                 Instruction {
                     op: Op::JALR,
@@ -143,7 +143,7 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_pc(), 16);
-        CpuStark::prove_and_verify(&record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
     }
 
     proptest! {
@@ -152,7 +152,7 @@ mod tests {
         fn jalr_jumps_past_an_instruction(rs1 in reg(), rs1_val in u32_extra(), rd in reg(), sentinel in u32_extra()) {
             let jump_target: u32 = 8;
             let imm = jump_target.wrapping_sub(rs1_val);
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[Instruction {
                     op: Op::JALR,
                     args: Args {
@@ -177,7 +177,7 @@ mod tests {
             );
             assert_eq!(record.executed.len(), 3);
             assert_eq!(state_before_final(&record).get_register_value(rd), 4);
-            CpuStark::prove_and_verify(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
     }
 }

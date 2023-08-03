@@ -1,34 +1,40 @@
 [package]
-name = "mozak-cli"
-description = "MozakVM cli"
-version = "0.1.0"
-edition = "2021"
-repository = "https://github.com/0xmozak/mozak-vm"
-readme = "README.md"
-license = "All rights reserved"
-keywords = ["crypto", "zero-knowledge", "vm"]
 categories = ["cryptography"]
+description = "MozakVM cli"
+edition = "2021"
+keywords = ["crypto", "zero-knowledge", "vm"]
+license = "All rights reserved"
+name = "mozak-cli"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-vm"
+version = "0.1.0"
 
 build = "build.rs"
 
 [dependencies]
+clap = { version = "4.3.19", features = [
+  "derive",
+  "cargo",
+  "env",
+  "unicode",
+  "wrap_help",
+] }
+mozak-circuits = { path = "../circuits", features = ["test"] }
 mozak-vm = { path = "../vm", features = ["test"] }
-mozak-circuits = { path = "../circuits", features = ["test"]}
-clap = { version = "4.3.19", features = ["derive", "cargo", "env", "unicode", "wrap_help"] }
 # TODO(Matthias): implement shell completion for CLI via clap_complete
 # clap_complete = "4.3.2"
-shadow-rs = "0.23.0"
-clio = { version = "0.3.4", features = ["http-ureq", "clap-parse"] }
 anyhow = "1.0.72"
-env_logger = "0.10.0"
-log = "0.4.19"
-itertools = "0.11.0"
 clap-verbosity-flag = "2.0.1"
 clap_derive = "4.3.2"
+clio = { version = "0.3.4", features = ["http-ureq", "clap-parse"] }
+env_logger = "0.10.0"
+itertools = "0.11.0"
+log = "0.4.19"
+shadow-rs = "0.23.0"
 
 [dev-dependencies]
-mozak-vm = { path = "../vm", features = ["test"] }
 mozak-circuits = { path = "../circuits", features = ["test"] }
+mozak-vm = { path = "../vm", features = ["test"] }
 proptest = "1.2.0"
 
 [build-dependencies]
