@@ -3,6 +3,7 @@ use mozak_vm::state::State;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
+use crate::bitshift::columns::Bitshift;
 use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::CpuColumnsView;
@@ -46,8 +47,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> Vec<CpuColumnsView
             // To be overridden by users of the gadget.
             // TODO(Matthias): find a way to make either compiler or runtime complain
             // if we have two (conflicting) users in the same row.
-            powers_of_2_in: F::ZERO,
-            powers_of_2_out: F::ONE,
+            bitshift: Bitshift::from(0).map(F::from_canonical_u64),
             xor: generate_bitwise_row(&inst, state),
 
             ..CpuColumnsView::default()
@@ -71,6 +71,7 @@ pub fn generate_cpu_trace<F: RichField>(step_rows: &[Row]) -> Vec<CpuColumnsView
     log::trace!("trace {:?}", trace);
     trace
 }
+
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuColumnsView<F>) {
     let diff = row.op1_value - row.op2_value;
     let diff_inv = diff.try_inverse().unwrap_or_default();
@@ -92,8 +93,11 @@ fn generate_mul_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructio
     let multiplier = if let Op::SLL = inst.op {
         let shift_amount = op2 & 0x1F;
         let shift_power = 1_u32 << shift_amount;
-        row.powers_of_2_in = from_u32(shift_amount);
-        row.powers_of_2_out = from_u32(shift_power);
+        row.bitshift = Bitshift {
+            amount: shift_amount,
+            multiplier: shift_power,
+        }
+        .map(from_u32);
         shift_power
     } else {
         op2
@@ -119,8 +123,11 @@ fn generate_divu_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructi
     let divisor = if let Op::SRL = inst.op {
         let shift_amount = op2 & 0x1F;
         let shift_power = 1_u32 << shift_amount;
-        row.powers_of_2_in = from_u32(shift_amount);
-        row.powers_of_2_out = from_u32(shift_power);
+        row.bitshift = Bitshift {
+            amount: shift_amount,
+            multiplier: shift_power,
+        }
+        .map(from_u32);
         shift_power
     } else {
         op2

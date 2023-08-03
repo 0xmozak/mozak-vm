@@ -112,7 +112,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
 mod tests {
     use anyhow::Result;
     use log::trace;
-    use mozak_vm::instruction::{Instruction, Op};
+    use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::{Field, Sample};
@@ -134,7 +134,15 @@ mod tests {
     /// check.
     fn generate_failing_trace() -> [Vec<GoldilocksField>; columns::NUM_RC_COLS] {
         let record = simple_test_code(
-            &[Instruction::new(Op::ADD, 5, 6, 7, 0)],
+            &[Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: 5,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
             &[],
             // Use values that would become limbs later
             &[(6, 0xffff), (7, 0xffff)],
@@ -163,10 +171,19 @@ mod tests {
         for i in 0..=u16max {
             mem.push((i * 4, inst));
         }
-        let record = simple_test_code(&[Instruction::new(Op::ADD, 5, 6, 7, 0)], &[], &[
-            (6, 100),
-            (7, 100),
-        ]);
+        let record = simple_test_code(
+            &[Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: 5,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, 100), (7, 100)],
+        );
 
         let cpu_rows = generate_cpu_trace::<F>(&record.executed);
         let trace = generate_rangecheck_trace::<F>(&cpu_rows);

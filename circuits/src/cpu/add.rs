@@ -27,10 +27,19 @@ mod tests {
     use crate::test_utils::ProveAndVerify;
     #[test]
     fn prove_add() -> Result<()> {
-        let record = simple_test_code(&[Instruction::new(Op::ADD, 5, 6, 7, 0)], &[], &[
-            (6, 100),
-            (7, 100),
-        ]);
+        let record = simple_test_code(
+            &[Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: 5,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, 100), (7, 100)],
+        );
         assert_eq!(record.last_state.get_register_value(5), 100 + 100);
         MozakStark::prove_and_verify(&record.executed)
     }

@@ -1,5 +1,5 @@
-use mozak_vm::instruction::Instruction;
 use mozak_vm::instruction::Op::{LB, SB};
+use mozak_vm::instruction::{Args, Instruction};
 use mozak_vm::test_utils::simple_test_code;
 use mozak_vm::vm::{ExecutionRecord, Row};
 
@@ -19,12 +19,36 @@ pub fn memory_trace_test_case() -> Vec<Row> {
         last_state: state,
     } = simple_test_code(
         &[
-            new(SB, 0, 0, 1, 100),
-            new(LB, 4, 0, 0, 100),
-            new(SB, 0, 0, 3, 200),
-            new(LB, 6, 0, 0, 200),
-            new(SB, 0, 0, 2, 100),
-            new(LB, 5, 0, 0, 100),
+            new(SB, Args {
+                rs2: 1,
+                imm: 100,
+                ..Args::default()
+            }),
+            new(LB, Args {
+                rd: 4,
+                imm: 100,
+                ..Args::default()
+            }),
+            new(SB, Args {
+                rs2: 3,
+                imm: 200,
+                ..Args::default()
+            }),
+            new(LB, Args {
+                rd: 6,
+                imm: 200,
+                ..Args::default()
+            }),
+            new(SB, Args {
+                rs2: 2,
+                imm: 100,
+                ..Args::default()
+            }),
+            new(LB, Args {
+                rd: 5,
+                imm: 100,
+                ..Args::default()
+            }),
         ],
         &[],
         &[(1, 5), (2, 10), (3, 15)],
