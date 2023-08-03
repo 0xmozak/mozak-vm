@@ -644,6 +644,7 @@ mod tests {
                     imm: offset,
                     ..Args::default()
                 }
+
                 )],
                 &[(address, memory_value as u32)],
                 &[(rs2, rs2_value)]
@@ -665,6 +666,7 @@ mod tests {
                     imm: offset,
                     ..Args::default()
                 }
+
                 )],
                 &[(address, u32::from(memory_value))],
                 &[(rs2, rs2_value)]
@@ -684,6 +686,7 @@ mod tests {
                     imm: offset,
                     ..Args::default()
                 }
+
                 )],
                 &[(address, u32::from(memory_value as u16))],
                 &[(rs2, rs2_value)]
@@ -703,6 +706,7 @@ mod tests {
                     imm: offset,
                     ..Args::default()
                 }
+
                 )],
                 &[(address, u32::from(memory_value))],
                 &[(rs2, rs2_value)]

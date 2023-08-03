@@ -26,7 +26,7 @@ mod tests {
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
     #[test]
-    fn prove_add() -> Result<()> {
+    fn prove_add_example() -> Result<()> {
         let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::ADD,
