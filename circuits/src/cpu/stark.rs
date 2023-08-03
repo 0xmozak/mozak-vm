@@ -11,7 +11,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{CpuColumnsExtended, CpuColumnsView, OpSelectorView};
+use super::columns::{CpuColumnsExtended, CpuColumnsView, InstructionView, OpSelectorView};
 use super::{add, beq, bitwise, div, ecall, jalr, mul, slt, sub};
 use crate::columns_view::NumberOfColumns;
 use crate::program::columns::ProgramColumnsView;
@@ -49,11 +49,11 @@ fn pc_ticks_up<P: PackedField>(
 ///
 /// Ie exactly one of them should be by 1, all others by 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
-fn one_hots<P: PackedField>(lv: &CpuColumnsView<P>, yield_constr: &mut ConstraintConsumer<P>) {
-    one_hot(lv.inst.ops, yield_constr);
-    one_hot(lv.inst.rs1_select, yield_constr);
-    one_hot(lv.inst.rs2_select, yield_constr);
-    one_hot(lv.inst.rd_select, yield_constr);
+fn one_hots<P: PackedField>(inst: &InstructionView<P>, yield_constr: &mut ConstraintConsumer<P>) {
+    one_hot(inst.ops, yield_constr);
+    one_hot(inst.rs1_select, yield_constr);
+    one_hot(inst.rs2_select, yield_constr);
+    one_hot(inst.rd_select, yield_constr);
 }
 
 fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
@@ -176,16 +176,18 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lve: &CpuColumnsExtended<_> = vars.local_values.borrow();
-        let nve: &CpuColumnsExtended<_> = vars.next_values.borrow();
-        let lv = &lve.cpu;
-        let nv = &nve.cpu;
+        let lv: &CpuColumnsExtended<_> = vars.local_values.borrow();
+        let nv: &CpuColumnsExtended<_> = vars.next_values.borrow();
 
-        one_hots(lv, yield_constr);
-        check_permuted_inst_cols(&lve.permuted, &nve.permuted, yield_constr);
+        check_permuted_inst_cols(&lv.permuted, &nv.permuted, yield_constr);
+
+        let lv = &lv.cpu;
+        let nv = &nv.cpu;
 
         clock_ticks(lv, nv, yield_constr);
         pc_ticks_up(lv, nv, yield_constr);
+
+        one_hots(&lv.inst, yield_constr);
 
         // Registers
         r0_always_0(lv, yield_constr);
