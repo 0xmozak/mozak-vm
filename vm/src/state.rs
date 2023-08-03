@@ -81,7 +81,6 @@ impl State {
     #[allow(clippy::missing_panics_doc)]
     pub fn branch_op(self, data: &Args, op: fn(u32, u32) -> bool) -> (Aux, State) {
         let op1 = self.get_register_value(data.rs1);
-        // assert_eq!(data.imm, 0, "{:#?}", self.current_instruction());
         let op2 = self.get_register_value(data.rs2).wrapping_add(data.imm);
         (
             Aux::default(),
