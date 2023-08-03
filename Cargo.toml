@@ -1,10 +1,10 @@
 [workspace]
-resolver = "2"
 members = [
-    "cli",
-    "vm",
-    "circuits",
+  "cli",
+  "vm",
+  "circuits",
 ]
+resolver = "2"
 
 [profile.test]
 # Full list of settings: https://doc.rust-lang.org/cargo/reference/profiles.html#release
@@ -17,8 +17,8 @@ overflow-checks = true
 incremental = true
 
 [patch.crates-io]
-plonky2_field =  { git = "https://github.com/0xmozak/plonky2.git" }
-plonky2_maybe_rayon =  { git = "https://github.com/0xmozak/plonky2.git" }
 plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
+plonky2_field = { git = "https://github.com/0xmozak/plonky2.git" }
+plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git" }
+plonky2_util = { git = "https://github.com/0xmozak/plonky2.git" }
 starky = { git = "https://github.com/0xmozak/plonky2.git" }
-plonky2_util =  { git = "https://github.com/0xmozak/plonky2.git" }
