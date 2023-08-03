@@ -81,6 +81,7 @@ pub fn generate_cpu_trace<F: RichField>(
     // For expanded trace from `trace_len` to `trace_len's power of two`,
     // we use last row `HALT` to pad them.
     let trace = pad_trace(trace);
+
     log::trace!("trace {:?}", trace);
     trace
 }
