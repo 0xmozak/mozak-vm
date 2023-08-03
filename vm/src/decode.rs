@@ -51,9 +51,11 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
     let rs2 = bf.rs2();
     let rd = bf.rd();
 
+    // For store instructions, we use rs1 as rs2 for the convenience of trace
+    // generation.
     let stype = Args {
-        rs1,
-        rs2,
+        rs1: rs2,
+        rs2: rs1,
         imm: extract_immediate(word, &[(31, 31), (30, 25), (11, 8), (7, 7)], 0),
         ..Default::default()
     };
@@ -65,6 +67,14 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
     };
     let itype = Args {
         rs1,
+        rd,
+        imm: extract_immediate(word, &[(31, 20)], 0),
+        ..Default::default()
+    };
+    // Special case for itypes: For load instructions, we use rs1 as rs2 for the
+    // convenience of trace generation.
+    let itype_load = Args {
+        rs2: rs1,
         rd,
         imm: extract_immediate(word, &[(31, 20)], 0),
         ..Default::default()
@@ -122,11 +132,11 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             _ => Default::default(),
         },
         0b000_0011 => match bf.func3() {
-            0x0 => (Op::LB, itype),
-            0x1 => (Op::LH, itype),
-            0x2 => (Op::LW, itype),
-            0x4 => (Op::LBU, itype),
-            0x5 => (Op::LHU, itype),
+            0x0 => (Op::LB, itype_load),
+            0x1 => (Op::LH, itype_load),
+            0x2 => (Op::LW, itype_load),
+            0x4 => (Op::LBU, itype_load),
+            0x5 => (Op::LHU, itype_load),
             #[tarpaulin::skip]
             _ => Default::default(),
         },
@@ -681,8 +691,8 @@ mod tests {
         let match_ins = Instruction {
             op: Op::SB,
             args: Args {
-                rs1,
-                rs2,
+                rs1: rs2,
+                rs2: rs1,
                 imm,
                 ..Default::default()
             },
@@ -698,8 +708,8 @@ mod tests {
         let match_ins = Instruction {
             op: Op::SH,
             args: Args {
-                rs1,
-                rs2,
+                rs1: rs2,
+                rs2: rs1,
                 imm,
                 ..Default::default()
             },
@@ -715,8 +725,8 @@ mod tests {
         let match_ins = Instruction {
             op: Op::SW,
             args: Args {
-                rs1,
-                rs2,
+                rs1: rs2,
+                rs2: rs1,
                 imm,
                 ..Default::default()
             },
@@ -793,7 +803,7 @@ mod tests {
             op: Op::LW,
             args: Args {
                 rd,
-                rs1,
+                rs2: rs1,
                 imm,
                 ..Default::default()
             },
@@ -810,7 +820,7 @@ mod tests {
             op: Op::LH,
             args: Args {
                 rd,
-                rs1,
+                rs2: rs1,
                 imm,
                 ..Default::default()
             },
@@ -827,7 +837,7 @@ mod tests {
             op: Op::LHU,
             args: Args {
                 rd,
-                rs1,
+                rs2: rs1,
                 imm,
                 ..Default::default()
             },
@@ -844,7 +854,7 @@ mod tests {
             op: Op::LB,
             args: Args {
                 rd,
-                rs1,
+                rs2: rs1,
                 imm,
                 ..Default::default()
             },
@@ -861,11 +871,12 @@ mod tests {
             op: Op::LBU,
             args: Args {
                 rd,
-                rs1,
+                rs2: rs1,
                 imm,
                 ..Default::default()
             },
         };
+
         assert_eq!(ins, match_ins);
     }
 
