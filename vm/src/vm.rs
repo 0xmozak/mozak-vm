@@ -245,15 +245,18 @@ pub fn step(program: &Program, mut last_state: State) -> Result<ExecutionRecord>
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
+    use im::HashMap;
     use proptest::prelude::ProptestConfig;
     use proptest::{prop_assume, proptest};
 
-    use super::{div, divu, lh, lw, ExecutionRecord};
+    use super::*;
+    use crate::elf::Program;
     use crate::instruction::{Args, Instruction, Op};
     use crate::test_utils::{
-        i16_extra, i32_extra, i8_extra, last_but_coda, reg, simple_test, simple_test_code,
-        u16_extra, u32_extra, u8_extra,
+        i16_extra, i32_extra, i8_extra, last_but_coda, reg, simple_test_code, u16_extra, u32_extra,
+        u8_extra,
     };
+    use crate::vm::step;
 
     proptest! {
         #![proptest_config(ProptestConfig { max_global_rejects: 100_000, .. Default::default() })]
@@ -1241,6 +1244,29 @@ mod tests {
         }
     }
 
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)]
+    fn simple_test(exit_at: u32, mem: &[(u32, u32)], regs: &[(u8, u32)]) -> ExecutionRecord {
+        // TODO(Matthias): stick this line into proper common setup?
+        let _ = env_logger::try_init();
+        let exit_inst =
+        // set sys-call EXIT in x17(or a7)
+        &[(exit_at, 0x05d0_0893_u32),
+        // add ECALL to halt the program
+        (exit_at + 4, 0x0000_0073_u32)];
+
+        let image: HashMap<u32, u32> = mem.iter().chain(exit_inst.iter()).copied().collect();
+        let program = Program::from(image);
+
+        let state = regs.iter().fold(State::from(&program), |state, (rs, val)| {
+            state.set_register_value(*rs, *val)
+        });
+
+        let record = step(&program, state).unwrap();
+        assert!(record.last_state.has_halted());
+        record
+    }
+
     // NOTE: For writing test cases please follow RISCV
     // calling convention for using registers in instructions.
     // Please check https://en.wikichip.org/wiki/risc-v/registers
@@ -1254,8 +1280,7 @@ mod tests {
     fn lui() {
         // at 0 address instruction lui
         // LUI x1, -524288
-        let (_program, ExecutionRecord { last_state, .. }) =
-            simple_test(4, &[(0_u32, 0x8000_00b7)], &[]);
+        let ExecutionRecord { last_state, .. } = simple_test(4, &[(0_u32, 0x8000_00b7)], &[]);
         assert_eq!(last_state.get_register_value(1), 0x8000_0000);
         assert_eq!(last_state.get_register_value(1) as i32, -2_147_483_648);
     }
@@ -1263,7 +1288,7 @@ mod tests {
     #[test]
     fn auipc() {
         // at 0 address addi x0, x0, 0
-        let (_program, ExecutionRecord { last_state, .. }) = simple_test(
+        let ExecutionRecord { last_state, .. } = simple_test(
             8,
             &[
                 (0_u32, 0x0000_0013),

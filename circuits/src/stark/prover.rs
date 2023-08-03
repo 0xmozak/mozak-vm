@@ -394,20 +394,28 @@ where
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test, simple_test_code};
+    use mozak_vm::test_utils::simple_test_code;
 
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
 
     #[test]
     fn prove_halt() {
-        let (program, record) = simple_test(0, &[], &[]);
+        let (program, record) = simple_test_code(&[], &[], &[]);
         MozakStark::prove_and_verify(&program, &record.executed).unwrap();
     }
 
     #[test]
     fn prove_lui() {
-        let (program, record) = simple_test(4, &[(0_u32, 0x8000_00b7 /* lui r1, 0x80000 */)], &[]);
+        let lui = Instruction {
+            op: Op::ADD,
+            args: Args {
+                rd: 1,
+                imm: 0x8000_0000,
+                ..Args::default()
+            },
+        };
+        let (program, record) = simple_test_code(&[lui], &[], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
         MozakStark::prove_and_verify(&program, &record.executed).unwrap();
     }
