@@ -6,19 +6,13 @@ use plonky2::hash::hash_types::RichField;
 use crate::cpu::columns::{CpuColumnsView, InstructionView};
 use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 
-/// Generates a program trace from CPU traces.
-///
-/// Note: The ideal source for generating the program trace should be ELF file
-/// instructions instead of CPU traces. This approach would require a
-/// substantial refactoring, including the separation of local opcode decoding
-/// from CPU trace generation.
+/// Generates a program ROM trace
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
-pub fn generate_program_trace<F: RichField>(
+pub fn generate_program_rom_trace<F: RichField>(
     program: &Program,
     cpu_trace: &[CpuColumnsView<F>],
 ) -> Vec<ProgramColumnsView<F>> {
-    // NOTE: We expect CpuColumnsView to already be padded to the right size.
     let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
 
     program

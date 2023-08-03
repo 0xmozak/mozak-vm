@@ -29,6 +29,7 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<CpuColumnsView<F>>) -> Vec<CpuColu
 pub fn generate_cpu_trace_extended<F: RichField>(
     cpu_trace: Vec<CpuColumnsView<F>>,
 ) -> CpuColumnsExtended<Vec<F>> {
+    // NOTE: We expect cpu_trace to already be padded to the right size.
     let permuted = generate_permuted_inst_trace(&cpu_trace);
     (chain!(transpose_trace(cpu_trace), transpose_trace(permuted))).collect()
 }
