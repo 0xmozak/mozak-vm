@@ -20,7 +20,7 @@ pub fn memory_trace_test_case() -> Vec<Row> {
     } = simple_test_code(
         &[
             new(SB, Args {
-                rs2: 1,
+                rs1: 1,
                 imm: 100,
                 ..Args::default()
             }),
@@ -30,7 +30,7 @@ pub fn memory_trace_test_case() -> Vec<Row> {
                 ..Args::default()
             }),
             new(SB, Args {
-                rs2: 3,
+                rs1: 3,
                 imm: 200,
                 ..Args::default()
             }),
@@ -40,7 +40,7 @@ pub fn memory_trace_test_case() -> Vec<Row> {
                 ..Args::default()
             }),
             new(SB, Args {
-                rs2: 2,
+                rs1: 2,
                 imm: 100,
                 ..Args::default()
             }),
