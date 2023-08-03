@@ -80,7 +80,7 @@ mod tests {
         }
         #[test]
         fn prove_bne_proptest(a in u32_extra(), b in u32_extra()) {
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[
                     Instruction {
                         op: Op::BNE,

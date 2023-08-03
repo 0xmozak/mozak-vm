@@ -81,7 +81,7 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
         fn prove_mul_proptest(a in u32_extra(), b in u32_extra()) {
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[
                     Instruction {
                         op: Op::MUL,
@@ -116,7 +116,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             prop_assume!(rs1 != rd);
             prop_assume!(rs2 != rd);
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[Instruction {
                     op: Op::SLL,
                     args: Args {

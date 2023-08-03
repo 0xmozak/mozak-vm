@@ -412,7 +412,7 @@ mod tests {
 
     #[test]
     fn prove_lui_2() {
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::ADD,
                 args: Args {
@@ -430,7 +430,7 @@ mod tests {
 
     #[test]
     fn prove_beq() {
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::BEQ,
                 args: Args {

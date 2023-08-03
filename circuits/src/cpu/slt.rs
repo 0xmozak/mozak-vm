@@ -63,7 +63,7 @@ mod tests {
         #[test]
         fn prove_slt_proptest(a in u32_extra(), op2 in u32_extra(), use_imm in any::<bool>()) {
             let (b, imm) = if use_imm { (0, op2) } else { (op2, 0) };
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[
                     Instruction {
                         op: Op::SLTU,

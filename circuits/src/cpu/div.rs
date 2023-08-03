@@ -100,7 +100,7 @@ mod tests {
         }
         #[test]
         fn prove_divu_proptest(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[Instruction {
                     op: Op::DIVU,
                     args: Args {
@@ -139,7 +139,7 @@ mod tests {
         }
         #[test]
         fn prove_srl_proptest(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[Instruction {
                     op: Op::SRL,
                     args: Args {

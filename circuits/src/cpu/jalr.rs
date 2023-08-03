@@ -40,7 +40,7 @@ mod tests {
 
     #[test]
     fn prove_jalr_goto_no_rs1() {
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::JALR,
                 args: Args {
@@ -59,7 +59,7 @@ mod tests {
 
     #[test]
     fn prove_jalr_goto_rs1_zero() {
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::JALR,
                 args: Args {
@@ -77,7 +77,7 @@ mod tests {
     }
     #[test]
     fn prove_jalr_goto_imm_zero_rs1_not_zero() {
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::JALR,
                 args: Args {
@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn prove_jalr() {
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::JALR,
                 args: Args {
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn prove_triple_jalr() {
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[
                 Instruction {
                     op: Op::JALR,
@@ -152,7 +152,7 @@ mod tests {
         fn jalr_jumps_past_an_instruction(rs1 in reg(), rs1_val in u32_extra(), rd in reg(), sentinel in u32_extra()) {
             let jump_target: u32 = 8;
             let imm = jump_target.wrapping_sub(rs1_val);
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[Instruction {
                     op: Op::JALR,
                     args: Args {
