@@ -1,15 +1,20 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
-use std::io::Read;
+use std::io::{Read, Write};
 
-use clap::{Parser, ValueEnum};
-use clio::Input;
+use anyhow::Result;
+use clap::{Parser, Subcommand};
+use clio::{Input, Output};
 use log::debug;
 use mozak_circuits::stark::mozak_stark::MozakStark;
-use mozak_circuits::test_utils::ProveAndVerify;
+use mozak_circuits::stark::proof::AllProof;
+use mozak_circuits::stark::prover::prove;
+use mozak_circuits::stark::verifier::verify_proof;
+use mozak_circuits::test_utils::{standard_faster_config, ProveAndVerify, C, D, F, S};
 use mozak_vm::elf::Program;
 use mozak_vm::state::State;
 use mozak_vm::vm::step;
+use plonky2::util::timing::TimingTree;
 use shadow_rs::shadow;
 
 shadow!(build);
@@ -19,23 +24,25 @@ shadow!(build);
 struct Cli {
     #[clap(flatten)]
     verbose: clap_verbosity_flag::Verbosity,
-    #[arg(value_enum)]
+    #[command(subcommand)]
     command: Command,
-    #[clap(value_parser, default_value = "-")]
-    elf: Input,
 }
 
-#[derive(Copy, Clone, Debug, Parser, PartialEq, ValueEnum)]
+#[derive(Clone, Debug, Subcommand)]
 enum Command {
     /// Show build info available to shadow_rs
     BuildInfo,
     /// Decode a given ELF and prints the program
-    Decode,
+    Decode { elf: Input },
     /// Decode and execute a given ELF. Prints the final state of
     /// the registers
-    Run,
+    Run { elf: Input },
     /// Prove and verify the execution of a given ELF
-    Prove,
+    ProveAndVerify { elf: Input },
+    /// Prove the execution of given ELF and write proof to file.
+    Prove { elf: Input, proof: Output },
+    /// Verify the given proof from file.
+    Verify { proof: Input },
 }
 
 fn build_info() {
@@ -68,35 +75,66 @@ fn build_info() {
     println!("{}", build::GIT_STATUS_FILE);
 }
 
+fn load_program(mut elf: Input) -> Result<Program> {
+    let mut elf_bytes = Vec::new();
+    let bytes_read = elf.read_to_end(&mut elf_bytes)?;
+    debug!("Read {bytes_read} of ELF data.");
+    Program::load_elf(&elf_bytes)
+}
+
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi`
-fn main() -> anyhow::Result<()> {
-    let mut cli = Cli::parse();
+fn main() -> Result<()> {
+    let cli = Cli::parse();
     env_logger::Builder::new()
         .filter_level(cli.verbose.log_level_filter())
         .init();
     if let Command::BuildInfo = cli.command {
         build_info();
     } else {
-        let mut elf_bytes = Vec::new();
-        let bytes_read = cli.elf.read_to_end(&mut elf_bytes)?;
-        debug!("Read {bytes_read} of ELF data.");
-
         match cli.command {
-            Command::Decode => {
-                let program = Program::load_elf(&elf_bytes)?;
+            Command::Decode { elf } => {
+                let program = load_program(elf)?;
                 debug!("{program:?}");
             }
-            Command::Run => {
-                let program = Program::load_elf(&elf_bytes)?;
+            Command::Run { elf } => {
+                let program = load_program(elf)?;
                 let state = State::from(&program);
                 let state = step(&program, state)?.last_state;
                 debug!("{:?}", state.registers);
             }
-            Command::Prove => {
-                let program = Program::load_elf(&elf_bytes)?;
+            Command::ProveAndVerify { elf } => {
+                let program = load_program(elf)?;
                 let state = State::from(&program);
                 let record = step(&program, state)?;
                 MozakStark::prove_and_verify(&program, &record.executed)?;
+            }
+            Command::Prove { elf, mut proof } => {
+                let program = load_program(elf)?;
+                let state = State::from(&program);
+                let record = step(&program, state)?;
+                let stark = S::default();
+                let config = standard_faster_config();
+
+                let all_proof = prove::<F, C, D>(
+                    &program,
+                    &record.executed,
+                    &stark,
+                    &config,
+                    &mut TimingTree::default(),
+                )?;
+                let s = all_proof.serialize_proof_to_flexbuffer()?;
+                proof.write_all(s.view())?;
+                debug!("proof generated successfully!");
+            }
+            Command::Verify { mut proof } => {
+                let stark = S::default();
+                let config = standard_faster_config();
+
+                let mut buffer: Vec<u8> = vec![];
+                proof.read_to_end(&mut buffer)?;
+                let all_proof = AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(&buffer)?;
+                verify_proof(stark, all_proof, &config)?;
+                debug!("proof verified successfully!");
             }
             Command::BuildInfo => unreachable!(),
         }
