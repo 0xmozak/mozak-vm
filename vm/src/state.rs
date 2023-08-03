@@ -59,7 +59,7 @@ impl State {
 
     #[must_use]
     pub fn memory_load(self, data: &Args, op: fn(&[u8; 4]) -> u32) -> (Aux, Self) {
-        let addr: u32 = self.get_register_value(data.rs1).wrapping_add(data.imm);
+        let addr: u32 = self.get_register_value(data.rs2).wrapping_add(data.imm);
         let mem = [
             self.load_u8(addr),
             self.load_u8(addr.wrapping_add(1)),
