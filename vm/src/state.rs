@@ -38,6 +38,7 @@ impl From<Program> for State {
     }
 }
 
+/// Auxiliary information about the instruction execution
 #[derive(Debug, Clone, Default)]
 pub struct Aux {
     // This could be an Option<u32>, but given how Risc-V instruction are specified,
@@ -168,6 +169,10 @@ impl State {
     }
 
     /// Load a byte from memory
+    ///
+    /// For now, we decided that we will offer the program the full 4 GiB of
+    /// address space you can get with 32 bits.
+    /// So no u32 address is out of bounds.
     #[must_use]
     pub fn load_u8(&self, addr: u32) -> u8 { self.memory.get(&addr).copied().unwrap_or_default() }
 
