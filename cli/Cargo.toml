@@ -12,7 +12,13 @@ version = "0.1.0"
 build = "build.rs"
 
 [dependencies]
-clap = { version = "4.3.19", features = ["derive", "cargo", "env", "unicode", "wrap_help"] }
+clap = { version = "4.3.19", features = [
+  "derive",
+  "cargo",
+  "env",
+  "unicode",
+  "wrap_help",
+] }
 mozak-circuits = { path = "../circuits", features = ["test"] }
 mozak-vm = { path = "../vm", features = ["test"] }
 # TODO(Matthias): implement shell completion for CLI via clap_complete
