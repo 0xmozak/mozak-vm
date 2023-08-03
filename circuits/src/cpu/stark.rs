@@ -21,21 +21,13 @@ pub struct CpuStark<F, const D: usize> {
 }
 
 impl<P: Copy> OpSelectorView<P> {
+    // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
+    // PC. It sort-of jumps back to itself.
     fn straightline_opcodes(&self) -> Vec<P> {
         vec![
             self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu,
             self.remu, self.sll, self.slt, self.sltu, self.srl,
         ]
-    }
-
-    // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
-    // PC. It sort-of jumps back to itself.
-    fn jumping_opcodes(&self) -> Vec<P> { vec![self.beq, self.bne, self.ecall, self.jalr] }
-
-    fn opcodes(&self) -> Vec<P> {
-        let mut res = self.straightline_opcodes();
-        res.extend(self.jumping_opcodes());
-        res
     }
 }
 
@@ -59,15 +51,14 @@ fn opcode_one_hot<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let op_selectors: Vec<_> = lv.inst.ops.opcodes();
-
     // Op selectors have value 0 or 1.
-    op_selectors
-        .iter()
-        .for_each(|&s| yield_constr.constraint(s * (P::ONES - s)));
+    lv.inst
+        .ops
+        .into_iter()
+        .for_each(|s| yield_constr.constraint(s * (P::ONES - s)));
 
     // Only one opcode selector enabled.
-    let sum_s_op: P = op_selectors.into_iter().sum();
+    let sum_s_op: P = lv.inst.ops.into_iter().sum();
     yield_constr.constraint(P::ONES - sum_s_op);
 }
 
