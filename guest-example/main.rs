@@ -33,7 +33,7 @@ pub fn _start() -> ! {
 
 /// Exit syscall
 ///
-/// As per RISCV Calling Convetion a0/a1 (which are actually X10/X11) can be
+/// As per RISC-V Calling Convention a0/a1 (which are actually X10/X11) can be
 /// used as function argument/result.
 #[no_mangle]
 #[inline(never)]
