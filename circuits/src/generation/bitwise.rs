@@ -4,6 +4,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::bitwise::columns::{BitwiseColumnsView, XorView};
 use crate::cpu::columns::CpuColumnsView;
+use crate::utils::pad_trace_with_default;
 
 fn filter_bitwise_trace<F: RichField>(
     step_rows: &[CpuColumnsView<F>],
@@ -11,11 +12,6 @@ fn filter_bitwise_trace<F: RichField>(
     step_rows.iter().filter_map(|row| {
         (row.inst.ops.ops_that_use_xor().into_iter().sum::<F>() != F::ZERO).then_some(row.xor)
     })
-}
-
-fn pad_trace_with_default<Row: Default + Clone>(mut trace: Vec<Row>) -> Vec<Row> {
-    trace.resize(trace.len().next_power_of_two(), Row::default());
-    trace
 }
 
 fn to_bits<F: RichField>(val: F) -> [F; u32::BITS as usize] {
