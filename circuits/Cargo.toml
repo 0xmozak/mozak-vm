@@ -27,6 +27,11 @@ thiserror = "1.0.44"
 env_logger = { version = "0.10.0" }
 mozak-vm = { path = "../vm", features = ["test"] }
 proptest = "1.2.0"
+criterion = { version = "0.5.1", features = ["html_reports"] }
 
 [features]
 test = []
+
+[[bench]]
+name = "simple_prover"
+harness = false

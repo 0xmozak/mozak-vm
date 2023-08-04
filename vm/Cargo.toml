@@ -24,6 +24,11 @@ proptest = { version = "1.2.0", optional = true }
 env_logger = { version = "0.10.0" }
 proptest = "1.2.0"
 test-case = "3.1.0"
+criterion = { version = "0.5.1", features = ["html_reports"] }
+
+[[bench]]
+name = "fibonacci"
+harness = false
 
 [features]
 default = ["std"]
