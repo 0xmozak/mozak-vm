@@ -26,9 +26,9 @@ fn fibonacci(n: u32) -> u64 {
 
 #[no_mangle]
 pub fn _start() -> ! {
-    let res = fibonacci(8);
-    assert!(res == 13);
-    assert_eq!(res, 13);
+    let res = fibonacci(40);
+    assert!(res == 63245986);
+    assert_eq!(res, 63245986);
     exit(res);
 }
 

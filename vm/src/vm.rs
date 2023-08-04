@@ -227,7 +227,7 @@ pub fn step(program: &Program, mut last_state: State) -> Result<ExecutionRecord>
         last_state = new_state;
 
         if cfg!(debug_assertions) {
-            let limit: u64 = std::option_env!("MOZAK_MAX_LOOPS")
+            let limit: u64 = option_env!("MOZAK_MAX_LOOPS")
                 .map_or(1_000_000, |env_var| env_var.parse().unwrap());
             debug_assert!(
                 last_state.clk != limit,
