@@ -122,6 +122,9 @@ impl<T: Copy> OpSelectorView<T> {
 
     // TODO: Add SRA, once we implement its constraints.
     pub fn ops_that_shift(&self) -> [T; 2] { [self.sll, self.srl] }
+
+    /// List of opcode columns that require range checking.
+    pub(crate) fn ops_to_rangecheck(&self) -> [T; 3] { [self.add, self.sb, self.lbu] }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.
