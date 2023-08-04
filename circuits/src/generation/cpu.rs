@@ -234,10 +234,13 @@ pub fn generate_permuted_inst_trace<F: RichField>(
 
 #[cfg(test)]
 mod tests {
-    use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use crate::cpu::columns::NUM_CPU_COLS;
+    use crate::columns_view::selection;
+    use crate::cpu::columns::{CpuColumnsView, InstructionView};
+    use crate::generation::cpu::generate_permuted_inst_trace;
+    use crate::program::columns::{InstColumnsView, ProgramColumnsView};
+    use crate::utils::from_u32;
 
     #[test]
     fn test_generate_permuted_inst_trace() {
@@ -245,60 +248,101 @@ mod tests {
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        let _trace: Vec<Vec<F>> = vec![vec![F::ZERO; 4]; NUM_CPU_COLS];
+        let trace: Vec<CpuColumnsView<F>> = [
+            InstructionView {
+                pc: 3,
+                ops: selection(2),
+                rs1_select: selection(1),
+                rs2_select: selection(2),
+                rd_select: selection(3),
+                imm_value: 1,
+                ..Default::default()
+            },
+            InstructionView {
+                pc: 1,
+                ops: selection(3),
+                rs1_select: selection(2),
+                rs2_select: selection(1),
+                rd_select: selection(1),
+                imm_value: 3,
+                ..Default::default()
+            },
+            InstructionView {
+                pc: 2,
+                ops: selection(1),
+                rs1_select: selection(3),
+                rs2_select: selection(3),
+                rd_select: selection(2),
+                imm_value: 2,
+                ..Default::default()
+            },
+            InstructionView {
+                pc: 1,
+                ops: selection(4),
+                rs1_select: selection(4),
+                rs2_select: selection(4),
+                rd_select: selection(4),
+                imm_value: 4,
+                ..Default::default()
+            },
+        ]
+        .into_iter()
+        .map(|inst| CpuColumnsView {
+            inst: inst.map(from_u32),
+            ..Default::default()
+        })
+        .collect();
 
-        // trace[MAP.inst.pc] = vec![from_u32(3), from_u32(1), from_u32(2),
-        // from_u32(1)]; trace[MAP.opcode] = vec![from_u32(2),
-        // from_u32(3), from_u32(1), from_u32(4)]; trace[MAP.rs1] =
-        // vec![from_u32(1), from_u32(2), from_u32(3), from_u32(4)];
-        // trace[MAP.rs2] = vec![from_u32(2), from_u32(1), from_u32(3),
-        // from_u32(4)]; trace[MAP.rd] = vec![from_u32(3), from_u32(1),
-        // from_u32(2), from_u32(4)]; trace[MAP.imm_value] =
-        // vec![from_u32(1), from_u32(3), from_u32(2), from_u32(4)];
-
-        // let permuted_trace = generate_permuted_inst_trace(trace);
-
-        // assert_eq!(permuted_trace[MAP.permuted_pc], [
-        //     from_u32(1),
-        //     from_u32(1),
-        //     from_u32(2),
-        //     from_u32(3)
-        // ]);
-        // assert_eq!(permuted_trace[MAP.permuted_opcode], [
-        //     from_u32(3),
-        //     from_u32(4),
-        //     from_u32(1),
-        //     from_u32(2)
-        // ]);
-        // assert_eq!(permuted_trace[MAP.permuted_rs1], [
-        //     from_u32(2),
-        //     from_u32(4),
-        //     from_u32(3),
-        //     from_u32(1)
-        // ]);
-        // assert_eq!(permuted_trace[MAP.permuted_rs2], [
-        //     from_u32(1),
-        //     from_u32(4),
-        //     from_u32(3),
-        //     from_u32(2)
-        // ]);
-        // assert_eq!(permuted_trace[MAP.permuted_rd], [
-        //     from_u32(1),
-        //     from_u32(4),
-        //     from_u32(2),
-        //     from_u32(3)
-        // ]);
-        // assert_eq!(permuted_trace[MAP.permuted_imm], [
-        //     from_u32(3),
-        //     from_u32(4),
-        //     from_u32(2),
-        //     from_u32(1)
-        // ]);
-        // assert_eq!(permuted_trace[MAP.duplicate_inst_filter], [
-        //     from_u32(1),
-        //     from_u32(0),
-        //     from_u32(1),
-        //     from_u32(1)
-        // ]);
+        let permuted_trace = generate_permuted_inst_trace(&trace);
+        let expected_permuted_trace: Vec<ProgramColumnsView<F>> = [
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 1,
+                    opcode: 3,
+                    rs1: 2,
+                    rs2: 1,
+                    rd: 1,
+                    imm: 3,
+                },
+                filter: 1,
+            },
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 1,
+                    opcode: 4,
+                    rs1: 4,
+                    rs2: 4,
+                    rd: 4,
+                    imm: 4,
+                },
+                filter: 0,
+            },
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 2,
+                    opcode: 1,
+                    rs1: 3,
+                    rs2: 3,
+                    rd: 2,
+                    imm: 2,
+                },
+                filter: 1,
+            },
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 3,
+                    opcode: 2,
+                    rs1: 1,
+                    rs2: 2,
+                    rd: 3,
+                    imm: 1,
+                },
+                filter: 1,
+            },
+        ]
+        .into_iter()
+        .map(|row| row.map(from_u32))
+        .collect();
+        assert_eq!(expected_permuted_trace, permuted_trace);
     }
 }
