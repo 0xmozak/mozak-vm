@@ -1,5 +1,5 @@
 [workspace]
-members = ["cli", "vm", "circuits"]
+members = ["cli", "vm", "circuits", "hash"]
 resolver = "2"
 
 [profile.test]

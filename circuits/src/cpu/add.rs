@@ -28,15 +28,18 @@ mod tests {
     #[test]
     fn prove_add_example() -> Result<()> {
         let (program, record) = simple_test_code(
-            &[Instruction {
-                op: Op::ADD,
-                args: Args {
-                    rd: 5,
-                    rs1: 6,
-                    rs2: 7,
-                    ..Args::default()
-                },
-            }],
+            &vec![
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: 5,
+                        rs1: 6,
+                        rs2: 7,
+                        ..Args::default()
+                    },
+                };
+                1 << 20
+            ],
             &[],
             &[(6, 100), (7, 100)],
         );

@@ -780,6 +780,7 @@ dependencies = [
  "itertools",
  "lazy_static",
  "log",
+ "mozak-trivial-hash",
  "mozak-vm",
  "plonky2",
  "plonky2_maybe_rayon",
@@ -806,6 +807,20 @@ dependencies = [
  "plonky2",
  "proptest",
  "shadow-rs",
+]
+
+[[package]]
+name = "mozak-trivial-hash"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "itertools",
+ "mozak-vm",
+ "plonky2",
+ "plonky2_maybe_rayon",
+ "proptest",
+ "serde",
+ "starky",
 ]
 
 [[package]]

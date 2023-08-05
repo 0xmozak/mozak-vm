@@ -89,7 +89,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use mozak_trivial_hash::ToyGoldilocksConfig;
+    use plonky2::plonk::config::GenericConfig;
     use starky::stark_testing::test_stark_low_degree;
 
     use crate::memory::stark::MemoryStark;
@@ -97,7 +98,7 @@ mod tests {
     use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
-    type C = PoseidonGoldilocksConfig;
+    type C = ToyGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
     type S = MemoryStark<F, D>;
 

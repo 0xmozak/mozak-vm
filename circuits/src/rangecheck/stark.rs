@@ -112,11 +112,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
 mod tests {
     use anyhow::Result;
     use log::trace;
+    use mozak_trivial_hash::ToyGoldilocksConfig;
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::{Field, Sample};
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::plonk::config::GenericConfig;
     use plonky2::util::log2_strict;
     use starky::stark::Stark;
     use starky::stark_testing::test_stark_low_degree;
@@ -126,7 +127,7 @@ mod tests {
     use crate::generation::rangecheck::generate_rangecheck_trace;
 
     const D: usize = 2;
-    type C = PoseidonGoldilocksConfig;
+    type C = ToyGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
     type S = RangeCheckStark<F, D>;
 

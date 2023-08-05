@@ -1,3 +1,4 @@
+#![feature(const_float_bits_conv)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
 use std::io::{Read, Write};
@@ -82,8 +83,13 @@ fn load_program(mut elf: Input) -> Result<Program> {
     Program::load_elf(&elf_bytes)
 }
 
+pub const PI: u64 = u64::from_le_bytes(std::f64::consts::PI.to_le_bytes());
+
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi`
 fn main() -> Result<()> {
+    let e = u64::from_le_bytes(std::f64::consts::E.to_le_bytes());
+    println!("{e}");
+    println!("{PI}");
     let cli = Cli::parse();
     env_logger::Builder::new()
         .filter_level(cli.verbose.log_level_filter())

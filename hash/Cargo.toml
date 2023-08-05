@@ -1,0 +1,25 @@
+[package]
+categories = ["cryptography"]
+description = "MozakVM (trivial) hashes"
+edition = "2021"
+keywords = ["crypto", "zero-knowledge", "vm", "hash"]
+license = "All rights reserved"
+name = "mozak-trivial-hash"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-vm"
+version = "0.1.0"
+
+[dependencies]
+itertools = "0.11.0"
+mozak-vm = { path = "../vm" }
+plonky2 = "0.1.3"
+plonky2_maybe_rayon = "0.1.0"
+starky = "0.1.1"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+env_logger = { version = "0.10.0" }
+proptest = "1.2.0"
+
+[features]
+test = []

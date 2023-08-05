@@ -1,4 +1,5 @@
 use anyhow::Result;
+use mozak_trivial_hash::ToyGoldilocksConfig;
 use mozak_vm::elf::Program;
 use mozak_vm::vm::Row;
 use plonky2::fri::FriConfig;
@@ -28,7 +29,10 @@ use crate::stark::verifier::verify_proof;
 
 pub type S = MozakStark<F, D>;
 pub const D: usize = 2;
-pub type C = PoseidonGoldilocksConfig;
+pub type CT = ToyGoldilocksConfig;
+pub type CP = PoseidonGoldilocksConfig;
+// Pick which hasher you want to test:
+pub type C = CT;
 pub type F = <C as GenericConfig<D>>::F;
 
 #[must_use]

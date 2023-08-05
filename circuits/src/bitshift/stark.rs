@@ -63,9 +63,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use anyhow::Result;
+    use mozak_trivial_hash::ToyGoldilocksConfig;
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, u32_extra};
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::plonk::config::GenericConfig;
     use proptest::{prop_assert_eq, proptest};
     use starky::stark_testing::test_stark_low_degree;
 
@@ -73,7 +74,7 @@ mod tests {
     use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
-    type C = PoseidonGoldilocksConfig;
+    type C = ToyGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
     type S = BitshiftStark<F, D>;
 

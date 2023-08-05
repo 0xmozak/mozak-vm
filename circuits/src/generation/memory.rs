@@ -78,9 +78,10 @@ pub fn generate_memory_trace<F: RichField>(
 
 #[cfg(test)]
 mod tests {
+    use mozak_trivial_hash::ToyGoldilocksConfig;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::hash::hash_types::RichField;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::plonk::config::GenericConfig;
 
     use crate::memory::columns::{self as mem_cols, MemoryColumnsView};
     use crate::memory::test_utils::memory_trace_test_case;
@@ -128,7 +129,7 @@ mod tests {
     #[test]
     fn generate_memory_trace_without_padding() {
         const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
+        type C = ToyGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
         let (program, rows) = memory_trace_test_case();
