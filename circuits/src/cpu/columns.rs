@@ -27,6 +27,8 @@ pub struct OpSelectorView<T> {
     pub beq: T,
     pub bne: T,
     pub sb: T,
+    pub sh: T,
+    pub sw: T,
     pub lbu: T,
     pub ecall: T,
 }

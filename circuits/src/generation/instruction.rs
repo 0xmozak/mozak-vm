@@ -17,6 +17,8 @@ impl From<(u32, Instruction)> for InstructionView<u32> {
             Op::SLT => &mut cols.ops.slt,
             Op::SLTU => &mut cols.ops.sltu,
             Op::SB => &mut cols.ops.sb,
+            Op::SH => &mut cols.ops.sh,
+            Op::SW => &mut cols.ops.sw,
             Op::SRL => &mut cols.ops.srl,
             Op::SUB => &mut cols.ops.sub,
             Op::DIVU => &mut cols.ops.divu,

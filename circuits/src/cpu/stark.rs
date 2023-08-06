@@ -26,11 +26,12 @@ impl<P: Copy> OpSelectorView<P> {
     fn straightline_opcodes(&self) -> Vec<P> {
         vec![
             self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu,
-            self.remu, self.sll, self.slt, self.sltu, self.srl, self.sb, self.lbu,
+            self.remu, self.sll, self.slt, self.sltu, self.srl, self.sb, self.sh, self.sw,
+            self.lbu,
         ]
     }
 
-    pub(crate) fn memory_opcodes(&self) -> Vec<P> { vec![self.sb, self.lbu] }
+    pub(crate) fn memory_opcodes(&self) -> Vec<P> { vec![self.sb, self.sh, self.sw, self.lbu] }
 }
 
 fn pc_ticks_up<P: PackedField>(
