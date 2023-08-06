@@ -13,17 +13,16 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  cargo-test:
+  cargo-nextest:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install rust toolkit
-        uses: ./.github/actions/rust
+      - uses: taiki-e/install-action@nextest
 
       - name: Run tests
-        run: cargo test --locked --all-targets
+        run: cargo nextest run --locked --all-targets
 
   cargo-clippy:
     if: github.event.pull_request.draft == false
