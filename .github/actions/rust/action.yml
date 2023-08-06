@@ -18,6 +18,8 @@ runs:
         toolchain: ${{ env.RUST_VERSION }}
         components: rustfmt, clippy
 
+    - uses: taiki-e/install-action@nextest
+
     - uses: Swatinem/rust-cache@v2
       if: ${{ inputs.cache-key != '' }}
       with:
