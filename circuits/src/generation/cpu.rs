@@ -59,6 +59,7 @@ pub fn generate_cpu_trace<F: RichField>(
         for j in 0..32 {
             row.regs[j as usize] = from_u32(state.get_register_value(j));
         }
+
         generate_mul_row(&mut row, &inst, state);
         generate_divu_row(&mut row, &inst, state);
         generate_slt_row(&mut row, &inst, state);
