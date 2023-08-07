@@ -20,11 +20,9 @@ pub(crate) fn comparison_constraints<P: PackedField>(
     yield_constr.constraint((P::ONES - lt) * (abs_diff - diff_fixed));
     yield_constr.constraint(lt * (abs_diff + diff_fixed));
 
-    // Force lt == 0, if op1 == op2:
-    let diff = lv.op_diff();
-    let diff_inv = lv.cmp_diff_inv;
+    // Set up `not_diff` to force `lt == 0`, if `op1 == op2`:
     yield_constr.constraint(lv.not_diff * (lv.not_diff - P::ONES));
-    yield_constr.constraint(diff * diff_inv + lv.not_diff - P::ONES);
+    yield_constr.constraint(lv.op_diff() * lv.cmp_diff_inv + lv.not_diff - P::ONES);
 
     yield_constr.constraint(lt * lv.not_diff);
 }
