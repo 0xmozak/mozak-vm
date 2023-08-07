@@ -99,7 +99,7 @@ pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
 
 impl<T: PackedField> CpuColumnsView<T> {
     #[must_use]
-    pub fn p31() -> T::Scalar { T::Scalar::from_canonical_u32(1 << 31) }
+    pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
 
     #[must_use]
     pub fn p32() -> T::Scalar { T::Scalar::from_noncanonical_u64(1 << 32) }
@@ -113,12 +113,12 @@ impl<T: PackedField> CpuColumnsView<T> {
     /// Value of the first operand, as if converted to i64.
     ///
     /// So range is `i32::MIN..=u32::MAX`
-    pub fn op1_full_range(&self) -> T { self.op1_val_fixed - self.is_signed() * Self::p31() }
+    pub fn op1_full_range(&self) -> T { self.op1_val_fixed - self.is_signed() * Self::shifted(31) }
 
     /// Value of the first operand, as if converted to i64.
     ///
     /// So range is `i32::MIN..=u32::MAX`
-    pub fn op2_full_range(&self) -> T { self.op2_val_fixed - self.is_signed() * Self::p31() }
+    pub fn op2_full_range(&self) -> T { self.op2_val_fixed - self.is_signed() * Self::shifted(31) }
 }
 
 /// Column for a binary filter for our range check in the Mozak
