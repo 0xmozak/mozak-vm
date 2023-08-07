@@ -80,7 +80,7 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuColumnsView<F>) {
     let diff_inv = diff.try_inverse().unwrap_or_default();
 
     row.cmp_diff_inv = diff_inv;
-    row.ops_are_equal = F::ONE - diff * diff_inv;
+    row.not_diff = F::ONE - diff * diff_inv;
 }
 
 #[allow(clippy::cast_possible_wrap)]

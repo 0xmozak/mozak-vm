@@ -74,9 +74,9 @@ pub struct CpuColumnsView<T> {
     pub cmp_abs_diff: T,
     pub cmp_diff_inv: T,
     pub less_than: T,
-    // if `op_diff == 0`, then `ops_are_equal != 0`.
+    // If `op_diff == 0`, then `not_diff == 1`, else `not_diff == 0`.
     // We only need this intermediate variable to keep the constraint degree <= 3.
-    pub ops_are_equal: T,
+    pub not_diff: T,
 
     pub xor: XorView<T>,
 

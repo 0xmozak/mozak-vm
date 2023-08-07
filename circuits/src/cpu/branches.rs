@@ -4,7 +4,7 @@ use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuColumnsView;
 
-/// Constraints for `less_than` and `ops_are_equal`
+/// Constraints for `less_than` and `not_diff`
 pub(crate) fn comparison_constraints<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
@@ -23,11 +23,10 @@ pub(crate) fn comparison_constraints<P: PackedField>(
     // Force lt == 0, if op1 == op2:
     let diff = lv.op_diff();
     let diff_inv = lv.cmp_diff_inv;
-    let ops_are_equal = lv.ops_are_equal;
-    yield_constr.constraint(ops_are_equal * (ops_are_equal - P::ONES));
-    yield_constr.constraint(diff * diff_inv + ops_are_equal - P::ONES);
+    yield_constr.constraint(lv.not_diff * (lv.not_diff - P::ONES));
+    yield_constr.constraint(diff * diff_inv + lv.not_diff - P::ONES);
 
-    yield_constr.constraint(lt * ops_are_equal);
+    yield_constr.constraint(lt * lv.not_diff);
 }
 
 /// Constraints for conditional branch operations
@@ -48,20 +47,17 @@ pub(crate) fn constraints<P: PackedField>(
 
     let lt = lv.less_than;
 
-    let diff = lv.op_diff();
-    let ops_are_equal = lv.ops_are_equal;
-
     yield_constr.constraint((is_blt + is_bltu) * lt * (next_pc - branched_pc));
     yield_constr.constraint((is_blt + is_bltu) * (P::ONES - lt) * (next_pc - bumped_pc));
 
     yield_constr.constraint((is_bge + is_bgeu) * lt * (next_pc - bumped_pc));
     yield_constr.constraint((is_bge + is_bgeu) * (P::ONES - lt) * (next_pc - branched_pc));
 
-    yield_constr.constraint(ops.beq * ops_are_equal * (next_pc - branched_pc));
-    yield_constr.constraint(ops.beq * diff * (next_pc - bumped_pc));
+    yield_constr.constraint(ops.beq * lv.not_diff * (next_pc - branched_pc));
+    yield_constr.constraint(ops.beq * (P::ONES - lv.not_diff) * (next_pc - bumped_pc));
 
-    yield_constr.constraint(ops.bne * diff * (next_pc - branched_pc));
-    yield_constr.constraint(ops.bne * ops_are_equal * (next_pc - bumped_pc));
+    yield_constr.constraint(ops.bne * (P::ONES - lv.not_diff) * (next_pc - branched_pc));
+    yield_constr.constraint(ops.bne * lv.not_diff * (next_pc - bumped_pc));
 }
 
 #[cfg(test)]
