@@ -101,9 +101,6 @@ impl<T: PackedField> CpuColumnsView<T> {
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
 
-    #[must_use]
-    pub fn p32() -> T::Scalar { T::Scalar::from_noncanonical_u64(1 << 32) }
-
     pub fn op_diff(&self) -> T { self.op1_value - self.op2_value }
 
     // TODO(Matthias): unify where we specify `is_signed` for constraints and trace
