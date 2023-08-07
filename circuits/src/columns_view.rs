@@ -15,52 +15,61 @@ pub trait NumberOfColumns {
 // TODO(Matthias): this could probably be a custom derive macro?
 macro_rules! columns_view_impl {
     ($s: ident) => {
-        impl<T: Copy> crate::columns_view::NumberOfColumns for $s<T> {
+        impl<T> $s<T> {
+            // At the moment we only use `map` InstructionView,
+            // so it's dead code for the other callers of `columns_view_impl`.
+            // TODO(Matthias): remove this marker, once we use it for the other structs,
+            // too.
+            #[allow(dead_code)]
+            pub fn map<B: std::fmt::Debug, F>(self, f: F) -> $s<B>
+            where
+                F: FnMut(T) -> B, {
+                self.into_iter().map(f).collect()
+            }
+        }
+
+        impl<T> crate::columns_view::NumberOfColumns for $s<T> {
             // `u8` is guaranteed to have a `size_of` of 1.
             const NUMBER_OF_COLUMNS: usize = std::mem::size_of::<$s<u8>>();
         }
 
-        impl<F: plonky2::field::types::Field> Default for $s<F> {
-            fn default() -> Self { Self::from([F::ZERO; std::mem::size_of::<$s<u8>>()]) }
-        }
-
-        impl<T: Copy> From<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
+        impl<T> From<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
             fn from(value: [T; std::mem::size_of::<$s<u8>>()]) -> Self {
                 unsafe { crate::columns_view::transmute_without_compile_time_size_checks(value) }
             }
         }
 
-        impl<T: Copy> From<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
+        impl<T> From<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
             fn from(value: $s<T>) -> Self {
                 unsafe { crate::columns_view::transmute_without_compile_time_size_checks(value) }
             }
         }
 
-        impl<T: Copy> std::borrow::Borrow<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
+        impl<T> std::borrow::Borrow<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
             fn borrow(&self) -> &$s<T> {
                 unsafe { &*(self as *const [T; std::mem::size_of::<$s<u8>>()]).cast::<$s<T>>() }
             }
         }
 
-        impl<T: Copy> std::borrow::BorrowMut<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
+        impl<T> std::borrow::BorrowMut<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
             fn borrow_mut(&mut self) -> &mut $s<T> {
                 unsafe { &mut *(self as *mut [T; std::mem::size_of::<$s<u8>>()]).cast::<$s<T>>() }
             }
         }
 
-        impl<T: Copy> std::borrow::Borrow<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
+        impl<T> std::borrow::Borrow<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
             fn borrow(&self) -> &[T; std::mem::size_of::<$s<u8>>()] {
                 unsafe { &*(self as *const $s<T>).cast::<[T; std::mem::size_of::<$s<u8>>()]>() }
             }
         }
 
-        impl<T: Copy> std::borrow::BorrowMut<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
+        impl<T> std::borrow::BorrowMut<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
             fn borrow_mut(&mut self) -> &mut [T; std::mem::size_of::<$s<u8>>()] {
                 unsafe { &mut *(self as *mut $s<T>).cast::<[T; std::mem::size_of::<$s<u8>>()]>() }
             }
         }
 
-        impl<T: Copy, I> std::ops::Index<I> for $s<T>
+        impl<T, I> std::ops::Index<I> for $s<T>
         where
             [T]: std::ops::Index<I>,
         {
@@ -73,7 +82,7 @@ macro_rules! columns_view_impl {
             }
         }
 
-        impl<T: Copy, I> std::ops::IndexMut<I> for $s<T>
+        impl<T, I> std::ops::IndexMut<I> for $s<T>
         where
             [T]: std::ops::IndexMut<I>,
         {
@@ -84,7 +93,7 @@ macro_rules! columns_view_impl {
             }
         }
 
-        impl<T: Copy> std::iter::IntoIterator for $s<T> {
+        impl<T> std::iter::IntoIterator for $s<T> {
             type IntoIter = std::array::IntoIter<T, { std::mem::size_of::<$s<u8>>() }>;
             type Item = T;
 
@@ -94,7 +103,7 @@ macro_rules! columns_view_impl {
             }
         }
 
-        impl<T: plonky2::field::types::Field> std::iter::FromIterator<T> for $s<T> {
+        impl<T: std::fmt::Debug> std::iter::FromIterator<T> for $s<T> {
             fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
                 let vec: Vec<T> = iter.into_iter().collect();
                 let array: [T; std::mem::size_of::<$s<u8>>()] = vec.try_into().unwrap();

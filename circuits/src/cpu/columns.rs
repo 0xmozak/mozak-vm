@@ -2,12 +2,15 @@ use itertools::Itertools;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 
+use crate::bitshift::columns::Bitshift;
+use crate::bitwise::columns::XorView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
+columns_view_impl!(OpSelectorView);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub(crate) struct OpSelectorView<T: Copy> {
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct OpSelectorView<T> {
     pub add: T,
     pub sub: T,
     pub xor: T,
@@ -29,29 +32,37 @@ pub(crate) struct OpSelectorView<T: Copy> {
     pub bge: T,
     pub bgeu: T,
     pub ecall: T,
-    pub halt: T,
+}
+
+columns_view_impl!(InstructionView);
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct InstructionView<T> {
+    /// The original instruction (+ imm_value) used for program
+    /// cross-table-lookup.
+    pub pc: T,
+
+    pub ops: OpSelectorView<T>,
+    pub rs1_select: [T; 32],
+    pub rs2_select: [T; 32],
+    pub rd_select: [T; 32],
+    pub imm_value: T,
+    pub branch_target: T,
 }
 
 columns_view_impl!(CpuColumnsView);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub(crate) struct CpuColumnsView<T: Copy> {
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct CpuColumnsView<T> {
     pub clk: T,
-    pub pc: T,
+    pub inst: InstructionView<T>,
 
-    pub rs1_select: [T; 32],
-    pub rs2_select: [T; 32],
-    pub rd_select: [T; 32],
+    pub halt: T,
 
     pub op1_value: T,
     pub op2_value: T,
-    pub imm_value: T,
     pub dst_value: T,
-    pub branch_target: T,
 
     pub regs: [T; 32],
-
-    pub ops: OpSelectorView<T>,
 
     pub op1_sign: T,
     pub op2_sign: T,
@@ -65,14 +76,9 @@ pub(crate) struct CpuColumnsView<T: Copy> {
     pub less_than: T,
     pub ops_are_equal: T,
 
-    pub xor_a: T,
-    pub xor_b: T,
-    pub xor_out: T,
+    pub xor: XorView<T>,
 
-    // TODO: for shift operations, we need to hook up POWERS_OF_2_IN and
-    // POWERS_OF_2_OUT to a cross-table lookup for input values 0..32.
-    pub powers_of_2_in: T,
-    pub powers_of_2_out: T,
+    pub bitshift: Bitshift<T>,
 
     pub quotient: T,
     pub remainder: T,
@@ -100,7 +106,7 @@ impl<T: PackedField> CpuColumnsView<T> {
 
     // TODO(Matthias): unify where we specify `is_signed` for constraints and trace
     // generation. Also, later, take mixed sign (for MULHSU) into account.
-    pub fn is_signed(&self) -> T { self.ops.slt + self.ops.bge + self.ops.blt }
+    pub fn is_signed(&self) -> T { self.inst.ops.slt + self.inst.ops.bge + self.inst.ops.blt }
 
     /// Value of the first operand, as if converted to i64.
     ///
@@ -116,31 +122,44 @@ impl<T: PackedField> CpuColumnsView<T> {
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MAP.ops.add) }
+pub fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MAP.inst.ops.add) }
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub(crate) fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
-    vec![Column::single(MAP.dst_value)]
-}
+pub fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.dst_value)] }
 
 /// Columns containing the data to be matched against XOR Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.xor_a, MAP.xor_b, MAP.xor_out]).collect_vec()
-}
+pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.xor).collect_vec() }
 
 /// Column for a binary filter for bitwise instruction in Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_bitwise<F: Field>() -> Column<F> {
-    Column::many([
-        MAP.ops.xor,
-        MAP.ops.or,
-        MAP.ops.and,
-        MAP.ops.srl,
-        MAP.ops.sll,
-    ])
+pub fn filter_for_bitwise<F: Field>() -> Column<F> { Column::many(MAP.inst.ops.ops_that_use_xor()) }
+
+impl<T: Copy> OpSelectorView<T> {
+    #[must_use]
+    pub fn ops_that_use_xor(&self) -> [T; 5] {
+        // TODO: Add SRA, once we implement its constraints.
+        [self.xor, self.or, self.and, self.srl, self.sll]
+    }
+
+    // TODO: Add SRA, once we implement its constraints.
+    pub fn ops_that_shift(&self) -> [T; 2] { [self.sll, self.srl] }
+}
+
+/// Columns containing the data to be matched against `Bitshift` stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> {
+    Column::singles(MAP.bitshift).collect_vec()
+}
+
+/// Column for a binary filter for shft instruction in `Bitshift` stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_shift_amount<F: Field>() -> Column<F> {
+    Column::many(MAP.inst.ops.ops_that_shift())
 }

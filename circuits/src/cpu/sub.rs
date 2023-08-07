@@ -11,7 +11,7 @@ pub(crate) fn constraints<P: PackedField>(
     let expected_value = lv.op1_value - lv.op2_value;
     let wrapped = P::Scalar::from_noncanonical_u64(1 << 32) + expected_value;
     yield_constr
-        .constraint(lv.ops.sub * ((lv.dst_value - expected_value) * (lv.dst_value - wrapped)));
+        .constraint(lv.inst.ops.sub * ((lv.dst_value - expected_value) * (lv.dst_value - wrapped)));
 }
 
 #[cfg(test)]
@@ -22,7 +22,8 @@ mod tests {
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
-    use crate::test_utils::simple_proof_test;
+    use crate::cpu::stark::CpuStark;
+    use crate::test_utils::ProveAndVerify;
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -41,7 +42,7 @@ mod tests {
                 &[(6, a), (7, b)],
             );
             assert_eq!(record.last_state.get_register_value(5), a.wrapping_sub(b));
-            simple_proof_test(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
     }
 }

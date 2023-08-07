@@ -10,8 +10,8 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{CpuColumnsView, OpSelectorView};
-use super::{add, bitwise, branches, div, jalr, mul, signed_comparison, sub};
+use super::{add, bitwise, branches, ecall, div, jalr, mul, signed_comparison, sub};
+use super::columns::{CpuColumnsView, InstructionView, OpSelectorView};
 use crate::columns_view::NumberOfColumns;
 
 #[derive(Copy, Clone, Default)]
@@ -21,23 +21,13 @@ pub struct CpuStark<F, const D: usize> {
 }
 
 impl<P: Copy> OpSelectorView<P> {
+    // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
+    // PC. It sort-of jumps back to itself.
     fn straightline_opcodes(&self) -> Vec<P> {
         vec![
             self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu,
             self.remu, self.sll, self.slt, self.sltu, self.srl,
         ]
-    }
-
-    fn jumping_opcodes(&self) -> Vec<P> {
-        vec![
-            self.beq, self.bne, self.blt, self.bltu, self.bge, self.bgeu, self.ecall, self.jalr,
-        ]
-    }
-
-    fn opcodes(&self) -> Vec<P> {
-        let mut res = self.straightline_opcodes();
-        res.extend(self.jumping_opcodes());
-        res
     }
 }
 
@@ -46,40 +36,48 @@ fn pc_ticks_up<P: PackedField>(
     nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_straightline_op: P = lv.ops.straightline_opcodes().into_iter().sum();
+    let is_straightline_op: P = lv.inst.ops.straightline_opcodes().into_iter().sum();
 
     yield_constr.constraint_transition(
-        is_straightline_op * (nv.pc - (lv.pc + P::Scalar::from_noncanonical_u64(4))),
+        is_straightline_op * (nv.inst.pc - (lv.inst.pc + P::Scalar::from_noncanonical_u64(4))),
     );
 }
 
-/// Selector of opcode, builtins and halt should be one-hot encoded.
+/// Selector of opcode, and registers should be one-hot encoded.
 ///
 /// Ie exactly one of them should be by 1, all others by 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
-fn opcode_one_hot<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+fn one_hots<P: PackedField>(inst: &InstructionView<P>, yield_constr: &mut ConstraintConsumer<P>) {
+    one_hot(inst.ops, yield_constr);
+    one_hot(inst.rs1_select, yield_constr);
+    one_hot(inst.rs2_select, yield_constr);
+    one_hot(inst.rd_select, yield_constr);
+}
+
+fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
+    selectors: Selectors,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let op_selectors: Vec<_> = lv.ops.opcodes();
+    // selectors have value 0 or 1.
+    selectors
+        .clone()
+        .into_iter()
+        .for_each(|s| yield_constr.constraint(s * (P::ONES - s)));
 
-    // Op selectors have value 0 or 1.
-    op_selectors
-        .iter()
-        .for_each(|&s| yield_constr.constraint(s * (P::ONES - s)));
-
-    // Only one opcode selector enabled.
-    let sum_s_op: P = op_selectors.into_iter().sum();
+    // Only one selector enabled.
+    let sum_s_op: P = selectors.into_iter().sum();
     yield_constr.constraint(P::ONES - sum_s_op);
 }
 
-/// Ensure clock is ticking up
+/// Ensure clock is ticking up, iff CPU is still running.
 fn clock_ticks<P: PackedField>(
     lv: &CpuColumnsView<P>,
     nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    yield_constr.constraint_transition(nv.clk - (lv.clk + P::ONES));
+    let clock_diff = nv.clk - lv.clk;
+    let still_running = P::ONES - lv.halt;
+    yield_constr.constraint_transition(clock_diff - still_running);
 }
 
 /// Register 0 is always 0
@@ -97,8 +95,9 @@ fn only_rd_changes<P: PackedField>(
     // Note: register 0 is already always 0.
     // But we keep the constraints simple here.
     (0..32).for_each(|reg| {
-        yield_constr
-            .constraint_transition((P::ONES - lv.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]));
+        yield_constr.constraint_transition(
+            (P::ONES - lv.inst.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]),
+        );
     });
 }
 
@@ -110,7 +109,8 @@ fn rd_actually_changes<P: PackedField>(
     // Note: we skip 0 here, because it's already forced to 0 permanently by
     // `r0_always_0`
     (1..32).for_each(|reg| {
-        yield_constr.constraint_transition((lv.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
+        yield_constr
+            .constraint_transition((lv.inst.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
     });
 }
 
@@ -123,7 +123,7 @@ fn populate_op1_value<P: PackedField>(
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
-                .map(|reg| lv.rs1_select[reg] * lv.regs[reg])
+                .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
                 .sum::<P>(),
     );
 }
@@ -135,11 +135,11 @@ fn populate_op2_value<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(
-        lv.op2_value - lv.imm_value
+        lv.op2_value - lv.inst.imm_value
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
-                .map(|reg| lv.rs2_select[reg] * lv.regs[reg])
+                .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
                 .sum::<P>(),
     );
 }
@@ -157,12 +157,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         P: PackedField<Scalar = FE>, {
         let lv = vars.local_values.borrow();
         let nv = vars.next_values.borrow();
-        // let lv: &BitwiseColumnsView<_> = vars.local_values.borrow();
-
-        opcode_one_hot(lv, yield_constr);
 
         clock_ticks(lv, nv, yield_constr);
         pc_ticks_up(lv, nv, yield_constr);
+
+        one_hots(&lv.inst, yield_constr);
 
         // Registers
         r0_always_0(lv, yield_constr);
@@ -178,13 +177,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         branches::comparison_constraints(lv, yield_constr);
         branches::constraints(lv, nv, yield_constr);
         signed_comparison::signed_constraints(lv, yield_constr);
-        signed_comparison::slt_constraints(lv, yield_constr);
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
+        ecall::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT
-        yield_constr.constraint_last_row(lv.ops.halt - P::ONES);
+        yield_constr.constraint_last_row(lv.halt - P::ONES);
     }
 
     fn constraint_degree(&self) -> usize { 3 }

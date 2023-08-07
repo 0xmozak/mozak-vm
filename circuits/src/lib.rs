@@ -8,6 +8,7 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
 
+pub mod bitshift;
 pub mod bitwise;
 pub mod columns_view;
 pub mod cpu;

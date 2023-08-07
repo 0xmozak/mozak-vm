@@ -36,14 +36,15 @@ pub(crate) fn constraints<P: PackedField>(
     nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_blt = lv.ops.blt;
-    let is_bltu = lv.ops.bltu;
-    let is_bge = lv.ops.bge;
-    let is_bgeu = lv.ops.bgeu;
+    let ops = &lv.inst.ops;
+    let is_blt = ops.blt;
+    let is_bltu = ops.bltu;
+    let is_bge = ops.bge;
+    let is_bgeu = ops.bgeu;
 
-    let bumped_pc = lv.pc + P::Scalar::from_noncanonical_u64(4);
-    let branched_pc = lv.branch_target;
-    let next_pc = nv.pc;
+    let bumped_pc = lv.inst.pc + P::Scalar::from_noncanonical_u64(4);
+    let branched_pc = lv.inst.branch_target;
+    let next_pc = nv.inst.pc;
 
     let lt = lv.less_than;
 
@@ -58,11 +59,11 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint((is_bge + is_bgeu) * lt * (next_pc - bumped_pc));
     yield_constr.constraint((is_bge + is_bgeu) * (P::ONES - lt) * (next_pc - branched_pc));
 
-    yield_constr.constraint(lv.ops.beq * ops_are_equal * (next_pc - branched_pc));
-    yield_constr.constraint(lv.ops.beq * diff * (next_pc - bumped_pc));
+    yield_constr.constraint(ops.beq * ops_are_equal * (next_pc - branched_pc));
+    yield_constr.constraint(ops.beq * diff * (next_pc - bumped_pc));
 
-    yield_constr.constraint(lv.ops.bne * diff * (next_pc - branched_pc));
-    yield_constr.constraint(lv.ops.bne * ops_are_equal * (next_pc - bumped_pc));
+    yield_constr.constraint(ops.bne * diff * (next_pc - branched_pc));
+    yield_constr.constraint(ops.bne * ops_are_equal * (next_pc - bumped_pc));
 }
 
 #[cfg(test)]
@@ -73,7 +74,8 @@ mod tests {
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
-    use crate::test_utils::simple_proof_test;
+    use crate::test_utils::ProveAndVerify;
+    use crate::stark::mozak_stark::MozakStark;
     fn test_cond_branch(a: u32, b: u32, op: Op) {
         assert!(matches!(op, Op::BLT | Op::BLTU | Op::BGE | Op::BGEU));
         let record = simple_test_code(
@@ -128,7 +130,7 @@ mod tests {
                 },
             _ => unreachable!(),
         }
-        simple_proof_test(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&record.executed).unwrap();
     }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
@@ -180,7 +182,7 @@ mod tests {
             } else {
                 assert_eq!(last_but_coda(&record).get_register_value(1), 10);
             }
-            simple_proof_test(&record.executed).unwrap();
+            MozakStark::prove_and_verify(&record.executed).unwrap();
         }
         #[test]
         fn prove_bne_proptest(a in u32_extra(), b in u32_extra()) {
@@ -213,7 +215,7 @@ mod tests {
             } else {
                 assert_eq!(last_but_coda(&record).get_register_value(1), 0);
             }
-            simple_proof_test(&record.executed).unwrap();
+            MozakStark::prove_and_verify(&record.executed).unwrap();
         }
     }
 }

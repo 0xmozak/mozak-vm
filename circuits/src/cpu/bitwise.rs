@@ -18,6 +18,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuColumnsView;
+use crate::bitwise::columns::XorView;
 
 /// A struct to represent the output of binary operations
 ///
@@ -31,42 +32,33 @@ pub struct BinaryOp<P: PackedField> {
 
 /// Re-usable gadget for AND constraints
 /// Highest degree is one.
-pub(crate) fn and_gadget<P: PackedField>(lv: &CpuColumnsView<P>) -> BinaryOp<P> {
-    let input_a = lv.xor_a;
-    let input_b = lv.xor_b;
-    let xor_out = lv.xor_out;
+pub(crate) fn and_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     let two = P::Scalar::from_noncanonical_u64(2);
     BinaryOp {
-        input_a,
-        input_b,
-        output: (input_a + input_b - xor_out) / two,
+        input_a: xor.a,
+        input_b: xor.b,
+        output: (xor.a + xor.b - xor.out) / two,
     }
 }
 
 /// Re-usable gadget for OR constraints
 /// Highest degree is one.
-pub(crate) fn or_gadget<P: PackedField>(lv: &CpuColumnsView<P>) -> BinaryOp<P> {
-    let input_a = lv.xor_a;
-    let input_b = lv.xor_b;
-    let xor_out = lv.xor_out;
+pub(crate) fn or_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     let two = P::Scalar::from_noncanonical_u64(2);
     BinaryOp {
-        input_a,
-        input_b,
-        output: (input_a + input_b + xor_out) / two,
+        input_a: xor.a,
+        input_b: xor.b,
+        output: (xor.a + xor.b + xor.out) / two,
     }
 }
 
 /// Re-usable gadget for XOR constraints
 /// Highest degree is one.
-pub(crate) fn xor_gadget<P: PackedField>(lv: &CpuColumnsView<P>) -> BinaryOp<P> {
-    let input_a = lv.xor_a;
-    let input_b = lv.xor_b;
-    let output = lv.xor_out;
+pub(crate) fn xor_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     BinaryOp {
-        input_a,
-        input_b,
-        output,
+        input_a: xor.a,
+        input_b: xor.b,
+        output: xor.out,
     }
 }
 
@@ -81,9 +73,9 @@ pub(crate) fn constraints<P: PackedField>(
     let dst = lv.dst_value;
 
     for (selector, gadget) in [
-        (lv.ops.and, and_gadget(lv)),
-        (lv.ops.or, or_gadget(lv)),
-        (lv.ops.xor, xor_gadget(lv)),
+        (lv.inst.ops.and, and_gadget(&lv.xor)),
+        (lv.inst.ops.or, or_gadget(&lv.xor)),
+        (lv.inst.ops.xor, xor_gadget(&lv.xor)),
     ] {
         yield_constr.constraint(selector * (gadget.input_a - op1));
         yield_constr.constraint(selector * (gadget.input_b - op2));
@@ -99,7 +91,8 @@ mod tests {
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
-    use crate::test_utils::simple_proof_test;
+    use crate::bitwise::stark::BitwiseStark;
+    use crate::test_utils::ProveAndVerify;
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
@@ -130,7 +123,7 @@ mod tests {
             .collect();
 
             let record = simple_test_code(&code, &[], &[(6, a), (7, b)]);
-            simple_proof_test(&record.executed).unwrap();
+            BitwiseStark::prove_and_verify(&record.executed).unwrap();
         }
     }
 }

@@ -1,3 +1,4 @@
+use itertools::{self, Itertools};
 use mozak_vm::instruction::Op;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -25,18 +26,18 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<MemoryColumnsView<F>>) -> Vec<Memo
 
 /// Returns the rows sorted in the order of the instruction address.
 #[must_use]
-pub fn filter_memory_trace(mut step_rows: Vec<Row>) -> Vec<Row> {
-    step_rows.retain(|row| row.aux.mem_addr.is_some());
-
-    // Sorting is stable, and rows are already ordered by row.state.clk
-    step_rows.sort_by_key(|row| row.aux.mem_addr);
-
+pub fn filter_memory_trace(step_rows: &[Row]) -> Vec<&Row> {
     step_rows
+        .iter()
+        .filter(|row| row.aux.mem_addr.is_some())
+        // Sorting is stable, and rows are already ordered by row.state.clk
+        .sorted_by_key(|row| row.aux.mem_addr)
+        .collect_vec()
 }
 
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
-pub fn generate_memory_trace<F: RichField>(step_rows: Vec<Row>) -> Vec<MemoryColumnsView<F>> {
+pub fn generate_memory_trace<F: RichField>(step_rows: &[Row]) -> Vec<MemoryColumnsView<F>> {
     let filtered_step_rows = filter_memory_trace(step_rows);
 
     let mut trace: Vec<MemoryColumnsView<F>> = vec![];
@@ -113,7 +114,7 @@ mod tests {
     fn generate_memory_trace() {
         let rows = memory_trace_test_case();
 
-        let trace = super::generate_memory_trace::<GoldilocksField>(rows);
+        let trace = super::generate_memory_trace::<GoldilocksField>(&rows);
         assert_eq!(trace, expected_trace());
     }
 
@@ -124,7 +125,7 @@ mod tests {
         type F = <C as GenericConfig<D>>::F;
 
         let rows = memory_trace_test_case();
-        let trace = super::generate_memory_trace::<F>(rows[..4].to_vec());
+        let trace = super::generate_memory_trace::<F>(&rows[..4]);
 
         let expected_trace: Vec<MemoryColumnsView<GoldilocksField>> = expected_trace();
         let expected_trace: Vec<MemoryColumnsView<GoldilocksField>> = vec![

@@ -23,18 +23,19 @@ pub(crate) fn constraints<P: PackedField>(
     // In the following code, we are looking at p/q.
     let p = lv.op1_value;
     let q = lv.divisor;
-    yield_constr.constraint((lv.ops.divu + lv.ops.remu) * (q - lv.op2_value));
+    yield_constr.constraint((lv.inst.ops.divu + lv.inst.ops.remu) * (q - lv.op2_value));
 
     // The following constraints are for SRL.
     {
-        let and_gadget = and_gadget(lv);
-        yield_constr
-            .constraint(lv.ops.srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
+        let and_gadget = and_gadget(&lv.xor);
+        yield_constr.constraint(
+            lv.inst.ops.srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)),
+        );
         let op2 = lv.op2_value;
-        yield_constr.constraint(lv.ops.srl * (and_gadget.input_b - op2));
+        yield_constr.constraint(lv.inst.ops.srl * (and_gadget.input_b - op2));
 
-        yield_constr.constraint(lv.ops.srl * (and_gadget.output - lv.powers_of_2_in));
-        yield_constr.constraint(lv.ops.srl * (q - lv.powers_of_2_out));
+        yield_constr.constraint(lv.inst.ops.srl * (and_gadget.output - lv.bitshift.amount));
+        yield_constr.constraint(lv.inst.ops.srl * (q - lv.bitshift.multiplier));
     }
 
     // The equation from the spec becomes:
@@ -74,8 +75,8 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint((P::ONES - q * q_inv) * (r - p));
 
     // Last, we 'copy' our results:
-    yield_constr.constraint((lv.ops.divu + lv.ops.srl) * (dst - m));
-    yield_constr.constraint(lv.ops.remu * (dst - r));
+    yield_constr.constraint((lv.inst.ops.divu + lv.inst.ops.srl) * (dst - m));
+    yield_constr.constraint(lv.inst.ops.remu * (dst - r));
 }
 
 #[cfg(test)]
@@ -85,7 +86,8 @@ mod tests {
     use proptest::prelude::{prop_assert_eq, ProptestConfig};
     use proptest::{prop_assert, proptest};
 
-    use crate::test_utils::{inv, simple_proof_test};
+    use crate::cpu::stark::CpuStark;
+    use crate::test_utils::{inv, ProveAndVerify};
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -133,7 +135,7 @@ mod tests {
                 } else {
                     p % q
                 });
-            simple_proof_test(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
         #[test]
         fn prove_srl_proptest(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
@@ -162,7 +164,7 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p >> q);
             prop_assert_eq!(record.executed[1].aux.dst_val, p >> q);
-            simple_proof_test(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&record.executed).unwrap();
         }
     }
 }

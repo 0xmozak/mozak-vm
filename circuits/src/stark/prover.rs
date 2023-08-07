@@ -21,6 +21,7 @@ use starky::stark::{LookupConfig, Stark};
 use super::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
 use super::permutation::get_grand_product_challenge_set;
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
+use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
@@ -45,6 +46,7 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(step_rows);
     prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
@@ -67,6 +69,7 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
@@ -169,34 +172,27 @@ where
     challenger.compact();
 
     // Permutation arguments.
-    let permutation_challenges: Option<Vec<GrandProductChallengeSet<F>>> =
-        stark.uses_permutation_args().then(|| {
-            get_n_grand_product_challenge_sets(
-                challenger,
-                config.num_challenges,
-                stark.permutation_batch_size(),
-            )
-        });
-    let permutation_zs = permutation_challenges.as_ref().map(|challenges| {
-        timed!(
-            timing,
-            "compute permutation Z(x) polys",
-            compute_permutation_z_polys::<F, S, D>(
-                stark,
-                config,
-                trace_poly_values,
-                challenges.as_slice()
-            )
+    let permutation_challenges: Vec<GrandProductChallengeSet<F>> =
+        get_n_grand_product_challenge_sets(
+            challenger,
+            config.num_challenges,
+            stark.permutation_batch_size(),
+        );
+    let mut permutation_zs = timed!(
+        timing,
+        "compute permutation Z(x) polys",
+        compute_permutation_z_polys::<F, S, D>(
+            stark,
+            config,
+            trace_poly_values,
+            &permutation_challenges
         )
-    });
-    let num_permutation_zs = permutation_zs.as_ref().map_or(0, Vec::len);
+    );
+    let num_permutation_zs = permutation_zs.len();
 
-    let z_polys = match permutation_zs {
-        None => ctl_data.z_polys(),
-        Some(mut permutation_zs) => {
-            permutation_zs.extend(ctl_data.z_polys());
-            permutation_zs
-        }
+    let z_polys = {
+        permutation_zs.extend(ctl_data.z_polys());
+        permutation_zs
     };
     assert!(!z_polys.is_empty(), "No CTL?");
 
@@ -224,7 +220,7 @@ where
             stark,
             trace_commitment,
             &permutation_ctl_zs_commitment,
-            permutation_challenges.as_ref(),
+            &permutation_challenges,
             ctl_data,
             &alphas,
             degree_bits,
@@ -343,6 +339,7 @@ where
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
@@ -373,7 +370,22 @@ where
         challenger,
         timing,
     )?;
-    Ok([cpu_proof, rangecheck_proof, bitwise_proof])
+
+    let shift_amount_proof = prove_single_table::<F, C, BitshiftStark<F, D>, D>(
+        &mozak_stark.shift_amount_stark,
+        config,
+        &traces_poly_values[TableKind::Bitshift as usize],
+        &trace_commitments[TableKind::Bitshift as usize],
+        &ctl_data_per_table[TableKind::Bitshift as usize],
+        challenger,
+        timing,
+    )?;
+    Ok([
+        cpu_proof,
+        rangecheck_proof,
+        bitwise_proof,
+        shift_amount_proof,
+    ])
 }
 
 #[cfg(test)]
@@ -382,19 +394,20 @@ mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test, simple_test_code};
 
-    use crate::test_utils::simple_proof_test;
+    use crate::stark::mozak_stark::MozakStark;
+    use crate::test_utils::ProveAndVerify;
 
     #[test]
     fn prove_halt() {
         let record = simple_test(0, &[], &[]);
-        simple_proof_test(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&record.executed).unwrap();
     }
 
     #[test]
     fn prove_lui() {
         let record = simple_test(4, &[(0_u32, 0x8000_00b7 /* lui r1, 0x80000 */)], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
-        simple_proof_test(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&record.executed).unwrap();
     }
 
     #[test]
@@ -412,7 +425,7 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_register_value(1), 0xDEAD_BEEF,);
-        simple_proof_test(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&record.executed).unwrap();
     }
 
     #[test]
@@ -431,6 +444,6 @@ mod tests {
             &[(1, 2)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        simple_proof_test(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&record.executed).unwrap();
     }
 }
