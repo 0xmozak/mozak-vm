@@ -86,7 +86,7 @@ mod tests {
     proptest! {
         #[test]
         fn prove_shift_amount_proptest(p in u32_extra(), q in u32_extra()) {
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[Instruction {
                     op: Op::SLL,
                     args: Args {
@@ -111,7 +111,7 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
             prop_assert_eq!(record.executed[1].aux.dst_val, p >> (q & 0x1F));
-            BitshiftStark::prove_and_verify(&record.executed).unwrap();
+            BitshiftStark::prove_and_verify(&program, &record.executed).unwrap();
         }
     }
 }

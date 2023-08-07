@@ -1,3 +1,4 @@
+use mozak_vm::elf::Program;
 use mozak_vm::instruction::Op::{LB, SB};
 use mozak_vm::instruction::{Args, Instruction};
 use mozak_vm::test_utils::simple_test_code;
@@ -12,15 +13,18 @@ use mozak_vm::vm::{ExecutionRecord, Row};
 /// * The state loaded at address 200 is not equal to 15.
 /// * The value of register 6 is not 15.
 #[must_use]
-pub fn memory_trace_test_case() -> Vec<Row> {
+pub fn memory_trace_test_case() -> (Program, Vec<Row>) {
     let new = Instruction::new;
-    let ExecutionRecord {
-        executed,
-        last_state: state,
-    } = simple_test_code(
+    let (
+        program,
+        ExecutionRecord {
+            executed,
+            last_state: state,
+        },
+    ) = simple_test_code(
         &[
             new(SB, Args {
-                rs2: 1,
+                rs1: 1,
                 imm: 100,
                 ..Args::default()
             }),
@@ -30,7 +34,7 @@ pub fn memory_trace_test_case() -> Vec<Row> {
                 ..Args::default()
             }),
             new(SB, Args {
-                rs2: 3,
+                rs1: 3,
                 imm: 200,
                 ..Args::default()
             }),
@@ -40,7 +44,7 @@ pub fn memory_trace_test_case() -> Vec<Row> {
                 ..Args::default()
             }),
             new(SB, Args {
-                rs2: 2,
+                rs1: 2,
                 imm: 100,
                 ..Args::default()
             }),
@@ -59,5 +63,5 @@ pub fn memory_trace_test_case() -> Vec<Row> {
     assert_eq!(state.get_register_value(5), 10);
     assert_eq!(state.load_u8(200), 15);
     assert_eq!(state.get_register_value(6), 15);
-    executed
+    (program, executed)
 }
