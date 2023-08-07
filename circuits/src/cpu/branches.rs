@@ -70,7 +70,7 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{last_but_coda, simple_test_code, u32_extra};
+    use mozak_vm::test_utils::{state_before_final, simple_test_code, u32_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
@@ -78,7 +78,7 @@ mod tests {
     use crate::stark::mozak_stark::MozakStark;
     fn test_cond_branch(a: u32, b: u32, op: Op) {
         assert!(matches!(op, Op::BLT | Op::BLTU | Op::BGE | Op::BGEU));
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[
                 Instruction {
                     op,
@@ -106,31 +106,31 @@ mod tests {
         match op {
             Op::BLT =>
                 if (a as i32) < (b as i32) {
-                    assert_eq!(last_but_coda(&record).get_register_value(1), 0);
+                    assert_eq!(state_before_final(&record).get_register_value(1), 0);
                 } else {
-                    assert_eq!(last_but_coda(&record).get_register_value(1), 10);
+                    assert_eq!(state_before_final(&record).get_register_value(1), 10);
                 },
             Op::BLTU =>
                 if a < b {
-                    assert_eq!(last_but_coda(&record).get_register_value(1), 0);
+                    assert_eq!(state_before_final(&record).get_register_value(1), 0);
                 } else {
-                    assert_eq!(last_but_coda(&record).get_register_value(1), 10);
+                    assert_eq!(state_before_final(&record).get_register_value(1), 10);
                 },
             Op::BGE =>
                 if (a as i32) >= (b as i32) {
-                    assert_eq!(last_but_coda(&record).get_register_value(1), 0);
+                    assert_eq!(state_before_final(&record).get_register_value(1), 0);
                 } else {
-                    assert_eq!(last_but_coda(&record).get_register_value(1), 10);
+                    assert_eq!(state_before_final(&record).get_register_value(1), 10);
                 },
             Op::BGEU =>
                 if a >= b {
-                    assert_eq!(last_but_coda(&record).get_register_value(1), 0);
+                    assert_eq!(state_before_final(&record).get_register_value(1), 0);
                 } else {
-                    assert_eq!(last_but_coda(&record).get_register_value(1), 10);
+                    assert_eq!(state_before_final(&record).get_register_value(1), 10);
                 },
             _ => unreachable!(),
         }
-        MozakStark::prove_and_verify(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&program, &record.executed).unwrap();
     }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
@@ -153,7 +153,7 @@ mod tests {
 
         #[test]
         fn prove_beq_proptest(a in u32_extra(), b in u32_extra()) {
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[
                     Instruction {
                         op: Op::BEQ,
@@ -178,15 +178,15 @@ mod tests {
                 &[(6, a), (7, b)],
             );
             if a == b {
-                assert_eq!(last_but_coda(&record).get_register_value(1), 0);
+                assert_eq!(state_before_final(&record).get_register_value(1), 0);
             } else {
-                assert_eq!(last_but_coda(&record).get_register_value(1), 10);
+                assert_eq!(state_before_final(&record).get_register_value(1), 10);
             }
-            MozakStark::prove_and_verify(&record.executed).unwrap();
+            MozakStark::prove_and_verify(&program, &record.executed).unwrap();
         }
         #[test]
         fn prove_bne_proptest(a in u32_extra(), b in u32_extra()) {
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[
                     Instruction {
                         op: Op::BNE,
@@ -211,11 +211,11 @@ mod tests {
                 &[(6, a), (7, b)],
             );
             if a == b {
-                assert_eq!(last_but_coda(&record).get_register_value(1), 10);
+                assert_eq!(state_before_final(&record).get_register_value(1), 10);
             } else {
-                assert_eq!(last_but_coda(&record).get_register_value(1), 0);
+                assert_eq!(state_before_final(&record).get_register_value(1), 0);
             }
-            MozakStark::prove_and_verify(&record.executed).unwrap();
+            MozakStark::prove_and_verify(&program, &record.executed).unwrap();
         }
     }
 }
