@@ -10,8 +10,8 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::{add, bitwise, branches, ecall, div, jalr, mul, signed_comparison, sub};
 use super::columns::{CpuColumnsView, InstructionView, OpSelectorView};
+use super::{add, bitwise, branches, div, ecall, jalr, mul, signed_comparison, sub};
 use crate::columns_view::NumberOfColumns;
 
 #[derive(Copy, Clone, Default)]

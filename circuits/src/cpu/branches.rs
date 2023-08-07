@@ -70,12 +70,12 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{state_before_final, simple_test_code, u32_extra};
+    use mozak_vm::test_utils::{simple_test_code, state_before_final, u32_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
-    use crate::test_utils::ProveAndVerify;
     use crate::stark::mozak_stark::MozakStark;
+    use crate::test_utils::ProveAndVerify;
     fn test_cond_branch(a: u32, b: u32, op: Op) {
         assert!(matches!(op, Op::BLT | Op::BLTU | Op::BGE | Op::BGEU));
         let (program, record) = simple_test_code(
