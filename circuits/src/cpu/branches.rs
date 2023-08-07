@@ -12,13 +12,9 @@ pub(crate) fn comparison_constraints<P: PackedField>(
     let lt = lv.less_than;
     yield_constr.constraint(lt * (P::ONES - lt));
 
-    let diff_fixed = lv.op1_full_range() - lv.op2_full_range();
-    // TODO: range check
-    let abs_diff = lv.cmp_abs_diff;
-
     // abs_diff calculation
-    yield_constr.constraint((P::ONES - lt) * (abs_diff - diff_fixed));
-    yield_constr.constraint(lt * (abs_diff + diff_fixed));
+    yield_constr.constraint((P::ONES - lt) * (lv.abs_diff - lv.signed_diff()));
+    yield_constr.constraint(lt * (lv.abs_diff + lv.signed_diff()));
 
     // Set up `not_diff` to force `lt == 0`, if `op1 == op2`:
     yield_constr.constraint(lv.not_diff * (lv.not_diff - P::ONES));

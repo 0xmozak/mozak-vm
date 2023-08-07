@@ -188,7 +188,7 @@ fn generate_slt_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructio
     }
     let abs_diff_fixed: u32 = op1_fixed.abs_diff(op2_fixed);
     assert_eq!(abs_diff, abs_diff_fixed);
-    row.cmp_abs_diff = from_u32(abs_diff_fixed);
+    row.abs_diff = from_u32(abs_diff_fixed);
 }
 
 fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {

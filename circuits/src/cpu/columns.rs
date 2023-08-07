@@ -71,7 +71,7 @@ pub struct CpuColumnsView<T> {
     // TODO: range check
     pub op2_val_fixed: T,
     // TODO: range check
-    pub cmp_abs_diff: T,
+    pub abs_diff: T,
     pub cmp_diff_inv: T,
     pub less_than: T,
     // If `op_diff == 0`, then `not_diff == 1`, else `not_diff == 0`.
@@ -118,6 +118,8 @@ impl<T: PackedField> CpuColumnsView<T> {
     ///
     /// So range is `i32::MIN..=u32::MAX`
     pub fn op2_full_range(&self) -> T { self.op2_val_fixed - self.is_signed() * Self::shifted(31) }
+
+    pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
 
 /// Column for a binary filter for our range check in the Mozak
