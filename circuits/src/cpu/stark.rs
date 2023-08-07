@@ -20,14 +20,23 @@ pub struct CpuStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<P: Copy> OpSelectorView<P> {
+impl<P: Copy + core::ops::Add<Output = P>> OpSelectorView<P> {
     // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
     // PC. It sort-of jumps back to itself.
-    fn straightline_opcodes(&self) -> Vec<P> {
-        vec![
-            self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu,
-            self.remu, self.sll, self.slt, self.sltu, self.srl,
-        ]
+    fn is_straightline(&self) -> P {
+        self.add
+            + self.sub
+            + self.and
+            + self.or
+            + self.xor
+            + self.divu
+            + self.mul
+            + self.mulhu
+            + self.remu
+            + self.sll
+            + self.slt
+            + self.sltu
+            + self.srl
     }
 }
 
@@ -36,10 +45,9 @@ fn pc_ticks_up<P: PackedField>(
     nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_straightline_op: P = lv.inst.ops.straightline_opcodes().into_iter().sum();
-
     yield_constr.constraint_transition(
-        is_straightline_op * (nv.inst.pc - (lv.inst.pc + P::Scalar::from_noncanonical_u64(4))),
+        lv.inst.ops.is_straightline()
+            * (nv.inst.pc - (lv.inst.pc + P::Scalar::from_noncanonical_u64(4))),
     );
 }
 
