@@ -1,6 +1,5 @@
 use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
-use plonky2::field::types::Field;
 
 use super::columns::CpuColumnsView;
 
@@ -9,10 +8,7 @@ pub(crate) fn signed_constraints<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let shifted = CpuColumnsView::<P>::shifted;
-    let is_cmp = lv.inst.ops.slt + lv.inst.ops.sltu;
-
-    let lt = lv.less_than;
-    yield_constr.constraint(lt * (P::ONES - lt));
+    let is_signed = lv.is_signed();
 
     let sign1 = lv.op1_sign;
     yield_constr.constraint(sign1 * (P::ONES - sign1));
@@ -26,24 +22,15 @@ pub(crate) fn signed_constraints<P: PackedField>(
     // TODO: range check
     let op2_fixed = lv.op2_val_fixed;
 
-    yield_constr.constraint(lv.inst.ops.sltu * (op1_fixed - op1));
-    yield_constr.constraint(lv.inst.ops.sltu * (op2_fixed - op2));
+    yield_constr.constraint(op1_fixed - (op1 + is_signed * shifted(31) - sign1 * shifted(32)));
+    yield_constr.constraint(op2_fixed - (op2 + is_signed * shifted(31) - sign2 * shifted(32)));
+}
 
-    yield_constr.constraint(lv.inst.ops.slt * (op1_fixed - (op1 + shifted(31) - sign1 * shifted(32))));
-    yield_constr.constraint(lv.inst.ops.slt * (op2_fixed - (op2 + shifted(31) - sign2 * shifted(32))));
-
-    let diff_fixed = op1_fixed - op2_fixed;
-    // TODO: range check
-    let abs_diff = lv.cmp_abs_diff;
-
-    // abs_diff calculation
-    yield_constr.constraint(is_cmp * (P::ONES - lt) * (abs_diff - diff_fixed));
-    yield_constr.constraint(is_cmp * lt * (abs_diff + diff_fixed));
-
-    let diff = op1 - op2;
-    let diff_inv = lv.cmp_diff_inv;
-    yield_constr.constraint(lt * (P::ONES - diff * diff_inv));
-    yield_constr.constraint(is_cmp * (lt - lv.dst_value));
+pub(crate) fn slt_constraints<P: PackedField>(
+    lv: &CpuColumnsView<P>,
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    yield_constr.constraint((lv.inst.ops.slt + lv.inst.ops.sltu) * (lv.less_than - lv.dst_value));
 }
 
 #[cfg(test)]

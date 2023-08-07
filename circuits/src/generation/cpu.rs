@@ -152,7 +152,7 @@ fn generate_divu_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructi
 
 #[allow(clippy::cast_possible_wrap)]
 fn generate_slt_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instruction, state: &State) {
-    let is_signed = inst.op == Op::SLT;
+    let is_signed: bool = row.is_signed().is_nonzero();
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
     let sign1: u32 = (is_signed && (op1 as i32) < 0).into();

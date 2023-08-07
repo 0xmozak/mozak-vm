@@ -177,6 +177,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         branches::comparison_constraints(lv, yield_constr);
         branches::constraints(lv, nv, yield_constr);
         signed_comparison::signed_constraints(lv, yield_constr);
+        signed_comparison::slt_constraints(lv, yield_constr);
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);

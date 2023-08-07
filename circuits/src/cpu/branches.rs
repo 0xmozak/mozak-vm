@@ -75,7 +75,7 @@ mod tests {
     use proptest::strategy::Just;
     use proptest::{prop_oneof, proptest};
 
-    use crate::stark::mozak_stark::MozakStark;
+    use crate::cpu::stark::CpuStark;
     use crate::test_utils::ProveAndVerify;
     fn test_cond_branch(a: u32, b: u32, op: Op) {
         let (program, record) = simple_test_code(
@@ -118,7 +118,7 @@ mod tests {
             assert_eq!(state_before_final(&record).get_register_value(1), 10);
         }
 
-        MozakStark::prove_and_verify(&program, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
     }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(32))]
