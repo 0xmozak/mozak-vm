@@ -72,12 +72,12 @@ mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, state_before_final, u32_extra};
     use proptest::prelude::ProptestConfig;
-    use proptest::proptest;
+    use proptest::strategy::Just;
+    use proptest::{prop_oneof, proptest};
 
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
     fn test_cond_branch(a: u32, b: u32, op: Op) {
-        assert!(matches!(op, Op::BLT | Op::BLTU | Op::BGE | Op::BGEU));
         let (program, record) = simple_test_code(
             &[
                 Instruction {
@@ -103,119 +103,28 @@ mod tests {
             &[],
             &[(6, a), (7, b)],
         );
-        match op {
-            Op::BLT =>
-                if (a as i32) < (b as i32) {
-                    assert_eq!(state_before_final(&record).get_register_value(1), 0);
-                } else {
-                    assert_eq!(state_before_final(&record).get_register_value(1), 10);
-                },
-            Op::BLTU =>
-                if a < b {
-                    assert_eq!(state_before_final(&record).get_register_value(1), 0);
-                } else {
-                    assert_eq!(state_before_final(&record).get_register_value(1), 10);
-                },
-            Op::BGE =>
-                if (a as i32) >= (b as i32) {
-                    assert_eq!(state_before_final(&record).get_register_value(1), 0);
-                } else {
-                    assert_eq!(state_before_final(&record).get_register_value(1), 10);
-                },
-            Op::BGEU =>
-                if a >= b {
-                    assert_eq!(state_before_final(&record).get_register_value(1), 0);
-                } else {
-                    assert_eq!(state_before_final(&record).get_register_value(1), 10);
-                },
+        let taken = match op {
+            Op::BLT => (a as i32) < (b as i32),
+            Op::BLTU => a < b,
+            Op::BGE => (a as i32) >= (b as i32),
+            Op::BGEU => a >= b,
+            Op::BEQ => a == b,
+            Op::BNE => a != b,
             _ => unreachable!(),
+        };
+        if taken {
+            assert_eq!(state_before_final(&record).get_register_value(1), 0);
+        } else {
+            assert_eq!(state_before_final(&record).get_register_value(1), 10);
         }
+
         MozakStark::prove_and_verify(&program, &record.executed).unwrap();
     }
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(4))]
+        #![proptest_config(ProptestConfig::with_cases(32))]
         #[test]
-        fn prove_blt_proptest(a in u32_extra(), b in u32_extra()) {
-            test_cond_branch(a, b, Op::BLT);
-        }
-        #[test]
-        fn prove_bltu_proptest(a in u32_extra(), b in u32_extra()) {
-            test_cond_branch(a, b, Op::BLTU);
-        }
-        #[test]
-        fn prove_bge_proptest(a in u32_extra(), b in u32_extra()) {
-            test_cond_branch(a, b, Op::BGE);
-        }
-        #[test]
-        fn prove_bgeu_proptest(a in u32_extra(), b in u32_extra()) {
-            test_cond_branch(a, b, Op::BGEU);
-        }
-
-        #[test]
-        fn prove_beq_proptest(a in u32_extra(), b in u32_extra()) {
-            let (program, record) = simple_test_code(
-                &[
-                    Instruction {
-                        op: Op::BEQ,
-                        args: Args {
-                            rs1: 6,
-                            rs2: 7,
-                            branch_target: 8,
-                            ..Args::default()
-                        },
-                    },
-                    // if above branch is not taken R1 has value 10.
-                    Instruction {
-                        op: Op::ADD,
-                        args: Args {
-                            rd: 1,
-                            imm: 10,
-                            ..Args::default()
-                        },
-                    },
-                ],
-                &[],
-                &[(6, a), (7, b)],
-            );
-            if a == b {
-                assert_eq!(state_before_final(&record).get_register_value(1), 0);
-            } else {
-                assert_eq!(state_before_final(&record).get_register_value(1), 10);
-            }
-            MozakStark::prove_and_verify(&program, &record.executed).unwrap();
-        }
-        #[test]
-        fn prove_bne_proptest(a in u32_extra(), b in u32_extra()) {
-            let (program, record) = simple_test_code(
-                &[
-                    Instruction {
-                        op: Op::BNE,
-                        args: Args {
-                            rs1: 6,
-                            rs2: 7,
-                            branch_target: 8,
-                            ..Args::default()
-                        },
-                    },
-                    // if above branch is not taken R1 has value 10.
-                    Instruction {
-                        op: Op::ADD,
-                        args: Args {
-                            rd: 1,
-                            imm: 10,
-                            ..Args::default()
-                        },
-                    },
-                ],
-                &[],
-                &[(6, a), (7, b)],
-            );
-            if a == b {
-                assert_eq!(state_before_final(&record).get_register_value(1), 10);
-            } else {
-                assert_eq!(state_before_final(&record).get_register_value(1), 0);
-            }
-            MozakStark::prove_and_verify(&program, &record.executed).unwrap();
+        fn prove_branch_proptest(a in u32_extra(), b in u32_extra(), op in prop_oneof![Just(Op::BLT), Just(Op::BLTU), Just(Op::BGE), Just(Op::BGEU), Just(Op::BEQ), Just(Op::BNE)]) {
+            test_cond_branch(a, b, op);
         }
     }
 }
