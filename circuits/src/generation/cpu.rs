@@ -154,7 +154,9 @@ fn generate_divu_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructi
 fn generate_slt_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instruction, state: &State) {
     let is_signed = inst.op == Op::SLT;
     let op1 = state.get_register_value(inst.args.rs1);
-    let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
+    let op2 = state
+        .get_register_value(inst.args.rs2)
+        .wrapping_add(inst.args.imm);
     let sign1: u32 = (is_signed && (op1 as i32) < 0).into();
     let sign2: u32 = (is_signed && (op2 as i32) < 0).into();
     row.op1_sign = from_u32(sign1);

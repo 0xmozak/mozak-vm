@@ -11,7 +11,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{CpuColumnsView, InstructionView, OpSelectorView};
-use super::{add, beq, bitwise, div, ecall, jalr, memory, mul, slt, sub};
+use super::{add, beq, bitwise, div, ecall, jalr, mul, slt, sub};
 use crate::columns_view::NumberOfColumns;
 
 #[derive(Copy, Clone, Default)]
@@ -137,15 +137,15 @@ fn populate_op2_value<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let is_memory_op: P = lv.inst.ops.memory_opcodes().into_iter().sum::<P>();
-    yield_constr.constraint(
-        (P::ONES - is_memory_op)
-            * (lv.op2_value - lv.inst.imm_value
-            // Note: we could skip 0, because r0 is always 0.
-            // But we keep the constraints simple here.
-            - (0..32)
-                .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
-                .sum::<P>()),
-    );
+    let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
+    // Note: we could skip 0, because r0 is always 0.
+    // But we keep the constraints simple here.
+    let op2_val = lv.inst.imm_value
+        + (0..32)
+            .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
+            .sum::<P>();
+    yield_constr
+        .constraint((lv.op2_value - op2_val) * (lv.op2_value - op2_val + is_memory_op * wrap_at));
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
@@ -183,7 +183,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
-        memory::constraints(lv, yield_constr);
         ecall::constraints(lv, nv, yield_constr);
 
         // Last row must be HALT

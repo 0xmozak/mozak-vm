@@ -1,27 +1,8 @@
-use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
-use starky::constraint_consumer::ConstraintConsumer;
-
-use super::columns::CpuColumnsView;
-
-pub(crate) fn constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
-    let rs2_value = lv.op2_value - lv.inst.imm_value;
-    let wrapped = rs2_value + wrap_at;
-
-    let is_memory_op: P = lv.inst.ops.memory_opcodes().into_iter().sum::<P>();
-    yield_constr.constraint(is_memory_op * ((lv.op2_value - wrapped) * (lv.op2_value - rs2_value)));
-    // TODO: support for SH / SW
-}
-
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test_code, u32_extra};
+    use mozak_vm::test_utils::{simple_test_code, u32_extra, u8_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
@@ -69,6 +50,33 @@ mod tests {
 
             CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
+        #[test]
+        fn prove_mem_read_write_proptest(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            let (program, record) = simple_test_code(
+                &[
+                    Instruction {
+                        op: Op::SB,
+                        args: Args {
+                            rs1: 1,
+                            rs2: 2,
+                            imm,
+                            ..Args::default()
+                        },
+                    },
+                    Instruction {
+                        op: Op::LBU,
+                        args: Args {
+                            rs2: 2,
+                            imm,
+                            ..Args::default()
+                        },
+                    },
+                ],
+                &[],
+                &[(1, content.into()), (2, offset)],
+            );
 
+            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+        }
     }
 }
