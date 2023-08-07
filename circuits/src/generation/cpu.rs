@@ -155,10 +155,10 @@ fn generate_slt_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructio
     let is_signed: bool = row.is_signed().is_nonzero();
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
-    let sign1: u32 = (is_signed && (op1 as i32) < 0).into();
-    let sign2: u32 = (is_signed && (op2 as i32) < 0).into();
-    row.op1_sign_bit = from_u32(sign1);
-    row.op2_sign_bit = from_u32(sign2);
+    let sign1: bool = is_signed && (op1 as i32) < 0;
+    let sign2: bool = is_signed && (op2 as i32) < 0;
+    row.op1_sign_bit = F::from_bool(sign1);
+    row.op2_sign_bit = F::from_bool(sign2);
 
     let sign_adjust = if is_signed { 1 << 31 } else { 0 };
     let op1_fixed = op1.wrapping_add(sign_adjust);
