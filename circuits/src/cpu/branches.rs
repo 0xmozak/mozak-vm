@@ -49,8 +49,6 @@ pub(crate) fn constraints<P: PackedField>(
     let lt = lv.less_than;
 
     let diff = lv.op_diff();
-    // if `diff == 0`, then `ops_are_equal != 0`.
-    // We only need this intermediate variable to keep the constraint degree <= 3.
     let ops_are_equal = lv.ops_are_equal;
 
     yield_constr.constraint((is_blt + is_bltu) * lt * (next_pc - branched_pc));
