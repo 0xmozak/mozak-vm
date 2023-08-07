@@ -8,31 +8,21 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let p32 = P::Scalar::from_noncanonical_u64(1 << 32);
     let p31 = P::Scalar::from_noncanonical_u64(1 << 31);
+    let is_signed1_op = lv.inst.ops.ops_that_has_signed_op1().into_iter().sum::<P>();
+    let is_signed2_op = lv.inst.ops.ops_that_has_signed_op2().into_iter().sum::<P>();
 
     let is_cmp = lv.inst.ops.slt + lv.inst.ops.sltu;
 
     let lt = lv.less_than;
     yield_constr.constraint(lt * (P::ONES - lt));
 
-    let sign1 = lv.op1_sign;
-    yield_constr.constraint(sign1 * (P::ONES - sign1));
-    let sign2 = lv.op2_sign;
-    yield_constr.constraint(sign2 * (P::ONES - sign2));
-
     let op1 = lv.op1_value;
     let op2 = lv.op2_value;
     // TODO: range check
-    let op1_fixed = lv.op1_val_fixed;
+    let op1_fixed = lv.op1_sign_adjusted - p31 * is_signed1_op;
     // TODO: range check
-    let op2_fixed = lv.op2_val_fixed;
-
-    yield_constr.constraint(lv.inst.ops.sltu * (op1_fixed - op1));
-    yield_constr.constraint(lv.inst.ops.sltu * (op2_fixed - op2));
-
-    yield_constr.constraint(lv.inst.ops.slt * (op1_fixed - (op1 + p31 - sign1 * p32)));
-    yield_constr.constraint(lv.inst.ops.slt * (op2_fixed - (op2 + p31 - sign2 * p32)));
+    let op2_fixed = lv.op2_sign_adjusted - p31 * is_signed2_op;
 
     let diff_fixed = op1_fixed - op2_fixed;
     // TODO: range check

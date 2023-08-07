@@ -61,8 +61,8 @@ pub struct CpuColumnsView<T> {
 
     pub op1_sign: T,
     pub op2_sign: T,
-    pub op1_val_fixed: T,
-    pub op2_val_fixed: T,
+    pub op1_sign_adjusted: T,
+    pub op2_sign_adjusted: T,
     pub cmp_abs_diff: T,
     pub cmp_diff_inv: T,
     pub less_than: T,
@@ -118,6 +118,21 @@ impl<T: Copy> OpSelectorView<T> {
 
     // TODO: Add SRA, once we implement its constraints.
     pub fn ops_that_shift(&self) -> [T; 2] { [self.sll, self.srl] }
+
+    // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
+    // PC. It sort-of jumps back to itself.
+    pub fn straightline_opcodes(&self) -> Vec<T> {
+        vec![
+            self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu,
+            self.remu, self.sll, self.slt, self.sltu, self.srl,
+        ]
+    }
+
+    // TODO: Later, add MULHSU.
+    pub fn ops_that_has_signed_op1(&self) -> [T; 1] { self.ops_that_has_signed_op2() }
+
+    // TODO: Add other ops like MULH, DIV, REM, ...
+    pub fn ops_that_has_signed_op2(&self) -> [T; 1] { [self.slt] }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.

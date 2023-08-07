@@ -62,6 +62,7 @@ pub fn generate_cpu_trace<F: RichField>(
 
         generate_mul_row(&mut row, &inst, state);
         generate_divu_row(&mut row, &inst, state);
+        generate_sign_row(&mut row, &inst, state);
         generate_slt_row(&mut row, &inst, state);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
@@ -151,44 +152,36 @@ fn generate_divu_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructi
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn generate_slt_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instruction, state: &State) {
-    let is_signed = inst.op == Op::SLT;
+fn generate_sign_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instruction, state: &State) {
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
-    let sign1: u32 = (is_signed && (op1 as i32) < 0).into();
-    let sign2: u32 = (is_signed && (op2 as i32) < 0).into();
+    let sign1: u32 = (inst.op.is_signed1() && (op1 as i32) < 0).into();
+    let sign2: u32 = (inst.op.is_signed2() && (op2 as i32) < 0).into();
     row.op1_sign = from_u32(sign1);
     row.op2_sign = from_u32(sign2);
 
-    let sign_adjust = if is_signed { 1 << 31 } else { 0 };
-    let op1_fixed = op1.wrapping_add(sign_adjust);
-    let op2_fixed = op2.wrapping_add(sign_adjust);
-    row.op1_val_fixed = from_u32(op1_fixed);
-    row.op2_val_fixed = from_u32(op2_fixed);
-    row.less_than = from_u32(u32::from(op1_fixed < op2_fixed));
+    let op1_fixed = op1.wrapping_add(u32::from(inst.op.is_signed1()) << 31);
+    let op2_fixed = op2.wrapping_add(u32::from(inst.op.is_signed2()) << 31);
 
-    let abs_diff = if is_signed {
-        (op1 as i32).abs_diff(op2 as i32)
+    row.op1_sign_adjusted = from_u32(op1_fixed);
+    row.op2_sign_adjusted = from_u32(op2_fixed);
+}
+
+#[allow(clippy::cast_possible_wrap)]
+fn generate_slt_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instruction, state: &State) {
+    let op1 = state.get_register_value(inst.args.rs1);
+    let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
+
+    // Ignore MULHSU for now here.
+    assert_eq!(inst.op.is_signed1(), inst.op.is_signed2());
+    let is_signed = inst.op.is_signed1();
+    if is_signed {
+        row.cmp_abs_diff = from_u32((op1 as i32).abs_diff(op2 as i32));
+        row.less_than = from_u32(u32::from((op1 as i32) < (op2 as i32)));
     } else {
-        op1.abs_diff(op2)
-    };
-    {
-        if is_signed {
-            assert_eq!(
-                i64::from(op1 as i32) - i64::from(op2 as i32),
-                i64::from(op1_fixed) - i64::from(op2_fixed)
-            );
-        } else {
-            assert_eq!(
-                i64::from(op1) - i64::from(op2),
-                i64::from(op1_fixed) - i64::from(op2_fixed),
-                "{op1} - {op2} != {op1_fixed} - {op2_fixed}"
-            );
-        }
+        row.cmp_abs_diff = from_u32(op1.abs_diff(op2));
+        row.less_than = from_u32(u32::from(op1 < op2));
     }
-    let abs_diff_fixed: u32 = op1_fixed.abs_diff(op2_fixed);
-    assert_eq!(abs_diff, abs_diff_fixed);
-    row.cmp_abs_diff = from_u32(abs_diff_fixed);
 }
 
 fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {

@@ -10,7 +10,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{CpuColumnsView, InstructionView, OpSelectorView};
+use super::columns::{CpuColumnsView, InstructionView};
 use super::{add, beq, bitwise, div, ecall, jalr, mul, slt, sub};
 use crate::columns_view::NumberOfColumns;
 
@@ -18,17 +18,6 @@ use crate::columns_view::NumberOfColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {
     pub _f: PhantomData<F>,
-}
-
-impl<P: Copy> OpSelectorView<P> {
-    // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
-    // PC. It sort-of jumps back to itself.
-    fn straightline_opcodes(&self) -> Vec<P> {
-        vec![
-            self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu,
-            self.remu, self.sll, self.slt, self.sltu, self.srl,
-        ]
-    }
 }
 
 fn pc_ticks_up<P: PackedField>(
@@ -144,6 +133,24 @@ fn populate_op2_value<P: PackedField>(
     );
 }
 
+fn signs<P: PackedField>(lv: &CpuColumnsView<P>, yield_constr: &mut ConstraintConsumer<P>) {
+    let p32 = P::Scalar::from_canonical_u64(1 << 32);
+    let p31 = P::Scalar::from_canonical_u64(1 << 31);
+    let sign1 = lv.op1_sign;
+    let sign2 = lv.op2_sign;
+    yield_constr.constraint(sign1 * (P::ONES - sign1));
+    yield_constr.constraint(sign2 * (P::ONES - sign2));
+
+    let is_signed1_op = lv.inst.ops.ops_that_has_signed_op1().into_iter().sum::<P>();
+    let is_signed2_op = lv.inst.ops.ops_that_has_signed_op2().into_iter().sum::<P>();
+    let op1 = lv.op1_value;
+    let op2 = lv.op2_value;
+    let op1_sign_adjusted = lv.op1_sign_adjusted;
+    let op2_sign_adjusted = lv.op2_sign_adjusted;
+    yield_constr.constraint(op1_sign_adjusted - (op1 + is_signed1_op * p31 - sign1 * p32));
+    yield_constr.constraint(op2_sign_adjusted - (op2 + is_signed2_op * p31 - sign2 * p32));
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
     const COLUMNS: usize = CpuColumnsView::<F>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
@@ -169,6 +176,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         rd_actually_changes(lv, nv, yield_constr);
         populate_op1_value(lv, yield_constr);
         populate_op2_value(lv, yield_constr);
+        signs(lv, yield_constr);
 
         // add constraint
         add::constraints(lv, yield_constr);
