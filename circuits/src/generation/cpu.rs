@@ -157,8 +157,8 @@ fn generate_slt_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructio
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
     let sign1: u32 = (is_signed && (op1 as i32) < 0).into();
     let sign2: u32 = (is_signed && (op2 as i32) < 0).into();
-    row.op1_sign = from_u32(sign1);
-    row.op2_sign = from_u32(sign2);
+    row.op1_sign_bit = from_u32(sign1);
+    row.op2_sign_bit = from_u32(sign2);
 
     let sign_adjust = if is_signed { 1 << 31 } else { 0 };
     let op1_fixed = op1.wrapping_add(sign_adjust);

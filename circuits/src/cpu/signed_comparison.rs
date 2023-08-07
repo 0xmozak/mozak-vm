@@ -10,9 +10,9 @@ pub(crate) fn signed_constraints<P: PackedField>(
     let shifted = CpuColumnsView::<P>::shifted;
     let is_signed = lv.is_signed();
 
-    let sign1 = lv.op1_sign;
+    let sign1 = lv.op1_sign_bit;
     yield_constr.constraint(sign1 * (P::ONES - sign1));
-    let sign2 = lv.op2_sign;
+    let sign2 = lv.op2_sign_bit;
     yield_constr.constraint(sign2 * (P::ONES - sign2));
 
     let op1 = lv.op1_value;

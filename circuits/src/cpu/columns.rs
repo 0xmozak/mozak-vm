@@ -64,8 +64,9 @@ pub struct CpuColumnsView<T> {
 
     pub regs: [T; 32],
 
-    pub op1_sign: T,
-    pub op2_sign: T,
+    // 0 mean non-negative, 1 means negative.
+    pub op1_sign_bit: T,
+    pub op2_sign_bit: T,
     // TODO: range check
     pub op1_val_fixed: T,
     // TODO: range check
