@@ -31,7 +31,7 @@ mod tests {
             &[Instruction {
                 op: Op::ADD,
                 args: Args {
-                    rd: 5,
+                    rd: 8,
                     rs1: 6,
                     rs2: 7,
                     ..Args::default()
@@ -40,7 +40,8 @@ mod tests {
             &[],
             &[(6, 100), (7, 100)],
         );
-        assert_eq!(record.last_state.get_register_value(5), 100 + 100);
+        assert_eq!(record.last_state.get_register_value(8), 100 + 100);
+        // OK, this one verifies the caps, and gets the challenges.
         MozakStark::prove_and_verify(&program, &record.executed)
     }
     use proptest::prelude::ProptestConfig;

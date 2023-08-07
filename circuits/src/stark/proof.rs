@@ -225,7 +225,9 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
     ) -> AllProofChallenges<F, D> {
         let mut challenger = Challenger::<F, C::Hasher>::new();
 
+        // TODO(Matthias): OK, it looks like we need to nail down these `trace_cap`s for some of the tables?
         for proof in &self.stark_proofs {
+            println!("{:#?}", &proof.trace_cap);
             challenger.observe_cap(&proof.trace_cap);
         }
 
