@@ -98,8 +98,10 @@ make_col_map!(CpuColumnsView);
 pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
 
 impl<T: PackedField> CpuColumnsView<T> {
+    #[must_use]
     pub fn p31() -> T::Scalar { T::Scalar::from_canonical_u32(1 << 31) }
 
+    #[must_use]
     pub fn p32() -> T::Scalar { T::Scalar::from_noncanonical_u64(1 << 32) }
 
     pub fn op_diff(&self) -> T { self.op1_value - self.op2_value }
