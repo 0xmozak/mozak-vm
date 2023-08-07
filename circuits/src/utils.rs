@@ -22,4 +22,10 @@ pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
 }
 
 #[must_use]
+pub fn pad_trace_with_default<Row: Default + Clone>(mut trace: Vec<Row>) -> Vec<Row> {
+    trace.resize(trace.len().next_power_of_two(), Row::default());
+    trace
+}
+
+#[must_use]
 pub(crate) fn from_u32<F: Field>(x: u32) -> F { Field::from_noncanonical_u64(x.into()) }
