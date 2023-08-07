@@ -16,6 +16,23 @@ The Mozak VM is built in Rust, so the Rust toolchain is a pre-requisite.
 cargo build
 ```
 
+# Running test
+
+To run all the tests in this repo, use:
+```bash
+cargo test
+```
+
+Selectively run tests using the following command:
+```bash
+cargo test --package <pkg> --lib -- <testname> --exact --nocapture
+```
+
+For example:
+```bash
+cargo test --package mozak-circuits --lib -- cross_table_lookup::tests::test_ctl --exact --nocapture
+```
+
 # Running
 
 We have a rudimentary CLI.  You can run it via eg `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi`.
