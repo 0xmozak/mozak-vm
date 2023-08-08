@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 
 use crate::bitshift::columns::Bitshift;
@@ -29,6 +30,10 @@ pub struct OpSelectorView<T> {
     pub bne: T,
     pub sb: T,
     pub lbu: T,
+    pub blt: T,
+    pub bltu: T,
+    pub bge: T,
+    pub bgeu: T,
     pub ecall: T,
 }
 
@@ -62,14 +67,20 @@ pub struct CpuColumnsView<T> {
 
     pub regs: [T; 32],
 
-    pub op1_sign: T,
-    pub op2_sign: T,
+    // 0 mean non-negative, 1 means negative.
+    pub op1_sign_bit: T,
+    pub op2_sign_bit: T,
+    // TODO: range check
     pub op1_val_fixed: T,
+    // TODO: range check
     pub op2_val_fixed: T,
-    pub cmp_abs_diff: T,
+    // TODO: range check
+    pub abs_diff: T,
     pub cmp_diff_inv: T,
     pub less_than: T,
-    pub branch_equal: T,
+    // If `op_diff == 0`, then `not_diff == 1`, else `not_diff == 0`.
+    // We only need this intermediate variable to keep the constraint degree <= 3.
+    pub not_diff: T,
 
     pub xor: XorView<T>,
 
@@ -98,6 +109,29 @@ pub struct CpuColumnsExtended<T> {
 }
 
 pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
+
+impl<T: PackedField> CpuColumnsView<T> {
+    #[must_use]
+    pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
+
+    pub fn op_diff(&self) -> T { self.op1_value - self.op2_value }
+
+    // TODO(Matthias): unify where we specify `is_signed` for constraints and trace
+    // generation. Also, later, take mixed sign (for MULHSU) into account.
+    pub fn is_signed(&self) -> T { self.inst.ops.slt + self.inst.ops.bge + self.inst.ops.blt }
+
+    /// Value of the first operand, as if converted to i64.
+    ///
+    /// So range is `i32::MIN..=u32::MAX`
+    pub fn op1_full_range(&self) -> T { self.op1_val_fixed - self.is_signed() * Self::shifted(31) }
+
+    /// Value of the first operand, as if converted to i64.
+    ///
+    /// So range is `i32::MIN..=u32::MAX`
+    pub fn op2_full_range(&self) -> T { self.op2_val_fixed - self.is_signed() * Self::shifted(31) }
+
+    pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
+}
 
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
