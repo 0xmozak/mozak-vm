@@ -15,8 +15,8 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
+    let dst = lv.dst_value;
     let shifted = CpuColumnsView::<P>::shifted;
-    let is_signed = lv.is_signed();
     let is_divu = lv.inst.ops.divu;
     let is_remu = lv.inst.ops.remu;
     let is_div = lv.inst.ops.div;
@@ -24,12 +24,13 @@ pub(crate) fn constraints<P: PackedField>(
     let is_srl = lv.inst.ops.srl;
 
     // p,q are between i32::MIN .. u32::MAX
-    let p = lv.op1_val_fixed - is_signed * shifted(31);
+    let p = lv.op1_full_range();
     let q = lv.divisor;
 
     let p_raw = lv.op1_value;
     let q_raw = lv.op2_value;
 
+    // TODO(Matthias): this looks suspicious in the face of signed bit shifting (SRA)
     let q_sign = P::Scalar::from_noncanonical_i64(-2) * lv.op2_sign_bit + P::ONES;
 
     // Watch out for sign!
@@ -46,7 +47,6 @@ pub(crate) fn constraints<P: PackedField>(
 
     yield_constr.constraint((is_divu + is_remu) * (lv.divisor - q_raw));
 
-    let dst = lv.dst_value;
     // The following constraints are for SRL.
     {
         let and_gadget = and_gadget(&lv.xor);
