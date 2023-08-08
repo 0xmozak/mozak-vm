@@ -214,6 +214,18 @@ impl<F: Field> Column<F> {
         }
     }
 
+    #[must_use]
+    pub fn ascending_sum<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
+        Column {
+            linear_combination: cs
+                .into_iter()
+                .enumerate()
+                .map(|(i, c)| (*c.borrow(), F::from_canonical_usize(i)))
+                .collect_vec(),
+            constant: F::ZERO,
+        }
+    }
+
     pub fn eval<FE, P, const D: usize>(&self, v: &[P]) -> P
     where
         FE: FieldExtension<D, BaseField = F>,

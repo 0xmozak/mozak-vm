@@ -1,4 +1,5 @@
 use std::mem::{size_of, transmute_copy, ManuallyDrop};
+use std::ops::IndexMut;
 
 pub(crate) unsafe fn transmute_without_compile_time_size_checks<T, U>(t: T) -> U {
     debug_assert_eq!(size_of::<T>(), size_of::<U>());
@@ -128,3 +129,10 @@ macro_rules! make_col_map {
     };
 }
 pub(crate) use make_col_map;
+
+#[must_use]
+pub fn selection<T: IndexMut<usize, Output = u32> + Default>(which: usize) -> T {
+    let mut selectors = T::default();
+    selectors[which] = 1;
+    selectors
+}

@@ -1,3 +1,4 @@
+use itertools::{chain, Itertools};
 use mozak_vm::elf::Program;
 use mozak_vm::instruction::{Instruction, Op};
 use mozak_vm::state::State;
@@ -7,7 +8,9 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitshift::columns::Bitshift;
 use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
-use crate::cpu::columns::CpuColumnsView;
+use crate::cpu::columns::{CpuColumnsExtended, CpuColumnsView};
+use crate::program::columns::{InstColumnsView, ProgramColumnsView};
+use crate::stark::utils::transpose_trace;
 use crate::utils::from_u32;
 
 /// Pad the trace to a power of 2.
@@ -22,6 +25,15 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<CpuColumnsView<F>>) -> Vec<CpuColu
 }
 
 #[allow(clippy::missing_panics_doc)]
+#[must_use]
+pub fn generate_cpu_trace_extended<F: RichField>(
+    cpu_trace: Vec<CpuColumnsView<F>>,
+) -> CpuColumnsExtended<Vec<F>> {
+    // NOTE: We expect cpu_trace to already be padded to the right size.
+    let permuted = generate_permuted_inst_trace(&cpu_trace);
+    (chain!(transpose_trace(cpu_trace), transpose_trace(permuted))).collect()
+}
+
 pub fn generate_cpu_trace<F: RichField>(
     program: &Program,
     step_rows: &[Row],
@@ -201,4 +213,136 @@ fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorV
         .get_register_value(inst.args.rs2)
         .wrapping_add(inst.args.imm);
     XorView { a, b, out: a ^ b }.map(from_u32)
+}
+
+#[must_use]
+pub fn generate_permuted_inst_trace<F: RichField>(
+    trace: &[CpuColumnsView<F>],
+) -> Vec<ProgramColumnsView<F>> {
+    trace
+        .iter()
+        .map(|row| row.inst)
+        .sorted_by_key(|inst| inst.pc.to_noncanonical_u64())
+        .scan(None, |previous_pc, inst| {
+            Some(ProgramColumnsView {
+                filter: F::from_bool(Some(inst.pc) != previous_pc.replace(inst.pc)),
+                inst: InstColumnsView::from(inst),
+            })
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+
+    use crate::columns_view::selection;
+    use crate::cpu::columns::{CpuColumnsView, InstructionView};
+    use crate::generation::cpu::generate_permuted_inst_trace;
+    use crate::program::columns::{InstColumnsView, ProgramColumnsView};
+    use crate::utils::from_u32;
+
+    #[test]
+    fn test_generate_permuted_inst_trace() {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+
+        let trace: Vec<CpuColumnsView<F>> = [
+            InstructionView {
+                pc: 3,
+                ops: selection(2),
+                rs1_select: selection(1),
+                rs2_select: selection(2),
+                rd_select: selection(3),
+                imm_value: 1,
+                ..Default::default()
+            },
+            InstructionView {
+                pc: 1,
+                ops: selection(3),
+                rs1_select: selection(2),
+                rs2_select: selection(1),
+                rd_select: selection(1),
+                imm_value: 3,
+                ..Default::default()
+            },
+            InstructionView {
+                pc: 2,
+                ops: selection(1),
+                rs1_select: selection(3),
+                rs2_select: selection(3),
+                rd_select: selection(2),
+                imm_value: 2,
+                ..Default::default()
+            },
+            InstructionView {
+                pc: 1,
+                ops: selection(4),
+                rs1_select: selection(4),
+                rs2_select: selection(4),
+                rd_select: selection(4),
+                imm_value: 4,
+                ..Default::default()
+            },
+        ]
+        .into_iter()
+        .map(|inst| CpuColumnsView {
+            inst: inst.map(from_u32),
+            ..Default::default()
+        })
+        .collect();
+
+        let permuted_trace = generate_permuted_inst_trace(&trace);
+        let expected_permuted_trace: Vec<ProgramColumnsView<F>> = [
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 1,
+                    opcode: 3,
+                    rs1: 2,
+                    rs2: 1,
+                    rd: 1,
+                    imm: 3,
+                },
+                filter: 1,
+            },
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 1,
+                    opcode: 4,
+                    rs1: 4,
+                    rs2: 4,
+                    rd: 4,
+                    imm: 4,
+                },
+                filter: 0,
+            },
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 2,
+                    opcode: 1,
+                    rs1: 3,
+                    rs2: 3,
+                    rd: 2,
+                    imm: 2,
+                },
+                filter: 1,
+            },
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 3,
+                    opcode: 2,
+                    rs1: 1,
+                    rs2: 2,
+                    rd: 3,
+                    imm: 1,
+                },
+                filter: 1,
+            },
+        ]
+        .into_iter()
+        .map(|row| row.map(from_u32))
+        .collect();
+        assert_eq!(expected_permuted_trace, permuted_trace);
+    }
 }

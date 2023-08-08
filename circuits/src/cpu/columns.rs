@@ -5,6 +5,7 @@ use crate::bitshift::columns::Bitshift;
 use crate::bitwise::columns::XorView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
+use crate::program::columns::ProgramColumnsView;
 
 columns_view_impl!(OpSelectorView);
 #[repr(C)]
@@ -85,42 +86,57 @@ pub struct CpuColumnsView<T> {
     pub product_high_diff_inv: T,
 }
 
-make_col_map!(CpuColumnsView);
+make_col_map!(CpuColumnsExtended);
+columns_view_impl!(CpuColumnsExtended);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct CpuColumnsExtended<T> {
+    pub cpu: CpuColumnsView<T>,
+    pub permuted: ProgramColumnsView<T>,
+}
 
 pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
 
-pub(crate) fn data_dst_value_for_rangecheck<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.dst_value]).collect_vec()
-}
+/// Column for a binary filter for our range check in the Mozak
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MAP.cpu.inst.ops.add) }
+
+/// Columns containing the data to be range checked in the Mozak
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.cpu.dst_value)] }
 
 pub(crate) fn data_op1_val_fixed_rangecheck<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.op1_val_fixed]).collect_vec()
+    Column::singles([MAP.cpu.op1_val_fixed]).collect_vec()
 }
 
 pub(crate) fn data_op2_val_fixed_rangecheck<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.op2_val_fixed]).collect_vec()
+    Column::singles([MAP.cpu.op2_val_fixed]).collect_vec()
 }
 
 pub(crate) fn data_cmp_abs_diff_rangecheck<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.cmp_abs_diff]).collect_vec()
+    Column::singles([MAP.cpu.cmp_abs_diff]).collect_vec()
 }
 
 pub(crate) fn filter_for_add_rangecheck<F: Field>() -> Column<F> {
-    Column::single(MAP.inst.ops.add)
+    Column::single(MAP.cpu.inst.ops.add)
 }
 
 pub(crate) fn filter_for_slt_rangecheck<F: Field>() -> Column<F> {
-    Column::single(MAP.inst.ops.slt)
+    Column::single(MAP.cpu.inst.ops.slt)
 }
 /// Columns containing the data to be matched against XOR Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.xor).collect_vec() }
+pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor).collect_vec() }
 
 /// Column for a binary filter for bitwise instruction in Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_bitwise<F: Field>() -> Column<F> { Column::many(MAP.inst.ops.ops_that_use_xor()) }
+pub fn filter_for_bitwise<F: Field>() -> Column<F> {
+    Column::many(MAP.cpu.inst.ops.ops_that_use_xor())
+}
 
 impl<T: Copy> OpSelectorView<T> {
     #[must_use]
@@ -137,12 +153,32 @@ impl<T: Copy> OpSelectorView<T> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> {
-    Column::singles(MAP.bitshift).collect_vec()
+    Column::singles(MAP.cpu.bitshift).collect_vec()
 }
 
 /// Column for a binary filter for shft instruction in `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_shift_amount<F: Field>() -> Column<F> {
-    Column::many(MAP.inst.ops.ops_that_shift())
+    Column::many(MAP.cpu.inst.ops.ops_that_shift())
+}
+
+/// Columns containing the data of original instructions.
+#[must_use]
+pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
+    let inst = MAP.cpu.inst;
+    vec![
+        Column::single(inst.pc),
+        Column::ascending_sum(inst.ops),
+        Column::ascending_sum(inst.rs1_select),
+        Column::ascending_sum(inst.rs2_select),
+        Column::ascending_sum(inst.rd_select),
+        Column::single(inst.imm_value),
+    ]
+}
+
+/// Columns containing the data of permuted instructions.
+#[must_use]
+pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> {
+    Column::singles(MAP.permuted.inst).collect_vec()
 }
