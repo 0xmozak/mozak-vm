@@ -84,14 +84,6 @@ fn is_binary<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
     yield_constr.constraint(x * (P::ONES - x));
 }
 
-/// Ensure an expression only takes on values 0 or 1 for transition rows.
-///
-/// That's useful for differences between `local_values` and `next_values`, like
-/// a clock tick.
-fn is_binary_transition<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
-    yield_constr.constraint_transition(x * (P::ONES - x));
-}
-
 /// Ensure clock is ticking up, iff CPU is still running.
 fn clock_ticks<P: PackedField>(
     lv: &CpuColumnsView<P>,
@@ -99,7 +91,6 @@ fn clock_ticks<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let clock_diff = nv.clk - lv.clk;
-    is_binary_transition(yield_constr, clock_diff);
     is_binary(yield_constr, lv.halt);
     yield_constr.constraint_transition(clock_diff + lv.halt - P::ONES);
 }
@@ -231,6 +222,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         jalr::constraints(lv, nv, yield_constr);
         ecall::constraints(lv, nv, yield_constr);
 
+        // Clock starts at 0
+        yield_constr.constraint_first_row(lv.clk);
         // Last row must be HALT
         yield_constr.constraint_last_row(lv.halt - P::ONES);
     }
