@@ -74,10 +74,10 @@ mod tests {
                 &[],
                 &[(6, a), (7, b)],
             );
-            assert_eq!(record.last_state.get_register_value(5), (a < op2).into());
+            assert_eq!(record.last_state.get_register_value(5), u32::from(a < op2));
             assert_eq!(
                 record.last_state.get_register_value(4),
-                ((a as i32) < (op2 as i32)).into()
+                u32::from((a as i32) < (op2 as i32))
             );
             CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
