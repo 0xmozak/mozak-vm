@@ -100,11 +100,10 @@ mod tests {
             Op::BNE => a != b,
             _ => unreachable!(),
         };
-        if taken {
-            assert_eq!(state_before_final(&record).get_register_value(1), 0);
-        } else {
-            assert_eq!(state_before_final(&record).get_register_value(1), 10);
-        }
+        assert_eq!(
+            state_before_final(&record).get_register_value(1),
+            if taken { 0 } else { 10 }
+        );
 
         CpuStark::prove_and_verify(&program, &record.executed).unwrap();
     }
