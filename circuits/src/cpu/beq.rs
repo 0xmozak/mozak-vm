@@ -15,18 +15,24 @@ pub(crate) fn constraints<P: PackedField>(
     // TODO: make diff a function on CpuColumnsView.
     let diff = lv.op1_value - lv.op2_value;
 
-    // if `diff == 0`, then `is_equal != 0`.
-    // We only need this intermediate variable to keep the constraint degree <= 3.
+    // Check: if `diff == 0`, then `is_equal != 0`.
+    //
+    // Note that the inverse does not necessary hold.
+    // Though, if `is_equal != 0` and `diff != 0` then it must satisfy, that
+    // `next_pc - branched_pc == 0 == next_pc - bumped_pc`
+    // Which holds only if branched and bumped pc are the same.
+    // We use the `diff` intermediate variable to keep the constraint degree <= 3.
     let is_equal = lv.branch_equal;
     let diff_inv = lv.cmp_diff_inv;
     yield_constr.constraint(diff * diff_inv + is_equal - P::ONES);
 
+    // Check: if OP is BEQ, we branch on equal and bump on not-equal
     let next_pc = nv.inst.pc;
     yield_constr.constraint(lv.inst.ops.beq * is_equal * (next_pc - branched_pc));
+    // diff != 0 and is_equal != 0
     yield_constr.constraint(lv.inst.ops.beq * diff * (next_pc - bumped_pc));
 
-    // For BNE branch happens when both operands are not equal so swap above
-    // constraints.
+    // Check: if OP is BNE, we inverse, branching on equal and bumping on not-equal
     yield_constr.constraint(lv.inst.ops.bne * diff * (next_pc - branched_pc));
     yield_constr.constraint(lv.inst.ops.bne * is_equal * (next_pc - bumped_pc));
 }

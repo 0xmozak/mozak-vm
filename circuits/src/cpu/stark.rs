@@ -21,8 +21,9 @@ pub struct CpuStark<F, const D: usize> {
 }
 
 impl<P: Copy> OpSelectorView<P> {
-    // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
-    // PC. It sort-of jumps back to itself.
+    /// Lists opcodes that bump  the PC.
+    /// Note: `ecall` is not included and considered as 'jumping' as a 'halt'
+    /// does not bump the PC. Which can be said as jump back to itself.
     fn straightline_opcodes(&self) -> Vec<P> {
         vec![
             self.add, self.sub, self.and, self.or, self.xor, self.divu, self.mul, self.mulhu,
@@ -38,6 +39,7 @@ fn pc_ticks_up<P: PackedField>(
 ) {
     let is_straightline_op: P = lv.inst.ops.straightline_opcodes().into_iter().sum();
 
+    // Check that each opcode bumps up the program counter by 4.
     yield_constr.constraint_transition(
         is_straightline_op * (nv.inst.pc - (lv.inst.pc + P::Scalar::from_noncanonical_u64(4))),
     );
@@ -58,13 +60,13 @@ fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
     selectors: Selectors,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // selectors have value 0 or 1.
+    // Check: selectors have value 0 or 1.
     selectors
         .clone()
         .into_iter()
         .for_each(|s| yield_constr.constraint(s * (P::ONES - s)));
 
-    // Only one selector enabled.
+    // Check: only one selector enabled.
     let sum_s_op: P = selectors.into_iter().sum();
     yield_constr.constraint(P::ONES - sum_s_op);
 }
@@ -92,8 +94,8 @@ fn only_rd_changes<P: PackedField>(
     nv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // Note: register 0 is already always 0.
-    // But we keep the constraints simple here.
+    // Note: register 0 is already always 0, thus checking can be skipped.
+    // But we dont to keep the constraints simple.
     (0..32).for_each(|reg| {
         yield_constr.constraint_transition(
             (P::ONES - lv.inst.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]),
@@ -120,8 +122,9 @@ fn populate_op1_value<P: PackedField>(
 ) {
     yield_constr.constraint(
         lv.op1_value
-            // Note: we could skip 0, because r0 is always 0.
+            // Note: we could skip 0, as if enabled, the op1_value value must be 0 anyway.
             // But we keep the constraints simple here.
+            // One-hot of rs1_select ensures that only one register is compared.
             - (0..32)
                 .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
                 .sum::<P>(),
@@ -136,8 +139,9 @@ fn populate_op2_value<P: PackedField>(
 ) {
     yield_constr.constraint(
         lv.op2_value - lv.inst.imm_value
-            // Note: we could skip 0, because r0 is always 0.
+            // Note: we could skip 0, as if enabled, the op2_value value must be 0 anyway.
             // But we keep the constraints simple here.
+            // One-hot of rs1_select ensures that only one register is compared.
             - (0..32)
                 .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
                 .sum::<P>(),

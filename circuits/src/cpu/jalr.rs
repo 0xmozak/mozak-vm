@@ -15,7 +15,8 @@ pub(crate) fn constraints<P: PackedField>(
     let wrapped_return_address = return_address - wrap_at;
 
     let destination = lv.dst_value;
-    // enable-if JALR: aux.dst_val == jmp-inst-pc + 4, wrapped
+    // Check: the resulting `pc + 4` is wrapped if necessary. 
+    // As values are range checked u32, this makes the value choice exclusive.
     yield_constr.constraint(
         lv.inst.ops.jalr * (destination - return_address) * (destination - wrapped_return_address),
     );
@@ -24,6 +25,8 @@ pub(crate) fn constraints<P: PackedField>(
     let wrapped_jump_target = jump_target - wrap_at;
     let new_pc = nv.inst.pc;
 
+    // Check: the resulting sum is wrapped if necessary. 
+    // As values are range checked u32, this makes the value choice exclusive.
     yield_constr.constraint_transition(
         lv.inst.ops.jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target),
     );

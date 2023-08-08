@@ -12,11 +12,8 @@ pub(crate) fn constraints<P: PackedField>(
     let added = lv.op1_value + lv.op2_value;
     let wrapped = added - wrap_at;
 
-    // Apply constraint at every `add` operation (lv.inst.ops.add selector) in Trace
-    // Table The value in the result should be either:
-    // - The sum result
-    // - The wrapped (u32) sum result
-    // As the values are range checked as u32, this makes the value choice exclusive
+    // Check: the resulting sum is wrapped if necessary. 
+    // As values are range checked as u32, this makes the value choice exclusive.
     yield_constr.constraint(lv.inst.ops.add * (lv.dst_value - added) * (lv.dst_value - wrapped));
 }
 

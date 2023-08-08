@@ -23,48 +23,39 @@ pub(crate) fn constraints<P: PackedField>(
     let high_limb = lv.product_high_bits;
     let product = low_limb + base * high_limb;
 
-    // The following constraints are for MUL, MULH and SLL op rows
-    // The value should be the multiplication result
+    // Check: multiplication equation, `product == multiplicand * multiplier`.
+    // (Not accounting for overflows for now).
     yield_constr.constraint(
         (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.sll)
             * (product - multiplicand * multiplier),
     );
-    // The following constraints are for MUL and MULH op rows
-    // Check: multiplier == op2_value
+
+    // Check: for MUL and MULHU the multiplier is assigned the op2 value.
     yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.mulhu) * (multiplier - lv.op2_value));
 
-    // The following constraints are for SLL op rows
-    // `op2` contains the shift_by amount, represented by lower 5 bits of the value.
-    // Hence we mask shift amount by `0x1F = 31` using `&` operation.
-    // We then use the `bitshift` sub-table to calculate the shift multiplier.
-    // Finally, we check that `multiplier` is indeed the value of the shift
-    // multiplier.
+    // Check: for MUL and MULHU the multiplier is assigned as `2^(op2 & 0b1_111)`.
+    // Note that we only take lowest 5 bits of the op2 for the shift amount.
+    // This is following the RISC-V specification.
+    // We use the And gadget as well as bitshift gadget to achieve this.
     {
-        // Check: output == input_a & input_b
         let and_gadget = and_gadget(&lv.xor);
-        // Check: AND.input_a == 31
         yield_constr.constraint(
             lv.inst.ops.sll * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(31)),
         );
         let op2 = lv.op2_value;
-        // Check: AND.input_b == op2
         yield_constr.constraint(lv.inst.ops.sll * (and_gadget.input_b - op2));
 
-        // Check: AND.output == shift_amount
         yield_constr.constraint(lv.inst.ops.sll * (and_gadget.output - lv.bitshift.amount));
-        // Check: multiplier == shift_multiplier
         yield_constr.constraint(lv.inst.ops.sll * (multiplier - lv.bitshift.multiplier));
     }
 
     // Now, let's copy our results to the destination register:
 
     let destination = lv.dst_value;
-    // The following constraints are for MUL and SLL op rows
-    // Check: result == product_low_bits
+    // Check: For MUL and SLL, we assign the value of low limb as a result
     yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.sll) * (destination - low_limb));
 
-    // The following constraints are for MULHU op rows
-    // Check: result == product_high_bits (overflow part)
+    // Check: For MULHU, we assign the value of high limb as a result
     yield_constr.constraint(lv.inst.ops.mulhu * (destination - high_limb));
 
     // The constraints above would be enough, if our field was large enough.
@@ -81,11 +72,8 @@ pub(crate) fn constraints<P: PackedField>(
     // That curtails the exploit without invalidating any honest proofs.
 
     let diff = P::Scalar::from_noncanonical_u64(u32::MAX.into()) - lv.product_high_bits;
-    // The following constraints are for MUL, MULHU and SLL op rows
-    // Check:
-    //  (u32::MAX - product_high_bits) * (u32::MAX - product_high_bits)^(-1) - 1 = 0
-    // Equivalent to:
-    //  u32::MAX != product_high_bits
+    // The following constraints c
+    // Check: high limb != u32::MAX by checking that diff is invertible.
     yield_constr.constraint(
         (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.sll)
             * (diff * lv.product_high_diff_inv - P::ONES),

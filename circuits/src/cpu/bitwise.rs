@@ -34,6 +34,7 @@ pub struct BinaryOp<P: PackedField> {
 }
 
 /// Re-usable gadget for AND constraints
+/// Converts Xor output to And output.
 /// Highest degree is one.
 /// x & y := (x + y - (x ^ y)) / 2
 pub(crate) fn and_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
@@ -46,6 +47,7 @@ pub(crate) fn and_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
 }
 
 /// Re-usable gadget for OR constraints
+/// Converts Xor output to Or output.
 /// Highest degree is one.
 /// x | y := (x + y + (x ^ y)) / 2
 pub(crate) fn or_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
@@ -58,6 +60,7 @@ pub(crate) fn or_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
 }
 
 /// Re-usable gadget for XOR constraints
+/// Wraps Xor output.
 /// Highest degree is one.
 /// x ^ y := x ^ y
 pub(crate) fn xor_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
@@ -68,7 +71,7 @@ pub(crate) fn xor_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     }
 }
 
-/// Constraints to verify execution of AND, OR and XOR instructions.
+/// Constraints to verify execution of AND, OR and XOR ops.
 #[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuColumnsView<P>,
@@ -77,11 +80,12 @@ pub(crate) fn constraints<P: PackedField>(
     let op1 = lv.op1_value;
     let op2 = lv.op2_value;
     let dst = lv.dst_value;
-
-    // Apply the AND, OR and XOR constraints to relevant rows by selectors
-    // Based on how `BinaryOp` is defined for each of them
-    // We need to check that inputs and output have been assigned correctly
-    // The calculation is checked by the Xor Sub-Table
+    
+    // For each of the And, Or, and Xor gadgets assign them with correct values.
+    // The underlying gadgets use the [`bitwise.BitwiseStark`] Xor Stark and 
+    // convert its results to the desired output.
+    
+    // Check: inputs and output of Bit Gadgets have been assigned correctly
     for (selector, gadget) in [
         (lv.inst.ops.and, and_gadget(&lv.xor)),
         (lv.inst.ops.or, or_gadget(&lv.xor)),

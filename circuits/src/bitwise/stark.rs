@@ -14,6 +14,7 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 use super::columns::BitwiseColumnsView;
 use crate::columns_view::NumberOfColumns;
 
+/// This Stark is used to enforce the Xor result of two 32 bit numbers
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct BitwiseStark<F, const D: usize> {
@@ -33,17 +34,21 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         P: PackedField<Scalar = FE>, {
         let lv: &BitwiseColumnsView<_> = vars.local_values.borrow();
 
-        // Each limb must be a either 0 or 1.
+        // We first convert both input and output to bit representation
+        // We then work with the bit representations to check the Xor result.
+
+        // Check: Bit representation of inputs and output contains either 0 or 1.
         for bit_value in chain!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
             yield_constr.constraint(bit_value * (bit_value - P::ONES));
         }
 
-        // Check `limbs` bit representation equals the `execution` value.
+        // Check: Bit representation of inputs and output were generated correctly.
         for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
             yield_constr
                 .constraint(reduce_with_powers(&opx_limbs, P::Scalar::from_canonical_u8(2)) - opx);
         }
 
+        // Check: Output bit representation is Xor of input a and b bit representations
         for (a, b, res) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
             // Note that if a, b are in {0, 1}: (a ^ b) = a + b - 2 * a * b
             // One can check by substituting the values, that:
@@ -51,7 +56,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
             //      if only a = 1 or b = 1  -> a ^ b = 1
             //      if a = b = 1            -> a ^ b = 0
             let xor = (a + b) - (a * b) * FE::from_canonical_u8(2);
-            // Check that xor's `out` indeed matches the right value
             yield_constr.constraint(res - xor);
         }
     }
