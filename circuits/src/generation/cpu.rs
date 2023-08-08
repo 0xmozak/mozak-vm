@@ -92,7 +92,7 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuColumnsView<F>) {
     let diff_inv = diff.try_inverse().unwrap_or_default();
 
     row.cmp_diff_inv = diff_inv;
-    row.branch_equal = F::ONE - diff * diff_inv;
+    row.not_diff = F::ONE - diff * diff_inv;
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -164,13 +164,13 @@ fn generate_divu_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructi
 
 #[allow(clippy::cast_possible_wrap)]
 fn generate_slt_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instruction, state: &State) {
-    let is_signed = inst.op == Op::SLT;
+    let is_signed: bool = row.is_signed().is_nonzero();
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
-    let sign1: u32 = (is_signed && (op1 as i32) < 0).into();
-    let sign2: u32 = (is_signed && (op2 as i32) < 0).into();
-    row.op1_sign = from_u32(sign1);
-    row.op2_sign = from_u32(sign2);
+    let sign1: bool = is_signed && (op1 as i32) < 0;
+    let sign2: bool = is_signed && (op2 as i32) < 0;
+    row.op1_sign_bit = F::from_bool(sign1);
+    row.op2_sign_bit = F::from_bool(sign2);
 
     let sign_adjust = if is_signed { 1 << 31 } else { 0 };
     let op1_fixed = op1.wrapping_add(sign_adjust);
@@ -200,7 +200,7 @@ fn generate_slt_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructio
     }
     let abs_diff_fixed: u32 = op1_fixed.abs_diff(op2_fixed);
     assert_eq!(abs_diff, abs_diff_fixed);
-    row.cmp_abs_diff = from_u32(abs_diff_fixed);
+    row.abs_diff = from_u32(abs_diff_fixed);
 }
 
 fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {

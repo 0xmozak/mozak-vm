@@ -1,24 +1,18 @@
 use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuColumnsView;
 
-pub(crate) fn constraints<P: PackedField>(
+pub(crate) fn signed_constraints<P: PackedField>(
     lv: &CpuColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let p32 = P::Scalar::from_noncanonical_u64(1 << 32);
-    let p31 = P::Scalar::from_noncanonical_u64(1 << 31);
+    let shifted = CpuColumnsView::<P>::shifted;
+    let is_signed = lv.is_signed();
 
-    let is_cmp = lv.inst.ops.slt + lv.inst.ops.sltu;
-
-    let lt = lv.less_than;
-    yield_constr.constraint(lt * (P::ONES - lt));
-
-    let sign1 = lv.op1_sign;
+    let sign1 = lv.op1_sign_bit;
     yield_constr.constraint(sign1 * (P::ONES - sign1));
-    let sign2 = lv.op2_sign;
+    let sign2 = lv.op2_sign_bit;
     yield_constr.constraint(sign2 * (P::ONES - sign2));
 
     let op1 = lv.op1_value;
@@ -28,24 +22,15 @@ pub(crate) fn constraints<P: PackedField>(
     // TODO: range check
     let op2_fixed = lv.op2_val_fixed;
 
-    yield_constr.constraint(lv.inst.ops.sltu * (op1_fixed - op1));
-    yield_constr.constraint(lv.inst.ops.sltu * (op2_fixed - op2));
+    yield_constr.constraint(op1_fixed - (op1 + is_signed * shifted(31) - sign1 * shifted(32)));
+    yield_constr.constraint(op2_fixed - (op2 + is_signed * shifted(31) - sign2 * shifted(32)));
+}
 
-    yield_constr.constraint(lv.inst.ops.slt * (op1_fixed - (op1 + p31 - sign1 * p32)));
-    yield_constr.constraint(lv.inst.ops.slt * (op2_fixed - (op2 + p31 - sign2 * p32)));
-
-    let diff_fixed = op1_fixed - op2_fixed;
-    // TODO: range check
-    let abs_diff = lv.cmp_abs_diff;
-
-    // abs_diff calculation
-    yield_constr.constraint(is_cmp * (P::ONES - lt) * (abs_diff - diff_fixed));
-    yield_constr.constraint(is_cmp * lt * (abs_diff + diff_fixed));
-
-    let diff = op1 - op2;
-    let diff_inv = lv.cmp_diff_inv;
-    yield_constr.constraint(lt * (P::ONES - diff * diff_inv));
-    yield_constr.constraint(is_cmp * (lt - lv.dst_value));
+pub(crate) fn slt_constraints<P: PackedField>(
+    lv: &CpuColumnsView<P>,
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    yield_constr.constraint((lv.inst.ops.slt + lv.inst.ops.sltu) * (lv.less_than - lv.dst_value));
 }
 
 #[cfg(test)]
@@ -89,10 +74,10 @@ mod tests {
                 &[],
                 &[(6, a), (7, b)],
             );
-            assert_eq!(record.last_state.get_register_value(5), (a < op2).into());
+            assert_eq!(record.last_state.get_register_value(5), u32::from(a < op2));
             assert_eq!(
                 record.last_state.get_register_value(4),
-                ((a as i32) < (op2 as i32)).into()
+                u32::from((a as i32) < (op2 as i32))
             );
             CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
