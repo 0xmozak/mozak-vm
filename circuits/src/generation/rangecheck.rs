@@ -2,8 +2,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuColumnsView;
 use crate::lookup::permute_cols;
-use crate::rangecheck::columns;
-use crate::rangecheck::columns::MAP;
+use crate::rangecheck::columns::{self, MAP};
 
 pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 
@@ -64,12 +63,20 @@ pub fn generate_rangecheck_trace<F: RichField>(
 
     for cpu_row in cpu_trace {
         if cpu_row.inst.ops.add.is_one() {
-            push_rangecheck_row(&mut trace, cpu_row.dst_value, MAP.s_dst_value);
+            push_rangecheck_row(&mut trace, cpu_row.dst_value, MAP.selectors.dst_value);
         }
         if cpu_row.inst.ops.slt.is_one() {
-            push_rangecheck_row(&mut trace, cpu_row.op1_val_fixed, MAP.s_op1_val_fixed);
-            push_rangecheck_row(&mut trace, cpu_row.op2_val_fixed, MAP.s_op2_val_fixed);
-            push_rangecheck_row(&mut trace, cpu_row.abs_diff, MAP.s_cmp_abs_diff);
+            push_rangecheck_row(
+                &mut trace,
+                cpu_row.op1_val_fixed,
+                MAP.selectors.op1_val_fixed,
+            );
+            push_rangecheck_row(
+                &mut trace,
+                cpu_row.op2_val_fixed,
+                MAP.selectors.op2_val_fixed,
+            );
+            push_rangecheck_row(&mut trace, cpu_row.abs_diff, MAP.selectors.abs_diff);
         }
     }
 
@@ -142,8 +149,8 @@ mod tests {
         let trace = generate_rangecheck_trace::<F>(&cpu_rows);
 
         // Check values that we are interested in
-        assert_eq!(trace[MAP.s_dst_value][0], F::ONE);
-        assert_eq!(trace[MAP.s_dst_value][1], F::ONE);
+        assert_eq!(trace[MAP.selectors.dst_value][0], F::ONE);
+        assert_eq!(trace[MAP.selectors.dst_value][1], F::ONE);
         assert_eq!(trace[MAP.val][0], GoldilocksField(0x0001_fffe));
         assert_eq!(trace[MAP.val][1], GoldilocksField(93));
         assert_eq!(trace[MAP.limb_hi][0], GoldilocksField(0x0001));
@@ -151,7 +158,7 @@ mod tests {
         assert_eq!(trace[MAP.limb_lo][1], GoldilocksField(93));
 
         // Ensure rest of trace is zeroed out
-        for dst_value in &trace[MAP.s_dst_value][2..] {
+        for dst_value in &trace[MAP.selectors.dst_value][2..] {
             assert_eq!(dst_value, &F::ZERO);
         }
         for value in &trace[MAP.val][2..] {

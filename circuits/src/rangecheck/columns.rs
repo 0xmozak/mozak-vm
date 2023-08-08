@@ -3,6 +3,16 @@ use plonky2::field::types::Field;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
+columns_view_impl!(RangeCheckSelectorView);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct RangeCheckSelectorView<T> {
+    pub(crate) dst_value: T,
+    pub(crate) op1_val_fixed: T,
+    pub(crate) op2_val_fixed: T,
+    pub(crate) abs_diff: T,
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub(crate) struct RangeCheckColumnsView<T> {
@@ -26,10 +36,7 @@ pub(crate) struct RangeCheckColumnsView<T> {
     pub(crate) limb_hi_permuted: T,
 
     // Selector columns
-    pub(crate) s_dst_value: T,
-    pub(crate) s_op1_val_fixed: T,
-    pub(crate) s_op2_val_fixed: T,
-    pub(crate) s_cmp_abs_diff: T,
+    pub(crate) selectors: RangeCheckSelectorView<T>,
 
     /// Fixed column containing values 0, 1, .., 2^16 - 1.
     pub(crate) fixed_range_check_u16: T,
@@ -54,16 +61,18 @@ pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COL
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.val)] }
 
 #[must_use]
-pub fn filter_cpu_op1_val_fixed<F: Field>() -> Column<F> { Column::single(MAP.s_op1_val_fixed) }
+pub fn filter_cpu_op1_val_fixed<F: Field>() -> Column<F> { Column::single(MAP.selectors.dst_value) }
 
 #[must_use]
-pub fn filter_cpu_op2_val_fixed<F: Field>() -> Column<F> { Column::single(MAP.s_op2_val_fixed) }
+pub fn filter_cpu_op2_val_fixed<F: Field>() -> Column<F> {
+    Column::single(MAP.selectors.op2_val_fixed)
+}
 
 #[must_use]
-pub fn filter_cpu_cmp_abs_diff<F: Field>() -> Column<F> { Column::single(MAP.s_cmp_abs_diff) }
+pub fn filter_cpu_cmp_abs_diff<F: Field>() -> Column<F> { Column::single(MAP.selectors.abs_diff) }
 
 /// Column for a binary filter to indicate a range check from the
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable) in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn filter_cpu_dst_value<F: Field>() -> Column<F> { Column::single(MAP.s_dst_value) }
+pub fn filter_cpu_dst_value<F: Field>() -> Column<F> { Column::single(MAP.selectors.dst_value) }
