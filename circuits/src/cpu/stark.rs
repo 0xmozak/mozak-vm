@@ -12,7 +12,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{CpuColumnsExtended, CpuColumnsView, InstructionView, OpSelectorView};
-use super::{add, beq, bitwise, div, ecall, jalr, mul, slt, sub};
+use super::{add, bitwise, branches, div, ecall, jalr, mul, signed_comparison, sub};
 use crate::columns_view::NumberOfColumns;
 use crate::program::columns::ProgramColumnsView;
 
@@ -200,8 +200,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         add::constraints(lv, yield_constr);
         sub::constraints(lv, yield_constr);
         bitwise::constraints(lv, yield_constr);
-        slt::constraints(lv, yield_constr);
-        beq::constraints(lv, nv, yield_constr);
+        branches::comparison_constraints(lv, yield_constr);
+        branches::constraints(lv, nv, yield_constr);
+        signed_comparison::signed_constraints(lv, yield_constr);
+        signed_comparison::slt_constraints(lv, yield_constr);
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);

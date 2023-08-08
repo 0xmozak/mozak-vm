@@ -69,7 +69,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
         if cpu_row.inst.ops.slt.is_one() {
             push_rangecheck_row(&mut trace, cpu_row.op1_val_fixed, MAP.s_op1_val_fixed);
             push_rangecheck_row(&mut trace, cpu_row.op2_val_fixed, MAP.s_op2_val_fixed);
-            push_rangecheck_row(&mut trace, cpu_row.cmp_abs_diff, MAP.s_cmp_abs_diff);
+            push_rangecheck_row(&mut trace, cpu_row.abs_diff, MAP.s_cmp_abs_diff);
         }
     }
 
