@@ -22,9 +22,18 @@ pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
 }
 
 #[must_use]
-pub fn pad_trace_with_default<Row: Default + Clone>(mut trace: Vec<Row>) -> Vec<Row> {
-    trace.resize(trace.len().next_power_of_two(), Row::default());
+pub fn pad_trace_with_default_with_len<Row: Default + Clone>(
+    mut trace: Vec<Row>,
+    len: usize,
+) -> Vec<Row> {
+    trace.resize(len, Row::default());
     trace
+}
+
+#[must_use]
+pub fn pad_trace_with_default<Row: Default + Clone>(trace: Vec<Row>) -> Vec<Row> {
+    let len = trace.len().next_power_of_two();
+    pad_trace_with_default_with_len(trace, len)
 }
 
 #[must_use]
