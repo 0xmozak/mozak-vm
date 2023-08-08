@@ -29,3 +29,16 @@ pub fn pad_trace_with_default<Row: Default + Clone>(mut trace: Vec<Row>) -> Vec<
 
 #[must_use]
 pub(crate) fn from_u32<F: Field>(x: u32) -> F { Field::from_noncanonical_u64(x.into()) }
+
+// TODO(Matthias): We can convert via u64, once https://github.com/mir-protocol/plonky2/pull/1092 has landed.
+pub fn from_signed<X, F: Field>(x: X) -> F
+where
+    i64: From<X>, {
+    let x = i64::from(x);
+    let f: F = Field::from_noncanonical_u128(u128::from(x.unsigned_abs()));
+    if x < 0 {
+        -f
+    } else {
+        f
+    }
+}

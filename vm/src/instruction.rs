@@ -1,3 +1,5 @@
+use array_concat::concat_arrays;
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 pub struct Args {
     pub rd: u8,
@@ -46,6 +48,27 @@ pub enum Op {
     ECALL,
     #[default]
     UNKNOWN,
+}
+
+pub const SIGNED2_OPCODES: [Op; 8] = [
+    Op::SLT,
+    Op::LB,
+    Op::LH,
+    Op::BLT,
+    Op::BGE,
+    Op::DIV,
+    Op::REM,
+    Op::MULH,
+];
+pub const SIGNED1_OPCODES: [Op; SIGNED2_OPCODES.len() + 1] =
+    concat_arrays!(SIGNED2_OPCODES, [Op::MULHSU]);
+
+impl Op {
+    #[must_use]
+    pub fn is_signed1(&self) -> bool { SIGNED1_OPCODES.contains(self) }
+
+    #[must_use]
+    pub fn is_signed2(&self) -> bool { SIGNED2_OPCODES.contains(self) }
 }
 
 /// Adding 0 to register 0 is the official way to encode a noop in Risc-V.

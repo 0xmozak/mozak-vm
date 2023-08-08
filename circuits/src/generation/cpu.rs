@@ -11,7 +11,7 @@ use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuColumnsView};
 use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 use crate::stark::utils::transpose_trace;
-use crate::utils::from_u32;
+use crate::utils::{from_signed, from_u32};
 
 /// Pad the trace to a power of 2.
 ///
@@ -130,36 +130,52 @@ fn generate_mul_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructio
 
 #[allow(clippy::cast_possible_wrap)]
 fn generate_divu_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instruction, state: &State) {
-    let dividend = state.get_register_value(inst.args.rs1);
-    let op2 = state
+    let dividend_raw = state.get_register_value(inst.args.rs1);
+    let divisor_raw = state
         .get_register_value(inst.args.rs2)
         .wrapping_add(inst.args.imm);
-
-    let divisor = if let Op::SRL = inst.op {
-        let shift_amount = op2 & 0x1F;
-        let shift_power = 1_u32 << shift_amount;
-        row.bitshift = Bitshift {
-            amount: shift_amount,
-            multiplier: shift_power,
-        }
-        .map(from_u32);
-        shift_power
+    let dividend = if inst.op.is_signed1() {
+        i64::from(dividend_raw as i32)
     } else {
-        op2
+        i64::from(dividend_raw)
+    };
+    let divisor = if inst.op.is_signed2() {
+        i64::from(divisor_raw as i32)
+    } else {
+        i64::from(divisor_raw)
     };
 
-    row.divisor = from_u32(divisor);
+    let divisor = if let Op::SRL = inst.op {
+        let shift_amount = divisor & 0x1F;
+        let shift_power = 1_i64 << shift_amount;
+        row.bitshift = Bitshift {
+            amount: F::from_noncanonical_u64(shift_amount.unsigned_abs()),
+            multiplier: F::from_noncanonical_u64(shift_power.unsigned_abs()),
+        };
+        shift_power
+    } else {
+        divisor
+    };
+
+    row.divisor = from_signed(divisor);
 
     if let 0 = divisor {
         row.quotient = from_u32(u32::MAX);
-        row.remainder = from_u32(dividend);
-        row.remainder_slack = from_u32(0_u32);
+        row.quotient_abs = from_u32(u32::MAX);
+        row.remainder = from_u32(dividend_raw);
+        row.remainder_abs = from_u32(dividend_raw);
+        row.remainder_abs_slack = from_u32(0_u32);
     } else {
-        row.quotient = from_u32(dividend / divisor);
-        row.remainder = from_u32(dividend % divisor);
-        row.remainder_slack = from_u32(divisor - dividend % divisor - 1);
+        let m = dividend / divisor;
+        row.quotient = from_signed(m);
+        row.quotient_abs = F::from_noncanonical_u64(m.unsigned_abs());
+        let r = dividend % divisor;
+        row.remainder = from_signed(r);
+        row.remainder_abs = F::from_noncanonical_u64(r.unsigned_abs());
+        row.remainder_abs_slack =
+            F::from_noncanonical_u64(divisor.unsigned_abs() - r.unsigned_abs() - 1);
     }
-    row.divisor_inv = from_u32::<F>(divisor).try_inverse().unwrap_or_default();
+    row.divisor_inv = row.divisor.try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]

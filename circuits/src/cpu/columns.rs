@@ -17,7 +17,9 @@ pub struct OpSelectorView<T> {
     pub xor: T,
     pub or: T,
     pub and: T,
+    pub div: T,
     pub divu: T,
+    pub rem: T,
     pub remu: T,
     pub mul: T,
     pub mulhu: T,
@@ -85,8 +87,10 @@ pub struct CpuColumnsView<T> {
     pub bitshift: Bitshift<T>,
 
     pub quotient: T,
+    pub quotient_abs: T,
     pub remainder: T,
-    pub remainder_slack: T,
+    pub remainder_abs: T,
+    pub remainder_abs_slack: T,
     pub divisor_inv: T,
     pub divisor: T,
 
@@ -116,7 +120,13 @@ impl<T: PackedField> CpuColumnsView<T> {
 
     // TODO(Matthias): unify where we specify `is_signed` for constraints and trace
     // generation. Also, later, take mixed sign (for MULHSU) into account.
-    pub fn is_signed(&self) -> T { self.inst.ops.slt + self.inst.ops.bge + self.inst.ops.blt }
+    pub fn is_signed(&self) -> T {
+        self.inst.ops.slt
+            + self.inst.ops.bge
+            + self.inst.ops.blt
+            + self.inst.ops.div
+            + self.inst.ops.rem
+    }
 
     /// Value of the first operand, as if converted to i64.
     ///
