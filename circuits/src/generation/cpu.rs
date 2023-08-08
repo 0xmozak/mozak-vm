@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use itertools::{chain, Itertools};
 use mozak_vm::elf::Program;
 use mozak_vm::instruction::{Instruction, Op};
@@ -28,10 +29,11 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<CpuColumnsView<F>>) -> Vec<CpuColu
 #[must_use]
 pub fn generate_cpu_trace_extended<F: RichField>(
     cpu_trace: Vec<CpuColumnsView<F>>,
+    program_trace: Vec<CpuColumnsView<F>>,
 ) -> CpuColumnsExtended<Vec<F>> {
-    // NOTE: We expect cpu_trace to already be padded to the right size.
     let permuted = generate_permuted_inst_trace(&cpu_trace);
-    (chain!(transpose_trace(cpu_trace), transpose_trace(permuted))).collect()
+    let extended = pad_permuted_inst_trace(&permuted, program_trace);
+    (chain!(transpose_trace(cpu_trace), transpose_trace(extended))).collect()
 }
 
 pub fn generate_cpu_trace<F: RichField>(
@@ -230,6 +232,26 @@ pub fn generate_permuted_inst_trace<F: RichField>(
             })
         })
         .collect()
+}
+
+#[must_use]
+pub fn pad_permuted_inst_trace<F: RichField>(
+    trace: &[ProgramColumnsView<F>],
+    program_trace: Vec<CpuColumnsView<F>>,
+) -> Vec<ProgramColumnsView<F>> {
+    let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
+    trace
+        .iter()
+        .map(|row| row.inst)
+        .sorted_by_key(|inst| inst.pc.to_noncanonical_u64())
+        .scan(None, |previous_pc, inst| {
+            Some(ProgramColumnsView {
+                filter: F::from_bool(Some(inst.pc) != previous_pc.replace(inst.pc)),
+                inst: InstColumnsView::from(inst),
+            })
+        })
+        .collect()
+
 }
 
 #[cfg(test)]
