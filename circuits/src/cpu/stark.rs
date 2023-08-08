@@ -72,11 +72,24 @@ fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
     selectors
         .clone()
         .into_iter()
-        .for_each(|s| yield_constr.constraint(s * (P::ONES - s)));
+        .for_each(|s| is_binary(yield_constr, s));
 
     // Only one selector enabled.
     let sum_s_op: P = selectors.into_iter().sum();
     yield_constr.constraint(P::ONES - sum_s_op);
+}
+
+/// Ensure an expression only takes on values 0 or 1.
+fn is_binary<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
+    yield_constr.constraint(x * (P::ONES - x));
+}
+
+/// Ensure an expression only takes on values 0 or 1 for transition rows.
+///
+/// That's useful for differences between `local_values` and `next_values`, like
+/// a clock tick.
+fn is_binary_transition<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
+    yield_constr.constraint_transition(x * (P::ONES - x));
 }
 
 /// Ensure clock is ticking up, iff CPU is still running.
@@ -86,8 +99,9 @@ fn clock_ticks<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let clock_diff = nv.clk - lv.clk;
-    let still_running = P::ONES - lv.halt;
-    yield_constr.constraint_transition(clock_diff - still_running);
+    is_binary_transition(yield_constr, clock_diff);
+    is_binary(yield_constr, lv.halt);
+    yield_constr.constraint_transition(clock_diff + lv.halt - P::ONES);
 }
 
 /// Register 0 is always 0
