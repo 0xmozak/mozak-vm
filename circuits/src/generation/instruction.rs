@@ -1,6 +1,9 @@
+use itertools::izip;
 use mozak_vm::instruction::{Instruction, Op};
+use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::InstructionView;
+use crate::program::columns::InstColumnsView;
 
 impl From<(u32, Instruction)> for InstructionView<u32> {
     fn from((pc, inst): (u32, Instruction)) -> Self {
@@ -24,6 +27,10 @@ impl From<(u32, Instruction)> for InstructionView<u32> {
             Op::JALR => &mut cols.ops.jalr,
             Op::BEQ => &mut cols.ops.beq,
             Op::BNE => &mut cols.ops.bne,
+            Op::BLT => &mut cols.ops.blt,
+            Op::BLTU => &mut cols.ops.bltu,
+            Op::BGE => &mut cols.ops.bge,
+            Op::BGEU => &mut cols.ops.bgeu,
             Op::ECALL => &mut cols.ops.ecall,
             Op::XOR => &mut cols.ops.xor,
             Op::OR => &mut cols.ops.or,
@@ -35,5 +42,24 @@ impl From<(u32, Instruction)> for InstructionView<u32> {
         cols.rs2_select[inst.args.rs2 as usize] = 1;
         cols.rd_select[inst.args.rd as usize] = 1;
         cols
+    }
+}
+
+pub fn ascending_sum<F: RichField, I: IntoIterator<Item = F>>(cs: I) -> F {
+    izip![(0..).map(F::from_canonical_u64), cs]
+        .map(|(i, x)| i * x)
+        .sum()
+}
+
+impl<F: RichField> From<InstructionView<F>> for InstColumnsView<F> {
+    fn from(inst: InstructionView<F>) -> Self {
+        Self {
+            pc: inst.pc,
+            opcode: ascending_sum(inst.ops),
+            rs1: ascending_sum(inst.rs1_select),
+            rs2: ascending_sum(inst.rs2_select),
+            rd: ascending_sum(inst.rd_select),
+            imm: inst.imm_value,
+        }
     }
 }

@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 
+use itertools::izip;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
@@ -10,9 +11,10 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{CpuColumnsView, InstructionView, OpSelectorView};
-use super::{add, beq, bitwise, div, ecall, jalr, mul, slt, sub};
+use super::columns::{CpuColumnsExtended, CpuColumnsView, InstructionView, OpSelectorView};
+use super::{add, bitwise, branches, div, ecall, jalr, mul, signed_comparison, sub};
 use crate::columns_view::NumberOfColumns;
+use crate::program::columns::ProgramColumnsView;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -93,6 +95,24 @@ fn r0_always_0<P: PackedField>(lv: &CpuColumnsView<P>, yield_constr: &mut Constr
     yield_constr.constraint(lv.regs[0]);
 }
 
+/// Ensures that if [`filter`] is 0, then duplicate instructions
+/// are present. Note that this function doesn't check whether every instruction
+/// is unique. Rather, it ensures that no unique instruction present in the
+/// trace is omitted. It also doesn't verify the execution order of the
+/// instructions.
+fn check_permuted_inst_cols<P: PackedField>(
+    lv: &ProgramColumnsView<P>,
+    nv: &ProgramColumnsView<P>,
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    yield_constr.constraint(lv.filter * (lv.filter - P::ONES));
+    yield_constr.constraint_first_row(lv.filter - P::ONES);
+
+    for (lv_col, nv_col) in izip![lv.inst, nv.inst] {
+        yield_constr.constraint((nv.filter - P::ONES) * (lv_col - nv_col));
+    }
+}
+
 /// Register used as destination register can have different value, all
 /// other regs have same value as of previous row.
 fn only_rd_changes<P: PackedField>(
@@ -153,9 +173,10 @@ fn populate_op2_value<P: PackedField>(
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
-    const COLUMNS: usize = CpuColumnsView::<F>::NUMBER_OF_COLUMNS;
+    const COLUMNS: usize = CpuColumnsExtended::<F>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
 
+    #[allow(clippy::similar_names)]
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
@@ -163,8 +184,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv = vars.local_values.borrow();
-        let nv = vars.next_values.borrow();
+        let lv: &CpuColumnsExtended<_> = vars.local_values.borrow();
+        let nv: &CpuColumnsExtended<_> = vars.next_values.borrow();
+
+        check_permuted_inst_cols(&lv.permuted, &nv.permuted, yield_constr);
+
+        let lv = &lv.cpu;
+        let nv = &nv.cpu;
 
         clock_ticks(lv, nv, yield_constr);
         pc_ticks_up(lv, nv, yield_constr);
@@ -182,8 +208,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         add::constraints(lv, yield_constr);
         sub::constraints(lv, yield_constr);
         bitwise::constraints(lv, yield_constr);
-        slt::constraints(lv, yield_constr);
-        beq::constraints(lv, nv, yield_constr);
+        branches::comparison_constraints(lv, yield_constr);
+        branches::constraints(lv, nv, yield_constr);
+        signed_comparison::signed_constraints(lv, yield_constr);
+        signed_comparison::slt_constraints(lv, yield_constr);
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
@@ -203,5 +231,25 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         unimplemented!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use starky::stark_testing::test_stark_low_degree;
+
+    use crate::cpu::stark::CpuStark;
+
+    #[test]
+    fn test_degree() -> Result<()> {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        type S = CpuStark<F, D>;
+
+        let stark = S::default();
+        test_stark_low_degree(stark)
     }
 }
