@@ -18,23 +18,33 @@ pub(crate) fn constraints<P: PackedField>(
     let dst = lv.dst_value;
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
-    // > For both signed and unsigned division, it holds that dividend = divisor ×
-    // > quotient + remainder.
+    // > For both signed and unsigned division, it holds that dividend = divisor ×
+    // > quotient + remainder.
     // In the following code, we are looking at p/q.
     let p = lv.op1_value;
     let q = lv.divisor;
+    // The following constraints are for DIVU and REMU op rows
+    // Check: divisor = op2
     yield_constr.constraint((lv.inst.ops.divu + lv.inst.ops.remu) * (q - lv.op2_value));
 
-    // The following constraints are for SRL.
+    // The following constraints are for SRL op rows
+    // `op2` contains the shift_by amount, represented by lower 5 bits of the value.
+    // Hence we mask shift amount by `0x1F = 31` using `&` operation.
+    // We then use the `bitshift` sub-table to calculate the shift multiplier.
+    // Finally, we check that `q` is indeed the value of the shift multiplier.
     {
         let and_gadget = and_gadget(&lv.xor);
+        // Check: AND.input_a == 31
         yield_constr.constraint(
             lv.inst.ops.srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)),
         );
         let op2 = lv.op2_value;
+        // Check: AND.input_b == op2
         yield_constr.constraint(lv.inst.ops.srl * (and_gadget.input_b - op2));
 
+        // Check: AND.output == shift_amount
         yield_constr.constraint(lv.inst.ops.srl * (and_gadget.output - lv.bitshift.amount));
+        // Check: q == multiplier
         yield_constr.constraint(lv.inst.ops.srl * (q - lv.bitshift.multiplier));
     }
 
@@ -62,6 +72,7 @@ pub(crate) fn constraints<P: PackedField>(
     //      with range_check(slack)
 
     let slack = lv.remainder_slack;
+    // Check: q == 0 || r + slack + 1 == q
     yield_constr.constraint(q * (r + slack + P::ONES - q));
 
     // Now we need to deal with division by zero.  The Risc-V spec says:
@@ -69,13 +80,19 @@ pub(crate) fn constraints<P: PackedField>(
     //      p % 0 == p
 
     let q_inv = lv.divisor_inv;
+    // Check: if q == 0 then m == u32::MAX
     yield_constr.constraint(
         (P::ONES - q * q_inv) * (m - P::Scalar::from_noncanonical_u64(u32::MAX.into())),
     );
+    // Check: if q == 0 then r == p
     yield_constr.constraint((P::ONES - q * q_inv) * (r - p));
 
     // Last, we 'copy' our results:
+    // The following constraint is for DIVU and SRL op rows
+    // Check: dst == m
     yield_constr.constraint((lv.inst.ops.divu + lv.inst.ops.srl) * (dst - m));
+    // The following constraint is for REMU op rows
+    // Check: dst == r
     yield_constr.constraint(lv.inst.ops.remu * (dst - r));
 }
 
@@ -88,6 +105,7 @@ mod tests {
 
     use crate::cpu::stark::CpuStark;
     use crate::test_utils::{inv, ProveAndVerify};
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]

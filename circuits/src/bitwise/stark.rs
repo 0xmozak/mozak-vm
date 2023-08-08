@@ -38,20 +38,20 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
             yield_constr.constraint(bit_value * (bit_value - P::ONES));
         }
 
-        // Check limbs sum to our given value.
-        // We interpret limbs as digits in base 2.
+        // Check `limbs` bit representation equals the `execution` value.
         for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
             yield_constr
                 .constraint(reduce_with_powers(&opx_limbs, P::Scalar::from_canonical_u8(2)) - opx);
         }
 
         for (a, b, res) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
-            // For two binary digits a and b, we want to compute a ^ b.
-            // Conventiently, adding with carry gives:
-            // a + b == (a & b, a ^ b) == 2 * (a & b) + (a ^ b)
-            // Solving for (a ^ b) gives:
-            // (a ^ b) := a + b - 2 * (a & b) == a + b - 2 * a * b
+            // Note that if a, b are in {0, 1}: (a ^ b) = a + b - 2 * a * b
+            // One can check by substituting the values, that:
+            //      if a = b = 0            -> a ^ b = 0
+            //      if only a = 1 or b = 1  -> a ^ b = 1
+            //      if a = b = 1            -> a ^ b = 0
             let xor = (a + b) - (a * b) * FE::from_canonical_u8(2);
+            // Check that xor's `out` indeed matches the right value
             yield_constr.constraint(res - xor);
         }
     }

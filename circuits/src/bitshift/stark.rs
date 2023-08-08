@@ -35,12 +35,21 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         let nv: &Bitshift<P> = &nv.executed;
 
         // Constraints on shift amount
+        //
+        // First Row: amount = 0
+        // Transition: next_amount = local_amount + {0, 1}
+        // Last Row: amount = 31
         let diff = nv.amount - lv.amount;
         yield_constr.constraint_first_row(lv.amount);
         yield_constr.constraint_transition(diff * (diff - P::ONES));
         yield_constr.constraint_last_row(lv.amount - P::Scalar::from_canonical_u8(31));
 
         // Constraints on multiplier
+        //
+        // First Row: multiplier = 1
+        // Transition: next_multiplier =
+        //        local_multiplier * (1 + next_amount - local_amount)
+        // Last Row: multiplier = 2^32 (redundant)
         yield_constr.constraint_first_row(lv.multiplier - P::ONES);
         yield_constr.constraint_transition(nv.multiplier - (P::ONES + diff) * lv.multiplier);
         yield_constr.constraint_last_row(lv.multiplier - P::Scalar::from_canonical_u32(1 << 31));
@@ -111,6 +120,7 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
             prop_assert_eq!(record.executed[1].aux.dst_val, p >> (q & 0x1F));
+
             BitshiftStark::prove_and_verify(&program, &record.executed).unwrap();
         }
     }

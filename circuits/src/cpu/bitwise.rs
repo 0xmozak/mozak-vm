@@ -3,6 +3,9 @@
 //! AND and OR are implemented as a combination of XOR and field element
 //! arithmetic.
 //!
+//! Note: we are already assuming that all the values are either 0 or 1.
+//! This check is enforced by the [`XorView`] Sub-Table
+//!
 //! We use two basic identities to implement AND, and OR:
 //!  a | b = (a ^ b) + (a & b)
 //!  a + b = (a ^ b) + 2 * (a & b)
@@ -32,6 +35,7 @@ pub struct BinaryOp<P: PackedField> {
 
 /// Re-usable gadget for AND constraints
 /// Highest degree is one.
+/// x & y := (x + y - (x ^ y)) / 2
 pub(crate) fn and_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     let two = P::Scalar::from_noncanonical_u64(2);
     BinaryOp {
@@ -43,6 +47,7 @@ pub(crate) fn and_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
 
 /// Re-usable gadget for OR constraints
 /// Highest degree is one.
+/// x | y := (x + y + (x ^ y)) / 2
 pub(crate) fn or_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     let two = P::Scalar::from_noncanonical_u64(2);
     BinaryOp {
@@ -54,6 +59,7 @@ pub(crate) fn or_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
 
 /// Re-usable gadget for XOR constraints
 /// Highest degree is one.
+/// x ^ y := x ^ y
 pub(crate) fn xor_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     BinaryOp {
         input_a: xor.a,
@@ -72,6 +78,10 @@ pub(crate) fn constraints<P: PackedField>(
     let op2 = lv.op2_value;
     let dst = lv.dst_value;
 
+    // Apply the AND, OR and XOR constraints to relevant rows by selectors
+    // Based on how `BinaryOp` is defined for each of them
+    // We need to check that inputs and output have been assigned correctly
+    // The calculation is checked by the Xor Sub-Table
     for (selector, gadget) in [
         (lv.inst.ops.and, and_gadget(&lv.xor)),
         (lv.inst.ops.or, or_gadget(&lv.xor)),
