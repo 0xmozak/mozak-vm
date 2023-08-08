@@ -8,6 +8,8 @@
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
 
+extern crate core;
+
 pub mod bitshift;
 pub mod bitwise;
 pub mod columns_view;
