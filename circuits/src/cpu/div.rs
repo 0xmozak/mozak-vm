@@ -17,18 +17,11 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     let dst = lv.dst_value;
     let shifted = CpuState::<P>::shifted;
-    let is_divu = lv.inst.ops.divu;
-    let is_remu = lv.inst.ops.remu;
-    let is_div = lv.inst.ops.div;
-    let is_rem = lv.inst.ops.rem;
-    let is_srl = lv.inst.ops.srl;
+    let ops = lv.inst.ops;
 
     // p,q are between i32::MIN .. u32::MAX
     let p = lv.op1_full_range();
     let q = lv.divisor;
-
-    let p_raw = lv.op1_value;
-    let q_raw = lv.op2_value;
 
     // TODO(Matthias): this looks suspicious in the face of signed bit shifting
     // (SRA)
@@ -46,19 +39,19 @@ pub(crate) fn constraints<P: PackedField>(
     // We only need rt column to range-check rt := q - r
     let rt = lv.remainder_abs_slack;
 
-    yield_constr.constraint((is_divu + is_remu) * (lv.divisor - q_raw));
-    yield_constr.constraint((is_div + is_rem) * (lv.divisor - lv.op2_full_range()));
+    yield_constr
+        .constraint((ops.div + ops.rem + ops.divu + ops.remu) * (lv.divisor - lv.op2_full_range()));
 
     // The following constraints are for SRL.
     {
         let and_gadget = and_gadget(&lv.xor);
         yield_constr
-            .constraint(is_srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
+            .constraint(ops.srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
         let op2 = lv.op2_value;
-        yield_constr.constraint(is_srl * (and_gadget.input_b - op2));
+        yield_constr.constraint(ops.srl * (and_gadget.input_b - op2));
 
-        yield_constr.constraint(is_srl * (and_gadget.output - lv.bitshift.amount));
-        yield_constr.constraint(is_srl * (lv.divisor - lv.bitshift.multiplier));
+        yield_constr.constraint(ops.srl * (and_gadget.output - lv.bitshift.amount));
+        yield_constr.constraint(ops.srl * (q - lv.bitshift.multiplier));
     }
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
@@ -90,14 +83,14 @@ pub(crate) fn constraints<P: PackedField>(
     // p / 0 == 0xFFFF_FFFF
     // p % 0 == p
     yield_constr.constraint((P::ONES - q * q_inv) * (m - P::Scalar::from_canonical_u32(u32::MAX)));
-    yield_constr.constraint((P::ONES - q * q_inv) * (r - p_raw));
+    yield_constr.constraint((P::ONES - q * q_inv) * (r - lv.op1_value));
 
     // Last, we 'copy' our results:
-    yield_constr.constraint((is_divu + is_srl) * (dst - m));
-    yield_constr.constraint(is_div * (dst - m) * (dst - m - shifted(32)));
+    yield_constr.constraint((ops.divu + ops.srl) * (dst - m));
+    yield_constr.constraint(ops.div * (dst - m) * (dst - m - shifted(32)));
 
-    yield_constr.constraint(is_remu * (dst - r));
-    yield_constr.constraint(is_rem * (dst - r) * (dst - r - shifted(32)));
+    yield_constr.constraint(ops.remu * (dst - r));
+    yield_constr.constraint(ops.rem * (dst - r) * (dst - r - shifted(32)));
 }
 
 #[cfg(test)]
