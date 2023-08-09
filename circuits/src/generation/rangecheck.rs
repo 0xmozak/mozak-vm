@@ -76,7 +76,6 @@ pub fn generate_rangecheck_trace<F: RichField>(
                 cpu_row.op2_val_fixed,
                 MAP.selectors.op2_val_fixed,
             );
-            push_rangecheck_row(&mut trace, cpu_row.abs_diff, MAP.selectors.abs_diff);
         }
     }
 

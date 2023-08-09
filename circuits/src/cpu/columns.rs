@@ -4,7 +4,7 @@ use plonky2::field::types::Field;
 use crate::bitshift::columns::Bitshift;
 use crate::bitwise::columns::XorView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
-use crate::cross_table_lookup::Column;
+use crate::linear_combination::Column;
 use crate::program::columns::ProgramColumnsView;
 
 columns_view_impl!(OpSelectors);
@@ -141,15 +141,11 @@ pub fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MAP.cpu.i
 pub fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.cpu.dst_value)] }
 
 pub(crate) fn data_op1_val_fixed_rangecheck<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.cpu.op1_val_fixed]).collect_vec()
+    Column::singles([MAP.cpu.op1_val_fixed])
 }
 
 pub(crate) fn data_op2_val_fixed_rangecheck<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.cpu.op2_val_fixed]).collect_vec()
-}
-
-pub(crate) fn data_cmp_abs_diff_rangecheck<F: Field>() -> Vec<Column<F>> {
-    Column::singles([MAP.cpu.abs_diff]).collect_vec()
+    Column::singles([MAP.cpu.op2_val_fixed])
 }
 
 pub(crate) fn filter_for_add_rangecheck<F: Field>() -> Column<F> {

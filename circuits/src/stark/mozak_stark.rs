@@ -19,7 +19,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub bitwise_stark: BitwiseStark<F, D>,
     pub shift_amount_stark: BitshiftStark<F, D>,
     pub program_stark: ProgramStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 8],
+    pub cross_table_lookups: [CrossTableLookup<F>; 7],
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -34,7 +34,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 CpuDstValueRangeCheckTable::lookups(),
                 CpuOp1ValueFixedRangeCheckTable::lookups(),
                 CpuOp2ValueFixedRangeCheckTable::lookups(),
-                CpuCmpAbsDiffRangeCheckTable::lookups(),
                 BitwiseCpuTable::lookups(),
                 BitshiftCpuTable::lookups(),
                 InnerCpuTable::lookups(),
@@ -164,7 +163,6 @@ pub trait Lookups<F: Field> {
 pub struct CpuDstValueRangeCheckTable<F: Field>(CrossTableLookup<F>);
 pub struct CpuOp1ValueFixedRangeCheckTable<F: Field>(CrossTableLookup<F>);
 pub struct CpuOp2ValueFixedRangeCheckTable<F: Field>(CrossTableLookup<F>);
-pub struct CpuCmpAbsDiffRangeCheckTable<F: Field>(CrossTableLookup<F>);
 
 impl<F: Field> Lookups<F> for CpuDstValueRangeCheckTable<F> {
     fn lookups() -> CrossTableLookup<F> {
@@ -205,20 +203,6 @@ impl<F: Field> Lookups<F> for CpuOp2ValueFixedRangeCheckTable<F> {
             RangeCheckTable::new(
                 rangecheck::columns::data_for_cpu(),
                 rangecheck::columns::filter_cpu_op2_val_fixed(),
-            ),
-        )
-    }
-}
-impl<F: Field> Lookups<F> for CpuCmpAbsDiffRangeCheckTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
-        CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_cmp_abs_diff_rangecheck(),
-                cpu::columns::filter_for_slt_rangecheck(),
-            )],
-            RangeCheckTable::new(
-                rangecheck::columns::data_for_cpu(),
-                rangecheck::columns::filter_cpu_cmp_abs_diff(),
             ),
         )
     }
