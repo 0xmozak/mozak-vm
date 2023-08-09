@@ -1,3 +1,4 @@
+
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 
@@ -166,7 +167,9 @@ impl<T: core::ops::Add<Output = T>> OpSelectorView<T> {
 /// Columns containing the data to be matched against `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.bitshift) }
+pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> {
+    Column::singles(MAP.cpu.bitshift)
+}
 
 /// Column for a binary filter for shft instruction in `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -191,4 +194,6 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
 
 /// Columns containing the data of permuted instructions.
 #[must_use]
-pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.permuted.inst) }
+pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> {
+    Column::singles(MAP.permuted.inst)
+}
