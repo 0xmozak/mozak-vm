@@ -3,22 +3,22 @@ use plonky2::field::types::Field;
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 
-make_col_map!(RangeCheckColumnsExtended);
-columns_view_impl!(RangeCheckColumnsExtended);
+make_col_map!(RangeCheckColumnsView);
+columns_view_impl!(RangeCheckColumnsView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct RangeCheckColumnsExtended<T> {
-    pub rangecheck: RangeCheckColumnsView<T>,
+pub struct RangeCheckColumnsView<T> {
+    pub input: InputColumnsView<T>,
     pub permuted: InnerLookupColumnsView<T>,
 }
 
-columns_view_impl!(RangeCheckColumnsView);
+columns_view_impl!(InputColumnsView);
 /// View into the columns containing u32 values to be range checked from
 /// other tables, along with their limbs and filter columns. This view
 /// is involved with cross table lookups.
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct RangeCheckColumnsView<T> {
+pub struct InputColumnsView<T> {
     /// Column containing the value (in u32) to be range checked.
     pub(crate) val: T,
 
@@ -64,10 +64,10 @@ pub struct InnerLookupColumnsView<T> {
 /// Columns containing the data to be range checked in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.rangecheck.val)] }
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.input.val)] }
 
 /// Column for a binary filter to indicate a range check from the
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable) in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(MAP.rangecheck.cpu_filter) }
+pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(MAP.input.cpu_filter) }

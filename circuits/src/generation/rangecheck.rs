@@ -5,7 +5,7 @@ use crate::columns_view::NumberOfColumns;
 use crate::cpu::columns::CpuState;
 use crate::lookup::permute_cols;
 use crate::rangecheck::columns::{
-    InnerLookupColumnsView, RangeCheckColumnsExtended, RangeCheckColumnsView, MAP,
+    InnerLookupColumnsView, InputColumnsView, RangeCheckColumnsView, MAP,
 };
 use crate::stark::utils::transpose_trace;
 
@@ -20,16 +20,14 @@ pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 /// initializing our trace to all [`F::ZERO`]s takes care of this step by
 /// default.
 #[must_use]
-fn pad_rc_trace<F: RichField>(
-    mut trace: Vec<RangeCheckColumnsView<F>>,
-) -> Vec<RangeCheckColumnsView<F>> {
-    let len = trace[MAP.rangecheck.val]
+fn pad_rc_trace<F: RichField>(mut trace: Vec<InputColumnsView<F>>) -> Vec<InputColumnsView<F>> {
+    let len = trace[MAP.input.val]
         .into_iter()
         .len()
         .max(RANGE_CHECK_U16_SIZE)
         .next_power_of_two();
 
-    trace.resize(len, RangeCheckColumnsView {
+    trace.resize(len, InputColumnsView {
         cpu_filter: F::ZERO,
         // .. and all other columns just have their last value duplicated.
         ..*trace.last().unwrap()
@@ -45,13 +43,13 @@ fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
         F::from_canonical_u32(value & 0xffff),
     )
 }
-pub fn generate_rangecheck_trace_extended<F: RichField>(
+pub fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
-) -> RangeCheckColumnsExtended<Vec<F>> {
-    let mut rangecheck_trace = transpose_trace(generate_rangecheck_trace(cpu_trace));
-    let fixed = generate_fixed_trace(&mut rangecheck_trace);
+) -> RangeCheckColumnsView<Vec<F>> {
+    let mut input = transpose_trace(generate_input_trace(cpu_trace));
+    let fixed = generate_fixed_trace(&mut input);
 
-    chain!(rangecheck_trace, fixed).collect()
+    chain!(input, fixed).collect()
 }
 
 #[must_use]
@@ -59,7 +57,7 @@ pub fn generate_fixed_trace<F: RichField>(trace: &mut Vec<Vec<F>>) -> Vec<Vec<F>
     let mut fixed_trace: Vec<Vec<F>> =
         vec![vec![]; InnerLookupColumnsView::<()>::NUMBER_OF_COLUMNS];
 
-    let len = trace[MAP.rangecheck.val]
+    let len = trace[MAP.input.val]
         .len()
         .max(RANGE_CHECK_U16_SIZE)
         .next_power_of_two();
@@ -79,12 +77,12 @@ pub fn generate_fixed_trace<F: RichField>(trace: &mut Vec<Vec<F>>) -> Vec<Vec<F>
     fixed_trace[MAP.permuted.fixed_range_check_u16 - trace.len()]
         .resize(len, F::from_canonical_u64(u64::from(u16::MAX)));
 
-    trace[MAP.rangecheck.limb_lo].resize(len, F::ZERO);
+    trace[MAP.input.limb_lo].resize(len, F::ZERO);
 
     // This permutation is done in accordance to the [Halo2 lookup argument
     // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
     let (col_input_permuted, col_table_permuted) = permute_cols(
-        &trace[MAP.rangecheck.limb_lo],
+        &trace[MAP.input.limb_lo],
         &fixed_trace[MAP.permuted.fixed_range_check_u16 - trace.len()],
     );
 
@@ -93,7 +91,7 @@ pub fn generate_fixed_trace<F: RichField>(trace: &mut Vec<Vec<F>>) -> Vec<Vec<F>
     fixed_trace[MAP.permuted.fixed_range_check_u16_permuted_lo - trace.len()] = col_table_permuted;
 
     let (col_input_permuted, col_table_permuted) = permute_cols(
-        &trace[MAP.rangecheck.limb_hi],
+        &trace[MAP.input.limb_hi],
         &fixed_trace[MAP.permuted.fixed_range_check_u16 - trace.len()],
     );
 
@@ -104,7 +102,7 @@ pub fn generate_fixed_trace<F: RichField>(trace: &mut Vec<Vec<F>>) -> Vec<Vec<F>
     fixed_trace
 }
 
-/// Generates a trace table for range checks, used in building a
+/// Fill the trace table with inputs for range checks, used in building a
 /// `RangeCheckStark` proof.
 ///
 /// # Panics
@@ -113,18 +111,16 @@ pub fn generate_fixed_trace<F: RichField>(trace: &mut Vec<Vec<F>>) -> Vec<Vec<F>
 /// 1. conversion of `dst_val` from u32 to u16 fails when splitting into limbs,
 /// 2. trace width does not match the number of columns.
 #[must_use]
-pub fn generate_rangecheck_trace<F: RichField>(
-    cpu_trace: &[CpuState<F>],
-) -> Vec<RangeCheckColumnsView<F>> {
-    let mut trace: Vec<RangeCheckColumnsView<F>> = vec![];
+pub fn generate_input_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> Vec<InputColumnsView<F>> {
+    let mut trace: Vec<InputColumnsView<F>> = vec![];
 
     for cpu_row in cpu_trace {
         if cpu_row.inst.ops.add.is_one() {
             let val = u32::try_from(cpu_row.dst_value.to_canonical_u64())
-                .expect("casting COL_DST_VALUE to u32 should succeed");
+                .expect("casting dst value to u32 should succeed");
             let (limb_hi, limb_lo) = limbs_from_u32(val);
 
-            let row = RangeCheckColumnsView {
+            let row = InputColumnsView {
                 val: cpu_row.dst_value,
                 limb_hi,
                 limb_lo,
@@ -170,28 +166,28 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&program, &record.executed);
-        let trace = generate_rangecheck_trace_extended::<F>(&cpu_rows);
+        let trace = generate_rangecheck_trace::<F>(&cpu_rows);
 
         // Check values that we are interested in
-        assert_eq!(trace[MAP.rangecheck.cpu_filter][0], F::ONE);
-        assert_eq!(trace[MAP.rangecheck.cpu_filter][1], F::ONE);
-        assert_eq!(trace[MAP.rangecheck.val][0], GoldilocksField(0x0001_fffe));
-        assert_eq!(trace[MAP.rangecheck.val][1], GoldilocksField(93));
-        assert_eq!(trace[MAP.rangecheck.limb_hi][0], GoldilocksField(0x0001));
-        assert_eq!(trace[MAP.rangecheck.limb_lo][0], GoldilocksField(0xfffe));
-        assert_eq!(trace[MAP.rangecheck.limb_lo][1], GoldilocksField(93));
+        assert_eq!(trace[MAP.input.cpu_filter][0], F::ONE);
+        assert_eq!(trace[MAP.input.cpu_filter][1], F::ONE);
+        assert_eq!(trace[MAP.input.val][0], GoldilocksField(0x0001_fffe));
+        assert_eq!(trace[MAP.input.val][1], GoldilocksField(93));
+        assert_eq!(trace[MAP.input.limb_hi][0], GoldilocksField(0x0001));
+        assert_eq!(trace[MAP.input.limb_lo][0], GoldilocksField(0xfffe));
+        assert_eq!(trace[MAP.input.limb_lo][1], GoldilocksField(93));
 
         // Ensure rest of trace is zeroed out
-        for cpu_filter in &trace[MAP.rangecheck.cpu_filter][2..] {
+        for cpu_filter in &trace[MAP.input.cpu_filter][2..] {
             assert_eq!(cpu_filter, &F::ZERO);
         }
-        for value in &trace[MAP.rangecheck.val][2..] {
+        for value in &trace[MAP.input.val][2..] {
             assert_eq!(value, &from_u32::<F>(93));
         }
-        for limb_hi in &trace[MAP.rangecheck.limb_hi][1..] {
+        for limb_hi in &trace[MAP.input.limb_hi][1..] {
             assert_eq!(limb_hi, &F::ZERO);
         }
-        for limb_lo in &trace[MAP.rangecheck.limb_lo][2..] {
+        for limb_lo in &trace[MAP.input.limb_lo][2..] {
             assert_eq!(limb_lo, &from_u32::<F>(93));
         }
     }
