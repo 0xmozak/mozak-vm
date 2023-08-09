@@ -176,12 +176,14 @@ fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorV
     XorView { a, b, out: a ^ b }.map(from_u32)
 }
 
+// TODO:  a more elegant approach might be move them to the backend using logUp
+// or a similar method.
 #[must_use]
 pub fn generate_permuted_inst_trace<F: RichField>(
     trace: &[CpuState<F>],
     program_rom: &[ProgramColumnsView<F>],
 ) -> Vec<ProgramColumnsView<F>> {
-    let cpu_trace: Vec<_> = trace
+    let mut cpu_trace: Vec<_> = trace
         .iter()
         .filter(|row| row.halt == F::ZERO)
         .map(|row| row.inst)
@@ -204,10 +206,8 @@ pub fn generate_permuted_inst_trace<F: RichField>(
         .copied()
         .collect();
 
-    let mut result = cpu_trace.to_vec();
-    result.extend(unused_instructions);
-
-    result
+    cpu_trace.extend(unused_instructions);
+    cpu_trace
 }
 
 #[cfg(test)]
