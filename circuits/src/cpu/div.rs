@@ -32,7 +32,7 @@ pub(crate) fn constraints<P: PackedField>(
 
     // TODO(Matthias): this looks suspicious in the face of signed bit shifting
     // (SRA)
-    let q_sign = P::Scalar::from_noncanonical_i64(-2) * lv.op2_sign_bit + P::ONES;
+    let q_sign = P::ONES - lv.op2_sign_bit.doubles();
 
     // Watch out for sign!
     let q_inv = lv.divisor_inv;
