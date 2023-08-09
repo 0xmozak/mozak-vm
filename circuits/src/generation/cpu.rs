@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use itertools::EitherOrBoth::{Both, Left, Right};
+use itertools::EitherOrBoth::{self, Both, Left, Right};
 use itertools::{chain, merge_join_by};
 use mozak_vm::elf::Program;
 use mozak_vm::instruction::{Instruction, Op};
@@ -22,7 +22,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     cpu_trace: Vec<CpuState<F>>,
     program_trace: &[ProgramColumnsView<F>],
 ) -> CpuColumnsExtended<Vec<F>> {
-    let extended = generate_permuted_inst_trace(&cpu_trace, &program_trace);
+    let extended = generate_permuted_inst_trace(&cpu_trace, program_trace);
     let len = cpu_trace.len().max(extended.len()).next_power_of_two();
     let extended = pad_trace_with_default_to_len(extended, len);
     let cpu_trace = pad_trace_with_default_to_len(cpu_trace, len);
@@ -188,15 +188,15 @@ pub fn generate_permuted_inst_trace<F: RichField>(
             .cmp(&rom.inst.pc.to_noncanonical_u64())
     })
     .collect::<Vec<_>>();
-    trace.sort_by_key(|eob| eob.has_left());
+    trace.sort_by_key(EitherOrBoth::has_left);
     trace
         .into_iter()
-        .map(|x| match x {
+        .map(|row| match row {
             Left(inst) | Both(inst, _) => ProgramColumnsView {
-                filter: F::from_bool(x.has_right()),
+                filter: F::from_bool(row.has_right()),
                 inst: InstColumnsView::from(inst),
             },
-            Right(&x) => x,
+            Right(&inst_view) => inst_view,
         })
         .collect::<Vec<_>>()
 }

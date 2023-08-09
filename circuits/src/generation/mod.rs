@@ -19,6 +19,7 @@ use self::rangecheck::generate_rangecheck_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::stark::mozak_stark::NUM_TABLES;
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
+use crate::utils::pad_trace_with_default;
 
 #[must_use]
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
@@ -35,7 +36,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let rangecheck_trace = trace_to_poly_values(rangecheck_rows);
     let bitwise_trace = trace_rows_to_poly_values(bitwise_rows);
     let shift_amount_trace = trace_rows_to_poly_values(shift_amount_rows);
-    let program_trace = trace_rows_to_poly_values(program_rows);
+    let program_trace = trace_rows_to_poly_values(pad_trace_with_default(program_rows));
     [
         cpu_trace,
         rangecheck_trace,
