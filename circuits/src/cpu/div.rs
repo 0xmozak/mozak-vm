@@ -3,7 +3,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::bitwise::and_gadget;
-use super::columns::CpuColumnsView;
+use super::columns::CpuState;
 
 /// Constraints for DIVU / REMU / SRL instructions
 ///
@@ -12,10 +12,10 @@ use super::columns::CpuColumnsView;
 ///
 /// TODO: m, r, slack need range-checks.
 pub(crate) fn constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let shifted = CpuColumnsView::<P>::shifted;
+    let shifted = CpuState::<P>::shifted;
     let is_signed = lv.is_signed();
     let is_divu = lv.inst.ops.divu;
     let is_remu = lv.inst.ops.remu;
