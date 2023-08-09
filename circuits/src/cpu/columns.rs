@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 
@@ -8,10 +7,10 @@ use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 use crate::program::columns::ProgramColumnsView;
 
-columns_view_impl!(OpSelectorView);
+columns_view_impl!(OpSelectors);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct OpSelectorView<T> {
+pub struct OpSelectors<T> {
     pub add: T,
     pub sub: T,
     pub xor: T,
@@ -35,14 +34,14 @@ pub struct OpSelectorView<T> {
     pub ecall: T,
 }
 
-columns_view_impl!(InstructionView);
+columns_view_impl!(Instruction);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct InstructionView<T> {
+pub struct Instruction<T> {
     /// The original instruction (+ imm_value) used for program
     /// cross-table-lookup.
     pub pc: T,
 
-    pub ops: OpSelectorView<T>,
+    pub ops: OpSelectors<T>,
     pub rs1_select: [T; 32],
     pub rs2_select: [T; 32],
     pub rd_select: [T; 32],
@@ -50,12 +49,12 @@ pub struct InstructionView<T> {
     pub branch_target: T,
 }
 
-columns_view_impl!(CpuColumnsView);
+columns_view_impl!(CpuState);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct CpuColumnsView<T> {
+pub struct CpuState<T> {
     pub clk: T,
-    pub inst: InstructionView<T>,
+    pub inst: Instruction<T>,
 
     pub halt: T,
 
@@ -102,13 +101,13 @@ columns_view_impl!(CpuColumnsExtended);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct CpuColumnsExtended<T> {
-    pub cpu: CpuColumnsView<T>,
+    pub cpu: CpuState<T>,
     pub permuted: ProgramColumnsView<T>,
 }
 
-pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
+pub const NUM_CPU_COLS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 
-impl<T: PackedField> CpuColumnsView<T> {
+impl<T: PackedField> CpuState<T> {
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
 
@@ -163,7 +162,7 @@ pub(crate) fn filter_for_slt_rangecheck<F: Field>() -> Column<F> {
 /// Columns containing the data to be matched against XOR Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor).collect_vec() }
+pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor) }
 
 /// Column for a binary filter for bitwise instruction in Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -172,7 +171,7 @@ pub fn filter_for_bitwise<F: Field>() -> Column<F> {
     Column::many(MAP.cpu.inst.ops.ops_that_use_xor())
 }
 
-impl<T: Copy> OpSelectorView<T> {
+impl<T: Copy> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(&self) -> [T; 5] {
         // TODO: Add SRA, once we implement its constraints.
@@ -186,9 +185,7 @@ impl<T: Copy> OpSelectorView<T> {
 /// Columns containing the data to be matched against `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> {
-    Column::singles(MAP.cpu.bitshift).collect_vec()
-}
+pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.bitshift) }
 
 /// Column for a binary filter for shft instruction in `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -213,6 +210,4 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
 
 /// Columns containing the data of permuted instructions.
 #[must_use]
-pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> {
-    Column::singles(MAP.permuted.inst).collect_vec()
-}
+pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.permuted.inst) }

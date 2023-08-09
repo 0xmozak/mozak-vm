@@ -1,13 +1,13 @@
 use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::CpuColumnsView;
+use super::columns::CpuState;
 
 pub(crate) fn signed_constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let shifted = CpuColumnsView::<P>::shifted;
+    let shifted = CpuState::<P>::shifted;
     let is_signed = lv.is_signed();
 
     let sign1 = lv.op1_sign_bit;
@@ -25,7 +25,7 @@ pub(crate) fn signed_constraints<P: PackedField>(
 }
 
 pub(crate) fn slt_constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint((lv.inst.ops.slt + lv.inst.ops.sltu) * (lv.less_than - lv.dst_value));
