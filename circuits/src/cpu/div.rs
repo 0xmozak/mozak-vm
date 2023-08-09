@@ -17,7 +17,6 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     let dst = lv.dst_value;
     let shifted = CpuState::<P>::shifted;
-    let is_signed = lv.is_signed();
     let is_divu = lv.inst.ops.divu;
     let is_remu = lv.inst.ops.remu;
     let is_div = lv.inst.ops.div;
@@ -48,7 +47,7 @@ pub(crate) fn constraints<P: PackedField>(
 
     yield_constr.constraint((is_divu + is_remu) * (lv.divisor - q_raw));
     yield_constr.constraint(
-        (is_div + is_rem) * (lv.divisor - (lv.op2_val_fixed - is_signed * shifted(31))),
+        (is_div + is_rem) * (lv.divisor - lv.op2_full_range()),
     );
 
     // The following constraints are for SRL.
