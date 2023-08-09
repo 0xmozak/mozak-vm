@@ -34,10 +34,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     (chain!(transpose_trace(cpu_trace), transpose_trace(permuted))).collect()
 }
 
-pub fn generate_cpu_trace<F: RichField>(
-    program: &Program,
-    step_rows: &[Row],
-) -> Vec<CpuState<F>> {
+pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) -> Vec<CpuState<F>> {
     // let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; step_rows.len()];
     // cpu_cols::NUM_CPU_COLS];
     let mut trace: Vec<CpuState<F>> = vec![];

@@ -156,10 +156,7 @@ fn rd_actually_changes<P: PackedField>(
     });
 }
 
-fn populate_op1_value<P: PackedField>(
-    lv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
+fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
     yield_constr.constraint(
         lv.op1_value
             // Note: we could skip 0, because r0 is always 0.
@@ -172,10 +169,7 @@ fn populate_op1_value<P: PackedField>(
 
 /// `OP2_VALUE` is the sum of the value of the second operand register and the
 /// immediate value.
-fn populate_op2_value<P: PackedField>(
-    lv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
+fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
     yield_constr.constraint(
         lv.op2_value - lv.inst.imm_value
             // Note: we could skip 0, because r0 is always 0.
