@@ -11,12 +11,12 @@ runs:
     - name: Get rust version (via python3)
       run: |
           python3 -c "
+import re
 import sys
-for line in sys.stdin:
-    line = line.strip()
-    if line.startswith('channel ='):
-        ver = line.split('=')[1].strip().strip('\"')
-        print(f'RUST_VERSION={ver}')
+
+# Assumed the input to be of form {  channel = "nightly-2023-08-01"  }
+matches = re.findall(r'channel = \"(.*)\"', sys.stdin.read())
+print(f'RUST_VERSION={matches[0]}')
 " < rust-toolchain.toml >> $GITHUB_ENV
       shell: bash
 
