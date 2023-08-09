@@ -329,7 +329,6 @@ mod tests {
         .collect();
 
         let extended = generate_permuted_inst_trace(&cpu_trace, &program_trace);
-        // let extended = pad_permuted_inst_trace(&extended, &program_trace);
         let expected_extened: Vec<ProgramColumnsView<F>> = [
             ProgramColumnsView {
                 inst: InstColumnsView {
