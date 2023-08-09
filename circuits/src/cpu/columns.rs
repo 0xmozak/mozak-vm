@@ -122,7 +122,7 @@ impl<T: PackedField> CpuState<T> {
     /// So range is `i32::MIN..=u32::MAX`
     pub fn op1_full_range(&self) -> T { self.op1_value - self.op1_sign_bit * Self::shifted(32) }
 
-    /// Value of the first operand, as if converted to i64.
+    /// Value of the second operand, as if converted to i64.
     ///
     /// So range is `i32::MIN..=u32::MAX`
     pub fn op2_full_range(&self) -> T { self.op2_value - self.op2_sign_bit * Self::shifted(32) }
