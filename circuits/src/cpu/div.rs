@@ -19,9 +19,27 @@ pub(crate) fn constraints<P: PackedField>(
     let shifted = CpuState::<P>::shifted;
     let ops = lv.inst.ops;
 
+    // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
+    // > For both signed and unsigned division, it holds that dividend = divisor ×
+    // > quotient + remainder.
+    // In the following code, we are looking at p/q.
     // p,q are between i32::MIN .. u32::MAX
     let p = lv.op1_full_range();
     let q = lv.divisor;
+    yield_constr
+        .constraint((ops.div + ops.rem + ops.divu + ops.remu) * (q - lv.op2_full_range()));
+
+    // The following constraints are for SRL.
+    {
+        let and_gadget = and_gadget(&lv.xor);
+        yield_constr
+            .constraint(ops.srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
+        let op2 = lv.op2_value;
+        yield_constr.constraint(ops.srl * (and_gadget.input_b - op2));
+
+        yield_constr.constraint(ops.srl * (and_gadget.output - lv.bitshift.amount));
+        yield_constr.constraint(ops.srl * (q - lv.bitshift.multiplier));
+    }
 
     // TODO(Matthias): this looks suspicious in the face of signed bit shifting
     // (SRA)
@@ -39,27 +57,10 @@ pub(crate) fn constraints<P: PackedField>(
     // We only need rt column to range-check rt := q - r
     let rt = lv.remainder_abs_slack;
 
-    yield_constr
-        .constraint((ops.div + ops.rem + ops.divu + ops.remu) * (lv.divisor - lv.op2_full_range()));
-
-    // The following constraints are for SRL.
-    {
-        let and_gadget = and_gadget(&lv.xor);
-        yield_constr
-            .constraint(ops.srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
-        let op2 = lv.op2_value;
-        yield_constr.constraint(ops.srl * (and_gadget.input_b - op2));
-
-        yield_constr.constraint(ops.srl * (and_gadget.output - lv.bitshift.amount));
-        yield_constr.constraint(ops.srl * (q - lv.bitshift.multiplier));
-    }
-
-    // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
-    // > For both signed and unsigned division, it holds that dividend = divisor ×
-    // > quotient + remainder.
     // The equation from the spec becomes:
     //  p = q * m + r
     // (Interestingly, this holds even when q == 0.)
+    // TODO(Matthias): the above observation is from the spec, but why do we need to treat 0 special in the line below?
     // Constraints for denominator != 0:
     yield_constr.constraint(q * (m * q + r - p));
     // However, that constraint is not enough.
@@ -79,9 +80,9 @@ pub(crate) fn constraints<P: PackedField>(
     //      with range_check(slack)
     yield_constr.constraint(q * (r_abs + rt + P::ONES - q * q_sign));
 
-    // Constraints for denominator == 0.  On Risc-V:
-    // p / 0 == 0xFFFF_FFFF
-    // p % 0 == p
+    // Now we need to deal with division by zero.  The Risc-V spec says:
+    //      p / 0 == 0xFFFF_FFFF
+    //      p % 0 == p
     yield_constr.constraint((P::ONES - q * q_inv) * (m - P::Scalar::from_canonical_u32(u32::MAX)));
     yield_constr.constraint((P::ONES - q * q_inv) * (r - lv.op1_value));
 
