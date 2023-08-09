@@ -204,19 +204,20 @@ pub fn generate_permuted_inst_trace<F: RichField>(
 #[must_use]
 pub fn pad_permuted_inst_trace<F: RichField>(
     cpu_trace: &[ProgramColumnsView<F>],
-    program_trace: &[ProgramColumnsView<F>],
+    program_rom: &[ProgramColumnsView<F>],
 ) -> Vec<ProgramColumnsView<F>> {
     let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
 
-    // Filter program_trace to contain only the inst that are not in used_pcs
-    let unused_program_trace: Vec<_> = program_trace
+    // Filter program_rom to contain only instructions with the pc that are not in
+    // used_pcs
+    let unused_instructions: Vec<_> = program_rom
         .iter()
         .filter(|row| !used_pcs.contains(&row.inst.pc))
         .copied()
         .collect();
 
     let mut result = cpu_trace.to_vec();
-    result.extend(unused_program_trace);
+    result.extend(unused_instructions);
 
     result
 }
