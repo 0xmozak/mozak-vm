@@ -15,7 +15,7 @@ runs:
         use feature 'say';
         foreach my \$line ( <STDIN> ) {
             if (\$line =~ /channel = \"(.*)\"/) {
-                say \"RUST_VERSION=\\\"$1\\\"\";
+                say \"RUST_VERSION=\\\"\$1\\\"\";
                 exit 0
             }
         }
