@@ -169,12 +169,19 @@ fn generate_slt_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, sta
     row.op1_sign_bit = F::from_bool(sign1);
     row.op2_sign_bit = F::from_bool(sign2);
 
+    let op1_full_range = if is_signed {
+        op1 as i32 as i64
+    } else {
+        op1 as i64
+    };
+    let op2_full_range = if is_signed {
+        op2 as i32 as i64
+    } else {
+        op2 as i64
+    };
+    // row.op1_full_range()
     let sign_adjust = if is_signed { 1 << 31 } else { 0 };
-    let op1_fixed = op1.wrapping_add(sign_adjust);
-    let op2_fixed = op2.wrapping_add(sign_adjust);
-    row.op1_val_fixed = from_u32(op1_fixed);
-    row.op2_val_fixed = from_u32(op2_fixed);
-    row.less_than = from_u32(u32::from(op1_fixed < op2_fixed));
+    row.less_than = from_u32(u32::from(op1_full_range < op2_full_range));
 
     let abs_diff = if is_signed {
         (op1 as i32).abs_diff(op2 as i32)
@@ -182,6 +189,8 @@ fn generate_slt_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, sta
         op1.abs_diff(op2)
     };
     {
+        let op1_fixed = op1.wrapping_add(sign_adjust);
+        let op2_fixed = op2.wrapping_add(sign_adjust);
         if is_signed {
             assert_eq!(
                 i64::from(op1 as i32) - i64::from(op2 as i32),
@@ -195,9 +204,7 @@ fn generate_slt_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, sta
             );
         }
     }
-    let abs_diff_fixed: u32 = op1_fixed.abs_diff(op2_fixed);
-    assert_eq!(abs_diff, abs_diff_fixed);
-    row.abs_diff = from_u32(abs_diff_fixed);
+    row.abs_diff = from_u32(abs_diff);
 }
 
 fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {

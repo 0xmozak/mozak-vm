@@ -1,5 +1,5 @@
 use core::iter::Sum;
-use core::ops::{Add, Mul};
+use core::ops::{Add, Mul, Neg, Sub};
 use std::borrow::Borrow;
 
 use itertools::{EitherOrBoth, Itertools};
@@ -11,11 +11,32 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
+pub trait Linear:
+    'static
+    + Add<Self, Output = Self>
+    + Add<Self::Scalar, Output = Self>
+    + Mul<Self::Scalar, Output = Self>
+    + Clone
+    + Neg<Output = Self>
+    + Sub<Self, Output = Self>
+    + Sub<Self::Scalar, Output = Self>
+    + Sum {
+    type Scalar: Field;
+}
+
 /// Represent a linear combination of columns.
 #[derive(Clone, Debug, Default)]
 pub struct Column<F: Field> {
     linear_combination: Vec<(usize, F)>,
     constant: F,
+}
+
+impl<F: Field> Linear for Column<F> {
+    type Scalar = F;
+}
+
+impl<P: PackedField> Linear for P {
+    type Scalar = P::Scalar;
 }
 
 impl<F: Field> Add<Self> for Column<F> {
@@ -59,6 +80,40 @@ impl<F: Field> Add<F> for Column<F> {
         Self {
             linear_combination: self.linear_combination,
             constant: self.constant + constant,
+        }
+    }
+}
+
+impl<F: Field> Sub<Self> for Column<F> {
+    type Output = Self;
+
+    #[allow(clippy::similar_names)]
+    fn sub(self, rhs: Self) -> Self { self + rhs * F::NEG_ONE }
+}
+
+impl<F: Field> Sub<F> for Column<F> {
+    type Output = Self;
+
+    fn sub(self, constant: F) -> Self {
+        Self {
+            linear_combination: self.linear_combination,
+            constant: self.constant - constant,
+        }
+    }
+}
+
+impl<F: Field> Neg for Column<F> {
+    type Output = Self;
+
+    #[allow(clippy::similar_names)]
+    fn neg(self) -> Self {
+        Self {
+            linear_combination: self
+                .linear_combination
+                .into_iter()
+                .map(|(idx, val)| (idx, -val))
+                .collect(),
+            constant: -self.constant,
         }
     }
 }

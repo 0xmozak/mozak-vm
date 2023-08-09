@@ -1,10 +1,10 @@
-use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 
 use crate::bitshift::columns::Bitshift;
 use crate::bitwise::columns::XorView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
+use crate::linear_combination::Linear;
 use crate::program::columns::ProgramColumnsView;
 
 columns_view_impl!(OpSelectors);
@@ -68,10 +68,6 @@ pub struct CpuState<T> {
     pub op1_sign_bit: T,
     pub op2_sign_bit: T,
     // TODO: range check
-    pub op1_val_fixed: T,
-    // TODO: range check
-    pub op2_val_fixed: T,
-    // TODO: range check
     pub abs_diff: T,
     pub cmp_diff_inv: T,
     pub less_than: T,
@@ -94,6 +90,11 @@ pub struct CpuState<T> {
     pub product_low_bits: T,
     pub product_high_bits: T,
     pub product_high_diff_inv: T,
+    // // TODO: remove:
+    // pub op1_val_fixed: T,
+    // // TODO: range check
+    // pub op2_val_fixed: T,
+    // // TODO: range check
 }
 
 make_col_map!(CpuColumnsExtended);
@@ -107,25 +108,43 @@ pub struct CpuColumnsExtended<T> {
 
 pub const NUM_CPU_COLS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 
-impl<T: PackedField> CpuState<T> {
+impl<T: Linear> CpuState<T> {
+    pub fn op_diff(&self) -> T { self.op1_value.clone() - self.op2_value.clone() }
+
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
 
-    pub fn op_diff(&self) -> T { self.op1_value - self.op2_value }
-
     // TODO(Matthias): unify where we specify `is_signed` for constraints and trace
     // generation. Also, later, take mixed sign (for MULHSU) into account.
-    pub fn is_signed(&self) -> T { self.inst.ops.slt + self.inst.ops.bge + self.inst.ops.blt }
+    pub fn is_signed(&self) -> T {
+        self.inst.ops.slt.clone() + self.inst.ops.bge.clone() + self.inst.ops.blt.clone()
+    }
 
     /// Value of the first operand, as if converted to i64.
     ///
     /// So range is `i32::MIN..=u32::MAX`
-    pub fn op1_full_range(&self) -> T { self.op1_value - self.op1_sign_bit * Self::shifted(32) }
+    pub fn op1_full_range(&self) -> T {
+        self.op1_value.clone() - self.op1_sign_bit.clone() * Self::shifted(32)
+    }
 
     /// Value of the first operand, as if converted to i64.
     ///
     /// So range is `i32::MIN..=u32::MAX`
-    pub fn op2_full_range(&self) -> T { self.op2_value - self.op2_sign_bit * Self::shifted(32) }
+    pub fn op2_full_range(&self) -> T {
+        self.op2_value.clone() - self.op2_sign_bit.clone() * Self::shifted(32)
+    }
+
+    // Just for range check.
+    // TODO: range check
+    pub fn op1_val_fixed(&self) -> T {
+        self.op1_full_range() + self.is_signed() * Self::shifted(31)
+    }
+
+    // Just for range check.
+    // TODO: range check
+    pub fn op2_val_fixed(&self) -> T {
+        self.op2_full_range() + self.is_signed() * Self::shifted(31)
+    }
 
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
@@ -139,6 +158,13 @@ pub fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MAP.cpu.i
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> { Column::singles([MAP.cpu.dst_value]) }
+
+#[must_use]
+pub fn placeholder_data_for_rangecheck<F: Field>() -> Vec<Column<F>> {
+    let cpu = MAP.cpu.map(Column::from);
+    vec![cpu.op1_val_fixed(), cpu.op2_val_fixed()]
+    // Column::singles([MAP.cpu.dst_value])
+}
 
 /// Columns containing the data to be matched against XOR Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).

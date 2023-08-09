@@ -18,9 +18,9 @@ pub(crate) fn signed_constraints<P: PackedField>(
     let op1 = lv.op1_value;
     let op2 = lv.op2_value;
     // TODO: range check
-    let op1_fixed = lv.op1_val_fixed;
+    let op1_fixed = lv.op1_val_fixed();
     // TODO: range check
-    let op2_fixed = lv.op2_val_fixed;
+    let op2_fixed = lv.op2_val_fixed();
 
     yield_constr.constraint(op1_fixed - (op1 + is_signed * shifted(31) - sign1 * shifted(32)));
     yield_constr.constraint(op2_fixed - (op2 + is_signed * shifted(31) - sign2 * shifted(32)));
