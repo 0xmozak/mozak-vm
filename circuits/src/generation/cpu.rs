@@ -13,21 +13,21 @@ use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuColumnsView};
 use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 use crate::stark::utils::transpose_trace;
-use crate::utils::{from_u32, pad_trace_with_default_with_len, pad_trace_with_last_with_len};
+use crate::utils::{from_u32, pad_trace_with_last_with_len};
 
 #[allow(clippy::missing_panics_doc)]
 #[must_use]
 pub fn generate_cpu_trace_extended<F: RichField>(
     mut cpu_trace: Vec<CpuColumnsView<F>>,
-    program_trace: Vec<ProgramColumnsView<F>>,
+    program_trace: &Vec<ProgramColumnsView<F>>,
 ) -> CpuColumnsExtended<Vec<F>> {
     let permuted = generate_permuted_inst_trace(&cpu_trace);
-    let mut extended = pad_permuted_inst_trace(&permuted, program_trace);
+    let mut extended = pad_permuted_inst_trace(&permuted, &program_trace);
     let len = std::cmp::max(cpu_trace.len(), extended.len()).next_power_of_two();
     let ori_len = extended.len();
     extended = pad_trace_with_last_with_len(extended, len);
-    for i in ori_len..len {
-        extended[i].filter = F::ZERO;
+    for entry in extended.iter_mut().skip(ori_len) {
+        entry.filter = F::ZERO;
     }
     cpu_trace = pad_trace_with_last_with_len(cpu_trace, len);
 
@@ -232,15 +232,15 @@ pub fn generate_permuted_inst_trace<F: RichField>(
 #[must_use]
 pub fn pad_permuted_inst_trace<F: RichField>(
     cpu_trace: &[ProgramColumnsView<F>],
-    program_trace: Vec<ProgramColumnsView<F>>,
+    program_trace: &Vec<ProgramColumnsView<F>>,
 ) -> Vec<ProgramColumnsView<F>> {
     let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
 
     // Filter program_trace to contain only the inst that are not in used_pcs
     let unused_program_trace: Vec<_> = program_trace
-        .clone()
-        .drain(..)
+        .iter()
         .filter(|row| !used_pcs.contains(&row.inst.pc))
+        .cloned()
         .collect();
 
     let mut result = cpu_trace.to_vec();
@@ -260,6 +260,7 @@ mod tests {
     use crate::utils::from_u32;
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn test_pad_permuted_inst_trace() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -378,7 +379,7 @@ mod tests {
         .collect();
 
         let extended = generate_permuted_inst_trace(&cpu_trace);
-        let extended = pad_permuted_inst_trace(&extended, program_trace);
+        let extended = pad_permuted_inst_trace(&extended, &program_trace);
         let expected_extened: Vec<ProgramColumnsView<F>> = [
             ProgramColumnsView {
                 inst: InstColumnsView {

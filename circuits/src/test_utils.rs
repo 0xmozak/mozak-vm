@@ -75,7 +75,7 @@ impl ProveAndVerify for CpuStark<F, D> {
         let stark = S::default();
         let trace_poly_values = trace_to_poly_values(generate_cpu_trace_extended(
             generate_cpu_trace(program, step_rows),
-            generate_program_rom_trace(program),
+            &generate_program_rom_trace(program),
         ));
         let proof = prove_table::<F, C, S, D>(
             stark,

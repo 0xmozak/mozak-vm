@@ -22,6 +22,7 @@ pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
 }
 
 #[must_use]
+#[allow(clippy::missing_panics_doc)]
 pub fn pad_trace_with_last_with_len<Row: Default + Clone>(
     mut trace: Vec<Row>,
     len: usize,
