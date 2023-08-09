@@ -39,6 +39,8 @@ pub struct Aux {
     pub new_pc: u32,
     pub mem_addr: Option<u32>,
     pub will_halt: bool,
+    pub op1: u32,
+    pub op2: u32,
 }
 
 impl State {
