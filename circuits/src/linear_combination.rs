@@ -85,7 +85,12 @@ impl<F: Field> Sum<Column<F>> for Column<F> {
     }
 }
 
-// TODO: implement other traits like Sub, MulAssign, Sum etc as we need them.
+impl<F: Field> Sum<usize> for Column<F> {
+    #[inline]
+    fn sum<I: Iterator<Item = usize>>(iter: I) -> Self { iter.map(Self::from).sum() }
+}
+
+// TODO: implement other traits like Sub, MulAssign, etc as we need them.
 
 impl<F: Field> From<usize> for Column<F> {
     fn from(idx: usize) -> Self {
@@ -108,10 +113,10 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn single(idx: usize) -> Self { idx.into() }
 
-    pub fn singles<I: IntoIterator<Item = impl Borrow<usize>>>(
-        cs: I,
-    ) -> impl Iterator<Item = Self> {
-        cs.into_iter().map(|c| Self::single(*c.borrow()))
+    pub fn singles<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Vec<Self> {
+        cs.into_iter()
+            .map(|c| Self::single(*c.borrow()))
+            .collect_vec()
     }
 
     #[must_use]

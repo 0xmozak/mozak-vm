@@ -300,7 +300,6 @@ mod tests {
     use std::ops::Deref;
 
     use anyhow::Result;
-    use itertools::Itertools;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::polynomial::PolynomialValues;
 
@@ -344,7 +343,7 @@ mod tests {
 
     /// Specify which column(s) to find data related to lookups.
     fn lookup_data<F: Field>(col_indices: &[usize]) -> Vec<Column<F>> {
-        Column::singles(col_indices).collect_vec()
+        Column::singles(col_indices)
     }
 
     /// Specify the column index of the filter column used in lookups.
