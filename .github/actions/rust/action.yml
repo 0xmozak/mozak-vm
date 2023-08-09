@@ -8,7 +8,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Get rust version (via python3)
+    - name: Get rust version
       run: |
         cat rust-toolchain.toml | perl -e "
 
