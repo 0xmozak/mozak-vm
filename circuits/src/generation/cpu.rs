@@ -13,23 +13,23 @@ use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
 use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 use crate::stark::utils::transpose_trace;
-use crate::utils::{from_u32, pad_trace_with_last_with_len};
+use crate::utils::{from_u32, pad_trace_with_last_to_len};
 
 #[allow(clippy::missing_panics_doc)]
 #[must_use]
 pub fn generate_cpu_trace_extended<F: RichField>(
     mut cpu_trace: Vec<CpuState<F>>,
-    program_trace: &[ProgramColumnsView<F>],
+    program_rom: &[ProgramColumnsView<F>],
 ) -> CpuColumnsExtended<Vec<F>> {
     let permuted = generate_permuted_inst_trace(&cpu_trace);
-    let mut extended = pad_permuted_inst_trace(&permuted, program_trace);
+    let mut extended = pad_permuted_inst_trace(&permuted, program_rom);
     let len = std::cmp::max(cpu_trace.len(), extended.len()).next_power_of_two();
     let ori_len = extended.len();
-    extended = pad_trace_with_last_with_len(extended, len);
+    extended = pad_trace_with_last_to_len(extended, len);
     for entry in extended.iter_mut().skip(ori_len) {
         entry.filter = F::ZERO;
     }
-    cpu_trace = pad_trace_with_last_with_len(cpu_trace, len);
+    cpu_trace = pad_trace_with_last_to_len(cpu_trace, len);
 
     (chain!(transpose_trace(cpu_trace), transpose_trace(extended))).collect()
 }
@@ -198,19 +198,20 @@ pub fn generate_permuted_inst_trace<F: RichField>(
 #[must_use]
 pub fn pad_permuted_inst_trace<F: RichField>(
     cpu_trace: &[ProgramColumnsView<F>],
-    program_trace: &[ProgramColumnsView<F>],
+    program_rom: &[ProgramColumnsView<F>],
 ) -> Vec<ProgramColumnsView<F>> {
     let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
 
-    // Filter program_trace to contain only the inst that are not in used_pcs
-    let unused_program_trace: Vec<_> = program_trace
+    // Filter program_rom to contain only instructions with the pc that are not in
+    // used_pcs
+    let unused_instructions: Vec<_> = program_rom
         .iter()
         .filter(|row| !used_pcs.contains(&row.inst.pc))
         .copied()
         .collect();
 
     let mut result = cpu_trace.to_vec();
-    result.extend(unused_program_trace);
+    result.extend(unused_instructions);
 
     result
 }
