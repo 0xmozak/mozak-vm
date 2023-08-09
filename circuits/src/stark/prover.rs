@@ -27,6 +27,7 @@ use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
+use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::permutation::{
     compute_permutation_z_polys, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
@@ -49,6 +50,7 @@ where
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
+    [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, step_rows);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
@@ -75,6 +77,7 @@ where
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
+    [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
@@ -345,6 +348,7 @@ where
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
+    [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
@@ -385,11 +389,23 @@ where
         challenger,
         timing,
     )?;
+
+    let program_proof = prove_single_table::<F, C, ProgramStark<F, D>, D>(
+        &mozak_stark.program_stark,
+        config,
+        &traces_poly_values[TableKind::Program as usize],
+        &trace_commitments[TableKind::Program as usize],
+        &ctl_data_per_table[TableKind::Program as usize],
+        challenger,
+        timing,
+    )?;
+
     Ok([
         cpu_proof,
         rangecheck_proof,
         bitwise_proof,
         shift_amount_proof,
+        program_proof,
     ])
 }
 

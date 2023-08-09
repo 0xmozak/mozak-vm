@@ -1,6 +1,6 @@
 use plonky2::hash::hash_types::RichField;
 
-use crate::cpu::columns::CpuColumnsView;
+use crate::cpu::columns::CpuState;
 use crate::lookup::permute_cols;
 use crate::rangecheck::columns;
 use crate::rangecheck::columns::MAP;
@@ -51,7 +51,7 @@ fn push_rangecheck_row<F: RichField>(
 /// 2. trace width does not match the number of columns.
 #[must_use]
 pub fn generate_rangecheck_trace<F: RichField>(
-    cpu_trace: &[CpuColumnsView<F>],
+    cpu_trace: &[CpuState<F>],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
 

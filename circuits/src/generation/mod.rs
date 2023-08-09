@@ -17,13 +17,14 @@ use starky::vars::StarkEvaluationVars;
 
 use self::bitshift::generate_shift_amount_trace;
 use self::bitwise::generate_bitwise_trace;
-use self::cpu::generate_cpu_trace;
+use self::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
 use self::rangecheck::generate_rangecheck_trace;
 use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
+use crate::generation::program::generate_program_rom_trace;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::stark::mozak_stark::{MozakStark, NUM_TABLES};
+use crate::stark::mozak_stark::{MozakStark, NUM_TABLES, NUM_TABLES};
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 
 #[must_use]
@@ -40,11 +41,15 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let rangecheck_trace = trace_to_poly_values(rangecheck_rows);
     let bitwise_trace = trace_rows_to_poly_values(bitwise_rows);
     let shift_amount_trace = trace_rows_to_poly_values(shift_amount_rows);
+    let program_trace = trace_rows_to_poly_values(generate_program_rom_trace(program, &cpu_rows));
+
+    let cpu_trace = trace_to_poly_values(generate_cpu_trace_extended(cpu_rows));
     [
         cpu_trace,
         rangecheck_trace,
         bitwise_trace,
         shift_amount_trace,
+        program_trace,
     ]
 }
 #[allow(clippy::needless_for_each)]
