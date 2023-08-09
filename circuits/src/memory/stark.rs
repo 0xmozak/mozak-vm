@@ -36,26 +36,27 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         let local_new_addr = lv.mem_diff_addr * lv.mem_diff_addr_inv;
         let next_new_addr = nv.mem_diff_addr * nv.mem_diff_addr_inv;
+
+        // Check: first instruction is SB, store location is != 0.
+        // Clock difference is initiated as 0, mem_diff_addr is initiated as mem_addr.
         yield_constr.constraint_first_row(lv.mem_op - FE::from_canonical_usize(OPCODE_SB));
         yield_constr.constraint_first_row(lv.mem_diff_addr - lv.mem_addr);
         yield_constr.constraint_first_row(local_new_addr - P::ONES);
         yield_constr.constraint_first_row(lv.mem_diff_clk);
 
-        // lv.MEM_PADDING is {0, 1}
+        // Check: MEM_PADDING and MEM_OP are binary.
         yield_constr.constraint(lv.mem_padding * (lv.mem_padding - P::ONES));
-
-        // lv.MEM_OP in {0, 1}
         yield_constr.constraint(lv.mem_op * (lv.mem_op - P::ONES));
 
-        // a) if new_addr: op === sb
+        // a) if new_addr == 0: op === sb
         yield_constr.constraint(local_new_addr * (lv.mem_op - FE::from_canonical_usize(OPCODE_SB)));
 
-        // b) if not new_addr: diff_clk_next <== clk_next - clk_cur
+        // b) if new_addr != 0: diff_clk_next <== clk_next - clk_cur
         yield_constr.constraint_transition(
             (nv.mem_diff_clk - nv.mem_clk + lv.mem_clk) * (next_new_addr - P::ONES),
         );
 
-        // c) if new_addr: diff_clk === 0
+        // c) if new_addr == 0: diff_clk === 0
         yield_constr.constraint(local_new_addr * lv.mem_diff_clk);
 
         // d) diff_addr_next <== addr_next - addr_cur

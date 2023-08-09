@@ -70,6 +70,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
             MAP.limb_hi_permuted,
             MAP.fixed_range_check_u16_permuted_hi,
         );
+        // Check: The fixed_range_check_u16 rows have values starting from 0 to
+        // u16::MAX.
         yield_constr.constraint_first_row(lv.fixed_range_check_u16);
         yield_constr.constraint_transition(
             (nv.fixed_range_check_u16 - lv.fixed_range_check_u16 - FE::ONE)

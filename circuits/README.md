@@ -19,3 +19,7 @@ Two, for simplicity we just make certain parts of our circuits always do their t
 However, we can change that later, if something else turns out to be simpler, or if we find via benchmarking that another approach offers a big enough speed up to change.
 (I suspect for gadgets that are internal to the table, turning them off when not in use won't increase our speed. But eg reducing the number of rows we have to raincheck or do a cross table lookup on might help with performance.
 But that's just speculation. And until we run some comparative benchmarks, we go by whatever is simplest and easiest to understand.)
+
+## Lookups
+
+To integrate lookups, we had to fork some of the Stark code, stored in the `stark` module. Some of the files were copied from the oryginal plonky2, in particular ...
