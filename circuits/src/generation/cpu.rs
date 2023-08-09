@@ -24,7 +24,11 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     let permuted = generate_permuted_inst_trace(&cpu_trace);
     let mut extended = pad_permuted_inst_trace(&permuted, program_trace);
     let len = std::cmp::max(cpu_trace.len(), extended.len()).next_power_of_two();
-    extended = pad_trace_with_default_with_len(extended, len);
+    let ori_len = extended.len();
+    extended = pad_trace_with_last_with_len(extended, len);
+    for i in ori_len..len {
+        extended[i].filter = F::ZERO;
+    }
     cpu_trace = pad_trace_with_last_with_len(cpu_trace, len);
 
     (chain!(transpose_trace(cpu_trace), transpose_trace(extended))).collect()
@@ -239,7 +243,6 @@ pub fn pad_permuted_inst_trace<F: RichField>(
         .filter(|row| !used_pcs.contains(&row.inst.pc))
         .collect();
 
-    // Append cpu_trace with new_program_trace
     let mut result = cpu_trace.to_vec();
     result.extend(unused_program_trace);
 
