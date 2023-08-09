@@ -22,7 +22,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     program_trace: &Vec<ProgramColumnsView<F>>,
 ) -> CpuColumnsExtended<Vec<F>> {
     let permuted = generate_permuted_inst_trace(&cpu_trace);
-    let mut extended = pad_permuted_inst_trace(&permuted, &program_trace);
+    let mut extended = pad_permuted_inst_trace(&permuted, program_trace);
     let len = std::cmp::max(cpu_trace.len(), extended.len()).next_power_of_two();
     let ori_len = extended.len();
     extended = pad_trace_with_last_with_len(extended, len);
@@ -232,7 +232,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
 #[must_use]
 pub fn pad_permuted_inst_trace<F: RichField>(
     cpu_trace: &[ProgramColumnsView<F>],
-    program_trace: &Vec<ProgramColumnsView<F>>,
+    program_trace: &[ProgramColumnsView<F>],
 ) -> Vec<ProgramColumnsView<F>> {
     let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
 
@@ -240,7 +240,7 @@ pub fn pad_permuted_inst_trace<F: RichField>(
     let unused_program_trace: Vec<_> = program_trace
         .iter()
         .filter(|row| !used_pcs.contains(&row.inst.pc))
-        .cloned()
+        .copied()
         .collect();
 
     let mut result = cpu_trace.to_vec();
