@@ -114,9 +114,7 @@ impl<F: Field> Column<F> {
     pub fn single(idx: usize) -> Self { idx.into() }
 
     pub fn singles<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Vec<Self> {
-        cs.into_iter()
-            .map(|c| Self::single(*c.borrow()))
-            .collect_vec()
+        cs.into_iter().map(|c| Self::single(*c.borrow())).collect()
     }
 
     #[must_use]
@@ -126,7 +124,7 @@ impl<F: Field> Column<F> {
                 .into_iter()
                 .enumerate()
                 .map(|(i, c)| (*c.borrow(), F::from_canonical_usize(i)))
-                .collect_vec(),
+                .collect(),
             constant: F::ZERO,
         }
     }
