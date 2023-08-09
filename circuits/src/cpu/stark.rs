@@ -23,6 +23,8 @@ pub struct CpuStark<F, const D: usize> {
 }
 
 impl<P: Copy + core::ops::Add<Output = P>> OpSelectors<P> {
+    // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
+    // PC. It sort-of jumps back to itself.
     fn is_straightline(&self) -> P {
         self.add
             + self.sub

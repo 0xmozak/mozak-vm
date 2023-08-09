@@ -56,7 +56,8 @@ pub struct CpuState<T> {
     pub clk: T,
     pub inst: Instruction<T>,
 
-    // Represents the end of the program. Also used as the filter column for cross checking Program ROM instructions.
+    // Represents the end of the program. Also used as the filter column for cross checking Program
+    // ROM instructions.
     pub halt: T,
 
     pub op1_value: T,

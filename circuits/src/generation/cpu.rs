@@ -33,6 +33,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     (chain!(transpose_trace(cpu_trace), transpose_trace(permuted))).collect()
 }
 
+#[allow(clippy::missing_panics_doc)]
 pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) -> Vec<CpuState<F>> {
     // let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; step_rows.len()];
     // cpu_cols::NUM_CPU_COLS];
@@ -70,9 +71,9 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
         trace.push(row);
 
         if aux.will_halt {
-            let mut last_row = trace.last().unwrap().clone();
+            let mut last_row = *trace.last().unwrap();
             last_row.halt = F::ONE;
-            last_row.clk = last_row.clk + F::ONE;
+            last_row.clk += F::ONE;
             trace.push(last_row);
             break;
         }
