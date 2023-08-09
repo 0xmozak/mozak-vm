@@ -13,18 +13,7 @@ use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuColumnsView};
 use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 use crate::stark::utils::transpose_trace;
-use crate::utils::{from_u32, pad_trace_with_default_with_len};
-
-/// Pad the trace to a power of 2.
-///
-/// # Panics
-/// There's an assert that makes sure all columns passed in have the same
-/// length.
-#[must_use]
-pub fn pad_trace<F: RichField>(mut trace: Vec<CpuColumnsView<F>>) -> Vec<CpuColumnsView<F>> {
-    trace.resize(trace.len().next_power_of_two(), *trace.last().unwrap());
-    trace
-}
+use crate::utils::{from_u32, pad_trace_with_default_with_len, pad_trace_with_last_with_len};
 
 #[allow(clippy::missing_panics_doc)]
 #[must_use]
@@ -32,15 +21,11 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     mut cpu_trace: Vec<CpuColumnsView<F>>,
     program_trace: Vec<ProgramColumnsView<F>>,
 ) -> CpuColumnsExtended<Vec<F>> {
-    dbg!(cpu_trace.clone());
-    dbg!(program_trace.clone());
     let permuted = generate_permuted_inst_trace(&cpu_trace);
     let mut extended = pad_permuted_inst_trace(&permuted, program_trace);
     let len = std::cmp::max(cpu_trace.len(), extended.len()).next_power_of_two();
     extended = pad_trace_with_default_with_len(extended, len);
-    cpu_trace = pad_trace_with_default_with_len(cpu_trace, len);
-    dbg!(cpu_trace.clone());
-    dbg!(extended.clone());
+    cpu_trace = pad_trace_with_last_with_len(cpu_trace, len);
 
     (chain!(transpose_trace(cpu_trace), transpose_trace(extended))).collect()
 }
@@ -89,10 +74,6 @@ pub fn generate_cpu_trace<F: RichField>(
         generate_conditional_branch_row(&mut row);
         trace.push(row);
     }
-
-    // For expanded trace from `trace_len` to `trace_len's power of two`,
-    // we use last row `HALT` to pad them.
-    let trace = pad_trace(trace);
 
     log::trace!("trace {:?}", trace);
     trace
