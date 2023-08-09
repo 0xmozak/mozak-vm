@@ -21,17 +21,16 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     mut cpu_trace: Vec<CpuState<F>>,
     program_rom: &[ProgramColumnsView<F>],
 ) -> CpuColumnsExtended<Vec<F>> {
-    let permuted = generate_permuted_inst_trace(&cpu_trace);
-    let mut extended = pad_permuted_inst_trace(&permuted, program_rom);
-    let len = std::cmp::max(cpu_trace.len(), extended.len()).next_power_of_two();
-    let ori_len = extended.len();
-    extended = pad_trace_with_last_to_len(extended, len);
-    for entry in extended.iter_mut().skip(ori_len) {
+    let mut permuted = generate_permuted_inst_trace(&cpu_trace, program_rom);
+    let len = cpu_trace.len().max(permuted.len()).next_power_of_two();
+    let ori_len = permuted.len();
+    permuted = pad_trace_with_last_to_len(permuted, len);
+    for entry in permuted.iter_mut().skip(ori_len) {
         entry.filter = F::ZERO;
     }
     cpu_trace = pad_trace_with_last_to_len(cpu_trace, len);
 
-    (chain!(transpose_trace(cpu_trace), transpose_trace(extended))).collect()
+    (chain!(transpose_trace(cpu_trace), transpose_trace(permuted))).collect()
 }
 
 pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) -> Vec<CpuState<F>> {
@@ -180,8 +179,9 @@ fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorV
 #[must_use]
 pub fn generate_permuted_inst_trace<F: RichField>(
     trace: &[CpuState<F>],
+    program_rom: &[ProgramColumnsView<F>],
 ) -> Vec<ProgramColumnsView<F>> {
-    trace
+    let cpu_trace: Vec<_> = trace
         .iter()
         .filter(|row| row.halt == F::ZERO)
         .map(|row| row.inst)
@@ -192,14 +192,8 @@ pub fn generate_permuted_inst_trace<F: RichField>(
                 inst: InstColumnsView::from(inst),
             })
         })
-        .collect()
-}
+        .collect();
 
-#[must_use]
-pub fn pad_permuted_inst_trace<F: RichField>(
-    cpu_trace: &[ProgramColumnsView<F>],
-    program_rom: &[ProgramColumnsView<F>],
-) -> Vec<ProgramColumnsView<F>> {
     let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
 
     // Filter program_rom to contain only instructions with the pc that are not in
@@ -222,13 +216,13 @@ mod tests {
 
     use crate::columns_view::selection;
     use crate::cpu::columns::{CpuState, Instruction};
-    use crate::generation::cpu::{generate_permuted_inst_trace, pad_permuted_inst_trace};
+    use crate::generation::cpu::generate_permuted_inst_trace;
     use crate::program::columns::{InstColumnsView, ProgramColumnsView};
     use crate::utils::from_u32;
 
     #[test]
     #[allow(clippy::too_many_lines)]
-    fn test_pad_permuted_inst_trace() {
+    fn test_permuted_inst_trace() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
@@ -345,9 +339,8 @@ mod tests {
         .map(|row| row.map(from_u32))
         .collect();
 
-        let extended = generate_permuted_inst_trace(&cpu_trace);
-        let extended = pad_permuted_inst_trace(&extended, &program_trace);
-        let expected_extened: Vec<ProgramColumnsView<F>> = [
+        let permuted = generate_permuted_inst_trace(&cpu_trace, &program_trace);
+        let expected_permuted: Vec<ProgramColumnsView<F>> = [
             ProgramColumnsView {
                 inst: InstColumnsView {
                     pc: 1,
@@ -396,6 +389,6 @@ mod tests {
         .into_iter()
         .map(|row| row.map(from_u32))
         .collect();
-        assert_eq!(extended, expected_extened);
+        assert_eq!(permuted, expected_permuted);
     }
 }
