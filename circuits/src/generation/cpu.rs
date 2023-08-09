@@ -12,7 +12,7 @@ use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
 use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 use crate::stark::utils::transpose_trace;
-use crate::utils::{from_u32, pad_trace_with_default_to_len};
+use crate::utils::{from_u32, pad_trace_with_default_to_len, pad_trace_with_last_to_len};
 
 #[allow(clippy::missing_panics_doc)]
 #[must_use]
@@ -23,7 +23,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     let extended = generate_permuted_inst_trace(&cpu_trace, program_trace);
     let len = cpu_trace.len().max(extended.len()).next_power_of_two();
     let extended = pad_trace_with_default_to_len(extended, len);
-    let cpu_trace = pad_trace_with_default_to_len(cpu_trace, len);
+    let cpu_trace = pad_trace_with_last_to_len(cpu_trace, len);
 
     (chain!(transpose_trace(cpu_trace), transpose_trace(extended))).collect()
 }
