@@ -1,7 +1,7 @@
 use itertools::{chain, Itertools};
 use mozak_vm::elf::Program;
 use mozak_vm::instruction::{Instruction, Op};
-use mozak_vm::state::State;
+use mozak_vm::state::{Aux, State};
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
@@ -44,14 +44,10 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
             inst: cpu_cols::Instruction::from((state.get_pc(), inst)).map(from_u32),
-            op1_value: from_u32(state.get_register_value(inst.args.rs1)),
+            op1_value: from_u32(aux.op1),
             // OP2_VALUE is the sum of the value of the second operand register and the
             // immediate value.
-            op2_value: from_u32(
-                state
-                    .get_register_value(inst.args.rs2)
-                    .wrapping_add(inst.args.imm),
-            ),
+            op2_value: from_u32(aux.op2),
             // NOTE: Updated value of DST register is next step.
             dst_value: from_u32(aux.dst_val),
             halt: from_u32(u32::from(aux.will_halt)),
@@ -69,9 +65,9 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
             row.regs[j as usize] = from_u32(state.get_register_value(j));
         }
 
-        generate_mul_row(&mut row, &inst, state);
-        generate_divu_row(&mut row, &inst, state);
-        generate_slt_row(&mut row, &inst, state);
+        generate_mul_row(&mut row, &inst, aux);
+        generate_divu_row(&mut row, &inst, aux);
+        generate_sign_handling(&mut row, aux);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
     }
@@ -94,16 +90,12 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
 
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
-fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, state: &State) {
+fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
     if !matches!(inst.op, Op::MUL | Op::MULHU | Op::SLL) {
         return;
     }
-    let op1 = state.get_register_value(inst.args.rs1);
-    let op2 = state
-        .get_register_value(inst.args.rs2)
-        .wrapping_add(inst.args.imm);
     let multiplier = if let Op::SLL = inst.op {
-        let shift_amount = op2 & 0x1F;
+        let shift_amount = aux.op2 & 0x1F;
         let shift_power = 1_u32 << shift_amount;
         row.bitshift = Bitshift {
             amount: shift_amount,
@@ -112,11 +104,11 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, sta
         .map(from_u32);
         shift_power
     } else {
-        op2
+        aux.op2
     };
 
     row.multiplier = from_u32(multiplier);
-    let (low, high) = op1.widening_mul(multiplier);
+    let (low, high) = aux.op1.widening_mul(multiplier);
     row.product_low_bits = from_u32(low);
     row.product_high_bits = from_u32(high);
 
@@ -126,14 +118,11 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, sta
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, state: &State) {
-    let dividend = state.get_register_value(inst.args.rs1);
-    let op2 = state
-        .get_register_value(inst.args.rs2)
-        .wrapping_add(inst.args.imm);
+fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
+    let dividend = aux.op1;
 
     let divisor = if let Op::SRL = inst.op {
-        let shift_amount = op2 & 0x1F;
+        let shift_amount = aux.op2 & 0x1F;
         let shift_power = 1_u32 << shift_amount;
         row.bitshift = Bitshift {
             amount: shift_amount,
@@ -142,7 +131,7 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, st
         .map(from_u32);
         shift_power
     } else {
-        op2
+        aux.op2
     };
 
     row.divisor = from_u32(divisor);
@@ -160,44 +149,24 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, st
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn generate_slt_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, state: &State) {
+#[allow(clippy::cast_lossless)]
+fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
     let is_signed: bool = row.is_signed().is_nonzero();
-    let op1 = state.get_register_value(inst.args.rs1);
-    let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
-    let sign1: bool = is_signed && (op1 as i32) < 0;
-    let sign2: bool = is_signed && (op2 as i32) < 0;
-    row.op1_sign_bit = F::from_bool(sign1);
-    row.op2_sign_bit = F::from_bool(sign2);
-
-    let sign_adjust = if is_signed { 1 << 31 } else { 0 };
-    let op1_fixed = op1.wrapping_add(sign_adjust);
-    let op2_fixed = op2.wrapping_add(sign_adjust);
-    row.op1_val_fixed = from_u32(op1_fixed);
-    row.op2_val_fixed = from_u32(op2_fixed);
-    row.less_than = from_u32(u32::from(op1_fixed < op2_fixed));
-
-    let abs_diff = if is_signed {
-        (op1 as i32).abs_diff(op2 as i32)
+    let embed = if is_signed {
+        |x: u32| x as i32 as i64
     } else {
-        op1.abs_diff(op2)
+        |x: u32| x as i64
     };
-    {
-        if is_signed {
-            assert_eq!(
-                i64::from(op1 as i32) - i64::from(op2 as i32),
-                i64::from(op1_fixed) - i64::from(op2_fixed)
-            );
-        } else {
-            assert_eq!(
-                i64::from(op1) - i64::from(op2),
-                i64::from(op1_fixed) - i64::from(op2_fixed),
-                "{op1} - {op2} != {op1_fixed} - {op2_fixed}"
-            );
-        }
-    }
-    let abs_diff_fixed: u32 = op1_fixed.abs_diff(op2_fixed);
-    assert_eq!(abs_diff, abs_diff_fixed);
-    row.abs_diff = from_u32(abs_diff_fixed);
+
+    let op1_full_range = embed(aux.op1);
+    let op2_full_range = embed(aux.op2);
+
+    row.op1_sign_bit = F::from_bool(op1_full_range < 0);
+    row.op2_sign_bit = F::from_bool(op2_full_range < 0);
+
+    row.less_than = F::from_bool(op1_full_range < op2_full_range);
+    let abs_diff = op1_full_range.abs_diff(op2_full_range);
+    row.abs_diff = F::from_noncanonical_u64(abs_diff);
 }
 
 fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {
