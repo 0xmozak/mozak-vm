@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use itertools::EitherOrBoth::{self, Both, Left, Right};
 use itertools::{chain, merge_join_by};
 use mozak_vm::elf::Program;
