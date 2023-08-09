@@ -5,7 +5,7 @@ use crate::columns_view::NumberOfColumns;
 use crate::cpu::columns::CpuState;
 use crate::lookup::permute_cols;
 use crate::rangecheck::columns::{
-    FixedColumnsView, RangeCheckColumnsExtended, RangeCheckColumnsView, MAP,
+    InnerLookupColumnsView, RangeCheckColumnsExtended, RangeCheckColumnsView, MAP,
 };
 use crate::stark::utils::transpose_trace;
 
@@ -56,7 +56,8 @@ pub fn generate_rangecheck_trace_extended<F: RichField>(
 
 #[must_use]
 pub fn generate_fixed_trace<F: RichField>(trace: &mut Vec<Vec<F>>) -> Vec<Vec<F>> {
-    let mut fixed_trace: Vec<Vec<F>> = vec![vec![]; FixedColumnsView::<()>::NUMBER_OF_COLUMNS];
+    let mut fixed_trace: Vec<Vec<F>> =
+        vec![vec![]; InnerLookupColumnsView::<()>::NUMBER_OF_COLUMNS];
 
     let len = trace[MAP.rangecheck.val]
         .len()
@@ -79,6 +80,7 @@ pub fn generate_fixed_trace<F: RichField>(trace: &mut Vec<Vec<F>>) -> Vec<Vec<F>
         .resize(len, F::from_canonical_u64(u64::from(u16::MAX)));
 
     trace[MAP.rangecheck.limb_lo].resize(len, F::ZERO);
+
     // This permutation is done in accordance to the [Halo2 lookup argument
     // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
     let (col_input_permuted, col_table_permuted) = permute_cols(
