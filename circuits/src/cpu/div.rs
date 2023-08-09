@@ -21,6 +21,7 @@ pub(crate) fn constraints<P: PackedField>(
     let is_div = lv.inst.ops.div;
     let is_rem = lv.inst.ops.rem;
     let is_srl = lv.inst.ops.srl;
+    let is_sra = lv.inst.ops.sra;
 
     // p,q are between i32::MIN .. u32::MAX
     let p = lv.op1_full_range();
@@ -47,16 +48,17 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint((is_div + is_rem) * (lv.divisor - lv.op2_full_range()));
 
     let dst = lv.dst_value;
-    // The following constraints are for SRL.
+    // The following constraints are for SRL/SRA.
     {
         let and_gadget = and_gadget(&lv.xor);
-        yield_constr
-            .constraint(is_srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)));
+        yield_constr.constraint(
+            (is_srl + is_sra) * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)),
+        );
         let op2 = lv.op2_value;
-        yield_constr.constraint(is_srl * (and_gadget.input_b - op2));
+        yield_constr.constraint((is_srl + is_sra) * (and_gadget.input_b - op2));
 
-        yield_constr.constraint(is_srl * (and_gadget.output - lv.bitshift.amount));
-        yield_constr.constraint(is_srl * (lv.divisor - lv.bitshift.multiplier));
+        yield_constr.constraint((is_srl + is_sra) * (and_gadget.output - lv.bitshift.amount));
+        yield_constr.constraint((is_srl + is_sra) * (lv.divisor - lv.bitshift.multiplier));
     }
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
@@ -93,6 +95,8 @@ pub(crate) fn constraints<P: PackedField>(
     // Last, we 'copy' our results:
     yield_constr.constraint((is_divu + is_srl) * (dst - m));
     yield_constr.constraint(is_div * (dst - m) * (dst - m - shifted(32)));
+    // TODO (Vivek): Following constraint does not work for all cases.
+    yield_constr.constraint((is_sra) * (dst - m) * (dst - P::Scalar::from_canonical_u32(u32::MAX)));
 
     yield_constr.constraint(is_remu * (dst - r));
     yield_constr.constraint(is_rem * (dst - r) * (dst - r - shifted(32)));
@@ -107,6 +111,71 @@ mod tests {
 
     use crate::cpu::stark::CpuStark;
     use crate::test_utils::{inv, ProveAndVerify};
+    #[test]
+    fn prove_div_example() {
+        let p = u32::MAX;
+        let q = 2;
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::DIV,
+                args: Args {
+                    rd: 3,
+                    rs1: 1,
+                    rs2: 2,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(1, p), (2, q)],
+        );
+        assert_eq!(
+            record.executed[0].aux.dst_val,
+            ((p as i32).wrapping_div(q as i32)) as u32
+        );
+        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+    }
+    #[test]
+    fn prove_sra_example() {
+        // let p =  u32::MAX;
+        // let q = 1;
+        // let p =  0xFFFF_FFF4;
+        // let q = 4;
+        let p = 0x8000_0000;
+        let q = 0;
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::SRA,
+                    args: Args {
+                        rd: 3,
+                        rs1: 1,
+                        rs2: 2,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::SRA,
+                    args: Args {
+                        rd: 3,
+                        rs1: 1,
+                        imm: q,
+                        ..Args::default()
+                    },
+                },
+            ],
+            &[],
+            &[(1, p), (2, q)],
+        );
+        assert_eq!(
+            record.executed[0].aux.dst_val,
+            ((p as i32) >> (q as i32)) as u32
+        );
+        assert_eq!(
+            record.executed[1].aux.dst_val,
+            ((p as i32) >> (q as i32)) as u32
+        );
+        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+    }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -246,6 +315,35 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p >> q);
             prop_assert_eq!(record.executed[1].aux.dst_val, p >> q);
+            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+        }
+        #[test]
+        fn prove_sra_proptest(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
+            let (program, record) = simple_test_code(
+                &[Instruction {
+                    op: Op::SRA,
+                    args: Args {
+                        rd,
+                        rs1: 1,
+                        rs2: 2,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::SRA,
+                    args: Args {
+                        rd,
+                        rs1: 1,
+                        imm: q,
+                        ..Args::default()
+                    },
+                }
+                ],
+                &[],
+                &[(1, p), (2, q)],
+            );
+            prop_assert_eq!(record.executed[0].aux.dst_val, ((p as i32) >> (q as i32)) as u32);
+            prop_assert_eq!(record.executed[1].aux.dst_val, ((p as i32) >> (q as i32)) as u32);
             CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
     }

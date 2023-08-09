@@ -127,16 +127,17 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, au
         i64::from(divisor_raw)
     };
 
-    let divisor = if let Op::SRL = inst.op {
-        let shift_amount = divisor & 0x1F;
-        let shift_power = 1_i64 << shift_amount;
-        row.bitshift = Bitshift {
-            amount: F::from_noncanonical_u64(shift_amount.unsigned_abs()),
-            multiplier: F::from_noncanonical_u64(shift_power.unsigned_abs()),
-        };
-        shift_power
-    } else {
-        divisor
+    let divisor = match inst.op {
+        Op::SRL | Op::SRA => {
+            let shift_amount = divisor & 0x1F;
+            let shift_power = 1_i64 << shift_amount;
+            row.bitshift = Bitshift {
+                amount: F::from_noncanonical_u64(shift_amount.unsigned_abs()),
+                multiplier: F::from_noncanonical_u64(shift_power.unsigned_abs()),
+            };
+            shift_power
+        }
+        _ => divisor,
     };
 
     row.divisor = from_signed(divisor);
@@ -184,7 +185,7 @@ fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
 fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {
     let a = match inst.op {
         Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
-        Op::SRL | Op::SLL => 0x1F,
+        Op::SRL | Op::SLL | Op::SRA => 0x1F,
         _ => 0,
     };
     let b = state

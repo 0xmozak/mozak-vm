@@ -60,8 +60,8 @@ pub const SIGNED2_OPCODES: [Op; 8] = [
     Op::REM,
     Op::MULH,
 ];
-pub const SIGNED1_OPCODES: [Op; SIGNED2_OPCODES.len() + 1] =
-    concat_arrays!(SIGNED2_OPCODES, [Op::MULHSU]);
+pub const SIGNED1_OPCODES: [Op; SIGNED2_OPCODES.len() + 2] =
+    concat_arrays!(SIGNED2_OPCODES, [Op::MULHSU, Op::SRA]);
 
 impl Op {
     #[must_use]

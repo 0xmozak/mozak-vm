@@ -39,6 +39,7 @@ impl<P: Copy + core::ops::Add<Output = P>> OpSelectors<P> {
             + self.slt
             + self.sltu
             + self.srl
+            + self.sra
     }
 }
 

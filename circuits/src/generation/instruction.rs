@@ -19,6 +19,7 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
             Op::SLT => &mut cols.ops.slt,
             Op::SLTU => &mut cols.ops.sltu,
             Op::SRL => &mut cols.ops.srl,
+            Op::SRA => &mut cols.ops.sra,
             Op::SUB => &mut cols.ops.sub,
             Op::DIVU => &mut cols.ops.divu,
             Op::DIV => &mut cols.ops.div,

@@ -26,6 +26,7 @@ pub struct OpSelectors<T> {
     pub slt: T,
     pub sltu: T,
     pub srl: T,
+    pub sra: T,
     pub jalr: T,
     pub beq: T,
     pub bne: T,
@@ -122,6 +123,7 @@ impl<T: PackedField> CpuState<T> {
             + self.inst.ops.blt
             + self.inst.ops.div
             + self.inst.ops.rem
+            + self.inst.ops.sra
     }
 
     /// Value of the first operand, as if converted to i64.
