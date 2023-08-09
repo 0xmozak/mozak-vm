@@ -10,7 +10,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{CpuColumnsView, InstructionView, OpSelectorView};
+use super::columns::{CpuState, Instruction, OpSelectors};
 use super::{add, beq, bitwise, div, ecall, jalr, mul, slt, sub};
 use crate::columns_view::NumberOfColumns;
 
@@ -20,7 +20,7 @@ pub struct CpuStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<P: Copy> OpSelectorView<P> {
+impl<P: Copy> OpSelectors<P> {
     // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
     // PC. It sort-of jumps back to itself.
     fn straightline_opcodes(&self) -> Vec<P> {
@@ -32,8 +32,8 @@ impl<P: Copy> OpSelectorView<P> {
 }
 
 fn pc_ticks_up<P: PackedField>(
-    lv: &CpuColumnsView<P>,
-    nv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
+    nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let is_straightline_op: P = lv.inst.ops.straightline_opcodes().into_iter().sum();
@@ -47,7 +47,7 @@ fn pc_ticks_up<P: PackedField>(
 ///
 /// Ie exactly one of them should be by 1, all others by 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
-fn one_hots<P: PackedField>(inst: &InstructionView<P>, yield_constr: &mut ConstraintConsumer<P>) {
+fn one_hots<P: PackedField>(inst: &Instruction<P>, yield_constr: &mut ConstraintConsumer<P>) {
     one_hot(inst.ops, yield_constr);
     one_hot(inst.rs1_select, yield_constr);
     one_hot(inst.rs2_select, yield_constr);
@@ -71,8 +71,8 @@ fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
 
 /// Ensure clock is ticking up, iff CPU is still running.
 fn clock_ticks<P: PackedField>(
-    lv: &CpuColumnsView<P>,
-    nv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
+    nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let clock_diff = nv.clk - lv.clk;
@@ -81,15 +81,15 @@ fn clock_ticks<P: PackedField>(
 }
 
 /// Register 0 is always 0
-fn r0_always_0<P: PackedField>(lv: &CpuColumnsView<P>, yield_constr: &mut ConstraintConsumer<P>) {
+fn r0_always_0<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
     yield_constr.constraint(lv.regs[0]);
 }
 
 /// Register used as destination register can have different value, all
 /// other regs have same value as of previous row.
 fn only_rd_changes<P: PackedField>(
-    lv: &CpuColumnsView<P>,
-    nv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
+    nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // Note: register 0 is already always 0.
@@ -102,8 +102,8 @@ fn only_rd_changes<P: PackedField>(
 }
 
 fn rd_actually_changes<P: PackedField>(
-    lv: &CpuColumnsView<P>,
-    nv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
+    nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // Note: we skip 0 here, because it's already forced to 0 permanently by
@@ -115,7 +115,7 @@ fn rd_actually_changes<P: PackedField>(
 }
 
 fn populate_op1_value<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(
@@ -131,7 +131,7 @@ fn populate_op1_value<P: PackedField>(
 /// `OP2_VALUE` is the sum of the value of the second operand register and the
 /// immediate value.
 fn populate_op2_value<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(
@@ -145,7 +145,7 @@ fn populate_op2_value<P: PackedField>(
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
-    const COLUMNS: usize = CpuColumnsView::<F>::NUMBER_OF_COLUMNS;
+    const COLUMNS: usize = CpuState::<F>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
 
     fn eval_packed_generic<FE, P, const D2: usize>(

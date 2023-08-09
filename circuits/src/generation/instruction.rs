@@ -1,10 +1,9 @@
 use mozak_vm::instruction::{Instruction, Op};
+use crate::cpu::columns::Instruction as CInstructions;
 
-use crate::cpu::columns::InstructionView;
-
-impl From<(u32, Instruction)> for InstructionView<u32> {
+impl From<(u32, Instruction)> for CInstructions<u32> {
     fn from((pc, inst): (u32, Instruction)) -> Self {
-        let mut cols: InstructionView<u32> = Self {
+        let mut cols: CInstructions<u32> = Self {
             pc,
             imm_value: inst.args.imm,
             branch_target: inst.args.branch_target,

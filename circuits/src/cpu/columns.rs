@@ -6,10 +6,10 @@ use crate::bitwise::columns::XorView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
-columns_view_impl!(OpSelectorView);
+columns_view_impl!(OpSelectors);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct OpSelectorView<T> {
+pub struct OpSelectors<T> {
     pub add: T,
     pub sub: T,
     pub xor: T,
@@ -29,14 +29,14 @@ pub struct OpSelectorView<T> {
     pub ecall: T,
 }
 
-columns_view_impl!(InstructionView);
+columns_view_impl!(Instruction);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct InstructionView<T> {
+pub struct Instruction<T> {
     /// The original instruction (+ imm_value) used for program
     /// cross-table-lookup.
     pub pc: T,
 
-    pub ops: OpSelectorView<T>,
+    pub ops: OpSelectors<T>,
     pub rs1_select: [T; 32],
     pub rs2_select: [T; 32],
     pub rd_select: [T; 32],
@@ -44,12 +44,12 @@ pub struct InstructionView<T> {
     pub branch_target: T,
 }
 
-columns_view_impl!(CpuColumnsView);
+columns_view_impl!(CpuState);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct CpuColumnsView<T> {
+pub struct CpuState<T> {
     pub clk: T,
-    pub inst: InstructionView<T>,
+    pub inst: Instruction<T>,
 
     pub halt: T,
 
@@ -85,9 +85,9 @@ pub struct CpuColumnsView<T> {
     pub product_high_diff_inv: T,
 }
 
-make_col_map!(CpuColumnsView);
+make_col_map!(CpuState);
 
-pub const NUM_CPU_COLS: usize = CpuColumnsView::<()>::NUMBER_OF_COLUMNS;
+pub const NUM_CPU_COLS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 
 /// Column for a binary filter for our range check in the Mozak
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -109,7 +109,7 @@ pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.xor)
 #[must_use]
 pub fn filter_for_bitwise<F: Field>() -> Column<F> { Column::many(MAP.inst.ops.ops_that_use_xor()) }
 
-impl<T: Copy> OpSelectorView<T> {
+impl<T: Copy> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(&self) -> [T; 5] {
         // TODO: Add SRA, once we implement its constraints.

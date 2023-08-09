@@ -7,7 +7,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitshift::columns::Bitshift;
 use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
-use crate::cpu::columns::CpuColumnsView;
+use crate::cpu::columns::CpuState;
 use crate::utils::from_u32;
 
 /// Pad the trace to a power of 2.
@@ -16,7 +16,7 @@ use crate::utils::from_u32;
 /// There's an assert that makes sure all columns passed in have the same
 /// length.
 #[must_use]
-pub fn pad_trace<F: RichField>(mut trace: Vec<CpuColumnsView<F>>) -> Vec<CpuColumnsView<F>> {
+pub fn pad_trace<F: RichField>(mut trace: Vec<CpuState<F>>) -> Vec<CpuState<F>> {
     trace.resize(trace.len().next_power_of_two(), *trace.last().unwrap());
     trace
 }
@@ -25,16 +25,16 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<CpuColumnsView<F>>) -> Vec<CpuColu
 pub fn generate_cpu_trace<F: RichField>(
     program: &Program,
     step_rows: &[Row],
-) -> Vec<CpuColumnsView<F>> {
+) -> Vec<CpuState<F>> {
     // let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; step_rows.len()];
     // cpu_cols::NUM_CPU_COLS];
-    let mut trace: Vec<CpuColumnsView<F>> = vec![];
+    let mut trace: Vec<CpuState<F>> = vec![];
 
     for Row { state, aux } in step_rows {
         let inst = state.current_instruction(program);
-        let mut row = CpuColumnsView {
+        let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
-            inst: cpu_cols::InstructionView::from((state.get_pc(), inst)).map(from_u32),
+            inst: cpu_cols::Instruction::from((state.get_pc(), inst)).map(from_u32),
             op1_value: from_u32(state.get_register_value(inst.args.rs1)),
             // OP2_VALUE is the sum of the value of the second operand register and the
             // immediate value.
@@ -53,7 +53,7 @@ pub fn generate_cpu_trace<F: RichField>(
             bitshift: Bitshift::from(0).map(F::from_canonical_u64),
             xor: generate_bitwise_row(&inst, state),
 
-            ..CpuColumnsView::default()
+            ..CpuState::default()
         };
 
         for j in 0..32 {
@@ -75,7 +75,7 @@ pub fn generate_cpu_trace<F: RichField>(
     trace
 }
 
-fn generate_conditional_branch_row<F: RichField>(row: &mut CpuColumnsView<F>) {
+fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
     let diff = row.op1_value - row.op2_value;
     let diff_inv = diff.try_inverse().unwrap_or_default();
 
@@ -85,7 +85,7 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuColumnsView<F>) {
 
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
-fn generate_mul_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instruction, state: &State) {
+fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, state: &State) {
     if !matches!(inst.op, Op::MUL | Op::MULHU | Op::SLL) {
         return;
     }
@@ -117,7 +117,7 @@ fn generate_mul_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructio
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn generate_divu_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instruction, state: &State) {
+fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, state: &State) {
     let dividend = state.get_register_value(inst.args.rs1);
     let op2 = state
         .get_register_value(inst.args.rs2)
@@ -151,7 +151,7 @@ fn generate_divu_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instructi
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn generate_slt_row<F: RichField>(row: &mut CpuColumnsView<F>, inst: &Instruction, state: &State) {
+fn generate_slt_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, state: &State) {
     let is_signed = inst.op == Op::SLT;
     let op1 = state.get_register_value(inst.args.rs1);
     let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;

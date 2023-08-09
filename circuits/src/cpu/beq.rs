@@ -2,17 +2,17 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::CpuColumnsView;
+use super::columns::CpuState;
 
 /// Constraints for BEQ and BNE.
 pub(crate) fn constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
-    nv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
+    nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let bumped_pc = lv.inst.pc + P::Scalar::from_noncanonical_u64(4);
     let branched_pc = lv.inst.branch_target;
-    // TODO: make diff a function on CpuColumnsView.
+    // TODO: make diff a function on CpuState.
     let diff = lv.op1_value - lv.op2_value;
 
     // if `diff == 0`, then `is_equal != 0`.

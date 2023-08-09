@@ -16,7 +16,7 @@ pub trait NumberOfColumns {
 macro_rules! columns_view_impl {
     ($s: ident) => {
         impl<T> $s<T> {
-            // At the moment we only use `map` InstructionView,
+            // At the moment we only use `map` Instruction,
             // so it's dead code for the other callers of `columns_view_impl`.
             // TODO(Matthias): remove this marker, once we use it for the other structs,
             // too.
