@@ -1,6 +1,8 @@
+use core::iter::Sum;
+use core::ops::{Add, Mul};
 use std::borrow::Borrow;
 
-use itertools::Itertools;
+use itertools::{EitherOrBoth, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -10,21 +12,86 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 /// Represent a linear combination of columns.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Column<F: Field> {
     linear_combination: Vec<(usize, F)>,
     constant: F,
 }
 
-use core::ops::Add;
-
 impl<F: Field> Add<Self> for Column<F> {
     type Output = Self;
 
-    fn add(self, rhs: Self) -> Self {
+    #[allow(clippy::similar_names)]
+    fn add(
+        self,
+        Column {
+            linear_combination: mut rlc,
+            constant: rc,
+        }: Self,
+    ) -> Self {
+        let Self {
+            linear_combination: mut slc,
+            constant: sc,
+        } = self;
+        slc.sort_by_key(|&(col_idx, _)| col_idx);
+        rlc.sort_by_key(|&(col_idx, _)| col_idx);
+
+        let linear_combination = slc
+            .into_iter()
+            .merge_join_by(rlc, |(l, _), (r, _)| usize::cmp(l, r))
+            .map(|x| match x {
+                EitherOrBoth::Left(pair) | EitherOrBoth::Right(pair) => pair,
+                EitherOrBoth::Both((idx0, c0), (_, c1)) => (idx0, c0 + c1),
+            })
+            .collect();
+
+        Self {
+            linear_combination,
+            constant: sc + rc,
+        }
+    }
+}
+
+impl<F: Field> Add<F> for Column<F> {
+    type Output = Self;
+
+    fn add(self, constant: F) -> Self {
         Self {
             linear_combination: self.linear_combination,
-            constant: self.constant + rhs.constant,
+            constant: self.constant + constant,
+        }
+    }
+}
+
+impl<F: Field> Mul<F> for Column<F> {
+    type Output = Self;
+
+    fn mul(self, factor: F) -> Self {
+        Self {
+            linear_combination: self
+                .linear_combination
+                .into_iter()
+                .map(|(idx, c)| (idx, factor * c))
+                .collect(),
+            constant: factor * self.constant,
+        }
+    }
+}
+
+impl<F: Field> Sum<Column<F>> for Column<F> {
+    #[inline]
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.reduce(|x, y| x + y).unwrap_or_default()
+    }
+}
+
+// TODO: implement other traits like Sub, MulAssign, Sum etc as we need them.
+
+impl<F: Field> From<usize> for Column<F> {
+    fn from(idx: usize) -> Self {
+        Self {
+            linear_combination: vec![(idx, F::ONE)],
+            constant: F::ZERO,
         }
     }
 }
@@ -39,25 +106,12 @@ impl<F: Field> Column<F> {
     }
 
     #[must_use]
-    pub fn single(c: usize) -> Self {
-        Self {
-            linear_combination: vec![(c, F::ONE)],
-            constant: F::ZERO,
-        }
-    }
+    pub fn single(idx: usize) -> Self { idx.into() }
 
     pub fn singles<I: IntoIterator<Item = impl Borrow<usize>>>(
         cs: I,
     ) -> impl Iterator<Item = Self> {
         cs.into_iter().map(|c| Self::single(*c.borrow()))
-    }
-
-    #[must_use]
-    pub fn many<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
-        Column {
-            linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect_vec(),
-            constant: F::ZERO,
-        }
     }
 
     #[must_use]

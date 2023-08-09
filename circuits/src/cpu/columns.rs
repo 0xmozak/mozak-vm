@@ -150,18 +150,18 @@ pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_bitwise<F: Field>() -> Column<F> {
-    Column::many(MAP.cpu.inst.ops.ops_that_use_xor())
+    MAP.cpu.map(Column::from).inst.ops.ops_that_use_xor()
 }
 
-impl<T: Copy> OpSelectorView<T> {
+impl<T: core::ops::Add<Output = T>> OpSelectorView<T> {
     #[must_use]
-    pub fn ops_that_use_xor(&self) -> [T; 5] {
+    pub fn ops_that_use_xor(self) -> T {
         // TODO: Add SRA, once we implement its constraints.
-        [self.xor, self.or, self.and, self.srl, self.sll]
+        self.xor + self.or + self.and + self.srl + self.sll
     }
 
     // TODO: Add SRA, once we implement its constraints.
-    pub fn ops_that_shift(&self) -> [T; 2] { [self.sll, self.srl] }
+    pub fn ops_that_shift(self) -> T { self.sll + self.srl }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.
@@ -175,7 +175,7 @@ pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_shift_amount<F: Field>() -> Column<F> {
-    Column::many(MAP.cpu.inst.ops.ops_that_shift())
+    MAP.cpu.map(Column::from).inst.ops.ops_that_shift()
 }
 
 /// Columns containing the data of original instructions.

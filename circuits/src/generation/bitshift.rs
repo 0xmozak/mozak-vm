@@ -8,7 +8,7 @@ fn filter_shift_trace<F: RichField>(
     cpu_trace: &[CpuColumnsView<F>],
 ) -> impl Iterator<Item = u64> + '_ {
     cpu_trace.iter().filter_map(|row| {
-        (row.inst.ops.ops_that_shift().into_iter().sum::<F>() != F::ZERO)
+        (row.inst.ops.ops_that_shift() != F::ZERO)
             .then_some(row.bitshift.amount.to_noncanonical_u64())
     })
 }

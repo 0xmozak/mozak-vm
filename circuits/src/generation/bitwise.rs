@@ -9,9 +9,9 @@ use crate::utils::pad_trace_with_default;
 fn filter_bitwise_trace<F: RichField>(
     step_rows: &[CpuColumnsView<F>],
 ) -> impl Iterator<Item = XorView<F>> + '_ {
-    step_rows.iter().filter_map(|row| {
-        (row.inst.ops.ops_that_use_xor().into_iter().sum::<F>() != F::ZERO).then_some(row.xor)
-    })
+    step_rows
+        .iter()
+        .filter_map(|row| (row.inst.ops.ops_that_use_xor() != F::ZERO).then_some(row.xor))
 }
 
 fn to_bits<F: RichField>(val: F) -> [F; u32::BITS as usize] {
