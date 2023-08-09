@@ -2,12 +2,12 @@ use itertools::izip;
 use mozak_vm::instruction::{Instruction, Op};
 use plonky2::hash::hash_types::RichField;
 
-use crate::cpu::columns::InstructionView;
+use crate::cpu::columns;
 use crate::program::columns::InstColumnsView;
 
-impl From<(u32, Instruction)> for InstructionView<u32> {
+impl From<(u32, Instruction)> for columns::Instruction<u32> {
     fn from((pc, inst): (u32, Instruction)) -> Self {
-        let mut cols: InstructionView<u32> = Self {
+        let mut cols: columns::Instruction<u32> = Self {
             pc,
             imm_value: inst.args.imm,
             branch_target: inst.args.branch_target,
@@ -51,8 +51,8 @@ pub fn ascending_sum<F: RichField, I: IntoIterator<Item = F>>(cs: I) -> F {
         .sum()
 }
 
-impl<F: RichField> From<InstructionView<F>> for InstColumnsView<F> {
-    fn from(inst: InstructionView<F>) -> Self {
+impl<F: RichField> From<columns::Instruction<F>> for InstColumnsView<F> {
+    fn from(inst: columns::Instruction<F>) -> Self {
         Self {
             pc: inst.pc,
             opcode: ascending_sum(inst.ops),

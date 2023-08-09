@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
@@ -33,4 +32,4 @@ pub struct ProgramColumnsView<T> {
 pub const NUM_PROGRAM_COLS: usize = ProgramColumnsView::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
-pub fn data_for_ctl<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.inst).collect_vec() }
+pub fn data_for_ctl<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.inst) }

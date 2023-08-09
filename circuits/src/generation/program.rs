@@ -1,7 +1,7 @@
 use mozak_vm::elf::Program;
 use plonky2::hash::hash_types::RichField;
 
-use crate::cpu::columns::InstructionView;
+use crate::cpu::columns::Instruction;
 use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 use crate::utils::pad_trace_with_default;
 
@@ -16,7 +16,7 @@ pub fn generate_program_rom_trace<F: RichField>(program: &Program) -> Vec<Progra
             .map(|(&pc, &inst)| ProgramColumnsView {
                 filter: F::ONE,
                 inst: InstColumnsView::from(
-                    InstructionView::from((pc, inst)).map(F::from_canonical_u32),
+                    Instruction::from((pc, inst)).map(F::from_canonical_u32),
                 ),
             })
             .collect(),

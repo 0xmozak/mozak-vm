@@ -1,33 +1,42 @@
 use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::CpuColumnsView;
+use super::columns::CpuState;
+use crate::cpu::stark::is_binary;
+
+/// # Explanation
+///
+/// `opX_full_range` is the value of an operand opX as if converted to i64.
+/// For unsigned operations: `Field::from_noncanonical_i64(opX as i64)`
+/// For signed operations: `Field::from_noncanonical_i64(opX as i32 as i64)`
+///
+/// Expressed in terms of field elements it is:
+/// ```ignore
+/// opX_full_range = opX_value - self.opX_sign_bit * (1 << 32)
+/// ```
+//
+/// Our constraints need to ensure, that the prover did this conversion
+/// properly. For an unsigned operation, the range of `opX_full_range` is
+/// `0..=u32::MAX`. For an unsigned operation, the range of `opX_full_range` is
+/// `i32::MIN..=i32::MAX`. Notice how both ranges are of the same length, and
+/// only differ by an offset of `1<<31`.
+///
+/// TODO: range check these two linear combinations of columns:
+/// ```ignore
+///  lv.op1_full_range() + lv.is_signed() * CpuState::<P>::shifted(31);
+///  lv.op2_full_range() + lv.is_signed() * CpuState::<P>::shifted(31);
+/// ```
 
 pub(crate) fn signed_constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let shifted = CpuColumnsView::<P>::shifted;
-    let is_signed = lv.is_signed();
-
-    let sign1 = lv.op1_sign_bit;
-    yield_constr.constraint(sign1 * (P::ONES - sign1));
-    let sign2 = lv.op2_sign_bit;
-    yield_constr.constraint(sign2 * (P::ONES - sign2));
-
-    let op1 = lv.op1_value;
-    let op2 = lv.op2_value;
-    // TODO: range check
-    let op1_fixed = lv.op1_val_fixed;
-    // TODO: range check
-    let op2_fixed = lv.op2_val_fixed;
-
-    yield_constr.constraint(op1_fixed - (op1 + is_signed * shifted(31) - sign1 * shifted(32)));
-    yield_constr.constraint(op2_fixed - (op2 + is_signed * shifted(31) - sign2 * shifted(32)));
+    is_binary(yield_constr, lv.op1_sign_bit);
+    is_binary(yield_constr, lv.op2_sign_bit);
 }
 
 pub(crate) fn slt_constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint((lv.inst.ops.slt + lv.inst.ops.sltu) * (lv.less_than - lv.dst_value));
