@@ -6,18 +6,17 @@ inputs:
     type: string
 
 runs:
-  using: "composite"
+  using: composite
   steps:
     - name: Get rust version (via python3)
       run: |
-          python3 -c "
-import re
-import sys
-
-# Assumed the input to be of form {  channel = "nightly-2023-08-01"  }
-matches = re.findall(r'channel = \"(.*)\"', sys.stdin.read())
-print(f'RUST_VERSION={matches[0]}')
-" < rust-toolchain.toml >> $GITHUB_ENV
+        cat rust-toolchain.toml | perl -e "
+        use feature 'say';
+        my \$file_contents = do { local \$/; <STDIN> };
+        while (\$file_contents =~ /channel = \"(.*)\"/g) {
+            my \$match = \$1;
+            say \"RUST_VERSION=\\\"\$match\\\"\";
+        }" >> $GITHUB_ENV
       shell: bash
 
     - name: Install toolchain
