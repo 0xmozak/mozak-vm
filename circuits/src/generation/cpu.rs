@@ -50,7 +50,6 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
             op2_value: from_u32(aux.op2),
             // NOTE: Updated value of DST register is next step.
             dst_value: from_u32(aux.dst_val),
-            halt: from_u32(u32::from(aux.will_halt)),
             // Valid defaults for the powers-of-two gadget.
             // To be overridden by users of the gadget.
             // TODO(Matthias): find a way to make either compiler or runtime complain
@@ -70,6 +69,15 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
         generate_sign_handling(&mut row, aux);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
+
+        if aux.will_halt {
+            let mut last_row = trace.last().unwrap().clone();
+            last_row.halt = F::ONE;
+            last_row.clk = last_row.clk + F::ONE;
+            last_row.inst.pc = last_row.inst.pc + from_u32(4);
+            trace.push(last_row);
+            break;
+        }
     }
 
     // For expanded trace from `trace_len` to `trace_len's power of two`,

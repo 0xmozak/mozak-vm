@@ -12,9 +12,8 @@ pub(crate) fn constraints<P: PackedField>(
     // At the moment, the only system call we support is 'halt', ie ecall with x17 =
     // 93. Everything else is invalid.
     yield_constr.constraint(lv.inst.ops.ecall * (lv.regs[17] - P::Scalar::from_canonical_u8(93)));
-    // Thus we can equate ecall with halt:
-    yield_constr.constraint(lv.inst.ops.ecall - lv.halt);
-
+    // Thus we can equate ecall with halt in the next row.
+    yield_constr.constraint_transition(lv.inst.ops.ecall - nv.halt);
     // 'halt' means: no bumping of pc anymore ever.
     yield_constr.constraint_transition(lv.halt * (nv.inst.pc - lv.inst.pc));
 }
