@@ -15,7 +15,7 @@ use plonky2::hash::hash_types::RichField;
 use self::bitshift::generate_shift_amount_trace;
 use self::bitwise::generate_bitwise_trace;
 use self::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
-use self::rangecheck::generate_rangecheck_trace;
+use self::rangecheck::generate_rangecheck_trace_extended;
 use crate::generation::program::generate_program_rom_trace;
 use crate::stark::mozak_stark::NUM_TABLES;
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
@@ -26,7 +26,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     step_rows: &[Row],
 ) -> [Vec<PolynomialValues<F>>; NUM_TABLES] {
     let cpu_rows = generate_cpu_trace::<F>(program, step_rows);
-    let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows);
+    let rangecheck_rows = generate_rangecheck_trace_extended::<F>(&cpu_rows);
+
     let bitwise_rows = generate_bitwise_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
 
