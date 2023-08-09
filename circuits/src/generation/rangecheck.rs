@@ -11,7 +11,7 @@ use crate::stark::utils::transpose_trace;
 
 pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 
-/// Pad the rangecheck trace table to the size of 2^k rows in
+/// Pad the input trace table to the size of 2^k rows in
 /// preparation for the Halo2 lookup argument.
 ///
 /// Note that by right the column to be checked (A) and the fixed column (S)
@@ -20,18 +20,14 @@ pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 /// initializing our trace to all [`F::ZERO`]s takes care of this step by
 /// default.
 #[must_use]
-fn pad_rc_trace<F: RichField>(mut trace: Vec<InputColumnsView<F>>) -> Vec<InputColumnsView<F>> {
+fn pad_input_trace<F: RichField>(mut trace: Vec<InputColumnsView<F>>) -> Vec<InputColumnsView<F>> {
     let len = trace[MAP.input.val]
         .into_iter()
         .len()
         .max(RANGE_CHECK_U16_SIZE)
         .next_power_of_two();
 
-    trace.resize(len, InputColumnsView {
-        cpu_filter: F::ZERO,
-        // .. and all other columns just have their last value duplicated.
-        ..*trace.last().unwrap()
-    });
+    trace.resize(len, InputColumnsView::default());
 
     trace
 }
@@ -131,7 +127,7 @@ pub fn generate_input_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> Vec<Inpu
         }
     }
 
-    trace = pad_rc_trace(trace);
+    trace = pad_input_trace(trace);
 
     trace
 }
@@ -145,7 +141,6 @@ mod tests {
 
     use super::*;
     use crate::generation::cpu::generate_cpu_trace;
-    use crate::utils::from_u32;
 
     #[test]
     fn test_add_instruction_inserts_rangecheck() {
@@ -182,13 +177,13 @@ mod tests {
             assert_eq!(cpu_filter, &F::ZERO);
         }
         for value in &trace[MAP.input.val][2..] {
-            assert_eq!(value, &from_u32::<F>(93));
+            assert_eq!(value, &F::ZERO);
         }
         for limb_hi in &trace[MAP.input.limb_hi][1..] {
             assert_eq!(limb_hi, &F::ZERO);
         }
         for limb_lo in &trace[MAP.input.limb_lo][2..] {
-            assert_eq!(limb_lo, &from_u32::<F>(93));
+            assert_eq!(limb_lo, &F::ZERO);
         }
     }
 }
