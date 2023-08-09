@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 
@@ -144,7 +143,7 @@ pub fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> { vec![Column::single(M
 /// Columns containing the data to be matched against XOR Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor).collect_vec() }
+pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor) }
 
 /// Column for a binary filter for bitwise instruction in Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -167,9 +166,7 @@ impl<T: Copy> OpSelectorView<T> {
 /// Columns containing the data to be matched against `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> {
-    Column::singles(MAP.cpu.bitshift).collect_vec()
-}
+pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.bitshift) }
 
 /// Column for a binary filter for shft instruction in `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -194,6 +191,4 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
 
 /// Columns containing the data of permuted instructions.
 #[must_use]
-pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> {
-    Column::singles(MAP.permuted.inst).collect_vec()
-}
+pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.permuted.inst) }

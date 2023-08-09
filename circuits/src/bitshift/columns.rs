@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
@@ -32,7 +31,7 @@ pub struct BitshiftView<T> {
 
 /// Columns containing data from CPU table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.executed).collect_vec() }
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.executed) }
 
 /// Column containing filter from CPU table.
 #[must_use]
