@@ -30,7 +30,8 @@ pub(crate) fn constraints<P: PackedField>(
     let p_raw = lv.op1_value;
     let q_raw = lv.op2_value;
 
-    // TODO(Matthias): this looks suspicious in the face of signed bit shifting (SRA)
+    // TODO(Matthias): this looks suspicious in the face of signed bit shifting
+    // (SRA)
     let q_sign = P::Scalar::from_noncanonical_i64(-2) * lv.op2_sign_bit + P::ONES;
 
     // Watch out for sign!
@@ -46,9 +47,7 @@ pub(crate) fn constraints<P: PackedField>(
     let rt = lv.remainder_abs_slack;
 
     yield_constr.constraint((is_divu + is_remu) * (lv.divisor - q_raw));
-    yield_constr.constraint(
-        (is_div + is_rem) * (lv.divisor - lv.op2_full_range()),
-    );
+    yield_constr.constraint((is_div + is_rem) * (lv.divisor - lv.op2_full_range()));
 
     // The following constraints are for SRL.
     {

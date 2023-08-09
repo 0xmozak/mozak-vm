@@ -118,6 +118,7 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
 }
 
 #[allow(clippy::cast_possible_wrap)]
+#[allow(clippy::cast_lossless)]
 fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
     let is_signed: bool = row.is_signed().is_nonzero();
     let embed = if is_signed {
