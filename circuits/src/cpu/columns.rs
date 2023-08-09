@@ -120,12 +120,16 @@ impl<T: PackedField> CpuColumnsView<T> {
     /// Value of the first operand, as if converted to i64.
     ///
     /// So range is `i32::MIN..=u32::MAX`
-    pub fn op1_full_range(&self) -> T { self.op1_val_fixed - self.is_signed() * Self::shifted(31) }
+    pub fn op1_full_range(&self) -> T {
+        self.op1_value - self.op1_sign_bit * Self::shifted(32)
+    }
 
     /// Value of the first operand, as if converted to i64.
     ///
     /// So range is `i32::MIN..=u32::MAX`
-    pub fn op2_full_range(&self) -> T { self.op2_val_fixed - self.is_signed() * Self::shifted(31) }
+    pub fn op2_full_range(&self) -> T {
+        self.op2_value - self.op2_sign_bit * Self::shifted(32)
+    }
 
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
