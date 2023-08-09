@@ -2,11 +2,9 @@ use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::BitshiftView;
-use crate::cpu::columns::CpuColumnsView;
+use crate::cpu::columns::CpuState;
 
-fn filter_shift_trace<F: RichField>(
-    cpu_trace: &[CpuColumnsView<F>],
-) -> impl Iterator<Item = u64> + '_ {
+fn filter_shift_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> impl Iterator<Item = u64> + '_ {
     cpu_trace.iter().filter_map(|row| {
         (row.inst.ops.ops_that_shift() != F::ZERO)
             .then_some(row.bitshift.amount.to_noncanonical_u64())
@@ -21,7 +19,7 @@ pub fn pad_trace<Row: Copy>(mut trace: Vec<Row>, default: Row) -> Vec<Row> {
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_shift_amount_trace<F: RichField>(
-    cpu_trace: &[CpuColumnsView<F>],
+    cpu_trace: &[CpuState<F>],
 ) -> Vec<BitshiftView<F>> {
     pad_trace(
         filter_shift_trace(cpu_trace)
