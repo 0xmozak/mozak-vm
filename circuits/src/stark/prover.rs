@@ -26,7 +26,7 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
-use crate::generation::{generate_traces, generate_traces_debug};
+use crate::generation::{debug_traces, generate_traces};
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::permutation::{
     compute_permutation_z_polys, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
@@ -52,7 +52,7 @@ where
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, step_rows);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
-        assert!(generate_traces_debug(program, step_rows));
+        debug_traces(program, step_rows, mozak_stark);
     }
     prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
 }

@@ -8,11 +8,8 @@ pub mod rangecheck;
 use mozak_vm::elf::Program;
 use mozak_vm::vm::Row;
 use plonky2::field::extension::Extendable;
-use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::polynomial::PolynomialValues;
-use plonky2::field::types::{Field, Sample};
 use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 use plonky2::util::transpose;
 use starky::constraint_consumer::ConstraintConsumer;
 use starky::stark::Stark;
@@ -26,7 +23,7 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::stark::mozak_stark::NUM_TABLES;
+use crate::stark::mozak_stark::{MozakStark, NUM_TABLES};
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 
 #[must_use]
@@ -50,191 +47,130 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         shift_amount_trace,
     ]
 }
-
-#[must_use]
+#[allow(clippy::needless_for_each)]
 #[allow(
     clippy::missing_panics_doc,
     clippy::missing_errors_doc,
-    clippy::too_many_lines
+    clippy::too_many_lines,
+    clippy::uninlined_format_args
 )]
-pub fn generate_traces_debug(program: &Program, step_rows: &[Row]) -> bool {
-    const D: usize = 2;
-    type C = PoseidonGoldilocksConfig;
-    type F = <C as GenericConfig<D>>::F;
-    type CpuStarkT = CpuStark<F, D>;
-    type RcStarkT = RangeCheckStark<F, D>;
-    type BtStarkT = BitwiseStark<F, D>;
-    type BsStarkT = BitshiftStark<F, D>;
+pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
+    program: &Program,
+    step_rows: &[Row],
+    mozak_stark: &MozakStark<F, D>,
+) where
+    [(); CpuStark::<F, D>::COLUMNS]:,
+    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
+    [(); RangeCheckStark::<F, D>::COLUMNS]:,
+    [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); BitshiftStark::<F, D>::COLUMNS]:, {
+    let mut rc = true;
+    // [0] - CPU
+    let cpu_rows = generate_cpu_trace::<F>(program, step_rows);
+    let mut generic_cpu_rows: Vec<Vec<F>> = vec![];
+    cpu_rows.iter().for_each(|row| {
+        generic_cpu_rows.push(row.into_iter().as_slice().try_into().unwrap());
+    });
+    rc &= debug_single_trace::<F, D, CpuStark<F, D>>(
+        &mozak_stark.cpu_stark,
+        &generic_cpu_rows,
+        "CPU_STARK",
+        false,
+    );
+    // [1] - RC
+    let rc_rows = generate_rangecheck_trace::<F>(&cpu_rows);
+    rc &= debug_single_trace::<F, D, RangeCheckStark<F, D>>(
+        &mozak_stark.rangecheck_stark,
+        &transpose(&rc_rows),
+        "RANGE_CHECK_STARK",
+        true,
+    );
+    // [2] - BW
+    let bitwise_rows = generate_bitwise_trace(&cpu_rows);
+    let mut generic_bw_rows: Vec<Vec<F>> = vec![];
+    bitwise_rows.iter().for_each(|row| {
+        generic_bw_rows.push(row.into_iter().as_slice().try_into().unwrap());
+    });
+    rc &= debug_single_trace::<F, D, BitwiseStark<F, D>>(
+        &mozak_stark.bitwise_stark,
+        &generic_bw_rows,
+        "BITWISE_STARK",
+        false,
+    );
 
-    let mut acc = F::ZERO;
-    ////////////////////////////////////////////////////////////////////
-    //////////////////////// CPU DEBUG TRACE ///////////////////////////
-    //////////////////////// ///////////////////////////////////////////
-    let cpu_rows_debug = generate_cpu_trace::<F>(program, step_rows);
-    let mut cpu_consumer_debug = ConstraintConsumer::new_debug(vec![F::rand()]);
-    let cpu_stark = CpuStarkT::default();
-
-    for i in 1..cpu_rows_debug.len() {
+    // [3] - BS
+    let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
+    let mut generic_bitwise_rows: Vec<Vec<F>> = vec![];
+    shift_amount_rows.iter().for_each(|row| {
+        generic_bitwise_rows.push(row.into_iter().as_slice().try_into().unwrap());
+    });
+    rc &= debug_single_trace::<F, D, BitshiftStark<F, D>>(
+        &mozak_stark.shift_amount_stark,
+        &generic_bitwise_rows,
+        "BITWISE_STARK",
+        false,
+    );
+    assert!(rc);
+}
+#[allow(
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc,
+    clippy::too_many_lines,
+    clippy::uninlined_format_args
+)]
+pub fn debug_single_trace<F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>(
+    s: &S,
+    trace_rows: &Vec<Vec<F>>,
+    stark_name: &str,
+    is_range_check: bool,
+) -> bool
+where
+    [(); S::COLUMNS]:,
+    [(); S::PUBLIC_INPUTS]:, {
+    let mut rc = true;
+    let mut consumer = ConstraintConsumer::new_debug_api();
+    for nv_row in 1..trace_rows.len() {
+        let lv_row = nv_row - 1;
         let mut lv: Vec<_> = vec![];
-        cpu_rows_debug[i - 1].into_iter().for_each(|e| {
-            lv.push(e);
+        trace_rows[lv_row].iter().for_each(|e| {
+            lv.push(*e);
         });
 
         let mut nv: Vec<_> = vec![];
-        cpu_rows_debug[i].into_iter().for_each(|e| {
-            nv.push(e);
+        trace_rows[nv_row].iter().for_each(|e| {
+            nv.push(*e);
         });
 
-        if i == 1 {
-            cpu_consumer_debug.debug_activate_first_row();
-        } else if i == cpu_rows_debug.len() - 1 {
-            cpu_consumer_debug.debug_activate_last_row();
+        if nv_row == 1 {
+            consumer.debug_api_activate_first_row();
+        } else if nv_row == trace_rows.len() - 1 {
+            consumer.debug_api_activate_last_row();
             lv = nv.clone();
+            // NOTE: this is the place that differs from other traces, please refer to
+            // lookup.rs for more info
+            if is_range_check {
+                nv.clear();
+                trace_rows[0].iter().for_each(|e| nv.push(*e));
+            }
         } else {
-            cpu_consumer_debug.debug_activate_transition();
+            consumer.debug_api_activate_transition();
         }
 
-        cpu_stark.eval_packed_generic(
+        s.eval_packed_generic(
             StarkEvaluationVars {
                 local_values: lv.as_slice().try_into().unwrap(),
                 next_values: nv.as_slice().try_into().unwrap(),
-                public_inputs: &[F::ZERO; CpuStarkT::PUBLIC_INPUTS],
+                public_inputs: &[F::ZERO; S::PUBLIC_INPUTS],
             },
-            &mut cpu_consumer_debug,
+            &mut consumer,
         );
-        cpu_consumer_debug.constraint_accs.iter().for_each(|e| {
-            acc += *e;
-            assert!(e.eq(&F::ZERO));
-        });
-    }
-    assert!(acc.eq(&F::ZERO));
-    ///////////////////////////////////////////////////////////////////////////
-    //////////////////////// RC DEBUG TRACE ///////////////////////////////////
-    //////////////////////// //////////////////////////////////////////////////
-    let rc_rows_debug_trace = generate_rangecheck_trace::<F>(&cpu_rows_debug);
-    let rc_rows_debug = transpose(&rc_rows_debug_trace);
-    let mut rc_consumer_debug = ConstraintConsumer::new_debug(vec![F::rand()]);
-    let rc_stark = RcStarkT::default();
-
-    for i in 1..rc_rows_debug.len() {
-        let mut lv: Vec<_> = vec![];
-        rc_rows_debug[i - 1].iter().for_each(|e| lv.push(*e));
-
-        let mut nv: Vec<_> = vec![];
-        rc_rows_debug[i].iter().for_each(|e| nv.push(*e));
-
-        if i == 1 {
-            rc_consumer_debug.debug_activate_first_row();
-        } else if i == rc_rows_debug.len() - 1 {
-            rc_consumer_debug.debug_activate_last_row();
-            lv = nv.clone();
-            nv.clear();
-            rc_rows_debug[0].iter().for_each(|e| nv.push(*e));
-        } else {
-            rc_consumer_debug.debug_activate_transition();
+        if consumer.debug_api_is_constraint_failed() {
+            println!("Debug constraints for {stark_name}");
+            println!("lv-row[{lv_row}] - values: {:?}", lv);
+            println!("nv-row[{nv_row}] - values: {:?}", nv);
+            consumer.debug_api_reset_failed_constraint();
+            rc = false;
         }
-
-        let local_val: &[GoldilocksField; RcStarkT::COLUMNS] = lv.as_slice().try_into().unwrap();
-        let next_val: &[GoldilocksField; RcStarkT::COLUMNS] = nv.as_slice().try_into().unwrap();
-
-        rc_stark.eval_packed_generic(
-            StarkEvaluationVars {
-                local_values: local_val,
-                next_values: next_val,
-                public_inputs: &[F::ZERO; RcStarkT::PUBLIC_INPUTS],
-            },
-            &mut rc_consumer_debug,
-        );
-        rc_consumer_debug.constraint_accs.iter().for_each(|e| {
-            acc += *e;
-            assert!(e.eq(&F::ZERO));
-        });
     }
-    assert!(acc.eq(&F::ZERO));
-
-    ///////////////////////////////////////////////////////////////////////////
-    //////////////////////// BT DEBUG TRACE ///////////////////////////////////
-    //////////////////////// //////////////////////////////////////////////////
-    let bt_rows_debug = generate_bitwise_trace::<F>(&cpu_rows_debug);
-    let mut bt_consumer_debug = ConstraintConsumer::new_debug(vec![F::rand()]);
-    let bt_stark = BtStarkT::default();
-
-    for i in 1..bt_rows_debug.len() {
-        let mut lv: Vec<_> = vec![];
-        bt_rows_debug[i - 1].into_iter().for_each(|e| {
-            lv.push(e);
-        });
-
-        let mut nv: Vec<_> = vec![];
-        bt_rows_debug[i].into_iter().for_each(|e| {
-            nv.push(e);
-        });
-
-        if i == 1 {
-            bt_consumer_debug.debug_activate_first_row();
-        } else if i == bt_rows_debug.len() - 1 {
-            bt_consumer_debug.debug_activate_last_row();
-            lv = nv.clone();
-        } else {
-            bt_consumer_debug.debug_activate_transition();
-        }
-        bt_stark.eval_packed_generic(
-            StarkEvaluationVars {
-                local_values: lv.as_slice().try_into().unwrap(),
-                next_values: nv.as_slice().try_into().unwrap(),
-                public_inputs: &[F::ZERO; BtStarkT::PUBLIC_INPUTS],
-            },
-            &mut bt_consumer_debug,
-        );
-        bt_consumer_debug.constraint_accs.iter().for_each(|e| {
-            acc += *e;
-            assert!(e.eq(&F::ZERO));
-        });
-    }
-    assert!(acc.eq(&F::ZERO));
-
-    ///////////////////////////////////////////////////////////////////////////
-    //////////////////////// BS DEBUG TRACE ///////////////////////////////////
-    //////////////////////// //////////////////////////////////////////////////
-    let bitshift_rows_debug = generate_shift_amount_trace::<F>(&cpu_rows_debug);
-    let mut bitshift_consumer_debug = ConstraintConsumer::new_debug(vec![F::rand()]);
-    let bitshift_stark = BsStarkT::default();
-
-    for i in 1..bitshift_rows_debug.len() {
-        let mut lv: Vec<_> = vec![];
-        bitshift_rows_debug[i - 1].into_iter().for_each(|e| {
-            lv.push(e);
-        });
-
-        let mut nv: Vec<_> = vec![];
-        bitshift_rows_debug[i].into_iter().for_each(|e| {
-            nv.push(e);
-        });
-
-        if i == 1 {
-            bitshift_consumer_debug.debug_activate_first_row();
-        } else if i == bitshift_rows_debug.len() - 1 {
-            bitshift_consumer_debug.debug_activate_last_row();
-            lv = nv.clone();
-        } else {
-            bitshift_consumer_debug.debug_activate_transition();
-        }
-        bitshift_stark.eval_packed_generic(
-            StarkEvaluationVars {
-                local_values: lv.as_slice().try_into().unwrap(),
-                next_values: nv.as_slice().try_into().unwrap(),
-                public_inputs: &[F::ZERO; BsStarkT::PUBLIC_INPUTS],
-            },
-            &mut bitshift_consumer_debug,
-        );
-        bitshift_consumer_debug
-            .constraint_accs
-            .iter()
-            .for_each(|e| {
-                acc += *e;
-                assert!(e.eq(&F::ZERO));
-            });
-    }
-    assert!(acc.eq(&F::ZERO));
-    acc.eq(&F::ZERO)
+    rc
 }
