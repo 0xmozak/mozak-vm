@@ -45,6 +45,9 @@ pub(crate) fn constraints<P: PackedField>(
     let rt = lv.remainder_abs_slack;
 
     yield_constr.constraint((is_divu + is_remu) * (lv.divisor - q_raw));
+    yield_constr.constraint(
+        (is_div + is_rem) * (lv.divisor - (lv.op2_val_fixed - is_signed * shifted(31))),
+    );
 
     let dst = lv.dst_value;
     // The following constraints are for SRL.
