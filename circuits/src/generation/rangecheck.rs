@@ -39,6 +39,10 @@ fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
         F::from_canonical_u32(value & 0xffff),
     )
 }
+
+/// The main driver for rangecheck trace generation. Generates the input trace
+/// and the fixed trace and puts them together to form a complete range check
+/// trace.
 pub fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
 ) -> RangeCheckColumnsView<Vec<F>> {
@@ -49,6 +53,16 @@ pub fn generate_rangecheck_trace<F: RichField>(
 }
 
 #[must_use]
+/// Generates the fixed view of the rangecheck trace involved in the inner table
+/// lookup argument.
+///
+/// This view contains the fixed range 0..2^16-1, the permuted table columns
+/// and the permuted limbs of the values to be range checked.
+///
+/// As such, this view is self contained in the sense that it is generated from
+/// 2 columns:
+/// 1) the column containing values to be range checked, and
+/// 2) the column containing the fixed range.
 pub fn generate_fixed_trace<F: RichField>(trace: &mut Vec<Vec<F>>) -> Vec<Vec<F>> {
     let mut fixed_trace: Vec<Vec<F>> =
         vec![vec![]; InnerLookupColumnsView::<()>::NUMBER_OF_COLUMNS];
@@ -98,8 +112,8 @@ pub fn generate_fixed_trace<F: RichField>(trace: &mut Vec<Vec<F>>) -> Vec<Vec<F>
     fixed_trace
 }
 
-/// Fill the trace table with inputs for range checks, used in building a
-/// `RangeCheckStark` proof.
+/// Fill the trace table with inputs from other traces for range checks, used in
+/// building a `RangeCheckStark` proof.
 ///
 /// # Panics
 ///
