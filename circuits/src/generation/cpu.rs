@@ -180,23 +180,23 @@ pub fn generate_permuted_inst_trace<F: RichField>(
         .map(|row| row.inst)
         .collect();
     trace.sort_by_key(|inst| inst.pc.to_noncanonical_u64());
-    let mut trace = merge_join_by(trace, program_rom, |exec, rom| {
+    let mut trace: Vec<_> = merge_join_by(trace, program_rom, |exec, rom| {
         exec.pc
             .to_noncanonical_u64()
             .cmp(&rom.inst.pc.to_noncanonical_u64())
     })
-    .collect::<Vec<_>>();
+    .collect();
     trace.sort_by_key(EitherOrBoth::has_left);
     trace
         .into_iter()
         .map(|row| match row {
-            Left(inst) | Both(inst, _) => ProgramColumnsView {
-                filter: F::from_bool(row.has_right()),
+            Left(inst) => ProgramColumnsView {
+                filter: F::ZERO,
                 inst: InstColumnsView::from(inst),
             },
-            Right(&inst_view) => inst_view,
+            Both(_, &inst_view) | Right(&inst_view) => inst_view,
         })
-        .collect::<Vec<_>>()
+        .collect()
 }
 
 #[cfg(test)]
