@@ -19,7 +19,7 @@ use crate::utils::{from_u32, pad_trace_with_last_with_len};
 #[must_use]
 pub fn generate_cpu_trace_extended<F: RichField>(
     mut cpu_trace: Vec<CpuColumnsView<F>>,
-    program_trace: &Vec<ProgramColumnsView<F>>,
+    program_trace: &[ProgramColumnsView<F>],
 ) -> CpuColumnsExtended<Vec<F>> {
     let permuted = generate_permuted_inst_trace(&cpu_trace);
     let mut extended = pad_permuted_inst_trace(&permuted, program_trace);
