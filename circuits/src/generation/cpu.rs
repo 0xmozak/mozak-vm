@@ -32,11 +32,15 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     mut cpu_trace: Vec<CpuColumnsView<F>>,
     program_trace: Vec<ProgramColumnsView<F>>,
 ) -> CpuColumnsExtended<Vec<F>> {
+    dbg!(cpu_trace.clone());
+    dbg!(program_trace.clone());
     let permuted = generate_permuted_inst_trace(&cpu_trace);
     let mut extended = pad_permuted_inst_trace(&permuted, program_trace);
     let len = std::cmp::max(cpu_trace.len(), extended.len()).next_power_of_two();
     extended = pad_trace_with_default_with_len(extended, len);
     cpu_trace = pad_trace_with_default_with_len(cpu_trace, len);
+    dbg!(cpu_trace.clone());
+    dbg!(extended.clone());
 
     (chain!(transpose_trace(cpu_trace), transpose_trace(extended))).collect()
 }
@@ -267,63 +271,131 @@ mod tests {
 
     use crate::columns_view::selection;
     use crate::cpu::columns::{CpuColumnsView, InstructionView};
-    use crate::generation::cpu::generate_permuted_inst_trace;
+    use crate::generation::cpu::{generate_permuted_inst_trace, pad_permuted_inst_trace};
     use crate::program::columns::{InstColumnsView, ProgramColumnsView};
     use crate::utils::from_u32;
 
     #[test]
-    fn test_generate_permuted_inst_trace() {
+    fn test_pad_permuted_inst_trace() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        let trace: Vec<CpuColumnsView<F>> = [
-            InstructionView {
-                pc: 3,
-                ops: selection(2),
-                rs1_select: selection(1),
-                rs2_select: selection(2),
-                rd_select: selection(3),
-                imm_value: 1,
+        let cpu_trace: Vec<CpuColumnsView<F>> = [
+            CpuColumnsView {
+                inst: InstructionView {
+                    pc: 1,
+                    ops: selection(3),
+                    rs1_select: selection(2),
+                    rs2_select: selection(1),
+                    rd_select: selection(1),
+                    imm_value: 3,
+                    ..Default::default()
+                },
+                halt: 0,
                 ..Default::default()
             },
-            InstructionView {
-                pc: 1,
-                ops: selection(3),
-                rs1_select: selection(2),
-                rs2_select: selection(1),
-                rd_select: selection(1),
-                imm_value: 3,
+            CpuColumnsView {
+                inst: InstructionView {
+                    pc: 2,
+                    ops: selection(1),
+                    rs1_select: selection(3),
+                    rs2_select: selection(3),
+                    rd_select: selection(2),
+                    imm_value: 2,
+                    ..Default::default()
+                },
+                halt: 0,
                 ..Default::default()
             },
-            InstructionView {
-                pc: 2,
-                ops: selection(1),
-                rs1_select: selection(3),
-                rs2_select: selection(3),
-                rd_select: selection(2),
-                imm_value: 2,
+            CpuColumnsView {
+                inst: InstructionView {
+                    pc: 1,
+                    ops: selection(3),
+                    rs1_select: selection(2),
+                    rs2_select: selection(1),
+                    rd_select: selection(1),
+                    imm_value: 3,
+                    ..Default::default()
+                },
+                halt: 0,
                 ..Default::default()
             },
-            InstructionView {
-                pc: 1,
-                ops: selection(4),
-                rs1_select: selection(4),
-                rs2_select: selection(4),
-                rd_select: selection(4),
-                imm_value: 4,
+            CpuColumnsView {
+                inst: InstructionView {
+                    pc: 1,
+                    ops: selection(4),
+                    rs1_select: selection(4),
+                    rs2_select: selection(4),
+                    rd_select: selection(4),
+                    imm_value: 4,
+                    ..Default::default()
+                },
+                halt: 1,
                 ..Default::default()
             },
         ]
         .into_iter()
-        .map(|inst| CpuColumnsView {
-            inst: inst.map(from_u32),
+        .map(|row| CpuColumnsView {
+            inst: row.inst.map(from_u32),
+            halt: from_u32(row.halt),
             ..Default::default()
         })
         .collect();
 
-        let permuted_trace = generate_permuted_inst_trace(&trace);
-        let expected_permuted_trace: Vec<ProgramColumnsView<F>> = [
+        let program_trace: Vec<ProgramColumnsView<F>> = [
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 1,
+                    opcode: 3,
+                    rs1: 2,
+                    rs2: 1,
+                    rd: 1,
+                    imm: 3,
+                },
+                filter: 1,
+            },
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 2,
+                    opcode: 1,
+                    rs1: 3,
+                    rs2: 3,
+                    rd: 2,
+                    imm: 2,
+                },
+                filter: 1,
+            },
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 3,
+                    opcode: 2,
+                    rs1: 1,
+                    rs2: 2,
+                    rd: 3,
+                    imm: 1,
+                },
+                filter: 1,
+            },
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 1,
+                    opcode: 3,
+                    rs1: 3,
+                    rs2: 3,
+                    rd: 3,
+                    imm: 3,
+                },
+                filter: 0,
+            },
+        ]
+        .into_iter()
+        .map(|row| row.map(from_u32))
+        .collect();
+
+        let extended = generate_permuted_inst_trace(&cpu_trace);
+        let extended = pad_permuted_inst_trace(&extended, program_trace);
+        let expected_extened: Vec<ProgramColumnsView<F>> = [
             ProgramColumnsView {
                 inst: InstColumnsView {
                     pc: 1,
@@ -338,11 +410,11 @@ mod tests {
             ProgramColumnsView {
                 inst: InstColumnsView {
                     pc: 1,
-                    opcode: 4,
-                    rs1: 4,
-                    rs2: 4,
-                    rd: 4,
-                    imm: 4,
+                    opcode: 3,
+                    rs1: 2,
+                    rs2: 1,
+                    rd: 1,
+                    imm: 3,
                 },
                 filter: 0,
             },
@@ -372,6 +444,6 @@ mod tests {
         .into_iter()
         .map(|row| row.map(from_u32))
         .collect();
-        assert_eq!(expected_permuted_trace, permuted_trace);
+        assert_eq!(extended, expected_extened);
     }
 }
