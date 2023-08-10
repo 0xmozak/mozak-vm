@@ -5,7 +5,7 @@ use crate::columns_view::NumberOfColumns;
 use crate::cpu::columns::CpuState;
 use crate::lookup::permute_cols;
 use crate::rangecheck::columns::{
-    InnerLookupColumnsView, InputColumnsView, RangeCheckColumnsView, MAP,
+    InputColumnsView, RangeCheckColumnsView, U16InnerLookupColumnsView, MAP,
 };
 use crate::stark::utils::transpose_trace;
 
@@ -21,7 +21,7 @@ pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 /// default.
 #[must_use]
 fn pad_input_trace<F: RichField>(mut trace: Vec<InputColumnsView<F>>) -> Vec<InputColumnsView<F>> {
-    let len = trace[MAP.input.val]
+    let len = trace[MAP.input.u32_value]
         .into_iter()
         .len()
         .max(RANGE_CHECK_U16_SIZE)
@@ -32,8 +32,11 @@ fn pad_input_trace<F: RichField>(mut trace: Vec<InputColumnsView<F>>) -> Vec<Inp
     trace
 }
 
-/// Converts a u32 into 2 u16 limbs represented in [`RichField`].
-fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
+/// Converts a [`RichField`] value into 2 u16 limbs represented in
+/// [`RichField`].
+fn limbs_from_field<F: RichField>(value: F) -> (F, F) {
+    let value =
+        u32::try_from(value.to_canonical_u64()).expect("casting dst value to u32 should succeed");
     (
         F::from_canonical_u32(value >> 16),
         F::from_canonical_u32(value & 0xffff),
@@ -65,9 +68,9 @@ pub fn generate_rangecheck_trace<F: RichField>(
 /// 2) the column containing the fixed range.
 pub fn generate_fixed_trace<F: RichField>(trace: &mut Vec<Vec<F>>) -> Vec<Vec<F>> {
     let mut fixed_trace: Vec<Vec<F>> =
-        vec![vec![]; InnerLookupColumnsView::<()>::NUMBER_OF_COLUMNS];
+        vec![vec![]; U16InnerLookupColumnsView::<()>::NUMBER_OF_COLUMNS];
 
-    let len = trace[MAP.input.val]
+    let len = trace[MAP.input.u32_value]
         .len()
         .max(RANGE_CHECK_U16_SIZE)
         .next_power_of_two();
@@ -79,12 +82,11 @@ pub fn generate_fixed_trace<F: RichField>(trace: &mut Vec<Vec<F>>) -> Vec<Vec<F>
     // Here, we generate fixed columns for the table, used in inner table lookups.
     // We are interested in range checking 16-bit values, hence we populate with
     // values 0, 1, .., 2^16 - 1.
-    fixed_trace[MAP.permuted.fixed_range_check_u16 - trace.len()] = (0..RANGE_CHECK_U16_SIZE
-        as u64)
+    fixed_trace[MAP.permuted.fixed_range - trace.len()] = (0..RANGE_CHECK_U16_SIZE as u64)
         .map(F::from_noncanonical_u64)
         .collect();
 
-    fixed_trace[MAP.permuted.fixed_range_check_u16 - trace.len()]
+    fixed_trace[MAP.permuted.fixed_range - trace.len()]
         .resize(len, F::from_canonical_u64(u64::from(u16::MAX)));
 
     trace[MAP.input.limb_lo].resize(len, F::ZERO);
@@ -93,21 +95,21 @@ pub fn generate_fixed_trace<F: RichField>(trace: &mut Vec<Vec<F>>) -> Vec<Vec<F>
     // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
     let (col_input_permuted, col_table_permuted) = permute_cols(
         &trace[MAP.input.limb_lo],
-        &fixed_trace[MAP.permuted.fixed_range_check_u16 - trace.len()],
+        &fixed_trace[MAP.permuted.fixed_range - trace.len()],
     );
 
     // We need a column for the lower limb.
     fixed_trace[MAP.permuted.limb_lo_permuted - trace.len()] = col_input_permuted;
-    fixed_trace[MAP.permuted.fixed_range_check_u16_permuted_lo - trace.len()] = col_table_permuted;
+    fixed_trace[MAP.permuted.fixed_range_permuted_lo - trace.len()] = col_table_permuted;
 
     let (col_input_permuted, col_table_permuted) = permute_cols(
         &trace[MAP.input.limb_hi],
-        &fixed_trace[MAP.permuted.fixed_range_check_u16 - trace.len()],
+        &fixed_trace[MAP.permuted.fixed_range - trace.len()],
     );
 
     // And we also need a column for the upper limb.
     fixed_trace[MAP.permuted.limb_hi_permuted - trace.len()] = col_input_permuted;
-    fixed_trace[MAP.permuted.fixed_range_check_u16_permuted_hi - trace.len()] = col_table_permuted;
+    fixed_trace[MAP.permuted.fixed_range_permuted_hi - trace.len()] = col_table_permuted;
 
     fixed_trace
 }
@@ -126,12 +128,10 @@ pub fn generate_input_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> Vec<Inpu
 
     for cpu_row in cpu_trace {
         if cpu_row.inst.ops.add.is_one() {
-            let val = u32::try_from(cpu_row.dst_value.to_canonical_u64())
-                .expect("casting dst value to u32 should succeed");
-            let (limb_hi, limb_lo) = limbs_from_u32(val);
+            let (limb_hi, limb_lo) = limbs_from_field(cpu_row.dst_value);
 
             let row = InputColumnsView {
-                val: cpu_row.dst_value,
+                u32_value: cpu_row.dst_value,
                 limb_hi,
                 limb_lo,
                 cpu_filter: F::ONE,
@@ -180,8 +180,8 @@ mod tests {
         // Check values that we are interested in
         assert_eq!(trace[MAP.input.cpu_filter][0], F::ONE);
         assert_eq!(trace[MAP.input.cpu_filter][1], F::ONE);
-        assert_eq!(trace[MAP.input.val][0], GoldilocksField(0x0001_fffe));
-        assert_eq!(trace[MAP.input.val][1], GoldilocksField(93));
+        assert_eq!(trace[MAP.input.u32_value][0], GoldilocksField(0x0001_fffe));
+        assert_eq!(trace[MAP.input.u32_value][1], GoldilocksField(93));
         assert_eq!(trace[MAP.input.limb_hi][0], GoldilocksField(0x0001));
         assert_eq!(trace[MAP.input.limb_lo][0], GoldilocksField(0xfffe));
         assert_eq!(trace[MAP.input.limb_lo][1], GoldilocksField(93));
@@ -190,7 +190,7 @@ mod tests {
         for cpu_filter in &trace[MAP.input.cpu_filter][2..] {
             assert_eq!(cpu_filter, &F::ZERO);
         }
-        for value in &trace[MAP.input.val][2..] {
+        for value in &trace[MAP.input.u32_value][2..] {
             assert_eq!(value, &F::ZERO);
         }
         for limb_hi in &trace[MAP.input.limb_hi][1..] {
