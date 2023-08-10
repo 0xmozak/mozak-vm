@@ -147,7 +147,6 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, au
 #[allow(clippy::cast_lossless)]
 fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
     let is_signed: bool = row.is_signed().is_nonzero();
-
     let embed = if is_signed {
         |x: u32| x as i32 as i64
     } else {
