@@ -61,7 +61,6 @@ pub fn generate_rangecheck_trace<F: RichField>(
         assert!(matches!(t.kind, TableKind::Cpu));
         if let [column] = &t.columns[..] {
             for cpu_row in cpu_trace {
-                // column.eval_row(row)
                 let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
                 if t.filter_column.eval_row(cpu_row).is_one() {
                     let victim = column.eval_row(cpu_row);
