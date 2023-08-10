@@ -26,7 +26,7 @@ fn constrain_value<P: PackedField>(
     local_values: &RangeCheckColumnsView<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let val = local_values.input.val;
+    let val = local_values.input.u32_value;
     let limb_lo = local_values.input.limb_lo;
     let limb_hi = local_values.input.limb_hi;
     yield_constr.constraint(val - (limb_lo + limb_hi * base));
@@ -63,21 +63,21 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
             vars,
             yield_constr,
             MAP.permuted.limb_lo_permuted,
-            MAP.permuted.fixed_range_check_u16_permuted_lo,
+            MAP.permuted.fixed_range_permuted_lo,
         );
         eval_lookups(
             vars,
             yield_constr,
             MAP.permuted.limb_hi_permuted,
-            MAP.permuted.fixed_range_check_u16_permuted_hi,
+            MAP.permuted.fixed_range_permuted_hi,
         );
-        yield_constr.constraint_first_row(lv.permuted.fixed_range_check_u16);
+        yield_constr.constraint_first_row(lv.permuted.fixed_range);
         yield_constr.constraint_transition(
-            (nv.permuted.fixed_range_check_u16 - lv.permuted.fixed_range_check_u16 - FE::ONE)
-                * (nv.permuted.fixed_range_check_u16 - lv.permuted.fixed_range_check_u16),
+            (nv.permuted.fixed_range - lv.permuted.fixed_range - FE::ONE)
+                * (nv.permuted.fixed_range - lv.permuted.fixed_range),
         );
         yield_constr.constraint_last_row(
-            lv.permuted.fixed_range_check_u16 - FE::from_canonical_u64(u64::from(u16::MAX)),
+            lv.permuted.fixed_range - FE::from_canonical_u64(u64::from(u16::MAX)),
         );
     }
 
@@ -98,12 +98,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
             PermutationPair::singletons(MAP.input.limb_lo, MAP.permuted.limb_lo_permuted),
             PermutationPair::singletons(MAP.input.limb_hi, MAP.permuted.limb_hi_permuted),
             PermutationPair::singletons(
-                MAP.permuted.fixed_range_check_u16,
-                MAP.permuted.fixed_range_check_u16_permuted_lo,
+                MAP.permuted.fixed_range,
+                MAP.permuted.fixed_range_permuted_lo,
             ),
             PermutationPair::singletons(
-                MAP.permuted.fixed_range_check_u16,
-                MAP.permuted.fixed_range_check_u16_permuted_hi,
+                MAP.permuted.fixed_range,
+                MAP.permuted.fixed_range_permuted_hi,
             ),
         ]
     }
@@ -157,7 +157,7 @@ mod tests {
         let cpu_trace = generate_cpu_trace::<F>(&program, &record.executed);
         let mut trace = generate_input_trace::<F>(&cpu_trace);
         // Manually alter the value here to be larger than a u32.
-        trace[0][MAP.input.val] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
+        trace[0][MAP.input.u32_value] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
         trace
     }
 
