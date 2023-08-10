@@ -14,6 +14,10 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(lv.inst.ops.ecall * (lv.regs[17] - P::Scalar::from_canonical_u8(93)));
     // Thus we can equate ecall with halt in the next row.
     yield_constr.constraint_transition(lv.inst.ops.ecall - nv.halt);
+
+    // 'halt' means: no bumping of pc anymore ever.
+    yield_constr
+        .constraint_transition(lv.halt * (nv.inst.pc - P::Scalar::from_canonical_u32(u32::MAX)));
 }
 
 // We are already testing ecall with our coda of every `simple_test_code`.
