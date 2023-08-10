@@ -1,6 +1,6 @@
 use plonky2::hash::hash_types::RichField;
 
-use crate::cpu::columns::{CpuColumnsView, MAP as cpu_map};
+use crate::cpu::columns::CpuState;
 use crate::lookup::permute_cols;
 use crate::rangecheck::columns;
 use crate::rangecheck::columns::MAP;
@@ -51,7 +51,7 @@ fn push_rangecheck_row<F: RichField>(
 /// 2. trace width does not match the number of columns.
 #[must_use]
 pub fn generate_rangecheck_trace<F: RichField>(
-    cpu_trace: &[CpuColumnsView<F>],
+    cpu_trace: &[CpuState<F>],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
 
@@ -59,7 +59,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
         let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
 
         if cpu_row.inst.ops.ops_to_rangecheck().into_iter().sum::<F>() != F::ZERO {
-            let dst_val = u32::try_from(cpu_row[cpu_map.cpu.dst_value].to_canonical_u64())
+            let dst_val = u32::try_from(cpu_row.dst_value.to_canonical_u64())
                 .expect("casting dst_value to u32 should succeed");
             let (limb_hi, limb_lo) = limbs_from_u32(dst_val);
             rangecheck_row[MAP.val] = cpu_row.dst_value;
