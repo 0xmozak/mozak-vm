@@ -21,11 +21,7 @@ pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 /// default.
 #[must_use]
 fn pad_input_trace<F: RichField>(mut trace: Vec<InputColumnsView<F>>) -> Vec<InputColumnsView<F>> {
-    let len = trace[MAP.input.u32_value]
-        .into_iter()
-        .len()
-        .max(RANGE_CHECK_U16_SIZE)
-        .next_power_of_two();
+    let len = trace.len().max(RANGE_CHECK_U16_SIZE).next_power_of_two();
 
     trace.resize(len, InputColumnsView::default());
 
@@ -88,8 +84,6 @@ pub fn generate_fixed_trace<F: RichField>(trace: &mut Vec<Vec<F>>) -> Vec<Vec<F>
 
     fixed_trace[MAP.permuted.fixed_range - trace.len()]
         .resize(len, F::from_canonical_u64(u64::from(u16::MAX)));
-
-    trace[MAP.input.limb_lo].resize(len, F::ZERO);
 
     // This permutation is done in accordance to the [Halo2 lookup argument
     // spec](https://zcash.github.io/halo2/design/proving-system/lookup.html)
