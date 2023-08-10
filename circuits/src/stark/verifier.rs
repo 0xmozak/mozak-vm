@@ -53,6 +53,11 @@ where
         cross_table_lookups,
     } = mozak_stark;
 
+    assert_eq!(
+        all_proof.stark_proofs[TableKind::Program as usize].trace_cap,
+        all_proof.program_rom_trace_cap
+    );
+
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
         &all_proof.stark_proofs,
         &cross_table_lookups,
