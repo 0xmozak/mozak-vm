@@ -167,6 +167,7 @@ impl<T: Copy + core::ops::Add<Output = T>> OpSelectors<T> {
     // TODO: Add SRA, once we implement its constraints.
     pub fn ops_that_shift(&self) -> [T; 2] { [self.sll, self.srl] }
 
+    // TODO: unify this and `filter_for_rangecheck()` above.
     /// List of opcode columns, that when encountered in trace generation,
     /// require range checking of dst.
     pub(crate) fn must_rangecheck(&self) -> T { self.add + self.sb + self.lbu }
