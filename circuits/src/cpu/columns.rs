@@ -160,7 +160,7 @@ pub fn filter_for_bitwise<F: Field>() -> Column<F> {
     Column::many(MAP.cpu.inst.ops.ops_that_use_xor())
 }
 
-impl<T: Copy> OpSelectors<T> {
+impl<T: Copy + core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(&self) -> [T; 5] {
         // TODO: Add SRA, once we implement its constraints.
@@ -170,8 +170,9 @@ impl<T: Copy> OpSelectors<T> {
     // TODO: Add SRA, once we implement its constraints.
     pub fn ops_that_shift(&self) -> [T; 2] { [self.sll, self.srl] }
 
-    /// List of opcode columns that require range checking.
-    pub(crate) fn ops_to_rangecheck(&self) -> [T; 3] { [self.add, self.sb, self.lbu] }
+    /// List of opcode columns, that when encountered in trace generation,
+    /// require range checking.
+    pub(crate) fn must_rangecheck(&self) -> T { self.add + self.sb + self.lbu }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.
