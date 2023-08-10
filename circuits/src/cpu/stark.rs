@@ -80,7 +80,7 @@ fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
 }
 
 /// Ensure an expression only takes on values 0 or 1.
-fn is_binary<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
+pub fn is_binary<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
     yield_constr.constraint(x * (P::ONES - x));
 }
 

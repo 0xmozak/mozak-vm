@@ -1,9 +1,18 @@
-Example cargo project wich can generate ELF compatible with MozakVM.
+Guest Program
+---
 
-How to build:
-`cargo +nightly build`
+This repo contains an example cargo project which generates ELF compatible with MozakVM.
 
-To dump assembly files:
-`RUSTFLAGS="--emit asm" cargo +nightly build`
- 
- Now check in ./target/riscv32im-risc0-zkvm-elf/debug/deps for assembly files (.s extension)
+**Build**
+
+```
+cargo +nightly build
+```
+
+**To dump assembly files**
+
+```
+RUSTFLAGS="--emit asm" cargo +nightly build
+```
+
+ Now check in `./target/riscv32im-risc0-zkvm-elf/debug/deps` for assembly files (with `.s` extension)

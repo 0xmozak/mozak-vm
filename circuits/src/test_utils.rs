@@ -18,6 +18,7 @@ use crate::generation::bitshift::generate_shift_amount_trace;
 use crate::generation::bitwise::generate_bitwise_trace;
 use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
 use crate::generation::memory::generate_memory_trace;
+use crate::generation::program::generate_program_rom_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
 use crate::memory::stark::MemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
@@ -74,6 +75,7 @@ impl ProveAndVerify for CpuStark<F, D> {
         let stark = S::default();
         let trace_poly_values = trace_to_poly_values(generate_cpu_trace_extended(
             generate_cpu_trace(program, step_rows),
+            &generate_program_rom_trace(program),
         ));
         let proof = prove_table::<F, C, S, D>(
             stark,
