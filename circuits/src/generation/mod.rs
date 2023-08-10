@@ -54,13 +54,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         program_trace,
     ]
 }
-#[allow(clippy::needless_for_each)]
-#[allow(
-    clippy::missing_panics_doc,
-    clippy::missing_errors_doc,
-    clippy::too_many_lines,
-    clippy::uninlined_format_args
-)]
+
+#[allow(clippy::missing_panics_doc)]
 pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
     step_rows: &[Row],
@@ -77,9 +72,9 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     // [0] - PR
     let program_rom_rows = generate_program_rom_trace(program);
     let mut generic_program_rom_rows: Vec<Vec<F>> = vec![];
-    program_rom_rows.iter().for_each(|row| {
+    for row in &program_rom_rows {
         generic_program_rom_rows.push(row.into_iter().as_slice().try_into().unwrap());
-    });
+    }
     rc &= debug_single_trace::<F, D, ProgramStark<F, D>>(
         &mozak_stark.program_stark,
         &generic_program_rom_rows,
@@ -109,10 +104,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     );
     // [3] - BW
     let bitwise_rows = generate_bitwise_trace(&cpu_rows);
-    let mut generic_bw_rows: Vec<Vec<F>> = vec![];
-    bitwise_rows.iter().for_each(|row| {
-        generic_bw_rows.push(row.into_iter().as_slice().try_into().unwrap());
-    });
+    let generic_bw_rows: Vec<Vec<F>> = bitwise_rows.into_iter().map(|row| row.into_iter().collect_vec()).collect_vec();
     rc &= debug_single_trace::<F, D, BitwiseStark<F, D>>(
         &mozak_stark.bitwise_stark,
         &generic_bw_rows,
@@ -122,24 +114,22 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 
     // [4] - BS
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
-    let mut generic_bitwise_rows: Vec<Vec<F>> = vec![];
-    shift_amount_rows.iter().for_each(|row| {
-        generic_bitwise_rows.push(row.into_iter().as_slice().try_into().unwrap());
-    });
+    let mut generic_bitshift_rows: Vec<Vec<F>> = vec![];
+    for row in &shift_amount_rows {
+        generic_bitshift_rows.push(row.into_iter().as_slice().try_into().unwrap());
+    }
     rc &= debug_single_trace::<F, D, BitshiftStark<F, D>>(
         &mozak_stark.shift_amount_stark,
-        &generic_bitwise_rows,
+        &generic_bitshift_rows,
         "BITWISE_STARK",
         false,
     );
 
     assert!(rc);
 }
+
 #[allow(
     clippy::missing_panics_doc,
-    clippy::missing_errors_doc,
-    clippy::too_many_lines,
-    clippy::uninlined_format_args
 )]
 pub fn debug_single_trace<F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>(
     s: &S,
