@@ -5,6 +5,7 @@ pub mod instruction;
 pub mod memory;
 pub mod program;
 pub mod rangecheck;
+use std::borrow::Borrow;
 
 use itertools::Itertools;
 use mozak_vm::elf::Program;
@@ -23,9 +24,11 @@ use self::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
 use self::rangecheck::generate_rangecheck_trace;
 use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
+use crate::cpu::columns::CpuColumnsExtended;
 use crate::cpu::stark::CpuStark;
 use crate::generation::program::generate_program_rom_trace;
 use crate::program::stark::ProgramStark;
+use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::mozak_stark::{MozakStark, NUM_TABLES};
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values, transpose_trace};
@@ -55,13 +58,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     ]
 }
 
-pub fn extract<F: RichField>(trace: &Vec<impl IntoIterator<Item = F> + Clone>) -> Vec<Vec<F>> {
-    trace
-        .into_iter()
-        .map(|row| row.clone().into_iter().collect_vec())
-        .collect_vec()
-}
-
 #[allow(clippy::missing_panics_doc)]
 pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
@@ -78,11 +74,10 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 
     // [0] - PR
     let program_rom_rows = generate_program_rom_trace(program);
-    let generic_program_rom_rows: Vec<Vec<F>> = extract(&program_rom_rows);
 
     rc &= debug_single_trace::<F, D, ProgramStark<F, D>>(
         &mozak_stark.program_stark,
-        &generic_program_rom_rows,
+        &program_rom_rows,
         "PROGRAM_ROM_STARK",
         false,
     );
@@ -91,6 +86,10 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     let cpu_rows = generate_cpu_trace::<F>(program, step_rows);
     let cpu_rows_extended = generate_cpu_trace_extended(cpu_rows.clone(), &program_rom_rows);
     let generic_cpu_rows = transpose_trace(cpu_rows_extended.into_iter().collect_vec());
+    let generic_cpu_rows = generic_cpu_rows
+        .into_iter()
+        .map(|row| row.into_iter().collect::<CpuColumnsExtended<F>>())
+        .collect_vec();
 
     rc &= debug_single_trace::<F, D, CpuStark<F, D>>(
         &mozak_stark.cpu_stark,
@@ -101,34 +100,33 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 
     // [2] - RC
     let rc_rows = generate_rangecheck_trace::<F>(&cpu_rows);
+    let rc_rows = transpose(&rc_rows);
+    let rc_rows = rc_rows
+        .iter()
+        .map(|row| row.iter().copied().collect::<RangeCheckColumnsView<F>>())
+        .collect_vec();
+    // let rc_rows = rc_rows.iter().map(Borrow::borrow).collect_vec();
     rc &= debug_single_trace::<F, D, RangeCheckStark<F, D>>(
         &mozak_stark.rangecheck_stark,
-        &transpose(&rc_rows),
+        &rc_rows,
         "RANGE_CHECK_STARK",
         true,
     );
     // [3] - BW
     let bitwise_rows = generate_bitwise_trace(&cpu_rows);
-    let generic_bw_rows: Vec<Vec<F>> = bitwise_rows
-        .into_iter()
-        .map(|row| row.into_iter().collect_vec())
-        .collect_vec();
     rc &= debug_single_trace::<F, D, BitwiseStark<F, D>>(
         &mozak_stark.bitwise_stark,
-        &generic_bw_rows,
+        &bitwise_rows,
         "BITWISE_STARK",
         false,
     );
 
     // [4] - BS
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
-    let mut generic_bitshift_rows: Vec<Vec<F>> = vec![];
-    for row in &shift_amount_rows {
-        generic_bitshift_rows.push(row.into_iter().as_slice().try_into().unwrap());
-    }
+
     rc &= debug_single_trace::<F, D, BitshiftStark<F, D>>(
         &mozak_stark.shift_amount_stark,
-        &generic_bitshift_rows,
+        &shift_amount_rows,
         "BITWISE_STARK",
         false,
     );
@@ -139,7 +137,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 #[allow(clippy::missing_panics_doc)]
 pub fn debug_single_trace<F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>(
     s: &S,
-    trace_rows: &Vec<Vec<F>>,
+    trace_rows: &Vec<impl Borrow<[F; S::COLUMNS]>>,
     stark_name: &str,
     is_range_check: bool,
 ) -> bool
@@ -151,12 +149,12 @@ where
     for nv_row in 1..trace_rows.len() {
         let lv_row = nv_row - 1;
         let mut lv: Vec<_> = vec![];
-        trace_rows[lv_row].iter().for_each(|e| {
+        trace_rows[lv_row].borrow().iter().for_each(|e| {
             lv.push(*e);
         });
 
         let mut nv: Vec<_> = vec![];
-        trace_rows[nv_row].iter().for_each(|e| {
+        trace_rows[nv_row].borrow().iter().for_each(|e| {
             nv.push(*e);
         });
 
@@ -169,7 +167,7 @@ where
             // lookup.rs for more info
             if is_range_check {
                 nv.clear();
-                trace_rows[0].iter().for_each(|e| nv.push(*e));
+                trace_rows[0].borrow().iter().for_each(|e| nv.push(*e));
             }
         } else {
             consumer.debug_api_activate_transition();
