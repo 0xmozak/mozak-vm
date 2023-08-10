@@ -136,11 +136,8 @@ impl<T: PackedField> CpuState<T> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> {
-    Column::many([
-        MAP.cpu.inst.ops.add,
-        MAP.cpu.inst.ops.sb,
-        MAP.cpu.inst.ops.lbu,
-    ])
+    let ops = MAP.cpu.inst.ops;
+    Column::many([ops.add, ops.sb, ops.lbu])
 }
 
 /// Columns containing the data to be range checked in the Mozak
