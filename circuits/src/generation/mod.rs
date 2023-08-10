@@ -104,7 +104,10 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     );
     // [3] - BW
     let bitwise_rows = generate_bitwise_trace(&cpu_rows);
-    let generic_bw_rows: Vec<Vec<F>> = bitwise_rows.into_iter().map(|row| row.into_iter().collect_vec()).collect_vec();
+    let generic_bw_rows: Vec<Vec<F>> = bitwise_rows
+        .into_iter()
+        .map(|row| row.into_iter().collect_vec())
+        .collect_vec();
     rc &= debug_single_trace::<F, D, BitwiseStark<F, D>>(
         &mozak_stark.bitwise_stark,
         &generic_bw_rows,
@@ -128,9 +131,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     assert!(rc);
 }
 
-#[allow(
-    clippy::missing_panics_doc,
-)]
+#[allow(clippy::missing_panics_doc)]
 pub fn debug_single_trace<F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>(
     s: &S,
     trace_rows: &Vec<Vec<F>>,
@@ -179,8 +180,8 @@ where
         );
         if consumer.debug_api_is_constraint_failed() {
             println!("Debug constraints for {stark_name}");
-            println!("lv-row[{lv_row}] - values: {:?}", lv);
-            println!("nv-row[{nv_row}] - values: {:?}", nv);
+            println!("lv-row[{lv_row}] - values: {lv:?}");
+            println!("nv-row[{nv_row}] - values: {nv:?}");
             consumer.debug_api_reset_failed_constraint();
             rc = false;
         }
