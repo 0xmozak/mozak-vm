@@ -30,8 +30,7 @@ pub struct InputColumnsView<T> {
     /// checked.
     pub(crate) limb_hi: T,
 
-    /// Column containing the upper limb (u16) of the u32 value to be range
-    /// checked.
+    /// Filter column to filter values from the CPU table.
     pub(crate) cpu_filter: T,
 }
 
