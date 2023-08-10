@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
@@ -27,7 +26,7 @@ columns_view_impl!(XorView);
 /// stark. [`CpuTable`](crate::cross_table_lookup::CpuTable)
 /// [`BitwiseTable`](crate::cross_table_lookup::BitwiseTable).
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.execution).collect_vec() }
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.execution) }
 
 /// Column for a binary filter to indicate a lookup from the
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable) in the Mozak

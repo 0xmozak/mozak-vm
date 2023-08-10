@@ -134,6 +134,12 @@ impl State {
                 self.register_op(&inst.args, $op)
             };
         }
+        // TODO: consider factoring out this logic from `register_op`, `branch_op`,
+        // `memory_load` etc.
+        let op1 = self.get_register_value(inst.args.rs1);
+        let op2 = self
+            .get_register_value(inst.args.rs2)
+            .wrapping_add(inst.args.imm);
 
         let (aux, state) = match inst.op {
             Op::ADD => rop!(u32::wrapping_add),
@@ -182,6 +188,8 @@ impl State {
         (
             Aux {
                 new_pc: state.get_pc(),
+                op1,
+                op2,
                 ..aux
             },
             state.bump_clock(),
