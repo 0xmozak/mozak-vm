@@ -11,6 +11,7 @@ use super::columns::CpuState;
 /// unsigned division.
 ///
 /// TODO: m, r, slack need range-checks.
+#[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
@@ -95,8 +96,13 @@ pub(crate) fn constraints<P: PackedField>(
     // Last, we 'copy' our results:
     yield_constr.constraint((is_divu + is_srl) * (dst - m));
     yield_constr.constraint(is_div * (dst - m) * (dst - m - shifted(32)));
-    // TODO (Vivek): Following constraint does not work for all cases.
-    yield_constr.constraint((is_sra) * (dst - m) * (dst - P::Scalar::from_canonical_u32(u32::MAX)));
+    // TODO (Vivek): Following constraint is degree 4, why it is not getting error
+    // as CPU constraint degreee is 3?
+    yield_constr.constraint(
+        is_sra
+            * (dst - m - (shifted(32) * lv.op1_sign_bit))
+            * (dst - P::Scalar::from_canonical_u32(u32::MAX)),
+    );
 
     yield_constr.constraint(is_remu * (dst - r));
     yield_constr.constraint(is_rem * (dst - r) * (dst - r - shifted(32)));
@@ -112,9 +118,13 @@ mod tests {
     use crate::cpu::stark::CpuStark;
     use crate::test_utils::{inv, ProveAndVerify};
     #[test]
+    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_possible_wrap)]
     fn prove_div_example() {
-        let p = u32::MAX;
-        let q = 2;
+        // let p = u32::MAX;
+        // let q = 2;
+        let p = 0x8000_0000;
+        let q = 1;
         let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::DIV,
@@ -135,6 +145,8 @@ mod tests {
         CpuStark::prove_and_verify(&program, &record.executed).unwrap();
     }
     #[test]
+    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_possible_wrap)]
     fn prove_sra_example() {
         // let p =  u32::MAX;
         // let q = 1;
@@ -318,6 +330,8 @@ mod tests {
             CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
         #[test]
+    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_possible_wrap)]
         fn prove_sra_proptest(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
             let (program, record) = simple_test_code(
                 &[Instruction {
