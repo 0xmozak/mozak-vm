@@ -13,8 +13,8 @@ overflow-checks = true
 incremental = true
 
 [patch.crates-io]
-plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
-plonky2_field = { git = "https://github.com/0xmozak/plonky2.git" }
+plonky2 = { version = "0.1.3", git = "https://github.com/dimdumon/plonky2-mozak.git", branch = "roman/debug-version-of-c-consumer", commit = "bd9ad6bb6a982f78ff5aa640bc5536a9e8c7f242" }
+plonky2_field = { git = "https://github.com/dimdumon/plonky2-mozak.git", branch = "roman/debug-version-of-c-consumer", commit = "bd9ad6bb6a982f78ff5aa640bc5536a9e8c7f242" }
 plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git" }
 plonky2_util = { git = "https://github.com/0xmozak/plonky2.git" }
-starky = { version = "0.1.2", git = "https://github.com/dimdumon/plonky2-mozak.git", branch = "roman/debug-version-of-c-consumer", commit = "a0e6aa61bc5207594288fec15304c760417423c6" }
+starky = { version = "0.1.2", git = "https://github.com/dimdumon/plonky2-mozak.git", branch = "roman/debug-version-of-c-consumer", commit = "bd9ad6bb6a982f78ff5aa640bc5536a9e8c7f242" }
