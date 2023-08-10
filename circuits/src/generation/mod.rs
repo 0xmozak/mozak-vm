@@ -73,9 +73,23 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:, {
     let mut rc = true;
-    // [0] - CPU
+
+    // [0] - PR
+    let program_rom_rows = generate_program_rom_trace(program);
+    let mut generic_program_rom_rows: Vec<Vec<F>> = vec![];
+    program_rom_rows.iter().for_each(|row| {
+        generic_program_rom_rows.push(row.into_iter().as_slice().try_into().unwrap());
+    });
+    rc &= debug_single_trace::<F, D, ProgramStark<F, D>>(
+        &mozak_stark.program_stark,
+        &generic_program_rom_rows,
+        "PROGRAM_ROM_STARK",
+        false,
+    );
+
+    // [1] - CPU
     let cpu_rows = generate_cpu_trace::<F>(program, step_rows);
-    let cpu_rows_extended = generate_cpu_trace_extended(cpu_rows.clone());
+    let cpu_rows_extended = generate_cpu_trace_extended(cpu_rows.clone(), &program_rom_rows);
     let generic_cpu_rows = transpose_trace(cpu_rows_extended.into_iter().collect_vec());
 
     rc &= debug_single_trace::<F, D, CpuStark<F, D>>(
@@ -84,7 +98,8 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
         "CPU_STARK",
         false,
     );
-    // [1] - RC
+
+    // [2] - RC
     let rc_rows = generate_rangecheck_trace::<F>(&cpu_rows);
     rc &= debug_single_trace::<F, D, RangeCheckStark<F, D>>(
         &mozak_stark.rangecheck_stark,
@@ -92,7 +107,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
         "RANGE_CHECK_STARK",
         true,
     );
-    // [2] - BW
+    // [3] - BW
     let bitwise_rows = generate_bitwise_trace(&cpu_rows);
     let mut generic_bw_rows: Vec<Vec<F>> = vec![];
     bitwise_rows.iter().for_each(|row| {
@@ -105,7 +120,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
         false,
     );
 
-    // [3] - BS
+    // [4] - BS
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let mut generic_bitwise_rows: Vec<Vec<F>> = vec![];
     shift_amount_rows.iter().for_each(|row| {
@@ -115,18 +130,6 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
         &mozak_stark.shift_amount_stark,
         &generic_bitwise_rows,
         "BITWISE_STARK",
-        false,
-    );
-
-    let program_rom_rows = generate_program_rom_trace(program, &cpu_rows);
-    let mut generic_program_rom_rows: Vec<Vec<F>> = vec![];
-    program_rom_rows.iter().for_each(|row| {
-        generic_program_rom_rows.push(row.into_iter().as_slice().try_into().unwrap());
-    });
-    rc &= debug_single_trace::<F, D, ProgramStark<F, D>>(
-        &mozak_stark.program_stark,
-        &generic_program_rom_rows,
-        "PROGRAM_ROM_STARK",
         false,
     );
 
