@@ -154,7 +154,7 @@ fn main() -> Result<()> {
                     None, // fft_root_table
                 );
                 let trace_cap = trace_commitment.merkle_tree.cap.clone();
-                println!("{:?}", trace_cap);
+                println!("{trace_cap:?}");
             }
             Command::BuildInfo => unreachable!(),
         }
