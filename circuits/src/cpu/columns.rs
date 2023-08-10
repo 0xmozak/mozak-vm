@@ -132,6 +132,7 @@ impl<T: PackedField> CpuState<T> {
 }
 
 /// Stuff we need to range check
+#[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let ops = &MAP.cpu.inst.ops;
     vec![
