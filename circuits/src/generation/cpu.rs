@@ -74,7 +74,6 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
             let mut last_row = *trace.last().unwrap();
             last_row.halt = F::ONE;
             last_row.clk += F::ONE;
-            last_row.inst.pc = F::from_canonical_u32(u32::MAX);
             trace.push(last_row);
             break;
         }
