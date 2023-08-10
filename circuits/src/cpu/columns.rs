@@ -137,11 +137,11 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let ops = &MAP.cpu.inst.ops;
     vec![
         CpuTable::new(
-            vec![Column::single(MAP.cpu.dst_value)],
+            Column::singles([MAP.cpu.dst_value]),
             Column::single(ops.add),
         ),
         CpuTable::new(
-            vec![Column::single(MAP.cpu.abs_diff)],
+            Column::singles([MAP.cpu.abs_diff]),
             Column::many([ops.bge, ops.blt]),
         ),
     ]
