@@ -55,6 +55,13 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     ]
 }
 
+pub fn extract<F: RichField>(trace: &Vec<impl IntoIterator<Item = F> + Clone>) -> Vec<Vec<F>> {
+    trace
+        .into_iter()
+        .map(|row| row.clone().into_iter().collect_vec())
+        .collect_vec()
+}
+
 #[allow(clippy::missing_panics_doc)]
 pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
@@ -71,10 +78,8 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 
     // [0] - PR
     let program_rom_rows = generate_program_rom_trace(program);
-    let mut generic_program_rom_rows: Vec<Vec<F>> = vec![];
-    for row in &program_rom_rows {
-        generic_program_rom_rows.push(row.into_iter().as_slice().try_into().unwrap());
-    }
+    let generic_program_rom_rows: Vec<Vec<F>> = extract(&program_rom_rows);
+
     rc &= debug_single_trace::<F, D, ProgramStark<F, D>>(
         &mozak_stark.program_stark,
         &generic_program_rom_rows,
