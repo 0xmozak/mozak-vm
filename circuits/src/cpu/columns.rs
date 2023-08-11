@@ -131,7 +131,9 @@ impl<T: PackedField> CpuState<T> {
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
 
-/// Stuff we need to range check
+/// Expressions we need to range check
+///
+/// Currently, we only support  expressions over the [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let ops = &MAP.cpu.inst.ops;
