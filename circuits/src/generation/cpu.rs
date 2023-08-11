@@ -115,15 +115,19 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_lossless)]
 fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
-    let is_signed: bool = row.is_signed().is_nonzero();
-    let embed = if is_signed {
+    let embed1 = if row.is_signed1().is_nonzero() {
         |x: u32| x as i32 as i64
     } else {
         |x: u32| x as i64
     };
-    let dividend = embed(aux.op1);
+    let embed2 = if row.is_signed2().is_nonzero() {
+        |x: u32| x as i32 as i64
+    } else {
+        |x: u32| x as i64
+    };
+    let dividend = embed1(aux.op1);
 
-    let divisor = if let Op::SRL = inst.op {
+    let divisor = embed2(if let Op::SRL = inst.op {
         let shift_amount = aux.op2 & 0x1F;
         let shift_power = 1_u32 << shift_amount;
         row.bitshift = Bitshift {
@@ -131,16 +135,16 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, au
             multiplier: shift_power,
         }
         .map(from_u32);
-        embed(shift_power)
+        shift_power
     } else {
-        embed(aux.op2)
-    };
+        aux.op2
+    });
 
     row.divisor = F::from_noncanonical_i64(divisor);
 
     if let 0 = divisor {
-        row.quotient = F::from_noncanonical_i64(embed(u32::MAX));
-        row.quotient_abs = F::from_noncanonical_i64(embed(u32::MAX));
+        row.quotient = F::from_noncanonical_i64(embed1(u32::MAX));
+        row.quotient_abs = F::from_noncanonical_i64(embed1(u32::MAX));
         row.remainder = F::from_noncanonical_i64(dividend);
         row.remainder_abs = F::from_noncanonical_u64(dividend.unsigned_abs());
         row.remainder_abs_slack = F::ZERO;
@@ -160,15 +164,19 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, au
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_lossless)]
 fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
-    let is_signed: bool = row.is_signed().is_nonzero();
-    let embed = if is_signed {
+    let embed1 = if row.is_signed1().is_nonzero() {
+        |x: u32| x as i32 as i64
+    } else {
+        |x: u32| x as i64
+    };
+    let embed2 = if row.is_signed2().is_nonzero() {
         |x: u32| x as i32 as i64
     } else {
         |x: u32| x as i64
     };
 
-    let op1_full_range = embed(aux.op1);
-    let op2_full_range = embed(aux.op2);
+    let op1_full_range = embed1(aux.op1);
+    let op2_full_range = embed2(aux.op2);
 
     row.op1_sign_bit = F::from_bool(op1_full_range < 0);
     row.op2_sign_bit = F::from_bool(op2_full_range < 0);

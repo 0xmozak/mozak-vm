@@ -29,16 +29,17 @@ pub(crate) fn constraints<P: PackedField>(
     let q = lv.divisor;
     yield_constr.constraint((ops.div + ops.rem + ops.divu + ops.remu) * (q - lv.op2_full_range()));
 
-    // The following constraints are for SRL.
+    // The following constraints are for SRL/SRA
     {
+        let is_shift = ops.srl + ops.sra;
         let and_gadget = and_gadget(&lv.xor);
         yield_constr
-            .constraint(ops.srl * (and_gadget.input_a - P::Scalar::from_canonical_u8(0b1_1111)));
+            .constraint(is_shift * (and_gadget.input_a - P::Scalar::from_canonical_u8(0b1_1111)));
         let op2 = lv.op2_value;
-        yield_constr.constraint(ops.srl * (and_gadget.input_b - op2));
+        yield_constr.constraint(is_shift * (and_gadget.input_b - op2));
 
-        yield_constr.constraint(ops.srl * (and_gadget.output - lv.bitshift.amount));
-        yield_constr.constraint(ops.srl * (q - lv.bitshift.multiplier));
+        yield_constr.constraint(is_shift * (and_gadget.output - lv.bitshift.amount));
+        yield_constr.constraint(is_shift * (q - lv.bitshift.multiplier));
     }
 
     // TODO(Matthias): this looks suspicious in the face of signed bit shifting
@@ -78,6 +79,9 @@ pub(crate) fn constraints<P: PackedField>(
     // Part B is only slightly harder: borrowing the concept of 'slack variables' from linear programming (https://en.wikipedia.org/wiki/Slack_variable) we get:
     // (B') r + slack + 1 = q
     //      with range_check(slack)
+    // TODO(Matthias): we need to round towards -inf for SRA
+    // let effective_remainder = r_abs * (ops.div + ops.rem) + rt * (ops.divu +
+    // ops.remu + ops.srl + ops.sra);
     yield_constr.constraint(q * (r_abs + rt + P::ONES - q * q_sign));
 
     // Now we need to deal with division by zero.  The Risc-V spec says:
@@ -85,7 +89,7 @@ pub(crate) fn constraints<P: PackedField>(
     //      p % 0 == p
     // So that's either -1 or u32::MAX, depending on signedness.
     yield_constr.constraint(
-        (P::ONES - q * q_inv) * (m + P::ONES + (lv.is_signed() - P::ONES) * shifted(32)),
+        (P::ONES - q * q_inv) * (m + P::ONES + (lv.is_signed1() - P::ONES) * shifted(32)),
     );
     yield_constr.constraint((P::ONES - q * q_inv) * (r - lv.op1_full_range()));
 
