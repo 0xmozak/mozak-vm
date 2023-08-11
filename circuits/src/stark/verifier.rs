@@ -51,6 +51,7 @@ where
         shift_amount_stark,
         program_stark,
         cross_table_lookups,
+        ..
     } = mozak_stark;
 
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
