@@ -184,10 +184,7 @@ pub struct RangecheckCpuTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_rangecheck(),
-                cpu::columns::filter_for_rangecheck(),
-            )],
+            cpu::columns::rangecheck_looking(),
             RangeCheckTable::new(
                 rangecheck::columns::data_for_cpu(),
                 rangecheck::columns::filter_for_cpu(),
