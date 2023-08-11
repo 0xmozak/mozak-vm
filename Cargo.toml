@@ -5,12 +5,12 @@ resolver = "2"
 [profile.test]
 # We are running our tests with optimizations turned on to make them faster.
 # Plase turn optimizations off, when you want accurate stack traces for debugging.
-opt-level = 3
 lto = "thin"
+opt-level = 3
 
 [patch.crates-io]
-plonky2 = { git = "https://github.com/0xmozak/plonky2.git", branch = "matthias/fix-clear"}
-plonky2_field = { git = "https://github.com/0xmozak/plonky2.git", branch = "matthias/fix-clear" }
-plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git", branch = "matthias/fix-clear"  }
-plonky2_util = { git = "https://github.com/0xmozak/plonky2.git", branch = "matthias/fix-clear"  }
-starky = { git = "https://github.com/0xmozak/plonky2.git", branch = "matthias/fix-clear"  }
+plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
+plonky2_field = { git = "https://github.com/0xmozak/plonky2.git" }
+plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git" }
+plonky2_util = { git = "https://github.com/0xmozak/plonky2.git" }
+starky = { git = "https://github.com/0xmozak/plonky2.git" }
