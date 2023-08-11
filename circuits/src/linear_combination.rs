@@ -65,10 +65,11 @@ impl<F: Field> Column<F> {
         }
     }
 
-    pub fn eval<FE, P, const D: usize>(&self, v: &[P]) -> P
+    pub fn eval<FE, P, const D: usize, V>(&self, v: &V) -> P
     where
         FE: FieldExtension<D, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
+        P: PackedField<Scalar = FE>,
+        V: Index<usize, Output = P> + ?Sized, {
         self.linear_combination
             .iter()
             .map(|&(c, f)| v[c] * FE::from_basefield(f))
