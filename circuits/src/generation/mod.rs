@@ -129,12 +129,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 
     assert!(rc);
 }
-#[allow(
-    clippy::missing_panics_doc,
-    clippy::missing_errors_doc,
-    clippy::too_many_lines,
-    clippy::uninlined_format_args
-)]
+#[allow(clippy::missing_panics_doc, clippy::uninlined_format_args)]
 pub fn debug_single_trace<F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>(
     s: &S,
     trace_rows: &Vec<Vec<F>>,
