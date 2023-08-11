@@ -64,7 +64,7 @@ pub(crate) fn constraints<P: PackedField>(
     // treat 0 special in the line below?
 
     // Constraints for denominator != 0:
-    yield_constr.constraint(q * (m * q + r - p));
+    yield_constr.constraint(m * q + r - p);
     // However, that constraint is not enough.
     // For example, a malicious prover could trivially fulfill it via
     //  m := 0, r := p
@@ -85,7 +85,7 @@ pub(crate) fn constraints<P: PackedField>(
     // Now we need to deal with division by zero.  The Risc-V spec says:
     //      p / 0 == 0xFFFF_FFFF
     //      p % 0 == p
-    yield_constr.constraint((P::ONES - q * q_inv) * (m - P::Scalar::from_canonical_u32(u32::MAX)));
+    yield_constr.constraint((P::ONES - q * q_inv) * (m + P::ONES - (P::ONES - lv.is_signed())*shifted(32)));
     yield_constr.constraint((P::ONES - q * q_inv) * (r - lv.op1_value));
 
     // Last, we 'copy' our results:

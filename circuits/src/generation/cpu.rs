@@ -139,11 +139,11 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, au
     row.divisor = F::from_noncanonical_i64(divisor);
 
     if let 0 = divisor {
-        row.quotient = from_u32(u32::MAX);
-        row.quotient_abs = from_u32(u32::MAX);
-        row.remainder = from_u32(aux.op1);
-        row.remainder_abs = from_u32(aux.op1);
-        row.remainder_abs_slack = from_u32(0_u32);
+        row.quotient = F::from_noncanonical_i64(embed(u32::MAX));
+        row.quotient_abs = F::from_noncanonical_i64(embed(u32::MAX));
+        row.remainder = F::from_noncanonical_i64(dividend);
+        row.remainder_abs = F::from_noncanonical_u64(dividend.unsigned_abs());
+        row.remainder_abs_slack = F::ZERO;
     } else {
         let m = dividend / divisor;
         row.quotient = F::from_noncanonical_i64(m);
