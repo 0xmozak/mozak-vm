@@ -55,16 +55,17 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     ]
 }
 
+// <F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>
 #[must_use]
-pub fn transpose_polys<F: RichField + Extendable<D>, const D: usize>(
+pub fn transpose_polys<F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>(
     cols: Vec<PolynomialValues<F>>,
-) -> Vec<Vec<F>> {
+) -> Vec<[F; S::COLUMNS]> {
     transpose(
         &cols
             .into_iter()
             .map(|PolynomialValues { values }| values)
             .collect_vec(),
-    )
+    ).into_iter().map(|row| row.as_slice().try_into().unwrap()).collect_vec()
 }
 
 #[allow(clippy::missing_panics_doc)]
@@ -83,56 +84,52 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
         PolynomialValues<F>,
     >;
         NUM_TABLES] = generate_traces(program, step_rows);
-    // cpu_trace
-    let mut rc = true;
 
-    // [0] - Program ROM
-    rc &= debug_single_trace::<F, D, ProgramStark<F, D>>(
-        &mozak_stark.program_stark,
-        &transpose_polys(program_trace),
-        "PROGRAM_ROM_STARK",
-        false,
-    );
+    let results = [
+        // Program ROM
+        debug_single_trace::<F, D, ProgramStark<F, D>>(
+            &mozak_stark.program_stark,
+            &transpose_polys(program_trace),
+            "PROGRAM_ROM_STARK",
+            false,
+        ),
+        // CPU
+        debug_single_trace::<F, D, CpuStark<F, D>>(
+            &mozak_stark.cpu_stark,
+            &transpose_polys(cpu_trace),
+            "CPU_STARK",
+            false,
+        ),
+        // Range check
+        debug_single_trace::<F, D, RangeCheckStark<F, D>>(
+            &mozak_stark.rangecheck_stark,
+            &transpose_polys(rangecheck_trace),
+            "RANGE_CHECK_STARK",
+            true,
+        ),
+        // Bitwise
+        debug_single_trace::<F, D, BitwiseStark<F, D>>(
+            &mozak_stark.bitwise_stark,
+            &transpose_polys(bitwise_trace),
+            "BITWISE_STARK",
+            false,
+        ),
+        // Bitshift
+        debug_single_trace::<F, D, BitshiftStark<F, D>>(
+            &mozak_stark.shift_amount_stark,
+            &transpose_polys(shift_amount_trace),
+            "BITWISE_STARK",
+            false,
+        ),
+    ];
 
-    // [1] - CPU
-    rc &= debug_single_trace::<F, D, CpuStark<F, D>>(
-        &mozak_stark.cpu_stark,
-        &transpose_polys(cpu_trace),
-        "CPU_STARK",
-        false,
-    );
-
-    // [2] - RC
-
-    rc &= debug_single_trace::<F, D, RangeCheckStark<F, D>>(
-        &mozak_stark.rangecheck_stark,
-        &transpose_polys(rangecheck_trace),
-        "RANGE_CHECK_STARK",
-        true,
-    );
-    // [3] - BW
-    rc &= debug_single_trace::<F, D, BitwiseStark<F, D>>(
-        &mozak_stark.bitwise_stark,
-        &transpose_polys(bitwise_trace),
-        "BITWISE_STARK",
-        false,
-    );
-
-    // [4] - BS
-    rc &= debug_single_trace::<F, D, BitshiftStark<F, D>>(
-        &mozak_stark.shift_amount_stark,
-        &transpose_polys(shift_amount_trace),
-        "BITWISE_STARK",
-        false,
-    );
-
-    assert!(rc);
+    assert!(results.into_iter().all(|x| x));
 }
 
 #[allow(clippy::missing_panics_doc)]
 pub fn debug_single_trace<F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>(
-    s: &S,
-    trace_rows: &Vec<Vec<F>>,
+    stark: &S,
+    trace_rows: &Vec<[F; S::COLUMNS]>,
     stark_name: &str,
     is_range_check: bool,
 ) -> bool
@@ -168,7 +165,7 @@ where
             consumer.debug_api_activate_transition();
         }
 
-        s.eval_packed_generic(
+        stark.eval_packed_generic(
             StarkEvaluationVars {
                 local_values: lv.as_slice().try_into().unwrap(),
                 next_values: nv.as_slice().try_into().unwrap(),
