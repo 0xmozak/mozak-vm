@@ -126,8 +126,6 @@ fn main() -> Result<()> {
                 } else {
                     MozakStark::default()
                 };
-                let config = standard_faster_config();
-
                 let all_proof = prove::<F, C, D>(
                     &program,
                     &record.executed,
