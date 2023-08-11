@@ -172,7 +172,7 @@ impl<T: Copy + core::ops::Add<Output = T>> OpSelectors<T> {
     // TODO: unify this and `filter_for_rangecheck()` above.
     /// List of opcode columns, that when encountered in trace generation,
     /// require range checking of dst.
-    pub(crate) fn must_rangecheck(&self) -> T { self.add + self.sb + self.lbu }
+    pub(crate) fn must_rangecheck(&self) -> T { self.add }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.
