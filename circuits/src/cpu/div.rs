@@ -60,8 +60,6 @@ pub(crate) fn constraints<P: PackedField>(
     // The equation from the spec becomes:
     //  p = q * m + r
     // (Interestingly, this holds even when q == 0.)
-    // TODO(Matthias): the above observation is from the spec, but why do we need to
-    // treat 0 special in the line below?
 
     // Constraints for denominator != 0:
     yield_constr.constraint(m * q + r - p);
