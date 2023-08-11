@@ -67,19 +67,8 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
     #[must_use]
     pub fn default_debug() -> Self {
         Self {
-            cpu_stark: CpuStark::default(),
-            rangecheck_stark: RangeCheckStark::default(),
-            bitwise_stark: BitwiseStark::default(),
-            shift_amount_stark: BitshiftStark::default(),
-            program_stark: ProgramStark::default(),
-            cross_table_lookups: [
-                RangecheckCpuTable::lookups(),
-                BitwiseCpuTable::lookups(),
-                BitshiftCpuTable::lookups(),
-                InnerCpuTable::lookups(),
-                ProgramCpuTable::lookups(),
-            ],
             debug: true,
+            ..Self::default()
         }
     }
 }
