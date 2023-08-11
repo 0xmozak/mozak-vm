@@ -29,6 +29,9 @@ struct Cli {
     verbose: clap_verbosity_flag::Verbosity,
     #[command(subcommand)]
     command: Command,
+    /// Debug API, default is OFF, currently only `prove` command is supported
+    #[arg(short, long)]
+    debug: bool,
 }
 
 #[derive(Clone, Debug, Subcommand)]
@@ -118,7 +121,12 @@ fn main() -> Result<()> {
                 let program = load_program(elf)?;
                 let state = State::from(&program);
                 let record = step(&program, state)?;
-                let stark = S::default();
+                let stark = if cli.debug {
+                    MozakStark::default_debug()
+                } else {
+                    MozakStark::default()
+                };
+                let config = standard_faster_config();
 
                 let all_proof = prove::<F, C, D>(
                     &program,

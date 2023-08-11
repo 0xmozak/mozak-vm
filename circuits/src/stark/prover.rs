@@ -26,7 +26,7 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
-use crate::generation::generate_traces;
+use crate::generation::{debug_traces, generate_traces};
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::permutation::{
@@ -35,6 +35,7 @@ use crate::stark::permutation::{
 use crate::stark::poly::compute_quotient_polys;
 
 #[allow(clippy::missing_errors_doc)]
+#[allow(clippy::missing_panics_doc)]
 pub fn prove<F, C, const D: usize>(
     program: &Program,
     step_rows: &[Row],
@@ -53,6 +54,9 @@ where
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, step_rows);
+    if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
+        debug_traces(program, step_rows, mozak_stark);
+    }
     prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
 }
 
