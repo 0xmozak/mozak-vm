@@ -47,13 +47,6 @@ enum Command {
     /// Verify the given proof from file.
     Verify { proof: Input },
 }
-#[derive(Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
-#[clap(action=ArgAction::SetFalse)]
-struct Args {
-    #[clap(long, short, action)]
-    debug: bool,
-}
 
 fn build_info() {
     println!("debug:{}", shadow_rs::is_debug()); // check if this is a debug build. e.g 'true/false'
@@ -95,7 +88,6 @@ fn load_program(mut elf: Input) -> Result<Program> {
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi`
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    let args = Args::parse();
     env_logger::Builder::new()
         .filter_level(cli.verbose.log_level_filter())
         .init();
@@ -123,10 +115,10 @@ fn main() -> Result<()> {
                 let program = load_program(elf)?;
                 let state = State::from(&program);
                 let record = step(&program, state)?;
-                let stark = if args.debug {
-                    S::default()
-                } else {
+                let stark = if cli.debug {
                     MozakStark::default_debug()
+                } else {
+                    MozakStark::default()
                 };
                 let config = standard_faster_config();
 

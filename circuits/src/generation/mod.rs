@@ -10,6 +10,7 @@ use itertools::Itertools;
 use mozak_vm::elf::Program;
 use mozak_vm::vm::Row;
 use plonky2::field::extension::Extendable;
+use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::hash::hash_types::RichField;
 use plonky2::util::transpose;
@@ -28,7 +29,7 @@ use crate::generation::program::generate_program_rom_trace;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::mozak_stark::{MozakStark, NUM_TABLES};
-use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values, transpose_trace};
+use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 
 #[must_use]
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
@@ -54,7 +55,28 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         program_trace,
     ]
 }
-#[allow(clippy::missing_panics_doc, clippy::needless_for_each)]
+
+#[must_use]
+#[allow(clippy::missing_panics_doc)]
+pub fn transpose_polys<
+    F: RichField + Extendable<D> + PackedField,
+    const D: usize,
+    S: Stark<F, D>,
+>(
+    cols: Vec<PolynomialValues<F>>,
+) -> Vec<[F; S::COLUMNS]> {
+    transpose(
+        &cols
+            .into_iter()
+            .map(|PolynomialValues { values }| values)
+            .collect_vec(),
+    )
+    .into_iter()
+    .map(|row| row.try_into().unwrap())
+    .collect_vec()
+}
+
+#[allow(clippy::missing_panics_doc)]
 pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
     step_rows: &[Row],
@@ -66,123 +88,74 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     [(); BitwiseStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:, {
-    let mut rc = true;
+    let [cpu_trace, rangecheck_trace, bitwise_trace, shift_amount_trace, program_trace]: [Vec<
+        PolynomialValues<F>,
+    >;
+        NUM_TABLES] = generate_traces(program, step_rows);
 
-    // [0] - PR
-    let program_rom_rows = generate_program_rom_trace(program);
-    let mut generic_program_rom_rows: Vec<Vec<F>> = vec![];
-    program_rom_rows.iter().for_each(|row| {
-        generic_program_rom_rows.push(row.into_iter().as_slice().try_into().unwrap());
-    });
-    rc &= debug_single_trace::<F, D, ProgramStark<F, D>>(
-        &mozak_stark.program_stark,
-        &generic_program_rom_rows,
-        "PROGRAM_ROM_STARK",
-        false,
-    );
-
-    // [1] - CPU
-    let cpu_rows = generate_cpu_trace::<F>(program, step_rows);
-    let cpu_rows_extended = generate_cpu_trace_extended(cpu_rows.clone(), &program_rom_rows);
-    let generic_cpu_rows = transpose_trace(cpu_rows_extended.into_iter().collect_vec());
-
-    rc &= debug_single_trace::<F, D, CpuStark<F, D>>(
-        &mozak_stark.cpu_stark,
-        &generic_cpu_rows,
-        "CPU_STARK",
-        false,
-    );
-
-    // [2] - RC
-    let rc_rows = generate_rangecheck_trace::<F>(&cpu_rows);
-    rc &= debug_single_trace::<F, D, RangeCheckStark<F, D>>(
-        &mozak_stark.rangecheck_stark,
-        &transpose(&rc_rows),
-        "RANGE_CHECK_STARK",
-        true,
-    );
-    // [3] - BW
-    let bitwise_rows = generate_bitwise_trace(&cpu_rows);
-    let mut generic_bw_rows: Vec<Vec<F>> = vec![];
-    bitwise_rows.iter().for_each(|row| {
-        generic_bw_rows.push(row.into_iter().as_slice().try_into().unwrap());
-    });
-    rc &= debug_single_trace::<F, D, BitwiseStark<F, D>>(
-        &mozak_stark.bitwise_stark,
-        &generic_bw_rows,
-        "BITWISE_STARK",
-        false,
-    );
-
-    // [4] - BS
-    let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
-    let mut generic_bitwise_rows: Vec<Vec<F>> = vec![];
-    shift_amount_rows.iter().for_each(|row| {
-        generic_bitwise_rows.push(row.into_iter().as_slice().try_into().unwrap());
-    });
-    rc &= debug_single_trace::<F, D, BitshiftStark<F, D>>(
-        &mozak_stark.shift_amount_stark,
-        &generic_bitwise_rows,
-        "BITWISE_STARK",
-        false,
-    );
-
-    assert!(rc);
+    assert!([
+        // Program ROM
+        debug_single_trace::<F, D, ProgramStark<F, D>>(
+            &mozak_stark.program_stark,
+            program_trace,
+            "PROGRAM_ROM_STARK",
+        ),
+        // CPU
+        debug_single_trace::<F, D, CpuStark<F, D>>(&mozak_stark.cpu_stark, cpu_trace, "CPU_STARK"),
+        // Range check
+        debug_single_trace::<F, D, RangeCheckStark<F, D>>(
+            &mozak_stark.rangecheck_stark,
+            rangecheck_trace,
+            "RANGE_CHECK_STARK",
+        ),
+        // Bitwise
+        debug_single_trace::<F, D, BitwiseStark<F, D>>(
+            &mozak_stark.bitwise_stark,
+            bitwise_trace,
+            "BITWISE_STARK",
+        ),
+        // Bitshift
+        debug_single_trace::<F, D, BitshiftStark<F, D>>(
+            &mozak_stark.shift_amount_stark,
+            shift_amount_trace,
+            "BITWISE_STARK",
+        ),
+    ]
+    .into_iter()
+    .all(|x| x));
 }
-#[allow(clippy::missing_panics_doc, clippy::uninlined_format_args)]
+
+#[allow(clippy::missing_panics_doc)]
 pub fn debug_single_trace<F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>(
-    s: &S,
-    trace_rows: &Vec<Vec<F>>,
+    stark: &S,
+    trace_rows: Vec<PolynomialValues<F>>,
     stark_name: &str,
-    is_range_check: bool,
 ) -> bool
 where
     [(); S::COLUMNS]:,
     [(); S::PUBLIC_INPUTS]:, {
-    let mut rc = true;
-    let mut consumer = ConstraintConsumer::new_debug_api();
-    for nv_row in 1..trace_rows.len() {
-        let lv_row = nv_row - 1;
-        let mut lv: Vec<_> = vec![];
-        trace_rows[lv_row].iter().for_each(|e| {
-            lv.push(*e);
-        });
-
-        let mut nv: Vec<_> = vec![];
-        trace_rows[nv_row].iter().for_each(|e| {
-            nv.push(*e);
-        });
-
-        if nv_row == 1 {
-            consumer.debug_api_activate_first_row();
-        } else if nv_row == trace_rows.len() - 1 {
-            consumer.debug_api_activate_last_row();
-            lv = nv.clone();
-            // NOTE: this is the place that differs from other traces, please refer to
-            // lookup.rs for more info
-            if is_range_check {
-                nv.clear();
-                trace_rows[0].iter().for_each(|e| nv.push(*e));
+    transpose_polys::<F, D, S>(trace_rows)
+        .iter()
+        .enumerate()
+        .circular_tuple_windows()
+        .map(|((lv_row, lv), (nv_row, nv))| {
+            let mut consumer = ConstraintConsumer::new_debug_api(lv_row == 0, nv_row == 0);
+            stark.eval_packed_generic(
+                StarkEvaluationVars {
+                    local_values: lv,
+                    next_values: nv,
+                    public_inputs: &[F::ZERO; S::PUBLIC_INPUTS],
+                },
+                &mut consumer,
+            );
+            if consumer.debug_api_has_constraint_failed() {
+                println!("Debug constraints for {stark_name}");
+                println!("lv-row[{lv_row}] - values: {lv:?}");
+                println!("nv-row[{nv_row}] - values: {nv:?}");
+                false
+            } else {
+                true
             }
-        } else {
-            consumer.debug_api_activate_transition();
-        }
-
-        s.eval_packed_generic(
-            StarkEvaluationVars {
-                local_values: lv.as_slice().try_into().unwrap(),
-                next_values: nv.as_slice().try_into().unwrap(),
-                public_inputs: &[F::ZERO; S::PUBLIC_INPUTS],
-            },
-            &mut consumer,
-        );
-        if consumer.debug_api_is_constraint_failed() {
-            println!("Debug constraints for {stark_name}");
-            println!("lv-row[{lv_row}] - values: {:?}", lv);
-            println!("nv-row[{nv_row}] - values: {:?}", nv);
-            consumer.debug_api_reset_failed_constraint();
-            rc = false;
-        }
-    }
-    rc
+        })
+        .all(|x| x)
 }
