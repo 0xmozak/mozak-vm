@@ -34,7 +34,8 @@ use crate::stark::permutation::{
 };
 use crate::stark::poly::compute_quotient_polys;
 
-#[allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
+#[allow(clippy::missing_errors_doc)]
+#[allow(clippy::missing_panics_doc)]
 pub fn prove<F, C, const D: usize>(
     program: &Program,
     step_rows: &[Row],
