@@ -41,7 +41,7 @@ enum Command {
     ProveAndVerify { elf: Input },
     /// Prove the execution of given ELF and write proof to file.
     Prove { elf: Input, proof: Output },
-    /// Prove the execution of given ELF and write proof to file.
+    /// Prove with debug the execution of given ELF and write proof to file.
     ProveDebug { elf: Input, proof: Output },
     /// Verify the given proof from file.
     Verify { proof: Input },
