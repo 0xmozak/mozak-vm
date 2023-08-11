@@ -6,6 +6,7 @@ use crate::bitwise::columns::XorView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 use crate::program::columns::ProgramColumnsView;
+use crate::stark::mozak_stark::{CpuTable, Table};
 
 columns_view_impl!(OpSelectors);
 #[repr(C)]
@@ -140,15 +141,24 @@ impl<T: PackedField> CpuState<T> {
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
 
-/// Column for a binary filter for our range check in the Mozak
+/// Expressions we need to range check
+///
+/// Currently, we only support expressions over the
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_rangecheck<F: Field>() -> Column<F> { Column::single(MAP.cpu.inst.ops.add) }
-
-/// Columns containing the data to be range checked in the Mozak
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.cpu.dst_value)] }
+pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
+    let ops = &MAP.cpu.inst.ops;
+    vec![
+        CpuTable::new(
+            Column::singles([MAP.cpu.dst_value]),
+            Column::single(ops.add),
+        ),
+        CpuTable::new(
+            Column::singles([MAP.cpu.abs_diff]),
+            Column::many([ops.bge, ops.blt]),
+        ),
+    ]
+}
 
 /// Columns containing the data to be matched against XOR Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
