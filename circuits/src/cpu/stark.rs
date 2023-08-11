@@ -91,6 +91,7 @@ fn clock_ticks<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let clock_diff = nv.clk - lv.clk;
+    is_binary_transition(yield_constr, clock_diff);
     is_binary(yield_constr, lv.halt);
     yield_constr.constraint_transition(clock_diff + lv.halt - P::ONES);
 }
