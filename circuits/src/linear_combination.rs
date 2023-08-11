@@ -1,6 +1,7 @@
 use core::iter::Sum;
 use core::ops::{Add, Mul};
 use std::borrow::Borrow;
+use std::ops::Index;
 
 use itertools::{EitherOrBoth, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -153,6 +154,15 @@ impl<F: Field> Column<F> {
         self.linear_combination
             .iter()
             .map(|&(c, f)| table[c].values[row] * f)
+            .sum::<F>()
+            + self.constant
+    }
+
+    /// Evaluate on an row of a table
+    pub fn eval_row(&self, row: &impl Index<usize, Output = F>) -> F {
+        self.linear_combination
+            .iter()
+            .map(|&(c, f)| row[c] * f)
             .sum::<F>()
             + self.constant
     }
