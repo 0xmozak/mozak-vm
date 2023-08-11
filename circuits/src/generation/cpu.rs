@@ -1,7 +1,9 @@
+use std::collections::HashSet;
+
 use itertools::{chain, Itertools};
 use mozak_vm::elf::Program;
 use mozak_vm::instruction::{Instruction, Op};
-use mozak_vm::state::State;
+use mozak_vm::state::{Aux, State};
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
@@ -11,26 +13,23 @@ use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
 use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 use crate::stark::utils::transpose_trace;
-use crate::utils::from_u32;
-
-/// Pad the trace to a power of 2.
-///
-/// # Panics
-/// There's an assert that makes sure all columns passed in have the same
-/// length.
-#[must_use]
-pub fn pad_trace<F: RichField>(mut trace: Vec<CpuState<F>>) -> Vec<CpuState<F>> {
-    trace.resize(trace.len().next_power_of_two(), *trace.last().unwrap());
-    trace
-}
+use crate::utils::{from_u32, pad_trace_with_last_to_len};
 
 #[allow(clippy::missing_panics_doc)]
 #[must_use]
 pub fn generate_cpu_trace_extended<F: RichField>(
-    cpu_trace: Vec<CpuState<F>>,
+    mut cpu_trace: Vec<CpuState<F>>,
+    program_rom: &[ProgramColumnsView<F>],
 ) -> CpuColumnsExtended<Vec<F>> {
-    // NOTE: We expect cpu_trace to already be padded to the right size.
-    let permuted = generate_permuted_inst_trace(&cpu_trace);
+    let mut permuted = generate_permuted_inst_trace(&cpu_trace, program_rom);
+    let len = cpu_trace.len().max(permuted.len()).next_power_of_two();
+    let ori_len = permuted.len();
+    permuted = pad_trace_with_last_to_len(permuted, len);
+    for entry in permuted.iter_mut().skip(ori_len) {
+        entry.filter = F::ZERO;
+    }
+    cpu_trace = pad_trace_with_last_to_len(cpu_trace, len);
+
     (chain!(transpose_trace(cpu_trace), transpose_trace(permuted))).collect()
 }
 
@@ -44,14 +43,10 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
             inst: cpu_cols::Instruction::from((state.get_pc(), inst)).map(from_u32),
-            op1_value: from_u32(state.get_register_value(inst.args.rs1)),
+            op1_value: from_u32(aux.op1),
             // OP2_VALUE is the sum of the value of the second operand register and the
             // immediate value.
-            op2_value: from_u32(
-                state
-                    .get_register_value(inst.args.rs2)
-                    .wrapping_add(inst.args.imm),
-            ),
+            op2_value: from_u32(aux.op2),
             // NOTE: Updated value of DST register is next step.
             dst_value: from_u32(aux.dst_val),
             halt: from_u32(u32::from(aux.will_halt)),
@@ -69,16 +64,12 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
             row.regs[j as usize] = from_u32(state.get_register_value(j));
         }
 
-        generate_mul_row(&mut row, &inst, state);
-        generate_divu_row(&mut row, &inst, state);
-        generate_slt_row(&mut row, &inst, state);
+        generate_mul_row(&mut row, &inst, aux);
+        generate_divu_row(&mut row, &inst, aux);
+        generate_sign_handling(&mut row, aux);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
     }
-
-    // For expanded trace from `trace_len` to `trace_len's power of two`,
-    // we use last row `HALT` to pad them.
-    let trace = pad_trace(trace);
 
     log::trace!("trace {:?}", trace);
     trace
@@ -94,16 +85,12 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
 
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
-fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, state: &State) {
+fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
     if !matches!(inst.op, Op::MUL | Op::MULHU | Op::SLL) {
         return;
     }
-    let op1 = state.get_register_value(inst.args.rs1);
-    let op2 = state
-        .get_register_value(inst.args.rs2)
-        .wrapping_add(inst.args.imm);
     let multiplier = if let Op::SLL = inst.op {
-        let shift_amount = op2 & 0x1F;
+        let shift_amount = aux.op2 & 0b1_1111;
         let shift_power = 1_u32 << shift_amount;
         row.bitshift = Bitshift {
             amount: shift_amount,
@@ -112,11 +99,11 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, sta
         .map(from_u32);
         shift_power
     } else {
-        op2
+        aux.op2
     };
 
     row.multiplier = from_u32(multiplier);
-    let (low, high) = op1.widening_mul(multiplier);
+    let (low, high) = aux.op1.widening_mul(multiplier);
     row.product_low_bits = from_u32(low);
     row.product_high_bits = from_u32(high);
 
@@ -126,14 +113,11 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, sta
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, state: &State) {
-    let dividend = state.get_register_value(inst.args.rs1);
-    let op2 = state
-        .get_register_value(inst.args.rs2)
-        .wrapping_add(inst.args.imm);
+fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
+    let dividend = aux.op1;
 
     let divisor = if let Op::SRL = inst.op {
-        let shift_amount = op2 & 0x1F;
+        let shift_amount = aux.op2 & 0x1F;
         let shift_power = 1_u32 << shift_amount;
         row.bitshift = Bitshift {
             amount: shift_amount,
@@ -142,7 +126,7 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, st
         .map(from_u32);
         shift_power
     } else {
-        op2
+        aux.op2
     };
 
     row.divisor = from_u32(divisor);
@@ -160,50 +144,30 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, st
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn generate_slt_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, state: &State) {
+#[allow(clippy::cast_lossless)]
+fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
     let is_signed: bool = row.is_signed().is_nonzero();
-    let op1 = state.get_register_value(inst.args.rs1);
-    let op2 = state.get_register_value(inst.args.rs2) + inst.args.imm;
-    let sign1: bool = is_signed && (op1 as i32) < 0;
-    let sign2: bool = is_signed && (op2 as i32) < 0;
-    row.op1_sign_bit = F::from_bool(sign1);
-    row.op2_sign_bit = F::from_bool(sign2);
-
-    let sign_adjust = if is_signed { 1 << 31 } else { 0 };
-    let op1_fixed = op1.wrapping_add(sign_adjust);
-    let op2_fixed = op2.wrapping_add(sign_adjust);
-    row.op1_val_fixed = from_u32(op1_fixed);
-    row.op2_val_fixed = from_u32(op2_fixed);
-    row.less_than = from_u32(u32::from(op1_fixed < op2_fixed));
-
-    let abs_diff = if is_signed {
-        (op1 as i32).abs_diff(op2 as i32)
+    let embed = if is_signed {
+        |x: u32| x as i32 as i64
     } else {
-        op1.abs_diff(op2)
+        |x: u32| x as i64
     };
-    {
-        if is_signed {
-            assert_eq!(
-                i64::from(op1 as i32) - i64::from(op2 as i32),
-                i64::from(op1_fixed) - i64::from(op2_fixed)
-            );
-        } else {
-            assert_eq!(
-                i64::from(op1) - i64::from(op2),
-                i64::from(op1_fixed) - i64::from(op2_fixed),
-                "{op1} - {op2} != {op1_fixed} - {op2_fixed}"
-            );
-        }
-    }
-    let abs_diff_fixed: u32 = op1_fixed.abs_diff(op2_fixed);
-    assert_eq!(abs_diff, abs_diff_fixed);
-    row.abs_diff = from_u32(abs_diff_fixed);
+
+    let op1_full_range = embed(aux.op1);
+    let op2_full_range = embed(aux.op2);
+
+    row.op1_sign_bit = F::from_bool(op1_full_range < 0);
+    row.op2_sign_bit = F::from_bool(op2_full_range < 0);
+
+    row.less_than = F::from_bool(op1_full_range < op2_full_range);
+    let abs_diff = op1_full_range.abs_diff(op2_full_range);
+    row.abs_diff = F::from_noncanonical_u64(abs_diff);
 }
 
 fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {
     let a = match inst.op {
         Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
-        Op::SRL | Op::SLL => 0x1F,
+        Op::SRL | Op::SLL => 0b1_1111,
         _ => 0,
     };
     let b = state
@@ -212,12 +176,16 @@ fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorV
     XorView { a, b, out: a ^ b }.map(from_u32)
 }
 
+// TODO:  a more elegant approach might be move them to the backend using logUp
+// or a similar method.
 #[must_use]
 pub fn generate_permuted_inst_trace<F: RichField>(
     trace: &[CpuState<F>],
+    program_rom: &[ProgramColumnsView<F>],
 ) -> Vec<ProgramColumnsView<F>> {
-    trace
+    let mut cpu_trace: Vec<_> = trace
         .iter()
+        .filter(|row| row.halt == F::ZERO)
         .map(|row| row.inst)
         .sorted_by_key(|inst| inst.pc.to_noncanonical_u64())
         .scan(None, |previous_pc, inst| {
@@ -226,7 +194,20 @@ pub fn generate_permuted_inst_trace<F: RichField>(
                 inst: InstColumnsView::from(inst),
             })
         })
-        .collect()
+        .collect();
+
+    let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
+
+    // Filter program_rom to contain only instructions with the pc that are not in
+    // used_pcs
+    let unused_instructions: Vec<_> = program_rom
+        .iter()
+        .filter(|row| !used_pcs.contains(&row.inst.pc))
+        .copied()
+        .collect();
+
+    cpu_trace.extend(unused_instructions);
+    cpu_trace
 }
 
 #[cfg(test)]
@@ -240,58 +221,126 @@ mod tests {
     use crate::utils::from_u32;
 
     #[test]
-    fn test_generate_permuted_inst_trace() {
+    #[allow(clippy::too_many_lines)]
+    fn test_permuted_inst_trace() {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        let trace: Vec<CpuState<F>> = [
-            Instruction {
-                pc: 3,
-                ops: selection(2),
-                rs1_select: selection(1),
-                rs2_select: selection(2),
-                rd_select: selection(3),
-                imm_value: 1,
+        let cpu_trace: Vec<CpuState<F>> = [
+            CpuState {
+                inst: Instruction {
+                    pc: 1,
+                    ops: selection(3),
+                    rs1_select: selection(2),
+                    rs2_select: selection(1),
+                    rd_select: selection(1),
+                    imm_value: 3,
+                    ..Default::default()
+                },
+                halt: 0,
                 ..Default::default()
             },
-            Instruction {
-                pc: 1,
-                ops: selection(3),
-                rs1_select: selection(2),
-                rs2_select: selection(1),
-                rd_select: selection(1),
-                imm_value: 3,
+            CpuState {
+                inst: Instruction {
+                    pc: 2,
+                    ops: selection(1),
+                    rs1_select: selection(3),
+                    rs2_select: selection(3),
+                    rd_select: selection(2),
+                    imm_value: 2,
+                    ..Default::default()
+                },
+                halt: 0,
                 ..Default::default()
             },
-            Instruction {
-                pc: 2,
-                ops: selection(1),
-                rs1_select: selection(3),
-                rs2_select: selection(3),
-                rd_select: selection(2),
-                imm_value: 2,
+            CpuState {
+                inst: Instruction {
+                    pc: 1,
+                    ops: selection(3),
+                    rs1_select: selection(2),
+                    rs2_select: selection(1),
+                    rd_select: selection(1),
+                    imm_value: 3,
+                    ..Default::default()
+                },
+                halt: 0,
                 ..Default::default()
             },
-            Instruction {
-                pc: 1,
-                ops: selection(4),
-                rs1_select: selection(4),
-                rs2_select: selection(4),
-                rd_select: selection(4),
-                imm_value: 4,
+            CpuState {
+                inst: Instruction {
+                    pc: 1,
+                    ops: selection(4),
+                    rs1_select: selection(4),
+                    rs2_select: selection(4),
+                    rd_select: selection(4),
+                    imm_value: 4,
+                    ..Default::default()
+                },
+                halt: 1,
                 ..Default::default()
             },
         ]
         .into_iter()
-        .map(|inst| CpuState {
-            inst: inst.map(from_u32),
+        .map(|row| CpuState {
+            inst: row.inst.map(from_u32),
+            halt: from_u32(row.halt),
             ..Default::default()
         })
         .collect();
 
-        let permuted_trace = generate_permuted_inst_trace(&trace);
-        let expected_permuted_trace: Vec<ProgramColumnsView<F>> = [
+        let program_trace: Vec<ProgramColumnsView<F>> = [
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 1,
+                    opcode: 3,
+                    rs1: 2,
+                    rs2: 1,
+                    rd: 1,
+                    imm: 3,
+                },
+                filter: 1,
+            },
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 2,
+                    opcode: 1,
+                    rs1: 3,
+                    rs2: 3,
+                    rd: 2,
+                    imm: 2,
+                },
+                filter: 1,
+            },
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 3,
+                    opcode: 2,
+                    rs1: 1,
+                    rs2: 2,
+                    rd: 3,
+                    imm: 1,
+                },
+                filter: 1,
+            },
+            ProgramColumnsView {
+                inst: InstColumnsView {
+                    pc: 1,
+                    opcode: 3,
+                    rs1: 3,
+                    rs2: 3,
+                    rd: 3,
+                    imm: 3,
+                },
+                filter: 0,
+            },
+        ]
+        .into_iter()
+        .map(|row| row.map(from_u32))
+        .collect();
+
+        let permuted = generate_permuted_inst_trace(&cpu_trace, &program_trace);
+        let expected_permuted: Vec<ProgramColumnsView<F>> = [
             ProgramColumnsView {
                 inst: InstColumnsView {
                     pc: 1,
@@ -306,11 +355,11 @@ mod tests {
             ProgramColumnsView {
                 inst: InstColumnsView {
                     pc: 1,
-                    opcode: 4,
-                    rs1: 4,
-                    rs2: 4,
-                    rd: 4,
-                    imm: 4,
+                    opcode: 3,
+                    rs1: 2,
+                    rs2: 1,
+                    rd: 1,
+                    imm: 3,
                 },
                 filter: 0,
             },
@@ -340,6 +389,6 @@ mod tests {
         .into_iter()
         .map(|row| row.map(from_u32))
         .collect();
-        assert_eq!(expected_permuted_trace, permuted_trace);
+        assert_eq!(permuted, expected_permuted);
     }
 }

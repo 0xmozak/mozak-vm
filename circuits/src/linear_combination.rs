@@ -111,6 +111,14 @@ impl<F: Field> Column<F> {
     }
 
     #[must_use]
+    pub fn not(c: usize) -> Self {
+        Self {
+            linear_combination: vec![(c, F::NEG_ONE)],
+            constant: F::ONE,
+        }
+    }
+
+    #[must_use]
     pub fn single(idx: usize) -> Self { idx.into() }
 
     pub fn singles<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Vec<Self> {
