@@ -84,6 +84,14 @@ pub fn is_binary<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P)
     yield_constr.constraint(x * (P::ONES - x));
 }
 
+/// Ensure an expression only takes on values 0 or 1 for transition rows.
+///
+/// That's useful for differences between `local_values` and `next_values`, like
+/// a clock tick.
+fn is_binary_transition<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
+    yield_constr.constraint_transition(x * (P::ONES - x));
+}
+
 /// Ensure clock is ticking up, iff CPU is still running.
 fn clock_ticks<P: PackedField>(
     lv: &CpuState<P>,
