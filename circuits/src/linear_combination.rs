@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::ops::Index;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -9,7 +10,7 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 /// Represent a linear combination of columns.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Column<F: Field> {
     linear_combination: Vec<(usize, F)>,
     constant: F,
@@ -20,6 +21,14 @@ impl<F: Field> Column<F> {
     pub fn always() -> Self {
         Column {
             linear_combination: vec![],
+            constant: F::ONE,
+        }
+    }
+
+    #[must_use]
+    pub fn not(c: usize) -> Self {
+        Self {
+            linear_combination: vec![(c, F::NEG_ONE)],
             constant: F::ONE,
         }
     }
@@ -56,10 +65,11 @@ impl<F: Field> Column<F> {
         }
     }
 
-    pub fn eval<FE, P, const D: usize>(&self, v: &[P]) -> P
+    pub fn eval<FE, P, const D: usize, V>(&self, v: &V) -> P
     where
         FE: FieldExtension<D, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
+        P: PackedField<Scalar = FE>,
+        V: Index<usize, Output = P> + ?Sized, {
         self.linear_combination
             .iter()
             .map(|&(c, f)| v[c] * FE::from_basefield(f))

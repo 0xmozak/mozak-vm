@@ -175,8 +175,8 @@ fn partial_products<F: Field>(
 #[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct CrossTableLookup<F: Field> {
-    looking_tables: Vec<Table<F>>,
-    looked_table: Table<F>,
+    pub looking_tables: Vec<Table<F>>,
+    pub looked_table: Table<F>,
 }
 
 impl<F: Field> CrossTableLookup<F> {
