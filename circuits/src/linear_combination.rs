@@ -86,15 +86,6 @@ impl<F: Field> Column<F> {
             + self.constant
     }
 
-    /// Evaluate on an row of a table
-    pub fn eval_row(&self, row: &impl Index<usize, Output = F>) -> F {
-        self.linear_combination
-            .iter()
-            .map(|&(c, f)| row[c] * f)
-            .sum::<F>()
-            + self.constant
-    }
-
     pub fn eval_circuit<const D: usize>(
         &self,
         builder: &mut CircuitBuilder<F, D>,
