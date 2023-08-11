@@ -903,7 +903,6 @@ dependencies = [
  "log",
  "mozak-vm",
  "plonky2",
- "plonky2_field",
  "plonky2_maybe_rayon",
  "proptest",
  "serde",
