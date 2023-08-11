@@ -62,6 +62,8 @@ pub struct CpuState<T> {
 
     pub op1_value: T,
     pub op2_value: T,
+    /// op2 value wrapped
+    pub op2_value_wrapped: T,
     pub dst_value: T,
 
     pub regs: [T; 32],

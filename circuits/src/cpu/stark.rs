@@ -40,8 +40,6 @@ impl<P: Copy + core::ops::Add<Output = P>> OpSelectors<P> {
             + self.sltu
             + self.srl
     }
-
-    pub(crate) fn memory_opcodes(&self) -> Vec<P> { vec![self.sb, self.lbu] }
 }
 
 fn pc_ticks_up<P: PackedField>(
@@ -172,16 +170,13 @@ fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
 /// `OP2_VALUE` is the sum of the value of the second operand register and the
 /// immediate value.
 fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
-    let is_memory_op: P = lv.inst.ops.memory_opcodes().into_iter().sum::<P>();
-    let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
     // Note: we could skip 0, because r0 is always 0.
     // But we keep the constraints simple here.
     let op2_val = lv.inst.imm_value
         + (0..32)
             .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
             .sum::<P>();
-    yield_constr
-        .constraint((lv.op2_value - op2_val) * (lv.op2_value - op2_val + is_memory_op * wrap_at));
+    yield_constr.constraint((lv.op2_value - op2_val) * (lv.op2_value_wrapped));
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
@@ -233,7 +228,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         yield_constr.constraint_last_row(lv.halt - P::ONES);
     }
 
-    fn constraint_degree(&self) -> usize { 4 }
+    fn constraint_degree(&self) -> usize { 3 }
 
     #[no_coverage]
     fn eval_ext_circuit(

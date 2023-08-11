@@ -64,6 +64,12 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
             row.regs[j as usize] = from_u32(state.get_register_value(j));
         }
 
+        if !matches!(inst.op, Op::SB | Op::LBU) {
+            row.op2_value_wrapped = row.op2_value
+                - from_u32(state.get_register_value(inst.args.rs2))
+                - from_u32(inst.args.imm)
+                + F::from_noncanonical_u64(1 << 32);
+        }
         generate_mul_row(&mut row, &inst, aux);
         generate_divu_row(&mut row, &inst, aux);
         generate_sign_handling(&mut row, aux);
