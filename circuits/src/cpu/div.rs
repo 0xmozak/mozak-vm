@@ -11,6 +11,7 @@ use super::columns::CpuState;
 /// unsigned division.
 ///
 /// TODO: m, r, slack need range-checks.
+#[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
@@ -26,8 +27,7 @@ pub(crate) fn constraints<P: PackedField>(
     // p,q are between i32::MIN .. u32::MAX
     let p = lv.op1_full_range();
     let q = lv.divisor;
-    yield_constr
-        .constraint((ops.div + ops.rem + ops.divu + ops.remu) * (q - lv.op2_full_range()));
+    yield_constr.constraint((ops.div + ops.rem + ops.divu + ops.remu) * (q - lv.op2_full_range()));
 
     // The following constraints are for SRL.
     {
@@ -60,7 +60,9 @@ pub(crate) fn constraints<P: PackedField>(
     // The equation from the spec becomes:
     //  p = q * m + r
     // (Interestingly, this holds even when q == 0.)
-    // TODO(Matthias): the above observation is from the spec, but why do we need to treat 0 special in the line below?
+    // TODO(Matthias): the above observation is from the spec, but why do we need to
+    // treat 0 special in the line below?
+
     // Constraints for denominator != 0:
     yield_constr.constraint(q * (m * q + r - p));
     // However, that constraint is not enough.
