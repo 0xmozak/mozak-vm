@@ -164,9 +164,9 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "bitflags"
-version = "2.3.3"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "630be753d4e58660abd17930c71b647fe46c27ea6b63cc59e1e3851406972e42"
+checksum = "b4682ae6287fcf752ecaabbfcc7b6f9b72aa33933dc23a554d853aea8eea8635"
 
 [[package]]
 name = "bitmaps"
@@ -743,7 +743,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb0889898416213fab133e1d33a0e5858a48177452750691bde3666d0fdbaf8b"
 dependencies = [
  "hermit-abi",
- "rustix 0.38.7",
+ "rustix 0.38.8",
  "windows-sys 0.48.0",
 ]
 
@@ -1110,7 +1110,7 @@ checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/0xmozak/plonky2.git#deed73771978f6f233ca972bd7e070f60a5aeb60"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=matthias/fix-clear#0e9330697714fc8d811665a1cbc14a9f4f5acf82"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1134,7 +1134,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#deed73771978f6f233ca972bd7e070f60a5aeb60"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=matthias/fix-clear#0e9330697714fc8d811665a1cbc14a9f4f5acf82"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -1149,7 +1149,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#deed73771978f6f233ca972bd7e070f60a5aeb60"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=matthias/fix-clear#0e9330697714fc8d811665a1cbc14a9f4f5acf82"
 dependencies = [
  "rayon",
 ]
@@ -1157,7 +1157,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#deed73771978f6f233ca972bd7e070f60a5aeb60"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=matthias/fix-clear#0e9330697714fc8d811665a1cbc14a9f4f5acf82"
 
 [[package]]
 name = "plotters"
@@ -1447,11 +1447,11 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.7"
+version = "0.38.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "172891ebdceb05aa0005f533a6cbfca599ddd7d966f6f5d4d9b2e70478e70399"
+checksum = "19ed4fa021d81c8392ce04db050a3da9a60299050b7ae1cf482d862b54a7218f"
 dependencies = [
- "bitflags 2.3.3",
+ "bitflags 2.4.0",
  "errno",
  "libc",
  "linux-raw-sys 0.4.5",
@@ -1602,7 +1602,7 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "starky"
 version = "0.1.2"
-source = "git+https://github.com/0xmozak/plonky2.git#deed73771978f6f233ca972bd7e070f60a5aeb60"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=matthias/fix-clear#0e9330697714fc8d811665a1cbc14a9f4f5acf82"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -1655,7 +1655,7 @@ dependencies = [
  "cfg-if",
  "fastrand",
  "redox_syscall",
- "rustix 0.38.7",
+ "rustix 0.38.8",
  "windows-sys 0.48.0",
 ]
 
@@ -2223,9 +2223,9 @@ checksum = "1a515f5799fe4961cb532f983ce2b23082366b898e52ffbce459c86f67c8378a"
 
 [[package]]
 name = "winnow"
-version = "0.5.4"
+version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acaaa1190073b2b101e15083c38ee8ec891b5e05cbee516521e94ec008f61e64"
+checksum = "19f495880723d0999eb3500a9064d8dbcf836460b24c17df80ea7b5794053aac"
 dependencies = [
  "memchr",
 ]

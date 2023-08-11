@@ -10,6 +10,7 @@ use itertools::Itertools;
 use mozak_vm::elf::Program;
 use mozak_vm::vm::Row;
 use plonky2::field::extension::Extendable;
+use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::hash::hash_types::RichField;
 use plonky2::util::transpose;
@@ -55,9 +56,13 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     ]
 }
 
-// <F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>
 #[must_use]
-pub fn transpose_polys<F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>(
+#[allow(clippy::missing_panics_doc)]
+pub fn transpose_polys<
+    F: RichField + Extendable<D> + PackedField,
+    const D: usize,
+    S: Stark<F, D>,
+>(
     cols: Vec<PolynomialValues<F>>,
 ) -> Vec<[F; S::COLUMNS]> {
     transpose(
@@ -65,7 +70,10 @@ pub fn transpose_polys<F: RichField + Extendable<D>, const D: usize, S: Stark<F,
             .into_iter()
             .map(|PolynomialValues { values }| values)
             .collect_vec(),
-    ).into_iter().map(|row| row.as_slice().try_into().unwrap()).collect_vec()
+    )
+    .into_iter()
+    .map(|row| row.try_into().unwrap())
+    .collect_vec()
 }
 
 #[allow(clippy::missing_panics_doc)]
@@ -89,37 +97,28 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
         // Program ROM
         debug_single_trace::<F, D, ProgramStark<F, D>>(
             &mozak_stark.program_stark,
-            &transpose_polys(program_trace),
+            program_trace,
             "PROGRAM_ROM_STARK",
-            false,
         ),
         // CPU
-        debug_single_trace::<F, D, CpuStark<F, D>>(
-            &mozak_stark.cpu_stark,
-            &transpose_polys(cpu_trace),
-            "CPU_STARK",
-            false,
-        ),
+        debug_single_trace::<F, D, CpuStark<F, D>>(&mozak_stark.cpu_stark, cpu_trace, "CPU_STARK"),
         // Range check
         debug_single_trace::<F, D, RangeCheckStark<F, D>>(
             &mozak_stark.rangecheck_stark,
-            &transpose_polys(rangecheck_trace),
+            rangecheck_trace,
             "RANGE_CHECK_STARK",
-            true,
         ),
         // Bitwise
         debug_single_trace::<F, D, BitwiseStark<F, D>>(
             &mozak_stark.bitwise_stark,
-            &transpose_polys(bitwise_trace),
+            bitwise_trace,
             "BITWISE_STARK",
-            false,
         ),
         // Bitshift
         debug_single_trace::<F, D, BitshiftStark<F, D>>(
             &mozak_stark.shift_amount_stark,
-            &transpose_polys(shift_amount_trace),
+            shift_amount_trace,
             "BITWISE_STARK",
-            false,
         ),
     ];
 
@@ -129,57 +128,34 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 #[allow(clippy::missing_panics_doc)]
 pub fn debug_single_trace<F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>(
     stark: &S,
-    trace_rows: &Vec<[F; S::COLUMNS]>,
+    trace_rows: Vec<PolynomialValues<F>>,
     stark_name: &str,
-    is_range_check: bool,
 ) -> bool
 where
     [(); S::COLUMNS]:,
     [(); S::PUBLIC_INPUTS]:, {
-    let mut rc = true;
-    let mut consumer = ConstraintConsumer::new_debug_api();
-    for nv_row in 1..trace_rows.len() {
-        let lv_row = nv_row - 1;
-        let mut lv: Vec<_> = vec![];
-        trace_rows[lv_row].iter().for_each(|e| {
-            lv.push(*e);
-        });
-
-        let mut nv: Vec<_> = vec![];
-        trace_rows[nv_row].iter().for_each(|e| {
-            nv.push(*e);
-        });
-
-        if nv_row == 1 {
-            consumer.debug_api_activate_first_row();
-        } else if nv_row == trace_rows.len() - 1 {
-            consumer.debug_api_activate_last_row();
-            lv = nv.clone();
-            // NOTE: this is the place that differs from other traces, please refer to
-            // lookup.rs for more info
-            if is_range_check {
-                nv.clear();
-                trace_rows[0].iter().for_each(|e| nv.push(*e));
+    transpose_polys::<F, D, S>(trace_rows)
+        .iter()
+        .enumerate()
+        .circular_tuple_windows()
+        .map(|((lv_row, lv), (nv_row, nv))| {
+            let mut consumer = ConstraintConsumer::new_debug_api(lv_row == 0, nv_row == 0);
+            stark.eval_packed_generic(
+                StarkEvaluationVars {
+                    local_values: lv,
+                    next_values: nv,
+                    public_inputs: &[F::ZERO; S::PUBLIC_INPUTS],
+                },
+                &mut consumer,
+            );
+            if consumer.debug_api_has_constraint_failed() {
+                println!("Debug constraints for {stark_name}");
+                println!("lv-row[{lv_row}] - values: {lv:?}");
+                println!("nv-row[{nv_row}] - values: {nv:?}");
+                false
+            } else {
+                true
             }
-        } else {
-            consumer.debug_api_activate_transition();
-        }
-
-        stark.eval_packed_generic(
-            StarkEvaluationVars {
-                local_values: lv.as_slice().try_into().unwrap(),
-                next_values: nv.as_slice().try_into().unwrap(),
-                public_inputs: &[F::ZERO; S::PUBLIC_INPUTS],
-            },
-            &mut consumer,
-        );
-        if consumer.debug_api_is_constraint_failed() {
-            println!("Debug constraints for {stark_name}");
-            println!("lv-row[{lv_row}] - values: {lv:?}");
-            println!("nv-row[{nv_row}] - values: {nv:?}");
-            consumer.debug_api_reset_failed_constraint();
-            rc = false;
-        }
-    }
-    rc
+        })
+        .all(|x| x)
 }
