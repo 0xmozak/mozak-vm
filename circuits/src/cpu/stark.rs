@@ -225,6 +225,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         jalr::constraints(lv, nv, yield_constr);
         ecall::constraints(lv, nv, yield_constr);
 
+        // Clock starts at 0
+        yield_constr.constraint_first_row(lv.clk);
         // Last row must be HALT
         yield_constr.constraint_last_row(lv.halt - P::ONES);
     }
