@@ -20,6 +20,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub shift_amount_stark: BitshiftStark<F, D>,
     pub program_stark: ProgramStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 5],
+    pub debug: bool,
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -37,6 +38,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 InnerCpuTable::lookups(),
                 ProgramCpuTable::lookups(),
             ],
+            debug: false,
         }
     }
 }
@@ -60,6 +62,14 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.shift_amount_stark.permutation_batch_size(),
             self.program_stark.permutation_batch_size(),
         ]
+    }
+
+    #[must_use]
+    pub fn default_debug() -> Self {
+        Self {
+            debug: true,
+            ..Self::default()
+        }
     }
 }
 
