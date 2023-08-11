@@ -2,6 +2,7 @@
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
+use mozak_vm::elf::Program;
 use mozak_vm::vm::Row;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
@@ -27,6 +28,7 @@ use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::generate_traces;
 use crate::memory::stark::MemoryStark;
+use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::permutation::{
     compute_permutation_z_polys, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
@@ -35,6 +37,7 @@ use crate::stark::poly::compute_quotient_polys;
 
 #[allow(clippy::missing_errors_doc)]
 pub fn prove<F, C, const D: usize>(
+    program: &Program,
     step_rows: &[Row],
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
@@ -49,8 +52,9 @@ where
     [(); BitwiseStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
-    let traces_poly_values = generate_traces(step_rows);
+    let traces_poly_values = generate_traces(program, step_rows);
     prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
 }
 
@@ -73,6 +77,7 @@ where
     [(); BitwiseStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
@@ -344,6 +349,7 @@ where
     [(); BitwiseStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
@@ -395,12 +401,23 @@ where
         timing,
     )?;
 
+    let program_proof = prove_single_table::<F, C, ProgramStark<F, D>, D>(
+        &mozak_stark.program_stark,
+        config,
+        &traces_poly_values[TableKind::Program as usize],
+        &trace_commitments[TableKind::Program as usize],
+        &ctl_data_per_table[TableKind::Program as usize],
+        challenger,
+        timing,
+    )?;
+
     Ok([
         cpu_proof,
         rangecheck_proof,
         bitwise_proof,
         shift_amount_proof,
         memory_proof,
+        program_proof,
     ])
 }
 
@@ -408,27 +425,35 @@ where
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test, simple_test_code};
+    use mozak_vm::test_utils::simple_test_code;
 
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
 
     #[test]
     fn prove_halt() {
-        let record = simple_test(0, &[], &[]);
-        MozakStark::prove_and_verify(&record.executed).unwrap();
+        let (program, record) = simple_test_code(&[], &[], &[]);
+        MozakStark::prove_and_verify(&program, &record.executed).unwrap();
     }
 
     #[test]
     fn prove_lui() {
-        let record = simple_test(4, &[(0_u32, 0x8000_00b7 /* lui r1, 0x80000 */)], &[]);
+        let lui = Instruction {
+            op: Op::ADD,
+            args: Args {
+                rd: 1,
+                imm: 0x8000_0000,
+                ..Args::default()
+            },
+        };
+        let (program, record) = simple_test_code(&[lui], &[], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
-        MozakStark::prove_and_verify(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&program, &record.executed).unwrap();
     }
 
     #[test]
     fn prove_lui_2() {
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::ADD,
                 args: Args {
@@ -441,12 +466,12 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_register_value(1), 0xDEAD_BEEF,);
-        MozakStark::prove_and_verify(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&program, &record.executed).unwrap();
     }
 
     #[test]
     fn prove_beq() {
-        let record = simple_test_code(
+        let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::BEQ,
                 args: Args {
@@ -460,6 +485,6 @@ mod tests {
             &[(1, 2)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        MozakStark::prove_and_verify(&record.executed).unwrap();
+        MozakStark::prove_and_verify(&program, &record.executed).unwrap();
     }
 }

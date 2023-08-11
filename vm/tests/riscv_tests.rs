@@ -24,8 +24,8 @@ macro_rules! test_elf {
             let elf_name = format!("tests/testdata/{}", $file_name);
             let elf = std::fs::read(elf_name)?;
             let program = Program::load_elf(&elf)?;
-            let state = State::from(program);
-            let state = step(state)?.last_state;
+            let state = State::from(&program);
+            let state = step(&program, state)?.last_state;
             // At the end of every test,
             // register a0(x10) is set to 0 before an ECALL if it passes
             assert_eq!(state.get_register_value(10), 0);

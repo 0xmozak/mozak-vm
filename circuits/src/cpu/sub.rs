@@ -2,10 +2,10 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::CpuColumnsView;
+use super::columns::CpuState;
 
 pub(crate) fn constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let expected_value = lv.op1_value - lv.op2_value;
@@ -28,7 +28,7 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
         fn prove_sub_proptest(a in u32_extra(), b in u32_extra()) {
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[Instruction {
                     op: Op::SUB,
                     args: Args {
@@ -42,7 +42,7 @@ mod tests {
                 &[(6, a), (7, b)],
             );
             assert_eq!(record.last_state.get_register_value(5), a.wrapping_sub(b));
-            CpuStark::prove_and_verify(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
     }
 }

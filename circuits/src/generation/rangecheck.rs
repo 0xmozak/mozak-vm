@@ -1,6 +1,6 @@
 use plonky2::hash::hash_types::RichField;
 
-use crate::cpu::columns::CpuColumnsView;
+use crate::cpu::columns::CpuState;
 use crate::lookup::permute_cols;
 use crate::memory::columns::MemoryColumnsView;
 use crate::rangecheck::columns;
@@ -52,7 +52,7 @@ fn push_rangecheck_row<F: RichField>(
 /// 2. trace width does not match the number of columns.
 #[must_use]
 pub fn generate_rangecheck_trace<F: RichField>(
-    cpu_trace: &[CpuColumnsView<F>],
+    cpu_trace: &[CpuState<F>],
     _memory_trace: &[MemoryColumnsView<F>],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
@@ -111,7 +111,8 @@ pub fn generate_rangecheck_trace<F: RichField>(
 
 #[cfg(test)]
 mod tests {
-    use mozak_vm::test_utils::simple_test;
+    use mozak_vm::instruction::{Args, Instruction, Op};
+    use mozak_vm::test_utils::simple_test_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
 
@@ -122,15 +123,23 @@ mod tests {
     #[test]
     fn test_add_instruction_inserts_rangecheck() {
         type F = GoldilocksField;
-        let record = simple_test(
-            4,
-            &[(0_u32, 0x0073_02b3 /* add r5, r6, r7 */)],
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: 5,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
             // Use values that would become limbs later
+            &[],
             &[(6, 0xffff), (7, 0xffff)],
         );
 
-        let cpu_rows = generate_cpu_trace::<F>(&record.executed);
-        let memory_rows = generate_memory_trace::<F>(&record.executed);
+        let cpu_rows = generate_cpu_trace::<F>(&program, &record.executed);
+        let memory_rows = generate_memory_trace::<F>(&program, &record.executed);
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
         // Check values that we are interested in

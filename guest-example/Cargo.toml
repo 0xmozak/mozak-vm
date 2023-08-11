@@ -1,0 +1,14 @@
+[package]
+edition = "2021"
+name = "mozak-guest"
+version = "0.1.0"
+
+[workspace]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+
+[[bin]]
+name = "guest_example"
+path = "main.rs"

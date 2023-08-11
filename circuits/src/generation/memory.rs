@@ -1,4 +1,5 @@
 use itertools::{self, Itertools};
+use mozak_vm::elf::Program;
 use mozak_vm::instruction::Op;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -42,30 +43,36 @@ pub fn filter_memory_trace(step_rows: &[Row]) -> Vec<&Row> {
 
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
-pub fn generate_memory_trace<F: RichField>(step_rows: &[Row]) -> Vec<MemoryColumnsView<F>> {
+pub fn generate_memory_trace<F: RichField>(
+    program: &Program,
+    step_rows: &[Row],
+) -> Vec<MemoryColumnsView<F>> {
     let filtered_step_rows = filter_memory_trace(step_rows);
 
     let mut trace: Vec<MemoryColumnsView<F>> = vec![];
     for s in &filtered_step_rows {
-        let mut row = MemoryColumnsView::default();
-        row.mem_addr = get_memory_inst_addr(s);
-        row.mem_clk = get_memory_inst_clk(s);
-        row.mem_op = get_memory_inst_op(&s.state.current_instruction());
-
-        row.mem_value = match s.state.current_instruction().op {
-            Op::LB => get_memory_load_inst_value(s),
-            Op::SB => get_memory_store_inst_value(s),
-            #[tarpaulin::skip]
-            _ => F::ZERO,
-        };
-
-        row.mem_diff_addr = row.mem_addr - trace.last().map_or(F::ZERO, |last| last.mem_addr);
-        row.mem_diff_addr_inv = row.mem_diff_addr.try_inverse().unwrap_or_default();
-        row.mem_diff_clk = match trace.last() {
-            Some(last) if row.mem_diff_addr == F::ZERO => row.mem_clk - last.mem_clk,
-            _ => F::ZERO,
-        };
-        trace.push(row);
+        let inst = s.state.current_instruction(program);
+        let mem_clk = get_memory_inst_clk(s);
+        let mem_addr = get_memory_inst_addr(s);
+        let mem_diff_addr = mem_addr - trace.last().map_or(F::ZERO, |last| last.mem_addr);
+        trace.push(MemoryColumnsView {
+            mem_addr,
+            mem_clk,
+            mem_op: get_memory_inst_op(&inst),
+            mem_value: match inst.op {
+                Op::LB => get_memory_load_inst_value(s),
+                Op::SB => get_memory_store_inst_value(s),
+                #[tarpaulin::skip]
+                _ => F::ZERO,
+            },
+            mem_diff_addr,
+            mem_diff_addr_inv: mem_diff_addr.try_inverse().unwrap_or_default(),
+            mem_diff_clk: match trace.last() {
+                Some(last) if mem_diff_addr == F::ZERO => mem_clk - last.mem_clk,
+                _ => F::ZERO,
+            },
+            mem_padding: F::ZERO,
+        });
     }
 
     // If the trace length is not a power of two, we need to extend the trace to the
@@ -117,9 +124,9 @@ mod tests {
     // to memory and then checks if the memory trace is generated correctly.
     #[test]
     fn generate_memory_trace() {
-        let rows = memory_trace_test_case();
+        let (program, rows) = memory_trace_test_case();
 
-        let trace = super::generate_memory_trace::<GoldilocksField>(&rows);
+        let trace = super::generate_memory_trace::<GoldilocksField>(&program, &rows);
         assert_eq!(trace, expected_trace());
     }
 
@@ -129,8 +136,8 @@ mod tests {
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        let rows = memory_trace_test_case();
-        let trace = super::generate_memory_trace::<F>(&rows[..4]);
+        let (program, rows) = memory_trace_test_case();
+        let trace = super::generate_memory_trace::<F>(&program, &rows[..4]);
 
         let expected_trace: Vec<MemoryColumnsView<GoldilocksField>> = expected_trace();
         let expected_trace: Vec<MemoryColumnsView<GoldilocksField>> = vec![

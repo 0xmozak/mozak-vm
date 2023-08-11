@@ -1,7 +1,7 @@
 use im::hashmap::HashMap;
 use log::trace;
 
-use crate::elf::{Code, Data, Program};
+use crate::elf::{Data, Program};
 use crate::instruction::{Args, Instruction};
 
 /// State of our VM
@@ -17,27 +17,20 @@ pub struct State {
     pub registers: [u32; 32],
     pub pc: u32,
     pub memory: HashMap<u32, u8>,
-    // NOTE: meant to be immutable.
-    // TODO(Matthias): replace with an immutable reference,
-    // but need to sort out life-times first
-    // (ie sort out where the original lives.)
-    // This ain't super-urgent, because im::hashmap::HashMap is O(1) to clone.
-    pub code: Code,
 }
 
-impl From<Program> for State {
-    fn from(program: Program) -> Self {
-        let Data(memory) = program.data;
-        let code = program.code;
+impl From<&Program> for State {
+    fn from(program: &Program) -> Self {
+        let Data(memory) = program.data.clone();
         Self {
             pc: program.entry,
-            code,
             memory,
             ..Default::default()
         }
     }
 }
 
+/// Auxiliary information about the instruction execution
 #[derive(Debug, Clone, Default)]
 pub struct Aux {
     // This could be an Option<u32>, but given how Risc-V instruction are specified,
@@ -46,6 +39,8 @@ pub struct Aux {
     pub new_pc: u32,
     pub mem_addr: Option<u32>,
     pub will_halt: bool,
+    pub op1: u32,
+    pub op2: u32,
 }
 
 impl State {
@@ -89,7 +84,6 @@ impl State {
     #[allow(clippy::missing_panics_doc)]
     pub fn branch_op(self, data: &Args, op: fn(u32, u32) -> bool) -> (Aux, State) {
         let op1 = self.get_register_value(data.rs1);
-        assert_eq!(data.imm, 0, "{:#?}", self.current_instruction());
         let op2 = self.get_register_value(data.rs2).wrapping_add(data.imm);
         (
             Aux::default(),
@@ -168,6 +162,10 @@ impl State {
     }
 
     /// Load a byte from memory
+    ///
+    /// For now, we decided that we will offer the program the full 4 GiB of
+    /// address space you can get with 32 bits.
+    /// So no u32 address is out of bounds.
     #[must_use]
     pub fn load_u8(&self, addr: u32) -> u8 { self.memory.get(&addr).copied().unwrap_or_default() }
 
@@ -183,9 +181,9 @@ impl State {
     }
 
     #[must_use]
-    pub fn current_instruction(&self) -> Instruction {
+    pub fn current_instruction(&self, program: &Program) -> Instruction {
         let pc = self.get_pc();
-        let inst = self.code.get_instruction(pc);
+        let inst = program.code.get_instruction(pc);
         trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}");
         inst
     }

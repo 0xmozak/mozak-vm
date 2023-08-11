@@ -3,7 +3,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::bitwise::and_gadget;
-use super::columns::CpuColumnsView;
+use super::columns::CpuState;
 
 /// Constraints for DIVU / REMU / SRL instructions
 ///
@@ -12,7 +12,7 @@ use super::columns::CpuColumnsView;
 ///
 /// TODO: m, r, slack need range-checks.
 pub(crate) fn constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let dst = lv.dst_value;
@@ -100,7 +100,7 @@ mod tests {
         }
         #[test]
         fn prove_divu_proptest(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[Instruction {
                     op: Op::DIVU,
                     args: Args {
@@ -135,11 +135,11 @@ mod tests {
                 } else {
                     p % q
                 });
-            CpuStark::prove_and_verify(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
         #[test]
         fn prove_srl_proptest(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[Instruction {
                     op: Op::SRL,
                     args: Args {
@@ -164,7 +164,7 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p >> q);
             prop_assert_eq!(record.executed[1].aux.dst_val, p >> q);
-            CpuStark::prove_and_verify(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
     }
 }

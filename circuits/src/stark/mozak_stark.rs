@@ -9,8 +9,9 @@ use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::memory::stark::MemoryStark;
+use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::{bitshift, bitwise, cpu, memory, rangecheck};
+use crate::{bitshift, bitwise, cpu, memory, program, rangecheck};
 
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
@@ -19,7 +20,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub bitwise_stark: BitwiseStark<F, D>,
     pub memory_stark: MemoryStark<F, D>,
     pub shift_amount_stark: BitshiftStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 4],
+    pub program_stark: ProgramStark<F, D>,
+    pub cross_table_lookups: [CrossTableLookup<F>; 6],
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -31,11 +33,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
 
             memory_stark: MemoryStark::default(),
             shift_amount_stark: BitshiftStark::default(),
+            program_stark: ProgramStark::default(),
             cross_table_lookups: [
                 RangecheckCpuTable::lookups(),
                 BitwiseCpuTable::lookups(),
                 BitshiftCpuTable::lookups(),
                 MemoryRangeCheckTable::lookups(),
+                InnerCpuTable::lookups(),
+                ProgramCpuTable::lookups(),
             ],
         }
     }
@@ -49,6 +54,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.bitwise_stark.num_permutation_batches(config),
             self.memory_stark.num_permutation_batches(config),
             self.shift_amount_stark.num_permutation_batches(config),
+            self.program_stark.num_permutation_batches(config),
         ]
     }
 
@@ -59,11 +65,12 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.bitwise_stark.permutation_batch_size(),
             self.memory_stark.permutation_batch_size(),
             self.shift_amount_stark.permutation_batch_size(),
+            self.program_stark.permutation_batch_size(),
         ]
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 5;
+pub(crate) const NUM_TABLES: usize = 6;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TableKind {
@@ -71,7 +78,8 @@ pub enum TableKind {
     RangeCheck = 1,
     Bitwise = 2,
     Bitshift = 3,
-    Memory = 4,
+    Program = 4,
+    Memory = 5,
 }
 
 impl TableKind {
@@ -83,6 +91,7 @@ impl TableKind {
             TableKind::Bitwise,
             TableKind::Bitshift,
             TableKind::Memory,
+            TableKind::Program,
         ]
     }
 }
@@ -119,6 +128,9 @@ pub struct BitwiseTable<F: Field>(Table<F>);
 /// Represents a shift amount trace table in the Mozak VM.
 pub struct BitshiftTable<F: Field>(Table<F>);
 
+/// Represents a program trace table in the Mozak VM.
+pub struct ProgramTable<F: Field>(Table<F>);
+
 impl<F: Field> RangeCheckTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
@@ -154,6 +166,13 @@ impl<F: Field> BitshiftTable<F> {
     }
 }
 
+impl<F: Field> ProgramTable<F> {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
+        Table::new(TableKind::Program, columns, filter_column)
+    }
+}
+
 pub trait Lookups<F: Field> {
     fn lookups() -> CrossTableLookup<F>;
 }
@@ -166,9 +185,9 @@ impl<F: Field> Lookups<F> for MemoryRangeCheckTable<F> {
         CrossTableLookup::new(
             vec![MemoryTable::new(
                 memory::columns::data_for_rangecheck(),
-                Column::never(),
+                Column::always(),
             )],
-            RangeCheckTable::new(rangecheck::columns::data_for_cpu(), Column::never()),
+            RangeCheckTable::new(rangecheck::columns::data_for_cpu(), Column::always()),
         )
     }
 }
@@ -217,6 +236,40 @@ impl<F: Field> Lookups<F> for BitshiftCpuTable<F> {
             BitshiftTable::new(
                 bitshift::columns::data_for_cpu(),
                 bitshift::columns::filter_for_cpu(),
+            ),
+        )
+    }
+}
+
+pub struct InnerCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for InnerCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_inst(),
+                Column::not(cpu::columns::MAP.cpu.halt),
+            )],
+            CpuTable::new(
+                cpu::columns::data_for_permuted_inst(),
+                Column::not(cpu::columns::MAP.cpu.halt),
+            ),
+        )
+    }
+}
+
+pub struct ProgramCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_permuted_inst(),
+                Column::single(cpu::columns::MAP.permuted.filter),
+            )],
+            ProgramTable::new(
+                program::columns::data_for_ctl(),
+                Column::single(program::columns::MAP.filter),
             ),
         )
     }

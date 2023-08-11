@@ -3,10 +3,10 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::bitwise::and_gadget;
-use super::columns::CpuColumnsView;
+use super::columns::CpuState;
 
 pub(crate) fn constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // TODO: PRODUCT_LOW_BITS and PRODUCT_HIGH_BITS need range checking.
@@ -81,7 +81,7 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
         fn prove_mul_proptest(a in u32_extra(), b in u32_extra()) {
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[
                     Instruction {
                         op: Op::MUL,
@@ -108,7 +108,7 @@ mod tests {
             let (low, high) = a.widening_mul(b);
             prop_assert_eq!(record.executed[0].aux.dst_val, low);
             prop_assert_eq!(record.executed[1].aux.dst_val, high);
-            CpuStark::prove_and_verify(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
 
         #[test]
@@ -116,7 +116,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             prop_assume!(rs1 != rd);
             prop_assume!(rs2 != rd);
-            let record = simple_test_code(
+            let (program, record) = simple_test_code(
                 &[Instruction {
                     op: Op::SLL,
                     args: Args {
@@ -141,7 +141,7 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
             prop_assert_eq!(record.executed[1].aux.dst_val, p << (q & 0x1F));
-            CpuStark::prove_and_verify(&record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
     }
 }
