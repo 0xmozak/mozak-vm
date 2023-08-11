@@ -93,7 +93,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     >;
         NUM_TABLES] = generate_traces(program, step_rows);
 
-    let results = [
+    assert!([
         // Program ROM
         debug_single_trace::<F, D, ProgramStark<F, D>>(
             &mozak_stark.program_stark,
@@ -120,9 +120,9 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
             shift_amount_trace,
             "BITWISE_STARK",
         ),
-    ];
-
-    assert!(results.into_iter().all(|x| x));
+    ]
+    .into_iter()
+    .all(|x| x));
 }
 
 #[allow(clippy::missing_panics_doc)]
