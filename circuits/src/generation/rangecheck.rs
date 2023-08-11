@@ -4,7 +4,7 @@ use crate::cpu::columns::{rangecheck_looking, CpuState};
 use crate::lookup::permute_cols;
 use crate::rangecheck::columns;
 use crate::rangecheck::columns::MAP;
-use crate::stark::mozak_stark::Table;
+use crate::stark::mozak_stark::{Table, TableKind};
 
 pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 
@@ -59,6 +59,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
     let looking_cpu_tables: Vec<Table<F>> = rangecheck_looking();
 
     for cpu_table in &looking_cpu_tables {
+        assert!(matches!(cpu_table.kind, TableKind::Cpu));
         if let [column] = &cpu_table.columns[..] {
             for cpu_row in cpu_trace {
                 let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
