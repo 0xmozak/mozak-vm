@@ -24,6 +24,8 @@ shadow!(build);
 struct Cli {
     #[clap(flatten)]
     verbose: clap_verbosity_flag::Verbosity,
+    #[clap(short, long, default_value_t = false)]
+    debug: bool,
     #[command(subcommand)]
     command: Command,
 }
@@ -41,8 +43,6 @@ enum Command {
     ProveAndVerify { elf: Input },
     /// Prove the execution of given ELF and write proof to file.
     Prove { elf: Input, proof: Output },
-    /// Prove the execution of given ELF and write proof to file.
-    ProveDebug { elf: Input, proof: Output },
     /// Verify the given proof from file.
     Verify { proof: Input },
 }
@@ -114,25 +114,11 @@ fn main() -> Result<()> {
                 let program = load_program(elf)?;
                 let state = State::from(&program);
                 let record = step(&program, state)?;
-                let stark = S::default();
-                let config = standard_faster_config();
-
-                let all_proof = prove::<F, C, D>(
-                    &program,
-                    &record.executed,
-                    &stark,
-                    &config,
-                    &mut TimingTree::default(),
-                )?;
-                let s = all_proof.serialize_proof_to_flexbuffer()?;
-                proof.write_all(s.view())?;
-                debug!("proof generated successfully!");
-            }
-            Command::ProveDebug { elf, mut proof } => {
-                let program = load_program(elf)?;
-                let state = State::from(&program);
-                let record = step(&program, state)?;
-                let stark = MozakStark::default_debug();
+                let stark = if cli.debug {
+                    MozakStark::default_debug()
+                } else {
+                    MozakStark::default()
+                };
                 let config = standard_faster_config();
 
                 let all_proof = prove::<F, C, D>(
