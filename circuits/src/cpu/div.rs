@@ -85,8 +85,10 @@ pub(crate) fn constraints<P: PackedField>(
     // Now we need to deal with division by zero.  The Risc-V spec says:
     //      p / 0 == 0xFFFF_FFFF
     //      p % 0 == p
-    yield_constr.constraint((P::ONES - q * q_inv) * (m + P::ONES - (P::ONES - lv.is_signed())*shifted(32)));
-    yield_constr.constraint((P::ONES - q * q_inv) * (r - lv.op1_value));
+    yield_constr.constraint(
+        (P::ONES - q * q_inv) * (m + P::ONES - (P::ONES - lv.is_signed()) * shifted(32)),
+    );
+    yield_constr.constraint((P::ONES - q * q_inv) * (r - lv.op1_full_range()));
 
     // Last, we 'copy' our results:
     yield_constr.constraint((ops.divu + ops.srl) * (dst - m));
