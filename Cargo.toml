@@ -13,8 +13,8 @@ overflow-checks = true
 incremental = true
 
 [patch.crates-io]
-plonky2 = { version = "0.1.3", git = "https://github.com/0xmozak/plonky2.git" }
+plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
 plonky2_field = { git = "https://github.com/0xmozak/plonky2.git" }
 plonky2_maybe_rayon = { git = "https://github.com/0xmozak/plonky2.git" }
 plonky2_util = { git = "https://github.com/0xmozak/plonky2.git" }
-starky = { version = "0.1.2", git = "https://github.com/0xmozak/plonky2.git" }
+starky = { git = "https://github.com/0xmozak/plonky2.git" }

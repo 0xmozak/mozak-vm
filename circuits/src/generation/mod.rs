@@ -54,12 +54,10 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         program_trace,
     ]
 }
-#[allow(clippy::needless_for_each)]
 #[allow(
     clippy::missing_panics_doc,
     clippy::missing_errors_doc,
-    clippy::too_many_lines,
-    clippy::uninlined_format_args
+    clippy::needless_for_each
 )]
 pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
