@@ -26,6 +26,9 @@ struct Cli {
     verbose: clap_verbosity_flag::Verbosity,
     #[command(subcommand)]
     command: Command,
+    /// Debug API, default is OFF, currently only `prove` command is supported
+    #[arg(short, long)]
+    debug: bool,
 }
 
 #[derive(Clone, Debug, Subcommand)]
@@ -41,10 +44,15 @@ enum Command {
     ProveAndVerify { elf: Input },
     /// Prove the execution of given ELF and write proof to file.
     Prove { elf: Input, proof: Output },
-    /// Prove with debug the execution of given ELF and write proof to file.
-    ProveDebug { elf: Input, proof: Output },
     /// Verify the given proof from file.
     Verify { proof: Input },
+}
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+#[clap(action=ArgAction::SetFalse)]
+struct Args {
+    #[clap(long, short, action)]
+    debug: bool,
 }
 
 fn build_info() {
@@ -87,6 +95,7 @@ fn load_program(mut elf: Input) -> Result<Program> {
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi`
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    let args = Args::parse();
     env_logger::Builder::new()
         .filter_level(cli.verbose.log_level_filter())
         .init();
@@ -114,25 +123,11 @@ fn main() -> Result<()> {
                 let program = load_program(elf)?;
                 let state = State::from(&program);
                 let record = step(&program, state)?;
-                let stark = S::default();
-                let config = standard_faster_config();
-
-                let all_proof = prove::<F, C, D>(
-                    &program,
-                    &record.executed,
-                    &stark,
-                    &config,
-                    &mut TimingTree::default(),
-                )?;
-                let s = all_proof.serialize_proof_to_flexbuffer()?;
-                proof.write_all(s.view())?;
-                debug!("proof generated successfully!");
-            }
-            Command::ProveDebug { elf, mut proof } => {
-                let program = load_program(elf)?;
-                let state = State::from(&program);
-                let record = step(&program, state)?;
-                let stark = MozakStark::default_debug();
+                let stark = if args.debug {
+                    S::default()
+                } else {
+                    MozakStark::default_debug()
+                };
                 let config = standard_faster_config();
 
                 let all_proof = prove::<F, C, D>(
