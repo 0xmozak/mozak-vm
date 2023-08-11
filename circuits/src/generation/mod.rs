@@ -70,6 +70,10 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     [(); BitwiseStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:, {
+    let [cpu_trace, rangecheck_trace, bitwise_trace, shift_amount_trace, program_trace]: [Vec<
+        PolynomialValues<F>,
+    >;
+        NUM_TABLES] = generate_traces(program, step_rows);
     let mut rc = true;
 
     // [0] - PR
