@@ -2,11 +2,11 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::CpuColumnsView;
+use super::columns::CpuState;
 
 pub(crate) fn constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
-    nv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
+    nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // At the moment, the only system call we support is 'halt', ie ecall with x17 =

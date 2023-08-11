@@ -2,11 +2,11 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::CpuColumnsView;
+use super::columns::CpuState;
 
 /// Constraints for `less_than` and `not_diff`
 pub(crate) fn comparison_constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let lt = lv.less_than;
@@ -25,8 +25,8 @@ pub(crate) fn comparison_constraints<P: PackedField>(
 
 /// Constraints for conditional branch operations
 pub(crate) fn constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
-    nv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
+    nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let ops = &lv.inst.ops;
