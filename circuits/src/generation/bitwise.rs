@@ -33,7 +33,7 @@ pub fn generate_bitwise_trace<F: RichField>(
             .map(|execution| BitwiseColumnsView {
                 is_execution_row: F::ONE,
                 execution,
-                limbs: execution.map(to_bits),
+                // limbs: execution.map(to_bits),
             })
             .collect_vec(),
     )

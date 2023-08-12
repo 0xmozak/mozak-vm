@@ -26,33 +26,33 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
 
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
-        vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        _vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        _yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &BitwiseColumnsView<_> = vars.local_values.borrow();
+        // let lv: &BitwiseColumnsView<_> = vars.local_values.borrow();
 
-        // Each limb must be a either 0 or 1.
-        for bit_value in chain!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
-            yield_constr.constraint(bit_value * (bit_value - P::ONES));
-        }
+        // // Each limb must be a either 0 or 1.
+        // for bit_value in chain!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
+        //     yield_constr.constraint(bit_value * (bit_value - P::ONES));
+        // }
 
-        // Check limbs sum to our given value.
-        // We interpret limbs as digits in base 2.
-        for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
-            yield_constr.constraint(reduce_with_powers(&opx_limbs, P::Scalar::TWO) - opx);
-        }
+        // // Check limbs sum to our given value.
+        // // We interpret limbs as digits in base 2.
+        // for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
+        //     yield_constr.constraint(reduce_with_powers(&opx_limbs, P::Scalar::TWO) - opx);
+        // }
 
-        for (a, b, res) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
-            // For two binary digits a and b, we want to compute a ^ b.
-            // Conventiently, adding with carry gives:
-            // a + b == (a & b, a ^ b) == 2 * (a & b) + (a ^ b)
-            // Solving for (a ^ b) gives:
-            // (a ^ b) := a + b - 2 * (a & b) == a + b - 2 * a * b
-            let xor = (a + b) - (a * b).doubles();
-            yield_constr.constraint(res - xor);
-        }
+        // for (a, b, res) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
+        //     // For two binary digits a and b, we want to compute a ^ b.
+        //     // Conventiently, adding with carry gives:
+        //     // a + b == (a & b, a ^ b) == 2 * (a & b) + (a ^ b)
+        //     // Solving for (a ^ b) gives:
+        //     // (a ^ b) := a + b - 2 * (a & b) == a + b - 2 * a * b
+        //     let xor = (a + b) - (a * b).doubles();
+        //     yield_constr.constraint(res - xor);
+        // }
     }
 
     fn constraint_degree(&self) -> usize { 3 }

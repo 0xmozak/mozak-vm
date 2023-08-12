@@ -79,7 +79,7 @@ fn simple_benchmark(c: &mut Criterion) {
 criterion_group![
     name = benches;
     // config = Criterion::default().sample_size(10);
-    config = Criterion::default().sample_size(10).measurement_time(Duration::from_secs(30));
+    config = Criterion::default().sample_size(10).measurement_time(Duration::from_secs(150));
     targets = simple_benchmark
 ];
 criterion_main!(benches);

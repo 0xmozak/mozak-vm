@@ -8,7 +8,7 @@ use crate::cross_table_lookup::Column;
 pub struct BitwiseColumnsView<T> {
     pub is_execution_row: T,
     pub execution: XorView<T>,
-    pub limbs: XorView<[T; 32]>,
+    // pub limbs: XorView<[T; 32]>,
 }
 columns_view_impl!(BitwiseColumnsView);
 make_col_map!(BitwiseColumnsView);
