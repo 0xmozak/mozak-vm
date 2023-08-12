@@ -143,7 +143,11 @@ where
         )?
     );
 
-    Ok(AllProof { stark_proofs })
+    let program_rom_trace_cap = trace_caps[TableKind::Program as usize].clone();
+    Ok(AllProof {
+        stark_proofs,
+        program_rom_trace_cap,
+    })
 }
 
 /// Compute proof for a single STARK table, with lookup data.
