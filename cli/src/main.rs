@@ -159,7 +159,7 @@ fn main() -> Result<()> {
                     &mut TimingTree::default(),
                     None, // fft_root_table
                 );
-                let trace_cap = trace_commitment.merkle_tree.cap.clone();
+                let trace_cap = trace_commitment.merkle_tree.cap;
                 println!("{trace_cap:?}");
             }
             Command::BuildInfo => unreachable!(),
