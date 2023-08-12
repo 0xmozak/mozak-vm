@@ -20,6 +20,6 @@ pub mod memory;
 pub mod program;
 pub mod rangecheck;
 pub mod stark;
-#[cfg(any(feature = "test", test))]
+// #[cfg(any(feature = "test", test))]
 pub mod test_utils;
 pub mod utils;

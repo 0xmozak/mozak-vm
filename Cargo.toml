@@ -8,6 +8,10 @@ resolver = "2"
 lto = "thin"
 opt-level = 3
 
+# [profile.bench]
+# lto = "thin"
+# opt-level = 3
+
 [patch.crates-io]
 plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
 plonky2_field = { git = "https://github.com/0xmozak/plonky2.git" }
