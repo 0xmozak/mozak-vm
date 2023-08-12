@@ -95,13 +95,13 @@ impl State {
                 will_halt: true,
                 ..Aux::default()
             },
-            if self.get_register_value(17) == 93 {
+            // if self.get_register_value(17) == 93 {
                 // Note: we don't advance the program counter for 'halt'.
                 // That is we treat 'halt' like an endless loop.
                 self.halt() // exit system call
-            } else {
-                self.bump_pc()
-            },
+            // } else {
+                // self.bump_pc()
+            // },
         )
     }
 

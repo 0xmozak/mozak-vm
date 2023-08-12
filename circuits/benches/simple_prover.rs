@@ -9,7 +9,7 @@ use plonky2::util::timing::TimingTree;
 use mozak_vm::instruction::{Args, Instruction, Op};
 
 pub(crate) fn bench_simple() {
-    let loops = 100;
+    let loops = 100_000;
     // TODO: use a counter and a branch to jump back?
     let code = vec![
         Instruction {

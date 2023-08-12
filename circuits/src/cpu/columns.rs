@@ -8,6 +8,9 @@ use crate::cross_table_lookup::Column;
 use crate::program::columns::ProgramColumnsView;
 use crate::stark::mozak_stark::{CpuTable, Table};
 
+// pub const NUM_REGS: usize = 32;
+pub const NUM_REGS: usize = 4;
+
 columns_view_impl!(OpSelectors);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -43,9 +46,9 @@ pub struct Instruction<T> {
     pub pc: T,
 
     pub ops: OpSelectors<T>,
-    pub rs1_select: [T; 32],
-    pub rs2_select: [T; 32],
-    pub rd_select: [T; 32],
+    pub rs1_select: [T; NUM_REGS],
+    pub rs2_select: [T; NUM_REGS],
+    pub rd_select: [T; NUM_REGS],
     pub imm_value: T,
     pub branch_target: T,
 }
@@ -63,7 +66,7 @@ pub struct CpuState<T> {
     pub op2_value: T,
     pub dst_value: T,
 
-    pub regs: [T; 32],
+    pub regs: [T; NUM_REGS],
 
     // 0 mean non-negative, 1 means negative.
     pub op1_sign_bit: T,

@@ -11,7 +11,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{CpuColumnsExtended, CpuState, Instruction, OpSelectors};
+use super::columns::{CpuColumnsExtended, CpuState, Instruction, OpSelectors, NUM_REGS};
 use super::{add, bitwise, branches, div, ecall, jalr, mul, signed_comparison, sub};
 use crate::columns_view::NumberOfColumns;
 use crate::program::columns::ProgramColumnsView;
@@ -136,7 +136,7 @@ fn only_rd_changes<P: PackedField>(
 ) {
     // Note: register 0 is already always 0.
     // But we keep the constraints simple here.
-    (0..32).for_each(|reg| {
+    (0..NUM_REGS).for_each(|reg| {
         yield_constr.constraint_transition(
             (P::ONES - lv.inst.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]),
         );
@@ -150,7 +150,7 @@ fn rd_actually_changes<P: PackedField>(
 ) {
     // Note: we skip 0 here, because it's already forced to 0 permanently by
     // `r0_always_0`
-    (1..32).for_each(|reg| {
+    (1..NUM_REGS).for_each(|reg| {
         yield_constr
             .constraint_transition((lv.inst.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
     });
@@ -161,7 +161,7 @@ fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
         lv.op1_value
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
-            - (0..32)
+            - (0..NUM_REGS)
                 .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
                 .sum::<P>(),
     );
@@ -174,7 +174,7 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
         lv.op2_value - lv.inst.imm_value
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
-            - (0..32)
+            - (0..NUM_REGS)
                 .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
                 .sum::<P>(),
     );

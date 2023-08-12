@@ -9,7 +9,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;
 use crate::bitwise::columns::XorView;
-use crate::cpu::columns as cpu_cols;
+use crate::cpu::columns::{self as cpu_cols, NUM_REGS};
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
 use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 use crate::stark::utils::transpose_trace;
@@ -60,7 +60,7 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
             ..CpuState::default()
         };
 
-        for j in 0..32 {
+        for j in 0..NUM_REGS as u8 {
             row.regs[j as usize] = from_u32(state.get_register_value(j));
         }
 

@@ -30,15 +30,15 @@ pub fn simple_test_code(
                 code.iter()
                     .chain(
                         [
-                            // set sys-call EXIT in x17(or a7)
-                            Instruction {
-                                op: Op::ADD,
-                                args: Args {
-                                    rd: 17,
-                                    imm: 93,
-                                    ..Args::default()
-                                },
-                            },
+                            // // set sys-call EXIT in x17(or a7)
+                            // Instruction {
+                            //     op: Op::ADD,
+                            //     args: Args {
+                            //         rd: 17,
+                            //         imm: 93,
+                            //         ..Args::default()
+                            //     },
+                            // },
                             // add ECALL to halt the program
                             Instruction {
                                 op: Op::ECALL,
