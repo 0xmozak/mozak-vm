@@ -52,7 +52,17 @@ pub(crate) fn constraints<P: PackedField>(
     let m = lv.quotient;
     let m_abs = lv.quotient_abs;
     yield_constr.constraint((m - m_abs) * (m + m_abs));
+    // remainder has same sign as divisor for div/rem, but is always non-negative for divu, remu, srl, sra
+    // of course, we need to adjust wrap-around / sign-extension.
+
+    // Here, r can be negative.  But we adjust for sign when we copy to dst.
     let r = lv.remainder;
+    // TODO: range check remainder_abs.
+    // Alternatively, range_check r * q_sign?
+    // Or store r_abs, and take remainder as r_abs * q_sign?
+    // Then we only need to range-check r_abs, which is linear, not quadratic.
+    
+    // Oh, remainder has the sign of p for div/rem, but is always non-negative for divu, remu, srl, sra
     let r_abs = lv.remainder_abs;
     yield_constr.constraint((r - r_abs) * (r + r_abs));
     // We only need rt column to range-check rt := q - r
@@ -80,9 +90,11 @@ pub(crate) fn constraints<P: PackedField>(
     // (B') r + slack + 1 = q
     //      with range_check(slack)
     // TODO(Matthias): we need to round towards -inf for SRA
-    // let effective_remainder = r_abs * (ops.div + ops.rem) + rt * (ops.divu +
-    // ops.remu + ops.srl + ops.sra);
-    yield_constr.constraint(q * (r_abs + rt + P::ONES - q * q_sign));
+    let effective_remainder =
+        r_abs * (ops.div + ops.rem) + rt * (ops.divu + ops.remu + ops.srl + ops.sra);
+    // Should we use q_abs insted of q_sign as a column.
+    let q_abs = q * q_sign;
+    yield_constr.constraint(q * (r_abs + rt + P::ONES - q_abs));
 
     // Now we need to deal with division by zero.  The Risc-V spec says:
     //      p / 0 == 0xFFFF_FFFF
