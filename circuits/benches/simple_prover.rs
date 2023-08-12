@@ -9,7 +9,7 @@ use plonky2::util::timing::TimingTree;
 use mozak_vm::instruction::{Args, Instruction, Op};
 
 pub(crate) fn bench_simple() {
-    let loops = 100_000;
+    let loops = 100;
     // TODO: use a counter and a branch to jump back?
     let code = vec![
         Instruction {
@@ -23,7 +23,7 @@ pub(crate) fn bench_simple() {
         Instruction {
             op: Op::AND,
             args: Args {
-                rd: 8,
+                rd: 2,
                 rs1: 1,
                 imm: 0xDEAD_BEEF,
                 ..Args::default()
@@ -67,7 +67,7 @@ pub(crate) fn bench_simple() {
 fn simple_benchmark(c: &mut Criterion) {
     let _ = env_logger::builder().try_init();
     let mut group = c.benchmark_group("simple_prover");
-    group.measurement_time(Duration::new(10, 0));
+    // group.sample_size(10).measurement_time(Duration::new(150, 0));
     group.bench_function("simple_prover", |b| {
         b.iter(|| {
             bench_simple();
@@ -78,8 +78,8 @@ fn simple_benchmark(c: &mut Criterion) {
 
 criterion_group![
     name = benches;
-    // config = Criterion::default().sample_size(10);
-    config = Criterion::default().sample_size(10).measurement_time(Duration::from_secs(150));
+    config = Criterion::default().sample_size(10);
+    // config = Criterion::default().sample_size(10).measurement_time(Duration::from_secs(150));
     targets = simple_benchmark
 ];
 criterion_main!(benches);
