@@ -294,81 +294,56 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
     }
 }
 
-#[cfg(test)]
-mod tests {
+pub mod ctl_utils {
     use std::collections::HashMap;
     use std::ops::Deref;
 
-    use anyhow::Result;
-    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::polynomial::PolynomialValues;
+    use plonky2::field::types::Field;
 
-    use super::*;
-    use crate::stark::mozak_stark::{CpuTable, Lookups, RangeCheckTable, TableKind};
+    use crate::cross_table_lookup::{CrossTableLookup, LookupError};
+    use crate::stark::mozak_stark::{Table, TableKind};
 
-    struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, usize)>>);
-
-    impl<F: Field> Deref for MultiSet<F> {
-        type Target = HashMap<Vec<F>, Vec<(TableKind, usize)>>;
-
-        fn deref(&self) -> &Self::Target { &self.0 }
-    }
-
-    impl<F: Field> MultiSet<F> {
-        pub fn new() -> Self { MultiSet(HashMap::new()) }
-
-        fn process_row(
-            &mut self,
-            trace_poly_values: &[Vec<PolynomialValues<F>>],
-            table: &Table<F>,
-        ) -> Result<(), LookupError> {
-            let trace = &trace_poly_values[table.kind as usize];
-            for i in 0..trace[0].len() {
-                let filter = table.filter_column.eval_table(trace, i);
-                if filter.is_one() {
-                    let row = table
-                        .columns
-                        .iter()
-                        .map(|c| c.eval_table(trace, i))
-                        .collect::<Vec<_>>();
-                    self.0.entry(row).or_default().push((table.kind, i));
-                } else if !filter.is_zero() {
-                    return Err(LookupError::NonBinaryFilter(i));
-                }
-            }
-
-            Ok(())
-        }
-    }
-
-    /// Specify which column(s) to find data related to lookups.
-    fn lookup_data<F: Field>(col_indices: &[usize]) -> Vec<Column<F>> {
-        Column::singles(col_indices)
-    }
-
-    /// Specify the column index of the filter column used in lookups.
-    fn lookup_filter<F: Field>(col_idx: usize) -> Column<F> { Column::single(col_idx) }
-
-    /// A generic cross lookup table.
-    struct FooBarTable<F: Field>(CrossTableLookup<F>);
-
-    impl<F: Field> Lookups<F> for FooBarTable<F> {
-        /// We use the [`CpuTable`] and the [`RangeCheckTable`] to build a
-        /// [`CrossTableLookup`] here, but in principle this is meant to
-        /// be used generically for tests.
-        fn lookups() -> CrossTableLookup<F> {
-            CrossTableLookup {
-                looking_tables: vec![CpuTable::new(lookup_data(&[1]), lookup_filter(2))],
-                looked_table: RangeCheckTable::new(lookup_data(&[1]), lookup_filter(0)),
-            }
-        }
-    }
-
-    /// Check that the provided trace and cross-table lookup are consistent.
-    fn check_ctl<F: Field>(
+    #[allow(clippy::missing_errors_doc)]
+    pub fn check_ctl<F: Field>(
         trace_poly_values: &[Vec<PolynomialValues<F>>],
         ctl: &CrossTableLookup<F>,
     ) -> Result<(), LookupError> {
+        struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, usize)>>);
+
+        impl<F: Field> Deref for MultiSet<F> {
+            type Target = HashMap<Vec<F>, Vec<(TableKind, usize)>>;
+
+            fn deref(&self) -> &Self::Target { &self.0 }
+        }
+
+        impl<F: Field> MultiSet<F> {
+            pub fn new() -> Self { MultiSet(HashMap::new()) }
+
+            fn process_row(
+                &mut self,
+                trace_poly_values: &[Vec<PolynomialValues<F>>],
+                table: &Table<F>,
+            ) -> Result<(), LookupError> {
+                let trace = &trace_poly_values[table.kind as usize];
+                for i in 0..trace[0].len() {
+                    let filter = table.filter_column.eval_table(trace, i);
+                    if filter.is_one() {
+                        let row = table
+                            .columns
+                            .iter()
+                            .map(|c| c.eval_table(trace, i))
+                            .collect::<Vec<_>>();
+                        self.0.entry(row).or_default().push((table.kind, i));
+                    } else if !filter.is_zero() {
+                        return Err(LookupError::NonBinaryFilter(i));
+                    }
+                }
+
+                Ok(())
+            }
+        }
+
         // Maps `m` with `(table.kind, i) in m[row]` iff the `i`-th row of the table
         // is equal to `row` and the filter is 1.
         //
@@ -418,6 +393,40 @@ mod tests {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::polynomial::PolynomialValues;
+
+    use super::ctl_utils::check_ctl;
+    use super::*;
+    use crate::stark::mozak_stark::{CpuTable, Lookups, RangeCheckTable};
+
+    /// Specify which column(s) to find data related to lookups.
+    fn lookup_data<F: Field>(col_indices: &[usize]) -> Vec<Column<F>> {
+        Column::singles(col_indices)
+    }
+
+    /// Specify the column index of the filter column used in lookups.
+    fn lookup_filter<F: Field>(col_idx: usize) -> Column<F> { Column::single(col_idx) }
+
+    /// A generic cross lookup table.
+    struct FooBarTable<F: Field>(CrossTableLookup<F>);
+
+    impl<F: Field> Lookups<F> for FooBarTable<F> {
+        /// We use the [`CpuTable`] and the [`RangeCheckTable`] to build a
+        /// [`CrossTableLookup`] here, but in principle this is meant to
+        /// be used generically for tests.
+        fn lookups() -> CrossTableLookup<F> {
+            CrossTableLookup {
+                looking_tables: vec![CpuTable::new(lookup_data(&[1]), lookup_filter(2))],
+                looked_table: RangeCheckTable::new(lookup_data(&[1]), lookup_filter(0)),
+            }
+        }
     }
 
     #[derive(Debug, PartialEq)]
