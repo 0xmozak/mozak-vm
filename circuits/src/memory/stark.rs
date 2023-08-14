@@ -8,6 +8,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
+use crate::cpu::stark::is_binary;
 
 use crate::memory::columns::{MemoryColumnsView, NUM_MEM_COLS};
 use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
@@ -40,11 +41,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint_first_row(local_new_addr - P::ONES);
         yield_constr.constraint_first_row(lv.mem_diff_clk);
 
-        // lv.MEM_PADDING is {0, 1}
-        yield_constr.constraint(lv.mem_padding * (lv.mem_padding - P::ONES));
-
-        // lv.MEM_OP in {0, 1}
-        yield_constr.constraint(lv.mem_op * (lv.mem_op - P::ONES));
+        is_binary(yield_constr, lv.not_padding);
+        is_binary(yield_constr, lv.mem_op);
 
         // a) if new_addr: op === sb
         yield_constr.constraint(local_new_addr * (lv.mem_op - FE::from_canonical_usize(OPCODE_SB)));

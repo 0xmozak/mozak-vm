@@ -1,6 +1,6 @@
 use plonky2::hash::hash_types::RichField;
 
-use crate::cpu::columns::{rangecheck_looking, CpuState};
+use crate::cpu::columns::{rangecheck_looking_cpu, CpuState};
 use crate::lookup::permute_cols;
 use crate::rangecheck::columns;
 use crate::rangecheck::columns::MAP;
@@ -56,7 +56,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
-    let looking_cpu_tables: Vec<Table<F>> = rangecheck_looking();
+    let looking_cpu_tables: Vec<Table<F>> = rangecheck_looking_cpu();
 
     for cpu_table in &looking_cpu_tables {
         assert!(matches!(cpu_table.kind, TableKind::Cpu));

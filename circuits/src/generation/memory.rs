@@ -15,7 +15,7 @@ use crate::memory::trace::{
 fn pad_mem_trace<F: RichField>(mut trace: Vec<MemoryColumnsView<F>>) -> Vec<MemoryColumnsView<F>> {
     trace.resize(trace.len().next_power_of_two(), MemoryColumnsView {
         // Some columns need special treatment..
-        mem_padding: F::ONE,
+        not_padding: F::ZERO,
         mem_diff_addr: F::ZERO,
         mem_diff_addr_inv: F::ZERO,
         mem_diff_clk: F::ZERO,
@@ -66,7 +66,7 @@ pub fn generate_memory_trace<F: RichField>(
                 Some(last) if mem_diff_addr == F::ZERO => mem_clk - last.mem_clk,
                 _ => F::ZERO,
             },
-            mem_padding: F::ZERO,
+            not_padding: F::ONE,
         });
     }
 
@@ -102,15 +102,15 @@ mod tests {
         let inv = inv::<F>;
         #[rustfmt::skip]
         prep_table(vec![
-            // PADDING  ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV  DIFF_CLK
-            [ 0,       100,  0,    sb,   5,    100,     inv(100),              0],
-            [ 0,       100,  1,    lb,   5,      0,           0,               1],
-            [ 0,       100,  4,    sb,  10,      0,           0,               3],
-            [ 0,       100,  5,    lb,  10,      0,           0,               1],
-            [ 0,       200,  2,    sb,  15,    100,     inv(100),              0],
-            [ 0,       200,  3,    lb,  15,      0,           0,               1],
-            [ 1,       200,  3,    lb,  15,      0,           0,               0],
-            [ 1,       200,  3,    lb , 15,      0,           0,               0],
+            // !PADDING  ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV  DIFF_CLK
+            [ 1,       100,  0,    sb,   5,    100,     inv(100),              0],
+            [ 1,       100,  1,    lb,   5,      0,           0,               1],
+            [ 1,       100,  4,    sb,  10,      0,           0,               3],
+            [ 1,       100,  5,    lb,  10,      0,           0,               1],
+            [ 1,       200,  2,    sb,  15,    100,     inv(100),              0],
+            [ 1,       200,  3,    lb,  15,      0,           0,               1],
+            [ 0,       200,  3,    lb,  15,      0,           0,               0],
+            [ 0,       200,  3,    lb , 15,      0,           0,               0],
         ])
     }
 
