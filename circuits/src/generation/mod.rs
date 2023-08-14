@@ -79,7 +79,7 @@ pub fn transpose_polys<
 #[allow(clippy::missing_panics_doc)]
 pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
-    step_rows: &[Row],
+    record: &ExecutionRecord,
     mozak_stark: &MozakStark<F, D>,
 ) where
     [(); CpuStark::<F, D>::COLUMNS]:,
@@ -91,7 +91,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     let [cpu_trace, rangecheck_trace, bitwise_trace, shift_amount_trace, program_trace]: [Vec<
         PolynomialValues<F>,
     >;
-        NUM_TABLES] = generate_traces(program, step_rows);
+        NUM_TABLES] = generate_traces(program, record);
 
     assert!([
         // Program ROM
