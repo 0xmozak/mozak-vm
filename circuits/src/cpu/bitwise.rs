@@ -123,7 +123,7 @@ mod tests {
             .collect();
 
             let (program, record) = simple_test_code(&code, &[], &[(6, a), (7, b)]);
-            BitwiseStark::prove_and_verify(&program, &record.executed).unwrap();
+            BitwiseStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }

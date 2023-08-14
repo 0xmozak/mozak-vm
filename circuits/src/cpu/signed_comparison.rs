@@ -88,7 +88,7 @@ mod tests {
                 record.last_state.get_register_value(4),
                 u32::from((a as i32) < (op2 as i32))
             );
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }

@@ -104,6 +104,17 @@ macro_rules! columns_view_impl {
             }
         }
 
+        impl<'a, T> std::iter::IntoIterator for &'a $s<T> {
+            type IntoIter = std::slice::Iter<'a, T>;
+            type Item = &'a T;
+
+            fn into_iter(self) -> Self::IntoIter {
+                use std::borrow::Borrow;
+                let array: &[T; std::mem::size_of::<$s<u8>>()] = self.borrow();
+                array.into_iter()
+            }
+        }
+
         impl<T: std::fmt::Debug> std::iter::FromIterator<T> for $s<T> {
             fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
                 let vec: Vec<T> = iter.into_iter().collect();

@@ -3,7 +3,7 @@
 use anyhow::{ensure, Result};
 use itertools::Itertools;
 use mozak_vm::elf::Program;
-use mozak_vm::vm::Row;
+use mozak_vm::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
 use plonky2::field::polynomial::PolynomialValues;
@@ -39,7 +39,7 @@ use crate::stark::poly::compute_quotient_polys;
 #[allow(clippy::missing_panics_doc)]
 pub fn prove<F, C, const D: usize>(
     program: &Program,
-    step_rows: &[Row],
+    record: &ExecutionRecord,
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     timing: &mut TimingTree,
@@ -54,8 +54,9 @@ where
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
-    let traces_poly_values = generate_traces(program, step_rows);
+    let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
+        debug_traces(program, record, mozak_stark);
         debug_traces(program, step_rows, mozak_stark);
         mozak_stark
             .cross_table_lookups
@@ -431,7 +432,7 @@ mod tests {
     #[test]
     fn prove_halt() {
         let (program, record) = simple_test_code(&[], &[], &[]);
-        MozakStark::prove_and_verify(&program, &record.executed).unwrap();
+        MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
@@ -446,7 +447,7 @@ mod tests {
         };
         let (program, record) = simple_test_code(&[lui], &[], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
-        MozakStark::prove_and_verify(&program, &record.executed).unwrap();
+        MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
@@ -464,7 +465,7 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_register_value(1), 0xDEAD_BEEF,);
-        MozakStark::prove_and_verify(&program, &record.executed).unwrap();
+        MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
@@ -483,6 +484,6 @@ mod tests {
             &[(1, 2)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        MozakStark::prove_and_verify(&program, &record.executed).unwrap();
+        MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 }
