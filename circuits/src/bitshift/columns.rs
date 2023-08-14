@@ -27,7 +27,8 @@ columns_view_impl!(BitshiftView);
 pub struct BitshiftView<T> {
     /// This column tells if the row has a corresponding value row
     /// in the CPU table. If not, then this is a dummy row, used to
-    /// pad the table to a power of 2 size.
+    /// pad the table to a power of 2 size or a dummy row
+    /// to bridge a gap in the shift amounts.
     pub is_executed: T,
     /// Contains the `Bitshift` columns with the shift amount and the
     /// multiplier.
