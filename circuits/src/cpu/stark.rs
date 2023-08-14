@@ -192,7 +192,7 @@ fn halted<P: PackedField>(
 
     is_binary_transition(yield_constr, nv.halted - lv.halted);
     // Halted means that nothing changes anymore:
-    for (&lv_entry, nv_entry) in izip!(lv.into_iter(), *nv) {
+    for (&lv_entry, &nv_entry) in izip!(lv, nv) {
         yield_constr.constraint_transition(lv.halted * (lv_entry - nv_entry));
     }
 }

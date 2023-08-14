@@ -21,13 +21,13 @@ pub(crate) fn constraints<P: PackedField>(
 
     // Executing ecall should not change the state of the CPU, except for the halted
     // flag and one final clock tick:
-    let copy_most = CpuState {
+    let mostly_nv = CpuState {
         halted: lv.halted,
         clk: lv.clk,
         ..*nv
     };
-    for (&lv_entry, nv_entry) in izip!(lv, copy_most) {
-        yield_constr.constraint_transition(nv.halted * (lv_entry - nv_entry));
+    for (&lv_entry, nv_entry) in izip!(lv, mostly_nv) {
+        yield_constr.constraint_transition(lv.inst.ops.ecall * (lv_entry - nv_entry));
     }
 }
 
