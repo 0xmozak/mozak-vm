@@ -37,7 +37,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         // Constraints on shift amount
         // They ensure:
         //  1. Shift amount increases with each row by 0 or 1.
-        // (We allow increases of 0 in order to allow the table to skip some rows.)
+        // (We allow increases of 0 in order to allow the table to add
+        //  multiple same value rows. This is needed when we have multiple
+        //  `SHL` or `SHR` operations with the same shift amount.)
         //  2. We have shift amounts starting from 0 to max possible value of 31.
         // (This is due to RISC-V max shift amount being 31.)
 
