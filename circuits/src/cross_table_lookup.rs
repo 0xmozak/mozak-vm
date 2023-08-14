@@ -296,7 +296,7 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
 
 pub mod ctl_utils {
     use std::collections::HashMap;
-    use std::ops::Deref;
+    use std::ops::{Deref, DerefMut};
 
     use plonky2::field::polynomial::PolynomialValues;
     use plonky2::field::types::Field;
@@ -304,46 +304,48 @@ pub mod ctl_utils {
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
     use crate::stark::mozak_stark::{Table, TableKind};
 
+    struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, usize)>>);
+
+    impl<F: Field> Deref for MultiSet<F> {
+        type Target = HashMap<Vec<F>, Vec<(TableKind, usize)>>;
+
+        fn deref(&self) -> &Self::Target { &self.0 }
+    }
+    impl<F: Field> DerefMut for MultiSet<F> {
+        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+    }
+    impl<F: Field> MultiSet<F> {
+        pub fn new() -> Self { MultiSet(HashMap::new()) }
+
+        fn process_row(
+            &mut self,
+            trace_poly_values: &[Vec<PolynomialValues<F>>],
+            table: &Table<F>,
+        ) -> Result<(), LookupError> {
+            let trace = &trace_poly_values[table.kind as usize];
+            for i in 0..trace[0].len() {
+                let filter = table.filter_column.eval_table(trace, i);
+                if filter.is_one() {
+                    let row = table
+                        .columns
+                        .iter()
+                        .map(|c| c.eval_table(trace, i))
+                        .collect::<Vec<_>>();
+                    self.entry(row).or_default().push((table.kind, i));
+                } else if !filter.is_zero() {
+                    return Err(LookupError::NonBinaryFilter(i));
+                }
+            }
+
+            Ok(())
+        }
+    }
+
     #[allow(clippy::missing_errors_doc)]
     pub fn check_ctl<F: Field>(
         trace_poly_values: &[Vec<PolynomialValues<F>>],
         ctl: &CrossTableLookup<F>,
     ) -> Result<(), LookupError> {
-        struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, usize)>>);
-
-        impl<F: Field> Deref for MultiSet<F> {
-            type Target = HashMap<Vec<F>, Vec<(TableKind, usize)>>;
-
-            fn deref(&self) -> &Self::Target { &self.0 }
-        }
-
-        impl<F: Field> MultiSet<F> {
-            pub fn new() -> Self { MultiSet(HashMap::new()) }
-
-            fn process_row(
-                &mut self,
-                trace_poly_values: &[Vec<PolynomialValues<F>>],
-                table: &Table<F>,
-            ) -> Result<(), LookupError> {
-                let trace = &trace_poly_values[table.kind as usize];
-                for i in 0..trace[0].len() {
-                    let filter = table.filter_column.eval_table(trace, i);
-                    if filter.is_one() {
-                        let row = table
-                            .columns
-                            .iter()
-                            .map(|c| c.eval_table(trace, i))
-                            .collect::<Vec<_>>();
-                        self.0.entry(row).or_default().push((table.kind, i));
-                    } else if !filter.is_zero() {
-                        return Err(LookupError::NonBinaryFilter(i));
-                    }
-                }
-
-                Ok(())
-            }
-        }
-
         // Maps `m` with `(table.kind, i) in m[row]` iff the `i`-th row of the table
         // is equal to `row` and the filter is 1.
         //
