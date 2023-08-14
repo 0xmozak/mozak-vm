@@ -35,14 +35,31 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         let nv: &Bitshift<P> = &nv.executed;
 
         // Constraints on shift amount
+        // They ensure:
+        //  1. Shift amount increases with each row by 0 or 1.
+        // (We allow increases of 0 in order to allow the table to skip some rows.)
+        //  2. We have shift amounts starting from 0 to max possible value of 31.
+        // (This is due to RISC-V max shift amount being 31.)
+
+                
         let diff = nv.amount - lv.amount;
+        // Check: initial amount value is set to 0
         yield_constr.constraint_first_row(lv.amount);
+        // Check: amount value is increased by 1 or kept unchanged
         yield_constr.constraint_transition(diff * (diff - P::ONES));
+        // Check: last amount value is set to 31
         yield_constr.constraint_last_row(lv.amount - P::Scalar::from_canonical_u8(31));
 
         // Constraints on multiplier
+        // They ensure:
+        //  1. Shift multiplier is multiplied by 2 only if amount increases.
+        //  2. We have shift multiplier from 1 to max possible value of 2^31.
+
+        // Check: initial multiplier value is set to 1 = 2^0
         yield_constr.constraint_first_row(lv.multiplier - P::ONES);
+        // Check: multiplier value is increased twice only if amount is increased
         yield_constr.constraint_transition(nv.multiplier - (P::ONES + diff) * lv.multiplier);
+        // Check: last multiplier value is set to 2^31
         yield_constr.constraint_last_row(lv.multiplier - P::Scalar::from_canonical_u32(1 << 31));
     }
 
