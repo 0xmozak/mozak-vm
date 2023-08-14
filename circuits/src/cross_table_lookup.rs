@@ -298,11 +298,13 @@ pub mod ctl_utils {
     use std::collections::HashMap;
     use std::ops::{Deref, DerefMut};
 
+    use plonky2::field::extension::Extendable;
     use plonky2::field::polynomial::PolynomialValues;
     use plonky2::field::types::Field;
+    use plonky2::hash::hash_types::RichField;
 
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
-    use crate::stark::mozak_stark::{Table, TableKind};
+    use crate::stark::mozak_stark::{MozakStark, Table, TableKind, NUM_TABLES};
 
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, usize)>>);
 
@@ -342,7 +344,7 @@ pub mod ctl_utils {
     }
 
     #[allow(clippy::missing_errors_doc)]
-    pub fn check_ctl<F: Field>(
+    pub fn check_single_ctl<F: Field>(
         trace_poly_values: &[Vec<PolynomialValues<F>>],
         ctl: &CrossTableLookup<F>,
     ) -> Result<(), LookupError> {
@@ -396,6 +398,16 @@ pub mod ctl_utils {
 
         Ok(())
     }
+    #[allow(clippy::missing_panics_doc)]
+    pub fn debug_ctl<F: RichField + Extendable<D>, const D: usize>(
+        traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+        mozak_stark: &MozakStark<F, D>,
+    ) {
+        mozak_stark
+            .cross_table_lookups
+            .iter()
+            .for_each(|ctl| check_single_ctl(traces_poly_values, ctl).unwrap());
+    }
 }
 
 #[cfg(test)]
@@ -404,7 +416,7 @@ mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::polynomial::PolynomialValues;
 
-    use super::ctl_utils::check_ctl;
+    use super::ctl_utils::check_single_ctl;
     use super::*;
     use crate::stark::mozak_stark::{CpuTable, Lookups, RangeCheckTable};
 
@@ -517,7 +529,7 @@ mod tests {
             TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
         let traces = vec![foo_trace, bar_trace];
         assert!(matches!(
-            check_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
+            check_single_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
             LookupError::NonBinaryFilter(0)
         ));
     }
@@ -539,7 +551,7 @@ mod tests {
             TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
         let traces = vec![foo_trace, bar_trace];
         assert!(matches!(
-            check_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
+            check_single_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
             LookupError::InconsistentTableRows
         ));
     }
@@ -555,7 +567,7 @@ mod tests {
         let bar_trace: Vec<PolynomialValues<F>> =
             TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
         let traces = vec![foo_trace, bar_trace];
-        check_ctl(&traces, &dummy_cross_table_lookup)?;
+        check_single_ctl(&traces, &dummy_cross_table_lookup)?;
 
         Ok(())
     }
