@@ -46,7 +46,7 @@ mod tests {
 
         let all_proof = prove::<F, C, D>(
             &program,
-            &record.executed,
+            &record,
             &stark,
             &config,
             &mut TimingTree::default(),

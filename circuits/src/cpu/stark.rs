@@ -102,8 +102,8 @@ fn clock_ticks<P: PackedField>(
 ) {
     let clock_diff = nv.clk - lv.clk;
     is_binary_transition(yield_constr, clock_diff);
-    is_binary(yield_constr, lv.halt);
-    yield_constr.constraint_transition(clock_diff + lv.halt - P::ONES);
+    is_binary(yield_constr, lv.halted);
+    yield_constr.constraint_transition(clock_diff + lv.halted - P::ONES);
 }
 
 /// Register 0 is always 0
@@ -226,8 +226,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         jalr::constraints(lv, nv, yield_constr);
         ecall::constraints(lv, nv, yield_constr);
 
+        // Clock starts at 0
+        yield_constr.constraint_first_row(lv.clk);
         // Last row must be HALT
-        yield_constr.constraint_last_row(lv.halt - P::ONES);
+        yield_constr.constraint_last_row(lv.halted - P::ONES);
     }
 
     fn constraint_degree(&self) -> usize { 3 }

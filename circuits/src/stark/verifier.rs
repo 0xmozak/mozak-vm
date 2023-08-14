@@ -51,7 +51,14 @@ where
         shift_amount_stark,
         program_stark,
         cross_table_lookups,
+        ..
     } = mozak_stark;
+
+    ensure!(
+        all_proof.stark_proofs[TableKind::Program as usize].trace_cap
+            == all_proof.program_rom_trace_cap,
+        "Mismatch between Program ROM trace caps"
+    );
 
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
         &all_proof.stark_proofs,

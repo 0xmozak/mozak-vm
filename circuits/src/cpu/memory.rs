@@ -28,7 +28,7 @@ mod tests {
                 &[(6, a), (7, b)],
             );
 
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
 
         #[test]
@@ -48,7 +48,7 @@ mod tests {
                 &[(6, a), (7, b)],
             );
 
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
         #[test]
         fn prove_mem_read_write_proptest(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
@@ -76,7 +76,7 @@ mod tests {
                 &[(1, content.into()), (2, offset)],
             );
 
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }

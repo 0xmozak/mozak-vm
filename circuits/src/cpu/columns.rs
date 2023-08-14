@@ -6,6 +6,7 @@ use crate::bitwise::columns::XorView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 use crate::program::columns::ProgramColumnsView;
+use crate::stark::mozak_stark::{CpuTable, Table};
 
 columns_view_impl!(OpSelectors);
 #[repr(C)]
@@ -58,7 +59,7 @@ pub struct CpuState<T> {
     pub clk: T,
     pub inst: Instruction<T>,
 
-    pub halt: T,
+    pub halted: T,
 
     pub op1_value: T,
     // The sum of the value of the second operand register and the
@@ -137,18 +138,24 @@ impl<T: PackedField> CpuState<T> {
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
 
-/// Column for a binary filter for our range check in the Mozak
+/// Expressions we need to range check
+///
+/// Currently, we only support expressions over the
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub(crate) fn filter_for_rangecheck<F: Field>() -> Column<F> {
-    let ops = MAP.cpu.inst.ops;
-    Column::many([ops.add, ops.sb, ops.lbu])
+pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
+    let ops = &MAP.cpu.inst.ops;
+    vec![
+        CpuTable::new(
+            Column::singles([MAP.cpu.dst_value]),
+            Column::single(ops.add),
+        ),
+        CpuTable::new(
+            Column::singles([MAP.cpu.abs_diff]),
+            Column::many([ops.bge, ops.blt]),
+        ),
+    ]
 }
-
-/// Columns containing the data to be range checked in the Mozak
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
-#[must_use]
-pub fn data_for_rangecheck<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.cpu.dst_value)] }
 
 /// Columns containing the data to be matched against XOR Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -171,11 +178,6 @@ impl<T: Copy + core::ops::Add<Output = T>> OpSelectors<T> {
 
     // TODO: Add SRA, once we implement its constraints.
     pub fn ops_that_shift(&self) -> [T; 2] { [self.sll, self.srl] }
-
-    // TODO: unify this and `filter_for_rangecheck()` above.
-    /// List of opcode columns, that when encountered in trace generation,
-    /// require range checking of dst.
-    pub(crate) fn must_rangecheck(&self) -> T { self.add }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.

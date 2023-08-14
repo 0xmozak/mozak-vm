@@ -6,14 +6,17 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clio::{Input, Output};
 use log::debug;
+use mozak_circuits::generation::program::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::MozakStark;
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
+use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{standard_faster_config, ProveAndVerify, C, D, F, S};
 use mozak_vm::elf::Program;
 use mozak_vm::state::State;
 use mozak_vm::vm::step;
+use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::util::timing::TimingTree;
 use shadow_rs::shadow;
 
@@ -26,6 +29,9 @@ struct Cli {
     verbose: clap_verbosity_flag::Verbosity,
     #[command(subcommand)]
     command: Command,
+    /// Debug API, default is OFF, currently only `prove` command is supported
+    #[arg(short, long)]
+    debug: bool,
 }
 
 #[derive(Clone, Debug, Subcommand)]
@@ -43,6 +49,8 @@ enum Command {
     Prove { elf: Input, proof: Output },
     /// Verify the given proof from file.
     Verify { proof: Input },
+    /// Compute the Program Rom Hash of the given ELF.
+    ProgramRomHash { elf: Input },
 }
 
 fn build_info() {
@@ -85,6 +93,7 @@ fn load_program(mut elf: Input) -> Result<Program> {
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi`
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    let config = standard_faster_config();
     env_logger::Builder::new()
         .filter_level(cli.verbose.log_level_filter())
         .init();
@@ -106,18 +115,20 @@ fn main() -> Result<()> {
                 let program = load_program(elf)?;
                 let state = State::from(&program);
                 let record = step(&program, state)?;
-                MozakStark::prove_and_verify(&program, &record.executed)?;
+                MozakStark::prove_and_verify(&program, &record)?;
             }
             Command::Prove { elf, mut proof } => {
                 let program = load_program(elf)?;
                 let state = State::from(&program);
                 let record = step(&program, state)?;
-                let stark = S::default();
-                let config = standard_faster_config();
-
+                let stark = if cli.debug {
+                    MozakStark::default_debug()
+                } else {
+                    MozakStark::default()
+                };
                 let all_proof = prove::<F, C, D>(
                     &program,
-                    &record.executed,
+                    &record,
                     &stark,
                     &config,
                     &mut TimingTree::default(),
@@ -128,13 +139,28 @@ fn main() -> Result<()> {
             }
             Command::Verify { mut proof } => {
                 let stark = S::default();
-                let config = standard_faster_config();
-
                 let mut buffer: Vec<u8> = vec![];
                 proof.read_to_end(&mut buffer)?;
                 let all_proof = AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(&buffer)?;
                 verify_proof(stark, all_proof, &config)?;
                 debug!("proof verified successfully!");
+            }
+            Command::ProgramRomHash { elf } => {
+                let program = load_program(elf)?;
+                let trace = generate_program_rom_trace(&program);
+                let trace_poly_values = trace_rows_to_poly_values(trace);
+                let rate_bits = config.fri_config.rate_bits;
+                let cap_height = config.fri_config.cap_height;
+                let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
+                    trace_poly_values,
+                    rate_bits,
+                    false, // blinding
+                    cap_height,
+                    &mut TimingTree::default(),
+                    None, // fft_root_table
+                );
+                let trace_cap = trace_commitment.merkle_tree.cap;
+                println!("{trace_cap:?}");
             }
             Command::BuildInfo => unreachable!(),
         }

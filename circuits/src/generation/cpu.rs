@@ -4,7 +4,7 @@ use itertools::{chain, Itertools};
 use mozak_vm::elf::Program;
 use mozak_vm::instruction::{Instruction, Op};
 use mozak_vm::state::{Aux, State};
-use mozak_vm::vm::Row;
+use mozak_vm::vm::{ExecutionRecord, Row};
 use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;
@@ -33,12 +33,13 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     (chain!(transpose_trace(cpu_trace), transpose_trace(permuted))).collect()
 }
 
-pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) -> Vec<CpuState<F>> {
-    // let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; step_rows.len()];
-    // cpu_cols::NUM_CPU_COLS];
+pub fn generate_cpu_trace<F: RichField>(
+    program: &Program,
+    record: &ExecutionRecord,
+) -> Vec<CpuState<F>> {
     let mut trace: Vec<CpuState<F>> = vec![];
 
-    for Row { state, aux } in step_rows {
+    for Row { state, aux } in &record.executed {
         let inst = state.current_instruction(program);
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
@@ -49,7 +50,7 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
                 + from_u32(inst.args.imm),
             // NOTE: Updated value of DST register is next step.
             dst_value: from_u32(aux.dst_val),
-            halt: from_u32(u32::from(aux.will_halt)),
+            halted: from_u32(u32::from(aux.will_halt)),
             // Valid defaults for the powers-of-two gadget.
             // To be overridden by users of the gadget.
             // TODO(Matthias): find a way to make either compiler or runtime complain
@@ -185,7 +186,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
 ) -> Vec<ProgramColumnsView<F>> {
     let mut cpu_trace: Vec<_> = trace
         .iter()
-        .filter(|row| row.halt == F::ZERO)
+        .filter(|row| row.halted == F::ZERO)
         .map(|row| row.inst)
         .sorted_by_key(|inst| inst.pc.to_noncanonical_u64())
         .scan(None, |previous_pc, inst| {
@@ -238,7 +239,7 @@ mod tests {
                     imm_value: 3,
                     ..Default::default()
                 },
-                halt: 0,
+                halted: 0,
                 ..Default::default()
             },
             CpuState {
@@ -251,7 +252,7 @@ mod tests {
                     imm_value: 2,
                     ..Default::default()
                 },
-                halt: 0,
+                halted: 0,
                 ..Default::default()
             },
             CpuState {
@@ -264,7 +265,7 @@ mod tests {
                     imm_value: 3,
                     ..Default::default()
                 },
-                halt: 0,
+                halted: 0,
                 ..Default::default()
             },
             CpuState {
@@ -277,14 +278,14 @@ mod tests {
                     imm_value: 4,
                     ..Default::default()
                 },
-                halt: 1,
+                halted: 1,
                 ..Default::default()
             },
         ]
         .into_iter()
         .map(|row| CpuState {
             inst: row.inst.map(from_u32),
-            halt: from_u32(row.halt),
+            halted: from_u32(row.halted),
             ..Default::default()
         })
         .collect();
