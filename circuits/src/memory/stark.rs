@@ -8,8 +8,8 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
-use crate::cpu::stark::is_binary;
 
+use crate::cpu::stark::is_binary;
 use crate::memory::columns::{MemoryColumnsView, NUM_MEM_COLS};
 use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
 

@@ -25,7 +25,9 @@ use self::rangecheck::generate_rangecheck_trace;
 use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
+use crate::generation::memory::generate_memory_trace;
 use crate::generation::program::generate_program_rom_trace;
+use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::mozak_stark::{MozakStark, NUM_TABLES};
@@ -41,18 +43,22 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let bitwise_rows = generate_bitwise_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
+    let memory_rows = generate_memory_trace(program, &record.executed);
 
     let cpu_trace = trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows));
     let rangecheck_trace = trace_to_poly_values(rangecheck_rows);
     let bitwise_trace = trace_rows_to_poly_values(bitwise_rows);
     let shift_amount_trace = trace_rows_to_poly_values(shift_amount_rows);
     let program_trace = trace_rows_to_poly_values(program_rows);
+    let memory_trace = trace_rows_to_poly_values(memory_rows);
+
     [
         cpu_trace,
         rangecheck_trace,
         bitwise_trace,
         shift_amount_trace,
         program_trace,
+        memory_trace,
     ]
 }
 
@@ -87,8 +93,9 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
-    [(); ProgramStark::<F, D>::COLUMNS]:, {
-    let [cpu_trace, rangecheck_trace, bitwise_trace, shift_amount_trace, program_trace]: [Vec<
+    [(); ProgramStark::<F, D>::COLUMNS]:,
+    [(); MemoryStark::<F, D>::COLUMNS]:, {
+    let [cpu_trace, rangecheck_trace, bitwise_trace, shift_amount_trace, program_trace, memory_trace]: [Vec<
         PolynomialValues<F>,
     >;
         NUM_TABLES] = generate_traces(program, record);
@@ -119,6 +126,12 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
             &mozak_stark.shift_amount_stark,
             shift_amount_trace,
             "BITWISE_STARK",
+        ),
+        // Memory
+        debug_single_trace::<F, D, MemoryStark<F, D>>(
+            &mozak_stark.memory_stark,
+            memory_trace,
+            "MEMORY_STARK",
         ),
     ]
     .into_iter()
