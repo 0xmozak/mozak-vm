@@ -41,7 +41,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         //  2. We have shift amounts starting from 0 to max possible value of 31.
         // (This is due to RISC-V max shift amount being 31.)
 
-                
         let diff = nv.amount - lv.amount;
         // Check: initial amount value is set to 0
         yield_constr.constraint_first_row(lv.amount);
