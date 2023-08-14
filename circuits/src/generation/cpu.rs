@@ -49,7 +49,7 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
             op2_value: from_u32(aux.op2),
             // NOTE: Updated value of DST register is next step.
             dst_value: from_u32(aux.dst_val),
-            halt: from_u32(u32::from(aux.will_halt)),
+            halted: from_u32(u32::from(aux.will_halt)),
             // Valid defaults for the powers-of-two gadget.
             // To be overridden by users of the gadget.
             // TODO(Matthias): find a way to make either compiler or runtime complain
@@ -185,7 +185,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
 ) -> Vec<ProgramColumnsView<F>> {
     let mut cpu_trace: Vec<_> = trace
         .iter()
-        .filter(|row| row.halt == F::ZERO)
+        .filter(|row| row.halted == F::ZERO)
         .map(|row| row.inst)
         .sorted_by_key(|inst| inst.pc.to_noncanonical_u64())
         .scan(None, |previous_pc, inst| {
@@ -238,7 +238,7 @@ mod tests {
                     imm_value: 3,
                     ..Default::default()
                 },
-                halt: 0,
+                halted: 0,
                 ..Default::default()
             },
             CpuState {
@@ -251,7 +251,7 @@ mod tests {
                     imm_value: 2,
                     ..Default::default()
                 },
-                halt: 0,
+                halted: 0,
                 ..Default::default()
             },
             CpuState {
@@ -264,7 +264,7 @@ mod tests {
                     imm_value: 3,
                     ..Default::default()
                 },
-                halt: 0,
+                halted: 0,
                 ..Default::default()
             },
             CpuState {
@@ -277,14 +277,14 @@ mod tests {
                     imm_value: 4,
                     ..Default::default()
                 },
-                halt: 1,
+                halted: 1,
                 ..Default::default()
             },
         ]
         .into_iter()
         .map(|row| CpuState {
             inst: row.inst.map(from_u32),
-            halt: from_u32(row.halt),
+            halted: from_u32(row.halted),
             ..Default::default()
         })
         .collect();

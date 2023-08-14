@@ -57,7 +57,7 @@ pub struct CpuState<T> {
     pub clk: T,
     pub inst: Instruction<T>,
 
-    pub halt: T,
+    pub halted: T,
 
     pub op1_value: T,
     pub op2_value: T,
