@@ -137,7 +137,7 @@ mod tests {
                 } else {
                     p % q
                 });
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
         #[test]
         fn prove_srl_proptest(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
@@ -166,7 +166,7 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p >> q);
             prop_assert_eq!(record.executed[1].aux.dst_val, p >> q);
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }

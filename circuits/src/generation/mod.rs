@@ -8,7 +8,7 @@ pub mod rangecheck;
 
 use itertools::Itertools;
 use mozak_vm::elf::Program;
-use mozak_vm::vm::Row;
+use mozak_vm::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -34,9 +34,9 @@ use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 #[must_use]
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
-    step_rows: &[Row],
+    record: &ExecutionRecord,
 ) -> [Vec<PolynomialValues<F>>; NUM_TABLES] {
-    let cpu_rows = generate_cpu_trace::<F>(program, step_rows);
+    let cpu_rows = generate_cpu_trace::<F>(program, record);
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows);
     let bitwise_rows = generate_bitwise_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
@@ -79,7 +79,7 @@ pub fn transpose_polys<
 #[allow(clippy::missing_panics_doc)]
 pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
-    step_rows: &[Row],
+    record: &ExecutionRecord,
     mozak_stark: &MozakStark<F, D>,
 ) where
     [(); CpuStark::<F, D>::COLUMNS]:,
@@ -91,7 +91,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     let [cpu_trace, rangecheck_trace, bitwise_trace, shift_amount_trace, program_trace]: [Vec<
         PolynomialValues<F>,
     >;
-        NUM_TABLES] = generate_traces(program, step_rows);
+        NUM_TABLES] = generate_traces(program, record);
 
     assert!([
         // Program ROM

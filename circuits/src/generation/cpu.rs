@@ -4,7 +4,7 @@ use itertools::{chain, Itertools};
 use mozak_vm::elf::Program;
 use mozak_vm::instruction::{Instruction, Op};
 use mozak_vm::state::{Aux, State};
-use mozak_vm::vm::Row;
+use mozak_vm::vm::{ExecutionRecord, Row};
 use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;
@@ -33,12 +33,15 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     (chain!(transpose_trace(cpu_trace), transpose_trace(permuted))).collect()
 }
 
-pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) -> Vec<CpuState<F>> {
+pub fn generate_cpu_trace<F: RichField>(
+    program: &Program,
+    record: &ExecutionRecord,
+) -> Vec<CpuState<F>> {
     // let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; step_rows.len()];
     // cpu_cols::NUM_CPU_COLS];
     let mut trace: Vec<CpuState<F>> = vec![];
 
-    for Row { state, aux } in step_rows {
+    for Row { state, aux } in &record.executed {
         let inst = state.current_instruction(program);
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
