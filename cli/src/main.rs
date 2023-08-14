@@ -106,7 +106,7 @@ fn main() -> Result<()> {
                 let program = load_program(elf)?;
                 let state = State::from(&program);
                 let record = step(&program, state)?;
-                MozakStark::prove_and_verify(&program, &record.executed)?;
+                MozakStark::prove_and_verify(&program, &record)?;
             }
             Command::Prove { elf, mut proof } => {
                 let program = load_program(elf)?;
@@ -117,7 +117,7 @@ fn main() -> Result<()> {
 
                 let all_proof = prove::<F, C, D>(
                     &program,
-                    &record.executed,
+                    &record,
                     &stark,
                     &config,
                     &mut TimingTree::default(),

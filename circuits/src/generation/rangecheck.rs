@@ -135,7 +135,7 @@ mod tests {
             &[(6, 0xffff), (7, 0xffff)],
         );
 
-        let cpu_rows = generate_cpu_trace::<F>(&program, &record.executed);
+        let cpu_rows = generate_cpu_trace::<F>(&program, &record);
         let trace = generate_rangecheck_trace::<F>(&cpu_rows);
 
         // Check values that we are interested in

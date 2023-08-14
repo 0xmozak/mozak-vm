@@ -54,7 +54,7 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
@@ -73,7 +73,7 @@ mod tests {
             &[(0x1, 0)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record).unwrap();
     }
     #[test]
     fn prove_jalr_goto_imm_zero_rs1_not_zero() {
@@ -91,7 +91,7 @@ mod tests {
             &[(0x1, 4)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
@@ -110,7 +110,7 @@ mod tests {
             &[(0x1, 0)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
@@ -143,7 +143,7 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_pc(), 16);
-        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record).unwrap();
     }
 
     proptest! {
@@ -177,7 +177,7 @@ mod tests {
             );
             assert_eq!(record.executed.len(), 3);
             assert_eq!(state_before_final(&record).get_register_value(rd), 4);
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }

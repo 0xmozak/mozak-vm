@@ -7,7 +7,7 @@ pub mod program;
 pub mod rangecheck;
 
 use mozak_vm::elf::Program;
-use mozak_vm::vm::Row;
+use mozak_vm::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::hash::hash_types::RichField;
@@ -23,9 +23,9 @@ use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 #[must_use]
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
-    step_rows: &[Row],
+    record: &ExecutionRecord,
 ) -> [Vec<PolynomialValues<F>>; NUM_TABLES] {
-    let cpu_rows = generate_cpu_trace::<F>(program, step_rows);
+    let cpu_rows = generate_cpu_trace::<F>(program, &record);
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows);
     let bitwise_rows = generate_bitwise_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
