@@ -111,7 +111,7 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
             prop_assert_eq!(record.executed[1].aux.dst_val, p >> (q & 0x1F));
-            BitshiftStark::prove_and_verify(&program, &record.executed).unwrap();
+            BitshiftStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }

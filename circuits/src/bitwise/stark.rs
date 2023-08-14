@@ -133,7 +133,7 @@ mod tests {
         );
         // assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));
         let mut timing = TimingTree::new("bitwise", log::Level::Debug);
-        let cpu_trace = generate_cpu_trace(&program, &record.executed);
+        let cpu_trace = generate_cpu_trace(&program, &record);
         let trace = timed!(
             timing,
             "generate_bitwise_trace",

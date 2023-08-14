@@ -105,7 +105,7 @@ mod tests {
             if taken { 0 } else { 10 }
         );
 
-        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record).unwrap();
     }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(32))]
