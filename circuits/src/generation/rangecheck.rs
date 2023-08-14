@@ -1,10 +1,13 @@
+use std::ops::Index;
+
 use plonky2::hash::hash_types::RichField;
 
-use crate::cpu::columns::{rangecheck_looking_cpu, CpuState};
+use crate::cpu::columns::CpuState;
 use crate::lookup::permute_cols;
+use crate::memory::columns::MemoryColumnsView;
 use crate::rangecheck::columns;
 use crate::rangecheck::columns::MAP;
-use crate::stark::mozak_stark::{Table, TableKind};
+use crate::stark::mozak_stark::{Table, TableKind, RangecheckCpuTable, Lookups};
 
 pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 
@@ -28,8 +31,8 @@ fn pad_rc_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
 /// Converts a u32 into 2 u16 limbs represented in [`RichField`].
 fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
     (
-        F::from_noncanonical_u64((value >> 16).into()),
-        F::from_noncanonical_u64((value & 0xffff).into()),
+        F::from_canonical_u32(value >> 16),
+        F::from_canonical_u32(value & 0xffff),
     )
 }
 
@@ -41,6 +44,30 @@ fn push_rangecheck_row<F: RichField>(
         trace[i].push(*col);
     }
 }
+
+// pub fn create_rows<'a, F: RichField, V, I>(trace: &'a I, looking: &Table<F>, rc_trace: &mut [Vec<F>; columns::NUM_RC_COLS]) -> where
+//     V: Index<usize, Output = &'a F> + 'a,
+//     I: IntoIterator<Item = &'a V>,
+// {
+//     for row in trace.into_iter() {
+//         let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
+//         if let [column] = &looking.columns[..] {
+//         if looking.filter_column.eval(row).is_one() {
+//             let value = column.eval(row);
+//             let (limb_hi, limb_lo) = limbs_from_u32(
+//                 u32::try_from(value.to_canonical_u64())
+//                     .expect("casting value to u32 should succeed"),
+//             );
+//             rangecheck_row[MAP.val] = value;
+//             rangecheck_row[MAP.limb_hi] = limb_hi;
+//             rangecheck_row[MAP.limb_lo] = limb_lo;
+//             rangecheck_row[MAP.cpu_filter] = F::ONE;
+
+//             push_rangecheck_row(&mut trace, rangecheck_row);
+//         }
+//     }
+//     }
+// }
 
 /// Generates a trace table for range checks, used in building a
 /// `RangeCheckStark` proof.
@@ -54,13 +81,39 @@ fn push_rangecheck_row<F: RichField>(
 #[must_use]
 pub fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
+    memory_trace: &[MemoryColumnsView<F>],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
-    let looking_cpu_tables: Vec<Table<F>> = rangecheck_looking_cpu();
+    let looking_tables = RangecheckCpuTable::lookups().looking_tables;
 
-    for cpu_table in &looking_cpu_tables {
+    for cpu_table in &looking_tables {
+        match cpu_table {
+            Table { kind: TableKind::Cpu, colums: [column], filter_column } => {
+                for cpu_row in cpu_trace {
+                    let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
+                    if filter_column.eval(cpu_row).is_one() {
+                        let value = column.eval(cpu_row);
+                        let (limb_hi, limb_lo) = limbs_from_u32(
+                            u32::try_from(value.to_canonical_u64())
+                                .expect("casting value to u32 should succeed"),
+                        );
+                        rangecheck_row[MAP.val] = value;
+                        rangecheck_row[MAP.limb_hi] = limb_hi;
+                        rangecheck_row[MAP.limb_lo] = limb_lo;
+                        rangecheck_row[MAP.cpu_filter] = F::ONE;
+    
+                        push_rangecheck_row(&mut trace, rangecheck_row);
+                    }
+            }
+        }
         assert!(matches!(cpu_table.kind, TableKind::Cpu));
         if let [column] = &cpu_table.columns[..] {
+            // let trace: &[[F]] = match cpu_table.kind {
+            //     TableKind::Cpu => cpu_trace.borrow(),
+            //     TableKind::Memory => memory_trace.borrow(),
+            //     _ => unimplemented!("We don't support this Kind of table, yet."),
+            // };
+            // TODO: make this work also for memory_trace
             for cpu_row in cpu_trace {
                 let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
                 if cpu_table.filter_column.eval(cpu_row).is_one() {
@@ -128,6 +181,7 @@ mod tests {
 
     use super::*;
     use crate::generation::cpu::generate_cpu_trace;
+    use crate::generation::memory;
 
     #[test]
     fn test_add_instruction_inserts_rangecheck() {
@@ -148,7 +202,8 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&program, &record);
-        let trace = generate_rangecheck_trace::<F>(&cpu_rows);
+        let memory_rows = memory::generate_memory_trace(&program, &record.executed);
+        let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
         // Check values that we are interested in
         assert_eq!(trace[MAP.cpu_filter][0], F::ONE);

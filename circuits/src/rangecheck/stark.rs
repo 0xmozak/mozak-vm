@@ -123,6 +123,7 @@ mod tests {
 
     use super::*;
     use crate::generation::cpu::generate_cpu_trace;
+    use crate::generation::memory::{self, generate_memory_trace};
     use crate::generation::rangecheck::generate_rangecheck_trace;
 
     const D: usize = 2;
@@ -149,7 +150,8 @@ mod tests {
         );
 
         let cpu_trace = generate_cpu_trace::<F>(&program, &record);
-        let mut trace = generate_rangecheck_trace::<F>(&cpu_trace);
+        let memory_trace = memory::generate_memory_trace(&program, &record.executed);
+        let mut trace = generate_rangecheck_trace::<F>(&cpu_trace, &memory_trace);
         // Manually alter the value here to be larger than a u32.
         trace[0][MAP.val] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
         trace
@@ -186,7 +188,8 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&program, &record);
-        let trace = generate_rangecheck_trace::<F>(&cpu_rows);
+        let memory_rows = generate_memory_trace(&program, &record.executed);
+        let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
         let len = trace[0].len();
         let last = F::primitive_root_of_unity(log2_strict(len)).inverse();

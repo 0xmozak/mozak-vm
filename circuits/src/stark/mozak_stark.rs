@@ -1,3 +1,4 @@
+use itertools::chain;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
@@ -21,7 +22,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub shift_amount_stark: BitshiftStark<F, D>,
     pub program_stark: ProgramStark<F, D>,
     pub memory_stark: MemoryStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 6],
+    pub cross_table_lookups: [CrossTableLookup<F>; 5],
     pub debug: bool,
 }
 
@@ -40,7 +41,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 BitshiftCpuTable::lookups(),
                 InnerCpuTable::lookups(),
                 ProgramCpuTable::lookups(),
-                RangecheckMemoryTable::lookups(),
             ],
             debug: false,
         }
@@ -190,22 +190,13 @@ pub struct RangecheckCpuTable<F: Field>(CrossTableLookup<F>);
 
 impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
     fn lookups() -> CrossTableLookup<F> {
-        CrossTableLookup::new(
+        let looking: Vec<Table<F>> = chain![
             cpu::columns::rangecheck_looking_cpu(),
-            RangeCheckTable::new(
-                rangecheck::columns::data_for_cpu(),
-                rangecheck::columns::filter_for_cpu(),
-            ),
-        )
-    }
-}
-
-pub struct RangecheckMemoryTable<F: Field>(CrossTableLookup<F>);
-
-impl<F: Field> Lookups<F> for RangecheckMemoryTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
+            memory::columns::rangecheck_looking()
+        ]
+        .collect();
         CrossTableLookup::new(
-            memory::columns::rangecheck_looking(),
+            looking,
             RangeCheckTable::new(
                 rangecheck::columns::data_for_cpu(),
                 rangecheck::columns::filter_for_cpu(),
