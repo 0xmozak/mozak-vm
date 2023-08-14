@@ -63,12 +63,12 @@ pub fn transpose_polys<
     const D: usize,
     S: Stark<F, D>,
 >(
-    cols: Vec<PolynomialValues<F>>,
+    cols: &[PolynomialValues<F>],
 ) -> Vec<[F; S::COLUMNS]> {
     transpose(
         &cols
-            .into_iter()
-            .map(|PolynomialValues { values }| values)
+            .iter()
+            .map(|PolynomialValues { values }| values.clone())
             .collect_vec(),
     )
     .into_iter()
@@ -78,8 +78,7 @@ pub fn transpose_polys<
 
 #[allow(clippy::missing_panics_doc)]
 pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
-    program: &Program,
-    record: &ExecutionRecord,
+    traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     mozak_stark: &MozakStark<F, D>,
 ) where
     [(); CpuStark::<F, D>::COLUMNS]:,
@@ -88,10 +87,10 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     [(); BitwiseStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:, {
-    let [cpu_trace, rangecheck_trace, bitwise_trace, shift_amount_trace, program_trace]: [Vec<
+    let [cpu_trace, rangecheck_trace, bitwise_trace, shift_amount_trace, program_trace]: &[Vec<
         PolynomialValues<F>,
     >;
-        NUM_TABLES] = generate_traces(program, record);
+        NUM_TABLES] = traces_poly_values;
 
     assert!([
         // Program ROM
@@ -128,7 +127,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 #[allow(clippy::missing_panics_doc)]
 pub fn debug_single_trace<F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>(
     stark: &S,
-    trace_rows: Vec<PolynomialValues<F>>,
+    trace_rows: &Vec<PolynomialValues<F>>,
     stark_name: &str,
 ) -> bool
 where

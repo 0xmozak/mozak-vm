@@ -56,7 +56,7 @@ where
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
-        debug_traces(program, record, mozak_stark);
+        debug_traces(&traces_poly_values, mozak_stark);
         debug_ctl(&traces_poly_values, mozak_stark);
     }
     prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
