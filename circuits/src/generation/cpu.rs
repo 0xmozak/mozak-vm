@@ -82,13 +82,13 @@ pub fn generate_cpu_trace<F: RichField>(
         generate_conditional_branch_row(&mut row);
         trace.push(row);
 
-        if aux.will_halt {
-            let mut last_row = *trace.last().unwrap();
-            last_row.halt = F::ONE;
-            last_row.clk += F::ONE;
-            trace.push(last_row);
-            break;
-        }
+        // if aux.will_halt {
+        //     let mut last_row = *trace.last().unwrap();
+        //     last_row.halt = F::ONE;
+        //     last_row.clk += F::ONE;
+        //     trace.push(last_row);
+        //     break;
+        // }
     }
 
     log::trace!("trace {:?}", trace);
