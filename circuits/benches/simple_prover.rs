@@ -67,7 +67,8 @@ pub(crate) fn bench_simple() {
 fn simple_benchmark(c: &mut Criterion) {
     let _ = env_logger::builder().try_init();
     let mut group = c.benchmark_group("simple_prover");
-    // group.sample_size(10).measurement_time(Duration::new(150, 0));
+    group.measurement_time(Duration::new(10, 0));
+    // group.sample_size(10).measurement_time(Duration::new(10, 0));
     group.bench_function("simple_prover", |b| {
         b.iter(|| {
             bench_simple();
@@ -78,8 +79,8 @@ fn simple_benchmark(c: &mut Criterion) {
 
 criterion_group![
     name = benches;
-    config = Criterion::default().sample_size(10);
-    // config = Criterion::default().sample_size(10).measurement_time(Duration::from_secs(150));
+    // config = Criterion::default().sample_size(10);
+    config = Criterion::default().sample_size(10).measurement_time(Duration::from_secs(150));
     targets = simple_benchmark
 ];
 criterion_main!(benches);
