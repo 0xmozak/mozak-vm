@@ -169,7 +169,7 @@ pub fn filter_for_bitwise<F: Field>() -> Column<F> {
     Column::many(MAP.cpu.inst.ops.ops_that_use_xor())
 }
 
-impl<T: Copy + core::ops::Add<Output = T>> OpSelectors<T> {
+impl<T: Copy> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(&self) -> [T; 5] {
         // TODO: Add SRA, once we implement its constraints.
