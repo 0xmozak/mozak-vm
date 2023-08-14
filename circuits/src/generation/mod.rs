@@ -36,7 +36,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
     record: &ExecutionRecord,
 ) -> [Vec<PolynomialValues<F>>; NUM_TABLES] {
-    let cpu_rows = generate_cpu_trace::<F>(program, &record);
+    let cpu_rows = generate_cpu_trace::<F>(program, record);
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows);
     let bitwise_rows = generate_bitwise_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);

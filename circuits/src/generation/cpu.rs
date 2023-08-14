@@ -47,7 +47,7 @@ pub fn generate_cpu_trace<F: RichField>(
     } = record;
     // TODO: Matthias: rethink whether we need a fake aux.
     let fake = &[Row {
-        state: last_state.to_owned(),
+        state: last_state.clone(),
         aux: Aux::default(),
     }];
 
