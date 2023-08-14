@@ -1,4 +1,5 @@
 use std::mem::{size_of, transmute_copy, ManuallyDrop};
+use std::ops::IndexMut;
 
 pub(crate) unsafe fn transmute_without_compile_time_size_checks<T, U>(t: T) -> U {
     debug_assert_eq!(size_of::<T>(), size_of::<U>());
@@ -16,7 +17,7 @@ pub trait NumberOfColumns {
 macro_rules! columns_view_impl {
     ($s: ident) => {
         impl<T> $s<T> {
-            // At the moment we only use `map` InstructionView,
+            // At the moment we only use `map` Instruction,
             // so it's dead code for the other callers of `columns_view_impl`.
             // TODO(Matthias): remove this marker, once we use it for the other structs,
             // too.
@@ -103,6 +104,17 @@ macro_rules! columns_view_impl {
             }
         }
 
+        impl<'a, T> std::iter::IntoIterator for &'a $s<T> {
+            type IntoIter = std::slice::Iter<'a, T>;
+            type Item = &'a T;
+
+            fn into_iter(self) -> Self::IntoIter {
+                use std::borrow::Borrow;
+                let array: &[T; std::mem::size_of::<$s<u8>>()] = self.borrow();
+                array.into_iter()
+            }
+        }
+
         impl<T: std::fmt::Debug> std::iter::FromIterator<T> for $s<T> {
             fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
                 let vec: Vec<T> = iter.into_iter().collect();
@@ -128,3 +140,10 @@ macro_rules! make_col_map {
     };
 }
 pub(crate) use make_col_map;
+
+#[must_use]
+pub fn selection<T: IndexMut<usize, Output = u32> + Default>(which: usize) -> T {
+    let mut selectors = T::default();
+    selectors[which] = 1;
+    selectors
+}

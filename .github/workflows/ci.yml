@@ -23,7 +23,7 @@ jobs:
         uses: ./.github/actions/rust
 
       - name: Run tests
-        run: cargo test --locked --all-targets
+        run: cargo nextest run --locked --all-targets
 
   cargo-clippy:
     if: github.event.pull_request.draft == false

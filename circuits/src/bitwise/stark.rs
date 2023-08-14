@@ -41,8 +41,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         // Check limbs sum to our given value.
         // We interpret limbs as digits in base 2.
         for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
-            yield_constr
-                .constraint(reduce_with_powers(&opx_limbs, P::Scalar::from_canonical_u8(2)) - opx);
+            yield_constr.constraint(reduce_with_powers(&opx_limbs, P::Scalar::TWO) - opx);
         }
 
         for (a, b, res) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
@@ -51,7 +50,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
             // a + b == (a & b, a ^ b) == 2 * (a & b) + (a ^ b)
             // Solving for (a ^ b) gives:
             // (a ^ b) := a + b - 2 * (a & b) == a + b - 2 * a * b
-            let xor = (a + b) - (a * b) * FE::from_canonical_u8(2);
+            let xor = (a + b) - (a * b).doubles();
             yield_constr.constraint(res - xor);
         }
     }
@@ -134,7 +133,7 @@ mod tests {
         );
         // assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));
         let mut timing = TimingTree::new("bitwise", log::Level::Debug);
-        let cpu_trace = generate_cpu_trace(&program, &record.executed);
+        let cpu_trace = generate_cpu_trace(&program, &record);
         let trace = timed!(
             timing,
             "generate_bitwise_trace",

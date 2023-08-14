@@ -2,10 +2,10 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::CpuColumnsView;
+use super::columns::CpuState;
 
 pub(crate) fn constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
@@ -13,10 +13,10 @@ pub(crate) fn constraints<P: PackedField>(
     let rs2_value = addr - lv.inst.imm_value;
 
     let wrapped = wrap_at + rs2_value;
-    let is_memory_op: P = lv.inst.ops.memory_opcodes().into_iter().sum::<P>();
 
-    yield_constr
-        .constraint(is_memory_op * (addr - rs2_value - lv.inst.imm_value) * (addr - wrapped));
+    yield_constr.constraint(
+        lv.inst.ops.is_mem_op() * (addr - rs2_value - lv.inst.imm_value) * (addr - wrapped),
+    );
 
     // TODO: support for SH / SW
     let sh_offset = P::Scalar::from_noncanonical_u64(1);
@@ -40,7 +40,7 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test_code, u32_extra};
+    use mozak_vm::test_utils::{simple_test_code, u32_extra, u8_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
@@ -68,7 +68,7 @@ mod tests {
                 &[(6, a), (7, b)],
             );
 
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
 
         #[test]
@@ -79,7 +79,35 @@ mod tests {
                 &[(6, a), (7, b)],
             );
 
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
+        }
+        #[test]
+        fn prove_mem_read_write_proptest(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            let (program, record) = simple_test_code(
+                &[
+                    Instruction {
+                        op: Op::SB,
+                        args: Args {
+                            rs1: 1,
+                            rs2: 2,
+                            imm,
+                            ..Args::default()
+                        },
+                    },
+                    Instruction {
+                        op: Op::LBU,
+                        args: Args {
+                            rs2: 2,
+                            imm,
+                            ..Args::default()
+                        },
+                    },
+                ],
+                &[],
+                &[(1, content.into()), (2, offset)],
+            );
+
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
 
         #[test]
@@ -90,7 +118,7 @@ mod tests {
                 &[(6, a), (7, b)],
             );
 
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
 
 
@@ -102,7 +130,7 @@ mod tests {
                 &[(6, a), (7, b)],
             );
 
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }

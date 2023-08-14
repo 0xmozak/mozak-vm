@@ -18,7 +18,6 @@ pub struct MemoryStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-#[deny(clippy::missing_panics_doc)]
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F, D> {
     const COLUMNS: usize = NUM_MEM_COLS;
     const PUBLIC_INPUTS: usize = 0;
