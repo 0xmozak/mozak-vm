@@ -190,7 +190,6 @@ fn halted<P: PackedField>(
     // Last row must be HALT
     yield_constr.constraint_last_row(lv.halted - P::ONES);
 
-    //
     is_binary_transition(yield_constr, nv.halted - lv.halted);
     // Halted means that nothing changes anymore:
     for (&lv_entry, nv_entry) in izip!(lv.into_iter(), *nv) {
