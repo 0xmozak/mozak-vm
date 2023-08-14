@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ops::Index;
 
 use plonky2::hash::hash_types::RichField;
@@ -7,7 +8,7 @@ use crate::lookup::permute_cols;
 use crate::memory::columns::MemoryColumnsView;
 use crate::rangecheck::columns;
 use crate::rangecheck::columns::MAP;
-use crate::stark::mozak_stark::{Table, TableKind, RangecheckCpuTable, Lookups};
+use crate::stark::mozak_stark::{Lookups, RangecheckCpuTable, Table, TableKind};
 
 pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 
@@ -36,18 +37,16 @@ fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
     )
 }
 
-fn push_rangecheck_row<F: RichField>(
-    trace: &mut [Vec<F>],
-    rangecheck_row: [F; columns::NUM_RC_COLS],
-) {
-    for (i, col) in rangecheck_row.iter().enumerate() {
-        trace[i].push(*col);
-    }
-}
+// fn push_rangecheck_row<F: RichField>(
+//     trace: &mut [Vec<F>],
+//     rangecheck_row: [F; columns::NUM_RC_COLS],
+// ) { for (i, col) in rangecheck_row.iter().enumerate() { trace[i].push(*col);
+//   }
+// }
 
-// pub fn create_rows<'a, F: RichField, V, I>(trace: &'a I, looking: &Table<F>, rc_trace: &mut [Vec<F>; columns::NUM_RC_COLS]) -> where
-//     V: Index<usize, Output = &'a F> + 'a,
-//     I: IntoIterator<Item = &'a V>,
+// pub fn create_rows<'a, F: RichField, V, I>(trace: &'a I, looking: &Table<F>,
+// rc_trace: &mut [Vec<F>; columns::NUM_RC_COLS]) -> where     V: Index<usize,
+// Output = &'a F> + 'a,     I: IntoIterator<Item = &'a V>,
 // {
 //     for row in trace.into_iter() {
 //         let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
@@ -79,19 +78,26 @@ fn push_rangecheck_row<F: RichField>(
 /// 2. trace width does not match the number of columns,
 /// 3. attempting to range check tuples instead of single values.
 #[must_use]
-pub fn generate_rangecheck_trace<F: RichField>(
-    cpu_trace: &[CpuState<F>],
-    memory_trace: &[MemoryColumnsView<F>],
-) -> [Vec<F>; columns::NUM_RC_COLS] {
+pub fn generate_rangecheck_trace<'a, F: RichField, V, I>(
+    traces: HashMap<TableKind, Box<I>>,
+) -> [Vec<F>; columns::NUM_RC_COLS]
+where
+    V: Index<usize, Output = F> + ?Sized + 'a,
+    I: IntoIterator<Item = &'a V> + 'a, {
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
     let looking_tables = RangecheckCpuTable::lookups().looking_tables;
 
-    for cpu_table in &looking_tables {
-        match cpu_table {
-            Table { kind: TableKind::Cpu, colums: [column], filter_column } => {
+    for table in &looking_tables {
+        match table {
+            Table {
+                kind,
+                columns: [column],
+                filter_column,
+            } => {
+                let cpu_trace = traces.get(&kind).expect("CPU trace should exist");
                 for cpu_row in cpu_trace {
                     let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
-                    if filter_column.eval(cpu_row).is_one() {
+                    if filter_column.eval(*cpu_row).is_one() {
                         let value = column.eval(cpu_row);
                         let (limb_hi, limb_lo) = limbs_from_u32(
                             u32::try_from(value.to_canonical_u64())
@@ -101,38 +107,41 @@ pub fn generate_rangecheck_trace<F: RichField>(
                         rangecheck_row[MAP.limb_hi] = limb_hi;
                         rangecheck_row[MAP.limb_lo] = limb_lo;
                         rangecheck_row[MAP.cpu_filter] = F::ONE;
-    
-                        push_rangecheck_row(&mut trace, rangecheck_row);
-                    }
-            }
-        }
-        assert!(matches!(cpu_table.kind, TableKind::Cpu));
-        if let [column] = &cpu_table.columns[..] {
-            // let trace: &[[F]] = match cpu_table.kind {
-            //     TableKind::Cpu => cpu_trace.borrow(),
-            //     TableKind::Memory => memory_trace.borrow(),
-            //     _ => unimplemented!("We don't support this Kind of table, yet."),
-            // };
-            // TODO: make this work also for memory_trace
-            for cpu_row in cpu_trace {
-                let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
-                if cpu_table.filter_column.eval(cpu_row).is_one() {
-                    let value = column.eval(cpu_row);
-                    let (limb_hi, limb_lo) = limbs_from_u32(
-                        u32::try_from(value.to_canonical_u64())
-                            .expect("casting value to u32 should succeed"),
-                    );
-                    rangecheck_row[MAP.val] = value;
-                    rangecheck_row[MAP.limb_hi] = limb_hi;
-                    rangecheck_row[MAP.limb_lo] = limb_lo;
-                    rangecheck_row[MAP.cpu_filter] = F::ONE;
 
-                    push_rangecheck_row(&mut trace, rangecheck_row);
+                        // push_rangecheck_row(&mut trace, rangecheck_row);
+                    }
                 }
             }
-        } else {
-            panic!("Can only range check single values, not tuples.");
+            // TODO: error handling properly.
+            _ => panic!("Can only range check single values, not tuples."),
         }
+        // assert!(matches!(cpu_table.kind, TableKind::Cpu));
+        // if let [column] = &cpu_table.columns[..] {
+        //     // let trace: &[[F]] = match cpu_table.kind {
+        //     //     TableKind::Cpu => cpu_trace.borrow(),
+        //     //     TableKind::Memory => memory_trace.borrow(),
+        //     //     _ => unimplemented!("We don't support this Kind of table,
+        // yet."),     // };
+        //     // TODO: make this work also for memory_trace
+        //     for cpu_row in cpu_trace {
+        //         let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
+        //         if cpu_table.filter_column.eval(cpu_row).is_one() {
+        //             let value = column.eval(cpu_row);
+        //             let (limb_hi, limb_lo) = limbs_from_u32(
+        //                 u32::try_from(value.to_canonical_u64())
+        //                     .expect("casting value to u32 should succeed"),
+        //             );
+        //             rangecheck_row[MAP.val] = value;
+        //             rangecheck_row[MAP.limb_hi] = limb_hi;
+        //             rangecheck_row[MAP.limb_lo] = limb_lo;
+        //             rangecheck_row[MAP.cpu_filter] = F::ONE;
+
+        //             push_rangecheck_row(&mut trace, rangecheck_row);
+        //         }
+        //     }
+        // } else {
+        //     panic!("Can only range check single values, not tuples.");
+        // }
     }
 
     // Pad our trace to max(RANGE_CHECK_U16_SIZE, trace[0].len())
