@@ -38,8 +38,6 @@ pub fn generate_cpu_trace<F: RichField>(
     program: &Program,
     record: &ExecutionRecord,
 ) -> Vec<CpuState<F>> {
-    // let mut trace: Vec<Vec<F>> = vec![vec![F::ZERO; step_rows.len()];
-    // cpu_cols::NUM_CPU_COLS];
     let mut trace: Vec<CpuState<F>> = vec![];
     let ExecutionRecord {
         executed,
