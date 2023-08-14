@@ -150,7 +150,7 @@ mod tests {
         );
 
         let cpu_trace = generate_cpu_trace::<F>(&program, &record);
-        let memory_trace = memory::generate_memory_trace(&program, &record.executed);
+        let memory_trace = memory::generate_memory_trace::<F>(&program, &record.executed);
         let mut trace = generate_rangecheck_trace::<F>(&cpu_trace, &memory_trace);
         // Manually alter the value here to be larger than a u32.
         trace[0][MAP.val] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
@@ -188,7 +188,7 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&program, &record);
-        let memory_rows = generate_memory_trace(&program, &record.executed);
+        let memory_rows = generate_memory_trace::<F>(&program, &record.executed);
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
         let len = trace[0].len();
