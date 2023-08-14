@@ -57,7 +57,6 @@ where
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(program, record, mozak_stark);
-        debug_traces(program, step_rows, mozak_stark);
         mozak_stark
             .cross_table_lookups
             .iter()
