@@ -100,8 +100,8 @@ fn clock_ticks<P: PackedField>(
 ) {
     let clock_diff = nv.clk - lv.clk;
     is_binary_transition(yield_constr, clock_diff);
-    is_binary(yield_constr, lv.halt);
-    yield_constr.constraint_transition(clock_diff + lv.halt - P::ONES);
+    is_binary(yield_constr, lv.halted);
+    yield_constr.constraint_transition(clock_diff + lv.halted - P::ONES);
 }
 
 /// Register 0 is always 0
@@ -180,6 +180,24 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     );
 }
 
+fn halted<P: PackedField>(
+    lv: &CpuState<P>,
+    nv: &CpuState<P>,
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    is_binary(yield_constr, lv.halted);
+    // TODO: change this when we support segmented proving.
+    // Last row must be HALT
+    yield_constr.constraint_last_row(lv.halted - P::ONES);
+
+    //
+    is_binary_transition(yield_constr, nv.halted - lv.halted);
+    // Halted means that nothing changes anymore:
+    for (&lv_entry, nv_entry) in izip!(lv.into_iter(), *nv) {
+        yield_constr.constraint_transition(lv.halted * (lv_entry - nv_entry));
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
     const COLUMNS: usize = CpuColumnsExtended::<F>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
@@ -224,11 +242,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
         ecall::constraints(lv, nv, yield_constr);
+        halted(lv, nv, yield_constr);
 
         // Clock starts at 0
         yield_constr.constraint_first_row(lv.clk);
-        // Last row must be HALT
-        yield_constr.constraint_last_row(lv.halt - P::ONES);
     }
 
     fn constraint_degree(&self) -> usize { 3 }

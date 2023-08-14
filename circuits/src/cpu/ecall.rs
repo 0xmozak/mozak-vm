@@ -1,3 +1,4 @@
+use itertools::izip;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
@@ -14,11 +15,20 @@ pub(crate) fn constraints<P: PackedField>(
     // 93. Everything else is invalid.
     yield_constr.constraint(lv.inst.ops.ecall * (lv.regs[17] - P::Scalar::from_canonical_u8(93)));
     // Thus we can equate ecall with halt in the next row.
-    yield_constr.constraint_transition(lv.inst.ops.ecall - nv.halt);
+    // Crucially, this prevents a malicious prover from just halting the program
+    // anywhere else.
+    yield_constr.constraint_transition(lv.inst.ops.ecall - nv.halted);
 
-    // 'halt' means: no bumping of pc anymore ever.
-    yield_constr.constraint_transition(nv.halt * (nv.inst.pc - lv.inst.pc));
-    yield_constr.constraint_transition(lv.halt * (nv.inst.pc - lv.inst.pc));
+    // Executing ecall should not change the state of the CPU, except for the halted
+    // flag and one final clock tick:
+    let copy_most = CpuState {
+        halted: lv.halted,
+        clk: lv.clk,
+        ..*nv
+    };
+    for (&lv_entry, nv_entry) in izip!(lv, copy_most) {
+        yield_constr.constraint_transition(nv.halted * (lv_entry - nv_entry));
+    }
 }
 
 // We are already testing ecall with our coda of every `simple_test_code`.
