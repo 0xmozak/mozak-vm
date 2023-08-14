@@ -44,9 +44,9 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
             clk: F::from_noncanonical_u64(state.clk),
             inst: cpu_cols::Instruction::from((state.get_pc(), inst)).map(from_u32),
             op1_value: from_u32(aux.op1),
-            // OP2_VALUE is the sum of the value of the second operand register and the
-            // immediate value.
             op2_value: from_u32(aux.op2),
+            op2_value_overflowing: from_u32::<F>(state.get_register_value(inst.args.rs2))
+                + from_u32(inst.args.imm),
             // NOTE: Updated value of DST register is next step.
             dst_value: from_u32(aux.dst_val),
             halt: from_u32(u32::from(aux.will_halt)),
@@ -64,12 +64,6 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
             row.regs[j as usize] = from_u32(state.get_register_value(j));
         }
 
-        if !matches!(inst.op, Op::SB | Op::LBU) {
-            row.op2_value_wrapped = row.op2_value
-                - from_u32(state.get_register_value(inst.args.rs2))
-                - from_u32(inst.args.imm)
-                + F::from_noncanonical_u64(1 << 32);
-        }
         generate_mul_row(&mut row, &inst, aux);
         generate_divu_row(&mut row, &inst, aux);
         generate_sign_handling(&mut row, aux);
