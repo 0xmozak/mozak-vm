@@ -110,7 +110,7 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
         return;
     }
     let multiplier = if let Op::SLL = inst.op {
-        let shift_amount = aux.op2 & 0x1F;
+        let shift_amount = aux.op2 & 0b1_1111;
         let shift_power = 1_u32 << shift_amount;
         row.bitshift = Bitshift {
             amount: shift_amount,
@@ -187,7 +187,7 @@ fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
 fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {
     let a = match inst.op {
         Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
-        Op::SRL | Op::SLL => 0x1F,
+        Op::SRL | Op::SLL => 0b1_1111,
         _ => 0,
     };
     let b = state
