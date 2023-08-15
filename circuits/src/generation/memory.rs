@@ -20,7 +20,7 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<MemoryColumnsView<F>>) -> Vec<Memo
         mem_diff_addr_inv: F::ZERO,
         mem_diff_clk: F::ZERO,
         // .. and all other columns just have their last value duplicated.
-        ..trace.last().cloned().unwrap_or_default()
+        ..trace.last().copied().unwrap_or_default()
     });
     trace
 }

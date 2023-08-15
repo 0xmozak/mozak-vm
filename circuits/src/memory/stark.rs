@@ -11,7 +11,7 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use crate::cpu::stark::{is_binary, is_binary_transition};
 use crate::memory::columns::{MemoryColumnsView, NUM_MEM_COLS};
-use crate::memory::trace::{OPCODE_LBU, OPCODE_SB};
+use crate::memory::trace::OPCODE_SB;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]

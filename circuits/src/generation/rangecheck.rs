@@ -51,7 +51,7 @@ where
     V: Index<usize, Output = F> + 'a, {
     if let [column] = &looking_table.columns[..] {
         trace
-            .into_iter()
+            .iter()
             .filter_map(|row| {
                 looking_table
                     .filter_column
@@ -88,7 +88,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
             other => unimplemented!("Can't range check {other:#?} tables"),
         };
 
-        for val in values.into_iter() {
+        for val in values {
             let (limb_hi, limb_lo) = limbs_from_u32(
                 u32::try_from(val.to_canonical_u64()).expect("casting value to u32 should succeed"),
             );
