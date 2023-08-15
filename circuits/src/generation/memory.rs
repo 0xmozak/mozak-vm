@@ -1,13 +1,11 @@
 use itertools::{self, Itertools};
 use mozak_vm::elf::Program;
-use mozak_vm::instruction::Op;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::memory::columns::MemoryColumnsView;
 use crate::memory::trace::{
-    get_memory_inst_addr, get_memory_inst_clk, get_memory_inst_op, get_memory_load_inst_value,
-    get_memory_store_inst_value,
+    get_memory_inst_addr, get_memory_inst_clk, get_memory_inst_op,
 };
 
 /// Pad the memory trace to a power of 2.
@@ -54,14 +52,7 @@ pub fn generate_memory_trace<F: RichField>(
             mem_addr,
             mem_clk,
             mem_op: get_memory_inst_op(&inst),
-            mem_value: match inst.op {
-                Op::LBU => get_memory_load_inst_value(s),
-                Op::SB => get_memory_store_inst_value(s),
-                other @ (Op::LB | Op::LH | Op::LHU | Op::LW | Op::SH | Op::SW) =>
-                    unimplemented!("Memory operation {:#?} not supported, yet", other),
-                #[tarpaulin::skip]
-                _ => F::ZERO,
-            },
+            mem_value: F::from_canonical_u32(s.aux.dst_val),
             mem_diff_addr,
             mem_diff_addr_inv: mem_diff_addr.try_inverse().unwrap_or_default(),
             mem_diff_clk: match trace.last() {
