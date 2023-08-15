@@ -30,8 +30,8 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 
 #[cfg(test)]
 mod tests {
-
     use mozak_vm::test_utils::simple_test_code;
+    use plonky2::field::types::Field;
     use plonky2::util::timing::TimingTree;
 
     use crate::stark::proof::AllProof;
@@ -49,6 +49,7 @@ mod tests {
             &record,
             &stark,
             &config,
+            [F::ZERO],
             &mut TimingTree::default(),
         )
         .unwrap();

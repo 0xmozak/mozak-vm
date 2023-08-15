@@ -30,6 +30,7 @@ use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
+use crate::stark::mozak_stark::NUM_PUBLIC_INPUTS;
 use crate::stark::permutation::{
     compute_permutation_z_polys, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
 };
@@ -42,13 +43,13 @@ pub fn prove<F, C, const D: usize>(
     record: &ExecutionRecord,
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
+    public_inputs: [F; NUM_PUBLIC_INPUTS],
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
@@ -60,7 +61,13 @@ where
         debug_traces(program, record, mozak_stark);
         debug_ctl(&traces_poly_values, mozak_stark);
     }
-    prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
+    prove_with_traces(
+        mozak_stark,
+        config,
+        public_inputs,
+        &traces_poly_values,
+        timing,
+    )
 }
 
 /// Given the traces generated from [`generate_traces`], prove a [`MozakStark`].
@@ -70,6 +77,7 @@ where
 pub fn prove_with_traces<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
+    public_inputs: [F; NUM_PUBLIC_INPUTS],
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
@@ -77,7 +85,6 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
@@ -139,6 +146,7 @@ where
         prove_with_commitments(
             mozak_stark,
             config,
+            public_inputs,
             traces_poly_values,
             &trace_commitments,
             &ctl_data_per_table,
@@ -347,6 +355,7 @@ where
 pub fn prove_with_commitments<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
+    public_inputs: [F; NUM_PUBLIC_INPUTS],
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     trace_commitments: &[PolynomialBatch<F, C, D>],
     ctl_data_per_table: &[CtlData<F>; NUM_TABLES],
@@ -357,7 +366,6 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
@@ -369,7 +377,7 @@ where
         config,
         &traces_poly_values[TableKind::Cpu as usize],
         &trace_commitments[TableKind::Cpu as usize],
-        [F::ZERO],
+        [public_inputs[0]],
         &ctl_data_per_table[TableKind::Cpu as usize],
         challenger,
         timing,

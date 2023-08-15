@@ -184,8 +184,14 @@ impl ProveAndVerify for MozakStark<F, D> {
         let stark = S::default();
         let config = standard_faster_config();
 
-        let all_proof =
-            prove::<F, C, D>(program, record, &stark, &config, &mut TimingTree::default());
+        let all_proof = prove::<F, C, D>(
+            program,
+            record,
+            &stark,
+            &config,
+            [F::ZERO],
+            &mut TimingTree::default(),
+        );
         verify_proof(stark, all_proof.unwrap(), &config)
     }
 }

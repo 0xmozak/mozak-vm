@@ -16,6 +16,7 @@ use mozak_circuits::test_utils::{standard_faster_config, ProveAndVerify, C, D, F
 use mozak_vm::elf::Program;
 use mozak_vm::state::State;
 use mozak_vm::vm::step;
+use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::util::timing::TimingTree;
 use shadow_rs::shadow;
@@ -131,6 +132,7 @@ fn main() -> Result<()> {
                     &record,
                     &stark,
                     &config,
+                    [F::ZERO],
                     &mut TimingTree::default(),
                 )?;
                 let s = all_proof.serialize_proof_to_flexbuffer()?;

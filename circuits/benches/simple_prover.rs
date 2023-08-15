@@ -5,6 +5,7 @@ use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{standard_faster_config, C, D, F, S};
 use mozak_vm::test_utils::simple_test_code;
+use plonky2::field::types::Field;
 use plonky2::util::timing::TimingTree;
 
 pub(crate) fn bench_simple() {
@@ -17,6 +18,7 @@ pub(crate) fn bench_simple() {
         &record,
         &stark,
         &config,
+        [F::ZERO],
         &mut TimingTree::default(),
     )
     .unwrap();

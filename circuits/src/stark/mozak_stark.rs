@@ -23,6 +23,11 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub debug: bool,
 }
 
+#[derive(Clone)]
+pub struct PublicInputs<F: Field> {
+    pub(crate) pc_start: F,
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
     fn default() -> Self {
         Self {
