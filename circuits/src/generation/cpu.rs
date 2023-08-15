@@ -8,12 +8,12 @@ use mozak_vm::vm::{ExecutionRecord, Row};
 use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;
-use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
 use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 use crate::stark::utils::transpose_trace;
 use crate::utils::{from_u32, pad_trace_with_last_to_len};
+use crate::xor::columns::XorView;
 
 #[allow(clippy::missing_panics_doc)]
 #[must_use]

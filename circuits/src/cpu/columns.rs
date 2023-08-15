@@ -2,11 +2,11 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 
 use crate::bitshift::columns::Bitshift;
-use crate::bitwise::columns::XorView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 use crate::program::columns::ProgramColumnsView;
 use crate::stark::mozak_stark::{CpuTable, Table};
+use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
 #[repr(C)]
@@ -162,7 +162,7 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 #[must_use]
 pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor) }
 
-/// Column for a binary filter for bitwise instruction in Bitwise stark.
+/// Column for a binary filter for xor instruction in Bitwise stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_bitwise<F: Field>() -> Column<F> {
