@@ -81,7 +81,7 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
     let diff_inv = diff.try_inverse().unwrap_or_default();
 
     row.cmp_diff_inv = diff_inv;
-    row.not_diff = F::ONE - diff * diff_inv;
+    row.normalised_diff = diff * diff_inv;
 }
 
 #[allow(clippy::cast_possible_wrap)]
