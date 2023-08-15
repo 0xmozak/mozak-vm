@@ -44,11 +44,10 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
         MemoryTable::new(
             Column::singles([MAP.mem_diff_addr]),
             Column::single(MAP.not_padding),
-            // Column::never(),
         ),
-        // MemoryTable::new(
-        //     Column::singles([MAP.mem_diff_clk]),
-        //     Column::single(MAP.not_padding),
-        // ),
+        MemoryTable::new(
+            Column::singles([MAP.mem_diff_clk]),
+            Column::single(MAP.not_padding),
+        ),
     ]
 }
