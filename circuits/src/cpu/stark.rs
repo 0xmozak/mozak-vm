@@ -23,17 +23,21 @@ pub struct CpuStark<F, const D: usize> {
 }
 
 impl<P: PackedField> OpSelectors<P> {
+    // List of opcodes that write the `pc`.
     // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
     // PC. It sort-of jumps back to itself.
     pub fn is_jumping(&self) -> P {
         self.beq + self.bge + self.bgeu + self.blt + self.bltu + self.bne + self.ecall + self.jalr
     }
 
+    /// List of opcodes that only bump the `pc`.
     pub fn is_straightline(&self) -> P { P::ONES - self.is_jumping() }
 
+    /// List of opcodes that work with memory.
     pub fn is_mem_op(&self) -> P { self.sb + self.lbu }
 }
 
+/// Ensure that if opcode is straightline, then `pc` is incremented by 4.
 fn pc_ticks_up<P: PackedField>(
     lv: &CpuState<P>,
     nv: &CpuState<P>,
@@ -45,7 +49,7 @@ fn pc_ticks_up<P: PackedField>(
     );
 }
 
-/// Selector of opcode, and registers should be one-hot encoded.
+/// Enforce that selector of opcode, and registers are one-hot encoded.
 ///
 /// Ie exactly one of them should be by 1, all others by 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
@@ -101,11 +105,11 @@ fn r0_always_0<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintCo
     yield_constr.constraint(lv.regs[0]);
 }
 
-/// Ensures that if [`filter`] is 0, then duplicate instructions
-/// are present. Note that this function doesn't check whether every instruction
-/// is unique. Rather, it ensures that no unique instruction present in the
-/// trace is omitted. It also doesn't verify the execution order of the
-/// instructions.
+/// Ensures that if [`filter`] is 0, then the following row column value
+/// duplicate. Note that this function doesn't check whether every instruction
+/// is unique. Rather, it ensures that for each unique instruction present in
+/// the trace the [`filter`] flag is 1. It also doesn't verify the execution
+/// order of the instructions.
 fn check_permuted_inst_cols<P: PackedField>(
     lv: &ProgramColumnsView<P>,
     nv: &ProgramColumnsView<P>,
@@ -119,8 +123,8 @@ fn check_permuted_inst_cols<P: PackedField>(
     }
 }
 
-/// Register used as destination register can have different value, all
-/// other regs have same value as of previous row.
+/// Only the register assigned to be the destination register can have value
+/// change. All other registers must same value as in the previous row.
 fn only_rd_changes<P: PackedField>(
     lv: &CpuState<P>,
     nv: &CpuState<P>,
@@ -135,6 +139,8 @@ fn only_rd_changes<P: PackedField>(
     });
 }
 
+/// The register assigned to be the destination register should change to the
+/// `dst_value` value.
 fn rd_assigned_correctly<P: PackedField>(
     lv: &CpuState<P>,
     nv: &CpuState<P>,
@@ -148,6 +154,7 @@ fn rd_assigned_correctly<P: PackedField>(
     });
 }
 
+/// First operand should be assigned with the value of the designated register.
 fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
     yield_constr.constraint(
         lv.op1_value
@@ -193,6 +200,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         P: PackedField<Scalar = FE>, {
         let lv: &CpuColumnsExtended<_> = vars.local_values.borrow();
         let nv: &CpuColumnsExtended<_> = vars.next_values.borrow();
+
+        // Constraint the CPU transition between previous `lv` state and next `nv`
+        // state.
 
         check_permuted_inst_cols(&lv.permuted, &nv.permuted, yield_constr);
 
