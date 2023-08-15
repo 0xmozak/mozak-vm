@@ -11,6 +11,7 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::ProgramColumnsView;
 use crate::columns_view::NumberOfColumns;
+use crate::cpu::stark::is_binary;
 
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -30,7 +31,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ProgramStark<
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let lv: &ProgramColumnsView<P> = vars.local_values.borrow();
-        yield_constr.constraint(lv.filter * (lv.filter - P::ONES));
+        is_binary(yield_constr, lv.filter);
     }
 
     #[no_coverage]
