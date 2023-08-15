@@ -9,8 +9,6 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // TODO: PRODUCT_LOW_BITS and PRODUCT_HIGH_BITS need range checking.
-
     // The Goldilocks field is carefully chosen to allow multiplication of u32
     // values without overflow.
     let base = P::Scalar::from_noncanonical_u64(1 << 32);

@@ -11,17 +11,17 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::BitwiseColumnsView;
+use super::columns::XorColumnsView;
 use crate::columns_view::NumberOfColumns;
 
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
-pub struct BitwiseStark<F, const D: usize> {
+pub struct XorStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<F, D> {
-    const COLUMNS: usize = BitwiseColumnsView::<F>::NUMBER_OF_COLUMNS;
+impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D> {
+    const COLUMNS: usize = XorColumnsView::<F>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
 
     fn eval_packed_generic<FE, P, const D2: usize>(
@@ -31,7 +31,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &BitwiseColumnsView<_> = vars.local_values.borrow();
+        let lv: &XorColumnsView<_> = vars.local_values.borrow();
 
         // We first convert both input and output to bit representation
         // We then work with the bit representations to check the Xor result.
@@ -82,20 +82,20 @@ mod tests {
     use starky::stark_testing::test_stark_low_degree;
     use starky::verifier::verify_stark_proof;
 
-    use crate::bitwise::stark::BitwiseStark;
     use crate::generation::bitwise::generate_bitwise_trace;
     use crate::generation::cpu::generate_cpu_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{standard_faster_config, C, D, F};
+    use crate::xor::stark::XorStark;
 
-    type S = BitwiseStark<F, D>;
+    type S = XorStark<F, D>;
     #[test]
     fn test_degree() -> Result<()> {
         let stark = S::default();
         test_stark_low_degree(stark)
     }
 
-    fn test_bitwise_stark(a: u32, b: u32, imm: u32) {
+    fn test_xor_stark(a: u32, b: u32, imm: u32) {
         let config = standard_faster_config();
 
         let (program, record) = simple_test_code(
@@ -135,7 +135,7 @@ mod tests {
             &[(5, a), (6, b)],
         );
         // assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));
-        let mut timing = TimingTree::new("bitwise", log::Level::Debug);
+        let mut timing = TimingTree::new("xor", log::Level::Debug);
         let cpu_trace = generate_cpu_trace(&program, &record);
         let trace = timed!(
             timing,
@@ -147,13 +147,13 @@ mod tests {
 
         let proof = timed!(
             timing,
-            "bitwise proof",
+            "xor proof",
             prove_table::<F, C, S, D>(stark, &config, trace_poly_values, [], &mut timing,)
         );
         let proof = proof.unwrap();
         let verification_res = timed!(
             timing,
-            "bitwise verification",
+            "xor verification",
             verify_stark_proof(stark, proof, &config)
         );
         verification_res.unwrap();
@@ -164,12 +164,12 @@ mod tests {
     proptest! {
             #![proptest_config(ProptestConfig::with_cases(4))]
             #[test]
-            fn prove_bitwise_immediate_proptest(a in any::<u32>(), b in any::<u32>()) {
-                test_bitwise_stark(a, 0, b);
+            fn prove_xor_immediate_proptest(a in any::<u32>(), b in any::<u32>()) {
+                test_xor_stark(a, 0, b);
             }
             #[test]
-            fn prove_bitwise_proptest(a in any::<u32>(), b in any::<u32>()) {
-                test_bitwise_stark(a, b, 0);
+            fn prove_xor_proptest(a in any::<u32>(), b in any::<u32>()) {
+                test_xor_stark(a, b, 0);
             }
     }
 }

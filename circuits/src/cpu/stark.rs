@@ -22,24 +22,14 @@ pub struct CpuStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<P: Copy + core::ops::Add<Output = P>> OpSelectors<P> {
+impl<P: PackedField> OpSelectors<P> {
     // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
     // PC. It sort-of jumps back to itself.
-    fn is_straightline(&self) -> P {
-        self.add
-            + self.sub
-            + self.and
-            + self.or
-            + self.xor
-            + self.divu
-            + self.mul
-            + self.mulhu
-            + self.remu
-            + self.sll
-            + self.slt
-            + self.sltu
-            + self.srl
+    pub fn is_jumping(&self) -> P {
+        self.beq + self.bge + self.bgeu + self.blt + self.bltu + self.bne + self.ecall + self.jalr
     }
+
+    pub fn is_straightline(&self) -> P { P::ONES - self.is_jumping() }
 
     pub fn is_mem_op(&self) -> P { self.sb + self.lbu }
 }
@@ -145,7 +135,7 @@ fn only_rd_changes<P: PackedField>(
     });
 }
 
-fn rd_actually_changes<P: PackedField>(
+fn rd_assigned_correctly<P: PackedField>(
     lv: &CpuState<P>,
     nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
@@ -217,7 +207,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         // Registers
         r0_always_0(lv, yield_constr);
         only_rd_changes(lv, nv, yield_constr);
-        rd_actually_changes(lv, nv, yield_constr);
+        rd_assigned_correctly(lv, nv, yield_constr);
         populate_op1_value(lv, yield_constr);
         populate_op2_value(lv, yield_constr);
 

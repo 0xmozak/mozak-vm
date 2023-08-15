@@ -5,7 +5,7 @@ use crate::cross_table_lookup::Column;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct BitwiseColumnsView<T> {
+pub struct XorColumnsView<T> {
     /// This column indicates if the row has a corresponding execution row
     /// in the CPU table or if it is a dummy row (which is used to fill the
     /// table to a power of 2).
@@ -16,8 +16,8 @@ pub struct BitwiseColumnsView<T> {
     /// This column contains the decomposed limbs of the execution value.
     pub limbs: XorView<[T; 32]>,
 }
-columns_view_impl!(BitwiseColumnsView);
-make_col_map!(BitwiseColumnsView);
+columns_view_impl!(XorColumnsView);
+make_col_map!(XorColumnsView);
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
