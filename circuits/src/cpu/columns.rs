@@ -94,7 +94,6 @@ pub struct CpuState<T> {
     pub divisor_inv: T,
     pub divisor: T,
 
-    // TODO: PRODUCT_LOW_BITS and PRODUCT_HIGH_BITS need range checking.
     pub multiplier: T,
     pub product_low_bits: T,
     pub product_high_bits: T,
@@ -153,6 +152,14 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
         CpuTable::new(
             Column::singles([MAP.cpu.abs_diff]),
             Column::many([ops.bge, ops.blt]),
+        ),
+        CpuTable::new(
+            Column::singles([MAP.cpu.product_high_bits]),
+            Column::many([ops.mul, ops.mulhu]),
+        ),
+        CpuTable::new(
+            Column::singles([MAP.cpu.product_low_bits]),
+            Column::many([ops.mul, ops.mulhu]),
         ),
     ]
 }
