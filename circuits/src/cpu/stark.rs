@@ -43,6 +43,8 @@ impl<P: Copy + core::ops::Add<Output = P>> OpSelectors<P> {
             + self.lbu
             + self.sb
     }
+
+    pub fn is_mem_op(&self) -> P { self.sb + self.lbu }
 }
 
 fn pc_ticks_up<P: PackedField>(
@@ -146,7 +148,7 @@ fn only_rd_changes<P: PackedField>(
     });
 }
 
-fn rd_actually_changes<P: PackedField>(
+fn rd_assigned_correctly<P: PackedField>(
     lv: &CpuState<P>,
     nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
@@ -170,16 +172,23 @@ fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     );
 }
 
-/// `OP2_VALUE` is the sum of the value of the second operand register and the
-/// immediate value.
+/// Constraints for values in op2, which is the sum of the value of the second
+/// operand register and the immediate value. This may overflow.
 fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
+    let wrap_at = CpuState::<P>::shifted(32);
+
     yield_constr.constraint(
-        lv.op2_value - lv.inst.imm_value
+        lv.op2_value_overflowing - lv.inst.imm_value
             // Note: we could skip 0, because r0 is always 0.
             // But we keep the constraints simple here.
             - (0..32)
                 .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
                 .sum::<P>(),
+    );
+
+    yield_constr.constraint(
+        (lv.op2_value_overflowing - lv.op2_value)
+            * (lv.op2_value_overflowing - lv.op2_value - wrap_at * lv.inst.ops.is_mem_op()),
     );
 }
 
@@ -211,7 +220,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         // Registers
         r0_always_0(lv, yield_constr);
         only_rd_changes(lv, nv, yield_constr);
-        rd_actually_changes(lv, nv, yield_constr);
+        rd_assigned_correctly(lv, nv, yield_constr);
         populate_op1_value(lv, yield_constr);
         populate_op2_value(lv, yield_constr);
 
