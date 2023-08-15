@@ -27,7 +27,10 @@ pub(crate) fn constraints<P: PackedField>(
     );
 
     yield_constr.constraint((lv.inst.ops.mulh) * (lv.product - expected_product));
-    yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.mulh) * (multiplier - lv.op2_full_range()));
+    yield_constr.constraint(
+        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.mulh)
+            * (multiplier - lv.op2_full_range()),
+    );
     // The following constraints are for SLL.
     {
         let and_gadget = and_gadget(&lv.xor);
