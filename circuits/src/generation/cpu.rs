@@ -11,7 +11,7 @@ use crate::bitshift::columns::Bitshift;
 use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
-use crate::program::columns::{InstColumnsView, ProgramColumnsView};
+use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::stark::utils::transpose_trace;
 use crate::utils::{from_u32, pad_trace_with_last_to_len};
 
@@ -19,7 +19,7 @@ use crate::utils::{from_u32, pad_trace_with_last_to_len};
 #[must_use]
 pub fn generate_cpu_trace_extended<F: RichField>(
     mut cpu_trace: Vec<CpuState<F>>,
-    program_rom: &[ProgramColumnsView<F>],
+    program_rom: &[ProgramRom<F>],
 ) -> CpuColumnsExtended<Vec<F>> {
     let mut permuted = generate_permuted_inst_trace(&cpu_trace, program_rom);
     let len = cpu_trace.len().max(permuted.len()).next_power_of_two();
@@ -182,17 +182,17 @@ fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorV
 #[must_use]
 pub fn generate_permuted_inst_trace<F: RichField>(
     trace: &[CpuState<F>],
-    program_rom: &[ProgramColumnsView<F>],
-) -> Vec<ProgramColumnsView<F>> {
+    program_rom: &[ProgramRom<F>],
+) -> Vec<ProgramRom<F>> {
     let mut cpu_trace: Vec<_> = trace
         .iter()
         .filter(|row| row.halted == F::ZERO)
         .map(|row| row.inst)
         .sorted_by_key(|inst| inst.pc.to_noncanonical_u64())
         .scan(None, |previous_pc, inst| {
-            Some(ProgramColumnsView {
+            Some(ProgramRom {
                 filter: F::from_bool(Some(inst.pc) != previous_pc.replace(inst.pc)),
-                inst: InstColumnsView::from(inst),
+                inst: InstructionRow::from(inst),
             })
         })
         .collect();
@@ -218,7 +218,7 @@ mod tests {
     use crate::columns_view::selection;
     use crate::cpu::columns::{CpuState, Instruction};
     use crate::generation::cpu::generate_permuted_inst_trace;
-    use crate::program::columns::{InstColumnsView, ProgramColumnsView};
+    use crate::program::columns::{InstructionRow, ProgramRom};
     use crate::utils::from_u32;
 
     #[test]
@@ -290,9 +290,9 @@ mod tests {
         })
         .collect();
 
-        let program_trace: Vec<ProgramColumnsView<F>> = [
-            ProgramColumnsView {
-                inst: InstColumnsView {
+        let program_trace: Vec<ProgramRom<F>> = [
+            ProgramRom {
+                inst: InstructionRow {
                     pc: 1,
                     opcode: 3,
                     rs1: 2,
@@ -302,8 +302,8 @@ mod tests {
                 },
                 filter: 1,
             },
-            ProgramColumnsView {
-                inst: InstColumnsView {
+            ProgramRom {
+                inst: InstructionRow {
                     pc: 2,
                     opcode: 1,
                     rs1: 3,
@@ -313,8 +313,8 @@ mod tests {
                 },
                 filter: 1,
             },
-            ProgramColumnsView {
-                inst: InstColumnsView {
+            ProgramRom {
+                inst: InstructionRow {
                     pc: 3,
                     opcode: 2,
                     rs1: 1,
@@ -324,8 +324,8 @@ mod tests {
                 },
                 filter: 1,
             },
-            ProgramColumnsView {
-                inst: InstColumnsView {
+            ProgramRom {
+                inst: InstructionRow {
                     pc: 1,
                     opcode: 3,
                     rs1: 3,
@@ -341,9 +341,9 @@ mod tests {
         .collect();
 
         let permuted = generate_permuted_inst_trace(&cpu_trace, &program_trace);
-        let expected_permuted: Vec<ProgramColumnsView<F>> = [
-            ProgramColumnsView {
-                inst: InstColumnsView {
+        let expected_permuted: Vec<ProgramRom<F>> = [
+            ProgramRom {
+                inst: InstructionRow {
                     pc: 1,
                     opcode: 3,
                     rs1: 2,
@@ -353,8 +353,8 @@ mod tests {
                 },
                 filter: 1,
             },
-            ProgramColumnsView {
-                inst: InstColumnsView {
+            ProgramRom {
+                inst: InstructionRow {
                     pc: 1,
                     opcode: 3,
                     rs1: 2,
@@ -364,8 +364,8 @@ mod tests {
                 },
                 filter: 0,
             },
-            ProgramColumnsView {
-                inst: InstColumnsView {
+            ProgramRom {
+                inst: InstructionRow {
                     pc: 2,
                     opcode: 1,
                     rs1: 3,
@@ -375,8 +375,8 @@ mod tests {
                 },
                 filter: 1,
             },
-            ProgramColumnsView {
-                inst: InstColumnsView {
+            ProgramRom {
+                inst: InstructionRow {
                     pc: 3,
                     opcode: 2,
                     rs1: 1,
