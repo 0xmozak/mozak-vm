@@ -1,4 +1,4 @@
-//! This module implements the bitwise operations, AND, OR, and XOR.
+//! This module implements the bitwise operation constraints, AND, OR, and XOR.
 //! We assume XOR is implemented directly as a cross-table lookup.
 //! AND and OR are implemented as a combination of XOR and field element
 //! arithmetic.
