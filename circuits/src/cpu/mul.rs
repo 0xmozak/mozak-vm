@@ -1,7 +1,7 @@
 //! This module implements the multiplications operation constraints, including
 //! MUL, MULH and SLL instructions.
 //!
-//! Here, SRL stands for 'shift left logical'.  We can treat it as a variant of
+//! Here, SLL stands for 'shift left logical'.  We can treat it as a variant of
 //! unsigned multiplication.
 
 use plonky2::field::packed::PackedField;
@@ -54,7 +54,7 @@ pub(crate) fn constraints<P: PackedField>(
         yield_constr.constraint(lv.inst.ops.sll * (multiplier - lv.bitshift.multiplier));
     }
 
-    // Now, let's copy our results to the destination register:
+    // Check, that we select the correct output.
 
     let destination = lv.dst_value;
     // Check: For MUL and SLL, we assign the value of low limb as a result
