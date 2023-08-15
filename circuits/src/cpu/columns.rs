@@ -114,7 +114,7 @@ pub const NUM_CPU_COLS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 
 impl<T: PackedField> CpuState<T> {
     #[must_use]
-    pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
+    pub fn shifted(&self, places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
 
     pub fn op_diff(&self) -> T { self.op1_value - self.op2_value }
 
@@ -128,12 +128,12 @@ impl<T: PackedField> CpuState<T> {
     /// For signed operations: `Field::from_noncanonical_i64(op1 as i32 as i64)`
     ///
     /// So range is `i32::MIN..=u32::MAX`
-    pub fn op1_full_range(&self) -> T { self.op1_value - self.op1_sign_bit * Self::shifted(32) }
+    pub fn op1_full_range(&self) -> T { self.op1_value - self.op1_sign_bit * self.shifted(32) }
 
     /// Value of the second operand, as if converted to i64.
     ///
     /// So range is `i32::MIN..=u32::MAX`
-    pub fn op2_full_range(&self) -> T { self.op2_value - self.op2_sign_bit * Self::shifted(32) }
+    pub fn op2_full_range(&self) -> T { self.op2_value - self.op2_sign_bit * self.shifted(32) }
 
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
