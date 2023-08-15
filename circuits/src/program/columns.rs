@@ -18,10 +18,10 @@ pub struct InstColumnsView<T> {
     pub imm: T,
 }
 
-columns_view_impl!(ProgramColumnsView);
-make_col_map!(ProgramColumnsView);
+columns_view_impl!(ProgramRom);
+make_col_map!(ProgramRom);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct ProgramColumnsView<T> {
+pub struct ProgramRom<T> {
     pub inst: InstColumnsView<T>,
     /// Filters out instructions that are duplicates, i.e., appear more than
     /// once in the trace.
@@ -29,7 +29,7 @@ pub struct ProgramColumnsView<T> {
 }
 
 // Total number of columns.
-pub const NUM_PROGRAM_COLS: usize = ProgramColumnsView::<()>::NUMBER_OF_COLUMNS;
+pub const NUM_PROGRAM_COLS: usize = ProgramRom::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
 pub fn data_for_ctl<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.inst) }
