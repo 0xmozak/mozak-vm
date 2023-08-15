@@ -163,6 +163,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     config: &StarkConfig,
     trace_poly_values: &[PolynomialValues<F>],
     trace_commitment: &PolynomialBatch<F, C, D>,
+    public_inputs: [F; S::PUBLIC_INPUTS],
     ctl_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
@@ -236,6 +237,7 @@ where
             trace_commitment,
             &permutation_ctl_zs_commitment,
             &permutation_challenges,
+            public_inputs,
             ctl_data,
             &alphas,
             degree_bits,
@@ -324,12 +326,14 @@ where
         )
     );
 
+    let public_inputs = public_inputs.to_vec();
     Ok(StarkProof {
         trace_cap: trace_commitment.merkle_tree.cap.clone(),
         permutation_ctl_zs_cap,
         quotient_polys_cap,
         openings,
         opening_proof,
+        public_inputs,
     })
 }
 
@@ -362,6 +366,7 @@ where
         config,
         &traces_poly_values[TableKind::Cpu as usize],
         &trace_commitments[TableKind::Cpu as usize],
+        [],
         &ctl_data_per_table[TableKind::Cpu as usize],
         challenger,
         timing,
@@ -372,6 +377,7 @@ where
         config,
         &traces_poly_values[TableKind::RangeCheck as usize],
         &trace_commitments[TableKind::RangeCheck as usize],
+        [],
         &ctl_data_per_table[TableKind::RangeCheck as usize],
         challenger,
         timing,
@@ -382,6 +388,7 @@ where
         config,
         &traces_poly_values[TableKind::Bitwise as usize],
         &trace_commitments[TableKind::Bitwise as usize],
+        [],
         &ctl_data_per_table[TableKind::Bitwise as usize],
         challenger,
         timing,
@@ -392,6 +399,7 @@ where
         config,
         &traces_poly_values[TableKind::Bitshift as usize],
         &trace_commitments[TableKind::Bitshift as usize],
+        [],
         &ctl_data_per_table[TableKind::Bitshift as usize],
         challenger,
         timing,
@@ -402,6 +410,7 @@ where
         config,
         &traces_poly_values[TableKind::Program as usize],
         &trace_commitments[TableKind::Program as usize],
+        [],
         &ctl_data_per_table[TableKind::Program as usize],
         challenger,
         timing,

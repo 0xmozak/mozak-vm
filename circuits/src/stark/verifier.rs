@@ -239,6 +239,7 @@ where
         // The shape of the opening proof will be checked in the FRI verifier (see
         // validate_fri_proof_shape), so we ignore it here.
         opening_proof: _,
+        public_inputs,
     } = proof;
 
     let StarkOpeningSet {
@@ -265,6 +266,7 @@ where
     ensure!(permutation_ctl_zs_next.len() == num_zs);
     ensure!(ctl_zs_last.len() == num_ctl_zs);
     ensure!(quotient_polys.len() == stark.num_quotient_polys(config));
+    ensure!(public_inputs.len() == S::PUBLIC_INPUTS);
 
     Ok(())
 }
