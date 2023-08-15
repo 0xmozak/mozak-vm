@@ -74,6 +74,7 @@ pub struct CpuState<T> {
     pub regs: [T; 32],
 
     // 0 mean non-negative, 1 means negative.
+    // (If number is unsigned, it is non-negative.)
     pub op1_sign_bit: T,
     pub op2_sign_bit: T,
 
