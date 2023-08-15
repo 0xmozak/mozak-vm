@@ -28,6 +28,8 @@ pub struct OpSelectors<T> {
     pub jalr: T,
     pub beq: T,
     pub bne: T,
+    pub sb: T,
+    pub lbu: T,
     pub blt: T,
     pub bltu: T,
     pub bge: T,
@@ -60,7 +62,13 @@ pub struct CpuState<T> {
     pub halted: T,
 
     pub op1_value: T,
+    // The sum of the value of the second operand register and the
+    // immediate value. Wrapped around to fit in a `u32`.
     pub op2_value: T,
+    /// The sum of the value of the second operand
+    /// register and the immediate value with possible overflow, ie summed as
+    /// field elements in a 64-bit field.
+    pub op2_value_overflowing: T,
     pub dst_value: T,
 
     pub regs: [T; 32],
