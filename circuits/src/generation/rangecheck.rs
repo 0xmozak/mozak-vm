@@ -1,3 +1,6 @@
+use std::borrow::Borrow;
+use std::ops::Index;
+
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
@@ -41,11 +44,8 @@ fn push_rangecheck_row<F: RichField>(
         trace[i].push(*col);
     }
 }
-use std::borrow::Borrow;
-use std::ops::Index;
 
-// pub fn extract<F: RichField>(trace: &[CpuState<F>], looking_table: &Table<F>)
-// -> Vec<F> {
+#[allow(clippy::missing_panics_doc)]
 pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<F>
 where
     V: Index<usize, Output = F> + 'a, {
