@@ -14,7 +14,7 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 use super::columns::{CpuColumnsExtended, CpuState, Instruction, OpSelectors};
 use super::{add, bitwise, branches, div, ecall, jalr, mul, signed_comparison, sub};
 use crate::columns_view::NumberOfColumns;
-use crate::program::columns::ProgramColumnsView;
+use crate::program::columns::ProgramRom;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -107,8 +107,8 @@ fn r0_always_0<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintCo
 /// trace is omitted. It also doesn't verify the execution order of the
 /// instructions.
 fn check_permuted_inst_cols<P: PackedField>(
-    lv: &ProgramColumnsView<P>,
-    nv: &ProgramColumnsView<P>,
+    lv: &ProgramRom<P>,
+    nv: &ProgramRom<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(lv.filter * (lv.filter - P::ONES));
