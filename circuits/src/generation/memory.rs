@@ -4,9 +4,7 @@ use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::memory::columns::MemoryColumnsView;
-use crate::memory::trace::{
-    get_memory_inst_addr, get_memory_inst_clk, get_memory_inst_op,
-};
+use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk, get_memory_inst_op};
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
