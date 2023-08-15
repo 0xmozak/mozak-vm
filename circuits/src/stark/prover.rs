@@ -25,6 +25,7 @@ use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::bitshift::stark::BitshiftStark;
 use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
+use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
 use crate::program::stark::ProgramStark;
@@ -56,6 +57,7 @@ where
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(program, record, mozak_stark);
+        debug_ctl(&traces_poly_values, mozak_stark);
     }
     prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
 }
