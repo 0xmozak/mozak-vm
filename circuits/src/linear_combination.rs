@@ -18,14 +18,6 @@ pub struct Column<F: Field> {
 
 impl<F: Field> Column<F> {
     #[must_use]
-    pub fn never() -> Self {
-        Column {
-            linear_combination: vec![],
-            constant: F::ZERO,
-        }
-    }
-
-    #[must_use]
     pub fn always() -> Self {
         Column {
             linear_combination: vec![],
