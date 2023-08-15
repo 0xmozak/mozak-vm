@@ -5,7 +5,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
 use crate::lookup::permute_cols;
-use crate::memory::columns::MemoryColumnsView;
+use crate::memory::columns::Memory;
 use crate::rangecheck::columns::{self, RangeCheckColumnsView, MAP};
 use crate::stark::mozak_stark::{Lookups, RangecheckCpuTable, Table, TableKind};
 
@@ -77,7 +77,7 @@ where
 #[must_use]
 pub fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
-    memory_trace: &[MemoryColumnsView<F>],
+    memory_trace: &[Memory<F>],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
 

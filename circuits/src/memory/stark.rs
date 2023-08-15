@@ -10,7 +10,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use crate::cpu::stark::{is_binary, is_binary_transition};
-use crate::memory::columns::{MemoryColumnsView, NUM_MEM_COLS};
+use crate::memory::columns::{Memory, NUM_MEM_COLS};
 use crate::memory::trace::OPCODE_SB;
 
 #[derive(Copy, Clone, Default)]
@@ -31,8 +31,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &MemoryColumnsView<P> = vars.local_values.borrow();
-        let nv: &MemoryColumnsView<P> = vars.next_values.borrow();
+        let lv: &Memory<P> = vars.local_values.borrow();
+        let nv: &Memory<P> = vars.next_values.borrow();
 
         // This still forbids 0 as the first address.
         // That's wrong.

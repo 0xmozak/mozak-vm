@@ -6,7 +6,7 @@ use crate::stark::mozak_stark::{MemoryTable, Table};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct MemoryColumnsView<T> {
+pub struct Memory<T> {
     // Indicates if a row comes from VM execution, or whether it's padding.
     pub is_executed: T,
 
@@ -31,11 +31,11 @@ pub struct MemoryColumnsView<T> {
     // Difference between current and previous clock.
     pub diff_clk: T,
 }
-columns_view_impl!(MemoryColumnsView);
-make_col_map!(MemoryColumnsView);
+columns_view_impl!(Memory);
+make_col_map!(Memory);
 
 // Total number of columns.
-pub const NUM_MEM_COLS: usize = MemoryColumnsView::<()>::NUMBER_OF_COLUMNS;
+pub const NUM_MEM_COLS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {

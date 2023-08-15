@@ -3,13 +3,13 @@ use mozak_vm::elf::Program;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
-use crate::memory::columns::MemoryColumnsView;
+use crate::memory::columns::Memory;
 use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk, get_memory_inst_op};
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
-fn pad_mem_trace<F: RichField>(mut trace: Vec<MemoryColumnsView<F>>) -> Vec<MemoryColumnsView<F>> {
-    trace.resize(trace.len().next_power_of_two(), MemoryColumnsView {
+fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
+    trace.resize(trace.len().next_power_of_two(), Memory {
         // Some columns need special treatment..
         is_executed: F::ZERO,
         diff_addr: F::ZERO,
@@ -34,19 +34,16 @@ pub fn filter_memory_trace(step_rows: &[Row]) -> Vec<&Row> {
 
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
-pub fn generate_memory_trace<F: RichField>(
-    program: &Program,
-    step_rows: &[Row],
-) -> Vec<MemoryColumnsView<F>> {
+pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row]) -> Vec<Memory<F>> {
     let filtered_step_rows = filter_memory_trace(step_rows);
 
-    let mut trace: Vec<MemoryColumnsView<F>> = vec![];
+    let mut trace: Vec<Memory<F>> = vec![];
     for s in &filtered_step_rows {
         let inst = s.state.current_instruction(program);
         let mem_clk = get_memory_inst_clk(s);
         let mem_addr = get_memory_inst_addr(s);
         let mem_diff_addr = mem_addr - trace.last().map_or(F::ZERO, |last| last.addr);
-        trace.push(MemoryColumnsView {
+        trace.push(Memory {
             addr: mem_addr,
             clk: mem_clk,
             op: get_memory_inst_op(&inst),
@@ -73,21 +70,19 @@ mod tests {
     use plonky2::hash::hash_types::RichField;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use crate::memory::columns::{self as mem_cols, MemoryColumnsView};
+    use crate::memory::columns::{self as mem_cols, Memory};
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::memory::trace::{OPCODE_LBU, OPCODE_SB};
     use crate::test_utils::inv;
 
-    fn prep_table<F: RichField>(
-        table: Vec<[u64; mem_cols::NUM_MEM_COLS]>,
-    ) -> Vec<MemoryColumnsView<F>> {
+    fn prep_table<F: RichField>(table: Vec<[u64; mem_cols::NUM_MEM_COLS]>) -> Vec<Memory<F>> {
         table
             .into_iter()
             .map(|row| row.into_iter().map(F::from_canonical_u64).collect())
             .collect()
     }
 
-    fn expected_trace<F: RichField>() -> Vec<MemoryColumnsView<F>> {
+    fn expected_trace<F: RichField>() -> Vec<Memory<F>> {
         let sb = OPCODE_SB as u64;
         let lbu = OPCODE_LBU as u64;
         let inv = inv::<F>;
@@ -125,8 +120,8 @@ mod tests {
         let (program, record) = memory_trace_test_case();
         let trace = super::generate_memory_trace::<F>(&program, &record.executed[..4]);
 
-        let expected_trace: Vec<MemoryColumnsView<GoldilocksField>> = expected_trace();
-        let expected_trace: Vec<MemoryColumnsView<GoldilocksField>> = vec![
+        let expected_trace: Vec<Memory<GoldilocksField>> = expected_trace();
+        let expected_trace: Vec<Memory<GoldilocksField>> = vec![
             expected_trace[0],
             expected_trace[1],
             expected_trace[4],
