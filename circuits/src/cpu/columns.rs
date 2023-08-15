@@ -63,7 +63,7 @@ pub struct CpuState<T> {
 
     pub op1_value: T,
     // The sum of the value of the second operand register and the
-    // immediate value. This will not overflow.
+    // immediate value. Wrapped around to fit in a `u32`.
     pub op2_value: T,
     /// The sum of the value of the second operand
     /// register and the immediate value with possible overflow.
