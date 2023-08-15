@@ -9,8 +9,8 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use crate::memory::columns::{MemoryColumnsView, NUM_MEM_COLS};
-use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
+use crate::memory::columns::{Memory, NUM_MEM_COLS};
+use crate::memory::trace::{OPCODE_LBU, OPCODE_SB};
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -18,7 +18,6 @@ pub struct MemoryStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-#[deny(clippy::missing_panics_doc)]
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F, D> {
     const COLUMNS: usize = NUM_MEM_COLS;
     const PUBLIC_INPUTS: usize = 0;
@@ -31,46 +30,44 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &MemoryColumnsView<P> = vars.local_values.borrow();
-        let nv: &MemoryColumnsView<P> = vars.next_values.borrow();
+        let lv: &Memory<P> = vars.local_values.borrow();
+        let nv: &Memory<P> = vars.next_values.borrow();
 
-        let local_new_addr = lv.mem_diff_addr * lv.mem_diff_addr_inv;
-        let next_new_addr = nv.mem_diff_addr * nv.mem_diff_addr_inv;
-        yield_constr.constraint_first_row(lv.mem_op - FE::from_canonical_usize(OPCODE_SB));
-        yield_constr.constraint_first_row(lv.mem_diff_addr - lv.mem_addr);
+        let local_new_addr = lv.diff_addr * lv.diff_addr_inv;
+        let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
+        yield_constr.constraint_first_row(lv.op - FE::from_canonical_usize(OPCODE_SB));
+        yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
         yield_constr.constraint_first_row(local_new_addr - P::ONES);
-        yield_constr.constraint_first_row(lv.mem_diff_clk);
+        yield_constr.constraint_first_row(lv.diff_clk);
 
         // lv.MEM_PADDING is {0, 1}
-        yield_constr.constraint(lv.mem_padding * (lv.mem_padding - P::ONES));
+        yield_constr.constraint(lv.padding * (lv.padding - P::ONES));
 
         // lv.MEM_OP in {0, 1}
-        yield_constr.constraint(lv.mem_op * (lv.mem_op - P::ONES));
+        yield_constr.constraint(lv.op * (lv.op - P::ONES));
 
         // a) if new_addr: op === sb
-        yield_constr.constraint(local_new_addr * (lv.mem_op - FE::from_canonical_usize(OPCODE_SB)));
+        yield_constr.constraint(local_new_addr * (lv.op - FE::from_canonical_usize(OPCODE_SB)));
 
         // b) if not new_addr: diff_clk_next <== clk_next - clk_cur
-        yield_constr.constraint_transition(
-            (nv.mem_diff_clk - nv.mem_clk + lv.mem_clk) * (next_new_addr - P::ONES),
-        );
+        yield_constr
+            .constraint_transition((nv.diff_clk - nv.clk + lv.clk) * (next_new_addr - P::ONES));
 
         // c) if new_addr: diff_clk === 0
-        yield_constr.constraint(local_new_addr * lv.mem_diff_clk);
+        yield_constr.constraint(local_new_addr * lv.diff_clk);
 
         // d) diff_addr_next <== addr_next - addr_cur
-        yield_constr.constraint_transition(nv.mem_diff_addr - nv.mem_addr + lv.mem_addr);
+        yield_constr.constraint_transition(nv.diff_addr - nv.addr + lv.addr);
 
         // e) if op_next == lb: value_next === value_cur
         yield_constr.constraint(
-            (nv.mem_value - lv.mem_value)
-                * (P::ONES - nv.mem_op + FE::from_canonical_usize(OPCODE_LB)),
+            (nv.value - lv.value) * (P::ONES - nv.op + FE::from_canonical_usize(OPCODE_LBU)),
         );
 
         // f) (new_addr - 1)*diff_addr===0
         //    (new_addr - 1)*diff_addr_inv===0
-        yield_constr.constraint((local_new_addr - P::ONES) * lv.mem_diff_addr);
-        yield_constr.constraint((local_new_addr - P::ONES) * lv.mem_diff_addr_inv);
+        yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr);
+        yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr_inv);
     }
 
     fn constraint_degree(&self) -> usize { 3 }

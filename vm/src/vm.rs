@@ -134,15 +134,21 @@ impl State {
                 self.register_op(&inst.args, $op)
             };
         }
+        // TODO: consider factoring out this logic from `register_op`, `branch_op`,
+        // `memory_load` etc.
+        let op1 = self.get_register_value(inst.args.rs1);
+        let op2 = self
+            .get_register_value(inst.args.rs2)
+            .wrapping_add(inst.args.imm);
 
         let (aux, state) = match inst.op {
             Op::ADD => rop!(u32::wrapping_add),
             // Only use lower 5 bits of rs2 or imm
-            Op::SLL => rop!(|a, b| a << (b & 0x1F)),
+            Op::SLL => rop!(|a, b| a << (b & 0b1_1111)),
             // Only use lower 5 bits of rs2 or imm
-            Op::SRL => rop!(|a, b| a >> (b & 0x1F)),
+            Op::SRL => rop!(|a, b| a >> (b & 0b1_1111)),
             // Only use lower 5 bits of rs2 or imm
-            Op::SRA => rop!(|a, b| (a as i32 >> (b & 0x1F) as i32) as u32),
+            Op::SRA => rop!(|a, b| (a as i32 >> (b & 0b1_1111) as i32) as u32),
             Op::SLT => rop!(|a, b| u32::from((a as i32) < (b as i32))),
             Op::SLTU => rop!(|a, b| u32::from(a < b)),
             Op::AND => rop!(core::ops::BitAnd::bitand),
@@ -182,6 +188,8 @@ impl State {
         (
             Aux {
                 new_pc: state.get_pc(),
+                op1,
+                op2,
                 ..aux
             },
             state.bump_clock(),
@@ -227,7 +235,7 @@ pub fn step(program: &Program, mut last_state: State) -> Result<ExecutionRecord>
         last_state = new_state;
 
         if cfg!(debug_assertions) {
-            let limit: u64 = std::option_env!("MOZAK_MAX_LOOPS")
+            let limit: u64 = option_env!("MOZAK_MAX_LOOPS")
                 .map_or(1_000_000, |env_var| env_var.parse().unwrap());
             debug_assert!(
                 last_state.clk != limit,
@@ -323,7 +331,7 @@ mod tests {
             );
             assert_eq!(
                 state_before_final(&e).get_register_value(rd),
-                rs1_value << (rs2_value & 0x1F)
+                rs1_value << (rs2_value & 0b1_1111)
             );
         }
 
@@ -387,7 +395,7 @@ mod tests {
             );
             assert_eq!(
                 state_before_final(&e).get_register_value(rd),
-                rs1_value >> (rs2_value & 0x1F)
+                rs1_value >> (rs2_value & 0b1_1111)
             );
         }
 
@@ -407,7 +415,7 @@ mod tests {
             );
             assert_eq!(
                 state_before_final(&e).get_register_value(rd),
-                rs1_value >> (imm & 0x1f)
+                rs1_value >> (imm & 0b1_1111)
             );
         }
 
@@ -512,7 +520,7 @@ mod tests {
             );
             assert_eq!(
                 state_before_final(&e).get_register_value(rd),
-                (rs1_value as i32 >> (rs2_value & 0x1F) as i32) as u32
+                (rs1_value as i32 >> (rs2_value & 0b1_1111) as i32) as u32
             );
         }
 
@@ -530,7 +538,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value)]
             );
-            let expected_value = (rs1_value as i32 >> (imm & 0x1f)) as u32;
+            let expected_value = (rs1_value as i32 >> (imm & 0b1_1111)) as u32;
             assert_eq!(
                 state_before_final(&e).get_register_value(rd),
                 expected_value
@@ -629,7 +637,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value)]
             );
-            assert_eq!(state_before_final(&e).get_register_value(rd), rs1_value << (imm & 0x1F));
+            assert_eq!(state_before_final(&e).get_register_value(rd), rs1_value << (imm & 0b1_1111));
         }
 
         #[test]

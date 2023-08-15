@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
@@ -26,13 +25,19 @@ columns_view_impl!(BitshiftView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct BitshiftView<T> {
+    /// This column tells if the row has a corresponding value row
+    /// in the CPU table. If not, then this is a dummy row, used to
+    /// pad the table to a power of 2 size or a dummy row
+    /// to bridge a gap in the shift amounts.
     pub is_executed: T,
+    /// Contains the `Bitshift` columns with the shift amount and the
+    /// multiplier.
     pub executed: Bitshift<T>,
 }
 
 /// Columns containing data from CPU table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.executed).collect_vec() }
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.executed) }
 
 /// Column containing filter from CPU table.
 #[must_use]

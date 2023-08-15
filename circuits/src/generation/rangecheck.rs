@@ -1,9 +1,10 @@
 use plonky2::hash::hash_types::RichField;
 
-use crate::cpu::columns::CpuColumnsView;
+use crate::cpu::columns::{rangecheck_looking, CpuState};
 use crate::lookup::permute_cols;
 use crate::rangecheck::columns;
 use crate::rangecheck::columns::MAP;
+use crate::stark::mozak_stark::{Table, TableKind};
 
 pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 
@@ -47,26 +48,37 @@ fn push_rangecheck_row<F: RichField>(
 /// # Panics
 ///
 /// Panics if:
-/// 1. conversion of `dst_val` from u32 to u16 fails when splitting into limbs,
-/// 2. trace width does not match the number of columns.
+/// 1. conversion of u32 values to u16 limbs,
+/// 2. trace width does not match the number of columns,
+/// 3. attempting to range check tuples instead of single values.
 #[must_use]
 pub fn generate_rangecheck_trace<F: RichField>(
-    cpu_trace: &[CpuColumnsView<F>],
+    cpu_trace: &[CpuState<F>],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
+    let looking_cpu_tables: Vec<Table<F>> = rangecheck_looking();
 
-    for cpu_row in cpu_trace {
-        let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
-        if cpu_row.inst.ops.add.is_one() {
-            let dst_val = u32::try_from(cpu_row.dst_value.to_canonical_u64())
-                .expect("casting COL_DST_VALUE to u32 should succeed");
-            let (limb_hi, limb_lo) = limbs_from_u32(dst_val);
-            rangecheck_row[MAP.val] = cpu_row.dst_value;
-            rangecheck_row[MAP.limb_hi] = limb_hi;
-            rangecheck_row[MAP.limb_lo] = limb_lo;
-            rangecheck_row[MAP.cpu_filter] = F::ONE;
+    for cpu_table in &looking_cpu_tables {
+        assert!(matches!(cpu_table.kind, TableKind::Cpu));
+        if let [column] = &cpu_table.columns[..] {
+            for cpu_row in cpu_trace {
+                let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
+                if cpu_table.filter_column.eval(cpu_row).is_one() {
+                    let value = column.eval(cpu_row);
+                    let (limb_hi, limb_lo) = limbs_from_u32(
+                        u32::try_from(value.to_canonical_u64())
+                            .expect("casting value to u32 should succeed"),
+                    );
+                    rangecheck_row[MAP.val] = value;
+                    rangecheck_row[MAP.limb_hi] = limb_hi;
+                    rangecheck_row[MAP.limb_lo] = limb_lo;
+                    rangecheck_row[MAP.cpu_filter] = F::ONE;
 
-            push_rangecheck_row(&mut trace, rangecheck_row);
+                    push_rangecheck_row(&mut trace, rangecheck_row);
+                }
+            }
+        } else {
+            panic!("Can only range check single values, not tuples.");
         }
     }
 
@@ -135,7 +147,7 @@ mod tests {
             &[(6, 0xffff), (7, 0xffff)],
         );
 
-        let cpu_rows = generate_cpu_trace::<F>(&program, &record.executed);
+        let cpu_rows = generate_cpu_trace::<F>(&program, &record);
         let trace = generate_rangecheck_trace::<F>(&cpu_rows);
 
         // Check values that we are interested in

@@ -3,7 +3,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::bitwise::and_gadget;
-use super::columns::CpuColumnsView;
+use super::columns::CpuState;
 
 /// Constraints for DIVU / REMU / SRL instructions
 ///
@@ -11,11 +11,13 @@ use super::columns::CpuColumnsView;
 /// unsigned division.
 ///
 /// TODO: m, r, slack need range-checks.
+#[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let dst = lv.dst_value;
+    let ops = lv.inst.ops;
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
     // > For both signed and unsigned division, it holds that dividend = divisor ×
@@ -23,19 +25,19 @@ pub(crate) fn constraints<P: PackedField>(
     // In the following code, we are looking at p/q.
     let p = lv.op1_value;
     let q = lv.divisor;
-    yield_constr.constraint((lv.inst.ops.divu + lv.inst.ops.remu) * (q - lv.op2_value));
+    yield_constr.constraint((ops.divu + ops.remu) * (q - lv.op2_value));
 
     // The following constraints are for SRL.
     {
         let and_gadget = and_gadget(&lv.xor);
         yield_constr.constraint(
-            lv.inst.ops.srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)),
+            ops.srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0b1_1111)),
         );
         let op2 = lv.op2_value;
-        yield_constr.constraint(lv.inst.ops.srl * (and_gadget.input_b - op2));
+        yield_constr.constraint(ops.srl * (and_gadget.input_b - op2));
 
-        yield_constr.constraint(lv.inst.ops.srl * (and_gadget.output - lv.bitshift.amount));
-        yield_constr.constraint(lv.inst.ops.srl * (q - lv.bitshift.multiplier));
+        yield_constr.constraint(ops.srl * (and_gadget.output - lv.bitshift.amount));
+        yield_constr.constraint(ops.srl * (q - lv.bitshift.multiplier));
     }
 
     // The equation from the spec becomes:
@@ -75,8 +77,8 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint((P::ONES - q * q_inv) * (r - p));
 
     // Last, we 'copy' our results:
-    yield_constr.constraint((lv.inst.ops.divu + lv.inst.ops.srl) * (dst - m));
-    yield_constr.constraint(lv.inst.ops.remu * (dst - r));
+    yield_constr.constraint((ops.divu + ops.srl) * (dst - m));
+    yield_constr.constraint(ops.remu * (dst - r));
 }
 
 #[cfg(test)]
@@ -135,7 +137,7 @@ mod tests {
                 } else {
                     p % q
                 });
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
         #[test]
         fn prove_srl_proptest(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
@@ -164,7 +166,7 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p >> q);
             prop_assert_eq!(record.executed[1].aux.dst_val, p >> q);
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }

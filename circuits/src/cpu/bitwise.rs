@@ -17,8 +17,8 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::columns::CpuColumnsView;
-use crate::bitwise::columns::XorView;
+use super::columns::CpuState;
+use crate::xor::columns::XorView;
 
 /// A struct to represent the output of binary operations
 ///
@@ -65,7 +65,7 @@ pub(crate) fn xor_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
 /// Constraints to verify execution of AND, OR and XOR instructions.
 #[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
-    lv: &CpuColumnsView<P>,
+    lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let op1 = lv.op1_value;
@@ -91,8 +91,8 @@ mod tests {
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
-    use crate::bitwise::stark::BitwiseStark;
     use crate::test_utils::ProveAndVerify;
+    use crate::xor::stark::XorStark;
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
@@ -123,7 +123,7 @@ mod tests {
             .collect();
 
             let (program, record) = simple_test_code(&code, &[], &[(6, a), (7, b)]);
-            BitwiseStark::prove_and_verify(&program, &record.executed).unwrap();
+            XorStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }

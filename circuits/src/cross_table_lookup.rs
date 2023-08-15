@@ -1,14 +1,9 @@
-use std::borrow::Borrow;
-
 use anyhow::{ensure, Result};
-use itertools::Itertools;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
@@ -16,6 +11,7 @@ use starky::stark::Stark;
 use starky::vars::StarkEvaluationVars;
 use thiserror::Error;
 
+pub use crate::linear_combination::Column;
 use crate::stark::mozak_stark::{Table, NUM_TABLES};
 use crate::stark::permutation::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::StarkProof;
@@ -176,91 +172,11 @@ fn partial_products<F: Field>(
     res.into()
 }
 
-/// Represent a linear combination of columns.
-#[derive(Clone, Debug)]
-pub struct Column<F: Field> {
-    linear_combination: Vec<(usize, F)>,
-    constant: F,
-}
-
-impl<F: Field> Column<F> {
-    #[must_use]
-    pub fn always() -> Self {
-        Column {
-            linear_combination: vec![],
-            constant: F::ONE,
-        }
-    }
-
-    #[must_use]
-    pub fn single(c: usize) -> Self {
-        Self {
-            linear_combination: vec![(c, F::ONE)],
-            constant: F::ZERO,
-        }
-    }
-
-    pub fn singles<I: IntoIterator<Item = impl Borrow<usize>>>(
-        cs: I,
-    ) -> impl Iterator<Item = Self> {
-        cs.into_iter().map(|c| Self::single(*c.borrow()))
-    }
-
-    #[must_use]
-    pub fn many<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
-        Column {
-            linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect_vec(),
-            constant: F::ZERO,
-        }
-    }
-
-    pub fn eval<FE, P, const D: usize>(&self, v: &[P]) -> P
-    where
-        FE: FieldExtension<D, BaseField = F>,
-        P: PackedField<Scalar = FE>, {
-        self.linear_combination
-            .iter()
-            .map(|&(c, f)| v[c] * FE::from_basefield(f))
-            .sum::<P>()
-            + FE::from_basefield(self.constant)
-    }
-
-    /// Evaluate on an row of a table given in column-major form.
-    pub fn eval_table(&self, table: &[PolynomialValues<F>], row: usize) -> F {
-        self.linear_combination
-            .iter()
-            .map(|&(c, f)| table[c].values[row] * f)
-            .sum::<F>()
-            + self.constant
-    }
-
-    pub fn eval_circuit<const D: usize>(
-        &self,
-        builder: &mut CircuitBuilder<F, D>,
-        v: &[ExtensionTarget<D>],
-    ) -> ExtensionTarget<D>
-    where
-        F: RichField + Extendable<D>, {
-        let pairs = self
-            .linear_combination
-            .iter()
-            .map(|&(c, f)| {
-                (
-                    v[c],
-                    builder.constant_extension(F::Extension::from_basefield(f)),
-                )
-            })
-            .collect::<Vec<_>>();
-        let constant = builder.constant_extension(F::Extension::from_basefield(self.constant));
-        builder.inner_product_extension(F::ONE, constant, pairs)
-    }
-}
-
 #[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct CrossTableLookup<F: Field> {
-    looking_tables: Vec<Table<F>>,
-    looked_table: Table<F>,
+    pub looking_tables: Vec<Table<F>>,
+    pub looked_table: Table<F>,
 }
 
 impl<F: Field> CrossTableLookup<F> {
@@ -378,18 +294,17 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
     }
 }
 
-#[cfg(test)]
-mod tests {
+pub mod ctl_utils {
     use std::collections::HashMap;
-    use std::ops::Deref;
+    use std::ops::{Deref, DerefMut};
 
-    use anyhow::Result;
-    use itertools::Itertools;
-    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::extension::Extendable;
     use plonky2::field::polynomial::PolynomialValues;
+    use plonky2::field::types::Field;
+    use plonky2::hash::hash_types::RichField;
 
-    use super::*;
-    use crate::stark::mozak_stark::{CpuTable, Lookups, RangeCheckTable, TableKind};
+    use crate::cross_table_lookup::{CrossTableLookup, LookupError};
+    use crate::stark::mozak_stark::{MozakStark, Table, TableKind, NUM_TABLES};
 
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, usize)>>);
 
@@ -398,7 +313,9 @@ mod tests {
 
         fn deref(&self) -> &Self::Target { &self.0 }
     }
-
+    impl<F: Field> DerefMut for MultiSet<F> {
+        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+    }
     impl<F: Field> MultiSet<F> {
         pub fn new() -> Self { MultiSet(HashMap::new()) }
 
@@ -416,7 +333,7 @@ mod tests {
                         .iter()
                         .map(|c| c.eval_table(trace, i))
                         .collect::<Vec<_>>();
-                    self.0.entry(row).or_default().push((table.kind, i));
+                    self.entry(row).or_default().push((table.kind, i));
                 } else if !filter.is_zero() {
                     return Err(LookupError::NonBinaryFilter(i));
                 }
@@ -426,31 +343,8 @@ mod tests {
         }
     }
 
-    /// Specify which column(s) to find data related to lookups.
-    fn lookup_data<F: Field>(col_indices: &[usize]) -> Vec<Column<F>> {
-        Column::singles(col_indices).collect_vec()
-    }
-
-    /// Specify the column index of the filter column used in lookups.
-    fn lookup_filter<F: Field>(col_idx: usize) -> Column<F> { Column::single(col_idx) }
-
-    /// A generic cross lookup table.
-    struct FooBarTable<F: Field>(CrossTableLookup<F>);
-
-    impl<F: Field> Lookups<F> for FooBarTable<F> {
-        /// We use the [`CpuTable`] and the [`RangeCheckTable`] to build a
-        /// [`CrossTableLookup`] here, but in principle this is meant to
-        /// be used generically for tests.
-        fn lookups() -> CrossTableLookup<F> {
-            CrossTableLookup {
-                looking_tables: vec![CpuTable::new(lookup_data(&[1]), lookup_filter(2))],
-                looked_table: RangeCheckTable::new(lookup_data(&[1]), lookup_filter(0)),
-            }
-        }
-    }
-
-    /// Check that the provided trace and cross-table lookup are consistent.
-    fn check_ctl<F: Field>(
+    #[allow(clippy::missing_errors_doc)]
+    pub fn check_single_ctl<F: Field>(
         trace_poly_values: &[Vec<PolynomialValues<F>>],
         ctl: &CrossTableLookup<F>,
     ) -> Result<(), LookupError> {
@@ -503,6 +397,50 @@ mod tests {
         }
 
         Ok(())
+    }
+    #[allow(clippy::missing_panics_doc)]
+    pub fn debug_ctl<F: RichField + Extendable<D>, const D: usize>(
+        traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+        mozak_stark: &MozakStark<F, D>,
+    ) {
+        mozak_stark
+            .cross_table_lookups
+            .iter()
+            .for_each(|ctl| check_single_ctl(traces_poly_values, ctl).unwrap());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::polynomial::PolynomialValues;
+
+    use super::ctl_utils::check_single_ctl;
+    use super::*;
+    use crate::stark::mozak_stark::{CpuTable, Lookups, RangeCheckTable};
+
+    /// Specify which column(s) to find data related to lookups.
+    fn lookup_data<F: Field>(col_indices: &[usize]) -> Vec<Column<F>> {
+        Column::singles(col_indices)
+    }
+
+    /// Specify the column index of the filter column used in lookups.
+    fn lookup_filter<F: Field>(col_idx: usize) -> Column<F> { Column::single(col_idx) }
+
+    /// A generic cross lookup table.
+    struct FooBarTable<F: Field>(CrossTableLookup<F>);
+
+    impl<F: Field> Lookups<F> for FooBarTable<F> {
+        /// We use the [`CpuTable`] and the [`RangeCheckTable`] to build a
+        /// [`CrossTableLookup`] here, but in principle this is meant to
+        /// be used generically for tests.
+        fn lookups() -> CrossTableLookup<F> {
+            CrossTableLookup {
+                looking_tables: vec![CpuTable::new(lookup_data(&[1]), lookup_filter(2))],
+                looked_table: RangeCheckTable::new(lookup_data(&[1]), lookup_filter(0)),
+            }
+        }
     }
 
     #[derive(Debug, PartialEq)]
@@ -591,7 +529,7 @@ mod tests {
             TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
         let traces = vec![foo_trace, bar_trace];
         assert!(matches!(
-            check_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
+            check_single_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
             LookupError::NonBinaryFilter(0)
         ));
     }
@@ -613,7 +551,7 @@ mod tests {
             TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
         let traces = vec![foo_trace, bar_trace];
         assert!(matches!(
-            check_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
+            check_single_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
             LookupError::InconsistentTableRows
         ));
     }
@@ -629,7 +567,7 @@ mod tests {
         let bar_trace: Vec<PolynomialValues<F>> =
             TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
         let traces = vec![foo_trace, bar_trace];
-        check_ctl(&traces, &dummy_cross_table_lookup)?;
+        check_single_ctl(&traces, &dummy_cross_table_lookup)?;
 
         Ok(())
     }
