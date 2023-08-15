@@ -5,6 +5,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuState;
+use super::stark::is_binary;
 
 /// Constraints for `less_than` and `not_diff`
 /// For `less_than`:
@@ -33,14 +34,17 @@ pub(crate) fn comparison_constraints<P: PackedField>(
 
     // Thus, we need a constraint when |r1 - r2| == 0 -> lt == 0.
 
-    // To do so, we constraint `not_diff` to be 0 only if r1 != r2
-    yield_constr.constraint(lv.not_diff * (lv.not_diff - P::ONES));
-    yield_constr.constraint(lv.op_diff() * lv.cmp_diff_inv + lv.not_diff - P::ONES);
+    // To do so, we constraint `normalised_diff` to be
+    //  0 iff r1 == r2
+    //  1 iff r1 != r2
+    is_binary(yield_constr, lv.normalised_diff);
+    yield_constr.constraint(lv.op_diff() * (P::ONES - lv.normalised_diff));
+    yield_constr.constraint(lv.op_diff() * lv.cmp_diff_inv - lv.normalised_diff);
 
-    // Finally, we make so that only one of `lt` and `not_diff`
-    // can equal 1 at once. Now, if `op1 == op2`, then `not_diff == 1`,
-    // thus `lt` can only be 0
-    yield_constr.constraint(lt * lv.not_diff);
+    // Finally, we constraint so that only one of both `lt` and `not_diff`
+    // can equal 1 at once. There for, if `op1 == op2`, then `not_diff == 1`,
+    // thus `lt` can only be 0. Which means we are no longer underconstrained. 
+    yield_constr.constraint(lt * (P::ONES - lv.normalised_diff));
 }
 
 /// Constraints for conditional branch operations
@@ -71,13 +75,13 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint((is_bge + is_bgeu) * lt * (next_pc - bumped_pc));
     yield_constr.constraint((is_bge + is_bgeu) * (P::ONES - lt) * (next_pc - branched_pc));
 
-    // Check: For BEQ, branch if `not_diff == 0`, otherwise just increment the pc.
-    yield_constr.constraint(ops.beq * lv.not_diff * (next_pc - branched_pc));
-    yield_constr.constraint(ops.beq * (P::ONES - lv.not_diff) * (next_pc - bumped_pc));
+    // Check: For BEQ, branch if `normalised_diff == 0`, otherwise just increment the pc.
+    yield_constr.constraint(ops.beq * (P::ONES - lv.normalised_diff) * (next_pc - branched_pc));
+    yield_constr.constraint(ops.beq * lv.normalised_diff * (next_pc - bumped_pc));
 
     // Check: For BNE, we reverse the checks of BNE.
-    yield_constr.constraint(ops.bne * (P::ONES - lv.not_diff) * (next_pc - branched_pc));
-    yield_constr.constraint(ops.bne * lv.not_diff * (next_pc - bumped_pc));
+    yield_constr.constraint(ops.bne * lv.normalised_diff * (next_pc - branched_pc));
+    yield_constr.constraint(ops.bne * (P::ONES - lv.normalised_diff) * (next_pc - bumped_pc));
 }
 
 #[cfg(test)]
