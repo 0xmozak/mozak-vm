@@ -53,6 +53,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         P: PackedField<Scalar = FE>, {
         let lv = vars.local_values.borrow();
         let nv: &RangeCheckColumnsView<P> = vars.next_values.borrow();
+
+        // Check: the value is built from two limbs.
+        // And then check that the limbs are in range of 0..2^16 using lookup tables.
+
         constrain_value(
             P::Scalar::from_canonical_usize(Self::BASE),
             lv,
@@ -70,6 +74,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
             MAP.limb_hi_permuted,
             MAP.fixed_range_check_u16_permuted_hi,
         );
+
+        // Check: the `fixed_range_check_u16` forms a sequence from 0 to 2^16-1.
+        //  this column will be used to connect to the permutation columns,
+        //  `fixed_range_check_u16_permuted_hi` and `fixed_range_check_u16_permuted_lo`.
+
         yield_constr.constraint_first_row(lv.fixed_range_check_u16);
         yield_constr.constraint_transition(
             (nv.fixed_range_check_u16 - lv.fixed_range_check_u16 - FE::ONE)
