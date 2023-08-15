@@ -157,17 +157,15 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     ]
 }
 
-/// Columns containing the data to be matched against XOR Bitwise stark.
+/// Columns containing the data to be matched against Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor) }
+pub fn data_for_xor<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor) }
 
-/// Column for a binary filter for xor instruction in Bitwise stark.
+/// Column for a binary filter for bitwise instruction in Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_bitwise<F: Field>() -> Column<F> {
-    Column::many(MAP.cpu.inst.ops.ops_that_use_xor())
-}
+pub fn filter_for_xor<F: Field>() -> Column<F> { Column::many(MAP.cpu.inst.ops.ops_that_use_xor()) }
 
 impl<T: Copy> OpSelectors<T> {
     #[must_use]

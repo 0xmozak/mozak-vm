@@ -188,8 +188,8 @@ impl<F: Field> Lookups<F> for BitwiseCpuTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
-                cpu::columns::data_for_bitwise(),
-                cpu::columns::filter_for_bitwise(),
+                cpu::columns::data_for_xor(),
+                cpu::columns::filter_for_xor(),
             )],
             XorTable::new(xor::columns::data_for_cpu(), xor::columns::filter_for_cpu()),
         )
