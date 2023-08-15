@@ -172,7 +172,7 @@ fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
 /// Constraints for values in op2, which is the sum of the value of the second
 /// operand register and the immediate value. This may overflow.
 fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
-    let wrap_at = lv.shifted(32);
+    let wrap_at = CpuState::<P>::shifted(32);
 
     yield_constr.constraint(
         lv.op2_value_overflowing - lv.inst.imm_value
