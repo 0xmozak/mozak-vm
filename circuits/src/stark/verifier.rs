@@ -55,11 +55,6 @@ where
         ..
     } = mozak_stark;
 
-    // Ensures public inputs are
-    ensure!(
-        all_proof.public_inputs.pc_start
-            == all_proof.stark_proofs[TableKind::Cpu as usize].public_inputs[0]
-    );
     ensure!(
         all_proof.stark_proofs[TableKind::Program as usize].trace_cap
             == all_proof.program_rom_trace_cap,
@@ -77,6 +72,7 @@ where
         &cpu_stark,
         &all_proof.stark_proofs[TableKind::Cpu as usize],
         &stark_challenges[TableKind::Cpu as usize],
+        [all_proof.public_inputs.pc_start],
         &ctl_vars_per_table[TableKind::Cpu as usize],
         config,
     )?;
@@ -85,6 +81,7 @@ where
         &rangecheck_stark,
         &all_proof.stark_proofs[TableKind::RangeCheck as usize],
         &stark_challenges[TableKind::RangeCheck as usize],
+        [],
         &ctl_vars_per_table[TableKind::RangeCheck as usize],
         config,
     )?;
@@ -93,6 +90,7 @@ where
         &xor_stark,
         &all_proof.stark_proofs[TableKind::Bitwise as usize],
         &stark_challenges[TableKind::Bitwise as usize],
+        [],
         &ctl_vars_per_table[TableKind::Bitwise as usize],
         config,
     )?;
@@ -101,6 +99,7 @@ where
         &shift_amount_stark,
         &all_proof.stark_proofs[TableKind::Bitshift as usize],
         &stark_challenges[TableKind::Bitshift as usize],
+        [],
         &ctl_vars_per_table[TableKind::Bitshift as usize],
         config,
     )?;
@@ -109,6 +108,7 @@ where
         &program_stark,
         &all_proof.stark_proofs[TableKind::Program as usize],
         &stark_challenges[TableKind::Program as usize],
+        [],
         &ctl_vars_per_table[TableKind::Program as usize],
         config,
     )?;
@@ -126,6 +126,7 @@ pub(crate) fn verify_stark_proof_with_challenges<
     stark: &S,
     proof: &StarkProof<F, C, D>,
     challenges: &StarkProofChallenges<F, D>,
+    public_inputs: [F; S::PUBLIC_INPUTS],
     ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
     config: &StarkConfig,
 ) -> Result<()>
@@ -142,10 +143,16 @@ where
         ctl_zs_last,
         quotient_polys,
     } = &proof.openings;
+
     let vars = StarkEvaluationVars {
         local_values: &local_values.clone().try_into().unwrap(),
         next_values: &next_values.clone().try_into().unwrap(),
-        public_inputs: &[F::ZERO.into(); S::PUBLIC_INPUTS],
+        public_inputs: &public_inputs
+            .into_iter()
+            .map(F::Extension::from_basefield)
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap(),
     };
 
     let degree_bits = proof.recover_degree_bits(config);
@@ -245,7 +252,6 @@ where
         // The shape of the opening proof will be checked in the FRI verifier (see
         // validate_fri_proof_shape), so we ignore it here.
         opening_proof: _,
-        public_inputs,
     } = proof;
 
     let StarkOpeningSet {
@@ -272,7 +278,6 @@ where
     ensure!(permutation_ctl_zs_next.len() == num_zs);
     ensure!(ctl_zs_last.len() == num_ctl_zs);
     ensure!(quotient_polys.len() == stark.num_quotient_polys(config));
-    ensure!(public_inputs.len() == S::PUBLIC_INPUTS);
 
     Ok(())
 }

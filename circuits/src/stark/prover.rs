@@ -340,14 +340,12 @@ where
         )
     );
 
-    let public_inputs = public_inputs.to_vec();
     Ok(StarkProof {
         trace_cap: trace_commitment.merkle_tree.cap.clone(),
         permutation_ctl_zs_cap,
         quotient_polys_cap,
         openings,
         opening_proof,
-        public_inputs,
     })
 }
 
