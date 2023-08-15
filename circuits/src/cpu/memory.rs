@@ -72,16 +72,6 @@ mod tests {
         }
 
         #[test]
-        fn prove_sh_proptest(a in u32_extra(), b in u32_extra()) {
-            let (program, record) = simple_test_code(
-                &[standard_instruction(Op::SH)],
-                &[],
-                &[(6, a), (7, b)],
-            );
-
-            CpuStark::prove_and_verify(&program, &record).unwrap();
-        }
-        #[test]
         fn prove_mem_read_write_proptest(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
             let (program, record) = simple_test_code(
                 &[
@@ -105,6 +95,16 @@ mod tests {
                 ],
                 &[],
                 &[(1, content.into()), (2, offset)],
+            );
+
+            CpuStark::prove_and_verify(&program, &record).unwrap();
+        }
+
+        fn prove_sh_proptest(a in u32_extra(), b in u32_extra()) {
+            let (program, record) = simple_test_code(
+                &[standard_instruction(Op::SH)],
+                &[],
+                &[(6, a), (7, b)],
             );
 
             CpuStark::prove_and_verify(&program, &record).unwrap();
