@@ -5,18 +5,18 @@ use starky::config::StarkConfig;
 use starky::stark::Stark;
 
 use crate::bitshift::stark::BitshiftStark;
-use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::{bitshift, bitwise, cpu, program, rangecheck};
+use crate::xor::stark::XorStark;
+use crate::{bitshift, cpu, program, rangecheck, xor};
 
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cpu_stark: CpuStark<F, D>,
     pub rangecheck_stark: RangeCheckStark<F, D>,
-    pub bitwise_stark: BitwiseStark<F, D>,
+    pub xor_stark: XorStark<F, D>,
     pub shift_amount_stark: BitshiftStark<F, D>,
     pub program_stark: ProgramStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 5],
@@ -33,7 +33,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
         Self {
             cpu_stark: CpuStark::default(),
             rangecheck_stark: RangeCheckStark::default(),
-            bitwise_stark: BitwiseStark::default(),
+            xor_stark: XorStark::default(),
             shift_amount_stark: BitshiftStark::default(),
             program_stark: ProgramStark::default(),
             cross_table_lookups: [
@@ -53,7 +53,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
         [
             self.cpu_stark.num_permutation_batches(config),
             self.rangecheck_stark.num_permutation_batches(config),
-            self.bitwise_stark.num_permutation_batches(config),
+            self.xor_stark.num_permutation_batches(config),
             self.shift_amount_stark.num_permutation_batches(config),
             self.program_stark.num_permutation_batches(config),
         ]
@@ -63,7 +63,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
         [
             self.cpu_stark.permutation_batch_size(),
             self.rangecheck_stark.permutation_batch_size(),
-            self.bitwise_stark.permutation_batch_size(),
+            self.xor_stark.permutation_batch_size(),
             self.shift_amount_stark.permutation_batch_size(),
             self.program_stark.permutation_batch_size(),
         ]
@@ -125,8 +125,8 @@ pub struct RangeCheckTable<F: Field>(Table<F>);
 /// Represents a cpu trace table in the Mozak VM.
 pub struct CpuTable<F: Field>(Table<F>);
 
-/// Represents a bitwise trace table in the Mozak VM.
-pub struct BitwiseTable<F: Field>(Table<F>);
+/// Represents a xor trace table in the Mozak VM.
+pub struct XorTable<F: Field>(Table<F>);
 
 /// Represents a shift amount trace table in the Mozak VM.
 pub struct BitshiftTable<F: Field>(Table<F>);
@@ -148,7 +148,7 @@ impl<F: Field> CpuTable<F> {
     }
 }
 
-impl<F: Field> BitwiseTable<F> {
+impl<F: Field> XorTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
         Table::new(TableKind::Bitwise, columns, filter_column)
@@ -193,13 +193,10 @@ impl<F: Field> Lookups<F> for BitwiseCpuTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
-                cpu::columns::data_for_bitwise(),
-                cpu::columns::filter_for_bitwise(),
+                cpu::columns::data_for_xor(),
+                cpu::columns::filter_for_xor(),
             )],
-            BitwiseTable::new(
-                bitwise::columns::data_for_cpu(),
-                bitwise::columns::filter_for_cpu(),
-            ),
+            XorTable::new(xor::columns::data_for_cpu(), xor::columns::filter_for_cpu()),
         )
     }
 }

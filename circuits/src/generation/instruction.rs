@@ -13,11 +13,13 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
             branch_target: inst.args.branch_target,
             ..Self::default()
         };
-        *(match inst.op {
+        *match inst.op {
             Op::ADD => &mut cols.ops.add,
+            Op::LBU => &mut cols.ops.lbu,
             Op::SLL => &mut cols.ops.sll,
             Op::SLT => &mut cols.ops.slt,
             Op::SLTU => &mut cols.ops.sltu,
+            Op::SB => &mut cols.ops.sb,
             Op::SRL => &mut cols.ops.srl,
             Op::SUB => &mut cols.ops.sub,
             Op::DIVU => &mut cols.ops.divu,
@@ -36,8 +38,8 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
             Op::OR => &mut cols.ops.or,
             Op::AND => &mut cols.ops.and,
             #[tarpaulin::skip]
-            _ => unreachable!(),
-        }) = 1;
+            other => unimplemented!("Opcode {other:?} not supported, yet."),
+        } = 1;
         cols.rs1_select[inst.args.rs1 as usize] = 1;
         cols.rs2_select[inst.args.rs2 as usize] = 1;
         cols.rd_select[inst.args.rd as usize] = 1;

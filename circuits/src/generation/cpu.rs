@@ -8,12 +8,12 @@ use mozak_vm::vm::{ExecutionRecord, Row};
 use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;
-use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
 use crate::program::columns::{InstColumnsView, ProgramColumnsView};
 use crate::stark::utils::transpose_trace;
 use crate::utils::{from_u32, pad_trace_with_last_to_len};
+use crate::xor::columns::XorView;
 
 #[allow(clippy::missing_panics_doc)]
 #[must_use]
@@ -45,9 +45,9 @@ pub fn generate_cpu_trace<F: RichField>(
             clk: F::from_noncanonical_u64(state.clk),
             inst: cpu_cols::Instruction::from((state.get_pc(), inst)).map(from_u32),
             op1_value: from_u32(aux.op1),
-            // OP2_VALUE is the sum of the value of the second operand register and the
-            // immediate value.
             op2_value: from_u32(aux.op2),
+            op2_value_overflowing: from_u32::<F>(state.get_register_value(inst.args.rs2))
+                + from_u32(inst.args.imm),
             // NOTE: Updated value of DST register is next step.
             dst_value: from_u32(aux.dst_val),
             halted: from_u32(u32::from(aux.will_halt)),
@@ -81,7 +81,7 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
     let diff_inv = diff.try_inverse().unwrap_or_default();
 
     row.cmp_diff_inv = diff_inv;
-    row.not_diff = F::ONE - diff * diff_inv;
+    row.normalised_diff = diff * diff_inv;
 }
 
 #[allow(clippy::cast_possible_wrap)]
