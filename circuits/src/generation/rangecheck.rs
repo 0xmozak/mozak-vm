@@ -3,7 +3,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::cpu::columns::{rangecheck_looking_cpu, CpuState};
 use crate::lookup::permute_cols;
 use crate::memory::columns::MemoryColumnsView;
-use crate::rangecheck::columns;
+use crate::rangecheck::columns::{self, RangeCheckColumnsView};
 use crate::rangecheck::columns::MAP;
 use crate::stark::mozak_stark::{Table, TableKind};
 
@@ -36,12 +36,13 @@ fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
 
 fn push_rangecheck_row<F: RichField>(
     trace: &mut [Vec<F>],
-    rangecheck_row: [F; columns::NUM_RC_COLS],
+    rangecheck_row: &[F; columns::NUM_RC_COLS],
 ) {
     for (i, col) in rangecheck_row.iter().enumerate() {
         trace[i].push(*col);
     }
 }
+use std::borrow::Borrow;
 use std::ops::Index;
 
 // pub fn extract<F: RichField>(trace: &[CpuState<F>], looking_table: &Table<F>)
@@ -92,18 +93,19 @@ pub fn generate_rangecheck_trace<F: RichField>(
             other => unimplemented!("Can't range check {other:#?} tables"),
         };
 
-        for value in values.into_iter() {
-            let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
+        for val in values.into_iter() {
             let (limb_hi, limb_lo) = limbs_from_u32(
-                u32::try_from(value.to_canonical_u64())
+                u32::try_from(val.to_canonical_u64())
                     .expect("casting value to u32 should succeed"),
             );
-            rangecheck_row[MAP.val] = value;
-            rangecheck_row[MAP.limb_hi] = limb_hi;
-            rangecheck_row[MAP.limb_lo] = limb_lo;
-            rangecheck_row[MAP.cpu_filter] = F::ONE;
-
-            push_rangecheck_row(&mut trace, rangecheck_row);
+            let rangecheck_row = RangeCheckColumnsView {
+                val,
+                limb_lo,
+                limb_hi,
+                cpu_filter: F::ONE,
+                ..Default::default()
+            };
+            push_rangecheck_row(&mut trace, rangecheck_row.borrow());
         }
     }
 

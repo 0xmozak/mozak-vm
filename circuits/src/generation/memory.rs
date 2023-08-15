@@ -13,15 +13,17 @@ use crate::memory::trace::{
 /// Pad the memory trace to a power of 2.
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<MemoryColumnsView<F>>) -> Vec<MemoryColumnsView<F>> {
-    trace.resize(trace.len().next_power_of_two(), MemoryColumnsView {
-        // Some columns need special treatment..
-        not_padding: F::ZERO,
-        mem_diff_addr: F::ZERO,
-        mem_diff_addr_inv: F::ZERO,
-        mem_diff_clk: F::ZERO,
-        // .. and all other columns just have their last value duplicated.
-        ..*trace.last().unwrap()
-    });
+    if let Some(&last) = trace.last() {
+        trace.resize(trace.len().next_power_of_two(), MemoryColumnsView {
+            // Some columns need special treatment..
+            not_padding: F::ZERO,
+            mem_diff_addr: F::ZERO,
+            mem_diff_addr_inv: F::ZERO,
+            mem_diff_clk: F::ZERO,
+            // .. and all other columns just have their last value duplicated.
+            ..last
+        });
+    }
     trace
 }
 
