@@ -5,6 +5,7 @@ pub mod columns;
 pub mod div;
 pub mod ecall;
 pub mod jalr;
+pub mod memory;
 pub mod mul;
 pub mod signed_comparison;
 pub mod stark;
