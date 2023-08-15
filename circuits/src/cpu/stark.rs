@@ -181,6 +181,7 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
     const COLUMNS: usize = CpuColumnsExtended::<F>::NUMBER_OF_COLUMNS;
+    // Public inputs: [PC of the first row]
     const PUBLIC_INPUTS: usize = 1;
 
     #[allow(clippy::similar_names)]

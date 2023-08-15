@@ -27,7 +27,7 @@ use crate::cpu::stark::CpuStark;
 use crate::generation::program::generate_program_rom_trace;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::stark::mozak_stark::{MozakStark, NUM_TABLES};
+use crate::stark::mozak_stark::{MozakStark, PublicInputs, NUM_TABLES};
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 use crate::xor::stark::XorStark;
 
@@ -81,6 +81,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
     record: &ExecutionRecord,
     mozak_stark: &MozakStark<F, D>,
+    public_inputs: &PublicInputs<F>,
 ) where
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
@@ -107,7 +108,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
             &mozak_stark.cpu_stark,
             cpu_trace,
             "CPU_STARK",
-            [F::ZERO]
+            [public_inputs.pc_start]
         ),
         // Range check
         debug_single_trace::<F, D, RangeCheckStark<F, D>>(

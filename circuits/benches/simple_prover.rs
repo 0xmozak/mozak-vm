@@ -1,13 +1,13 @@
 use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, Criterion};
+use mozak_circuits::stark::mozak_stark::PublicInputs;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{standard_faster_config, C, D, F, S};
 use mozak_vm::test_utils::simple_test_code;
 use plonky2::field::types::Field;
 use plonky2::util::timing::TimingTree;
-use mozak_circuits::stark::mozak_stark::PublicInputs;
 
 pub(crate) fn bench_simple() {
     let (program, record) = simple_test_code(&[], &[], &[]);
