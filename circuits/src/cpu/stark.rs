@@ -25,6 +25,7 @@ pub struct CpuStark<F, const D: usize> {
 impl<P: Copy + core::ops::Add<Output = P>> OpSelectors<P> {
     // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
     // PC. It sort-of jumps back to itself.
+    // TODO: perhaps change this to only list the jumping codes instead?
     fn is_straightline(&self) -> P {
         self.add
             + self.sub
@@ -39,6 +40,8 @@ impl<P: Copy + core::ops::Add<Output = P>> OpSelectors<P> {
             + self.slt
             + self.sltu
             + self.srl
+            + self.lbu
+            + self.sb
     }
 }
 
@@ -88,7 +91,7 @@ pub fn is_binary<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P)
 ///
 /// That's useful for differences between `local_values` and `next_values`, like
 /// a clock tick.
-fn is_binary_transition<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
+pub fn is_binary_transition<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
     yield_constr.constraint_transition(x * (P::ONES - x));
 }
 

@@ -1,11 +1,10 @@
 use plonky2::hash::hash_types::RichField;
 
-use crate::cpu::columns::{rangecheck_looking_cpu, CpuState};
+use crate::cpu::columns::CpuState;
 use crate::lookup::permute_cols;
 use crate::memory::columns::MemoryColumnsView;
-use crate::rangecheck::columns::{self, RangeCheckColumnsView};
-use crate::rangecheck::columns::MAP;
-use crate::stark::mozak_stark::{Table, TableKind};
+use crate::rangecheck::columns::{self, RangeCheckColumnsView, MAP};
+use crate::stark::mozak_stark::{Lookups, RangecheckCpuTable, Table, TableKind};
 
 pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 
@@ -50,8 +49,6 @@ use std::ops::Index;
 pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<F>
 where
     V: Index<usize, Output = F> + 'a, {
-    assert!(matches!(looking_table.kind, TableKind::Cpu));
-
     if let [column] = &looking_table.columns[..] {
         trace
             .into_iter()
@@ -83,20 +80,17 @@ pub fn generate_rangecheck_trace<F: RichField>(
     memory_trace: &[MemoryColumnsView<F>],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
-    let looking_cpu_tables: Vec<Table<F>> = rangecheck_looking_cpu();
 
-    for cpu_table in &looking_cpu_tables {
-        assert!(matches!(cpu_table.kind, TableKind::Cpu));
-        let values = match cpu_table.kind {
-            TableKind::Cpu => extract(cpu_trace, cpu_table),
-            TableKind::Memory => extract(memory_trace, cpu_table),
+    for looking_table in RangecheckCpuTable::lookups().looking_tables {
+        let values = match looking_table.kind {
+            TableKind::Cpu => extract(cpu_trace, &looking_table),
+            TableKind::Memory => extract(memory_trace, &looking_table),
             other => unimplemented!("Can't range check {other:#?} tables"),
         };
 
         for val in values.into_iter() {
             let (limb_hi, limb_lo) = limbs_from_u32(
-                u32::try_from(val.to_canonical_u64())
-                    .expect("casting value to u32 should succeed"),
+                u32::try_from(val.to_canonical_u64()).expect("casting value to u32 should succeed"),
             );
             let rangecheck_row = RangeCheckColumnsView {
                 val,

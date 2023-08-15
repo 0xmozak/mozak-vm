@@ -33,6 +33,9 @@ pub struct OpSelectors<T> {
     pub bge: T,
     pub bgeu: T,
     pub ecall: T,
+
+    pub sb: T,
+    pub lbu: T,
 }
 
 columns_view_impl!(Instruction);

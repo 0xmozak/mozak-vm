@@ -9,9 +9,9 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use crate::cpu::stark::is_binary;
+use crate::cpu::stark::{is_binary, is_binary_transition};
 use crate::memory::columns::{MemoryColumnsView, NUM_MEM_COLS};
-use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
+use crate::memory::trace::{OPCODE_LBU, OPCODE_SB};
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -34,14 +34,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv: &MemoryColumnsView<P> = vars.local_values.borrow();
         let nv: &MemoryColumnsView<P> = vars.next_values.borrow();
 
+        // This still forbids 0 as the first address.
+        // That's wrong.
         let local_new_addr = lv.mem_diff_addr * lv.mem_diff_addr_inv;
         let next_new_addr = nv.mem_diff_addr * nv.mem_diff_addr_inv;
         yield_constr.constraint_first_row(lv.mem_op - FE::from_canonical_usize(OPCODE_SB));
         yield_constr.constraint_first_row(lv.mem_diff_addr - lv.mem_addr);
-        yield_constr.constraint_first_row(local_new_addr - P::ONES);
         yield_constr.constraint_first_row(lv.mem_diff_clk);
 
         is_binary(yield_constr, lv.not_padding);
+        // Once we have padding, all subsequent rows are padding.
+        is_binary_transition(yield_constr, lv.not_padding - nv.not_padding);
         is_binary(yield_constr, lv.mem_op);
 
         // a) if new_addr: op === sb
@@ -58,10 +61,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // d) diff_addr_next <== addr_next - addr_cur
         yield_constr.constraint_transition(nv.mem_diff_addr - nv.mem_addr + lv.mem_addr);
 
-        // e) if op_next == lb: value_next === value_cur
+        // e) if op_next != sb: value_next === value_cur
         yield_constr.constraint(
-            (nv.mem_value - lv.mem_value)
-                * (P::ONES - nv.mem_op + FE::from_canonical_usize(OPCODE_LB)),
+            (nv.mem_value - lv.mem_value) * (nv.mem_op - FE::from_canonical_usize(OPCODE_SB)),
         );
 
         // f) (new_addr - 1)*diff_addr===0
@@ -91,6 +93,7 @@ mod tests {
 
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
@@ -107,6 +110,6 @@ mod tests {
     #[test]
     fn prove_memory_sb_lb() -> Result<()> {
         let (program, executed) = memory_trace_test_case();
-        MemoryStark::prove_and_verify(&program, &executed)
+        MozakStark::prove_and_verify(&program, &executed)
     }
 }

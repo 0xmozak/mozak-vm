@@ -13,17 +13,15 @@ use crate::memory::trace::{
 /// Pad the memory trace to a power of 2.
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<MemoryColumnsView<F>>) -> Vec<MemoryColumnsView<F>> {
-    if let Some(&last) = trace.last() {
-        trace.resize(trace.len().next_power_of_two(), MemoryColumnsView {
-            // Some columns need special treatment..
-            not_padding: F::ZERO,
-            mem_diff_addr: F::ZERO,
-            mem_diff_addr_inv: F::ZERO,
-            mem_diff_clk: F::ZERO,
-            // .. and all other columns just have their last value duplicated.
-            ..last
-        });
-    }
+    trace.resize(trace.len().next_power_of_two(), MemoryColumnsView {
+        // Some columns need special treatment..
+        not_padding: F::ZERO,
+        mem_diff_addr: F::ZERO,
+        mem_diff_addr_inv: F::ZERO,
+        mem_diff_clk: F::ZERO,
+        // .. and all other columns just have their last value duplicated.
+        ..trace.last().cloned().unwrap_or_default()
+    });
     trace
 }
 
@@ -57,7 +55,7 @@ pub fn generate_memory_trace<F: RichField>(
             mem_clk,
             mem_op: get_memory_inst_op(&inst),
             mem_value: match inst.op {
-                Op::LB => get_memory_load_inst_value(s),
+                Op::LBU => get_memory_load_inst_value(s),
                 Op::SB => get_memory_store_inst_value(s),
                 #[tarpaulin::skip]
                 _ => F::ZERO,
@@ -86,7 +84,7 @@ mod tests {
 
     use crate::memory::columns::{self as mem_cols, MemoryColumnsView};
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
+    use crate::memory::trace::{OPCODE_LBU, OPCODE_SB};
     use crate::test_utils::inv;
 
     fn prep_table<F: RichField>(
@@ -100,31 +98,31 @@ mod tests {
 
     fn expected_trace<F: RichField>() -> Vec<MemoryColumnsView<F>> {
         let sb = OPCODE_SB as u64;
-        let lb = OPCODE_LB as u64;
+        let lbu = OPCODE_LBU as u64;
         let inv = inv::<F>;
         #[rustfmt::skip]
         prep_table(vec![
             // !PADDING  ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV  DIFF_CLK
             [ 1,       100,  0,    sb,   5,    100,     inv(100),              0],
-            [ 1,       100,  1,    lb,   5,      0,           0,               1],
+            [ 1,       100,  1,    lbu,   5,      0,           0,               1],
             [ 1,       100,  4,    sb,  10,      0,           0,               3],
-            [ 1,       100,  5,    lb,  10,      0,           0,               1],
+            [ 1,       100,  5,    lbu,  10,      0,           0,               1],
             [ 1,       200,  2,    sb,  15,    100,     inv(100),              0],
-            [ 1,       200,  3,    lb,  15,      0,           0,               1],
-            [ 0,       200,  3,    lb,  15,      0,           0,               0],
-            [ 0,       200,  3,    lb , 15,      0,           0,               0],
+            [ 1,       200,  3,    lbu,  15,      0,           0,               1],
+            [ 0,       200,  3,    lbu,  15,      0,           0,               0],
+            [ 0,       200,  3,    lbu , 15,      0,           0,               0],
         ])
     }
 
     // This test simulates the scenario of a set of instructions
-    // which perform store byte (SB) and load byte (LB) operations
+    // which perform store byte (SB) and load byte (LBU) operations
     // to memory and then checks if the memory trace is generated correctly.
     #[test]
     fn generate_memory_trace() {
         let (program, record) = memory_trace_test_case();
 
         let trace = super::generate_memory_trace::<GoldilocksField>(&program, &record.executed);
-        assert_eq!(trace, expected_trace());
+        assert_eq!(expected_trace(), trace);
     }
 
     #[test]
@@ -144,6 +142,6 @@ mod tests {
             expected_trace[5],
         ];
 
-        assert_eq!(trace, expected_trace);
+        assert_eq!(expected_trace, trace);
     }
 }

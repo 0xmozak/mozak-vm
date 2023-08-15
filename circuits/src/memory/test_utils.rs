@@ -1,5 +1,5 @@
 use mozak_vm::elf::Program;
-use mozak_vm::instruction::Op::{LB, SB};
+use mozak_vm::instruction::Op::{LBU, SB};
 use mozak_vm::instruction::{Args, Instruction};
 use mozak_vm::test_utils::simple_test_code;
 use mozak_vm::vm::ExecutionRecord;
@@ -22,7 +22,7 @@ pub fn memory_trace_test_case() -> (Program, ExecutionRecord) {
                 imm: 100,
                 ..Args::default()
             }),
-            new(LB, Args {
+            new(LBU, Args {
                 rd: 4,
                 imm: 100,
                 ..Args::default()
@@ -32,7 +32,7 @@ pub fn memory_trace_test_case() -> (Program, ExecutionRecord) {
                 imm: 200,
                 ..Args::default()
             }),
-            new(LB, Args {
+            new(LBU, Args {
                 rd: 6,
                 imm: 200,
                 ..Args::default()
@@ -42,7 +42,7 @@ pub fn memory_trace_test_case() -> (Program, ExecutionRecord) {
                 imm: 100,
                 ..Args::default()
             }),
-            new(LB, Args {
+            new(LBU, Args {
                 rd: 5,
                 imm: 100,
                 ..Args::default()
