@@ -172,6 +172,7 @@ where
 /// Errors if FRI parameters are wrongly configured, or if
 /// there are no z polys, or if our
 /// opening points are in our subgroup `H`,
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     stark: &S,
     config: &StarkConfig,
@@ -354,6 +355,7 @@ where
 ///
 /// # Errors
 /// Errors if proving fails.
+#[allow(clippy::too_many_arguments)]
 pub fn prove_with_commitments<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
