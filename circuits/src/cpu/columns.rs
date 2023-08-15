@@ -9,6 +9,7 @@ use crate::stark::mozak_stark::{CpuTable, Table};
 use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
+/// Selectors for which instruction is currently active.
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct OpSelectors<T> {
@@ -18,22 +19,38 @@ pub struct OpSelectors<T> {
     pub or: T,
     pub and: T,
     pub divu: T,
+    /// Remainder Unsigned
     pub remu: T,
     pub mul: T,
     pub mulhu: T,
+    /// Shift Left Logical by amount
     pub sll: T,
+    /// Set Less Than
     pub slt: T,
+    /// Set Less Than Unsigned comparison
     pub sltu: T,
+    /// Sift Right Logical by amount
     pub srl: T,
+    /// Jump And Link Register
     pub jalr: T,
+    /// Branch on Equal
     pub beq: T,
+    /// Branch on Not Equal
     pub bne: T,
+    /// Store Byte
     pub sb: T,
+    /// Load Byte and nd places it in the least significant byte position of the
+    /// target register.
     pub lbu: T,
+    /// Branch Less Than
     pub blt: T,
+    /// Branch Less Than Unsigned comparison
     pub bltu: T,
+    /// Branch Greater or Equal
     pub bge: T,
+    /// Branch Greater or Equal Unsigned comparison
     pub bgeu: T,
+    /// Error Call
     pub ecall: T,
 }
 
@@ -44,10 +61,15 @@ pub struct Instruction<T> {
     /// cross-table-lookup.
     pub pc: T,
 
+    /// Selects the current instruction type
     pub ops: OpSelectors<T>,
+    /// Selects the register to use as source for `rs1`
     pub rs1_select: [T; 32],
+    /// Selects the register to use as source for `rs2`
     pub rs2_select: [T; 32],
+    /// Selects the register to use as destination for `rd`
     pub rd_select: [T; 32],
+    /// The immediate value
     pub imm_value: T,
     pub branch_target: T,
 }
@@ -59,18 +81,20 @@ pub struct CpuState<T> {
     pub clk: T,
     pub inst: Instruction<T>,
 
+    /// Has the CPU halted.
     pub halted: T,
 
     pub op1_value: T,
-    // The sum of the value of the second operand register and the
-    // immediate value. Wrapped around to fit in a `u32`.
+    /// The sum of the value of the second operand register and the
+    /// immediate value. Wrapped around to fit in a `u32`.
     pub op2_value: T,
     /// The sum of the value of the second operand
-    /// register and the immediate value with possible overflow, ie summed as
-    /// field elements in a 64-bit field.
+    /// register and the immediate value with possible overflow, ie summed in a
+    /// 64-bit field that has no overflows.
     pub op2_value_overflowing: T,
     pub dst_value: T,
 
+    /// Values of the registers.
     pub regs: [T; 32],
 
     // 0 mean non-negative, 1 means negative.
@@ -79,19 +103,28 @@ pub struct CpuState<T> {
     pub op2_sign_bit: T,
 
     // TODO: range check
+    /// `|op1 - op2|`
     pub abs_diff: T,
+    /// `1/|op1 - op2| `
+    /// It exists only if `op1 != op2`.
     pub cmp_diff_inv: T,
+    /// If `op1` < `op2`
     pub less_than: T,
     // If `op_diff == 0`, then `not_diff == 1`, else `not_diff == 0`.
     // We only need this intermediate variable to keep the constraint degree <= 3.
     pub not_diff: T,
 
+    /// Linked values with the Xor Stark Table
     pub xor: XorView<T>,
 
+    /// Linked values with the Bitshift Stark Table
     pub bitshift: Bitshift<T>,
 
+    // p = q * m + r
     pub quotient: T,
     pub remainder: T,
+    /// `m - r - 1`
+    /// Range checked to make sure remainder and quotient are correct.
     pub remainder_slack: T,
     pub divisor_inv: T,
     pub divisor: T,
@@ -136,6 +169,9 @@ impl<T: PackedField> CpuState<T> {
     /// So range is `i32::MIN..=u32::MAX`
     pub fn op2_full_range(&self) -> T { self.op2_value - self.op2_sign_bit * Self::shifted(32) }
 
+    /// Difference between converted first and second operands.
+    /// This value is agnostic if the original values had signed or unsigned
+    /// representations.
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
 
