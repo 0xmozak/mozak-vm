@@ -27,7 +27,7 @@ pub(crate) fn constraints<P: PackedField>(
     );
 
     yield_constr.constraint((lv.inst.ops.mulh) * (lv.product - expected_product));
-    yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.mulhu) * (multiplier - lv.op2_value));
+    yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.mulh) * (multiplier - lv.op2_full_range()));
     // The following constraints are for SLL.
     {
         let and_gadget = and_gadget(&lv.xor);
@@ -79,6 +79,7 @@ mod tests {
     use proptest::{prop_assert_eq, proptest};
 
     use crate::cpu::stark::CpuStark;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
     #[test]
     fn prove_mul_example() {
@@ -129,9 +130,11 @@ mod tests {
         CpuStark::prove_and_verify(&program, &record).unwrap();
     }
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(4))]
+        #![proptest_config(ProptestConfig::with_cases(64))]
         #[test]
         fn prove_mul_proptest(a in u32_extra(), b in u32_extra()) {
+            // let a = i32::MAX.unsigned_abs() + 1;
+            // let b = i32::MAX.unsigned_abs() + 1;
             let (program, record) = simple_test_code(
                 &[
                     Instruction {
@@ -181,10 +184,9 @@ mod tests {
                 &[],
                 &[(6, a as u32), (7, b as u32)],
             );
-            let (res, overflow) = i64::from(a).overflowing_mul(i64::from(b));
-            assert!(!overflow);
+            let res = i64::from(a).checked_mul(i64::from(b)).unwrap();
             prop_assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
-            CpuStark::prove_and_verify(&program, &record).unwrap();
+            MozakStark::prove_and_verify(&program, &record).unwrap();
         }
 
         #[test]
