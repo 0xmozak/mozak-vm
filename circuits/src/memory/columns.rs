@@ -37,7 +37,6 @@ make_col_map!(MemoryColumnsView);
 // Total number of columns.
 pub const NUM_MEM_COLS: usize = MemoryColumnsView::<()>::NUMBER_OF_COLUMNS;
 
-// // TODO: consider making this as `impl`?
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     vec![
