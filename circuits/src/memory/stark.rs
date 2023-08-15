@@ -36,40 +36,40 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         // This still forbids 0 as the first address.
         // That's wrong.
-        let local_new_addr = lv.mem_diff_addr * lv.mem_diff_addr_inv;
-        let next_new_addr = nv.mem_diff_addr * nv.mem_diff_addr_inv;
-        yield_constr.constraint_first_row(lv.mem_op - FE::from_canonical_usize(OPCODE_SB));
-        yield_constr.constraint_first_row(lv.mem_diff_addr - lv.mem_addr);
-        yield_constr.constraint_first_row(lv.mem_diff_clk);
+        let local_new_addr = lv.diff_addr * lv.diff_addr_inv;
+        let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
+        yield_constr.constraint_first_row(lv.op - FE::from_canonical_usize(OPCODE_SB));
+        yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
+        yield_constr.constraint_first_row(lv.diff_clk);
 
-        is_binary(yield_constr, lv.not_padding);
+        is_binary(yield_constr, lv.is_executed);
         // Once we have padding, all subsequent rows are padding.
-        is_binary_transition(yield_constr, lv.not_padding - nv.not_padding);
-        is_binary(yield_constr, lv.mem_op);
+        is_binary_transition(yield_constr, lv.is_executed - nv.is_executed);
+        is_binary(yield_constr, lv.op);
 
         // a) if new_addr: op === sb
-        yield_constr.constraint(local_new_addr * (lv.mem_op - FE::from_canonical_usize(OPCODE_SB)));
+        yield_constr.constraint(local_new_addr * (lv.op - FE::from_canonical_usize(OPCODE_SB)));
 
         // b) if not new_addr: diff_clk_next <== clk_next - clk_cur
         yield_constr.constraint_transition(
-            (nv.mem_diff_clk - nv.mem_clk + lv.mem_clk) * (next_new_addr - P::ONES),
+            (nv.diff_clk - nv.clk + lv.clk) * (next_new_addr - P::ONES),
         );
 
         // c) if new_addr: diff_clk === 0
-        yield_constr.constraint(local_new_addr * lv.mem_diff_clk);
+        yield_constr.constraint(local_new_addr * lv.diff_clk);
 
         // d) diff_addr_next <== addr_next - addr_cur
-        yield_constr.constraint_transition(nv.mem_diff_addr - nv.mem_addr + lv.mem_addr);
+        yield_constr.constraint_transition(nv.diff_addr - nv.addr + lv.addr);
 
         // e) if op_next != sb: value_next === value_cur
         yield_constr.constraint(
-            (nv.mem_value - lv.mem_value) * (nv.mem_op - FE::from_canonical_usize(OPCODE_SB)),
+            (nv.value - lv.value) * (nv.op - FE::from_canonical_usize(OPCODE_SB)),
         );
 
         // f) (new_addr - 1)*diff_addr===0
         //    (new_addr - 1)*diff_addr_inv===0
-        yield_constr.constraint((local_new_addr - P::ONES) * lv.mem_diff_addr);
-        yield_constr.constraint((local_new_addr - P::ONES) * lv.mem_diff_addr_inv);
+        yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr);
+        yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr_inv);
     }
 
     fn constraint_degree(&self) -> usize { 3 }

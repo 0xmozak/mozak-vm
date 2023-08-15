@@ -11,10 +11,10 @@ use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk, get_memory
 fn pad_mem_trace<F: RichField>(mut trace: Vec<MemoryColumnsView<F>>) -> Vec<MemoryColumnsView<F>> {
     trace.resize(trace.len().next_power_of_two(), MemoryColumnsView {
         // Some columns need special treatment..
-        not_padding: F::ZERO,
-        mem_diff_addr: F::ZERO,
-        mem_diff_addr_inv: F::ZERO,
-        mem_diff_clk: F::ZERO,
+        is_executed: F::ZERO,
+        diff_addr: F::ZERO,
+        diff_addr_inv: F::ZERO,
+        diff_clk: F::ZERO,
         // .. and all other columns just have their last value duplicated.
         ..trace.last().copied().unwrap_or_default()
     });
@@ -45,19 +45,19 @@ pub fn generate_memory_trace<F: RichField>(
         let inst = s.state.current_instruction(program);
         let mem_clk = get_memory_inst_clk(s);
         let mem_addr = get_memory_inst_addr(s);
-        let mem_diff_addr = mem_addr - trace.last().map_or(F::ZERO, |last| last.mem_addr);
+        let mem_diff_addr = mem_addr - trace.last().map_or(F::ZERO, |last| last.addr);
         trace.push(MemoryColumnsView {
-            mem_addr,
-            mem_clk,
-            mem_op: get_memory_inst_op(&inst),
-            mem_value: F::from_canonical_u32(s.aux.dst_val),
-            mem_diff_addr,
-            mem_diff_addr_inv: mem_diff_addr.try_inverse().unwrap_or_default(),
-            mem_diff_clk: match trace.last() {
-                Some(last) if mem_diff_addr == F::ZERO => mem_clk - last.mem_clk,
+            addr: mem_addr,
+            clk: mem_clk,
+            op: get_memory_inst_op(&inst),
+            value: F::from_canonical_u32(s.aux.dst_val),
+            diff_addr: mem_diff_addr,
+            diff_addr_inv: mem_diff_addr.try_inverse().unwrap_or_default(),
+            diff_clk: match trace.last() {
+                Some(last) if mem_diff_addr == F::ZERO => mem_clk - last.clk,
                 _ => F::ZERO,
             },
-            not_padding: F::ONE,
+            is_executed: F::ONE,
         });
     }
 
