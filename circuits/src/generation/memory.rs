@@ -55,8 +55,10 @@ pub fn generate_memory_trace<F: RichField>(
             mem_clk,
             mem_op: get_memory_inst_op(&inst),
             mem_value: match inst.op {
-                Op::LB => get_memory_load_inst_value(s),
+                Op::LBU => get_memory_load_inst_value(s),
                 Op::SB => get_memory_store_inst_value(s),
+                other @ (Op::LB | Op::LH | Op::LHU | Op::LW | Op::SH | Op::SW) =>
+                    unimplemented!("Memory operation {:#?} not supported, yet", other),
                 #[tarpaulin::skip]
                 _ => F::ZERO,
             },
@@ -84,7 +86,7 @@ mod tests {
 
     use crate::memory::columns::{self as mem_cols, MemoryColumnsView};
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
+    use crate::memory::trace::{OPCODE_LBU, OPCODE_SB};
     use crate::test_utils::inv;
 
     fn prep_table<F: RichField>(
@@ -98,19 +100,19 @@ mod tests {
 
     fn expected_trace<F: RichField>() -> Vec<MemoryColumnsView<F>> {
         let sb = OPCODE_SB as u64;
-        let lb = OPCODE_LB as u64;
+        let lbu = OPCODE_LBU as u64;
         let inv = inv::<F>;
         #[rustfmt::skip]
         prep_table(vec![
             // PADDING  ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV  DIFF_CLK
-            [ 0,       100,  0,    sb,   5,    100,     inv(100),              0],
-            [ 0,       100,  1,    lb,   5,      0,           0,               1],
-            [ 0,       100,  4,    sb,  10,      0,           0,               3],
-            [ 0,       100,  5,    lb,  10,      0,           0,               1],
-            [ 0,       200,  2,    sb,  15,    100,     inv(100),              0],
-            [ 0,       200,  3,    lb,  15,      0,           0,               1],
-            [ 1,       200,  3,    lb,  15,      0,           0,               0],
-            [ 1,       200,  3,    lb , 15,      0,           0,               0],
+            [ 0,       100,  0,    sb,  255,    100,     inv(100),              0],
+            [ 0,       100,  1,    lbu, 255,      0,           0,               1],
+            [ 0,       100,  4,    sb,   10,      0,           0,               3],
+            [ 0,       100,  5,    lbu,  10,      0,           0,               1],
+            [ 0,       200,  2,    sb,   15,    100,     inv(100),              0],
+            [ 0,       200,  3,    lbu,  15,      0,           0,               1],
+            [ 1,       200,  3,    lbu,  15,      0,           0,               0],
+            [ 1,       200,  3,    lbu , 15,      0,           0,               0],
         ])
     }
 

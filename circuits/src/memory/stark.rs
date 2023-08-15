@@ -10,7 +10,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use crate::memory::columns::{MemoryColumnsView, NUM_MEM_COLS};
-use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
+use crate::memory::trace::{OPCODE_LBU, OPCODE_SB};
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -63,7 +63,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // e) if op_next == lb: value_next === value_cur
         yield_constr.constraint(
             (nv.mem_value - lv.mem_value)
-                * (P::ONES - nv.mem_op + FE::from_canonical_usize(OPCODE_LB)),
+                * (P::ONES - nv.mem_op + FE::from_canonical_usize(OPCODE_LBU)),
         );
 
         // f) (new_addr - 1)*diff_addr===0

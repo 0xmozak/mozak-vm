@@ -2,13 +2,13 @@ use mozak_vm::instruction::{Instruction, Op};
 use mozak_vm::vm::Row;
 use plonky2::field::types::Field;
 
-pub(crate) const OPCODE_LB: usize = 0;
+pub(crate) const OPCODE_LBU: usize = 0;
 pub(crate) const OPCODE_SB: usize = 1;
 
 #[must_use]
 pub fn get_memory_inst_op<F: Field>(inst: &Instruction) -> F {
     match inst.op {
-        Op::LB => F::from_canonical_usize(OPCODE_LB),
+        Op::LB => F::from_canonical_usize(OPCODE_LBU),
         Op::SB => F::from_canonical_usize(OPCODE_SB),
         #[tarpaulin::skip]
         _ => F::ZERO,
