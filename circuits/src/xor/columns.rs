@@ -5,13 +5,13 @@ use crate::cross_table_lookup::Column;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct BitwiseColumnsView<T> {
+pub struct XorColumnsView<T> {
     pub is_execution_row: T,
     pub execution: XorView<T>,
     pub limbs: XorView<[T; 32]>,
 }
-columns_view_impl!(BitwiseColumnsView);
-make_col_map!(BitwiseColumnsView);
+columns_view_impl!(XorColumnsView);
+make_col_map!(XorColumnsView);
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
