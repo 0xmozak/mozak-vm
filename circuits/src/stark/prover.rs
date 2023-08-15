@@ -23,7 +23,6 @@ use super::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
 use super::permutation::get_grand_product_challenge_set;
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::bitshift::stark::BitshiftStark;
-use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
@@ -34,6 +33,7 @@ use crate::stark::permutation::{
     compute_permutation_z_polys, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
 };
 use crate::stark::poly::compute_quotient_polys;
+use crate::xor::stark::XorStark;
 
 #[allow(clippy::missing_errors_doc)]
 #[allow(clippy::missing_panics_doc)]
@@ -50,7 +50,7 @@ where
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
@@ -78,7 +78,7 @@ where
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
@@ -353,7 +353,7 @@ where
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
@@ -377,8 +377,8 @@ where
         timing,
     )?;
 
-    let bitwise_proof = prove_single_table::<F, C, BitwiseStark<F, D>, D>(
-        &mozak_stark.bitwise_stark,
+    let xor_proof = prove_single_table::<F, C, XorStark<F, D>, D>(
+        &mozak_stark.xor_stark,
         config,
         &traces_poly_values[TableKind::Bitwise as usize],
         &trace_commitments[TableKind::Bitwise as usize],
@@ -410,7 +410,7 @@ where
     Ok([
         cpu_proof,
         rangecheck_proof,
-        bitwise_proof,
+        xor_proof,
         shift_amount_proof,
         program_proof,
     ])
