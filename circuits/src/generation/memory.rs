@@ -1,14 +1,10 @@
 use itertools::{self, Itertools};
 use mozak_vm::elf::Program;
-use mozak_vm::instruction::Op;
 use mozak_vm::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::memory::columns::MemoryColumnsView;
-use crate::memory::trace::{
-    get_memory_inst_addr, get_memory_inst_clk, get_memory_inst_op, get_memory_load_inst_value,
-    get_memory_store_inst_value,
-};
+use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk, get_memory_inst_op};
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
@@ -54,12 +50,7 @@ pub fn generate_memory_trace<F: RichField>(
             mem_addr,
             mem_clk,
             mem_op: get_memory_inst_op(&inst),
-            mem_value: match inst.op {
-                Op::LBU => get_memory_load_inst_value(s),
-                Op::SB => get_memory_store_inst_value(s),
-                #[tarpaulin::skip]
-                _ => F::ZERO,
-            },
+            mem_value: F::from_canonical_u32(s.aux.dst_val),
             mem_diff_addr,
             mem_diff_addr_inv: mem_diff_addr.try_inverse().unwrap_or_default(),
             mem_diff_clk: match trace.last() {
@@ -102,15 +93,15 @@ mod tests {
         let inv = inv::<F>;
         #[rustfmt::skip]
         prep_table(vec![
-            // !PADDING  ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV  DIFF_CLK
-            [ 1,       100,  0,    sb,   5,    100,     inv(100),              0],
-            [ 1,       100,  1,    lbu,   5,      0,           0,               1],
-            [ 1,       100,  4,    sb,  10,      0,           0,               3],
-            [ 1,       100,  5,    lbu,  10,      0,           0,               1],
-            [ 1,       200,  2,    sb,  15,    100,     inv(100),              0],
-            [ 1,       200,  3,    lbu,  15,      0,           0,               1],
-            [ 0,       200,  3,    lbu,  15,      0,           0,               0],
-            [ 0,       200,  3,    lbu , 15,      0,           0,               0],
+            // executed ADDR  CLK   OP  VALUE  DIFF_ADDR  DIFF_ADDR_INV  DIFF_CLK
+            [ 1,        100,  0,    sb,  255,    100,     inv(100),              0],
+            [ 1,        100,  1,    lbu, 255,      0,           0,               1],
+            [ 1,        100,  4,    sb,   10,      0,           0,               3],
+            [ 1,        100,  5,    lbu,  10,      0,           0,               1],
+            [ 1,        200,  2,    sb,   15,    100,     inv(100),              0],
+            [ 1,        200,  3,    lbu,  15,      0,           0,               1],
+            [ 0,        200,  3,    lbu,  15,      0,           0,               0],
+            [ 0,        200,  3,    lbu , 15,      0,           0,               0],
         ])
     }
 

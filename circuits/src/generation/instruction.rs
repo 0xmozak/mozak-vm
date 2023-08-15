@@ -37,8 +37,6 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
             Op::XOR => &mut cols.ops.xor,
             Op::OR => &mut cols.ops.or,
             Op::AND => &mut cols.ops.and,
-            Op::LBU => &mut cols.ops.lbu,
-            Op::SB => &mut cols.ops.sb,
             #[tarpaulin::skip]
             other => unimplemented!("opcode {other:?} not supported"),
         }) = 1;
