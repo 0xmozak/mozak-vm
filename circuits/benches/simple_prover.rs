@@ -7,18 +7,20 @@ use mozak_circuits::test_utils::{standard_faster_config, C, D, F, S};
 use mozak_vm::test_utils::simple_test_code;
 use plonky2::field::types::Field;
 use plonky2::util::timing::TimingTree;
+use mozak_circuits::stark::mozak_stark::PublicInputs;
 
 pub(crate) fn bench_simple() {
     let (program, record) = simple_test_code(&[], &[], &[]);
     let stark = S::default();
     let config = standard_faster_config();
+    let public_inputs = PublicInputs { pc_start: F::ZERO };
 
     let all_proof = prove::<F, C, D>(
         &program,
         &record,
         &stark,
         &config,
-        [F::ZERO],
+        &public_inputs,
         &mut TimingTree::default(),
     )
     .unwrap();
