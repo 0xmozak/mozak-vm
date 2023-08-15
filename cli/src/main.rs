@@ -7,7 +7,7 @@ use clap::{Parser, Subcommand};
 use clio::{Input, Output};
 use log::debug;
 use mozak_circuits::generation::program::generate_program_rom_trace;
-use mozak_circuits::stark::mozak_stark::MozakStark;
+use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
@@ -127,12 +127,13 @@ fn main() -> Result<()> {
                 } else {
                     MozakStark::default()
                 };
+                let public_inputs = PublicInputs { pc_start: F::ZERO };
                 let all_proof = prove::<F, C, D>(
                     &program,
                     &record,
                     &stark,
                     &config,
-                    [F::ZERO],
+                    &public_inputs,
                     &mut TimingTree::default(),
                 )?;
                 let s = all_proof.serialize_proof_to_flexbuffer()?;

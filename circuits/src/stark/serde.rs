@@ -34,6 +34,7 @@ mod tests {
     use plonky2::field::types::Field;
     use plonky2::util::timing::TimingTree;
 
+    use crate::stark::mozak_stark::PublicInputs;
     use crate::stark::proof::AllProof;
     use crate::stark::prover::prove;
     use crate::stark::verifier::verify_proof;
@@ -43,13 +44,14 @@ mod tests {
         let (program, record) = simple_test_code(&[], &[], &[]);
         let stark = S::default();
         let config = standard_faster_config();
+        let public_inputs = PublicInputs { pc_start: F::ZERO };
 
         let all_proof = prove::<F, C, D>(
             &program,
             &record,
             &stark,
             &config,
-            [F::ZERO],
+            &public_inputs,
             &mut TimingTree::default(),
         )
         .unwrap();

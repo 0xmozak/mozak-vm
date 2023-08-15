@@ -25,7 +25,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
 
 #[derive(Clone)]
 pub struct PublicInputs<F: Field> {
-    pub(crate) pc_start: F,
+    pub pc_start: F,
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -79,7 +79,6 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
 }
 
 pub(crate) const NUM_TABLES: usize = 5;
-pub(crate) const NUM_PUBLIC_INPUTS: usize = 1;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TableKind {
