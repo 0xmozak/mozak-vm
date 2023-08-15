@@ -50,10 +50,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitwiseStark<
         for (a, b, res) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
             // Note that if a, b are in {0, 1}: (a ^ b) = a + b - 2 * a * b
             // One can check by substituting the values, that:
-            //      if a = b = 0            -> a ^ b = 0
-            //      if only a = 1 or b = 1  -> a ^ b = 1
-            //      if a = b = 1            -> a ^ b = 0
-            let xor = (a + b) - (a * b) * FE::from_canonical_u8(2);
+            //      if a = b = 0            -> 0 + 0 - 2 * 0 * 0 = 0
+            //      if only a = 1 or b = 1  -> 1 + 0 - 2 * 1 * 0 = 1
+            //      if a = b = 1            -> 1 + 1 - 2 * 1 * 1 = 0
+            let xor = (a + b) - (a * b).doubles();
             yield_constr.constraint(res - xor);
         }
     }
