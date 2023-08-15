@@ -86,10 +86,18 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
 
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
+#[allow(clippy::cast_sign_loss)]
 fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
-    if !matches!(inst.op, Op::MUL | Op::MULHU | Op::SLL) {
+    if !matches!(inst.op, Op::MUL | Op::MULHU | Op::MULH | Op::SLL) {
         return;
     }
+    let is_signed = row.is_signed().is_nonzero();
+    let embed = if is_signed {
+        |x: u32| i64::from(x as i32)
+    } else {
+        i64::from
+    };
+    let multiplicand = embed(aux.op1);
     let multiplier = if let Op::SLL = inst.op {
         let shift_amount = aux.op2 & 0b1_1111;
         let shift_power = 1_u32 << shift_amount;
@@ -98,18 +106,20 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
             multiplier: shift_power,
         }
         .map(from_u32);
-        shift_power
+        embed(shift_power)
     } else {
-        aux.op2
+        embed(aux.op2)
     };
 
-    row.multiplier = from_u32(multiplier);
-    let (low, high) = aux.op1.widening_mul(multiplier);
-    row.product_low_bits = from_u32(low);
-    row.product_high_bits = from_u32(high);
+    row.multiplier = F::from_noncanonical_i64(multiplier);
+    let (res, _overflow) = multiplicand.overflowing_mul(multiplier);
+    let low_bits = res & 0xFFFF_FFFF;
+    let high_bits = (res >> 32) & 0xFFFF_FFFF;
+    row.product_low_bits = F::from_noncanonical_i64(low_bits);
+    row.product_high_bits = F::from_noncanonical_i64(high_bits);
 
     // Prove that the high limb is different from `u32::MAX`:
-    let high_diff: F = from_u32(u32::MAX - high);
+    let high_diff: F = from_u32(u32::MAX - high_bits as u32);
     row.product_high_diff_inv = high_diff.try_inverse().unwrap_or_default();
 }
 

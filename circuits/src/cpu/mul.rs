@@ -15,16 +15,18 @@ pub(crate) fn constraints<P: PackedField>(
     // values without overflow.
     let base = P::Scalar::from_noncanonical_u64(1 << 32);
 
-    let multiplicand = lv.op1_value;
+    let multiplicand = lv.op1_full_range();
     let multiplier = lv.multiplier;
     let low_limb = lv.product_low_bits;
     let high_limb = lv.product_high_bits;
     let product = low_limb + base * high_limb;
+    let expected_product = multiplicand * multiplier;
 
     yield_constr.constraint(
-        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.sll)
-            * (product - multiplicand * multiplier),
+        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.sll + lv.inst.ops.mulh)
+            * (product - expected_product),
     );
+
     yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.mulhu) * (multiplier - lv.op2_value));
     // The following constraints are for SLL.
     {
@@ -43,7 +45,8 @@ pub(crate) fn constraints<P: PackedField>(
 
     let destination = lv.dst_value;
     yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.sll) * (destination - low_limb));
-    yield_constr.constraint(lv.inst.ops.mulhu * (destination - high_limb));
+    yield_constr.constraint((lv.inst.ops.mulhu) * (destination - high_limb));
+    yield_constr.constraint((lv.inst.ops.mulh) * (destination - high_limb));
 
     // The constraints above would be enough, if our field was large enough.
     // However Goldilocks field is just a bit too small at order 2^64 - 2^32 + 1.
@@ -71,12 +74,60 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{reg, simple_test_code, u32_extra};
+    use mozak_vm::test_utils::{i32_extra, reg, simple_test_code, u32_extra};
     use proptest::prelude::{prop_assume, ProptestConfig};
     use proptest::{prop_assert_eq, proptest};
 
     use crate::cpu::stark::CpuStark;
     use crate::test_utils::ProveAndVerify;
+    #[test]
+    fn prove_mul_example() {
+        let b = 4_294_967_295;
+        let a = 2_147_502_408;
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::MUL,
+                args: Args {
+                    rd: 8,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, a), (7, b)],
+        );
+        let (low, _high) = a.widening_mul(b);
+        assert_eq!(record.executed[0].aux.dst_val, low);
+        CpuStark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_lossless)]
+    #[test]
+    fn prove_mulh_example() {
+        // let a = -1_i32;
+        // let b = 1;
+        let a = 1;
+        let b = 1;
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::MULH,
+                args: Args {
+                    rd: 8,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, a as u32), (7, b as u32)],
+        );
+        let (res, overflow) = i64::from(a).overflowing_mul(i64::from(b));
+        assert!(!overflow);
+        assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
+        CpuStark::prove_and_verify(&program, &record).unwrap();
+    }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -108,6 +159,31 @@ mod tests {
             let (low, high) = a.widening_mul(b);
             prop_assert_eq!(record.executed[0].aux.dst_val, low);
             prop_assert_eq!(record.executed[1].aux.dst_val, high);
+            CpuStark::prove_and_verify(&program, &record).unwrap();
+        }
+
+    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_lossless)]
+        #[test]
+        fn prove_mulh_proptest(a in i32_extra(), b in i32_extra()) {
+            let (program, record) = simple_test_code(
+                &[
+                    Instruction {
+                        op: Op::MULH,
+                        args: Args {
+                            rd: 8,
+                            rs1: 6,
+                            rs2: 7,
+                            ..Args::default()
+                        },
+                    },
+                ],
+                &[],
+                &[(6, a as u32), (7, b as u32)],
+            );
+            let (res, overflow) = i64::from(a).overflowing_mul(i64::from(b));
+            assert!(!overflow);
+            prop_assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
             CpuStark::prove_and_verify(&program, &record).unwrap();
         }
 
