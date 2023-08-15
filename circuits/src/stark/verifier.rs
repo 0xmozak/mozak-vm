@@ -55,6 +55,11 @@ where
         ..
     } = mozak_stark;
 
+    // Ensures public inputs are
+    ensure!(
+        all_proof.public_inputs.pc_start
+            == all_proof.stark_proofs[TableKind::Cpu as usize].public_inputs[0]
+    );
     ensure!(
         all_proof.stark_proofs[TableKind::Program as usize].trace_cap
             == all_proof.program_rom_trace_cap,
