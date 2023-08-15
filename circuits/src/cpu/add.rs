@@ -1,3 +1,5 @@
+//! This module implements the ADD operation.
+
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
@@ -12,6 +14,8 @@ pub(crate) fn constraints<P: PackedField>(
     let added = lv.op1_value + lv.op2_value;
     let wrapped = added - wrap_at;
 
+    // Check: the resulting sum is wrapped if necessary.
+    // As values are range checked as u32, this makes the value choice exclusive.
     yield_constr.constraint(lv.inst.ops.add * (lv.dst_value - added) * (lv.dst_value - wrapped));
 }
 

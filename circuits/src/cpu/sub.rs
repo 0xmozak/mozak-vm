@@ -10,6 +10,9 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     let expected_value = lv.op1_value - lv.op2_value;
     let wrapped = P::Scalar::from_noncanonical_u64(1 << 32) + expected_value;
+
+    // Check: the resulting substation is wrapped if necessary.
+    // As values are range checked as u32, this makes the value choice exclusive.
     yield_constr
         .constraint(lv.inst.ops.sub * ((lv.dst_value - expected_value) * (lv.dst_value - wrapped)));
 }

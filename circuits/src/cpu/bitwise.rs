@@ -3,15 +3,21 @@
 //! AND and OR are implemented as a combination of XOR and field element
 //! arithmetic.
 //!
+//!
 //! We use two basic identities to implement AND, and OR:
+//! `
 //!  a | b = (a ^ b) + (a & b)
 //!  a + b = (a ^ b) + 2 * (a & b)
+//! `
 //! The identities might seem a bit mysterious at first, but contemplating
 //! a half-adder circuit should make them clear.
+//! Note that these identities work for any numbers `a` and `b`.
 //!
-//! Re-arranging and substituing yields:
+//! Re-arranging and substituting yields:
+//! `
 //!  x & y := (x + y - (x ^ y)) / 2
 //!  x | y := (x + y + (x ^ y)) / 2
+//! `
 
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
@@ -42,7 +48,9 @@ pub(crate) fn and_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
 }
 
 /// Re-usable gadget for OR constraints
+/// Converts Xor output to Or output.
 /// Highest degree is one.
+/// `x | y := (x + y + (x ^ y)) / 2`
 pub(crate) fn or_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     let two = P::Scalar::from_noncanonical_u64(2);
     BinaryOp {
@@ -53,7 +61,9 @@ pub(crate) fn or_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
 }
 
 /// Re-usable gadget for XOR constraints
+/// Wraps Xor output.
 /// Highest degree is one.
+/// `x ^ y := x ^ y`
 pub(crate) fn xor_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     BinaryOp {
         input_a: xor.a,
