@@ -138,7 +138,7 @@ impl<T: PackedField> CpuState<T> {
 /// Currently, we only support expressions over the
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn rangecheck_looking_cpu<F: Field>() -> Vec<Table<F>> {
+pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let ops = &MAP.cpu.inst.ops;
     vec![
         CpuTable::new(

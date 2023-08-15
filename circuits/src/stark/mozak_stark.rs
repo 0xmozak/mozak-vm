@@ -192,7 +192,7 @@ impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         let looking: Vec<Table<F>> = chain![
             memory::columns::rangecheck_looking(),
-            cpu::columns::rangecheck_looking_cpu(),
+            cpu::columns::rangecheck_looking(),
         ]
         .collect();
         CrossTableLookup::new(
