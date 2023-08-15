@@ -79,14 +79,18 @@ where
 #[must_use]
 pub fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
-    _memory_trace: &[MemoryColumnsView<F>],
+    memory_trace: &[MemoryColumnsView<F>],
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
     let looking_cpu_tables: Vec<Table<F>> = rangecheck_looking_cpu();
 
     for cpu_table in &looking_cpu_tables {
         assert!(matches!(cpu_table.kind, TableKind::Cpu));
-        let values = extract(cpu_trace, cpu_table);
+        let values = match cpu_table.kind {
+            TableKind::Cpu => extract(cpu_trace, cpu_table),
+            TableKind::Memory => extract(memory_trace, cpu_table),
+            other => unimplemented!("Can't range check {other:#?} tables"),
+        };
 
         for value in values.into_iter() {
             let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
