@@ -81,9 +81,10 @@ pub struct CpuState<T> {
     pub abs_diff: T,
     pub cmp_diff_inv: T,
     pub less_than: T,
-    // If `op_diff == 0`, then `not_diff == 1`, else `not_diff == 0`.
+    // normalised_diff == 0 iff op1 == op2
+    // normalised_diff == 1 iff op1 != op2
     // We only need this intermediate variable to keep the constraint degree <= 3.
-    pub not_diff: T,
+    pub normalised_diff: T,
 
     pub xor: XorView<T>,
 
