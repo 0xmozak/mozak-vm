@@ -74,6 +74,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
 }
 
 pub(crate) const NUM_TABLES: usize = 5;
+pub(crate) const NUM_PUBLIC_INPUTS: usize = 1;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TableKind {

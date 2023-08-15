@@ -1,6 +1,7 @@
 use anyhow::Result;
 use mozak_vm::elf::Program;
 use mozak_vm::vm::ExecutionRecord;
+use plonky2::field::types::Field;
 use plonky2::fri::FriConfig;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
@@ -81,7 +82,7 @@ impl ProveAndVerify for CpuStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            [],
+            [F::ZERO],
             &mut TimingTree::default(),
         )?;
 

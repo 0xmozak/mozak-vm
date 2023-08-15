@@ -182,7 +182,7 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
     const COLUMNS: usize = CpuColumnsExtended::<F>::NUMBER_OF_COLUMNS;
-    const PUBLIC_INPUTS: usize = 0;
+    const PUBLIC_INPUTS: usize = 1;
 
     #[allow(clippy::similar_names)]
     fn eval_packed_generic<FE, P, const D2: usize>(
@@ -200,6 +200,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         let lv = &lv.cpu;
         let nv = &nv.cpu;
 
+        yield_constr.constraint_first_row(lv.inst.pc - vars.public_inputs[0]);
         clock_ticks(lv, nv, yield_constr);
         pc_ticks_up(lv, nv, yield_constr);
 

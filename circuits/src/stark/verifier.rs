@@ -34,6 +34,7 @@ where
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); BitwiseStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
