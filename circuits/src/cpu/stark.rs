@@ -175,6 +175,15 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     let wrap_at = lv.shifted(32);
 
     yield_constr.constraint(
+        lv.op2_value_overflowing - lv.inst.imm_value
+            // Note: we could skip 0, because r0 is always 0.
+            // But we keep the constraints simple here.
+            - (0..32)
+                .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
+                .sum::<P>(),
+    );
+
+    yield_constr.constraint(
         (lv.op2_value_overflowing - lv.op2_value)
             * (lv.op2_value_overflowing - lv.op2_value - wrap_at * lv.inst.ops.is_mem_op()),
     );
