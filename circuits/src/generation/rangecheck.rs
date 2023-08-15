@@ -42,6 +42,30 @@ fn push_rangecheck_row<F: RichField>(
         trace[i].push(*col);
     }
 }
+use std::ops::Index;
+
+// pub fn extract<F: RichField>(trace: &[CpuState<F>], looking_table: &Table<F>)
+// -> Vec<F> {
+pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<F>
+where
+    V: Index<usize, Output = F> + 'a, {
+    assert!(matches!(looking_table.kind, TableKind::Cpu));
+
+    if let [column] = &looking_table.columns[..] {
+        trace
+            .into_iter()
+            .filter_map(|row| {
+                looking_table
+                    .filter_column
+                    .eval(row)
+                    .is_one()
+                    .then(|| column.eval(row))
+            })
+            .collect()
+    } else {
+        panic!("Can only range check single values, not tuples.")
+    }
+}
 
 /// Generates a trace table for range checks, used in building a
 /// `RangeCheckStark` proof.
@@ -62,25 +86,20 @@ pub fn generate_rangecheck_trace<F: RichField>(
 
     for cpu_table in &looking_cpu_tables {
         assert!(matches!(cpu_table.kind, TableKind::Cpu));
-        if let [column] = &cpu_table.columns[..] {
-            for cpu_row in cpu_trace {
-                let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
-                if cpu_table.filter_column.eval(cpu_row).is_one() {
-                    let value = column.eval(cpu_row);
-                    let (limb_hi, limb_lo) = limbs_from_u32(
-                        u32::try_from(value.to_canonical_u64())
-                            .expect("casting value to u32 should succeed"),
-                    );
-                    rangecheck_row[MAP.val] = value;
-                    rangecheck_row[MAP.limb_hi] = limb_hi;
-                    rangecheck_row[MAP.limb_lo] = limb_lo;
-                    rangecheck_row[MAP.cpu_filter] = F::ONE;
+        let values = extract(cpu_trace, cpu_table);
 
-                    push_rangecheck_row(&mut trace, rangecheck_row);
-                }
-            }
-        } else {
-            panic!("Can only range check single values, not tuples.");
+        for value in values.into_iter() {
+            let mut rangecheck_row = [F::ZERO; columns::NUM_RC_COLS];
+            let (limb_hi, limb_lo) = limbs_from_u32(
+                u32::try_from(value.to_canonical_u64())
+                    .expect("casting value to u32 should succeed"),
+            );
+            rangecheck_row[MAP.val] = value;
+            rangecheck_row[MAP.limb_hi] = limb_hi;
+            rangecheck_row[MAP.limb_lo] = limb_lo;
+            rangecheck_row[MAP.cpu_filter] = F::ONE;
+
+            push_rangecheck_row(&mut trace, rangecheck_row);
         }
     }
 
