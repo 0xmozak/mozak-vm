@@ -10,7 +10,6 @@ pub fn get_memory_inst_op<F: Field>(inst: &Instruction) -> F {
     match inst.op {
         Op::LBU => F::from_canonical_usize(OPCODE_LBU),
         Op::SB => F::from_canonical_usize(OPCODE_SB),
-        #[tarpaulin::skip]
         other @ (Op::LB | Op::LH | Op::LHU | Op::LW | Op::SH | Op::SW) =>
             unimplemented!("Memory operation {:#?} not supported, yet", other),
         _ => F::ZERO,
