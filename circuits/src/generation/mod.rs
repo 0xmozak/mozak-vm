@@ -43,10 +43,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
     let memory_rows = generate_memory_trace(program, &record.executed);
-    // let traces: HashMap<TableKind, Box<_>> = HashMap::from([
-    //     (TableKind::Cpu, Box::new(&cpu_rows)),
-    //     // (TableKind::Memory, &memory_rows.borrow()),
-    // ]);
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
     let cpu_trace = trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows));
