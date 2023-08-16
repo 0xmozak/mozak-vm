@@ -45,6 +45,10 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
             Column::single(MAP.is_executed),
         ),
         MemoryTable::new(
+            vec![Column::single_prev(MAP.diff_addr)],
+            Column::single_prev(MAP.is_executed),
+        ),
+        MemoryTable::new(
             Column::singles([MAP.diff_clk]),
             Column::single(MAP.is_executed),
         ),

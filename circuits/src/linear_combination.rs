@@ -46,6 +46,15 @@ impl<F: Field> Column<F> {
     }
 
     #[must_use]
+    pub fn single_prev(c: usize) -> Self {
+        Self {
+            lv_linear_combination: vec![(c, F::ONE)],
+            nv_linear_combination: vec![],
+            constant: F::ZERO,
+        }
+    }
+
+    #[must_use]
     pub fn single_diff(c: usize) -> Self {
         Self {
             lv_linear_combination: vec![(c, -F::ONE)],
@@ -105,7 +114,7 @@ impl<F: Field> Column<F> {
     pub fn eval_table(&self, table: &[PolynomialValues<F>], row: usize) -> F {
         self.lv_linear_combination
             .iter()
-            .map(|&(c, f)| table[(table[0].len() + c - 1) % table[0].len()].values[row] * f)
+            .map(|&(c, f)| table[c].values[(row + table[c].values.len() - 1) % table[c].values.len()] * f)
             .sum::<F>()
             + self
                 .nv_linear_combination
