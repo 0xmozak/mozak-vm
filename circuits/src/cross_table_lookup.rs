@@ -286,8 +286,6 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
         let select = |filter, x| filter * x + P::ONES - filter;
 
         // Check value of `Z(1)`
-        // consumer.constraint_first_row(*local_z - select(local_filter,
-        // combine(vars.local_values)));
         consumer.constraint_last_row(*next_z - select(filter, combination));
         // Check `Z(gw) = combination * Z(w)`
         consumer.constraint_transition(*next_z - *local_z * select(filter, combination));
