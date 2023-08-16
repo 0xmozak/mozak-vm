@@ -35,6 +35,8 @@ pub(crate) fn constraints<P: PackedField>(
             - ((P::ONES - lv.op1_sign_bit) * (lv.op1_value)
                 + (lv.op1_sign_bit) * (CpuState::<P>::shifted(32) - lv.op1_value)),
     );
+    // Constraint to make sure product_sign is either 0 or 1.
+    yield_constr.constraint(lv.product_sign * (P::ONES - lv.product_sign));
     // Constraint to make sure product_sign is computed correctly.
     yield_constr.constraint(
         lv.product_sign
