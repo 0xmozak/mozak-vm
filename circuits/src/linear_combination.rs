@@ -12,7 +12,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 /// Represent a linear combination of columns.
 #[derive(Clone, Debug, Default)]
 pub struct Column<F: Field> {
-    linear_combination: Vec<(usize, F)>,
+    nv_linear_combination: Vec<(usize, F)>,
     constant: F,
 }
 
@@ -20,7 +20,7 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn always() -> Self {
         Column {
-            linear_combination: vec![],
+            nv_linear_combination: vec![],
             constant: F::ONE,
         }
     }
@@ -28,7 +28,7 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn not(c: usize) -> Self {
         Self {
-            linear_combination: vec![(c, F::NEG_ONE)],
+            nv_linear_combination: vec![(c, F::NEG_ONE)],
             constant: F::ONE,
         }
     }
@@ -36,7 +36,7 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn single(c: usize) -> Self {
         Self {
-            linear_combination: vec![(c, F::ONE)],
+            nv_linear_combination: vec![(c, F::ONE)],
             constant: F::ZERO,
         }
     }
@@ -48,7 +48,7 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn many<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
-            linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect(),
+            nv_linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect(),
             constant: F::ZERO,
         }
     }
@@ -56,7 +56,7 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn ascending_sum<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
-            linear_combination: cs
+            nv_linear_combination: cs
                 .into_iter()
                 .enumerate()
                 .map(|(i, c)| (*c.borrow(), F::from_canonical_usize(i)))
@@ -70,7 +70,7 @@ impl<F: Field> Column<F> {
         FE: FieldExtension<D, BaseField = F>,
         P: PackedField<Scalar = FE>,
         V: Index<usize, Output = P> + ?Sized, {
-        self.linear_combination
+        self.nv_linear_combination
             .iter()
             .map(|&(c, f)| v[c] * FE::from_basefield(f))
             .sum::<P>()
@@ -79,7 +79,7 @@ impl<F: Field> Column<F> {
 
     /// Evaluate on an row of a table given in column-major form.
     pub fn eval_table(&self, table: &[PolynomialValues<F>], row: usize) -> F {
-        self.linear_combination
+        self.nv_linear_combination
             .iter()
             .map(|&(c, f)| table[c].values[row] * f)
             .sum::<F>()
@@ -94,7 +94,7 @@ impl<F: Field> Column<F> {
     where
         F: RichField + Extendable<D>, {
         let pairs = self
-            .linear_combination
+            .nv_linear_combination
             .iter()
             .map(|&(c, f)| {
                 (
