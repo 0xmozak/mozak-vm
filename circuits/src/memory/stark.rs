@@ -10,7 +10,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use crate::memory::columns::{Memory, NUM_MEM_COLS};
-use crate::memory::trace::{OPCODE_LBU, OPCODE_SB};
+use crate::memory::trace::OPCODE_SB;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -37,7 +37,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
         yield_constr.constraint_first_row(lv.op - FE::from_canonical_usize(OPCODE_SB));
         yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
-        yield_constr.constraint_first_row(local_new_addr - P::ONES);
         yield_constr.constraint_first_row(lv.diff_clk);
 
         // lv.MEM_PADDING is {0, 1}
@@ -59,10 +58,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // d) diff_addr_next <== addr_next - addr_cur
         yield_constr.constraint_transition(nv.diff_addr - nv.addr + lv.addr);
 
-        // e) if op_next == lb: value_next === value_cur
-        yield_constr.constraint(
-            (nv.value - lv.value) * (P::ONES - nv.op + FE::from_canonical_usize(OPCODE_LBU)),
-        );
+        // e) if op_next != sb: value_next === value_cur
+        yield_constr
+            .constraint((nv.value - lv.value) * (nv.op - FE::from_canonical_usize(OPCODE_SB)));
 
         // f) (new_addr - 1)*diff_addr===0
         //    (new_addr - 1)*diff_addr_inv===0
@@ -106,7 +104,10 @@ mod tests {
 
     #[test]
     fn prove_memory_sb_lb() -> Result<()> {
-        let (program, executed) = memory_trace_test_case();
-        MemoryStark::prove_and_verify(&program, &executed)
+        for repeats in 0..4 {
+            let (program, executed) = memory_trace_test_case(repeats);
+            MemoryStark::prove_and_verify(&program, &executed)?;
+        }
+        Ok(())
     }
 }
