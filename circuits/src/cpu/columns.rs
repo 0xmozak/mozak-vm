@@ -2,11 +2,11 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 
 use crate::bitshift::columns::Bitshift;
-use crate::bitwise::columns::XorView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
-use crate::program::columns::ProgramColumnsView;
+use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::{CpuTable, Table};
+use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
 #[repr(C)]
@@ -28,6 +28,8 @@ pub struct OpSelectors<T> {
     pub jalr: T,
     pub beq: T,
     pub bne: T,
+    pub sb: T,
+    pub lbu: T,
     pub blt: T,
     pub bltu: T,
     pub bge: T,
@@ -62,7 +64,13 @@ pub struct CpuState<T> {
     pub halted: T,
 
     pub op1_value: T,
+    // The sum of the value of the second operand register and the
+    // immediate value. Wrapped around to fit in a `u32`.
     pub op2_value: T,
+    /// The sum of the value of the second operand
+    /// register and the immediate value with possible overflow, ie summed as
+    /// field elements in a 64-bit field.
+    pub op2_value_overflowing: T,
     pub dst_value: T,
 
     pub regs: [T; 32],
@@ -75,9 +83,10 @@ pub struct CpuState<T> {
     pub abs_diff: T,
     pub cmp_diff_inv: T,
     pub less_than: T,
-    // If `op_diff == 0`, then `not_diff == 1`, else `not_diff == 0`.
+    // normalised_diff == 0 iff op1 == op2
+    // normalised_diff == 1 iff op1 != op2
     // We only need this intermediate variable to keep the constraint degree <= 3.
-    pub not_diff: T,
+    pub normalised_diff: T,
 
     pub xor: XorView<T>,
 
@@ -89,7 +98,6 @@ pub struct CpuState<T> {
     pub divisor_inv: T,
     pub divisor: T,
 
-    // TODO: PRODUCT_LOW_BITS and PRODUCT_HIGH_BITS need range checking.
     pub multiplier: T,
     pub product_low_bits: T,
     pub product_high_bits: T,
@@ -102,7 +110,7 @@ columns_view_impl!(CpuColumnsExtended);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct CpuColumnsExtended<T> {
     pub cpu: CpuState<T>,
-    pub permuted: ProgramColumnsView<T>,
+    pub permuted: ProgramRom<T>,
 }
 
 pub const NUM_CPU_COLS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
@@ -149,20 +157,26 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
             Column::singles([MAP.cpu.abs_diff]),
             Column::many([ops.bge, ops.blt]),
         ),
+        CpuTable::new(
+            Column::singles([MAP.cpu.product_high_bits]),
+            Column::many([ops.mul, ops.mulhu]),
+        ),
+        CpuTable::new(
+            Column::singles([MAP.cpu.product_low_bits]),
+            Column::many([ops.mul, ops.mulhu]),
+        ),
     ]
 }
 
-/// Columns containing the data to be matched against XOR Bitwise stark.
+/// Columns containing the data to be matched against Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor) }
+pub fn data_for_xor<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor) }
 
-/// Column for a binary filter for bitwise instruction in Bitwise stark.
+/// Column for a binary filter for bitwise instruction in Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_bitwise<F: Field>() -> Column<F> {
-    Column::many(MAP.cpu.inst.ops.ops_that_use_xor())
-}
+pub fn filter_for_xor<F: Field>() -> Column<F> { Column::many(MAP.cpu.inst.ops.ops_that_use_xor()) }
 
 impl<T: Copy> OpSelectors<T> {
     #[must_use]
