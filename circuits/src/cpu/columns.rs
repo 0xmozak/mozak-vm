@@ -4,7 +4,7 @@ use plonky2::field::types::Field;
 use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
-use crate::program::columns::ProgramColumnsView;
+use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::{CpuTable, Table};
 use crate::xor::columns::XorView;
 
@@ -59,7 +59,9 @@ pub struct CpuState<T> {
     pub clk: T,
     pub inst: Instruction<T>,
 
-    pub halted: T,
+    // Represents the end of the program. Also used as the filter column for cross checking Program
+    // ROM instructions.
+    pub is_running: T,
 
     pub op1_value: T,
     // The sum of the value of the second operand register and the
@@ -108,7 +110,7 @@ columns_view_impl!(CpuColumnsExtended);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct CpuColumnsExtended<T> {
     pub cpu: CpuState<T>,
-    pub permuted: ProgramColumnsView<T>,
+    pub permuted: ProgramRom<T>,
 }
 
 pub const NUM_CPU_COLS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;

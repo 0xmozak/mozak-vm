@@ -1,3 +1,6 @@
+//! This module is responsible for populating the the Stark Tables with the
+//! appropriate values based on the [`Program`] and [`ExecutionRecord`].
+
 pub mod bitshift;
 pub mod bitwise;
 pub mod cpu;
