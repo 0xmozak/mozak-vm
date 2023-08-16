@@ -60,7 +60,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         // e) if op_next != sb: value_next === value_cur
         yield_constr
-            .constraint((nv.value - lv.value) * (nv.op - FE::from_canonical_usize(OPCODE_SB)));
+            .constraint((nv.op - FE::from_canonical_usize(OPCODE_SB)) * (nv.value - lv.value));
 
         // f) (new_addr - 1)*diff_addr===0
         //    (new_addr - 1)*diff_addr_inv===0
