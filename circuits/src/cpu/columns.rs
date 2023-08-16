@@ -20,6 +20,7 @@ pub struct OpSelectors<T> {
     pub divu: T,
     pub remu: T,
     pub mul: T,
+    pub mulh: T,
     pub mulhu: T,
     pub sll: T,
     pub slt: T,
@@ -101,6 +102,8 @@ pub struct CpuState<T> {
     pub multiplier_abs: T,
     pub multiplicand_abs: T,
     pub product_sign: T,
+    pub product_inv: T,
+    pub product_zero: T,
     pub product_low_bits: T,
     pub product_low_bits_zero: T,
     pub product_low_bits_inv: T,
@@ -127,7 +130,9 @@ impl<T: PackedField> CpuState<T> {
 
     // TODO(Matthias): unify where we specify `is_signed` for constraints and trace
     // generation. Also, later, take mixed sign (for MULHSU) into account.
-    pub fn is_signed(&self) -> T { self.inst.ops.slt + self.inst.ops.bge + self.inst.ops.blt }
+    pub fn is_signed(&self) -> T {
+        self.inst.ops.slt + self.inst.ops.bge + self.inst.ops.blt + self.inst.ops.mulh
+    }
 
     /// Value of the first operand, as if converted to i64.
     ///

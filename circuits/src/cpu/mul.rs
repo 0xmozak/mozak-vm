@@ -37,6 +37,9 @@ pub(crate) fn constraints<P: PackedField>(
     );
     // Constraint to make sure product_sign is either 0 or 1.
     yield_constr.constraint(lv.product_sign * (P::ONES - lv.product_sign));
+    // For MUL/MULHU/SLL product sign should alwasy be 0.
+    yield_constr
+        .constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * (lv.product_sign));
     // Constraint to make sure product_sign is computed correctly.
     yield_constr.constraint(
         lv.product_sign
@@ -47,6 +50,8 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(
         lv.product_low_bits_zero - (P::ONES - lv.product_low_bits * lv.product_low_bits_inv),
     );
+    // Constraint to make sure prodcut_zero is computed correctly.
+    yield_constr.constraint(lv.product_zero - (P::ONES - product * lv.product_inv));
     // The following constraints are for SLL.
     {
         let and_gadget = and_gadget(&lv.xor);
@@ -64,7 +69,27 @@ pub(crate) fn constraints<P: PackedField>(
 
     let destination = lv.dst_value;
     yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.sll) * (destination - low_limb));
-    yield_constr.constraint(lv.inst.ops.mulhu * (destination - high_limb));
+
+    // if product has negative sign:
+    //   if product is zero:
+    //     destination == 0 (which is same as high_limb)
+    //   else
+    //     destination == 2's complement of high_limb
+    // else
+    //   destination == high_limb
+    //
+    // NOTE: For MULHU it's always the case that product has positive sign.
+    // And we assert that above in constraints for product_sign.
+    yield_constr.constraint(
+        (lv.inst.ops.mulh + lv.inst.ops.mulhu)
+            * (lv.product_sign
+                * (lv.product_zero * (destination - high_limb)
+                    + (P::ONES - lv.product_zero)
+                        * (destination
+                            - (P::Scalar::from_noncanonical_u64(0xFFFF_FFFF) - high_limb
+                                + lv.product_low_bits_zero)))
+                + (P::ONES - lv.product_sign) * (destination - high_limb)),
+    );
 
     // The constraints above would be enough, if our field was large enough.
     // However Goldilocks field is just a bit too small at order 2^64 - 2^32 + 1.
@@ -92,7 +117,7 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{reg, simple_test_code, u32_extra};
+    use mozak_vm::test_utils::{i32_extra, reg, simple_test_code, u32_extra};
     use proptest::prelude::{prop_assume, ProptestConfig};
     use proptest::{prop_assert_eq, proptest};
 
@@ -129,6 +154,30 @@ mod tests {
             let (low, high) = a.widening_mul(b);
             prop_assert_eq!(record.executed[0].aux.dst_val, low);
             prop_assert_eq!(record.executed[1].aux.dst_val, high);
+            CpuStark::prove_and_verify(&program, &record).unwrap();
+        }
+            #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_lossless)]
+        #[test]
+        fn prove_mulh_proptest(a in i32_extra(), b in i32_extra()) {
+            let (program, record) = simple_test_code(
+                &[
+                    Instruction {
+                        op: Op::MULH,
+                        args: Args {
+                            rd: 8,
+                            rs1: 6,
+                            rs2: 7,
+                            ..Args::default()
+                        },
+                    },
+                ],
+                &[],
+                &[(6, a as u32), (7, b as u32)],
+            );
+            let (res, overflow) = i64::from(a).overflowing_mul(i64::from(b));
+            assert!(!overflow);
+            prop_assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
             CpuStark::prove_and_verify(&program, &record).unwrap();
         }
 
