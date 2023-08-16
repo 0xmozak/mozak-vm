@@ -101,7 +101,7 @@ mod tests {
     }
 
     // This test simulates the scenario of a set of instructions
-    // which perform store byte (SB) and load byte (LB) operations
+    // which perform store byte (SB) and load byte unsigned (LBU) operations
     // to memory and then checks if the memory trace is generated correctly.
     #[test]
     fn generate_memory_trace() {
