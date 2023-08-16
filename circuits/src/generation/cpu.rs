@@ -101,12 +101,12 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
 #[allow(clippy::similar_names)]
 fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
     let is_signed = row.is_signed().is_nonzero();
-    let absolute = if is_signed {
-        |x: u32| (x as i32).unsigned_abs()
+    let sign_and_absolute = if is_signed {
+        |x: u32| ((x as i32) < 0, (x as i32).unsigned_abs())
     } else {
-        |x: u32| x
+        |x: u32| (false, x)
     };
-    let multiplier_abs = if let Op::SLL = inst.op {
+    let (is_multiplier_negative, multiplier_abs) = if let Op::SLL = inst.op {
         let shift_amount = aux.op2 & 0b1_1111;
         let shift_power = 1_u32 << shift_amount;
         row.bitshift = Bitshift {
@@ -114,16 +114,21 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
             multiplier: shift_power,
         }
         .map(from_u32);
-        absolute(shift_power)
+        sign_and_absolute(shift_power)
     } else {
-        absolute(aux.op2)
+        sign_and_absolute(aux.op2)
     };
-    let multiplicand_abs = absolute(aux.op1);
+    let (is_multiplicand_negative, multiplicand_abs) = sign_and_absolute(aux.op1);
     row.multiplier_abs = from_u32(multiplier_abs);
     row.multiplicand_abs = from_u32(multiplicand_abs);
     let (low, high) = multiplicand_abs.widening_mul(multiplier_abs);
     row.product_low_bits = from_u32(low);
     row.product_high_bits = from_u32(high);
+    row.product_sign = if is_multiplicand_negative ^ is_multiplier_negative {
+        F::ONE
+    } else {
+        F::ZERO
+    };
 
     // Prove that the high limb is different from `u32::MAX`:
     let high_diff: F = from_u32(u32::MAX - high);
