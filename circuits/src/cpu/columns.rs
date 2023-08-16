@@ -58,7 +58,7 @@ pub struct CpuState<T> {
 
     // Represents the end of the program. Also used as the filter column for cross checking Program
     // ROM instructions.
-    pub halt: T,
+    pub halted: T,
 
     pub op1_value: T,
     pub op2_value: T,

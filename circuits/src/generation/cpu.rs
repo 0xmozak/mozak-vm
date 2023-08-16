@@ -72,7 +72,7 @@ pub fn generate_cpu_trace<F: RichField>(program: &Program, step_rows: &[Row]) ->
 
         if aux.will_halt {
             let mut last_row = *trace.last().unwrap();
-            last_row.halt = F::ONE;
+            last_row.halted = F::ONE;
             last_row.clk += F::ONE;
             trace.push(last_row);
             break;
@@ -193,7 +193,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
 ) -> Vec<ProgramColumnsView<F>> {
     let mut cpu_trace: Vec<_> = trace
         .iter()
-        .filter(|row| row.halt == F::ZERO)
+        .filter(|row| row.halted == F::ZERO)
         .map(|row| row.inst)
         .sorted_by_key(|inst| inst.pc.to_noncanonical_u64())
         .scan(None, |previous_pc, inst| {
@@ -246,7 +246,7 @@ mod tests {
                     imm_value: 3,
                     ..Default::default()
                 },
-                halt: 0,
+                halted: 0,
                 ..Default::default()
             },
             CpuState {
@@ -259,7 +259,7 @@ mod tests {
                     imm_value: 2,
                     ..Default::default()
                 },
-                halt: 0,
+                halted: 0,
                 ..Default::default()
             },
             CpuState {
@@ -272,7 +272,7 @@ mod tests {
                     imm_value: 3,
                     ..Default::default()
                 },
-                halt: 0,
+                halted: 0,
                 ..Default::default()
             },
             CpuState {
@@ -285,14 +285,14 @@ mod tests {
                     imm_value: 4,
                     ..Default::default()
                 },
-                halt: 1,
+                halted: 1,
                 ..Default::default()
             },
         ]
         .into_iter()
         .map(|row| CpuState {
             inst: row.inst.map(from_u32),
-            halt: from_u32(row.halt),
+            halted: from_u32(row.halted),
             ..Default::default()
         })
         .collect();
