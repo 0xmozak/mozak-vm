@@ -41,7 +41,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint_first_row(lv.diff_clk);
 
         // lv.MEM_PADDING is {0, 1}
-        yield_constr.constraint(lv.padding * (lv.padding - P::ONES));
+        yield_constr.constraint(lv.is_executed * (lv.is_executed - P::ONES));
 
         // lv.MEM_OP in {0, 1}
         yield_constr.constraint(lv.op * (lv.op - P::ONES));
