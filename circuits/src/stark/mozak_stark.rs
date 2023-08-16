@@ -243,11 +243,11 @@ impl<F: Field> Lookups<F> for InnerCpuTable<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_inst(),
-                Column::not(cpu::columns::MAP.cpu.halted),
+                Column::single(cpu::columns::MAP.cpu.is_running),
             )],
             CpuTable::new(
                 cpu::columns::data_for_permuted_inst(),
-                Column::not(cpu::columns::MAP.cpu.halted),
+                Column::single(cpu::columns::MAP.cpu.is_running),
             ),
         )
     }
