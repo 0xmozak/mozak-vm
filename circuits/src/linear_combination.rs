@@ -71,24 +71,34 @@ impl<F: Field> Column<F> {
         }
     }
 
-    pub fn eval<FE, P, const D: usize, V>(&self, v: &V) -> P
+    pub fn eval<FE, P, const D: usize, V>(&self, lv: &V, nv: &V) -> P
     where
         FE: FieldExtension<D, BaseField = F>,
         P: PackedField<Scalar = FE>,
         V: Index<usize, Output = P> + ?Sized, {
-        self.nv_linear_combination
+        self.lv_linear_combination
             .iter()
-            .map(|&(c, f)| v[c] * FE::from_basefield(f))
+            .map(|&(c, f)| lv[c] * FE::from_basefield(f))
             .sum::<P>()
+            + self
+                .nv_linear_combination
+                .iter()
+                .map(|&(c, f)| nv[c] * FE::from_basefield(f))
+                .sum::<P>()
             + FE::from_basefield(self.constant)
     }
 
     /// Evaluate on an row of a table given in column-major form.
     pub fn eval_table(&self, table: &[PolynomialValues<F>], row: usize) -> F {
-        self.nv_linear_combination
+        self.lv_linear_combination
             .iter()
-            .map(|&(c, f)| table[c].values[row] * f)
+            .map(|&(c, f)| table[(table[0].len() + c - 1) % table[0].len()].values[row] * f)
             .sum::<F>()
+            + self
+                .nv_linear_combination
+                .iter()
+                .map(|&(c, f)| table[c].values[row] * f)
+                .sum::<F>()
             + self.constant
     }
 

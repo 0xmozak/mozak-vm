@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 use std::ops::Index;
 
+use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
@@ -52,12 +53,13 @@ where
     if let [column] = &looking_table.columns[..] {
         trace
             .iter()
-            .filter_map(|row| {
+            .circular_tuple_windows()
+            .filter_map(|(prev_row, row)| {
                 looking_table
                     .filter_column
-                    .eval(row)
+                    .eval(prev_row, row)
                     .is_one()
-                    .then(|| column.eval(row))
+                    .then(|| column.eval(prev_row, row))
             })
             .collect()
     } else {
@@ -176,11 +178,11 @@ mod tests {
         // Check values that we are interested in
         assert_eq!(trace[MAP.cpu_filter][0], F::ONE);
         assert_eq!(trace[MAP.cpu_filter][1], F::ONE);
-        assert_eq!(trace[MAP.val][0], GoldilocksField(0x0001_fffe));
-        assert_eq!(trace[MAP.val][1], GoldilocksField(93));
-        assert_eq!(trace[MAP.limb_hi][0], GoldilocksField(0x0001));
-        assert_eq!(trace[MAP.limb_lo][0], GoldilocksField(0xfffe));
-        assert_eq!(trace[MAP.limb_lo][1], GoldilocksField(93));
+        assert_eq!(trace[MAP.val][1], GoldilocksField(0x0001_fffe));
+        assert_eq!(trace[MAP.val][0], GoldilocksField(93));
+        assert_eq!(trace[MAP.limb_hi][1], GoldilocksField(0x0001));
+        assert_eq!(trace[MAP.limb_lo][1], GoldilocksField(0xfffe));
+        assert_eq!(trace[MAP.limb_lo][0], GoldilocksField(93));
 
         // Ensure rest of trace is zeroed out
         for cpu_filter in &trace[MAP.cpu_filter][2..] {
@@ -189,7 +191,7 @@ mod tests {
         for value in &trace[MAP.val][2..] {
             assert_eq!(value, &F::ZERO);
         }
-        for limb_hi in &trace[MAP.limb_hi][1..] {
+        for limb_hi in &trace[MAP.limb_hi][2..] {
             assert_eq!(limb_hi, &F::ZERO);
         }
         for limb_lo in &trace[MAP.limb_lo][2..] {
