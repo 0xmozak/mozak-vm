@@ -35,14 +35,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         let local_new_addr = lv.diff_addr * lv.diff_addr_inv;
         let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
-        yield_constr.constraint_first_row(lv.op - FE::from_canonical_usize(OPCODE_SB));
+        yield_constr.constraint_first_row(lv.is_executed * (lv.op - FE::from_canonical_usize(OPCODE_SB)));
         yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
         yield_constr.constraint_first_row(lv.diff_clk);
 
-        // lv.MEM_PADDING is {0, 1}
+        // lv.is_executed is {0, 1}
         yield_constr.constraint(lv.is_executed * (lv.is_executed - P::ONES));
 
-        // lv.MEM_OP in {0, 1}
+        // lv.op in {0, 1}
         yield_constr.constraint(lv.op * (lv.op - P::ONES));
 
         // a) if new_addr: op === sb
@@ -66,6 +66,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         //    (new_addr - 1)*diff_addr_inv===0
         yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr);
         yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr_inv);
+
+        // g) Once we have padding, all subsequent rows are padding; ie not `is_executed`.
+        yield_constr.constraint_transition((lv.is_executed - nv.is_executed) * nv.is_executed);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -104,7 +107,7 @@ mod tests {
 
     #[test]
     fn prove_memory_sb_lb() -> Result<()> {
-        for repeats in 0..4 {
+        for repeats in 0..8 {
             let (program, executed) = memory_trace_test_case(repeats);
             MemoryStark::prove_and_verify(&program, &executed)?;
         }
