@@ -77,7 +77,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         // Check: the `fixed_range_check_u16` forms a sequence from 0 to 2^16-1.
         //  this column will be used to connect to the permutation columns,
         //  `fixed_range_check_u16_permuted_hi` and `fixed_range_check_u16_permuted_lo`.
-
         yield_constr.constraint_first_row(lv.fixed_range_check_u16);
         yield_constr.constraint_transition(
             (nv.fixed_range_check_u16 - lv.fixed_range_check_u16 - FE::ONE)
