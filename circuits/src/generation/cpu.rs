@@ -8,12 +8,12 @@ use mozak_vm::vm::{ExecutionRecord, Row};
 use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;
-use crate::bitwise::columns::XorView;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::stark::utils::transpose_trace;
 use crate::utils::{from_u32, pad_trace_with_last_to_len};
+use crate::xor::columns::XorView;
 
 #[allow(clippy::missing_panics_doc)]
 #[must_use]
@@ -81,7 +81,7 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
     let diff_inv = diff.try_inverse().unwrap_or_default();
 
     row.cmp_diff_inv = diff_inv;
-    row.not_diff = F::ONE - diff * diff_inv;
+    row.normalised_diff = diff * diff_inv;
 }
 
 #[allow(clippy::cast_possible_wrap)]

@@ -2,9 +2,9 @@ use bitfield::Bit;
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
-use crate::bitwise::columns::{BitwiseColumnsView, XorView};
 use crate::cpu::columns::CpuState;
 use crate::utils::pad_trace_with_default;
+use crate::xor::columns::{XorColumnsView, XorView};
 
 fn filter_bitwise_trace<F: RichField>(
     step_rows: &[CpuState<F>],
@@ -25,12 +25,10 @@ fn to_bits<F: RichField>(val: F) -> [F; u32::BITS as usize] {
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
 #[allow(clippy::cast_possible_truncation)]
-pub fn generate_bitwise_trace<F: RichField>(
-    cpu_trace: &[CpuState<F>],
-) -> Vec<BitwiseColumnsView<F>> {
+pub fn generate_bitwise_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> Vec<XorColumnsView<F>> {
     pad_trace_with_default(
         filter_bitwise_trace(cpu_trace)
-            .map(|execution| BitwiseColumnsView {
+            .map(|execution| XorColumnsView {
                 is_execution_row: F::ONE,
                 execution,
                 limbs: execution.map(to_bits),
