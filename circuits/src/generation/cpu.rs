@@ -124,6 +124,8 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
     let (low, high) = multiplicand_abs.widening_mul(multiplier_abs);
     row.product_low_bits = from_u32(low);
     row.product_high_bits = from_u32(high);
+    row.product_low_bits_zero = if low == 0 { F::ONE } else { F::ZERO };
+    row.product_low_bits_inv = row.product_low_bits.try_inverse().unwrap_or_default();
     row.product_sign = if is_multiplicand_negative ^ is_multiplier_negative {
         F::ONE
     } else {

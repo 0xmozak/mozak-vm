@@ -41,6 +41,10 @@ pub(crate) fn constraints<P: PackedField>(
             - ((lv.op1_sign_bit + lv.op2_sign_bit)
                 - (P::Scalar::from_canonical_u32(2) * lv.op1_sign_bit * lv.op2_sign_bit)),
     );
+    // Constraint to make sure product_low_bits_zero is computed correctly.
+    yield_constr.constraint(
+        lv.product_low_bits_zero - (P::ONES - lv.product_low_bits * lv.product_low_bits_inv),
+    );
     // The following constraints are for SLL.
     {
         let and_gadget = and_gadget(&lv.xor);
