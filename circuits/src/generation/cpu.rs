@@ -100,9 +100,6 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
 fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
-    if !matches!(inst.op, Op::MUL | Op::MULHU | Op::SLL) {
-        return;
-    }
     let multiplier = if let Op::SLL = inst.op {
         let shift_amount = aux.op2 & 0b1_1111;
         let shift_power = 1_u32 << shift_amount;
