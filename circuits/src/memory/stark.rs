@@ -35,8 +35,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         let local_new_addr = lv.diff_addr * lv.diff_addr_inv;
         let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
-        yield_constr
-            .constraint_first_row(lv.is_executed * (lv.op - FE::from_canonical_usize(OPCODE_SB)));
+        yield_constr.constraint_first_row(lv.op - FE::from_canonical_usize(OPCODE_SB));
         yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
         yield_constr.constraint_first_row(lv.diff_clk);
 
