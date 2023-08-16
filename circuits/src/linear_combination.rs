@@ -12,6 +12,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 /// Represent a linear combination of columns.
 #[derive(Clone, Debug, Default)]
 pub struct Column<F: Field> {
+    lv_linear_combination: Vec<(usize, F)>,
     nv_linear_combination: Vec<(usize, F)>,
     constant: F,
 }
@@ -20,6 +21,7 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn always() -> Self {
         Column {
+            lv_linear_combination: vec![],
             nv_linear_combination: vec![],
             constant: F::ONE,
         }
@@ -28,6 +30,7 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn not(c: usize) -> Self {
         Self {
+            lv_linear_combination: vec![],
             nv_linear_combination: vec![(c, F::NEG_ONE)],
             constant: F::ONE,
         }
@@ -36,6 +39,7 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn single(c: usize) -> Self {
         Self {
+            lv_linear_combination: vec![],
             nv_linear_combination: vec![(c, F::ONE)],
             constant: F::ZERO,
         }
@@ -48,6 +52,7 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn many<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
+            lv_linear_combination: vec![],
             nv_linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect(),
             constant: F::ZERO,
         }
@@ -56,6 +61,7 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn ascending_sum<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
+            lv_linear_combination: vec![],
             nv_linear_combination: cs
                 .into_iter()
                 .enumerate()
