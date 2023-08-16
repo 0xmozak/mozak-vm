@@ -41,7 +41,7 @@ mod tests {
             &[(6, 100), (7, 100)],
         );
         assert_eq!(record.last_state.get_register_value(5), 100 + 100);
-        MozakStark::prove_and_verify(&program, &record.executed)
+        MozakStark::prove_and_verify(&program, &record)
     }
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
@@ -65,7 +65,7 @@ mod tests {
                 if rd != 0 {
                     assert_eq!(record.executed[1].state.get_register_value(rd), a.wrapping_add(b));
                 }
-                CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+                CpuStark::prove_and_verify(&program, &record).unwrap();
             }
     }
 }

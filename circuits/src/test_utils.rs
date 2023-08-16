@@ -1,6 +1,6 @@
 use anyhow::Result;
 use mozak_vm::elf::Program;
-use mozak_vm::vm::Row;
+use mozak_vm::vm::ExecutionRecord;
 use plonky2::fri::FriConfig;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
@@ -12,7 +12,6 @@ use starky::stark::Stark;
 use starky::verifier::verify_stark_proof;
 
 use crate::bitshift::stark::BitshiftStark;
-use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::bitshift::generate_shift_amount_trace;
 use crate::generation::bitwise::generate_bitwise_trace;
@@ -26,6 +25,7 @@ use crate::stark::mozak_stark::MozakStark;
 use crate::stark::prover::prove;
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 use crate::stark::verifier::verify_proof;
+use crate::xor::stark::XorStark;
 
 pub type S = MozakStark<F, D>;
 pub const D: usize = 2;
@@ -63,18 +63,18 @@ pub trait ProveAndVerify {
     ///
     /// # Errors
     /// Errors if proving or verifying the STARK fails.
-    fn prove_and_verify(program: &Program, step_rows: &[Row]) -> Result<()>;
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()>;
 }
 
 impl ProveAndVerify for CpuStark<F, D> {
-    fn prove_and_verify(program: &Program, step_rows: &[Row]) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
         type S = CpuStark<F, D>;
 
         let config = standard_faster_config();
 
         let stark = S::default();
         let trace_poly_values = trace_to_poly_values(generate_cpu_trace_extended(
-            generate_cpu_trace(program, step_rows),
+            generate_cpu_trace(program, record),
             &generate_program_rom_trace(program),
         ));
         let proof = prove_table::<F, C, S, D>(
@@ -90,13 +90,13 @@ impl ProveAndVerify for CpuStark<F, D> {
 }
 
 impl ProveAndVerify for RangeCheckStark<F, D> {
-    fn prove_and_verify(program: &Program, step_rows: &[Row]) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
         type S = RangeCheckStark<F, D>;
 
         let config = standard_faster_config();
 
         let stark = S::default();
-        let cpu_trace = generate_cpu_trace(program, step_rows);
+        let cpu_trace = generate_cpu_trace(program, record);
         let trace_poly_values = trace_to_poly_values(generate_rangecheck_trace(&cpu_trace));
         let proof = prove_table::<F, C, S, D>(
             stark,
@@ -110,14 +110,14 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
     }
 }
 
-impl ProveAndVerify for BitwiseStark<F, D> {
-    fn prove_and_verify(program: &Program, step_rows: &[Row]) -> Result<()> {
-        type S = BitwiseStark<F, D>;
+impl ProveAndVerify for XorStark<F, D> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+        type S = XorStark<F, D>;
 
         let config = standard_faster_config();
 
         let stark = S::default();
-        let cpu_trace = generate_cpu_trace(program, step_rows);
+        let cpu_trace = generate_cpu_trace(program, record);
         let trace_poly_values = trace_rows_to_poly_values(generate_bitwise_trace(&cpu_trace));
         let proof = prove_table::<F, C, S, D>(
             stark,
@@ -132,13 +132,13 @@ impl ProveAndVerify for BitwiseStark<F, D> {
 }
 
 impl ProveAndVerify for MemoryStark<F, D> {
-    fn prove_and_verify(program: &Program, step_rows: &[Row]) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
         type S = MemoryStark<F, D>;
         let config = standard_faster_config();
 
         let stark = S::default();
         let trace_poly_values =
-            trace_rows_to_poly_values(generate_memory_trace(program, step_rows));
+            trace_rows_to_poly_values(generate_memory_trace(program, &record.executed));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -152,12 +152,12 @@ impl ProveAndVerify for MemoryStark<F, D> {
 }
 
 impl ProveAndVerify for BitshiftStark<F, D> {
-    fn prove_and_verify(program: &Program, step_rows: &[Row]) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
         type S = BitshiftStark<F, D>;
         let config = standard_faster_config();
 
         let stark = S::default();
-        let cpu_rows = generate_cpu_trace::<F>(program, step_rows);
+        let cpu_rows = generate_cpu_trace::<F>(program, record);
         let trace = generate_shift_amount_trace(&cpu_rows);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
@@ -179,17 +179,12 @@ impl ProveAndVerify for MozakStark<F, D> {
     /// this proves and verifies ALL starks and lookups within the Mozak
     /// ZKVM. This should be preferred if the test is concerned with the
     /// consistency of the final [`MozakStark`].
-    fn prove_and_verify(program: &Program, step_rows: &[Row]) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
         let stark = S::default();
         let config = standard_faster_config();
 
-        let all_proof = prove::<F, C, D>(
-            program,
-            step_rows,
-            &stark,
-            &config,
-            &mut TimingTree::default(),
-        );
+        let all_proof =
+            prove::<F, C, D>(program, record, &stark, &config, &mut TimingTree::default());
         verify_proof(stark, all_proof.unwrap(), &config)
     }
 }

@@ -9,8 +9,6 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // TODO: PRODUCT_LOW_BITS and PRODUCT_HIGH_BITS need range checking.
-
     // The Goldilocks field is carefully chosen to allow multiplication of u32
     // values without overflow.
     let base = P::Scalar::from_noncanonical_u64(1 << 32);
@@ -30,7 +28,7 @@ pub(crate) fn constraints<P: PackedField>(
     {
         let and_gadget = and_gadget(&lv.xor);
         yield_constr.constraint(
-            lv.inst.ops.sll * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0x1F)),
+            lv.inst.ops.sll * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0b1_1111)),
         );
         let op2 = lv.op2_value;
         yield_constr.constraint(lv.inst.ops.sll * (and_gadget.input_b - op2));
@@ -108,7 +106,7 @@ mod tests {
             let (low, high) = a.widening_mul(b);
             prop_assert_eq!(record.executed[0].aux.dst_val, low);
             prop_assert_eq!(record.executed[1].aux.dst_val, high);
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
 
         #[test]
@@ -139,9 +137,9 @@ mod tests {
                 &[],
                 &[(rs1, p), (rs2, q)],
             );
-            prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
-            prop_assert_eq!(record.executed[1].aux.dst_val, p << (q & 0x1F));
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0b1_1111));
+            prop_assert_eq!(record.executed[1].aux.dst_val, p << (q & 0b1_1111));
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }

@@ -18,7 +18,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuState;
-use crate::bitwise::columns::XorView;
+use crate::xor::columns::XorView;
 
 /// A struct to represent the output of binary operations
 ///
@@ -91,8 +91,8 @@ mod tests {
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
-    use crate::bitwise::stark::BitwiseStark;
     use crate::test_utils::ProveAndVerify;
+    use crate::xor::stark::XorStark;
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
@@ -123,7 +123,7 @@ mod tests {
             .collect();
 
             let (program, record) = simple_test_code(&code, &[], &[(6, a), (7, b)]);
-            BitwiseStark::prove_and_verify(&program, &record.executed).unwrap();
+            XorStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }
