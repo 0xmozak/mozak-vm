@@ -45,6 +45,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary(yield_constr, lv.is_executed);
         // Once we have padding, all subsequent rows are padding.
         is_binary_transition(yield_constr, lv.is_executed - nv.is_executed);
+        // We only have two different ops at the moment, so we use a binary variable to represent them:
         is_binary(yield_constr, lv.op);
 
         // a) if new_addr: op === sb
