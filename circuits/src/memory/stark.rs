@@ -34,10 +34,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv: &Memory<P> = vars.local_values.borrow();
         let nv: &Memory<P> = vars.next_values.borrow();
 
+        let diff_addr = nv.addr - lv.addr;
         // This still forbids 0 as the first address.
         // That's wrong.
         let local_new_addr = lv.diff_addr * lv.diff_addr_inv;
-        let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
+        let next_new_addr = diff_addr * nv.diff_addr_inv;
         yield_constr.constraint_first_row(lv.op - FE::from_canonical_usize(OPCODE_SB));
         yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
         yield_constr.constraint_first_row(lv.diff_clk);
@@ -63,7 +64,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint(local_new_addr * lv.diff_clk);
 
         // d) diff_addr_next <== addr_next - addr_cur
-        yield_constr.constraint_transition(nv.diff_addr - nv.addr + lv.addr);
+        yield_constr.constraint_transition(nv.diff_addr - diff_addr);
 
         // e) if op_next != sb: value_next === value_cur
         yield_constr
