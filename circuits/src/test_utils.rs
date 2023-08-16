@@ -12,7 +12,6 @@ use starky::stark::Stark;
 use starky::verifier::verify_stark_proof;
 
 use crate::bitshift::stark::BitshiftStark;
-use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::bitshift::generate_shift_amount_trace;
 use crate::generation::bitwise::generate_bitwise_trace;
@@ -26,6 +25,7 @@ use crate::stark::mozak_stark::MozakStark;
 use crate::stark::prover::prove;
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 use crate::stark::verifier::verify_proof;
+use crate::xor::stark::XorStark;
 
 pub type S = MozakStark<F, D>;
 pub const D: usize = 2;
@@ -112,9 +112,9 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
     }
 }
 
-impl ProveAndVerify for BitwiseStark<F, D> {
+impl ProveAndVerify for XorStark<F, D> {
     fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
-        type S = BitwiseStark<F, D>;
+        type S = XorStark<F, D>;
 
         let config = standard_faster_config();
 

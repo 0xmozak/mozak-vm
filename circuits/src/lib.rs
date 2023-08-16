@@ -9,7 +9,6 @@
 #![deny(clippy::cargo)]
 
 pub mod bitshift;
-pub mod bitwise;
 pub mod columns_view;
 pub mod cpu;
 pub mod cross_table_lookup;
@@ -23,3 +22,4 @@ pub mod stark;
 #[cfg(any(feature = "test", test))]
 pub mod test_utils;
 pub mod utils;
+pub mod xor;

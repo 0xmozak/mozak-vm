@@ -51,9 +51,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint(local_new_addr * (lv.op - FE::from_canonical_usize(OPCODE_SB)));
 
         // b) if not new_addr: diff_clk_next <== clk_next - clk_cur
-        yield_constr.constraint_transition(
-            (nv.diff_clk - nv.clk + lv.clk) * (next_new_addr - P::ONES),
-        );
+        yield_constr
+            .constraint_transition((nv.diff_clk - nv.clk + lv.clk) * (next_new_addr - P::ONES));
 
         // c) if new_addr: diff_clk === 0
         yield_constr.constraint(local_new_addr * lv.diff_clk);
@@ -62,9 +61,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint_transition(nv.diff_addr - nv.addr + lv.addr);
 
         // e) if op_next != sb: value_next === value_cur
-        yield_constr.constraint(
-            (nv.value - lv.value) * (nv.op - FE::from_canonical_usize(OPCODE_SB)),
-        );
+        yield_constr
+            .constraint((nv.value - lv.value) * (nv.op - FE::from_canonical_usize(OPCODE_SB)));
 
         // f) (new_addr - 1)*diff_addr===0
         //    (new_addr - 1)*diff_addr_inv===0

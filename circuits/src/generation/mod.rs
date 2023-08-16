@@ -23,7 +23,6 @@ use self::bitwise::generate_bitwise_trace;
 use self::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
 use self::rangecheck::generate_rangecheck_trace;
 use crate::bitshift::stark::BitshiftStark;
-use crate::bitwise::stark::BitwiseStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::program::generate_program_rom_trace;
@@ -32,6 +31,7 @@ use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::mozak_stark::{MozakStark, NUM_TABLES};
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
+use crate::xor::stark::XorStark;
 
 #[must_use]
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
@@ -91,7 +91,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); BitwiseStark::<F, D>::COLUMNS]:,
+    [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:, {
@@ -116,8 +116,8 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
             "RANGE_CHECK_STARK",
         ),
         // Bitwise
-        debug_single_trace::<F, D, BitwiseStark<F, D>>(
-            &mozak_stark.bitwise_stark,
+        debug_single_trace::<F, D, XorStark<F, D>>(
+            &mozak_stark.xor_stark,
             bitwise_trace,
             "BITWISE_STARK",
         ),
