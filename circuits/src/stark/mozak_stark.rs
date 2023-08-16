@@ -6,6 +6,7 @@ use starky::config::StarkConfig;
 use starky::stark::Stark;
 
 use crate::bitshift::stark::BitshiftStark;
+use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::program::stark::ProgramStark;
@@ -24,9 +25,12 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub debug: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(bound = "")]
-pub struct PublicInputs<F: Field> {
+columns_view_impl!(PublicInputs);
+
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[serde(bound = "F: Field")]
+pub struct PublicInputs<F> {
     pub pc_start: F,
 }
 

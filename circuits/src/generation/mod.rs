@@ -6,6 +6,8 @@ pub mod memory;
 pub mod program;
 pub mod rangecheck;
 
+use std::borrow::Borrow;
+
 use itertools::Itertools;
 use mozak_vm::elf::Program;
 use mozak_vm::vm::ExecutionRecord;
@@ -101,35 +103,35 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
             &mozak_stark.program_stark,
             program_trace,
             "PROGRAM_ROM_STARK",
-            [],
+            &[],
         ),
         // CPU
         debug_single_trace::<F, D, CpuStark<F, D>>(
             &mozak_stark.cpu_stark,
             cpu_trace,
             "CPU_STARK",
-            [public_inputs.pc_start]
+            public_inputs.borrow(),
         ),
         // Range check
         debug_single_trace::<F, D, RangeCheckStark<F, D>>(
             &mozak_stark.rangecheck_stark,
             rangecheck_trace,
             "RANGE_CHECK_STARK",
-            [],
+            &[],
         ),
         // Bitwise
         debug_single_trace::<F, D, XorStark<F, D>>(
             &mozak_stark.xor_stark,
             bitwise_trace,
             "BITWISE_STARK",
-            [],
+            &[],
         ),
         // Bitshift
         debug_single_trace::<F, D, BitshiftStark<F, D>>(
             &mozak_stark.shift_amount_stark,
             shift_amount_trace,
             "BITWISE_STARK",
-            [],
+            &[],
         ),
     ]
     .into_iter()
@@ -141,7 +143,7 @@ pub fn debug_single_trace<F: RichField + Extendable<D>, const D: usize, S: Stark
     stark: &S,
     trace_rows: Vec<PolynomialValues<F>>,
     stark_name: &str,
-    public_inputs: [F; S::PUBLIC_INPUTS],
+    public_inputs: &[F; S::PUBLIC_INPUTS],
 ) -> bool
 where
     [(); S::COLUMNS]:,
@@ -156,7 +158,7 @@ where
                 StarkEvaluationVars {
                     local_values: lv,
                     next_values: nv,
-                    public_inputs: &public_inputs,
+                    public_inputs,
                 },
                 &mut consumer,
             );

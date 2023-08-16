@@ -158,11 +158,10 @@ where
     );
 
     let program_rom_trace_cap = trace_caps[TableKind::Program as usize].clone();
-    let public_inputs = public_inputs.clone();
     Ok(AllProof {
         stark_proofs,
         program_rom_trace_cap,
-        public_inputs,
+        public_inputs: *public_inputs,
     })
 }
 
