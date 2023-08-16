@@ -14,13 +14,15 @@ pub(crate) fn constraints<P: PackedField>(
     let base = P::Scalar::from_noncanonical_u64(1 << 32);
 
     let multiplicand = lv.op1_value;
-    let multiplier = lv.multiplier;
+    let multiplier_abs = lv.multiplier_abs;
+    let multiplicand_abs = lv.multiplicand_abs;
     let low_limb = lv.product_low_bits;
     let high_limb = lv.product_high_bits;
     let product = low_limb + base * high_limb;
 
-    yield_constr.constraint(product - multiplicand * multiplier);
-    yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.mulhu) * (multiplier - lv.op2_value));
+    yield_constr.constraint(product - multiplicand_abs * multiplier_abs);
+    yield_constr
+        .constraint((lv.inst.ops.mul + lv.inst.ops.mulhu) * (multiplier_abs - lv.op2_value));
     // The following constraints are for SLL.
     {
         let and_gadget = and_gadget(&lv.xor);
@@ -31,7 +33,7 @@ pub(crate) fn constraints<P: PackedField>(
         yield_constr.constraint(lv.inst.ops.sll * (and_gadget.input_b - op2));
 
         yield_constr.constraint(lv.inst.ops.sll * (and_gadget.output - lv.bitshift.amount));
-        yield_constr.constraint(lv.inst.ops.sll * (multiplier - lv.bitshift.multiplier));
+        yield_constr.constraint(lv.inst.ops.sll * (multiplier_abs - lv.bitshift.multiplier));
     }
 
     // Now, let's copy our results to the destination register:

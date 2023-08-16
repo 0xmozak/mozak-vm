@@ -98,7 +98,8 @@ pub struct CpuState<T> {
     pub divisor_inv: T,
     pub divisor: T,
 
-    pub multiplier: T,
+    pub multiplier_abs: T,
+    pub multiplicand_abs: T,
     pub product_low_bits: T,
     pub product_high_bits: T,
     pub product_high_diff_inv: T,
