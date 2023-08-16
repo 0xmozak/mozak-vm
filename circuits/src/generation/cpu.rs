@@ -43,13 +43,16 @@ pub fn generate_cpu_trace<F: RichField>(
         executed,
         last_state,
     } = record;
-    // TODO: Matthias: rethink whether we need a fake aux.
-    let fake = &[Row {
+    let last_row = &[Row {
         state: last_state.clone(),
+        // `Aux` has auxiliary information about an executed CPU cycle.
+        // The last state is the final state after the last execution.  Thus naturally it has no
+        // associated auxiliarye execution information. We use a dummy aux to make the row
+        // generation work, but we could refactor to make this unnecessary.
         aux: executed.last().unwrap().aux.clone(),
     }];
 
-    for Row { state, aux } in chain![executed, fake] {
+    for Row { state, aux } in chain![executed, last_row] {
         let inst = state.current_instruction(program);
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
@@ -60,7 +63,7 @@ pub fn generate_cpu_trace<F: RichField>(
                 + from_u32(inst.args.imm),
             // NOTE: Updated value of DST register is next step.
             dst_value: from_u32(aux.dst_val),
-            halted: F::from_bool(state.halted),
+            is_running: F::from_bool(!state.halted),
             // Valid defaults for the powers-of-two gadget.
             // To be overridden by users of the gadget.
             // TODO(Matthias): find a way to make either compiler or runtime complain
@@ -196,7 +199,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
 ) -> Vec<ProgramRom<F>> {
     let mut cpu_trace: Vec<_> = trace
         .iter()
-        .filter(|row| row.halted == F::ZERO)
+        .filter(|row| row.is_running == F::ONE)
         .map(|row| row.inst)
         .sorted_by_key(|inst| inst.pc.to_noncanonical_u64())
         .scan(None, |previous_pc, inst| {
@@ -249,7 +252,7 @@ mod tests {
                     imm_value: 3,
                     ..Default::default()
                 },
-                halted: 0,
+                is_running: 1,
                 ..Default::default()
             },
             CpuState {
@@ -262,7 +265,7 @@ mod tests {
                     imm_value: 2,
                     ..Default::default()
                 },
-                halted: 0,
+                is_running: 1,
                 ..Default::default()
             },
             CpuState {
@@ -275,7 +278,7 @@ mod tests {
                     imm_value: 3,
                     ..Default::default()
                 },
-                halted: 0,
+                is_running: 1,
                 ..Default::default()
             },
             CpuState {
@@ -288,14 +291,14 @@ mod tests {
                     imm_value: 4,
                     ..Default::default()
                 },
-                halted: 1,
+                is_running: 0,
                 ..Default::default()
             },
         ]
         .into_iter()
         .map(|row| CpuState {
             inst: row.inst.map(from_u32),
-            halted: from_u32(row.halted),
+            is_running: from_u32(row.is_running),
             ..Default::default()
         })
         .collect();

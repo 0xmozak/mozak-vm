@@ -92,8 +92,7 @@ fn clock_ticks<P: PackedField>(
 ) {
     let clock_diff = nv.clk - lv.clk;
     is_binary_transition(yield_constr, clock_diff);
-    is_binary(yield_constr, lv.halted);
-    yield_constr.constraint_transition(clock_diff + lv.halted - P::ONES);
+    yield_constr.constraint_transition(clock_diff - lv.is_running);
 }
 
 /// Register 0 is always 0
@@ -184,15 +183,17 @@ fn halted<P: PackedField>(
     nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    is_binary(yield_constr, lv.halted);
+    let is_halted = P::ONES - lv.is_running;
+    is_binary(yield_constr, lv.is_running);
     // TODO: change this when we support segmented proving.
-    // Last row must be HALT
-    yield_constr.constraint_last_row(lv.halted - P::ONES);
+    // Last row must be 'halted', ie no longer is_running.
+    yield_constr.constraint_last_row(lv.is_running);
 
-    is_binary_transition(yield_constr, nv.halted - lv.halted);
+    // Once we stop running, no subsequent row starts running again:
+    yield_constr.constraint_transition(is_halted * (nv.is_running - lv.is_running));
     // Halted means that nothing changes anymore:
     for (&lv_entry, &nv_entry) in izip!(lv, nv) {
-        yield_constr.constraint_transition(lv.halted * (lv_entry - nv_entry));
+        yield_constr.constraint_transition(is_halted * (lv_entry - nv_entry));
     }
 }
 
