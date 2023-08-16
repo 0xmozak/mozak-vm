@@ -281,12 +281,13 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
             challenges.combine(evals.iter())
         };
         let filter = |v: &[P]| -> P { filter_column.eval(v) };
-        let local_filter = filter(vars.local_values);
+        // let local_filter = filter(vars.local_values);
         let next_filter = filter(vars.next_values);
         let select = |filter, x| filter * x + P::ONES - filter;
 
         // Check value of `Z(1)`
-        consumer.constraint_first_row(*local_z - select(local_filter, combine(vars.local_values)));
+        // consumer.constraint_first_row(*local_z - select(local_filter, combine(vars.local_values)));
+        consumer.constraint_last_row(*next_z - select(next_filter, combine(vars.next_values)));
         // Check `Z(gw) = combination * Z(w)`
         consumer.constraint_transition(
             *next_z - *local_z * select(next_filter, combine(vars.next_values)),
