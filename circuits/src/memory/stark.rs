@@ -59,7 +59,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // d) diff_addr_next <== addr_next - addr_cur
         yield_constr.constraint_transition(nv.diff_addr - nv.addr + lv.addr);
 
-        // e) if op_next == lb: value_next === value_cur
+        // e) if op_next == lbu: value_next === value_cur
         yield_constr.constraint(
             (nv.value - lv.value) * (P::ONES - nv.op + FE::from_canonical_usize(OPCODE_LBU)),
         );
