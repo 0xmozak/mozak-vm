@@ -80,7 +80,7 @@ pub fn is_binary<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P)
 ///
 /// That's useful for differences between `local_values` and `next_values`, like
 /// a clock tick.
-pub fn is_binary_transition<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
+fn is_binary_transition<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
     yield_constr.constraint_transition(x * (P::ONES - x));
 }
 

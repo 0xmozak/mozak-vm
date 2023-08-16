@@ -105,7 +105,7 @@ mod tests {
     // to memory and then checks if the memory trace is generated correctly.
     #[test]
     fn generate_memory_trace() {
-        let (program, record) = memory_trace_test_case();
+        let (program, record) = memory_trace_test_case(1);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(&program, &record.executed);
         assert_eq!(expected_trace(), trace);
@@ -117,7 +117,7 @@ mod tests {
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        let (program, record) = memory_trace_test_case();
+        let (program, record) = memory_trace_test_case(1);
         let trace = super::generate_memory_trace::<F>(&program, &record.executed[..4]);
 
         let expected_trace: Vec<Memory<GoldilocksField>> = expected_trace();

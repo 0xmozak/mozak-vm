@@ -9,7 +9,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use crate::cpu::stark::{is_binary, is_binary_transition};
+use crate::cpu::stark::is_binary;
 use crate::memory::columns::{Memory, NUM_MEM_COLS};
 use crate::memory::trace::OPCODE_SB;
 
@@ -38,13 +38,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // That's wrong.
         let local_new_addr = lv.diff_addr * lv.diff_addr_inv;
         let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
-        yield_constr.constraint_first_row(lv.op - FE::from_canonical_usize(OPCODE_SB));
+        yield_constr
+            .constraint_first_row(lv.is_executed * (lv.op - FE::from_canonical_usize(OPCODE_SB)));
         yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
         yield_constr.constraint_first_row(lv.diff_clk);
 
         is_binary(yield_constr, lv.is_executed);
-        // Once we have padding, all subsequent rows are padding.
-        is_binary_transition(yield_constr, lv.is_executed - nv.is_executed);
+
+        // Once we have padding, all subsequent rows are padding; ie not
+        // `is_executed`.
+        yield_constr.constraint_transition((lv.is_executed - nv.is_executed) * nv.is_executed);
+
         // We only have two different ops at the moment, so we use a binary variable to
         // represent them:
         is_binary(yield_constr, lv.op);
@@ -64,7 +68,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         // e) if op_next != sb: value_next === value_cur
         yield_constr
-            .constraint((nv.value - lv.value) * (nv.op - FE::from_canonical_usize(OPCODE_SB)));
+            .constraint((nv.op - FE::from_canonical_usize(OPCODE_SB)) * (nv.value - lv.value));
 
         // f) (new_addr - 1)*diff_addr===0
         //    (new_addr - 1)*diff_addr_inv===0
@@ -109,7 +113,10 @@ mod tests {
 
     #[test]
     fn prove_memory_sb_lb() -> Result<()> {
-        let (program, executed) = memory_trace_test_case();
-        MozakStark::prove_and_verify(&program, &executed)
+        for repeats in 0..8 {
+            let (program, executed) = memory_trace_test_case(repeats);
+            MozakStark::prove_and_verify(&program, &executed)?;
+        }
+        Ok(())
     }
 }
