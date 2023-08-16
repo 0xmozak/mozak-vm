@@ -56,7 +56,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
 
         // Check: the value is built from two limbs.
         // And then check that the limbs are in range of 0..2^16 using lookup tables.
-
         constrain_value(
             P::Scalar::from_canonical_usize(Self::BASE),
             lv,
