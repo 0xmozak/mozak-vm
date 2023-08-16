@@ -3,7 +3,6 @@ use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Memory<T> {
-
     /// Indicates if a row comes from VM execution, or whether it's padding.
     pub is_executed: T,
 
