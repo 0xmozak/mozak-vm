@@ -11,7 +11,7 @@ use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
 
-/// Returns the state just before final
+/// Returns the state just before the final state
 #[must_use]
 pub fn state_before_final(e: &ExecutionRecord) -> &State { &e.executed[e.executed.len() - 2].state }
 

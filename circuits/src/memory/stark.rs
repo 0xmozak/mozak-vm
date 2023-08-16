@@ -50,10 +50,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         // Consequently, we constraint:
 
-        // lv.MEM_PADDING is in {0, 1}
-        is_binary(yield_constr, lv.padding);
-
-        // lv.MEM_OP is in {0, 1}
+        is_binary(yield_constr, lv.is_executed);
         is_binary(yield_constr, lv.op);
 
         // Check: if address for next instruction changed, then opcode was `sb`
