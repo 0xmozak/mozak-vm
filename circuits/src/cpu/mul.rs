@@ -13,7 +13,6 @@ pub(crate) fn constraints<P: PackedField>(
     // values without overflow.
     let base = P::Scalar::from_noncanonical_u64(1 << 32);
 
-    let multiplicand = lv.op1_value;
     let multiplier_abs = lv.multiplier_abs;
     let multiplicand_abs = lv.multiplicand_abs;
     let low_limb = lv.product_low_bits;
@@ -21,8 +20,21 @@ pub(crate) fn constraints<P: PackedField>(
     let product = low_limb + base * high_limb;
 
     yield_constr.constraint(product - multiplicand_abs * multiplier_abs);
-    yield_constr
-        .constraint((lv.inst.ops.mul + lv.inst.ops.mulhu) * (multiplier_abs - lv.op2_value));
+    // Constraint to make sure multiplier_abs is computed correctly from op2_value.
+    // Skip SLL as it always has positive multiplier.
+    yield_constr.constraint(
+        (lv.inst.ops.mul + lv.inst.ops.mulhu)
+            * (multiplier_abs
+                - ((P::ONES - lv.op2_sign_bit) * (lv.op2_value)
+                    + (lv.op2_sign_bit) * (CpuState::<P>::shifted(32) - lv.op2_value))),
+    );
+    // Constraint to make sure multiplicand_abs is computed correctly from
+    // op1_value.
+    yield_constr.constraint(
+        multiplicand_abs
+            - ((P::ONES - lv.op1_sign_bit) * (lv.op1_value)
+                + (lv.op1_sign_bit) * (CpuState::<P>::shifted(32) - lv.op1_value)),
+    );
     // The following constraints are for SLL.
     {
         let and_gadget = and_gadget(&lv.xor);
