@@ -152,7 +152,7 @@ where
             .map(F::Extension::from_basefield)
             .collect::<Vec<_>>()
             .try_into()
-            .unwrap(),
+            .expect("mapping public inputs to the extension field should succeed"),
     };
 
     let degree_bits = proof.recover_degree_bits(config);

@@ -26,6 +26,7 @@ use crate::stark::mozak_stark::{MozakStark, PublicInputs};
 use crate::stark::prover::prove;
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 use crate::stark::verifier::verify_proof;
+use crate::utils::from_u32;
 use crate::xor::stark::XorStark;
 
 pub type S = MozakStark<F, D>;
@@ -183,14 +184,16 @@ impl ProveAndVerify for MozakStark<F, D> {
     fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
         let stark = S::default();
         let config = standard_faster_config();
-        let public_inputs = PublicInputs { pc_start: F::ZERO };
+        let public_inputs = PublicInputs {
+            pc_start: from_u32(program.entry),
+        };
 
         let all_proof = prove::<F, C, D>(
             program,
             record,
             &stark,
             &config,
-            &public_inputs,
+            public_inputs,
             &mut TimingTree::default(),
         );
         verify_proof(stark, all_proof.unwrap(), &config)
