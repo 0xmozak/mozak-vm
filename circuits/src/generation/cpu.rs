@@ -12,7 +12,7 @@ use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::stark::utils::transpose_trace;
-use crate::utils::{from_u32, pad_trace_with_last_to_len};
+use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend};
 use crate::xor::columns::XorView;
 
 #[allow(clippy::missing_panics_doc)]
@@ -81,7 +81,7 @@ pub fn generate_cpu_trace<F: RichField>(
         generate_mul_row(&mut row, &inst, aux);
         generate_divu_row(&mut row, &inst, aux);
         generate_sign_handling(&mut row, aux);
-        generate_conditional_branch_row(&mut row);
+        generate_conditional_branch_row(&mut row, aux);
         trace.push(row);
     }
 
@@ -89,11 +89,13 @@ pub fn generate_cpu_trace<F: RichField>(
     trace
 }
 
-fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
-    let diff = row.op1_value - row.op2_value;
+fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
+    let is_signed: bool = row.is_signed().is_nonzero();
+    let op1_full_range = sign_extend(is_signed, aux.op1);
+    let op2_full_range = sign_extend(is_signed, aux.op2);
+    let diff = F::from_noncanonical_i64(op1_full_range - op2_full_range);
     let diff_inv = diff.try_inverse().unwrap_or_default();
 
-    row.cmp_diff_inv = diff_inv;
     row.normalised_diff = diff * diff_inv;
 }
 
@@ -177,10 +179,9 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, au
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_lossless)]
 fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
-    let embed = |is_signed: bool, x: u32| if is_signed { x as i32 as i64 } else { x as i64 };
 
-    let op1_full_range = embed(row.is_op1_signed().is_nonzero(), aux.op1);
-    let op2_full_range = embed(row.is_op2_signed().is_nonzero(), aux.op2);
+    let op1_full_range = sign_extend(row.is_op1_signed().is_nonzero(), aux.op1);
+    let op2_full_range = sign_extend(row.is_op2_signed().is_nonzero(), aux.op2);
 
     row.op1_sign_bit = F::from_bool(op1_full_range < 0);
     row.op2_sign_bit = F::from_bool(op2_full_range < 0);
