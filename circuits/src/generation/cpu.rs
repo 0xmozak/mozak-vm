@@ -90,9 +90,8 @@ pub fn generate_cpu_trace<F: RichField>(
 }
 
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
-    let is_signed: bool = row.is_signed().is_nonzero();
-    let op1_full_range = sign_extend(is_signed, aux.op1);
-    let op2_full_range = sign_extend(is_signed, aux.op2);
+    let op1_full_range = sign_extend(row.is_op1_signed().is_nonzero(), aux.op1);
+    let op2_full_range = sign_extend(row.is_op2_signed().is_nonzero(), aux.op2);
     let diff = F::from_noncanonical_i64(op1_full_range - op2_full_range);
     let diff_inv = diff.try_inverse().unwrap_or_default();
 
@@ -179,7 +178,6 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, au
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_lossless)]
 fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
-
     let op1_full_range = sign_extend(row.is_op1_signed().is_nonzero(), aux.op1);
     let op2_full_range = sign_extend(row.is_op2_signed().is_nonzero(), aux.op2);
 
