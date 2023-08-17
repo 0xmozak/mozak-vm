@@ -81,7 +81,6 @@ pub struct CpuState<T> {
 
     // TODO: range check
     pub abs_diff: T,
-    pub cmp_diff_inv: T,
     pub less_than: T,
     // normalised_diff == 0 iff op1 == op2
     // normalised_diff == 1 iff op1 != op2
