@@ -138,6 +138,18 @@ mod tests {
                             ..Args::default()
                         },
                     },
+                ],
+                &[],
+                &[(6, a), (7, b)],
+            );
+            let (low, _high) = a.widening_mul(b);
+            prop_assert_eq!(record.executed[0].aux.dst_val, low);
+            CpuStark::prove_and_verify(&program, &record).unwrap();
+        }
+        #[test]
+        fn prove_mulhu_proptest(a in u32_extra(), b in u32_extra()) {
+            let (program, record) = simple_test_code(
+                &[
                     Instruction {
                         op: Op::MULHU,
                         args: Args {
@@ -151,13 +163,12 @@ mod tests {
                 &[],
                 &[(6, a), (7, b)],
             );
-            let (low, high) = a.widening_mul(b);
-            prop_assert_eq!(record.executed[0].aux.dst_val, low);
-            prop_assert_eq!(record.executed[1].aux.dst_val, high);
+            let (_low, high) = a.widening_mul(b);
+            prop_assert_eq!(record.executed[0].aux.dst_val, high);
             CpuStark::prove_and_verify(&program, &record).unwrap();
         }
-            #[allow(clippy::cast_sign_loss)]
-    #[allow(clippy::cast_lossless)]
+        #[allow(clippy::cast_sign_loss)]
+        #[allow(clippy::cast_lossless)]
         #[test]
         fn prove_mulh_proptest(a in i32_extra(), b in i32_extra()) {
             let (program, record) = simple_test_code(
