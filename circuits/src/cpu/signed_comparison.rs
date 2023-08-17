@@ -23,8 +23,8 @@ use crate::cpu::stark::is_binary;
 ///
 /// TODO: range check these two linear combinations of columns:
 /// ```ignore
-///  lv.op1_full_range() + lv.is_signed() * CpuState::<P>::shifted(31);
-///  lv.op2_full_range() + lv.is_signed() * CpuState::<P>::shifted(31);
+///  lv.op1_full_range() + lv.is_op1_signed() * CpuState::<P>::shifted(31);
+///  lv.op2_full_range() + lv.is_op2_signed() * CpuState::<P>::shifted(31);
 /// ```
 
 pub(crate) fn signed_constraints<P: PackedField>(

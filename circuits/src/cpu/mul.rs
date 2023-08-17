@@ -81,7 +81,7 @@ pub(crate) fn constraints<P: PackedField>(
     // NOTE: For MULHU it's always the case that product has positive sign.
     // And we assert that above in constraints for product_sign.
     yield_constr.constraint(
-        (lv.inst.ops.mulh + lv.inst.ops.mulhu)
+        (lv.inst.ops.mulh + lv.inst.ops.mulhsu + lv.inst.ops.mulhu)
             * (lv.product_sign
                 * (lv.product_zero * (destination - high_limb)
                     + (P::ONES - lv.product_zero)
@@ -123,6 +123,29 @@ mod tests {
 
     use crate::cpu::stark::CpuStark;
     use crate::test_utils::ProveAndVerify;
+    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_lossless)]
+    #[test]
+    fn prove_mulhsu_example() {
+        let a = -1;
+        let b = 4_294_967_295_u32;
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::MULHSU,
+                args: Args {
+                    rd: 8,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, a as u32), (7, b)],
+        );
+        let (res, _overflow) = i64::from(a).overflowing_mul(i64::from(b));
+        assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
+        CpuStark::prove_and_verify(&program, &record).unwrap();
+    }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -188,6 +211,29 @@ mod tests {
             );
             let (res, overflow) = i64::from(a).overflowing_mul(i64::from(b));
             assert!(!overflow);
+            prop_assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
+            CpuStark::prove_and_verify(&program, &record).unwrap();
+        }
+        #[allow(clippy::cast_sign_loss)]
+        #[allow(clippy::cast_lossless)]
+        #[test]
+        fn prove_mulhsu_proptest(a in i32_extra(), b in u32_extra()) {
+            let (program, record) = simple_test_code(
+                &[
+                    Instruction {
+                        op: Op::MULHSU,
+                        args: Args {
+                            rd: 8,
+                            rs1: 6,
+                            rs2: 7,
+                            ..Args::default()
+                        },
+                    },
+                ],
+                &[],
+                &[(6, a as u32), (7, b)],
+            );
+            let (res, _overflow) = i64::from(a).overflowing_mul(i64::from(b));
             prop_assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
             CpuStark::prove_and_verify(&program, &record).unwrap();
         }

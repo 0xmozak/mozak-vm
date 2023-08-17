@@ -100,11 +100,12 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
 fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
-    let is_signed = row.is_signed().is_nonzero();
-    let sign_and_absolute = if is_signed {
-        |x: u32| ((x as i32) < 0, (x as i32).unsigned_abs())
-    } else {
-        |x: u32| (false, x)
+    let sign_and_absolute = |is_signed: bool, x: u32| {
+        if is_signed {
+            ((x as i32) < 0, (x as i32).unsigned_abs())
+        } else {
+            (false, x)
+        }
     };
     let (is_multiplier_negative, multiplier_abs) = if let Op::SLL = inst.op {
         let shift_amount = aux.op2 & 0b1_1111;
@@ -114,11 +115,12 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
             multiplier: shift_power,
         }
         .map(from_u32);
-        sign_and_absolute(shift_power)
+        sign_and_absolute(false, shift_power)
     } else {
-        sign_and_absolute(aux.op2)
+        sign_and_absolute(row.is_op2_signed().is_nonzero(), aux.op2)
     };
-    let (is_multiplicand_negative, multiplicand_abs) = sign_and_absolute(aux.op1);
+    let (is_multiplicand_negative, multiplicand_abs) =
+        sign_and_absolute(row.is_op1_signed().is_nonzero(), aux.op1);
     row.multiplier_abs = from_u32(multiplier_abs);
     row.multiplicand_abs = from_u32(multiplicand_abs);
     let (low, high) = multiplicand_abs.widening_mul(multiplier_abs);
@@ -175,15 +177,10 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, au
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_lossless)]
 fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
-    let is_signed: bool = row.is_signed().is_nonzero();
-    let embed = if is_signed {
-        |x: u32| x as i32 as i64
-    } else {
-        |x: u32| x as i64
-    };
+    let embed = |is_signed: bool, x: u32| if is_signed { x as i32 as i64 } else { x as i64 };
 
-    let op1_full_range = embed(aux.op1);
-    let op2_full_range = embed(aux.op2);
+    let op1_full_range = embed(row.is_op1_signed().is_nonzero(), aux.op1);
+    let op2_full_range = embed(row.is_op2_signed().is_nonzero(), aux.op2);
 
     row.op1_sign_bit = F::from_bool(op1_full_range < 0);
     row.op2_sign_bit = F::from_bool(op2_full_range < 0);

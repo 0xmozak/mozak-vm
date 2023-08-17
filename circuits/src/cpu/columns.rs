@@ -21,6 +21,7 @@ pub struct OpSelectors<T> {
     pub remu: T,
     pub mul: T,
     pub mulh: T,
+    pub mulhsu: T,
     pub mulhu: T,
     pub sll: T,
     pub slt: T,
@@ -128,11 +129,13 @@ impl<T: PackedField> CpuState<T> {
 
     pub fn op_diff(&self) -> T { self.op1_value - self.op2_value }
 
-    // TODO(Matthias): unify where we specify `is_signed` for constraints and trace
-    // generation. Also, later, take mixed sign (for MULHSU) into account.
-    pub fn is_signed(&self) -> T {
+    // TODO(Matthias): unify where we specify `is_op(1|2)_signed` for constraints
+    // and trace generation.
+    pub fn is_op2_signed(&self) -> T {
         self.inst.ops.slt + self.inst.ops.bge + self.inst.ops.blt + self.inst.ops.mulh
     }
+
+    pub fn is_op1_signed(&self) -> T { self.is_op2_signed() + self.inst.ops.mulhsu }
 
     /// Value of the first operand, as if converted to i64.
     ///
