@@ -111,7 +111,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
             &mozak_stark.cpu_stark,
             cpu_trace,
             "CPU_STARK",
-            [public_inputs.pc_start]
+            [public_inputs.entry_point]
         ),
         // Range check
         debug_single_trace::<F, D, RangeCheckStark<F, D>>(

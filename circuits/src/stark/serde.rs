@@ -46,7 +46,7 @@ mod tests {
         let stark = S::default();
         let config = standard_faster_config();
         let public_inputs = PublicInputs {
-            pc_start: from_u32(program.entry),
+            entry_point: from_u32(program.entry_point),
         };
 
         let all_proof = prove::<F, C, D>(

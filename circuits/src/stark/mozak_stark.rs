@@ -27,7 +27,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(bound = "")]
 pub struct PublicInputs<F: Field> {
-    pub pc_start: F,
+    pub entry_point: F,
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {

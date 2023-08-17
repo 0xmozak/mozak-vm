@@ -1,7 +1,6 @@
 use anyhow::Result;
 use mozak_vm::elf::Program;
 use mozak_vm::vm::ExecutionRecord;
-use plonky2::field::types::Field;
 use plonky2::fri::FriConfig;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
@@ -83,7 +82,7 @@ impl ProveAndVerify for CpuStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            [F::ZERO],
+            [from_u32(program.entry_point)],
             &mut TimingTree::default(),
         )?;
 
@@ -185,7 +184,7 @@ impl ProveAndVerify for MozakStark<F, D> {
         let stark = S::default();
         let config = standard_faster_config();
         let public_inputs = PublicInputs {
-            pc_start: from_u32(program.entry),
+            entry_point: from_u32(program.entry_point),
         };
 
         let all_proof = prove::<F, C, D>(

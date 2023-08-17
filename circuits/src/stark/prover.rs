@@ -381,7 +381,7 @@ where
         config,
         &traces_poly_values[TableKind::Cpu as usize],
         &trace_commitments[TableKind::Cpu as usize],
-        [public_inputs.pc_start],
+        [public_inputs.entry_point],
         &ctl_data_per_table[TableKind::Cpu as usize],
         challenger,
         timing,
