@@ -73,7 +73,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr);
         yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr_inv);
 
-        // g) Once we have padding, all subsequent rows are padding; ie not
+        // Once we have padding, all subsequent rows are padding; ie not
         // `is_executed`.
         yield_constr.constraint_transition((lv.is_executed - nv.is_executed) * nv.is_executed);
     }
