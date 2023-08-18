@@ -117,7 +117,6 @@ mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::{Field, PrimeField64, Sample};
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use plonky2::util::log2_strict;
     use starky::stark::Stark;
     use starky::stark_testing::test_stark_low_degree;
 
@@ -167,9 +166,6 @@ mod tests {
         let trace = generate_rangecheck_trace::<F>(&cpu_rows);
 
         let len = trace[0].len();
-        let last = F::primitive_root_of_unity(log2_strict(len)).inverse();
-        let subgroup =
-            F::cyclic_subgroup_known_order(F::primitive_root_of_unity(log2_strict(len)), len);
 
         for i in 0..len {
             let local_values = trace
@@ -193,7 +189,11 @@ mod tests {
 
             let mut constraint_consumer = ConstraintConsumer::new(
                 vec![F::rand()],
-                subgroup[i] - last,
+                if i == len - 1 {
+                    GoldilocksField::ZERO
+                } else {
+                    GoldilocksField::ONE
+                },
                 if i == 0 {
                     GoldilocksField::ONE
                 } else {
@@ -246,9 +246,6 @@ mod tests {
         trace[MAP.fixed_range_check_u16_permuted_lo][0] = out_of_range_value;
 
         let len = trace[0].len();
-        let last = F::primitive_root_of_unity(log2_strict(len)).inverse();
-        let subgroup =
-            F::cyclic_subgroup_known_order(F::primitive_root_of_unity(log2_strict(len)), len);
 
         let local_values: [GoldilocksField; NUM_RC_COLS] = trace
             .iter()
@@ -272,7 +269,7 @@ mod tests {
 
         let mut constraint_consumer = ConstraintConsumer::new(
             vec![F::rand()],
-            subgroup[len - 1] - last,
+            F::ZERO,
             GoldilocksField::ZERO,
             GoldilocksField::ONE,
         );
@@ -322,11 +319,6 @@ mod tests {
         let malicious_limb_lo = limb_lo - F::ONE;
         trace[MAP.limb_lo][0] = malicious_limb_lo;
 
-        let len = trace[0].len();
-        let last = F::primitive_root_of_unity(log2_strict(len)).inverse();
-        let subgroup =
-            F::cyclic_subgroup_known_order(F::primitive_root_of_unity(log2_strict(len)), len);
-
         let local_values: [GoldilocksField; NUM_RC_COLS] = trace
             .iter()
             .map(|row| row[0])
@@ -348,7 +340,7 @@ mod tests {
 
         let mut constraint_consumer = ConstraintConsumer::new(
             vec![F::rand()],
-            subgroup[0] - last,
+            GoldilocksField::ONE,
             GoldilocksField::ONE,
             GoldilocksField::ZERO,
         );
