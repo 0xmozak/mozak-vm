@@ -1,7 +1,7 @@
 //! This module implements the division operation constraints, including
 //! DIVU, REMU, and SRL instructions.
 //!
-//! Here, SRL stands for 'shift left logical'.  We can treat it as a variant of
+//! Here, SRL stands for 'shift right logical'.  We can treat it as a variant of
 //! unsigned multiplication.
 
 use plonky2::field::packed::PackedField;
