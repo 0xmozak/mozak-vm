@@ -11,7 +11,7 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use crate::cpu::stark::is_binary;
 use crate::memory::columns::{Memory, NUM_MEM_COLS};
-use crate::memory::trace::{OPCODE_LBU, OPCODE_SB};
+use crate::memory::trace::OPCODE_SB;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -45,10 +45,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // 4. `diff_clk` is initiated as `0`
         yield_constr.constraint_first_row(lv.op - FE::from_canonical_usize(OPCODE_SB));
         yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
-        yield_constr.constraint_first_row(local_new_addr - P::ONES);
         yield_constr.constraint_first_row(lv.diff_clk);
 
-        // Consequently, we constraint:
+        // Consequently, we constrain:
 
         is_binary(yield_constr, lv.is_executed);
         is_binary(yield_constr, lv.op);
@@ -66,14 +65,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // Check: `diff_addr_next` is  `addr_next - addr_cur`
         yield_constr.constraint_transition(nv.diff_addr - nv.addr + lv.addr);
 
-        // Check: if op_next is `lbu`, then `value` does not change
-        yield_constr.constraint(
-            (nv.value - lv.value) * (P::ONES - nv.op + FE::from_canonical_usize(OPCODE_LBU)),
-        );
+        // Check: either the next operation is a store or the `value` stays the same.
+        yield_constr
+            .constraint((nv.op - FE::from_canonical_usize(OPCODE_SB)) * (nv.value - lv.value));
 
         // Check: either `diff_addr_inv` is inverse of `diff_addr`, or they both are 0.
         yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr);
         yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr_inv);
+
+        // Once we have padding, all subsequent rows are padding; ie not
+        // `is_executed`.
+        yield_constr.constraint_transition((lv.is_executed - nv.is_executed) * nv.is_executed);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -112,7 +114,10 @@ mod tests {
 
     #[test]
     fn prove_memory_sb_lb() -> Result<()> {
-        let (program, executed) = memory_trace_test_case();
-        MemoryStark::prove_and_verify(&program, &executed)
+        for repeats in 0..8 {
+            let (program, executed) = memory_trace_test_case(repeats);
+            MemoryStark::prove_and_verify(&program, &executed)?;
+        }
+        Ok(())
     }
 }
