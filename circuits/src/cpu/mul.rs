@@ -72,6 +72,29 @@ mod tests {
 
     use crate::cpu::stark::CpuStark;
     use crate::test_utils::ProveAndVerify;
+
+    #[allow(clippy::cast_sign_loss)]
+    #[test]
+    fn mulhsu_example() {
+        let a = -1_i32;
+        let b = 0xFFFF_FFFF_u32;
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::MULHSU,
+                args: Args {
+                    rd: 8,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, a as u32), (7, b)],
+        );
+        // let (_low, high) = a.widening_mul(b);
+        // assert_eq!(record.executed[0].aux.dst_val, low);
+        CpuStark::prove_and_verify(&program, &record).unwrap();
+    }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
