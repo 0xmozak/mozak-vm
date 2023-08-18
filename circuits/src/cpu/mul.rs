@@ -92,8 +92,8 @@ mod tests {
             &[],
             &[(6, a as u32), (7, b)],
         );
-        // let (_low, high) = a.widening_mul(b);
-        // assert_eq!(record.executed[0].aux.dst_val, low);
+        let (res, _overflow) = i64::from(a).overflowing_mul(i64::from(b));
+        assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
         CpuStark::prove_and_verify(&program, &record).unwrap();
     }
     proptest! {
