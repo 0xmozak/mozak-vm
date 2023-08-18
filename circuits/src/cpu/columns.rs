@@ -152,8 +152,6 @@ impl<T: PackedField> CpuState<T> {
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
 
-    pub fn op_diff(&self) -> T { self.op1_value - self.op2_value }
-
     // TODO(Matthias): unify where we specify `is_signed` for constraints and trace
     // generation. Also, later, take mixed sign (for MULHSU) into account.
     pub fn is_signed(&self) -> T { self.inst.ops.slt + self.inst.ops.bge + self.inst.ops.blt }

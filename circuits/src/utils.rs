@@ -48,3 +48,13 @@ pub fn pad_trace_with_default<Row: Default + Clone>(trace: Vec<Row>) -> Vec<Row>
 
 #[must_use]
 pub(crate) fn from_u32<F: Field>(x: u32) -> F { Field::from_noncanonical_u64(x.into()) }
+
+#[must_use]
+#[allow(clippy::cast_possible_wrap)]
+pub fn sign_extend(is_signed: bool, x: u32) -> i64 {
+    if is_signed {
+        i64::from(x as i32)
+    } else {
+        i64::from(x)
+    }
+}
