@@ -110,6 +110,7 @@ pub struct CpuState<T> {
     pub product_low_bits_inv: T,
     pub product_high_bits: T,
     pub product_high_diff_inv: T,
+    pub res_when_prod_negative: T,
 }
 
 make_col_map!(CpuColumnsExtended);

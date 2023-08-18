@@ -134,11 +134,13 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
     row.product_high_bits = from_u32(high);
     row.product_low_bits_zero = if low == 0 { F::ONE } else { F::ZERO };
     row.product_low_bits_inv = row.product_low_bits.try_inverse().unwrap_or_default();
-    row.product_sign = if is_multiplicand_negative ^ is_multiplier_negative {
-        F::ONE
-    } else {
-        F::ZERO
-    };
+    let product_sign = is_multiplicand_negative ^ is_multiplier_negative;
+    row.product_sign = if product_sign { F::ONE } else { F::ZERO };
+    if product_sign {
+        let high_ones_complement = 0xFFFF_FFFF - high;
+        let hign_twos_complement = high_ones_complement + u32::from(low == 0);
+        row.res_when_prod_negative = from_u32(hign_twos_complement);
+    }
 
     // Prove that the high limb is different from `u32::MAX`:
     let high_diff: F = from_u32(u32::MAX - high);
