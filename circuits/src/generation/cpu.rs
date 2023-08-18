@@ -138,8 +138,9 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
     row.product_sign = if product_sign { F::ONE } else { F::ZERO };
     if product_sign {
         let high_ones_complement = 0xFFFF_FFFF - high;
-        let hign_twos_complement = high_ones_complement + u32::from(low == 0);
-        row.res_when_prod_negative = from_u32(hign_twos_complement);
+        let (high_twos_complement, _overflow) =
+            high_ones_complement.overflowing_add(u32::from(low == 0));
+        row.res_when_prod_negative = from_u32(high_twos_complement);
     }
 
     // Prove that the high limb is different from `u32::MAX`:
