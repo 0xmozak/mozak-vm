@@ -3,6 +3,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuState;
+use super::stark::is_binary;
 
 /// Constraints for `less_than` and `not_diff`
 pub(crate) fn comparison_constraints<P: PackedField>(
@@ -16,11 +17,14 @@ pub(crate) fn comparison_constraints<P: PackedField>(
     yield_constr.constraint((P::ONES - lt) * (lv.abs_diff - lv.signed_diff()));
     yield_constr.constraint(lt * (lv.abs_diff + lv.signed_diff()));
 
-    // Set up `not_diff` to force `lt == 0`, if `op1 == op2`:
-    yield_constr.constraint(lv.not_diff * (lv.not_diff - P::ONES));
-    yield_constr.constraint(lv.op_diff() * lv.cmp_diff_inv + lv.not_diff - P::ONES);
+    // Enforce:
+    // normalised_diff == 0 iff op1 == op2
+    // normalised_diff == 1 iff op1 != op2
+    is_binary(yield_constr, lv.normalised_diff);
+    yield_constr.constraint(lv.op_diff() * (P::ONES - lv.normalised_diff));
+    yield_constr.constraint(lv.op_diff() * lv.cmp_diff_inv - lv.normalised_diff);
 
-    yield_constr.constraint(lt * lv.not_diff);
+    yield_constr.constraint(lt * (P::ONES - lv.normalised_diff));
 }
 
 /// Constraints for conditional branch operations
@@ -47,11 +51,11 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint((is_bge + is_bgeu) * lt * (next_pc - bumped_pc));
     yield_constr.constraint((is_bge + is_bgeu) * (P::ONES - lt) * (next_pc - branched_pc));
 
-    yield_constr.constraint(ops.beq * lv.not_diff * (next_pc - branched_pc));
-    yield_constr.constraint(ops.beq * (P::ONES - lv.not_diff) * (next_pc - bumped_pc));
+    yield_constr.constraint(ops.beq * (P::ONES - lv.normalised_diff) * (next_pc - branched_pc));
+    yield_constr.constraint(ops.beq * lv.normalised_diff * (next_pc - bumped_pc));
 
-    yield_constr.constraint(ops.bne * (P::ONES - lv.not_diff) * (next_pc - branched_pc));
-    yield_constr.constraint(ops.bne * lv.not_diff * (next_pc - bumped_pc));
+    yield_constr.constraint(ops.bne * lv.normalised_diff * (next_pc - branched_pc));
+    yield_constr.constraint(ops.bne * (P::ONES - lv.normalised_diff) * (next_pc - bumped_pc));
 }
 
 #[cfg(test)]

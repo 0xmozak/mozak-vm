@@ -2,11 +2,11 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 
 use crate::bitshift::columns::Bitshift;
-use crate::bitwise::columns::XorView;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
-use crate::program::columns::ProgramColumnsView;
+use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::{CpuTable, Table};
+use crate::xor::columns::XorView;
 
 columns_view_impl!(OpSelectors);
 #[repr(C)]
@@ -61,7 +61,9 @@ pub struct CpuState<T> {
     pub clk: T,
     pub inst: Instruction<T>,
 
-    pub halted: T,
+    // Represents the end of the program. Also used as the filter column for cross checking Program
+    // ROM instructions.
+    pub is_running: T,
 
     pub op1_value: T,
     // The sum of the value of the second operand register and the
@@ -83,9 +85,10 @@ pub struct CpuState<T> {
     pub abs_diff: T,
     pub cmp_diff_inv: T,
     pub less_than: T,
-    // If `op_diff == 0`, then `not_diff == 1`, else `not_diff == 0`.
+    // normalised_diff == 0 iff op1 == op2
+    // normalised_diff == 1 iff op1 != op2
     // We only need this intermediate variable to keep the constraint degree <= 3.
-    pub not_diff: T,
+    pub normalised_diff: T,
 
     pub xor: XorView<T>,
 
@@ -109,14 +112,14 @@ columns_view_impl!(CpuColumnsExtended);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct CpuColumnsExtended<T> {
     pub cpu: CpuState<T>,
-    pub permuted: ProgramColumnsView<T>,
+    pub permuted: ProgramRom<T>,
 }
 
 pub const NUM_CPU_COLS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 
 impl<T: PackedField> CpuState<T> {
     #[must_use]
-    pub fn shifted(&self, places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
+    pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
 
     pub fn op_diff(&self) -> T { self.op1_value - self.op2_value }
 
@@ -130,12 +133,12 @@ impl<T: PackedField> CpuState<T> {
     /// For signed operations: `Field::from_noncanonical_i64(op1 as i32 as i64)`
     ///
     /// So range is `i32::MIN..=u32::MAX`
-    pub fn op1_full_range(&self) -> T { self.op1_value - self.op1_sign_bit * self.shifted(32) }
+    pub fn op1_full_range(&self) -> T { self.op1_value - self.op1_sign_bit * Self::shifted(32) }
 
     /// Value of the second operand, as if converted to i64.
     ///
     /// So range is `i32::MIN..=u32::MAX`
-    pub fn op2_full_range(&self) -> T { self.op2_value - self.op2_sign_bit * self.shifted(32) }
+    pub fn op2_full_range(&self) -> T { self.op2_value - self.op2_sign_bit * Self::shifted(32) }
 
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
@@ -167,17 +170,15 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     ]
 }
 
-/// Columns containing the data to be matched against XOR Bitwise stark.
+/// Columns containing the data to be matched against Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_bitwise<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor) }
+pub fn data_for_xor<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor) }
 
-/// Column for a binary filter for bitwise instruction in Bitwise stark.
+/// Column for a binary filter for bitwise instruction in Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_bitwise<F: Field>() -> Column<F> {
-    Column::many(MAP.cpu.inst.ops.ops_that_use_xor())
-}
+pub fn filter_for_xor<F: Field>() -> Column<F> { Column::many(MAP.cpu.inst.ops.ops_that_use_xor()) }
 
 impl<T: Copy> OpSelectors<T> {
     #[must_use]

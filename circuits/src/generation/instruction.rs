@@ -3,7 +3,7 @@ use mozak_vm::instruction::{Instruction, Op};
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns;
-use crate::program::columns::InstColumnsView;
+use crate::program::columns::InstructionRow;
 
 impl From<(u32, Instruction)> for columns::Instruction<u32> {
     fn from((pc, inst): (u32, Instruction)) -> Self {
@@ -13,7 +13,7 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
             branch_target: inst.args.branch_target,
             ..Self::default()
         };
-        *(match inst.op {
+        *match inst.op {
             Op::ADD => &mut cols.ops.add,
             Op::LBU => &mut cols.ops.lbu,
             Op::SLL => &mut cols.ops.sll,
@@ -40,8 +40,8 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
             Op::OR => &mut cols.ops.or,
             Op::AND => &mut cols.ops.and,
             #[tarpaulin::skip]
-            _ => unreachable!(),
-        }) = 1;
+            other => unimplemented!("Opcode {other:?} not supported, yet."),
+        } = 1;
         cols.rs1_select[inst.args.rs1 as usize] = 1;
         cols.rs2_select[inst.args.rs2 as usize] = 1;
         cols.rd_select[inst.args.rd as usize] = 1;
@@ -55,7 +55,7 @@ pub fn ascending_sum<F: RichField, I: IntoIterator<Item = F>>(cs: I) -> F {
         .sum()
 }
 
-impl<F: RichField> From<columns::Instruction<F>> for InstColumnsView<F> {
+impl<F: RichField> From<columns::Instruction<F>> for InstructionRow<F> {
     fn from(inst: columns::Instruction<F>) -> Self {
         Self {
             pc: inst.pc,

@@ -14,7 +14,7 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 use super::columns::{CpuColumnsExtended, CpuState, Instruction, OpSelectors};
 use super::{add, bitwise, branches, div, ecall, jalr, mul, signed_comparison, sub};
 use crate::columns_view::NumberOfColumns;
-use crate::program::columns::ProgramColumnsView;
+use crate::program::columns::ProgramRom;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -22,24 +22,14 @@ pub struct CpuStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<P: Copy + core::ops::Add<Output = P>> OpSelectors<P> {
+impl<P: PackedField> OpSelectors<P> {
     // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
     // PC. It sort-of jumps back to itself.
-    fn is_straightline(&self) -> P {
-        self.add
-            + self.sub
-            + self.and
-            + self.or
-            + self.xor
-            + self.divu
-            + self.mul
-            + self.mulhu
-            + self.remu
-            + self.sll
-            + self.slt
-            + self.sltu
-            + self.srl
+    pub fn is_jumping(&self) -> P {
+        self.beq + self.bge + self.bgeu + self.blt + self.bltu + self.bne + self.ecall + self.jalr
     }
+
+    pub fn is_straightline(&self) -> P { P::ONES - self.is_jumping() }
 
     pub fn is_mem_op(&self) -> P { self.sb + self.lbu + self.sh + self.sw }
 }
@@ -102,8 +92,7 @@ fn clock_ticks<P: PackedField>(
 ) {
     let clock_diff = nv.clk - lv.clk;
     is_binary_transition(yield_constr, clock_diff);
-    is_binary(yield_constr, lv.halted);
-    yield_constr.constraint_transition(clock_diff + lv.halted - P::ONES);
+    yield_constr.constraint_transition(clock_diff - lv.is_running);
 }
 
 /// Register 0 is always 0
@@ -117,8 +106,8 @@ fn r0_always_0<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintCo
 /// trace is omitted. It also doesn't verify the execution order of the
 /// instructions.
 fn check_permuted_inst_cols<P: PackedField>(
-    lv: &ProgramColumnsView<P>,
-    nv: &ProgramColumnsView<P>,
+    lv: &ProgramRom<P>,
+    nv: &ProgramRom<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(lv.filter * (lv.filter - P::ONES));
@@ -145,7 +134,7 @@ fn only_rd_changes<P: PackedField>(
     });
 }
 
-fn rd_actually_changes<P: PackedField>(
+fn rd_assigned_correctly<P: PackedField>(
     lv: &CpuState<P>,
     nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
@@ -172,7 +161,7 @@ fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
 /// Constraints for values in op2, which is the sum of the value of the second
 /// operand register and the immediate value. This may overflow.
 fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
-    let wrap_at = lv.shifted(32);
+    let wrap_at = CpuState::<P>::shifted(32);
 
     yield_constr.constraint(
         lv.op2_value_overflowing - lv.inst.imm_value
@@ -187,6 +176,25 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
         (lv.op2_value_overflowing - lv.op2_value)
             * (lv.op2_value_overflowing - lv.op2_value - wrap_at * lv.inst.ops.is_mem_op()),
     );
+}
+
+fn halted<P: PackedField>(
+    lv: &CpuState<P>,
+    nv: &CpuState<P>,
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    let is_halted = P::ONES - lv.is_running;
+    is_binary(yield_constr, lv.is_running);
+    // TODO: change this when we support segmented proving.
+    // Last row must be 'halted', ie no longer is_running.
+    yield_constr.constraint_last_row(lv.is_running);
+
+    // Once we stop running, no subsequent row starts running again:
+    yield_constr.constraint_transition(is_halted * (nv.is_running - lv.is_running));
+    // Halted means that nothing changes anymore:
+    for (&lv_entry, &nv_entry) in izip!(lv, nv) {
+        yield_constr.constraint_transition(is_halted * (lv_entry - nv_entry));
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
@@ -217,7 +225,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         // Registers
         r0_always_0(lv, yield_constr);
         only_rd_changes(lv, nv, yield_constr);
-        rd_actually_changes(lv, nv, yield_constr);
+        rd_assigned_correctly(lv, nv, yield_constr);
         populate_op1_value(lv, yield_constr);
         populate_op2_value(lv, yield_constr);
 
@@ -233,11 +241,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
         ecall::constraints(lv, nv, yield_constr);
+        halted(lv, nv, yield_constr);
 
         // Clock starts at 0
         yield_constr.constraint_first_row(lv.clk);
-        // Last row must be HALT
-        yield_constr.constraint_last_row(lv.halted - P::ONES);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
