@@ -28,10 +28,7 @@ pub(crate) fn constraints<P: PackedField>(
 
     // Check: multiplication equation, `product == multiplicand * multiplier`.
     // (Not accounting for overflows for now).
-    yield_constr.constraint(
-        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.sll)
-            * (product - multiplicand * multiplier),
-    );
+    yield_constr.constraint(product - multiplicand * multiplier);
 
     // Check: for MUL and MULHU the multiplier is assigned the op2 value.
     yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.mulhu) * (multiplier - lv.op2_value));

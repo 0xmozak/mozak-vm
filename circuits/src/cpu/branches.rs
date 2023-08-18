@@ -22,7 +22,7 @@ pub(crate) fn comparison_constraints<P: PackedField>(
 ) {
     let lt = lv.less_than;
     // Check: lt is either 0 or 1
-    yield_constr.constraint(lt * (P::ONES - lt));
+    is_binary(yield_constr, lt);
 
     // We add inequality constraints, so that if:
     // `|r1 - r2| != r1 - r2`, then lt == 0

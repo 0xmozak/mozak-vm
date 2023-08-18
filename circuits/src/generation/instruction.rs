@@ -3,7 +3,7 @@ use mozak_vm::instruction::{Instruction, Op};
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns;
-use crate::program::columns::InstColumnsView;
+use crate::program::columns::InstructionRow;
 
 impl From<(u32, Instruction)> for columns::Instruction<u32> {
     fn from((pc, inst): (u32, Instruction)) -> Self {
@@ -53,7 +53,7 @@ pub fn ascending_sum<F: RichField, I: IntoIterator<Item = F>>(cs: I) -> F {
         .sum()
 }
 
-impl<F: RichField> From<columns::Instruction<F>> for InstColumnsView<F> {
+impl<F: RichField> From<columns::Instruction<F>> for InstructionRow<F> {
     fn from(inst: columns::Instruction<F>) -> Self {
         Self {
             pc: inst.pc,
