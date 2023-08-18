@@ -30,9 +30,9 @@ We try to limit all constraints degrees to `3`, as the higher the degree, the lo
 one can reason of the proving time as _**O(num_rows * num_cols * num_constraints * constraints_degree)**_, thus we are
 constantly balancing these values.
 
-We can not go lower than `3`, as Cross Table Lookups (CTL) require at least `3` degree constraints to work. At the same
-time, one can always express any constraint of degree `n` with a set of constraints of degree `2` by introducing new
-intermediate columns.
+We could go lower than `3` to use `2` for example, as one can always express any constraint of degree `n` with a set of
+constraints of degree `2` by introducing new intermediate columns. However, due to how Cross Table Lookups (CTL) are
+implemented, they require at least degree `3` constraints to work.
 
 ### Padding Rows
 
@@ -104,7 +104,7 @@ Sometimes we need to add additional information to the table, to make constraint
 covered above, where we need to convert a constraint of degree `n` to a combination of smaller constraints. Another case
 where we might need that is for _hints_. As one might recall from Computer Theory, there are problems such that
 verifying that their answer is correct is much simpler than computing the answer. A great example of such problems
-is the [NP](https://en.wikipedia.org/wiki/NP_(complexity) class, and in particular problems such
+is the [NP](https://en.wikipedia.org/wiki/NP_(complexity)) class, and in particular problems such
 as [3-coloring](http://www.cs.toronto.edu/~lalla/373s16/notes/3col.pdf)
 or [CDH](https://en.wikipedia.org/wiki/Computational_Diffie–Hellman_assumption)).
 

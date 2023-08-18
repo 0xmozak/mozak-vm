@@ -1,5 +1,5 @@
 //! Module used to serialise and deserialize Stark [`AllProof`].
-//! Uses Google's flex-buffers to produce byte representation.
+//! Uses Google's [flex-buffers](https://flatbuffers.dev/flexbuffers.html) to produce byte representation.
 
 use anyhow::Result;
 use flexbuffers::{FlexbufferSerializer, Reader};
