@@ -95,6 +95,7 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>, aux: &Au
     let diff = F::from_noncanonical_i64(op1_full_range - op2_full_range);
     let diff_inv = diff.try_inverse().unwrap_or_default();
 
+    row.cmp_diff_inv = diff_inv;
     row.normalised_diff = diff * diff_inv;
 }
 

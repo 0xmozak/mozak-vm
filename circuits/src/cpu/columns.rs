@@ -83,6 +83,7 @@ pub struct CpuState<T> {
 
     // TODO: range check
     pub abs_diff: T,
+    pub cmp_diff_inv: T,
     pub less_than: T,
     // normalised_diff == 0 iff op1 == op2
     // normalised_diff == 1 iff op1 != op2
@@ -125,8 +126,6 @@ pub const NUM_CPU_COLS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 impl<T: PackedField> CpuState<T> {
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
-
-    pub fn op_diff(&self) -> T { self.op1_value - self.op2_value }
 
     // TODO(Matthias): unify where we specify `is_op(1|2)_signed` for constraints
     // and trace generation.

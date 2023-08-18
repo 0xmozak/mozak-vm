@@ -21,7 +21,8 @@ pub(crate) fn comparison_constraints<P: PackedField>(
     // normalised_diff == 0 iff op1 == op2
     // normalised_diff == 1 iff op1 != op2
     is_binary(yield_constr, lv.normalised_diff);
-    yield_constr.constraint(lv.op_diff() * (P::ONES - lv.normalised_diff));
+    yield_constr.constraint(lv.signed_diff() * (P::ONES - lv.normalised_diff));
+    yield_constr.constraint(lv.signed_diff() * lv.cmp_diff_inv - lv.normalised_diff);
 
     yield_constr.constraint(lt * (P::ONES - lv.normalised_diff));
 }
