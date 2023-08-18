@@ -20,6 +20,8 @@ pub struct OpSelectors<T> {
     pub divu: T,
     pub remu: T,
     pub mul: T,
+    pub mulh: T,
+    pub mulhsu: T,
     pub mulhu: T,
     pub sll: T,
     pub slt: T,
