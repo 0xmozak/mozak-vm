@@ -1,8 +1,8 @@
 //! This module makes STARK table row values indexing simpler by providing
-//! column-by-name access instead of direct number indexing. This is achieved
-//! by using the macros bellow to create a View Wrapper.
-//! The nice feature of such View Wrappers is that they can be nested to
-//! group columns by logic they handle.
+//! an abstraction for column-by-name access instead of direct number indexing.
+//! This is achieved by using the macros below.
+//!
+//! This way, they can be nested to group columns by logic they handle.
 
 use std::mem::{size_of, transmute_copy, ManuallyDrop};
 use std::ops::IndexMut;
@@ -15,7 +15,6 @@ pub(crate) unsafe fn transmute_without_compile_time_size_checks<T, U>(t: T) -> U
     transmute_copy(&ManuallyDrop::<T>::new(t))
 }
 
-/// How many columns a view contains
 pub trait NumberOfColumns {
     const NUMBER_OF_COLUMNS: usize;
 }

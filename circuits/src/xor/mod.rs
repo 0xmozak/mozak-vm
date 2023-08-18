@@ -1,7 +1,7 @@
-//! This module contains the **`Xor` STARK Table**.
-//! This Stark contains the evaluation of Xor for different arguments.
-//! Using this Xor table, we can then construct the other
-//! bitwise operations, such as `And` and `Or`.
+//! This module contains the **`XOR` STARK Table**.
+//! This Stark contains the evaluation of XOR for different arguments.
+//! Using this XOR table, we can then construct the other
+//! bitwise operations, such as `AND` and `OR`.
 //! It is used from the CPU STARK with the Cross Table Lookup (CTL) technique.
 
 pub mod columns;

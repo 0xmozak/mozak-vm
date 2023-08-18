@@ -1,22 +1,28 @@
 # Circuits Sub-crate
 
-The **Circuits** sub-crate contains the constraints to enforce the correctness of the RISC-V VM trace.
+The **Circuits** sub-crate holds the constraints that enforce the correctness of the MozakVM trace.
 
-The constraints are based on [Plonky2](https://github.com/mir-protocol/plonky2), in particular
+These constraints are based on [Plonky2](https://github.com/mir-protocol/plonky2), in particular
 its [Starky](https://github.com/mir-protocol/plonky2/tree/main/starky) variation with an addition of Cross Table
 Lookups (CTL).
 
 ## Constraints
 
-The constraints are defined over STARK tables, which are then connected between each other using Cross Table Lookups.
+Constraints are defined over STARK tables, which are then connected between each other using Cross Table Lookups.
 
 ### Tables Structure
 
-Each Table is defined in its own module and contains definition of used columns, in `columns.rs`, as well as definition
-of constraints to be applied over these columns, in `stark.rs`. To read more about Starks, you can refer
-to [this page](https://www.notion.so/0xmozak/eb420963310e407dafce95d267f5a55e?v=a6a42a89bb744309999d9a0ff16ce25f&p=0d7f4fe31e214c3aa9b719908ac56e57&pm=s).
-In order to make tables columns easier to interpret, we make use the `View` wrappers, that allow to access each column
-of a table by name and not just by index. This makes development less error-prone.
+Each Table is defined in its own module and in
+
+- `columns.rs` contains declaration of used columns.
+- `stark.rs` contains definition of constraints to be applied over these columns.
+
+To read more about Starks proving system, you can refer
+to [this internal page](https://www.notion.so/0xmozak/eb420963310e407dafce95d267f5a55e?v=a6a42a89bb744309999d9a0ff16ce25f&p=0d7f4fe31e214c3aa9b719908ac56e57&pm=s).
+
+Note that in order to make tables columns easier to interpret, we make use the `View` wrappers, that allow to access
+each column of a table by name and not just by index, as in vanilla _Plonk2_. This makes development less error-prone
+and code comprehension easier.
 
 ### Constraints Degree
 
@@ -24,66 +30,101 @@ We try to limit all constraints degrees to `3`, as the higher the degree, the lo
 one can reason of the proving time as _**O(num_rows * num_cols * num_constraints * constraints_degree)**_, thus we are
 constantly balancing these values.
 
+We can not go lower than `3`, as Cross Table Lookups (CTL) require at least `3` degree constraints to work. At the same
+time, one can always express any constraint of degree `n` with a set of constraints of degree `2` by introducing new
+intermediate columns.
+
 ### Padding Rows
 
 Due to how STARKs work, we need to always pad tables to a size which is a multiple of two (likely, for FRI to work).
-Furthermore, if we use several STARK tables and connect them using CTL, they all need to be of the same length.
-Hence, a lot of times you will see padding rows added to the table, as well as some selector that tells if the row is a
-padding row or not.
+
+```rust
+// utils.rs
+pub fn pad_trace_with_default<Row: Default + Clone>(trace: Vec<Row>) -> Vec<Row> {
+    let len = trace.len().next_power_of_two();
+    pad_trace_with_default_to_len(trace, len)
+}
+```
+
+You will also see STARK tables, such as `rangecheck` and `bitshift` are fulfilling double purpose, they are used for
+CTL, and at the same time define the range of values, such as values from `0` to `2^16` for `rangecheck` and values
+from `0` to `32` for `bitshift`.
+
+There, one need to specify which values are allowed to be looked up from other tables, and which are there just to form
+the range and build constraints to form a table. For that we use filter columns, such as `is_executed`.
 
 ### Constraints Declaration
 
-Constraints assert that certain multi-variable polynomial of degree less than maximum constraints degrees evaluate to
+Constraints assert that certain multi-variate polynomial of degree less or equal to the maximum constraints degrees
+evaluate to
 zero for each row of the table. This polynomial can also depend on column values from the following or presiding rows of
 the table.
 
 #### Example
 
-An example of such constraint can be making sure a value of column `x` is 0 or 1 when the padding row selector is 0.
+Let us see an example of a constraint. In particular, we will show a constraint that checks that a value of column `x`
+is 0 or 1 when the `is_looked_up` row selector is non-zero.
 The following will achieve this:
 
 ```ignore
-    yield_constr.constraint((1 - lv.x) * (lv.x) * (1 - lv.is_padding));
+    yield_constr.constraint((1 - lv.x) * (lv.x) * (lv.is_looked_up));
 ```
 
-As some constraints, such the one above, are used very frequently, we have introduced aliases for then. One of them
-is `is_binary`, which asserts that the value of a column is indeed 0 or 1.
+To explain why, when `is_looked_up` is `0`, the constraint is trivially satisfied, as `0 * (1 - lv.x) * (lv.x) = 0`.
+When `is_looked_up` is `1`, the constraint is satisfied if `lv.x` is `0` or `1`, as `1 * (1 - lv.x) * (lv.x) = 0`.
 
-You will also find that for more complex
-constraints, such as that CPU table row transition happened correctly, we partition them into smaller constraint
-functions, good example of that being the `div` sub-module of the `cpu` module, which defines constraints for when the
-row is a division operation.
+As some constraints, such the one above, are very frequent, we have introduced aliases for then. One of them
+is `is_binary`, which asserts that the value of a given column is indeed `0` or `1`.
+
+You will also find that the more complex constraints are split into smaller ones, to make them easier to read. A good
+example is the CPU STARK table, where instead of a single `stark.rs` file, we have multiple modules, for each OPCODE,
+such as `add`, `sub`, `mul`, etc. All of these constraints are then applied to each row of the table, however, using
+selectors, we can turn on or off the constraints for each row, depending on the opcode.
 
 ### Selectors
 
-Above was a great example of how selectors work. In particular, when we need to turn on or off a constraint based on
-some logic, we make user of selectors.
-If you multiply a constraint by the selector, if the selector is 0, then the constraint no longer needs to hold, as a
-multiple of zero is always zero.
+The above `CPU` example shows the idea behind selectors. We need them to turn on or off a constraint
+based on some logic.
 
-One then can apply some constraint logic on the selectors. For example in the CPU we enable constraints for particular
-opcodes using the opcode selectors. Yet to make sure each row has at least one opcode active, we enforce that at least
-one of all opcode selectors is non-zero.
+It works the following way: if you multiply any constraint by the selector, if the selector is `0`, then the constraint
+no longer needs to hold, as a multiple of zero is always zero. If the selector is not `0`, then the rest of the
+constraint needs to hold (evaluate to zero).
 
-You might notice that not all opcodes constraints have selectors. This is because for some operations there is no harm
-to be enabled everywhere, as they do not collude with anything else.
+Note that to add more complex behaviour, it is sometimes necessary to apply logic to selectors, such as making some
+selectors exclusive with each other. This is what we do in the CPU table for example, where to make sure each row has at
+least one opcode active, we enforce that one of all opcode selectors is non-zero (this is done by checking that the sum
+of all selectors is `1`).
+
+You might also notice that not all opcodes constraints have selectors. This is because for some operations there is no
+harm for their constraints to be enabled everywhere, as they do not collude with anything else.
 
 ### Helper Columns
 
-Sometimes computing a value is harder than verification. A good example of that is public key cryptography, where
-extracting `a`, such that `b=g^a` is much harder than verifying that `a` is indeed correct as `b==g^a` holds. Such
-asymmetry is especially prevalent in the constraint system, where we do not need to actually proved we calculated `a`
-correctly, rather that `a` we provided fulfills the `b==g^a`.
-In this case, `a` can be placed into the helper column, it will serve as a hint to the constraint system and make it
-simpler to calculate the values.
+Sometimes we need to add additional information to the table, to make constraints simpler. One example of that we have
+covered above, where we need to convert a constraint of degree `n` to a combination of smaller constraints. Another case
+where we might need that is for _hints_. As one might recall from Computer Theory, there are problems such that
+verifying that their answer is correct is much simpler than computing the answer. A great example of such problems
+is the [NP](https://en.wikipedia.org/wiki/NP_(complexity) class, and in particular problems such
+as [3-coloring](http://www.cs.toronto.edu/~lalla/373s16/notes/3col.pdf)
+or [CDH](https://en.wikipedia.org/wiki/Computational_Diffie–Hellman_assumption)).
 
-Another example of value useful to be placed into a helper column is inverse, that can be used to prove that a value is
-not zero. Calculating that in constraints is very tough, but we do not need to, all we need is to show that there is a
-value that multiplied by the other value in question, equals 1.
+For such cases, it might be easier to add a new column with an answer (hint), and then just verify its correctness, then
+computing it directly in some form of constraints. This generally adds a very interesting twist on the problem at hand,
+as some of the operations can be handed off to a computer and then verified, which adds a new level of optimisation.
 
-Though we must point out that sometimes adding a helper column is unjustified. If the helper value is just a linear or
-low-degree combination of other columns, it is cheaper to just keep it as a low degree combination, possibly adding an
-alias for easier use.
+A more practice example of such optimisation is proving that a number is not `0`.
+
+One way would be to range check that a
+number is in some range that does not include `0`. However, it can be done much simpler.
+We can prove that an inverse of a number exists. To do so, we need to first compute it. This can be done based on the
+field size and some algorithms, yet proving that we did all the steps correctly would be very computationally intensive.
+
+So the solution is to off-load the computation to a powerful machine, and then add a column that contains the inverse of
+the number. Then we can just verify that the number multiplied by the inverse is `1`.
+
+We must point out though that adding a helper column is not always unjustified. If the helper (hint) value is just a
+linear or low-degree combination of other columns, it is cheaper to just keep it as a low degree combination, possibly
+adding an alias for easier use.
 
 ### Cross Table Lookups (CTL)
 
@@ -129,7 +170,7 @@ create another permuted a column of lo (hi) values in question to match the posi
 Finally, we make sure that values in the permuted column are equal to the values in the original column with all u16
 values in each row.
 
-## Table Population
+## Table Value Insertion
 
 After we have defined the constraints, we need to fill in the tables with values that actually fulfill the constraints.
 This is done in the `generation` module based on the trace of the program and the code of the program.
