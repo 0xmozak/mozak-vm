@@ -1,4 +1,4 @@
-//! This module implements the ADD operation constraints.
+//! This module implements the constraints for the ADD operation.
 
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
