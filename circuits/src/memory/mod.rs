@@ -1,5 +1,8 @@
 //! This module contains the **`Memory` STARK Table**.
-//! It stores the program memory, referenced by the CPU STARK.
+//! This Stark is used to store the VM Memory and
+//! constraints the load and store operations by the CPU
+//! using the CTL (cross table lookup) technique.
+
 pub mod columns;
 pub mod stark;
 #[cfg(any(feature = "test", test))]

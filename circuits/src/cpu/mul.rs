@@ -19,10 +19,7 @@ pub(crate) fn constraints<P: PackedField>(
     let high_limb = lv.product_high_bits;
     let product = low_limb + base * high_limb;
 
-    yield_constr.constraint(
-        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.sll)
-            * (product - multiplicand * multiplier),
-    );
+    yield_constr.constraint(product - multiplicand * multiplier);
     yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.mulhu) * (multiplier - lv.op2_value));
     // The following constraints are for SLL.
     {
