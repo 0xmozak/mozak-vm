@@ -313,8 +313,7 @@ mod tests {
         let cpu_trace = generate_cpu_trace::<F>(&program, &record);
         let mut trace = generate_rangecheck_trace::<F>(&cpu_trace);
         // the above generations setup the traces nicely, but we need to introduce
-        // a malicious entry here to test our failing case. We introduce a value
-        // bigger than u16::MAX.
+        // a malicious entry here to test our failing case.
         let value: u32 = 0xDEAD_BEEF;
         let (limb_hi, limb_lo): (F, F) = limbs_from_u32(value);
         trace[MAP.val][0] = GoldilocksField(value.into());
