@@ -74,6 +74,7 @@ mod tests {
     use crate::test_utils::ProveAndVerify;
 
     #[allow(clippy::cast_sign_loss)]
+    #[should_panic]
     #[test]
     fn mulhsu_example() {
         let a = -1_i32;

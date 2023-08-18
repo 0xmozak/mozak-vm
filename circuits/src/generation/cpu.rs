@@ -12,7 +12,7 @@ use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::stark::utils::transpose_trace;
-use crate::utils::{from_u32, pad_trace_with_last_to_len};
+use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend};
 use crate::xor::columns::XorView;
 
 #[allow(clippy::missing_panics_doc)]
@@ -157,15 +157,8 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, au
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_lossless)]
 fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
-    let is_signed: bool = row.is_signed().is_nonzero();
-    let embed = if is_signed {
-        |x: u32| x as i32 as i64
-    } else {
-        |x: u32| x as i64
-    };
-
-    let op1_full_range = embed(aux.op1);
-    let op2_full_range = embed(aux.op2);
+    let op1_full_range = sign_extend(row.is_op1_signed().is_nonzero(), aux.op1);
+    let op2_full_range = sign_extend(row.is_op2_signed().is_nonzero(), aux.op2);
 
     row.op1_sign_bit = F::from_bool(op1_full_range < 0);
     row.op2_sign_bit = F::from_bool(op2_full_range < 0);
