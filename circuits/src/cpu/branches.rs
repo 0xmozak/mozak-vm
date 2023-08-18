@@ -11,7 +11,7 @@ pub(crate) fn comparison_constraints<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let lt = lv.less_than;
-    yield_constr.constraint(lt * (P::ONES - lt));
+    is_binary(yield_constr, lt);
 
     // abs_diff calculation
     yield_constr.constraint((P::ONES - lt) * (lv.abs_diff - lv.signed_diff()));
