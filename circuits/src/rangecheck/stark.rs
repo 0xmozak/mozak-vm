@@ -250,9 +250,6 @@ mod tests {
         let subgroup =
             F::cyclic_subgroup_known_order(F::primitive_root_of_unity(log2_strict(len)), len);
 
-        // Index into the row which should contain the value we are interested in range
-        // checking.
-        let local_idx = len - 1;
         let local_values: [GoldilocksField; NUM_RC_COLS] = trace
             .iter()
             .map(|row| row[len - 1])
@@ -275,7 +272,7 @@ mod tests {
 
         let mut constraint_consumer = ConstraintConsumer::new(
             vec![F::rand()],
-            subgroup[local_idx] - last,
+            subgroup[len - 1] - last,
             GoldilocksField::ZERO,
             GoldilocksField::ONE,
         );
