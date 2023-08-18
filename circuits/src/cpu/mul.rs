@@ -118,16 +118,25 @@ pub(crate) fn constraints<P: PackedField>(
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{i32_extra, reg, simple_test_code, u32_extra};
+    use plonky2::timed;
+    use plonky2::util::timing::TimingTree;
     use proptest::prelude::{prop_assume, ProptestConfig};
     use proptest::{prop_assert_eq, proptest};
+    use starky::prover::prove as prove_table;
+    use starky::verifier::verify_stark_proof;
 
     use crate::cpu::stark::CpuStark;
-    use crate::test_utils::ProveAndVerify;
+    use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
+    use crate::generation::program::generate_program_rom_trace;
+    use crate::stark::utils::trace_to_poly_values;
+    use crate::test_utils::{standard_faster_config, ProveAndVerify, C, D, F};
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_lossless)]
     #[test]
     fn prove_mulhsu_example() {
-        let a = -1;
+        type S = CpuStark<F, D>;
+        let config = standard_faster_config();
+        let a = -1_i32;
         let b = 4_294_967_295_u32;
         let (program, record) = simple_test_code(
             &[Instruction {
@@ -144,7 +153,35 @@ mod tests {
         );
         let (res, _overflow) = i64::from(a).overflowing_mul(i64::from(b));
         assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
-        CpuStark::prove_and_verify(&program, &record).unwrap();
+        let mut timing = TimingTree::new("mulhsu", log::Level::Debug);
+        let cpu_trace = timed!(
+            timing,
+            "generate_cpu_trace",
+            generate_cpu_trace(&program, &record)
+        );
+        let trace_poly_values = timed!(
+            timing,
+            "trace to poly",
+            trace_to_poly_values(generate_cpu_trace_extended(
+                cpu_trace,
+                &generate_program_rom_trace(&program)
+            ))
+        );
+        let stark = S::default();
+
+        let proof = timed!(
+            timing,
+            "cpu proof",
+            prove_table::<F, C, S, D>(stark, &config, trace_poly_values, [], &mut timing,)
+        );
+        let proof = proof.unwrap();
+        let verification_res = timed!(
+            timing,
+            "cpu verification",
+            verify_stark_proof(stark, proof, &config)
+        );
+        verification_res.unwrap();
+        timing.print();
     }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
