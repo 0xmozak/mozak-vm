@@ -236,7 +236,7 @@ mod tests {
         let cpu_trace = generate_cpu_trace::<F>(&program, &record);
         let mut trace = generate_rangecheck_trace::<F>(&cpu_trace);
 
-        // the above generations setup the traces nicely, but we need to introduce
+        // The above generations setup the traces nicely, but we need to introduce
         // malicious entries here to test our failing cases.
         let out_of_range_value = F::from_canonical_u32(u32::from(u16::MAX) + 1);
         trace[MAP.val][0] = out_of_range_value;
@@ -309,7 +309,7 @@ mod tests {
 
         let cpu_trace = generate_cpu_trace::<F>(&program, &record);
         let mut trace = generate_rangecheck_trace::<F>(&cpu_trace);
-        // the above generations setup the traces nicely, but we need to introduce
+        // The above generations setup the traces nicely, but we need to introduce
         // a malicious entry here to test our failing case.
         let value: u32 = 0xDEAD_BEEF;
         let (limb_hi, limb_lo): (F, F) = limbs_from_u32(value);
