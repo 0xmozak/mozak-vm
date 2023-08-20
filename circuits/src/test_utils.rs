@@ -14,11 +14,11 @@ use starky::verifier::verify_stark_proof;
 use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::bitshift::generate_shift_amount_trace;
-use crate::generation::bitwise::generate_bitwise_trace;
 use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
+use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::mozak_stark::MozakStark;
@@ -118,7 +118,7 @@ impl ProveAndVerify for XorStark<F, D> {
 
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(program, record);
-        let trace_poly_values = trace_rows_to_poly_values(generate_bitwise_trace(&cpu_trace));
+        let trace_poly_values = trace_rows_to_poly_values(generate_xor_trace(&cpu_trace));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
