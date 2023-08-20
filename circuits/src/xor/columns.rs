@@ -28,14 +28,12 @@ pub struct XorView<T> {
 }
 columns_view_impl!(XorView);
 
-/// Columns containing the data which are looked from cpu table into Bitwise
-/// stark. [`CpuTable`](crate::cross_table_lookup::CpuTable)
-/// [`BitwiseTable`](crate::cross_table_lookup::BitwiseTable).
+/// Columns containing the data which are looked from the CPU table into Xor
+/// stark table.
 #[must_use]
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.execution) }
 
-/// Column for a binary filter to indicate a lookup from the
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable) in the Mozak
-/// [`BitwiseTable`](crate::cross_table_lookup::BitwiseTable).
+/// Column for a binary filter to indicate a lookup from the CPU table into Xor
+/// stark table.
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(MAP.is_execution_row) }
