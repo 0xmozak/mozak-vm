@@ -1,1 +1,1 @@
-# mozak-node
+# Mozak node
