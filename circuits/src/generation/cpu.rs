@@ -12,7 +12,7 @@ use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::stark::utils::transpose_trace;
-use crate::utils::{from_u32, pad_trace_with_last_to_len};
+use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend};
 use crate::xor::columns::XorView;
 
 #[allow(clippy::missing_panics_doc)]
@@ -69,7 +69,7 @@ pub fn generate_cpu_trace<F: RichField>(
             // TODO(Matthias): find a way to make either compiler or runtime complain
             // if we have two (conflicting) users in the same row.
             bitshift: Bitshift::from(0).map(F::from_canonical_u64),
-            xor: generate_bitwise_row(&inst, state),
+            xor: generate_xor_row(&inst, state),
 
             ..CpuState::default()
         };
@@ -90,11 +90,8 @@ pub fn generate_cpu_trace<F: RichField>(
 }
 
 fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
-    let diff = row.op1_value - row.op2_value;
-    let diff_inv = diff.try_inverse().unwrap_or_default();
-
-    row.cmp_diff_inv = diff_inv;
-    row.normalised_diff = diff * diff_inv;
+    row.cmp_diff_inv = row.signed_diff().try_inverse().unwrap_or_default();
+    row.normalised_diff = F::from_bool(row.signed_diff().is_nonzero());
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -158,14 +155,9 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, au
 #[allow(clippy::cast_lossless)]
 fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
     let is_signed: bool = row.is_signed().is_nonzero();
-    let embed = if is_signed {
-        |x: u32| x as i32 as i64
-    } else {
-        |x: u32| x as i64
-    };
 
-    let op1_full_range = embed(aux.op1);
-    let op2_full_range = embed(aux.op2);
+    let op1_full_range = sign_extend(is_signed, aux.op1);
+    let op2_full_range = sign_extend(is_signed, aux.op2);
 
     row.op1_sign_bit = F::from_bool(op1_full_range < 0);
     row.op2_sign_bit = F::from_bool(op2_full_range < 0);
@@ -175,7 +167,7 @@ fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
     row.abs_diff = F::from_noncanonical_u64(abs_diff);
 }
 
-fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {
+fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {
     let a = match inst.op {
         Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
         Op::SRL | Op::SLL => 0b1_1111,

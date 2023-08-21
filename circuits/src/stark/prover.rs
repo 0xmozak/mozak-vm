@@ -401,10 +401,10 @@ where
     let xor_proof = prove_single_table::<F, C, XorStark<F, D>, D>(
         &mozak_stark.xor_stark,
         config,
-        &traces_poly_values[TableKind::Bitwise as usize],
-        &trace_commitments[TableKind::Bitwise as usize],
+        &traces_poly_values[TableKind::Xor as usize],
+        &trace_commitments[TableKind::Xor as usize],
         [],
-        &ctl_data_per_table[TableKind::Bitwise as usize],
+        &ctl_data_per_table[TableKind::Xor as usize],
         challenger,
         timing,
     )?;

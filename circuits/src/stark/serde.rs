@@ -1,3 +1,6 @@
+//! Module used to serialise and deserialize Stark [`AllProof`].
+//! Uses Google's [flex-buffers](https://flatbuffers.dev/flexbuffers.html) to produce byte representation.
+
 use anyhow::Result;
 use flexbuffers::{FlexbufferSerializer, Reader};
 use plonky2::field::extension::Extendable;

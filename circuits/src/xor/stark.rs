@@ -82,8 +82,8 @@ mod tests {
     use starky::stark_testing::test_stark_low_degree;
     use starky::verifier::verify_stark_proof;
 
-    use crate::generation::bitwise::generate_bitwise_trace;
     use crate::generation::cpu::generate_cpu_trace;
+    use crate::generation::xor::generate_xor_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
     use crate::test_utils::{standard_faster_config, C, D, F};
     use crate::xor::stark::XorStark;
@@ -137,11 +137,7 @@ mod tests {
         // assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));
         let mut timing = TimingTree::new("xor", log::Level::Debug);
         let cpu_trace = generate_cpu_trace(&program, &record);
-        let trace = timed!(
-            timing,
-            "generate_bitwise_trace",
-            generate_bitwise_trace(&cpu_trace)
-        );
+        let trace = timed!(timing, "generate_xor_trace", generate_xor_trace(&cpu_trace));
         let trace_poly_values = timed!(timing, "trace to poly", trace_rows_to_poly_values(trace));
         let stark = S::default();
 
