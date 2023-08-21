@@ -9,6 +9,7 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
+use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::xor::stark::XorStark;
@@ -21,6 +22,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub xor_stark: XorStark<F, D>,
     pub shift_amount_stark: BitshiftStark<F, D>,
     pub program_stark: ProgramStark<F, D>,
+    pub memory_stark: MemoryStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 5],
     pub debug: bool,
 }
@@ -42,6 +44,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             xor_stark: XorStark::default(),
             shift_amount_stark: BitshiftStark::default(),
             program_stark: ProgramStark::default(),
+            memory_stark: MemoryStark::default(),
             cross_table_lookups: [
                 RangecheckCpuTable::lookups(),
                 XorCpuTable::lookups(),
@@ -62,6 +65,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.xor_stark.num_permutation_batches(config),
             self.shift_amount_stark.num_permutation_batches(config),
             self.program_stark.num_permutation_batches(config),
+            self.memory_stark.num_permutation_batches(config),
         ]
     }
 
@@ -72,6 +76,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.xor_stark.permutation_batch_size(),
             self.shift_amount_stark.permutation_batch_size(),
             self.program_stark.permutation_batch_size(),
+            self.memory_stark.permutation_batch_size(),
         ]
     }
 
@@ -84,7 +89,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 5;
+pub(crate) const NUM_TABLES: usize = 6;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TableKind {
@@ -93,6 +98,7 @@ pub enum TableKind {
     Xor = 2,
     Bitshift = 3,
     Program = 4,
+    Memory = 5,
 }
 
 impl TableKind {
@@ -104,6 +110,7 @@ impl TableKind {
             TableKind::Xor,
             TableKind::Bitshift,
             TableKind::Program,
+            TableKind::Memory,
         ]
     }
 }

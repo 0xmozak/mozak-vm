@@ -15,6 +15,7 @@ use super::proof::AllProof;
 use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
+use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::permutation::PermutationCheckVars;
@@ -38,6 +39,7 @@ where
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
+    [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let AllProofChallenges {
         stark_challenges,
@@ -51,6 +53,7 @@ where
         xor_stark,
         shift_amount_stark,
         program_stark,
+        memory_stark,
         cross_table_lookups,
         ..
     } = mozak_stark;
@@ -110,6 +113,14 @@ where
         &stark_challenges[TableKind::Program as usize],
         [],
         &ctl_vars_per_table[TableKind::Program as usize],
+        config,
+    )?;
+
+    verify_stark_proof_with_challenges::<F, C, MemoryStark<F, D>, D>(
+        &memory_stark,
+        &all_proof.stark_proofs[TableKind::Memory as usize],
+        &stark_challenges[TableKind::Memory as usize],
+        &ctl_vars_per_table[TableKind::Memory as usize],
         config,
     )?;
 
