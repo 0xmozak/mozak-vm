@@ -1,0 +1,10 @@
+[package]
+edition = "2021"
+name = "min-max-mozak-guest"
+version = "0.1.0"
+
+[dependencies]
+
+[[bin]]
+name = "min-max"
+path = "main.rs"
