@@ -26,21 +26,21 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(
         (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.mulh + lv.inst.ops.mulhsu)
             * (multiplier_abs
-                - ((P::ONES - lv.op2_sign_bit) * (lv.op2_value)
-                    + (lv.op2_sign_bit) * (CpuState::<P>::shifted(32) - lv.op2_value))),
+                - ((P::ONES - lv.op2_sign_bit) * lv.op2_value
+                    + lv.op2_sign_bit * (CpuState::<P>::shifted(32) - lv.op2_value))),
     );
     // Make sure multiplicand_abs is computed correctly from
     // op1_value.
     yield_constr.constraint(
         multiplicand_abs
-            - ((P::ONES - lv.op1_sign_bit) * (lv.op1_value)
-                + (lv.op1_sign_bit) * (CpuState::<P>::shifted(32) - lv.op1_value)),
+            - ((P::ONES - lv.op1_sign_bit) * lv.op1_value
+                + lv.op1_sign_bit * (CpuState::<P>::shifted(32) - lv.op1_value)),
     );
     // Make sure product_sign is either 0 or 1.
     is_binary(yield_constr, lv.product_sign);
     // For MUL/MULHU/SLL product sign should alwasy be 0.
     yield_constr
-        .constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * (lv.product_sign));
+        .constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * lv.product_sign);
     // If product_sign is 0 then res_when_prod_negative must be 0.
     yield_constr.constraint((P::ONES - lv.product_sign) * lv.res_when_prod_negative);
     // Make sure product_sign is computed correctly.
