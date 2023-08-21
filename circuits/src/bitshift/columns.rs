@@ -22,10 +22,6 @@ impl From<u64> for Bitshift<u64> {
 
 make_col_map!(BitshiftView);
 columns_view_impl!(BitshiftView);
-/// `is_executed` column tells if the corresponding row in the CPU table
-/// has been executed with the `SHL` or `SHR` operation.
-/// `executed` contains the `Bitshift` columns with the shift amount
-/// and the multiplier.
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct BitshiftView<T> {
