@@ -123,8 +123,8 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
     let (low, high) = multiplicand_abs.widening_mul(multiplier_abs);
     let product = u64::from(high) * 0x1_0000_0000_u64 + u64::from(low);
     row.product_zero = if product == 0 { F::ONE } else { F::ZERO };
-    let product_feild = F::from_noncanonical_u64(product);
-    row.product_inv = product_feild.try_inverse().unwrap_or_default();
+    let product_field = F::from_noncanonical_u64(product);
+    row.product_inv = product_field.try_inverse().unwrap_or_default();
     row.product_low_bits = from_u32(low);
     row.product_high_bits = from_u32(high);
     row.product_low_bits_zero = if low == 0 { F::ONE } else { F::ZERO };
