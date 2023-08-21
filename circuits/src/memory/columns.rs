@@ -3,32 +3,32 @@ use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Memory<T> {
-    // Indicates if a row comes from VM execution, or whether it's padding.
+    /// Indicates if a row comes from VM execution, or whether it's padding.
     pub is_executed: T,
 
-    // Memory address.
+    /// Memory address.
     pub addr: T,
 
     // Clock at memory access.
     pub clk: T,
 
-    // Opcode of memory access.
+    /// Opcode of memory access.
     pub op: T,
 
-    // Value of memory access.
+    /// Value of memory access.
     pub value: T,
 
-    // Difference between current and previous address.
+    /// Difference between current and previous address.
     pub diff_addr: T,
 
-    // Inverse of the above column. 0 if the above column is 0.
+    /// Inverse of the above column. 0 if the `diff_addr` is 0.
     pub diff_addr_inv: T,
 
-    // Difference between current and previous clock.
+    /// Difference between current and previous clock.
     pub diff_clk: T,
 }
 columns_view_impl!(Memory);
 make_col_map!(Memory);
 
-// Total number of columns.
+/// Total number of columns.
 pub const NUM_MEM_COLS: usize = Memory::<()>::NUMBER_OF_COLUMNS;

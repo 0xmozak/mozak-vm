@@ -59,7 +59,9 @@ pub struct CpuState<T> {
     pub clk: T,
     pub inst: Instruction<T>,
 
-    pub halted: T,
+    // Represents the end of the program. Also used as the filter column for cross checking Program
+    // ROM instructions.
+    pub is_running: T,
 
     pub op1_value: T,
     // The sum of the value of the second operand register and the
@@ -116,8 +118,6 @@ pub const NUM_CPU_COLS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 impl<T: PackedField> CpuState<T> {
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
-
-    pub fn op_diff(&self) -> T { self.op1_value - self.op2_value }
 
     // TODO(Matthias): unify where we specify `is_signed` for constraints and trace
     // generation. Also, later, take mixed sign (for MULHSU) into account.
