@@ -2,8 +2,8 @@ use mozak_vm::instruction::{Instruction, Op};
 use mozak_vm::vm::Row;
 use plonky2::field::types::Field;
 
-pub(crate) const OPCODE_LBU: usize = 0;
-pub(crate) const OPCODE_SB: usize = 1;
+pub(crate) const OPCODE_SB: usize = 0;
+pub(crate) const OPCODE_LBU: usize = 1;
 
 #[must_use]
 pub fn get_memory_inst_op<F: Field>(inst: &Instruction) -> F {

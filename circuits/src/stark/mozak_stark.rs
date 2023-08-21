@@ -44,7 +44,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             program_stark: ProgramStark::default(),
             cross_table_lookups: [
                 RangecheckCpuTable::lookups(),
-                BitwiseCpuTable::lookups(),
+                XorCpuTable::lookups(),
                 BitshiftCpuTable::lookups(),
                 InnerCpuTable::lookups(),
                 ProgramCpuTable::lookups(),
@@ -90,7 +90,7 @@ pub(crate) const NUM_TABLES: usize = 5;
 pub enum TableKind {
     Cpu = 0,
     RangeCheck = 1,
-    Bitwise = 2,
+    Xor = 2,
     Bitshift = 3,
     Program = 4,
 }
@@ -101,7 +101,7 @@ impl TableKind {
         [
             TableKind::Cpu,
             TableKind::RangeCheck,
-            TableKind::Bitwise,
+            TableKind::Xor,
             TableKind::Bitshift,
             TableKind::Program,
         ]
@@ -157,7 +157,7 @@ impl<F: Field> CpuTable<F> {
 impl<F: Field> XorTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
-        Table::new(TableKind::Bitwise, columns, filter_column)
+        Table::new(TableKind::Xor, columns, filter_column)
     }
 }
 
@@ -193,9 +193,9 @@ impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
     }
 }
 
-pub struct BitwiseCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct XorCpuTable<F: Field>(CrossTableLookup<F>);
 
-impl<F: Field> Lookups<F> for BitwiseCpuTable<F> {
+impl<F: Field> Lookups<F> for XorCpuTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(

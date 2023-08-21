@@ -1,6 +1,5 @@
-#![no_std]
 #![no_main]
-#![feature(lang_items)]
+#![feature(restricted_std)]
 
 use core::arch::asm;
 use core::{assert, assert_eq};
@@ -50,10 +49,3 @@ pub fn exit(a0: u32, a1: u32) -> ! {
     }
     loop {}
 }
-
-#[panic_handler]
-fn panic_handler(_: &core::panic::PanicInfo) -> ! { loop {} }
-
-// TODO: we can remove this once https://github.com/rust-lang/rust/issues/85736 is fixed.
-#[no_mangle]
-pub fn __atomic_load_4(arg: *const usize, _ordering: usize) -> usize { unsafe { *arg } }
