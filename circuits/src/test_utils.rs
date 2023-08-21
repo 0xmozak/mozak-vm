@@ -1,7 +1,6 @@
 use anyhow::Result;
 use mozak_vm::elf::Program;
 use mozak_vm::vm::ExecutionRecord;
-use plonky2::field::types::Field;
 use plonky2::fri::FriConfig;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
@@ -26,6 +25,7 @@ use crate::stark::mozak_stark::{MozakStark, PublicInputs};
 use crate::stark::prover::prove;
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 use crate::stark::verifier::verify_proof;
+use crate::utils::from_u32;
 use crate::xor::stark::XorStark;
 
 pub type S = MozakStark<F, D>;
@@ -82,7 +82,7 @@ impl ProveAndVerify for CpuStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            [F::ZERO],
+            [from_u32(program.entry_point)],
             &mut TimingTree::default(),
         )?;
 
@@ -183,14 +183,16 @@ impl ProveAndVerify for MozakStark<F, D> {
     fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
         let stark = S::default();
         let config = standard_faster_config();
-        let public_inputs = PublicInputs { pc_start: F::ZERO };
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program.entry_point),
+        };
 
         let all_proof = prove::<F, C, D>(
             program,
             record,
             &stark,
             &config,
-            &public_inputs,
+            public_inputs,
             &mut TimingTree::default(),
         );
         verify_proof(stark, all_proof.unwrap(), &config)

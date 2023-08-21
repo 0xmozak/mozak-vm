@@ -13,14 +13,16 @@ pub(crate) fn bench_simple() {
     let (program, record) = simple_test_code(&[], &[], &[]);
     let stark = S::default();
     let config = standard_faster_config();
-    let public_inputs = PublicInputs { pc_start: F::ZERO };
+    let public_inputs = PublicInputs {
+        entry_point: F::from_canonical_u32(program.entry_point),
+    };
 
     let all_proof = prove::<F, C, D>(
         &program,
         &record,
         &stark,
         &config,
-        &public_inputs,
+        public_inputs,
         &mut TimingTree::default(),
     )
     .unwrap();

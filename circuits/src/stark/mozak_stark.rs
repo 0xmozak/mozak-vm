@@ -31,7 +31,7 @@ columns_view_impl!(PublicInputs);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
 #[serde(bound = "F: Field")]
 pub struct PublicInputs<F> {
-    pub pc_start: F,
+    pub entry_point: F,
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -231,11 +231,11 @@ impl<F: Field> Lookups<F> for InnerCpuTable<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_inst(),
-                Column::not(cpu::columns::MAP.cpu.halted),
+                Column::single(cpu::columns::MAP.cpu.is_running),
             )],
             CpuTable::new(
                 cpu::columns::data_for_permuted_inst(),
-                Column::not(cpu::columns::MAP.cpu.halted),
+                Column::single(cpu::columns::MAP.cpu.is_running),
             ),
         )
     }

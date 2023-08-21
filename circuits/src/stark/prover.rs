@@ -43,7 +43,7 @@ pub fn prove<F, C, const D: usize>(
     record: &ExecutionRecord,
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
-    public_inputs: &PublicInputs<F>,
+    public_inputs: PublicInputs<F>,
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
 where
@@ -59,7 +59,7 @@ where
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
-        debug_traces(program, record, mozak_stark, public_inputs);
+        debug_traces(program, record, mozak_stark, &public_inputs);
         debug_ctl(&traces_poly_values, mozak_stark);
     }
     prove_with_traces(
@@ -78,7 +78,7 @@ where
 pub fn prove_with_traces<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
-    public_inputs: &PublicInputs<F>,
+    public_inputs: PublicInputs<F>,
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
@@ -148,7 +148,7 @@ where
         prove_with_commitments(
             mozak_stark,
             config,
-            public_inputs,
+            &public_inputs,
             traces_poly_values,
             &trace_commitments,
             &ctl_data_per_table,
@@ -161,7 +161,7 @@ where
     Ok(AllProof {
         stark_proofs,
         program_rom_trace_cap,
-        public_inputs: *public_inputs,
+        public_inputs,
     })
 }
 
@@ -381,7 +381,7 @@ where
         config,
         &traces_poly_values[TableKind::Cpu as usize],
         &trace_commitments[TableKind::Cpu as usize],
-        [public_inputs.pc_start],
+        [public_inputs.entry_point],
         &ctl_data_per_table[TableKind::Cpu as usize],
         challenger,
         timing,

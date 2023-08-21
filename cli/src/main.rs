@@ -127,13 +127,15 @@ fn main() -> Result<()> {
                 } else {
                     MozakStark::default()
                 };
-                let public_inputs = PublicInputs { pc_start: F::ZERO };
+                let public_inputs = PublicInputs {
+                    entry_point: F::from_canonical_u32(program.entry_point),
+                };
                 let all_proof = prove::<F, C, D>(
                     &program,
                     &record,
                     &stark,
                     &config,
-                    &public_inputs,
+                    public_inputs,
                     &mut TimingTree::default(),
                 )?;
                 let s = all_proof.serialize_proof_to_flexbuffer()?;
