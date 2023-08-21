@@ -1,10 +1,12 @@
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
+use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 use starky::stark::Stark;
 
 use crate::bitshift::stark::BitshiftStark;
+use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::program::stark::ProgramStark;
@@ -21,6 +23,15 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub program_stark: ProgramStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 5],
     pub debug: bool,
+}
+
+columns_view_impl!(PublicInputs);
+
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[serde(bound = "F: Field")]
+pub struct PublicInputs<F> {
+    pub entry_point: F,
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
