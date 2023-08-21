@@ -85,9 +85,9 @@ where
 
     verify_stark_proof_with_challenges::<F, C, XorStark<F, D>, D>(
         &xor_stark,
-        &all_proof.stark_proofs[TableKind::Bitwise as usize],
-        &stark_challenges[TableKind::Bitwise as usize],
-        &ctl_vars_per_table[TableKind::Bitwise as usize],
+        &all_proof.stark_proofs[TableKind::Xor as usize],
+        &stark_challenges[TableKind::Xor as usize],
+        &ctl_vars_per_table[TableKind::Xor as usize],
         config,
     )?;
 
