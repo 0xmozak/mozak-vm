@@ -11,6 +11,8 @@ pub mod xor;
 
 use std::borrow::Borrow;
 
+use std::borrow::Borrow;
+
 use itertools::Itertools;
 use mozak_vm::elf::Program;
 use mozak_vm::vm::ExecutionRecord;
