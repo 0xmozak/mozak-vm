@@ -20,7 +20,6 @@ use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
-use super::permutation::get_grand_product_challenge_set;
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
@@ -30,9 +29,8 @@ use crate::generation::{debug_traces, generate_traces};
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::mozak_stark::PublicInputs;
-use crate::stark::permutation::{
-    compute_permutation_z_polys, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
-};
+use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
+use crate::stark::permutation::compute_permutation_z_polys;
 use crate::stark::poly::compute_quotient_polys;
 use crate::xor::stark::XorStark;
 
@@ -96,6 +94,7 @@ where
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
+    // Compute trace commitments for each table.
     let trace_commitments = timed!(
         timing,
         "compute all trace commitments",
@@ -123,6 +122,7 @@ where
             .collect::<Vec<_>>()
     );
 
+    // Add trace commitments to the challenger entropy pool.
     let trace_caps = trace_commitments
         .iter()
         .map(|c| c.merkle_tree.cap.clone())
@@ -132,7 +132,8 @@ where
         challenger.observe_cap(cap);
     }
 
-    let ctl_challenges = get_grand_product_challenge_set(&mut challenger, config.num_challenges);
+    // Compute CTL data for each table.
+    let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
     let ctl_data_per_table = timed!(
         timing,
         "compute CTL data",
@@ -202,12 +203,8 @@ where
     challenger.compact();
 
     // Permutation arguments.
-    let permutation_challenges: Vec<GrandProductChallengeSet<F>> =
-        get_n_grand_product_challenge_sets(
-            challenger,
-            config.num_challenges,
-            stark.permutation_batch_size(),
-        );
+    let permutation_challenges: Vec<GrandProductChallengeSet<F>> = challenger
+        .get_n_grand_product_challenge_sets(config.num_challenges, stark.permutation_batch_size());
     let mut permutation_zs = timed!(
         timing,
         "compute permutation Z(x) polys",
