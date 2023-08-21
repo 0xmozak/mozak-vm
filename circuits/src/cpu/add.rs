@@ -15,7 +15,8 @@ pub(crate) fn constraints<P: PackedField>(
     let wrapped = added - wrap_at;
 
     // Check: the resulting sum is wrapped if necessary.
-    // As values are range checked as u32, this makes the value choice exclusive.
+    // As the result is range checked, this make the choice deterministic,
+    // even for a malicious prover.
     yield_constr.constraint(lv.inst.ops.add * (lv.dst_value - added) * (lv.dst_value - wrapped));
 }
 

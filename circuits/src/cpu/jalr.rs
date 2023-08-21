@@ -1,7 +1,6 @@
 //! This module implements the JALR operation constraints
 //! JALR writes the address of the instruction following the jump, being pc + 4,
-//! And then sets the target address with sum of 12-bit signed I-immediate and
-//! the value in the register rs1, both stored in op1 and op2.
+//! And then sets the target address with sum of signed immediate and rs1.
 
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
@@ -22,7 +21,7 @@ pub(crate) fn constraints<P: PackedField>(
 
     let destination = lv.dst_value;
     // Check: the wrapped `pc + 4` is saved to destination.
-    // As values are range checked u32, this makes the value choice exclusive.
+    // As values are range checked u32, this makes the value choice deterministic.
     yield_constr.constraint(
         lv.inst.ops.jalr * (destination - return_address) * (destination - wrapped_return_address),
     );
@@ -32,7 +31,7 @@ pub(crate) fn constraints<P: PackedField>(
     let new_pc = nv.inst.pc;
 
     // Check: the wrapped op1, op2 sum is set as new `pc`.
-    // As values are range checked u32, this makes the value choice exclusive.
+    // As values are range checked u32, this makes the value choice deterministic.
     yield_constr.constraint_transition(
         lv.inst.ops.jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target),
     );

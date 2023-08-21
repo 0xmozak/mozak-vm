@@ -1,5 +1,5 @@
-//! This module implements the sign operation constraints, SLT and SLTU
-//! Where `SLT` means Set if Less Then.
+//! This module implements constraints for comparisons, SLT and SLTU.
+//! Where `SLT` means 'Set if Less Then', and 'SLTU' is the same but unsigned.
 
 use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;

@@ -1,4 +1,5 @@
-//! This module implements the ECALL operation constraints
+//! This module implements the constraints for the environment call operation
+//! 'ECALL'.
 
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;

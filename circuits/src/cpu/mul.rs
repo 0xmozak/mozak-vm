@@ -1,4 +1,4 @@
-//! This module implements the multiplications operation constraints, including
+//! This module implements constraints for multiplication operations, including
 //! MUL, MULH and SLL instructions.
 //!
 //! Here, SLL stands for 'shift left logical'.  We can treat it as a variant of
@@ -16,8 +16,8 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // The Goldilocks field is carefully chosen to allow multiplication of u32
-    // values almost without overflow.
-    // We tackle the edge case at the end of our constraints.
+    // values without overflow, as max value is `u32::MAX^2=(2^32-1)^2`
+    // And field size is `2^64-2^32+1`, which is `u32::MAX^2 + 2^32`
     let base = P::Scalar::from_noncanonical_u64(1 << 32);
 
     let multiplicand = lv.op1_value;
@@ -27,7 +27,6 @@ pub(crate) fn constraints<P: PackedField>(
     let product = low_limb + base * high_limb;
 
     // Check: multiplication equation, `product == multiplicand * multiplier`.
-    // (Not accounting for overflows for now).
     yield_constr.constraint(product - multiplicand * multiplier);
 
     // Check: for MUL and MULHU the multiplier is assigned the op2 value.
@@ -61,21 +60,25 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(lv.inst.ops.mulhu * (destination - high_limb));
 
     // The constraints above would be enough, if our field was large enough.
-    // However Goldilocks field is just a bit too small at order 2^64 - 2^32 + 1.
+    // However Goldilocks field is just a bit too small at order 2^64 - 2^32 + 1,
+    // which allows for the following exploit to happen when high_limb == u32::MAX
     //
     // Specifically, (1<<32) * (u32::MAX) === -1 (mod 2^64 - 2^32 + 1).
     // Thus, when product high_limb == u32::MAX:
-    //       product = low_limb + base * high_limb = low_limb - P::ONES
+    //       product = low_limb + base * high_limb =
+    //       = low_limb + (1<<32) * (u32::MAX) = low_limb - P::ONES
+    //
+    // Which means a malicious prover could evaluate some product in two different
+    // ways, which is unacceptable.
     //
     // However, the largest combined result that an honest prover can produce is
     // u32::MAX * u32::MAX = 0xFFFF_FFFE_0000_0001.  So we can add a constraint
-    // that high_limb is != 0xFFFF_FFFF == u32::MAX range.
-    //
-    // That curtails the exploit without invalidating any honest proofs.
+    // that high_limb is != 0xFFFF_FFFF == u32::MAX range to prevent such exploit.
 
     let diff = P::Scalar::from_noncanonical_u64(u32::MAX.into()) - lv.product_high_bits;
-    // The following constraints `product` as mentioned above in cases of overflows.
-    // Check: high limb != u32::MAX by checking that diff is invertible.
+    // The following makes `product` deterministic as mentioned above by preventing
+    // `high_limb` to take unreachable values.
+    // Check: high limb != u32::MAX by checking that their diff is invertible.
     yield_constr.constraint(
         (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.sll)
             * (diff * lv.product_high_diff_inv - P::ONES),
@@ -92,6 +95,7 @@ mod tests {
 
     use crate::cpu::stark::CpuStark;
     use crate::test_utils::ProveAndVerify;
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]

@@ -1,4 +1,4 @@
-//! This module implements the BLT and BND operation constraints.
+//! This module implements constraints for the branch operations.
 
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
@@ -7,21 +7,20 @@ use starky::constraint_consumer::ConstraintConsumer;
 use super::columns::CpuState;
 use super::stark::is_binary;
 
-/// Constraints for `less_than` and `not_diff`
+/// Constraints for `less_than` and `normalised_diff`
 /// For `less_than`:
-///  1 if r1 < r2
-///  0 if r1 >= r2
+///  `1` if `r1 < r2`
+///  `0` if `r1 >= r2`
 /// This holds when r1, r2 are signed or unsigned.
 ///
-/// For `not_diff`:
-///  r1 != r2 if 0
-///  1 otherwise
+/// For `normalised_diff`:
+///  `0` iff `r1 == r2`
+///  `1` iff `r1 != r2`
 pub(crate) fn comparison_constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let lt = lv.less_than;
-    // Check: lt is either 0 or 1
     is_binary(yield_constr, lt);
 
     // We add inequality constraints, so that if:
@@ -32,7 +31,7 @@ pub(crate) fn comparison_constraints<P: PackedField>(
     yield_constr.constraint((P::ONES - lt) * (lv.abs_diff - lv.signed_diff()));
     yield_constr.constraint(lt * (lv.abs_diff + lv.signed_diff()));
 
-    // Thus, we need a constraint when |r1 - r2| == 0 -> lt == 0.
+    // Thus, we need a constrain when |r1 - r2| == 0 -> lt == 0.
 
     // To do so, we constraint `normalised_diff` to be
     //  0 iff r1 == r2
@@ -41,8 +40,8 @@ pub(crate) fn comparison_constraints<P: PackedField>(
     yield_constr.constraint(lv.signed_diff() * (P::ONES - lv.normalised_diff));
     yield_constr.constraint(lv.signed_diff() * lv.cmp_diff_inv - lv.normalised_diff);
 
-    // Finally, we constraint so that only one of both `lt` and `not_diff`
-    // can equal 1 at once. There for, if `op1 == op2`, then `not_diff == 1`,
+    // Finally, we constraint so that only one of both `lt` and `normalised_diff`
+    // can equal 1 at once. There for, if `op1 == op2`, then `normalised_diff == 1`,
     // thus `lt` can only be 0. Which means we are no longer under constrained.
     yield_constr.constraint(lt * (P::ONES - lv.normalised_diff));
 }
@@ -95,6 +94,7 @@ mod tests {
 
     use crate::cpu::stark::CpuStark;
     use crate::test_utils::ProveAndVerify;
+
     fn test_cond_branch(a: u32, b: u32, op: Op) {
         let (program, record) = simple_test_code(
             &[

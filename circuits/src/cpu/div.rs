@@ -1,4 +1,4 @@
-//! This module implements the division operation constraints, including
+//! This module implements constraints for division operations, including
 //! DIVU, REMU, and SRL instructions.
 //!
 //! Here, SRL stands for 'shift right logical'.  We can treat it as a variant of
