@@ -36,7 +36,8 @@ implemented, they require at least degree `3` constraints to work.
 
 ### Padding Rows
 
-Due to how STARKs work, we need to always pad tables to a size which is a multiple of two (likely, for FRI to work).
+Due to how STARKs work, we need to always pad tables to a size which is a multiple of two (due to the requirements of
+FFT/IFFT).
 
 ```rust
 // utils.rs
@@ -128,6 +129,8 @@ adding an alias for easier use.
 
 ### Cross Table Lookups (CTL)
 
+**This section is WIP, and its content will change with future PRs.**
+
 On a very high level, CTL work by taking two tables with the same amount of rows, selecting a subset of columns from
 both tables and saying that the rows of the selected sub-set tables form a
 permutation. It should be clear that for this to work, both subsets of columns should be of the same size.
@@ -159,6 +162,8 @@ upfront and then checked by the user or some independent validator once to indee
 of `custom_func`.
 
 ### Lookups
+
+**This section is WIP, and its content will change with future PRs.**
 
 Lookups are rather simpler than CTL and work as CTL happens on a single table. For that, we select two columns and say
 that the values of the columns must be the same up to a row position permutation. A good example of a lookup is in the
