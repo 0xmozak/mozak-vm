@@ -1,7 +1,7 @@
 Guest Program
 ---
 
-This repo contains an example cargo projects which generate ELF compatible with MozakVM.
+This repo contains two example cargo projects which generate ELF compatible with MozakVM.
 
 **Build**
 
