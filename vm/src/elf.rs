@@ -113,8 +113,8 @@ impl Program {
             elf.ehdr.e_type == elf::abi::ET_EXEC,
             "Invalid ELF type, must be executable"
         );
-        let entry: u32 = elf.ehdr.e_entry.try_into()?;
-        ensure!(entry % 4 == 0, "Misaligned entrypoint");
+        let entry_point: u32 = elf.ehdr.e_entry.try_into()?;
+        ensure!(entry_point % 4 == 0, "Misaligned entrypoint");
         let segments = elf
             .segments()
             .ok_or_else(|| anyhow!("Missing segment table"))?;
@@ -144,7 +144,7 @@ impl Program {
         let code = extract(elf::abi::PF_X)?;
         let code = Code::from(&code);
         Ok(Program {
-            entry_point: entry,
+            entry_point,
             data,
             code,
         })
