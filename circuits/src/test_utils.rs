@@ -85,7 +85,6 @@ impl ProveAndVerify for CpuStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            // TODO: fix this
             public_inputs.into(),
             &mut TimingTree::default(),
         )?;
