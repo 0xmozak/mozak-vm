@@ -4,6 +4,7 @@ use starky::constraint_consumer::ConstraintConsumer;
 
 use super::bitwise::and_gadget;
 use super::columns::CpuState;
+use super::stark::is_binary;
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
@@ -23,7 +24,7 @@ pub(crate) fn constraints<P: PackedField>(
     // Make sure multiplier_abs is computed correctly from op2_value.
     // Skip SLL as it always has positive multiplier.
     yield_constr.constraint(
-        (lv.inst.ops.mul + lv.inst.ops.mulhu)
+        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.mulh + lv.inst.ops.mulhsu)
             * (multiplier_abs
                 - ((P::ONES - lv.op2_sign_bit) * (lv.op2_value)
                     + (lv.op2_sign_bit) * (CpuState::<P>::shifted(32) - lv.op2_value))),
@@ -36,7 +37,7 @@ pub(crate) fn constraints<P: PackedField>(
                 + (lv.op1_sign_bit) * (CpuState::<P>::shifted(32) - lv.op1_value)),
     );
     // Make sure product_sign is either 0 or 1.
-    yield_constr.constraint(lv.product_sign * (P::ONES - lv.product_sign));
+    is_binary(yield_constr, lv.product_sign);
     // For MUL/MULHU/SLL product sign should alwasy be 0.
     yield_constr
         .constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * (lv.product_sign));
