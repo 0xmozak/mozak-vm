@@ -1,4 +1,4 @@
-//! This module contains the **`Bitwise` STARK Table**.
+//! This module contains the **`Xor` STARK Table**.
 //! This Stark is used to contain the Xor evaluation of the execution.
 //! Using the Xor table, we can then construct the other
 //! bitwise operations, such as `And` and `Or`.

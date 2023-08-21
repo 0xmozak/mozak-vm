@@ -69,7 +69,7 @@ pub fn generate_cpu_trace<F: RichField>(
             // TODO(Matthias): find a way to make either compiler or runtime complain
             // if we have two (conflicting) users in the same row.
             bitshift: Bitshift::from(0).map(F::from_canonical_u64),
-            xor: generate_bitwise_row(&inst, state),
+            xor: generate_xor_row(&inst, state),
 
             ..CpuState::default()
         };
@@ -188,7 +188,7 @@ fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
     row.abs_diff = F::from_noncanonical_u64(abs_diff);
 }
 
-fn generate_bitwise_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {
+fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {
     let a = match inst.op {
         Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
         Op::SRL | Op::SLL => 0b1_1111,
