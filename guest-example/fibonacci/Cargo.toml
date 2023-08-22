@@ -1,0 +1,10 @@
+[package]
+edition = "2021"
+name = "fibonacci-mozak-guest"
+version = "0.1.0"
+
+[dependencies]
+
+[[bin]]
+name = "fibonacci"
+path = "main.rs"

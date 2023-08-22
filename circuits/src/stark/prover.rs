@@ -29,6 +29,7 @@ use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
+use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::permutation::{
     compute_permutation_z_polys, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
 };
@@ -42,6 +43,7 @@ pub fn prove<F, C, const D: usize>(
     record: &ExecutionRecord,
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
+    public_inputs: PublicInputs<F>,
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
 where
@@ -50,16 +52,23 @@ where
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
-        debug_traces(program, record, mozak_stark);
+        debug_traces(program, record, mozak_stark, &public_inputs);
         debug_ctl(&traces_poly_values, mozak_stark);
     }
-    prove_with_traces(mozak_stark, config, &traces_poly_values, timing)
+    prove_with_traces(
+        mozak_stark,
+        config,
+        public_inputs,
+        &traces_poly_values,
+        timing,
+    )
 }
 
 /// Given the traces generated from [`generate_traces`], prove a [`MozakStark`].
@@ -69,6 +78,7 @@ where
 pub fn prove_with_traces<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
+    public_inputs: PublicInputs<F>,
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
@@ -78,6 +88,7 @@ where
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
@@ -137,6 +148,7 @@ where
         prove_with_commitments(
             mozak_stark,
             config,
+            &public_inputs,
             traces_poly_values,
             &trace_commitments,
             &ctl_data_per_table,
@@ -149,6 +161,7 @@ where
     Ok(AllProof {
         stark_proofs,
         program_rom_trace_cap,
+        public_inputs,
     })
 }
 
@@ -158,11 +171,13 @@ where
 /// Errors if FRI parameters are wrongly configured, or if
 /// there are no z polys, or if our
 /// opening points are in our subgroup `H`,
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     stark: &S,
     config: &StarkConfig,
     trace_poly_values: &[PolynomialValues<F>],
     trace_commitment: &PolynomialBatch<F, C, D>,
+    public_inputs: [F; S::PUBLIC_INPUTS],
     ctl_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
@@ -236,6 +251,7 @@ where
             trace_commitment,
             &permutation_ctl_zs_commitment,
             &permutation_challenges,
+            public_inputs,
             ctl_data,
             &alphas,
             degree_bits,
@@ -338,9 +354,11 @@ where
 ///
 /// # Errors
 /// Errors if proving fails.
+#[allow(clippy::too_many_arguments)]
 pub fn prove_with_commitments<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
+    public_inputs: &PublicInputs<F>,
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     trace_commitments: &[PolynomialBatch<F, C, D>],
     ctl_data_per_table: &[CtlData<F>; NUM_TABLES],
@@ -353,6 +371,7 @@ where
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
@@ -362,6 +381,7 @@ where
         config,
         &traces_poly_values[TableKind::Cpu as usize],
         &trace_commitments[TableKind::Cpu as usize],
+        [public_inputs.entry_point],
         &ctl_data_per_table[TableKind::Cpu as usize],
         challenger,
         timing,
@@ -372,6 +392,7 @@ where
         config,
         &traces_poly_values[TableKind::RangeCheck as usize],
         &trace_commitments[TableKind::RangeCheck as usize],
+        [],
         &ctl_data_per_table[TableKind::RangeCheck as usize],
         challenger,
         timing,
@@ -380,9 +401,10 @@ where
     let xor_proof = prove_single_table::<F, C, XorStark<F, D>, D>(
         &mozak_stark.xor_stark,
         config,
-        &traces_poly_values[TableKind::Bitwise as usize],
-        &trace_commitments[TableKind::Bitwise as usize],
-        &ctl_data_per_table[TableKind::Bitwise as usize],
+        &traces_poly_values[TableKind::Xor as usize],
+        &trace_commitments[TableKind::Xor as usize],
+        [],
+        &ctl_data_per_table[TableKind::Xor as usize],
         challenger,
         timing,
     )?;
@@ -392,6 +414,7 @@ where
         config,
         &traces_poly_values[TableKind::Bitshift as usize],
         &trace_commitments[TableKind::Bitshift as usize],
+        [],
         &ctl_data_per_table[TableKind::Bitshift as usize],
         challenger,
         timing,
@@ -402,6 +425,7 @@ where
         config,
         &traces_poly_values[TableKind::Program as usize],
         &trace_commitments[TableKind::Program as usize],
+        [],
         &ctl_data_per_table[TableKind::Program as usize],
         challenger,
         timing,

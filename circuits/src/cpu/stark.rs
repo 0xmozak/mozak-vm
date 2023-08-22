@@ -15,6 +15,7 @@ use super::columns::{CpuColumnsExtended, CpuState, Instruction, OpSelectors};
 use super::{add, bitwise, branches, div, ecall, jalr, mul, signed_comparison, sub};
 use crate::columns_view::NumberOfColumns;
 use crate::program::columns::ProgramRom;
+use crate::stark::mozak_stark::PublicInputs;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -199,7 +200,8 @@ fn halted<P: PackedField>(
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
     const COLUMNS: usize = CpuColumnsExtended::<F>::NUMBER_OF_COLUMNS;
-    const PUBLIC_INPUTS: usize = 0;
+    // Public inputs: [PC of the first row]
+    const PUBLIC_INPUTS: usize = PublicInputs::<F>::NUMBER_OF_COLUMNS;
 
     #[allow(clippy::similar_names)]
     fn eval_packed_generic<FE, P, const D2: usize>(
@@ -211,12 +213,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         P: PackedField<Scalar = FE>, {
         let lv: &CpuColumnsExtended<_> = vars.local_values.borrow();
         let nv: &CpuColumnsExtended<_> = vars.next_values.borrow();
+        let public_inputs: &PublicInputs<_> = vars.public_inputs.borrow();
 
         check_permuted_inst_cols(&lv.permuted, &nv.permuted, yield_constr);
 
         let lv = &lv.cpu;
         let nv = &nv.cpu;
 
+        yield_constr.constraint_first_row(lv.inst.pc - public_inputs.entry_point);
         clock_ticks(lv, nv, yield_constr);
         pc_ticks_up(lv, nv, yield_constr);
 
