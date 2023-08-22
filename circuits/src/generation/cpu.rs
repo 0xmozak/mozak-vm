@@ -117,9 +117,22 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
         sign_and_absolute(row.is_op2_signed().is_nonzero(), aux.op2)
     };
     let (is_op1_negative, op1_abs) = sign_and_absolute(row.is_op1_signed().is_nonzero(), aux.op1);
+    let product_sign = is_op1_negative ^ is_op2_negative;
+    row.product_sign = if product_sign { F::ONE } else { F::ZERO };
     row.op1_abs = from_u32(op1_abs);
     row.op2_abs = from_u32(op2_abs);
-    let (low, high) = op1_abs.widening_mul(op2_abs);
+    let low;
+    let high;
+    if product_sign {
+        let prod = u64::MAX - u64::from(op1_abs) * u64::from(op2_abs) + 1;
+        low = (prod & 0xffff_ffff) as u32;
+        high = (prod >> 32) as u32;
+    } else {
+        let (l, h) = op1_abs.widening_mul(op2_abs);
+        low = l;
+        high = h;
+    }
+
     let product_abs = u64::from(op1_abs) * u64::from(op2_abs);
     row.product_abs_high_32bits = from_u32((product_abs >> 32) as u32);
     row.product_abs_low_32bits = from_u32((product_abs & 0xFFFF_FFFF) as u32);
@@ -129,8 +142,6 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
         .unwrap_or_default();
     row.product_low_limb = from_u32(low);
     row.product_high_limb = from_u32(high);
-    let product_sign = is_op1_negative ^ is_op2_negative;
-    row.product_sign = if product_sign { F::ONE } else { F::ZERO };
 }
 
 #[allow(clippy::cast_possible_wrap)]

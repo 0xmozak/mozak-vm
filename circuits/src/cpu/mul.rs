@@ -15,10 +15,25 @@ pub(crate) fn constraints<P: PackedField>(
     let low_limb = lv.product_low_limb;
     let high_limb = lv.product_high_limb;
     let two_to_32 = CpuState::<P>::shifted(32);
-    let is_mul_op = lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.mulh + lv.inst.ops.mulhsu;
+    let is_mul_op = lv.inst.ops.mul
+        + lv.inst.ops.mulhu
+        + lv.inst.ops.mulh
+        + lv.inst.ops.mulhsu
+        + lv.inst.ops.sll;
 
+    // Make sure product_sign is either 0 or 1.
+    is_binary(yield_constr, lv.product_sign);
     yield_constr.constraint(
-        lv.product_abs_high_32bits * two_to_32 + lv.product_abs_low_32bits - op1_abs * op2_abs,
+        lv.product_sign
+            * (two_to_32
+                - lv.product_abs_high_32bits * two_to_32
+                - lv.product_abs_low_32bits
+                - op1_abs * op2_abs),
+    );
+    yield_constr.constraint(
+        (P::ONES - lv.product_sign)
+            * (lv.product_abs_high_32bits * two_to_32 + lv.product_abs_low_32bits
+                - op1_abs * op2_abs),
     );
     // Make sure op1_abs is computed correctly from op1_value.
     yield_constr.constraint(
@@ -27,15 +42,12 @@ pub(crate) fn constraints<P: PackedField>(
                 + lv.op1_sign_bit * (two_to_32 - lv.op1_value)),
     );
     // Make sure op2_abs is computed correctly from op2_value.
-    // Skip SLL as it always has positive op2.
     yield_constr.constraint(
         is_mul_op
             * (op2_abs
                 - ((P::ONES - lv.op2_sign_bit) * lv.op2_value
                     + lv.op2_sign_bit * (two_to_32 - lv.op2_value))),
     );
-    // Make sure product_sign is either 0 or 1.
-    is_binary(yield_constr, lv.product_sign);
     // For MUL/MULHU/SLL product sign should alwasy be 0.
     yield_constr
         .constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * lv.product_sign);
@@ -58,30 +70,35 @@ pub(crate) fn constraints<P: PackedField>(
         yield_constr.constraint(lv.inst.ops.sll * (op2_abs - lv.bitshift.multiplier));
     }
 
-    // Constraints on product_abs_high_32bits.
-    yield_constr.constraint(
-        is_mul_op
-            * ((two_to_32 - P::ONES - lv.product_abs_high_32bits)
-                * lv.product_abs_high_32bits_diff_inv
-                - P::ONES),
-    );
-
-    // Constraints on product_32bits, product_high_limb and product_low_limb.
-    let two_to_16 = CpuState::<P>::shifted(16);
-    // If product_sign is 0
-    yield_constr.constraint(
-        (P::ONES - lv.product_sign)
-            * (two_to_16 * lv.product_high_limb + lv.product_low_limb - lv.product_abs_low_32bits),
-    );
-    // If product_sign is 1
-    yield_constr.constraint(
-        lv.product_sign
-            * (two_to_32 + P::ONES
-                - two_to_16 * lv.product_high_limb
-                - lv.product_low_limb
-                - lv.product_abs_low_32bits),
-    );
-
+    // // Constraints on product_abs_high_32bits.
+    // yield_constr.constraint(
+    //     is_mul_op
+    //         * ((two_to_32 - P::ONES - lv.product_abs_high_32bits)
+    //             * lv.product_abs_high_32bits_diff_inv
+    //             - P::ONES),
+    // );
+    //
+    // let two_to_16 = CpuState::<P>::shifted(16);
+    // // If product_sign is 0
+    // // product_abs_low_32bits = product_low_limb + product_high_limb * 2^16
+    // yield_constr.constraint(
+    //     is_mul_op
+    //         * (P::ONES - lv.product_sign)
+    //         * (two_to_16 * lv.product_high_limb + lv.product_low_limb -
+    //           lv.product_abs_low_32bits),
+    // );
+    // // If product_sign is 1
+    // // product_abs_low_32bits = u32::max - (product_low_limb + product_high_limb
+    // * // 2^16) + 1
+    // yield_constr.constraint(
+    //     is_mul_op
+    //         * lv.product_sign
+    //         * (two_to_32
+    //             - two_to_16 * lv.product_high_limb
+    //             - lv.product_low_limb
+    //             - lv.product_abs_low_32bits),
+    // );
+    //
     // Now, let's copy our results to the destination register:
     let destination = lv.dst_value;
     yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.sll) * (destination - low_limb));
