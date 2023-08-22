@@ -31,7 +31,7 @@ pub(crate) fn comparison_constraints<P: PackedField>(
     yield_constr.constraint((P::ONES - lt) * (lv.abs_diff - lv.signed_diff()));
     yield_constr.constraint(lt * (lv.abs_diff + lv.signed_diff()));
 
-    // Thus, we need a constrain when |r1 - r2| == 0 -> lt == 0.
+    // Thus, we need a constraint when |r1 - r2| == 0 -> lt == 0.
 
     // To do so, we constraint `normalised_diff` to be
     //  0 iff r1 == r2
