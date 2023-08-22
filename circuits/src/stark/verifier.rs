@@ -34,6 +34,7 @@ where
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
@@ -71,6 +72,7 @@ where
         &cpu_stark,
         &all_proof.stark_proofs[TableKind::Cpu as usize],
         &stark_challenges[TableKind::Cpu as usize],
+        all_proof.public_inputs.into(),
         &ctl_vars_per_table[TableKind::Cpu as usize],
         config,
     )?;
@@ -79,15 +81,17 @@ where
         &rangecheck_stark,
         &all_proof.stark_proofs[TableKind::RangeCheck as usize],
         &stark_challenges[TableKind::RangeCheck as usize],
+        [],
         &ctl_vars_per_table[TableKind::RangeCheck as usize],
         config,
     )?;
 
     verify_stark_proof_with_challenges::<F, C, XorStark<F, D>, D>(
         &xor_stark,
-        &all_proof.stark_proofs[TableKind::Bitwise as usize],
-        &stark_challenges[TableKind::Bitwise as usize],
-        &ctl_vars_per_table[TableKind::Bitwise as usize],
+        &all_proof.stark_proofs[TableKind::Xor as usize],
+        &stark_challenges[TableKind::Xor as usize],
+        [],
+        &ctl_vars_per_table[TableKind::Xor as usize],
         config,
     )?;
 
@@ -95,6 +99,7 @@ where
         &shift_amount_stark,
         &all_proof.stark_proofs[TableKind::Bitshift as usize],
         &stark_challenges[TableKind::Bitshift as usize],
+        [],
         &ctl_vars_per_table[TableKind::Bitshift as usize],
         config,
     )?;
@@ -103,6 +108,7 @@ where
         &program_stark,
         &all_proof.stark_proofs[TableKind::Program as usize],
         &stark_challenges[TableKind::Program as usize],
+        [],
         &ctl_vars_per_table[TableKind::Program as usize],
         config,
     )?;
@@ -120,6 +126,7 @@ pub(crate) fn verify_stark_proof_with_challenges<
     stark: &S,
     proof: &StarkProof<F, C, D>,
     challenges: &StarkProofChallenges<F, D>,
+    public_inputs: [F; S::PUBLIC_INPUTS],
     ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
     config: &StarkConfig,
 ) -> Result<()>
@@ -136,10 +143,16 @@ where
         ctl_zs_last,
         quotient_polys,
     } = &proof.openings;
+
     let vars = StarkEvaluationVars {
         local_values: &local_values.clone().try_into().unwrap(),
         next_values: &next_values.clone().try_into().unwrap(),
-        public_inputs: &[F::ZERO.into(); S::PUBLIC_INPUTS],
+        public_inputs: &public_inputs
+            .into_iter()
+            .map(F::Extension::from_basefield)
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("mapping public inputs to the extension field should succeed"),
     };
 
     let degree_bits = proof.recover_degree_bits(config);

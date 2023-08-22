@@ -55,7 +55,7 @@ pub fn simple_test_code(
     let image: HashMap<u32, u32> = mem.iter().copied().collect();
     let image = Data::from(image);
     let program = Program {
-        entry: 0,
+        entry_point: 0,
         data: image,
         code,
     };
