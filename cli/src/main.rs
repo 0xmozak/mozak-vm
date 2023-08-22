@@ -7,7 +7,7 @@ use clap::{Parser, Subcommand};
 use clio::{Input, Output};
 use log::debug;
 use mozak_circuits::generation::program::generate_program_rom_trace;
-use mozak_circuits::stark::mozak_stark::MozakStark;
+use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
@@ -16,6 +16,7 @@ use mozak_circuits::test_utils::{standard_faster_config, ProveAndVerify, C, D, F
 use mozak_vm::elf::Program;
 use mozak_vm::state::State;
 use mozak_vm::vm::step;
+use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::util::timing::TimingTree;
 use shadow_rs::shadow;
@@ -126,11 +127,15 @@ fn main() -> Result<()> {
                 } else {
                     MozakStark::default()
                 };
+                let public_inputs = PublicInputs {
+                    entry_point: F::from_canonical_u32(program.entry_point),
+                };
                 let all_proof = prove::<F, C, D>(
                     &program,
                     &record,
                     &stark,
                     &config,
+                    public_inputs,
                     &mut TimingTree::default(),
                 )?;
                 let s = all_proof.serialize_proof_to_flexbuffer()?;

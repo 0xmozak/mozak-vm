@@ -33,25 +33,31 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 
 #[cfg(test)]
 mod tests {
-
     use mozak_vm::test_utils::simple_test_code;
     use plonky2::util::timing::TimingTree;
 
+    use crate::stark::mozak_stark::PublicInputs;
     use crate::stark::proof::AllProof;
     use crate::stark::prover::prove;
     use crate::stark::verifier::verify_proof;
     use crate::test_utils::{standard_faster_config, C, D, F, S};
+    use crate::utils::from_u32;
+
     #[test]
     fn test_serialization_deserialization() {
         let (program, record) = simple_test_code(&[], &[], &[]);
         let stark = S::default();
         let config = standard_faster_config();
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program.entry_point),
+        };
 
         let all_proof = prove::<F, C, D>(
             &program,
             &record,
             &stark,
             &config,
+            public_inputs,
             &mut TimingTree::default(),
         )
         .unwrap();
