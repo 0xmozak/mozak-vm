@@ -223,7 +223,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 
         // Constrain the CPU transition between previous `lv` state and next `nv`
         // state.
-
         check_permuted_inst_cols(&lv.permuted, &nv.permuted, yield_constr);
 
         let lv = &lv.cpu;
