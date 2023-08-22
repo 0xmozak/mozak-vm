@@ -31,7 +31,7 @@ pub(crate) fn constraints<P: PackedField>(
     let new_pc = nv.inst.pc;
 
     // Check: the wrapped op1, op2 sum is set as new `pc`.
-    // As values are range checked u32, this makes the value choice deterministic.
+    // As values are u32 range checked, this makes the value choice deterministic.
     yield_constr.constraint_transition(
         lv.inst.ops.jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target),
     );
