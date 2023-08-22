@@ -210,6 +210,7 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
         Column::ascending_sum(inst.rs2_select),
         Column::ascending_sum(inst.rd_select),
         Column::single(inst.imm_value),
+        Column::single(inst.branch_target),
     ]
 }
 

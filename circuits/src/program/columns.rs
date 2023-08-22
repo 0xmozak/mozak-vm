@@ -16,6 +16,7 @@ pub struct InstructionRow<T> {
     pub rs2: T,
     pub rd: T,
     pub imm: T,
+    pub branch_target: T,
 }
 
 columns_view_impl!(ProgramRom);

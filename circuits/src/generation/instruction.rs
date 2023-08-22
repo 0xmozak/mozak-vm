@@ -62,6 +62,7 @@ impl<F: RichField> From<columns::Instruction<F>> for InstructionRow<F> {
             rs2: ascending_sum(inst.rs2_select),
             rd: ascending_sum(inst.rd_select),
             imm: inst.imm_value,
+            branch_target: inst.branch_target,
         }
     }
 }
