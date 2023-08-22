@@ -166,13 +166,6 @@ impl<F: Field> CpuTable<F> {
     }
 }
 
-impl<F: Field> MemoryTable<F> {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
-        Table::new(TableKind::Memory, columns, filter_column)
-    }
-}
-
 impl<F: Field> XorTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
@@ -191,6 +184,13 @@ impl<F: Field> ProgramTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
         Table::new(TableKind::Program, columns, filter_column)
+    }
+}
+
+impl<F: Field> MemoryTable<F> {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
+        Table::new(TableKind::Memory, columns, filter_column)
     }
 }
 

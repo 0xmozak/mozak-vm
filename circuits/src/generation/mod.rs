@@ -25,11 +25,11 @@ use starky::vars::StarkEvaluationVars;
 
 use self::bitshift::generate_shift_amount_trace;
 use self::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
+use self::memory::generate_memory_trace;
 use self::rangecheck::generate_rangecheck_trace;
 use self::xor::generate_xor_trace;
 use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
-use crate::generation::memory::generate_memory_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
