@@ -38,6 +38,8 @@ where
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
+    // TODO: uncomment, when ProgramStark acquires a number of columns that's not already
+    // covered by one of the other tables.
     // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
