@@ -140,9 +140,6 @@ pub struct RangeCheckTable<F: Field>(Table<F>);
 /// Represents a cpu trace table in the Mozak VM.
 pub struct CpuTable<F: Field>(Table<F>);
 
-/// Represents a memory trace table in the Mozak VM.
-pub struct MemoryTable<F: Field>(Table<F>);
-
 /// Represents a xor trace table in the Mozak VM.
 pub struct XorTable<F: Field>(Table<F>);
 
@@ -151,6 +148,9 @@ pub struct BitshiftTable<F: Field>(Table<F>);
 
 /// Represents a program trace table in the Mozak VM.
 pub struct ProgramTable<F: Field>(Table<F>);
+
+/// Represents a memory trace table in the Mozak VM.
+pub struct MemoryTable<F: Field>(Table<F>);
 
 impl<F: Field> RangeCheckTable<F> {
     #[allow(clippy::new_ret_no_self)]
