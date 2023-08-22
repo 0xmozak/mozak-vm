@@ -48,6 +48,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint_first_row(lv.diff_clk);
 
         // Consequently, we constrain:
+
         is_binary(yield_constr, lv.is_executed);
         // We only have two different ops at the moment, so we use a binary variable to
         // represent them:
