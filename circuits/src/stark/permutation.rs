@@ -1,4 +1,6 @@
-//! Permutation arguments
+//! This module handles logic behind the permutation arguments:
+//! challenge generation, batching, constraint generation and verification.
+
 #![allow(clippy::module_name_repetitions)]
 
 use std::fmt::Debug;
