@@ -103,14 +103,8 @@ pub struct CpuState<T> {
     pub op1_abs: T,
     pub op2_abs: T,
     pub product_sign: T,
-    // op1_abs * op2_abs = product_abs_high_32bits << 32 + product_32bits
-    pub product_abs_high_32bits: T, // range check u32 required and not equal to 0xFFFF_FFFF
-    // product_abs_high_32bits_diff_inv = inv(0xFFFF_FFFF - product_abs_high_32bits)
-    // used to make sure product_abs_high_32bits != 0xFFFF_FFFF
-    pub product_abs_high_32bits_diff_inv: T,
-    pub product_abs_low_32bits: T, // range check u32 required
-    pub product_high_limb: T,      // range check u16 required
-    pub product_low_limb: T,       // range check u16 required
+    pub product_high_limb: T, // range check u32 required
+    pub product_low_limb: T,  // range check u32 required
 }
 
 make_col_map!(CpuColumnsExtended);

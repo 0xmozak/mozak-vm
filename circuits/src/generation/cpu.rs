@@ -117,7 +117,10 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
         sign_and_absolute(row.is_op2_signed().is_nonzero(), aux.op2)
     };
     let (is_op1_negative, op1_abs) = sign_and_absolute(row.is_op1_signed().is_nonzero(), aux.op1);
-    let product_sign = is_op1_negative ^ is_op2_negative;
+    let mut product_sign = false;
+    if  Op::MULHSU == inst.op || Op::MULHU == inst.op {
+        product_sign = is_op1_negative ^ is_op2_negative;
+    }
     row.product_sign = if product_sign { F::ONE } else { F::ZERO };
     row.op1_abs = from_u32(op1_abs);
     row.op2_abs = from_u32(op2_abs);
@@ -128,18 +131,10 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
         low = (prod & 0xffff_ffff) as u32;
         high = (prod >> 32) as u32;
     } else {
-        let (l, h) = op1_abs.widening_mul(op2_abs);
-        low = l;
-        high = h;
+        let prod = u64::from(op1_abs) * u64::from(op2_abs);
+        low = (prod & 0xffff_ffff) as u32;
+        high = (prod >> 32) as u32;
     }
-
-    let product_abs = u64::from(op1_abs) * u64::from(op2_abs);
-    row.product_abs_high_32bits = from_u32((product_abs >> 32) as u32);
-    row.product_abs_low_32bits = from_u32((product_abs & 0xFFFF_FFFF) as u32);
-    let product_abs_high_32bits_diff = u32::MAX - (product_abs >> 32) as u32;
-    row.product_abs_high_32bits_diff_inv = from_u32::<F>(product_abs_high_32bits_diff)
-        .try_inverse()
-        .unwrap_or_default();
     row.product_low_limb = from_u32(low);
     row.product_high_limb = from_u32(high);
 }
