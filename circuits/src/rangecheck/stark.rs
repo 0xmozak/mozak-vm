@@ -122,7 +122,7 @@ mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::{Field, PrimeField64, Sample};
+    use plonky2::field::types::{Field, PrimeField64};
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use starky::stark::Stark;
     use starky::stark_testing::test_stark_low_degree;
@@ -194,24 +194,7 @@ mod tests {
                 public_inputs: &[],
             };
 
-            let mut constraint_consumer = ConstraintConsumer::new(
-                vec![F::rand()],
-                if i == len - 1 {
-                    GoldilocksField::ZERO
-                } else {
-                    GoldilocksField::ONE
-                },
-                if i == 0 {
-                    GoldilocksField::ONE
-                } else {
-                    GoldilocksField::ZERO
-                },
-                if i == len - 1 {
-                    GoldilocksField::ONE
-                } else {
-                    GoldilocksField::ZERO
-                },
-            );
+            let mut constraint_consumer = ConstraintConsumer::new_debug_api(i == 0, i == len - 1);
             stark.eval_packed_generic(vars, &mut constraint_consumer);
 
             for &acc in &constraint_consumer.constraint_accs {
@@ -273,12 +256,7 @@ mod tests {
             public_inputs: &[],
         };
 
-        let mut constraint_consumer = ConstraintConsumer::new(
-            vec![F::rand()],
-            F::ZERO,
-            GoldilocksField::ZERO,
-            GoldilocksField::ONE,
-        );
+        let mut constraint_consumer = ConstraintConsumer::new_debug_api(false, true);
         stark.eval_packed_generic(vars, &mut constraint_consumer);
 
         // Manually check sum constraint to be sure that our constraints hold for the
@@ -344,12 +322,7 @@ mod tests {
             public_inputs: &[],
         };
 
-        let mut constraint_consumer = ConstraintConsumer::new(
-            vec![F::rand()],
-            GoldilocksField::ONE,
-            GoldilocksField::ONE,
-            GoldilocksField::ZERO,
-        );
+        let mut constraint_consumer = ConstraintConsumer::new_debug_api(true, false);
         stark.eval_packed_generic(vars, &mut constraint_consumer);
 
         // Manually check range constraint to be sure that our constraints hold for the
