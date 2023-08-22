@@ -108,7 +108,7 @@ mod tests {
         let (program, record) = memory_trace_test_case(1);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(&program, &record.executed);
-        assert_eq!(expected_trace(), trace);
+        assert_eq!(trace, expected_trace());
     }
 
     #[test]
@@ -128,6 +128,6 @@ mod tests {
             expected_trace[5],
         ];
 
-        assert_eq!(expected_trace, trace);
+        assert_eq!(trace, expected_trace);
     }
 }
