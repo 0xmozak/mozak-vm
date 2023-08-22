@@ -184,9 +184,7 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.c
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> {
-    Column::many(MAP.cpu.inst.ops.ops_that_memory())
-}
+pub fn filter_for_memory<F: Field>() -> Column<F> { Column::many(MAP.cpu.inst.ops.mem_ops()) }
 
 impl<T: Copy> OpSelectors<T> {
     #[must_use]
@@ -198,7 +196,9 @@ impl<T: Copy> OpSelectors<T> {
     // TODO: Add SRA, once we implement its constraints.
     pub fn ops_that_shift(&self) -> [T; 2] { [self.sll, self.srl] }
 
-    pub fn ops_that_memory(&self) -> [T; 2] { [self.sb, self.lbu] }
+    // TODO: Add other mem ops like SH, SW, LB, LW, LH, LHU as we implement the
+    // constraints.
+    pub fn mem_ops(&self) -> [T; 2] { [self.sb, self.lbu] }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.
