@@ -231,7 +231,7 @@ mod tests {
         let out_of_range_value = F::from_canonical_u32(u32::from(u16::MAX) + 1);
         trace[MAP.val][0] = out_of_range_value;
         trace[MAP.limb_hi][0] = F::ZERO;
-        // We introduce a value bigger than `u16::MAX`) in the
+        // We introduce a value bigger than `u16::MAX` in the
         // lower limb.
         trace[MAP.limb_lo][0] = out_of_range_value;
         trace[MAP.fixed_range_check_u16_permuted_lo][0] = out_of_range_value;
