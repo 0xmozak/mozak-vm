@@ -33,7 +33,7 @@ pub(crate) fn comparison_constraints<P: PackedField>(
 
     // Thus, we need a constraint when |r1 - r2| == 0 -> lt == 0.
 
-    // To do so, we constraint `normalised_diff` to be
+    // To do so, we constrain `normalised_diff` to be
     //  0 iff r1 == r2
     //  1 iff r1 != r2
     is_binary(yield_constr, lv.normalised_diff);
