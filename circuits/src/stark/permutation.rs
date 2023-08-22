@@ -26,7 +26,10 @@ use starky::vars::StarkEvaluationVars;
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 
 pub(crate) mod challenge {
-    use super::*;
+    use super::{
+        reduce_with_powers, Challenger, Debug, Field, FieldExtension, Hasher, PackedField,
+        RichField,
+    };
 
     /// Randomness parameters that allow to generate based on a list of field
     /// values a unique value representation. If two lists of field values
