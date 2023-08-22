@@ -6,6 +6,13 @@ use super::bitwise::and_gadget;
 use super::columns::CpuState;
 use super::stark::is_binary;
 
+/// Converts from a sign-bit to a multiplicative sign.
+///
+/// Specifically, if `sign_bit` is 0, returns 1.
+/// And if `sign_bit` is 1, returns -1.
+/// Undefined for any other input.
+pub fn bit_to_sign<P: PackedField>(sign_bit: P) -> P { P::ONES - sign_bit.doubles() }
+
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
@@ -21,33 +28,31 @@ pub(crate) fn constraints<P: PackedField>(
     let product = low_limb + base * high_limb;
 
     yield_constr.constraint(product - multiplicand_abs * multiplier_abs);
+    // Make sure multiplicand_abs is computed correctly from
+    // op1_value.
+    yield_constr.constraint(
+        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.mulh + lv.inst.ops.mulhsu)
+            * (multiplicand_abs - lv.op1_full_range() * bit_to_sign(lv.op1_sign_bit)),
+    );
     // Make sure multiplier_abs is computed correctly from op2_value.
     // Skip SLL as it always has positive multiplier.
     yield_constr.constraint(
         (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.mulh + lv.inst.ops.mulhsu)
-            * (multiplier_abs
-                - ((P::ONES - lv.op2_sign_bit) * lv.op2_value
-                    + lv.op2_sign_bit * (CpuState::<P>::shifted(32) - lv.op2_value))),
-    );
-    // Make sure multiplicand_abs is computed correctly from
-    // op1_value.
-    yield_constr.constraint(
-        multiplicand_abs
-            - ((P::ONES - lv.op1_sign_bit) * lv.op1_value
-                + lv.op1_sign_bit * (CpuState::<P>::shifted(32) - lv.op1_value)),
+            * (multiplier_abs - lv.op2_full_range() * bit_to_sign(lv.op2_sign_bit)),
     );
     // Make sure product_sign is either 0 or 1.
     is_binary(yield_constr, lv.product_sign);
-    // For MUL/MULHU/SLL product sign should alwasy be 0.
+    // For MUL/MULHU/SLL product sign should alwasy be 0, ie non-negative.
     yield_constr
         .constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * lv.product_sign);
-    // If product_sign is 0 then res_when_prod_negative must be 0.
+    // If product_sign is 0 then res_when_prod_negative must be 0, ie non-negative.
     yield_constr.constraint((P::ONES - lv.product_sign) * lv.res_when_prod_negative);
-    // Make sure product_sign is computed correctly.
+    // Make sure product_sign is computed correctly:
+    // product_sign_bit := op1_sign_bit xor op2_sign_bit
     yield_constr.constraint(
         lv.product_sign
             - ((lv.op1_sign_bit + lv.op2_sign_bit)
-                - (P::Scalar::from_canonical_u32(2) * lv.op1_sign_bit * lv.op2_sign_bit)),
+                - (P::Scalar::TWO * lv.op1_sign_bit * lv.op2_sign_bit)),
     );
     // Make sure product_low_bits_zero is computed correctly.
     yield_constr.constraint(
@@ -126,6 +131,7 @@ pub(crate) fn constraints<P: PackedField>(
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{i32_extra, reg, simple_test_code, u32_extra};
+    use plonky2::field::types::Field;
     use plonky2::timed;
     use plonky2::util::timing::TimingTree;
     use proptest::prelude::{prop_assume, ProptestConfig};
@@ -136,6 +142,7 @@ mod tests {
     use crate::cpu::stark::CpuStark;
     use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
     use crate::generation::program::generate_program_rom_trace;
+    use crate::stark::mozak_stark::PublicInputs;
     use crate::stark::utils::trace_to_poly_values;
     use crate::test_utils::{standard_faster_config, ProveAndVerify, C, D, F};
     #[allow(clippy::cast_sign_loss)]
@@ -176,11 +183,20 @@ mod tests {
             ))
         );
         let stark = S::default();
+        let public_inputs = PublicInputs {
+            entry_point: F::from_canonical_u32(program.entry_point),
+        };
 
         let proof = timed!(
             timing,
             "cpu proof",
-            prove_table::<F, C, S, D>(stark, &config, trace_poly_values, [], &mut timing,)
+            prove_table::<F, C, S, D>(
+                stark,
+                &config,
+                trace_poly_values,
+                public_inputs.into(),
+                &mut timing,
+            )
         );
         let proof = proof.unwrap();
         let verification_res = timed!(
