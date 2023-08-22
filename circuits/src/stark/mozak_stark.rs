@@ -13,7 +13,7 @@ use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::xor::stark::XorStark;
-use crate::{bitshift, cpu, program, rangecheck, xor};
+use crate::{bitshift, cpu, memory, program, rangecheck, xor};
 
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
@@ -23,7 +23,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub shift_amount_stark: BitshiftStark<F, D>,
     pub program_stark: ProgramStark<F, D>,
     pub memory_stark: MemoryStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 5],
+    pub cross_table_lookups: [CrossTableLookup<F>; 6],
     pub debug: bool,
 }
 
@@ -51,6 +51,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 BitshiftCpuTable::lookups(),
                 InnerCpuTable::lookups(),
                 ProgramCpuTable::lookups(),
+                MemoryCpuTable::lookups(),
             ],
             debug: false,
         }
@@ -147,6 +148,9 @@ pub struct BitshiftTable<F: Field>(Table<F>);
 /// Represents a program trace table in the Mozak VM.
 pub struct ProgramTable<F: Field>(Table<F>);
 
+/// Represents a memory trace table in the Mozak VM.
+pub struct MemoryTable<F: Field>(Table<F>);
+
 impl<F: Field> RangeCheckTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
@@ -182,6 +186,13 @@ impl<F: Field> ProgramTable<F> {
     }
 }
 
+impl<F: Field> MemoryTable<F> {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
+        Table::new(TableKind::Memory, columns, filter_column)
+    }
+}
+
 pub trait Lookups<F: Field> {
     fn lookups() -> CrossTableLookup<F>;
 }
@@ -210,6 +221,23 @@ impl<F: Field> Lookups<F> for XorCpuTable<F> {
                 cpu::columns::filter_for_xor(),
             )],
             XorTable::new(xor::columns::data_for_cpu(), xor::columns::filter_for_cpu()),
+        )
+    }
+}
+
+pub struct MemoryCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for MemoryCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_memory(),
+                cpu::columns::filter_for_memory(),
+            )],
+            MemoryTable::new(
+                memory::columns::data_for_cpu(),
+                memory::columns::filter_for_cpu(),
+            ),
         )
     }
 }

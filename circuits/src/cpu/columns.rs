@@ -176,6 +176,18 @@ pub fn data_for_xor<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor)
 #[must_use]
 pub fn filter_for_xor<F: Field>() -> Column<F> { Column::many(MAP.cpu.inst.ops.ops_that_use_xor()) }
 
+/// Column containing the data to be matched against Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn data_for_memory<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.cpu.dst_value)] }
+
+/// Column for a binary filter for memory instruction in Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_memory<F: Field>() -> Column<F> {
+    Column::many(MAP.cpu.inst.ops.ops_that_memory())
+}
+
 impl<T: Copy> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(&self) -> [T; 5] {
@@ -185,6 +197,8 @@ impl<T: Copy> OpSelectors<T> {
 
     // TODO: Add SRA, once we implement its constraints.
     pub fn ops_that_shift(&self) -> [T; 2] { [self.sll, self.srl] }
+
+    pub fn ops_that_memory(&self) -> [T; 2] { [self.sb, self.lbu] }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.
