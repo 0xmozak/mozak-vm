@@ -40,7 +40,7 @@ pub(crate) fn comparison_constraints<P: PackedField>(
     yield_constr.constraint(lv.signed_diff() * (P::ONES - lv.normalised_diff));
     yield_constr.constraint(lv.signed_diff() * lv.cmp_diff_inv - lv.normalised_diff);
 
-    // Finally, we constraint so that only one of both `lt` and `normalised_diff`
+    // Finally, we constrain so that only one of both `lt` and `normalised_diff`
     // can equal 1 at once. There for, if `op1 == op2`, then `normalised_diff == 1`,
     // thus `lt` can only be 0. Which means we are no longer under constrained.
     yield_constr.constraint(lt * (P::ONES - lv.normalised_diff));
