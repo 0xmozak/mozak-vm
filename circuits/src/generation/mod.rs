@@ -56,7 +56,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let shift_amount_trace = trace_rows_to_poly_values(shift_amount_rows);
     let program_trace = trace_rows_to_poly_values(program_rows);
     let memory_trace = trace_rows_to_poly_values(memory_rows);
-
     [
         cpu_trace,
         rangecheck_trace,
@@ -140,7 +139,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
         debug_single_trace::<F, D, BitshiftStark<F, D>>(
             &mozak_stark.shift_amount_stark,
             shift_amount_trace,
-            "XOR_STARK",
+            "BITSHIFT_STARK",
             &[],
         ),
         // Memory

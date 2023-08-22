@@ -24,7 +24,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub shift_amount_stark: BitshiftStark<F, D>,
     pub program_stark: ProgramStark<F, D>,
     pub memory_stark: MemoryStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 5],
+    pub cross_table_lookups: [CrossTableLookup<F>; 6],
     pub debug: bool,
 }
 
@@ -52,6 +52,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 BitshiftCpuTable::lookups(),
                 InnerCpuTable::lookups(),
                 ProgramCpuTable::lookups(),
+                MemoryCpuTable::lookups(),
             ],
             debug: false,
         }
@@ -226,6 +227,23 @@ impl<F: Field> Lookups<F> for XorCpuTable<F> {
                 cpu::columns::filter_for_xor(),
             )],
             XorTable::new(xor::columns::data_for_cpu(), xor::columns::filter_for_cpu()),
+        )
+    }
+}
+
+pub struct MemoryCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for MemoryCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_memory(),
+                cpu::columns::filter_for_memory(),
+            )],
+            MemoryTable::new(
+                memory::columns::data_for_cpu(),
+                memory::columns::filter_for_cpu(),
+            ),
         )
     }
 }
