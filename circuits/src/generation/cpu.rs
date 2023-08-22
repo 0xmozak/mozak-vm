@@ -104,7 +104,7 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
             (false, x)
         }
     };
-    let (is_multiplier_negative, multiplier_abs) = if let Op::SLL = inst.op {
+    let (is_op2_negative, op2_abs) = if let Op::SLL = inst.op {
         let shift_amount = aux.op2 & 0b1_1111;
         let shift_power = 1_u32 << shift_amount;
         row.bitshift = Bitshift {
@@ -116,31 +116,21 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
     } else {
         sign_and_absolute(row.is_op2_signed().is_nonzero(), aux.op2)
     };
-    let (is_multiplicand_negative, multiplicand_abs) =
-        sign_and_absolute(row.is_op1_signed().is_nonzero(), aux.op1);
-    row.multiplier_abs = from_u32(multiplier_abs);
-    row.multiplicand_abs = from_u32(multiplicand_abs);
-    let (low, high) = multiplicand_abs.widening_mul(multiplier_abs);
-    let product = u64::from(high) * 0x1_0000_0000_u64 + u64::from(low);
-    row.product_zero = if product == 0 { F::ONE } else { F::ZERO };
-    let product_field = F::from_noncanonical_u64(product);
-    row.product_inv = product_field.try_inverse().unwrap_or_default();
-    row.product_low_bits = from_u32(low);
-    row.product_high_bits = from_u32(high);
-    row.product_low_bits_zero = if low == 0 { F::ONE } else { F::ZERO };
-    row.product_low_bits_inv = row.product_low_bits.try_inverse().unwrap_or_default();
-    let product_sign = is_multiplicand_negative ^ is_multiplier_negative;
+    let (is_op1_negative, op1_abs) = sign_and_absolute(row.is_op1_signed().is_nonzero(), aux.op1);
+    row.op1_abs = from_u32(op1_abs);
+    row.op2_abs = from_u32(op2_abs);
+    let (low, high) = op1_abs.widening_mul(op2_abs);
+    let product_abs = u64::from(op1_abs) * u64::from(op2_abs);
+    row.product_abs_high_32bits = from_u32((product_abs >> 32) as u32);
+    row.product_abs_low_32bits = from_u32((product_abs & 0xFFFF_FFFF) as u32);
+    let product_abs_high_32bits_diff = u32::MAX - (product_abs >> 32) as u32;
+    row.product_abs_high_32bits_diff_inv = from_u32::<F>(product_abs_high_32bits_diff)
+        .try_inverse()
+        .unwrap_or_default();
+    row.product_low_limb = from_u32(low);
+    row.product_high_limb = from_u32(high);
+    let product_sign = is_op1_negative ^ is_op2_negative;
     row.product_sign = if product_sign { F::ONE } else { F::ZERO };
-    if product_sign {
-        let high_ones_complement = 0xFFFF_FFFF - high;
-        let (high_twos_complement, _overflow) =
-            high_ones_complement.overflowing_add(u32::from(low == 0));
-        row.res_when_prod_negative = from_u32(high_twos_complement);
-    }
-
-    // Prove that the high limb is different from `u32::MAX`:
-    let high_diff: F = from_u32(u32::MAX - high);
-    row.product_high_diff_inv = high_diff.try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]

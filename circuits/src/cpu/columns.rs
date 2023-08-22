@@ -100,17 +100,17 @@ pub struct CpuState<T> {
     pub divisor_inv: T,
     pub divisor: T,
 
-    pub multiplier_abs: T,
-    pub multiplicand_abs: T,
+    pub op1_abs: T,
+    pub op2_abs: T,
     pub product_sign: T,
-    pub product_inv: T,
-    pub product_zero: T,
-    pub product_low_bits: T,
-    pub product_low_bits_zero: T,
-    pub product_low_bits_inv: T,
-    pub product_high_bits: T,
-    pub product_high_diff_inv: T,
-    pub res_when_prod_negative: T,
+    // op1_abs * op2_abs = product_abs_high_32bits << 32 + product_32bits
+    pub product_abs_high_32bits: T, // range check u32 required and not equal to 0xFFFF_FFFF
+    // product_abs_high_32bits_diff_inv = inv(0xFFFF_FFFF - product_abs_high_32bits)
+    // used to make sure product_abs_high_32bits != 0xFFFF_FFFF
+    pub product_abs_high_32bits_diff_inv: T,
+    pub product_abs_low_32bits: T, // range check u32 required
+    pub product_high_limb: T,      // range check u16 required
+    pub product_low_limb: T,       // range check u16 required
 }
 
 make_col_map!(CpuColumnsExtended);
@@ -169,11 +169,11 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
             Column::many([ops.bge, ops.blt]),
         ),
         CpuTable::new(
-            Column::singles([MAP.cpu.product_high_bits]),
+            Column::singles([MAP.cpu.product_high_limb]),
             Column::many([ops.mul, ops.mulhu]),
         ),
         CpuTable::new(
-            Column::singles([MAP.cpu.product_low_bits]),
+            Column::singles([MAP.cpu.product_low_limb]),
             Column::many([ops.mul, ops.mulhu]),
         ),
     ]

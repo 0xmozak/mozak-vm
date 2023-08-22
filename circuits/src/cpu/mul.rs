@@ -10,51 +10,41 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // The Goldilocks field is carefully chosen to allow multiplication of u32
-    // values without overflow.
-    let base = P::Scalar::from_noncanonical_u64(1 << 32);
+    let op1_abs = lv.op1_abs;
+    let op2_abs = lv.op2_abs;
+    let low_limb = lv.product_low_limb;
+    let high_limb = lv.product_high_limb;
+    let two_to_32 = CpuState::<P>::shifted(32);
+    let is_mul_op = lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.mulh + lv.inst.ops.mulhsu;
 
-    let multiplier_abs = lv.multiplier_abs;
-    let multiplicand_abs = lv.multiplicand_abs;
-    let low_limb = lv.product_low_bits;
-    let high_limb = lv.product_high_bits;
-    let product = low_limb + base * high_limb;
-
-    yield_constr.constraint(product - multiplicand_abs * multiplier_abs);
-    // Make sure multiplier_abs is computed correctly from op2_value.
-    // Skip SLL as it always has positive multiplier.
     yield_constr.constraint(
-        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.mulh + lv.inst.ops.mulhsu)
-            * (multiplier_abs
-                - ((P::ONES - lv.op2_sign_bit) * lv.op2_value
-                    + lv.op2_sign_bit * (CpuState::<P>::shifted(32) - lv.op2_value))),
+        lv.product_abs_high_32bits * two_to_32 + lv.product_abs_low_32bits - op1_abs * op2_abs,
     );
-    // Make sure multiplicand_abs is computed correctly from
-    // op1_value.
+    // Make sure op1_abs is computed correctly from op1_value.
     yield_constr.constraint(
-        multiplicand_abs
+        op1_abs
             - ((P::ONES - lv.op1_sign_bit) * lv.op1_value
-                + lv.op1_sign_bit * (CpuState::<P>::shifted(32) - lv.op1_value)),
+                + lv.op1_sign_bit * (two_to_32 - lv.op1_value)),
+    );
+    // Make sure op2_abs is computed correctly from op2_value.
+    // Skip SLL as it always has positive op2.
+    yield_constr.constraint(
+        is_mul_op
+            * (op2_abs
+                - ((P::ONES - lv.op2_sign_bit) * lv.op2_value
+                    + lv.op2_sign_bit * (two_to_32 - lv.op2_value))),
     );
     // Make sure product_sign is either 0 or 1.
     is_binary(yield_constr, lv.product_sign);
     // For MUL/MULHU/SLL product sign should alwasy be 0.
     yield_constr
         .constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * lv.product_sign);
-    // If product_sign is 0 then res_when_prod_negative must be 0.
-    yield_constr.constraint((P::ONES - lv.product_sign) * lv.res_when_prod_negative);
     // Make sure product_sign is computed correctly.
     yield_constr.constraint(
         lv.product_sign
             - ((lv.op1_sign_bit + lv.op2_sign_bit)
                 - (P::Scalar::from_canonical_u32(2) * lv.op1_sign_bit * lv.op2_sign_bit)),
     );
-    // Make sure product_low_bits_zero is computed correctly.
-    yield_constr.constraint(
-        lv.product_low_bits_zero - (P::ONES - lv.product_low_bits * lv.product_low_bits_inv),
-    );
-    // Make sure prodcut_zero is computed correctly.
-    yield_constr.constraint(lv.product_zero - (P::ONES - product * lv.product_inv));
     // The following constraints are for SLL.
     {
         let and_gadget = and_gadget(&lv.xor);
@@ -65,59 +55,38 @@ pub(crate) fn constraints<P: PackedField>(
         yield_constr.constraint(lv.inst.ops.sll * (and_gadget.input_b - op2));
 
         yield_constr.constraint(lv.inst.ops.sll * (and_gadget.output - lv.bitshift.amount));
-        yield_constr.constraint(lv.inst.ops.sll * (multiplier_abs - lv.bitshift.multiplier));
+        yield_constr.constraint(lv.inst.ops.sll * (op2_abs - lv.bitshift.multiplier));
     }
 
-    // Make sure res_when_prod_negative is computed correctly.
+    // Constraints on product_abs_high_32bits.
+    yield_constr.constraint(
+        is_mul_op
+            * ((two_to_32 - P::ONES - lv.product_abs_high_32bits)
+                * lv.product_abs_high_32bits_diff_inv
+                - P::ONES),
+    );
+
+    // Constraints on product_32bits, product_high_limb and product_low_limb.
+    let two_to_16 = CpuState::<P>::shifted(16);
+    // If product_sign is 0
+    yield_constr.constraint(
+        (P::ONES - lv.product_sign)
+            * (two_to_16 * lv.product_high_limb + lv.product_low_limb - lv.product_abs_low_32bits),
+    );
+    // If product_sign is 1
     yield_constr.constraint(
         lv.product_sign
-            * (lv.product_zero * (lv.res_when_prod_negative - high_limb)
-                + (P::ONES - lv.product_zero)
-                    * (lv.res_when_prod_negative
-                        - (P::Scalar::from_noncanonical_u64(0xFFFF_FFFF) - high_limb
-                            + lv.product_low_bits_zero))),
+            * (two_to_32 + P::ONES
+                - two_to_16 * lv.product_high_limb
+                - lv.product_low_limb
+                - lv.product_abs_low_32bits),
     );
 
     // Now, let's copy our results to the destination register:
-
     let destination = lv.dst_value;
     yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.sll) * (destination - low_limb));
-
-    // if product has negative sign:
-    //   if product is zero:
-    //     destination == 0 (which is same as high_limb)
-    //   else
-    //     destination == 2's complement of high_limb
-    // else
-    //   destination == high_limb
-    //
-    // NOTE: For MULHU it's always the case that product has positive sign.
-    // And we assert that above in constraints for product_sign.
     yield_constr.constraint(
-        (lv.inst.ops.mulh + lv.inst.ops.mulhsu + lv.inst.ops.mulhu)
-            * (lv.product_sign * (destination - lv.res_when_prod_negative)
-                + (P::ONES - lv.product_sign) * (destination - high_limb)),
-    );
-
-    // The constraints above would be enough, if our field was large enough.
-    // However Goldilocks field is just a bit too small at order 2^64 - 2^32 + 1.
-    //
-    // Specifically, (1<<32) * (u32::MAX) === -1 (mod 2^64 - 2^32 + 1).
-    // That means a high_limb of u32::MAX would behave like -1.  And hijinx ensues:
-    //      let product = low_limb + base * high_limb;
-    // would be equivalent to
-    //      let product = low_limb - P::ONES;
-    //
-    // However, the largest combined result that an honest prover can produce is
-    // u32::MAX * u32::MAX = 0xFFFF_FFFE_0000_0001.  So we can add a constraint
-    // that high_limb is != 0xFFFF_FFFF == u32::MAX range.
-    //
-    // That curtails the exploit without invalidating any honest proofs.
-
-    let diff = P::Scalar::from_noncanonical_u64(u32::MAX.into()) - lv.product_high_bits;
-    yield_constr.constraint(
-        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.sll)
-            * (diff * lv.product_high_diff_inv - P::ONES),
+        (lv.inst.ops.mulh + lv.inst.ops.mulhsu + lv.inst.ops.mulhu) * (destination - high_limb),
     );
 }
 
