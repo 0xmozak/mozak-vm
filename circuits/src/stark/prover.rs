@@ -440,6 +440,7 @@ where
         config,
         &traces_poly_values[TableKind::Memory as usize],
         &trace_commitments[TableKind::Memory as usize],
+        [],
         &ctl_data_per_table[TableKind::Memory as usize],
         challenger,
         timing,

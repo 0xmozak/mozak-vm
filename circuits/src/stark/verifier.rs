@@ -120,6 +120,7 @@ where
         &memory_stark,
         &all_proof.stark_proofs[TableKind::Memory as usize],
         &stark_challenges[TableKind::Memory as usize],
+        [],
         &ctl_vars_per_table[TableKind::Memory as usize],
         config,
     )?;
