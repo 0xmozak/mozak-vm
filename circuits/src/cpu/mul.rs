@@ -136,8 +136,10 @@ mod tests {
     use crate::cpu::stark::CpuStark;
     use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
     use crate::generation::program::generate_program_rom_trace;
+    use crate::stark::mozak_stark::PublicInputs;
     use crate::stark::utils::trace_to_poly_values;
     use crate::test_utils::{standard_faster_config, ProveAndVerify, C, D, F};
+    use crate::utils::from_u32;
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_lossless)]
     #[test]
@@ -159,7 +161,7 @@ mod tests {
             &[],
             &[(6, a as u32), (7, b)],
         );
-        let (res, _overflow) = i64::from(a).overflowing_mul(i64::from(b));
+        let res = i64::from(a).wrapping_mul(i64::from(b));
         assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
         let mut timing = TimingTree::new("mulhsu", log::Level::Debug);
         let cpu_trace = timed!(
@@ -176,11 +178,20 @@ mod tests {
             ))
         );
         let stark = S::default();
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program.entry_point),
+        };
 
         let proof = timed!(
             timing,
             "cpu proof",
-            prove_table::<F, C, S, D>(stark, &config, trace_poly_values, [], &mut timing,)
+            prove_table::<F, C, S, D>(
+                stark,
+                &config,
+                trace_poly_values,
+                public_inputs.into(),
+                &mut timing,
+            )
         );
         let proof = proof.unwrap();
         let verification_res = timed!(
