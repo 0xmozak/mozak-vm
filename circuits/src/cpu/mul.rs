@@ -26,12 +26,11 @@ pub(crate) fn constraints<P: PackedField>(
     // The Goldilocks field is carefully chosen to allow multiplication of u32
     // values without overflow, as max value is `u32::MAX^2=(2^32-1)^2`
     // And field size is `2^64-2^32+1`, which is `u32::MAX^2 + 2^32`
+    let two_to_32 = CpuState::<P>::shifted(32);
     let op1_abs = lv.op1_abs;
     let op2_abs = lv.op2_abs;
     let low_limb = lv.product_low_limb;
     let high_limb = lv.product_high_limb;
-    let two_to_32 = CpuState::<P>::shifted(32);
-    let is_mul_op = lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.mulh + lv.inst.ops.mulhsu;
     let product_sign = lv.product_sign;
 
     // Make sure product_sign is either 0 or 1.
@@ -60,9 +59,12 @@ pub(crate) fn constraints<P: PackedField>(
     // Make sure op1_abs is computed correctly from op1_value.
     yield_constr.constraint(op1_abs - lv.op1_full_range() * bit_to_sign(lv.op1_sign_bit));
 
-    // Make sure op2_abs is computed correctly from op2_value.
-    yield_constr
-        .constraint(is_mul_op * (op2_abs - lv.op2_full_range() * bit_to_sign(lv.op2_sign_bit)));
+    // Make sure op2_abs is computed correctly from op2_value for MUL operations.
+    // Note that for SLL, op2_abs is computed from bitshift.multiplier.
+    yield_constr.constraint(
+        (P::ONES - lv.inst.ops.sll)
+            * (op2_abs - lv.op2_full_range() * bit_to_sign(lv.op2_sign_bit)),
+    );
 
     // For MUL/MULHU/SLL product sign should always be 0.
     yield_constr.constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * product_sign);
