@@ -166,11 +166,11 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
         ),
         CpuTable::new(
             Column::singles([MAP.cpu.product_high_limb]),
-            Column::many([ops.mul, ops.mulhu]),
+            Column::many([ops.mul, ops.mulhu, ops.mulhsu, ops.mulh, ops.sll]),
         ),
         CpuTable::new(
             Column::singles([MAP.cpu.product_low_limb]),
-            Column::many([ops.mul, ops.mulhu]),
+            Column::many([ops.mul, ops.mulhu, ops.mulhsu, ops.mulh, ops.sll]),
         ),
     ]
 }
