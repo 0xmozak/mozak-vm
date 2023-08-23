@@ -58,9 +58,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
 
         // Check: initial multiplier value is set to 1 = 2^0
         yield_constr.constraint_first_row(lv.multiplier - P::ONES);
-        // Check: multiplier value is increased twice only if amount is increased
+        // Check: multiplier value is doubled if amount is increased
         yield_constr.constraint_transition(nv.multiplier - (P::ONES + diff) * lv.multiplier);
         // Check: last multiplier value is set to 2^31
+        // (Note that based on the previous constraint, this is already
+        //  satisfied if the last amount value is 31. We leave it for readability.)
         yield_constr.constraint_last_row(lv.multiplier - P::Scalar::from_canonical_u32(1 << 31));
     }
 
