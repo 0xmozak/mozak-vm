@@ -97,8 +97,8 @@ mod tests {
     fn prove_mulhsu_example() {
         type S = CpuStark<F, D>;
         let config = standard_faster_config();
-        let a = -2147451028i32;
-        let b = 2147483648_u32;
+        let a = -2_147_451_028_i32;
+        let b = 2_147_483_648_u32;
         let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::MULHSU,
@@ -110,7 +110,7 @@ mod tests {
                 },
             }],
             &[],
-            &[(6, a as u32), (7, b as u32)],
+            &[(6, a as u32), (7, b)],
         );
         let res = i64::from(a).wrapping_mul(i64::from(b));
         assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
