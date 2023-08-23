@@ -27,18 +27,22 @@ pub(crate) fn constraints<P: PackedField>(
     let high_limb = lv.product_high_bits;
     let product = low_limb + base * high_limb;
 
+    let sign1 = bit_to_sign(lv.op1_sign_bit);
+    let sign2 = bit_to_sign(lv.op2_sign_bit);
+    let product_sign = bit_to_sign(lv.product_sign);
+
     yield_constr.constraint(product - multiplicand_abs * multiplier_abs);
     // Make sure multiplicand_abs is computed correctly from
     // op1_value.
     yield_constr.constraint(
         (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.mulh + lv.inst.ops.mulhsu)
-            * (multiplicand_abs - lv.op1_full_range() * bit_to_sign(lv.op1_sign_bit)),
+            * (multiplicand_abs - lv.op1_full_range() * sign1),
     );
     // Make sure multiplier_abs is computed correctly from op2_value.
     // Skip SLL as it always has positive multiplier.
     yield_constr.constraint(
         (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.mulh + lv.inst.ops.mulhsu)
-            * (multiplier_abs - lv.op2_full_range() * bit_to_sign(lv.op2_sign_bit)),
+            * (multiplier_abs - lv.op2_full_range() * sign2),
     );
     // Make sure product_sign is either 0 or 1.
     is_binary(yield_constr, lv.product_sign);
@@ -49,11 +53,7 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint((P::ONES - lv.product_sign) * lv.res_when_prod_negative);
     // Make sure product_sign is computed correctly:
     // product_sign_bit := op1_sign_bit xor op2_sign_bit
-    yield_constr.constraint(
-        lv.product_sign
-            - ((lv.op1_sign_bit + lv.op2_sign_bit)
-                - (P::Scalar::TWO * lv.op1_sign_bit * lv.op2_sign_bit)),
-    );
+    yield_constr.constraint(product_sign - sign1 * sign2);
     // Make sure product_low_bits_zero is computed correctly.
     yield_constr.constraint(
         lv.product_low_bits_zero - (P::ONES - lv.product_low_bits * lv.product_low_bits_inv),
