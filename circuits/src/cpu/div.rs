@@ -1,3 +1,9 @@
+//! This module implements constraints for division operations, including
+//! DIVU, REMU, and SRL instructions.
+//!
+//! Here, SRL stands for 'shift right logical'.  We can treat it as a variant of
+//! unsigned multiplication.
+
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
@@ -20,14 +26,22 @@ pub(crate) fn constraints<P: PackedField>(
     let ops = lv.inst.ops;
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
-    // > For both signed and unsigned division, it holds that dividend = divisor ×
-    // > quotient + remainder.
+    // > For both signed and unsigned division, it holds that
+    // > dividend = divisor × quotient + remainder.
     // In the following code, we are looking at p/q.
     let p = lv.op1_value;
     let q = lv.divisor;
     yield_constr.constraint((ops.divu + ops.remu) * (q - lv.op2_value));
 
-    // The following constraints are for SRL.
+    // Check: for DIVU and REMU, divisor `q` is assigned from `op2`
+    yield_constr.constraint((lv.inst.ops.divu + lv.inst.ops.remu) * (q - lv.op2_value));
+
+    // Check: for SRL, divisor `q` is assigned as `2^(op2 & 0b1_111)`.
+    // We only take lowest 5 bits of the op2 for the shift amount.
+    // This is following the RISC-V specification.
+    // Bellow we use the And gadget to calculate the shift amount, and then use
+    // Bitshift table to retrieve the corresponding power of 2, that we will assign
+    // to the multiplier.
     {
         let and_gadget = and_gadget(&lv.xor);
         yield_constr.constraint(
@@ -40,7 +54,7 @@ pub(crate) fn constraints<P: PackedField>(
         yield_constr.constraint(ops.srl * (q - lv.bitshift.multiplier));
     }
 
-    // The equation from the spec becomes:
+    // Check: the equation from the spec becomes:
     //  p = q * m + r
     // (Interestingly, this holds even when q == 0.)
     let m = lv.quotient;
@@ -64,6 +78,7 @@ pub(crate) fn constraints<P: PackedField>(
     //      with range_check(slack)
 
     let slack = lv.remainder_slack;
+    // Check: if divisor is not zero, then `r < q`.
     yield_constr.constraint(q * (r + slack + P::ONES - q));
 
     // Now we need to deal with division by zero.  The Risc-V spec says:
@@ -71,14 +86,19 @@ pub(crate) fn constraints<P: PackedField>(
     //      p % 0 == p
 
     let q_inv = lv.divisor_inv;
+    // Check: if divisor is zero, then m == u32::MAX following Risc-V spec.
     yield_constr.constraint(
         (P::ONES - q * q_inv) * (m - P::Scalar::from_noncanonical_u64(u32::MAX.into())),
     );
+    // Check: if divisor is zero, then r == p following Risc-V spec.
     yield_constr.constraint((P::ONES - q * q_inv) * (r - p));
 
-    // Last, we 'copy' our results:
-    yield_constr.constraint((ops.divu + ops.srl) * (dst - m));
-    yield_constr.constraint(ops.remu * (dst - r));
+    // Finally, we select the correct output.
+
+    // Check: for DIVU and SRL we output the quotient `m`.
+    yield_constr.constraint((lv.inst.ops.divu + lv.inst.ops.srl) * (dst - m));
+    // Check: for REMU we output the remainder `r`.
+    yield_constr.constraint(lv.inst.ops.remu * (dst - r));
 }
 
 #[cfg(test)]
