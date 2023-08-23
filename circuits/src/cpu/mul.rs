@@ -40,21 +40,21 @@ pub(crate) fn constraints<P: PackedField>(
     // Make sure op1_bas * op2_abs is computed correctly from low_limb and
     // high_limb.
     yield_constr.constraint(
-        (P::ONES - product_sign) * (high_limb * two_to_32 + low_limb - op1_abs * op2_abs),
-    );
-    yield_constr.constraint(
         product_sign * (two_to_32 * (two_to_32 - high_limb) - low_limb - op1_abs * op2_abs),
     );
+    yield_constr.constraint(
+        (P::ONES - product_sign) * (high_limb * two_to_32 + low_limb - op1_abs * op2_abs),
+    );
 
-    // To avoid the overflow of the above constraints:
-    //  Make sure high_limb is not zero when product_sign is 1.
-    yield_constr.constraint(product_sign * (P::ONES - high_limb * lv.product_high_limb_inv));
+    // To avoid the overflow (two_to_32 * u32::MAX === -1 (mod p)) of the above
+    // constraints:  Make sure high_limb is not zero when product_sign is 1.
+    yield_constr.constraint(product_sign * (P::ONES - high_limb * lv.product_high_limb_inv_helper));
     //  Make sure high_limb is not 0xffff_ffff when product_sign is 0.
     yield_constr.constraint(
         (P::ONES - product_sign)
             * (P::ONES
-            - (P::Scalar::from_canonical_u32(0xffff_ffff) - high_limb)
-            * lv.product_high_limb_inv),
+                - (P::Scalar::from_canonical_u32(0xffff_ffff) - high_limb)
+                    * lv.product_high_limb_inv_helper),
     );
 
     // Make sure op1_abs is computed correctly from op1_value.
@@ -76,8 +76,8 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(
         (P::ONES - lv.skip_check_product_sign)
             * (product_sign
-            - ((lv.op1_sign_bit + lv.op2_sign_bit)
-            - (P::Scalar::from_canonical_u32(2) * lv.op1_sign_bit * lv.op2_sign_bit))),
+                - ((lv.op1_sign_bit + lv.op2_sign_bit)
+                    - (P::Scalar::from_canonical_u32(2) * lv.op1_sign_bit * lv.op2_sign_bit))),
     );
 
     // Check: for SLL the multiplier is assigned as `2^(op2 & 0b1_111)`.
