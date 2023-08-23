@@ -21,10 +21,11 @@ use crate::generation::rangecheck::generate_rangecheck_trace;
 use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::stark::mozak_stark::MozakStark;
+use crate::stark::mozak_stark::{MozakStark, PublicInputs};
 use crate::stark::prover::prove;
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 use crate::stark::verifier::verify_proof;
+use crate::utils::from_u32;
 use crate::xor::stark::XorStark;
 
 pub type S = MozakStark<F, D>;
@@ -77,11 +78,14 @@ impl ProveAndVerify for CpuStark<F, D> {
             generate_cpu_trace(program, record),
             &generate_program_rom_trace(program),
         ));
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program.entry_point),
+        };
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
             trace_poly_values,
-            [],
+            public_inputs.into(),
             &mut TimingTree::default(),
         )?;
 
@@ -97,7 +101,9 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
 
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(program, record);
-        let trace_poly_values = trace_to_poly_values(generate_rangecheck_trace(&cpu_trace));
+        let memory_trace = generate_memory_trace::<F>(program, &record.executed);
+        let trace_poly_values =
+            trace_to_poly_values(generate_rangecheck_trace(&cpu_trace, &memory_trace));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -182,9 +188,18 @@ impl ProveAndVerify for MozakStark<F, D> {
     fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
         let stark = S::default();
         let config = standard_faster_config();
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program.entry_point),
+        };
 
-        let all_proof =
-            prove::<F, C, D>(program, record, &stark, &config, &mut TimingTree::default());
+        let all_proof = prove::<F, C, D>(
+            program,
+            record,
+            &stark,
+            &config,
+            public_inputs,
+            &mut TimingTree::default(),
+        );
         verify_proof(stark, all_proof.unwrap(), &config)
     }
 }

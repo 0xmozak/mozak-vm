@@ -1,3 +1,9 @@
+//! This module makes STARK table row values indexing simpler by providing
+//! an abstraction for column-by-name access instead of direct number indexing.
+//! This is achieved by using the macros below.
+//!
+//! This way, they can be nested to group columns by logic they handle.
+
 use std::mem::{size_of, transmute_copy, ManuallyDrop};
 use std::ops::IndexMut;
 
@@ -14,6 +20,14 @@ pub trait NumberOfColumns {
 }
 
 // TODO(Matthias): this could probably be a custom derive macro?
+/// Functions to handle and seamlessly convert between `SubTableView` with named
+/// fields and default `[T, ColumnSize]` column representations.
+///
+/// ### Conceptual Example
+///
+/// Now, instead of accessing columns by `columns[i]` one can instead access
+/// them as `new_columns_repr.filter_column` and at the same time `columns` can
+/// `new_columns_repr` can be seamlessly converted between each other.
 macro_rules! columns_view_impl {
     ($s: ident) => {
         impl<T> $s<T> {
