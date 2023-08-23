@@ -31,17 +31,18 @@ pub(crate) mod challenge {
         RichField,
     };
 
-    /// Randomness parameters that allow to generate based on a list of field
-    /// values a unique value representation. If two lists of field values
-    /// have the same representations, then, except for a small probability,
-    /// the two lists are identical.
+    /// Randomness parameters that the are used to generate a unique
+    /// representation representation (mapping) of list of field elements.
+    /// If two lists map to the same representations, then, with high
+    /// probability, the two lists are identical. Though collisions can
+    /// happen, our security depends on the low probability of such events.
     ///
     /// To reduce the probability of failure, one can rerun the protocol
     /// multiple times, each time generating new [`beta`] and [`gamma`]. We
     /// do this in [`GrandProductChallengeSet`].
     ///
-    /// In permutation check protocol instance we use this to make sure that
-    /// values in all columns are the same.
+    /// In the permutation check protocol instance we use this challenge to make
+    /// sure that rows of two sets of columns are the same, up to permutation.
     #[derive(Copy, Clone, Eq, PartialEq, Debug)]
     pub(crate) struct GrandProductChallenge<T: Copy + Eq + PartialEq + Debug> {
         /// Randomness used to combine multiple columns into one.
@@ -51,8 +52,24 @@ pub(crate) mod challenge {
     }
 
     impl<F: Field> GrandProductChallenge<F> {
-        /// Calculate the unique value representation for the terms as:
+        /// Calculate the mapping for the list of values as:
         ///     `term_0*beta^n + term_1*beta^(n-1) + ... + term_n-1 + gamma`
+        /// where `n` is the length of the list.
+        ///
+        /// ### Reasoning
+        ///
+        /// Let us consider a simpler unique representation mapping first:
+        ///      `term_0*beta_0 + term_1*beta_1 + ... + term_n-1 + gamma`
+        /// where `beta_i` are random values.
+        ///
+        /// This mapping makes it very hard for the prover to find two lists
+        /// that map to the same value. However, it requires `n` random values.
+        /// By taking the power of `beta` we can reduce the number of random
+        /// values to just two, `beta` and `gamma`. This is by using a fact that
+        /// a power of a random value can be seen as an independent a
+        /// random value. We still need to use `gamma` to make sure that the
+        /// prover can  not manipulate the last list value in a way that would
+        /// make the two lists equal.
         pub(crate) fn combine<'a, FE, P, T: IntoIterator<Item = &'a P>, const D2: usize>(
             &self,
             terms: T,
@@ -119,6 +136,9 @@ pub(crate) struct PermutationInstance<'a, T: Copy + Eq + PartialEq + Debug> {
 /// `num_challenges` permutation arguments, so we start with the cartesian
 /// product of `permutation_pairs` and `0..num_challenges`. Then we chunk these
 /// arguments based on our batch size.
+///
+/// The batch size is chosen to be the `constraint degree - 1`, as all resulting
+/// `Z(x)` polynomials in the batch will be multiplied together.
 pub(crate) fn get_permutation_batches<'a, T: Copy + Eq + PartialEq + Debug>(
     permutation_pairs: &'a [PermutationPair],
     permutation_challenge_sets: &[GrandProductChallengeSet<T>],
@@ -142,7 +162,7 @@ pub(crate) fn get_permutation_batches<'a, T: Copy + Eq + PartialEq + Debug>(
         .collect()
 }
 
-/// Compute Z(x) polynomials for all challenges, where each Z(x) polynomials is
+/// Compute Z(x) polynomials for all challenges, where each Z(x) polynomial is
 /// for a given set of permutations, applied over a set of column pairs.
 ///
 /// Targeted STARK  must explicitly override the permutation column when
@@ -194,8 +214,8 @@ fn compute_permutation_z_poly<F: Field>(
     // hold.
 
     // The following should give an intuition behind this:
-    // Fr each permutation `sigma`, we have generated two reduced polynomials, that
-    // uniquely characterises each row of both left set of columns that
+    // For each permutation, we have generated two reduced polynomials, that
+    // uniquely characterise each row of both left set of columns that
     // participate in the permutation, as well as right columns.
     //
     // Additionally, the way we have incorporated randomness when calculating the
@@ -303,6 +323,8 @@ pub(crate) fn eval_permutation_checks<F, FE, P, S, const D: usize, const D2: usi
 
     let permutation_pairs = stark.permutation_pairs();
 
+    // Split the permutation pairs into batches to reduce the number of
+    // constraints.
     let permutation_batches = get_permutation_batches(
         &permutation_pairs,
         &permutation_challenge_sets,
@@ -310,11 +332,11 @@ pub(crate) fn eval_permutation_checks<F, FE, P, S, const D: usize, const D2: usi
         stark.permutation_batch_size(),
     );
 
-    // For each batch check that the permutation constraints indeed hold.
+    // For each batch we check that the permutation constraints indeed hold.
     for (i, instances) in permutation_batches.iter().enumerate() {
         // Calculate the reduced polynomials evaluation. The reduced polynomial securely
-        // combines pairs of columns that abide the same permutation into one
-        // polynomial pair.
+        // combines polynomials of all pairs of `(column, permuted column)` that are on
+        // the same permutation into one polynomial pair.
         //
         // This differs from the [`permutation_reduced_polys`] function as instead of
         // working on polynomials, we are now operating on their evaluation at a
