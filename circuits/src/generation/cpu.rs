@@ -134,14 +134,17 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
         let prod = u64::MAX - op1_mul_op2_abs + 1;
         low = (prod & 0xffff_ffff) as u32;
         high = (prod >> 32) as u32;
+        row.product_high_limb_inv = from_u32::<F>(high).try_inverse().unwrap_or_default();
     } else {
         let prod = op1_mul_op2_abs;
         low = (prod & 0xffff_ffff) as u32;
         high = (prod >> 32) as u32;
+        row.product_high_limb_inv = from_u32::<F>(0xffff_ffff - high)
+            .try_inverse()
+            .unwrap_or_default();
     }
     row.product_low_limb = from_u32(low);
     row.product_high_limb = from_u32(high);
-    row.product_high_limb_inv = row.product_high_limb.try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]

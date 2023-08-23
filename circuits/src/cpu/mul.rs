@@ -6,6 +6,13 @@ use super::bitwise::and_gadget;
 use super::columns::CpuState;
 use super::stark::is_binary;
 
+/// Converts from a sign-bit to a multiplicative sign.
+///
+/// Specifically, if `sign_bit` is 0, returns 1.
+/// And if `sign_bit` is 1, returns -1.
+/// Undefined for any other input.
+pub fn bit_to_sign<P: PackedField>(sign_bit: P) -> P { P::ONES - sign_bit.doubles() }
+
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
@@ -16,50 +23,50 @@ pub(crate) fn constraints<P: PackedField>(
     let high_limb = lv.product_high_limb;
     let two_to_32 = CpuState::<P>::shifted(32);
     let is_mul_op = lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.mulh + lv.inst.ops.mulhsu;
+    let product_sign = lv.product_sign;
 
     // Make sure product_sign is either 0 or 1.
-    is_binary(yield_constr, lv.product_sign);
+    is_binary(yield_constr, product_sign);
 
     // Make sure op1_bas * op2_abs is computed correctly from low_limb and
     // high_limb.
     yield_constr.constraint(
-        (P::ONES - lv.product_sign) * (high_limb * two_to_32 + low_limb - op1_abs * op2_abs),
+        (P::ONES - product_sign) * (high_limb * two_to_32 + low_limb - op1_abs * op2_abs),
     );
     yield_constr.constraint(
-        lv.product_sign * (two_to_32 * (two_to_32 - high_limb) - low_limb - op1_abs * op2_abs),
+        product_sign * (two_to_32 * (two_to_32 - high_limb) - low_limb - op1_abs * op2_abs),
     );
 
-    // Make sure high_limb is not zero when product_sign is 1.
-    yield_constr.constraint(lv.product_sign * (P::ONES - high_limb * lv.product_high_limb_inv));
+    // To avoid the overflow of the above constraints:
+    //  Make sure high_limb is not zero when product_sign is 1.
+    yield_constr.constraint(product_sign * (P::ONES - high_limb * lv.product_high_limb_inv));
+    //  Make sure high_limb is not 0xffff_ffff when product_sign is 0.
+    yield_constr.constraint(
+        (P::ONES - product_sign)
+            * (P::ONES
+                - (P::Scalar::from_canonical_u32(0xffff_ffff) - high_limb)
+                    * lv.product_high_limb_inv),
+    );
 
     // Make sure op1_abs is computed correctly from op1_value.
-    yield_constr.constraint(
-        op1_abs
-            - ((P::ONES - lv.op1_sign_bit) * lv.op1_value
-                + lv.op1_sign_bit * (two_to_32 - lv.op1_value)),
-    );
+    yield_constr.constraint(op1_abs - lv.op1_full_range() * bit_to_sign(lv.op1_sign_bit));
 
     // Make sure op2_abs is computed correctly from op2_value.
-    yield_constr.constraint(
-        is_mul_op
-            * (op2_abs
-                - ((P::ONES - lv.op2_sign_bit) * lv.op2_value
-                    + lv.op2_sign_bit * (two_to_32 - lv.op2_value))),
-    );
-
-    // For MUL/MULHU/SLL product sign should alwasy be 0.
     yield_constr
-        .constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * lv.product_sign);
+        .constraint(is_mul_op * (op2_abs - lv.op2_full_range() * bit_to_sign(lv.op2_sign_bit)));
 
-    // Ensure skip_check_product_sign is set to 1 when either ob1_abs or op2_abs is
-    // 0. This check is essential for the subsequent constraints.
+    // For MUL/MULHU/SLL product sign should always be 0.
+    yield_constr.constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * product_sign);
+
+    // Ensure skip_check_product_sign can be set to 1 only when either ob1_abs or
+    // op2_abs is 0. This check is essential for the subsequent constraints.
     // We are not concerned with other values of skip_check_product_sign.
     yield_constr.constraint(lv.skip_check_product_sign * lv.op1_abs * lv.op2_abs);
 
     // Make sure product_sign is computed correctly.
     yield_constr.constraint(
         (P::ONES - lv.skip_check_product_sign)
-            * (lv.product_sign
+            * (product_sign
                 - ((lv.op1_sign_bit + lv.op2_sign_bit)
                     - (P::Scalar::from_canonical_u32(2) * lv.op1_sign_bit * lv.op2_sign_bit))),
     );

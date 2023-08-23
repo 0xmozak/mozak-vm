@@ -104,6 +104,8 @@ pub struct CpuState<T> {
     pub op2_abs: T,
     pub skip_check_product_sign: T,
     pub product_sign: T,
+    // if product_sign is 1, this the inv(product_high_limb)
+    // if product_sign is 0, this the inv(0xFFFF_FFFF - product_high_limb)
     pub product_high_limb_inv: T,
     pub product_high_limb: T, // range check u32 required
     pub product_low_limb: T,  // range check u32 required
