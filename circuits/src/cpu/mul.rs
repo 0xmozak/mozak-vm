@@ -52,7 +52,6 @@ pub(crate) fn constraints<P: PackedField>(
     // If product_sign is 0 then res_when_prod_negative must be 0, ie non-negative.
     yield_constr.constraint((P::ONES - lv.product_sign) * lv.res_when_prod_negative);
     // Make sure product_sign is computed correctly:
-    // product_sign_bit := op1_sign_bit xor op2_sign_bit
     yield_constr.constraint(product_sign - sign1 * sign2);
     // Make sure product_low_bits_zero is computed correctly.
     yield_constr.constraint(
