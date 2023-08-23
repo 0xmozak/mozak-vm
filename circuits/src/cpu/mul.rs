@@ -19,21 +19,29 @@ pub(crate) fn constraints<P: PackedField>(
 
     // Make sure product_sign is either 0 or 1.
     is_binary(yield_constr, lv.product_sign);
+
+    // Make sure product_zero is 1 when ob1_abs or op2_abs is 0.
     yield_constr.constraint(lv.product_zero * lv.op1_abs * lv.op2_abs);
+
+    // Make sure op1_bas * op2_abs is computed correctly from low_limb and
+    // high_limb.
     yield_constr.constraint(
         (P::ONES - lv.product_sign) * (high_limb * two_to_32 + low_limb - op1_abs * op2_abs),
     );
     yield_constr.constraint(
         lv.product_sign * (two_to_32 * (two_to_32 - high_limb) - low_limb - op1_abs * op2_abs),
     );
+
     // Make sure high_limb is not zero when product_sign is 1.
     yield_constr.constraint(lv.product_sign * (P::ONES - high_limb * lv.product_high_limb_inv));
+
     // Make sure op1_abs is computed correctly from op1_value.
     yield_constr.constraint(
         op1_abs
             - ((P::ONES - lv.op1_sign_bit) * lv.op1_value
                 + lv.op1_sign_bit * (two_to_32 - lv.op1_value)),
     );
+
     // Make sure op2_abs is computed correctly from op2_value.
     yield_constr.constraint(
         is_mul_op
@@ -41,9 +49,11 @@ pub(crate) fn constraints<P: PackedField>(
                 - ((P::ONES - lv.op2_sign_bit) * lv.op2_value
                     + lv.op2_sign_bit * (two_to_32 - lv.op2_value))),
     );
+
     // For MUL/MULHU/SLL product sign should alwasy be 0.
     yield_constr
         .constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * lv.product_sign);
+
     // Make sure product_sign is computed correctly.
     yield_constr.constraint(
         (P::ONES - lv.product_zero)
@@ -51,6 +61,7 @@ pub(crate) fn constraints<P: PackedField>(
                 - ((lv.op1_sign_bit + lv.op2_sign_bit)
                     - (P::Scalar::from_canonical_u32(2) * lv.op1_sign_bit * lv.op2_sign_bit))),
     );
+
     // The following constraints are for SLL.
     {
         let and_gadget = and_gadget(&lv.xor);
