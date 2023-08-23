@@ -119,7 +119,7 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
     let (is_op1_negative, op1_abs) = sign_and_absolute(row.is_op1_signed().is_nonzero(), aux.op1);
     let mut product_sign = is_op1_negative ^ is_op2_negative;
     let op1_mul_op2_abs = u64::from(op1_abs) * u64::from(op2_abs);
-    row.product_zero = if op1_mul_op2_abs == 0 {
+    row.skip_check_product_sign = if op1_mul_op2_abs == 0 {
         product_sign = false;
         F::ONE
     } else {

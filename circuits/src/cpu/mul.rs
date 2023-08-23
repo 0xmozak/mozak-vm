@@ -51,14 +51,14 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr
         .constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * lv.product_sign);
 
-    // Ensure product_zero is set to 1 when either ob1_abs or op2_abs is 0.
-    // This check is essential for the subsequent constraints.
-    // We are not concerned with other values of product_zero.
-    yield_constr.constraint(lv.product_zero * lv.op1_abs * lv.op2_abs);
+    // Ensure skip_check_product_sign is set to 1 when either ob1_abs or op2_abs is
+    // 0. This check is essential for the subsequent constraints.
+    // We are not concerned with other values of skip_check_product_sign.
+    yield_constr.constraint(lv.skip_check_product_sign * lv.op1_abs * lv.op2_abs);
 
     // Make sure product_sign is computed correctly.
     yield_constr.constraint(
-        (P::ONES - lv.product_zero)
+        (P::ONES - lv.skip_check_product_sign)
             * (lv.product_sign
                 - ((lv.op1_sign_bit + lv.op2_sign_bit)
                     - (P::Scalar::from_canonical_u32(2) * lv.op1_sign_bit * lv.op2_sign_bit))),

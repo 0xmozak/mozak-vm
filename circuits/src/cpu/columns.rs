@@ -102,7 +102,7 @@ pub struct CpuState<T> {
 
     pub op1_abs: T,
     pub op2_abs: T,
-    pub product_zero: T,
+    pub skip_check_product_sign: T,
     pub product_sign: T,
     pub product_high_limb_inv: T,
     pub product_high_limb: T, // range check u32 required
