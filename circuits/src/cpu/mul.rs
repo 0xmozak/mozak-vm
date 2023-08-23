@@ -15,19 +15,19 @@ pub(crate) fn constraints<P: PackedField>(
     let low_limb = lv.product_low_limb;
     let high_limb = lv.product_high_limb;
     let two_to_32 = CpuState::<P>::shifted(32);
-    let is_mul_op = lv.inst.ops.mul
-        + lv.inst.ops.mulhu
-        + lv.inst.ops.mulh
-        + lv.inst.ops.mulhsu;
+    let is_mul_op = lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.mulh + lv.inst.ops.mulhsu;
 
     // Make sure product_sign is either 0 or 1.
     is_binary(yield_constr, lv.product_sign);
-    // yield_constr.constraint(
-    //     (P::ONES - lv.product_sign) * (high_limb * two_to_32 + low_limb - op1_abs * op2_abs),
-    // );
-    // yield_constr.constraint(
-    //     lv.product_sign * (two_to_32 * (two_to_32 - high_limb) - low_limb - op1_abs * op2_abs),
-    // );
+    yield_constr.constraint(lv.product_zero * lv.op1_abs * lv.op2_abs);
+    yield_constr.constraint(
+        (P::ONES - lv.product_sign) * (high_limb * two_to_32 + low_limb - op1_abs * op2_abs),
+    );
+    yield_constr.constraint(
+        lv.product_sign * (two_to_32 * (two_to_32 - high_limb) - low_limb - op1_abs * op2_abs),
+    );
+    // Make sure high_limb is not zero when product_sign is 1.
+    yield_constr.constraint(lv.product_sign * (P::ONES - high_limb * lv.product_high_limb_inv));
     // Make sure op1_abs is computed correctly from op1_value.
     yield_constr.constraint(
         op1_abs
@@ -46,9 +46,10 @@ pub(crate) fn constraints<P: PackedField>(
         .constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * lv.product_sign);
     // Make sure product_sign is computed correctly.
     yield_constr.constraint(
-        lv.product_sign
-            - ((lv.op1_sign_bit + lv.op2_sign_bit)
-                - (P::Scalar::from_canonical_u32(2) * lv.op1_sign_bit * lv.op2_sign_bit)),
+        (P::ONES - lv.product_zero)
+            * (lv.product_sign
+                - ((lv.op1_sign_bit + lv.op2_sign_bit)
+                    - (P::Scalar::from_canonical_u32(2) * lv.op1_sign_bit * lv.op2_sign_bit))),
     );
     // The following constraints are for SLL.
     {
@@ -96,8 +97,8 @@ mod tests {
     fn prove_mulhsu_example() {
         type S = CpuStark<F, D>;
         let config = standard_faster_config();
-        let a = -1_i32;
-        let b = 4_294_967_295_u32;
+        let a = -2147451028i32;
+        let b = 2147483648_u32;
         let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::MULHSU,
@@ -109,7 +110,7 @@ mod tests {
                 },
             }],
             &[],
-            &[(6, a as u32), (7, b)],
+            &[(6, a as u32), (7, b as u32)],
         );
         let res = i64::from(a).wrapping_mul(i64::from(b));
         assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
