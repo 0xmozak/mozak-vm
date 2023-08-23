@@ -145,6 +145,7 @@ mod tests {
     use crate::stark::mozak_stark::PublicInputs;
     use crate::stark::utils::trace_to_poly_values;
     use crate::test_utils::{standard_faster_config, ProveAndVerify, C, D, F};
+
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_lossless)]
     #[test]
@@ -166,7 +167,7 @@ mod tests {
             &[],
             &[(6, a as u32), (7, b)],
         );
-        let (res, _overflow) = i64::from(a).overflowing_mul(i64::from(b));
+        let res = i64::from(a).wrapping_mul(i64::from(b));
         assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
         let mut timing = TimingTree::new("mulhsu", log::Level::Debug);
         let cpu_trace = timed!(
