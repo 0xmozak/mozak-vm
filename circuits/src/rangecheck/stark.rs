@@ -129,6 +129,7 @@ mod tests {
 
     use super::*;
     use crate::generation::cpu::generate_cpu_trace;
+    use crate::generation::memory::generate_memory_trace;
     use crate::generation::rangecheck::{
         generate_rangecheck_trace, limbs_from_u32, RANGE_CHECK_U16_SIZE,
     };
@@ -170,7 +171,8 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&program, &record);
-        let trace = generate_rangecheck_trace::<F>(&cpu_rows);
+        let memory_trace = generate_memory_trace::<F>(&program, &record.executed);
+        let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_trace);
 
         let len = trace[0].len();
 
@@ -224,7 +226,8 @@ mod tests {
         );
 
         let cpu_trace = generate_cpu_trace::<F>(&program, &record);
-        let mut trace = generate_rangecheck_trace::<F>(&cpu_trace);
+        let memory_trace = generate_memory_trace::<F>(&program, &record.executed);
+        let mut trace = generate_rangecheck_trace::<F>(&cpu_trace, &memory_trace);
 
         // The above generations setup the traces nicely, but we need to introduce
         // malicious entries here to test our failing cases.
@@ -292,7 +295,8 @@ mod tests {
         );
 
         let cpu_trace = generate_cpu_trace::<F>(&program, &record);
-        let mut trace = generate_rangecheck_trace::<F>(&cpu_trace);
+        let memory_trace = generate_memory_trace::<F>(&program, &record.executed);
+        let mut trace = generate_rangecheck_trace::<F>(&cpu_trace, &memory_trace);
         // The above generations setup the traces nicely, but we need to introduce
         // a malicious entry here to test our failing case.
         let value: u32 = 0xDEAD_BEEF;
