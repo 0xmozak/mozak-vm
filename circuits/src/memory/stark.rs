@@ -50,6 +50,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // Consequently, we constrain:
 
         is_binary(yield_constr, lv.is_executed);
+        // We only have two different ops at the moment, so we use a binary variable to
+        // represent them:
         is_binary(yield_constr, lv.op);
 
         // Check: if address for next instruction changed, then opcode was `sb`
@@ -99,6 +101,7 @@ mod tests {
 
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
@@ -116,7 +119,7 @@ mod tests {
     fn prove_memory_sb_lb() -> Result<()> {
         for repeats in 0..8 {
             let (program, executed) = memory_trace_test_case(repeats);
-            MemoryStark::prove_and_verify(&program, &executed)?;
+            MozakStark::prove_and_verify(&program, &executed)?;
         }
         Ok(())
     }

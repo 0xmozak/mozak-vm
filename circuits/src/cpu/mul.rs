@@ -1,3 +1,9 @@
+//! This module implements constraints for multiplication operations, including
+//! MUL, MULH and SLL instructions.
+//!
+//! Here, SLL stands for 'shift left logical'.  We can treat it as a variant of
+//! unsigned multiplication.
+
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
@@ -17,6 +23,9 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
+    // The Goldilocks field is carefully chosen to allow multiplication of u32
+    // values without overflow, as max value is `u32::MAX^2=(2^32-1)^2`
+    // And field size is `2^64-2^32+1`, which is `u32::MAX^2 + 2^32`
     let op1_abs = lv.op1_abs;
     let op2_abs = lv.op2_abs;
     let low_limb = lv.product_low_limb;
@@ -44,8 +53,8 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(
         (P::ONES - product_sign)
             * (P::ONES
-                - (P::Scalar::from_canonical_u32(0xffff_ffff) - high_limb)
-                    * lv.product_high_limb_inv),
+            - (P::Scalar::from_canonical_u32(0xffff_ffff) - high_limb)
+            * lv.product_high_limb_inv),
     );
 
     // Make sure op1_abs is computed correctly from op1_value.
@@ -67,11 +76,16 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(
         (P::ONES - lv.skip_check_product_sign)
             * (product_sign
-                - ((lv.op1_sign_bit + lv.op2_sign_bit)
-                    - (P::Scalar::from_canonical_u32(2) * lv.op1_sign_bit * lv.op2_sign_bit))),
+            - ((lv.op1_sign_bit + lv.op2_sign_bit)
+            - (P::Scalar::from_canonical_u32(2) * lv.op1_sign_bit * lv.op2_sign_bit))),
     );
 
-    // The following constraints are for SLL.
+    // Check: for SLL the multiplier is assigned as `2^(op2 & 0b1_111)`.
+    // We only take lowest 5 bits of the op2 for the shift amount.
+    // This is following the RISC-V specification.
+    // Below we use the And gadget to calculate the shift amount, and then use
+    // Bitshift table to retrieve the corresponding power of 2, that we will assign
+    // to the multiplier.
     {
         let and_gadget = and_gadget(&lv.xor);
         yield_constr.constraint(

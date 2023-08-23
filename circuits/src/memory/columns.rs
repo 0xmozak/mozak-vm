@@ -2,6 +2,7 @@ use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
+use crate::stark::mozak_stark::{MemoryTable, Table};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -35,6 +36,20 @@ make_col_map!(Memory);
 
 /// Total number of columns.
 pub const NUM_MEM_COLS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
+
+#[must_use]
+pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
+    vec![
+        MemoryTable::new(
+            Column::singles([MAP.diff_addr]),
+            Column::single(MAP.is_executed),
+        ),
+        MemoryTable::new(
+            Column::singles([MAP.diff_clk]),
+            Column::single(MAP.is_executed),
+        ),
+    ]
+}
 
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
