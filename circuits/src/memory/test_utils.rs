@@ -8,7 +8,7 @@ use mozak_vm::vm::ExecutionRecord;
 #[must_use]
 pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord) {
     let new = Instruction::new;
-    let code1 = [
+    let instructions = [
         new(SB, Args {
             rs1: 1,
             imm: 100,
@@ -40,7 +40,7 @@ pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord) {
             ..Args::default()
         }),
     ];
-    let code = std::iter::repeat(&code1)
+    let code = std::iter::repeat(&instructions)
         .take(repeats)
         .flatten()
         .copied()

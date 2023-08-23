@@ -224,6 +224,7 @@ where
         permutation_zs.extend(ctl_data.z_polys());
         permutation_zs
     };
+    // TODO(Matthias): make the code work with empty z_polys, too.
     assert!(!z_polys.is_empty(), "No CTL?");
 
     let permutation_ctl_zs_commitment = timed!(

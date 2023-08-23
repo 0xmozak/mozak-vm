@@ -101,7 +101,9 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
 
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(program, record);
-        let trace_poly_values = trace_to_poly_values(generate_rangecheck_trace(&cpu_trace));
+        let memory_trace = generate_memory_trace::<F>(program, &record.executed);
+        let trace_poly_values =
+            trace_to_poly_values(generate_rangecheck_trace(&cpu_trace, &memory_trace));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
