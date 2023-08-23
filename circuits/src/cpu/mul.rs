@@ -1,5 +1,5 @@
 //! This module implements constraints for multiplication operations, including
-//! MUL, MULH and SLL instructions.
+//! MUL, MULH, MULHU, MULHSU and SLL instructions.
 //!
 //! Here, SLL stands for 'shift left logical'.  We can treat it as a variant of
 //! unsigned multiplication.
