@@ -20,7 +20,7 @@ use crate::cpu::stark::is_binary;
 //
 /// Our constraints need to ensure, that the prover did this conversion
 /// properly. For an unsigned operation, the range of `opX_full_range` is
-/// `0..=u32::MAX`. For an unsigned operation, the range of `opX_full_range` is
+/// `0..=u32::MAX`. For an signed operation, the range of `opX_full_range` is
 /// `i32::MIN..=i32::MAX`. Notice how both ranges are of the same length, and
 /// only differ by an offset of `1<<31`.
 ///
