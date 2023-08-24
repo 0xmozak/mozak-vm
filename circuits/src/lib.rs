@@ -12,6 +12,7 @@ pub mod bitshift;
 pub mod columns_view;
 pub mod cpu;
 pub mod cross_table_lookup;
+pub mod degrees;
 pub mod generation;
 pub mod linear_combination;
 pub mod lookup;
