@@ -137,9 +137,15 @@ impl State {
         // TODO: consider factoring out this logic from `register_op`, `branch_op`,
         // `memory_load` etc.
         let op1 = self.get_register_value(inst.args.rs1);
-        let op2 = self
-            .get_register_value(inst.args.rs2)
-            .wrapping_add(inst.args.imm);
+        let op2 = if matches!(
+            inst.op,
+            Op::BEQ | Op::BNE | Op::BLT | Op::BLTU | Op::BGE | Op::BGEU
+        ) {
+            self.get_register_value(inst.args.rs2)
+        } else {
+            self.get_register_value(inst.args.rs2)
+                .wrapping_add(inst.args.imm)
+        };
 
         let (aux, state) = match inst.op {
             Op::ADD => rop!(u32::wrapping_add),
@@ -995,7 +1001,7 @@ mod tests {
                         Args { rd,
                         rs1,
                         rs2: rs1,
-                        branch_target: 8,
+                        imm: 8,  // branch target
                     ..Args::default()
                 }
                     ),
@@ -1035,7 +1041,7 @@ mod tests {
                         Args { rd,
                         rs1,
                         rs2,
-                        branch_target: 8,
+                        imm: 8,  // branch target
                         ..Args::default()
                     }
                     ),
@@ -1076,7 +1082,7 @@ mod tests {
                         Args { rd,
                         rs1,
                         rs2,
-                        branch_target: 8,
+                        imm: 8,  // branch target
                         ..Args::default()
                     }
                     ),
@@ -1117,7 +1123,7 @@ mod tests {
                         Args { rd,
                         rs1,
                         rs2,
-                        branch_target: 8,
+                        imm: 8,  // branch target
                         ..Args::default()
                     }
                     ),
@@ -1158,7 +1164,7 @@ mod tests {
                         Args { rd,
                         rs1,
                         rs2,
-                        branch_target: 8,
+                        imm: 8,  // branch target
                         ..Args::default()
                         }
                     ),
@@ -1200,7 +1206,7 @@ mod tests {
                                     rd,
                         rs1,
                         rs2,
-                        branch_target: 8,
+                        imm: 8,  // branch target
                         ..Args::default()
                         }
                     ),
@@ -1210,7 +1216,7 @@ mod tests {
                         rd: rs1,
                         rs1,
                         rs2,
-                        branch_target: 0,
+                        imm: 0,  // branch target
                         ..Args::default()
                         }
                     ),

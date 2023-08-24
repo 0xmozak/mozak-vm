@@ -92,8 +92,8 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         rs1,
         rs2,
         // NOTE(Matthias): we use absolute addressing here.
-        branch_target: extract_immediate(word, &[(31, 31), (7, 7), (30, 25), (11, 8)], 1)
-            .wrapping_add(pc),
+        // NOTE: we use imm for the branch target.
+        imm: extract_immediate(word, &[(31, 31), (7, 7), (30, 25), (11, 8)], 1).wrapping_add(pc),
         ..Default::default()
     };
     let utype = Args {
@@ -507,13 +507,13 @@ mod tests {
     #[test_case(0x7e94_1fe3, 8, 9, 4094; "bne r8, r9, 4094")]
     fn bne(word: u32, rs1: u8, rs2: u8, branch_target: i32) {
         let ins: Instruction = decode_instruction(0, word);
-        let branch_target = branch_target as u32;
+        let imm = branch_target as u32;
         let match_ins = Instruction {
             op: Op::BNE,
             args: Args {
                 rs1,
                 rs2,
-                branch_target,
+                imm,
                 ..Default::default()
             },
         };
@@ -524,13 +524,13 @@ mod tests {
     #[test_case(0x7e94_0fe3, 8, 9, 4094; "beq r8, r9, 4094")]
     fn beq(word: u32, rs1: u8, rs2: u8, branch_target: i32) {
         let ins: Instruction = decode_instruction(0, word);
-        let branch_target = branch_target as u32;
+        let imm = branch_target as u32;
         let match_ins = Instruction {
             op: Op::BEQ,
             args: Args {
                 rs1,
                 rs2,
-                branch_target,
+                imm,
                 ..Default::default()
             },
         };
@@ -541,13 +541,13 @@ mod tests {
     #[test_case(0x7e94_4fe3, 8, 9, 4094; "blt r8, r9, 4094")]
     fn blt(word: u32, rs1: u8, rs2: u8, branch_target: i32) {
         let ins: Instruction = decode_instruction(0, word);
-        let branch_target: u32 = branch_target as u32;
+        let imm: u32 = branch_target as u32;
         let match_ins = Instruction {
             op: Op::BLT,
             args: Args {
                 rs1,
                 rs2,
-                branch_target,
+                imm,
                 ..Default::default()
             },
         };
@@ -558,13 +558,13 @@ mod tests {
     #[test_case(0x7e94_6fe3, 8, 9, 4094; "bltu r8, r9, 4094")]
     fn bltu(word: u32, rs1: u8, rs2: u8, branch_target: i32) {
         let ins: Instruction = decode_instruction(0, word);
-        let branch_target = branch_target as u32;
+        let imm = branch_target as u32;
         let match_ins = Instruction {
             op: Op::BLTU,
             args: Args {
                 rs1,
                 rs2,
-                branch_target,
+                imm,
                 ..Default::default()
             },
         };
@@ -575,13 +575,13 @@ mod tests {
     #[test_case(0x7e94_5fe3, 8, 9, 4094; "bge r8, r9, 4094")]
     fn bge(word: u32, rs1: u8, rs2: u8, branch_target: i32) {
         let ins: Instruction = decode_instruction(0, word);
-        let branch_target = branch_target as u32;
+        let imm = branch_target as u32;
         let match_ins = Instruction {
             op: Op::BGE,
             args: Args {
                 rs1,
                 rs2,
-                branch_target,
+                imm,
                 ..Default::default()
             },
         };
@@ -592,13 +592,13 @@ mod tests {
     #[test_case(0x7e94_7fe3, 8, 9, 4094; "bgeu r8, r9, 4094")]
     fn bgeu(word: u32, rs1: u8, rs2: u8, branch_target: i32) {
         let ins: Instruction = decode_instruction(0, word);
-        let branch_target = branch_target as u32;
+        let imm = branch_target as u32;
         let match_ins = Instruction {
             op: Op::BGEU,
             args: Args {
                 rs1,
                 rs2,
-                branch_target,
+                imm,
                 ..Default::default()
             },
         };
