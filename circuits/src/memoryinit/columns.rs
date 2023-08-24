@@ -22,4 +22,4 @@ pub struct MemoryInit<T> {
 pub const NUM_MEMORYINIT_COLS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
-pub fn data_for_ctl<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.ro) }
+pub fn data_for_ctl<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.rodata) }

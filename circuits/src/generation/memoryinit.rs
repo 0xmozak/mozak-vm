@@ -14,7 +14,7 @@ pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<Memory
             .iter()
             .map(|(&addr, &value)| MemoryInit {
                 filter: F::ONE,
-                ro: ROMemElement::from([addr, u32::from(value)]).map(F::from_canonical_u32),
+                rodata: ROMemElement::from([addr, u32::from(value)]).map(F::from_canonical_u32),
             })
             .collect(),
     )
