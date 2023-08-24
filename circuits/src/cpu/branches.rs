@@ -105,7 +105,6 @@ mod tests {
                         rs1: 6,
                         rs2: 7,
                         imm: 8, // branch target
-                        ..Args::default()
                     },
                 },
                 // if above branch is not taken R1 has value 10.
