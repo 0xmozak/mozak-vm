@@ -45,8 +45,24 @@ pub(crate) fn constraints<P: PackedField>(
         (P::ONES - product_sign) * (high_limb * two_to_32 + low_limb - op1_abs * op2_abs),
     );
 
-    // To avoid the overflow (two_to_32 * u32::MAX === -1 (mod p)) of the above
-    // constraints:  Make sure high_limb is not zero when product_sign is 1.
+    // The constraints above would be enough, if our field was large enough.
+    // However Goldilocks field is just a bit too small at order 2^64 - 2^32 + 1,
+    // which allows for the following exploit to happen e.g. when high_limb ==
+    // u32::MAX
+    //
+    // Specifically, (1<<32) * (u32::MAX) === -1 (mod 2^64 - 2^32 + 1).
+    // Thus, when product high_limb == u32::MAX:
+    //       product = low_limb + two_to_32 * high_limb =
+    //       = low_limb + (1<<32) * (u32::MAX) = low_limb - P::ONES
+    //
+    // Which means a malicious prover could evaluate some product in two different
+    // ways, which is unacceptable.
+    //
+    // However, the largest combined result that an honest prover can produce is
+    // u32::MAX * u32::MAX = 0xFFFF_FFFE_0000_0001.  So we can add a constraint
+    // that high_limb is != 0xFFFF_FFFF == u32::MAX range to prevent such exploit.
+
+    // Make sure (two_to_32 - high_limb) is not 0xffff_ffff when product_sign is 1.
     yield_constr.constraint(product_sign * (P::ONES - high_limb * lv.product_high_limb_inv_helper));
     //  Make sure high_limb is not 0xffff_ffff when product_sign is 0.
     yield_constr.constraint(
