@@ -1,0 +1,11 @@
+[package]
+edition = "2021"
+name = "memory-access-mozak-guest"
+version = "0.1.0"
+
+[dependencies]
+guest = { path = "../../guest" }
+
+[[bin]]
+name = "memory-access"
+path = "main.rs"

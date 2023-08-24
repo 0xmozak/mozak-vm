@@ -1,3 +1,0 @@
-[workspace]
-members = ["fibonacci", "min-max"]
-resolver = "2"

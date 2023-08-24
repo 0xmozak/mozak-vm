@@ -1,0 +1,3 @@
+[workspace]
+members = ["fibonacci", "min-max", "memory-access"]
+resolver = "2"
