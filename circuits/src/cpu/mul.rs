@@ -35,7 +35,7 @@ pub(crate) fn constraints<P: PackedField>(
     // Check: for SRL the multiplier is assigned as `2^(op2 & 0b1_111)`.
     // We only take lowest 5 bits of the op2 for the shift amount.
     // This is following the RISC-V specification.
-    // Bellow we use the And gadget to calculate the shift amount, and then use
+    // Below we use the And gadget to calculate the shift amount, and then use
     // Bitshift table to retrieve the corresponding power of 2, that we will assign
     // to the multiplier.
     {

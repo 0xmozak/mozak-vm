@@ -23,7 +23,7 @@ impl From<&Program> for State {
     fn from(program: &Program) -> Self {
         let Data(memory) = program.data.clone();
         Self {
-            pc: program.entry,
+            pc: program.entry_point,
             memory,
             ..Default::default()
         }

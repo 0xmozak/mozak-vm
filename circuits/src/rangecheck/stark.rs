@@ -53,6 +53,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         P: PackedField<Scalar = FE>, {
         let lv = vars.local_values.borrow();
         let nv: &RangeCheckColumnsView<P> = vars.next_values.borrow();
+
+        // Check: the value is built from two limbs.
+        // And then check that the limbs are in range of 0..2^16 using lookup tables.
         constrain_value(
             P::Scalar::from_canonical_usize(Self::BASE),
             lv,
@@ -70,6 +73,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
             MAP.limb_hi_permuted,
             MAP.fixed_range_check_u16_permuted_hi,
         );
+
+        // Check: the `fixed_range_check_u16` forms a sequence from 0 to 2^16-1.
+        //  this column will be used to connect to the permutation columns,
+        //  `fixed_range_check_u16_permuted_hi` and `fixed_range_check_u16_permuted_lo`.
         yield_constr.constraint_first_row(lv.fixed_range_check_u16);
         yield_constr.constraint_transition(
             (nv.fixed_range_check_u16 - lv.fixed_range_check_u16 - FE::ONE)
@@ -123,6 +130,7 @@ mod tests {
 
     use super::*;
     use crate::generation::cpu::generate_cpu_trace;
+    use crate::generation::memory::{self, generate_memory_trace};
     use crate::generation::rangecheck::generate_rangecheck_trace;
 
     const D: usize = 2;
@@ -149,7 +157,8 @@ mod tests {
         );
 
         let cpu_trace = generate_cpu_trace::<F>(&program, &record);
-        let mut trace = generate_rangecheck_trace::<F>(&cpu_trace);
+        let memory_trace = memory::generate_memory_trace::<F>(&program, &record.executed);
+        let mut trace = generate_rangecheck_trace::<F>(&cpu_trace, &memory_trace);
         // Manually alter the value here to be larger than a u32.
         trace[0][MAP.val] = GoldilocksField(u64::from(u32::MAX) + 1_u64);
         trace
@@ -186,7 +195,8 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&program, &record);
-        let trace = generate_rangecheck_trace::<F>(&cpu_rows);
+        let memory_rows = generate_memory_trace::<F>(&program, &record.executed);
+        let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
         let len = trace[0].len();
         let last = F::primitive_root_of_unity(log2_strict(len)).inverse();
