@@ -39,10 +39,10 @@ pub(crate) fn constraints<P: PackedField>(
     // Make sure op1_bas * op2_abs is computed correctly from low_limb and
     // high_limb.
     yield_constr.constraint(
-        product_sign * (two_to_32 * (two_to_32 - high_limb) - low_limb - op1_abs * op2_abs),
+        (P::ONES - product_sign) * (high_limb * two_to_32 + low_limb - op1_abs * op2_abs),
     );
     yield_constr.constraint(
-        (P::ONES - product_sign) * (high_limb * two_to_32 + low_limb - op1_abs * op2_abs),
+        product_sign * (two_to_32 * (two_to_32 - high_limb) - low_limb - op1_abs * op2_abs),
     );
 
     // The constraints above would be enough, if our field was large enough.
@@ -62,15 +62,17 @@ pub(crate) fn constraints<P: PackedField>(
     // u32::MAX * u32::MAX = 0xFFFF_FFFE_0000_0001.  So we can add a constraint
     // that high_limb is != 0xFFFF_FFFF == u32::MAX range to prevent such exploit.
 
-    // Make sure (two_to_32 - high_limb) is not 0xffff_ffff when product_sign is 1.
-    yield_constr.constraint(product_sign * (P::ONES - high_limb * lv.product_high_limb_inv_helper));
-    //  Make sure high_limb is not 0xffff_ffff when product_sign is 0.
+    // Make sure high_limb is not 0xFFFF_FFFF when product_sign is 0 to avoid
+    // overflow.
     yield_constr.constraint(
         (P::ONES - product_sign)
             * (P::ONES
                 - (P::Scalar::from_canonical_u32(0xffff_ffff) - high_limb)
                     * lv.product_high_limb_inv_helper),
     );
+    // Make sure (two_to_32 - high_limb) is not 0xFFFF_FFFF when product_sign is 1
+    // to avoid overflow.
+    yield_constr.constraint(product_sign * (P::ONES - high_limb * lv.product_high_limb_inv_helper));
 
     // Make sure op1_abs is computed correctly from op1_value.
     yield_constr.constraint(op1_abs - lv.op1_full_range() * bit_to_sign(lv.op1_sign_bit));
