@@ -1002,7 +1002,6 @@ mod tests {
                         rs1,
                         rs2: rs1,
                         imm: 8,  // branch target
-                    ..Args::default()
                 }
                     ),
                     Instruction::new(
@@ -1042,7 +1041,6 @@ mod tests {
                         rs1,
                         rs2,
                         imm: 8,  // branch target
-                        ..Args::default()
                     }
                     ),
                     Instruction::new(
@@ -1083,7 +1081,6 @@ mod tests {
                         rs1,
                         rs2,
                         imm: 8,  // branch target
-                        ..Args::default()
                     }
                     ),
                     Instruction::new(
@@ -1124,7 +1121,6 @@ mod tests {
                         rs1,
                         rs2,
                         imm: 8,  // branch target
-                        ..Args::default()
                     }
                     ),
                     Instruction::new(
@@ -1165,7 +1161,6 @@ mod tests {
                         rs1,
                         rs2,
                         imm: 8,  // branch target
-                        ..Args::default()
                         }
                     ),
                     Instruction::new(
@@ -1207,7 +1202,6 @@ mod tests {
                         rs1,
                         rs2,
                         imm: 8,  // branch target
-                        ..Args::default()
                         }
                     ),
                     Instruction::new(
@@ -1217,7 +1211,6 @@ mod tests {
                         rs1,
                         rs2,
                         imm: 0,  // branch target
-                        ..Args::default()
                         }
                     ),
                     Instruction::new(
