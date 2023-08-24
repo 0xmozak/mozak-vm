@@ -5,6 +5,7 @@ pub mod bitshift;
 pub mod cpu;
 pub mod instruction;
 pub mod memory;
+pub mod memoryinit;
 pub mod program;
 pub mod rangecheck;
 pub mod xor;
