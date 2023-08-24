@@ -15,7 +15,7 @@ columns_view_impl!(MemoryInit);
 make_col_map!(MemoryInit);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct MemoryInit<T> {
-    pub ro: ROMemElement<T>,
+    pub rodata: ROMemElement<T>,
     pub filter: T,
 }
 
