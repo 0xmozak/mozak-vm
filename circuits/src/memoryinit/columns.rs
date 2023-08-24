@@ -19,7 +19,6 @@ pub struct MemoryInit<T> {
     pub filter: T,
 }
 
-// Total number of columns.
 pub const NUM_MEMORYINIT_COLS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
