@@ -69,7 +69,8 @@ pub(crate) fn constraints<P: PackedField>(
                     * lv.product_high_limb_inv_helper),
     );
     // Make sure (two_to_32 - high_limb) is not 0xFFFF_FFFF when product_sign is 1
-    // to avoid overflow.
+    // to avoid overflow of two_to_32 * (two_to_32 - high_limb) in the above
+    // constraints.
     yield_constr.constraint(product_sign * (P::ONES - high_limb * lv.product_high_limb_inv_helper));
 
     // Make sure op1_abs is computed correctly from op1_value.
