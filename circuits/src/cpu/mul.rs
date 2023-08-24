@@ -50,7 +50,7 @@ pub(crate) fn constraints<P: PackedField>(
         yield_constr.constraint(lv.inst.ops.sll * (multiplier - lv.bitshift.multiplier));
     }
 
-    // Check, that we select the correct output.
+    // Now, check, that we select the correct output based on the opcode.
 
     let destination = lv.dst_value;
     // Check: For MUL and SLL, we assign the value of low limb as a result
@@ -68,8 +68,9 @@ pub(crate) fn constraints<P: PackedField>(
     //       product = low_limb + base * high_limb =
     //       = low_limb + (1<<32) * (u32::MAX) = low_limb - P::ONES
     //
-    // Which means a malicious prover could evaluate some product in two different
-    // ways, which is unacceptable.
+    // This means the current constraint system allows a malicious prover to
+    // evaluate some product in two different ways, which implies one of the
+    // evaluations is wrong and is unacceptable.
     //
     // However, the largest combined result that an honest prover can produce is
     // u32::MAX * u32::MAX = 0xFFFF_FFFE_0000_0001.  So we can add a constraint

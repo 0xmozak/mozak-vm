@@ -52,8 +52,7 @@ fn pc_ticks_up<P: PackedField>(
 }
 
 /// Enforce that selectors of opcode as well as registers are one-hot encoded.
-///
-/// Ie exactly one of them should be by 1, all others by 0 in each row.
+/// Ie exactly one of them should be 1, and all others 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
 fn one_hots<P: PackedField>(inst: &Instruction<P>, yield_constr: &mut ConstraintConsumer<P>) {
     one_hot(inst.ops, yield_constr);
@@ -109,6 +108,7 @@ fn r0_always_0<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintCo
 /// This function ensures that for each unique value present in
 /// the instruction column the [`filter`] flag is `1`. This is done by comparing
 /// the local row and the next row values.
+/// As the result, `filter` marks all duplicated instructions with `0`.
 fn check_permuted_inst_cols<P: PackedField>(
     lv: &ProgramRom<P>,
     nv: &ProgramRom<P>,

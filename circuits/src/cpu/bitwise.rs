@@ -37,8 +37,8 @@ pub struct BinaryOp<P: PackedField> {
 }
 
 /// Re-usable gadget for AND constraints.
-/// It has access to constrained XOR evaluation and based on that constraints
-/// the AND evaluation: `x & y := (x + y - (x ^ y)) / 2`
+/// It has access to already constrained XOR evaluation and based on that
+/// constrains the AND evaluation: `x & y := (x + y - xor(x,y)) / 2`
 /// This gadget can be used to anywhere in the constraint system.
 pub(crate) fn and_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     let two = P::Scalar::from_noncanonical_u64(2);
@@ -50,8 +50,8 @@ pub(crate) fn and_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
 }
 
 /// Re-usable gadget for OR constraints
-/// It has access to constrained XOR evaluation and based on that constraints
-/// the OR evaluation: `x | y := (x + y + (x ^ y)) / 2`
+/// It has access to already constrained XOR evaluation and based on that
+/// constrains the OR evaluation: `x | y := (x + y + xor(x,y)) / 2`
 /// This gadget can be used to anywhere in the constraint system.
 pub(crate) fn or_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     let two = P::Scalar::from_noncanonical_u64(2);
@@ -63,8 +63,8 @@ pub(crate) fn or_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
 }
 
 /// Re-usable gadget for XOR constraints
-/// Constraints that underlying XOR evaluation was done on the same
-/// input and produced the same output.
+/// Constrains that the already constrained underlying XOR evaluation has been
+/// done on the same inputs and produced the same output as this gadget.
 /// This gadget can be used to anywhere in the constraint system.
 pub(crate) fn xor_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     BinaryOp {
@@ -75,8 +75,10 @@ pub(crate) fn xor_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
 }
 
 /// Constraints for the AND, OR and XOR opcodes.
-/// Constrains all of then in one place, as they are exclusive with each-other.
-/// Uses selector to activate the right opcode constraints.
+/// Uses selectors to pass inputs and retrieve output from the right bitwise
+/// opcode gadget. At most one of the selectors is set to 1, hence the
+/// output is matched to at most one of the gadgets. None if there is no bitwise
+/// operation in the instruction.
 #[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
