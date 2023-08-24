@@ -23,9 +23,6 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // The Goldilocks field is carefully chosen to allow multiplication of u32
-    // values without overflow, as max value is `u32::MAX^2=(2^32-1)^2`
-    // And field size is `2^64-2^32+1`, which is `u32::MAX^2 + 2^32`
     let two_to_32 = CpuState::<P>::shifted(32);
     let op1_abs = lv.op1_abs;
     let op2_abs = lv.op2_abs;
@@ -36,8 +33,9 @@ pub(crate) fn constraints<P: PackedField>(
     // Make sure product_sign is either 0 or 1.
     is_binary(yield_constr, product_sign);
 
-    // Make sure op1_bas * op2_abs is computed correctly from low_limb and
-    // high_limb.
+    // Ensure correct computation of op1_abs * op2_abs using low_limb and high_limb.
+    // If product_sign is 1, verify using the 2's complement: 2^64 - (high_limb *
+    // 2^32 + low_limb).
     yield_constr.constraint(
         (P::ONES - product_sign) * (high_limb * two_to_32 + low_limb - op1_abs * op2_abs),
     );
@@ -95,9 +93,8 @@ pub(crate) fn constraints<P: PackedField>(
     // Make sure product_sign is computed correctly.
     yield_constr.constraint(
         (P::ONES - lv.skip_check_product_sign)
-            * (product_sign
-                - ((lv.op1_sign_bit + lv.op2_sign_bit)
-                    - (P::Scalar::from_canonical_u32(2) * lv.op1_sign_bit * lv.op2_sign_bit))),
+            * (bit_to_sign(product_sign)
+                - bit_to_sign(lv.op1_sign_bit) * bit_to_sign(lv.op2_sign_bit)),
     );
 
     // Check: for SLL the multiplier is assigned as `2^(op2 & 0b1_111)`.

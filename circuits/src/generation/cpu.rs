@@ -97,6 +97,7 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
 fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
+    // Helper function to determine sign and absolute value.
     let sign_and_absolute = |is_signed: bool, x: u32| {
         if is_signed {
             ((x as i32) < 0, (x as i32).unsigned_abs())
@@ -104,47 +105,62 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
             (false, x)
         }
     };
+
+    // Calculate op2 values.
     let (is_op2_negative, op2_abs) = if let Op::SLL = inst.op {
         let shift_amount = aux.op2 & 0b1_1111;
         let shift_power = 1_u32 << shift_amount;
+
         row.bitshift = Bitshift {
             amount: shift_amount,
             multiplier: shift_power,
         }
         .map(from_u32);
+
         sign_and_absolute(false, shift_power)
     } else {
         sign_and_absolute(row.is_op2_signed().is_nonzero(), aux.op2)
     };
+
+    // Calculate op1 values.
     let (is_op1_negative, op1_abs) = sign_and_absolute(row.is_op1_signed().is_nonzero(), aux.op1);
+
+    // Determine product sign and absolute value.
     let mut product_sign = is_op1_negative ^ is_op2_negative;
     let op1_mul_op2_abs = u64::from(op1_abs) * u64::from(op2_abs);
+
     row.skip_check_product_sign = if op1_mul_op2_abs == 0 {
         product_sign = false;
         F::ONE
     } else {
         F::ZERO
     };
+
     row.product_sign = if product_sign { F::ONE } else { F::ZERO };
     row.op1_abs = from_u32(op1_abs);
     row.op2_abs = from_u32(op2_abs);
-    let low;
-    let high;
-    if product_sign {
-        let prod = u64::MAX - op1_mul_op2_abs + 1;
-        low = (prod & 0xffff_ffff) as u32;
-        high = (prod >> 32) as u32;
-        row.product_high_limb_inv_helper = from_u32::<F>(high).try_inverse().unwrap_or_default();
+
+    // Compute the product limbs based on sign.
+    let prod = if product_sign {
+        u64::MAX - op1_mul_op2_abs + 1
     } else {
-        let prod = op1_mul_op2_abs;
-        low = (prod & 0xffff_ffff) as u32;
-        high = (prod >> 32) as u32;
-        row.product_high_limb_inv_helper = from_u32::<F>(0xffff_ffff - high)
-            .try_inverse()
-            .unwrap_or_default();
-    }
+        op1_mul_op2_abs
+    };
+
+    let low = (prod & 0xffff_ffff) as u32;
+    let high = (prod >> 32) as u32;
     row.product_low_limb = from_u32(low);
     row.product_high_limb = from_u32(high);
+
+    // Calculate the product high limb inverse helper.
+    let inv_helper_val = if product_sign {
+        high
+    } else {
+        0xffff_ffff - high
+    };
+    row.product_high_limb_inv_helper = from_u32::<F>(inv_helper_val)
+        .try_inverse()
+        .unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]
