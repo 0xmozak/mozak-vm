@@ -180,8 +180,11 @@ where
             );
             if consumer.debug_api_has_constraint_failed() {
                 println!("Debug constraints for {stark_name}");
-                println!("lv-row[{lv_row}] - values: {lv:?}");
-                println!("nv-row[{nv_row}] - values: {nv:?}");
+                let lv: CpuColumnsExtended<F> = lv.iter().cloned().collect();
+                println!("lv-row[{lv_row}] - values: {lv:#?}");
+                let nv: CpuColumnsExtended<F> = nv.iter().cloned().collect();
+                println!("nv-row[{nv_row}] - values: {nv:#?}");
+                use crate::cpu::columns::CpuColumnsExtended;
                 false
             } else {
                 true

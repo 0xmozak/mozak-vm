@@ -23,6 +23,8 @@ pub struct OpSelectors<T> {
     pub remu: T,
     pub mul: T,
     pub mulhu: T,
+    pub mulh: T,
+    pub mulhsu: T,
     /// Shift Left Logical by amount
     pub sll: T,
     /// Set Less Than
@@ -154,9 +156,14 @@ impl<T: PackedField> CpuState<T> {
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
 
-    // TODO(Matthias): unify where we specify `is_signed` for constraints and trace
-    // generation. Also, later, take mixed sign (for MULHSU) into account.
-    pub fn is_signed(&self) -> T { self.inst.ops.slt + self.inst.ops.bge + self.inst.ops.blt }
+
+    // TODO(Matthias): unify where we specify `is_op(1|2)_signed` for constraints
+    // and trace generation.
+    pub fn is_op1_signed(&self) -> T { self.is_op2_signed() + self.inst.ops.mulhsu }
+    pub fn is_op2_signed(&self) -> T {
+        let ops = self.inst.ops;
+        ops.slt + ops.bge + ops.blt + ops.mulh
+    }
 
     /// Value of the first operand, as if converted to i64.
     ///

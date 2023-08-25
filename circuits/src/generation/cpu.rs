@@ -97,6 +97,8 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
 fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
+    // let op1_full_range = sign_extend(row.is_op1_signed().is_nonzero(), aux.op1);
+    // let op2_full_range = sign_extend(row.is_op2_signed().is_nonzero(), aux.op2);
     let multiplier = if let Op::SLL = inst.op {
         let shift_amount = aux.op2 & 0b1_1111;
         let shift_power = 1_u32 << shift_amount;
@@ -115,8 +117,14 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
     row.product_low_bits = from_u32(low);
     row.product_high_bits = from_u32(high);
 
+    // row.multiplier = F::from_noncanonical_i64(multiplier);
+    // let product = i128::from(op1_full_range).wrapping_mul(multiplier.into());
+    // row.product_low_bits = F::from_canonical_u32(product as u32);
+    // row.product_high_bits = F::from_canonical_u32((product >> 32) as u32);
+
     // Prove that the high limb is different from `u32::MAX`:
     let high_diff: F = from_u32(u32::MAX - high);
+    // let high_diff: F = F::from_canonical_u32(u32::MAX) - row.product_high_bits;
     row.product_high_diff_inv = high_diff.try_inverse().unwrap_or_default();
 }
 
@@ -154,10 +162,8 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, au
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_lossless)]
 fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
-    let is_signed: bool = row.is_signed().is_nonzero();
-
-    let op1_full_range = sign_extend(is_signed, aux.op1);
-    let op2_full_range = sign_extend(is_signed, aux.op2);
+    let op1_full_range = sign_extend(row.is_op1_signed().is_nonzero(), aux.op1);
+    let op2_full_range = sign_extend(row.is_op2_signed().is_nonzero(), aux.op2);
 
     row.op1_sign_bit = F::from_bool(op1_full_range < 0);
     row.op2_sign_bit = F::from_bool(op2_full_range < 0);

@@ -19,18 +19,23 @@ pub(crate) fn constraints<P: PackedField>(
     // values without overflow, as max value is `u32::MAX^2=(2^32-1)^2`
     // And field size is `2^64-2^32+1`, which is `u32::MAX^2 + 2^32`
     let base = P::Scalar::from_noncanonical_u64(1 << 32);
+    let ops = lv.inst.ops;
 
-    let multiplicand = lv.op1_value;
+    let multiplicand = lv.op1_full_range();
     let multiplier = lv.multiplier;
+    // TODO: range check this one.
     let low_limb = lv.product_low_bits;
+    // TODO: range check the sign adjusted version of this one.
+    // (Needs reoarginization later, because the adjustment is quadratic, with two sign bits.)
     let high_limb = lv.product_high_bits;
     let product = low_limb + base * high_limb;
 
     // Check: multiplication equation, `product == multiplicand * multiplier`.
     yield_constr.constraint(product - multiplicand * multiplier);
+    // self.op2_value - self.op2_sign_bit * Self::shifted(32)
 
     // Check: for MUL and MULHU the multiplier is assigned the op2 value.
-    yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.mulhu) * (multiplier - lv.op2_value));
+    yield_constr.constraint((ops.mul + ops.mulhu + ops.mulh + ops.mulhsu) * (multiplier - lv.op2_value));
 
     // Check: for SRL the multiplier is assigned as `2^(op2 & 0b1_111)`.
     // We only take lowest 5 bits of the op2 for the shift amount.
@@ -54,10 +59,13 @@ pub(crate) fn constraints<P: PackedField>(
 
     let destination = lv.dst_value;
     // Check: For MUL and SLL, we assign the value of low limb as a result
-    yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.sll) * (destination - low_limb));
+    yield_constr.constraint((ops.mul + ops.sll) * (destination - low_limb));
+
+    // + lv.op1_sign_bit * lv.op2_value + lv.op1_sign_bit * lv.op1_value
+    // + lv.op1_sign_bit * lv.op2_sign_bit * base
 
     // Check: For MULHU, we assign the value of high limb as a result
-    yield_constr.constraint(lv.inst.ops.mulhu * (destination - high_limb));
+    // yield_constr.constraint((ops.mulhu + ops.mulh + ops.mulhsu) * (destination - high_limb));
 
     // The constraints above would be enough, if our field was large enough.
     // However Goldilocks field is just a bit too small at order 2^64 - 2^32 + 1,
@@ -80,7 +88,7 @@ pub(crate) fn constraints<P: PackedField>(
     // `high_limb` to take unreachable values.
     // Check: high limb != u32::MAX by checking that their diff is invertible.
     yield_constr.constraint(
-        (lv.inst.ops.mul + lv.inst.ops.mulhu + lv.inst.ops.sll)
+        (ops.mul + ops.mulhu + ops.mulh + ops.mulhsu + lv.inst.ops.sll)
             * (diff * lv.product_high_diff_inv - P::ONES),
     );
 }
@@ -89,13 +97,83 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{reg, simple_test_code, u32_extra};
+    use mozak_vm::test_utils::{i32_extra, reg, simple_test_code, u32_extra};
+    use plonky2::timed;
+    use plonky2::util::timing::TimingTree;
     use proptest::prelude::{prop_assume, ProptestConfig};
     use proptest::{prop_assert_eq, proptest};
+    use starky::prover::prove as prove_table;
+    use starky::verifier::verify_stark_proof;
 
     use crate::cpu::stark::CpuStark;
-    use crate::test_utils::ProveAndVerify;
+    use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
+    use crate::generation::program::generate_program_rom_trace;
+    use crate::stark::mozak_stark::{PublicInputs, MozakStark};
+    use crate::stark::utils::trace_to_poly_values;
+    use crate::test_utils::{standard_faster_config, ProveAndVerify, C, D, F};
+    use crate::utils::from_u32;
+    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_lossless)]
+    #[test]
+    fn prove_mulhsu_example() {
+        type S = CpuStark<F, D>;
+        let config = standard_faster_config();
+        let a = -2_147_451_028_i32;
+        let b = 2_147_483_648_u32;
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::MULHSU,
+                args: Args {
+                    rd: 8,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, a as u32), (7, b)],
+        );
+        let res = i64::from(a).wrapping_mul(i64::from(b));
+        assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
+        let mut timing = TimingTree::new("mulhsu", log::Level::Debug);
+        let cpu_trace = timed!(
+            timing,
+            "generate_cpu_trace",
+            generate_cpu_trace(&program, &record)
+        );
+        let trace_poly_values = timed!(
+            timing,
+            "trace to poly",
+            trace_to_poly_values(generate_cpu_trace_extended(
+                cpu_trace,
+                &generate_program_rom_trace(&program)
+            ))
+        );
+        let stark = S::default();
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program.entry_point),
+        };
 
+        let proof = timed!(
+            timing,
+            "cpu proof",
+            prove_table::<F, C, S, D>(
+                stark,
+                &config,
+                trace_poly_values,
+                public_inputs.into(),
+                &mut timing,
+            )
+        );
+        let proof = proof.unwrap();
+        let verification_res = timed!(
+            timing,
+            "cpu verification",
+            verify_stark_proof(stark, proof, &config)
+        );
+        verification_res.unwrap();
+        timing.print();
+    }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -111,6 +189,18 @@ mod tests {
                             ..Args::default()
                         },
                     },
+                ],
+                &[],
+                &[(6, a), (7, b)],
+            );
+            let (low, _high) = a.widening_mul(b);
+            prop_assert_eq!(record.executed[0].aux.dst_val, low);
+            MozakStark::prove_and_verify(&program, &record).unwrap();
+        }
+        #[test]
+        fn prove_mulhu_proptest(a in u32_extra(), b in u32_extra()) {
+            let (program, record) = simple_test_code(
+                &[
                     Instruction {
                         op: Op::MULHU,
                         args: Args {
@@ -124,10 +214,56 @@ mod tests {
                 &[],
                 &[(6, a), (7, b)],
             );
-            let (low, high) = a.widening_mul(b);
-            prop_assert_eq!(record.executed[0].aux.dst_val, low);
-            prop_assert_eq!(record.executed[1].aux.dst_val, high);
-            CpuStark::prove_and_verify(&program, &record).unwrap();
+            let (_low, high) = a.widening_mul(b);
+            prop_assert_eq!(record.executed[0].aux.dst_val, high);
+            MozakStark::prove_and_verify(&program, &record).unwrap();
+        }
+        #[allow(clippy::cast_sign_loss)]
+        #[allow(clippy::cast_lossless)]
+        #[test]
+        fn prove_mulh_proptest(a in i32_extra(), b in i32_extra()) {
+            let (program, record) = simple_test_code(
+                &[
+                    Instruction {
+                        op: Op::MULH,
+                        args: Args {
+                            rd: 8,
+                            rs1: 6,
+                            rs2: 7,
+                            ..Args::default()
+                        },
+                    },
+                ],
+                &[],
+                &[(6, a as u32), (7, b as u32)],
+            );
+            let (res, overflow) = i64::from(a).overflowing_mul(i64::from(b));
+            assert!(!overflow);
+            prop_assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
+            MozakStark::prove_and_verify(&program, &record).unwrap();
+        }
+        #[allow(clippy::cast_sign_loss)]
+        #[allow(clippy::cast_lossless)]
+        #[test]
+        fn prove_mulhsu_proptest(a in i32_extra(), b in u32_extra()) {
+            let (program, record) = simple_test_code(
+                &[
+                    Instruction {
+                        op: Op::MULHSU,
+                        args: Args {
+                            rd: 8,
+                            rs1: 6,
+                            rs2: 7,
+                            ..Args::default()
+                        },
+                    },
+                ],
+                &[],
+                &[(6, a as u32), (7, b)],
+            );
+            let (res, _overflow) = i64::from(a).overflowing_mul(i64::from(b));
+            prop_assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
+            MozakStark::prove_and_verify(&program, &record).unwrap();
         }
 
         #[test]

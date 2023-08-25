@@ -93,6 +93,7 @@ mod tests {
     use proptest::{prop_oneof, proptest};
 
     use crate::cpu::stark::CpuStark;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
 
     fn test_cond_branch(a: u32, b: u32, op: Op) {
@@ -135,13 +136,53 @@ mod tests {
             if taken { 0 } else { 10 }
         );
 
-        CpuStark::prove_and_verify(&program, &record).unwrap();
+        MozakStark::prove_and_verify(&program, &record).unwrap();
     }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(32))]
         #[test]
         fn prove_branch_proptest(a in u32_extra(), b in u32_extra(), op in prop_oneof![Just(Op::BLT), Just(Op::BLTU), Just(Op::BGE), Just(Op::BGEU), Just(Op::BEQ), Just(Op::BNE)]) {
-            test_cond_branch(a, b, op);
+            // test_cond_branch(a, b, op);
+            let (program, record) = simple_test_code(
+                &[
+                    Instruction {
+                        op,
+                        args: Args {
+                            rd: 0,
+                            rs1: 6,
+                            rs2: 7,
+                            branch_target: 8,
+                            ..Args::default()
+                        },
+                    },
+                    // if above branch is not taken R1 has value 10.
+                    Instruction {
+                        op: Op::ADD,
+                        args: Args {
+                            rd: 1,
+                            imm: 10,
+                            ..Args::default()
+                        },
+                    },
+                ],
+                &[],
+                &[(6, a), (7, b)],
+            );
+            let taken = match op {
+                Op::BLT => (a as i32) < (b as i32),
+                Op::BLTU => a < b,
+                Op::BGE => (a as i32) >= (b as i32),
+                Op::BGEU => a >= b,
+                Op::BEQ => a == b,
+                Op::BNE => a != b,
+                _ => unreachable!(),
+            };
+            assert_eq!(
+                state_before_final(&record).get_register_value(1),
+                if taken { 0 } else { 10 }
+            );
+    
+            MozakStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }
