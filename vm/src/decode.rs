@@ -92,7 +92,6 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         rs1,
         rs2,
         // NOTE(Matthias): we use absolute addressing here.
-        // NOTE: we use imm for the branch target.
         imm: extract_immediate(word, &[(31, 31), (7, 7), (30, 25), (11, 8)], 1).wrapping_add(pc),
         ..Default::default()
     };
