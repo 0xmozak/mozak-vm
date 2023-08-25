@@ -1,4 +1,3 @@
-
 #[no_mangle]
 pub extern "C" fn alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
     extern "C" {
@@ -11,7 +10,7 @@ pub extern "C" fn alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
         static _end: u8;
     }
 
-     // Pointer to next heap address to use, or 0 if the heap has not yet been
+    // Pointer to next heap address to use, or 0 if the heap has not yet been
     // initialized.
     static mut HEAP_POS: usize = 0;
 

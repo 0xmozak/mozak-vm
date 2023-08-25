@@ -1,8 +1,6 @@
-
 #![feature(restricted_std)]
-pub mod env;
 mod alloc;
-
+pub mod env;
 
 #[macro_export]
 macro_rules! entry {
@@ -12,9 +10,7 @@ macro_rules! entry {
 
         mod mozak_generated_main {
             #[no_mangle]
-            fn main() {
-                super::MOZAK_ENTRY()
-            }
+            fn main() { super::MOZAK_ENTRY() }
         }
     };
 }
