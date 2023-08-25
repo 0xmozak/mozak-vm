@@ -179,6 +179,14 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
         + lv.inst.ops.bgeu;
 
     yield_constr.constraint(
+        is_branch_operation
+            * (lv.op2_value
+                - (0..32)
+                    .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
+                    .sum::<P>()),
+    );
+
+    yield_constr.constraint(
         (P::ONES - is_branch_operation)
             * (lv.op2_value_overflowing - lv.inst.imm_value
             // Note: we could skip 0, because r0 is always 0.
