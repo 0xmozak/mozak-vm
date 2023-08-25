@@ -16,6 +16,7 @@ pub mod generation;
 pub mod linear_combination;
 pub mod lookup;
 pub mod memory;
+pub mod memoryinit;
 pub mod program;
 pub mod rangecheck;
 pub mod stark;
