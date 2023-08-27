@@ -10,7 +10,6 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
         let mut cols: columns::Instruction<u32> = Self {
             pc,
             imm_value: inst.args.imm,
-            branch_target: inst.args.branch_target,
             ..Self::default()
         };
         *match inst.op {

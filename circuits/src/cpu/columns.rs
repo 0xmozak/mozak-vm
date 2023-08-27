@@ -73,7 +73,6 @@ pub struct Instruction<T> {
     pub rd_select: [T; 32],
     /// Special immediate value used for code constants
     pub imm_value: T,
-    pub branch_target: T,
 }
 
 columns_view_impl!(CpuState);
