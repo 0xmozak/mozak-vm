@@ -7,9 +7,9 @@ name = "fibonacci-mozak-guest"
 version = "0.1.0"
 
 [[package]]
-name = "mem-init"
+name = "min-max-mozak-guest"
 version = "0.1.0"
 
 [[package]]
-name = "min-max-mozak-guest"
+name = "static-mem-access"
 version = "0.1.0"

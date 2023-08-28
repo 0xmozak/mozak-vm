@@ -9,11 +9,10 @@ Building the programs require Rust nightly toolchain. Exploring the generated EL
 ```bash
 cargo +nightly build
 ```
-This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/debug/`. Ensure building under `debug` (non `--release` mode) so as to preserve unoptimised code useful for testing later.
+This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/debug/`.
 
-## Exploring ELF files
-### Dumping `.text` section
-The `.text` section of the elf files can be dumped via
+## Exploring binaries
+### To dump assembly files
 ```bash
 RUSTFLAGS="--emit asm" cargo +nightly build
 ```
