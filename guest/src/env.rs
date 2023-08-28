@@ -31,8 +31,6 @@ pub fn finalize() {
 
 #[no_mangle]
 pub fn write(output_data: &[u8]) {
-    unsafe {
-        let output_bytes_vec = OUTPUT_BYTES.as_mut().unwrap_unchecked();
-        output_bytes_vec.extend_from_slice(output_data);
-    }
+    let output_bytes_vec = unsafe { OUTPUT_BYTES.as_mut().unwrap_unchecked() };
+    output_bytes_vec.extend_from_slice(output_data);
 }
