@@ -21,12 +21,13 @@ use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
 use super::permutation::get_grand_product_challenge_set;
-use super::proof::{AllProof, StarkOpeningSet, StarkProof};
+use super::proof::{AllProof, StarkOpeningSet, StarkProof, StarkProofWithLookups};
 use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
+use crate::lookup::Lookup;
 use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
@@ -177,6 +178,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     stark: &S,
+    lookups: Option<Vec<Lookup>>,
     config: &StarkConfig,
     trace_poly_values: &[PolynomialValues<F>],
     trace_commitment: &PolynomialBatch<F, C, D>,
@@ -184,7 +186,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     ctl_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<StarkProof<F, C, D>>
+) -> Result<StarkProofWithLookups<F, C, D>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -211,7 +213,8 @@ where
             config.num_challenges,
             stark.permutation_batch_size(),
         );
-    let mut permutation_zs = timed!(
+
+    let mut auxiliary_polys = timed!(
         timing,
         "compute permutation Z(x) polys",
         compute_permutation_z_polys::<F, S, D>(
@@ -221,20 +224,18 @@ where
             &permutation_challenges
         )
     );
-    let num_permutation_zs = permutation_zs.len();
 
-    let z_polys = {
-        permutation_zs.extend(ctl_data.z_polys());
-        permutation_zs
-    };
+    let num_permutation_zs = auxiliary_polys.len();
+    auxiliary_polys.append(&mut ctl_data.z_polys());
+
     // TODO(Matthias): make the code work with empty z_polys, too.
-    assert!(!z_polys.is_empty(), "No CTL?");
+    assert!(!auxiliary_polys.is_empty(), "No CTL?");
 
-    let permutation_ctl_zs_commitment = timed!(
+    let auxiliary_polys_commitment = timed!(
         timing,
         "compute Zs commitment",
         PolynomialBatch::from_values(
-            z_polys,
+            auxiliary_polys,
             rate_bits,
             false,
             config.fri_config.cap_height,
@@ -243,8 +244,9 @@ where
         )
     );
 
-    let permutation_ctl_zs_cap = permutation_ctl_zs_commitment.merkle_tree.cap.clone();
-    challenger.observe_cap(&permutation_ctl_zs_cap);
+    let lookup_challenges = Some(challenger.get_n_challenges(config.num_challenges));
+    let auxiliary_polys_cap = auxiliary_polys_commitment.merkle_tree.cap.clone();
+    challenger.observe_cap(&auxiliary_polys_cap);
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
     let quotient_polys = timed!(
@@ -253,8 +255,9 @@ where
         compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
             stark,
             trace_commitment,
-            &permutation_ctl_zs_commitment,
-            &permutation_challenges,
+            &auxiliary_polys_commitment,
+            lookup_challenges.as_ref(),
+            lookups.as_deref(),
             public_inputs,
             ctl_data,
             &alphas,
@@ -310,7 +313,7 @@ where
         zeta,
         g,
         trace_commitment,
-        &permutation_ctl_zs_commitment,
+        &auxiliary_polys_commitment,
         &quotient_commitment,
         degree_bits,
         stark.num_permutation_batches(config),
@@ -320,7 +323,7 @@ where
 
     let initial_merkle_trees = vec![
         trace_commitment,
-        &permutation_ctl_zs_commitment,
+        &auxiliary_polys_commitment,
         &quotient_commitment,
     ];
 
@@ -344,12 +347,15 @@ where
         )
     );
 
-    Ok(StarkProof {
-        trace_cap: trace_commitment.merkle_tree.cap.clone(),
-        permutation_ctl_zs_cap,
-        quotient_polys_cap,
-        openings,
-        opening_proof,
+    Ok(StarkProofWithLookups {
+        proof: StarkProof {
+            trace_cap: trace_commitment.merkle_tree.cap.clone(),
+            auxiliary_polys_cap,
+            quotient_polys_cap,
+            openings,
+            opening_proof,
+        },
+        lookups,
     })
 }
 
@@ -368,7 +374,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     ctl_data_per_table: &[CtlData<F>; NUM_TABLES],
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<[StarkProof<F, C, D>; NUM_TABLES]>
+) -> Result<[StarkProofWithLookups<F, C, D>; NUM_TABLES]>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -383,6 +389,7 @@ where
     [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
+        Some(mozak_stark.cpu_stark.lookups()),
         config,
         &traces_poly_values[TableKind::Cpu as usize],
         &trace_commitments[TableKind::Cpu as usize],
@@ -394,6 +401,7 @@ where
 
     let rangecheck_proof = prove_single_table::<F, C, RangeCheckStark<F, D>, D>(
         &mozak_stark.rangecheck_stark,
+        None,
         config,
         &traces_poly_values[TableKind::RangeCheck as usize],
         &trace_commitments[TableKind::RangeCheck as usize],
@@ -405,6 +413,7 @@ where
 
     let xor_proof = prove_single_table::<F, C, XorStark<F, D>, D>(
         &mozak_stark.xor_stark,
+        None,
         config,
         &traces_poly_values[TableKind::Xor as usize],
         &trace_commitments[TableKind::Xor as usize],
@@ -416,6 +425,7 @@ where
 
     let shift_amount_proof = prove_single_table::<F, C, BitshiftStark<F, D>, D>(
         &mozak_stark.shift_amount_stark,
+        None,
         config,
         &traces_poly_values[TableKind::Bitshift as usize],
         &trace_commitments[TableKind::Bitshift as usize],
@@ -427,6 +437,7 @@ where
 
     let program_proof = prove_single_table::<F, C, ProgramStark<F, D>, D>(
         &mozak_stark.program_stark,
+        None,
         config,
         &traces_poly_values[TableKind::Program as usize],
         &trace_commitments[TableKind::Program as usize],
@@ -438,6 +449,7 @@ where
 
     let memory_proof = prove_single_table::<F, C, MemoryStark<F, D>, D>(
         &mozak_stark.memory_stark,
+        None,
         config,
         &traces_poly_values[TableKind::Memory as usize],
         &trace_commitments[TableKind::Memory as usize],

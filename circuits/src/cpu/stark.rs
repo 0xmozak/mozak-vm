@@ -11,9 +11,10 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::{CpuColumnsExtended, CpuState, Instruction, OpSelectors};
+use super::columns::{CpuColumnsExtended, CpuState, Instruction, OpSelectors, MAP};
 use super::{add, bitwise, branches, div, ecall, jalr, mul, signed_comparison, sub};
 use crate::columns_view::NumberOfColumns;
+use crate::lookup::Lookup;
 use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::PublicInputs;
 
@@ -261,6 +262,16 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         unimplemented!()
+    }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> CpuStark<F, D> {
+    pub fn lookups(self) -> Vec<Lookup> {
+        vec![Lookup {
+            looking_columns: vec![MAP.cpu.dst_value],
+            looked_column: usize::from(MAP.cpu.u16_range),
+            multiplicity_column: MAP.cpu.multiplicity,
+        }]
     }
 }
 

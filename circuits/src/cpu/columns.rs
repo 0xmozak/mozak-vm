@@ -102,6 +102,9 @@ pub struct CpuState<T> {
     pub product_low_bits: T,
     pub product_high_bits: T,
     pub product_high_diff_inv: T,
+
+    pub u16_range: T,
+    pub multiplicity: T,
 }
 
 make_col_map!(CpuColumnsExtended);

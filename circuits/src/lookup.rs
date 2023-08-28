@@ -7,10 +7,54 @@
 use std::collections::VecDeque;
 
 use itertools::Itertools;
+use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::{Field, PrimeField64};
+use plonky2::hash::hash_types::RichField;
+use serde::{Deserialize, Serialize};
 use starky::constraint_consumer::ConstraintConsumer;
+use starky::stark::Stark;
 use starky::vars::StarkEvaluationVars;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Lookup {
+    /// f_i(x)
+    pub(crate) looking_columns: Vec<usize>,
+    /// t_i(x)
+    pub(crate) looked_column: usize,
+    /// m_i(x)
+    pub(crate) multiplicity_column: usize,
+}
+
+pub struct LookupCheckVars<F, FE, P, const D2: usize>
+where
+    F: Field,
+    FE: FieldExtension<D2, BaseField = F>,
+    P: PackedField<Scalar = FE>, {
+    pub(crate) local_values: Vec<P>,
+    pub(crate) next_values: Vec<P>,
+    pub(crate) challenges: Vec<F>,
+}
+
+impl Lookup {
+    pub(crate) fn eval<F, FE, P, S, const D: usize, const D2: usize>(
+        self,
+        stark: &S,
+        vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
+        lookup_vars: LookupCheckVars<F, FE, P, D2>,
+        yield_constr: &mut ConstraintConsumer<P>,
+    ) where
+        F: RichField + Extendable<D>,
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>,
+        S: Stark<F, D>, {
+        for challenge in lookup_vars.challenges {
+            let field_extended_challenge = FE::from_basefield(challenge);
+        }
+    }
+
+    pub(crate) fn num_helper_columns(self) -> usize { self.looking_columns.len() + 2 }
+}
 
 pub(crate) fn eval_lookups<
     F: Field,

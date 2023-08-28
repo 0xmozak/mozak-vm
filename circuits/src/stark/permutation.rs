@@ -12,13 +12,10 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::Hasher;
 use plonky2::plonk::plonk_common::reduce_with_powers;
-use plonky2::util::reducing::ReducingFactor;
 use plonky2_maybe_rayon::{MaybeIntoParIter, ParallelIterator};
 use starky::config::StarkConfig;
-use starky::constraint_consumer::ConstraintConsumer;
 use starky::permutation::PermutationPair;
 use starky::stark::Stark;
-use starky::vars::StarkEvaluationVars;
 
 /// A single instance of a permutation check protocol.
 pub(crate) struct PermutationInstance<'a, T: Copy + Eq + PartialEq + Debug> {
@@ -197,72 +194,4 @@ pub(crate) fn get_permutation_batches<'a, T: Copy + Eq + PartialEq + Debug>(
                 .collect_vec()
         })
         .collect()
-}
-
-pub struct PermutationCheckVars<F, FE, P, const D2: usize>
-where
-    F: Field,
-    FE: FieldExtension<D2, BaseField = F>,
-    P: PackedField<Scalar = FE>, {
-    pub(crate) local_zs: Vec<P>,
-    pub(crate) next_zs: Vec<P>,
-    pub(crate) permutation_challenge_sets: Vec<GrandProductChallengeSet<F>>,
-}
-
-pub(crate) fn eval_permutation_checks<F, FE, P, S, const D: usize, const D2: usize>(
-    stark: &S,
-    config: &StarkConfig,
-    vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
-    permutation_vars: PermutationCheckVars<F, FE, P, D2>,
-    consumer: &mut ConstraintConsumer<P>,
-) where
-    F: RichField + Extendable<D>,
-    FE: FieldExtension<D2, BaseField = F>,
-    P: PackedField<Scalar = FE>,
-    S: Stark<F, D>, {
-    let PermutationCheckVars {
-        local_zs,
-        next_zs,
-        permutation_challenge_sets,
-    } = permutation_vars;
-
-    // Check that Z(1) = 1;
-    for &z in &local_zs {
-        consumer.constraint_first_row(z - FE::ONE);
-    }
-
-    let permutation_pairs = stark.permutation_pairs();
-
-    let permutation_batches = get_permutation_batches(
-        &permutation_pairs,
-        &permutation_challenge_sets,
-        config.num_challenges,
-        stark.permutation_batch_size(),
-    );
-
-    // Each zs value corresponds to a permutation batch.
-    for (i, instances) in permutation_batches.iter().enumerate() {
-        // Z(gx) * down = Z x  * up
-        let (reduced_lhs, reduced_rhs): (Vec<P>, Vec<P>) = instances
-            .iter()
-            .map(|instance| {
-                let PermutationInstance {
-                    pair: PermutationPair { column_pairs },
-                    challenge: GrandProductChallenge { beta, gamma },
-                } = instance;
-                let mut factor = ReducingFactor::new(*beta);
-                let (lhs, rhs): (Vec<_>, Vec<_>) = column_pairs
-                    .iter()
-                    .map(|&(i, j)| (vars.local_values[i], vars.local_values[j]))
-                    .unzip();
-                (
-                    factor.reduce_ext(lhs.into_iter()) + FE::from_basefield(*gamma),
-                    factor.reduce_ext(rhs.into_iter()) + FE::from_basefield(*gamma),
-                )
-            })
-            .unzip();
-        let constraint = next_zs[i] * reduced_rhs.into_iter().product::<P>()
-            - local_zs[i] * reduced_lhs.into_iter().product::<P>();
-        consumer.constraint(constraint);
-    }
 }

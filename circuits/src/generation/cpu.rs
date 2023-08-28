@@ -33,6 +33,8 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     (chain!(transpose_trace(cpu_trace), transpose_trace(permuted))).collect()
 }
 
+const U16_RANGE_MAX: usize = 1 << 16;
+
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_cpu_trace<F: RichField>(
     program: &Program,
