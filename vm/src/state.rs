@@ -84,11 +84,11 @@ impl State {
     #[allow(clippy::missing_panics_doc)]
     pub fn branch_op(self, data: &Args, op: fn(u32, u32) -> bool) -> (Aux, State) {
         let op1 = self.get_register_value(data.rs1);
-        let op2 = self.get_register_value(data.rs2).wrapping_add(data.imm);
+        let op2 = self.get_register_value(data.rs2);
         (
             Aux::default(),
             if op(op1, op2) {
-                self.set_pc(data.branch_target)
+                self.set_pc(data.imm)
             } else {
                 self.bump_pc()
             },

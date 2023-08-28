@@ -107,7 +107,6 @@ mod tests {
                         rs2: 6,
                         rd: 7,
                         imm,
-                        ..Args::default()
                     },
                 },
                 Instruction {
@@ -117,7 +116,6 @@ mod tests {
                         rs2: 6,
                         rd: 7,
                         imm,
-                        ..Args::default()
                     },
                 },
                 Instruction {
@@ -127,7 +125,6 @@ mod tests {
                         rs2: 6,
                         rd: 7,
                         imm,
-                        ..Args::default()
                     },
                 },
             ],
