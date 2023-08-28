@@ -229,26 +229,24 @@ mod tests {
         let memory_trace = generate_memory_trace::<F>(&program, &record.executed);
         let mut trace = generate_rangecheck_trace::<F>(&cpu_trace, &memory_trace);
 
-        // The above generations setup the traces nicely, but we need to introduce
-        // malicious entries here to test our failing cases.
-        let out_of_range_value = F::from_canonical_u32(u32::from(u16::MAX) + 1);
-        trace[MAP.val][0] = out_of_range_value;
-        trace[MAP.limb_hi][0] = F::ZERO;
-        // We introduce a value bigger than `u16::MAX` in the
-        // lower limb.
-        trace[MAP.limb_lo][0] = out_of_range_value;
-        trace[MAP.fixed_range_check_u16_permuted_lo][0] = out_of_range_value;
+        let len = trace[0].len();
+
+        // Set limb_lo_permuted to be larger than u16::MAX, so that our rangecheck
+        // fails.
+        trace[3][len - 1] = F::from_canonical_u32(u32::from(u16::MAX) + 1);
 
         let local_values: [GoldilocksField; NUM_RC_COLS] = trace
             .iter()
-            .map(|row| *row.last().unwrap())
+            .map(|row| row[len - 2])
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
         let next_values = trace
             .iter()
-            // The next row after the last row wraps around.
-            .map(|row| row[0])
+            // We want the next values to be the last row, since our constraints
+            // that asserts the horizontal diff described in Halo2 act on next
+            // values, not the local values.
+            .map(|row| *row.last().unwrap())
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
@@ -262,15 +260,9 @@ mod tests {
         let mut constraint_consumer = ConstraintConsumer::new_debug_api(false, true);
         stark.eval_packed_generic(vars, &mut constraint_consumer);
 
-        // Manually check sum constraint to be sure that our constraints hold for the
-        // sum check.
-        assert_eq!(
-            trace[MAP.val][0],
-            trace[MAP.limb_hi][0] * F::from_canonical_usize(RangeCheckStark::<F, D>::BASE)
-                + trace[MAP.limb_lo][0]
-        );
-        // If the above assert passes and the below condition fails i.e. assert_ne
-        // evaluates to true, this should mean that our range check failed.
+        // If this evaluates to true, this should mean that our range check failed.
+        // Note that it is impossible for our sumcheck to fail since that constraint
+        // is based on unrelated columns from what we tweaked above.
         assert_ne!(
             constraint_consumer.constraint_accs[0],
             GoldilocksField::ZERO
