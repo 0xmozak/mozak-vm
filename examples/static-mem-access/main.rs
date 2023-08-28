@@ -10,7 +10,7 @@ static mut R_STATIC_B: u32 = 51;
 #[no_mangle]
 pub fn _start() -> ! {
     unsafe {
-        assert!(R_CONST_A > 41);
+        assert!(R_CONST_A == 41);
         assert!(R_STATIC_B > 0);
         R_STATIC_B = 56;
         exit(R_STATIC_B, 0);

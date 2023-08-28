@@ -11,6 +11,14 @@ cargo +nightly build
 ```
 This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/debug/`.
 
+## Running ELFs
+Use `mozak-cli`'s run command to execute generated ELF.
+
+```bash
+mozak-cli -vvv run target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
+
+```
+
 ## Exploring binaries
 ### To dump assembly files
 ```bash
