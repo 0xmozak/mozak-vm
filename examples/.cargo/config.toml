@@ -3,5 +3,5 @@ build-std = ["alloc", "core", "compiler_builtins", "std", "panic_abort", "proc_m
 build-std-features = ["compiler-builtins-mem"]
 
 [build]
-rustflags = ["--emit", "asm", "-C", "passes=loweratomic", "-C", "link-arg=-Ttext=0x00000400"]
+rustflags = ["-C", "passes=loweratomic"]
 target = "./.cargo/riscv32im-mozak-zkvm-elf.json"

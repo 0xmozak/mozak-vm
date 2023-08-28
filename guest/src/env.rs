@@ -18,7 +18,7 @@ pub fn finalize() {
     // used as function argument/result.
     unsafe {
         let output_bytes_vec = OUTPUT_BYTES.as_ref().unwrap_unchecked();
-        let output_0 = output_bytes_vec.get(0).unwrap_unchecked();
+        let output_0 = output_bytes_vec.first().unwrap_unchecked();
         asm!(
             "add a0, zero, {a0}",
             "li a7, 93",
@@ -26,7 +26,7 @@ pub fn finalize() {
             a0 = in(reg) output_0,
         );
     }
-    loop {}
+    unreachable!();
 }
 
 #[no_mangle]

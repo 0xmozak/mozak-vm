@@ -27,7 +27,7 @@ unsafe extern "C" fn __start() {
     env::finalize();
 }
 
-static STACK_TOP: u32 = 0x0BF_FFC00;
+static STACK_TOP: u32 = 0xFFFF_FFFF;
 
 // Entry point; sets up stack pointer and passes to __start.
 core::arch::global_asm!(
