@@ -4,12 +4,17 @@
 use core::arch::asm;
 use core::assert;
 
+const R_CONST_A: u32 = 41;
+static mut R_STATIC_B: u32 = 51;
+
 #[no_mangle]
 pub fn _start() -> ! {
-    let min = std::cmp::min(100_u32, 1000_u32);
-    let max = std::cmp::max(100_u32, 1000_u32);
-    assert!(min < max);
-    exit(min, max);
+    unsafe {
+        assert!(R_CONST_A > 41);
+        assert!(R_STATIC_B > 0);
+        R_STATIC_B = 56;
+        exit(R_STATIC_B, 0);
+    }
 }
 
 /// Exit syscall
