@@ -4,7 +4,6 @@
 use core::arch::asm;
 use core::assert;
 
-
 #[no_mangle]
 pub fn _start() -> ! {
     let min = std::cmp::min(100_u32, 1000_u32);
