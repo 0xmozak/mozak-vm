@@ -230,13 +230,14 @@ mod tests {
         let mut trace = generate_rangecheck_trace::<F>(&cpu_trace, &memory_trace);
 
         let len = trace[0].len();
+        let bad_row_idx = len - 1;
 
         // Set limb to be larger than u16::MAX, to fail the range check.
-        trace[MAP.limb_lo_permuted][len - 1] = F::from_canonical_u32(u32::from(u16::MAX) + 1);
+        trace[MAP.limb_lo_permuted][bad_row_idx] = F::from_canonical_u32(u32::from(u16::MAX) + 1);
 
         let local_values: [GoldilocksField; NUM_RC_COLS] = trace
             .iter()
-            .map(|row| row[len - 2])
+            .map(|row| row[bad_row_idx - 1])
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
@@ -245,7 +246,7 @@ mod tests {
             // We want the next values to be the last row, since our constraints
             // that asserts the horizontal diff described in Halo2 act on next
             // values, not the local values.
-            .map(|row| *row.last().unwrap())
+            .map(|row| row[bad_row_idx])
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
@@ -292,21 +293,23 @@ mod tests {
         // a malicious entry here to test our failing case.
         let value: u32 = 0xDEAD_BEEF;
         let (limb_hi, limb_lo): (F, F) = limbs_from_u32(value);
-        trace[MAP.val][0] = GoldilocksField(value.into());
-        trace[MAP.limb_hi][0] = limb_hi;
+
+        let bad_row_idx = 0;
+        trace[MAP.val][bad_row_idx] = GoldilocksField(value.into());
+        trace[MAP.limb_hi][bad_row_idx] = limb_hi;
         // Subtract one intentionally to make our sum check constraint fail.
         let malicious_limb_lo = limb_lo - F::ONE;
-        trace[MAP.limb_lo][0] = malicious_limb_lo;
+        trace[MAP.limb_lo][bad_row_idx] = malicious_limb_lo;
 
         let local_values: [GoldilocksField; NUM_RC_COLS] = trace
             .iter()
-            .map(|row| row[0])
+            .map(|row| row[bad_row_idx])
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
         let next_values = trace
             .iter()
-            .map(|row| row[1])
+            .map(|row| row[bad_row_idx + 1])
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
