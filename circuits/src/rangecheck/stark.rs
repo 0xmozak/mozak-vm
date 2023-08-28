@@ -179,7 +179,7 @@ mod tests {
         for i in 0..len {
             let local_values = trace
                 .iter()
-                .map(|row| row[i % len])
+                .map(|row| row[i])
                 .collect::<Vec<_>>()
                 .try_into()
                 .unwrap();
@@ -231,9 +231,8 @@ mod tests {
 
         let len = trace[0].len();
 
-        // Set limb_lo_permuted to be larger than u16::MAX, so that our rangecheck
-        // fails.
-        trace[3][len - 1] = F::from_canonical_u32(u32::from(u16::MAX) + 1);
+        // Set limb to be larger than u16::MAX, to fail the range check.
+        trace[MAP.limb_lo_permuted][len - 1] = F::from_canonical_u32(u32::from(u16::MAX) + 1);
 
         let local_values: [GoldilocksField; NUM_RC_COLS] = trace
             .iter()
