@@ -9,3 +9,7 @@ version = "0.1.0"
 [[package]]
 name = "min-max-mozak-guest"
 version = "0.1.0"
+
+[[package]]
+name = "static-mem-access"
+version = "0.1.0"
