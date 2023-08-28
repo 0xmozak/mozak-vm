@@ -166,22 +166,29 @@ fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
 }
 
 /// Constraints for values in op2, which is the sum of the value of the second
-/// operand register and the immediate value. This may overflow.
+/// operand register and the immediate value (except for branch instructions).
+/// This may overflow.
 fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
     let wrap_at = CpuState::<P>::shifted(32);
+    let ops = &lv.inst.ops;
+    let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bltu + ops.bge + ops.bgeu;
 
+    // Note: we could skip 0, because r0 is always 0.
+    // But we keep the constraints simple here.
+    let rs2_value = (0..32)
+        .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
+        .sum::<P>();
+
+    yield_constr.constraint(is_branch_operation * (lv.op2_value - rs2_value));
     yield_constr.constraint(
-        lv.op2_value_overflowing - lv.inst.imm_value
-            // Note: we could skip 0, because r0 is always 0.
-            // But we keep the constraints simple here.
-            - (0..32)
-                .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
-                .sum::<P>(),
+        (P::ONES - is_branch_operation)
+            * (lv.op2_value_overflowing - lv.inst.imm_value - rs2_value),
     );
 
     yield_constr.constraint(
-        (lv.op2_value_overflowing - lv.op2_value)
-            * (lv.op2_value_overflowing - lv.op2_value - wrap_at * lv.inst.ops.is_mem_op()),
+        (P::ONES - is_branch_operation)
+            * (lv.op2_value_overflowing - lv.op2_value)
+            * (lv.op2_value_overflowing - lv.op2_value - wrap_at * ops.is_mem_op()),
     );
 }
 
