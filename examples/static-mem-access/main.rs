@@ -1,38 +1,18 @@
 #![no_main]
 #![feature(restricted_std)]
 
-use core::arch::asm;
 use core::assert;
 
 const R_CONST_A: u32 = 41;
 static mut R_STATIC_B: u32 = 51;
 
-#[no_mangle]
-pub fn _start() -> ! {
+pub fn main() {
     unsafe {
-        assert!(R_CONST_A > 41);
+        assert!(R_CONST_A == 41);
         assert!(R_STATIC_B > 0);
         R_STATIC_B = 56;
-        exit(R_STATIC_B, 0);
+        guest::env::write(&R_STATIC_B.to_be_bytes());
     }
 }
 
-/// Exit syscall
-///
-/// As per RISC-V Calling Convention a0/a1 (which are actually X10/X11) can be
-/// used as function argument/result.
-#[no_mangle]
-#[inline(never)]
-pub fn exit(a0: u32, a1: u32) -> ! {
-    unsafe {
-        asm!(
-            "add a0, zero, {a0}",
-            "add a1, zero, {a1}",
-            "li a7, 93",
-            "ecall",
-            a0 = in(reg) a0,
-            a1 = in(reg) a1,
-        );
-    }
-    loop {}
-}
+guest::entry!(main);

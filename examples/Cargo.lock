@@ -30,3 +30,6 @@ dependencies = [
 [[package]]
 name = "static-mem-access"
 version = "0.1.0"
+dependencies = [
+ "guest",
+]
