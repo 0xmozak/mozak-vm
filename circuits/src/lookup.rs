@@ -9,6 +9,7 @@ use std::collections::VecDeque;
 use itertools::Itertools;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
+use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::{Field, PrimeField64};
 use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
@@ -38,7 +39,7 @@ where
 
 impl Lookup {
     pub(crate) fn eval<F, FE, P, S, const D: usize, const D2: usize>(
-        self,
+        &self,
         stark: &S,
         vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
         lookup_vars: LookupCheckVars<F, FE, P, D2>,
@@ -50,10 +51,56 @@ impl Lookup {
         S: Stark<F, D>, {
         for challenge in lookup_vars.challenges {
             let field_extended_challenge = FE::from_basefield(challenge);
+
+            for col in &self.looking_columns {}
         }
     }
 
-    pub(crate) fn num_helper_columns(self) -> usize { self.looking_columns.len() + 2 }
+    /// This is the h(x) within the paper.
+    /// Aside from the number of columns, we need:
+    /// 1 column for multiplicity, and
+    /// another column for the running sum.
+    pub(crate) fn num_helper_columns(&self) -> usize { self.looking_columns.len() + 2 }
+
+    /// Compute helper columns for the lookup argument.
+    pub(crate) fn populate_helper_columns<F: Field>(
+        &self,
+        trace_poly_values: &[PolynomialValues<F>],
+        challenge: F,
+    ) -> Vec<PolynomialValues<F>> {
+        let num_helper_columns = self.num_helper_columns();
+        let mut helper_columns: Vec<PolynomialValues<F>> = Vec::with_capacity(num_helper_columns);
+
+        for col in self.looking_columns.iter() {
+            let mut column = trace_poly_values[*col].values.clone();
+            for x in column.iter_mut() {
+                *x = challenge + *x;
+            }
+
+            helper_columns.push(F::batch_multiplicative_inverse(&column).into());
+        }
+
+        let mut looked = trace_poly_values[self.looked_column].values.clone();
+        for x in looked.iter_mut() {
+            *x = challenge + *x;
+        }
+        helper_columns.push(F::batch_multiplicative_inverse(&looked).into());
+
+        let multiplicities = &trace_poly_values[self.multiplicity_column].values;
+        let mut z = Vec::with_capacity(multiplicities.len());
+        z.push(F::ZERO);
+        for i in 0..multiplicities.len() - 1 {
+            let x = helper_columns[..num_helper_columns - 2]
+                .iter()
+                .map(|col| col.values[i])
+                .sum::<F>()
+                - multiplicities[i] * helper_columns.last().unwrap().values[i];
+            z.push(z[i] + x);
+        }
+        helper_columns.push(z.into());
+
+        helper_columns
+    }
 }
 
 pub(crate) fn eval_lookups<

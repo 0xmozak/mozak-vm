@@ -216,12 +216,10 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         config: &StarkConfig,
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
-        num_permutation_zs: &[usize; NUM_TABLES],
     ) -> [Vec<Self>; NUM_TABLES] {
         let mut ctl_zs = proofs
             .iter()
-            .zip(num_permutation_zs)
-            .map(|(p, &num_perms)| {
+            .map(|p| {
                 let openings = &p.proof.openings;
                 let num_lookups = p.num_helper_columns(config);
                 let ctl_zs = openings.auxiliary_polys.iter().skip(num_lookups);

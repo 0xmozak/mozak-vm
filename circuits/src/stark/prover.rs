@@ -205,6 +205,25 @@ where
     );
 
     challenger.compact();
+    let lookup_challenges = lookups
+        .as_ref()
+        .map(|_| challenger.get_n_challenges(config.num_challenges));
+
+    let lookup_helper_columns = timed!(
+        timing,
+        "compute lookup helper columns",
+        lookup_challenges.as_ref().map(|challenges| {
+            let mut columns = Vec::new();
+            for lookup in lookups.as_deref().unwrap() {
+                for &challenge in challenges {
+                    columns.extend(lookup.populate_helper_columns(trace_poly_values, challenge));
+                }
+            }
+            columns
+        })
+    );
+
+    println!("LU HELPER: {:?}", lookup_helper_columns);
 
     // Permutation arguments.
     let permutation_challenges: Vec<GrandProductChallengeSet<F>> =

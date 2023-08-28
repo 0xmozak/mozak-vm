@@ -103,8 +103,14 @@ pub struct CpuState<T> {
     pub product_high_bits: T,
     pub product_high_diff_inv: T,
 
+    pub rc_limb_hi: T,
+    pub rc_limb_lo: T,
     pub u16_range: T,
     pub multiplicity: T,
+}
+
+impl<T> CpuState<T> {
+    pub fn rangechecked_columns() -> Vec<usize> { vec![MAP.cpu.rc_limb_hi, MAP.cpu.rc_limb_lo] }
 }
 
 make_col_map!(CpuColumnsExtended);

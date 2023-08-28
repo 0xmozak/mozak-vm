@@ -6,10 +6,10 @@ use mozak_vm::instruction::{Instruction, Op};
 use mozak_vm::state::{Aux, State};
 use mozak_vm::vm::{ExecutionRecord, Row};
 use plonky2::hash::hash_types::RichField;
+use plonky2::util::transpose;
 
 use crate::bitshift::columns::Bitshift;
-use crate::cpu::columns as cpu_cols;
-use crate::cpu::columns::{CpuColumnsExtended, CpuState};
+use crate::cpu::columns::{self as cpu_cols, CpuColumnsExtended, CpuState, MAP};
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::stark::utils::transpose_trace;
 use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend};
@@ -34,6 +34,25 @@ pub fn generate_cpu_trace_extended<F: RichField>(
 }
 
 const U16_RANGE_MAX: usize = 1 << 16;
+
+fn generate_rangechecks<F: RichField>(mut trace: Vec<CpuState<F>>) -> Vec<CpuState<F>> {
+    let mut multiplicities = [F::ZERO; U16_RANGE_MAX];
+
+    for (i, row) in trace.iter().enumerate() {
+        let value = F::to_noncanonical_u64(&row.dst_value) as usize;
+        multiplicities[value] += F::ONE;
+    }
+
+    for (i, row) in trace.iter_mut().enumerate() {
+        row.u16_range = if i < U16_RANGE_MAX {
+            F::from_canonical_usize(i)
+        } else {
+            F::from_canonical_usize(U16_RANGE_MAX)
+        };
+    }
+
+    trace
+}
 
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_cpu_trace<F: RichField>(
@@ -86,6 +105,8 @@ pub fn generate_cpu_trace<F: RichField>(
         generate_conditional_branch_row(&mut row);
         trace.push(row);
     }
+
+    trace = generate_rangechecks(trace);
 
     log::trace!("trace {:?}", trace);
     trace
@@ -217,13 +238,39 @@ pub fn generate_permuted_inst_trace<F: RichField>(
 
 #[cfg(test)]
 mod tests {
+    use mozak_vm::instruction::{Args, Instruction as VMInstruction, Op};
+    use mozak_vm::test_utils::simple_test_code;
+    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
+    use super::*;
     use crate::columns_view::selection;
     use crate::cpu::columns::{CpuState, Instruction};
     use crate::generation::cpu::generate_permuted_inst_trace;
     use crate::program::columns::{InstructionRow, ProgramRom};
     use crate::utils::from_u32;
+
+    #[test]
+    fn test_generate_cpu_trace() {
+        let (program, record) = simple_test_code(
+            &[VMInstruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: 5,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            // Use values that would become limbs later
+            &[(6, 0xffff), (7, 0xffff)],
+        );
+
+        let cpu_trace = generate_cpu_trace::<GoldilocksField>(&program, &record);
+
+        println!("cpu: {:?} len: {:?}", cpu_trace, cpu_trace.len());
+    }
 
     #[test]
     #[allow(clippy::too_many_lines)]
