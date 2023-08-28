@@ -27,6 +27,15 @@ unsafe extern "C" fn __start() {
     env::finalize();
 }
 
+// The stack grows downwards (towards lower addresses) and the stack pointer
+// shall be aligned to a 128-bit boundary upon procedure entry. The first
+// argument passed on the stack is located at offset zero of the stack pointer
+// on function entry; following arguments are stored at correspondingly higher
+// addresses.
+//
+// For more details:
+// https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc
+
 static STACK_TOP: u32 = 0xFFFF_FFFF;
 
 // Entry point; sets up stack pointer and passes to __start.
