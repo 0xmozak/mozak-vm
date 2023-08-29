@@ -27,11 +27,13 @@ Cargo run command:
 ```bash
 cargo run --bin <EXECUTABLE_NAME>
 ```
+
 Example:
 
 ```bash
 cargo run --bin min-max
 ```
+
 Note: For `cargo run` to work `mozak-cli` must be present at `../target/release/`, i.e already compiled in release mode.
 
 Otherwise use `mozak-cli`'s run command to execute generated ELF.
