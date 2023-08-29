@@ -90,6 +90,7 @@ mod tests {
     use starky::stark_testing::test_stark_low_degree;
 
     use super::BitshiftStark;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
