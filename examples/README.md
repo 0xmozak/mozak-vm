@@ -15,8 +15,10 @@ This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/debug/`.
 
 The generated ELFs can be executed with `mozak-cli`.
 
-To build mozak-cli use following command from top mozak-vm directory.
-`cargo build --package mozak-cli --release`
+To build mozak-cli, run (in the project root).
+```bash
+cargo build --package mozak-cli --release
+```
 
 After building `mozak-cli` use any of following ways to run the ELFs.
 
