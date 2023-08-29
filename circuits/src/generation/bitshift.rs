@@ -27,8 +27,7 @@ pub fn generate_shift_amount_trace<F: RichField>(
             .merge_join_by(0..32, u64::cmp)
             .map(|executed_or_dummy| {
                 BitshiftView {
-                    is_executed: (executed_or_dummy.is_left() || executed_or_dummy.is_both())
-                        .into(),
+                    is_executed: executed_or_dummy.has_left().into(),
                     executed: executed_or_dummy.into_left().into(),
                 }
                 .map(F::from_canonical_u64)
