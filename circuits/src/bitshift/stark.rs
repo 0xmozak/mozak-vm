@@ -103,6 +103,43 @@ mod tests {
         test_stark_low_degree(stark)
     }
 
+    #[test]
+    fn prove_sll() -> Result<()> {
+        let p: u32 = 10;
+        let q: u32 = 10;
+        let sll = Instruction {
+            op: Op::SLL,
+            args: Args {
+                rd: 5,
+                rs1: 7,
+                rs2: 8,
+                ..Args::default()
+            },
+        };
+        let (program, record) = simple_test_code(&[sll, sll], &[], &[(7, p), (8, q)]);
+        assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
+        MozakStark::prove_and_verify(&program, &record)
+    }
+
+    #[test]
+    fn prove_srl() -> Result<()> {
+        let p: u32 = 10;
+        let q: u32 = 10;
+        let srl = Instruction {
+            op: Op::SRL,
+            args: Args {
+                rd: 5,
+                rs1: 7,
+                rs2: 8,
+                ..Args::default()
+            },
+        };
+
+        let (program, record) = simple_test_code(&[srl, srl], &[], &[(7, p), (8, q)]);
+        assert_eq!(record.executed[0].aux.dst_val, p >> (q & 0x1F));
+        MozakStark::prove_and_verify(&program, &record)
+    }
+
     proptest! {
         #[test]
         fn prove_shift_amount_proptest(p in u32_extra(), q in u32_extra()) {
