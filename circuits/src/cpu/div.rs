@@ -15,8 +15,6 @@ use super::columns::CpuState;
 ///
 /// SRL stands for 'shift right logical'.  We can treat it as a variant of
 /// unsigned division.
-///
-/// TODO: m, r, slack need range-checks.
 #[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
@@ -109,7 +107,69 @@ mod tests {
     use proptest::{prop_assert, proptest};
 
     use crate::cpu::stark::CpuStark;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::{inv, ProveAndVerify};
+
+    fn divu_remu_instructions(rd: u8) -> [Instruction; 2] {
+        [
+            Instruction {
+                op: Op::DIVU,
+                args: Args {
+                    rd,
+                    rs1: 1,
+                    rs2: 2,
+                    ..Args::default()
+                },
+            },
+            Instruction {
+                op: Op::REMU,
+                args: Args {
+                    rd,
+                    rs1: 1,
+                    rs2: 2,
+                    ..Args::default()
+                },
+            },
+        ]
+    }
+
+    fn srl_instructions(rd: u8, q: u32) -> [Instruction; 2] {
+        [
+            Instruction {
+                op: Op::SRL,
+                args: Args {
+                    rd,
+                    rs1: 1,
+                    rs2: 2,
+                    ..Args::default()
+                },
+            },
+            Instruction {
+                op: Op::SRL,
+                args: Args {
+                    rd,
+                    rs1: 1,
+                    imm: q,
+                    ..Args::default()
+                },
+            },
+        ]
+    }
+
+    #[test]
+    fn prove_divu_remu() {
+        let (program, record) =
+            simple_test_code(&divu_remu_instructions(3), &[], &[(1, 200), (2, 100)]);
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    #[test]
+    fn prove_srl() {
+        let (program, record) =
+            simple_test_code(&srl_instructions(3, 200), &[], &[(1, 200), (2, 100)]);
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -120,28 +180,12 @@ mod tests {
                 prop_assert!(u64::from(u32::MAX) < y);
             }
         }
+
+
         #[test]
         fn prove_divu_proptest(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
             let (program, record) = simple_test_code(
-                &[Instruction {
-                    op: Op::DIVU,
-                    args: Args {
-                        rd,
-                        rs1: 1,
-                        rs2: 2,
-                        ..Args::default()
-                    },
-                },
-                Instruction {
-                    op: Op::REMU,
-                    args: Args {
-                        rd,
-                        rs1: 1,
-                        rs2: 2,
-                        ..Args::default()
-                    },
-                }
-                ],
+                &divu_remu_instructions(rd),
                 &[],
                 &[(1, p), (2, q)],
             );
@@ -159,28 +203,11 @@ mod tests {
                 });
             CpuStark::prove_and_verify(&program, &record).unwrap();
         }
+
         #[test]
         fn prove_srl_proptest(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
             let (program, record) = simple_test_code(
-                &[Instruction {
-                    op: Op::SRL,
-                    args: Args {
-                        rd,
-                        rs1: 1,
-                        rs2: 2,
-                        ..Args::default()
-                    },
-                },
-                Instruction {
-                    op: Op::SRL,
-                    args: Args {
-                        rd,
-                        rs1: 1,
-                        imm: q,
-                        ..Args::default()
-                    },
-                }
-                ],
+                &srl_instructions(rd, q),
                 &[],
                 &[(1, p), (2, q)],
             );

@@ -183,6 +183,18 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let ops = &MAP.cpu.inst.ops;
     vec![
         CpuTable::new(
+            Column::singles([MAP.cpu.quotient]),
+            Column::many([ops.divu, ops.remu, ops.srl]),
+        ),
+        CpuTable::new(
+            Column::singles([MAP.cpu.remainder]),
+            Column::many([ops.divu, ops.remu, ops.srl]),
+        ),
+        CpuTable::new(
+            Column::singles([MAP.cpu.remainder_slack]),
+            Column::many([ops.divu, ops.remu, ops.srl]),
+        ),
+        CpuTable::new(
             Column::singles([MAP.cpu.dst_value]),
             Column::single(ops.add),
         ),
