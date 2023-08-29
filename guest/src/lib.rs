@@ -35,7 +35,6 @@ unsafe extern "C" fn __start() {
 //
 // For more details:
 // https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc
-
 static STACK_TOP: u32 = 0xFFFF_FFFF;
 
 // Entry point; sets up stack pointer and passes to __start.
