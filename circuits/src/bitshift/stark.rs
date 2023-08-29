@@ -90,6 +90,7 @@ mod tests {
     use starky::stark_testing::test_stark_low_degree;
 
     use super::BitshiftStark;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
@@ -131,6 +132,7 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
             prop_assert_eq!(record.executed[1].aux.dst_val, p >> (q & 0x1F));
+            MozakStark::prove_and_verify(&program, &record).unwrap();
             BitshiftStark::prove_and_verify(&program, &record).unwrap();
         }
     }
