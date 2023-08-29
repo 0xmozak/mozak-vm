@@ -117,6 +117,8 @@ mod tests {
                 ..Args::default()
             },
         };
+        // We use 2 similar instructions here to ensure duplicates work during trace
+        // generation.
         let (program, record) = simple_test_code(&[sll, sll], &[], &[(7, p), (8, q)]);
         assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
         MozakStark::prove_and_verify(&program, &record)
@@ -136,6 +138,8 @@ mod tests {
             },
         };
 
+        // We use 2 similar instructions here to ensure duplicates work during trace
+        // generation.
         let (program, record) = simple_test_code(&[srl, srl], &[], &[(7, p), (8, q)]);
         assert_eq!(record.executed[0].aux.dst_val, p >> (q & 0x1F));
         MozakStark::prove_and_verify(&program, &record)
