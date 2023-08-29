@@ -5,11 +5,31 @@ version = 3
 [[package]]
 name = "fibonacci-mozak-guest"
 version = "0.1.0"
+dependencies = [
+ "guest",
+]
+
+[[package]]
+name = "guest"
+version = "0.1.0"
+
+[[package]]
+name = "memory-access-mozak-guest"
+version = "0.1.0"
+dependencies = [
+ "guest",
+]
 
 [[package]]
 name = "min-max-mozak-guest"
 version = "0.1.0"
+dependencies = [
+ "guest",
+]
 
 [[package]]
 name = "static-mem-access"
 version = "0.1.0"
+dependencies = [
+ "guest",
+]
