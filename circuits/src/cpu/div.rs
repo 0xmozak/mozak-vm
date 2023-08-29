@@ -15,8 +15,6 @@ use super::columns::CpuState;
 ///
 /// SRL stands for 'shift right logical'.  We can treat it as a variant of
 /// unsigned division.
-///
-/// TODO: m, r, slack need range-checks.
 #[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
