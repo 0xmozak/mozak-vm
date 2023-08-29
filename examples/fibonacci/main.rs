@@ -1,51 +1,24 @@
 #![no_main]
 #![feature(restricted_std)]
 
-use core::arch::asm;
 use core::{assert, assert_eq};
 
 fn fibonacci(n: u32) -> (u32, u32) {
-    if n == 0 {
-        return (0, 0);
+    if n < 2 {
+        return (0, n);
     }
-    if n == 1 {
-        return (0, 1);
-    }
-    let mut sum = 0_u64;
-    let mut last = 0;
-    let mut curr = 1;
+    let (mut curr, mut last) = (1_u64, 0_u64);
     for _i in 0..(n - 2) {
-        sum = last + curr;
-        last = curr;
-        curr = sum;
+        (curr, last) = (curr + last, curr);
     }
-    ((sum >> 32) as u32, sum as u32)
+    ((curr >> 32) as u32, curr as u32)
 }
 
-#[no_mangle]
-pub fn _start() -> ! {
+pub fn main() {
     let (high, low) = fibonacci(40);
     assert!(low == 63245986);
     assert_eq!(high, 0);
-    exit(low, high);
+    guest::env::write(&high.to_le_bytes());
 }
 
-/// Exit syscall
-///
-/// As per RISC-V Calling Convention a0/a1 (which are actually X10/X11) can be
-/// used as function argument/result.
-#[no_mangle]
-#[inline(never)]
-pub fn exit(a0: u32, a1: u32) -> ! {
-    unsafe {
-        asm!(
-            "add a0, zero, {a0}",
-            "add a1, zero, {a1}",
-            "li a7, 93",
-            "ecall",
-            a0 = in(reg) a0,
-            a1 = in(reg) a1,
-        );
-    }
-    loop {}
-}
+guest::entry!(main);

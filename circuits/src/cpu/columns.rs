@@ -101,7 +101,6 @@ pub struct CpuState<T> {
     pub op1_sign_bit: T,
     pub op2_sign_bit: T,
 
-    // TODO: range check
     /// `|op1 - op2|`
     pub abs_diff: T,
     /// `1/|op1 - op2| `
