@@ -6,6 +6,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clio::{Input, Output};
 use log::debug;
+use mozak_circuits::generation::memoryinit::generate_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
@@ -52,6 +53,8 @@ enum Command {
     Verify { proof: Input },
     /// Compute the Program Rom Hash of the given ELF.
     ProgramRomHash { elf: Input },
+    /// Compute the Memory Init Hash of the given ELF.
+    MemoryInitHash { elf: Input },
 }
 
 fn build_info() {
@@ -154,6 +157,27 @@ fn main() -> Result<()> {
                 let program = load_program(elf)?;
                 let trace = generate_program_rom_trace(&program);
                 let trace_poly_values = trace_rows_to_poly_values(trace);
+                let rate_bits = config.fri_config.rate_bits;
+                let cap_height = config.fri_config.cap_height;
+                let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
+                    trace_poly_values,
+                    rate_bits,
+                    false, // blinding
+                    cap_height,
+                    &mut TimingTree::default(),
+                    None, // fft_root_table
+                );
+                let trace_cap = trace_commitment.merkle_tree.cap;
+                println!("{trace_cap:?}");
+            }
+            Command::MemoryInitHash { elf } => {
+                let program = load_program(elf)?;
+                let trace = generate_memory_init_trace(&program);
+                let trace_poly_values: Vec<
+                    plonky2::field::polynomial::PolynomialValues<
+                        plonky2::field::goldilocks_field::GoldilocksField,
+                    >,
+                > = trace_rows_to_poly_values(trace);
                 let rate_bits = config.fri_config.rate_bits;
                 let cap_height = config.fri_config.cap_height;
                 let trace_commitment = PolynomialBatch::<F, C, D>::from_values(

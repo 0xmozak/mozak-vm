@@ -288,7 +288,6 @@ mod tests {
                     rs2_select: selection(1),
                     rd_select: selection(1),
                     imm_value: 3,
-                    ..Default::default()
                 },
                 is_running: 1,
                 ..Default::default()
@@ -301,7 +300,6 @@ mod tests {
                     rs2_select: selection(3),
                     rd_select: selection(2),
                     imm_value: 2,
-                    ..Default::default()
                 },
                 is_running: 1,
                 ..Default::default()
@@ -314,7 +312,6 @@ mod tests {
                     rs2_select: selection(1),
                     rd_select: selection(1),
                     imm_value: 3,
-                    ..Default::default()
                 },
                 is_running: 1,
                 ..Default::default()
@@ -327,7 +324,6 @@ mod tests {
                     rs2_select: selection(4),
                     rd_select: selection(4),
                     imm_value: 4,
-                    ..Default::default()
                 },
                 is_running: 0,
                 ..Default::default()
