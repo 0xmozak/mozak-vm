@@ -116,10 +116,17 @@ mod tests {
     }
 
     #[test]
+    fn prove_memory_sb_lb_all() -> Result<()> {
+        let (program, executed) = memory_trace_test_case(1);
+        MozakStark::prove_and_verify(&program, &executed)?;
+        Ok(())
+    }
+
+    #[test]
     fn prove_memory_sb_lb() -> Result<()> {
         for repeats in 0..8 {
             let (program, executed) = memory_trace_test_case(repeats);
-            MozakStark::prove_and_verify(&program, &executed)?;
+            MemoryStark::prove_and_verify(&program, &executed)?;
         }
         Ok(())
     }
