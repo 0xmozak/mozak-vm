@@ -181,7 +181,6 @@ mod tests {
             }
         }
 
-
         #[test]
         fn prove_divu_proptest(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
             let (program, record) = simple_test_code(
