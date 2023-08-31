@@ -3,7 +3,7 @@
 //! References:
 //! - [ZCash Halo2 lookup docs](https://zcash.github.io/halo2/design/proving-system/lookup.html)
 //! - [ZK Meetup Seoul ECC X ZKS Deep dive on Halo2](https://www.youtube.com/watch?v=YlTt12s7vGE&t=5237s)
-
+//! - [ZK Meetup Seoul ECC X ZKS Deep dive on Halo2](https://www.youtube.com/watch?v=YlTt12s7vGE&t=5237s)
 use std::collections::VecDeque;
 
 use itertools::Itertools;
@@ -40,20 +40,45 @@ where
 impl Lookup {
     pub(crate) fn eval<F, FE, P, S, const D: usize, const D2: usize>(
         &self,
-        stark: &S,
         vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
-        lookup_vars: LookupCheckVars<F, FE, P, D2>,
+        lookup_vars: &LookupCheckVars<F, FE, P, D2>,
         yield_constr: &mut ConstraintConsumer<P>,
     ) where
         F: RichField + Extendable<D>,
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>,
         S: Stark<F, D>, {
-        for challenge in lookup_vars.challenges {
-            let field_extended_challenge = FE::from_basefield(challenge);
+        for challenge in &lookup_vars.challenges {
+            let fe_challenge = FE::from_basefield(*challenge);
 
-            for col in &self.looking_columns {}
+            for (i, col) in self.looking_columns.iter().enumerate() {
+                let mut x = lookup_vars.local_values[i];
+                let mut y = P::ZEROS;
+
+                x *= vars.local_values[i] + fe_challenge;
+                y += vars.local_values[i] + fe_challenge;
+
+                yield_constr.constraint(x - P::ONES);
+            }
+
+            let num_helper_columns = self.num_helper_columns();
+            // Check that the penultimate helper column contains `1/(table+challenge)`.
+            let x = lookup_vars.local_values[num_helper_columns - 2];
+            let x = x * (vars.local_values[self.looked_column] + fe_challenge);
+            yield_constr.constraint(x - P::ONES);
+
+            // Check the `Z` polynomial.
+            let z = lookup_vars.local_values[num_helper_columns - 1];
+            let next_z = lookup_vars.next_values[num_helper_columns - 1];
+            let y = lookup_vars.local_values[..num_helper_columns - 2]
+                .iter()
+                .fold(P::ZEROS, |acc, x| acc + *x)
+                - vars.local_values[self.multiplicity_column]
+                    * lookup_vars.local_values[num_helper_columns - 2];
+            yield_constr.constraint(next_z - z - y);
         }
+
+        println!("eval");
     }
 
     /// This is the h(x) within the paper.

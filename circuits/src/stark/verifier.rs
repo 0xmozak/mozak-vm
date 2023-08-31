@@ -44,7 +44,7 @@ where
     let AllProofChallenges {
         stark_challenges,
         ctl_challenges,
-    } = all_proof.get_challenges(&mozak_stark, config);
+    } = all_proof.get_challenges(config);
 
     let MozakStark {
         cpu_stark,
@@ -147,7 +147,19 @@ where
     [(); S::COLUMNS]:,
     [(); S::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:, {
-    validate_proof_shape(stark, &proof.proof, config, ctl_vars.len())?;
+    let num_lookup_columns = proof.num_helper_columns(config);
+    println!(
+        "verifier: ctl_vars.len() {}, num LU cols: {}",
+        ctl_vars.len(),
+        num_lookup_columns
+    );
+    validate_proof_shape(
+        stark,
+        &proof.proof,
+        config,
+        ctl_vars.len(),
+        num_lookup_columns,
+    )?;
     let StarkOpeningSet {
         local_values,
         next_values,
@@ -183,7 +195,6 @@ where
         l_last,
     );
 
-    let num_lookup_columns = proof.num_helper_columns(config);
     let lookup_vars = proof.lookups.is_some().then(|| LookupCheckVars {
         local_values: auxiliary_polys[..num_lookup_columns].to_vec(),
         next_values: auxiliary_polys_next[..num_lookup_columns].to_vec(),
@@ -192,7 +203,6 @@ where
 
     eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
         stark,
-        config,
         vars,
         proof.lookups.as_deref(),
         lookup_vars.unwrap(),
@@ -237,6 +247,7 @@ where
                 degree_bits,
                 num_zs: ctl_zs_last.len(),
             }),
+            num_lookup_columns,
         ),
         &proof.proof.openings.to_fri_openings(),
         &challenges.fri_challenges,
@@ -253,6 +264,7 @@ fn validate_proof_shape<F, C, S, const D: usize>(
     proof: &StarkProof<F, C, D>,
     config: &StarkConfig,
     num_ctl_zs: usize,
+    num_lookup_columns: usize,
 ) -> anyhow::Result<()>
 where
     F: RichField + Extendable<D>,
@@ -282,7 +294,7 @@ where
     let degree_bits = proof.recover_degree_bits(config);
     let fri_params = config.fri_params(degree_bits);
     let cap_height = fri_params.config.cap_height;
-    let num_zs = num_ctl_zs + stark.num_permutation_batches(config);
+    let num_auxiliary = num_ctl_zs + num_lookup_columns;
 
     ensure!(trace_cap.height() == cap_height);
     ensure!(auxiliary_polys_cap.height() == cap_height);
@@ -290,9 +302,9 @@ where
 
     ensure!(local_values.len() == S::COLUMNS);
     ensure!(next_values.len() == S::COLUMNS);
-    ensure!(auxiliary_polys.len() == num_zs);
-    ensure!(auxiliary_polys_next.len() == num_zs);
     ensure!(ctl_zs_last.len() == num_ctl_zs);
+    ensure!(auxiliary_polys.len() == num_auxiliary);
+    ensure!(auxiliary_polys_next.len() == num_auxiliary);
     ensure!(quotient_polys.len() == stark.num_quotient_polys(config));
 
     Ok(())

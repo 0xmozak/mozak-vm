@@ -29,7 +29,6 @@ pub(crate) fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     ctl_data: &CtlData<F>,
     alphas: &[F],
     degree_bits: usize,
-    num_lookup_columns: usize,
     config: &StarkConfig,
 ) -> Vec<PolynomialCoeffs<F>>
 where
@@ -77,6 +76,9 @@ where
         size,
     );
 
+    let num_lookup_columns = lookups.map_or(0, |lus| {
+        lus.iter().map(|lu| lu.num_helper_columns()).sum::<usize>()
+    });
     // We will step by `P::WIDTH`, and in each iteration, evaluate the quotient
     // polynomial at a batch of `P::WIDTH` points.
     let quotient_values = (0..size)
@@ -107,7 +109,9 @@ where
                 local_values: auxiliary_polys_commitment.get_lde_values_packed(i_start, step)
                     [..num_lookup_columns]
                     .to_vec(),
-                next_values: auxiliary_polys_commitment.get_lde_values_packed(i_next_start, step),
+                next_values: auxiliary_polys_commitment.get_lde_values_packed(i_next_start, step)
+                    [..num_lookup_columns]
+                    .to_vec(),
                 challenges: challenges.to_vec(),
             });
 
@@ -127,7 +131,6 @@ where
                 .collect::<Vec<_>>();
             eval_vanishing_poly::<F, F, P, S, D, 1>(
                 stark,
-                config,
                 vars,
                 lookups,
                 lookup_vars.unwrap(),
@@ -160,7 +163,6 @@ where
 
 pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark: &S,
-    config: &StarkConfig,
     vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
     lookups: Option<&[Lookup]>,
     lookup_vars: LookupCheckVars<F, FE, P, D2>,
@@ -172,5 +174,10 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     P: PackedField<Scalar = FE>,
     S: Stark<F, D>, {
     stark.eval_packed_generic(vars, consumer);
+    lookups.map(|ls| {
+        for l in ls {
+            l.eval(vars, &lookup_vars, consumer)
+        }
+    });
     eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
 }

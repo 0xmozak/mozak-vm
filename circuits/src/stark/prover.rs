@@ -32,9 +32,6 @@ use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::mozak_stark::PublicInputs;
-use crate::stark::permutation::{
-    compute_permutation_z_polys, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
-};
 use crate::stark::poly::compute_quotient_polys;
 use crate::xor::stark::XorStark;
 
@@ -209,46 +206,20 @@ where
         .as_ref()
         .map(|_| challenger.get_n_challenges(config.num_challenges));
 
-    let lookup_helper_columns = timed!(
-        timing,
-        "compute lookup helper columns",
+    let auxiliary_polys = timed!(timing, "compute lookup helper columns", {
+        let mut columns = ctl_data.z_polys();
         lookup_challenges.as_ref().map(|challenges| {
-            let mut columns = Vec::new();
             for lookup in lookups.as_deref().unwrap() {
                 for &challenge in challenges {
                     columns.extend(lookup.populate_helper_columns(trace_poly_values, challenge));
                 }
             }
-            columns
-        })
-    );
-
-    println!("LU HELPER: {:?}", lookup_helper_columns);
-
-    // Permutation arguments.
-    let permutation_challenges: Vec<GrandProductChallengeSet<F>> =
-        get_n_grand_product_challenge_sets(
-            challenger,
-            config.num_challenges,
-            stark.permutation_batch_size(),
-        );
-
-    let mut auxiliary_polys = timed!(
-        timing,
-        "compute permutation Z(x) polys",
-        compute_permutation_z_polys::<F, S, D>(
-            stark,
-            config,
-            trace_poly_values,
-            &permutation_challenges
-        )
-    );
-
-    let num_permutation_zs = auxiliary_polys.len();
-    auxiliary_polys.append(&mut ctl_data.z_polys());
+        });
+        columns
+    });
 
     // TODO(Matthias): make the code work with empty z_polys, too.
-    assert!(!auxiliary_polys.is_empty(), "No CTL?");
+    // assert!(!auxiliary_polys.is_empty(), "No CTL?");
 
     let auxiliary_polys_commitment = timed!(
         timing,
@@ -281,7 +252,6 @@ where
             ctl_data,
             &alphas,
             degree_bits,
-            num_permutation_zs,
             config,
         )
     );
@@ -328,6 +298,11 @@ where
         "Opening point is in the subgroup."
     );
 
+    let num_lookup_columns = lookups.as_ref().map_or(0, |lus| {
+        lus.iter().map(|lu| lu.num_helper_columns()).sum::<usize>()
+    });
+    println!("prover: num_lu_cols: {}", num_lookup_columns);
+
     let openings = StarkOpeningSet::new(
         zeta,
         g,
@@ -335,7 +310,7 @@ where
         &auxiliary_polys_commitment,
         &quotient_commitment,
         degree_bits,
-        stark.num_permutation_batches(config),
+        num_lookup_columns,
     );
 
     challenger.observe_openings(&openings.to_fri_openings());
@@ -357,7 +332,8 @@ where
                 Some(&LookupConfig {
                     degree_bits,
                     num_zs: ctl_data.len()
-                })
+                }),
+                num_lookup_columns,
             ),
             &initial_merkle_trees,
             challenger,

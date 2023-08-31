@@ -11,10 +11,8 @@ use plonky2_maybe_rayon::{MaybeParIter, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
-use super::mozak_stark::{MozakStark, NUM_TABLES};
-use super::permutation::{
-    get_grand_product_challenge_set, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
-};
+use super::mozak_stark::NUM_TABLES;
+use super::permutation::{get_grand_product_challenge_set, GrandProductChallengeSet};
 use crate::lookup::Lookup;
 use crate::stark::mozak_stark::PublicInputs;
 
@@ -146,7 +144,7 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
         auxiliary_polys_commitment: &PolynomialBatch<F, C, D>,
         quotient_commitment: &PolynomialBatch<F, C, D>,
         degree_bits: usize,
-        num_permutation_zs: usize,
+        num_lookup_columns: usize,
     ) -> Self {
         let eval_commitment = |z: F::Extension, c: &PolynomialBatch<F, C, D>| {
             c.polynomials
@@ -169,7 +167,7 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
             ctl_zs_last: eval_commitment_base(
                 F::primitive_root_of_unity(degree_bits).inverse(),
                 auxiliary_polys_commitment,
-            )[num_permutation_zs..]
+            )[num_lookup_columns..]
                 .to_vec(),
             quotient_polys: eval_commitment(zeta, quotient_commitment),
         }
@@ -225,11 +223,7 @@ pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usiz
 
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
     /// Computes all Fiat-Shamir challenges used in the STARK proof.
-    pub(crate) fn get_challenges(
-        &self,
-        all_stark: &MozakStark<F, D>,
-        config: &StarkConfig,
-    ) -> AllProofChallenges<F, D> {
+    pub(crate) fn get_challenges(&self, config: &StarkConfig) -> AllProofChallenges<F, D> {
         let mut challenger = Challenger::<F, C::Hasher>::new();
 
         for proof in &self.stark_proofs {
@@ -240,8 +234,6 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 
         let ctl_challenges =
             get_grand_product_challenge_set(&mut challenger, config.num_challenges);
-
-        let num_permutation_batch_sizes = all_stark.permutation_batch_sizes();
 
         AllProofChallenges {
             stark_challenges: core::array::from_fn(|i| {

@@ -6,10 +6,9 @@ use mozak_vm::instruction::{Instruction, Op};
 use mozak_vm::state::{Aux, State};
 use mozak_vm::vm::{ExecutionRecord, Row};
 use plonky2::hash::hash_types::RichField;
-use plonky2::util::transpose;
 
 use crate::bitshift::columns::Bitshift;
-use crate::cpu::columns::{self as cpu_cols, CpuColumnsExtended, CpuState, MAP};
+use crate::cpu::columns::{self as cpu_cols, CpuColumnsExtended, CpuState};
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::stark::utils::transpose_trace;
 use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend};
