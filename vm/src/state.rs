@@ -16,15 +16,15 @@ pub struct State {
     pub halted: bool,
     pub registers: [u32; 32],
     pub pc: u32,
-    pub memory: HashMap<u32, u8>,
+    pub rw_memory: HashMap<u32, u8>,
 }
 
 impl From<&Program> for State {
     fn from(program: &Program) -> Self {
-        let Data(memory) = program.data.clone();
+        let Data(rw_memory) = program.rw_memory.clone();
         Self {
             pc: program.entry_point,
-            memory,
+            rw_memory,
             ..Default::default()
         }
     }
@@ -166,24 +166,28 @@ impl State {
     /// For now, we decided that we will offer the program the full 4 GiB of
     /// address space you can get with 32 bits.
     /// So no u32 address is out of bounds.
+    /// TODO: Conflict resolution between `rw_memory` and `ro_memory`
     #[must_use]
-    pub fn load_u8(&self, addr: u32) -> u8 { self.memory.get(&addr).copied().unwrap_or_default() }
+    pub fn load_u8(&self, addr: u32) -> u8 {
+        self.rw_memory.get(&addr).copied().unwrap_or_default()
+    }
 
     /// Store a byte to memory
     ///
     /// # Errors
     /// This function returns an error, if you try to store to an invalid
     /// address.
+    /// TODO: Conflict resolution between `rw_memory` and `ro_memory`
     #[must_use]
     pub fn store_u8(mut self, addr: u32, value: u8) -> Self {
-        self.memory.insert(addr, value);
+        self.rw_memory.insert(addr, value);
         self
     }
 
     #[must_use]
     pub fn current_instruction(&self, program: &Program) -> Instruction {
         let pc = self.get_pc();
-        let inst = program.code.get_instruction(pc);
+        let inst = program.ro_code.get_instruction(pc);
         trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}");
         inst
     }

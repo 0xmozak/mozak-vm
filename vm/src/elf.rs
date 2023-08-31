@@ -21,10 +21,15 @@ pub struct Program {
     /// The entrypoint of the program
     pub entry_point: u32,
 
-    /// The initial memory image
-    pub data: Data,
-    /// Executable code
-    pub code: Code,
+    /// All Read only memory image of the ELF, not to be confused with
+    /// .rodata ELF header
+    pub ro_memory: Data,
+
+    /// All writable memory image of the ELF
+    pub rw_memory: Data,
+
+    /// Executable code of the ELF, read only
+    pub ro_code: Code,
 }
 
 #[derive(Clone, Debug, Default, Deref)]
@@ -60,8 +65,9 @@ impl From<HashMap<u32, u8>> for Program {
     fn from(image: HashMap<u32, u8>) -> Self {
         Self {
             entry_point: 0_u32,
-            code: Code::from(&image),
-            data: Data(image),
+            ro_code: Code::from(&image),
+            ro_memory: Data(image),
+            rw_memory: Data::default(), // TODO: Is this action correct?
         }
     }
 }
@@ -86,8 +92,9 @@ impl From<HashMap<u32, u32>> for Program {
             .collect();
         Self {
             entry_point: 0_u32,
-            code: Code::from(&image),
-            data: Data(image),
+            ro_code: Code::from(&image),
+            ro_memory: Data(image),
+            rw_memory: Data::default(),
         }
     }
 }
@@ -102,6 +109,8 @@ impl Program {
     // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
     // exercise the error handling?
     #[tarpaulin::skip]
+    #[allow(clippy::similar_names)]
+    #[allow(non_snake_case)]
     pub fn load_elf(input: &[u8]) -> Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
         ensure!(elf.ehdr.class == Class::ELF32, "Not a 32-bit ELF");
@@ -120,11 +129,12 @@ impl Program {
             .ok_or_else(|| anyhow!("Missing segment table"))?;
         ensure!(segments.len() <= 256, "Too many program headers");
 
-        let extract = |required_flags| {
+        let extract = |required_flags: u32, need_exact_flags: bool| {
             segments
                 .iter()
                 .filter(|s: &ProgramHeader| s.p_type == elf::abi::PT_LOAD)
                 .filter(|s| s.p_flags & required_flags == required_flags)
+                .filter(|s| s.p_flags == required_flags || !need_exact_flags)
                 .map(|segment| -> Result<_> {
                     let file_size: usize = segment.p_filesz.try_into()?;
                     let mem_size: usize = segment.p_memsz.try_into()?;
@@ -140,13 +150,15 @@ impl Program {
                 .try_collect()
         };
 
-        let data = Data(extract(elf::abi::PF_NONE)?);
-        let code = extract(elf::abi::PF_X)?;
-        let code = Code::from(&code);
+        let r__segments_exact = extract(elf::abi::PF_R, true)?;
+        let rw_segments_exact = extract(elf::abi::PF_R | elf::abi::PF_W, true)?;
+        let r_xsegments_any = extract(elf::abi::PF_R | elf::abi::PF_X, false)?; // Parse writable (rwx) segments as read and execute only segments
+
         Ok(Program {
             entry_point,
-            data,
-            code,
+            ro_memory: Data(r__segments_exact),
+            rw_memory: Data(rw_segments_exact),
+            ro_code: Code::from(&r_xsegments_any),
         })
     }
 }
