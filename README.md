@@ -10,7 +10,7 @@ If you are unfamiliar with the Risc-V instruction set, please have a look at the
 
 ## Quickstart in GitHub codespaces
 
-You can [open this repository in GitHub Codespaces](https://codespaces.new/0xmozak/mozak-vm?quickstart=1) and start developing straight away in your browser.  All build requirements will be taken care of.  (You can also find use the '<> Code' button on the top right of the main page of the repository on GitHub.  See the [Codespaces documentation](https://github.com/features/codespaces) for background information.)
+You can [open this repository in GitHub Codespaces](https://codespaces.new/0xmozak/mozak-vm?quickstart=1) and start developing straight away in your browser.  All build requirements will be taken care of.  (You can also use the '<> Code' button on the top right of the main page of the repository on GitHub.  See the [Codespaces documentation](https://github.com/features/codespaces) for background information.)
 
 ## Local Build requirements
 
