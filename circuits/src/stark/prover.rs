@@ -513,7 +513,7 @@ mod tests {
                 args: Args {
                     rs1: 0,
                     rs2: 1,
-                    branch_target: 42,
+                    imm: 42, // branch target
                     ..Args::default()
                 },
             }],

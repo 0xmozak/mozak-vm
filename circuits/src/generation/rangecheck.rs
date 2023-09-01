@@ -29,7 +29,8 @@ fn pad_rc_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
 }
 
 /// Converts a u32 into 2 u16 limbs represented in [`RichField`].
-fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
+#[must_use]
+pub fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
     (
         F::from_noncanonical_u64((value >> 16).into()),
         F::from_noncanonical_u64((value & 0xffff).into()),
@@ -52,13 +53,8 @@ where
     if let [column] = &looking_table.columns[..] {
         trace
             .iter()
-            .filter_map(|row| {
-                looking_table
-                    .filter_column
-                    .eval(row)
-                    .is_one()
-                    .then(|| column.eval(row))
-            })
+            .filter(|&row| looking_table.filter_column.eval(row).is_one())
+            .map(|row| column.eval(row))
             .collect()
     } else {
         panic!("Can only range check single values, not tuples.")

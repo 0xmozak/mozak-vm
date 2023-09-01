@@ -71,7 +71,6 @@ pub struct Instruction<T> {
     pub rd_select: [T; 32],
     /// Special immediate value used for code constants
     pub imm_value: T,
-    pub branch_target: T,
 }
 
 columns_view_impl!(CpuState);
@@ -102,7 +101,6 @@ pub struct CpuState<T> {
     pub op1_sign_bit: T,
     pub op2_sign_bit: T,
 
-    // TODO: range check
     /// `|op1 - op2|`
     pub abs_diff: T,
     /// `1/|op1 - op2| `
@@ -184,6 +182,18 @@ impl<T: PackedField> CpuState<T> {
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let ops = &MAP.cpu.inst.ops;
     vec![
+        CpuTable::new(
+            Column::singles([MAP.cpu.quotient]),
+            Column::many([ops.divu, ops.remu, ops.srl]),
+        ),
+        CpuTable::new(
+            Column::singles([MAP.cpu.remainder]),
+            Column::many([ops.divu, ops.remu, ops.srl]),
+        ),
+        CpuTable::new(
+            Column::singles([MAP.cpu.remainder_slack]),
+            Column::many([ops.divu, ops.remu, ops.srl]),
+        ),
         CpuTable::new(
             Column::singles([MAP.cpu.dst_value]),
             Column::single(ops.add),

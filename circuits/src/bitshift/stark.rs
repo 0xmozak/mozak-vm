@@ -90,6 +90,7 @@ mod tests {
     use starky::stark_testing::test_stark_low_degree;
 
     use super::BitshiftStark;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
@@ -101,6 +102,47 @@ mod tests {
     fn test_degree() -> Result<()> {
         let stark = S::default();
         test_stark_low_degree(stark)
+    }
+
+    #[test]
+    fn prove_sll() -> Result<()> {
+        let p: u32 = 10;
+        let q: u32 = 10;
+        let sll = Instruction {
+            op: Op::SLL,
+            args: Args {
+                rd: 5,
+                rs1: 7,
+                rs2: 8,
+                ..Args::default()
+            },
+        };
+        // We use 3 similar instructions here to ensure duplicates and padding work
+        // during trace generation.
+        let (program, record) = simple_test_code(&[sll, sll, sll], &[], &[(7, p), (8, q)]);
+        assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
+        MozakStark::prove_and_verify(&program, &record)
+    }
+
+    #[test]
+    fn prove_srl() -> Result<()> {
+        let p: u32 = 10;
+        let q: u32 = 10;
+        let srl = Instruction {
+            op: Op::SRL,
+            args: Args {
+                rd: 5,
+                rs1: 7,
+                rs2: 8,
+                ..Args::default()
+            },
+        };
+
+        // We use 3 similar instructions here to ensure duplicates and padding work
+        // during trace generation.
+        let (program, record) = simple_test_code(&[srl, srl, srl], &[], &[(7, p), (8, q)]);
+        assert_eq!(record.executed[0].aux.dst_val, p >> (q & 0x1F));
+        MozakStark::prove_and_verify(&program, &record)
     }
 
     proptest! {

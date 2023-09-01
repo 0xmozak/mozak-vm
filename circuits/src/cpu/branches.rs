@@ -59,7 +59,7 @@ pub(crate) fn constraints<P: PackedField>(
     let is_bgeu = ops.bgeu;
 
     let bumped_pc = lv.inst.pc + P::Scalar::from_noncanonical_u64(4);
-    let branched_pc = lv.inst.branch_target;
+    let branched_pc = lv.inst.imm_value;
     let next_pc = nv.inst.pc;
 
     let lt = lv.less_than;
@@ -104,8 +104,7 @@ mod tests {
                         rd: 0,
                         rs1: 6,
                         rs2: 7,
-                        branch_target: 8,
-                        ..Args::default()
+                        imm: 8, // branch target
                     },
                 },
                 // if above branch is not taken R1 has value 10.

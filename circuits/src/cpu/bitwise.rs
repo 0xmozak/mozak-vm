@@ -133,7 +133,6 @@ mod tests {
                     rs1: 6,
                     rs2: 7,
                     imm,
-                    ..Args::default()
                 },
             })
             .collect();
