@@ -12,18 +12,19 @@ pub fn init() {
 
 #[no_mangle]
 pub fn finalize() {
-    // Exit syscall
+    // HALT syscall
     //
     // As per RISC-V Calling Convention a0/a1 (which are actually X10/X11) can be
     // used as function argument/result.
+    // a0 is used to indicate that its HALT system call.
+    // a1 is used to pass output bytes.
     unsafe {
         let output_bytes_vec = OUTPUT_BYTES.as_ref().unwrap_unchecked();
         let output_0 = output_bytes_vec.first().unwrap_unchecked();
         asm!(
-            "add a0, zero, {a0}",
-            "li a7, 93",
             "ecall",
-            a0 = in(reg) output_0,
+            in ("a0") 0,
+            in ("a1") output_0,
         );
     }
     unreachable!();
