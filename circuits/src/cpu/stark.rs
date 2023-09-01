@@ -131,7 +131,7 @@ fn only_rd_changes<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // Note: we could skip 0, because r0 is always 0.
-    // But we keep it to allow to make it easier to reason about the code.
+    // But we keep it to make it easier to reason about the code.
     (0..32).for_each(|reg| {
         yield_constr.constraint_transition(
             (P::ONES - lv.inst.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]),
@@ -158,7 +158,7 @@ fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     yield_constr.constraint(
         lv.op1_value
             // Note: we could skip 0, because r0 is always 0.
-            // But we keep it to allow to make it easier to reason about the code.
+            // But we keep it to make it easier to reason about the code.
             - (0..32)
                 .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
                 .sum::<P>(),

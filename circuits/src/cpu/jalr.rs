@@ -21,7 +21,7 @@ pub(crate) fn constraints<P: PackedField>(
 
     let destination = lv.dst_value;
     // Check: the wrapped `pc + 4` is saved to destination.
-    // As values are range checked u32, this makes the value choice deterministic.
+    // As values are u32 range checked, this makes the value choice deterministic.
     yield_constr.constraint(
         lv.inst.ops.jalr * (destination - return_address) * (destination - wrapped_return_address),
     );
@@ -31,11 +31,12 @@ pub(crate) fn constraints<P: PackedField>(
     let new_pc = nv.inst.pc;
 
     // Check: the wrapped op1, op2 sum is set as new `pc`.
-    // As values are range checked u32, this makes the value choice deterministic.
+    // As values are u32 range checked, this makes the value choice deterministic.
     yield_constr.constraint_transition(
         lv.inst.ops.jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target),
     );
 }
+
 #[cfg(test)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
@@ -83,6 +84,7 @@ mod tests {
         assert_eq!(record.last_state.get_pc(), 8);
         CpuStark::prove_and_verify(&program, &record).unwrap();
     }
+
     #[test]
     fn prove_jalr_goto_imm_zero_rs1_not_zero() {
         let (program, record) = simple_test_code(

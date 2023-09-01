@@ -75,10 +75,11 @@ pub(crate) fn xor_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
 }
 
 /// Constraints for the AND, OR and XOR opcodes.
-/// Uses selectors to pass inputs and retrieve output from the right bitwise
-/// opcode gadget. At most one of the selectors is set to 1, hence the
-/// output is matched to at most one of the gadgets. None if there is no bitwise
-/// operation in the instruction.
+/// As each opcode has an associated selector, we use selectors to enable only
+/// the correct opcode constraints. It can be that all selectors are not active,
+/// representing that the operation is neither AND, nor OR or XOR.
+/// The operation constraints are maintained in the corresponding gadget, and we
+/// just need to make sure the gadget gets assigned correct inputs and output.
 #[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
