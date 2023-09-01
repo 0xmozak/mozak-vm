@@ -127,145 +127,137 @@ We must point out though that adding a helper column is not always unjustified. 
 linear or low-degree combination of other columns, it is cheaper to just keep it as a low degree combination, possibly
 adding an alias for easier use.
 
-### Lookups
+### Lookups and Permutation Arguments
 
-Lookups is an idea that you can somehow check if a value from one column is present in the another column. This can be
+Lookup is technique that allows anyone to check if a value of one column is present in another column. This can be
 done between columns of the same table or between columns of different tables (Cross Table Lookups).
 Furthermore, when you do such checks, sometime you do not care about the multiplicity of the value in the second column,
 and sometimes you do. Sometimes you are okay that some values from the second column are not present in the first
-column, and sometimes you need the columns to have identical values. Bellow, we will cover all the cases and explain
-which tooling allows us to do it.
+column, and sometimes you need the columns to have identical values. Bellow, we will cover each of the techniques and
+briefly explain
+who it works.
 
-Finally, we have said in the beginning that we want to check if one column values is present in the other. However, most
-of the time you actually want to check that values of one column combination are present in the other column
-combination. This gives a lot more flexibility to the protocol.
+Lastly, we have said in the beginning that lookups allow us to check if value from one column is present in the other.
+However, most
+of the time we actually check that an ordered tuple of values from one column combination is present in the other column
+combination. This is a lot more versatile, and we use it excessively.
 
-#### Permutation (Multi-set) Lookups
+#### Permutation (Multi-set) Arguments
 
-The simplest lookup is a permutation lookup. It is a lookup between two sets of columns of the same table, where the
-values of the first set of columns should be equal to the values of the second set of columns, but in a different order.
-The order is given by some permutation.
+The simplest variant of lookups are permutation arguments. It checks that two columns (or two set of columns) have the
+same values, up to a permutation. Meaning we could reorder values in the column (or rows of a set of columns) and
+get the other column (or a set of columns). Each table can support multiple separate permutation arguments, and columns
+can participate in multiple permutation arguments.
+
+Finally, permutation argument is computationally cheapest from the ones listed bellow.
 
 You can refer to the documentation in the `stark/permutation.rs` for more details on how it is implemented.
 
-##### Example
-
-Inside the `RangeCheck` table, we have a permutation lookup between the `limb_lo`, `limb_hi` columns and
-the `limb_lo_permuted`, `limb_hi_permuted` columns. In that particular case, `limb_lo` and `limb_hi` permutations are
-separate, though we could have linked them together, making sure that (lo, hi) row pairs are permuted together
-into `(lo_permuted, hi_permuted)` pairs.
-
 #### Subset Lookups
 
-This is what we call `lookup` in our code. It checks that the values of rows of the first set of columns are present in
-the values of rows of the second set of columns. The opposite is not required to be true, as the second set of columns
-might have more unique values than the first set of columns. Though both sets of columns must have the same number of
+This is what we refer to as `lookup` in our code. It checks if we create a set from values (tuple of values) of one *
+*looking** column (set of columns), then it will be a subset of a set of values (tuple of values) of another **looked**
+column (set of columns).
+The opposite is not required to be true, as the looked column (set of columns)
+might have more unique values than the looking set of columns. Nevertheless, both sets of columns must have the same
+number of
 rows.
 
-Subset lookups work by first permuting the row values of the first set of columns, so that all duplicate values are
-adjacent to each other. We check the permutation correctness using Permutation Lookups.
+The subset lookups under the hood use two permutation lookups, adds two more columns, and one degree constraints between
+two newly added columns.
 
-| Column 1 | Permuted Column 1 |
-|----------|-------------------|
-| 1        | 1                 |
-| 2        | 1                 |
-| 3        | 1                 |
-| 1        | 2                 |
-| 1        | 3                 |
-| 3        | 3                 |  
+To give some intuition on how it works, lets assume we want to do lookups between a _Looking Column_ and the _Looked
+Column_. For sets of columns it works identically. First, we add two more columns - _Permuted Looking Column_ and
+_Permuted Looked Column_. We populate the _Permuted Looking Column_ with rows of *Looking Column*, grouped by the
+values. We then populate the rows of the _Permuted Looked Column_ with values from the _Looked Column_ in the following
+way:
 
-Then we permute the row values of the second set of columns, so if a row is present in the first set of columns, we
-place it at the same row index as this rows first occurrence of the row in the first set of **permuted** columns.
-We check the permutation correctness using Permutation Lookups.
+- If the same row is present in the _Looking Column_, we place it at the same row index as this rows first occurrence in
+  the _Permuted Looking Column_.
+- Otherwise, we leave it until the end to fill in all the blank index positions.
 
-| Column 1 | Sorter Column 1 | Permuted Column 2 | Column 2 |
-|----------|-----------------|-------------------|----------|
-| 1        | 1               | 1                 | 1        |
-| 2        | 1               | 4                 | 2        |
-| 3        | 1               | 5                 | 3        |
-| 1        | 2               | 2                 | 4        |
-| 1        | 3               | 3                 | 5        |
-| 3        | 3               | 6                 | 6        |
+Now, to make sure we have the Subset Lookup working, it is enough for us to check:
 
-Finally, we compare the values of the first **permuted** set of columns and second **permuted** set of columns. Each row
-of
-the first permuted set can either be equal to the preceding row, or to the corresponding row of second permuted set.
-This
-gives us a guarantee that each unique row present in the first set of columns is present in the second set of columns.
+1. The permutation between _Column 1_ and _Permuted Column 1_
+2. The permutation between _Column 2_ and _Permuted Column 2_
+3. For each row:
+    - Either value in _Permuted Column 1_ equals the value in _Permuted Column 2_
+    - Or value in _Permuted Column 1_ is the same as value in _Permuted Column 1_ one row above.
 
-##### Example
+You can refer to the documentation in the `lookup.rs` for more details on how it is implemented.
 
-We use the subset lookup in the `RangeCheck` table to make sure that the `lo` and `hi` limbs are indeed u16 values.
-For that we create the above-mentioned `limb_lo_permuted` and `limb_hi_permuted` columns, as well as
-the `fixed_range_check_u16_permuted_lo` and `fixed_range_check_u16_permuted_hi` columns, which contain all possible u16
-values.
+_Bellow is the illustration of the subset lookup between looking Column 1 and looked Column 2, with the 2 introduced
+helper columns._
 
-Then we create a subset lookup between the `limb_lo_permuted` and `fixed_range_check_u16_permuted_lo` columns, which
-achieves the goal of making sure that all `lo` limbs are u16 values. We do the same for the `hi` limbs.
+| Column 1 | Permuted Column 1 | Permuted Column 2 | Column 2 |
+|----------|-------------------|-------------------|----------|
+| 1        | 1                 | 1                 | 1        |
+| 2        | 1                 | 4                 | 2        |
+| 3        | 1                 | 5                 | 3        |
+| 1        | 2                 | 2                 | 4        |
+| 1        | 3                 | 3                 | 5        |
+| 3        | 3                 | 6                 | 6        |
 
-#### Multi-Multi-Set Cross Table Lookups
+#### Cross Table Permutation (Multi-Multi-Set) Arguments
 
-With the lookup technique described above, we can only check that the values between columns of the same table. However,
-sometimes we may want to partition our table into multiple tables, and then check that the values of one table columns
-are present in the values of another table columns. This is what we call Cross Table Lookups (CTL).
-The example where this comes in useful is again the `RangeCheck`.
+The subset lookups and permutation arguments described above only work on columns of the same table. However,
+sometimes we may want to partition our table into multiple tables, and then check that the values of one table
+are present in the values of another table columns. This is what we call Cross Table.
 
-If we did not split the `RangeCheck` table away from the main table, then the length of the table would be `2^16`, even
-for a very small program and made the proving time much longer then necessary. By splitting it, we can the main table be
-of arbitrary size, and the `RangeCheck` table be of size `2^16`, which is much more manageable due to a much smaller
-amount of columns.
+In Cross Table Permutation Arguments, which we actually refer to as **Cross Table Lookups** in our code base, we define
+a single _looked table_ and multiple _looking tables_. The looked and looking tables can also be formed synthetically,
+by just grouping a sub-set of columns from the already defined tables. With the tables defined, we want that
+a [multi-set](https://en.wikipedia.org/wiki/Multiset) union of all the rows from the looking tables to be a permutation
+of the rows of the looked table. We also allow each looking table to define a filter column that will be used to filter
+out rows that we do not want to participate in the permutation.
 
-Cross Table Lookups work by defining a **looked table**, in which we will look up values from multiple
-**looking tables**. These tables are formed by taking sub-sets of columns from the already defined tables.
-In particular, we want that a multi-set-union of all the rows from the looking tables to be permutation of the rows of
-the looked table. We also allow each looking table to define a filter column that will be used to filter out rows that
-we do not want to look up in the looked table.
+To break down the above, we can have a looked table with columns `{x, y, z, allow_to_lookup}`and a several looking
+tables which include columns `{x, y, z, look_up}`. By applying a cross table lookup, we make sure that the multi-set
+of `(x, y, z)` values from the looked table, where `allow_to_lookup` is `1`, is a permutation of the multi-set
+of `(x, y, z)` values from the looking table, where `is_looked_up` is `1`. This construction also implies if a single
+looking table or several looking table look up the same row, then the looked table must have this row multiple times, as
+each row can only be looked up once by any looking table.
 
-So, to break down the above, we can have a table with columns `{x, y, z}` (looked table) and a several table with
-columns `{x, y, z, is_looked_up}` (looking table). By applying a cross table lookup, we make sure that the multi-set of
-`(x, y, z)` values from the looked table is a permutation of the multi-set of `(x, y, z)` values from the looking table,
-where `is_looked_up` is `1`. It implies that if several looking table look up the same row, then the looked table must
-have the same row multiple times, as each row can only be looked up once by any looking table.
+In particular, we use the Permutation Cross Table Arguments to connect the STARK tables. It allows us to
+off-load the constraints and extra columns for some logic into a separate tables, which possibly reduces the amount of
+rows in the original tables.
 
-##### Example
+The technique used to enable the Cross Table Permutation Arguments is very similar to the technique behind standard
+[Permutation Arguments](https://hackmd.io/@arielg/ByFgSDA7D) and just requires us to use commitments to multiple STARK
+tables, instead of a single one.
 
-We use the Multi-set CTL across all the STARK tables. In particular, we use it to connect the Xor table with the CPU, to
-off-load the constraints and extra columns of the `xor` operation to the Xor table. By using the CTL we can avoid adding
-the extra columns to the CPU table, and instead just add them to the Xor table, where the amount of rows is much
-smaller.
+You can refer to the documentation in the `cross_table_lookup.rs` for more details on how it is implemented.
 
-The CTL, as explained, connects the set of columns. First column set is in the CPU, and has `xor_input_a`, `xor_input_b`
-and `xor_output` values. Second column set is `xor_input_a`, `xor_input_b` and `xor_output`, but now in the Xor table.
-Additionally, to that, both sets haas a filter column. The CPU has a `is_xor_used` filter, which tells if the Xor
-operation has been used in a row, and if therefor we need to check the execution status. At the same time, Xor table
-has a `is_executed` column, which tells if the row is a padding row, that pads the table size to the power of two, or if
-it is an actual Xor computation row.
+#### Cross Table Subset Lookups
 
-#### Subset Cross Table Lookups
+As with Permutation Arguments being a building block for Subset Lookups, Cross Table Permutation Arguments are used to
+construct Cross Table Subset Lookups.
 
-As with Permutation Lookups being a building block for Subset Lookups, Multi-Multi-Set Cross Table Lookups allow us to
-build Subset Cross Table Lookups.
+Cross Table Subset Lookups allow us to check that the row values of looking table are present in
+the set of row of the looked table. The reverse is not required to be true, and the looked table might have more unique
+values than the looking table. Key difference between Cross Table Subset Lookups and Subset Lookups is that looking and
+looked tables do not even need to have the same number of rows.
 
-Subset Cross Table Lookups allow us to check that the values of one table columns are present in the values of another
-table columns. The opposite is not required to be true, as the second table might have more unique values than the first
-table. Though both tables do not even need to have the same number of rows.
+To make Cross Table Subset Lookups work, we introduce a new table, that will be used to combine columns from the looking
+and looked tables, and then pad them to equal length. We first populate the table with rows of the
+looking table, with a new additional column of `1`s, which will be used to indicate if a row is from the looking table
+or from the looked table. We then populate the new table with columns from the looked table, which have not been
+included yet in the new table, until we reach the size of the second table. We also indicate if a row was present in the
+looked table with a binary column.
 
-The idea is to introduce a new table. Part of the table will be populated with selected rows of the first table, with a
-binary column that identifies if the row is from the first table or not. The rest will be populated with rows from the
-second table, until the size of the new table is the same as the size of the second table. Note that we require that the
-first table is smaller than the second. The rest is similar to how Subset Lookups work.
+We then require that Multi-Multi-Set Cross Table Lookups holds between the new table and the looking table,
+where `is_from_looking_table` indicator is turned on, and between the new table and the second table,
+when `is_from_looked_table` is turned on. There is a very helpful
+diagram [here](https://www.notion.so/0xmozak/Cross-Table-Lookup-bbe98d9471114c36a278f0c491f203e5?pvs=4#80f9047bc40f48f29c8ba852bf94c570)
+explaining how it works.
 
-We require that Multi-Multi-Set Cross Table Lookups holds between the new table and the first table,
-when `is_from_first_table` is turned on, and between the new table and the second table, when `is_from_second_table` is
-turned on. There is a very helpful
-diagram [here](https://www.notion.so/0xmozak/Cross-Table-Lookup-bbe98d9471114c36a278f0c491f203e5?pvs=4#80f9047bc40f48f29c8ba852bf94c570).
+Finally, like with Subset Lookups, we require that in the new table for each row:
 
-##### Example
+- Either the row is not from the looking table.
+- Or the row value is the same as next row value (excluding indicator columns)
+- Or the is from the looked table is true.
 
-We use the Subset CTL to make sure that the ELF instructions executed by the CPU indeed were part of the program. For
-that, we create a new `Program` table, which contains all the instructions of the program. Then we create a Subset CTL
-between the executed instructions of the CPU and the instructions of the Program table, to make sure that
-all the executed instructions are indeed part of the program.
+This summarises the types of lookups and permutation arguments used in the codebase.
 
 ## Table Value Insertion
 
