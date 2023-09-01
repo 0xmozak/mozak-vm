@@ -3,9 +3,5 @@
 version = 3
 
 [[package]]
-name = "fibonacci-mozak-guest"
-version = "0.1.0"
-
-[[package]]
-name = "min-max-mozak-guest"
+name = "guest"
 version = "0.1.0"

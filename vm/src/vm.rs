@@ -3,6 +3,8 @@ use anyhow::Result;
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
 use crate::state::{Aux, State};
+use crate::system::ecall;
+use crate::system::reg_abi::REG_A0;
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
@@ -90,19 +92,20 @@ impl State {
 
     #[must_use]
     pub fn ecall(self) -> (Aux, Self) {
-        (
-            Aux {
-                will_halt: true,
-                ..Aux::default()
-            },
-            if self.get_register_value(17) == 93 {
+        match self.get_register_value(REG_A0) {
+            ecall::HALT => {
                 // Note: we don't advance the program counter for 'halt'.
                 // That is we treat 'halt' like an endless loop.
-                self.halt() // exit system call
-            } else {
-                self.bump_pc()
-            },
-        )
+                (
+                    Aux {
+                        will_halt: true,
+                        ..Aux::default()
+                    },
+                    self.halt(),
+                )
+            }
+            _ => (Aux::default(), self.bump_pc()),
+        }
     }
 
     #[must_use]
@@ -137,9 +140,17 @@ impl State {
         // TODO: consider factoring out this logic from `register_op`, `branch_op`,
         // `memory_load` etc.
         let op1 = self.get_register_value(inst.args.rs1);
-        let op2 = self
-            .get_register_value(inst.args.rs2)
-            .wrapping_add(inst.args.imm);
+        // For branch instructions, both op2 and imm serve different purposes.
+        // Therefore, we avoid adding them together here.
+        let op2 = if matches!(
+            inst.op,
+            Op::BEQ | Op::BNE | Op::BLT | Op::BLTU | Op::BGE | Op::BGEU
+        ) {
+            self.get_register_value(inst.args.rs2)
+        } else {
+            self.get_register_value(inst.args.rs2)
+                .wrapping_add(inst.args.imm)
+        };
 
         let (aux, state) = match inst.op {
             Op::ADD => rop!(u32::wrapping_add),
@@ -995,8 +1006,7 @@ mod tests {
                         Args { rd,
                         rs1,
                         rs2: rs1,
-                        branch_target: 8,
-                    ..Args::default()
+                        imm: 8,  // branch target
                 }
                     ),
                     Instruction::new(
@@ -1035,8 +1045,7 @@ mod tests {
                         Args { rd,
                         rs1,
                         rs2,
-                        branch_target: 8,
-                        ..Args::default()
+                        imm: 8,  // branch target
                     }
                     ),
                     Instruction::new(
@@ -1076,8 +1085,7 @@ mod tests {
                         Args { rd,
                         rs1,
                         rs2,
-                        branch_target: 8,
-                        ..Args::default()
+                        imm: 8,  // branch target
                     }
                     ),
                     Instruction::new(
@@ -1117,8 +1125,7 @@ mod tests {
                         Args { rd,
                         rs1,
                         rs2,
-                        branch_target: 8,
-                        ..Args::default()
+                        imm: 8,  // branch target
                     }
                     ),
                     Instruction::new(
@@ -1158,8 +1165,7 @@ mod tests {
                         Args { rd,
                         rs1,
                         rs2,
-                        branch_target: 8,
-                        ..Args::default()
+                        imm: 8,  // branch target
                         }
                     ),
                     Instruction::new(
@@ -1200,8 +1206,7 @@ mod tests {
                                     rd,
                         rs1,
                         rs2,
-                        branch_target: 8,
-                        ..Args::default()
+                        imm: 8,  // branch target
                         }
                     ),
                     Instruction::new(
@@ -1210,8 +1215,7 @@ mod tests {
                         rd: rs1,
                         rs1,
                         rs2,
-                        branch_target: 0,
-                        ..Args::default()
+                        imm: 0,  // branch target
                         }
                     ),
                     Instruction::new(
