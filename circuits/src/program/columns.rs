@@ -20,6 +20,7 @@ pub struct InstructionRow<T> {
 
 columns_view_impl!(ProgramRom);
 make_col_map!(ProgramRom);
+#[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct ProgramRom<T> {
     pub inst: InstructionRow<T>,
