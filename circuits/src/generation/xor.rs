@@ -31,7 +31,7 @@ fn to_bits<F: RichField>(val: F) -> [F; u32::BITS as usize] {
 #[allow(clippy::missing_panics_doc)]
 #[allow(clippy::cast_possible_truncation)]
 pub fn generate_xor_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> Vec<XorColumnsView<F>> {
-    dbg!(cpu_trace);
+    // dbg!(cpu_trace);
     pad_trace_with_default({
         let filtered_cpu_trace_for_xor = filter_xor_trace(cpu_trace)
             .map(|execution| XorColumnsView {
@@ -40,7 +40,7 @@ pub fn generate_xor_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> Vec<XorCol
                 limbs: execution.map(to_bits),
             })
             .collect_vec();
-        dbg!(&filtered_cpu_trace_for_xor);
+        // dbg!(&filtered_cpu_trace_for_xor);
         filtered_cpu_trace_for_xor
     })
 }

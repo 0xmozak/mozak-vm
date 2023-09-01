@@ -25,12 +25,12 @@ pub struct OpSelectors<T> {
     pub mulhu: T,
     /// Shift Left Logical by amount
     pub sll: T,
+    /// Shift Right Logical by amount
+    pub srl: T,
     /// Set Less Than
     pub slt: T,
     /// Set Less Than Unsigned comparison
     pub sltu: T,
-    /// Shift Right Logical by amount
-    pub srl: T,
     /// Jump And Link Register
     pub jalr: T,
     /// Branch on Equal
@@ -73,6 +73,8 @@ pub struct Instruction<T> {
     pub imm_value: T,
 }
 
+// TODO: consider implementing a custom Debug, that collapsed the selectors into
+// a single number? Or: just write a mapper only?
 columns_view_impl!(CpuState);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -216,12 +218,17 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 /// Columns containing the data to be matched against Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_xor<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor) }
+pub fn data_for_xor<F: Field>() -> Vec<Column<F>> {
+    let data_for_xor_columns = Column::singles(MAP.cpu.xor);
+    // dbg!(&data_for_xor_columns);
+    data_for_xor_columns
+}
 
 /// Column for a binary filter for bitwise instruction in Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_xor<F: Field>() -> Column<F> {
+    // Column::always()
     MAP.cpu.map(Column::from).inst.ops.ops_that_use_xor()
 }
 
@@ -239,8 +246,7 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(self) -> T {
         // TODO: Add SRA, once we implement its constraints.
-        // self.xor + self.or + self.and + self.srl + self.sll
-        self.sll
+        self.xor + self.or + self.and + self.srl + self.sll
     }
 
     // TODO: Add SRA, once we implement its constraints.
