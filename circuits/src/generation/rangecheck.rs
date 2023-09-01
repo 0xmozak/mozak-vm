@@ -53,13 +53,8 @@ where
     if let [column] = &looking_table.columns[..] {
         trace
             .iter()
-            .filter_map(|row| {
-                looking_table
-                    .filter_column
-                    .eval(row)
-                    .is_one()
-                    .then(|| column.eval(row))
-            })
+            .filter(|&row| looking_table.filter_column.eval(row).is_one())
+            .map(|row| column.eval(row))
             .collect()
     } else {
         panic!("Can only range check single values, not tuples.")
