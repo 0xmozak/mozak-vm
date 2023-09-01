@@ -306,7 +306,6 @@ pub mod ctl_utils {
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, NUM_TABLES};
 
-    #[derive(Clone, Debug, Default)]
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, usize)>>);
 
     impl<F: Field> Deref for MultiSet<F> {
@@ -357,15 +356,11 @@ pub mod ctl_utils {
         let mut looked_multiset = MultiSet::<F>::new();
 
         for looking_table in &ctl.looking_tables {
-            dbg!(looking_table);
             looking_multiset.process_row(trace_poly_values, looking_table)?;
         }
 
         looked_multiset.process_row(trace_poly_values, &ctl.looked_table)?;
         let empty = &vec![];
-
-        // TODO(Matthias): why this duplication of the two loops here?  Just do a
-        // multi-set comparison.
 
         // Check that every row in the looking tables appears in the looked table the
         // same number of times.
@@ -380,9 +375,6 @@ pub mod ctl_utils {
                     l0 = looking_locations.len(),
                     l1 = looked_locations.len()
                 );
-                dbg!(ctl);
-                dbg!(looking_multiset);
-                dbg!(looked_multiset);
                 return Err(LookupError::InconsistentTableRows);
             }
         }
@@ -400,9 +392,6 @@ pub mod ctl_utils {
                     l0 = looking_locations.len(),
                     l1 = looked_locations.len()
                 );
-                dbg!(ctl);
-                dbg!(looking_multiset);
-                dbg!(looked_multiset);
                 return Err(LookupError::InconsistentTableRows);
             }
         }
