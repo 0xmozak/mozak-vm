@@ -219,11 +219,7 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 /// Columns containing the data to be matched against Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_xor<F: Field>() -> Vec<Column<F>> {
-    let data_for_xor_columns = Column::singles(MAP.cpu.xor);
-    // dbg!(&data_for_xor_columns);
-    data_for_xor_columns
-}
+pub fn data_for_xor<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor) }
 
 /// Column for a binary filter for bitwise instruction in Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).

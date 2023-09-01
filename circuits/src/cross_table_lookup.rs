@@ -298,7 +298,6 @@ pub mod ctl_utils {
     use std::collections::HashMap;
     use std::ops::{Deref, DerefMut};
 
-    use itertools::Itertools;
     use plonky2::field::extension::Extendable;
     use plonky2::field::polynomial::PolynomialValues;
     use plonky2::field::types::Field;
@@ -357,9 +356,6 @@ pub mod ctl_utils {
         let mut looking_multiset = MultiSet::<F>::new();
         let mut looked_multiset = MultiSet::<F>::new();
 
-        dbg!(trace_poly_values.into_iter().map(|v| v.len()).collect_vec());
-        let cpu_trace: crate::cpu::columns::CpuColumnsExtended<_> = trace_poly_values[0].iter().collect();
-        dbg!(cpu_trace);
         for looking_table in &ctl.looking_tables {
             dbg!(looking_table);
             looking_multiset.process_row(trace_poly_values, looking_table)?;

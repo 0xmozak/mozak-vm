@@ -157,14 +157,14 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 #[allow(clippy::missing_panics_doc)]
 pub fn debug_single_trace<F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>(
     stark: &S,
-    trace_rows: &Vec<PolynomialValues<F>>,
+    trace_rows: &[PolynomialValues<F>],
     stark_name: &str,
     public_inputs: &[F; S::PUBLIC_INPUTS],
 ) -> bool
 where
     [(); S::COLUMNS]:,
     [(); S::PUBLIC_INPUTS]:, {
-    transpose_polys::<F, D, S>(trace_rows.clone())
+    transpose_polys::<F, D, S>(trace_rows.to_vec())
         .iter()
         .enumerate()
         .circular_tuple_windows()
