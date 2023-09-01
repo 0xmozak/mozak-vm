@@ -74,8 +74,6 @@ pub struct Instruction<T> {
     pub imm_value: T,
 }
 
-// TODO: consider implementing a custom Debug, that collapsed the selectors into
-// a single number? Or: just write a mapper only?
 columns_view_impl!(CpuState);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -169,7 +167,7 @@ impl<T: PackedField> CpuState<T> {
 
     /// Value of the second operand, as if converted to i64.
     ///
-    /// See docs for `op1_full_range`
+    /// So range is `i32::MIN..=u32::MAX`
     pub fn op2_full_range(&self) -> T { self.op2_value - self.op2_sign_bit * Self::shifted(32) }
 
     /// Difference between first and second operands, which works for both pairs
@@ -225,7 +223,6 @@ pub fn data_for_xor<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor)
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_xor<F: Field>() -> Column<F> {
-    // Column::always()
     MAP.cpu.map(Column::from).inst.ops.ops_that_use_xor()
 }
 
