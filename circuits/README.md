@@ -138,25 +138,26 @@ Bellow, we will cover each of the arguments we use and briefly explain who it wo
 
 ### Permutation (Multi-set) Arguments
 
-The simplest variant of lookups are permutation arguments. It checks that two columns (or two set of columns) have the
-same values, up to a permutation. Meaning we could reorder values in the column (or rows of a set of columns) and
-get the other column (or a set of columns). Each table can support multiple separate permutation arguments, and columns
-can participate in multiple permutation arguments.
+The simplest argument we will consider is the Permutation Arguments. It checks that two columns (or two set of columns)
+have the same values, up to a permutation. Meaning we could reorder values in the column (or rows of a set of columns)
+and get the other column (or a set of columns). Each table can support multiple separate permutation arguments, and
+columns can participate in multiple permutation arguments.
 
-Finally, permutation argument is computationally cheapest from the ones listed bellow.
+The Permutation Argument is so efficient compared to the Subset Argument, that sometimes we use it despite the Subset
+Arguments being a natural choice.
 
 You can refer to the documentation in the `stark/permutation.rs` for more details on how it is implemented.
 
 ### Subset Arguments (Lookups)
 
-Subset Arguments (commonly referred to as Lookups) checks if a set of values (tuple of values) of a
-*looking* column (set of columns), is subset of a set of values (tuple of values) of a *looked*
-column (set of columns). The converse is not required to be true, as the looked column (set of columns)
-might have more unique values than the looking set of columns. Nevertheless, both sets of columns must have the same
-number of rows.
+Subset Argument (commonly referred to as Lookup) checks if a set of values (tuple of values) of a
+*looking* column (group of columns), is subset of a set of values (tuple of values) of a *looked*
+column (group of columns). The converse is not required to be true, as the looked column (group of columns)
+might have more unique values than the looking column (group of columns). Nevertheless, both looking and looked columns
+must have the same number of rows.
 
-The subset lookups under the hood use two permutation lookups, adds two more columns, and one degree constraints between
-two newly added columns.
+The Subset Argument under the hood use two Permutation Arguments, adds twice the number of new columns as number of
+looked columns, and creates degree one constraint between the newly added groups of columns.
 
 To give some intuition on how it works, lets assume we want to do lookups between a _Looking Column_ and the _Looked
 Column_. For sets of columns it works identically. First, we add two more columns - _Permuted Looking Column_ and
@@ -173,7 +174,7 @@ Now, to make sure we have the Subset Lookup working, it is enough for us to chec
 1. The permutation between _Column 1_ and _Permuted Column 1_
 2. The permutation between _Column 2_ and _Permuted Column 2_
 3. For each row:
-    - Either value in _Permuted Column 1_ equals the value in _Permuted Column 2_
+    - Either value in _Permuted Column 1_ equals the value in _Permuted Column 2_.
     - Or value in _Permuted Column 1_ is the same as value in _Permuted Column 1_ one row above.
 
 _Bellow is the illustration of the subset lookup between looking Column 1 and looked Column 2, with the 2 introduced
@@ -190,36 +191,35 @@ helper columns._
 
 You can refer to the documentation in the `lookup.rs` for more details on how it is implemented.
 
-Also, one can refer several sourse we used as inspiration for our codebase:
+Also, one can refer to several sources we have used as an inspiration for our codebase:
 
 - [ZCash Halo2 lookup docs](https://zcash.github.io/halo2/design/proving-system/lookup.html)
 - [ZK Meetup Seoul ECC X ZKS Deep dive on Halo2](https://www.youtube.com/watch?v=YlTt12s7vGE&t=5237s)
 
 ### Cross Table Permutation (Multi-Multi-Set) Arguments
 
-The subset lookups and permutation arguments described above only work on columns of the same table. However,
-sometimes we may want to partition our table into multiple tables, and then check that the values of one table
-are present in the values of another table columns. This is what we call Cross Table.
+The Subset Arguments and Permutation Arguments described above only work on columns from the same table. However,
+sometimes we may want to make use of multiple tables to partition our computations into manageable chunks. Nevertheless,
+we have to still link tables to for example make sure they refer to the consistent data, hence we need arguments that
+work Cross Table.
 
-In Cross Table Permutation Arguments, which we actually refer to as **Cross Table Lookups (CTL)** in our code base, we
-define a single _looked table_ and multiple _looking tables_. The looked and looking tables can also be formed
-synthetically, by just grouping a sub-set of columns from the already defined tables. With the tables defined, we want
-that a [multi-set](https://en.wikipedia.org/wiki/Multiset) union of all the rows from the looking tables to be a
-permutation of the rows of the looked table. We also allow each looking table to define a filter column that will be
-used to filter out rows that we do not want to participate in the permutation.
+In Cross Table Permutation Argument, which we actually refer to as **Cross Table Lookup (CTL)** in our code base, we
+define a single _looked_ table and multiple _looking_ tables. The looked and looking tables can also be formed
+synthetically, by just grouping a sub-set of columns from the already defined tables. With the tables defined, the Cross
+Table Permutation Argument asserts that a [multi-set](https://en.wikipedia.org/wiki/Multiset) union of all rows from the
+_looking_ tables is a permutation of rows of the _looked_ table. We also have each _looking_ table define a filter
+column that is used to filter out rows that we do not want to participate in the permutation.
 
-To break down the above, we can have a looked table with columns `{x, y, z, allow_to_lookup}`and a several looking
-tables which include columns `{x, y, z, look_up}`. By applying a cross table lookup, we make sure that the multi-set
-of `(x, y, z)` values from the looked table, where `allow_to_lookup` is `1`, is a permutation of the multi-set
-of `(x, y, z)` values from the looking table, where `is_looked_up` is `1`. This construction also implies if a single
-looking table or several looking table look up the same row, then the looked table must have this row multiple times, as
-each row can only be looked up once by any looking table.
+To break down the above, let us consider an example. We have a _looked_ table with columns `{x, y, z, allow_to_lookup}`
+and a several _looking_ tables which contain columns `{x, y, z, look_up}`. By applying a Cross Table Permutation
+Argument, we make sure that the multi-set of `(x, y, z)` values from the _looked_ table, where `allow_to_lookup`
+is `true`, is a permutation of a multi-set of `(x, y, z)` values from the _looking_ tables, where `is_looked_up`
+is `true`. This construction implies that if a single _looking_ table or several _looking_ tables look up the same row
+multiple times, then the _looked_ table must have this row multiple times, as each row can only be looked up once by any
+_looking_ table.
 
-In particular, we use the Permutation Cross Table Arguments to connect the STARK tables. It allows us to
-off-load the constraints and extra columns for some logic into a separate tables, which possibly reduces the amount of
-rows in the original tables.
-
-The technique used to enable the Cross Table Permutation Arguments is very similar to the technique behind standard
+The [technique](https://www.notion.so/0xmozak/Cross-Table-Lookup-bbe98d9471114c36a278f0c491f203e5?pvs=4#80f9047bc40f48f29c8ba852bf94c570)
+used to enable the Cross Table Permutation Arguments is very similar to the technique behind standard
 [Permutation Arguments](https://hackmd.io/@arielg/ByFgSDA7D) and just requires us to use commitments to multiple STARK
 tables, instead of a single one.
 
@@ -227,27 +227,27 @@ You can refer to the documentation in the `cross_table_lookup.rs` for more detai
 
 ### Cross Table Subset Arguments (Cross Table Subset Lookups)
 
-Similar to Subset Arguments, Cross Table Subset Arguments are used to check that the row values of _looking_ table are
+Similar to Subset Arguments, Cross Table Subset Arguments are used to check that row values of _looking_ table are
 present in the set of row of the _looked_ table. The converse is not required to be true, and the _looked_ table might
-have more unique values than the _looking_ table. Key idea difference between Cross Table Subset Arguments and standard
-Subset Arguments is that looking and looked tables do not even need to have the same number of rows.
+have more unique values than the _looking_ table. The only big difference between Cross Table Subset Arguments and
+standard Subset Arguments is that _looking_ and _looked_ tables in the Cross Table Subset Arguments do not need to have
+the same number of rows.
 
-We should point out that most of the time we refer to Cross Table Subset Arguments as Cross Table Subset Lookups.
+We should also point out that we often refer to Cross Table Subset Arguments as Cross Table Subset Lookups.
 
-To make the Cross Table Subset Lookups work, we introduce a new table, that will be used to combine columns from the
-looking and looked tables, and then pad them to equal length. We first populate the table with rows of the
-looking table, with a new additional column of `1`s, which will be used to indicate if a row is from the looking table
-or from the looked table. We then populate the new table with columns from the looked table, which have not been
-included yet in the new table, until we reach the size of the second table. We also indicate if a row was present in the
-looked table with a binary column.
+To make the Cross Table Subset Arguments work, similar to Subset Arguments, we introduce a new table, that will be used
+to combine rows from the looking and looked tables. We first populate the table with rows of the _looking_ table, with a
+new additional column used to indicate if a row is from the _looking_ table or from the _looked_ table. We then add to
+the new table rows from the _looked_ table, until we reach the size of the second table. We also add another column to
+indicate if a row is present in the _looked_ table.
 
 We then require that a Cross Table Permutation Argument holds between the new table and the looking table,
-where `is_from_looking_table` indicator is turned on, and between the new table and the second table,
-when `is_from_looked_table` is turned on. There is a very helpful
+for rows where `is_from_looking_table` indicator is turned on, and between the new table and the second table,
+for rows where `is_from_looked_table` indicator is turned on. There is a very helpful
 diagram [here](https://www.notion.so/0xmozak/Cross-Table-Lookup-bbe98d9471114c36a278f0c491f203e5?pvs=4#80f9047bc40f48f29c8ba852bf94c570)
 explaining how it works.
 
-Finally, like with Subset Lookups, we require that in the new table for each row:
+Finally, like with Subset Lookups, we require that for each row in the new table:
 
 - Either the row is not from the looking table.
 - Or the row value is the same as next row value (excluding indicator columns)
