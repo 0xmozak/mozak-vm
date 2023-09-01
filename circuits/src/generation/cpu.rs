@@ -8,7 +8,6 @@ use mozak_vm::vm::{ExecutionRecord, Row};
 use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;
-use crate::columns_view::NumberOfColumns;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
 use crate::program::columns::{InstructionRow, ProgramRom};
@@ -22,7 +21,6 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     cpu_trace: Vec<CpuState<F>>,
     program_rom: &[ProgramRom<F>],
 ) -> CpuColumnsExtended<Vec<F>> {
-    // dbg!(&cpu_trace);
     let mut permuted = generate_permuted_inst_trace(&cpu_trace, program_rom);
     let len = cpu_trace.len().max(permuted.len()).next_power_of_two();
     let ori_len = permuted.len();
@@ -30,17 +28,8 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     for entry in permuted.iter_mut().skip(ori_len) {
         entry.filter = F::ZERO;
     }
-    let og_len = cpu_trace.len();
     let cpu_trace = pad_trace_with_last_to_len(cpu_trace, len);
-    // dbg!(&cpu_trace);
-
-    let transposed_cpu_trace = transpose_trace(cpu_trace);
-    assert_eq!(transposed_cpu_trace.len(), CpuState::<F>::NUMBER_OF_COLUMNS);
-    assert_eq!(transposed_cpu_trace[0].len(), og_len.next_power_of_two());
-    // TODO(Matthias): is transpose trace wrong?
-    let x = chain!(transposed_cpu_trace, transpose_trace(permuted)).collect();
-    dbg!(&x);
-    x
+    chain!(transpose_trace(cpu_trace), transpose_trace(permuted)).collect()
 }
 
 #[allow(clippy::missing_panics_doc)]
