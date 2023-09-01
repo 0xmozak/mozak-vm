@@ -3,6 +3,8 @@ use anyhow::Result;
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
 use crate::state::{Aux, State};
+use crate::system::ecall;
+use crate::system::reg_abi::REG_A0;
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
@@ -90,19 +92,20 @@ impl State {
 
     #[must_use]
     pub fn ecall(self) -> (Aux, Self) {
-        (
-            Aux {
-                will_halt: true,
-                ..Aux::default()
-            },
-            if self.get_register_value(17) == 93 {
+        match self.get_register_value(REG_A0) {
+            ecall::HALT => {
                 // Note: we don't advance the program counter for 'halt'.
                 // That is we treat 'halt' like an endless loop.
-                self.halt() // exit system call
-            } else {
-                self.bump_pc()
-            },
-        )
+                (
+                    Aux {
+                        will_halt: true,
+                        ..Aux::default()
+                    },
+                    self.halt(),
+                )
+            }
+            _ => (Aux::default(), self.bump_pc()),
+        }
     }
 
     #[must_use]
