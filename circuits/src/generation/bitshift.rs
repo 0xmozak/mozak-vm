@@ -7,14 +7,7 @@ use crate::cpu::columns::CpuState;
 fn filter_shift_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> impl Iterator<Item = u64> + '_ {
     cpu_trace
         .iter()
-        .filter(|row| {
-            row.inst
-                .ops
-                .ops_that_shift()
-                .into_iter()
-                .sum::<F>()
-                .is_one()
-        })
+        .filter(|row| row.inst.ops.shifts().into_iter().sum::<F>().is_one())
         .map(|row| row.bitshift.amount.to_noncanonical_u64())
 }
 

@@ -11,14 +11,7 @@ fn filter_xor_trace<F: RichField>(
 ) -> impl Iterator<Item = XorView<F>> + '_ {
     step_rows
         .iter()
-        .filter(|row| {
-            row.inst
-                .ops
-                .ops_that_use_xor()
-                .into_iter()
-                .sum::<F>()
-                .is_one()
-        })
+        .filter(|row| row.inst.ops.uses_xor().into_iter().sum::<F>().is_one())
         .map(|row| row.xor)
 }
 
