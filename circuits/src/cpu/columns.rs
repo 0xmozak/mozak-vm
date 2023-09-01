@@ -25,12 +25,12 @@ pub struct OpSelectors<T> {
     pub mulhu: T,
     /// Shift Left Logical by amount
     pub sll: T,
-    /// Shift Right Logical by amount
-    pub srl: T,
     /// Set Less Than
     pub slt: T,
     /// Set Less Than Unsigned comparison
     pub sltu: T,
+    /// Shift Right Logical by amount
+    pub srl: T,
     /// Jump And Link Register
     pub jalr: T,
     /// Branch on Equal
