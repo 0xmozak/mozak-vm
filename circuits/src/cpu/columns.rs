@@ -55,6 +55,7 @@ pub struct OpSelectors<T> {
 }
 
 columns_view_impl!(Instruction);
+#[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Instruction<T> {
     /// The original instruction (+ imm_value) used for program
