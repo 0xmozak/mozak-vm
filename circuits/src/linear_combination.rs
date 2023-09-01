@@ -22,6 +22,7 @@ pub struct Column<F: Field> {
 impl<F: Field> Add<Self> for Column<F> {
     type Output = Self;
 
+    // TODO(Matthias): this one might be to blame?
     #[allow(clippy::similar_names)]
     fn add(
         self,
@@ -42,7 +43,10 @@ impl<F: Field> Add<Self> for Column<F> {
             .merge_join_by(rlc, |(l, _), (r, _)| usize::cmp(l, r))
             .map(|x| match x {
                 EitherOrBoth::Left(pair) | EitherOrBoth::Right(pair) => pair,
-                EitherOrBoth::Both((idx0, c0), (_, c1)) => (idx0, c0 + c1),
+                EitherOrBoth::Both((idx0, c0), (idx1, c1)) => {
+                    assert_eq!(idx0, idx1);
+                    (idx0, c0 + c1)
+                }
             })
             .collect();
 

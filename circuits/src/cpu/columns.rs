@@ -221,7 +221,9 @@ pub fn data_for_xor<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor)
 /// Column for a binary filter for bitwise instruction in Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_xor<F: Field>() -> Column<F> { MAP.cpu.map(Column::from).inst.ops.ops_that_use_xor() }
+pub fn filter_for_xor<F: Field>() -> Column<F> {
+    MAP.cpu.map(Column::from).inst.ops.ops_that_use_xor()
+}
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -231,13 +233,14 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.c
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> { Column::many(MAP.cpu.inst.ops.mem_ops()) }
+pub fn filter_for_memory<F: Field>() -> Column<F> { MAP.cpu.map(Column::from).inst.ops.mem_ops() }
 
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(self) -> T {
         // TODO: Add SRA, once we implement its constraints.
-        self.xor + self.or + self.and + self.srl + self.sll
+        // self.xor + self.or + self.and + self.srl + self.sll
+        self.sll
     }
 
     // TODO: Add SRA, once we implement its constraints.
@@ -245,7 +248,7 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
 
     // TODO: Add other mem ops like SH, SW, LB, LW, LH, LHU as we implement the
     // constraints.
-    pub fn mem_ops(self) -> [T; 2] { [self.sb, self.lbu] }
+    pub fn mem_ops(self) -> T { self.sb + self.lbu }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.

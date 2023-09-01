@@ -173,9 +173,12 @@ fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<
         Op::SRL | Op::SLL => 0b1_1111,
         _ => 0,
     };
-    let b = state
-        .get_register_value(inst.args.rs2)
-        .wrapping_add(inst.args.imm);
+    let b = match inst.op {
+        Op::AND | Op::OR | Op::XOR | Op::SRL | Op::SLL => state
+            .get_register_value(inst.args.rs2)
+            .wrapping_add(inst.args.imm),
+        _ => 0,
+    };
     XorView { a, b, out: a ^ b }.map(from_u32)
 }
 
