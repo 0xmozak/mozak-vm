@@ -358,6 +358,8 @@ pub mod ctl_utils {
         let mut looked_multiset = MultiSet::<F>::new();
 
         dbg!(trace_poly_values.into_iter().map(|v| v.len()).collect_vec());
+        let cpu_trace: crate::cpu::columns::CpuColumnsExtended<_> = trace_poly_values[0].iter().collect();
+        dbg!(cpu_trace);
         for looking_table in &ctl.looking_tables {
             dbg!(looking_table);
             looking_multiset.process_row(trace_poly_values, looking_table)?;
@@ -416,7 +418,6 @@ pub mod ctl_utils {
         traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
         mozak_stark: &MozakStark<F, D>,
     ) {
-        dbg!(&traces_poly_values[0]);
         mozak_stark
             .cross_table_lookups
             .iter()
