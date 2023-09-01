@@ -24,6 +24,7 @@ pub(crate) fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     trace_commitment: &'a PolynomialBatch<F, C, D>,
     permutation_ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
     permutation_challenges: &'a [GrandProductChallengeSet<F>],
+    public_inputs: [F; S::PUBLIC_INPUTS],
     ctl_data: &CtlData<F>,
     alphas: &[F],
     degree_bits: usize,
@@ -98,7 +99,7 @@ where
             let vars = StarkEvaluationVars {
                 local_values: &get_trace_values_packed(i_start),
                 next_values: &get_trace_values_packed(i_next_start),
-                public_inputs: &[F::ZERO; S::PUBLIC_INPUTS],
+                public_inputs: &public_inputs,
             };
             let permutation_check_vars = PermutationCheckVars {
                 local_zs: permutation_ctl_zs_commitment.get_lde_values_packed(i_start, step)

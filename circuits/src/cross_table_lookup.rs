@@ -175,8 +175,8 @@ fn partial_products<F: Field>(
 #[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct CrossTableLookup<F: Field> {
-    looking_tables: Vec<Table<F>>,
-    looked_table: Table<F>,
+    pub looking_tables: Vec<Table<F>>,
+    pub looked_table: Table<F>,
 }
 
 impl<F: Field> CrossTableLookup<F> {
@@ -294,17 +294,17 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
     }
 }
 
-#[cfg(test)]
-mod tests {
+pub mod ctl_utils {
     use std::collections::HashMap;
-    use std::ops::Deref;
+    use std::ops::{Deref, DerefMut};
 
-    use anyhow::Result;
-    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::extension::Extendable;
     use plonky2::field::polynomial::PolynomialValues;
+    use plonky2::field::types::Field;
+    use plonky2::hash::hash_types::RichField;
 
-    use super::*;
-    use crate::stark::mozak_stark::{CpuTable, Lookups, RangeCheckTable, TableKind};
+    use crate::cross_table_lookup::{CrossTableLookup, LookupError};
+    use crate::stark::mozak_stark::{MozakStark, Table, TableKind, NUM_TABLES};
 
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, usize)>>);
 
@@ -313,7 +313,9 @@ mod tests {
 
         fn deref(&self) -> &Self::Target { &self.0 }
     }
-
+    impl<F: Field> DerefMut for MultiSet<F> {
+        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+    }
     impl<F: Field> MultiSet<F> {
         pub fn new() -> Self { MultiSet(HashMap::new()) }
 
@@ -331,7 +333,7 @@ mod tests {
                         .iter()
                         .map(|c| c.eval_table(trace, i))
                         .collect::<Vec<_>>();
-                    self.0.entry(row).or_default().push((table.kind, i));
+                    self.entry(row).or_default().push((table.kind, i));
                 } else if !filter.is_zero() {
                     return Err(LookupError::NonBinaryFilter(i));
                 }
@@ -341,31 +343,8 @@ mod tests {
         }
     }
 
-    /// Specify which column(s) to find data related to lookups.
-    fn lookup_data<F: Field>(col_indices: &[usize]) -> Vec<Column<F>> {
-        Column::singles(col_indices)
-    }
-
-    /// Specify the column index of the filter column used in lookups.
-    fn lookup_filter<F: Field>(col_idx: usize) -> Column<F> { Column::single(col_idx) }
-
-    /// A generic cross lookup table.
-    struct FooBarTable<F: Field>(CrossTableLookup<F>);
-
-    impl<F: Field> Lookups<F> for FooBarTable<F> {
-        /// We use the [`CpuTable`] and the [`RangeCheckTable`] to build a
-        /// [`CrossTableLookup`] here, but in principle this is meant to
-        /// be used generically for tests.
-        fn lookups() -> CrossTableLookup<F> {
-            CrossTableLookup {
-                looking_tables: vec![CpuTable::new(lookup_data(&[1]), lookup_filter(2))],
-                looked_table: RangeCheckTable::new(lookup_data(&[1]), lookup_filter(0)),
-            }
-        }
-    }
-
-    /// Check that the provided trace and cross-table lookup are consistent.
-    fn check_ctl<F: Field>(
+    #[allow(clippy::missing_errors_doc)]
+    pub fn check_single_ctl<F: Field>(
         trace_poly_values: &[Vec<PolynomialValues<F>>],
         ctl: &CrossTableLookup<F>,
     ) -> Result<(), LookupError> {
@@ -418,6 +397,50 @@ mod tests {
         }
 
         Ok(())
+    }
+    #[allow(clippy::missing_panics_doc)]
+    pub fn debug_ctl<F: RichField + Extendable<D>, const D: usize>(
+        traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+        mozak_stark: &MozakStark<F, D>,
+    ) {
+        mozak_stark
+            .cross_table_lookups
+            .iter()
+            .for_each(|ctl| check_single_ctl(traces_poly_values, ctl).unwrap());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::polynomial::PolynomialValues;
+
+    use super::ctl_utils::check_single_ctl;
+    use super::*;
+    use crate::stark::mozak_stark::{CpuTable, Lookups, RangeCheckTable};
+
+    /// Specify which column(s) to find data related to lookups.
+    fn lookup_data<F: Field>(col_indices: &[usize]) -> Vec<Column<F>> {
+        Column::singles(col_indices)
+    }
+
+    /// Specify the column index of the filter column used in lookups.
+    fn lookup_filter<F: Field>(col_idx: usize) -> Column<F> { Column::single(col_idx) }
+
+    /// A generic cross lookup table.
+    struct FooBarTable<F: Field>(CrossTableLookup<F>);
+
+    impl<F: Field> Lookups<F> for FooBarTable<F> {
+        /// We use the [`CpuTable`] and the [`RangeCheckTable`] to build a
+        /// [`CrossTableLookup`] here, but in principle this is meant to
+        /// be used generically for tests.
+        fn lookups() -> CrossTableLookup<F> {
+            CrossTableLookup {
+                looking_tables: vec![CpuTable::new(lookup_data(&[1]), lookup_filter(2))],
+                looked_table: RangeCheckTable::new(lookup_data(&[1]), lookup_filter(0)),
+            }
+        }
     }
 
     #[derive(Debug, PartialEq)]
@@ -506,7 +529,7 @@ mod tests {
             TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
         let traces = vec![foo_trace, bar_trace];
         assert!(matches!(
-            check_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
+            check_single_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
             LookupError::NonBinaryFilter(0)
         ));
     }
@@ -528,7 +551,7 @@ mod tests {
             TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
         let traces = vec![foo_trace, bar_trace];
         assert!(matches!(
-            check_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
+            check_single_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
             LookupError::InconsistentTableRows
         ));
     }
@@ -544,7 +567,7 @@ mod tests {
         let bar_trace: Vec<PolynomialValues<F>> =
             TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
         let traces = vec![foo_trace, bar_trace];
-        check_ctl(&traces, &dummy_cross_table_lookup)?;
+        check_single_ctl(&traces, &dummy_cross_table_lookup)?;
 
         Ok(())
     }

@@ -15,6 +15,7 @@ use super::mozak_stark::{MozakStark, NUM_TABLES};
 use super::permutation::{
     get_grand_product_challenge_set, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
 };
+use crate::stark::mozak_stark::PublicInputs;
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -209,6 +210,8 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
 #[allow(clippy::module_name_repetitions)]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     pub stark_proofs: [StarkProof<F, C, D>; NUM_TABLES],
+    pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
+    pub public_inputs: PublicInputs<F>,
 }
 
 pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {

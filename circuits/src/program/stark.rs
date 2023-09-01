@@ -9,8 +9,9 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::ProgramColumnsView;
+use super::columns::ProgramRom;
 use crate::columns_view::NumberOfColumns;
+use crate::cpu::stark::is_binary;
 
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -19,7 +20,7 @@ pub struct ProgramStark<F, const D: usize> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ProgramStark<F, D> {
-    const COLUMNS: usize = ProgramColumnsView::<F>::NUMBER_OF_COLUMNS;
+    const COLUMNS: usize = ProgramRom::<F>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
 
     fn eval_packed_generic<FE, P, const D2: usize>(
@@ -29,8 +30,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ProgramStark<
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &ProgramColumnsView<P> = vars.local_values.borrow();
-        yield_constr.constraint(lv.filter * (lv.filter - P::ONES));
+        let lv: &ProgramRom<P> = vars.local_values.borrow();
+        is_binary(yield_constr, lv.filter);
     }
 
     #[no_coverage]

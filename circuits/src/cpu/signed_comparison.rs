@@ -1,3 +1,6 @@
+//! This module implements constraints for comparisons, SLT and SLTU.
+//! Where `SLT` means 'Set if Less Then', and 'SLTU' is the same but unsigned.
+
 use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
@@ -39,6 +42,7 @@ pub(crate) fn slt_constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
+    // Check: the destination has the same value as stored in `less_than`.
     yield_constr.constraint((lv.inst.ops.slt + lv.inst.ops.sltu) * (lv.less_than - lv.dst_value));
 }
 
@@ -66,7 +70,6 @@ mod tests {
                             rs1: 6,
                             rs2: 7,
                             imm,
-                            ..Args::default()
                         },
                     },
                     Instruction {
@@ -76,7 +79,6 @@ mod tests {
                             rs1: 6,
                             rs2: 7,
                             imm,
-                            ..Args::default()
                         },
                     },
                 ],
@@ -88,7 +90,7 @@ mod tests {
                 record.last_state.get_register_value(4),
                 u32::from((a as i32) < (op2 as i32))
             );
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }

@@ -9,8 +9,9 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use crate::memory::columns::{MemoryColumnsView, NUM_MEM_COLS};
-use crate::memory::trace::{OPCODE_LB, OPCODE_SB};
+use crate::cpu::stark::is_binary;
+use crate::memory::columns::{Memory, NUM_MEM_COLS};
+use crate::memory::trace::OPCODE_SB;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -30,46 +31,53 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &MemoryColumnsView<P> = vars.local_values.borrow();
-        let nv: &MemoryColumnsView<P> = vars.next_values.borrow();
+        let lv: &Memory<P> = vars.local_values.borrow();
+        let nv: &Memory<P> = vars.next_values.borrow();
 
-        let local_new_addr = lv.mem_diff_addr * lv.mem_diff_addr_inv;
-        let next_new_addr = nv.mem_diff_addr * nv.mem_diff_addr_inv;
-        yield_constr.constraint_first_row(lv.mem_op - FE::from_canonical_usize(OPCODE_SB));
-        yield_constr.constraint_first_row(lv.mem_diff_addr - lv.mem_addr);
-        yield_constr.constraint_first_row(local_new_addr - P::ONES);
-        yield_constr.constraint_first_row(lv.mem_diff_clk);
+        // Both `new_addr` values are 1 if the address changed, 0 otherwise
+        let local_new_addr = lv.diff_addr * lv.diff_addr_inv;
+        let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
 
-        // lv.MEM_PADDING is {0, 1}
-        yield_constr.constraint(lv.mem_padding * (lv.mem_padding - P::ONES));
+        // For the initial state of memory access, we request:
+        // 1. First opcode is `sb`
+        // 2. `diff_addr` is initiated as `addr - 0`
+        // 3. `addr` != 0
+        // 4. `diff_clk` is initiated as `0`
+        yield_constr.constraint_first_row(lv.op - FE::from_canonical_usize(OPCODE_SB));
+        yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
+        yield_constr.constraint_first_row(lv.diff_clk);
 
-        // lv.MEM_OP in {0, 1}
-        yield_constr.constraint(lv.mem_op * (lv.mem_op - P::ONES));
+        // Consequently, we constrain:
 
-        // a) if new_addr: op === sb
-        yield_constr.constraint(local_new_addr * (lv.mem_op - FE::from_canonical_usize(OPCODE_SB)));
+        is_binary(yield_constr, lv.is_executed);
+        // We only have two different ops at the moment, so we use a binary variable to
+        // represent them:
+        is_binary(yield_constr, lv.op);
 
-        // b) if not new_addr: diff_clk_next <== clk_next - clk_cur
-        yield_constr.constraint_transition(
-            (nv.mem_diff_clk - nv.mem_clk + lv.mem_clk) * (next_new_addr - P::ONES),
-        );
+        // Check: if address for next instruction changed, then opcode was `sb`
+        yield_constr.constraint(local_new_addr * (lv.op - FE::from_canonical_usize(OPCODE_SB)));
 
-        // c) if new_addr: diff_clk === 0
-        yield_constr.constraint(local_new_addr * lv.mem_diff_clk);
+        // Check: if next address did not change, diff_clk_next is `clk` difference
+        yield_constr
+            .constraint_transition((nv.diff_clk - nv.clk + lv.clk) * (next_new_addr - P::ONES));
 
-        // d) diff_addr_next <== addr_next - addr_cur
-        yield_constr.constraint_transition(nv.mem_diff_addr - nv.mem_addr + lv.mem_addr);
+        // Check: if address changed, then clock did not change
+        yield_constr.constraint(local_new_addr * lv.diff_clk);
 
-        // e) if op_next == lb: value_next === value_cur
-        yield_constr.constraint(
-            (nv.mem_value - lv.mem_value)
-                * (P::ONES - nv.mem_op + FE::from_canonical_usize(OPCODE_LB)),
-        );
+        // Check: `diff_addr_next` is  `addr_next - addr_cur`
+        yield_constr.constraint_transition(nv.diff_addr - nv.addr + lv.addr);
 
-        // f) (new_addr - 1)*diff_addr===0
-        //    (new_addr - 1)*diff_addr_inv===0
-        yield_constr.constraint((local_new_addr - P::ONES) * lv.mem_diff_addr);
-        yield_constr.constraint((local_new_addr - P::ONES) * lv.mem_diff_addr_inv);
+        // Check: either the next operation is a store or the `value` stays the same.
+        yield_constr
+            .constraint((nv.op - FE::from_canonical_usize(OPCODE_SB)) * (nv.value - lv.value));
+
+        // Check: either `diff_addr_inv` is inverse of `diff_addr`, or they both are 0.
+        yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr);
+        yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr_inv);
+
+        // Once we have padding, all subsequent rows are padding; ie not
+        // `is_executed`.
+        yield_constr.constraint_transition((lv.is_executed - nv.is_executed) * nv.is_executed);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -93,6 +101,7 @@ mod tests {
 
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
@@ -107,8 +116,18 @@ mod tests {
     }
 
     #[test]
+    fn prove_memory_sb_lb_all() -> Result<()> {
+        let (program, executed) = memory_trace_test_case(1);
+        MozakStark::prove_and_verify(&program, &executed)?;
+        Ok(())
+    }
+
+    #[test]
     fn prove_memory_sb_lb() -> Result<()> {
-        let (program, executed) = memory_trace_test_case();
-        MemoryStark::prove_and_verify(&program, &executed)
+        for repeats in 0..8 {
+            let (program, executed) = memory_trace_test_case(repeats);
+            MemoryStark::prove_and_verify(&program, &executed)?;
+        }
+        Ok(())
     }
 }

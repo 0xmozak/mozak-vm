@@ -1,3 +1,5 @@
+//! This module implements the constraints for the ADD operation.
+
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
@@ -12,6 +14,9 @@ pub(crate) fn constraints<P: PackedField>(
     let added = lv.op1_value + lv.op2_value;
     let wrapped = added - wrap_at;
 
+    // Check: the resulting sum is wrapped if necessary.
+    // As the result is range checked, this make the choice deterministic,
+    // even for a malicious prover.
     yield_constr.constraint(lv.inst.ops.add * (lv.dst_value - added) * (lv.dst_value - wrapped));
 }
 
@@ -41,7 +46,7 @@ mod tests {
             &[(6, 100), (7, 100)],
         );
         assert_eq!(record.last_state.get_register_value(5), 100 + 100);
-        MozakStark::prove_and_verify(&program, &record.executed)
+        MozakStark::prove_and_verify(&program, &record)
     }
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
@@ -65,7 +70,7 @@ mod tests {
                 if rd != 0 {
                     assert_eq!(record.executed[1].state.get_register_value(rd), a.wrapping_add(b));
                 }
-                CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+                CpuStark::prove_and_verify(&program, &record).unwrap();
             }
     }
 }
