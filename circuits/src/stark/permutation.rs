@@ -32,8 +32,8 @@ pub(crate) mod challenge {
     };
 
     /// Randomness parameters that the are used to generate a unique
-    /// representation representation (mapping) of list of field elements.
-    /// If two lists map to the same representations, then, with high
+    /// projection (mapping) of list of field elements.
+    /// If two lists have the same projection values, then, with high
     /// probability, the two lists are identical. Though collisions can
     /// happen, our security depends on the low probability of such events.
     ///
@@ -58,7 +58,7 @@ pub(crate) mod challenge {
         ///
         /// ### Reasoning
         ///
-        /// Let us consider a simpler unique representation mapping first:
+        /// Let us consider a simpler unique projection first:
         ///      `term_0*beta_0 + term_1*beta_1 + ... + term_n-1 + gamma`
         /// where `beta_i` are random values.
         ///
@@ -165,7 +165,7 @@ pub(crate) fn get_permutation_batches<'a, T: Copy + Eq + PartialEq + Debug>(
 /// Compute Z(x) polynomials for all challenges, where each Z(x) polynomial is
 /// for a given set of permutations, applied over a set of column pairs.
 ///
-/// Targeted STARK  must explicitly override the permutation column when
+/// Targeted STARK must explicitly override the permutation column when
 /// implementing the [`Stark`] trait.
 pub(crate) fn compute_permutation_z_polys<F, S, const D: usize>(
     stark: &S,
@@ -216,7 +216,7 @@ fn compute_permutation_z_poly<F: Field>(
     // The following should give an intuition behind this:
     // For each permutation, we have generated two reduced polynomials, that
     // uniquely characterise each row of both left set of columns that
-    // participate in the permutation, as well as right columns.
+    // participate in the permutation, as well as right set of columns.
     //
     // Additionally, the way we have incorporated randomness when calculating the
     // reduced polynomials makes the reduced polynomial values semi-random.
@@ -236,9 +236,7 @@ fn compute_permutation_z_poly<F: Field>(
 
     // Compute Z, which contains partial products of the quotients.
     // If indeed all the permutations between the left and right sides are correct,
-    // then for each reduced polynomials value on left there is a row with the same
-    // reduced polynomials value on the right. Which means if we take product of all
-    // such values, then it should be 1.
+    // then if we take product of all reduced polynomials values, then it must be 1.
     // This implies that `Z(degree - 1) == 1 <-> all permutations hold`
     let mut partial_products = Vec::with_capacity(degree);
     let mut acc = F::ONE;

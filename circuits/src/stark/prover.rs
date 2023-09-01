@@ -125,11 +125,11 @@ where
             .collect::<Vec<_>>()
     );
 
-    // Add trace commitments to the challenger entropy pool.
     let trace_caps = trace_commitments
         .iter()
         .map(|c| c.merkle_tree.cap.clone())
         .collect::<Vec<_>>();
+    // Add trace commitments to the challenger entropy pool.
     let mut challenger = Challenger::<F, C::Hasher>::new();
     for cap in &trace_caps {
         challenger.observe_cap(cap);
