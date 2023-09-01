@@ -1,3 +1,6 @@
+//! This module implements the constraints for the environment call operation
+//! 'ECALL'.
+
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
@@ -10,9 +13,9 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // TODO: this needs to change, when we add support for more system calls.
-    // At the moment, the only system call we support is 'halt', ie ecall with x17 =
-    // 93. Everything else is invalid.
-    yield_constr.constraint(lv.inst.ops.ecall * (lv.regs[17] - P::Scalar::from_canonical_u8(93)));
+    // At the moment, the only system call we support is 'halt', ie ecall with x10 =
+    // 0. Everything else is invalid.
+    yield_constr.constraint(lv.inst.ops.ecall * (lv.regs[10] - P::Scalar::from_canonical_u8(0)));
     // Thus we can equate ecall with halt in the next row.
     // Crucially, this prevents a malicious prover from just halting the program
     // anywhere else.

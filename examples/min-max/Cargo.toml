@@ -4,6 +4,7 @@ name = "min-max-mozak-guest"
 version = "0.1.0"
 
 [dependencies]
+guest = { path = "../../guest" }
 
 [[bin]]
 name = "min-max"
