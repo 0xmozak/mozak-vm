@@ -7,6 +7,8 @@
 #![register_tool(tarpaulin)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
+// FIXME: Remove this, when proptest's macro is updated not to trigger clippy.
+#![allow(clippy::ignored_unit_patterns)]
 
 pub mod bitshift;
 pub mod columns_view;
@@ -16,6 +18,7 @@ pub mod generation;
 pub mod linear_combination;
 pub mod lookup;
 pub mod memory;
+pub mod memoryinit;
 pub mod program;
 pub mod rangecheck;
 pub mod stark;

@@ -24,17 +24,23 @@ pub struct CpuStark<F, const D: usize> {
 }
 
 impl<P: PackedField> OpSelectors<P> {
-    // Note: ecall is only 'jumping' in the sense that a 'halt' does not bump the
-    // PC. It sort-of jumps back to itself.
+    // List of opcodes that manipulated the program counter, instead of
+    // straight line incrementing it.
+    // Note: ecall is only 'jumping' in the sense that a 'halt'
+    // does not bump the PC. It sort-of jumps back to itself.
     pub fn is_jumping(&self) -> P {
         self.beq + self.bge + self.bgeu + self.blt + self.bltu + self.bne + self.ecall + self.jalr
     }
 
+    /// List of opcodes that only bump the program counter.
     pub fn is_straightline(&self) -> P { P::ONES - self.is_jumping() }
 
+    /// List of opcodes that work with memory.
     pub fn is_mem_op(&self) -> P { self.sb + self.lbu }
 }
 
+/// Ensure that if opcode is straight line, then program counter is incremented
+/// by 4.
 fn pc_ticks_up<P: PackedField>(
     lv: &CpuState<P>,
     nv: &CpuState<P>,
@@ -46,9 +52,8 @@ fn pc_ticks_up<P: PackedField>(
     );
 }
 
-/// Selector of opcode, and registers should be one-hot encoded.
-///
-/// Ie exactly one of them should be by 1, all others by 0 in each row.
+/// Enforce that selectors of opcode as well as registers are one-hot encoded.
+/// Ie exactly one of them should be 1, and all others 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
 fn one_hots<P: PackedField>(inst: &Instruction<P>, yield_constr: &mut ConstraintConsumer<P>) {
     one_hot(inst.ops, yield_constr);
@@ -101,11 +106,10 @@ fn r0_always_0<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintCo
     yield_constr.constraint(lv.regs[0]);
 }
 
-/// Ensures that if [`filter`] is 0, then duplicate instructions
-/// are present. Note that this function doesn't check whether every instruction
-/// is unique. Rather, it ensures that no unique instruction present in the
-/// trace is omitted. It also doesn't verify the execution order of the
-/// instructions.
+/// This function ensures that for each unique value present in
+/// the instruction column the [`filter`] flag is `1`. This is done by comparing
+/// the local row and the next row values.
+/// As the result, `filter` marks all duplicated instructions with `0`.
 fn check_permuted_inst_cols<P: PackedField>(
     lv: &ProgramRom<P>,
     nv: &ProgramRom<P>,
@@ -119,15 +123,15 @@ fn check_permuted_inst_cols<P: PackedField>(
     }
 }
 
-/// Register used as destination register can have different value, all
-/// other regs have same value as of previous row.
+/// Only the destination register can change its value.  
+/// All other registers must keep the same value as in the previous row.
 fn only_rd_changes<P: PackedField>(
     lv: &CpuState<P>,
     nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // Note: register 0 is already always 0.
-    // But we keep the constraints simple here.
+    // Note: we could skip 0, because r0 is always 0.
+    // But we keep it to make it easier to reason about the code.
     (0..32).for_each(|reg| {
         yield_constr.constraint_transition(
             (P::ONES - lv.inst.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]),
@@ -135,6 +139,7 @@ fn only_rd_changes<P: PackedField>(
     });
 }
 
+/// The destination register should change to `dst_value`.
 fn rd_assigned_correctly<P: PackedField>(
     lv: &CpuState<P>,
     nv: &CpuState<P>,
@@ -148,11 +153,12 @@ fn rd_assigned_correctly<P: PackedField>(
     });
 }
 
+/// First operand should be assigned with the value of the designated register.
 fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
     yield_constr.constraint(
         lv.op1_value
             // Note: we could skip 0, because r0 is always 0.
-            // But we keep the constraints simple here.
+            // But we keep it to make it easier to reason about the code.
             - (0..32)
                 .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
                 .sum::<P>(),
@@ -160,22 +166,29 @@ fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
 }
 
 /// Constraints for values in op2, which is the sum of the value of the second
-/// operand register and the immediate value. This may overflow.
+/// operand register and the immediate value (except for branch instructions).
+/// This may overflow.
 fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
     let wrap_at = CpuState::<P>::shifted(32);
+    let ops = &lv.inst.ops;
+    let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bltu + ops.bge + ops.bgeu;
 
+    // Note: we could skip 0, because r0 is always 0.
+    // But we keep the constraints simple here.
+    let rs2_value = (0..32)
+        .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
+        .sum::<P>();
+
+    yield_constr.constraint(is_branch_operation * (lv.op2_value - rs2_value));
     yield_constr.constraint(
-        lv.op2_value_overflowing - lv.inst.imm_value
-            // Note: we could skip 0, because r0 is always 0.
-            // But we keep the constraints simple here.
-            - (0..32)
-                .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
-                .sum::<P>(),
+        (P::ONES - is_branch_operation)
+            * (lv.op2_value_overflowing - lv.inst.imm_value - rs2_value),
     );
 
     yield_constr.constraint(
-        (lv.op2_value_overflowing - lv.op2_value)
-            * (lv.op2_value_overflowing - lv.op2_value - wrap_at * lv.inst.ops.is_mem_op()),
+        (P::ONES - is_branch_operation)
+            * (lv.op2_value_overflowing - lv.op2_value)
+            * (lv.op2_value_overflowing - lv.op2_value - wrap_at * ops.is_mem_op()),
     );
 }
 
@@ -215,6 +228,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         let nv: &CpuColumnsExtended<_> = vars.next_values.borrow();
         let public_inputs: &PublicInputs<_> = vars.public_inputs.borrow();
 
+        // Constrain the CPU transition between previous `lv` state and next `nv`
+        // state.
         check_permuted_inst_cols(&lv.permuted, &nv.permuted, yield_constr);
 
         let lv = &lv.cpu;

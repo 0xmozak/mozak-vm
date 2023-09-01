@@ -36,17 +36,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
         // We first convert both input and output to bit representation
         // We then work with the bit representations to check the Xor result.
 
-        // Check: Bit representation of inputs and output contains either 0 or 1.
+        // Check: bit representation of inputs and output contains either 0 or 1.
         for bit_value in chain!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
             yield_constr.constraint(bit_value * (bit_value - P::ONES));
         }
 
-        // Check: Bit representation of inputs and output were generated correctly.
+        // Check: bit representation of inputs and output were generated correctly.
         for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
             yield_constr.constraint(reduce_with_powers(&opx_limbs, P::Scalar::TWO) - opx);
         }
 
-        // Check: Output bit representation is Xor of input a and b bit representations
+        // Check: output bit representation is Xor of input a and b bit representations
         for (a, b, res) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
             // Note that if a, b are in {0, 1}: (a ^ b) = a + b - 2 * a * b
             // One can check by substituting the values, that:
@@ -107,7 +107,6 @@ mod tests {
                         rs2: 6,
                         rd: 7,
                         imm,
-                        ..Args::default()
                     },
                 },
                 Instruction {
@@ -117,7 +116,6 @@ mod tests {
                         rs2: 6,
                         rd: 7,
                         imm,
-                        ..Args::default()
                     },
                 },
                 Instruction {
@@ -127,7 +125,6 @@ mod tests {
                         rs2: 6,
                         rd: 7,
                         imm,
-                        ..Args::default()
                     },
                 },
             ],
