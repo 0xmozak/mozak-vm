@@ -9,9 +9,17 @@ use crate::xor::columns::{XorColumnsView, XorView};
 fn filter_xor_trace<F: RichField>(
     step_rows: &[CpuState<F>],
 ) -> impl Iterator<Item = XorView<F>> + '_ {
-    step_rows.iter().filter_map(|row| {
-        (row.inst.ops.ops_that_use_xor().into_iter().sum::<F>() != F::ZERO).then_some(row.xor)
-    })
+    step_rows
+        .iter()
+        .filter(|row| {
+            row.inst
+                .ops
+                .ops_that_use_xor()
+                .into_iter()
+                .sum::<F>()
+                .is_one()
+        })
+        .map(|row| row.xor)
 }
 
 fn to_bits<F: RichField>(val: F) -> [F; u32::BITS as usize] {
