@@ -22,6 +22,8 @@ pub struct OpSelectors<T> {
     /// Remainder Unsigned
     pub remu: T,
     pub mul: T,
+    pub mulh: T,
+    pub mulhsu: T,
     pub mulhu: T,
     /// Shift Left Logical by amount
     pub sll: T,
@@ -131,11 +133,16 @@ pub struct CpuState<T> {
     pub divisor: T,
 
     // Product evaluation columns
-    pub multiplier: T,
-    pub product_low_bits: T,
-    pub product_high_bits: T,
-    /// Used as a helper column to check that `product_high != u32::MAX`
-    pub product_high_diff_inv: T,
+    pub op1_abs: T,
+    pub op2_abs: T,
+    pub skip_check_product_sign: T,
+    pub product_sign: T,
+    pub product_high_limb: T, // range check u32 required
+    pub product_low_limb: T,  // range check u32 required
+    /// Used as a helper column to check that `product_high_limb != u32::MAX`
+    /// when product_sign is 0 and `product_high_limb != 0` when
+    /// product_sign is 1
+    pub product_high_limb_inv_helper: T,
 }
 
 make_col_map!(CpuColumnsExtended);
@@ -153,21 +160,25 @@ impl<T: PackedField> CpuState<T> {
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
 
-    // TODO(Matthias): unify where we specify `is_signed` for constraints and trace
-    // generation. Also, later, take mixed sign (for MULHSU) into account.
-    pub fn is_signed(&self) -> T { self.inst.ops.slt + self.inst.ops.bge + self.inst.ops.blt }
+    // TODO(Matthias): unify where we specify `is_op(1|2)_signed` for constraints
+    // and trace generation.
+    pub fn is_op2_signed(&self) -> T {
+        self.inst.ops.slt + self.inst.ops.bge + self.inst.ops.blt + self.inst.ops.mulh
+    }
+
+    pub fn is_op1_signed(&self) -> T { self.is_op2_signed() + self.inst.ops.mulhsu }
 
     /// Value of the first operand, as if converted to i64.
     ///
     /// For unsigned operations: `Field::from_noncanonical_i64(op1 as i64)`
     /// For signed operations: `Field::from_noncanonical_i64(op1 as i32 as i64)`
     ///
-    /// So range is `i32::MIN..=u32::MAX`
+    /// So range is `i32::MIN..=u32::MAX` in Prime Field.
     pub fn op1_full_range(&self) -> T { self.op1_value - self.op1_sign_bit * Self::shifted(32) }
 
     /// Value of the second operand, as if converted to i64.
     ///
-    /// So range is `i32::MIN..=u32::MAX`
+    /// So range is `i32::MIN..=u32::MAX` in Prime Field.
     pub fn op2_full_range(&self) -> T { self.op2_value - self.op2_sign_bit * Self::shifted(32) }
 
     /// Difference between first and second operands, which works for both pairs
@@ -204,12 +215,12 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
             Column::many([ops.bge, ops.blt]),
         ),
         CpuTable::new(
-            Column::singles([MAP.cpu.product_high_bits]),
-            Column::many([ops.mul, ops.mulhu]),
+            Column::singles([MAP.cpu.product_high_limb]),
+            Column::many([ops.mul, ops.mulhu, ops.mulhsu, ops.mulh, ops.sll]),
         ),
         CpuTable::new(
-            Column::singles([MAP.cpu.product_low_bits]),
-            Column::many([ops.mul, ops.mulhu]),
+            Column::singles([MAP.cpu.product_low_limb]),
+            Column::many([ops.mul, ops.mulhu, ops.mulhsu, ops.mulh, ops.sll]),
         ),
     ]
 }
