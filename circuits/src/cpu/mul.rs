@@ -116,7 +116,7 @@ pub(crate) fn constraints<P: PackedField>(
         yield_constr.constraint(lv.inst.ops.sll * (op2_abs - lv.bitshift.multiplier));
     }
 
-    // Now, let's copy our results to the destination register:
+    // Now, check, that we select the correct output based on the opcode.
     let destination = lv.dst_value;
     yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.sll) * (destination - low_limb));
     yield_constr.constraint(

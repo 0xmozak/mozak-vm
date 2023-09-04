@@ -52,7 +52,7 @@ pub(crate) fn constraints<P: PackedField>(
         yield_constr.constraint(ops.srl * (q - lv.bitshift.multiplier));
     }
 
-    // Check: the equation from the spec becomes:
+    // Check: the equation from the spec:
     //  p = q * m + r
     // (Interestingly, this holds even when q == 0.)
     let m = lv.quotient;

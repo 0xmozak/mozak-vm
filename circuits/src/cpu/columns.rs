@@ -57,6 +57,7 @@ pub struct OpSelectors<T> {
 }
 
 columns_view_impl!(Instruction);
+#[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Instruction<T> {
     /// The original instruction (+ imm_value) used for program
@@ -98,7 +99,7 @@ pub struct CpuState<T> {
     /// Values of the registers.
     pub regs: [T; 32],
 
-    // 0 mean non-negative, 1 means negative.
+    // 0 means non-negative, 1 means negative.
     // (If number is unsigned, it is non-negative.)
     pub op1_sign_bit: T,
     pub op2_sign_bit: T,
