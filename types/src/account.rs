@@ -1,3 +1,10 @@
+use crate::pubkey::PubKey;
+
+pub struct Account {
+    // Public key of the account (address)
+	id: PubKey
+}
+
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }
