@@ -18,7 +18,7 @@ use crate::xor::columns::XorView;
 #[allow(clippy::missing_panics_doc)]
 #[must_use]
 pub fn generate_cpu_trace_extended<F: RichField>(
-    mut cpu_trace: Vec<CpuState<F>>,
+    cpu_trace: Vec<CpuState<F>>,
     program_rom: &[ProgramRom<F>],
 ) -> CpuColumnsExtended<Vec<F>> {
     let mut permuted = generate_permuted_inst_trace(&cpu_trace, program_rom);
@@ -28,9 +28,8 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     for entry in permuted.iter_mut().skip(ori_len) {
         entry.filter = F::ZERO;
     }
-    cpu_trace = pad_trace_with_last_to_len(cpu_trace, len);
-
-    (chain!(transpose_trace(cpu_trace), transpose_trace(permuted))).collect()
+    let cpu_trace = pad_trace_with_last_to_len(cpu_trace, len);
+    chain!(transpose_trace(cpu_trace), transpose_trace(permuted)).collect()
 }
 
 #[allow(clippy::missing_panics_doc)]
@@ -214,9 +213,12 @@ fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<
         Op::SRL | Op::SLL => 0b1_1111,
         _ => 0,
     };
-    let b = state
-        .get_register_value(inst.args.rs2)
-        .wrapping_add(inst.args.imm);
+    let b = match inst.op {
+        Op::AND | Op::OR | Op::XOR | Op::SRL | Op::SLL => state
+            .get_register_value(inst.args.rs2)
+            .wrapping_add(inst.args.imm),
+        _ => 0,
+    };
     XorView { a, b, out: a ^ b }.map(from_u32)
 }
 
