@@ -89,8 +89,7 @@ pub fn transpose_polys<
 
 #[allow(clippy::missing_panics_doc)]
 pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
-    program: &Program,
-    record: &ExecutionRecord,
+    traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     mozak_stark: &MozakStark<F, D>,
     public_inputs: &PublicInputs<F>,
 ) where
@@ -102,10 +101,10 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:, {
-    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace]: [Vec<
+    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace]: &[Vec<
         PolynomialValues<F>,
     >;
-        NUM_TABLES] = generate_traces(program, record);
+        NUM_TABLES] = traces_poly_values;
 
     assert!([
         // Program ROM
@@ -158,14 +157,14 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 #[allow(clippy::missing_panics_doc)]
 pub fn debug_single_trace<F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>(
     stark: &S,
-    trace_rows: Vec<PolynomialValues<F>>,
+    trace_rows: &[PolynomialValues<F>],
     stark_name: &str,
     public_inputs: &[F; S::PUBLIC_INPUTS],
 ) -> bool
 where
     [(); S::COLUMNS]:,
     [(); S::PUBLIC_INPUTS]:, {
-    transpose_polys::<F, D, S>(trace_rows)
+    transpose_polys::<F, D, S>(trace_rows.to_vec())
         .iter()
         .enumerate()
         .circular_tuple_windows()
