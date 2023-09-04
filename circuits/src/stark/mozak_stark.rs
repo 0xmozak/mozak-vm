@@ -209,10 +209,7 @@ impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
         .collect();
         CrossTableLookup::new(
             looking,
-            RangeCheckTable::new(
-                rangecheck::columns::data_for_cpu(),
-                rangecheck::columns::filter_for_cpu(),
-            ),
+            RangeCheckTable::new(rangecheck::columns::data(), rangecheck::columns::filter()),
         )
     }
 }

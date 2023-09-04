@@ -92,7 +92,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
                 val,
                 limb_lo,
                 limb_hi,
-                cpu_filter: F::ONE,
+                filter: F::ONE,
                 ..Default::default()
             };
             push_rangecheck_row(&mut trace, rangecheck_row.borrow());
@@ -170,8 +170,8 @@ mod tests {
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
         // Check values that we are interested in
-        assert_eq!(trace[MAP.cpu_filter][0], F::ONE);
-        assert_eq!(trace[MAP.cpu_filter][1], F::ONE);
+        assert_eq!(trace[MAP.filter][0], F::ONE);
+        assert_eq!(trace[MAP.filter][1], F::ONE);
         assert_eq!(trace[MAP.val][0], GoldilocksField(0x0001_fffe));
         assert_eq!(trace[MAP.val][1], GoldilocksField(0));
         assert_eq!(trace[MAP.limb_hi][0], GoldilocksField(0x0001));
@@ -179,8 +179,8 @@ mod tests {
         assert_eq!(trace[MAP.limb_lo][1], GoldilocksField(0));
 
         // Ensure rest of trace is zeroed out
-        for cpu_filter in &trace[MAP.cpu_filter][2..] {
-            assert_eq!(cpu_filter, &F::ZERO);
+        for filter in &trace[MAP.filter][2..] {
+            assert_eq!(filter, &F::ZERO);
         }
         for value in &trace[MAP.val][2..] {
             assert_eq!(value, &F::ZERO);
