@@ -20,14 +20,14 @@ use crate::cpu::stark::is_binary;
 //
 /// Our constraints need to ensure, that the prover did this conversion
 /// properly. For an unsigned operation, the range of `opX_full_range` is
-/// `0..=u32::MAX`. For an unsigned operation, the range of `opX_full_range` is
+/// `0..=u32::MAX`. For an signed operation, the range of `opX_full_range` is
 /// `i32::MIN..=i32::MAX`. Notice how both ranges are of the same length, and
 /// only differ by an offset of `1<<31`.
 ///
 /// TODO: range check these two linear combinations of columns:
 /// ```ignore
-///  lv.op1_full_range() + lv.is_signed() * CpuState::<P>::shifted(31);
-///  lv.op2_full_range() + lv.is_signed() * CpuState::<P>::shifted(31);
+///  lv.op1_full_range() + lv.is_op1_signed() * CpuState::<P>::shifted(31);
+///  lv.op2_full_range() + lv.is_op2_signed() * CpuState::<P>::shifted(31);
 /// ```
 
 pub(crate) fn signed_constraints<P: PackedField>(
@@ -36,6 +36,10 @@ pub(crate) fn signed_constraints<P: PackedField>(
 ) {
     is_binary(yield_constr, lv.op1_sign_bit);
     is_binary(yield_constr, lv.op2_sign_bit);
+    // When op1 is not signed as per instruction semantics, op1_sign_bit must be 0.
+    yield_constr.constraint((P::ONES - lv.is_op1_signed()) * lv.op1_sign_bit);
+    // When op2 is not signed as per instruction semantics, op2_sign_bit must be 0.
+    yield_constr.constraint((P::ONES - lv.is_op2_signed()) * lv.op2_sign_bit);
 }
 
 pub(crate) fn slt_constraints<P: PackedField>(

@@ -53,8 +53,7 @@ fn pc_ticks_up<P: PackedField>(
 }
 
 /// Enforce that selectors of opcode as well as registers are one-hot encoded.
-///
-/// Ie exactly one of them should be by 1, all others by 0 in each row.
+/// Ie exactly one of them should be 1, and all others 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
 fn one_hots<P: PackedField>(inst: &Instruction<P>, yield_constr: &mut ConstraintConsumer<P>) {
     one_hot(inst.ops, yield_constr);
@@ -110,6 +109,7 @@ fn r0_always_0<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintCo
 /// This function ensures that for each unique value present in
 /// the instruction column the [`filter`] flag is `1`. This is done by comparing
 /// the local row and the next row values.
+/// As the result, `filter` marks all duplicated instructions with `0`.
 fn check_permuted_inst_cols<P: PackedField>(
     lv: &ProgramRom<P>,
     nv: &ProgramRom<P>,
@@ -130,8 +130,8 @@ fn only_rd_changes<P: PackedField>(
     nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // Note: register 0 is already always 0.
-    // But we keep the constraints simple here.
+    // Note: we could skip 0, because r0 is always 0.
+    // But we keep it to make it easier to reason about the code.
     (0..32).for_each(|reg| {
         yield_constr.constraint_transition(
             (P::ONES - lv.inst.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]),
@@ -158,7 +158,7 @@ fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     yield_constr.constraint(
         lv.op1_value
             // Note: we could skip 0, because r0 is always 0.
-            // But we keep the constraints simple here.
+            // But we keep it to make it easier to reason about the code.
             - (0..32)
                 .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
                 .sum::<P>(),
