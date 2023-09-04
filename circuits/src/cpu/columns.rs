@@ -192,14 +192,13 @@ impl<T: PackedField> CpuState<T> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
-    // let cpu = MAP.
     let ops: &OpSelectors<Column<F>> = &MAP.cpu.inst.ops.map(Column::from);
     let divs = &ops.divu + &ops.remu + &ops.srl;
     let muls = &ops.mul + &ops.mulhu + &ops.mulhsu + &ops.mulh + &ops.sll;
     vec![
         CpuTable::new(vec![MAP.cpu.quotient.into()], divs.clone()),
         CpuTable::new(vec![MAP.cpu.remainder.into()], divs.clone()),
-        CpuTable::new(vec![MAP.cpu.remainder_slack.into()], divs.clone()),
+        CpuTable::new(vec![MAP.cpu.remainder_slack.into()], divs),
         CpuTable::new(vec![MAP.cpu.dst_value.into()], ops.add.clone()),
         CpuTable::new(vec![MAP.cpu.abs_diff.into()], &ops.bge + &ops.blt),
         CpuTable::new(vec![MAP.cpu.product_high_limb.into()], muls.clone()),
