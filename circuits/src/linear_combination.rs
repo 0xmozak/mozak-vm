@@ -40,7 +40,7 @@ impl<F: Field> Add<Self> for Column<F> {
 
         let linear_combination = slc
             .into_iter()
-            .merge_join_by(rlc, |(l, _), (r, _)| usize::cmp(l, r))
+            .merge_join_by(rlc, |(l, _), (r, _)| l.cmp(r))
             .map(|x| match x {
                 EitherOrBoth::Left(pair) | EitherOrBoth::Right(pair) => pair,
                 EitherOrBoth::Both((idx0, c0), (idx1, c1)) => {
