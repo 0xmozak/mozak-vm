@@ -192,36 +192,18 @@ impl<T: PackedField> CpuState<T> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
-    let ops = &MAP.cpu.inst.ops;
+    // let cpu = MAP.
+    let ops: &OpSelectors<Column<F>> = &MAP.cpu.inst.ops.map(Column::from);
+    let divs = &ops.divu + &ops.remu + &ops.srl;
+    let muls = &ops.mul + &ops.mulhu + &ops.mulhsu + &ops.mulh + &ops.sll;
     vec![
-        CpuTable::new(
-            Column::singles([MAP.cpu.quotient]),
-            Column::many([ops.divu, ops.remu, ops.srl]),
-        ),
-        CpuTable::new(
-            Column::singles([MAP.cpu.remainder]),
-            Column::many([ops.divu, ops.remu, ops.srl]),
-        ),
-        CpuTable::new(
-            Column::singles([MAP.cpu.remainder_slack]),
-            Column::many([ops.divu, ops.remu, ops.srl]),
-        ),
-        CpuTable::new(
-            Column::singles([MAP.cpu.dst_value]),
-            Column::single(ops.add),
-        ),
-        CpuTable::new(
-            Column::singles([MAP.cpu.abs_diff]),
-            Column::many([ops.bge, ops.blt]),
-        ),
-        CpuTable::new(
-            Column::singles([MAP.cpu.product_high_limb]),
-            Column::many([ops.mul, ops.mulhu, ops.mulhsu, ops.mulh, ops.sll]),
-        ),
-        CpuTable::new(
-            Column::singles([MAP.cpu.product_low_limb]),
-            Column::many([ops.mul, ops.mulhu, ops.mulhsu, ops.mulh, ops.sll]),
-        ),
+        CpuTable::new(vec![MAP.cpu.quotient.into()], divs.clone()),
+        CpuTable::new(vec![MAP.cpu.remainder.into()], divs.clone()),
+        CpuTable::new(vec![MAP.cpu.remainder_slack.into()], divs.clone()),
+        CpuTable::new(vec![MAP.cpu.dst_value.into()], ops.add.clone()),
+        CpuTable::new(vec![MAP.cpu.abs_diff.into()], &ops.bge + &ops.blt),
+        CpuTable::new(vec![MAP.cpu.product_high_limb.into()], muls.clone()),
+        CpuTable::new(vec![MAP.cpu.product_low_limb.into()], muls),
     ]
 }
 

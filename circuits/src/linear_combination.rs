@@ -22,7 +22,6 @@ pub struct Column<F: Field> {
 impl<F: Field> Add<Self> for Column<F> {
     type Output = Self;
 
-    // TODO(Matthias): this one might be to blame?
     #[allow(clippy::similar_names)]
     fn add(
         self,
@@ -57,6 +56,27 @@ impl<F: Field> Add<Self> for Column<F> {
     }
 }
 
+impl<F: Field> Add<Self> for &Column<F> {
+    type Output = Column<F>;
+
+    #[allow(clippy::similar_names)]
+    fn add(self, other: Self) -> Self::Output { self.clone() + other.clone() }
+}
+
+impl<F: Field> Add<Column<F>> for &Column<F> {
+    type Output = Column<F>;
+
+    #[allow(clippy::similar_names)]
+    fn add(self, other: Column<F>) -> Self::Output { self.clone() + other }
+}
+
+impl<F: Field> Add<&Self> for Column<F> {
+    type Output = Column<F>;
+
+    #[allow(clippy::similar_names)]
+    fn add(self, other: &Self) -> Self::Output { self + other.clone() }
+}
+
 impl<F: Field> Add<F> for Column<F> {
     type Output = Self;
 
@@ -66,6 +86,12 @@ impl<F: Field> Add<F> for Column<F> {
             constant: self.constant + constant,
         }
     }
+}
+
+impl<F: Field> Add<F> for &Column<F> {
+    type Output = Column<F>;
+
+    fn add(self, constant: F) -> Column<F> { self.clone() + constant }
 }
 
 impl<F: Field> Mul<F> for Column<F> {
@@ -81,6 +107,12 @@ impl<F: Field> Mul<F> for Column<F> {
             constant: factor * self.constant,
         }
     }
+}
+
+impl<F: Field> Mul<F> for &Column<F> {
+    type Output = Column<F>;
+
+    fn mul(self, factor: F) -> Column<F> { self.clone() * factor }
 }
 
 impl<F: Field> Sum<Column<F>> for Column<F> {

@@ -93,7 +93,6 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
 
 pub(crate) const NUM_TABLES: usize = 6;
 
-// TODO(Matthias): How do we use these?
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum TableKind {
     Cpu = 0,
