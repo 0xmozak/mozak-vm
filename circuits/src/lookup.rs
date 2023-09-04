@@ -51,21 +51,19 @@ impl Lookup {
         for challenge in &lookup_vars.challenges {
             let fe_challenge = FE::from_basefield(*challenge);
 
-            for (i, col) in self.looking_columns.iter().enumerate() {
+            for (i, _) in self.looking_columns.iter().enumerate() {
                 let mut x = lookup_vars.local_values[i];
-                let mut y = P::ZEROS;
 
                 x *= vars.local_values[i] + fe_challenge;
-                y += vars.local_values[i] + fe_challenge;
 
-                yield_constr.constraint(x - P::ONES);
+                // yield_constr.constraint(x - P::ONES);
             }
 
             let num_helper_columns = self.num_helper_columns();
             // Check that the penultimate helper column contains `1/(table+challenge)`.
             let x = lookup_vars.local_values[num_helper_columns - 2];
             let x = x * (vars.local_values[self.looked_column] + fe_challenge);
-            yield_constr.constraint(x - P::ONES);
+            // yield_constr.constraint(x - P::ONES);
 
             // Check the `Z` polynomial.
             let z = lookup_vars.local_values[num_helper_columns - 1];
@@ -75,10 +73,8 @@ impl Lookup {
                 .fold(P::ZEROS, |acc, x| acc + *x)
                 - vars.local_values[self.multiplicity_column]
                     * lookup_vars.local_values[num_helper_columns - 2];
-            yield_constr.constraint(next_z - z - y);
+            // yield_constr.constraint(next_z - z - y);
         }
-
-        println!("eval");
     }
 
     /// This is the h(x) within the paper.

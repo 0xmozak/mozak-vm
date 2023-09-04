@@ -86,7 +86,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
 
     pub(crate) fn num_helper_columns(&self, config: &StarkConfig) -> usize {
         self.lookups.as_ref().map_or(0, |ls| {
-            ls.iter().map(|l| l.looking_columns.len()).sum::<usize>() * config.num_challenges
+            ls.iter().map(|l| l.num_helper_columns()).sum::<usize>() * config.num_challenges
         })
     }
 }
@@ -159,6 +159,7 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
                 .collect::<Vec<_>>()
         };
         let zeta_next = zeta.scalar_mul(g);
+
         Self {
             local_values: eval_commitment(zeta, trace_commitment),
             next_values: eval_commitment(zeta_next, trace_commitment),

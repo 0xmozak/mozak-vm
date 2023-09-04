@@ -136,14 +136,13 @@ pub struct CpuState<T> {
     /// Used as a helper column to check that `product_high != u32::MAX`
     pub product_high_diff_inv: T,
 
-    pub rc_limb_hi: T,
     pub rc_limb_lo: T,
     pub u16_range: T,
     pub multiplicity: T,
 }
 
 impl<T> CpuState<T> {
-    pub fn rangechecked_columns() -> Vec<usize> { vec![MAP.cpu.rc_limb_hi, MAP.cpu.rc_limb_lo] }
+    pub fn rangechecked_columns() -> Vec<usize> { vec![MAP.cpu.rc_limb_lo] }
 }
 
 make_col_map!(CpuColumnsExtended);

@@ -222,18 +222,9 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
             .map(|p| {
                 let openings = &p.proof.openings;
                 let num_lookups = p.num_helper_columns(config);
+
                 let ctl_zs = openings.auxiliary_polys.iter().skip(num_lookups);
                 let ctl_zs_next = openings.auxiliary_polys_next.iter().skip(num_lookups);
-                println!(
-                    "CtlCheckVars::from_proofs : aux: {}, aux_next: {}, skipping num_lookups={}\nctl_zs: {}, ctl_zs_next: {}",
-                    openings.auxiliary_polys.len(),
-                    openings.auxiliary_polys_next.len(),
-                    num_lookups,
-                    ctl_zs.len(),
-                    ctl_zs_next.len(),
-
-                );
-
                 ctl_zs.zip(ctl_zs_next)
             })
             .collect::<Vec<_>>();

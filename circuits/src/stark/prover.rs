@@ -207,7 +207,7 @@ where
         .map(|_| challenger.get_n_challenges(config.num_challenges));
 
     let auxiliary_polys = timed!(timing, "compute lookup helper columns", {
-        let mut columns = ctl_data.z_polys();
+        let mut columns = Vec::new();
         lookup_challenges.as_ref().map(|challenges| {
             for lookup in lookups.as_deref().unwrap() {
                 for &challenge in challenges {
@@ -215,9 +215,10 @@ where
                 }
             }
         });
+
+        columns.extend(ctl_data.z_polys());
         columns
     });
-
     // TODO(Matthias): make the code work with empty z_polys, too.
     // assert!(!auxiliary_polys.is_empty(), "No CTL?");
 
@@ -234,7 +235,6 @@ where
         )
     );
 
-    let lookup_challenges = Some(challenger.get_n_challenges(config.num_challenges));
     let auxiliary_polys_cap = auxiliary_polys_commitment.merkle_tree.cap.clone();
     challenger.observe_cap(&auxiliary_polys_cap);
 
@@ -300,8 +300,7 @@ where
 
     let num_lookup_columns = lookups.as_ref().map_or(0, |lus| {
         lus.iter().map(|lu| lu.num_helper_columns()).sum::<usize>()
-    });
-    println!("prover: num_lu_cols: {}", num_lookup_columns);
+    }) * config.num_challenges;
 
     let openings = StarkOpeningSet::new(
         zeta,

@@ -148,11 +148,6 @@ where
     [(); S::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let num_lookup_columns = proof.num_helper_columns(config);
-    println!(
-        "verifier: ctl_vars.len() {}, num LU cols: {}",
-        ctl_vars.len(),
-        num_lookup_columns
-    );
     validate_proof_shape(
         stark,
         &proof.proof,
@@ -205,7 +200,7 @@ where
         stark,
         vars,
         proof.lookups.as_deref(),
-        lookup_vars.unwrap(),
+        lookup_vars,
         ctl_vars,
         &mut consumer,
     );
