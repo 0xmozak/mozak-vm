@@ -11,11 +11,7 @@ fn filter_xor_trace<F: RichField>(
 ) -> impl Iterator<Item = XorView<F>> + '_ {
     step_rows
         .iter()
-        .filter(|row| {
-            let f = row.inst.ops.ops_that_use_xor();
-            assert!(f == F::ONE || f == F::ZERO);
-            f.is_one()
-        })
+        .filter(|row| row.inst.ops.ops_that_use_xor().is_one())
         .map(|row| row.xor)
 }
 
@@ -31,7 +27,6 @@ fn to_bits<F: RichField>(val: F) -> [F; u32::BITS as usize] {
 #[allow(clippy::missing_panics_doc)]
 #[allow(clippy::cast_possible_truncation)]
 pub fn generate_xor_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> Vec<XorColumnsView<F>> {
-    // dbg!(cpu_trace);
     pad_trace_with_default({
         let filtered_cpu_trace_for_xor = filter_xor_trace(cpu_trace)
             .map(|execution| XorColumnsView {
@@ -40,7 +35,6 @@ pub fn generate_xor_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> Vec<XorCol
                 limbs: execution.map(to_bits),
             })
             .collect_vec();
-        // dbg!(&filtered_cpu_trace_for_xor);
         filtered_cpu_trace_for_xor
     })
 }
