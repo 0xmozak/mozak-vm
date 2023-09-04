@@ -36,7 +36,7 @@ implemented, they require at least degree `3` constraints to work.
 
 ### Padding Rows
 
-Due to how STARKs work, we need to always pad tables to a size which is a multiple of two (due to the requirements of
+Due to how STARKs work, we need to always pad tables to a size which is a power of two (due to the requirements of
 FFT/IFFT).
 
 ```rust
