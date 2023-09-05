@@ -93,9 +93,10 @@ mod tests {
     use proptest::{prop_oneof, proptest};
 
     use crate::cpu::stark::CpuStark;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
 
-    fn test_cond_branch(a: u32, b: u32, op: Op) {
+    fn test_cond_branch(a: u32, b: u32, op: Op, mozak: bool) {
         let (program, record) = simple_test_code(
             &[
                 Instruction {
@@ -133,14 +134,24 @@ mod tests {
             state_before_final(&record).get_register_value(1),
             if taken { 0 } else { 10 }
         );
+        if mozak { MozakStark::prove_and_verify(&program, &record).unwrap();  } else { CpuStark::prove_and_verify(&program, &record).unwrap(); }
+        
+    }
 
-        CpuStark::prove_and_verify(&program, &record).unwrap();
+    #[test]
+    fn prove_test_cond_branch(){
+        test_cond_branch(100, 200, Op::BLT, true);
+        test_cond_branch(100, 200, Op::BLTU, true);
+        test_cond_branch(100, 200, Op::BGE, true);
+        test_cond_branch(100, 200, Op::BGEU, true);
+        test_cond_branch(100, 200, Op::BEQ, true);
+        test_cond_branch(100, 200, Op::BNE, true);
     }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(32))]
         #[test]
         fn prove_branch_proptest(a in u32_extra(), b in u32_extra(), op in prop_oneof![Just(Op::BLT), Just(Op::BLTU), Just(Op::BGE), Just(Op::BGEU), Just(Op::BEQ), Just(Op::BNE)]) {
-            test_cond_branch(a, b, op);
+            test_cond_branch(a, b, op, false);
         }
     }
 }

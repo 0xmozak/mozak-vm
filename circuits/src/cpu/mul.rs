@@ -137,6 +137,7 @@ mod tests {
     use starky::verifier::verify_stark_proof;
 
     use crate::cpu::stark::CpuStark;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
     use crate::generation::program::generate_program_rom_trace;
     use crate::stark::mozak_stark::PublicInputs;
@@ -204,6 +205,132 @@ mod tests {
         );
         verification_res.unwrap();
         timing.print();
+    }
+
+    #[test]
+    fn prove_mul_test() {
+        let (a, b) = (100, 200);
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::MUL,
+                    args: Args {
+                        rd: 8,
+                        rs1: 6,
+                        rs2: 7,
+                        ..Args::default()
+                    },
+                },
+            ],
+            &[],
+            &[(6, a), (7, b)],
+        );
+        let (low, _high) = a.widening_mul(b);
+        assert_eq!(record.executed[0].aux.dst_val, low);
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+    #[test]
+    fn prove_mulhu_test() {
+        let (a, b) = (100, 200);
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::MULHU,
+                    args: Args {
+                        rd: 9,
+                        rs1: 6,
+                        rs2: 7,
+                        ..Args::default()
+                    },
+                },
+            ],
+            &[],
+            &[(6, a), (7, b)],
+        );
+        let (_low, high) = a.widening_mul(b);
+        assert_eq!(record.executed[0].aux.dst_val, high);
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_lossless)]
+    #[test]
+    fn prove_mulh_test() {
+        let (a, b) = (100, 200);
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::MULH,
+                    args: Args {
+                        rd: 8,
+                        rs1: 6,
+                        rs2: 7,
+                        ..Args::default()
+                    },
+                },
+            ],
+            &[],
+            &[(6, a as u32), (7, b as u32)],
+        );
+        let (res, overflow) = i64::from(a).overflowing_mul(i64::from(b));
+        assert!(!overflow);
+        assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_lossless)]
+    #[test]
+    fn prove_mulhsu_test() {
+        let (a, b) = (100, 200);
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::MULHSU,
+                    args: Args {
+                        rd: 8,
+                        rs1: 6,
+                        rs2: 7,
+                        ..Args::default()
+                    },
+                },
+            ],
+            &[],
+            &[(6, a as u32), (7, b)],
+        );
+        let (res, _overflow) = i64::from(a).overflowing_mul(i64::from(b));
+        assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    #[test]
+    fn prove_sll_test() {
+        let (p, q) = (100, 200);
+        let (rs1, rs2, rd) = (6, 7, 8);
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::SLL,
+                args: Args {
+                    rd,
+                    rs1,
+                    rs2,
+                    ..Args::default()
+                },
+            },
+            Instruction {
+                op: Op::SLL,
+                args: Args {
+                    rd,
+                    rs1,
+                    imm: q,
+                    ..Args::default()
+                },
+            }
+            ],
+            &[],
+            &[(rs1, p), (rs2, q)],
+        );
+        assert_eq!(record.executed[0].aux.dst_val, p << (q & 0b1_1111));
+        assert_eq!(record.executed[1].aux.dst_val, p << (q & 0b1_1111));
+        MozakStark::prove_and_verify(&program, &record).unwrap();
     }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]

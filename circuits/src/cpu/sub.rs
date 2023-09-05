@@ -27,7 +27,28 @@ mod tests {
     use proptest::proptest;
 
     use crate::cpu::stark::CpuStark;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
+
+    #[test]
+    fn prove_sub_test() {
+        let (a, b) = (100, 200);
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::SUB,
+                args: Args {
+                    rd: 5,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, a), (7, b)],
+        );
+        assert_eq!(record.last_state.get_register_value(5), a.wrapping_sub(b));
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]

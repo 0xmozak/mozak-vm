@@ -58,7 +58,7 @@ mod tests {
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
-    use crate::cpu::stark::CpuStark;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
@@ -94,7 +94,7 @@ mod tests {
                 record.last_state.get_register_value(4),
                 u32::from((a as i32) < (op2 as i32))
             );
-            CpuStark::prove_and_verify(&program, &record).unwrap();
+            MozakStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }

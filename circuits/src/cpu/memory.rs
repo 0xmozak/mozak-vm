@@ -7,7 +7,56 @@ mod tests {
     use proptest::proptest;
 
     use crate::cpu::stark::CpuStark;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
+
+    #[test]
+    fn prove_sb_test() {
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::SB,
+                    args: Args {
+                        rs1: 6,
+                        rs2: 7,
+                        ..Args::default()
+                    },
+                },
+            ],
+            &[],
+            &[(6, 100), (7, 200)],
+        );
+
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+    #[test]
+    fn prove_mem_read_write_test() {
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::SB,
+                    args: Args {
+                        rs1: 1,
+                        rs2: 2,
+                        imm: 0,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::LBU,
+                    args: Args {
+                        rs2: 2,
+                        imm: 0,
+                        ..Args::default()
+                    },
+                },
+            ],
+            &[],
+            &[(1, 100), (2, 200)],
+        );
+
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]

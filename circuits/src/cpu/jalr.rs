@@ -45,6 +45,7 @@ mod tests {
     use proptest::proptest;
 
     use crate::cpu::stark::CpuStark;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
 
     #[test]
@@ -154,6 +155,39 @@ mod tests {
         );
         assert_eq!(record.last_state.get_pc(), 16);
         CpuStark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    #[test]
+    fn prove_triple_jalr_test() {
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::JALR,
+                    args: Args {
+                        imm: 8, // goto to pc = 8
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::JALR,
+                    args: Args {
+                        imm: 12, // goto to pc = 12
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::JALR,
+                    args: Args {
+                        imm: 4, // goto to pc = 4
+                        ..Args::default()
+                    },
+                },
+            ],
+            &[],
+            &[],
+        );
+        assert_eq!(record.last_state.get_pc(), 16);
+        MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
     proptest! {
