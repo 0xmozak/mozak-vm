@@ -6,11 +6,17 @@
 
 If you are unfamiliar with the Risc-V instruction set, please have a look at the [Risc-V instruction set reference](https://github.com/jameslzhu/riscv-card/blob/master/riscv-card.pdf).
 
-# Build requirements
+# Setting up your build environment
 
-- [Rust toolchain](https://www.rust-lang.org/tools/install)
+## Quickstart in GitHub codespaces
 
-The Mozak VM is built in Rust, so the Rust toolchain is a pre-requisite.
+You can [open this repository in GitHub Codespaces](https://codespaces.new/0xmozak/mozak-vm?quickstart=1), click on `Create new codespace` and start developing straight away in your browser.  All build requirements will be taken care of. You can stop or resume the instance anytime.  (You can also find the '<> Code' button on the top right of the main page of the repository on GitHub to access the codespaces you created.  See the [Codespaces documentation](https://github.com/features/codespaces) for background information.)
+
+## Local Build requirements
+
+Mozak VM is built in Rust, so [installing the Rust toolchain](https://www.rust-lang.org/tools/install) is a pre-requisite, if you want to develop on your local machine.
+
+# Bulding
 
 ```bash
 cargo build

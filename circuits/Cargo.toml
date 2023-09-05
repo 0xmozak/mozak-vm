@@ -22,7 +22,7 @@ plonky2_maybe_rayon = "0.1.0"
 serde = { version = "1.0", features = ["derive"] }
 # starky = "0.1.1"
 starky = { path = "../../plonky2/starky" } 
-thiserror = "1.0.44"
+thiserror = "1.0.48"
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }

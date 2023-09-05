@@ -17,7 +17,7 @@ use crate::xor::columns::XorView;
 #[allow(clippy::missing_panics_doc)]
 #[must_use]
 pub fn generate_cpu_trace_extended<F: RichField>(
-    mut cpu_trace: Vec<CpuState<F>>,
+    cpu_trace: Vec<CpuState<F>>,
     program_rom: &[ProgramRom<F>],
 ) -> CpuColumnsExtended<Vec<F>> {
     let mut permuted = generate_permuted_inst_trace(&cpu_trace, program_rom);
@@ -27,9 +27,8 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     for entry in permuted.iter_mut().skip(ori_len) {
         entry.filter = F::ZERO;
     }
-    cpu_trace = pad_trace_with_last_to_len(cpu_trace, len);
-
-    (chain!(transpose_trace(cpu_trace), transpose_trace(permuted))).collect()
+    let cpu_trace = pad_trace_with_last_to_len(cpu_trace, len);
+    chain!(transpose_trace(cpu_trace), transpose_trace(permuted)).collect()
 }
 
 const U16_RANGE_MAX: usize = 1 << 16;
@@ -124,27 +123,70 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
 fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
-    let multiplier = if let Op::SLL = inst.op {
+    // Helper function to determine sign and absolute value.
+    let sign_and_absolute = |is_signed: bool, x: u32| {
+        if is_signed {
+            ((x as i32) < 0, (x as i32).unsigned_abs())
+        } else {
+            (false, x)
+        }
+    };
+
+    // Calculate op2 values.
+    let (is_op2_negative, op2_abs) = if let Op::SLL = inst.op {
         let shift_amount = aux.op2 & 0b1_1111;
         let shift_power = 1_u32 << shift_amount;
+
         row.bitshift = Bitshift {
             amount: shift_amount,
             multiplier: shift_power,
         }
         .map(from_u32);
-        shift_power
+
+        sign_and_absolute(false, shift_power)
     } else {
-        aux.op2
+        sign_and_absolute(row.is_op2_signed().is_nonzero(), aux.op2)
     };
 
-    row.multiplier = from_u32(multiplier);
-    let (low, high) = aux.op1.widening_mul(multiplier);
-    row.product_low_bits = from_u32(low);
-    row.product_high_bits = from_u32(high);
+    // Calculate op1 values.
+    let (is_op1_negative, op1_abs) = sign_and_absolute(row.is_op1_signed().is_nonzero(), aux.op1);
 
-    // Prove that the high limb is different from `u32::MAX`:
-    let high_diff: F = from_u32(u32::MAX - high);
-    row.product_high_diff_inv = high_diff.try_inverse().unwrap_or_default();
+    // Determine product sign and absolute value.
+    let mut product_sign = is_op1_negative ^ is_op2_negative;
+    let op1_mul_op2_abs = u64::from(op1_abs) * u64::from(op2_abs);
+
+    row.skip_check_product_sign = if op1_mul_op2_abs == 0 {
+        product_sign = false;
+        F::ONE
+    } else {
+        F::ZERO
+    };
+
+    row.product_sign = if product_sign { F::ONE } else { F::ZERO };
+    row.op1_abs = from_u32(op1_abs);
+    row.op2_abs = from_u32(op2_abs);
+
+    // Compute the product limbs based on sign.
+    let prod = if product_sign {
+        u64::MAX - op1_mul_op2_abs + 1
+    } else {
+        op1_mul_op2_abs
+    };
+
+    let low = (prod & 0xffff_ffff) as u32;
+    let high = (prod >> 32) as u32;
+    row.product_low_limb = from_u32(low);
+    row.product_high_limb = from_u32(high);
+
+    // Calculate the product high limb inverse helper.
+    let inv_helper_val = if product_sign {
+        high
+    } else {
+        0xffff_ffff - high
+    };
+    row.product_high_limb_inv_helper = from_u32::<F>(inv_helper_val)
+        .try_inverse()
+        .unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]
@@ -181,10 +223,8 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, au
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_lossless)]
 fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
-    let is_signed: bool = row.is_signed().is_nonzero();
-
-    let op1_full_range = sign_extend(is_signed, aux.op1);
-    let op2_full_range = sign_extend(is_signed, aux.op2);
+    let op1_full_range = sign_extend(row.is_op1_signed().is_nonzero(), aux.op1);
+    let op2_full_range = sign_extend(row.is_op2_signed().is_nonzero(), aux.op2);
 
     row.op1_sign_bit = F::from_bool(op1_full_range < 0);
     row.op2_sign_bit = F::from_bool(op2_full_range < 0);
@@ -200,9 +240,12 @@ fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<
         Op::SRL | Op::SLL => 0b1_1111,
         _ => 0,
     };
-    let b = state
-        .get_register_value(inst.args.rs2)
-        .wrapping_add(inst.args.imm);
+    let b = match inst.op {
+        Op::AND | Op::OR | Op::XOR | Op::SRL | Op::SLL => state
+            .get_register_value(inst.args.rs2)
+            .wrapping_add(inst.args.imm),
+        _ => 0,
+    };
     XorView { a, b, out: a ^ b }.map(from_u32)
 }
 
