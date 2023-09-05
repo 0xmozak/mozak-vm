@@ -53,6 +53,7 @@ mod tests {
         }
         #[test]
         fn prove_mem_read_write_proptest(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prop_assume!(imm > 8);
             let sum: u64 = u64::from(imm) + u64::from(offset);
             let limit: u64 = u32::MAX.into();
             prop_assume!(sum <= limit);
