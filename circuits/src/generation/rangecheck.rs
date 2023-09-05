@@ -177,6 +177,5 @@ mod tests {
         assert_eq!(trace[MAP.limb_hi][0], GoldilocksField(0x0001));
         assert_eq!(trace[MAP.limb_lo][0], GoldilocksField(0xfffe));
         assert_eq!(trace[MAP.limb_lo][1], GoldilocksField(0));
-
     }
 }

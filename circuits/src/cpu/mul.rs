@@ -137,10 +137,9 @@ mod tests {
     use starky::verifier::verify_stark_proof;
 
     use crate::cpu::stark::CpuStark;
-    use crate::stark::mozak_stark::MozakStark;
     use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
     use crate::generation::program::generate_program_rom_trace;
-    use crate::stark::mozak_stark::PublicInputs;
+    use crate::stark::mozak_stark::{MozakStark, PublicInputs};
     use crate::stark::utils::trace_to_poly_values;
     use crate::test_utils::{standard_faster_config, ProveAndVerify, C, D, F};
     use crate::utils::from_u32;
@@ -211,17 +210,15 @@ mod tests {
     fn prove_mul_test() {
         let (a, b) = (100, 200);
         let (program, record) = simple_test_code(
-            &[
-                Instruction {
-                    op: Op::MUL,
-                    args: Args {
-                        rd: 8,
-                        rs1: 6,
-                        rs2: 7,
-                        ..Args::default()
-                    },
+            &[Instruction {
+                op: Op::MUL,
+                args: Args {
+                    rd: 8,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
                 },
-            ],
+            }],
             &[],
             &[(6, a), (7, b)],
         );
@@ -233,17 +230,15 @@ mod tests {
     fn prove_mulhu_test() {
         let (a, b) = (100, 200);
         let (program, record) = simple_test_code(
-            &[
-                Instruction {
-                    op: Op::MULHU,
-                    args: Args {
-                        rd: 9,
-                        rs1: 6,
-                        rs2: 7,
-                        ..Args::default()
-                    },
+            &[Instruction {
+                op: Op::MULHU,
+                args: Args {
+                    rd: 9,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
                 },
-            ],
+            }],
             &[],
             &[(6, a), (7, b)],
         );
@@ -257,17 +252,15 @@ mod tests {
     fn prove_mulh_test() {
         let (a, b) = (100, 200);
         let (program, record) = simple_test_code(
-            &[
-                Instruction {
-                    op: Op::MULH,
-                    args: Args {
-                        rd: 8,
-                        rs1: 6,
-                        rs2: 7,
-                        ..Args::default()
-                    },
+            &[Instruction {
+                op: Op::MULH,
+                args: Args {
+                    rd: 8,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
                 },
-            ],
+            }],
             &[],
             &[(6, a as u32), (7, b as u32)],
         );
@@ -282,17 +275,15 @@ mod tests {
     fn prove_mulhsu_test() {
         let (a, b) = (100, 200);
         let (program, record) = simple_test_code(
-            &[
-                Instruction {
-                    op: Op::MULHSU,
-                    args: Args {
-                        rd: 8,
-                        rs1: 6,
-                        rs2: 7,
-                        ..Args::default()
-                    },
+            &[Instruction {
+                op: Op::MULHSU,
+                args: Args {
+                    rd: 8,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
                 },
-            ],
+            }],
             &[],
             &[(6, a as u32), (7, b)],
         );
@@ -306,24 +297,25 @@ mod tests {
         let (p, q) = (100, 200);
         let (rs1, rs2, rd) = (6, 7, 8);
         let (program, record) = simple_test_code(
-            &[Instruction {
-                op: Op::SLL,
-                args: Args {
-                    rd,
-                    rs1,
-                    rs2,
-                    ..Args::default()
+            &[
+                Instruction {
+                    op: Op::SLL,
+                    args: Args {
+                        rd,
+                        rs1,
+                        rs2,
+                        ..Args::default()
+                    },
                 },
-            },
-            Instruction {
-                op: Op::SLL,
-                args: Args {
-                    rd,
-                    rs1,
-                    imm: q,
-                    ..Args::default()
+                Instruction {
+                    op: Op::SLL,
+                    args: Args {
+                        rd,
+                        rs1,
+                        imm: q,
+                        ..Args::default()
+                    },
                 },
-            }
             ],
             &[],
             &[(rs1, p), (rs2, q)],

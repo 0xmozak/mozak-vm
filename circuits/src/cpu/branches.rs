@@ -134,12 +134,15 @@ mod tests {
             state_before_final(&record).get_register_value(1),
             if taken { 0 } else { 10 }
         );
-        if mozak { MozakStark::prove_and_verify(&program, &record).unwrap();  } else { CpuStark::prove_and_verify(&program, &record).unwrap(); }
-        
+        if mozak {
+            MozakStark::prove_and_verify(&program, &record).unwrap();
+        } else {
+            CpuStark::prove_and_verify(&program, &record).unwrap();
+        }
     }
 
     #[test]
-    fn prove_test_cond_branch(){
+    fn prove_test_cond_branch() {
         test_cond_branch(100, 200, Op::BLT, true);
         test_cond_branch(100, 200, Op::BLTU, true);
         test_cond_branch(100, 200, Op::BGE, true);

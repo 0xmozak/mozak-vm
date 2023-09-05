@@ -13,16 +13,14 @@ mod tests {
     #[test]
     fn prove_sb_test() {
         let (program, record) = simple_test_code(
-            &[
-                Instruction {
-                    op: Op::SB,
-                    args: Args {
-                        rs1: 6,
-                        rs2: 7,
-                        ..Args::default()
-                    },
+            &[Instruction {
+                op: Op::SB,
+                args: Args {
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
                 },
-            ],
+            }],
             &[],
             &[(6, 100), (7, 200)],
         );

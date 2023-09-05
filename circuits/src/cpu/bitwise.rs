@@ -108,25 +108,24 @@ mod tests {
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
     use crate::xor::stark::XorStark;
-    use crate::stark::mozak_stark::MozakStark;
 
     #[test]
-    fn prove_bitwise_example()
-    {
+    fn prove_bitwise_example() {
         let code: Vec<_> = [Op::AND, Op::OR, Op::XOR]
-        .into_iter()
-        .map(|kind| Instruction {
-            op: kind,
-            args: Args {
-                rd: 8,
-                rs1: 6,
-                rs2: 7,
-                imm: 0,
-            },
-        })
-        .collect();
+            .into_iter()
+            .map(|kind| Instruction {
+                op: kind,
+                args: Args {
+                    rd: 8,
+                    rs1: 6,
+                    rs2: 7,
+                    imm: 0,
+                },
+            })
+            .collect();
 
         let (program, record) = simple_test_code(&code, &[], &[(6, 100), (7, 200)]);
         MozakStark::prove_and_verify(&program, &record).unwrap();
