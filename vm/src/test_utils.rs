@@ -58,7 +58,7 @@ pub fn simple_test_code(
     let program = Program {
         entry_point: 0,
         ro_memory: Data::default(),
-        rw_memory: image, // TODO: what needs to be added here?
+        rw_memory: image,
         ro_code: code,
     };
     let state0 = State::from(&program);

@@ -30,7 +30,9 @@ impl From<&Program> for State {
         let Data(ro_memory) = program.ro_memory.clone();
         Self {
             pc: program.entry_point,
+            ro_code,
             rw_memory,
+            ro_memory,
             ..Default::default()
         }
     }
@@ -187,8 +189,10 @@ impl State {
     /// address.
     #[must_use]
     pub fn store_u8(mut self, addr: u32, value: u8) -> Result<Self> {
-        if self.ro_memory.contains_key(&addr) || self.ro_code.contains_key(&addr) {
-            anyhow!("cannot write on a read-only address")
+        if self.ro_memory.contains_key(&addr) {
+            return Err(anyhow!("cannot write on a ro_memory addr: {}", &addr));
+        } else if self.ro_code.contains_key(&addr) {
+            return Err(anyhow!("cannot write on a ro_code addr: {}", &addr));
         }
         self.rw_memory.insert(addr, value);
         Ok(self)
