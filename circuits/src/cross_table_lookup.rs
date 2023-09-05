@@ -14,7 +14,7 @@ use thiserror::Error;
 pub use crate::linear_combination::Column;
 use crate::stark::mozak_stark::{Table, NUM_TABLES};
 use crate::stark::permutation::{GrandProductChallenge, GrandProductChallengeSet};
-use crate::stark::proof::StarkProof;
+use crate::stark::proof::StarkProofWithLookups;
 
 #[derive(Error, Debug)]
 pub enum LookupError {
@@ -212,18 +212,19 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
     CtlCheckVars<'a, F, F::Extension, F::Extension, D>
 {
     pub(crate) fn from_proofs<C: GenericConfig<D, F = F>>(
-        proofs: &[StarkProof<F, C, D>; NUM_TABLES],
+        proofs: &[StarkProofWithLookups<F, C, D>; NUM_TABLES],
+        config: &StarkConfig,
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
-        num_permutation_zs: &[usize; NUM_TABLES],
     ) -> [Vec<Self>; NUM_TABLES] {
         let mut ctl_zs = proofs
             .iter()
-            .zip(num_permutation_zs)
-            .map(|(p, &num_perms)| {
-                let openings = &p.openings;
-                let ctl_zs = openings.permutation_ctl_zs.iter().skip(num_perms);
-                let ctl_zs_next = openings.permutation_ctl_zs_next.iter().skip(num_perms);
+            .map(|p| {
+                let openings = &p.proof.openings;
+                let num_lookups = p.num_helper_columns(config);
+
+                let ctl_zs = openings.auxiliary_polys.iter().skip(num_lookups);
+                let ctl_zs_next = openings.auxiliary_polys_next.iter().skip(num_lookups);
                 ctl_zs.zip(ctl_zs_next)
             })
             .collect::<Vec<_>>();

@@ -10,9 +10,8 @@ use starky::permutation::PermutationPair;
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns;
-use super::columns::{RangeCheckColumnsView, MAP};
-use crate::lookup::eval_lookups;
+use super::columns::{self, RangeCheckColumnsView, MAP};
+use crate::lookup::Lookup;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -61,18 +60,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
             lv,
             yield_constr,
         );
-        eval_lookups(
-            vars,
-            yield_constr,
-            MAP.limb_lo_permuted,
-            MAP.fixed_range_check_u16_permuted_lo,
-        );
-        eval_lookups(
-            vars,
-            yield_constr,
-            MAP.limb_hi_permuted,
-            MAP.fixed_range_check_u16_permuted_hi,
-        );
 
         // Check: the `fixed_range_check_u16` forms a sequence from 0 to 2^16-1.
         //  this column will be used to connect to the permutation columns,
@@ -99,19 +86,16 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
 
     fn constraint_degree(&self) -> usize { 3 }
 
-    fn permutation_pairs(&self) -> Vec<PermutationPair> {
-        vec![
-            PermutationPair::singletons(MAP.limb_lo, MAP.limb_lo_permuted),
-            PermutationPair::singletons(MAP.limb_hi, MAP.limb_hi_permuted),
-            PermutationPair::singletons(
-                MAP.fixed_range_check_u16,
-                MAP.fixed_range_check_u16_permuted_lo,
-            ),
-            PermutationPair::singletons(
-                MAP.fixed_range_check_u16,
-                MAP.fixed_range_check_u16_permuted_hi,
-            ),
-        ]
+    fn permutation_pairs(&self) -> Vec<PermutationPair> { vec![] }
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> RangeCheckStark<F, D> {
+    pub fn lookups(self) -> Vec<Lookup> {
+        vec![Lookup {
+            looking_columns: vec![MAP.limb_lo, MAP.limb_hi],
+            multiplicity_column: MAP.multiplicities,
+            looked_column: MAP.fixed_range_check_u16,
+        }]
     }
 }
 
@@ -133,7 +117,7 @@ mod tests {
     use crate::generation::rangecheck::{
         generate_rangecheck_trace, limbs_from_u32, RANGE_CHECK_U16_SIZE,
     };
-    use crate::rangecheck::columns::NUM_RC_COLS;
+    use crate::rangecheck::columns::{MAP, NUM_RC_COLS};
 
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
@@ -233,7 +217,8 @@ mod tests {
         let bad_row_idx = len - 1;
 
         // Set limb to be larger than u16::MAX, to fail the range check.
-        trace[MAP.limb_lo_permuted][bad_row_idx] = F::from_canonical_u32(u32::from(u16::MAX) + 1);
+        // trace[MAP.limb_lo_permuted][bad_row_idx] =
+        // F::from_canonical_u32(u32::from(u16::MAX) + 1);
 
         let local_values: [GoldilocksField; NUM_RC_COLS] = trace
             .iter()
@@ -292,13 +277,13 @@ mod tests {
         // The above generations setup the traces nicely, but we need to introduce
         // a malicious entry here to test our failing case.
         let value: u32 = 0xDEAD_BEEF;
-        let (limb_hi, limb_lo): (F, F) = limbs_from_u32(value);
+        let (limb_hi, limb_lo) = limbs_from_u32(value);
 
         let bad_row_idx = 0;
         trace[MAP.val][bad_row_idx] = GoldilocksField(value.into());
-        trace[MAP.limb_hi][bad_row_idx] = limb_hi;
+        trace[MAP.limb_hi][bad_row_idx] = F::from_canonical_u16(limb_hi);
         // Subtract one intentionally to make our sum check constraint fail.
-        let malicious_limb_lo = limb_lo - F::ONE;
+        let malicious_limb_lo = F::from_canonical_u16(limb_lo) - F::ONE;
         trace[MAP.limb_lo][bad_row_idx] = malicious_limb_lo;
 
         let local_values: [GoldilocksField; NUM_RC_COLS] = trace

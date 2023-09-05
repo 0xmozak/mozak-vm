@@ -20,7 +20,8 @@ mozak-vm = { path = "../vm" }
 plonky2 = "0.1.3"
 plonky2_maybe_rayon = "0.1.0"
 serde = { version = "1.0", features = ["derive"] }
-starky = "0.1.1"
+# starky = "0.1.1"
+starky = { path = "../../plonky2/starky" }
 thiserror = "1.0.48"
 
 [dev-dependencies]

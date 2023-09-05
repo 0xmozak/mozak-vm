@@ -11,14 +11,14 @@ use starky::stark::{LookupConfig, Stark};
 use starky::vars::StarkEvaluationVars;
 
 use super::mozak_stark::{MozakStark, TableKind};
-use super::proof::AllProof;
+use super::proof::{AllProof, StarkProofWithLookups};
 use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
+use crate::lookup::LookupCheckVars;
 use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::stark::permutation::PermutationCheckVars;
 use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
 use crate::xor::stark::XorStark;
@@ -44,8 +44,7 @@ where
     let AllProofChallenges {
         stark_challenges,
         ctl_challenges,
-    } = all_proof.get_challenges(&mozak_stark, config);
-    let nums_permutation_zs = mozak_stark.nums_permutation_zs(config);
+    } = all_proof.get_challenges(config);
 
     let MozakStark {
         cpu_stark,
@@ -59,16 +58,18 @@ where
     } = mozak_stark;
 
     ensure!(
-        all_proof.stark_proofs[TableKind::Program as usize].trace_cap
+        all_proof.stark_proofs[TableKind::Program as usize]
+            .proof
+            .trace_cap
             == all_proof.program_rom_trace_cap,
         "Mismatch between Program ROM trace caps"
     );
 
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
         &all_proof.stark_proofs,
+        config,
         &cross_table_lookups,
         &ctl_challenges,
-        &nums_permutation_zs,
     );
 
     verify_stark_proof_with_challenges::<F, C, CpuStark<F, D>, D>(
@@ -136,7 +137,7 @@ pub(crate) fn verify_stark_proof_with_challenges<
     const D: usize,
 >(
     stark: &S,
-    proof: &StarkProof<F, C, D>,
+    proof: &StarkProofWithLookups<F, C, D>,
     challenges: &StarkProofChallenges<F, D>,
     public_inputs: [F; S::PUBLIC_INPUTS],
     ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
@@ -146,15 +147,22 @@ where
     [(); S::COLUMNS]:,
     [(); S::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:, {
-    validate_proof_shape(stark, proof, config, ctl_vars.len())?;
+    let num_lookup_columns = proof.num_helper_columns(config);
+    validate_proof_shape(
+        stark,
+        &proof.proof,
+        config,
+        ctl_vars.len(),
+        num_lookup_columns,
+    )?;
     let StarkOpeningSet {
         local_values,
         next_values,
-        permutation_ctl_zs,
-        permutation_ctl_zs_next,
+        auxiliary_polys,
+        auxiliary_polys_next,
         ctl_zs_last,
         quotient_polys,
-    } = &proof.openings;
+    } = &proof.proof.openings;
 
     let vars = StarkEvaluationVars {
         local_values: &local_values.clone().try_into().unwrap(),
@@ -167,7 +175,7 @@ where
             .expect("mapping public inputs to the extension field should succeed"),
     };
 
-    let degree_bits = proof.recover_degree_bits(config);
+    let degree_bits = proof.proof.recover_degree_bits(config);
     let (l_0, l_last) = eval_l_0_and_l_last(degree_bits, challenges.stark_zeta);
     let last = F::primitive_root_of_unity(degree_bits).inverse();
     let z_last = challenges.stark_zeta - last.into();
@@ -181,17 +189,18 @@ where
         l_0,
         l_last,
     );
-    let num_permutation_zs = stark.num_permutation_batches(config);
-    let permutation_data = PermutationCheckVars {
-        local_zs: permutation_ctl_zs[..num_permutation_zs].to_vec(),
-        next_zs: permutation_ctl_zs_next[..num_permutation_zs].to_vec(),
-        permutation_challenge_sets: challenges.permutation_challenge_sets.clone(),
-    };
+
+    let lookup_vars = proof.lookups.is_some().then(|| LookupCheckVars {
+        local_values: auxiliary_polys[..num_lookup_columns].to_vec(),
+        next_values: auxiliary_polys_next[..num_lookup_columns].to_vec(),
+        challenges: challenges.lookup_challenges.clone().unwrap(),
+    });
+
     eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
         stark,
-        config,
         vars,
-        permutation_data,
+        proof.lookups.as_deref(),
+        lookup_vars,
         ctl_vars,
         &mut consumer,
     );
@@ -219,9 +228,9 @@ where
     }
 
     let merkle_caps = vec![
-        proof.trace_cap.clone(),
-        proof.permutation_ctl_zs_cap.clone(),
-        proof.quotient_polys_cap.clone(),
+        proof.proof.trace_cap.clone(),
+        proof.proof.auxiliary_polys_cap.clone(),
+        proof.proof.quotient_polys_cap.clone(),
     ];
 
     verify_fri_proof::<F, C, D>(
@@ -233,11 +242,12 @@ where
                 degree_bits,
                 num_zs: ctl_zs_last.len(),
             }),
+            num_lookup_columns,
         ),
-        &proof.openings.to_fri_openings(),
+        &proof.proof.openings.to_fri_openings(),
         &challenges.fri_challenges,
         &merkle_caps,
-        &proof.opening_proof,
+        &proof.proof.opening_proof,
         &config.fri_params(degree_bits),
     )?;
 
@@ -249,6 +259,7 @@ fn validate_proof_shape<F, C, S, const D: usize>(
     proof: &StarkProof<F, C, D>,
     config: &StarkConfig,
     num_ctl_zs: usize,
+    num_lookup_columns: usize,
 ) -> anyhow::Result<()>
 where
     F: RichField + Extendable<D>,
@@ -258,7 +269,7 @@ where
     [(); C::Hasher::HASH_SIZE]:, {
     let StarkProof {
         trace_cap,
-        permutation_ctl_zs_cap,
+        auxiliary_polys_cap,
         quotient_polys_cap,
         openings,
         // The shape of the opening proof will be checked in the FRI verifier (see
@@ -269,8 +280,8 @@ where
     let StarkOpeningSet {
         local_values,
         next_values,
-        permutation_ctl_zs,
-        permutation_ctl_zs_next,
+        auxiliary_polys,
+        auxiliary_polys_next,
         ctl_zs_last,
         quotient_polys,
     } = openings;
@@ -278,17 +289,17 @@ where
     let degree_bits = proof.recover_degree_bits(config);
     let fri_params = config.fri_params(degree_bits);
     let cap_height = fri_params.config.cap_height;
-    let num_zs = num_ctl_zs + stark.num_permutation_batches(config);
+    let num_auxiliary = num_ctl_zs + num_lookup_columns;
 
     ensure!(trace_cap.height() == cap_height);
-    ensure!(permutation_ctl_zs_cap.height() == cap_height);
+    ensure!(auxiliary_polys_cap.height() == cap_height);
     ensure!(quotient_polys_cap.height() == cap_height);
 
     ensure!(local_values.len() == S::COLUMNS);
     ensure!(next_values.len() == S::COLUMNS);
-    ensure!(permutation_ctl_zs.len() == num_zs);
-    ensure!(permutation_ctl_zs_next.len() == num_zs);
     ensure!(ctl_zs_last.len() == num_ctl_zs);
+    ensure!(auxiliary_polys.len() == num_auxiliary);
+    ensure!(auxiliary_polys_next.len() == num_auxiliary);
     ensure!(quotient_polys.len() == stark.num_quotient_polys(config));
 
     Ok(())

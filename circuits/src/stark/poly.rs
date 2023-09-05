@@ -14,21 +14,21 @@ use starky::constraint_consumer::ConstraintConsumer;
 use starky::stark::Stark;
 use starky::vars::StarkEvaluationVars;
 
-use super::permutation::{eval_permutation_checks, GrandProductChallengeSet, PermutationCheckVars};
 use crate::cross_table_lookup::{eval_cross_table_lookup_checks, CtlCheckVars, CtlData};
+use crate::lookup::{Lookup, LookupCheckVars};
 
 /// Computes the quotient polynomials `(sum alpha^i C_i(x)) / Z_H(x)` for
 /// `alpha` in `alphas`, where the `C_i`s are the Stark constraints.
 pub(crate) fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     stark: &S,
     trace_commitment: &'a PolynomialBatch<F, C, D>,
-    permutation_ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
-    permutation_challenges: &'a [GrandProductChallengeSet<F>],
+    auxiliary_polys_commitment: &'a PolynomialBatch<F, C, D>,
+    lookup_challenges: Option<&'a Vec<F>>,
+    lookups: Option<&[Lookup]>,
     public_inputs: [F; S::PUBLIC_INPUTS],
     ctl_data: &CtlData<F>,
     alphas: &[F],
     degree_bits: usize,
-    num_permutation_zs: usize,
     config: &StarkConfig,
 ) -> Vec<PolynomialCoeffs<F>>
 where
@@ -76,6 +76,9 @@ where
         size,
     );
 
+    let num_lookup_columns = lookups.map_or(0, |lus| {
+        lus.iter().map(|lu| lu.num_helper_columns()).sum::<usize>()
+    });
     // We will step by `P::WIDTH`, and in each iteration, evaluate the quotient
     // polynomial at a batch of `P::WIDTH` points.
     let quotient_values = (0..size)
@@ -101,24 +104,26 @@ where
                 next_values: &get_trace_values_packed(i_next_start),
                 public_inputs: &public_inputs,
             };
-            let permutation_check_vars = PermutationCheckVars {
-                local_zs: permutation_ctl_zs_commitment.get_lde_values_packed(i_start, step)
-                    [..num_permutation_zs]
+
+            let lookup_vars = lookup_challenges.map(|challenges| LookupCheckVars {
+                local_values: auxiliary_polys_commitment.get_lde_values_packed(i_start, step)
+                    [..num_lookup_columns]
                     .to_vec(),
-                next_zs: permutation_ctl_zs_commitment.get_lde_values_packed(i_next_start, step)
-                    [..num_permutation_zs]
+                next_values: auxiliary_polys_commitment.get_lde_values_packed(i_next_start, step)
+                    [..num_lookup_columns]
                     .to_vec(),
-                permutation_challenge_sets: permutation_challenges.to_owned(),
-            };
+                challenges: challenges.to_vec(),
+            });
+
             let ctl_vars = ctl_data
                 .zs_columns
                 .iter()
                 .enumerate()
                 .map(|(i, zs_columns)| CtlCheckVars::<F, F, P, 1> {
-                    local_z: permutation_ctl_zs_commitment.get_lde_values_packed(i_start, step)
-                        [num_permutation_zs + i],
-                    next_z: permutation_ctl_zs_commitment.get_lde_values_packed(i_next_start, step)
-                        [num_permutation_zs + i],
+                    local_z: auxiliary_polys_commitment.get_lde_values_packed(i_start, step)
+                        [num_lookup_columns + i],
+                    next_z: auxiliary_polys_commitment.get_lde_values_packed(i_next_start, step)
+                        [num_lookup_columns + i],
                     challenges: zs_columns.challenge,
                     columns: &zs_columns.columns,
                     filter_column: &zs_columns.filter_column,
@@ -126,9 +131,9 @@ where
                 .collect::<Vec<_>>();
             eval_vanishing_poly::<F, F, P, S, D, 1>(
                 stark,
-                config,
                 vars,
-                permutation_check_vars,
+                lookups,
+                lookup_vars,
                 &ctl_vars,
                 &mut consumer,
             );
@@ -158,9 +163,9 @@ where
 
 pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark: &S,
-    config: &StarkConfig,
     vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
-    permutation_vars: PermutationCheckVars<F, FE, P, D2>,
+    lookups: Option<&[Lookup]>,
+    lookup_vars: Option<LookupCheckVars<F, FE, P, D2>>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
     consumer: &mut ConstraintConsumer<P>,
 ) where
@@ -169,6 +174,11 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     P: PackedField<Scalar = FE>,
     S: Stark<F, D>, {
     stark.eval_packed_generic(vars, consumer);
-    eval_permutation_checks::<F, FE, P, S, D, D2>(stark, config, vars, permutation_vars, consumer);
+
+    lookups.map(|ls| {
+        for l in ls {
+            l.eval(vars, &lookup_vars.as_ref().unwrap(), consumer)
+        }
+    });
     eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
 }
