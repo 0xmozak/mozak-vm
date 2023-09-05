@@ -17,7 +17,6 @@ pub fn pad_trace<Row: Copy>(mut trace: Vec<Row>, default: Row) -> Vec<Row> {
 }
 
 #[must_use]
-#[allow(clippy::missing_panics_doc)]
 pub fn generate_shift_amount_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
 ) -> Vec<BitshiftView<F>> {
