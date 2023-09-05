@@ -129,12 +129,11 @@ impl Program {
             .ok_or_else(|| anyhow!("Missing segment table"))?;
         ensure!(segments.len() <= 256, "Too many program headers");
 
-        let extract = |required_flags: u32, need_exact_flags: bool| {
+        let extract = |has_flags: fn(u32) -> bool| {
             segments
                 .iter()
                 .filter(|s: &ProgramHeader| s.p_type == elf::abi::PT_LOAD)
-                .filter(|s| s.p_flags & required_flags == required_flags)
-                .filter(|s| s.p_flags == required_flags || !need_exact_flags)
+                .filter(|s| has_flags(s.p_flags))
                 .map(|segment| -> Result<_> {
                     let file_size: usize = segment.p_filesz.try_into()?;
                     let mem_size: usize = segment.p_memsz.try_into()?;
@@ -150,9 +149,10 @@ impl Program {
                 .try_collect()
         };
 
-        let r__segments_exact = extract(elf::abi::PF_R, true)?;
-        let rw_segments_exact = extract(elf::abi::PF_R | elf::abi::PF_W, true)?;
-        let r_xsegments_any = extract(elf::abi::PF_R | elf::abi::PF_X, false)?; // Parse writable (rwx) segments as read and execute only segments
+        let r__segments_exact = extract(|flags| flags == elf::abi::PF_R)?;
+        let rw_segments_exact = extract(|flags| flags == elf::abi::PF_W)?;
+        // Parse writable (rwx) segments as read and execute only segments
+        let r_xsegments_any = extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?;
 
         Ok(Program {
             entry_point,
