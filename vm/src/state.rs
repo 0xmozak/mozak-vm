@@ -187,7 +187,6 @@ impl State {
     /// # Errors
     /// This function returns an error, if you try to store to an invalid
     /// address.
-    #[must_use]
     pub fn store_u8(mut self, addr: u32, value: u8) -> Result<Self> {
         if self.ro_memory.contains_key(&addr) {
             return Err(anyhow!("cannot write on a ro_memory addr: {}", &addr));
