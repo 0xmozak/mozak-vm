@@ -55,7 +55,7 @@ mod tests {
         fn prove_mem_read_write_proptest(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
             let sum: u64 = u64::from(imm) + u64::from(offset);
             let limit: u64 = u32::MAX.into();
-            prop_assume!(sum < limit);
+            prop_assume!(sum <= limit);
 
             let (program, record) = simple_test_code(
                 &[
@@ -78,7 +78,7 @@ mod tests {
                     },
                 ],
                 &[],
-                &[(1, content.into()), (2, offset.into())],
+                &[(1, content.into()), (2, offset)],
             );
 
             CpuStark::prove_and_verify(&program, &record).unwrap();
