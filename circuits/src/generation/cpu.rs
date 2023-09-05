@@ -31,32 +31,6 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     chain!(transpose_trace(cpu_trace), transpose_trace(permuted)).collect()
 }
 
-const U16_RANGE_MAX: usize = 1 << 16;
-
-fn generate_rangechecks<F: RichField>(mut trace: Vec<CpuState<F>>) -> Vec<CpuState<F>> {
-    let mut multiplicities = [F::ZERO; U16_RANGE_MAX];
-
-    trace.resize(trace.len().max(U16_RANGE_MAX), CpuState::default());
-
-    for (_, row) in trace.iter_mut().enumerate() {
-        let value = F::to_noncanonical_u64(&row.dst_value) as usize;
-        row.rc_limb_lo = row.dst_value;
-        multiplicities[value] += F::ONE;
-    }
-
-    // Populate the range and multiplicities.
-    for (i, row) in trace.iter_mut().enumerate() {
-        row.multiplicity = multiplicities[i];
-        row.u16_range = if i < U16_RANGE_MAX {
-            F::from_canonical_usize(i)
-        } else {
-            F::from_canonical_usize(U16_RANGE_MAX)
-        };
-    }
-
-    trace
-}
-
 #[allow(clippy::missing_panics_doc)]
 pub fn generate_cpu_trace<F: RichField>(
     program: &Program,
@@ -108,8 +82,6 @@ pub fn generate_cpu_trace<F: RichField>(
         generate_conditional_branch_row(&mut row);
         trace.push(row);
     }
-
-    trace = generate_rangechecks(trace);
 
     log::trace!("trace {:?}", trace);
     trace

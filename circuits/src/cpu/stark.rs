@@ -280,15 +280,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     }
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> CpuStark<F, D> {
-    pub fn lookups(self) -> Vec<Lookup> {
-        vec![Lookup {
-            looking_columns: CpuState::<F>::rangechecked_columns(),
-            looked_column: usize::from(MAP.cpu.u16_range),
-            multiplicity_column: MAP.cpu.multiplicity,
-        }]
-    }
-}
+// impl<F: RichField + Extendable<D>, const D: usize> CpuStark<F, D> {
+//     pub fn lookups(self) -> Vec<Lookup> {
+//         vec![Lookup {
+//             looking_columns: CpuState::<F>::rangechecked_columns(),
+//             looked_column: usize::from(MAP.cpu.u16_range),
+//             multiplicity_column: MAP.cpu.multiplicity,
+//         }]
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

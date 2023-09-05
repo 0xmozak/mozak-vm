@@ -383,7 +383,7 @@ where
     [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
-        Some(mozak_stark.cpu_stark.lookups()),
+        None,
         config,
         &traces_poly_values[TableKind::Cpu as usize],
         &trace_commitments[TableKind::Cpu as usize],
