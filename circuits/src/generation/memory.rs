@@ -33,7 +33,6 @@ pub fn filter_memory_trace(step_rows: &[Row]) -> Vec<&Row> {
 }
 
 #[must_use]
-#[allow(clippy::missing_panics_doc)]
 pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row]) -> Vec<Memory<F>> {
     let filtered_step_rows = filter_memory_trace(step_rows);
 
