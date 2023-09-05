@@ -196,6 +196,10 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let ops = &cpu.inst.ops;
     let divs = &ops.divu + &ops.remu + &ops.srl;
     let muls = &ops.mul + &ops.mulhu + &ops.mulhsu + &ops.mulh + &ops.sll;
+
+    let is_op2_signed = &ops.slt + &ops.bge + &ops.blt + &ops.mulh;
+    let is_op1_signed = &is_op2_signed + &ops.mulhsu;
+
     vec![
         CpuTable::new(vec![cpu.quotient], divs.clone()),
         CpuTable::new(vec![cpu.remainder], divs.clone()),
@@ -204,6 +208,18 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
         CpuTable::new(vec![cpu.abs_diff], &ops.bge + &ops.blt),
         CpuTable::new(vec![cpu.product_high_limb], muls.clone()),
         CpuTable::new(vec![cpu.product_low_limb], muls),
+        // range constraint `lv.op1_full_range() + lv.is_op1_signed() * CpuState::<P>::shifted(31);` as u32
+        CpuTable::new(vec![
+            &cpu.op1_value + 
+            &cpu.op1_sign_bit * F::from_canonical_u64((1 as u64) << 32).neg() + 
+            &is_op1_signed * F::from_canonical_u64((1 as u64) << 31)
+        ], &ops.slt + &ops.sltu),
+        // range constraint `lv.op2_full_range() + lv.is_op2_signed() * CpuState::<P>::shifted(31);` as u32
+        CpuTable::new(vec![
+            &cpu.op2_value + 
+            &cpu.op2_sign_bit * F::from_canonical_u64((1 as u64) << 32).neg() +
+            &is_op2_signed * F::from_canonical_u64((1 as u64) << 31)
+        ], &ops.slt + &ops.sltu),
     ]
 }
 
