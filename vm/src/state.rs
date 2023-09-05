@@ -1,7 +1,8 @@
+use anyhow::{anyhow, Result};
 use im::hashmap::HashMap;
 use log::trace;
 
-use crate::elf::{Data, Program};
+use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction};
 
 /// State of our VM
@@ -16,12 +17,17 @@ pub struct State {
     pub halted: bool,
     pub registers: [u32; 32],
     pub pc: u32,
+    pub ro_code: HashMap<u32, Instruction>,
     pub rw_memory: HashMap<u32, u8>,
+    pub ro_memory: HashMap<u32, u8>,
 }
 
+#[allow(clippy::similar_names)]
 impl From<&Program> for State {
     fn from(program: &Program) -> Self {
+        let Code(ro_code) = program.ro_code.clone();
         let Data(rw_memory) = program.rw_memory.clone();
+        let Data(ro_memory) = program.ro_memory.clone();
         Self {
             pc: program.entry_point,
             rw_memory,
@@ -166,10 +172,12 @@ impl State {
     /// For now, we decided that we will offer the program the full 4 GiB of
     /// address space you can get with 32 bits.
     /// So no u32 address is out of bounds.
-    /// TODO: Conflict resolution between `rw_memory` and `ro_memory`
     #[must_use]
     pub fn load_u8(&self, addr: u32) -> u8 {
-        self.rw_memory.get(&addr).copied().unwrap_or_default()
+        self.rw_memory
+            .get(&addr)
+            .copied()
+            .unwrap_or(self.ro_memory.get(&addr).copied().unwrap_or_default())
     }
 
     /// Store a byte to memory
@@ -177,11 +185,13 @@ impl State {
     /// # Errors
     /// This function returns an error, if you try to store to an invalid
     /// address.
-    /// TODO: Conflict resolution between `rw_memory` and `ro_memory`
     #[must_use]
-    pub fn store_u8(mut self, addr: u32, value: u8) -> Self {
+    pub fn store_u8(mut self, addr: u32, value: u8) -> Result<Self> {
+        if self.ro_memory.contains_key(&addr) || self.ro_code.contains_key(&addr) {
+            anyhow!("cannot write on a read-only address")
+        }
         self.rw_memory.insert(addr, value);
-        self
+        Ok(self)
     }
 
     #[must_use]

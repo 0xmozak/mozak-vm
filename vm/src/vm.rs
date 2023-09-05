@@ -121,7 +121,7 @@ impl State {
             (0..bytes)
                 .map(|i| addr.wrapping_add(i))
                 .zip(dst_val.to_le_bytes())
-                .fold(self, |acc, (i, byte)| acc.store_u8(i, byte))
+                .fold(self, |acc, (i, byte)| acc.store_u8(i, byte).unwrap()) // How do want to handle failures here?
                 .bump_pc(),
         )
     }
