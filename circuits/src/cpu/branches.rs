@@ -86,8 +86,11 @@ pub(crate) fn constraints<P: PackedField>(
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
+    use anyhow::Result;
+    use mozak_vm::elf::Program;
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, state_before_final, u32_extra};
+    use mozak_vm::vm::ExecutionRecord;
     use proptest::prelude::ProptestConfig;
     use proptest::strategy::Just;
     use proptest::{prop_oneof, proptest};
@@ -96,7 +99,12 @@ mod tests {
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
 
-    fn test_cond_branch(a: u32, b: u32, op: Op, mozak: bool) {
+    fn test_cond_branch(
+        a: u32,
+        b: u32,
+        op: Op,
+        prove_and_verify: fn(&Program, &ExecutionRecord) -> Result<()>,
+    ) {
         let (program, record) = simple_test_code(
             &[
                 Instruction {
@@ -134,27 +142,23 @@ mod tests {
             state_before_final(&record).get_register_value(1),
             if taken { 0 } else { 10 }
         );
-        if mozak {
-            MozakStark::prove_and_verify(&program, &record).unwrap();
-        } else {
-            CpuStark::prove_and_verify(&program, &record).unwrap();
-        }
+        prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
     fn prove_test_cond_branch() {
-        test_cond_branch(100, 200, Op::BLT, true);
-        test_cond_branch(100, 200, Op::BLTU, true);
-        test_cond_branch(100, 200, Op::BGE, true);
-        test_cond_branch(100, 200, Op::BGEU, true);
-        test_cond_branch(100, 200, Op::BEQ, true);
-        test_cond_branch(100, 200, Op::BNE, true);
+        test_cond_branch(100, 200, Op::BLT, MozakStark::prove_and_verify);
+        test_cond_branch(100, 200, Op::BLTU, MozakStark::prove_and_verify);
+        test_cond_branch(100, 200, Op::BGE, MozakStark::prove_and_verify);
+        test_cond_branch(100, 200, Op::BGEU, MozakStark::prove_and_verify);
+        test_cond_branch(100, 200, Op::BEQ, MozakStark::prove_and_verify);
+        test_cond_branch(100, 200, Op::BNE, MozakStark::prove_and_verify);
     }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(32))]
         #[test]
         fn prove_branch_proptest(a in u32_extra(), b in u32_extra(), op in prop_oneof![Just(Op::BLT), Just(Op::BLTU), Just(Op::BGE), Just(Op::BGEU), Just(Op::BEQ), Just(Op::BNE)]) {
-            test_cond_branch(a, b, op, false);
+            test_cond_branch(a, b, op, CpuStark::prove_and_verify);
         }
     }
 }
