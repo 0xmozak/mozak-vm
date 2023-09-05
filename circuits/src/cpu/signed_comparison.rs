@@ -58,8 +58,44 @@ mod tests {
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
+    use crate::cpu::stark::CpuStark;
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
+
+    #[test]
+    fn prove_slt_test() {
+        let (a, b) = (100, 200);
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::SLTU,
+                    args: Args {
+                        rd: 5,
+                        rs1: 6,
+                        rs2: 7,
+                        imm: 0,
+                    },
+                },
+                Instruction {
+                    op: Op::SLT,
+                    args: Args {
+                        rd: 4,
+                        rs1: 6,
+                        rs2: 7,
+                        imm: 0,
+                    },
+                },
+            ],
+            &[],
+            &[(6, a), (7, b)],
+        );
+        assert_eq!(record.last_state.get_register_value(5), u32::from(a < b));
+        assert_eq!(
+            record.last_state.get_register_value(4),
+            u32::from((a as i32) < (b as i32))
+        );
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -94,7 +130,7 @@ mod tests {
                 record.last_state.get_register_value(4),
                 u32::from((a as i32) < (op2 as i32))
             );
-            MozakStark::prove_and_verify(&program, &record).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }
