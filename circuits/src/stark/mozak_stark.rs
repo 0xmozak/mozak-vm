@@ -47,7 +47,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             program_stark: ProgramStark::default(),
             memory_stark: MemoryStark::default(),
             cross_table_lookups: [
-                RangecheckCpuTable::lookups(),
+                RangecheckTable::lookups(),
                 XorCpuTable::lookups(),
                 BitshiftCpuTable::lookups(),
                 InnerCpuTable::lookups(),
@@ -198,9 +198,9 @@ pub trait Lookups<F: Field> {
     fn lookups() -> CrossTableLookup<F>;
 }
 
-pub struct RangecheckCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct RangecheckTable<F: Field>(CrossTableLookup<F>);
 
-impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
+impl<F: Field> Lookups<F> for RangecheckTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         let looking: Vec<Table<F>> = chain![
             memory::columns::rangecheck_looking(),
@@ -209,10 +209,7 @@ impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
         .collect();
         CrossTableLookup::new(
             looking,
-            RangeCheckTable::new(
-                rangecheck::columns::data_for_cpu(),
-                rangecheck::columns::filter_for_cpu(),
-            ),
+            RangeCheckTable::new(rangecheck::columns::data(), rangecheck::columns::filter()),
         )
     }
 }
