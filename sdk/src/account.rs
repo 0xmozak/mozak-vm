@@ -1,7 +1,7 @@
 use crate::pubkey::PubKey;
 
 pub struct Account {
-    // Public key of the account (address)
+    /// Public key of the account (address)
 	id: PubKey
 }
 
