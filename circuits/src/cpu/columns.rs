@@ -22,6 +22,8 @@ pub struct OpSelectors<T> {
     /// Remainder Unsigned
     pub remu: T,
     pub mul: T,
+    pub mulh: T,
+    pub mulhsu: T,
     pub mulhu: T,
     /// Shift Left Logical by amount
     pub sll: T,
@@ -131,11 +133,16 @@ pub struct CpuState<T> {
     pub divisor: T,
 
     // Product evaluation columns
-    pub multiplier: T,
-    pub product_low_bits: T,
-    pub product_high_bits: T,
-    /// Used as a helper column to check that `product_high != u32::MAX`
-    pub product_high_diff_inv: T,
+    pub op1_abs: T,
+    pub op2_abs: T,
+    pub skip_check_product_sign: T,
+    pub product_sign: T,
+    pub product_high_limb: T, // range check u32 required
+    pub product_low_limb: T,  // range check u32 required
+    /// Used as a helper column to check that `product_high_limb != u32::MAX`
+    /// when product_sign is 0 and `product_high_limb != 0` when
+    /// product_sign is 1
+    pub product_high_limb_inv_helper: T,
 }
 
 make_col_map!(CpuColumnsExtended);
@@ -153,21 +160,25 @@ impl<T: PackedField> CpuState<T> {
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
 
-    // TODO(Matthias): unify where we specify `is_signed` for constraints and trace
-    // generation. Also, later, take mixed sign (for MULHSU) into account.
-    pub fn is_signed(&self) -> T { self.inst.ops.slt + self.inst.ops.bge + self.inst.ops.blt }
+    // TODO(Matthias): unify where we specify `is_op(1|2)_signed` for constraints
+    // and trace generation.
+    pub fn is_op2_signed(&self) -> T {
+        self.inst.ops.slt + self.inst.ops.bge + self.inst.ops.blt + self.inst.ops.mulh
+    }
+
+    pub fn is_op1_signed(&self) -> T { self.is_op2_signed() + self.inst.ops.mulhsu }
 
     /// Value of the first operand, as if converted to i64.
     ///
     /// For unsigned operations: `Field::from_noncanonical_i64(op1 as i64)`
     /// For signed operations: `Field::from_noncanonical_i64(op1 as i32 as i64)`
     ///
-    /// So range is `i32::MIN..=u32::MAX`
+    /// So range is `i32::MIN..=u32::MAX` in Prime Field.
     pub fn op1_full_range(&self) -> T { self.op1_value - self.op1_sign_bit * Self::shifted(32) }
 
     /// Value of the second operand, as if converted to i64.
     ///
-    /// So range is `i32::MIN..=u32::MAX`
+    /// So range is `i32::MIN..=u32::MAX` in Prime Field.
     pub fn op2_full_range(&self) -> T { self.op2_value - self.op2_sign_bit * Self::shifted(32) }
 
     /// Difference between first and second operands, which works for both pairs
@@ -181,36 +192,18 @@ impl<T: PackedField> CpuState<T> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
-    let ops = &MAP.cpu.inst.ops;
+    let cpu = MAP.cpu.map(Column::from);
+    let ops = &cpu.inst.ops;
+    let divs = &ops.divu + &ops.remu + &ops.srl;
+    let muls = &ops.mul + &ops.mulhu + &ops.mulhsu + &ops.mulh + &ops.sll;
     vec![
-        CpuTable::new(
-            Column::singles([MAP.cpu.quotient]),
-            Column::many([ops.divu, ops.remu, ops.srl]),
-        ),
-        CpuTable::new(
-            Column::singles([MAP.cpu.remainder]),
-            Column::many([ops.divu, ops.remu, ops.srl]),
-        ),
-        CpuTable::new(
-            Column::singles([MAP.cpu.remainder_slack]),
-            Column::many([ops.divu, ops.remu, ops.srl]),
-        ),
-        CpuTable::new(
-            Column::singles([MAP.cpu.dst_value]),
-            Column::single(ops.add),
-        ),
-        CpuTable::new(
-            Column::singles([MAP.cpu.abs_diff]),
-            Column::many([ops.bge, ops.blt]),
-        ),
-        CpuTable::new(
-            Column::singles([MAP.cpu.product_high_bits]),
-            Column::many([ops.mul, ops.mulhu]),
-        ),
-        CpuTable::new(
-            Column::singles([MAP.cpu.product_low_bits]),
-            Column::many([ops.mul, ops.mulhu]),
-        ),
+        CpuTable::new(vec![cpu.quotient], divs.clone()),
+        CpuTable::new(vec![cpu.remainder], divs.clone()),
+        CpuTable::new(vec![cpu.remainder_slack], divs),
+        CpuTable::new(vec![cpu.dst_value], ops.add.clone()),
+        CpuTable::new(vec![cpu.abs_diff], &ops.bge + &ops.blt),
+        CpuTable::new(vec![cpu.product_high_limb], muls.clone()),
+        CpuTable::new(vec![cpu.product_low_limb], muls),
     ]
 }
 
@@ -222,7 +215,9 @@ pub fn data_for_xor<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor)
 /// Column for a binary filter for bitwise instruction in Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_xor<F: Field>() -> Column<F> { Column::many(MAP.cpu.inst.ops.ops_that_use_xor()) }
+pub fn filter_for_xor<F: Field>() -> Column<F> {
+    MAP.cpu.map(Column::from).inst.ops.ops_that_use_xor()
+}
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -232,21 +227,21 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.c
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> { Column::many(MAP.cpu.inst.ops.mem_ops()) }
+pub fn filter_for_memory<F: Field>() -> Column<F> { MAP.cpu.map(Column::from).inst.ops.mem_ops() }
 
-impl<T: Copy> OpSelectors<T> {
+impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
-    pub fn ops_that_use_xor(&self) -> [T; 5] {
+    pub fn ops_that_use_xor(self) -> T {
         // TODO: Add SRA, once we implement its constraints.
-        [self.xor, self.or, self.and, self.srl, self.sll]
+        self.xor + self.or + self.and + self.srl + self.sll
     }
 
     // TODO: Add SRA, once we implement its constraints.
-    pub fn ops_that_shift(&self) -> [T; 2] { [self.sll, self.srl] }
+    pub fn ops_that_shift(self) -> T { self.sll + self.srl }
 
     // TODO: Add other mem ops like SH, SW, LB, LW, LH, LHU as we implement the
     // constraints.
-    pub fn mem_ops(&self) -> [T; 2] { [self.sb, self.lbu] }
+    pub fn mem_ops(self) -> T { self.sb + self.lbu }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.
@@ -258,7 +253,7 @@ pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> { Column::singles(MAP
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_shift_amount<F: Field>() -> Column<F> {
-    Column::many(MAP.cpu.inst.ops.ops_that_shift())
+    MAP.cpu.map(Column::from).inst.ops.ops_that_shift()
 }
 
 /// Columns containing the data of original instructions.

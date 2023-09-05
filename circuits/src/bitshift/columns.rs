@@ -41,4 +41,4 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.executed
 
 /// Column containing filter from CPU table.
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(MAP.is_executed) }
+pub fn filter_for_cpu<F: Field>() -> Column<F> { MAP.is_executed.into() }

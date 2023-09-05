@@ -343,7 +343,6 @@ pub mod ctl_utils {
         }
     }
 
-    #[allow(clippy::missing_errors_doc)]
     pub fn check_single_ctl<F: Field>(
         trace_poly_values: &[Vec<PolynomialValues<F>>],
         ctl: &CrossTableLookup<F>,
@@ -398,7 +397,6 @@ pub mod ctl_utils {
 
         Ok(())
     }
-    #[allow(clippy::missing_panics_doc)]
     pub fn debug_ctl<F: RichField + Extendable<D>, const D: usize>(
         traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
         mozak_stark: &MozakStark<F, D>,

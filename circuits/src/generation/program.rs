@@ -7,7 +7,6 @@ use crate::utils::pad_trace_with_default;
 
 /// Generates a program ROM trace
 #[must_use]
-#[allow(clippy::missing_panics_doc)]
 pub fn generate_program_rom_trace<F: RichField>(program: &Program) -> Vec<ProgramRom<F>> {
     pad_trace_with_default(
         program
