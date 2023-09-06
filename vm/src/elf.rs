@@ -109,8 +109,6 @@ impl Program {
     // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
     // exercise the error handling?
     #[tarpaulin::skip]
-    #[allow(clippy::similar_names)]
-    #[allow(non_snake_case)]
     pub fn load_elf(input: &[u8]) -> Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
         ensure!(elf.ehdr.class == Class::ELF32, "Not a 32-bit ELF");
@@ -149,16 +147,19 @@ impl Program {
                 .try_collect()
         };
 
-        let r__segments_exact = extract(|flags| flags == elf::abi::PF_R)?;
-        let rw_segments_exact = extract(|flags| flags == elf::abi::PF_W)?;
+        let readable_non_writable_segments = extract(|flags| {
+            (flags & elf::abi::PF_R == elf::abi::PF_R)
+                && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
+        })?;
+        let readwrite_segments_exact = extract(|flags| flags == elf::abi::PF_R + elf::abi::PF_W)?;
         // Parse writable (rwx) segments as read and execute only segments
-        let r_xsegments_any = extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?;
+        let executable_segments = extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?;
 
         Ok(Program {
             entry_point,
-            ro_memory: Data(r__segments_exact),
-            rw_memory: Data(rw_segments_exact),
-            ro_code: Code::from(&r_xsegments_any),
+            ro_memory: Data(readable_non_writable_segments),
+            rw_memory: Data(readwrite_segments_exact),
+            ro_code: Code::from(&executable_segments),
         })
     }
 }
