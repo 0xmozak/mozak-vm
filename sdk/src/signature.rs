@@ -1,4 +1,3 @@
-
 /// Signature size
 pub const SIGNATURE_BYTES: usize = 64;
 

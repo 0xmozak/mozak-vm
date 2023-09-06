@@ -10,9 +10,11 @@ pub struct Instruction {
 }
 
 pub struct CompressedInstruction {
-    /// Index into the transaction keys array indicating the program account that executes this instruction.
+    /// Index into the transaction keys array indicating the program account
+    /// that executes this instruction.
     pub program_id_index: u8,
-    /// Ordered indices into the transaction keys array indicating which accounts to pass to the program.
+    /// Ordered indices into the transaction keys array indicating which
+    /// accounts to pass to the program.
     pub accounts: Vec<u8>,
     /// The program input data.
     pub data: Vec<u8>,
@@ -21,8 +23,10 @@ pub struct CompressedInstruction {
 pub struct AccountMeta {
     /// An account's public key.
     pub pubkey: PubKey,
-    /// True if an `Instruction` requires a `Transaction` signature matching `pubkey`.
+    /// True if an `Instruction` requires a `Transaction` signature matching
+    /// `pubkey`.
     pub is_signer: bool,
-    /// True if the account data or metadata may be mutated during program execution.
+    /// True if the account data or metadata may be mutated during program
+    /// execution.
     pub is_writable: bool,
 }

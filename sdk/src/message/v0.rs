@@ -1,7 +1,6 @@
+use super::message_header::MessageHeader;
 use crate::instruction::CompressedInstruction;
 use crate::pubkey::PubKey;
-
-use super::message_header::MessageHeader;
 
 pub struct Message {
     /// The message header, identifying signed and read-only `account_keys`

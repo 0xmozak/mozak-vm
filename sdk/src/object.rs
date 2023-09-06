@@ -1,6 +1,6 @@
+use std::fmt::{Display, Formatter};
+
 use crate::pubkey::PubKey;
-use std::fmt::Display;
-use std::fmt::Formatter;
 
 pub struct Object {
     /// Unique object ID (Address)
