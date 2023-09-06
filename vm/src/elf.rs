@@ -16,7 +16,7 @@ use crate::instruction::Instruction;
 use crate::util::load_u32;
 
 /// A RISC program
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Program {
     /// The entrypoint of the program
     pub entry_point: u32,
