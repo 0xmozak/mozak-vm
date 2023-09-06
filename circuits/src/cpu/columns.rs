@@ -214,9 +214,8 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
         // CpuState::<P>::shifted(31);` as u32
         CpuTable::new(
             vec![
-                &cpu.op1_value
-                    + &cpu.op1_sign_bit * F::from_canonical_u64((1_u64) << 32).neg()
-                    + &is_op1_signed * F::from_canonical_u64((1_u64) << 31),
+                &cpu.op1_value + &is_op1_signed * F::from_canonical_u64(1 << 31)
+                    - &cpu.op1_sign_bit * F::from_canonical_u64(1 << 32),
             ],
             is_running.clone(),
         ),
@@ -224,9 +223,8 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
         // CpuState::<P>::shifted(31);` as u32
         CpuTable::new(
             vec![
-                &cpu.op2_value
-                    + &cpu.op2_sign_bit * F::from_canonical_u64((1_u64) << 32).neg()
-                    + &is_op2_signed * F::from_canonical_u64((1_u64) << 31),
+                &cpu.op2_value + &is_op2_signed * F::from_canonical_u64(1 << 31)
+                    - &cpu.op2_sign_bit * F::from_canonical_u64(1 << 32),
             ],
             is_running,
         ),

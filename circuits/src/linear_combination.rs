@@ -1,5 +1,5 @@
 use core::iter::Sum;
-use core::ops::{Add, Mul};
+use core::ops::{Add, Mul, Neg, Sub};
 use std::borrow::Borrow;
 use std::ops::Index;
 
@@ -17,6 +17,21 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 pub struct Column<F: Field> {
     linear_combination: Vec<(usize, F)>,
     constant: F,
+}
+
+impl<F: Field> Neg for Column<F> {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            linear_combination: self
+                .linear_combination
+                .into_iter()
+                .map(|(idx, c)| (idx, -c))
+                .collect(),
+            constant: -self.constant,
+        }
+    }
 }
 
 impl<F: Field> Add<Self> for Column<F> {
@@ -59,21 +74,18 @@ impl<F: Field> Add<Self> for Column<F> {
 impl<F: Field> Add<Self> for &Column<F> {
     type Output = Column<F>;
 
-    #[allow(clippy::similar_names)]
     fn add(self, other: Self) -> Self::Output { self.clone() + other.clone() }
 }
 
 impl<F: Field> Add<Column<F>> for &Column<F> {
     type Output = Column<F>;
 
-    #[allow(clippy::similar_names)]
     fn add(self, other: Column<F>) -> Self::Output { self.clone() + other }
 }
 
 impl<F: Field> Add<&Self> for Column<F> {
     type Output = Column<F>;
 
-    #[allow(clippy::similar_names)]
     fn add(self, other: &Self) -> Self::Output { self + other.clone() }
 }
 
@@ -92,6 +104,12 @@ impl<F: Field> Add<F> for &Column<F> {
     type Output = Column<F>;
 
     fn add(self, constant: F) -> Column<F> { self.clone() + constant }
+}
+
+impl<F: Field> Sub<Self> for Column<F> {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self::Output { self.clone() + other.neg() }
 }
 
 impl<F: Field> Mul<F> for Column<F> {
