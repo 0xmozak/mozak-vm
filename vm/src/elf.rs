@@ -122,11 +122,11 @@ impl Program {
             .ok_or_else(|| anyhow!("Missing segment table"))?;
         ensure!(segments.len() <= 256, "Too many program headers");
 
-        let extract = |has_flags: fn(u32) -> bool| {
+        let extract = |check_flags: fn(u32) -> bool| {
             segments
                 .iter()
                 .filter(|s: &ProgramHeader| s.p_type == elf::abi::PT_LOAD)
-                .filter(|s| has_flags(s.p_flags))
+                .filter(|s| check_flags(s.p_flags))
                 .map(|segment| -> Result<_> {
                     let file_size: usize = segment.p_filesz.try_into()?;
                     let mem_size: usize = segment.p_memsz.try_into()?;
