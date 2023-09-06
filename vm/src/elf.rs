@@ -142,19 +142,19 @@ impl Program {
                 .try_collect()
         };
 
-        let ro_segments = extract(|flags| {
+        let ro_memory = Data(extract(|flags| {
             (flags & elf::abi::PF_R == elf::abi::PF_R)
                 && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
-        })?;
-        let rw_segments_exact = extract(|flags| flags == elf::abi::PF_R + elf::abi::PF_W)?;
+        })?);
+        let rw_memory = Data(extract(|flags| flags == elf::abi::PF_R + elf::abi::PF_W)?);
         // Parse writable (rwx) segments as read and execute only segments
-        let executable_segments = extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?;
+        let ro_code = Code::from(&extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?);
 
         Ok(Program {
             entry_point,
-            ro_memory: Data(ro_segments),
-            rw_memory: Data(rw_segments_exact),
-            ro_code: Code::from(&executable_segments),
+            ro_memory,
+            rw_memory,
+            ro_code,
         })
     }
 }
