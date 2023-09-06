@@ -109,34 +109,36 @@ mod tests {
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
-    use crate::test_utils::{StarkType, prove_with_stark};
+    use crate::test_utils::{prove_with_stark, StarkType};
 
-    fn prove_bitwise_example(a: u32, b: u32, imm: u32, use_imm: bool, stark: StarkType) -> Result<()> {
-        let (b, imm) = if use_imm {
-            (0, imm)
-        } else {
-            (b, 0)
-        };
+    fn prove_bitwise_example(
+        a: u32,
+        b: u32,
+        imm: u32,
+        use_imm: bool,
+        stark: &StarkType,
+    ) -> Result<()> {
+        let (b, imm) = if use_imm { (0, imm) } else { (b, 0) };
         let code: Vec<_> = [Op::AND, Op::OR, Op::XOR]
-        .into_iter()
-        .map(|kind| Instruction {
-            op: kind,
-            args: Args {
-                rd: 8,
-                rs1: 6,
-                rs2: 7,
-                imm,
-            },
-        })
-        .collect();
+            .into_iter()
+            .map(|kind| Instruction {
+                op: kind,
+                args: Args {
+                    rd: 8,
+                    rs1: 6,
+                    rs2: 7,
+                    imm,
+                },
+            })
+            .collect();
 
         let (program, record) = simple_test_code(&code, &[], &[(6, a), (7, b)]);
         prove_with_stark(&program, &record, stark)
     }
 
     #[test]
-    fn prove_bitwise_mozak(){
-        prove_bitwise_example(100, 200, 0, false, StarkType::Mozak).unwrap();
+    fn prove_bitwise_mozak() {
+        prove_bitwise_example(100, 200, 0, false, &StarkType::Mozak).unwrap();
     }
 
     proptest! {
@@ -148,7 +150,7 @@ mod tests {
             imm in u32_extra(),
             use_imm in any::<bool>())
         {
-           prove_bitwise_example(a, b, imm, use_imm, StarkType::Xor).unwrap();
+           prove_bitwise_example(a, b, imm, use_imm, &StarkType::Xor).unwrap();
         }
     }
 }

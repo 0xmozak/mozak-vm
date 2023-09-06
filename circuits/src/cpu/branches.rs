@@ -95,8 +95,7 @@ mod tests {
 
     use crate::test_utils::{prove_with_stark, StarkType};
 
-
-    fn test_cond_branch(a: u32, b: u32, op: Op, stark: StarkType) -> Result<()> {
+    fn test_cond_branch(a: u32, b: u32, op: Op, stark: &StarkType) -> Result<()> {
         let (program, record) = simple_test_code(
             &[
                 Instruction {
@@ -140,18 +139,18 @@ mod tests {
 
     #[test]
     fn prove_test_cond_branch() {
-        test_cond_branch(100, 200, Op::BLT, StarkType::Mozak).unwrap();
-        test_cond_branch(100, 200, Op::BLTU, StarkType::Mozak).unwrap();
-        test_cond_branch(100, 200, Op::BGE, StarkType::Mozak).unwrap();
-        test_cond_branch(100, 200, Op::BGEU, StarkType::Mozak).unwrap();
-        test_cond_branch(100, 200, Op::BEQ, StarkType::Mozak).unwrap();
-        test_cond_branch(100, 200, Op::BNE, StarkType::Mozak).unwrap();
+        test_cond_branch(100, 200, Op::BLT, &StarkType::Mozak).unwrap();
+        test_cond_branch(100, 200, Op::BLTU, &StarkType::Mozak).unwrap();
+        test_cond_branch(100, 200, Op::BGE, &StarkType::Mozak).unwrap();
+        test_cond_branch(100, 200, Op::BGEU, &StarkType::Mozak).unwrap();
+        test_cond_branch(100, 200, Op::BEQ, &StarkType::Mozak).unwrap();
+        test_cond_branch(100, 200, Op::BNE, &StarkType::Mozak).unwrap();
     }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(32))]
         #[test]
         fn prove_branch_proptest(a in u32_extra(), b in u32_extra(), op in prop_oneof![Just(Op::BLT), Just(Op::BLTU), Just(Op::BGE), Just(Op::BGEU), Just(Op::BEQ), Just(Op::BNE)]) {
-            test_cond_branch(a, b, op, StarkType::Cpu).unwrap();
+            test_cond_branch(a, b, op, &StarkType::Cpu).unwrap();
         }
     }
 }

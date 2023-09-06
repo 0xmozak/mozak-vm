@@ -26,9 +26,10 @@ mod tests {
     use mozak_vm::test_utils::{simple_test_code, u32_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
+
     use crate::test_utils::{prove_with_stark, StarkType};
 
-    fn sub_test_example(a: u32, b: u32, stark: StarkType) -> Result<()> {
+    fn sub_test_example(a: u32, b: u32, stark: &StarkType) -> Result<()> {
         let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::SUB,
@@ -47,14 +48,12 @@ mod tests {
     }
 
     #[test]
-    fn prove_sub_test_mozak(){
-        sub_test_example(100, 200, StarkType::Mozak).unwrap();
-    }
+    fn prove_sub_test_mozak() { sub_test_example(100, 200, &StarkType::Mozak).unwrap(); }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
         fn prove_sub_proptest(a in u32_extra(), b in u32_extra()) {
-            sub_test_example(a, b, StarkType::Cpu).unwrap();
+            sub_test_example(a, b, &StarkType::Cpu).unwrap();
         }
     }
 }

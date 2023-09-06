@@ -29,7 +29,7 @@ mod tests {
 
     use crate::test_utils::{prove_with_stark, StarkType};
 
-    fn prove_add_example(a: u32, b: u32, rd: u8, stark: StarkType) -> Result<()> {
+    fn prove_add_example(a: u32, b: u32, rd: u8, stark: &StarkType) -> Result<()> {
         let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::ADD,
@@ -44,22 +44,23 @@ mod tests {
             &[(6, a), (7, b)],
         );
         if rd != 0 {
-            assert_eq!(record.executed[1].state.get_register_value(rd), a.wrapping_add(b));
+            assert_eq!(
+                record.executed[1].state.get_register_value(rd),
+                a.wrapping_add(b)
+            );
         }
         prove_with_stark(&program, &record, stark)
     }
 
     #[test]
-    fn prove_add_mozak(){
-        prove_add_example(100, 200, 5, StarkType::Mozak).unwrap();
-    }
+    fn prove_add_mozak() { prove_add_example(100, 200, 5, &StarkType::Mozak).unwrap(); }
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
     proptest! {
             #![proptest_config(ProptestConfig::with_cases(4))]
             #[test]
             fn prove_add_proptest(a in u32_extra(), b in u32_extra(), rd in 0_u8..32) {
-                prove_add_example(a, b, rd, StarkType::Cpu).unwrap();
+                prove_add_example(a, b, rd, &StarkType::Cpu).unwrap();
             }
     }
 }
