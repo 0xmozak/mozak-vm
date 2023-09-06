@@ -21,8 +21,7 @@ pub struct Program {
     /// The entrypoint of the program
     pub entry_point: u32,
 
-    /// All Read only memory image of the ELF, not to be confused with
-    /// .rodata ELF header
+    /// All-read-only-memory image of the ELF
     pub ro_memory: Data,
 
     /// All writable memory image of the ELF
