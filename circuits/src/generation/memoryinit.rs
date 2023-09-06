@@ -16,7 +16,7 @@ pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<Memory
             .iter()
             .map(|(&addr, &value)| MemoryInit {
                 filter: F::ONE,
-                is_readonly: F::ONE,
+                is_writable: F::ZERO,
                 element: MemElement {
                     address: F::from_canonical_u32(addr),
                     value: F::from_canonical_u8(value),
@@ -30,7 +30,7 @@ pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<Memory
             .iter()
             .map(|(&addr, &value)| MemoryInit {
                 filter: F::ONE,
-                is_readonly: F::ZERO,
+                is_writable: F::ONE,
                 element: MemElement {
                     address: F::from_canonical_u32(addr),
                     value: F::from_canonical_u8(value),
