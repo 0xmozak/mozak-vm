@@ -9,9 +9,10 @@ use proptest::strategy::{Just, Strategy};
 use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
+use crate::system::ecall;
 use crate::vm::{step, ExecutionRecord};
 
-/// Returns the state just before final
+/// Returns the state just before the final state
 #[must_use]
 pub fn state_before_final(e: &ExecutionRecord) -> &State { &e.executed[e.executed.len() - 2].state }
 
@@ -30,12 +31,12 @@ pub fn simple_test_code(
                 code.iter()
                     .chain(
                         [
-                            // set sys-call EXIT in x17(or a7)
+                            // set sys-call HALT in x10(or a0)
                             Instruction {
                                 op: Op::ADD,
                                 args: Args {
-                                    rd: 17,
-                                    imm: 93,
+                                    rd: 10,
+                                    imm: ecall::HALT,
                                     ..Args::default()
                                 },
                             },
@@ -55,7 +56,7 @@ pub fn simple_test_code(
     let image: HashMap<u32, u32> = mem.iter().copied().collect();
     let image = Data::from(image);
     let program = Program {
-        entry: 0,
+        entry_point: 0,
         data: image,
         code,
     };

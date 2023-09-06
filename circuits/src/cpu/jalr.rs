@@ -1,3 +1,7 @@
+//! This module implements the JALR operation constraints
+//! JALR writes the address of the instruction following the jump, being pc + 4,
+//! And then sets the target address with sum of signed immediate and rs1.
+
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
@@ -11,11 +15,13 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
 
+    // Save the address of the instruction following the jump (return address).
     let return_address = lv.inst.pc + P::Scalar::from_noncanonical_u64(4);
     let wrapped_return_address = return_address - wrap_at;
 
     let destination = lv.dst_value;
-    // enable-if JALR: aux.dst_val == jmp-inst-pc + 4, wrapped
+    // Check: the wrapped `pc + 4` is saved to destination.
+    // As values are u32 range checked, this makes the value choice deterministic.
     yield_constr.constraint(
         lv.inst.ops.jalr * (destination - return_address) * (destination - wrapped_return_address),
     );
@@ -24,10 +30,13 @@ pub(crate) fn constraints<P: PackedField>(
     let wrapped_jump_target = jump_target - wrap_at;
     let new_pc = nv.inst.pc;
 
+    // Check: the wrapped op1, op2 sum is set as new `pc`.
+    // As values are u32 range checked, this makes the value choice deterministic.
     yield_constr.constraint_transition(
         lv.inst.ops.jalr * (new_pc - jump_target) * (new_pc - wrapped_jump_target),
     );
 }
+
 #[cfg(test)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
@@ -54,7 +63,7 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
@@ -73,8 +82,9 @@ mod tests {
             &[(0x1, 0)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record).unwrap();
     }
+
     #[test]
     fn prove_jalr_goto_imm_zero_rs1_not_zero() {
         let (program, record) = simple_test_code(
@@ -91,7 +101,7 @@ mod tests {
             &[(0x1, 4)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
@@ -110,7 +120,7 @@ mod tests {
             &[(0x1, 0)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
-        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
@@ -143,7 +153,7 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_pc(), 16);
-        CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+        CpuStark::prove_and_verify(&program, &record).unwrap();
     }
 
     proptest! {
@@ -177,7 +187,7 @@ mod tests {
             );
             assert_eq!(record.executed.len(), 3);
             assert_eq!(state_before_final(&record).get_register_value(rd), 4);
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }

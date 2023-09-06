@@ -1,3 +1,9 @@
+//! This module implements constraints for division operations, including
+//! DIVU, REMU, DIV, REM and SRL instructions.
+//!
+//! Here, SRL stands for 'shift right logical'.  We can treat it as a variant of
+//! unsigned multiplication.
+
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
@@ -5,12 +11,11 @@ use starky::constraint_consumer::ConstraintConsumer;
 use super::bitwise::and_gadget;
 use super::columns::CpuState;
 
-/// Constraints for DIVU / REMU / SRL instructions
+/// Constraints for DIV / REM / DIVU / REMU / SRL instructions
 ///
 /// SRL stands for 'shift right logical'.  We can treat it as a variant of
 /// unsigned division.
-///
-/// TODO: m, r, slack need range-checks.
+#[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
@@ -47,7 +52,12 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint((is_div + is_rem) * (lv.divisor - lv.op2_full_range()));
 
     let dst = lv.dst_value;
-    // The following constraints are for SRL.
+    // Check: for SRL, divisor `q` is assigned as `2^(op2 & 0b1_111)`.
+    // We only take lowest 5 bits of the op2 for the shift amount.
+    // This is following the RISC-V specification.
+    // Bellow we use the And gadget to calculate the shift amount, and then use
+    // Bitshift table to retrieve the corresponding power of 2, that we will assign
+    // to the multiplier.
     {
         let and_gadget = and_gadget(&lv.xor);
         yield_constr
@@ -106,7 +116,99 @@ mod tests {
     use proptest::{prop_assert, proptest};
 
     use crate::cpu::stark::CpuStark;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::{inv, ProveAndVerify};
+
+    fn divu_remu_instructions(rd: u8) -> [Instruction; 2] {
+        [
+            Instruction {
+                op: Op::DIVU,
+                args: Args {
+                    rd,
+                    rs1: 1,
+                    rs2: 2,
+                    ..Args::default()
+                },
+            },
+            Instruction {
+                op: Op::REMU,
+                args: Args {
+                    rd,
+                    rs1: 1,
+                    rs2: 2,
+                    ..Args::default()
+                },
+            },
+        ]
+    }
+
+    fn srl_instructions(rd: u8, q: u32) -> [Instruction; 2] {
+        [
+            Instruction {
+                op: Op::SRL,
+                args: Args {
+                    rd,
+                    rs1: 1,
+                    rs2: 2,
+                    ..Args::default()
+                },
+            },
+            Instruction {
+                op: Op::SRL,
+                args: Args {
+                    rd,
+                    rs1: 1,
+                    imm: q,
+                    ..Args::default()
+                },
+            },
+        ]
+    }
+
+    fn div_rem_instructions(rd: u8) -> [Instruction; 2] {
+        [
+            Instruction {
+                op: Op::DIV,
+                args: Args {
+                    rd,
+                    rs1: 1,
+                    rs2: 2,
+                    ..Args::default()
+                },
+            },
+            Instruction {
+                op: Op::REM,
+                args: Args {
+                    rd,
+                    rs1: 1,
+                    rs2: 2,
+                    ..Args::default()
+                },
+            },
+        ]
+    }
+
+    #[test]
+    fn prove_divu_remu() {
+        let (program, record) =
+            simple_test_code(&divu_remu_instructions(3), &[], &[(1, 200), (2, 100)]);
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    #[test]
+    fn prove_div_rem() {
+        let (program, record) =
+            simple_test_code(&div_rem_instructions(3), &[], &[(1, 200), (2, 100)]);
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    #[test]
+    fn prove_srl() {
+        let (program, record) =
+            simple_test_code(&srl_instructions(3, 200), &[], &[(1, 200), (2, 100)]);
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -117,30 +219,23 @@ mod tests {
                 prop_assert!(u64::from(u32::MAX) < y);
             }
         }
+
         #[test]
         fn prove_divu_proptest(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
             let (program, record) = simple_test_code(
-                &[Instruction {
-                    op: Op::DIVU,
-                    args: Args {
-                        rd,
-                        rs1: 1,
-                        rs2: 2,
-                        ..Args::default()
-                    },
-                },
-                ],
+                &divu_remu_instructions(rd),
                 &[],
                 &[(1, p), (2, q)],
             );
             prop_assert_eq!(record.executed[0].aux.dst_val,
                 if let 0 = q {
-                    0xffff_ffff
+                    p
                 } else {
-                    p / q
+                    p % q
                 });
             CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
+
         #[test]
         #[allow(clippy::cast_sign_loss)]
         #[allow(clippy::cast_possible_wrap)]
@@ -167,31 +262,7 @@ mod tests {
                 });
             CpuStark::prove_and_verify(&program, &record.executed).unwrap();
         }
-        #[test]
-        fn prove_remu_proptest(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
-            let (program, record) = simple_test_code(
-                &[
-                Instruction {
-                    op: Op::REMU,
-                    args: Args {
-                        rd,
-                        rs1: 1,
-                        rs2: 2,
-                        ..Args::default()
-                    },
-                }
-                ],
-                &[],
-                &[(1, p), (2, q)],
-            );
-            prop_assert_eq!(record.executed[0].aux.dst_val,
-                if let 0 = q {
-                    p
-                } else {
-                    p % q
-                });
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
-        }
+
         #[allow(clippy::cast_sign_loss)]
         #[allow(clippy::cast_possible_wrap)]
         #[test]
@@ -217,36 +288,19 @@ mod tests {
                 } else {
                     (p as i32).wrapping_rem(q as i32) as u32
                 });
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
+
         #[test]
         fn prove_srl_proptest(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
             let (program, record) = simple_test_code(
-                &[Instruction {
-                    op: Op::SRL,
-                    args: Args {
-                        rd,
-                        rs1: 1,
-                        rs2: 2,
-                        ..Args::default()
-                    },
-                },
-                Instruction {
-                    op: Op::SRL,
-                    args: Args {
-                        rd,
-                        rs1: 1,
-                        imm: q,
-                        ..Args::default()
-                    },
-                }
-                ],
+                &srl_instructions(rd, q),
                 &[],
                 &[(1, p), (2, q)],
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p >> q);
             prop_assert_eq!(record.executed[1].aux.dst_val, p >> q);
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }

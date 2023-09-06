@@ -1,28 +1,34 @@
-//! This module implements the bitwise operations, AND, OR, and XOR.
+//! This module implements constraints for bitwise operations, AND, OR, and XOR.
 //! We assume XOR is implemented directly as a cross-table lookup.
 //! AND and OR are implemented as a combination of XOR and field element
 //! arithmetic.
 //!
+//!
 //! We use two basic identities to implement AND, and OR:
+//! `
 //!  a | b = (a ^ b) + (a & b)
 //!  a + b = (a ^ b) + 2 * (a & b)
+//! `
 //! The identities might seem a bit mysterious at first, but contemplating
 //! a half-adder circuit should make them clear.
+//! Note that these identities work for any `u32` numbers `a` and `b`.
 //!
-//! Re-arranging and substituing yields:
+//! Re-arranging and substituting yields:
+//! `
 //!  x & y := (x + y - (x ^ y)) / 2
 //!  x | y := (x + y + (x ^ y)) / 2
+//! `
 
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuState;
-use crate::bitwise::columns::XorView;
+use crate::xor::columns::XorView;
 
 /// A struct to represent the output of binary operations
 ///
-/// Especially AND, OR and XOR instructions.
+/// Implemented for AND, OR and XOR instructions.
 #[derive(Debug, Clone)]
 pub struct BinaryOp<P: PackedField> {
     pub input_a: P,
@@ -30,8 +36,10 @@ pub struct BinaryOp<P: PackedField> {
     pub output: P,
 }
 
-/// Re-usable gadget for AND constraints
-/// Highest degree is one.
+/// Re-usable gadget for AND constraints.
+/// It has access to already constrained XOR evaluation and based on that
+/// constrains the AND evaluation: `x & y := (x + y - xor(x,y)) / 2`
+/// This gadget can be used to anywhere in the constraint system.
 pub(crate) fn and_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     let two = P::Scalar::from_noncanonical_u64(2);
     BinaryOp {
@@ -42,7 +50,9 @@ pub(crate) fn and_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
 }
 
 /// Re-usable gadget for OR constraints
-/// Highest degree is one.
+/// It has access to already constrained XOR evaluation and based on that
+/// constrains the OR evaluation: `x | y := (x + y + xor(x,y)) / 2`
+/// This gadget can be used to anywhere in the constraint system.
 pub(crate) fn or_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     let two = P::Scalar::from_noncanonical_u64(2);
     BinaryOp {
@@ -53,7 +63,9 @@ pub(crate) fn or_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
 }
 
 /// Re-usable gadget for XOR constraints
-/// Highest degree is one.
+/// Constrains that the already constrained underlying XOR evaluation has been
+/// done on the same inputs and produced the same output as this gadget.
+/// This gadget can be used to anywhere in the constraint system.
 pub(crate) fn xor_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     BinaryOp {
         input_a: xor.a,
@@ -62,7 +74,12 @@ pub(crate) fn xor_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     }
 }
 
-/// Constraints to verify execution of AND, OR and XOR instructions.
+/// Constraints for the AND, OR and XOR opcodes.
+/// As each opcode has an associated selector, we use selectors to enable only
+/// the correct opcode constraints. It can be that all selectors are not active,
+/// representing that the operation is neither AND, nor OR or XOR.
+/// The operation constraints are maintained in the corresponding gadget, and we
+/// just need to make sure the gadget gets assigned correct inputs and output.
 #[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
@@ -91,8 +108,8 @@ mod tests {
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
-    use crate::bitwise::stark::BitwiseStark;
     use crate::test_utils::ProveAndVerify;
+    use crate::xor::stark::XorStark;
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
@@ -117,13 +134,12 @@ mod tests {
                     rs1: 6,
                     rs2: 7,
                     imm,
-                    ..Args::default()
                 },
             })
             .collect();
 
             let (program, record) = simple_test_code(&code, &[], &[(6, a), (7, b)]);
-            BitwiseStark::prove_and_verify(&program, &record.executed).unwrap();
+            XorStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }

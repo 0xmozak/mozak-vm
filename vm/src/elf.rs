@@ -19,7 +19,7 @@ use crate::util::load_u32;
 #[derive(Debug, Default)]
 pub struct Program {
     /// The entrypoint of the program
-    pub entry: u32,
+    pub entry_point: u32,
 
     /// The initial memory image
     pub data: Data,
@@ -59,7 +59,7 @@ impl From<HashMap<u32, u8>> for Program {
     #[tarpaulin::skip]
     fn from(image: HashMap<u32, u8>) -> Self {
         Self {
-            entry: 0_u32,
+            entry_point: 0_u32,
             code: Code::from(&image),
             data: Data(image),
         }
@@ -85,7 +85,7 @@ impl From<HashMap<u32, u32>> for Program {
             .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes()))
             .collect();
         Self {
-            entry: 0_u32,
+            entry_point: 0_u32,
             code: Code::from(&image),
             data: Data(image),
         }
@@ -113,8 +113,8 @@ impl Program {
             elf.ehdr.e_type == elf::abi::ET_EXEC,
             "Invalid ELF type, must be executable"
         );
-        let entry: u32 = elf.ehdr.e_entry.try_into()?;
-        ensure!(entry % 4 == 0, "Misaligned entrypoint");
+        let entry_point: u32 = elf.ehdr.e_entry.try_into()?;
+        ensure!(entry_point % 4 == 0, "Misaligned entrypoint");
         let segments = elf
             .segments()
             .ok_or_else(|| anyhow!("Missing segment table"))?;
@@ -143,6 +143,10 @@ impl Program {
         let data = Data(extract(elf::abi::PF_NONE)?);
         let code = extract(elf::abi::PF_X)?;
         let code = Code::from(&code);
-        Ok(Program { entry, data, code })
+        Ok(Program {
+            entry_point,
+            data,
+            code,
+        })
     }
 }

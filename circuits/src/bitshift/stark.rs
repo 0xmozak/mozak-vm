@@ -35,14 +35,34 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         let nv: &Bitshift<P> = &nv.executed;
 
         // Constraints on shift amount
+        // They ensure:
+        //  1. Shift amount increases with each row by 0 or 1.
+        // (We allow increases of 0 in order to allow the table to add
+        //  multiple same value rows. This is needed when we have multiple
+        //  `SHL` or `SHR` operations with the same shift amount.)
+        //  2. We have shift amounts starting from 0 to max possible value of 31.
+        // (This is due to RISC-V max shift amount being 31.)
+
         let diff = nv.amount - lv.amount;
+        // Check: initial amount value is set to 0
         yield_constr.constraint_first_row(lv.amount);
+        // Check: amount value is increased by 1 or kept unchanged
         yield_constr.constraint_transition(diff * (diff - P::ONES));
+        // Check: last amount value is set to 31
         yield_constr.constraint_last_row(lv.amount - P::Scalar::from_canonical_u8(31));
 
         // Constraints on multiplier
+        // They ensure:
+        //  1. Shift multiplier is multiplied by 2 only if amount increases.
+        //  2. We have shift multiplier from 1 to max possible value of 2^31.
+
+        // Check: initial multiplier value is set to 1 = 2^0
         yield_constr.constraint_first_row(lv.multiplier - P::ONES);
+        // Check: multiplier value is doubled if amount is increased
         yield_constr.constraint_transition(nv.multiplier - (P::ONES + diff) * lv.multiplier);
+        // Check: last multiplier value is set to 2^31
+        // (Note that based on the previous constraint, this is already
+        //  satisfied if the last amount value is 31. We leave it for readability.)
         yield_constr.constraint_last_row(lv.multiplier - P::Scalar::from_canonical_u32(1 << 31));
     }
 
@@ -70,6 +90,7 @@ mod tests {
     use starky::stark_testing::test_stark_low_degree;
 
     use super::BitshiftStark;
+    use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
@@ -81,6 +102,47 @@ mod tests {
     fn test_degree() -> Result<()> {
         let stark = S::default();
         test_stark_low_degree(stark)
+    }
+
+    #[test]
+    fn prove_sll() -> Result<()> {
+        let p: u32 = 10;
+        let q: u32 = 10;
+        let sll = Instruction {
+            op: Op::SLL,
+            args: Args {
+                rd: 5,
+                rs1: 7,
+                rs2: 8,
+                ..Args::default()
+            },
+        };
+        // We use 3 similar instructions here to ensure duplicates and padding work
+        // during trace generation.
+        let (program, record) = simple_test_code(&[sll, sll, sll], &[], &[(7, p), (8, q)]);
+        assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
+        MozakStark::prove_and_verify(&program, &record)
+    }
+
+    #[test]
+    fn prove_srl() -> Result<()> {
+        let p: u32 = 10;
+        let q: u32 = 10;
+        let srl = Instruction {
+            op: Op::SRL,
+            args: Args {
+                rd: 5,
+                rs1: 7,
+                rs2: 8,
+                ..Args::default()
+            },
+        };
+
+        // We use 3 similar instructions here to ensure duplicates and padding work
+        // during trace generation.
+        let (program, record) = simple_test_code(&[srl, srl, srl], &[], &[(7, p), (8, q)]);
+        assert_eq!(record.executed[0].aux.dst_val, p >> (q & 0x1F));
+        MozakStark::prove_and_verify(&program, &record)
     }
 
     proptest! {
@@ -111,7 +173,7 @@ mod tests {
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
             prop_assert_eq!(record.executed[1].aux.dst_val, p >> (q & 0x1F));
-            BitshiftStark::prove_and_verify(&program, &record.executed).unwrap();
+            BitshiftStark::prove_and_verify(&program, &record).unwrap();
         }
     }
 }
