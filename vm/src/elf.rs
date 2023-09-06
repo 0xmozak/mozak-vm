@@ -65,8 +65,8 @@ impl From<HashMap<u32, u8>> for Program {
         Self {
             entry_point: 0_u32,
             ro_code: Code::from(&image),
-            ro_memory: Data(image),
-            rw_memory: Data::default(), // TODO: Is this action correct?
+            ro_memory: Data::default(), // TODO: allow for ways to populate this
+            rw_memory: Data(image),
         }
     }
 }
@@ -92,8 +92,8 @@ impl From<HashMap<u32, u32>> for Program {
         Self {
             entry_point: 0_u32,
             ro_code: Code::from(&image),
-            ro_memory: Data(image),
-            rw_memory: Data::default(),
+            ro_memory: Data::default(), // TODO: allow for ways to populate this
+            rw_memory: Data(image),
         }
     }
 }
