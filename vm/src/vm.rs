@@ -112,6 +112,8 @@ impl State {
     /// # Panics
     ///
     /// Panics in case we intend to store to a read-only location
+    /// TODO: Review the decision to panic.  We might also switch to using a
+    /// Result, so that the caller can handle this.
     pub fn store(self, inst: &Args, bytes: u32) -> (Aux, Self) {
         let dst_val: u32 = self.get_register_value(inst.rs1);
         let addr = self.get_register_value(inst.rs2).wrapping_add(inst.imm);
@@ -124,7 +126,7 @@ impl State {
             (0..bytes)
                 .map(|i| addr.wrapping_add(i))
                 .zip(dst_val.to_le_bytes())
-                .fold(self, |acc, (i, byte)| acc.store_u8(i, byte).unwrap()) // How do want to handle failures here?
+                .fold(self, |acc, (i, byte)| acc.store_u8(i, byte).unwrap())
                 .bump_pc(),
         )
     }
