@@ -108,7 +108,7 @@ impl<F: Field> Add<F> for &Column<F> {
 
 impl<F: Field> Sub<Self> for Column<F> {
     type Output = Self;
-
+    #[allow(clippy::suspicious_arithmetic_impl)]
     fn sub(self, other: Self) -> Self::Output { self.clone() + other.neg() }
 }
 
