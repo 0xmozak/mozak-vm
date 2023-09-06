@@ -782,7 +782,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let address = rs2_val.wrapping_add(offset);
             prop_assume!(address >= 4);              // Ensure no reading starts before index 4
-            prop_assume!(address < u32::MAX - 1);    // Ensure last byte read is not index 0 (4 byte long word)
+            prop_assume!(address <= u32::MAX - 1);    // Ensure last byte read is not index 0 (4 byte long word)
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SH,
@@ -815,7 +815,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let address = rs2_val.wrapping_add(offset);
             prop_assume!(address >= 4);              // Ensure no reading starts before index 4
-            prop_assume!(address < u32::MAX - 3);    // Ensure last byte read is not index 0 (4 byte long word)
+            prop_assume!(address <= u32::MAX - 3);    // Ensure last byte read is not index 0 (4 byte long word)
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SW,
