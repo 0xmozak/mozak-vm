@@ -211,7 +211,7 @@ mod tests {
 
         let cpu_trace = generate_cpu_trace::<F>(&program, &record);
         let memory_trace = generate_memory_trace::<F>(&program, &record.executed);
-        let mut trace = generate_rangecheck_trace::<F>(&cpu_trace, &memory_trace);
+        let trace = generate_rangecheck_trace::<F>(&cpu_trace, &memory_trace);
 
         let len = trace[0].len();
         let bad_row_idx = len - 1;

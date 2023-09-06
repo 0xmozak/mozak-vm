@@ -78,7 +78,6 @@ pub fn generate_rangecheck_trace<F: RichField>(
             other => unimplemented!("Can't range check {other:#?} tables"),
         };
 
-        let mut i = 0;
         for val in values {
             let (limb_hi, limb_lo) = limbs_from_u32(
                 u32::try_from(val.to_canonical_u64()).expect("casting value to u32 should succeed"),
@@ -90,17 +89,9 @@ pub fn generate_rangecheck_trace<F: RichField>(
                 filter: F::ONE,
                 ..Default::default()
             };
-
-            if limb_hi == 0 || limb_lo == 0 {
-                println!("zero: {i} {:?} {} {}", val, limb_hi, limb_lo);
-            }
-            if limb_hi == 0 && limb_lo == 0 {
-                println!("both: {i} {:?} {} {}", val, limb_hi, limb_lo);
-            }
             multiplicities[limb_hi as usize] += F::ONE;
             multiplicities[limb_lo as usize] += F::ONE;
             push_rangecheck_row(&mut trace, rangecheck_row.borrow());
-            i += 1;
         }
     }
     // Pad our trace to max(RANGE_CHECK_U16_SIZE, trace[0].len())
@@ -129,7 +120,6 @@ pub fn generate_rangecheck_trace<F: RichField>(
 
 #[cfg(test)]
 mod tests {
-    use std::iter::repeat;
 
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
@@ -225,7 +215,13 @@ mod tests {
 
         // Check each column's length.
         trace.iter().for_each(|c| {
-            assert_eq!(c.len(), trace_len);
+            assert_eq!(
+                c.len(),
+                trace_len,
+                "expected {} column length, got {}",
+                trace_len,
+                c.len()
+            );
         });
 
         // Check multiplicity column.
@@ -256,31 +252,39 @@ mod tests {
                 ),
             });
 
+        // Check limb_lo.
         trace[MAP.limb_lo].iter().enumerate().for_each(|(i, l)| {
+            let expected = match i {
+                RANGE_CHECK_U16_SIZE.. => F::ZERO,
+                _ => F::from_canonical_u64((0xffff_u16).wrapping_add(i as u16).into()),
+            };
             assert_eq!(
-                l,
-                &F::from_canonical_u64((0xffff_u32).wrapping_add(i as u32).into())
+                l, &expected,
+                "expected lower limb at row {i} to be {expected}, got {l}"
             )
         });
 
-        // Check values that we are interested in
-        assert_eq!(trace[MAP.filter][0], F::ONE);
-        assert_eq!(trace[MAP.filter][1], F::ONE);
-        assert_eq!(trace[MAP.val][0], GoldilocksField(0x0000_ffff));
-        assert_eq!(trace[MAP.val][1], GoldilocksField(0x0001_0000));
+        // Check limb_hi.
+        trace[MAP.limb_hi].iter().enumerate().for_each(|(i, l)| {
+            let expected = match i {
+                0 | RANGE_CHECK_U16_SIZE.. => F::ZERO,
+                _ => F::ONE,
+            };
+            assert_eq!(
+                l, &expected,
+                "expected higher limb at row {i} to be {expected}, got {l}"
+            )
+        });
 
-        // Ensure rest of trace is zeroed out
-        for filter in &trace[MAP.filter][RANGE_CHECK_U16_SIZE..] {
-            assert_eq!(filter, &F::ZERO);
-        }
-        for value in &trace[MAP.val][RANGE_CHECK_U16_SIZE..] {
-            assert_eq!(value, &F::ZERO);
-        }
-        for limb_hi in &trace[MAP.limb_hi][RANGE_CHECK_U16_SIZE..] {
-            assert_eq!(limb_hi, &F::ZERO);
-        }
-        for limb_lo in &trace[MAP.limb_lo][RANGE_CHECK_U16_SIZE..] {
-            assert_eq!(limb_lo, &F::ZERO);
-        }
+        trace[MAP.filter].iter().enumerate().for_each(|(i, l)| {
+            let expected = match i {
+                ..=RANGE_CHECK_U16_SIZE => F::ONE,
+                _ => F::ZERO,
+            };
+            assert_eq!(
+                l, &expected,
+                "expected filter at row {i} to be {expected}, got {l}"
+            )
+        });
     }
 }
