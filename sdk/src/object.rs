@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter};
+use std::fmt;
 
 use crate::pubkey::PubKey;
 
@@ -18,8 +18,6 @@ pub struct Object {
     data: Vec<u8>,
 }
 
-impl Display for Object {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Object ID: ( {} )", self.id)
-    }
+impl fmt::Display for Object {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "Object ID: ({})", self.id) }
 }

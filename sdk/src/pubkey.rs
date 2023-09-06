@@ -1,12 +1,15 @@
-use std::fmt::{Display, Formatter};
+use std::{fmt, str};
 
 /// PubKey for the Account, Program, and Objects
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]
 pub struct PubKey(pub(crate) [u8; 32]);
 
-impl Display for PubKey {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let bytes = self.0.to_vec();
-        write!(f, "PubKey: ( {} )", String::from_utf8(bytes).unwrap())
+impl fmt::Display for PubKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "PubKey: ({})",
+            str::from_utf8(&self.0).expect("PubKey should be valid UTF-8 bytes")
+        )
     }
 }
