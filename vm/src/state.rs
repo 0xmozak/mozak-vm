@@ -42,8 +42,6 @@ impl From<Program> for State {
     }
 }
 
-// Only for convenience.
-#[allow(clippy::similar_names)]
 impl From<&Program> for State {
     fn from(program: &Program) -> Self { Self::from(program.clone()) }
 }
