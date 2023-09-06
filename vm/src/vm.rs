@@ -762,7 +762,6 @@ mod tests {
         fn sb_proptest(rs1 in reg(), rs1_val in u32_extra(), rs2 in reg(), rs2_val in u32_extra(), offset in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let address = rs2_val.wrapping_add(offset);
-            prop_assume!(address > 4);
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SB,
@@ -783,8 +782,6 @@ mod tests {
         fn sh_proptest(rs1 in reg(), rs1_val in u32_extra(), rs2 in reg(), rs2_val in u32_extra(), offset in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let address = rs2_val.wrapping_add(offset);
-            prop_assume!(address >= 4);          // Ensure no reading starts before index 4
-            prop_assume!(address < u32::MAX);    // Ensure last byte read is not index 0 (4 byte long word)
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SH,
@@ -816,8 +813,6 @@ mod tests {
         fn sw_proptest(rs1 in reg(), rs1_val in u32_extra(), rs2 in reg(), rs2_val in u32_extra(), offset in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let address = rs2_val.wrapping_add(offset);
-            prop_assume!(address >= 4);                // Ensure no reading starts before index 4
-            prop_assume!(address <= u32::MAX - 3);     // Ensure last byte read is not index 0 (4 byte long word)
             let e = simple_test_code(
                 &[Instruction::new(
                     Op::SW,

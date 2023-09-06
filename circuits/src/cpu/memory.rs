@@ -4,7 +4,7 @@ mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, u32_extra, u8_extra};
     use proptest::prelude::ProptestConfig;
-    use proptest::{prop_assume, proptest};
+    use proptest::proptest;
 
     use crate::cpu::stark::CpuStark;
     use crate::test_utils::ProveAndVerify;
@@ -53,8 +53,6 @@ mod tests {
         }
         #[test]
         fn prove_mem_read_write_proptest(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
-            prop_assume!(imm.wrapping_add(offset) >= 8);
-
             let (program, record) = simple_test_code(
                 &[
                     Instruction {
