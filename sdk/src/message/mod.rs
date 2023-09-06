@@ -1,4 +1,4 @@
-
+mod message_header;
 mod v0;
 
 pub enum VersionedMessage {

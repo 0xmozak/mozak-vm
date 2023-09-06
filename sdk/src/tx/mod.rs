@@ -1,7 +1,5 @@
 use crate::signature::Signature;
-
-mod message;
-use message::VersionedMessage;
+use crate::message::VersionedMessage;
 
 pub struct Transaction {
     /// List of signatures for the transaction
@@ -10,4 +8,3 @@ pub struct Transaction {
     /// Message to sign
     pub message: VersionedMessage,
 }
-
