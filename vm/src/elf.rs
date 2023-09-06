@@ -104,6 +104,7 @@ impl Program {
     // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
     // exercise the error handling?
     #[tarpaulin::skip]
+    #[allow(clippy::similar_names)]
     pub fn load_elf(input: &[u8]) -> Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
         ensure!(elf.ehdr.class == Class::ELF32, "Not a 32-bit ELF");
