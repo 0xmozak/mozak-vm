@@ -7,7 +7,10 @@ use mozak_vm::vm::ExecutionRecord;
 #[allow(clippy::missing_panics_doc)]
 #[must_use]
 pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord) {
-    assert!(repeats <= 416, "test case may infringe on read-only section (code) for SB operations");
+    assert!(
+        repeats <= 416,
+        "test case may infringe on read-only section (code) for SB operations"
+    );
     let new = Instruction::new;
     let instructions = [
         new(SB, Args {
