@@ -85,16 +85,12 @@ impl From<HashMap<u32, u32>> for Data {
 
 impl From<HashMap<u32, u32>> for Program {
     fn from(image: HashMap<u32, u32>) -> Self {
-        let image = image
-            .iter()
-            .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes()))
-            .collect();
-        Self {
-            entry_point: 0_u32,
-            ro_code: Code::from(&image),
-            ro_memory: Data(image),
-            rw_memory: Data::default(),
-        }
+        Self::from(
+            image
+                .iter()
+                .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes()))
+                .collect::<HashMap<u32, u8>>(),
+        )
     }
 }
 
