@@ -24,9 +24,9 @@ pub(crate) struct RangeCheckColumnsView<T> {
     /// range checked.
     pub(crate) limb_hi_permuted: T,
 
-    /// Column to indicate that a value to be range checked is from the CPU
-    /// table.
-    pub(crate) cpu_filter: T,
+    /// Column to indicate that a value to be range checked is not a dummy
+    /// value.
+    pub(crate) filter: T,
 
     /// Fixed column containing values 0, 1, .., 2^16 - 1.
     pub(crate) fixed_range_check_u16: T,
@@ -48,10 +48,10 @@ pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COL
 /// Columns containing the data to be range checked in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.val)] }
+pub fn data<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.val)] }
 
-/// Column for a binary filter to indicate a range check from the
-/// [`CpuTable`](crate::cross_table_lookup::CpuTable) in the Mozak
+/// Column for a binary filter to indicate whether a row in the
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
+/// contains a non-dummy value to be range checked.
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(MAP.cpu_filter) }
+pub fn filter<F: Field>() -> Column<F> { Column::single(MAP.filter) }

@@ -6,7 +6,6 @@ use crate::utils::pad_trace_with_default;
 
 /// Generates a memory init ROM trace
 #[must_use]
-#[allow(clippy::missing_panics_doc)]
 pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
     let mut mem_trace: Vec<MemoryInit<F>> =
         Vec::with_capacity(program.ro_memory.len() + program.rw_memory.len());
