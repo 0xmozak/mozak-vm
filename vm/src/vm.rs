@@ -109,6 +109,9 @@ impl State {
     }
 
     #[must_use]
+    /// # Panics
+    ///
+    /// Panics in case we intend to store to a read-only location
     pub fn store(self, inst: &Args, bytes: u32) -> (Aux, Self) {
         let dst_val: u32 = self.get_register_value(inst.rs1);
         let addr = self.get_register_value(inst.rs2).wrapping_add(inst.imm);
