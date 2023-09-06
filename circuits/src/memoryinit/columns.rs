@@ -17,8 +17,8 @@ make_col_map!(MemoryInit);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct MemoryInit<T> {
     pub element: MemElement<T>,
-    pub is_readonly: T,
     pub filter: T,
+    pub is_writable: T,
 }
 
 pub const NUM_MEMORYINIT_COLS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;

@@ -23,19 +23,27 @@ pub struct State {
 }
 
 #[allow(clippy::similar_names)]
-impl From<&Program> for State {
-    fn from(program: &Program) -> Self {
-        let Code(ro_code) = program.ro_code.clone();
-        let Data(rw_memory) = program.rw_memory.clone();
-        let Data(ro_memory) = program.ro_memory.clone();
+impl From<Program> for State {
+    fn from(
+        Program {
+            ro_code: Code(ro_code),
+            rw_memory: Data(rw_memory),
+            ro_memory: Data(ro_memory),
+            entry_point: pc,
+        }: Program,
+    ) -> Self {
         Self {
-            pc: program.entry_point,
+            pc,
             ro_code,
             rw_memory,
             ro_memory,
             ..Default::default()
         }
     }
+}
+
+impl From<&Program> for State {
+    fn from(program: &Program) -> Self { Self::from(program.clone()) }
 }
 
 /// Auxiliary information about the instruction execution

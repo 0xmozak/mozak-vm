@@ -33,7 +33,6 @@ pub fn filter_memory_trace(step_rows: &[Row]) -> Vec<&Row> {
 }
 
 #[must_use]
-#[allow(clippy::missing_panics_doc)]
 pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row]) -> Vec<Memory<F>> {
     let filtered_step_rows = filter_memory_trace(step_rows);
 
@@ -88,15 +87,15 @@ mod tests {
         let inv = inv::<F>;
         #[rustfmt::skip]
         prep_table(vec![
-            // is_executed  addr  clk   op  value  diff_addr  diff_addr_inv  diff_clk
-            [  1,            100,  0,    sb,  255,    100,     inv(100),            0],
-            [  1,            100,  1,    lbu, 255,      0,           0,             1],
-            [  1,            100,  4,    sb,   10,      0,           0,             3],
-            [  1,            100,  5,    lbu,  10,      0,           0,             1],
-            [  1,            200,  2,    sb,   15,    100,     inv(100),            0],
-            [  1,            200,  3,    lbu,  15,      0,           0,             1],
-            [  0,            200,  3,    lbu,  15,      0,           0,             0],
-            [  0,            200,  3,    lbu , 15,      0,           0,             0],
+            // is_executed   addr  clk    op  value  diff_addr  diff_addr_inv       diff_clk
+            [  1,            10000,  0,    sb,  255,    10000,     inv(10000),             0],
+            [  1,            10000,  1,    lbu, 255,        0,              0,             1],
+            [  1,            10000,  4,    sb,   10,        0,              0,             3],
+            [  1,            10000,  5,    lbu,  10,        0,              0,             1],
+            [  1,            20000,  2,    sb,   15,    10000,     inv(10000),             0],
+            [  1,            20000,  3,    lbu,  15,        0,              0,             1],
+            [  0,            20000,  3,    lbu,  15,        0,              0,             0],
+            [  0,            20000,  3,    lbu , 15,        0,              0,             0],
         ])
     }
 

@@ -16,13 +16,12 @@ use crate::instruction::Instruction;
 use crate::util::load_u32;
 
 /// A RISC program
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Program {
     /// The entrypoint of the program
     pub entry_point: u32,
 
-    /// All Read only memory image of the ELF, not to be confused with
-    /// .rodata ELF header
+    /// All-read-only-memory image of the ELF
     pub ro_memory: Data,
 
     /// All writable memory image of the ELF
@@ -66,8 +65,8 @@ impl From<HashMap<u32, u8>> for Program {
         Self {
             entry_point: 0_u32,
             ro_code: Code::from(&image),
-            ro_memory: Data(image),
-            rw_memory: Data::default(), // TODO: Is this action correct?
+            ro_memory: Data::default(), // TODO: allow for ways to populate this
+            rw_memory: Data(image),
         }
     }
 }
@@ -86,16 +85,12 @@ impl From<HashMap<u32, u32>> for Data {
 
 impl From<HashMap<u32, u32>> for Program {
     fn from(image: HashMap<u32, u32>) -> Self {
-        let image = image
-            .iter()
-            .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes()))
-            .collect();
-        Self {
-            entry_point: 0_u32,
-            ro_code: Code::from(&image),
-            ro_memory: Data(image),
-            rw_memory: Data::default(),
-        }
+        Self::from(
+            image
+                .iter()
+                .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes()))
+                .collect::<HashMap<u32, u8>>(),
+        )
     }
 }
 
@@ -109,8 +104,6 @@ impl Program {
     // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
     // exercise the error handling?
     #[tarpaulin::skip]
-    #[allow(clippy::similar_names)]
-    #[allow(non_snake_case)]
     pub fn load_elf(input: &[u8]) -> Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
         ensure!(elf.ehdr.class == Class::ELF32, "Not a 32-bit ELF");
@@ -149,16 +142,19 @@ impl Program {
                 .try_collect()
         };
 
-        let r__segments_exact = extract(|flags| flags == elf::abi::PF_R)?;
-        let rw_segments_exact = extract(|flags| flags == elf::abi::PF_W)?;
+        let ro_segments = extract(|flags| {
+            (flags & elf::abi::PF_R == elf::abi::PF_R)
+                && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
+        })?;
+        let rw_segments_exact = extract(|flags| flags == elf::abi::PF_R + elf::abi::PF_W)?;
         // Parse writable (rwx) segments as read and execute only segments
-        let r_xsegments_any = extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?;
+        let executable_segments = extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?;
 
         Ok(Program {
             entry_point,
-            ro_memory: Data(r__segments_exact),
+            ro_memory: Data(ro_segments),
             rw_memory: Data(rw_segments_exact),
-            ro_code: Code::from(&r_xsegments_any),
+            ro_code: Code::from(&executable_segments),
         })
     }
 }
