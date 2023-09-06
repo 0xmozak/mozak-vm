@@ -2,12 +2,10 @@ use crate::pubkey::PubKey;
 
 pub struct Account {
     /// Public key of the account (address)
-	id: PubKey
+    id: PubKey,
 }
 
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+pub fn add(left: usize, right: usize) -> usize { left + right }
 
 #[cfg(test)]
 mod tests {
