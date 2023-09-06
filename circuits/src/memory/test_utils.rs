@@ -8,7 +8,7 @@ use mozak_vm::vm::ExecutionRecord;
 #[must_use]
 pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord) {
     assert!(
-        repeats <= 416,
+        repeats < 416,
         "test case may infringe on read-only section (code) for SB operations"
     );
     let new = Instruction::new;
