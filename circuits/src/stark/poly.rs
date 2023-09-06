@@ -79,7 +79,6 @@ where
 
     let num_lookup_columns = num_lookup_columns(lookups, config.num_challenges);
 
-    println!("poly nluc; {}", num_lookup_columns);
     // We will step by `P::WIDTH`, and in each iteration, evaluate the quotient
     // polynomial at a batch of `P::WIDTH` points.
     let quotient_values = (0..size)
@@ -176,10 +175,10 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     S: Stark<F, D>, {
     stark.eval_packed_generic(vars, consumer);
 
-    // if let Some(lookups) = lookups {
-    //     lookups
-    //         .iter()
-    //         .for_each(|l| l.eval(vars, &lookup_vars.as_ref().unwrap(), consumer))
-    // }
+    if let Some(lookups) = lookups {
+        lookups
+            .iter()
+            .for_each(|l| l.eval(vars, &lookup_vars.as_ref().unwrap(), consumer))
+    }
     eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
 }
