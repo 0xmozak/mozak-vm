@@ -27,26 +27,31 @@ mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, u32_extra};
 
-    use crate::cpu::stark::CpuStark;
-    use crate::stark::mozak_stark::MozakStark;
-    use crate::test_utils::ProveAndVerify;
-    #[test]
-    fn prove_add_example() -> Result<()> {
+    use crate::test_utils::{prove_with_stark, StarkType};
+
+    fn prove_add_example(a: u32, b: u32, rd: u8, stark: StarkType) -> Result<()> {
         let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::ADD,
                 args: Args {
-                    rd: 5,
+                    rd,
                     rs1: 6,
                     rs2: 7,
                     ..Args::default()
                 },
             }],
             &[],
-            &[(6, 100), (7, 100)],
+            &[(6, a), (7, b)],
         );
-        assert_eq!(record.last_state.get_register_value(5), 100 + 100);
-        MozakStark::prove_and_verify(&program, &record)
+        if rd != 0 {
+            assert_eq!(record.executed[1].state.get_register_value(rd), a.wrapping_add(b));
+        }
+        prove_with_stark(&program, &record, stark)
+    }
+
+    #[test]
+    fn prove_add_mozak(){
+        prove_add_example(100, 200, 5, StarkType::Mozak).unwrap();
     }
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
@@ -54,23 +59,7 @@ mod tests {
             #![proptest_config(ProptestConfig::with_cases(4))]
             #[test]
             fn prove_add_proptest(a in u32_extra(), b in u32_extra(), rd in 0_u8..32) {
-                let (program, record) = simple_test_code(
-                    &[Instruction {
-                        op: Op::ADD,
-                        args: Args {
-                            rd,
-                            rs1: 6,
-                            rs2: 7,
-                            ..Args::default()
-                        },
-                    }],
-                    &[],
-                    &[(6, a), (7, b)],
-                );
-                if rd != 0 {
-                    assert_eq!(record.executed[1].state.get_register_value(rd), a.wrapping_add(b));
-                }
-                CpuStark::prove_and_verify(&program, &record).unwrap();
+                prove_add_example(a, b, rd, StarkType::Cpu).unwrap();
             }
     }
 }

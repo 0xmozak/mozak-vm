@@ -216,3 +216,17 @@ pub fn inv<F: RichField>(x: u64) -> u64 {
         .unwrap_or_default()
         .to_canonical_u64()
 }
+
+pub enum StarkType{
+    Mozak,
+    Cpu,
+    Xor,
+}
+
+pub fn prove_with_stark(program: &Program, record: &ExecutionRecord, stark: StarkType) -> Result<()>{
+    match stark {
+        StarkType::Mozak => MozakStark::prove_and_verify(program, record),
+        StarkType::Cpu => CpuStark::prove_and_verify(program, record),
+        StarkType::Xor => XorStark::prove_and_verify(program, record),
+    }
+}
