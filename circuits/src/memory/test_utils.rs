@@ -4,7 +4,6 @@ use mozak_vm::instruction::{Args, Instruction};
 use mozak_vm::test_utils::simple_test_code;
 use mozak_vm::vm::ExecutionRecord;
 
-#[allow(clippy::missing_panics_doc)]
 #[must_use]
 pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord) {
     let new = Instruction::new;

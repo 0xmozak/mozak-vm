@@ -46,7 +46,6 @@ fn push_rangecheck_row<F: RichField>(
     }
 }
 
-#[allow(clippy::missing_panics_doc)]
 pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<F>
 where
     V: Index<usize, Output = F> + 'a, {

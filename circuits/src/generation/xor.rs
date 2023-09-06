@@ -24,7 +24,6 @@ fn to_bits<F: RichField>(val: F) -> [F; u32::BITS as usize] {
 }
 
 #[must_use]
-#[allow(clippy::missing_panics_doc)]
 #[allow(clippy::cast_possible_truncation)]
 pub fn generate_xor_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> Vec<XorColumnsView<F>> {
     pad_trace_with_default({
