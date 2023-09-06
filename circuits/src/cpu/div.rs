@@ -233,7 +233,7 @@ mod tests {
                 } else {
                     p % q
                 });
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
 
         #[test]
@@ -260,7 +260,7 @@ mod tests {
                 } else {
                     (p as i32).wrapping_div(q as i32) as u32
                 });
-            CpuStark::prove_and_verify(&program, &record.executed).unwrap();
+            CpuStark::prove_and_verify(&program, &record).unwrap();
         }
 
         #[allow(clippy::cast_sign_loss)]
