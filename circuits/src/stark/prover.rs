@@ -164,6 +164,12 @@ where
     })
 }
 
+pub fn num_lookup_columns(lookups: Option<&[Lookup]>, num_challenges: usize) -> usize {
+    lookups.map_or(0, |lus| {
+        lus.iter().map(|lu| lu.num_helper_columns()).sum::<usize>()
+    }) * num_challenges
+}
+
 /// Compute proof for a single STARK table, with lookup data.
 ///
 /// # Errors
@@ -218,7 +224,7 @@ where
         columns
     });
     // TODO(Matthias): make the code work with empty z_polys, too.
-    // assert!(!auxiliary_polys.is_empty(), "No CTL?");
+    assert!(!auxiliary_polys.is_empty(), "No CTL?");
 
     let auxiliary_polys_commitment = timed!(
         timing,
@@ -296,9 +302,7 @@ where
         "Opening point is in the subgroup."
     );
 
-    let num_lookup_columns = lookups.as_ref().map_or(0, |lus| {
-        lus.iter().map(|lu| lu.num_helper_columns()).sum::<usize>()
-    }) * config.num_challenges;
+    let num_lookup_columns = num_lookup_columns(lookups.as_deref(), config.num_challenges);
 
     let openings = StarkOpeningSet::new(
         zeta,

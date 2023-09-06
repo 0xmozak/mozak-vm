@@ -2225,8 +2225,3 @@ checksum = "7c2e3184b9c4e92ad5167ca73039d0c42476302ab603e2fec4487511f38ccefc"
 dependencies = [
  "memchr",
 ]
-
-[[patch.unused]]
-name = "starky"
-version = "0.1.2"
-source = "git+https://github.com/0xmozak/plonky2.git#ad257567d64417c71a4dd743562c55006c7849ca"
