@@ -23,7 +23,6 @@ use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
 use crate::xor::stark::XorStark;
 
-#[allow(clippy::missing_errors_doc)]
 pub fn verify_proof<F, C, const D: usize>(
     mozak_stark: MozakStark<F, D>,
     all_proof: AllProof<F, C, D>,

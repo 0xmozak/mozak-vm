@@ -15,7 +15,6 @@ use crate::stark::utils::transpose_trace;
 use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend};
 use crate::xor::columns::XorView;
 
-#[allow(clippy::missing_panics_doc)]
 #[must_use]
 pub fn generate_cpu_trace_extended<F: RichField>(
     cpu_trace: Vec<CpuState<F>>,
@@ -32,7 +31,6 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     chain!(transpose_trace(cpu_trace), transpose_trace(permuted)).collect()
 }
 
-#[allow(clippy::missing_panics_doc)]
 pub fn generate_cpu_trace<F: RichField>(
     program: &Program,
     record: &ExecutionRecord,

@@ -68,7 +68,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
 }
 
 #[must_use]
-#[allow(clippy::missing_panics_doc)]
 pub fn transpose_polys<
     F: RichField + Extendable<D> + PackedField,
     const D: usize,
@@ -87,7 +86,6 @@ pub fn transpose_polys<
     .collect_vec()
 }
 
-#[allow(clippy::missing_panics_doc)]
 pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     mozak_stark: &MozakStark<F, D>,
@@ -154,7 +152,6 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     .all(|x| x));
 }
 
-#[allow(clippy::missing_panics_doc)]
 pub fn debug_single_trace<F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>(
     stark: &S,
     trace_rows: &[PolynomialValues<F>],
