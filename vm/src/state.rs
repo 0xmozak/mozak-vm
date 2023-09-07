@@ -14,7 +14,8 @@ use crate::instruction::{Args, Instruction};
 /// A note on memory structuring: The `State` follows harvard architecture.
 /// As such the address space for code (read-only) can be read and wrote to
 /// However, writing on this address space does not change the instruction.
-/// Instead, instructions are cached at the start of the program and never change.
+/// Instead, instructions are cached at the start of the program and never
+/// change.
 #[derive(Clone, Debug, Default)]
 pub struct State {
     pub clk: u64,
