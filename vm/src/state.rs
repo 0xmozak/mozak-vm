@@ -11,13 +11,16 @@ use crate::instruction::{Args, Instruction};
 /// carefully picked the type of `memory` to be clonable in about O(1)
 /// regardless of size. That way we can keep cheaply keep snapshots even at
 /// every step of evaluation.
+/// A note on memory structuring: The `State` follows harvard architecture.
+/// As such the address space for code (read-only) can be read and wrote to
+/// However, writing on this address space does not change the instruction.
+/// Instead, instructions are cached at the start of the program and never change.
 #[derive(Clone, Debug, Default)]
 pub struct State {
     pub clk: u64,
     pub halted: bool,
     pub registers: [u32; 32],
     pub pc: u32,
-    pub ro_code: HashMap<u32, Instruction>,
     pub rw_memory: HashMap<u32, u8>,
     pub ro_memory: HashMap<u32, u8>,
 }
@@ -26,7 +29,7 @@ pub struct State {
 impl From<Program> for State {
     fn from(
         Program {
-            ro_code: Code(ro_code),
+            ro_code: Code(_),
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
@@ -34,7 +37,6 @@ impl From<Program> for State {
     ) -> Self {
         Self {
             pc,
-            ro_code,
             rw_memory,
             ro_memory,
             ..Default::default()

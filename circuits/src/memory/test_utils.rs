@@ -6,40 +6,36 @@ use mozak_vm::vm::ExecutionRecord;
 
 #[must_use]
 pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord) {
-    assert!(
-        repeats < 416,
-        "test case may infringe on read-only section (code) for SB operations"
-    );
     let new = Instruction::new;
     let instructions = [
         new(SB, Args {
             rs1: 1,
-            imm: 10000,
+            imm: 100,
             ..Args::default()
         }),
         new(LBU, Args {
             rd: 4,
-            imm: 10000,
+            imm: 100,
             ..Args::default()
         }),
         new(SB, Args {
             rs1: 3,
-            imm: 20000,
+            imm: 200,
             ..Args::default()
         }),
         new(LBU, Args {
             rd: 6,
-            imm: 20000,
+            imm: 200,
             ..Args::default()
         }),
         new(SB, Args {
             rs1: 2,
-            imm: 10000,
+            imm: 100,
             ..Args::default()
         }),
         new(LBU, Args {
             rd: 5,
-            imm: 10000,
+            imm: 100,
             ..Args::default()
         }),
     ];
@@ -52,10 +48,10 @@ pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord) {
 
     if repeats > 0 {
         let state = &record.last_state;
-        assert_eq!(state.load_u8(10000), 10);
+        assert_eq!(state.load_u8(100), 10);
         assert_eq!(state.get_register_value(4), 255);
         assert_eq!(state.get_register_value(5), 10);
-        assert_eq!(state.load_u8(20000), 15);
+        assert_eq!(state.load_u8(200), 15);
         assert_eq!(state.get_register_value(6), 15);
     }
     (program, record)
