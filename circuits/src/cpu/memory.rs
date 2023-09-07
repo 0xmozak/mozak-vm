@@ -20,7 +20,6 @@ mod tests {
                         args: Args {
                             rs1: 6,
                             rs2: 7,
-                            imm: 10,
                             ..Args::default()
                         },
                     },
