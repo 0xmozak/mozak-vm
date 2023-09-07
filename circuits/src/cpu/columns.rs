@@ -133,8 +133,8 @@ pub struct CpuState<T> {
     pub remainder_slack: T, // range check u32 required
 
     // Product evaluation columns
-    pub op1_abs: T, // used as quotient in division
-    pub op2_abs: T, // divisor in division. op1_abs * op2_abs + remainder_abs == abs(op1_value)
+    pub op1_abs: T, // used as quotient_abs in division
+    pub op2_abs: T, // divisor_abs in division. op1_abs * op2_abs + remainder_abs == abs(op1_value)
     pub skip_check_product_sign: T,
     pub product_sign: T,
     pub product_high_limb: T, // range check u32 required

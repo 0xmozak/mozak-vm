@@ -33,7 +33,7 @@ pub(crate) fn constraints<P: PackedField>(
     let quotient = lv.op1_value;
     // let quotient_sign = lv.op1_sign_bit;
     let quotient_abs = lv.op1_abs;
-    // let divisor = lv.op2_value;
+    let divisor = lv.op2_value;
     // let divisor_sign = lv.op2_sign_bit;
     let divisor_inv = lv.op2_inv;
     let divisor_abs = lv.op2_abs;
@@ -98,7 +98,7 @@ pub(crate) fn constraints<P: PackedField>(
         yield_constr.constraint(is_srl * (and_gadget.input_b - op2));
 
         yield_constr.constraint(is_srl * (and_gadget.output - lv.bitshift.amount));
-        yield_constr.constraint(is_srl * (lv.divisor - lv.bitshift.multiplier));
+        yield_constr.constraint(is_srl * (divisor - lv.bitshift.multiplier));
     }
 
     // Last, we 'copy' our results:
