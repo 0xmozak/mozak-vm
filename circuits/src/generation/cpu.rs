@@ -76,7 +76,7 @@ pub fn generate_cpu_trace<F: RichField>(
         }
 
         generate_mul_row(&mut row, &inst, aux);
-        generate_divu_row(&mut row, &inst, aux);
+        generate_div_row(&mut row, &inst, aux);
         generate_sign_handling(&mut row, aux);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
@@ -161,19 +161,22 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
+fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
     let dividend_raw = aux.op1;
     let divisor_raw = aux.op2;
-    let dividend = if inst.op.is_signed1() {
+    let dividend = if row.is_op1_signed() {
         i64::from(dividend_raw as i32)
     } else {
         i64::from(dividend_raw)
     };
-    let divisor = if inst.op.is_signed2() {
+    let divisor = if row.is_op2_signed() {
         i64::from(divisor_raw as i32)
     } else {
         i64::from(divisor_raw)
     };
+
+    row.op1_abs = from_u32(op1_abs);
+    row.op2_abs = from_u32(op2_abs);
 
     let divisor = if let Op::SRL = inst.op {
         let shift_amount = divisor & 0x1F;
@@ -187,7 +190,8 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, au
         divisor
     };
 
-    row.divisor = from_signed(divisor);
+    row.op2_abs = u64::from(divisor.unsigned_abs());
+    row.op1_abs = row.divisor = from_signed(divisor);
 
     if let 0 = divisor {
         row.quotient = from_u32(u32::MAX);

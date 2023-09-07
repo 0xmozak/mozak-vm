@@ -70,8 +70,8 @@ pub(crate) fn constraints<P: PackedField>(
     }
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
-    // > For both signed and unsigned division, it holds that dividend = divisor ×
-    // > quotient + remainder.
+    // > For both signed and unsigned division, it holds that dividend = divisor ×
+    // > quotient + remainder.
     // The equation from the spec becomes:
     //  p = q * m + r
     // (Interestingly, this holds even when q == 0.)

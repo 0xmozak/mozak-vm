@@ -125,21 +125,16 @@ pub struct CpuState<T> {
     pub bitshift: Bitshift<T>,
 
     // Division evaluation columns
-    pub quotient: T,
-    pub quotient_abs: T,
-    pub remainder: T,
-    pub remainder_abs: T,
-    pub remainder_abs_slack: T,
-    /// Value of `divisor - remainder - 1`
+    pub divident_abs: T,
+    pub remainder_abs: T, // range check u32 required
+    pub remainder_sign: T,
+    /// Value of `inv(abs(quotient) * abs(divisor))`
     /// Used as a helper column to check that `remainder < divisor`.
-    pub remainder_slack: T,
-    /// Used as a helper column to check if `divisor` is zero
-    pub divisor_inv: T,
-    pub divisor: T,
+    pub remainder_inv_helper: T,
 
     // Product evaluation columns
-    pub op1_abs: T,
-    pub op2_abs: T,
+    pub op1_abs: T, // used as quotient in division
+    pub op2_abs: T, // divisor in division. op1_abs * op2_abs + remainder_abs == abs(op1_value)
     pub skip_check_product_sign: T,
     pub product_sign: T,
     pub product_high_limb: T, // range check u32 required
@@ -168,7 +163,12 @@ impl<T: PackedField> CpuState<T> {
     // TODO(Matthias): unify where we specify `is_op(1|2)_signed` for constraints
     // and trace generation.
     pub fn is_op2_signed(&self) -> T {
-        self.inst.ops.slt + self.inst.ops.bge + self.inst.ops.blt + self.inst.ops.mulh
+        self.inst.ops.slt
+            + self.inst.ops.bge
+            + self.inst.ops.blt
+            + self.inst.ops.mulh
+            + self.inst.ops.div
+            + self.inst.ops.rem
     }
 
     pub fn is_op1_signed(&self) -> T { self.is_op2_signed() + self.inst.ops.mulhsu }
