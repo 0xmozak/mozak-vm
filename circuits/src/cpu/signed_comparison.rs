@@ -53,15 +53,16 @@ pub(crate) fn slt_constraints<P: PackedField>(
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-    use anyhow::Result;
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, u32_extra};
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
-    use crate::test_utils::{prove_with_stark, StarkType};
+    use crate::cpu::stark::CpuStark;
+    use crate::stark::mozak_stark::MozakStark;
+    use crate::test_utils::{ProveAndVerify, D, F};
 
-    fn prove_slt_example(a: u32, op2: u32, use_imm: bool, stark: &StarkType) -> Result<()> {
+    fn prove_slt<Stark: ProveAndVerify>(a: u32, op2: u32, use_imm: bool) {
         let (b, imm) = if use_imm { (0, op2) } else { (op2, 0) };
         let (program, record) = simple_test_code(
             &[
@@ -92,16 +93,22 @@ mod tests {
             record.last_state.get_register_value(4),
             u32::from((a as i32) < (op2 as i32))
         );
-        prove_with_stark(&program, &record, stark)
+        Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    #[test]
-    fn prove_slt_mozak() { prove_slt_example(100, 200, false, &StarkType::Mozak).unwrap(); }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
-        fn prove_slt_proptest(a in u32_extra(), op2 in u32_extra(), use_imm in any::<bool>()) {
-            prove_slt_example(a, op2, use_imm, &StarkType::Cpu).unwrap();
+        fn prove_slt_cpu(a in u32_extra(), op2 in u32_extra(), use_imm in any::<bool>()) {
+            prove_slt::<CpuStark<F, D>>(a, op2, use_imm);
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1))]
+        #[test]
+        fn prove_slt_mozak(a in u32_extra(), op2 in u32_extra(), use_imm in any::<bool>()) {
+            prove_slt::<MozakStark<F, D>>(a, op2, use_imm);
         }
     }
 }

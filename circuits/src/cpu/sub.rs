@@ -21,15 +21,16 @@ pub(crate) fn constraints<P: PackedField>(
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-    use anyhow::Result;
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, u32_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
-    use crate::test_utils::{prove_with_stark, StarkType};
+    use crate::cpu::stark::CpuStark;
+    use crate::stark::mozak_stark::MozakStark;
+    use crate::test_utils::{ProveAndVerify, D, F};
 
-    fn sub_test_example(a: u32, b: u32, stark: &StarkType) -> Result<()> {
+    fn prove_sub<Stark: ProveAndVerify>(a: u32, b: u32) {
         let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::SUB,
@@ -44,16 +45,22 @@ mod tests {
             &[(6, a), (7, b)],
         );
         assert_eq!(record.last_state.get_register_value(5), a.wrapping_sub(b));
-        prove_with_stark(&program, &record, stark)
+        Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    #[test]
-    fn prove_sub_test_mozak() { sub_test_example(100, 200, &StarkType::Mozak).unwrap(); }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
-        fn prove_sub_proptest(a in u32_extra(), b in u32_extra()) {
-            sub_test_example(a, b, &StarkType::Cpu).unwrap();
+        fn prove_sub_cpu(a in u32_extra(), b in u32_extra()) {
+            prove_sub::<CpuStark<F, D>>(a, b);
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1))]
+        #[test]
+        fn prove_sub_mozak(a in u32_extra(), b in u32_extra()) {
+            prove_sub::<MozakStark<F, D>>(a, b);
         }
     }
 }

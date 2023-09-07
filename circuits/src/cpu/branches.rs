@@ -86,16 +86,17 @@ pub(crate) fn constraints<P: PackedField>(
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-    use anyhow::Result;
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, state_before_final, u32_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::strategy::Just;
     use proptest::{prop_oneof, proptest};
 
-    use crate::test_utils::{prove_with_stark, StarkType};
+    use crate::cpu::stark::CpuStark;
+    use crate::stark::mozak_stark::MozakStark;
+    use crate::test_utils::{ProveAndVerify, D, F};
 
-    fn test_cond_branch(a: u32, b: u32, op: Op, stark: &StarkType) -> Result<()> {
+    fn prove_cond_branch<Stark: ProveAndVerify>(a: u32, b: u32, op: Op) {
         let (program, record) = simple_test_code(
             &[
                 Instruction {
@@ -134,23 +135,22 @@ mod tests {
             if taken { 0 } else { 10 }
         );
 
-        prove_with_stark(&program, &record, stark)
+        Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    #[test]
-    fn prove_test_cond_branch() {
-        test_cond_branch(100, 200, Op::BLT, &StarkType::Mozak).unwrap();
-        test_cond_branch(100, 200, Op::BLTU, &StarkType::Mozak).unwrap();
-        test_cond_branch(100, 200, Op::BGE, &StarkType::Mozak).unwrap();
-        test_cond_branch(100, 200, Op::BGEU, &StarkType::Mozak).unwrap();
-        test_cond_branch(100, 200, Op::BEQ, &StarkType::Mozak).unwrap();
-        test_cond_branch(100, 200, Op::BNE, &StarkType::Mozak).unwrap();
-    }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(32))]
         #[test]
-        fn prove_branch_proptest(a in u32_extra(), b in u32_extra(), op in prop_oneof![Just(Op::BLT), Just(Op::BLTU), Just(Op::BGE), Just(Op::BGEU), Just(Op::BEQ), Just(Op::BNE)]) {
-            test_cond_branch(a, b, op, &StarkType::Cpu).unwrap();
+        fn prove_branch_cpu(a in u32_extra(), b in u32_extra(), op in prop_oneof![Just(Op::BLT), Just(Op::BLTU), Just(Op::BGE), Just(Op::BGEU), Just(Op::BEQ), Just(Op::BNE)]) {
+            prove_cond_branch::<CpuStark<F, D>>(a, b, op);
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1))]
+        #[test]
+        fn prove_branch_mozak(a in u32_extra(), b in u32_extra(), op in prop_oneof![Just(Op::BLT), Just(Op::BLTU), Just(Op::BGE), Just(Op::BGEU), Just(Op::BEQ), Just(Op::BNE)]) {
+            prove_cond_branch::<MozakStark<F, D>>(a, b, op);
         }
     }
 }

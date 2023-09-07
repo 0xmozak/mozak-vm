@@ -103,21 +103,16 @@ pub(crate) fn constraints<P: PackedField>(
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-    use anyhow::Result;
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, u32_extra};
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
-    use crate::test_utils::{prove_with_stark, StarkType};
+    use crate::stark::mozak_stark::MozakStark;
+    use crate::test_utils::{ProveAndVerify, D, F};
+    use crate::xor::stark::XorStark;
 
-    fn prove_bitwise_example(
-        a: u32,
-        b: u32,
-        imm: u32,
-        use_imm: bool,
-        stark: &StarkType,
-    ) -> Result<()> {
+    fn prove_bitwise<Stark: ProveAndVerify>(a: u32, b: u32, imm: u32, use_imm: bool) {
         let (b, imm) = if use_imm { (0, imm) } else { (b, 0) };
         let code: Vec<_> = [Op::AND, Op::OR, Op::XOR]
             .into_iter()
@@ -133,24 +128,32 @@ mod tests {
             .collect();
 
         let (program, record) = simple_test_code(&code, &[], &[(6, a), (7, b)]);
-        prove_with_stark(&program, &record, stark)
-    }
-
-    #[test]
-    fn prove_bitwise_mozak() {
-        prove_bitwise_example(100, 200, 0, false, &StarkType::Mozak).unwrap();
+        Stark::prove_and_verify(&program, &record).unwrap();
     }
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
-        fn prove_bitwise_proptest(
+        fn prove_bitwise_xor(
             a in u32_extra(),
             b in u32_extra(),
             imm in u32_extra(),
             use_imm in any::<bool>())
         {
-           prove_bitwise_example(a, b, imm, use_imm, &StarkType::Xor).unwrap();
+           prove_bitwise::<XorStark<F, D>>(a, b, imm, use_imm);
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1))]
+        #[test]
+        fn prove_bitwise_mozak(
+            a in u32_extra(),
+            b in u32_extra(),
+            imm in u32_extra(),
+            use_imm in any::<bool>())
+        {
+           prove_bitwise::<MozakStark<F, D>>(a, b, imm, use_imm);
         }
     }
 }

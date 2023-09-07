@@ -46,7 +46,7 @@ mod tests {
 
     use crate::cpu::stark::CpuStark;
     use crate::stark::mozak_stark::MozakStark;
-    use crate::test_utils::ProveAndVerify;
+    use crate::test_utils::{ProveAndVerify, D, F};
 
     #[test]
     fn prove_jalr_goto_no_rs1() {
@@ -124,8 +124,7 @@ mod tests {
         CpuStark::prove_and_verify(&program, &record).unwrap();
     }
 
-    #[test]
-    fn prove_triple_jalr() {
+    fn prove_triple_jalr<Stark: ProveAndVerify>() {
         let (program, record) = simple_test_code(
             &[
                 Instruction {
@@ -154,41 +153,14 @@ mod tests {
             &[],
         );
         assert_eq!(record.last_state.get_pc(), 16);
-        CpuStark::prove_and_verify(&program, &record).unwrap();
+        Stark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
-    fn prove_triple_jalr_test() {
-        let (program, record) = simple_test_code(
-            &[
-                Instruction {
-                    op: Op::JALR,
-                    args: Args {
-                        imm: 8, // goto to pc = 8
-                        ..Args::default()
-                    },
-                },
-                Instruction {
-                    op: Op::JALR,
-                    args: Args {
-                        imm: 12, // goto to pc = 12
-                        ..Args::default()
-                    },
-                },
-                Instruction {
-                    op: Op::JALR,
-                    args: Args {
-                        imm: 4, // goto to pc = 4
-                        ..Args::default()
-                    },
-                },
-            ],
-            &[],
-            &[],
-        );
-        assert_eq!(record.last_state.get_pc(), 16);
-        MozakStark::prove_and_verify(&program, &record).unwrap();
-    }
+    fn prove_triple_jalr_cpu() { prove_triple_jalr::<CpuStark<F, D>>() }
+
+    #[test]
+    fn prove_triple_jalr_mozak() { prove_triple_jalr::<MozakStark<F, D>>() }
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]

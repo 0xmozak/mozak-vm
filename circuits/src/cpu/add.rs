@@ -24,7 +24,7 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test_code, u32_extra, reg};
+    use mozak_vm::test_utils::{reg, simple_test_code, u32_extra};
 
     use crate::cpu::stark::CpuStark;
     use crate::stark::mozak_stark::MozakStark;
@@ -63,10 +63,10 @@ mod tests {
         }
     }
     proptest! {
-            #![proptest_config(ProptestConfig::with_cases(1))]
-            #[test]
-            fn prove_add_mozak(a in u32_extra(), b in u32_extra(), rd in reg()) {
-                prove_add::<MozakStark<F, D>>(a, b, rd);
-            }
+        #![proptest_config(ProptestConfig::with_cases(1))]
+        #[test]
+        fn prove_add_mozak(a in u32_extra(), b in u32_extra(), rd in reg()) {
+            prove_add::<MozakStark<F, D>>(a, b, rd);
+        }
     }
 }
