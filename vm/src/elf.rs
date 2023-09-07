@@ -152,7 +152,7 @@ impl Program {
             (flags & elf::abi::PF_R == elf::abi::PF_R)
                 && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
         })?);
-        let rw_memory = Data(extract(|flags| flags == elf::abi::PF_R + elf::abi::PF_W)?);
+        let rw_memory = Data(extract(|flags| flags == elf::abi::PF_R | elf::abi::PF_W)?);
         // Parse writable (rwx) segments as read and execute only segments
         let ro_code = Code::from(&extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?);
 
