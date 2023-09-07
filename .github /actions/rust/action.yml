@@ -1,0 +1,30 @@
+name: Install rust toolchain
+
+inputs:
+  cache-key:
+    required: false
+    type: string
+
+runs:
+  using: "composite"
+  steps:
+    - name: Get rust version
+      run: echo "RUST_VERSION=$(cat rust-toolchain.toml| grep '^channel\s*=' | cut -d '=' -f2 | sed 's/"//g' | sed -e 's/^[ \t]*//')" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Install toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ env.RUST_VERSION }}
+        components: rustfmt, clippy
+
+    - name: Install nextest
+      uses: taiki-e/install-action@nextest
+
+    - uses: Swatinem/rust-cache@v2
+      if: ${{ inputs.cache-key != '' }}
+      with:
+        prefix-key: ${{ inputs.cache-key }}
+
+    - uses: Swatinem/rust-cache@v2
+      if: ${{ inputs.cache-key == '' }}
