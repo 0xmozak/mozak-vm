@@ -16,11 +16,12 @@ make_col_map!(MemoryInit);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct MemoryInit<T> {
-    pub rodata: MemElement<T>,
+    pub element: MemElement<T>,
     pub filter: T,
+    pub is_writable: T,
 }
 
 pub const NUM_MEMORYINIT_COLS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
-pub fn data_for_ctl<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.rodata) }
+pub fn data_for_ctl<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.element) }

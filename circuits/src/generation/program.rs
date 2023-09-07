@@ -10,7 +10,7 @@ use crate::utils::pad_trace_with_default;
 pub fn generate_program_rom_trace<F: RichField>(program: &Program) -> Vec<ProgramRom<F>> {
     pad_trace_with_default(
         program
-            .code
+            .ro_code
             .iter()
             .map(|(&pc, &inst)| ProgramRom {
                 filter: F::ONE,
