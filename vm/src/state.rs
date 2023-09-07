@@ -208,11 +208,15 @@ impl State {
     /// This function returns an error, if you try to store to an invalid
     /// address.
     pub fn store_u8(mut self, addr: u32, value: u8) -> Result<Self> {
-        if self.ro_memory.contains_key(&addr) {
-            Err(anyhow!("cannot write on a ro_memory addr: {addr}"))
-        } else {
-            self.rw_memory.insert(addr, value);
-            Ok(self)
+        match self.ro_memory.entry(addr) {
+            im::hashmap::Entry::Occupied(entry) => Err(anyhow!(
+                "cannot write to ro_memory entry {:?}",
+                (entry.key(), entry.get())
+            )),
+            im::hashmap::Entry::Vacant(_) => {
+                self.rw_memory.insert(addr, value);
+                Ok(self)
+            }
         }
     }
 
