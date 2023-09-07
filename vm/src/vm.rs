@@ -137,19 +137,35 @@ impl State {
                 self.register_op(&inst.args, $op)
             };
         }
+        macro_rules! dop {
+            ($op: expr) => {
+                self.div_op(&inst.args, $op)
+            };
+        }
         // TODO: consider factoring out this logic from `register_op`, `branch_op`,
         // `memory_load` etc.
-        let op1 = self.get_register_value(inst.args.rs1);
-        // For branch instructions, both op2 and imm serve different purposes.
+        let rs1 = self.get_register_value(inst.args.rs1);
+        let rs2 = self.get_register_value(inst.args.rs2);
+        let op1 = if matches!(inst.op, Op::DIV | Op::DIVU | Op::REM | Op::REMU) {
+            match inst.op {
+                Op::DIV => div(rs1, rs2),
+                Op::DIVU => divu(rs1, rs2),
+                Op::REM => rem(rs1, rs2),
+                Op::REMU => remu(rs1, rs2),
+                _ => 0,
+            }
+        } else {
+            rs1
+        };
+        // For branch and div instructions, both op2 and imm serve different purposes.
         // Therefore, we avoid adding them together here.
         let op2 = if matches!(
             inst.op,
             Op::BEQ | Op::BNE | Op::BLT | Op::BLTU | Op::BGE | Op::BGEU
         ) {
-            self.get_register_value(inst.args.rs2)
+            rs2
         } else {
-            self.get_register_value(inst.args.rs2)
-                .wrapping_add(inst.args.imm)
+            rs2.wrapping_add(inst.args.imm)
         };
 
         let (aux, state) = match inst.op {
@@ -190,10 +206,10 @@ impl State {
             Op::MULH => rop!(mulh),
             Op::MULHU => rop!(mulhu),
             Op::MULHSU => rop!(mulhsu),
-            Op::DIV => rop!(div),
-            Op::DIVU => rop!(divu),
-            Op::REM => rop!(rem),
-            Op::REMU => rop!(remu),
+            Op::DIV => dop!(div),
+            Op::DIVU => dop!(divu),
+            Op::REM => dop!(rem),
+            Op::REMU => dop!(remu),
             Op::UNKNOWN => unimplemented!("Unknown instruction"),
         };
         (

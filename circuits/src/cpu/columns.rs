@@ -125,7 +125,9 @@ pub struct CpuState<T> {
     pub bitshift: Bitshift<T>,
 
     // Division evaluation columns
-    pub divident_abs: T,
+    pub dividend_abs: T,
+    // Quotient sign is the same as op1_sign_bit
+    pub quotient_abs: T, // range check u32 required
     pub remainder_abs: T, // range check u32 required
     pub remainder_sign: T,
     /// Value of `inv(abs(quotient) * abs(divisor))`
