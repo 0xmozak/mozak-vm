@@ -1,5 +1,6 @@
 pub mod account;
 pub mod instruction;
+pub mod signer;
 pub mod message;
 pub mod object;
 pub mod program;
