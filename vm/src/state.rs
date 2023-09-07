@@ -11,11 +11,19 @@ use crate::instruction::{Args, Instruction};
 /// carefully picked the type of `memory` to be clonable in about O(1)
 /// regardless of size. That way we can keep cheaply keep snapshots even at
 /// every step of evaluation.
-/// A note on memory structuring: The `State` follows harvard architecture.
-/// As such the address space for code (read-only) can be read and wrote to
-/// However, writing on this address space does not change the instruction.
-/// Instead, instructions are cached at the start of the program and never
-/// change.
+///
+/// A note on memory structuring: The `State` follows a [modified Harvard architecture](https://en.wikipedia.org/wiki/Modified_Harvard_architecture).
+/// As such we effectively have separate address spaces for code and memory.
+/// 'Modified' means that we prepolute the memory address space with a copy of
+/// the code. Writing to that copy does not change the instructions.
+///
+/// You can think of this as instructions being cached at the start of the
+/// program and that cache never updating afterwards.
+///
+/// This is very similar to what many real world CPUs, including Risc-V ones, do
+/// by default. The FENCE instruction can be used to make the CPU update the
+/// instruction cache on many CPUs.  But we deliberately don't support that
+/// usecase.
 #[derive(Clone, Debug, Default)]
 pub struct State {
     pub clk: u64,
@@ -187,10 +195,11 @@ impl State {
     /// So no u32 address is out of bounds.
     #[must_use]
     pub fn load_u8(&self, addr: u32) -> u8 {
-        self.rw_memory
+        self.ro_memory
             .get(&addr)
+            .or_else(|| self.rw_memory.get(&addr))
             .copied()
-            .unwrap_or(self.ro_memory.get(&addr).copied().unwrap_or_default())
+            .unwrap_or_default()
     }
 
     /// Store a byte to memory
