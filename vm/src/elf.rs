@@ -66,6 +66,17 @@ impl From<HashMap<u32, u8>> for Program {
     }
 }
 
+impl From<HashMap<u32, u32>> for Program {
+    fn from(image: HashMap<u32, u32>) -> Self {
+        Self::from(
+            image
+                .iter()
+                .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes()))
+                .collect::<HashMap<u32, u8>>(),
+        )
+    }
+}
+
 impl From<HashMap<u32, u32>> for Data {
     #[allow(clippy::cast_possible_truncation)]
     fn from(image: HashMap<u32, u32>) -> Self {
@@ -75,20 +86,6 @@ impl From<HashMap<u32, u32>> for Data {
                 .flat_map(move |(k, v)| (u64::from(*k)..).map(|k| k as u32).zip(v.to_le_bytes()))
                 .collect(),
         )
-    }
-}
-
-impl From<HashMap<u32, u32>> for Program {
-    fn from(image: HashMap<u32, u32>) -> Self {
-        let image = image
-            .iter()
-            .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes()))
-            .collect();
-        Self {
-            entry_point: 0_u32,
-            code: Code::from(&image),
-            data: Data(image),
-        }
     }
 }
 
