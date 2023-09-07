@@ -23,13 +23,14 @@ pub(crate) fn constraints<P: PackedField>(
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-    use anyhow::Result;
     use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test_code, u32_extra};
+    use mozak_vm::test_utils::{simple_test_code, u32_extra, reg};
 
-    use crate::test_utils::{prove_with_stark, StarkType};
+    use crate::cpu::stark::CpuStark;
+    use crate::stark::mozak_stark::MozakStark;
+    use crate::test_utils::{ProveAndVerify, D, F};
 
-    fn prove_add_example(a: u32, b: u32, rd: u8, stark: &StarkType) -> Result<()> {
+    fn prove_add<Stark: ProveAndVerify>(a: u32, b: u32, rd: u8) {
         let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::ADD,
@@ -49,18 +50,23 @@ mod tests {
                 a.wrapping_add(b)
             );
         }
-        prove_with_stark(&program, &record, stark)
+        Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    #[test]
-    fn prove_add_mozak() { prove_add_example(100, 200, 5, &StarkType::Mozak).unwrap(); }
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
     proptest! {
-            #![proptest_config(ProptestConfig::with_cases(4))]
+        #![proptest_config(ProptestConfig::with_cases(4))]
+        #[test]
+        fn prove_add_cpu(a in u32_extra(), b in u32_extra(), rd in reg()) {
+            prove_add::<CpuStark<F, D>>(a, b, rd);
+        }
+    }
+    proptest! {
+            #![proptest_config(ProptestConfig::with_cases(1))]
             #[test]
-            fn prove_add_proptest(a in u32_extra(), b in u32_extra(), rd in 0_u8..32) {
-                prove_add_example(a, b, rd, &StarkType::Cpu).unwrap();
+            fn prove_add_mozak(a in u32_extra(), b in u32_extra(), rd in reg()) {
+                prove_add::<MozakStark<F, D>>(a, b, rd);
             }
     }
 }
