@@ -20,39 +20,71 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let shifted = CpuState::<P>::shifted;
+    let two_to_32 = CpuState::<P>::shifted(32);
     let is_divu = lv.inst.ops.divu;
     let is_remu = lv.inst.ops.remu;
     let is_div = lv.inst.ops.div;
     let is_rem = lv.inst.ops.rem;
     let is_srl = lv.inst.ops.srl;
 
-    // p,q are between i32::MIN .. u32::MAX
-    let p = lv.op1_full_range();
-    let q = lv.divisor;
+    // Note that we are using the following columns that also used in MUL
+    // constraints. Also note that the overflow case (-2^31 / -1) is also
+    // handled in MUL constraints.
+    let quotient = lv.op1_value;
+    // let quotient_sign = lv.op1_sign_bit;
+    let quotient_abs = lv.op1_abs;
+    // let divisor = lv.op2_value;
+    // let divisor_sign = lv.op2_sign_bit;
+    let divisor_inv = lv.op2_inv;
+    let divisor_abs = lv.op2_abs;
+    let dividend = lv.product_low_limb;
+    let dividend_remainder_sign = lv.product_sign;
+    // The following columns are used only in this function:
+    let dividend_abs = lv.dividend_abs;
+    let remainder_abs = lv.remainder_abs;
 
-    let p_raw = lv.op1_value;
-    let q_raw = lv.op2_value;
+    // For DIV operations rs1 value is loaded into dividend column.
+    // Checks dividend (product_low_limb) is loaded correctly.
+    let rs1_value = (0..32)
+        .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
+        .sum::<P>();
+    yield_constr.constraint(dividend - rs1_value);
 
-    let q_sign = P::Scalar::from_noncanonical_i64(-2) * lv.op2_sign_bit + P::ONES;
+    // Checks dividend_abs is set correctly.
+    yield_constr.constraint(dividend_remainder_sign * (dividend_abs - dividend));
+    yield_constr
+        .constraint((P::ONES - dividend_remainder_sign) * (two_to_32 - dividend_abs - dividend));
 
-    // Watch out for sign!
-    let q_inv = lv.divisor_inv;
-    // TODO: m_abs, r_abs, rt need range-checks.
-    let m = lv.quotient;
-    let m_abs = lv.quotient_abs;
-    yield_constr.constraint((m - m_abs) * (m + m_abs));
-    let r = lv.remainder;
-    let r_abs = lv.remainder_abs;
-    yield_constr.constraint((r - r_abs) * (r + r_abs));
-    // We only need rt column to range-check rt := q - r
-    let rt = lv.remainder_abs_slack;
+    // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
+    // > For both signed and unsigned division, it holds that
+    // > |dividend| = |divisor| × |quotient| + |remainder|.
+    yield_constr.constraint(divisor_abs * quotient_abs + remainder_abs - dividend_abs);
 
-    yield_constr.constraint((is_divu + is_remu) * (lv.divisor - q_raw));
-    yield_constr.constraint((is_div + is_rem) * (lv.divisor - lv.op2_full_range()));
+    // However, that constraint is not enough.
+    // For example, a malicious prover could trivially fulfill it via
+    //  quotient := 0, r (remainder) := p (dividend)
+    // The solution is to constrain r further:
+    //  0 <= r < q (divisor)
+    // (This only works when q != 0.)
+    // Logically, these are two independent constraints:
+    //      (A) 0 <= r
+    //      (B) r < q
+    // Part A is easy: we range-check r.
+    // Part B is only slightly harder: borrowing the concept of 'slack variables' from linear programming (https://en.wikipedia.org/wiki/Slack_variable) we get:
+    // (B') r + slack + 1 = q
+    //      with range_check(slack)
+    yield_constr.constraint(divisor_abs * (P::ONES + lv.remainder_slack - divisor_abs));
 
-    let dst = lv.dst_value;
-    // Check: for SRL, divisor `q` is assigned as `2^(op2 & 0b1_111)`.
+    // Constraints for divisor == 0.  On Risc-V:
+    // p / 0 == 0xFFFF_FFFF
+    // p % 0 == p
+    yield_constr.constraint(
+        (P::ONES - divisor_abs * divisor_inv)
+            * (quotient - P::Scalar::from_canonical_u32(u32::MAX)),
+    );
+    yield_constr.constraint((P::ONES - divisor_abs * divisor_inv) * (remainder_abs - divisor_abs));
+
+    // Check: for SRL, 'divisor' is assigned as `2^(op2 & 0b1_111)`.
     // We only take lowest 5 bits of the op2 for the shift amount.
     // This is following the RISC-V specification.
     // Bellow we use the And gadget to calculate the shift amount, and then use
@@ -69,43 +101,12 @@ pub(crate) fn constraints<P: PackedField>(
         yield_constr.constraint(is_srl * (lv.divisor - lv.bitshift.multiplier));
     }
 
-    // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
-    // > For both signed and unsigned division, it holds that dividend = divisor ×
-    // > quotient + remainder.
-    // The equation from the spec becomes:
-    //  p = q * m + r
-    // (Interestingly, this holds even when q == 0.)
-    // Constraints for denominator != 0:
-    yield_constr.constraint(q * (m * q + r - p));
-    // However, that constraint is not enough.
-    // For example, a malicious prover could trivially fulfill it via
-    //  m := 0, r := p
-
-    // The solution is to constrain r further:
-    //  0 <= r < q
-    // (This only works when q != 0.)
-
-    // Logically, these are two independent constraints:
-    //      (A) 0 <= r
-    //      (B) r < q
-    // Part A is easy: we range-check r.
-    // Part B is only slightly harder: borrowing the concept of 'slack variables' from linear programming (https://en.wikipedia.org/wiki/Slack_variable) we get:
-    // (B') r + slack + 1 = q
-    //      with range_check(slack)
-    yield_constr.constraint(q * (r_abs + rt + P::ONES - q * q_sign));
-
-    // Constraints for denominator == 0.  On Risc-V:
-    // p / 0 == 0xFFFF_FFFF
-    // p % 0 == p
-    yield_constr.constraint((P::ONES - q * q_inv) * (m - P::Scalar::from_canonical_u32(u32::MAX)));
-    yield_constr.constraint((P::ONES - q * q_inv) * (r - p_raw));
-
     // Last, we 'copy' our results:
-    yield_constr.constraint((is_divu + is_srl) * (dst - m));
-    yield_constr.constraint(is_div * (dst - m) * (dst - m - shifted(32)));
-
-    yield_constr.constraint(is_remu * (dst - r));
-    yield_constr.constraint(is_rem * (dst - r) * (dst - r - shifted(32)));
+    let dst = lv.dst_value;
+    yield_constr.constraint((is_div + is_divu + is_srl) * (dst - quotient));
+    yield_constr.constraint(is_remu * (dst - remainder_abs));
+    yield_constr.constraint(is_rem * dividend_remainder_sign * (two_to_32 - remainder_abs - dst));
+    yield_constr.constraint(is_rem * (P::ONES - dividend_remainder_sign) * (remainder_abs - dst));
 }
 
 #[cfg(test)]

@@ -125,14 +125,12 @@ pub struct CpuState<T> {
     pub bitshift: Bitshift<T>,
 
     // Division evaluation columns
-    pub dividend_abs: T,
-    // Quotient sign is the same as op1_sign_bit
-    pub quotient_abs: T, // range check u32 required
+    pub op2_inv: T,
+    pub dividend_abs: T,  // range check u32 required
     pub remainder_abs: T, // range check u32 required
-    pub remainder_sign: T,
-    /// Value of `inv(abs(quotient) * abs(divisor))`
+    /// Value of `divisor - remainder - 1`
     /// Used as a helper column to check that `remainder < divisor`.
-    pub remainder_inv_helper: T,
+    pub remainder_slack: T, // range check u32 required
 
     // Product evaluation columns
     pub op1_abs: T, // used as quotient in division
@@ -214,8 +212,8 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let divs = &ops.divu + &ops.remu + &ops.srl;
     let muls = &ops.mul + &ops.mulhu + &ops.mulhsu + &ops.mulh + &ops.sll;
     vec![
-        CpuTable::new(vec![cpu.quotient], divs.clone()),
-        CpuTable::new(vec![cpu.remainder], divs.clone()),
+        CpuTable::new(vec![cpu.dividend_abs], divs.clone()),
+        CpuTable::new(vec![cpu.remainder_abs], divs.clone()),
         CpuTable::new(vec![cpu.remainder_slack], divs),
         CpuTable::new(vec![cpu.dst_value], ops.add.clone()),
         CpuTable::new(vec![cpu.abs_diff], &ops.bge + &ops.blt),
