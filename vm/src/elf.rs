@@ -21,10 +21,12 @@ pub struct Program {
     /// The entrypoint of the program
     pub entry_point: u32,
 
-    /// All-read-only-memory image of the ELF
+    /// Read-only section of memory
+    /// 'ro_memory' takes precedence, if a memory location is in both.
     pub ro_memory: Data,
 
-    /// All writable memory image of the ELF
+    /// Read-write section of memory
+    /// 'ro_memory' takes precedence, if a memory location is in both.
     pub rw_memory: Data,
 
     /// Executable code of the ELF, read only
