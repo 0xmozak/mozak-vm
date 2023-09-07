@@ -71,6 +71,17 @@ impl From<HashMap<u32, u8>> for Program {
     }
 }
 
+impl From<HashMap<u32, u32>> for Program {
+    fn from(image: HashMap<u32, u32>) -> Self {
+        Self::from(
+            image
+                .iter()
+                .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes()))
+                .collect::<HashMap<u32, u8>>(),
+        )
+    }
+}
+
 impl From<HashMap<u32, u32>> for Data {
     #[allow(clippy::cast_possible_truncation)]
     fn from(image: HashMap<u32, u32>) -> Self {
@@ -80,21 +91,6 @@ impl From<HashMap<u32, u32>> for Data {
                 .flat_map(move |(k, v)| (u64::from(*k)..).map(|k| k as u32).zip(v.to_le_bytes()))
                 .collect(),
         )
-    }
-}
-
-impl From<HashMap<u32, u32>> for Program {
-    fn from(image: HashMap<u32, u32>) -> Self {
-        let image = image
-            .iter()
-            .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes()))
-            .collect();
-        Self {
-            entry_point: 0_u32,
-            ro_code: Code::from(&image),
-            ro_memory: Data::default(), // TODO: allow for ways to populate this
-            rw_memory: Data(image),
-        }
     }
 }
 
@@ -108,6 +104,7 @@ impl Program {
     // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
     // exercise the error handling?
     #[tarpaulin::skip]
+    #[allow(clippy::similar_names)]
     pub fn load_elf(input: &[u8]) -> Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
         ensure!(elf.ehdr.class == Class::ELF32, "Not a 32-bit ELF");
@@ -126,11 +123,11 @@ impl Program {
             .ok_or_else(|| anyhow!("Missing segment table"))?;
         ensure!(segments.len() <= 256, "Too many program headers");
 
-        let extract = |has_flags: fn(u32) -> bool| {
+        let extract = |check_flags: fn(u32) -> bool| {
             segments
                 .iter()
                 .filter(|s: &ProgramHeader| s.p_type == elf::abi::PT_LOAD)
-                .filter(|s| has_flags(s.p_flags))
+                .filter(|s| check_flags(s.p_flags))
                 .map(|segment| -> Result<_> {
                     let file_size: usize = segment.p_filesz.try_into()?;
                     let mem_size: usize = segment.p_memsz.try_into()?;
@@ -146,19 +143,19 @@ impl Program {
                 .try_collect()
         };
 
-        let ro_segments = extract(|flags| {
+        let ro_memory = Data(extract(|flags| {
             (flags & elf::abi::PF_R == elf::abi::PF_R)
                 && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
-        })?;
-        let rw_segments_exact = extract(|flags| flags == elf::abi::PF_R + elf::abi::PF_W)?;
+        })?);
+        let rw_memory = Data(extract(|flags| flags == elf::abi::PF_R + elf::abi::PF_W)?);
         // Parse writable (rwx) segments as read and execute only segments
-        let executable_segments = extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?;
+        let ro_code = Code::from(&extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?);
 
         Ok(Program {
             entry_point,
-            ro_memory: Data(ro_segments),
-            rw_memory: Data(rw_segments_exact),
-            ro_code: Code::from(&executable_segments),
+            ro_memory,
+            rw_memory,
+            ro_code,
         })
     }
 }

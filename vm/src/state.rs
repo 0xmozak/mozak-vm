@@ -197,12 +197,11 @@ impl State {
     /// address.
     pub fn store_u8(mut self, addr: u32, value: u8) -> Result<Self> {
         if self.ro_memory.contains_key(&addr) {
-            return Err(anyhow!("cannot write on a ro_memory addr: {}", &addr));
-        } else if self.ro_code.contains_key(&addr) {
-            return Err(anyhow!("cannot write on a ro_code addr: {}", &addr));
+            Err(anyhow!("cannot write on a ro_memory addr: {addr}"))
+        } else {
+            self.rw_memory.insert(addr, value);
+            Ok(self)
         }
-        self.rw_memory.insert(addr, value);
-        Ok(self)
     }
 
     #[must_use]
