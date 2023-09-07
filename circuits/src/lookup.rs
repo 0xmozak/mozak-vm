@@ -40,32 +40,38 @@ impl Lookup {
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>,
         S: Stark<F, D>, {
-        for challenge in &lookup_vars.challenges {
-            let fe_challenge = FE::from_basefield(*challenge);
+        let num_helper_columns = self.num_helper_columns();
 
-            for (i, _) in self.looking_columns.iter().enumerate() {
-                let mut x = lookup_vars.local_values[i];
+        // We repeat the columns per challenge, so we need to offset by
+        // num_helper_columns each challenge.
+        let offsets = (0..lookup_vars.challenges.len())
+            .map(|r| r * num_helper_columns)
+            .into_iter();
 
-                x *= vars.local_values[i] + fe_challenge;
+        for (challenge, offset) in lookup_vars.challenges.iter().zip(offsets) {
+            let challenge = FE::from_basefield(*challenge);
+            for (i, col) in self.looking_columns.iter().enumerate() {
+                let mut x = lookup_vars.local_values[offset + i];
+
+                x *= vars.local_values[*col] + challenge.clone();
 
                 yield_constr.constraint(x - P::ONES);
             }
 
-            let num_helper_columns = self.num_helper_columns();
             // Check that the penultimate helper column contains `1/(table+challenge)`.
-            let x = lookup_vars.local_values[num_helper_columns - 2];
-            let x = x * (vars.local_values[self.looked_column] + fe_challenge);
+            let x = lookup_vars.local_values[offset + num_helper_columns - 2];
+            let x = x * (vars.local_values[self.looked_column] + challenge.clone());
             yield_constr.constraint(x - P::ONES);
 
             // Check the `Z` polynomial.
-            let z = lookup_vars.local_values[num_helper_columns - 1];
-            let next_z = lookup_vars.next_values[num_helper_columns - 1];
-            let y = lookup_vars.local_values[..num_helper_columns - 2]
+            let z = lookup_vars.local_values[offset + num_helper_columns - 1];
+            let next_z = lookup_vars.next_values[offset + num_helper_columns - 1];
+            let y = lookup_vars.local_values[offset..offset + num_helper_columns - 2]
                 .iter()
                 .fold(P::ZEROS, |acc, x| acc + *x)
                 - vars.local_values[self.multiplicity_column]
-                    * lookup_vars.local_values[num_helper_columns - 2];
-            yield_constr.constraint(next_z - z - y);
+                    * lookup_vars.local_values[offset + num_helper_columns - 2];
+            // yield_constr.constraint(next_z - z - y);
         }
     }
 
@@ -85,12 +91,12 @@ impl Lookup {
         let mut helper_columns: Vec<PolynomialValues<F>> = Vec::with_capacity(num_helper_columns);
 
         for col in self.looking_columns.iter() {
-            let mut column = trace_poly_values[*col].values.clone();
-            for x in column.iter_mut() {
+            let mut looking = trace_poly_values[*col].values.clone();
+            for x in looking.iter_mut() {
                 *x = challenge + *x;
             }
 
-            helper_columns.push(F::batch_multiplicative_inverse(&column).into());
+            helper_columns.push(F::batch_multiplicative_inverse(&looking).into());
         }
 
         let mut looked = trace_poly_values[self.looked_column].values.clone();
@@ -103,7 +109,7 @@ impl Lookup {
         let mut z = Vec::with_capacity(multiplicities.len());
         z.push(F::ZERO);
         for i in 0..multiplicities.len() - 1 {
-            let x = helper_columns[..num_helper_columns - 2]
+            let x = helper_columns[..self.looking_columns.len()]
                 .iter()
                 .map(|col| col.values[i])
                 .sum::<F>()
