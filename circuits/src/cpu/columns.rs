@@ -134,7 +134,7 @@ pub struct CpuState<T> {
 
     // Product evaluation columns
     pub op1_abs: T, // used as quotient_abs in division
-    pub op2_abs: T, // divisor_abs in division. op1_abs * op2_abs + remainder_abs == abs(op1_value)
+    pub op2_abs: T, // divisor_abs in division. op1_abs * op2_abs + remainder_abs == dividend_abs
     pub skip_check_product_sign: T,
     pub product_sign: T,
     pub product_high_limb: T, // range check u32 required
@@ -172,16 +172,6 @@ impl<T: PackedField> CpuState<T> {
     }
 
     pub fn is_op1_signed(&self) -> T { self.is_op2_signed() + self.inst.ops.mulhsu }
-
-    // TODO(Matthias): unify where we specify `is_signed` for constraints and trace
-    // generation. Also, later, take mixed sign (for MULHSU) into account.
-    pub fn is_signed(&self) -> T {
-        self.inst.ops.slt
-            + self.inst.ops.bge
-            + self.inst.ops.blt
-            + self.inst.ops.div
-            + self.inst.ops.rem
-    }
 
     /// Value of the first operand, as if converted to i64.
     ///
