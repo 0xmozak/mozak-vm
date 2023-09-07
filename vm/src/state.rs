@@ -14,8 +14,8 @@ use crate::instruction::{Args, Instruction};
 ///
 /// A note on memory structuring: The `State` follows a [modified Harvard architecture](https://en.wikipedia.org/wiki/Modified_Harvard_architecture).
 /// As such we effectively have separate address spaces for code and memory.
-/// 'Modified' means that we prepolute the memory address space with a copy of
-/// the code. Writing to that copy does not change the instructions.
+/// 'Modified' means that we pre-populate the memory address space with a copy
+/// of the code. Writing to that copy does not change the instructions.
 ///
 /// You can think of this as instructions being cached at the start of the
 /// program and that cache never updating afterwards.
