@@ -40,7 +40,7 @@ pub(crate) fn constraints<P: PackedField>(
     // let divisor_sign = lv.op2_sign_bit;
     let divisor_abs = lv.op2_abs;
     let quotient_mul_divisor = lv.product_low_limb;
-    let dividend_remainder_sign = lv.product_sign;
+    let dividend_remainder_sign = lv.dividend_remainder_sign;
     // The following columns are used only in this function:
     let divisor_zero = lv.op2_zero;
     let divisor_inv = lv.op2_inv;
@@ -199,8 +199,10 @@ mod tests {
 
     #[test]
     fn prove_div_rem_example() {
-        let (program, record) =
-            simple_test_code(&div_rem_instructions(3), &[], &[(1, 200), (2, 100)]);
+        let (program, record) = simple_test_code(&div_rem_instructions(3), &[], &[
+            (1, 2147523377),
+            (2, 2147483648),
+        ]);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 

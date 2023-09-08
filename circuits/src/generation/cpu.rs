@@ -193,6 +193,7 @@ fn generate_div_row<F: RichField>(
             F::from_noncanonical_u64(divisor.unsigned_abs() - 1) - row.remainder_abs;
         row.op2_zero = F::ZERO;
     }
+    row.dividend_remainder_sign = F::from_bool(dividend.is_negative());
     row.op2_inv = from_u32::<F>(divisor_raw).try_inverse().unwrap_or_default();
     row.dividend_abs = F::from_noncanonical_u64(dividend.unsigned_abs());
 }

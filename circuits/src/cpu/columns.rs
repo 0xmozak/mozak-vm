@@ -127,7 +127,8 @@ pub struct CpuState<T> {
     // Division evaluation columns
     pub op2_inv: T,
     pub op2_zero: T,
-    pub dividend_abs: T,  // range check u32 required?
+    pub dividend_abs: T, // range check u32 required?
+    pub dividend_remainder_sign: T,
     pub remainder_abs: T, // range check u32 required
     /// Value of `divisor - remainder - 1`
     /// Used as a helper column to check that `remainder < divisor`.
