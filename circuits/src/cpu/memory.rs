@@ -26,7 +26,7 @@ mod tests {
 
         Stark::prove_and_verify(&program, &record).unwrap();
     }
-    /// NOTE: prove_lbu fails with MozakSnark
+    // NOTE: prove_lbu fails with MozakSnark
     fn prove_lbu<Stark: ProveAndVerify>(a: u32, b: u32) {
         let (program, record) = simple_test_code(
             &[Instruction {
@@ -81,12 +81,12 @@ mod tests {
 
         #[test]
         fn prove_lbu_cpu(a in u32_extra(), b in u32_extra()) {
-            prove_lbu::<CpuStark<F, D>>(a, b)
+            prove_lbu::<CpuStark<F, D>>(a, b);
         }
 
         #[test]
         fn prove_mem_read_write_cpu(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
-            prove_mem_read_write::<CpuStark<F, D>>(offset, imm, content)
+            prove_mem_read_write::<CpuStark<F, D>>(offset, imm, content);
         }
     }
 
@@ -99,7 +99,7 @@ mod tests {
 
         #[test]
         fn prove_mem_read_write_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
-            prove_mem_read_write::<MozakStark<F, D>>(offset, imm, content)
+            prove_mem_read_write::<MozakStark<F, D>>(offset, imm, content);
         }
     }
 }
