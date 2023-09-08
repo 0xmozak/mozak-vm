@@ -167,29 +167,40 @@ fn generate_div_row<F: RichField>(
     state: &State,
     aux: &Aux,
 ) {
-    let quotient_raw = aux.op1;
-    let dividend_raw = state.registers[inst.args.rs1 as usize];
-    let divisor_raw = aux.op2;
-    let quotient = if row.is_op1_signed().is_nonzero() {
-        i64::from(quotient_raw as i32)
-    } else {
-        i64::from(quotient_raw)
-    };
+    let dividend_raw = state.get_register_value(inst.args.rs1);
     let dividend = if row.is_op1_signed().is_nonzero() {
         i64::from(dividend_raw as i32)
     } else {
         i64::from(dividend_raw)
     };
+    let divisor_raw = aux.op2;
     let divisor = if row.is_op2_signed().is_nonzero() {
         i64::from(divisor_raw as i32)
+    } else if let Op::SRL = inst.op {
+        let shift_amount = divisor_raw & 0x1F;
+        let shift_power = 1_u32 << shift_amount;
+        row.bitshift = Bitshift {
+            amount: from_u32(shift_amount),
+            multiplier: from_u32(shift_power),
+        };
+        // Overwrite op2_abs with the shift power.
+        row.op2_abs = row.bitshift.multiplier;
+        shift_power as i64
     } else {
         i64::from(divisor_raw)
     };
 
-    assert_eq!(quotient, dividend / divisor);
-    let remainder_abs = (dividend % divisor).unsigned_abs();
-    row.remainder_abs = F::from_noncanonical_u64(remainder_abs);
-    row.remainder_slack = F::from_noncanonical_u64(divisor.unsigned_abs() - remainder_abs - 1);
+    if let 0 = divisor {
+        row.remainder_abs = F::from_noncanonical_u64(dividend.unsigned_abs());
+        row.remainder_slack = F::ZERO;
+        row.op2_zero = F::ONE;
+    } else {
+        let remainder_abs = (dividend % divisor).unsigned_abs();
+        row.remainder_abs = F::from_noncanonical_u64(remainder_abs);
+        row.remainder_slack =
+            F::from_noncanonical_u64(divisor.unsigned_abs() - 1) - row.remainder_abs;
+        row.op2_zero = F::ZERO;
+    }
     row.op2_inv = from_u32::<F>(divisor_raw).try_inverse().unwrap_or_default();
     row.dividend_abs = F::from_noncanonical_u64(dividend.unsigned_abs());
 }

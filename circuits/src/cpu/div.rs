@@ -10,6 +10,7 @@ use starky::constraint_consumer::ConstraintConsumer;
 
 use super::bitwise::and_gadget;
 use super::columns::CpuState;
+use crate::cpu::stark::is_binary;
 
 /// Constraints for DIV / REM / DIVU / REMU / SRL instructions
 ///
@@ -26,6 +27,8 @@ pub(crate) fn constraints<P: PackedField>(
     let is_div = lv.inst.ops.div;
     let is_rem = lv.inst.ops.rem;
     let is_srl = lv.inst.ops.srl;
+    let any_div = is_divu + is_remu + is_div + is_rem;
+    let all = is_divu + is_remu + is_div + is_rem + is_srl;
 
     // Note that we are using the following columns that also used in MUL
     // constraints. Also note that the overflow case (-2^31 / -1) is also
@@ -35,30 +38,27 @@ pub(crate) fn constraints<P: PackedField>(
     let quotient_abs = lv.op1_abs;
     let divisor = lv.op2_value;
     // let divisor_sign = lv.op2_sign_bit;
-    let divisor_inv = lv.op2_inv;
     let divisor_abs = lv.op2_abs;
-    let dividend = lv.product_low_limb;
+    let quotient_mul_divisor = lv.product_low_limb;
     let dividend_remainder_sign = lv.product_sign;
     // The following columns are used only in this function:
+    let divisor_zero = lv.op2_zero;
+    let divisor_inv = lv.op2_inv;
     let dividend_abs = lv.dividend_abs;
     let remainder_abs = lv.remainder_abs;
 
     // For DIV operations rs1 value is loaded into dividend column.
-    // Checks dividend (product_low_limb) is loaded correctly.
-    let rs1_value = (0..32)
+    // Checks dividend_abs is loaded correctly.
+    let dividend = (0..32)
         .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
         .sum::<P>();
-    yield_constr.constraint(dividend - rs1_value);
-
-    // Checks dividend_abs is set correctly.
-    yield_constr.constraint(dividend_remainder_sign * (dividend_abs - dividend));
-    yield_constr
-        .constraint((P::ONES - dividend_remainder_sign) * (two_to_32 - dividend_abs - dividend));
+    yield_constr.constraint((P::ONES - dividend_remainder_sign) * (dividend_abs - dividend));
+    yield_constr.constraint(dividend_remainder_sign * (two_to_32 - dividend_abs - dividend));
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
     // > For both signed and unsigned division, it holds that
     // > |dividend| = |divisor| × |quotient| + |remainder|.
-    yield_constr.constraint(divisor_abs * quotient_abs + remainder_abs - dividend_abs);
+    yield_constr.constraint(all * (divisor_abs * quotient_abs + remainder_abs - dividend_abs));
 
     // However, that constraint is not enough.
     // For example, a malicious prover could trivially fulfill it via
@@ -73,16 +73,17 @@ pub(crate) fn constraints<P: PackedField>(
     // Part B is only slightly harder: borrowing the concept of 'slack variables' from linear programming (https://en.wikipedia.org/wiki/Slack_variable) we get:
     // (B') r + slack + 1 = q
     //      with range_check(slack)
-    yield_constr.constraint(divisor_abs * (P::ONES + lv.remainder_slack - divisor_abs));
+    yield_constr.constraint(
+        all * divisor_abs * (remainder_abs + P::ONES + lv.remainder_slack - divisor_abs),
+    );
 
     // Constraints for divisor == 0.  On Risc-V:
     // p / 0 == 0xFFFF_FFFF
     // p % 0 == p
-    yield_constr.constraint(
-        (P::ONES - divisor_abs * divisor_inv)
-            * (quotient - P::Scalar::from_canonical_u32(u32::MAX)),
-    );
-    yield_constr.constraint((P::ONES - divisor_abs * divisor_inv) * (remainder_abs - divisor_abs));
+    is_binary(yield_constr, divisor_zero);
+    yield_constr.constraint(P::ONES - divisor * divisor_inv - divisor_zero);
+    yield_constr
+        .constraint(any_div * divisor_zero * (quotient - P::Scalar::from_canonical_u32(u32::MAX)));
 
     // Check: for SRL, 'divisor' is assigned as `2^(op2 & 0b1_111)`.
     // We only take lowest 5 bits of the op2 for the shift amount.
@@ -98,7 +99,7 @@ pub(crate) fn constraints<P: PackedField>(
         yield_constr.constraint(is_srl * (and_gadget.input_b - op2));
 
         yield_constr.constraint(is_srl * (and_gadget.output - lv.bitshift.amount));
-        yield_constr.constraint(is_srl * (divisor - lv.bitshift.multiplier));
+        yield_constr.constraint(is_srl * (divisor_abs - lv.bitshift.multiplier));
     }
 
     // Last, we 'copy' our results:
@@ -192,7 +193,7 @@ mod tests {
     #[test]
     fn prove_divu_remu() {
         let (program, record) =
-            simple_test_code(&divu_remu_instructions(3), &[], &[(1, 200), (2, 100)]);
+            simple_test_code(&divu_remu_instructions(3), &[], &[(1, 1), (2, 0)]);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
@@ -228,7 +229,7 @@ mod tests {
                 &[],
                 &[(1, p), (2, q)],
             );
-            prop_assert_eq!(record.executed[0].aux.dst_val,
+            prop_assert_eq!(record.executed[1].aux.dst_val,
                 if let 0 = q {
                     p
                 } else {

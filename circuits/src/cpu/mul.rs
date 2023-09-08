@@ -77,9 +77,9 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(op1_abs - lv.op1_full_range() * bit_to_sign(lv.op1_sign_bit));
 
     // Make sure op2_abs is computed correctly from op2_value for MUL operations.
-    // Note that for SLL, op2_abs is computed from bitshift.multiplier.
+    // Note that for SLL and SRL, op2_abs is computed from bitshift.multiplier.
     yield_constr.constraint(
-        (P::ONES - lv.inst.ops.sll)
+        (P::ONES - lv.inst.ops.sll - lv.inst.ops.srl)
             * (op2_abs - lv.op2_full_range() * bit_to_sign(lv.op2_sign_bit)),
     );
 

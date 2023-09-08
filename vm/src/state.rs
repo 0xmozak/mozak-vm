@@ -94,22 +94,6 @@ impl State {
             },
         )
     }
-
-    #[must_use]
-    pub fn div_op<F>(self, data: &Args, op: F) -> (Aux, Self)
-    where
-        F: FnOnce(u32, u32) -> u32, {
-        let op1 = self.get_register_value(data.rs1);
-        let op2 = self.get_register_value(data.rs2);
-        let dst_val = op(op1, op2);
-        (
-            Aux {
-                dst_val,
-                ..Aux::default()
-            },
-            self.set_register_value(data.rd, dst_val).bump_pc(),
-        )
-    }
 }
 
 impl State {

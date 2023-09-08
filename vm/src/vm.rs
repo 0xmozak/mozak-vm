@@ -137,23 +137,15 @@ impl State {
                 self.register_op(&inst.args, $op)
             };
         }
-        macro_rules! dop {
-            ($op: expr) => {
-                self.div_op(&inst.args, $op)
-            };
-        }
-        // TODO: consider factoring out this logic from `register_op`, `branch_op`,
-        // `memory_load` etc.
+        // TODO: consider factoring out this logic into trace generation.
         let rs1 = self.get_register_value(inst.args.rs1);
         let rs2 = self.get_register_value(inst.args.rs2);
-        let op1 = if matches!(inst.op, Op::DIV | Op::DIVU | Op::REM | Op::REMU) {
-            match inst.op {
-                Op::DIV => div(rs1, rs2),
-                Op::DIVU => divu(rs1, rs2),
-                Op::REM => rem(rs1, rs2),
-                Op::REMU => remu(rs1, rs2),
-                _ => 0,
-            }
+        let op1 = if matches!(inst.op, Op::DIV | Op::REM) {
+            div(rs1, rs2)
+        } else if matches!(inst.op, Op::DIVU | Op::REMU) {
+            divu(rs1, rs2)
+        } else if inst.op == Op::SRL {
+            rs1 >> (rs2 & 0b1_1111)
         } else {
             rs1
         };
@@ -206,10 +198,10 @@ impl State {
             Op::MULH => rop!(mulh),
             Op::MULHU => rop!(mulhu),
             Op::MULHSU => rop!(mulhsu),
-            Op::DIV => dop!(div),
-            Op::DIVU => dop!(divu),
-            Op::REM => dop!(rem),
-            Op::REMU => dop!(remu),
+            Op::DIV => rop!(div),
+            Op::DIVU => rop!(divu),
+            Op::REM => rop!(rem),
+            Op::REMU => rop!(remu),
             Op::UNKNOWN => unimplemented!("Unknown instruction"),
         };
         (
