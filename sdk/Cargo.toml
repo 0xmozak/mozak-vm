@@ -7,4 +7,6 @@ edition = "2021"
 
 [dependencies]
 ed25519-dalek = { version = "2.0.0", features = ["rand_core"] }
+ed25519-dalek-bip32 = "0.3.0"
 rand = "0.8.5"
+tiny-bip39 = "1.0.0"
