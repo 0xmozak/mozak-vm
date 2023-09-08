@@ -13,7 +13,7 @@ use starky::config::StarkConfig;
 
 use super::mozak_stark::NUM_TABLES;
 use super::permutation::{get_grand_product_challenge_set, GrandProductChallengeSet};
-use crate::lookup::Lookup;
+use crate::lookup::{self, Lookup};
 use crate::stark::mozak_stark::PublicInputs;
 
 #[allow(clippy::module_name_repetitions)]
@@ -86,7 +86,10 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
 
     pub(crate) fn num_helper_columns(&self, config: &StarkConfig) -> usize {
         self.lookups.as_ref().map_or(0, |ls| {
-            ls.iter().map(|l| l.num_helper_columns()).sum::<usize>() * config.num_challenges
+            ls.iter()
+                .map(lookup::Lookup::num_helper_columns)
+                .sum::<usize>()
+                * config.num_challenges
         })
     }
 }

@@ -164,9 +164,10 @@ where
     })
 }
 
+#[must_use]
 pub fn num_lookup_columns(lookups: Option<&[Lookup]>, num_challenges: usize) -> usize {
     lookups.map_or(0, |lus| {
-        lus.iter().map(|lu| lu.num_helper_columns()).sum::<usize>()
+        lus.iter().map(Lookup::num_helper_columns).sum::<usize>()
     }) * num_challenges
 }
 
