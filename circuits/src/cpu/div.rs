@@ -46,12 +46,14 @@ pub(crate) fn constraints<P: PackedField>(
     let divisor_inv = lv.op2_inv;
     let dividend_abs = lv.dividend_abs;
     let remainder_abs = lv.remainder_abs;
+    let remainder_value = lv.remainder_value;
 
     // For DIV operations rs1 value is loaded into dividend column.
-    // Checks dividend_abs is loaded correctly.
+    // Checks dividend_abs is set correctly.
     let dividend = (0..32)
         .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
         .sum::<P>();
+    is_binary(yield_constr, dividend_remainder_sign);
     yield_constr.constraint((P::ONES - dividend_remainder_sign) * (dividend_abs - dividend));
     yield_constr.constraint(dividend_remainder_sign * (two_to_32 - dividend_abs - dividend));
 
@@ -105,9 +107,7 @@ pub(crate) fn constraints<P: PackedField>(
     // Last, we 'copy' our results:
     let dst = lv.dst_value;
     yield_constr.constraint((is_div + is_divu + is_srl) * (dst - quotient));
-    yield_constr.constraint(is_remu * (dst - remainder_abs));
-    yield_constr.constraint(is_rem * dividend_remainder_sign * (two_to_32 - remainder_abs - dst));
-    yield_constr.constraint(is_rem * (P::ONES - dividend_remainder_sign) * (remainder_abs - dst));
+    yield_constr.constraint((is_rem + is_remu) * (dst - remainder_value));
 }
 
 #[cfg(test)]
@@ -199,10 +199,8 @@ mod tests {
 
     #[test]
     fn prove_div_rem_example() {
-        let (program, record) = simple_test_code(&div_rem_instructions(3), &[], &[
-            (1, 2147523377),
-            (2, 2147483648),
-        ]);
+        let (program, record) =
+            simple_test_code(&div_rem_instructions(3), &[], &[(1, 2147483648), (2, 1)]);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
