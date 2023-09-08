@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use ed25519_dalek::SigningKey as Ed25519Keypair;
 use rand::rngs::OsRng;
 
@@ -22,6 +24,12 @@ impl Keypair {
     }
 }
 
+impl Deref for Keypair {
+    type Target = Ed25519Keypair;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -29,6 +37,6 @@ mod tests {
     #[test]
     fn test_keypair_generate() {
         let keypair = Keypair::new();
-        assert_eq!(keypair.0.to_bytes().len(), Keypair::SECRET_KEY_LENGTH);
+        assert_eq!(keypair.to_bytes().len(), Keypair::SECRET_KEY_LENGTH);
     }
 }
