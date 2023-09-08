@@ -71,7 +71,7 @@ impl Lookup {
                 .fold(P::ZEROS, |acc, x| acc + *x)
                 - vars.local_values[self.multiplicity_column]
                     * lookup_vars.local_values[offset + num_helper_columns - 2];
-            // yield_constr.constraint(next_z - z - y);
+            yield_constr.constraint(next_z - z - y);
         }
     }
 
