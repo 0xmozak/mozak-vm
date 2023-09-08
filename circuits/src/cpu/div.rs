@@ -172,7 +172,7 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
         Ok(())
     }
-    
+
     fn prove_srl<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8) -> Result<(), TestCaseError> {
         let (program, record) = simple_test_code(&srl_instructions(rd, q), &[], &[(1, p), (2, q)]);
         prop_assert_eq!(record.executed[0].aux.dst_val, p >> q);
