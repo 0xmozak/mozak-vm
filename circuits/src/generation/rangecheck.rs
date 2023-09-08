@@ -71,6 +71,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
     let mut multiplicities = [F::ZERO; RANGE_CHECK_U16_SIZE];
 
+    println!("trace: {} {} ", cpu_trace.len(), memory_trace.len());
     for looking_table in RangecheckTable::lookups().looking_tables {
         let values = match looking_table.kind {
             TableKind::Cpu => extract(cpu_trace, &looking_table),
@@ -78,6 +79,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
             other => unimplemented!("Can't range check {other:#?} tables"),
         };
 
+        println!("table: {:?} values.len: {:?}", looking_table, values.len());
         for val in values {
             let (limb_hi, limb_lo) = limbs_from_u32(
                 u32::try_from(val.to_canonical_u64()).expect("casting value to u32 should succeed"),
@@ -91,6 +93,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
             };
             multiplicities[limb_hi as usize] += F::ONE;
             multiplicities[limb_lo as usize] += F::ONE;
+            println!("push: {:?}", rangecheck_row);
             push_rangecheck_row(&mut trace, rangecheck_row.borrow());
         }
     }
@@ -104,9 +107,13 @@ pub fn generate_rangecheck_trace<F: RichField>(
     trace[MAP.fixed_range_check_u16] = (0..RANGE_CHECK_U16_SIZE as u64)
         .map(F::from_noncanonical_u64)
         .collect();
+
     let num_rows = trace[MAP.val].len();
-    trace[MAP.multiplicities].resize(num_rows, F::ZERO);
-    trace[MAP.fixed_range_check_u16].resize(num_rows, F::from_canonical_u64(u64::from(u16::MAX)));
+    if num_rows > RANGE_CHECK_U16_SIZE {
+        trace[MAP.multiplicities].resize(num_rows, F::ZERO);
+        trace[MAP.fixed_range_check_u16]
+            .resize(num_rows, F::from_canonical_u64(u64::from(u16::MAX)));
+    }
 
     trace.try_into().unwrap_or_else(|v: Vec<Vec<F>>| {
         panic!(
@@ -153,14 +160,43 @@ mod tests {
         for c in &trace {
             assert_eq!(c.len(), RANGE_CHECK_U16_SIZE);
         }
-        // Check values that we are interested in
-        assert_eq!(trace[MAP.filter][0], F::ONE);
-        assert_eq!(trace[MAP.filter][1], F::ONE);
-        assert_eq!(trace[MAP.val][0], GoldilocksField(0x0001_fffe));
-        assert_eq!(trace[MAP.val][1], GoldilocksField(0));
-        assert_eq!(trace[MAP.limb_hi][0], GoldilocksField(0x0001));
-        assert_eq!(trace[MAP.limb_lo][0], GoldilocksField(0xfffe));
-        assert_eq!(trace[MAP.limb_lo][1], GoldilocksField(0));
+
+        for (i, filter) in trace[MAP.filter].iter().enumerate() {
+            println!("F: {} {}", trace[MAP.val][i], filter);
+            match i {
+                0 | 1 => assert_eq!(filter, &F::ONE),
+                _ => assert_eq!(filter, &F::ZERO),
+            }
+        }
+        for (i, val) in trace[MAP.val].iter().enumerate() {
+            match i {
+                0 => assert_eq!(val, &F::from_canonical_usize(0x0001_fffe)),
+                _ => assert_eq!(val, &F::ZERO),
+            }
+        }
+        for (i, limb_hi) in trace[MAP.limb_hi].iter().enumerate() {
+            match i {
+                0 => assert_eq!(limb_hi, &F::from_canonical_usize(0x0001)),
+                _ => assert_eq!(limb_hi, &F::ZERO),
+            }
+        }
+        for (i, limb_lo) in trace[MAP.limb_lo].iter().enumerate() {
+            match i {
+                0 => assert_eq!(limb_lo, &F::from_canonical_usize(0xfffe)),
+                _ => assert_eq!(limb_lo, &F::ZERO),
+            }
+        }
+        for (i, limb_lo) in trace[MAP.multiplicities].iter().enumerate() {
+            match i {
+                0 => assert_eq!(limb_lo, &F::from_canonical_usize(2)),
+                1 | 0xfffe => assert_eq!(limb_lo, &F::ONE),
+                _ => assert_eq!(limb_lo, &F::ZERO),
+            }
+        }
+        trace[MAP.fixed_range_check_u16]
+            .iter()
+            .enumerate()
+            .for_each(|(i, f)| assert_eq!(f, &F::from_canonical_usize(i)));
     }
 
     #[test]
