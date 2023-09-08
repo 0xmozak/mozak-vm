@@ -23,12 +23,6 @@ use crate::cpu::stark::is_binary;
 /// `0..=u32::MAX`. For an signed operation, the range of `opX_full_range` is
 /// `i32::MIN..=i32::MAX`. Notice how both ranges are of the same length, and
 /// only differ by an offset of `1<<31`.
-///
-/// TODO: range check these two linear combinations of columns:
-/// ```ignore
-///  lv.op1_full_range() + lv.is_op1_signed() * CpuState::<P>::shifted(31);
-///  lv.op2_full_range() + lv.is_op2_signed() * CpuState::<P>::shifted(31);
-/// ```
 
 pub(crate) fn signed_constraints<P: PackedField>(
     lv: &CpuState<P>,
