@@ -59,42 +59,56 @@ mod tests {
     use proptest::proptest;
 
     use crate::cpu::stark::CpuStark;
-    use crate::test_utils::ProveAndVerify;
+    use crate::stark::mozak_stark::MozakStark;
+    use crate::test_utils::{ProveAndVerify, D, F};
+
+    fn prove_slt<Stark: ProveAndVerify>(a: u32, op2: u32, use_imm: bool) {
+        let (b, imm) = if use_imm { (0, op2) } else { (op2, 0) };
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::SLTU,
+                    args: Args {
+                        rd: 5,
+                        rs1: 6,
+                        rs2: 7,
+                        imm,
+                    },
+                },
+                Instruction {
+                    op: Op::SLT,
+                    args: Args {
+                        rd: 4,
+                        rs1: 6,
+                        rs2: 7,
+                        imm,
+                    },
+                },
+            ],
+            &[],
+            &[(6, a), (7, b)],
+        );
+        assert_eq!(record.last_state.get_register_value(5), u32::from(a < op2));
+        assert_eq!(
+            record.last_state.get_register_value(4),
+            u32::from((a as i32) < (op2 as i32))
+        );
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
-        fn prove_slt_proptest(a in u32_extra(), op2 in u32_extra(), use_imm in any::<bool>()) {
-            let (b, imm) = if use_imm { (0, op2) } else { (op2, 0) };
-            let (program, record) = simple_test_code(
-                &[
-                    Instruction {
-                        op: Op::SLTU,
-                        args: Args {
-                            rd: 5,
-                            rs1: 6,
-                            rs2: 7,
-                            imm,
-                        },
-                    },
-                    Instruction {
-                        op: Op::SLT,
-                        args: Args {
-                            rd: 4,
-                            rs1: 6,
-                            rs2: 7,
-                            imm,
-                        },
-                    },
-                ],
-                &[],
-                &[(6, a), (7, b)],
-            );
-            assert_eq!(record.last_state.get_register_value(5), u32::from(a < op2));
-            assert_eq!(
-                record.last_state.get_register_value(4),
-                u32::from((a as i32) < (op2 as i32))
-            );
-            CpuStark::prove_and_verify(&program, &record).unwrap();
+        fn prove_slt_cpu(a in u32_extra(), op2 in u32_extra(), use_imm in any::<bool>()) {
+            prove_slt::<CpuStark<F, D>>(a, op2, use_imm);
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1))]
+        #[test]
+        fn prove_slt_mozak(a in u32_extra(), op2 in u32_extra(), use_imm in any::<bool>()) {
+            prove_slt::<MozakStark<F, D>>(a, op2, use_imm);
         }
     }
 }
