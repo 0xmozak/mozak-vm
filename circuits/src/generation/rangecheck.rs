@@ -96,7 +96,6 @@ pub fn generate_rangecheck_trace<F: RichField>(
     }
     // Pad our trace to max(RANGE_CHECK_U16_SIZE, trace[0].len())
     trace = pad_rc_trace(trace);
-    // println!("mults: {}", multiplicities);
     trace[MAP.multiplicities] = multiplicities.to_vec();
 
     // Here, we generate fixed columns for the table, used in inner table lookups.
@@ -151,11 +150,9 @@ mod tests {
         let memory_rows = generate_memory_trace::<F>(&program, &record.executed);
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
-        println!("trace: {:?}", trace[0].len());
-
-        trace.iter().for_each(|c| {
+        for c in &trace {
             assert_eq!(c.len(), RANGE_CHECK_U16_SIZE);
-        });
+        }
         // Check values that we are interested in
         assert_eq!(trace[MAP.filter][0], F::ONE);
         assert_eq!(trace[MAP.filter][1], F::ONE);
@@ -195,7 +192,7 @@ mod tests {
         }
         let (program, record) = simple_test_code(
             &(0..RANGE_CHECK_U16_SIZE)
-                .map(|i| generate_inst(i as u32))
+                .map(|i| generate_inst(u32::try_from(i).unwrap()))
                 .collect::<Vec<Instruction>>(),
             &[],
             &[(6, 0xffff)],
@@ -205,16 +202,10 @@ mod tests {
         let memory_rows = generate_memory_trace::<F>(&program, &record.executed);
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
-        for (i, m) in trace[MAP.multiplicities].iter().enumerate() {
-            if m.is_zero() && i < RANGE_CHECK_U16_SIZE {
-                println!("mults[{}]: {:?}", i, m);
-            }
-        }
-
         let trace_len = (RANGE_CHECK_U16_SIZE + 1).next_power_of_two();
 
         // Check each column's length.
-        trace.iter().for_each(|c| {
+        for c in &trace {
             assert_eq!(
                 c.len(),
                 trace_len,
@@ -222,7 +213,7 @@ mod tests {
                 trace_len,
                 c.len()
             );
-        });
+        }
 
         // Check multiplicity column.
         // Expect:
@@ -256,12 +247,14 @@ mod tests {
         trace[MAP.limb_lo].iter().enumerate().for_each(|(i, l)| {
             let expected = match i {
                 RANGE_CHECK_U16_SIZE.. => F::ZERO,
-                _ => F::from_canonical_u64((0xffff_u16).wrapping_add(i as u16).into()),
+                _ => F::from_canonical_u64(
+                    (0xffff_u16).wrapping_add(u16::try_from(i).unwrap()).into(),
+                ),
             };
             assert_eq!(
                 l, &expected,
                 "expected lower limb at row {i} to be {expected}, got {l}"
-            )
+            );
         });
 
         // Check limb_hi.
@@ -273,7 +266,7 @@ mod tests {
             assert_eq!(
                 l, &expected,
                 "expected higher limb at row {i} to be {expected}, got {l}"
-            )
+            );
         });
 
         trace[MAP.filter].iter().enumerate().for_each(|(i, l)| {
@@ -284,7 +277,7 @@ mod tests {
             assert_eq!(
                 l, &expected,
                 "expected filter at row {i} to be {expected}, got {l}"
-            )
+            );
         });
     }
 }

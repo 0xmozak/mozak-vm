@@ -178,7 +178,7 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     if let Some(lookups) = lookups {
         lookups
             .iter()
-            .for_each(|l| l.eval(vars, &lookup_vars.as_ref().unwrap(), consumer))
+            .for_each(|l| l.eval(vars, &lookup_vars.as_ref().unwrap(), consumer));
     }
     eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
 }
