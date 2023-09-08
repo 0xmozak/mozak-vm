@@ -10,6 +10,12 @@ pub struct Memory<T> {
     /// Indicates if a row comes from VM execution, or whether it's padding.
     pub is_executed: T,
 
+    /// Indicates if a the memory address is writable.
+    pub is_writable: T,
+
+    /// Indicates if a the memory address is initialized with this entry.
+    pub is_init: T,
+
     /// Memory address.
     pub addr: T,
 
@@ -60,3 +66,13 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.valu
 /// Memory stark table.
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(MAP.is_executed) }
+
+/// Columns containing the data which are looked from the MemoryInit table into Memory
+/// stark table.
+#[must_use]
+pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.value)] }
+
+/// Column for a binary filter to indicate a lookup from the MemoryInit table into
+/// Memory stark table.
+#[must_use]
+pub fn filter_for_memoryinit<F: Field>() -> Column<F> { Column::singles([MAP.is_executed, MAP.is_init]) }

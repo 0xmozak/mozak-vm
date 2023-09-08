@@ -10,13 +10,12 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
-use crate::generation::memoryinit;
 use crate::memory::stark::MemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::xor::stark::XorStark;
-use crate::{bitshift, cpu, memory, program, rangecheck, xor};
+use crate::{bitshift, cpu, memory, memoryinit, program, rangecheck, xor};
 
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
@@ -319,13 +318,13 @@ pub struct MemoryInitMemoryTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
-            vec![MemoryInitTable::new(
-                memoryinit::columns::data_for_memory(),
-                memoryinit::columns::filter_for_memory(),
-            )],
-            MemoryTable::new(
+            vec![MemoryTable::new(
                 memory::columns::data_for_memoryinit(),
                 memory::columns::filter_for_memoryinit(),
+            )],
+            MemoryInitTable::new(
+                memoryinit::columns::data_for_ctl(),
+                Column::single(memoryinit::columns::MAP.filter),
             ),
         )
     }

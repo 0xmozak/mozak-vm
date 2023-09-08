@@ -93,6 +93,7 @@ where
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
@@ -380,6 +381,7 @@ where
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
