@@ -24,7 +24,7 @@ pub fn simple_test_code(
     regs: &[(u8, u32)],
 ) -> (Program, ExecutionRecord) {
     let _ = env_logger::try_init();
-    let code = Code(
+    let ro_code = Code(
         (0..)
             .step_by(4)
             .zip(
@@ -53,12 +53,10 @@ pub fn simple_test_code(
             .collect(),
     );
 
-    let image: HashMap<u32, u32> = mem.iter().copied().collect();
-    let image = Data::from(image);
     let program = Program {
-        entry_point: 0,
-        data: image,
-        code,
+        rw_memory: Data::from(mem.iter().copied().collect::<HashMap<u32, u32>>()),
+        ro_code,
+        ..Default::default()
     };
     let state0 = State::from(&program);
 

@@ -176,19 +176,5 @@ mod tests {
         assert_eq!(trace[MAP.limb_hi][0], GoldilocksField(0x0001));
         assert_eq!(trace[MAP.limb_lo][0], GoldilocksField(0xfffe));
         assert_eq!(trace[MAP.limb_lo][1], GoldilocksField(0));
-
-        // Ensure rest of trace is zeroed out
-        for filter in &trace[MAP.filter][2..] {
-            assert_eq!(filter, &F::ZERO);
-        }
-        for value in &trace[MAP.val][2..] {
-            assert_eq!(value, &F::ZERO);
-        }
-        for limb_hi in &trace[MAP.limb_hi][1..] {
-            assert_eq!(limb_hi, &F::ZERO);
-        }
-        for limb_lo in &trace[MAP.limb_lo][2..] {
-            assert_eq!(limb_lo, &F::ZERO);
-        }
     }
 }

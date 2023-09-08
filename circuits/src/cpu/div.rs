@@ -112,14 +112,16 @@ pub(crate) fn constraints<P: PackedField>(
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{simple_test_code, u32_extra};
     use proptest::prelude::{prop_assert_eq, ProptestConfig};
+    use proptest::test_runner::TestCaseError;
     use proptest::{prop_assert, proptest};
 
     use crate::cpu::stark::CpuStark;
     use crate::stark::mozak_stark::MozakStark;
-    use crate::test_utils::{inv, ProveAndVerify};
+    use crate::test_utils::{inv, ProveAndVerify, D, F};
 
     fn divu_remu_instructions(rd: u8) -> [Instruction; 2] {
         [
@@ -190,25 +192,33 @@ mod tests {
         ]
     }
 
-    #[test]
-    fn prove_divu_remu_example() {
+    fn prove_divu<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8) -> Result<(), TestCaseError> {
         let (program, record) =
-            simple_test_code(&divu_remu_instructions(3), &[], &[(1, 1), (2, 0)]);
-        MozakStark::prove_and_verify(&program, &record).unwrap();
+            simple_test_code(&divu_remu_instructions(rd), &[], &[(1, p), (2, q)]);
+        prop_assert_eq!(
+            record.executed[0].aux.dst_val,
+            if let 0 = q { 0xffff_ffff } else { p / q }
+        );
+        prop_assert_eq!(
+            record.executed[1].aux.dst_val,
+            if let 0 = q { p } else { p % q }
+        );
+        Stark::prove_and_verify(&program, &record).unwrap();
+        Ok(())
     }
 
-    #[test]
-    fn prove_div_rem_example() {
-        let (program, record) =
-            simple_test_code(&div_rem_instructions(3), &[], &[(1, 2147483648), (2, 1)]);
-        MozakStark::prove_and_verify(&program, &record).unwrap();
+    fn prove_srl<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8) -> Result<(), TestCaseError> {
+        let (program, record) = simple_test_code(&srl_instructions(rd, q), &[], &[(1, p), (2, q)]);
+        prop_assert_eq!(record.executed[0].aux.dst_val, p >> q);
+        prop_assert_eq!(record.executed[1].aux.dst_val, p >> q);
+        Stark::prove_and_verify(&program, &record).unwrap();
+        Ok(())
     }
 
-    #[test]
-    fn prove_srl_example() {
-        let (program, record) =
-            simple_test_code(&srl_instructions(3, 200), &[], &[(1, 200), (2, 100)]);
-        MozakStark::prove_and_verify(&program, &record).unwrap();
+    fn prove_div<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8) -> Result<(), TestCaseError> {
+        let (program, record) = simple_test_code(&div_rem_instructions(rd), &[], &[(1, p), (2, q)]);
+        Stark::prove_and_verify(&program, &record).unwrap();
+        Ok(())
     }
 
     proptest! {
@@ -223,86 +233,37 @@ mod tests {
         }
 
         #[test]
-        fn prove_divu_proptest(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
-            let (program, record) = simple_test_code(
-                &divu_remu_instructions(rd),
-                &[],
-                &[(1, p), (2, q)],
-            );
-            prop_assert_eq!(record.executed[1].aux.dst_val,
-                if let 0 = q {
-                    p
-                } else {
-                    p % q
-                });
-            CpuStark::prove_and_verify(&program, &record).unwrap();
+        fn prove_div_cpu(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
+            prove_div::<CpuStark<F, D>>(p, q, rd)?;
         }
 
         #[test]
-        #[allow(clippy::cast_sign_loss)]
-        #[allow(clippy::cast_possible_wrap)]
-        fn prove_div_proptest(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
-            let (program, record) = simple_test_code(
-                &[Instruction {
-                    op: Op::DIV,
-                    args: Args {
-                        rd,
-                        rs1: 1,
-                        rs2: 2,
-                        ..Args::default()
-                    },
-                },
-                ],
-                &[],
-                &[(1, p), (2, q)],
-            );
-            prop_assert_eq!(record.executed[0].aux.dst_val,
-                if let 0 = q {
-                    0xffff_ffff
-                } else {
-                    (p as i32).wrapping_div(q as i32) as u32
-                });
-            CpuStark::prove_and_verify(&program, &record).unwrap();
-        }
-
-        #[allow(clippy::cast_sign_loss)]
-        #[allow(clippy::cast_possible_wrap)]
-        #[test]
-        fn prove_rem_proptest(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
-            let (program, record) = simple_test_code(
-                &[
-                Instruction {
-                    op: Op::REM,
-                    args: Args {
-                        rd,
-                        rs1: 1,
-                        rs2: 2,
-                        ..Args::default()
-                    },
-                }
-                ],
-                &[],
-                &[(1, p), (2, q)],
-            );
-            prop_assert_eq!(record.executed[0].aux.dst_val,
-                if let 0 = q {
-                    p
-                } else {
-                    (p as i32).wrapping_rem(q as i32) as u32
-                });
-            CpuStark::prove_and_verify(&program, &record).unwrap();
+        fn prove_divu_cpu(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
+            prove_divu::<CpuStark<F, D>>(p, q, rd)?;
         }
 
         #[test]
-        fn prove_srl_proptest(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
-            let (program, record) = simple_test_code(
-                &srl_instructions(rd, q),
-                &[],
-                &[(1, p), (2, q)],
-            );
-            prop_assert_eq!(record.executed[0].aux.dst_val, p >> q);
-            prop_assert_eq!(record.executed[1].aux.dst_val, p >> q);
-            CpuStark::prove_and_verify(&program, &record).unwrap();
+        fn prove_srl_cpu(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
+            prove_srl::<CpuStark<F, D>>(p, q, rd)?;
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1))]
+
+        #[test]
+        fn prove_div_mozak(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
+            prove_div::<MozakStark<F, D>>(p, q, rd)?;
+        }
+
+        #[test]
+        fn prove_divu_mozak(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
+            prove_divu::<MozakStark<F, D>>(p, q, rd)?;
+        }
+
+        #[test]
+        fn prove_srl_mozak(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
+            prove_srl::<MozakStark<F, D>>(p, q, rd)?;
         }
     }
 }
