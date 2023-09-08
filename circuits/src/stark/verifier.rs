@@ -63,6 +63,12 @@ where
         "Mismatch between Program ROM trace caps"
     );
 
+    ensure!(
+        all_proof.stark_proofs[TableKind::MemoryInit as usize].trace_cap
+            == all_proof.memory_init_trace_cap,
+        "Mismatch between memory init trace caps"
+    );
+
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
         &all_proof.stark_proofs,
         &cross_table_lookups,

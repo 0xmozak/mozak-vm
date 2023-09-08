@@ -159,9 +159,11 @@ where
     );
 
     let program_rom_trace_cap = trace_caps[TableKind::Program as usize].clone();
+    let memory_init_trace_cap = trace_caps[TableKind::MemoryInit as usize].clone();
     Ok(AllProof {
         stark_proofs,
         program_rom_trace_cap,
+        memory_init_trace_cap,
         public_inputs,
     })
 }

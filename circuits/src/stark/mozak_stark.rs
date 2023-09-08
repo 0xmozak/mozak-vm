@@ -10,7 +10,9 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
+use crate::generation::memoryinit;
 use crate::memory::stark::MemoryStark;
+use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::xor::stark::XorStark;
@@ -24,6 +26,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub shift_amount_stark: BitshiftStark<F, D>,
     pub program_stark: ProgramStark<F, D>,
     pub memory_stark: MemoryStark<F, D>,
+    pub memory_init_stark: MemoryInitStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 6],
     pub debug: bool,
 }
@@ -46,6 +49,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             shift_amount_stark: BitshiftStark::default(),
             program_stark: ProgramStark::default(),
             memory_stark: MemoryStark::default(),
+            memory_init_stark: MemoryInitStark::default(),
             cross_table_lookups: [
                 RangecheckTable::lookups(),
                 XorCpuTable::lookups(),
@@ -68,6 +72,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.shift_amount_stark.num_permutation_batches(config),
             self.program_stark.num_permutation_batches(config),
             self.memory_stark.num_permutation_batches(config),
+            self.memory_init_stark.num_permutation_batches(config),
         ]
     }
 
@@ -79,6 +84,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.shift_amount_stark.permutation_batch_size(),
             self.program_stark.permutation_batch_size(),
             self.memory_stark.permutation_batch_size(),
+            self.memory_init_stark.permutation_batch_size(),
         ]
     }
 
@@ -91,7 +97,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 6;
+pub(crate) const NUM_TABLES: usize = 7;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum TableKind {
@@ -101,6 +107,7 @@ pub enum TableKind {
     Bitshift = 3,
     Program = 4,
     Memory = 5,
+    MemoryInit = 6,
 }
 
 impl TableKind {
@@ -113,6 +120,7 @@ impl TableKind {
             TableKind::Bitshift,
             TableKind::Program,
             TableKind::Memory,
+            TableKind::MemoryInit,
         ]
     }
 }
@@ -151,6 +159,9 @@ pub struct ProgramTable<F: Field>(Table<F>);
 
 /// Represents a memory trace table in the Mozak VM.
 pub struct MemoryTable<F: Field>(Table<F>);
+
+/// Represents a memory init table in the Mozak VM.
+pub struct MemoryInitTable<F: Field>(Table<F>);
 
 impl<F: Field> RangeCheckTable<F> {
     #[allow(clippy::new_ret_no_self)]
@@ -191,6 +202,13 @@ impl<F: Field> MemoryTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
         Table::new(TableKind::Memory, columns, filter_column)
+    }
+}
+
+impl<F: Field> MemoryInitTable<F> {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
+        Table::new(TableKind::MemoryInit, columns, filter_column)
     }
 }
 
@@ -291,6 +309,23 @@ impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
             ProgramTable::new(
                 program::columns::data_for_ctl(),
                 Column::single(program::columns::MAP.filter),
+            ),
+        )
+    }
+}
+
+pub struct MemoryInitMemoryTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![MemoryInitTable::new(
+                memoryinit::columns::data_for_memory(),
+                memoryinit::columns::filter_for_memory(),
+            )],
+            MemoryTable::new(
+                memory::columns::data_for_memoryinit(),
+                memory::columns::filter_for_memoryinit(),
             ),
         )
     }
