@@ -104,7 +104,7 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
     };
 
     // Calculate op2 values.
-    let (is_op2_negative, op2_abs) = if let Op::SLL = inst.op {
+    let (is_op2_negative, op2_abs) = if inst.op == Op::SLL || inst.op == Op::SRL {
         let shift_amount = aux.op2 & 0b1_1111;
         let shift_power = 1_u32 << shift_amount;
 
@@ -174,18 +174,10 @@ fn generate_div_row<F: RichField>(
         i64::from(dividend_raw)
     };
     let divisor_raw = aux.op2;
-    let divisor = if row.is_op2_signed().is_nonzero() {
+    let divisor = if let Op::SRL = inst.op {
+        1_i64 << (divisor_raw & 0x1F) as i64
+    } else if row.is_op2_signed().is_nonzero() {
         i64::from(divisor_raw as i32)
-    } else if let Op::SRL = inst.op {
-        let shift_amount = divisor_raw & 0x1F;
-        let shift_power = 1_u32 << shift_amount;
-        row.bitshift = Bitshift {
-            amount: from_u32(shift_amount),
-            multiplier: from_u32(shift_power),
-        };
-        // Overwrite op2_abs with the shift power.
-        row.op2_abs = row.bitshift.multiplier;
-        shift_power as i64
     } else {
         i64::from(divisor_raw)
     };

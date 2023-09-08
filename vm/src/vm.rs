@@ -141,11 +141,11 @@ impl State {
         let rs1 = self.get_register_value(inst.args.rs1);
         let rs2 = self.get_register_value(inst.args.rs2);
         let op1 = if matches!(inst.op, Op::DIV | Op::REM) {
-            div(rs1, rs2)
+            div(rs1, rs2.wrapping_add(inst.args.imm))
         } else if matches!(inst.op, Op::DIVU | Op::REMU) {
-            divu(rs1, rs2)
+            divu(rs1, rs2.wrapping_add(inst.args.imm))
         } else if inst.op == Op::SRL {
-            rs1 >> (rs2 & 0b1_1111)
+            rs1 >> (rs2.wrapping_add(inst.args.imm) & 0b1_1111)
         } else {
             rs1
         };

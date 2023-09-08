@@ -191,21 +191,21 @@ mod tests {
     }
 
     #[test]
-    fn prove_divu_remu() {
+    fn prove_divu_remu_example() {
         let (program, record) =
             simple_test_code(&divu_remu_instructions(3), &[], &[(1, 1), (2, 0)]);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
-    fn prove_div_rem() {
+    fn prove_div_rem_example() {
         let (program, record) =
             simple_test_code(&div_rem_instructions(3), &[], &[(1, 200), (2, 100)]);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
-    fn prove_srl() {
+    fn prove_srl_example() {
         let (program, record) =
             simple_test_code(&srl_instructions(3, 200), &[], &[(1, 200), (2, 100)]);
         MozakStark::prove_and_verify(&program, &record).unwrap();

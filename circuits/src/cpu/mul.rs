@@ -84,7 +84,9 @@ pub(crate) fn constraints<P: PackedField>(
     );
 
     // For MUL/MULHU/SLL product sign should always be 0.
-    yield_constr.constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * product_sign);
+    yield_constr.constraint(
+        (lv.inst.ops.sll + lv.inst.ops.srl + lv.inst.ops.mul + lv.inst.ops.mulhu) * product_sign,
+    );
 
     // Ensure skip_check_product_sign can be set to 1 only when either ob1_abs or
     // op2_abs is 0. This check is essential for the subsequent constraints.
