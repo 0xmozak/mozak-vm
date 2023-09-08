@@ -174,6 +174,7 @@ fn generate_div_row<F: RichField>(
         i64::from(dividend_raw)
     };
     let divisor_raw = aux.op2;
+    row.op2_zero = F::from_bool(divisor_raw == 0);
     let divisor = if let Op::SRL = inst.op {
         1_i64 << (divisor_raw & 0x1F) as i64
     } else if row.is_op2_signed().is_nonzero() {
@@ -185,15 +186,13 @@ fn generate_div_row<F: RichField>(
     if let 0 = divisor {
         row.remainder_abs = F::from_noncanonical_u64(dividend.unsigned_abs());
         row.remainder_slack = F::ZERO;
-        row.op2_zero = F::ONE;
         row.remainder_value = from_u32(dividend_raw);
     } else {
         let remainder = dividend % divisor;
         let remainder_abs = remainder.unsigned_abs();
         row.remainder_abs = F::from_noncanonical_u64(remainder_abs);
         row.remainder_slack =
-            F::from_noncanonical_u64(divisor.unsigned_abs() - 1) - row.remainder_abs;
-        row.op2_zero = F::ZERO;
+            F::from_noncanonical_u64(divisor.unsigned_abs() - 1 - remainder_abs);
         row.remainder_value = if remainder.is_negative() {
             from_u32(remainder as u32)
         } else {

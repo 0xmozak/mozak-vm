@@ -207,7 +207,7 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 
     let is_running = cpu.is_running;
 
-    let is_op2_signed = &ops.slt + &ops.bge + &ops.blt + &ops.mulh;
+    let is_op2_signed = &ops.slt + &ops.bge + &ops.blt + &ops.mulh + &ops.div + &ops.rem;
     let is_op1_signed = &is_op2_signed + &ops.mulhsu;
 
     vec![

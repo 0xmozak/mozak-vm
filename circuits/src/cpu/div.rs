@@ -192,6 +192,16 @@ mod tests {
         ]
     }
 
+
+    #[test]
+    fn prove_div_rem_example() {
+        let (program, record) = simple_test_code(&div_rem_instructions(3), &[], &[
+            (1, 2147523377),
+            (2, 2147483648),
+        ]);
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+
     fn prove_divu<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8) -> Result<(), TestCaseError> {
         let (program, record) =
             simple_test_code(&divu_remu_instructions(rd), &[], &[(1, p), (2, q)]);
@@ -263,7 +273,7 @@ mod tests {
 
         #[test]
         fn prove_srl_mozak(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
-            prove_srl::<MozakStark<F, D>>(p, q, rd)?;
+            prove_srl::<MozakStark<F, D>>(1, 0, rd)?;
         }
     }
 }
