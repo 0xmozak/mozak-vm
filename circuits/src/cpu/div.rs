@@ -31,31 +31,33 @@ pub(crate) fn constraints<P: PackedField>(
     let all = is_divu + is_remu + is_div + is_rem + is_srl;
 
     // Note that we are reusing the following columns that also used in MUL
-    // constraints. The overflow case (-2^31 / -1) is also by MUL constraints.
+    // constraints. The overflow case (-2^31 / -1) is taken care by MUL constraints.
     let quotient = lv.op1_value;
     let quotient_abs = lv.op1_abs;
     let divisor = lv.op2_value;
     let divisor_abs = lv.op2_abs;
-    let dividend_sign = lv.dividend_sign;
     // The following columns are used only in this function:
+    let dividend_sign = lv.dividend_sign;
     let divisor_zero = lv.op2_zero;
     let divisor_inv = lv.op2_inv;
     let dividend_abs = lv.dividend_abs;
     let remainder_abs = lv.remainder_abs;
     let remainder_sign = lv.remainder_sign;
 
+    // Check dividend_sign and reminder_sign are set correctly.
+    is_binary(yield_constr, remainder_sign);
+    is_binary(yield_constr, dividend_sign);
+    yield_constr
+        .constraint(lv.product_low_limb * remainder_abs * (lv.product_sign - dividend_sign));
+    yield_constr.constraint(dividend_abs * remainder_abs * (dividend_sign - remainder_sign));
+
     // For DIV operations rs1 value is loaded into dividend column.
     // Checks dividend_abs is set correctly.
     let dividend = (0..32)
         .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
         .sum::<P>();
-    is_binary(yield_constr, dividend_sign);
     yield_constr.constraint((P::ONES - dividend_sign) * (dividend_abs - dividend));
     yield_constr.constraint(dividend_sign * (two_to_32 - dividend_abs - dividend));
-
-    // Check reminder_sign is set correctly.
-    is_binary(yield_constr, remainder_sign);
-    yield_constr.constraint(dividend_abs * remainder_abs * (dividend_sign - remainder_sign));
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
     // > For both signed and unsigned division, it holds that
@@ -64,16 +66,16 @@ pub(crate) fn constraints<P: PackedField>(
 
     // However, that constraint is not enough.
     // For example, a malicious prover could trivially fulfill it via
-    //  quotient := 0, r (remainder) := p (dividend)
-    // The solution is to constrain r further:
-    //  0 <= r < q (divisor)
-    // (This only works when q != 0.)
+    //  quotient := 0, remainder := dividend
+    // The solution is to constrain remainder further:
+    //  0 <= remainder < divisor
+    // (This only works when divisor != 0.)
     // Logically, these are two independent constraints:
-    //      (A) 0 <= r
-    //      (B) r < q
-    // Part A is easy: we range-check r.
+    //      (A) 0 <= remainder
+    //      (B) remainder < divisor
+    // Part A is easy: we range-check remainder.
     // Part B is only slightly harder: borrowing the concept of 'slack variables' from linear programming (https://en.wikipedia.org/wiki/Slack_variable) we get:
-    // (B') r + slack + 1 = q
+    // (B') remainder + slack + 1 = divisor
     //      with range_check(slack)
     yield_constr.constraint(
         all * divisor_abs * (remainder_abs + P::ONES + lv.remainder_slack - divisor_abs),
@@ -103,7 +105,7 @@ pub(crate) fn constraints<P: PackedField>(
         yield_constr.constraint(is_srl * (and_gadget.input_b - op2));
 
         yield_constr.constraint(is_srl * (and_gadget.output - lv.bitshift.amount));
-        yield_constr.constraint(is_srl * (divisor_abs - lv.bitshift.multiplier));
+        yield_constr.constraint(is_srl * (lv.op2_abs - lv.bitshift.multiplier));
     }
 
     // Last, we 'copy' our results:

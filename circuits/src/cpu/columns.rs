@@ -125,6 +125,7 @@ pub struct CpuState<T> {
     pub bitshift: Bitshift<T>,
 
     // Division evaluation columns
+    // op1_value is used as quotient_value, so it requires range checks
     pub op2_inv: T,
     pub op2_zero: T,
     pub dividend_abs: T,
@@ -202,7 +203,7 @@ impl<T: PackedField> CpuState<T> {
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let cpu = MAP.cpu.map(Column::from);
     let ops = &cpu.inst.ops;
-    let divs = &ops.divu + &ops.remu + &ops.srl;
+    let divs = &ops.divu + &ops.remu + &ops.srl + &ops.div + &ops.rem;
     let muls = &ops.mul + &ops.mulhu + &ops.mulhsu + &ops.mulh + &ops.sll;
 
     let is_running = cpu.is_running;
@@ -211,6 +212,7 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let is_op1_signed = &is_op2_signed + &ops.mulhsu;
 
     vec![
+        CpuTable::new(vec![cpu.op1_value.clone()], divs.clone()),
         CpuTable::new(vec![cpu.dividend_abs], divs.clone()),
         CpuTable::new(vec![cpu.remainder_abs], divs.clone()),
         CpuTable::new(vec![cpu.remainder_slack], divs),
