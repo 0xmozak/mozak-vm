@@ -186,20 +186,15 @@ fn generate_div_row<F: RichField>(
     if let 0 = divisor {
         row.remainder_abs = F::from_noncanonical_u64(dividend.unsigned_abs());
         row.remainder_slack = F::ZERO;
-        row.remainder_value = from_u32(dividend_raw);
+        row.remainder_sign = F::from_bool(dividend.is_negative());
     } else {
         let remainder = dividend % divisor;
         let remainder_abs = remainder.unsigned_abs();
         row.remainder_abs = F::from_noncanonical_u64(remainder_abs);
-        row.remainder_slack =
-            F::from_noncanonical_u64(divisor.unsigned_abs() - 1 - remainder_abs);
-        row.remainder_value = if remainder.is_negative() {
-            from_u32(remainder as u32)
-        } else {
-            F::from_noncanonical_u64(remainder_abs)
-        }
+        row.remainder_slack = F::from_noncanonical_u64(divisor.unsigned_abs() - 1 - remainder_abs);
+        row.remainder_sign = F::from_bool(remainder.is_negative());
     }
-    row.dividend_remainder_sign = F::from_bool(dividend.is_negative());
+    row.dividend_sign = F::from_bool(dividend.is_negative());
     row.op2_inv = from_u32::<F>(divisor_raw).try_inverse().unwrap_or_default();
     row.dividend_abs = F::from_noncanonical_u64(dividend.unsigned_abs());
 }

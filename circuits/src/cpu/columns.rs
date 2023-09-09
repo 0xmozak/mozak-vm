@@ -127,10 +127,10 @@ pub struct CpuState<T> {
     // Division evaluation columns
     pub op2_inv: T,
     pub op2_zero: T,
-    pub dividend_abs: T, // range check u32 required?
-    pub dividend_remainder_sign: T,
-    pub remainder_abs: T,   // range check u32 required
-    pub remainder_value: T, // range check u32 required
+    pub dividend_abs: T,
+    pub dividend_sign: T,
+    pub remainder_abs: T, // range check u32 required
+    pub remainder_sign: T,
     /// Value of `divisor - remainder - 1`
     /// Used as a helper column to check that `remainder < divisor`.
     pub remainder_slack: T, // range check u32 required
@@ -211,7 +211,6 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let is_op1_signed = &is_op2_signed + &ops.mulhsu;
 
     vec![
-        CpuTable::new(vec![cpu.dividend_abs], divs.clone()),
         CpuTable::new(vec![cpu.remainder_abs], divs.clone()),
         CpuTable::new(vec![cpu.remainder_slack], divs),
         CpuTable::new(vec![cpu.dst_value], ops.add.clone()),

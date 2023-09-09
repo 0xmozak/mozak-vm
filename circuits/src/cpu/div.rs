@@ -30,32 +30,32 @@ pub(crate) fn constraints<P: PackedField>(
     let any_div = is_divu + is_remu + is_div + is_rem;
     let all = is_divu + is_remu + is_div + is_rem + is_srl;
 
-    // Note that we are using the following columns that also used in MUL
-    // constraints. Also note that the overflow case (-2^31 / -1) is also
-    // handled in MUL constraints.
+    // Note that we are reusing the following columns that also used in MUL
+    // constraints. The overflow case (-2^31 / -1) is also by MUL constraints.
     let quotient = lv.op1_value;
-    // let quotient_sign = lv.op1_sign_bit;
     let quotient_abs = lv.op1_abs;
     let divisor = lv.op2_value;
-    // let divisor_sign = lv.op2_sign_bit;
     let divisor_abs = lv.op2_abs;
-    let quotient_mul_divisor = lv.product_low_limb;
-    let dividend_remainder_sign = lv.dividend_remainder_sign;
+    let dividend_sign = lv.dividend_sign;
     // The following columns are used only in this function:
     let divisor_zero = lv.op2_zero;
     let divisor_inv = lv.op2_inv;
     let dividend_abs = lv.dividend_abs;
     let remainder_abs = lv.remainder_abs;
-    let remainder_value = lv.remainder_value;
+    let remainder_sign = lv.remainder_sign;
 
     // For DIV operations rs1 value is loaded into dividend column.
     // Checks dividend_abs is set correctly.
     let dividend = (0..32)
         .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
         .sum::<P>();
-    is_binary(yield_constr, dividend_remainder_sign);
-    yield_constr.constraint((P::ONES - dividend_remainder_sign) * (dividend_abs - dividend));
-    yield_constr.constraint(dividend_remainder_sign * (two_to_32 - dividend_abs - dividend));
+    is_binary(yield_constr, dividend_sign);
+    yield_constr.constraint((P::ONES - dividend_sign) * (dividend_abs - dividend));
+    yield_constr.constraint(dividend_sign * (two_to_32 - dividend_abs - dividend));
+
+    // Check reminder_sign is set correctly.
+    is_binary(yield_constr, remainder_sign);
+    yield_constr.constraint(dividend_abs * remainder_abs * (dividend_sign - remainder_sign));
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
     // > For both signed and unsigned division, it holds that
@@ -86,6 +86,8 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(P::ONES - divisor * divisor_inv - divisor_zero);
     yield_constr
         .constraint(any_div * divisor_zero * (quotient - P::Scalar::from_canonical_u32(u32::MAX)));
+    yield_constr.constraint(any_div * divisor_zero * (remainder_abs - dividend_abs));
+    yield_constr.constraint(any_div * divisor_zero * (remainder_sign - dividend_sign));
 
     // Check: for SRL, 'divisor' is assigned as `2^(op2 & 0b1_111)`.
     // We only take lowest 5 bits of the op2 for the shift amount.
@@ -107,7 +109,8 @@ pub(crate) fn constraints<P: PackedField>(
     // Last, we 'copy' our results:
     let dst = lv.dst_value;
     yield_constr.constraint((is_div + is_divu + is_srl) * (dst - quotient));
-    yield_constr.constraint((is_rem + is_remu) * (dst - remainder_value));
+    yield_constr.constraint(is_rem * remainder_sign * (two_to_32 - remainder_abs - dst));
+    yield_constr.constraint(is_rem * (P::ONES - remainder_sign) * (remainder_abs - dst));
 }
 
 #[cfg(test)]
@@ -192,13 +195,10 @@ mod tests {
         ]
     }
 
-
     #[test]
     fn prove_div_rem_example() {
-        let (program, record) = simple_test_code(&div_rem_instructions(3), &[], &[
-            (1, 2147523377),
-            (2, 2147483648),
-        ]);
+        let (program, record) =
+            simple_test_code(&div_rem_instructions(3), &[], &[(1, 4294967295), (2, 0)]);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
