@@ -211,6 +211,7 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let is_op1_signed = &is_op2_signed + &ops.mulhsu;
 
     vec![
+        CpuTable::new(vec![cpu.dividend_abs], divs.clone()),
         CpuTable::new(vec![cpu.remainder_abs], divs.clone()),
         CpuTable::new(vec![cpu.remainder_slack], divs),
         CpuTable::new(vec![cpu.dst_value], ops.add.clone()),

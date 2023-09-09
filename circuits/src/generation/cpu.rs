@@ -176,7 +176,7 @@ fn generate_div_row<F: RichField>(
     let divisor_raw = aux.op2;
     row.op2_zero = F::from_bool(divisor_raw == 0);
     let divisor = if let Op::SRL = inst.op {
-        1_i64 << (divisor_raw & 0x1F) as i64
+        1_i64 << i64::from(divisor_raw & 0x1F)
     } else if row.is_op2_signed().is_nonzero() {
         i64::from(divisor_raw as i32)
     } else {
