@@ -142,27 +142,18 @@ impl State {
                 self.register_op(&inst.args, $op)
             };
         }
-        // TODO: consider factoring out this logic into trace generation.
-        let rs1 = self.get_register_value(inst.args.rs1);
-        let rs2 = self.get_register_value(inst.args.rs2);
-        let op1 = if matches!(inst.op, Op::DIV | Op::REM) {
-            div(rs1, rs2.wrapping_add(inst.args.imm))
-        } else if matches!(inst.op, Op::DIVU | Op::REMU) {
-            divu(rs1, rs2.wrapping_add(inst.args.imm))
-        } else if inst.op == Op::SRL {
-            rs1 >> (rs2.wrapping_add(inst.args.imm) & 0b1_1111)
-        } else {
-            rs1
-        };
-        // For branch and div instructions, both op2 and imm serve different purposes.
+        // TODO: consider factoring out this logic from `register_op`, `branch_op`,
+        // `memory_load` etc.
+        let op1 = self.get_register_value(inst.args.rs1);
         // Therefore, we avoid adding them together here.
         let op2 = if matches!(
             inst.op,
             Op::BEQ | Op::BNE | Op::BLT | Op::BLTU | Op::BGE | Op::BGEU
         ) {
-            rs2
+            self.get_register_value(inst.args.rs2)
         } else {
-            rs2.wrapping_add(inst.args.imm)
+            self.get_register_value(inst.args.rs2)
+                .wrapping_add(inst.args.imm)
         };
 
         let (aux, state) = match inst.op {

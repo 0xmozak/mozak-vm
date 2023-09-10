@@ -125,20 +125,18 @@ pub struct CpuState<T> {
     pub bitshift: Bitshift<T>,
 
     // Division evaluation columns
-    // op1_value is used as quotient_value, so it requires range checks
-    pub op2_inv: T,
-    pub op2_zero: T,
-    pub dividend_abs: T,
-    pub dividend_sign: T,
-    pub remainder_abs: T, // range check u32 required
+    pub op2_value_inv: T,
+    pub quotient_value: T, // range check u32 required
+    pub quotient_sign: T,
+    pub remainder_value: T, // range check u32 required
     pub remainder_sign: T,
-    /// Value of `divisor - remainder - 1`
+    /// Value of `divisor_abs - remainder_abs - 1`
     /// Used as a helper column to check that `remainder < divisor`.
     pub remainder_slack: T, // range check u32 required
 
     // Product evaluation columns
-    pub op1_abs: T, // used as quotient_abs in division
-    pub op2_abs: T, // divisor_abs in division. op1_abs * op2_abs + remainder_abs == dividend_abs
+    pub op1_abs: T,
+    pub op2_abs: T,
     pub skip_check_product_sign: T,
     pub product_sign: T,
     pub product_high_limb: T, // range check u32 required
@@ -212,10 +210,9 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let is_op1_signed = &is_op2_signed + &ops.mulhsu;
 
     vec![
-        CpuTable::new(vec![cpu.op1_value.clone()], divs.clone()),
-        CpuTable::new(vec![cpu.dividend_abs], divs.clone()),
-        CpuTable::new(vec![cpu.remainder_abs], divs.clone()),
-        CpuTable::new(vec![cpu.remainder_slack], divs),
+        CpuTable::new(vec![cpu.quotient_value.clone()], divs.clone()),
+        CpuTable::new(vec![cpu.remainder_value.clone()], divs.clone()),
+        CpuTable::new(vec![cpu.remainder_slack], divs.clone()),
         CpuTable::new(vec![cpu.dst_value], ops.add.clone()),
         CpuTable::new(vec![cpu.abs_diff], &ops.bge + &ops.blt),
         CpuTable::new(vec![cpu.product_high_limb], muls.clone()),
@@ -223,17 +220,31 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
         // apply range constraints for the sign bits of each operand
         CpuTable::new(
             vec![
-                cpu.op1_value.clone() - &cpu.op1_sign_bit * F::from_canonical_u64((1_u64) << 32)
+                cpu.op1_value - &cpu.op1_sign_bit * F::from_canonical_u64((1_u64) << 32)
                     + &is_op1_signed * F::from_canonical_u64((1_u64) << 31),
             ],
             is_running.clone(),
         ),
         CpuTable::new(
             vec![
-                cpu.op2_value.clone() - &cpu.op2_sign_bit * F::from_canonical_u64((1_u64) << 32)
+                cpu.op2_value - &cpu.op2_sign_bit * F::from_canonical_u64((1_u64) << 32)
                     + &is_op2_signed * F::from_canonical_u64((1_u64) << 31),
             ],
             is_running,
+        ),
+        CpuTable::new(
+            vec![
+                cpu.quotient_value - &cpu.quotient_sign * F::from_canonical_u64((1_u64) << 32)
+                    + &is_op2_signed * F::from_canonical_u64((1_u64) << 31),
+            ],
+            divs.clone(),
+        ),
+        CpuTable::new(
+            vec![
+                cpu.remainder_value - &cpu.remainder_sign * F::from_canonical_u64((1_u64) << 32)
+                    + &is_op2_signed * F::from_canonical_u64((1_u64) << 31),
+            ],
+            divs,
         ),
     ]
 }

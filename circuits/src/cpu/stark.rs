@@ -155,17 +155,13 @@ fn rd_assigned_correctly<P: PackedField>(
 
 /// First operand should be assigned with the value of the designated register.
 fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
-    let is_div_operation =
-        lv.inst.ops.div + lv.inst.ops.divu + lv.inst.ops.rem + lv.inst.ops.remu + lv.inst.ops.srl;
-    let rs1_value = (0..32)
-        .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
-        .sum::<P>();
     yield_constr.constraint(
-        (P::ONES - is_div_operation)
-            * (lv.op1_value
+        lv.op1_value
             // Note: we could skip 0, because r0 is always 0.
             // But we keep it to make it easier to reason about the code.
-            - rs1_value),
+            - (0..32)
+            .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
+            .sum::<P>(),
     );
 }
 

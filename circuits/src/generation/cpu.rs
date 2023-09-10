@@ -76,7 +76,7 @@ pub fn generate_cpu_trace<F: RichField>(
         }
 
         generate_mul_row(&mut row, &inst, aux);
-        generate_div_row(&mut row, &inst, state, aux);
+        generate_div_row(&mut row, &inst, aux);
         generate_sign_handling(&mut row, aux);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
@@ -161,42 +161,44 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn generate_div_row<F: RichField>(
-    row: &mut CpuState<F>,
-    inst: &Instruction,
-    state: &State,
-    aux: &Aux,
-) {
-    let dividend_raw = state.get_register_value(inst.args.rs1);
-    let dividend = if row.is_op1_signed().is_nonzero() {
-        i64::from(dividend_raw as i32)
+fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
+    let dividend_value = aux.op1;
+    let dividend_full_range = if row.is_op1_signed().is_nonzero() {
+        i64::from(dividend_value as i32)
     } else {
-        i64::from(dividend_raw)
+        i64::from(dividend_value)
     };
-    let divisor_raw = aux.op2;
-    row.op2_zero = F::from_bool(divisor_raw == 0);
-    let divisor = if let Op::SRL = inst.op {
-        1_i64 << i64::from(divisor_raw & 0x1F)
+    let divisor_value = aux.op2;
+    let divisor_full_range = if let Op::SRL = inst.op {
+        1_i64 << i64::from(divisor_value & 0x1F)
     } else if row.is_op2_signed().is_nonzero() {
-        i64::from(divisor_raw as i32)
+        i64::from(divisor_value as i32)
     } else {
-        i64::from(divisor_raw)
+        i64::from(divisor_value)
     };
 
-    if let 0 = divisor {
-        row.remainder_abs = F::from_noncanonical_u64(dividend.unsigned_abs());
+    if let 0 = divisor_full_range {
         row.remainder_slack = F::ZERO;
-        row.remainder_sign = F::from_bool(dividend.is_negative());
+        row.remainder_sign = F::from_bool(dividend_full_range.is_negative());
+        row.quotient_value = from_u32(0xFFFF_FFFF);
+        row.quotient_sign = if inst.op == Op::DIV {
+            F::ONE
+        } else if inst.op == Op::DIVU {
+            F::ZERO
+        } else {
+            F::from_bool(dividend_full_range.is_negative())
+        };
     } else {
-        let remainder = dividend % divisor;
+        let quotient_full_range = dividend_full_range / divisor_full_range;
+        row.quotient_value = from_u32(quotient_full_range as u32);
+        row.quotient_sign = F::from_bool(quotient_full_range.is_negative());
+        let remainder = dividend_full_range % divisor_full_range;
         let remainder_abs = remainder.unsigned_abs();
-        row.remainder_abs = F::from_noncanonical_u64(remainder_abs);
-        row.remainder_slack = F::from_noncanonical_u64(divisor.unsigned_abs() - 1 - remainder_abs);
+        row.remainder_value = from_u32(remainder as u32);
+        row.remainder_slack =
+            F::from_noncanonical_u64(divisor_full_range.unsigned_abs() - 1 - remainder_abs);
         row.remainder_sign = F::from_bool(remainder.is_negative());
     }
-    row.dividend_sign = F::from_bool(dividend.is_negative());
-    row.op2_inv = from_u32::<F>(divisor_raw).try_inverse().unwrap_or_default();
-    row.dividend_abs = F::from_noncanonical_u64(dividend.unsigned_abs());
 }
 
 #[allow(clippy::cast_possible_wrap)]
