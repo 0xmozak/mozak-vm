@@ -164,7 +164,7 @@ mod tests {
         Ok(())
     }
 
-    fn prove_div<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8)  {
+    fn prove_div<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8) {
         let (program, record) = simple_test_code(&div_rem_instructions(rd), &[], &[(1, p), (2, q)]);
         Stark::prove_and_verify(&program, &record).unwrap();
     }
