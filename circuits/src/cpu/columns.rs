@@ -173,6 +173,15 @@ impl<T: PackedField> CpuState<T> {
             + self.inst.ops.rem
     }
 
+    /// The value of the designated register in rs2.
+    pub fn populate_rs2_value(&self) -> T {
+        // Note: we could skip 0, because r0 is always 0.
+        // But we keep it to make it easier to reason about the code.
+        (0..32)
+            .map(|reg| self.inst.rs2_select[reg] * self.regs[reg])
+            .sum()
+    }
+
     pub fn is_op1_signed(&self) -> T { self.is_op2_signed() + self.inst.ops.mulhsu }
 
     /// Value of the first operand, as if converted to i64.

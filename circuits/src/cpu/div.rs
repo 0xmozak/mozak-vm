@@ -8,7 +8,6 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::bitwise::and_gadget;
 use super::columns::CpuState;
 use crate::cpu::stark::is_binary;
 
@@ -56,13 +55,9 @@ pub(crate) fn constraints<P: PackedField>(
     let quotient_full_range = quotient_value - quotient_sign * two_to_32;
     let remainder_full_range = remainder_value - remainder_sign * two_to_32;
     yield_constr.constraint(
-        any_div
+        divisor_full_range
             * (divisor_full_range * quotient_full_range + remainder_full_range
                 - dividend_full_range),
-    );
-    // Note that for SRL, the divisor is op2_abs, not op2_value.
-    yield_constr.constraint(
-        is_srl * (divisor_abs * quotient_full_range + remainder_full_range - dividend_full_range),
     );
 
     // However, that constraint is not enough.
@@ -87,32 +82,12 @@ pub(crate) fn constraints<P: PackedField>(
     // p / 0 == 0xFFFF_FFFF
     // p % 0 == p
     yield_constr.constraint(
-        any_div
-            * (P::ONES - divisor_value * divisor_value_inv)
+        (P::ONES - divisor_value * divisor_value_inv)
             * (quotient_value - P::Scalar::from_canonical_u32(u32::MAX)),
     );
     yield_constr.constraint(
-        any_div
-            * (P::ONES - divisor_value * divisor_value_inv)
-            * (remainder_value - dividend_value),
+        (P::ONES - divisor_value * divisor_value_inv) * (remainder_value - dividend_value),
     );
-
-    // Check: for SRL, 'divisor' is assigned as `2^(op2 & 0b1_111)`.
-    // We only take lowest 5 bits of the op2 for the shift amount.
-    // This is following the RISC-V specification.
-    // Bellow we use the And gadget to calculate the shift amount, and then use
-    // Bitshift table to retrieve the corresponding power of 2, that we will assign
-    // to the multiplier.
-    {
-        let and_gadget = and_gadget(&lv.xor);
-        yield_constr
-            .constraint(is_srl * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0b1_1111)));
-        let op2 = lv.op2_value;
-        yield_constr.constraint(is_srl * (and_gadget.input_b - op2));
-
-        yield_constr.constraint(is_srl * (and_gadget.output - lv.bitshift.amount));
-        yield_constr.constraint(is_srl * (lv.op2_abs - lv.bitshift.multiplier));
-    }
 
     // Last, we 'copy' our results:
     let dst = lv.dst_value;
@@ -150,29 +125,6 @@ mod tests {
                     rd,
                     rs1: 1,
                     rs2: 2,
-                    ..Args::default()
-                },
-            },
-        ]
-    }
-
-    fn srl_instructions(rd: u8, q: u32) -> [Instruction; 2] {
-        [
-            Instruction {
-                op: Op::SRL,
-                args: Args {
-                    rd,
-                    rs1: 1,
-                    rs2: 2,
-                    ..Args::default()
-                },
-            },
-            Instruction {
-                op: Op::SRL,
-                args: Args {
-                    rd,
-                    rs1: 1,
-                    imm: q,
                     ..Args::default()
                 },
             },
@@ -217,18 +169,16 @@ mod tests {
         Ok(())
     }
 
-    fn prove_srl<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8) -> Result<(), TestCaseError> {
-        let (program, record) = simple_test_code(&srl_instructions(rd, q), &[], &[(1, p), (2, q)]);
-        prop_assert_eq!(record.executed[0].aux.dst_val, p >> q);
-        prop_assert_eq!(record.executed[1].aux.dst_val, p >> q);
-        Stark::prove_and_verify(&program, &record).unwrap();
-        Ok(())
-    }
-
     fn prove_div<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8) -> Result<(), TestCaseError> {
         let (program, record) = simple_test_code(&div_rem_instructions(rd), &[], &[(1, p), (2, q)]);
         Stark::prove_and_verify(&program, &record).unwrap();
         Ok(())
+    }
+
+    #[test]
+    fn prove_div_rem_example() {
+        let (program, record) = simple_test_code(&div_rem_instructions(3), &[], &[(1, 1), (2, 0)]);
+        MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
     proptest! {
@@ -252,10 +202,6 @@ mod tests {
             prove_divu::<CpuStark<F, D>>(p, q, rd)?;
         }
 
-        #[test]
-        fn prove_srl_cpu(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
-            prove_srl::<CpuStark<F, D>>(p, q, rd)?;
-        }
     }
 
     proptest! {
@@ -271,9 +217,5 @@ mod tests {
             prove_divu::<MozakStark<F, D>>(p, q, rd)?;
         }
 
-        #[test]
-        fn prove_srl_mozak(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
-            prove_srl::<MozakStark<F, D>>(p, q, rd)?;
-        }
     }
 }

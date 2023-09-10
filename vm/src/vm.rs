@@ -145,15 +145,18 @@ impl State {
         // TODO: consider factoring out this logic from `register_op`, `branch_op`,
         // `memory_load` etc.
         let op1 = self.get_register_value(inst.args.rs1);
+        let rs2_raw = self.get_register_value(inst.args.rs2);
+        // For branch instructions, both op2 and imm serve different purposes.
         // Therefore, we avoid adding them together here.
         let op2 = if matches!(
             inst.op,
             Op::BEQ | Op::BNE | Op::BLT | Op::BLTU | Op::BGE | Op::BGEU
         ) {
-            self.get_register_value(inst.args.rs2)
+            rs2_raw
+        } else if matches!(inst.op, Op::SRL | Op::SLL) {
+            1u32 << (rs2_raw & 0b1_1111)
         } else {
-            self.get_register_value(inst.args.rs2)
-                .wrapping_add(inst.args.imm)
+            rs2_raw.wrapping_add(inst.args.imm)
         };
 
         let (aux, state) = match inst.op {
