@@ -77,7 +77,7 @@ pub fn generate_cpu_trace<F: RichField>(
 
         generate_shift_row(&mut row, aux);
         generate_mul_row(&mut row, aux);
-        generate_div_row(&mut row, &inst, aux);
+        generate_div_row(&mut row, aux);
         generate_sign_handling(&mut row, aux);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
@@ -95,8 +95,12 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
 fn generate_shift_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
-    let shift_power = 1_u32 << aux.op2;
-    let shift_amount = 31_u32 - shift_power.leading_zeros();
+    let shift_power = aux.op2;
+    let shift_amount = if shift_power == 0 {
+        0
+    } else {
+        31_u32 - shift_power.leading_zeros()
+    };
     row.bitshift = Bitshift {
         amount: shift_amount,
         multiplier: shift_power,
@@ -161,7 +165,7 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
+fn generate_div_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
     let dividend_value = aux.op1;
     let dividend_full_range = if row.is_op1_signed().is_nonzero() {
         i64::from(dividend_value as i32)
@@ -177,12 +181,10 @@ fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
 
     if let 0 = divisor_full_range {
         row.quotient_value = from_u32(0xFFFF_FFFF);
-        row.quotient_sign = if inst.op == Op::DIV {
+        row.quotient_sign = if row.is_op2_signed().is_nonzero() {
             F::ONE
-        } else if inst.op == Op::DIVU {
-            F::ZERO
         } else {
-            F::from_bool(dividend_full_range.is_negative())
+            F::ZERO
         };
         row.remainder_value = from_u32(dividend_value);
         row.remainder_slack = F::ZERO;

@@ -154,7 +154,7 @@ impl State {
         ) {
             rs2_raw
         } else if matches!(inst.op, Op::SRL | Op::SLL) {
-            1u32 << (rs2_raw & 0b1_1111)
+            1u32 << (rs2_raw.wrapping_add(inst.args.imm) & 0b1_1111)
         } else {
             rs2_raw.wrapping_add(inst.args.imm)
         };

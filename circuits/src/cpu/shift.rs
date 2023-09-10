@@ -15,19 +15,20 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
+    let is_shift = lv.inst.ops.sll + lv.inst.ops.srl;
     // Check: multiplier is assigned as `2^(rs2 value & 0b1_111)`.
     // We only take lowest 5 bits of the rs2 for the shift amount.
     // This is following the RISC-V specification.
     // Below we use the And gadget to calculate the shift amount, and then use
     // Bitshift table to retrieve the corresponding power of 2, that we will assign
     // to the multiplier.
-
     let and_gadget = and_gadget(&lv.xor);
-    yield_constr.constraint(and_gadget.input_a - P::Scalar::from_noncanonical_u64(0b1_1111));
+    yield_constr
+        .constraint(is_shift * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0b1_1111)));
     let rs2 = CpuState::<P>::populate_rs2_value(lv);
-    yield_constr.constraint(and_gadget.input_b - rs2);
+    yield_constr.constraint(is_shift * (and_gadget.input_b - rs2 - lv.inst.imm_value));
 
-    yield_constr.constraint(and_gadget.output - lv.bitshift.amount);
+    yield_constr.constraint(is_shift * (and_gadget.output - lv.bitshift.amount));
 }
 
 #[cfg(test)]
@@ -112,6 +113,12 @@ mod tests {
         prop_assert_eq!(record.executed[1].aux.dst_val, p << (q & 0b1_1111));
         Stark::prove_and_verify(&program, &record).unwrap();
         Ok(())
+    }
+
+    #[test]
+    fn prove_srl_example() {
+        let (program, record) = simple_test_code(&srl_instructions(3, 1), &[], &[(1, 1), (2, 1)]);
+        MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
     proptest! {
