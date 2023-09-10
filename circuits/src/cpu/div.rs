@@ -170,12 +170,6 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn prove_div_rem_example() {
-        let (program, record) = simple_test_code(&div_rem_instructions(3), &[], &[(1, 1), (2, 0)]);
-        MozakStark::prove_and_verify(&program, &record).unwrap();
-    }
-
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]

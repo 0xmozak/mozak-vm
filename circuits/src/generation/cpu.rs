@@ -108,6 +108,7 @@ fn generate_shift_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
     .map(from_u32);
 }
 
+#[allow(clippy::cast_possible_wrap)]
 fn compute_full_range(is_signed: bool, value: u32) -> i64 {
     if is_signed {
         value as i32 as i64
