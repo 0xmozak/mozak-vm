@@ -164,10 +164,9 @@ mod tests {
         Ok(())
     }
 
-    fn prove_div<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8) -> Result<(), TestCaseError> {
+    fn prove_div<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8)  {
         let (program, record) = simple_test_code(&div_rem_instructions(rd), &[], &[(1, p), (2, q)]);
         Stark::prove_and_verify(&program, &record).unwrap();
-        Ok(())
     }
 
     proptest! {
@@ -183,14 +182,13 @@ mod tests {
 
         #[test]
         fn prove_div_cpu(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
-            prove_div::<CpuStark<F, D>>(p, q, rd)?;
+            prove_div::<CpuStark<F, D>>(p, q, rd);
         }
 
         #[test]
         fn prove_divu_cpu(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
             prove_divu::<CpuStark<F, D>>(p, q, rd)?;
         }
-
     }
 
     proptest! {
@@ -198,13 +196,12 @@ mod tests {
 
         #[test]
         fn prove_div_mozak(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
-            prove_div::<MozakStark<F, D>>(p, q, rd)?;
+            prove_div::<MozakStark<F, D>>(p, q, rd);
         }
 
         #[test]
         fn prove_divu_mozak(p in u32_extra(), q in u32_extra(), rd in 3_u8..32) {
             prove_divu::<MozakStark<F, D>>(p, q, rd)?;
         }
-
     }
 }

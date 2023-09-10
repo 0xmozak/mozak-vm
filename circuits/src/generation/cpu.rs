@@ -109,6 +109,7 @@ fn generate_shift_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
 }
 
 #[allow(clippy::cast_possible_wrap)]
+#[allow(clippy::cast_lossless)]
 fn compute_full_range(is_signed: bool, value: u32) -> i64 {
     if is_signed {
         value as i32 as i64
@@ -171,6 +172,7 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
 }
 
 #[allow(clippy::cast_possible_wrap)]
+#[allow(clippy::cast_lossless)]
 fn generate_div_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
     let dividend_full_range = compute_full_range(row.is_op1_signed().is_nonzero(), aux.op1);
     let divisor_full_range = compute_full_range(row.is_op2_signed().is_nonzero(), aux.op2);
@@ -196,7 +198,7 @@ fn generate_div_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
             F::from_noncanonical_u64(divisor_full_range.unsigned_abs() - 1 - remainder_abs);
         row.remainder_sign = F::from_bool(remainder.is_negative());
     }
-    row.op2_value_inv = from_u32::<F>(divisor_full_range as u32)
+    row.op2_value_inv = from_u32::<F>(aux.op2)
         .try_inverse()
         .unwrap_or_default();
 }
