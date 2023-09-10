@@ -45,33 +45,42 @@ mod tests {
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::{ProveAndVerify, D, F};
 
-    fn srl_instructions(rd: u8, q: u32) -> [Instruction; 2] {
-        [
-            Instruction {
-                op: Op::SRL,
-                args: Args {
-                    rd,
-                    rs1: 1,
-                    rs2: 2,
-                    ..Args::default()
+    fn prove_srl<Stark: ProveAndVerify>(
+        p: u32,
+        q: u32,
+        rs1: u8,
+        rs2: u8,
+        rd: u8,
+    ) -> Result<(), TestCaseError> {
+        prop_assume!(rs1 != rs2);
+        prop_assume!(rs1 != rd);
+        prop_assume!(rs2 != rd);
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::SRL,
+                    args: Args {
+                        rd,
+                        rs1,
+                        rs2,
+                        ..Args::default()
+                    },
                 },
-            },
-            Instruction {
-                op: Op::SRL,
-                args: Args {
-                    rd,
-                    rs1: 1,
-                    imm: q,
-                    ..Args::default()
+                Instruction {
+                    op: Op::SRL,
+                    args: Args {
+                        rd,
+                        rs1,
+                        imm: q,
+                        ..Args::default()
+                    },
                 },
-            },
-        ]
-    }
-
-    fn prove_srl<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8) -> Result<(), TestCaseError> {
-        let (program, record) = simple_test_code(&srl_instructions(rd, q), &[], &[(1, p), (2, q)]);
-        prop_assert_eq!(record.executed[0].aux.dst_val, p >> q);
-        prop_assert_eq!(record.executed[1].aux.dst_val, p >> q);
+            ],
+            &[],
+            &[(rs1, p), (rs2, q)],
+        );
+        prop_assert_eq!(record.executed[0].aux.dst_val, p >> (q & 0b1_1111));
+        prop_assert_eq!(record.executed[1].aux.dst_val, p >> (q & 0b1_1111));
         Stark::prove_and_verify(&program, &record).unwrap();
         Ok(())
     }
@@ -115,12 +124,6 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn prove_srl_example() {
-        let (program, record) = simple_test_code(&srl_instructions(3, 1), &[], &[(1, 1), (2, 1)]);
-        MozakStark::prove_and_verify(&program, &record).unwrap();
-    }
-
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -128,8 +131,8 @@ mod tests {
             prove_sll::<CpuStark<F, D>>(p, q, rs1, rs2, rd)?;
         }
         #[test]
-        fn prove_srl_cpu(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
-            prove_srl::<CpuStark<F, D>>(p, q, rd)?;
+        fn prove_srl_cpu(p in u32_extra(), q in u32_extra(), rs1 in reg(), rs2 in reg(), rd in reg()) {
+            prove_srl::<CpuStark<F, D>>(p, q, rs1, rs2, rd)?;
         }
     }
 
@@ -140,8 +143,8 @@ mod tests {
             prove_sll::<MozakStark<F, D>>(p, q, rs1, rs2, rd)?;
         }
         #[test]
-        fn prove_srl_mozak(p in u32_extra(), q in 0_u32..32, rd in 3_u8..32) {
-            prove_srl::<MozakStark<F, D>>(p, q, rd)?;
+        fn prove_srl_mozak(p in u32_extra(), q in u32_extra(), rs1 in reg(), rs2 in reg(), rd in reg()) {
+            prove_srl::<MozakStark<F, D>>(p, q, rs1, rs2, rd)?;
         }
     }
 }

@@ -105,26 +105,31 @@ fn generate_shift_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
         amount: shift_amount,
         multiplier: shift_power,
     }
-    .map(from_u32)
+    .map(from_u32);
+}
+
+fn compute_full_range(is_signed: bool, value: u32) -> i64 {
+    if is_signed {
+        value as i32 as i64
+    } else {
+        value as i64
+    }
 }
 
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
 fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
     // Helper function to determine sign and absolute value.
-    let sign_and_absolute = |is_signed: bool, x: u32| {
-        if is_signed {
-            ((x as i32) < 0, (x as i32).unsigned_abs())
-        } else {
-            (false, x)
-        }
+    let compute_sign_and_abs: fn(bool, u32) -> (bool, u32) = |is_signed, value| {
+        let full_range = compute_full_range(is_signed, value);
+        let is_negative = full_range.is_negative();
+        let absolute_value = full_range.abs() as u32;
+        (is_negative, absolute_value)
     };
-
-    // Calculate op2 values.
-    let (is_op2_negative, op2_abs) = sign_and_absolute(row.is_op2_signed().is_nonzero(), aux.op2);
-
-    // Calculate op1 values.
-    let (is_op1_negative, op1_abs) = sign_and_absolute(row.is_op1_signed().is_nonzero(), aux.op1);
+    let (is_op2_negative, op2_abs) =
+        compute_sign_and_abs(row.is_op2_signed().is_nonzero(), aux.op2);
+    let (is_op1_negative, op1_abs) =
+        compute_sign_and_abs(row.is_op1_signed().is_nonzero(), aux.op1);
 
     // Determine product sign and absolute value.
     let mut product_sign = is_op1_negative ^ is_op2_negative;
@@ -166,27 +171,17 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
 
 #[allow(clippy::cast_possible_wrap)]
 fn generate_div_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
-    let dividend_value = aux.op1;
-    let dividend_full_range = if row.is_op1_signed().is_nonzero() {
-        i64::from(dividend_value as i32)
-    } else {
-        i64::from(dividend_value)
-    };
-    let divisor_value = aux.op2;
-    let divisor_full_range = if row.is_op2_signed().is_nonzero() {
-        i64::from(divisor_value as i32)
-    } else {
-        i64::from(divisor_value)
-    };
+    let dividend_full_range = compute_full_range(row.is_op1_signed().is_nonzero(), aux.op1);
+    let divisor_full_range = compute_full_range(row.is_op2_signed().is_nonzero(), aux.op2);
 
-    if let 0 = divisor_full_range {
+    if divisor_full_range == 0 {
         row.quotient_value = from_u32(0xFFFF_FFFF);
         row.quotient_sign = if row.is_op2_signed().is_nonzero() {
             F::ONE
         } else {
             F::ZERO
         };
-        row.remainder_value = from_u32(dividend_value);
+        row.remainder_value = from_u32(aux.op1);
         row.remainder_slack = F::ZERO;
         row.remainder_sign = F::from_bool(dividend_full_range.is_negative());
     } else {

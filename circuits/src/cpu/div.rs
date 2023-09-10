@@ -21,14 +21,6 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     let two_to_32 = CpuState::<P>::shifted(32);
-    let is_divu = lv.inst.ops.divu;
-    let is_remu = lv.inst.ops.remu;
-    let is_div = lv.inst.ops.div;
-    let is_rem = lv.inst.ops.rem;
-    let is_srl = lv.inst.ops.srl;
-    let any_div = is_divu + is_remu + is_div + is_rem;
-    // let all = is_divu + is_remu + is_div + is_rem + is_srl;
-
     let dividend_value = lv.op1_value;
     let dividend_sign = lv.op1_sign_bit;
     let dividend_full_range = CpuState::<P>::op1_full_range(lv);
@@ -36,7 +28,8 @@ pub(crate) fn constraints<P: PackedField>(
     let divisor_abs = lv.op2_abs;
     let divisor_full_range = CpuState::<P>::op2_full_range(lv);
 
-    // The following columns are used only in this function:
+    // The following columns are used only in this function, which requires extra
+    // checks or range checks.
     let divisor_value_inv = lv.op2_value_inv;
     let quotient_value = lv.quotient_value;
     let quotient_sign = lv.quotient_sign;
@@ -91,8 +84,10 @@ pub(crate) fn constraints<P: PackedField>(
 
     // Last, we 'copy' our results:
     let dst = lv.dst_value;
-    yield_constr.constraint((is_div + is_divu + is_srl) * (dst - quotient_value));
-    yield_constr.constraint((is_rem + is_remu) * (dst - remainder_value));
+    let is_div_ops = lv.inst.ops.divu + lv.inst.ops.div + lv.inst.ops.srl;
+    let is_rem_ops = lv.inst.ops.remu + lv.inst.ops.rem;
+    yield_constr.constraint(is_div_ops * (dst - quotient_value));
+    yield_constr.constraint(is_rem_ops * (dst - remainder_value));
 }
 
 #[cfg(test)]
