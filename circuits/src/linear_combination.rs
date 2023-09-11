@@ -249,7 +249,9 @@ impl<F: Field> Column<F> {
     }
 
     /// Evaluate on an row of a table given in column-major form.
+    #[allow(clippy::cast_possible_wrap)]
     pub fn eval_table(&self, table: &[PolynomialValues<F>], row: usize) -> F {
+        #[allow(clippy::cast_possible_truncation)]
         fn lookup<B>(a: &Vec<B>, i: i64) -> &B { &a[i.rem_euclid(a.len() as i64) as usize] }
         // TODO(Matthias): review this carefully.
         // Why do we have to do (row - 1, row), and why doesn't (row, row + 1) work
