@@ -276,21 +276,19 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
             columns,
             filter_column,
         } = lookup_vars;
-        let combine = |v: &[P]| -> P {
-            let evals = columns.iter().map(|c| c.eval(v)).collect::<Vec<_>>();
+        let combine = |lv: &[P], nv: &[P]| -> P {
+            let evals = columns.iter().map(|c| c.eval(lv, nv)).collect::<Vec<_>>();
             challenges.combine(evals.iter())
         };
-        let filter = |v: &[P]| -> P { filter_column.eval(v) };
-        let local_filter = filter(vars.local_values);
-        let next_filter = filter(vars.next_values);
+        let combination = combine(vars.local_values, vars.next_values);
+        let filter = |lv: &[P], nv: &[P]| -> P { filter_column.eval(lv, nv) };
+        let filter = filter(vars.local_values, vars.next_values);
         let select = |filter, x| filter * x + P::ONES - filter;
 
         // Check value of `Z(1)`
-        consumer.constraint_first_row(*local_z - select(local_filter, combine(vars.local_values)));
+        consumer.constraint_last_row(*next_z - select(filter, combination));
         // Check `Z(gw) = combination * Z(w)`
-        consumer.constraint_transition(
-            *next_z - *local_z * select(next_filter, combine(vars.next_values)),
-        );
+        consumer.constraint_transition(*next_z - *local_z * select(filter, combination));
     }
 }
 

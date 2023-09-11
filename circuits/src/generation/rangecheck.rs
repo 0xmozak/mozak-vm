@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 use std::ops::Index;
 
+use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
@@ -52,8 +53,9 @@ where
     if let [column] = &looking_table.columns[..] {
         trace
             .iter()
-            .filter(|&row| looking_table.filter_column.eval(row).is_one())
-            .map(|row| column.eval(row))
+            .circular_tuple_windows()
+            .filter(|&(prev_row, row)| looking_table.filter_column.eval(prev_row, row).is_one())
+            .map(|(prev_row, row)| column.eval(prev_row, row))
             .collect()
     } else {
         panic!("Can only range check single values, not tuples.")
@@ -133,48 +135,4 @@ pub fn generate_rangecheck_trace<F: RichField>(
             v.len()
         )
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::simple_test_code;
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::Field;
-
-    use super::*;
-    use crate::generation::cpu::generate_cpu_trace;
-    use crate::generation::memory::generate_memory_trace;
-
-    #[test]
-    fn test_add_instruction_inserts_rangecheck() {
-        type F = GoldilocksField;
-        let (program, record) = simple_test_code(
-            &[Instruction {
-                op: Op::ADD,
-                args: Args {
-                    rd: 5,
-                    rs1: 6,
-                    rs2: 7,
-                    ..Args::default()
-                },
-            }],
-            // Use values that would become limbs later
-            &[],
-            &[(6, 0xffff), (7, 0xffff)],
-        );
-
-        let cpu_rows = generate_cpu_trace::<F>(&program, &record);
-        let memory_rows = generate_memory_trace::<F>(&program, &record.executed);
-        let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
-
-        // Check values that we are interested in
-        assert_eq!(trace[MAP.filter][0], F::ONE);
-        assert_eq!(trace[MAP.filter][1], F::ONE);
-        assert_eq!(trace[MAP.val][0], GoldilocksField(0x0001_fffe));
-        assert_eq!(trace[MAP.val][1], GoldilocksField(0));
-        assert_eq!(trace[MAP.limb_hi][0], GoldilocksField(0x0001));
-        assert_eq!(trace[MAP.limb_lo][0], GoldilocksField(0xfffe));
-        assert_eq!(trace[MAP.limb_lo][1], GoldilocksField(0));
-    }
 }

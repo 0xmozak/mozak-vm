@@ -15,7 +15,8 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 /// Represent a linear combination of columns.
 #[derive(Clone, Debug, Default)]
 pub struct Column<F: Field> {
-    linear_combination: Vec<(usize, F)>,
+    lv_linear_combination: Vec<(usize, F)>,
+    nv_linear_combination: Vec<(usize, F)>,
     constant: F,
 }
 
@@ -24,8 +25,13 @@ impl<F: Field> Neg for Column<F> {
 
     fn neg(self) -> Self::Output {
         Self {
-            linear_combination: self
-                .linear_combination
+            lv_linear_combination: self
+                .lv_linear_combination
+                .into_iter()
+                .map(|(idx, c)| (idx, -c))
+                .collect(),
+            nv_linear_combination: self
+                .nv_linear_combination
                 .into_iter()
                 .map(|(idx, c)| (idx, -c))
                 .collect(),
@@ -38,35 +44,26 @@ impl<F: Field> Add<Self> for Column<F> {
     type Output = Self;
 
     #[allow(clippy::similar_names)]
-    fn add(
-        self,
-        Column {
-            linear_combination: mut rlc,
-            constant: rc,
-        }: Self,
-    ) -> Self {
-        let Self {
-            linear_combination: mut slc,
-            constant: sc,
-        } = self;
-        slc.sort_by_key(|&(col_idx, _)| col_idx);
-        rlc.sort_by_key(|&(col_idx, _)| col_idx);
-
-        let linear_combination = slc
-            .into_iter()
-            .merge_join_by(rlc, |(l, _), (r, _)| l.cmp(r))
-            .map(|x| match x {
-                EitherOrBoth::Left(pair) | EitherOrBoth::Right(pair) => pair,
-                EitherOrBoth::Both((idx0, c0), (idx1, c1)) => {
-                    assert_eq!(idx0, idx1);
-                    (idx0, c0 + c1)
-                }
-            })
-            .collect();
+    fn add(self, other: Self) -> Self {
+        let add_lc = |mut slc: Vec<(usize, F)>, mut rlc: Vec<(usize, F)>| {
+            slc.sort_by_key(|&(col_idx, _)| col_idx);
+            rlc.sort_by_key(|&(col_idx, _)| col_idx);
+            slc.into_iter()
+                .merge_join_by(rlc, |(l, _), (r, _)| l.cmp(r))
+                .map(|x| match x {
+                    EitherOrBoth::Left(pair) | EitherOrBoth::Right(pair) => pair,
+                    EitherOrBoth::Both((idx0, c0), (idx1, c1)) => {
+                        assert_eq!(idx0, idx1);
+                        (idx0, c0 + c1)
+                    }
+                })
+                .collect()
+        };
 
         Self {
-            linear_combination,
-            constant: sc + rc,
+            lv_linear_combination: add_lc(self.lv_linear_combination, other.lv_linear_combination),
+            nv_linear_combination: add_lc(self.nv_linear_combination, other.nv_linear_combination),
+            constant: self.constant + other.constant,
         }
     }
 }
@@ -94,8 +91,8 @@ impl<F: Field> Add<F> for Column<F> {
 
     fn add(self, constant: F) -> Self {
         Self {
-            linear_combination: self.linear_combination,
             constant: self.constant + constant,
+            ..self
         }
     }
 }
@@ -118,8 +115,13 @@ impl<F: Field> Mul<F> for Column<F> {
 
     fn mul(self, factor: F) -> Self {
         Self {
-            linear_combination: self
-                .linear_combination
+            lv_linear_combination: self
+                .lv_linear_combination
+                .into_iter()
+                .map(|(idx, c)| (idx, factor * c))
+                .collect(),
+            nv_linear_combination: self
+                .nv_linear_combination
                 .into_iter()
                 .map(|(idx, c)| (idx, factor * c))
                 .collect(),
@@ -151,8 +153,8 @@ impl<F: Field> Sum<usize> for Column<F> {
 impl<F: Field> From<usize> for Column<F> {
     fn from(idx: usize) -> Self {
         Self {
-            linear_combination: vec![(idx, F::ONE)],
-            constant: F::ZERO,
+            nv_linear_combination: vec![(idx, F::ONE)],
+            ..Default::default()
         }
     }
 }
@@ -161,7 +163,8 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn always() -> Self {
         Column {
-            linear_combination: vec![],
+            lv_linear_combination: vec![],
+            nv_linear_combination: vec![],
             constant: F::ONE,
         }
     }
@@ -169,22 +172,48 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn not(c: usize) -> Self {
         Self {
-            linear_combination: vec![(c, F::NEG_ONE)],
+            lv_linear_combination: vec![],
+            nv_linear_combination: vec![(c, F::NEG_ONE)],
             constant: F::ONE,
         }
     }
 
     #[must_use]
-    pub fn single(idx: usize) -> Self { idx.into() }
+    pub fn single(c: usize) -> Self {
+        Self {
+            lv_linear_combination: vec![],
+            nv_linear_combination: vec![(c, F::ONE)],
+            constant: F::ZERO,
+        }
+    }
+
+    #[must_use]
+    pub fn single_prev(c: usize) -> Self {
+        Self {
+            lv_linear_combination: vec![(c, F::ONE)],
+            nv_linear_combination: vec![],
+            constant: F::ZERO,
+        }
+    }
+
+    #[must_use]
+    pub fn single_diff(c: usize) -> Self { Self::single(c) - Self::single_prev(c) }
 
     pub fn singles<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Vec<Self> {
         cs.into_iter().map(|c| Self::single(*c.borrow())).collect()
     }
 
+    pub fn singles_diff<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Vec<Self> {
+        cs.into_iter()
+            .map(|c| Self::single_diff(*c.borrow()))
+            .collect()
+    }
+
     #[must_use]
     pub fn many<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
-            linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect(),
+            lv_linear_combination: vec![],
+            nv_linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect(),
             constant: F::ZERO,
         }
     }
@@ -192,7 +221,8 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn ascending_sum<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
-            linear_combination: cs
+            lv_linear_combination: vec![],
+            nv_linear_combination: cs
                 .into_iter()
                 .enumerate()
                 .map(|(i, c)| (*c.borrow(), F::from_canonical_usize(i)))
@@ -201,33 +231,57 @@ impl<F: Field> Column<F> {
         }
     }
 
-    pub fn eval<FE, P, const D: usize, V>(&self, v: &V) -> P
+    pub fn eval<FE, P, const D: usize, V>(&self, lv: &V, nv: &V) -> P
     where
         FE: FieldExtension<D, BaseField = F>,
         P: PackedField<Scalar = FE>,
         V: Index<usize, Output = P> + ?Sized, {
-        self.linear_combination
+        self.lv_linear_combination
             .iter()
-            .map(|&(c, f)| v[c] * FE::from_basefield(f))
+            .map(|&(c, f)| lv[c] * FE::from_basefield(f))
             .sum::<P>()
+            + self
+                .nv_linear_combination
+                .iter()
+                .map(|&(c, f)| nv[c] * FE::from_basefield(f))
+                .sum::<P>()
             + FE::from_basefield(self.constant)
     }
 
     /// Evaluate on an row of a table given in column-major form.
     pub fn eval_table(&self, table: &[PolynomialValues<F>], row: usize) -> F {
-        self.linear_combination
+        // TODO(Matthias): review this carefully.
+        // Why do we have to do (row - 1, row), and why doesn't (row, row + 1) work?
+        self.lv_linear_combination
             .iter()
-            .map(|&(c, f)| table[c].values[row] * f)
+            .map(|&(c, f)| {
+                table[c].values[(row + table[c].values.len() - 1) % table[c].values.len()] * f
+            })
             .sum::<F>()
+            + self
+                .nv_linear_combination
+                .iter()
+                .map(|&(c, f)| table[c].values[row] * f)
+                .sum::<F>()
             + self.constant
     }
 
     /// Evaluate on an row of a table
-    pub fn eval_row(&self, row: &impl Index<usize, Output = F>) -> F {
-        self.linear_combination
+    #[allow(clippy::similar_names)]
+    pub fn eval_row(
+        &self,
+        lv_row: &impl Index<usize, Output = F>,
+        nv_row: &impl Index<usize, Output = F>,
+    ) -> F {
+        self.lv_linear_combination
             .iter()
-            .map(|&(c, f)| row[c] * f)
+            .map(|&(c, f)| lv_row[c] * f)
             .sum::<F>()
+            + self
+                .nv_linear_combination
+                .iter()
+                .map(|&(c, f)| nv_row[c] * f)
+                .sum::<F>()
             + self.constant
     }
 
@@ -239,7 +293,7 @@ impl<F: Field> Column<F> {
     where
         F: RichField + Extendable<D>, {
         let pairs = self
-            .linear_combination
+            .nv_linear_combination
             .iter()
             .map(|&(c, f)| {
                 (
