@@ -147,18 +147,18 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             _ => Default::default(),
         },
         0b001_0011 => match bf.func3() {
-            // For Risc-V its ADDI but we handle it as ADD.
+            // For Risc-V it's ADDI, but we handle it as ADD.
             0x0 => (Op::ADD, itype),
-            // For Risc-V it's SLLI, but we handle it as MUL
+            // For Risc-V it's SLLI, but we handle it as MUL.
             0x1 if 0 == itype.imm & !0b1_1111 => (Op::MUL, Args {
                 imm: 1 << itype.imm,
                 ..itype
             }),
-            // For Risc-V its SLTI but we handle it as SLT.
+            // For Risc-V it's SLTI, but we handle it as SLT.
             0x2 => (Op::SLT, itype),
-            // For Risc-V its SLTIU but we handle it as SLTU.
+            // For Risc-V it's SLTIU, but we handle it as SLTU.
             0x3 => (Op::SLTU, itype),
-            // For Risc-V its XORI but we handle it as XOR.
+            // For Risc-V it's XORI, but we handle it as XOR.
             0x4 => (Op::XOR, itype),
             0x5 => {
                 let imm = itype.imm;
@@ -182,9 +182,9 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
                     _ => Default::default(),
                 }
             }
-            // For Risc-V its ORI but we handle it as OR.
+            // For Risc-V it's ORI, but we handle it as OR.
             0x6 => (Op::OR, itype),
-            // For Risc-V its ANDI but we handle it as AND.
+            // For Risc-V it's ANDI, but we handle it as AND.
             0x7 => (Op::AND, itype),
             #[tarpaulin::skip]
             _ => Default::default(),
