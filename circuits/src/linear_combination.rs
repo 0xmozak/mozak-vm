@@ -250,12 +250,14 @@ impl<F: Field> Column<F> {
 
     /// Evaluate on an row of a table given in column-major form.
     pub fn eval_table(&self, table: &[PolynomialValues<F>], row: usize) -> F {
+        fn lookup<B>(a: &Vec<B>, i: i64) -> &B { &a[i.rem_euclid(a.len() as i64) as usize] }
         // TODO(Matthias): review this carefully.
-        // Why do we have to do (row - 1, row), and why doesn't (row, row + 1) work?
+        // Why do we have to do (row - 1, row), and why doesn't (row, row + 1) work
         self.lv_linear_combination
             .iter()
             .map(|&(c, f)| {
-                table[c].values[(row + table[c].values.len() - 1) % table[c].values.len()] * f
+                // TODO: Add tests.
+                *lookup(&table[c].values, row as i64 - 1) * f
             })
             .sum::<F>()
             + self
