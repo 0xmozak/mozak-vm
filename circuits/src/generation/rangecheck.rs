@@ -8,7 +8,7 @@ use crate::cpu::columns::CpuState;
 use crate::lookup::permute_cols;
 use crate::memory::columns::Memory;
 use crate::rangecheck::columns::{self, RangeCheckColumnsView, MAP};
-use crate::stark::mozak_stark::{Lookups, RangecheckCpuTable, Table, TableKind};
+use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
 
 pub(crate) const RANGE_CHECK_U16_SIZE: usize = 1 << 16;
 
@@ -30,7 +30,8 @@ fn pad_rc_trace<F: RichField>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
 }
 
 /// Converts a u32 into 2 u16 limbs represented in [`RichField`].
-fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
+#[must_use]
+pub fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
     (
         F::from_noncanonical_u64((value >> 16).into()),
         F::from_noncanonical_u64((value & 0xffff).into()),
@@ -46,7 +47,6 @@ fn push_rangecheck_row<F: RichField>(
     }
 }
 
-#[allow(clippy::missing_panics_doc)]
 pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<F>
 where
     V: Index<usize, Output = F> + 'a, {
@@ -54,13 +54,8 @@ where
         trace
             .iter()
             .circular_tuple_windows()
-            .filter_map(|(prev_row, row)| {
-                looking_table
-                    .filter_column
-                    .eval(prev_row, row)
-                    .is_one()
-                    .then(|| column.eval(prev_row, row))
-            })
+            .filter(|&(prev_row, row)| looking_table.filter_column.eval(prev_row, row).is_one())
+            .map(|(prev_row, row)| column.eval(prev_row, row))
             .collect()
     } else {
         panic!("Can only range check single values, not tuples.")
@@ -83,7 +78,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
 ) -> [Vec<F>; columns::NUM_RC_COLS] {
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
 
-    for looking_table in RangecheckCpuTable::lookups().looking_tables {
+    for looking_table in RangecheckTable::lookups().looking_tables {
         let values = match looking_table.kind {
             TableKind::Cpu => extract(cpu_trace, &looking_table),
             TableKind::Memory => extract(memory_trace, &looking_table),
@@ -98,7 +93,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
                 val,
                 limb_lo,
                 limb_hi,
-                cpu_filter: F::ONE,
+                filter: F::ONE,
                 ..Default::default()
             };
             push_rangecheck_row(&mut trace, rangecheck_row.borrow());
@@ -140,62 +135,4 @@ pub fn generate_rangecheck_trace<F: RichField>(
             v.len()
         )
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::simple_test_code;
-    use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::Field;
-
-    use super::*;
-    use crate::generation::cpu::generate_cpu_trace;
-    use crate::generation::memory::generate_memory_trace;
-
-    #[test]
-    fn test_add_instruction_inserts_rangecheck() {
-        type F = GoldilocksField;
-        let (program, record) = simple_test_code(
-            &[Instruction {
-                op: Op::ADD,
-                args: Args {
-                    rd: 5,
-                    rs1: 6,
-                    rs2: 7,
-                    ..Args::default()
-                },
-            }],
-            // Use values that would become limbs later
-            &[],
-            &[(6, 0xffff), (7, 0xffff)],
-        );
-
-        let cpu_rows = generate_cpu_trace::<F>(&program, &record);
-        let memory_rows = generate_memory_trace::<F>(&program, &record.executed);
-        let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
-
-        // Check values that we are interested in
-        assert_eq!(trace[MAP.cpu_filter][0], F::ONE);
-        assert_eq!(trace[MAP.cpu_filter][1], F::ONE);
-        assert_eq!(trace[MAP.val][1], GoldilocksField(0x0001_fffe));
-        assert_eq!(trace[MAP.val][0], GoldilocksField(93));
-        assert_eq!(trace[MAP.limb_hi][1], GoldilocksField(0x0001));
-        assert_eq!(trace[MAP.limb_lo][1], GoldilocksField(0xfffe));
-        assert_eq!(trace[MAP.limb_lo][0], GoldilocksField(93));
-
-        // Ensure rest of trace is zeroed out
-        for cpu_filter in &trace[MAP.cpu_filter][2..] {
-            assert_eq!(cpu_filter, &F::ZERO);
-        }
-        for value in &trace[MAP.val][2..] {
-            assert_eq!(value, &F::ZERO);
-        }
-        for limb_hi in &trace[MAP.limb_hi][2..] {
-            assert_eq!(limb_hi, &F::ZERO);
-        }
-        for limb_lo in &trace[MAP.limb_lo][2..] {
-            assert_eq!(limb_lo, &F::ZERO);
-        }
-    }
 }

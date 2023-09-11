@@ -26,7 +26,7 @@ columns_view_impl!(BitshiftView);
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct BitshiftView<T> {
     /// This column tells if the row has a corresponding value row
-    /// in the CPU table. If not, then this is a dummy row, used to
+    /// in the CPU table. If not, then this is a padding row, used to
     /// pad the table to a power of 2 size or a dummy row
     /// to bridge a gap in the shift amounts.
     pub is_executed: T,
@@ -41,4 +41,4 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.executed
 
 /// Column containing filter from CPU table.
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(MAP.is_executed) }
+pub fn filter_for_cpu<F: Field>() -> Column<F> { MAP.is_executed.into() }

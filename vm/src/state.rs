@@ -1,7 +1,8 @@
+use anyhow::{anyhow, Result};
 use im::hashmap::HashMap;
 use log::trace;
 
-use crate::elf::{Data, Program};
+use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction};
 
 /// State of our VM
@@ -10,24 +11,50 @@ use crate::instruction::{Args, Instruction};
 /// carefully picked the type of `memory` to be clonable in about O(1)
 /// regardless of size. That way we can keep cheaply keep snapshots even at
 /// every step of evaluation.
+///
+/// A note on memory structuring: The `State` follows a [modified Harvard architecture](https://en.wikipedia.org/wiki/Modified_Harvard_architecture).
+/// As such we effectively have separate address spaces for code and memory.
+/// 'Modified' means that we pre-populate the memory address space with a copy
+/// of the code. Writing to that copy does not change the instructions.
+///
+/// You can think of this as instructions being cached at the start of the
+/// program and that cache never updating afterwards.
+///
+/// This is very similar to what many real world CPUs, including Risc-V ones, do
+/// by default. The FENCE instruction can be used to make the CPU update the
+/// instruction cache on many CPUs.  But we deliberately don't support that
+/// usecase.
 #[derive(Clone, Debug, Default)]
 pub struct State {
     pub clk: u64,
     pub halted: bool,
     pub registers: [u32; 32],
     pub pc: u32,
-    pub memory: HashMap<u32, u8>,
+    pub rw_memory: HashMap<u32, u8>,
+    pub ro_memory: HashMap<u32, u8>,
 }
 
-impl From<&Program> for State {
-    fn from(program: &Program) -> Self {
-        let Data(memory) = program.data.clone();
+#[allow(clippy::similar_names)]
+impl From<Program> for State {
+    fn from(
+        Program {
+            ro_code: Code(_),
+            rw_memory: Data(rw_memory),
+            ro_memory: Data(ro_memory),
+            entry_point: pc,
+        }: Program,
+    ) -> Self {
         Self {
-            pc: program.entry,
-            memory,
+            pc,
+            rw_memory,
+            ro_memory,
             ..Default::default()
         }
     }
+}
+
+impl From<&Program> for State {
+    fn from(program: &Program) -> Self { Self::from(program.clone()) }
 }
 
 /// Auxiliary information about the instruction execution
@@ -84,11 +111,11 @@ impl State {
     #[allow(clippy::missing_panics_doc)]
     pub fn branch_op(self, data: &Args, op: fn(u32, u32) -> bool) -> (Aux, State) {
         let op1 = self.get_register_value(data.rs1);
-        let op2 = self.get_register_value(data.rs2).wrapping_add(data.imm);
+        let op2 = self.get_register_value(data.rs2);
         (
             Aux::default(),
             if op(op1, op2) {
-                self.set_pc(data.branch_target)
+                self.set_pc(data.imm)
             } else {
                 self.bump_pc()
             },
@@ -167,23 +194,36 @@ impl State {
     /// address space you can get with 32 bits.
     /// So no u32 address is out of bounds.
     #[must_use]
-    pub fn load_u8(&self, addr: u32) -> u8 { self.memory.get(&addr).copied().unwrap_or_default() }
+    pub fn load_u8(&self, addr: u32) -> u8 {
+        self.ro_memory
+            .get(&addr)
+            .or_else(|| self.rw_memory.get(&addr))
+            .copied()
+            .unwrap_or_default()
+    }
 
     /// Store a byte to memory
     ///
     /// # Errors
     /// This function returns an error, if you try to store to an invalid
     /// address.
-    #[must_use]
-    pub fn store_u8(mut self, addr: u32, value: u8) -> Self {
-        self.memory.insert(addr, value);
-        self
+    pub fn store_u8(mut self, addr: u32, value: u8) -> Result<Self> {
+        match self.ro_memory.entry(addr) {
+            im::hashmap::Entry::Occupied(entry) => Err(anyhow!(
+                "cannot write to ro_memory entry {:?}",
+                (entry.key(), entry.get())
+            )),
+            im::hashmap::Entry::Vacant(_) => {
+                self.rw_memory.insert(addr, value);
+                Ok(self)
+            }
+        }
     }
 
     #[must_use]
     pub fn current_instruction(&self, program: &Program) -> Instruction {
         let pc = self.get_pc();
-        let inst = program.code.get_instruction(pc);
+        let inst = program.ro_code.get_instruction(pc);
         trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}");
         inst
     }

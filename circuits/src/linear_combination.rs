@@ -1,6 +1,9 @@
+use core::iter::Sum;
+use core::ops::{Add, Mul, Neg, Sub};
 use std::borrow::Borrow;
 use std::ops::Index;
 
+use itertools::{EitherOrBoth, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -15,6 +18,161 @@ pub struct Column<F: Field> {
     lv_linear_combination: Vec<(usize, F)>,
     nv_linear_combination: Vec<(usize, F)>,
     constant: F,
+}
+
+impl<F: Field> Neg for Column<F> {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            lv_linear_combination: self
+                .lv_linear_combination
+                .into_iter()
+                .map(|(idx, c)| (idx, -c))
+                .collect(),
+            nv_linear_combination: self
+                .nv_linear_combination
+                .into_iter()
+                .map(|(idx, c)| (idx, -c))
+                .collect(),
+            constant: -self.constant,
+        }
+    }
+}
+
+impl<F: Field> Add<Self> for Column<F> {
+    type Output = Self;
+
+    #[allow(clippy::similar_names)]
+    fn add(
+        self,
+        Column {
+            lv_linear_combination: mut lv_rlc,
+            nv_linear_combination: mut nv_rlc,
+            constant: rc,
+        }: Self,
+    ) -> Self {
+        let Self {
+            lv_linear_combination: mut lv_slc,
+            nv_linear_combination: mut nv_slc,
+            constant: sc,
+        } = self;
+        // TODO(Matthias): perhaps make a 'normalise' function that sorts them?
+        lv_slc.sort_by_key(|&(col_idx, _)| col_idx);
+        nv_slc.sort_by_key(|&(col_idx, _)| col_idx);
+        lv_rlc.sort_by_key(|&(col_idx, _)| col_idx);
+        nv_rlc.sort_by_key(|&(col_idx, _)| col_idx);
+
+        let add_lc = |slc: Vec<(usize, F)>, rlc: Vec<(usize, F)>| {
+            slc.into_iter()
+                .merge_join_by(rlc, |(l, _), (r, _)| l.cmp(r))
+                .map(|x| match x {
+                    EitherOrBoth::Left(pair) | EitherOrBoth::Right(pair) => pair,
+                    EitherOrBoth::Both((idx0, c0), (idx1, c1)) => {
+                        assert_eq!(idx0, idx1);
+                        (idx0, c0 + c1)
+                    }
+                })
+                .collect()
+        };
+
+        Self {
+            lv_linear_combination: add_lc(lv_slc, lv_rlc),
+            nv_linear_combination: add_lc(nv_slc, nv_rlc),
+            constant: sc + rc,
+        }
+    }
+}
+
+impl<F: Field> Add<Self> for &Column<F> {
+    type Output = Column<F>;
+
+    fn add(self, other: Self) -> Self::Output { self.clone() + other.clone() }
+}
+
+impl<F: Field> Add<Column<F>> for &Column<F> {
+    type Output = Column<F>;
+
+    fn add(self, other: Column<F>) -> Self::Output { self.clone() + other }
+}
+
+impl<F: Field> Add<&Self> for Column<F> {
+    type Output = Column<F>;
+
+    fn add(self, other: &Self) -> Self::Output { self + other.clone() }
+}
+
+impl<F: Field> Add<F> for Column<F> {
+    type Output = Self;
+
+    fn add(self, constant: F) -> Self {
+        Self {
+            constant: self.constant + constant,
+            ..self
+        }
+    }
+}
+
+impl<F: Field> Add<F> for &Column<F> {
+    type Output = Column<F>;
+
+    fn add(self, constant: F) -> Column<F> { self.clone() + constant }
+}
+
+impl<F: Field> Sub<Self> for Column<F> {
+    type Output = Self;
+
+    #[allow(clippy::suspicious_arithmetic_impl)]
+    fn sub(self, other: Self) -> Self::Output { self.clone() + other.neg() }
+}
+
+impl<F: Field> Mul<F> for Column<F> {
+    type Output = Self;
+
+    fn mul(self, factor: F) -> Self {
+        Self {
+            lv_linear_combination: self
+                .lv_linear_combination
+                .into_iter()
+                .map(|(idx, c)| (idx, factor * c))
+                .collect(),
+            nv_linear_combination: self
+                .nv_linear_combination
+                .into_iter()
+                .map(|(idx, c)| (idx, factor * c))
+                .collect(),
+            constant: factor * self.constant,
+        }
+    }
+}
+
+impl<F: Field> Mul<F> for &Column<F> {
+    type Output = Column<F>;
+
+    fn mul(self, factor: F) -> Column<F> { self.clone() * factor }
+}
+
+impl<F: Field> Sum<Column<F>> for Column<F> {
+    #[inline]
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.reduce(|x, y| x + y).unwrap_or_default()
+    }
+}
+
+impl<F: Field> Sum<usize> for Column<F> {
+    #[inline]
+    fn sum<I: Iterator<Item = usize>>(iter: I) -> Self { iter.map(Self::from).sum() }
+}
+
+// TODO: implement other traits like Sub, MulAssign, etc as we need them.
+
+impl<F: Field> From<usize> for Column<F> {
+    fn from(idx: usize) -> Self {
+        Self {
+            nv_linear_combination: vec![(idx, F::ONE)],
+            ..Default::default()
+        }
+    }
 }
 
 impl<F: Field> Column<F> {
@@ -68,7 +226,9 @@ impl<F: Field> Column<F> {
     }
 
     pub fn singles_diff<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Vec<Self> {
-        cs.into_iter().map(|c| Self::single_diff(*c.borrow())).collect()
+        cs.into_iter()
+            .map(|c| Self::single_diff(*c.borrow()))
+            .collect()
     }
 
     #[must_use]
@@ -116,12 +276,33 @@ impl<F: Field> Column<F> {
         // Why do we have to do (row - 1, row), and why doesn't (row, row + 1) work?
         self.lv_linear_combination
             .iter()
-            .map(|&(c, f)| table[c].values[(row + table[c].values.len() - 1) % table[c].values.len()] * f)
+            .map(|&(c, f)| {
+                table[c].values[(row + table[c].values.len() - 1) % table[c].values.len()] * f
+            })
             .sum::<F>()
             + self
                 .nv_linear_combination
                 .iter()
                 .map(|&(c, f)| table[c].values[row] * f)
+                .sum::<F>()
+            + self.constant
+    }
+
+    /// Evaluate on an row of a table
+    #[allow(clippy::similar_names)]
+    pub fn eval_row(
+        &self,
+        lv_row: &impl Index<usize, Output = F>,
+        nv_row: &impl Index<usize, Output = F>,
+    ) -> F {
+        self.lv_linear_combination
+            .iter()
+            .map(|&(c, f)| lv_row[c] * f)
+            .sum::<F>()
+            + self
+                .nv_linear_combination
+                .iter()
+                .map(|&(c, f)| nv_row[c] * f)
                 .sum::<F>()
             + self.constant
     }

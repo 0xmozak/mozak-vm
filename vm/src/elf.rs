@@ -16,15 +16,21 @@ use crate::instruction::Instruction;
 use crate::util::load_u32;
 
 /// A RISC program
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Program {
     /// The entrypoint of the program
-    pub entry: u32,
+    pub entry_point: u32,
 
-    /// The initial memory image
-    pub data: Data,
-    /// Executable code
-    pub code: Code,
+    /// Read-only section of memory
+    /// 'ro_memory' takes precedence, if a memory location is in both.
+    pub ro_memory: Data,
+
+    /// Read-write section of memory
+    /// 'ro_memory' takes precedence, if a memory location is in both.
+    pub rw_memory: Data,
+
+    /// Executable code of the ELF, read only
+    pub ro_code: Code,
 }
 
 #[derive(Clone, Debug, Default, Deref)]
@@ -55,14 +61,29 @@ impl From<&HashMap<u32, u8>> for Code {
     }
 }
 
+// TODO: Right now, we only have conventient functions for initialising the
+// rw_memory and ro_code. In the future we might want to add ones for ro_memory
+// as well (or leave it to be manually constructed by the caller).
 impl From<HashMap<u32, u8>> for Program {
     #[tarpaulin::skip]
     fn from(image: HashMap<u32, u8>) -> Self {
         Self {
-            entry: 0_u32,
-            code: Code::from(&image),
-            data: Data(image),
+            entry_point: 0_u32,
+            ro_code: Code::from(&image),
+            ro_memory: Data::default(),
+            rw_memory: Data(image),
         }
+    }
+}
+
+impl From<HashMap<u32, u32>> for Program {
+    fn from(image: HashMap<u32, u32>) -> Self {
+        Self::from(
+            image
+                .iter()
+                .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes()))
+                .collect::<HashMap<u32, u8>>(),
+        )
     }
 }
 
@@ -78,20 +99,6 @@ impl From<HashMap<u32, u32>> for Data {
     }
 }
 
-impl From<HashMap<u32, u32>> for Program {
-    fn from(image: HashMap<u32, u32>) -> Self {
-        let image = image
-            .iter()
-            .flat_map(move |(k, v)| (*k..).zip(v.to_le_bytes()))
-            .collect();
-        Self {
-            entry: 0_u32,
-            code: Code::from(&image),
-            data: Data(image),
-        }
-    }
-}
-
 impl Program {
     /// Initialize a RISC Program from an appropriate ELF file
     ///
@@ -102,6 +109,7 @@ impl Program {
     // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
     // exercise the error handling?
     #[tarpaulin::skip]
+    #[allow(clippy::similar_names)]
     pub fn load_elf(input: &[u8]) -> Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
         ensure!(elf.ehdr.class == Class::ELF32, "Not a 32-bit ELF");
@@ -113,18 +121,18 @@ impl Program {
             elf.ehdr.e_type == elf::abi::ET_EXEC,
             "Invalid ELF type, must be executable"
         );
-        let entry: u32 = elf.ehdr.e_entry.try_into()?;
-        ensure!(entry % 4 == 0, "Misaligned entrypoint");
+        let entry_point: u32 = elf.ehdr.e_entry.try_into()?;
+        ensure!(entry_point % 4 == 0, "Misaligned entrypoint");
         let segments = elf
             .segments()
             .ok_or_else(|| anyhow!("Missing segment table"))?;
         ensure!(segments.len() <= 256, "Too many program headers");
 
-        let extract = |required_flags| {
+        let extract = |check_flags: fn(u32) -> bool| {
             segments
                 .iter()
                 .filter(|s: &ProgramHeader| s.p_type == elf::abi::PT_LOAD)
-                .filter(|s| s.p_flags & required_flags == required_flags)
+                .filter(|s| check_flags(s.p_flags))
                 .map(|segment| -> Result<_> {
                     let file_size: usize = segment.p_filesz.try_into()?;
                     let mem_size: usize = segment.p_memsz.try_into()?;
@@ -140,9 +148,22 @@ impl Program {
                 .try_collect()
         };
 
-        let data = Data(extract(elf::abi::PF_NONE)?);
-        let code = extract(elf::abi::PF_X)?;
-        let code = Code::from(&code);
-        Ok(Program { entry, data, code })
+        let ro_memory = Data(extract(|flags| {
+            (flags & elf::abi::PF_R == elf::abi::PF_R)
+                && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
+        })?);
+        let rw_memory = Data(extract(|flags| flags == elf::abi::PF_R | elf::abi::PF_W)?);
+        // Because we are implementing a modified Harvard Architecture, we make an
+        // independent copy of the executable segments. In practice,
+        // instructions will be in a R_X segment, so their data will show up in ro_code
+        // and ro_memory. (RWX segments would show up in ro_code and rw_memory.)
+        let ro_code = Code::from(&extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?);
+
+        Ok(Program {
+            entry_point,
+            ro_memory,
+            rw_memory,
+            ro_code,
+        })
     }
 }

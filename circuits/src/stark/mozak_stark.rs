@@ -2,10 +2,12 @@ use itertools::chain;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
+use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 use starky::stark::Stark;
 
 use crate::bitshift::stark::BitshiftStark;
+use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::memory::stark::MemoryStark;
@@ -22,8 +24,17 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub shift_amount_stark: BitshiftStark<F, D>,
     pub program_stark: ProgramStark<F, D>,
     pub memory_stark: MemoryStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 5],
+    pub cross_table_lookups: [CrossTableLookup<F>; 6],
     pub debug: bool,
+}
+
+columns_view_impl!(PublicInputs);
+
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[serde(bound = "F: Field")]
+pub struct PublicInputs<F> {
+    pub entry_point: F,
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
@@ -36,11 +47,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             program_stark: ProgramStark::default(),
             memory_stark: MemoryStark::default(),
             cross_table_lookups: [
-                RangecheckCpuTable::lookups(),
-                BitwiseCpuTable::lookups(),
+                RangecheckTable::lookups(),
+                XorCpuTable::lookups(),
                 BitshiftCpuTable::lookups(),
                 InnerCpuTable::lookups(),
                 ProgramCpuTable::lookups(),
+                MemoryCpuTable::lookups(),
             ],
             debug: false,
         }
@@ -85,7 +97,7 @@ pub(crate) const NUM_TABLES: usize = 6;
 pub enum TableKind {
     Cpu = 0,
     RangeCheck = 1,
-    Bitwise = 2,
+    Xor = 2,
     Bitshift = 3,
     Program = 4,
     Memory = 5,
@@ -97,7 +109,7 @@ impl TableKind {
         [
             TableKind::Cpu,
             TableKind::RangeCheck,
-            TableKind::Bitwise,
+            TableKind::Xor,
             TableKind::Bitshift,
             TableKind::Program,
             TableKind::Memory,
@@ -128,9 +140,6 @@ pub struct RangeCheckTable<F: Field>(Table<F>);
 /// Represents a cpu trace table in the Mozak VM.
 pub struct CpuTable<F: Field>(Table<F>);
 
-/// Represents a memory trace table in the Mozak VM.
-pub struct MemoryTable<F: Field>(Table<F>);
-
 /// Represents a xor trace table in the Mozak VM.
 pub struct XorTable<F: Field>(Table<F>);
 
@@ -139,6 +148,9 @@ pub struct BitshiftTable<F: Field>(Table<F>);
 
 /// Represents a program trace table in the Mozak VM.
 pub struct ProgramTable<F: Field>(Table<F>);
+
+/// Represents a memory trace table in the Mozak VM.
+pub struct MemoryTable<F: Field>(Table<F>);
 
 impl<F: Field> RangeCheckTable<F> {
     #[allow(clippy::new_ret_no_self)]
@@ -154,17 +166,10 @@ impl<F: Field> CpuTable<F> {
     }
 }
 
-impl<F: Field> MemoryTable<F> {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
-        Table::new(TableKind::Memory, columns, filter_column)
-    }
-}
-
 impl<F: Field> XorTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
-        Table::new(TableKind::Bitwise, columns, filter_column)
+        Table::new(TableKind::Xor, columns, filter_column)
     }
 }
 
@@ -182,13 +187,20 @@ impl<F: Field> ProgramTable<F> {
     }
 }
 
+impl<F: Field> MemoryTable<F> {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
+        Table::new(TableKind::Memory, columns, filter_column)
+    }
+}
+
 pub trait Lookups<F: Field> {
     fn lookups() -> CrossTableLookup<F>;
 }
 
-pub struct RangecheckCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct RangecheckTable<F: Field>(CrossTableLookup<F>);
 
-impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
+impl<F: Field> Lookups<F> for RangecheckTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         let looking: Vec<Table<F>> = chain![
             memory::columns::rangecheck_looking(),
@@ -197,17 +209,14 @@ impl<F: Field> Lookups<F> for RangecheckCpuTable<F> {
         .collect();
         CrossTableLookup::new(
             looking,
-            RangeCheckTable::new(
-                rangecheck::columns::data_for_cpu(),
-                rangecheck::columns::filter_for_cpu(),
-            ),
+            RangeCheckTable::new(rangecheck::columns::data(), rangecheck::columns::filter()),
         )
     }
 }
 
-pub struct BitwiseCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct XorCpuTable<F: Field>(CrossTableLookup<F>);
 
-impl<F: Field> Lookups<F> for BitwiseCpuTable<F> {
+impl<F: Field> Lookups<F> for XorCpuTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
@@ -215,6 +224,23 @@ impl<F: Field> Lookups<F> for BitwiseCpuTable<F> {
                 cpu::columns::filter_for_xor(),
             )],
             XorTable::new(xor::columns::data_for_cpu(), xor::columns::filter_for_cpu()),
+        )
+    }
+}
+
+pub struct MemoryCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for MemoryCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_memory(),
+                cpu::columns::filter_for_memory(),
+            )],
+            MemoryTable::new(
+                memory::columns::data_for_cpu(),
+                memory::columns::filter_for_cpu(),
+            ),
         )
     }
 }
@@ -243,11 +269,11 @@ impl<F: Field> Lookups<F> for InnerCpuTable<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_inst(),
-                Column::not(cpu::columns::MAP.cpu.halted),
+                Column::single(cpu::columns::MAP.cpu.is_running),
             )],
             CpuTable::new(
                 cpu::columns::data_for_permuted_inst(),
-                Column::not(cpu::columns::MAP.cpu.halted),
+                Column::single(cpu::columns::MAP.cpu.is_running),
             ),
         )
     }

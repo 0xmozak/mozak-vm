@@ -9,6 +9,7 @@ use proptest::strategy::{Just, Strategy};
 use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
+use crate::system::ecall;
 use crate::vm::{step, ExecutionRecord};
 
 /// Returns the state just before the final state
@@ -23,19 +24,19 @@ pub fn simple_test_code(
     regs: &[(u8, u32)],
 ) -> (Program, ExecutionRecord) {
     let _ = env_logger::try_init();
-    let code = Code(
+    let ro_code = Code(
         (0..)
             .step_by(4)
             .zip(
                 code.iter()
                     .chain(
                         [
-                            // set sys-call EXIT in x17(or a7)
+                            // set sys-call HALT in x10(or a0)
                             Instruction {
                                 op: Op::ADD,
                                 args: Args {
-                                    rd: 17,
-                                    imm: 93,
+                                    rd: 10,
+                                    imm: ecall::HALT,
                                     ..Args::default()
                                 },
                             },
@@ -52,12 +53,10 @@ pub fn simple_test_code(
             .collect(),
     );
 
-    let image: HashMap<u32, u32> = mem.iter().copied().collect();
-    let image = Data::from(image);
     let program = Program {
-        entry: 0,
-        data: image,
-        code,
+        rw_memory: Data::from(mem.iter().copied().collect::<HashMap<u32, u32>>()),
+        ro_code,
+        ..Default::default()
     };
     let state0 = State::from(&program);
 

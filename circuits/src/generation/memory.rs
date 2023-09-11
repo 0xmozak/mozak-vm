@@ -33,7 +33,6 @@ pub fn filter_memory_trace(step_rows: &[Row]) -> Vec<&Row> {
 }
 
 #[must_use]
-#[allow(clippy::missing_panics_doc)]
 pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row]) -> Vec<Memory<F>> {
     let filtered_step_rows = filter_memory_trace(step_rows);
 
@@ -108,7 +107,7 @@ mod tests {
         let (program, record) = memory_trace_test_case(1);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(&program, &record.executed);
-        assert_eq!(expected_trace(), trace);
+        assert_eq!(trace, expected_trace());
     }
 
     #[test]
@@ -128,6 +127,6 @@ mod tests {
             expected_trace[5],
         ];
 
-        assert_eq!(expected_trace, trace);
+        assert_eq!(trace, expected_trace);
     }
 }
