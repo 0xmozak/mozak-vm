@@ -197,13 +197,7 @@ impl<F: Field> Column<F> {
     }
 
     #[must_use]
-    pub fn single_diff(c: usize) -> Self {
-        Self {
-            lv_linear_combination: vec![(c, -F::ONE)],
-            nv_linear_combination: vec![(c, F::ONE)],
-            constant: F::ZERO,
-        }
-    }
+    pub fn single_diff(c: usize) -> Self { Self::single(c) - Self::single_prev(c) }
 
     pub fn singles<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Vec<Self> {
         cs.into_iter().map(|c| Self::single(*c.borrow())).collect()
