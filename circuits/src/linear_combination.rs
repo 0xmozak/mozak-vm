@@ -154,7 +154,7 @@ impl<F: Field> From<usize> for Column<F> {
     fn from(idx: usize) -> Self {
         Self {
             nv_linear_combination: vec![(idx, F::ONE)],
-            ..Default::default()
+            ..Self::default()
         }
     }
 }
