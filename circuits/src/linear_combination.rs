@@ -44,26 +44,10 @@ impl<F: Field> Add<Self> for Column<F> {
     type Output = Self;
 
     #[allow(clippy::similar_names)]
-    fn add(
-        self,
-        Column {
-            lv_linear_combination: mut lv_rlc,
-            nv_linear_combination: mut nv_rlc,
-            constant: rc,
-        }: Self,
-    ) -> Self {
-        let Self {
-            lv_linear_combination: mut lv_slc,
-            nv_linear_combination: mut nv_slc,
-            constant: sc,
-        } = self;
-        // TODO(Matthias): perhaps make a 'normalise' function that sorts them?
-        lv_slc.sort_by_key(|&(col_idx, _)| col_idx);
-        nv_slc.sort_by_key(|&(col_idx, _)| col_idx);
-        lv_rlc.sort_by_key(|&(col_idx, _)| col_idx);
-        nv_rlc.sort_by_key(|&(col_idx, _)| col_idx);
-
-        let add_lc = |slc: Vec<(usize, F)>, rlc: Vec<(usize, F)>| {
+    fn add(self, other: Self) -> Self {
+        let add_lc = |mut slc: Vec<(usize, F)>, mut rlc: Vec<(usize, F)>| {
+            slc.sort_by_key(|&(col_idx, _)| col_idx);
+            rlc.sort_by_key(|&(col_idx, _)| col_idx);
             slc.into_iter()
                 .merge_join_by(rlc, |(l, _), (r, _)| l.cmp(r))
                 .map(|x| match x {
@@ -77,9 +61,9 @@ impl<F: Field> Add<Self> for Column<F> {
         };
 
         Self {
-            lv_linear_combination: add_lc(lv_slc, lv_rlc),
-            nv_linear_combination: add_lc(nv_slc, nv_rlc),
-            constant: sc + rc,
+            lv_linear_combination: add_lc(self.lv_linear_combination, other.lv_linear_combination),
+            nv_linear_combination: add_lc(self.nv_linear_combination, other.nv_linear_combination),
+            constant: self.constant + other.constant,
         }
     }
 }
