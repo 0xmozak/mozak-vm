@@ -35,16 +35,18 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let nv: &Memory<P> = vars.next_values.borrow();
 
         // Both `new_addr` values are 1 if the address changed, 0 otherwise
+        // This is like a normalised diff_addr.
         let local_new_addr = lv.diff_addr * lv.diff_addr_inv;
         let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
 
         // For the initial state of memory access, we request:
         // 1. First opcode is `sb`
         // 2. `diff_addr` is initiated as `addr - 0`
+        // M: TODO(Matthias): Allow writing to address 0.
         // 3. `addr` != 0
         // 4. `diff_clk` is initiated as `0`
         yield_constr.constraint_first_row(lv.op - FE::from_canonical_usize(OPCODE_SB));
-        yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
+        // yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
         yield_constr.constraint_first_row(lv.diff_clk);
 
         // Consequently, we constrain:
@@ -57,12 +59,16 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // Check: if address for next instruction changed, then opcode was `sb`
         yield_constr.constraint(local_new_addr * (lv.op - FE::from_canonical_usize(OPCODE_SB)));
 
+        // M: OK, this would be removed by remove the diff column?
+        // M: Tough: how do we build the filter for the ctl?  Probably via _is_init_ column?
         // Check: if next address did not change, diff_clk_next is `clk` difference
         yield_constr
             .constraint_transition((nv.diff_clk - nv.clk + lv.clk) * (next_new_addr - P::ONES));
 
         // Check: if address changed, then clock did not change
-        yield_constr.constraint(local_new_addr * lv.diff_clk);
+        // M: OK, we arbitrarily set the clock diff to 0.  That's not necessary, or is it?
+        // yield_constr.constraint(local_new_addr * lv.diff_clk);
+        // yield_constr.constraint(lv.diff_addr * lv.diff_clk);
 
         // Check: `diff_addr_next` is  `addr_next - addr_cur`
         yield_constr.constraint_transition(nv.diff_addr - nv.addr + lv.addr);
