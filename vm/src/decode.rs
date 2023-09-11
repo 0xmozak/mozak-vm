@@ -171,9 +171,9 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
                 // SRAI/SRLI instruction. They have the same funct3 value and are
                 // differentiated by their 30th bit, for which SRAI = 1 and SRLI = 0.
                 match imm.bit_range(11, 5) {
-                    // For Risc-V its SRAI but we handle it as SRA.
+                    // For Risc-V it's SRAI, but we handle it as SRA.
                     0b010_0000 => (Op::SRA, itype),
-                    // For Risc-V its SRLI but we handle it as SRL.
+                    // For Risc-V it's SRLI, but we handle it as SRL.
                     0 => (Op::SRL, itype),
                     #[tarpaulin::skip]
                     _ => Default::default(),
