@@ -34,12 +34,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv: &Memory<P> = vars.local_values.borrow();
         let nv: &Memory<P> = vars.next_values.borrow();
 
-        let diff_addr = nv.addr - lv.addr;
-        // This still forbids 0 as the first address.
-        // That's wrong.
         // Both `new_addr` values are 1 if the address changed, 0 otherwise
         let local_new_addr = lv.diff_addr * lv.diff_addr_inv;
-        let next_new_addr = diff_addr * nv.diff_addr_inv;
+        let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
+
         // For the initial state of memory access, we request:
         // 1. First opcode is `sb`
         // 2. `diff_addr` is initiated as `addr - 0`
@@ -52,11 +50,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // Consequently, we constrain:
 
         is_binary(yield_constr, lv.is_executed);
-
-        // Once we have padding, all subsequent rows are padding; ie not
-        // `is_executed`.
-        yield_constr.constraint_transition((lv.is_executed - nv.is_executed) * nv.is_executed);
-
         // We only have two different ops at the moment, so we use a binary variable to
         // represent them:
         is_binary(yield_constr, lv.op);
@@ -72,7 +65,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint(local_new_addr * lv.diff_clk);
 
         // Check: `diff_addr_next` is  `addr_next - addr_cur`
-        yield_constr.constraint_transition(nv.diff_addr - diff_addr);
+        yield_constr.constraint_transition(nv.diff_addr - nv.addr + lv.addr);
 
         // Check: either the next operation is a store or the `value` stays the same.
         yield_constr
@@ -133,7 +126,7 @@ mod tests {
     fn prove_memory_sb_lb() -> Result<()> {
         for repeats in 0..8 {
             let (program, executed) = memory_trace_test_case(repeats);
-            MozakStark::prove_and_verify(&program, &executed)?;
+            MemoryStark::prove_and_verify(&program, &executed)?;
         }
         Ok(())
     }
