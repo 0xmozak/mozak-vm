@@ -149,15 +149,11 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         0b001_0011 => match bf.func3() {
             // For Risc-V its ADDI but we handle it as ADD.
             0x0 => (Op::ADD, itype),
-            // OLD: For Risc-V its SLLI but we handle it as SLL
-            // NEW: For Risc-V its SLLI but we handle it as MUL
-            0x1 if 0 == itype.imm & !0b1_1111 => {
-                let itype = Args {
-                    imm: 1 << itype.imm,
-                    ..itype
-                };
-                (Op::MUL, itype)
-            },
+            // For Risc-V its SLLI but we handle it as MUL
+            0x1 if 0 == itype.imm & !0b1_1111 => (Op::MUL, Args {
+                imm: 1 << itype.imm,
+                ..itype
+            }),
             // For Risc-V its SLTI but we handle it as SLT.
             0x2 => (Op::SLT, itype),
             // For Risc-V its SLTIU but we handle it as SLTU.
@@ -332,7 +328,7 @@ mod tests {
             args: Args {
                 rd,
                 rs1,
-                imm: 1u32 << shamt,
+                imm: 1 << shamt,
                 ..Default::default()
             },
         };
