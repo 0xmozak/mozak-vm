@@ -29,6 +29,7 @@ use self::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
 use self::memory::generate_memory_trace;
 use self::rangecheck::generate_rangecheck_trace;
 use self::xor::generate_xor_trace;
+use self::memoryinit::generate_memory_init_trace;
 use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::program::generate_program_rom_trace;
@@ -48,6 +49,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
+    let memory_init_rows = generate_memory_init_trace(program);
     let memory_rows = generate_memory_trace(program, &record.executed);
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
@@ -57,6 +59,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let shift_amount_trace = trace_rows_to_poly_values(shift_amount_rows);
     let program_trace = trace_rows_to_poly_values(program_rows);
     let memory_trace = trace_rows_to_poly_values(memory_rows);
+    let memory_init_trace = trace_rows_to_poly_values(memory_init_rows);
     [
         cpu_trace,
         rangecheck_trace,
@@ -64,6 +67,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         shift_amount_trace,
         program_trace,
         memory_trace,
+        memory_init_trace,
     ]
 }
 
@@ -97,9 +101,9 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
-    [(); ProgramStark::<F, D>::COLUMNS]:,
+    // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:, {
-    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace]: &[Vec<
+    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, memory_init_trace]: &[Vec<
         PolynomialValues<F>,
     >;
         NUM_TABLES] = traces_poly_values;

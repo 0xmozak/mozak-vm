@@ -57,6 +57,7 @@ where
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
@@ -92,7 +93,7 @@ where
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
-    [(); ProgramStark::<F, D>::COLUMNS]:,
+    // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
@@ -380,7 +381,7 @@ where
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
-    [(); ProgramStark::<F, D>::COLUMNS]:,
+    // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
@@ -450,6 +451,17 @@ where
         timing,
     )?;
 
+    let memory_init_proof = prove_single_table::<F, C, MemoryInitStark<F, D>, D>(
+        &mozak_stark.memory_init_stark,
+        config,
+        &traces_poly_values[TableKind::MemoryInit as usize],
+        &trace_commitments[TableKind::MemoryInit as usize],
+        [],
+        &ctl_data_per_table[TableKind::MemoryInit as usize],
+        challenger,
+        timing,
+    )?;
+
     Ok([
         cpu_proof,
         rangecheck_proof,
@@ -457,6 +469,7 @@ where
         shift_amount_proof,
         program_proof,
         memory_proof,
+        memory_init_proof,
     ])
 }
 

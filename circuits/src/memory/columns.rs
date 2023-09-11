@@ -75,4 +75,4 @@ pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> { vec![Column::single(M
 /// Column for a binary filter to indicate a lookup from the MemoryInit table into
 /// Memory stark table.
 #[must_use]
-pub fn filter_for_memoryinit<F: Field>() -> Column<F> { Column::singles([MAP.is_executed, MAP.is_init]) }
+pub fn filter_for_memoryinit<F: Field>() -> Column<F> { Column::single(MAP.is_init) }
