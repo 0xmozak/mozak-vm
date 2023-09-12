@@ -1,15 +1,17 @@
-use node::{DummyMessageService, MessageService};
+use node::{ConsensusSystem, DummyConsensusSystem, DummyMessageService, MessageService};
 
 use crate::placeholder::*;
 
 #[allow(unused_variables)]
-#[cfg(feature = "dummy-server")]
+#[cfg(feature = "dummy-system")]
 fn main() {
     // Initiate a new message service that will receive messages from clients.
     let mut message_service = DummyMessageService::new();
 
-    let network = Space::new();
-    let space_state = SpaceStates::new();
+    let mut network = DummyConsensusSystem::initiate();
+
+    let mut latest_state = network.fetch_last_settled_state();
+
     let mut state_updates = Vec::new();
 
     loop {
@@ -17,7 +19,7 @@ fn main() {
         let message = message_service.get_next_message();
 
         // 2. Start a thread to work with the transaction
-        state_updates.push(handle_transaction(message, &space_state, |message| {
+        state_updates.push(handle_transaction(message, latest_state, |message| {
             // 1. Parse the Transaction, get the program id and args
             let (program, function, arguments) = parse_transaction(message);
             // 2. Get the Program from the Program Manager
@@ -38,40 +40,25 @@ fn main() {
         //    we will have to process this transaction again with   new state as input.
         //    It also means we have done the proof work for nothing,   but as the design
         //    of the system encourages parallelism, this should almost  never happen.
-        let merged_state_updates = merge_state_updates(&state_updates);
+        let (merged_state_updates, merged_read_states, merged_proof) =
+            merge_state_updates(&state_updates);
 
         // 4. We push the merged state updates to the consensus system
-        network.push_state_updates(merged_state_updates);
+        network
+            .push_state_updates(merged_state_updates, merged_read_states, merged_proof)
+            .unwrap();
         // 5. We update the state of the space with the merged state updates. All state
         //    updates proofs must now be based on this state.
-        space_state.update(merged_state_updates);
+        latest_state = network.fetch_last_settled_state();
     }
 }
 
 #[allow(unused_variables)]
 mod placeholder {
-    use node::Message;
+    use node::{Blob, Message, SpaceStorage, StarkProof};
 
-    pub fn merge_state_updates(p0: &Vec<((), (), ())>) -> () { unimplemented!() }
-
-    pub struct SpaceStates {
-        state: (),
-    }
-
-    pub struct Space {
-        state: SpaceStates,
-    }
-
-    impl Space {
-        pub fn new() -> Self { unimplemented!() }
-
-        pub fn push_state_updates(&self, p0: ()) -> () { unimplemented!() }
-    }
-
-    impl SpaceStates {
-        pub fn new() -> Self { unimplemented!() }
-
-        pub fn update(&self, p0: ()) -> () { unimplemented!() }
+    pub fn merge_state_updates(p0: &Vec<((), (), ())>) -> (Vec<Blob>, Vec<Blob>, StarkProof) {
+        unimplemented!()
     }
 
     pub fn run_program(p0: (), p1: (), p2: ()) -> ((), ()) { unimplemented!() }
@@ -84,7 +71,7 @@ mod placeholder {
 
     pub fn handle_transaction(
         p0: Message,
-        state: &SpaceStates,
+        state: &SpaceStorage,
         p1: fn(m: Message) -> ((), (), ()),
     ) -> ((), (), ()) {
         unimplemented!()

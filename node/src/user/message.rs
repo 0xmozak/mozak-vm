@@ -23,7 +23,7 @@ pub enum Message {
     Transfer { from: Id, to: Id, amount: u64 },
 }
 
-#[cfg(feature = "dummy-server")]
+#[cfg(feature = "dummy-system")]
 impl Distribution<Message> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Message {
         Message::Transfer {

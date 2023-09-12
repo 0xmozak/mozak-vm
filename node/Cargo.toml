@@ -8,10 +8,12 @@ type = "lib"
 
 [dependencies]
 
+thiserror = "1.0.48"
 rand = { version = "0.8.5", optional = true }
+sha3 = "0.10.8"
 
 [features]
-default = ["dummy-server"]
-test-features = ["dummy-server"]
+default = ["dummy-system"]
+test-features = ["dummy-system"]
 
-dummy-server = ["rand"]
+dummy-system = ["rand"]

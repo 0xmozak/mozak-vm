@@ -14,12 +14,12 @@ pub trait MessageService {
     fn get_next_message(&mut self) -> Message;
 }
 
-#[cfg(feature = "dummy-server")]
+#[cfg(feature = "dummy-system")]
 pub struct DummyMessageService {
     rng: Box<dyn RngCore>,
 }
 
-#[cfg(feature = "dummy-server")]
+#[cfg(feature = "dummy-system")]
 impl MessageService for DummyMessageService {
     fn new() -> Self {
         // Set up the random number generator with a fixed seed.
