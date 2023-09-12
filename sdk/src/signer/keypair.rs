@@ -1,7 +1,9 @@
-use std::{error::Error};
-use bip39::{Mnemonic, MnemonicType, Language, Seed};
-use ed25519_dalek::{SECRET_KEY_LENGTH, SigningKey as Ed25519Keypair};
-use ed25519_dalek_bip32::{ExtendedSigningKey, DerivationPath};
+use std::error::Error;
+use std::ops::Deref;
+
+use bip39::{Language, Mnemonic, MnemonicType, Seed};
+use ed25519_dalek::{SigningKey as Ed25519Keypair, SECRET_KEY_LENGTH};
+use ed25519_dalek_bip32::{DerivationPath, ExtendedSigningKey};
 use rand::rngs::OsRng;
 
 #[derive(Clone, Debug)]
@@ -35,12 +37,22 @@ impl Keypair {
 
     /// Returns new keypair from derivation path, mnemonic and passphrase
     /// Derivation path is a string like "m/44'/60'/0'/0/1"
-    pub fn from_mnemonic_derivation_path(mnemonic: Mnemonic, passphrase: &str, derivation_path: &DerivationPath) -> Result<Keypair, Box<dyn Error>> {
+    pub fn from_mnemonic_derivation_path(
+        mnemonic: Mnemonic,
+        passphrase: &str,
+        derivation_path: &DerivationPath,
+    ) -> Result<Keypair, Box<dyn Error>> {
         let seed = Seed::new(&mnemonic, passphrase);
         let root = ExtendedSigningKey::from_seed(seed.as_bytes())?;
         let derived = root.derive(&derivation_path)?;
         Ok(Keypair(derived.signing_key))
     }
+}
+
+impl Deref for Keypair {
+    type Target = Ed25519Keypair;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 #[cfg(test)]
@@ -52,14 +64,14 @@ mod tests {
     #[test]
     fn test_keypair_generate() {
         let keypair = Keypair::new();
-        assert_eq!(keypair.0.to_bytes().len(), SECRET_KEY_LENGTH);
+        assert_eq!(keypair.to_bytes().len(), SECRET_KEY_LENGTH);
     }
 
     #[test]
     fn test_keypair_from_mnemonic() {
         let mnemonic = Keypair::generate_mnemonic();
         let keypair = Keypair::from_mnemonic(mnemonic, "").unwrap();
-        assert_eq!(keypair.0.to_bytes().len(), SECRET_KEY_LENGTH);
+        assert_eq!(keypair.to_bytes().len(), SECRET_KEY_LENGTH);
     }
 
     #[test]
@@ -67,6 +79,6 @@ mod tests {
         let mnemonic = Keypair::generate_mnemonic();
         let path = &DerivationPath::from_str("m/44'/60'/0'/0'").unwrap();
         let keypair = Keypair::from_mnemonic_derivation_path(mnemonic, "", path).unwrap();
-        assert_eq!(keypair.0.to_bytes().len(), SECRET_KEY_LENGTH);
+        assert_eq!(keypair.to_bytes().len(), SECRET_KEY_LENGTH);
     }
 }
