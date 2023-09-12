@@ -12,9 +12,9 @@ use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
 use super::mozak_stark::NUM_TABLES;
-use super::permutation::{get_grand_product_challenge_set, GrandProductChallengeSet};
 use crate::lookup::{self, Lookup};
 use crate::stark::mozak_stark::PublicInputs;
+use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -236,8 +236,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 
         // TODO: Observe public values.
 
-        let ctl_challenges =
-            get_grand_product_challenge_set(&mut challenger, config.num_challenges);
+        let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
 
         AllProofChallenges {
             stark_challenges: core::array::from_fn(|i| {
