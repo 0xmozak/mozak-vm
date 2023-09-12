@@ -213,7 +213,7 @@ column that is used to filter out rows that we do not want to participate in the
 To break down the above, let us consider an example. We have a _looked_ table with columns `{x, y, z, allow_to_lookup}`
 and a several _looking_ tables which contain columns `{x, y, z, look_up}`. Consider also that
 both `allow_to_lookup` and `look_up` columns are boolean. By applying a Cross Table Permutation Argument, we make sure
-that the multi-set of `(x, y, z)` values from the _looked_ table, where `allow_to_lookup`is `true`, is a permutation of
+that the multi-set of `(x, y, z)` values from the _looked_ table, where `allow_to_lookup` is `true`, is a permutation of
 a multi-set of `(x, y, z)` values from the _looking_ tables, where `look_up` is `true`. This construction implies
 that if a single _looking_ table or several _looking_ tables look up the same row multiple times, then the _looked_
 table must have this row multiple times, as each row can only be looked up once by any _looking_ table.
