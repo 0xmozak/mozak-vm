@@ -127,11 +127,13 @@ pub(crate) fn constraints<P: PackedField>(
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
+    use anyhow::Result;
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::{i32_extra, reg, simple_test_code, u32_extra};
     use plonky2::timed;
     use plonky2::util::timing::TimingTree;
     use proptest::prelude::{prop_assume, ProptestConfig};
+    use proptest::test_runner::TestCaseError;
     use proptest::{prop_assert_eq, proptest};
     use starky::prover::prove as prove_table;
     use starky::verifier::verify_stark_proof;
@@ -139,7 +141,7 @@ mod tests {
     use crate::cpu::stark::CpuStark;
     use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
     use crate::generation::program::generate_program_rom_trace;
-    use crate::stark::mozak_stark::PublicInputs;
+    use crate::stark::mozak_stark::{MozakStark, PublicInputs};
     use crate::stark::utils::trace_to_poly_values;
     use crate::test_utils::{standard_faster_config, ProveAndVerify, C, D, F};
     use crate::utils::from_u32;
@@ -205,105 +207,105 @@ mod tests {
         verification_res.unwrap();
         timing.print();
     }
-    proptest! {
-        #![proptest_config(ProptestConfig::with_cases(4))]
-        #[test]
-        fn prove_mul_proptest(a in u32_extra(), b in u32_extra()) {
-            let (program, record) = simple_test_code(
-                &[
-                    Instruction {
-                        op: Op::MUL,
-                        args: Args {
-                            rd: 8,
-                            rs1: 6,
-                            rs2: 7,
-                            ..Args::default()
-                        },
-                    },
-                ],
-                &[],
-                &[(6, a), (7, b)],
-            );
-            let (low, _high) = a.widening_mul(b);
-            prop_assert_eq!(record.executed[0].aux.dst_val, low);
-            CpuStark::prove_and_verify(&program, &record).unwrap();
-        }
-        #[test]
-        fn prove_mulhu_proptest(a in u32_extra(), b in u32_extra()) {
-            let (program, record) = simple_test_code(
-                &[
-                    Instruction {
-                        op: Op::MULHU,
-                        args: Args {
-                            rd: 9,
-                            rs1: 6,
-                            rs2: 7,
-                            ..Args::default()
-                        },
-                    },
-                ],
-                &[],
-                &[(6, a), (7, b)],
-            );
-            let (_low, high) = a.widening_mul(b);
-            prop_assert_eq!(record.executed[0].aux.dst_val, high);
-            CpuStark::prove_and_verify(&program, &record).unwrap();
-        }
-        #[allow(clippy::cast_sign_loss)]
-        #[allow(clippy::cast_lossless)]
-        #[test]
-        fn prove_mulh_proptest(a in i32_extra(), b in i32_extra()) {
-            let (program, record) = simple_test_code(
-                &[
-                    Instruction {
-                        op: Op::MULH,
-                        args: Args {
-                            rd: 8,
-                            rs1: 6,
-                            rs2: 7,
-                            ..Args::default()
-                        },
-                    },
-                ],
-                &[],
-                &[(6, a as u32), (7, b as u32)],
-            );
-            let (res, overflow) = i64::from(a).overflowing_mul(i64::from(b));
-            assert!(!overflow);
-            prop_assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
-            CpuStark::prove_and_verify(&program, &record).unwrap();
-        }
-        #[allow(clippy::cast_sign_loss)]
-        #[allow(clippy::cast_lossless)]
-        #[test]
-        fn prove_mulhsu_proptest(a in i32_extra(), b in u32_extra()) {
-            let (program, record) = simple_test_code(
-                &[
-                    Instruction {
-                        op: Op::MULHSU,
-                        args: Args {
-                            rd: 8,
-                            rs1: 6,
-                            rs2: 7,
-                            ..Args::default()
-                        },
-                    },
-                ],
-                &[],
-                &[(6, a as u32), (7, b)],
-            );
-            let (res, _overflow) = i64::from(a).overflowing_mul(i64::from(b));
-            prop_assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
-            CpuStark::prove_and_verify(&program, &record).unwrap();
-        }
 
-        #[test]
-        fn prove_sll_proptest(p in u32_extra(), q in u32_extra(), rs1 in reg(), rs2 in reg(), rd in reg()) {
-            prop_assume!(rs1 != rs2);
-            prop_assume!(rs1 != rd);
-            prop_assume!(rs2 != rd);
-            let (program, record) = simple_test_code(
-                &[Instruction {
+    fn prove_mul<Stark: ProveAndVerify>(a: u32, b: u32) -> Result<(), TestCaseError> {
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::MUL,
+                args: Args {
+                    rd: 8,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, a), (7, b)],
+        );
+        let (low, _high) = a.widening_mul(b);
+        prop_assert_eq!(record.executed[0].aux.dst_val, low);
+        Stark::prove_and_verify(&program, &record).unwrap();
+        Ok(())
+    }
+
+    fn prove_mulhu<Stark: ProveAndVerify>(a: u32, b: u32) -> Result<(), TestCaseError> {
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::MULHU,
+                args: Args {
+                    rd: 9,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, a), (7, b)],
+        );
+        let (_low, high) = a.widening_mul(b);
+        prop_assert_eq!(record.executed[0].aux.dst_val, high);
+        Stark::prove_and_verify(&program, &record).unwrap();
+        Ok(())
+    }
+
+    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_lossless)]
+    fn prove_mulh<Stark: ProveAndVerify>(a: i32, b: i32) -> Result<(), TestCaseError> {
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::MULH,
+                args: Args {
+                    rd: 8,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, a as u32), (7, b as u32)],
+        );
+        let (res, overflow) = i64::from(a).overflowing_mul(i64::from(b));
+        assert!(!overflow);
+        prop_assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
+        Stark::prove_and_verify(&program, &record).unwrap();
+        Ok(())
+    }
+
+    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_lossless)]
+    fn prove_mulhsu<Stark: ProveAndVerify>(a: i32, b: u32) -> Result<(), TestCaseError> {
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::MULHSU,
+                args: Args {
+                    rd: 8,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, a as u32), (7, b)],
+        );
+        let (res, _overflow) = i64::from(a).overflowing_mul(i64::from(b));
+        prop_assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
+        Stark::prove_and_verify(&program, &record).unwrap();
+        Ok(())
+    }
+
+    fn prove_sll<Stark: ProveAndVerify>(
+        p: u32,
+        q: u32,
+        rs1: u8,
+        rs2: u8,
+        rd: u8,
+    ) -> Result<(), TestCaseError> {
+        prop_assume!(rs1 != rs2);
+        prop_assume!(rs1 != rd);
+        prop_assume!(rs2 != rd);
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
                     op: Op::SLL,
                     args: Args {
                         rd,
@@ -320,14 +322,72 @@ mod tests {
                         imm: q,
                         ..Args::default()
                     },
-                }
-                ],
-                &[],
-                &[(rs1, p), (rs2, q)],
-            );
-            prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0b1_1111));
-            prop_assert_eq!(record.executed[1].aux.dst_val, p << (q & 0b1_1111));
-            CpuStark::prove_and_verify(&program, &record).unwrap();
+                },
+            ],
+            &[],
+            &[(rs1, p), (rs2, q)],
+        );
+        prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0b1_1111));
+        prop_assert_eq!(record.executed[1].aux.dst_val, p << (q & 0b1_1111));
+        Stark::prove_and_verify(&program, &record).unwrap();
+        Ok(())
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(4))]
+        #[test]
+        fn prove_mul_cpu(a in u32_extra(), b in u32_extra()) {
+            prove_mul::<CpuStark<F, D>>(a, b)?;
+        }
+        #[test]
+        fn prove_mulhu_cpu(a in u32_extra(), b in u32_extra()) {
+            prove_mulhu::<CpuStark<F, D>>(a, b)?;
+        }
+        #[allow(clippy::cast_sign_loss)]
+        #[allow(clippy::cast_lossless)]
+        #[test]
+        fn prove_mulh_cpu(a in i32_extra(), b in i32_extra()) {
+            prove_mulh::<CpuStark<F, D>>(a, b)?;
+        }
+        #[allow(clippy::cast_sign_loss)]
+        #[allow(clippy::cast_lossless)]
+        #[test]
+        fn prove_mulhsu_cpu(a in i32_extra(), b in u32_extra()) {
+            prove_mulhsu::<CpuStark<F, D>>(a, b)?;
+        }
+
+        #[test]
+        fn prove_sll_cpu(p in u32_extra(), q in u32_extra(), rs1 in reg(), rs2 in reg(), rd in reg()) {
+            prove_sll::<CpuStark<F, D>>(p, q, rs1, rs2, rd)?;
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(4))]
+        #[test]
+        fn prove_mul_mozak(a in u32_extra(), b in u32_extra()) {
+            prove_mul::<MozakStark<F, D>>(a, b)?;
+        }
+        #[test]
+        fn prove_mulhu_mozak(a in u32_extra(), b in u32_extra()) {
+            prove_mulhu::<MozakStark<F, D>>(a, b)?;
+        }
+        #[allow(clippy::cast_sign_loss)]
+        #[allow(clippy::cast_lossless)]
+        #[test]
+        fn prove_mulh_mozak(a in i32_extra(), b in i32_extra()) {
+            prove_mulh::<MozakStark<F, D>>(a, b)?;
+        }
+        #[allow(clippy::cast_sign_loss)]
+        #[allow(clippy::cast_lossless)]
+        #[test]
+        fn prove_mulhsu_mozak(a in i32_extra(), b in u32_extra()) {
+            prove_mulhsu::<MozakStark<F, D>>(a, b)?;
+        }
+
+        #[test]
+        fn prove_sll_mozak(p in u32_extra(), q in u32_extra(), rs1 in reg(), rs2 in reg(), rd in reg()) {
+            prove_sll::<MozakStark<F, D>>(p, q, rs1, rs2, rd)?;
         }
     }
 }

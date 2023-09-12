@@ -8,15 +8,17 @@ use crate::utils::pad_trace_with_default;
 #[must_use]
 pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
     pad_trace_with_default(
-        program
-            .data
-            .iter()
-            .map(|(&addr, &value)| MemoryInit {
-                filter: F::ONE,
-                rodata: MemElement {
-                    address: F::from_canonical_u32(addr),
-                    value: F::from_canonical_u8(value),
-                },
+        [(F::ZERO, &program.ro_memory), (F::ONE, &program.rw_memory)]
+            .into_iter()
+            .flat_map(|(is_writable, mem)| {
+                mem.iter().map(move |(&addr, &value)| MemoryInit {
+                    filter: F::ONE,
+                    is_writable,
+                    element: MemElement {
+                        address: F::from_canonical_u32(addr),
+                        value: F::from_canonical_u8(value),
+                    },
+                })
             })
             .collect(),
     )
