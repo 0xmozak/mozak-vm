@@ -1599,6 +1599,7 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "starky"
 version = "0.1.2"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=bing/logup-updates#f1189290294b90bdd28f112469cc14340195ded3"
 dependencies = [
  "anyhow",
  "backtrace",
