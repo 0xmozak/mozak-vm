@@ -27,26 +27,40 @@ mod tests {
     use proptest::proptest;
 
     use crate::cpu::stark::CpuStark;
-    use crate::test_utils::ProveAndVerify;
+    use crate::stark::mozak_stark::MozakStark;
+    use crate::test_utils::{ProveAndVerify, D, F};
+
+    fn prove_sub<Stark: ProveAndVerify>(a: u32, b: u32) {
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::SUB,
+                args: Args {
+                    rd: 5,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, a), (7, b)],
+        );
+        assert_eq!(record.last_state.get_register_value(5), a.wrapping_sub(b));
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
-        fn prove_sub_proptest(a in u32_extra(), b in u32_extra()) {
-            let (program, record) = simple_test_code(
-                &[Instruction {
-                    op: Op::SUB,
-                    args: Args {
-                        rd: 5,
-                        rs1: 6,
-                        rs2: 7,
-                        ..Args::default()
-                    },
-                }],
-                &[],
-                &[(6, a), (7, b)],
-            );
-            assert_eq!(record.last_state.get_register_value(5), a.wrapping_sub(b));
-            CpuStark::prove_and_verify(&program, &record).unwrap();
+        fn prove_sub_cpu(a in u32_extra(), b in u32_extra()) {
+            prove_sub::<CpuStark<F, D>>(a, b);
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1))]
+        #[test]
+        fn prove_sub_mozak(a in u32_extra(), b in u32_extra()) {
+            prove_sub::<MozakStark<F, D>>(a, b);
         }
     }
 }

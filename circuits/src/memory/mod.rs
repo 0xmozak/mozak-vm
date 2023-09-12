@@ -1,6 +1,6 @@
 //! This module contains the **`Memory` STARK Table**.
 //! This Stark is used to store the VM Memory and
-//! constraints the load and store operations by the CPU
+//! constrains the load and store operations by the CPU
 //! using the CTL (cross table lookup) technique.
 
 pub mod columns;

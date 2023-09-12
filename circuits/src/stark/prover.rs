@@ -35,8 +35,6 @@ use crate::stark::permutation::compute_permutation_z_polys;
 use crate::stark::poly::compute_quotient_polys;
 use crate::xor::stark::XorStark;
 
-#[allow(clippy::missing_errors_doc)]
-#[allow(clippy::missing_panics_doc)]
 pub fn prove<F, C, const D: usize>(
     program: &Program,
     record: &ExecutionRecord,
