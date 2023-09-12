@@ -1,12 +1,13 @@
 fn main() {
     // Current state of the space.
+    let mut Node = Node::new();
     let network = Space::new();
     let space_state = SpaceStates::new();
     let mut state_updates = Vec::new();
 
     loop {
         // 1. Get the next Transaction
-        let tx = get_next_transaction();
+        let tx = rpcget_next_transaction();
 
         // 2. Start a thread to work with the transaction
         state_updates.push(handle_transaction(tx, &space_state, || {

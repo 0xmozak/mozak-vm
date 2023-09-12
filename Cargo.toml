@@ -1,5 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "sdk"
+    "sdk",
+    "node"
 ]
