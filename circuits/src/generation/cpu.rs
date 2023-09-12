@@ -236,6 +236,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
             Some(ProgramRom {
                 filter: F::from_bool(Some(inst.pc) != previous_pc.replace(inst.pc)),
                 inst: InstructionRow::from(inst),
+                phantomcol: F::ZERO,
             })
         })
         .collect();

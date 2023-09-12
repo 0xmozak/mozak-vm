@@ -27,13 +27,14 @@ use starky::vars::StarkEvaluationVars;
 use self::bitshift::generate_shift_amount_trace;
 use self::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
 use self::memory::generate_memory_trace;
+use self::memoryinit::generate_memory_init_trace;
 use self::rangecheck::generate_rangecheck_trace;
 use self::xor::generate_xor_trace;
-use self::memoryinit::generate_memory_init_trace;
 use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::program::generate_program_rom_trace;
 use crate::memory::stark::MemoryStark;
+use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::stark::mozak_stark::{MozakStark, PublicInputs, NUM_TABLES};
@@ -101,9 +102,10 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
-    // [(); ProgramStark::<F, D>::COLUMNS]:,
-    [(); MemoryStark::<F, D>::COLUMNS]:, {
-    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, memory_init_trace]: &[Vec<
+    [(); ProgramStark::<F, D>::COLUMNS]:,
+    [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); MemoryInitStark::<F, D>::COLUMNS]:, {
+    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_init_trace, memory_trace]: &[Vec<
         PolynomialValues<F>,
     >;
         NUM_TABLES] = traces_poly_values;
@@ -142,6 +144,13 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
             &mozak_stark.shift_amount_stark,
             shift_amount_trace,
             "BITSHIFT_STARK",
+            &[],
+        ),
+        // MemoryInit
+        debug_single_trace::<F, D, MemoryInitStark<F, D>>(
+            &mozak_stark.memory_init_stark,
+            memory_init_trace,
+            "MEMORY_INIT_STARK",
             &[],
         ),
         // Memory

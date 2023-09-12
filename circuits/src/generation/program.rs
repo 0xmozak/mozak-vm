@@ -17,6 +17,7 @@ pub fn generate_program_rom_trace<F: RichField>(program: &Program) -> Vec<Progra
                 inst: InstructionRow::from(
                     Instruction::from((pc, inst)).map(F::from_canonical_u32),
                 ),
+                phantomcol: F::ZERO,
             })
             .collect(),
     )

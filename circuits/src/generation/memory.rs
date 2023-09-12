@@ -21,46 +21,87 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
     trace
 }
 
-/// Returns the rows sorted in the order of the instruction address.
+/// Generates Memory trace from dynamic VM execution of
+/// `Program`. These need to be further interleaved with
+/// static memory trace generated from `Program` for final
+/// execution for final memory trace.
 #[must_use]
-pub fn filter_memory_trace(step_rows: &[Row]) -> Vec<&Row> {
+pub fn generate_memory_trace_from_execution<F: RichField>(
+    program: &Program,
+    step_rows: &[Row],
+) -> Vec<Memory<F>> {
     step_rows
         .iter()
         .filter(|row| row.aux.mem_addr.is_some())
-        // Sorting is stable, and rows are already ordered by row.state.clk
-        .sorted_by_key(|row| row.aux.mem_addr)
-        .collect_vec()
+        .map(|row| {
+            let addr: F = get_memory_inst_addr(row);
+            let addr_u32: Result<u32, _> = addr.to_canonical_u64().try_into();
+            Memory {
+                is_executed: F::ONE,
+                is_writable: F::from_bool(program.rw_memory.contains_key(&addr_u32.unwrap())),
+                is_init: F::ZERO,
+                addr,
+                clk: get_memory_inst_clk(row),
+                op: get_memory_inst_op(&(row.state).current_instruction(program)),
+                value: F::from_canonical_u32(row.aux.dst_val),
+                diff_addr: F::ZERO,     // To be fixed later during interleaving
+                diff_addr_inv: F::ZERO, // To be fixed later during interleaving
+                diff_clk: F::ZERO,      // To be fixed later during interleaving
+            }
+        })
+        .sorted_by_key(|memory| memory.addr.to_canonical_u64())
+        .collect()
+}
+
+/// Generates Memory trace from static `Program` for both read-only
+/// and read-write memory initializations. These need to be further
+/// interleaved with runtime memory trace generated from VM
+/// execution for final memory trace.
+#[must_use]
+pub fn generate_memory_init_trace_from_program<F: RichField>(program: &Program) -> Vec<Memory<F>> {
+    [(F::ZERO, &program.ro_memory), (F::ONE, &program.rw_memory)]
+        .into_iter()
+        .flat_map(|(is_writable, mem)| {
+            mem.iter().map(move |(&addr, &value)| Memory {
+                is_executed: F::ZERO,
+                is_writable,
+                is_init: F::ONE,
+                addr: F::from_canonical_u32(addr),
+                clk: F::ZERO,
+                op: F::ZERO,
+                value: F::from_canonical_u8(value),
+                diff_addr: F::ZERO,     // To be fixed later during interleaving
+                diff_addr_inv: F::ZERO, // To be fixed later during interleaving
+                diff_clk: F::ZERO,      // To be fixed later during interleaving
+            })
+        })
+        .sorted_by_key(|memory| memory.addr.to_canonical_u64())
+        .collect()
 }
 
 #[must_use]
 pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row]) -> Vec<Memory<F>> {
-    let filtered_step_rows = filter_memory_trace(step_rows);
+    let mut merged_trace: Vec<Memory<F>> = generate_memory_init_trace_from_program::<F>(program)
+        .into_iter()
+        .merge_by(
+            generate_memory_trace_from_execution(program, step_rows),
+            |x, y| x.addr.to_canonical_u64() < y.addr.to_canonical_u64(),
+        )
+        .collect();
 
-    let mut trace: Vec<Memory<F>> = vec![];
-    for s in &filtered_step_rows {
-        let inst = s.state.current_instruction(program);
-        let mem_clk = get_memory_inst_clk(s);
-        let mem_addr = get_memory_inst_addr(s);
-        let mem_diff_addr = mem_addr - trace.last().map_or(F::ZERO, |last| last.addr);
-        trace.push(Memory {
-            is_executed: F::ONE,
-            addr: mem_addr,
-            clk: mem_clk,
-            op: get_memory_inst_op(&inst),
-            value: F::from_canonical_u32(s.aux.dst_val),
-            diff_addr: mem_diff_addr,
-            diff_addr_inv: mem_diff_addr.try_inverse().unwrap_or_default(),
-            diff_clk: match trace.last() {
-                Some(last) if mem_diff_addr == F::ZERO => mem_clk - last.clk,
-                _ => F::ZERO,
-            },
-        });
+    let mut last_clk = F::ZERO;
+    let mut last_addr = F::ZERO;
+    for mem in &mut merged_trace {
+        mem.diff_clk = mem.clk - last_clk;
+        mem.diff_addr = mem.addr - last_addr;
+        mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
+        (last_clk, last_addr) = (mem.clk, mem.addr);
     }
 
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
     // of the trace.
-    pad_mem_trace(trace)
+    pad_mem_trace(merged_trace)
 }
 
 #[cfg(test)]
