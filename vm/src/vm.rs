@@ -419,10 +419,10 @@ mod tests {
         fn srli_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
                 &[Instruction::new(
-                    Op::SRL,
+                    Op::DIV,
                     Args { rd,
                     rs1,
-                    imm,
+                    imm: 1 << imm,
                         ..Args::default()
                         }
                 )],
