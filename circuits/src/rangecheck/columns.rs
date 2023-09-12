@@ -6,8 +6,6 @@ use crate::cross_table_lookup::Column;
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub(crate) struct RangeCheckColumnsView<T> {
-    /// Column containing the value (in u32) to be range checked.
-    pub(crate) val: T,
     /// Column containing the lower limb (u16) of the u32 value to be range
     /// checked.
     pub(crate) limb_lo: T,
@@ -44,7 +42,9 @@ pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COL
 /// Columns containing the data to be range checked in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn data<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.val)] }
+pub fn data<F: Field>() -> Vec<Column<F>> {
+    vec![Column::single(MAP.limb_lo) + Column::single(MAP.limb_hi) * F::from_canonical_u32(1 << 16)]
+}
 
 /// Column for a binary filter to indicate whether a row in the
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).

@@ -71,7 +71,6 @@ pub fn generate_rangecheck_trace<F: RichField>(
     let mut trace: Vec<Vec<F>> = vec![vec![]; columns::NUM_RC_COLS];
     let mut multiplicities = [F::ZERO; RANGE_CHECK_U16_SIZE];
 
-    println!("trace: {} {} ", cpu_trace.len(), memory_trace.len());
     for looking_table in RangecheckTable::lookups().looking_tables {
         let values = match looking_table.kind {
             TableKind::Cpu => extract(cpu_trace, &looking_table),
@@ -79,13 +78,11 @@ pub fn generate_rangecheck_trace<F: RichField>(
             other => unimplemented!("Can't range check {other:#?} tables"),
         };
 
-        println!("table: {:?} values.len: {:?}", looking_table, values.len());
         for val in values {
             let (limb_hi, limb_lo) = limbs_from_u32(
                 u32::try_from(val.to_canonical_u64()).expect("casting value to u32 should succeed"),
             );
             let rangecheck_row = RangeCheckColumnsView {
-                val,
                 limb_lo: F::from_canonical_u16(limb_lo),
                 limb_hi: F::from_canonical_u16(limb_hi),
                 filter: F::ONE,
@@ -93,7 +90,6 @@ pub fn generate_rangecheck_trace<F: RichField>(
             };
             multiplicities[limb_hi as usize] += F::ONE;
             multiplicities[limb_lo as usize] += F::ONE;
-            println!("push: {:?}", rangecheck_row);
             push_rangecheck_row(&mut trace, rangecheck_row.borrow());
         }
     }
@@ -108,7 +104,8 @@ pub fn generate_rangecheck_trace<F: RichField>(
         .map(F::from_noncanonical_u64)
         .collect();
 
-    let num_rows = trace[MAP.val].len();
+    let num_rows = trace[0].len();
+
     if num_rows > RANGE_CHECK_U16_SIZE {
         trace[MAP.multiplicities].resize(num_rows, F::ZERO);
         trace[MAP.fixed_range_check_u16]
@@ -162,16 +159,9 @@ mod tests {
         }
 
         for (i, filter) in trace[MAP.filter].iter().enumerate() {
-            println!("F: {} {}", trace[MAP.val][i], filter);
             match i {
                 0 | 1 => assert_eq!(filter, &F::ONE),
                 _ => assert_eq!(filter, &F::ZERO),
-            }
-        }
-        for (i, val) in trace[MAP.val].iter().enumerate() {
-            match i {
-                0 => assert_eq!(val, &F::from_canonical_usize(0x0001_fffe)),
-                _ => assert_eq!(val, &F::ZERO),
             }
         }
         for (i, limb_hi) in trace[MAP.limb_hi].iter().enumerate() {
