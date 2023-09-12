@@ -20,22 +20,6 @@ pub struct RangeCheckStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-/// Constrain `val` - (`limb_hi` ** base + `limb_lo`) == 0
-fn constrain_value<P: PackedField>(
-    base: P::Scalar,
-    local_values: &RangeCheckColumnsView<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    let val = local_values.val;
-    let limb_lo = local_values.limb_lo;
-    let limb_hi = local_values.limb_hi;
-    yield_constr.constraint(val - (limb_lo + limb_hi * base));
-}
-
-impl<F: RichField, const D: usize> RangeCheckStark<F, D> {
-    const BASE: usize = 1 << 16;
-}
-
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckStark<F, D> {
     const COLUMNS: usize = columns::NUM_RC_COLS;
     const PUBLIC_INPUTS: usize = 0;
@@ -54,13 +38,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         let lv: &RangeCheckColumnsView<P> = vars.local_values.borrow();
         let nv: &RangeCheckColumnsView<P> = vars.next_values.borrow();
 
-        // Check: the value is built from two limbs.
-        // And then check that the limbs are in range of 0..2^16 using lookup tables.
-        constrain_value(
-            P::Scalar::from_canonical_usize(Self::BASE),
-            lv,
-            yield_constr,
-        );
+        // Check: the limbs are in range of 0..2^16 using lookup tables.
         eval_lookups(
             vars,
             yield_constr,
@@ -122,7 +100,7 @@ mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
     use mozak_vm::test_utils::simple_test_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::{Field, PrimeField64};
+    use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use starky::stark::Stark;
     use starky::stark_testing::test_stark_low_degree;
@@ -130,9 +108,7 @@ mod tests {
     use super::*;
     use crate::generation::cpu::generate_cpu_trace;
     use crate::generation::memory::generate_memory_trace;
-    use crate::generation::rangecheck::{
-        generate_rangecheck_trace, limbs_from_u32, RANGE_CHECK_U16_SIZE,
-    };
+    use crate::generation::rangecheck::generate_rangecheck_trace;
     use crate::rangecheck::columns::NUM_RC_COLS;
 
     const D: usize = 2;
@@ -263,74 +239,6 @@ mod tests {
         // If this evaluates to true, this should mean that our range check failed.
         // Note that it is impossible for our sumcheck to fail since that constraint
         // is based on unrelated columns from what we tweaked above.
-        assert_ne!(
-            constraint_consumer.constraint_accs[0],
-            GoldilocksField::ZERO
-        );
-    }
-
-    #[test]
-    fn test_rangecheck_stark_fails_sum_constraint() {
-        let stark = S::default();
-        let (program, record) = simple_test_code(
-            &[Instruction {
-                op: Op::ADD,
-                args: Args {
-                    rd: 5,
-                    rs1: 6,
-                    rs2: 7,
-                    ..Args::default()
-                },
-            }],
-            &[],
-            &[],
-        );
-
-        let cpu_trace = generate_cpu_trace::<F>(&program, &record);
-        let memory_trace = generate_memory_trace::<F>(&program, &record.executed);
-        let mut trace = generate_rangecheck_trace::<F>(&cpu_trace, &memory_trace);
-        // The above generations setup the traces nicely, but we need to introduce
-        // a malicious entry here to test our failing case.
-        let value: u32 = 0xDEAD_BEEF;
-        let (limb_hi, limb_lo): (F, F) = limbs_from_u32(value);
-
-        let bad_row_idx = 0;
-        trace[MAP.val][bad_row_idx] = GoldilocksField(value.into());
-        trace[MAP.limb_hi][bad_row_idx] = limb_hi;
-        // Subtract one intentionally to make our sum check constraint fail.
-        let malicious_limb_lo = limb_lo - F::ONE;
-        trace[MAP.limb_lo][bad_row_idx] = malicious_limb_lo;
-
-        let local_values: [GoldilocksField; NUM_RC_COLS] = trace
-            .iter()
-            .map(|row| row[bad_row_idx])
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
-        let next_values = trace
-            .iter()
-            .map(|row| row[bad_row_idx + 1])
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
-
-        let vars = StarkEvaluationVars {
-            local_values: &local_values,
-            next_values: &next_values,
-            public_inputs: &[],
-        };
-
-        let mut constraint_consumer = ConstraintConsumer::new_debug_api(true, false);
-        stark.eval_packed_generic(vars, &mut constraint_consumer);
-
-        // Manually check range constraint to be sure that our constraints hold for the
-        // range check.
-        assert!((0..RANGE_CHECK_U16_SIZE)
-            .contains(&usize::try_from(F::to_noncanonical_u64(&trace[MAP.limb_lo][0])).unwrap()));
-        assert!((0..RANGE_CHECK_U16_SIZE)
-            .contains(&usize::try_from(F::to_noncanonical_u64(&trace[MAP.limb_hi][0])).unwrap()));
-        // If the above assert passes and the below condition fails i.e. assert_ne
-        // evaluates to true, this should mean that our sum constraint failed.
         assert_ne!(
             constraint_consumer.constraint_accs[0],
             GoldilocksField::ZERO
