@@ -97,10 +97,9 @@ where
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
-    // Compute trace commitments for each table.
     let trace_commitments = timed!(
         timing,
-        "compute all trace commitments",
+        "Compute trace commitments for each table",
         traces_poly_values
             .iter()
             .zip_eq(TableKind::all())
@@ -135,11 +134,10 @@ where
         challenger.observe_cap(cap);
     }
 
-    // Compute CTL data for each table.
     let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
     let ctl_data_per_table = timed!(
         timing,
-        "compute CTL data",
+        "Compute CTL data for each table",
         cross_table_lookup_data::<F, D>(
             traces_poly_values,
             &mozak_stark.cross_table_lookups,

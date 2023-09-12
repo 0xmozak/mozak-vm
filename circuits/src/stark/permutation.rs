@@ -210,7 +210,7 @@ fn compute_permutation_z_poly<F: Field>(
         .map(|instance| permutation_reduced_polys(instance, trace_poly_values, degree))
         .unzip();
 
-    // In order for the permutation to hold, `numerator / denominator == 1` must
+    // In order for the permutation to match, `numerator / denominator == 1` must
     // hold.
 
     // The following should give an intuition behind this:
@@ -221,11 +221,12 @@ fn compute_permutation_z_poly<F: Field>(
     // Additionally, the way we have incorporated randomness when calculating the
     // reduced polynomials makes the reduced polynomial values semi-random.
     //
-    // Now, if we multiply reduced polynomials values row by row, if the result is
-    // equal on both left and right side, then with high probability all values on
+    // Now, if we multiply reduced polynomials row by row, if the resulting
+    // polynomials are equal, then with high probability all values on
     // the left and right hand side should also be equal. And the fact that the
-    // values of reduced are semi-random removes the chance that the prover can
-    // specifically craft two permutations that would annihilate each other.
+    // reduced polynomials are semi-random minimizes the chance that the
+    // prover can specifically craft two permutations that would annihilate each
+    // other.
     let numerator = poly_product_elementwise(reduced_lhs_polys.into_iter());
     let denominator = poly_product_elementwise(reduced_rhs_polys.into_iter());
 
@@ -247,14 +248,17 @@ fn compute_permutation_z_poly<F: Field>(
     PolynomialValues::new(partial_products)
 }
 
-/// Computes the reduced polynomial by squashing all pairs of permutation
-/// column, each represented by a polynomial, into a single pair of polynomials.
-/// This is done by adding together the polynomial values with a secure random
-/// `beta` and `gamma`. For this to work, the permutation should be identical
-/// for all column pairs.
+/// Computes the reduced polynomial pair from a list of column permutation
+/// pairs, stored in the [`PermutationInstance`].
 ///
-/// The following is how we calculate the reduced polynomial, for both "left"
-/// and "right" sides:   `poly_reduced(x) = \sum beta^i poly_i(x) + gamma`
+/// The following is the formula of the reduced left/right polynomial:
+///   `poly_reduced(x) = \sum beta^i poly_i(x) + gamma`
+///
+/// Where:
+/// - `beta` is a secure random value
+/// - `gamma` is a secure random value
+/// - `poly_i(x)` is the left(right)  polynomial value of the `i`-th pair
+/// - `poly_reduced(x)` is the reduced left(right) polynomial
 fn permutation_reduced_polys<F: Field>(
     instance: &PermutationInstance<F>,
     trace_poly_values: &[PolynomialValues<F>],
@@ -359,6 +363,8 @@ pub(crate) fn eval_permutation_checks<F, FE, P, S, const D: usize, const D2: usi
             .unzip();
         // Check that Z(x) has been calculated correctly, that is:
         //  Z(gx) = Z(x) * \prod ( reduced_lhs_i(x) / reduced_rhs_i(x) )
+        // For convenience, we have rearranged the equation to:
+        //  Z(gx) * \prod ( reduced_rhs_i(x) ) - Z(x) *  \prod ( reduced_lhs_i(x) ) = 0
         let constraint = next_zs[i] * reduced_rhs.into_iter().product::<P>()
             - local_zs[i] * reduced_lhs.into_iter().product::<P>();
         consumer.constraint(constraint);
