@@ -422,7 +422,7 @@ mod tests {
                     Op::DIV,
                     Args { rd,
                     rs1,
-                    imm: 1 << imm,
+                    imm: 1 << (imm & 0b1_1111),
                         ..Args::default()
                         }
                 )],
