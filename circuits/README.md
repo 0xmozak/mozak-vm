@@ -131,17 +131,17 @@ adding an alias for easier use.
 ## Arguments
 
 Arguments are used to reason about relationships between two sequences of values. This can be in the form of a
-permutation argument or a subset argument. In our case, each sequence of values is represented by STARK table
+Permutation Argument or a Subset Argument. In our case, each sequence of values is represented by STARK table
 column or a set of columns, and sequences can be from the same or from different tables.
 
-Bellow, we will cover each of the arguments we use and briefly explain who it works.
+Below, we will cover each of the arguments we use and briefly explain who it works.
 
 ### Permutation (Multi-set) Arguments
 
 The simplest argument we will consider is the Permutation Arguments. It checks that two columns (or two set of columns)
 have the same values, up to a permutation. Meaning we could reorder values in the column (or rows of a set of columns)
-and get the other column (or a set of columns). Each table can support multiple separate permutation arguments, and
-columns can participate in multiple permutation arguments.
+and get the other column (or a set of columns). Each table can support multiple separate Permutation Arguments, and
+columns can participate in multiple Permutation Arguments.
 
 The Permutation Argument is so efficient compared to the Subset Argument, that sometimes we use it despite the Subset
 Arguments being a natural choice.
@@ -177,7 +177,7 @@ Now, to make sure we have the Subset Lookup working, it is enough for us to chec
     - Either value in _Permuted Column 1_ equals the value in _Permuted Column 2_.
     - Or value in _Permuted Column 1_ is the same as value in _Permuted Column 1_ one row above.
 
-_Bellow is the illustration of the subset lookup between looking Column 1 and looked Column 2, with the 2 introduced
+_Below is the illustration of the subset lookup between looking Column 1 and looked Column 2, with the 2 introduced
 helper columns._
 
 | Column 1 | Permuted Column 1 | Permuted Column 2 | Column 2 |
@@ -211,12 +211,12 @@ _looking_ tables is a permutation of rows of the _looked_ table. We also have ea
 column that is used to filter out rows that we do not want to participate in the permutation.
 
 To break down the above, let us consider an example. We have a _looked_ table with columns `{x, y, z, allow_to_lookup}`
-and a several _looking_ tables which contain columns `{x, y, z, look_up}`. By applying a Cross Table Permutation
-Argument, we make sure that the multi-set of `(x, y, z)` values from the _looked_ table, where `allow_to_lookup`
-is `true`, is a permutation of a multi-set of `(x, y, z)` values from the _looking_ tables, where `is_looked_up`
-is `true`. This construction implies that if a single _looking_ table or several _looking_ tables look up the same row
-multiple times, then the _looked_ table must have this row multiple times, as each row can only be looked up once by any
-_looking_ table.
+and a several _looking_ tables which contain columns `{x, y, z, look_up}`. Consider also that
+both `allow_to_lookup` and `look_up` columns are boolean. By applying a Cross Table Permutation Argument, we make sure
+that the multi-set of `(x, y, z)` values from the _looked_ table, where `allow_to_lookup`is `true`, is a permutation of
+a multi-set of `(x, y, z)` values from the _looking_ tables, where `look_up`is `true`. This construction implies
+that if a single _looking_ table or several _looking_ tables look up the same row multiple times, then the _looked_
+table must have this row multiple times, as each row can only be looked up once by any _looking_ table.
 
 The [technique](https://www.notion.so/0xmozak/Cross-Table-Lookup-bbe98d9471114c36a278f0c491f203e5?pvs=4#80f9047bc40f48f29c8ba852bf94c570)
 used to enable the Cross Table Permutation Arguments is very similar to the technique behind standard
@@ -253,7 +253,7 @@ Finally, like with Subset Lookups, we require that for each row in the new table
 - Or the row value is the same as next row value (excluding indicator columns)
 - Or the is from the looked table is true.
 
-This summarises the types of lookups and permutation arguments used in the codebase.
+This summarises the types of arguments used in the codebase.
 
 ## Table Value Insertion
 
