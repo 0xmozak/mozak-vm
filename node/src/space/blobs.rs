@@ -3,6 +3,7 @@ use std::ops::Deref;
 use sha3::digest::FixedOutput;
 use sha3::Digest;
 
+use crate::vm::ELF;
 use crate::Id;
 
 /// A struct that represents a single data blob on the network. This can either
@@ -11,55 +12,28 @@ use crate::Id;
 #[derive(Debug)]
 pub struct Blob {
     id: Id,
-    pub kind: BlobKind,
+    details: BlobDetails,
     pub owner: Id,
-    data: BlobData,
+}
+
+/// The type of the blob.
+/// We can later add more types of blobs.
+#[derive(Debug, Clone)]
+pub enum BlobDetails {
+    Executable(ELF),
+    Data(JSON),
+}
+
+/// JSON data.
+/// TODO - replace with JSON type
+#[derive(Debug, Clone)]
+pub struct JSON {
+    content: String,
 }
 
 impl PartialEq for Blob {
     /// We consider two blobs to be equal if they have the same id.
     fn eq(&self, other: &Self) -> bool { self.id == other.id }
-}
-
-/// The type of the blob.
-/// We can later add more types of blobs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BlobKind {
-    Executable,
-    Data,
-}
-
-/// Data type stored by the blob.
-#[derive(Debug, Clone)]
-pub enum BlobData {
-    /// An ELF code that can be executed by the RISC-V processor.
-    ELF(Vec<u8>),
-    /// A JSON data.
-    JSON(Vec<u8>),
-}
-
-#[cfg(test)]
-impl PartialEq for BlobData {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (BlobData::ELF(data1), BlobData::ELF(data2)) => data1 == data2,
-            (BlobData::JSON(data1), BlobData::JSON(data2)) => data1 == data2,
-            _ => false,
-        }
-    }
-}
-
-impl BlobData {
-    /// Create a new BlobData from a given data.
-    /// Performs the sanity checks, such as format, size, etc.
-    /// Additionally, parses the data and stores it in a more convenient format.
-    fn new(kind: BlobKind, data: Vec<u8>) -> Self {
-        // TODO - include preprocessing of the data and sanity checks
-        match kind {
-            BlobKind::Executable => BlobData::ELF(data),
-            BlobKind::Data => BlobData::JSON(data),
-        }
-    }
 }
 
 impl Blob {
@@ -69,12 +43,12 @@ impl Blob {
     /// - provided additional `parameters`, could be a subset of the blob data,
     ///   random bytes, etc.
     fn generate_blob_id<T: Into<Box<[u8]>> + Clone>(
-        kind: BlobKind,
+        is_executable: bool,
         owner: Id,
         parameters: Vec<T>,
     ) -> Id {
         let mut hasher = sha3::Sha3_256::new();
-        hasher.update(&[kind as u8]);
+        hasher.update(&[is_executable as u8]);
         hasher.update(*owner);
         parameters
             .iter()
@@ -84,29 +58,74 @@ impl Blob {
         Id(hash.into())
     }
 
-    /// Create a new Blob from a given data.
+    /// Create a new Blob from given data.
     pub fn new<T: Into<Box<[u8]>> + Clone>(
-        kind: BlobKind,
+        is_executable: bool,
         owner: Id,
         id_parameters: Vec<T>,
         data: Vec<u8>,
     ) -> Self {
         Blob {
-            id: Self::generate_blob_id(kind, owner, id_parameters),
-            kind,
+            id: Self::generate_blob_id(is_executable, owner, id_parameters),
+            details: Self::parse_blob_data(is_executable, data),
             owner,
-            data: match kind {
-                BlobKind::Executable => BlobData::ELF(data),
-                BlobKind::Data => BlobData::JSON(data),
-            },
+        }
+    }
+
+    /// Parses the blob data into a specific type.
+    fn parse_blob_data(is_executable: bool, data: Vec<u8>) -> BlobDetails {
+        if is_executable {
+            BlobDetails::Executable(ELF {
+                entry_point: 0,
+                size: 0,
+                code: data,
+            })
+        } else {
+            BlobDetails::Data(JSON {
+                content: String::from_utf8(data).unwrap(),
+            })
         }
     }
 
     /// Get the id of the blob.
     pub fn id(&self) -> &Id { &self.id }
 
-    /// Get the data of the blob.
-    pub fn data(&self) -> &BlobData { &self.data }
+    /// Get the blob as a program
+    #[inline]
+    pub fn as_program(&self) -> Option<&ELF> {
+        match self {
+            Blob {
+                details: BlobDetails::Executable(elf),
+                ..
+            } => Some(&elf),
+            _ => None,
+        }
+    }
+
+    /// Get the content of the blob
+    pub(crate) fn data(&self) -> Vec<u8> {
+        match self {
+            Blob {
+                details: BlobDetails::Data(json),
+                ..
+            } => json.content.clone().into_bytes(),
+            Blob {
+                details: BlobDetails::Executable(elf),
+                ..
+            } => elf.into(),
+        }
+    }
+
+    #[allow(unused_variables)] // TODO - remove
+    pub(crate) fn is_executable(&self) -> bool {
+        match self {
+            Blob {
+                details: BlobDetails::Executable(elf),
+                ..
+            } => true,
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -115,12 +134,7 @@ mod test {
 
     #[test]
     fn test_blob_id() {
-        let blob = Blob::new(
-            BlobKind::Data,
-            Id::default(),
-            vec![vec![1u8]],
-            [0u8; 1024].to_vec(),
-        );
+        let blob = Blob::new(true, Id::default(), vec![vec![1u8]], [0u8; 1024].to_vec());
 
         assert_eq!(*blob.id, [
             122, 252, 148, 230, 85, 159, 56, 102, 46, 36, 195, 244, 223, 191, 53, 179, 41, 187,
@@ -130,18 +144,8 @@ mod test {
 
     #[test]
     fn test_two_blobs_are_equal_by_id() {
-        let blob1 = Blob::new(
-            BlobKind::Data,
-            Id::default(),
-            vec![vec![1u8]],
-            [0u8; 1024].to_vec(),
-        );
-        let blob2 = Blob::new(
-            BlobKind::Data,
-            Id::default(),
-            vec![vec![1u8]],
-            [0u8; 1024].to_vec(),
-        );
+        let blob1 = Blob::new(true, Id::default(), vec![vec![1u8]], [0u8; 1024].to_vec());
+        let blob2 = Blob::new(true, Id::default(), vec![vec![1u8]], [1u8; 1024].to_vec());
 
         assert_eq!(blob1, blob2);
     }

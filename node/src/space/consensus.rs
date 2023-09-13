@@ -1,8 +1,8 @@
 use thiserror::Error;
 
+use crate::proof::ProgramRunProof;
 use crate::space::blobs::Blob;
 use crate::space::storage::SpaceStorage;
-use crate::stark::StarkProof;
 
 pub trait ConsensusSystem {
     fn initiate() -> Self;
@@ -15,7 +15,7 @@ pub trait ConsensusSystem {
         &mut self,
         updated_blobs: Vec<Blob>,
         read_blobs: Vec<Blob>,
-        proof: StarkProof,
+        proof: ProgramRunProof,
     ) -> Result<(), ConsensusError>;
 
     /// Fetches the latest state that we have reached consensus on
@@ -50,7 +50,7 @@ impl ConsensusSystem for DummyConsensusSystem {
         &mut self,
         updated_blobs: Vec<Blob>,
         _read_blobs: Vec<Blob>,
-        _proof: StarkProof,
+        _proof: ProgramRunProof,
     ) -> Result<(), ConsensusError> {
         self.storage.update_blobs(updated_blobs);
 

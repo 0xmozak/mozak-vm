@@ -36,51 +36,51 @@ impl SpaceStorage {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::space::blobs::BlobKind;
+    use crate::space::blobs::BlobDetails;
 
     #[test]
     fn test_space_storage() {
         let mut storage = SpaceStorage::initiate();
 
-        let (kind, owner, id_parameters, data) =
-            (BlobKind::Data, Id::default(), Vec::<&[u8]>::new(), vec![
+        let (is_executable, owner, id_parameters, data) =
+            (false, Id::default(), Vec::<&[u8]>::new(), vec![
                 1, 2, 3, 4, 5,
             ]);
 
-        let blob = Blob::new(kind, owner, id_parameters, data);
+        let blob = Blob::new(is_executable, owner, id_parameters, data);
         let blob_id = *blob.id();
-        let parsed_data = blob.data().clone();
+        let parsed_data = blob.data();
         storage.update_blobs(vec![blob]);
 
         let retrieved_blob = storage.get_blob(blob_id).unwrap();
 
         // Check that all blob parameters are the same.
         assert_eq!(blob_id, *retrieved_blob.id());
-        assert_eq!(kind, retrieved_blob.kind);
+        assert_eq!(is_executable, retrieved_blob.is_executable());
         assert_eq!(owner, retrieved_blob.owner);
-        assert_eq!(&parsed_data, retrieved_blob.data());
+        assert_eq!(parsed_data, retrieved_blob.data());
     }
 
     #[test]
     fn test_that_blobs_with_same_id_replace_each_other() {
         let mut storage = SpaceStorage::initiate();
 
-        let (kind, owner, id_parameters, data) =
-            (BlobKind::Data, Id::default(), Vec::<&[u8]>::new(), vec![
+        let (is_executable, owner, id_parameters, data) =
+            (false, Id::default(), Vec::<&[u8]>::new(), vec![
                 1, 2, 3, 4, 5,
             ]);
 
-        let blob = Blob::new(kind, owner, id_parameters, data);
+        let blob = Blob::new(is_executable, owner, id_parameters, data);
         let blob_id = *blob.id();
         storage.update_blobs(vec![blob]);
 
         let (new_kind, new_owner, new_id_parameters, new_data) =
-            (BlobKind::Data, Id::default(), Vec::<&[u8]>::new(), vec![
+            (BlobDetails::Data, Id::default(), Vec::<&[u8]>::new(), vec![
                 1, 2, 3, 4, 5, 6, 7, 8, 9,
             ]);
 
-        let updated_blob = Blob::new(new_kind, new_owner, new_id_parameters, new_data);
-        let new_parsed_data = updated_blob.data().clone();
+        let updated_blob = Blob::new(is_executable, new_owner, new_id_parameters, new_data);
+        let new_parsed_data = updated_blob.data();
         assert_eq!(blob_id, *updated_blob.id());
         storage.update_blobs(vec![updated_blob]);
 
@@ -88,8 +88,8 @@ mod test {
 
         // Check that all blob parameters are the same.
         assert_eq!(blob_id, *retrieved_blob.id());
-        assert_eq!(new_kind, retrieved_blob.kind);
+        assert_eq!(is_executable, retrieved_blob.is_executable());
         assert_eq!(new_owner, retrieved_blob.owner);
-        assert_eq!(&new_parsed_data, retrieved_blob.data());
+        assert_eq!(new_parsed_data, retrieved_blob.data());
     }
 }

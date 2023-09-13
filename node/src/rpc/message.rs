@@ -1,7 +1,8 @@
 use rand::distributions::Standard;
 use rand::prelude::Distribution;
-use rand::Rng;
+use rand::{Rng, RngCore};
 
+use crate::rpc::message::Argument::U32;
 use crate::Id;
 
 /// A raw Message data passed from the clients to the node. This will be parsed
@@ -15,21 +16,32 @@ impl From<RawMessage> for Message {
     fn from(#[allow(unused_variables)] message: RawMessage) -> Self { unimplemented!() }
 }
 
-/// Currently we allow for a fix set of Messages.
-/// In the future, we will support a more general Message format, where a client
-/// can pass a list of arbitrary arguments to a program.
+/// Message
 #[derive(Debug, Clone)]
-pub enum Message {
-    Transfer { from: Id, to: Id, amount: u64 },
+pub struct Message {
+    pub target_program: Id,
+    pub inputs: Vec<Argument>,
+}
+
+impl Message {
+    pub fn destruct(self) -> (Id, Vec<Argument>) { (self.target_program, self.inputs) }
+}
+
+/// Supported types of inputs
+/// We Support what the RISC-V supports
+/// Though we can add more types for convenience and readability
+#[derive(Debug, Clone)]
+pub enum Argument {
+    U32(u32),
+    U32Array(Vec<u32>),
 }
 
 #[cfg(feature = "dummy-system")]
 impl Distribution<Message> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Message {
-        Message::Transfer {
-            from: rng.gen(),
-            to: rng.gen(),
-            amount: rng.gen(),
+        Message {
+            target_program: Id([0; 32]),
+            inputs: vec![U32(rng.next_u32())],
         }
     }
 }

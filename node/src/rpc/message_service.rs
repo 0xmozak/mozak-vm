@@ -1,7 +1,7 @@
 use rand::prelude::Distribution;
 use rand::{Rng, RngCore, SeedableRng};
 
-use crate::user::message::Message;
+use crate::rpc::message::Message;
 
 /// The service that is responsible for handling the action messages received
 /// from the client.
@@ -42,6 +42,6 @@ mod tests {
     fn test_dummy_message_service() {
         let mut service = DummyMessageService::new();
         let message = service.get_next_message();
-        assert_matches!(message, Message::Transfer { .. });
+        assert_matches!(message, Message { .. });
     }
 }

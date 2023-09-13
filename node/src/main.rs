@@ -1,4 +1,6 @@
-use node::{ConsensusSystem, DummyConsensusSystem, DummyMessageService, MessageService};
+use node::{
+    run_program, ConsensusSystem, DummyConsensusSystem, DummyMessageService, MessageService,
+};
 
 use crate::placeholder::*;
 
@@ -19,19 +21,33 @@ fn main() {
         let message = message_service.get_next_message();
 
         // 2. Start a thread to work with the transaction
-        state_updates.push(handle_transaction(message, latest_state, |message| {
-            // 1. Parse the Transaction, get the program id and args
-            let (program, function, arguments) = parse_transaction(message);
+        // TODO - multithread it
+        let (updated_states, viewed_states, update_proof) = {
+            // 1. Obtain target program and program arguments from the message
+            let (program_id, program_input) = message.destruct();
             // 2. Get the Program from the Program Manager
-            let program = get_program(program);
+            let program = latest_state
+                .get_blob(program_id)
+                .unwrap()
+                .as_program()
+                .unwrap();
+
             // 3. Run the Program in the RISC-V VM
-            let (read_states, updated_states) = run_program(program, function, arguments);
+            let (output, read_states, updated_states) =
+                run_program(program, &program_input, latest_state);
             // 4. Prove that the Program was run correctly in the RISC-V VM
-            let update_proof =
-                prove_transaction(program, function, arguments, read_states, updated_states);
-            // 5. Update the state of the space
-            ((), (), ())
-        }));
+            let (update_proof) = prove_program_run(
+                program,
+                &program_input,
+                output,
+                &read_states,
+                &updated_states,
+            );
+
+            (updated_states, read_states, update_proof)
+        };
+        // 5. Update used states of the space
+        state_updates.push((updated_states, viewed_states, update_proof));
 
         // 3. Once in a while, collect the state updates and try to squash them. We can
         //    only squash state updates that don't conflict with each other (whose
@@ -55,27 +71,27 @@ fn main() {
 
 #[allow(unused_variables)]
 mod placeholder {
-    use node::{Blob, Message, SpaceStorage, StarkProof};
+    use node::{Argument, Blob, Id, Message, ProgramRunProof, ELF};
 
-    pub fn merge_state_updates(p0: &Vec<((), (), ())>) -> (Vec<Blob>, Vec<Blob>, StarkProof) {
+    pub fn merge_state_updates(
+        p0: &Vec<(Vec<Blob>, Vec<Blob>, ())>,
+    ) -> (Vec<Blob>, Vec<Blob>, ProgramRunProof) {
         unimplemented!()
     }
 
-    pub fn run_program(p0: (), p1: (), p2: ()) -> ((), ()) { unimplemented!() }
-
-    pub fn prove_transaction(p0: (), p1: (), p2: (), p3: (), p4: ()) -> () { unimplemented!() }
+    pub fn prove_program_run(
+        p0: &ELF,
+        p1: &Vec<Argument>,
+        p2: Vec<Argument>,
+        p3: &Vec<Blob>,
+        p4: &Vec<Blob>,
+    ) -> () {
+        unimplemented!()
+    }
 
     pub fn parse_transaction(p0: Message) -> ((), (), ()) { unimplemented!() }
 
-    pub fn get_program(p0: ()) -> () { unimplemented!() }
-
-    pub fn handle_transaction(
-        p0: Message,
-        state: &SpaceStorage,
-        p1: fn(m: Message) -> ((), (), ()),
-    ) -> ((), (), ()) {
-        unimplemented!()
-    }
+    pub fn get_program(p0: Id) -> () { unimplemented!() }
 
     pub fn get_next_transaction() -> () { unimplemented!() }
 }
