@@ -77,8 +77,7 @@ pub(crate) fn constraints<P: PackedField>(
     // So when r != 0, we can just enforce equality of signs.
     // when r = 0, the above exploit would no longer work, so no need to ensure sign equality
 
-    // uncomment below to see the tests fail.
-    // yield_constr.constraint(remainder_value * (remainder_sign - dividend_sign));
+    yield_constr.constraint(remainder_value * (remainder_sign - dividend_sign));
 
 
 

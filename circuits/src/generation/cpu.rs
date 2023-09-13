@@ -191,10 +191,10 @@ fn generate_div_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
         row.remainder_slack = F::ZERO;
         row.remainder_sign = F::from_bool(dividend_full_range.is_negative());
     } else {
-        let quotient_full_range = dividend_full_range.div_euclid(divisor_full_range);
+        let quotient_full_range = dividend_full_range / divisor_full_range;
         row.quotient_value = from_u32(quotient_full_range as u32);
         row.quotient_sign = F::from_bool(quotient_full_range.is_negative());
-        let remainder = dividend_full_range.rem_euclid(divisor_full_range);
+        let remainder = dividend_full_range % divisor_full_range;
         let remainder_abs = remainder.unsigned_abs();
         row.remainder_value = from_u32(remainder as u32);
         row.remainder_slack =
