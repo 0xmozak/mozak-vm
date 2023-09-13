@@ -213,15 +213,15 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
         // apply range constraints for the sign bits of each operand
         CpuTable::new(
             vec![
-                cpu.op1_value.clone() - &cpu.op1_sign_bit * F::from_canonical_u64((1_u64) << 32)
-                    + &is_op1_signed * F::from_canonical_u64((1_u64) << 31),
+                cpu.op1_value - cpu.op1_sign_bit * F::from_canonical_u64(1 << 32)
+                    + is_op1_signed * F::from_canonical_u64(1 << 31),
             ],
             is_running.clone(),
         ),
         CpuTable::new(
             vec![
-                cpu.op2_value.clone() - &cpu.op2_sign_bit * F::from_canonical_u64((1_u64) << 32)
-                    + &is_op2_signed * F::from_canonical_u64((1_u64) << 31),
+                cpu.op2_value - cpu.op2_sign_bit * F::from_canonical_u64(1 << 32)
+                    + is_op2_signed * F::from_canonical_u64(1 << 31),
             ],
             is_running,
         ),
