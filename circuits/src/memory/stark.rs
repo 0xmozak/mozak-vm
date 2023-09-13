@@ -46,8 +46,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // no change in addr, `diff_addr` (and consequently `diff_addr_inv`)
         // remain `0` when multiplied to each other give `0`.
         let (is_local_a_new_addr, is_next_a_new_addr) = (
-            lv.diff_addr * lv.diff_addr_inv,
-            nv.diff_addr * nv.diff_addr_inv,
+            lv.diff_addr * lv.diff_addr_inv,    // constrained below
+            nv.diff_addr * nv.diff_addr_inv,    // constrained below
         );
 
         // Boolean constraints
@@ -57,6 +57,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary(yield_constr, lv.is_executed);
         is_binary(yield_constr, lv.is_writable);
         is_binary(yield_constr, lv.is_init);
+        // Also ensure that "difference" values are consistent with their inverses
+        is_binary(yield_constr, is_local_a_new_addr);
+        is_binary(yield_constr, is_next_a_new_addr);
 
         // First row constraints
         // ---------------------
@@ -113,6 +116,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         );
 
         // However, `SB` based initialization can not occur on read-only marked memory
+        // We are assuming no other store operations exist (half word or full word)
         yield_constr.constraint(
             is_local_a_new_addr * is_not(lv.is_writable)
             * is_not(are_equal(lv.op, FE::from_canonical_usize(OPCODE_SB).into()))
