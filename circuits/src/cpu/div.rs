@@ -73,13 +73,12 @@ pub(crate) fn constraints<P: PackedField>(
 
     // Also for DIV operation, dividend and remainder have same sign.
     // If we don't enforce the above, prover can spoof by using the equation
-    //    x = dq + r = d(q + 1) + (r - d), with |r - d| and |r| being made to be less than |d|
-    // So when r != 0, we can just enforce equality of signs.
-    // when r = 0, the above exploit would no longer work, so no need to ensure sign equality
+    //    x = dq + r = d(q + 1) + (r - d), with |r - d| and |r| being made to be
+    // less than |d| So when r != 0, we can just enforce equality of signs.
+    // when r = 0, the above exploit would no longer work, so no need to ensure sign
+    // equality
 
     yield_constr.constraint(remainder_value * (remainder_sign - dividend_sign));
-
-
 
     // Constraints for divisor == 0.  On Risc-V:
     // p / 0 == 0xFFFF_FFFF
