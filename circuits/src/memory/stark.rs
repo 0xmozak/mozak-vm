@@ -34,9 +34,45 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv: &Memory<P> = vars.local_values.borrow();
         let nv: &Memory<P> = vars.next_values.borrow();
 
-        // Both `new_addr` values are 1 if the address changed, 0 otherwise
-        let local_new_addr = lv.diff_addr * lv.diff_addr_inv;
-        let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
+        // Boolean variables describing whether the current row and
+        // next row has a change of address when compared to the
+        // previous entry in the table. This works on the assumption
+        // that any change in addr will have non-zero `diff_addr` and
+        // consequently `diff_addr_inv` values. Any non-zero values for
+        // `diff_addr` will lead "correct" `diff_addr_inv` to be multiplicative
+        // inverse in the field leading multiplied value `1`. In case there is
+        // no change in addr, `diff_addr` (and consequently `diff_addr_inv`)
+        // remain `0` when multiplied to each other give `0`.
+        let (is_local_a_new_addr, is_next_a_new_addr) = (
+            lv.diff_addr * lv.diff_addr_inv,
+            nv.diff_addr * nv.diff_addr_inv,
+        );
+
+        // Boolean constraints
+        // -------------------
+        // Constrain certain columns of the memory table to be only
+        // exercising boolean values.
+        is_binary(yield_constr, lv.is_executed);
+        is_binary(yield_constr, lv.is_writable);
+        is_binary(yield_constr, lv.is_init);
+
+        // Memory initialization Constraints
+        // ---------------------------------
+        // Memory table is assumed to be ordered by `addr` in asc order.
+        // such that whenever we describe an memory init / access
+        // pattern of an "address", a correct table gurantees the following:
+        // 1. All memory init / accesses for a given `addr` is described via contigous
+        //    rows.
+        // 2. All rows for a specific `addr` start with either a memory init (via static
+        //    ELF) with `is_init` flag set (case for ro or rw static memory) or `SB`
+        //    (case for heap / other dynamic addresses). It is assumed that static
+        //    memory init operation happens before any execution has started and
+        //    consequently `clk` should be `0` for such entries.
+
+        // Ensure all `is_init` entries are only when `is_executed` is `1`.
+        // If `is_init` == `1` and `is_executed` == `0`, the following is
+        // not binary.
+        is_binary(yield_constr, lv.is_executed - lv.is_init);
 
         // For the initial state of memory access, we request:
         // 1. First opcode is `sb`
