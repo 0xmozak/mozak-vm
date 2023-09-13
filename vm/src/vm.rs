@@ -289,6 +289,23 @@ mod tests {
         crate::test_utils::simple_test_code(code, mem, regs).1
     }
 
+    fn divu_with_imm(rd: u8, rs1: u8, rs1_value: u32, imm: u32) {
+        let e = simple_test_code(
+            &[Instruction::new(Op::DIVU, Args {
+                rd,
+                rs1,
+                imm,
+                ..Args::default()
+            })],
+            &[],
+            &[(rs1, rs1_value)],
+        );
+        assert_eq!(
+            state_before_final(&e).get_register_value(rd),
+            divu(rs1_value, imm)
+        );
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig { max_global_rejects: 100_000, .. Default::default() })]
         #[test]
@@ -416,23 +433,9 @@ mod tests {
         }
 
         #[test]
-        fn srli_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
-            let e = simple_test_code(
-                &[Instruction::new(
-                    Op::DIVU,
-                    Args { rd,
-                    rs1,
-                    imm: 1 << (imm & 0b1_1111),
-                        ..Args::default()
-                        }
-                )],
-                &[],
-                &[(rs1, rs1_value)]
-            );
-            assert_eq!(
-                state_before_final(&e).get_register_value(rd),
-                rs1_value >> (imm & 0b1_1111)
-            );
+        fn srli_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in 0..32u8) {
+            // srli is implemented as DIVU with divisor being 1 << imm.
+            divu_with_imm(rd, rs1, rs1_value, 1 << imm);
         }
 
         #[test]
@@ -956,6 +959,12 @@ mod tests {
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
             assert_eq!(state_before_final(&e).get_register_value(rd), divu(rs1_value, rs2_value));
+        }
+
+        #[test]
+        fn divu_with_imm_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
+            prop_assume!(imm != 0);
+            divu_with_imm(rd, rs1, rs1_value, imm);
         }
 
         #[test]
