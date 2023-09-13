@@ -244,15 +244,15 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
         ),
         CpuTable::new(
             vec![
-                cpu.quotient_value - &cpu.quotient_sign * F::from_canonical_u64((1_u64) << 32)
-                    + &is_op2_signed * F::from_canonical_u64((1_u64) << 31),
+                cpu.quotient_value - &cpu.quotient_sign * F::from_canonical_u64(1 << 32)
+                    + &is_op2_signed * F::from_canonical_u64(1 << 31),
             ],
             divs.clone(),
         ),
         CpuTable::new(
             vec![
-                cpu.remainder_value - &cpu.remainder_sign * F::from_canonical_u64((1_u64) << 32)
-                    + &is_op2_signed * F::from_canonical_u64((1_u64) << 31),
+                cpu.remainder_value - &cpu.remainder_sign * F::from_canonical_u64(1 << 32)
+                    + &is_op2_signed * F::from_canonical_u64(1 << 31),
             ],
             divs,
         ),
