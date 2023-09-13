@@ -175,15 +175,11 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bltu + ops.bge + ops.bgeu;
     let is_shift_operation = ops.sll + ops.srl;
 
-    // Note: we could skip 0, because r0 is always 0.
-    // But we keep the constraints simple here.
-    let rs2_value = CpuState::<P>::populate_rs2_value(lv);
-
-    yield_constr.constraint(is_branch_operation * (lv.op2_value - rs2_value));
+    yield_constr.constraint(is_branch_operation * (lv.op2_value - lv.rs2_value()));
     yield_constr.constraint(is_shift_operation * (lv.op2_value - lv.bitshift.multiplier));
     yield_constr.constraint(
         (P::ONES - is_branch_operation - is_shift_operation)
-            * (lv.op2_value_overflowing - lv.inst.imm_value - rs2_value),
+            * (lv.op2_value_overflowing - lv.inst.imm_value - lv.rs2_value()),
     );
     yield_constr.constraint(
         (P::ONES - is_branch_operation - is_shift_operation)

@@ -9,6 +9,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuState;
+use crate::cpu::mul::bit_to_sign;
 use crate::cpu::stark::is_binary;
 
 /// Constraints for DIV / REM / DIVU / REMU / SRL instructions
@@ -23,10 +24,12 @@ pub(crate) fn constraints<P: PackedField>(
     let two_to_32 = CpuState::<P>::shifted(32);
     let dividend_value = lv.op1_value;
     let dividend_sign = lv.op1_sign_bit;
-    let dividend_full_range = CpuState::<P>::op1_full_range(lv);
+    let dividend_abs = lv.op1_abs;
+    let dividend_full_range = lv.op1_full_range();
     let divisor_value = lv.op2_value;
+    let divisor_sign = lv.op2_sign_bit;
     let divisor_abs = lv.op2_abs;
-    let divisor_full_range = CpuState::<P>::op2_full_range(lv);
+    let divisor_full_range = lv.op2_full_range();
 
     // The following columns are used only in this function, which requires extra
     // checks or range checks.
@@ -36,21 +39,42 @@ pub(crate) fn constraints<P: PackedField>(
     let remainder_value = lv.remainder_value;
     let remainder_sign = lv.remainder_sign;
     let remainder_slack = lv.remainder_slack;
+    let quotient_full_range = quotient_value - quotient_sign * two_to_32;
+    let remainder_full_range = remainder_value - remainder_sign * two_to_32;
+    let quotient_abs = bit_to_sign(quotient_sign) * quotient_full_range;
+    let remainder_abs = bit_to_sign(remainder_sign) * remainder_full_range;
 
-    // The range checks that constrain quotient_sign and remainder_sign can be found
-    // in cpu.rs.
+    // For both signed and unsigned division, it holds that
+    // |dividend| = |divisor| × |quotient| + |remainder|.
+    yield_constr.constraint(divisor_abs * quotient_abs + remainder_abs - dividend_abs);
+
+    // We also need to make sure quotient_sign and remainder_sign are set correctly.
     is_binary(yield_constr, remainder_sign);
     is_binary(yield_constr, dividend_sign);
-    // Special case for dividend == -2^31, divisor == -1: remainder_sign == 0.
-    yield_constr.constraint(remainder_sign * (dividend_sign - remainder_sign));
+    yield_constr.constraint(remainder_value * (dividend_sign - remainder_sign));
+
+    // Quotient_sign = dividend_sign * divisor_sign, with three exceptions:
+    // 1. When divisor = 0, this case is handled below.
+    // 2. When quotient = 0, we do not care about the sign.
+    // 3. For signed instructions, when quotient = 2^31 (overflow), quotient_sign is
+    //    not important.
+    yield_constr.constraint(
+        (P::ONES - lv.skip_check_quotient_sign)
+            * (bit_to_sign(quotient_sign) - bit_to_sign(dividend_sign) * bit_to_sign(divisor_sign)),
+    );
+    // Ensure that 'skip_check_quotient_sign' can only be set to 1 in the presence
+    // of the above exceptions. For other potential values, it does not
+    // matter and will not break any constraints.
+    is_binary(yield_constr, lv.skip_check_quotient_sign);
+    yield_constr.constraint(
+        lv.skip_check_quotient_sign * divisor_full_range * (quotient_value + quotient_full_range),
+    );
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
     // > For both signed and unsigned division, it holds that
     // > dividend = divisor × quotient + remainder.
-    let quotient_full_range = quotient_value - quotient_sign * two_to_32;
-    let remainder_full_range = remainder_value - remainder_sign * two_to_32;
     yield_constr.constraint(
-        divisor_full_range
+        (P::ONES - lv.skip_check_quotient_sign)
             * (divisor_full_range * quotient_full_range + remainder_full_range
                 - dividend_full_range),
     );
@@ -68,8 +92,6 @@ pub(crate) fn constraints<P: PackedField>(
     // Part B is only slightly harder: borrowing the concept of 'slack variables' from linear programming (https://en.wikipedia.org/wiki/Slack_variable) we get:
     // (B') remainder + slack + 1 = divisor
     //      with range_check(slack)
-    let remainder_abs =
-        (P::ONES - remainder_sign * P::Scalar::from_canonical_u32(2)) * remainder_full_range;
     yield_constr
         .constraint(divisor_abs * (remainder_abs + P::ONES + remainder_slack - divisor_abs));
 
@@ -170,6 +192,9 @@ mod tests {
         let (program, record) = simple_test_code(&div_rem_instructions(rd), &[], &[(1, p), (2, q)]);
         Stark::prove_and_verify(&program, &record).unwrap();
     }
+
+    #[test]
+    fn prove_div_example() { prove_div::<MozakStark<F, D>>(2147483648, 4294967295, 28); }
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]

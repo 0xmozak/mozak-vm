@@ -128,6 +128,7 @@ pub struct CpuState<T> {
     pub op2_value_inv: T,
     pub quotient_value: T, // range check u32 required
     pub quotient_sign: T,
+    pub skip_check_quotient_sign: T,
     pub remainder_value: T, // range check u32 required
     pub remainder_sign: T,
     /// Value of `divisor_abs - remainder_abs - 1`
@@ -174,7 +175,7 @@ impl<T: PackedField> CpuState<T> {
     }
 
     /// The value of the designated register in rs2.
-    pub fn populate_rs2_value(&self) -> T {
+    pub fn rs2_value(&self) -> T {
         // Note: we could skip 0, because r0 is always 0.
         // But we keep it to make it easier to reason about the code.
         (0..32)
@@ -229,24 +230,17 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
         // apply range constraints for the sign bits of each operand
         CpuTable::new(
             vec![
-                cpu.op1_value - &cpu.op1_sign_bit * F::from_canonical_u64((1_u64) << 32)
-                    + &is_op1_signed * F::from_canonical_u64((1_u64) << 31),
+                cpu.op1_value - &cpu.op1_sign_bit * F::from_canonical_u64(1 << 32)
+                    + &is_op1_signed * F::from_canonical_u64(1 << 31),
             ],
             is_running.clone(),
         ),
         CpuTable::new(
             vec![
-                cpu.op2_value - &cpu.op2_sign_bit * F::from_canonical_u64((1_u64) << 32)
-                    + &is_op2_signed * F::from_canonical_u64((1_u64) << 31),
+                cpu.op2_value - &cpu.op2_sign_bit * F::from_canonical_u64(1 << 32)
+                    + &is_op2_signed * F::from_canonical_u64(1 << 31),
             ],
             is_running,
-        ),
-        CpuTable::new(
-            vec![
-                cpu.quotient_value - &cpu.quotient_sign * F::from_canonical_u64((1_u64) << 32)
-                    + &is_op2_signed * F::from_canonical_u64((1_u64) << 31),
-            ],
-            divs.clone(),
         ),
     ]
 }
