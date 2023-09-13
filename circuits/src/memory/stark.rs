@@ -12,6 +12,7 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 use crate::cpu::stark::is_binary;
 use crate::memory::columns::{Memory, NUM_MEM_COLS};
 use crate::memory::trace::OPCODE_SB;
+use crate::stark::utils::{are_equal, is_not};
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -56,42 +57,65 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary(yield_constr, lv.is_writable);
         is_binary(yield_constr, lv.is_init);
 
+        // First row constraints
+        // ---------------------
+        // When starting off, the first `addr` we encounter is supposed to be
+        // relatively away from `0` by `diff_addr`, consequently `addr` and
+        // `diff_addr` are same for the first row. As a matter of preference,
+        // we can have any `clk` in the first row, but `diff_clk` is `0`.
+        yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
+        yield_constr.constraint_first_row(lv.diff_clk);
+
+        // Ascending ordered, contigous "address" view constraint
+        // ------------------------------------------------------
+        // All memory init / accesses for a given `addr` is described via contigous
+        // rows. This is constrained by range-check on `diff_addr` which in 32-bit
+        // RISC can only assume values 0 till 2^32-1. If similar range-checking
+        // constraint is put on `addr` as well, the only possibility of
+        // non-contigous address view occurs when the prime order of field in
+        // question is of size less than 2*(2^32 - 1). Both `.addr` and `.diff_addr`
+        // is constrained in `pub fn rangecheck_looking<F: Field>()` subsequently.
+
         // Memory initialization Constraints
         // ---------------------------------
         // Memory table is assumed to be ordered by `addr` in asc order.
         // such that whenever we describe an memory init / access
         // pattern of an "address", a correct table gurantees the following:
-        // 1. All memory init / accesses for a given `addr` is described via contigous
-        //    rows.
-        // 2. All rows for a specific `addr` start with either a memory init (via static
+        //    All rows for a specific `addr` start with either a memory init (via static
         //    ELF) with `is_init` flag set (case for ro or rw static memory) or `SB`
         //    (case for heap / other dynamic addresses). It is assumed that static
         //    memory init operation happens before any execution has started and
         //    consequently `clk` should be `0` for such entries.
+        // NOTE: We rely on 'Ascending ordered, contigous "address" view constraint'
+        // since if that is broken, for same address different contigous blocks could
+        // present case for being derived from static ELF and dynamic (execution) at
+        // the same time.
 
         // Ensure all `is_init` entries are only when `is_executed` is `1`.
         // If `is_init` == `1` and `is_executed` == `0`, the following is
         // not binary.
         is_binary(yield_constr, lv.is_executed - lv.is_init);
 
-        // For the initial state of memory access, we request:
-        // 1. First opcode is `sb`
-        // 2. `diff_addr` is initiated as `addr - 0`
-        // 3. `addr` != 0
-        // 4. `diff_clk` is initiated as `0`
-        yield_constr.constraint_first_row(lv.op - FE::from_canonical_usize(OPCODE_SB));
-        yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
-        yield_constr.constraint_first_row(lv.diff_clk);
+        // If the `addr` talks about an address coming from a static address-space
+        // i.e. ELF itself, it has first row as `is_init` and the `clk` would be `0`.
+        yield_constr.constraint(
+            is_local_a_new_addr * lv.is_init    // selector
+            * lv.clk, // constrain clk to be `0` if selector == true
+        );
 
-        // Consequently, we constrain:
+        // If instead, the `addr` talks about an address not coming from static ELF,
+        // it needs to begin with a `SB` (store) operation before any further access
+        yield_constr.constraint(
+            is_local_a_new_addr * is_not(lv.is_init)                            // selector
+            * are_equal(lv.op, FE::from_canonical_usize(OPCODE_SB).into()) // constrain `SB` as operation if selector == true
+        );
 
-        is_binary(yield_constr, lv.is_executed);
-        // We only have two different ops at the moment, so we use a binary variable to
-        // represent them:
+        // Operation constraints
+        // ---------------------
+        // Currently we only support `SB` and `LB` operations (no half-word or full-word
+        // load and store). These are represented in `op` as either `0` or `1`. We
+        // constrain them here
         is_binary(yield_constr, lv.op);
-
-        // Check: if address for next instruction changed, then opcode was `sb`
-        yield_constr.constraint(local_new_addr * (lv.op - FE::from_canonical_usize(OPCODE_SB)));
 
         // Check: if next address did not change, diff_clk_next is `clk` difference
         yield_constr
