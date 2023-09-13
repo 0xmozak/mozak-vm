@@ -41,6 +41,8 @@ pub(crate) fn constraints<P: PackedField>(
     // in cpu.rs.
     is_binary(yield_constr, remainder_sign);
     is_binary(yield_constr, dividend_sign);
+    // Special case for dividend == -2^31, divisor == -1: remainder_sign == 0.
+    yield_constr.constraint(remainder_sign * (dividend_sign - remainder_sign));
 
     // https://five-embeddev.com/riscv-isa-manual/latest/m.html says
     // > For both signed and unsigned division, it holds that
