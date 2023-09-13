@@ -84,7 +84,7 @@ pub(crate) fn constraints<P: PackedField>(
     );
 
     // For MUL/MULHU/SLL product sign should always be 0.
-    yield_constr.constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * product_sign);
+    yield_constr.constraint((P::ONES - lv.inst.is_op1_signed) * product_sign);
 
     // Ensure skip_check_product_sign can be set to 1 only when either ob1_abs or
     // op2_abs is 0. This check is essential for the subsequent constraints.
@@ -119,9 +119,7 @@ pub(crate) fn constraints<P: PackedField>(
     // Now, check, that we select the correct output based on the opcode.
     let destination = lv.dst_value;
     yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.sll) * (destination - low_limb));
-    yield_constr.constraint(
-        (lv.inst.ops.mulh + lv.inst.ops.mulhsu + lv.inst.ops.mulhu) * (destination - high_limb),
-    );
+    yield_constr.constraint((lv.inst.ops.mulh) * (destination - high_limb));
 }
 
 #[cfg(test)]
