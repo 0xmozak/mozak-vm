@@ -1,5 +1,6 @@
 use std::borrow::Borrow;
 use std::marker::PhantomData;
+use std::ops::Add;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -63,6 +64,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // relatively away from `0` by `diff_addr`, consequently `addr` and
         // `diff_addr` are same for the first row. As a matter of preference,
         // we can have any `clk` in the first row, but `diff_clk` is `0`.
+        // This is because when `addr` changes, `diff_clk` is expected to be `0`.
         yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
         yield_constr.constraint_first_row(lv.diff_clk);
 
@@ -110,6 +112,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
             * are_equal(lv.op, FE::from_canonical_usize(OPCODE_SB).into()) // constrain `SB` as operation if selector == true
         );
 
+        // However, `SB` based initialization can not occur on read-only marked memory
+        yield_constr.constraint(
+            is_local_a_new_addr * is_not(lv.is_writable)
+            * is_not(are_equal(lv.op, FE::from_canonical_usize(OPCODE_SB).into()))
+        );
+
         // Operation constraints
         // ---------------------
         // Currently we only support `SB` and `LB` operations (no half-word or full-word
@@ -117,15 +125,28 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // constrain them here
         is_binary(yield_constr, lv.op);
 
-        // Check: if next address did not change, diff_clk_next is `clk` difference
-        yield_constr
-            .constraint_transition((nv.diff_clk - nv.clk + lv.clk) * (next_new_addr - P::ONES));
+        // Clock constraints
+        // -----------------
+        // `diff_clk` assumes the value "new row's `clk`" - "current row's `clk`" in
+        // case both new row and current row talk about the same addr. However,
+        // in case the "new row" describes an `addr` different from the current
+        // row, we expect `diff_clk` to be `0`. New row's clk remains
+        // unconstrained in such situation.
+        yield_constr.constraint_transition(
+            is_not(is_next_a_new_addr)              // selector
+            * are_equal(nv.diff_clk, nv.clk - lv.clk), /* `diff_clk` matches difference if
+                                                        * selector == true */
+        );
+        yield_constr.constraint_transition(
+            is_local_a_new_addr         // selector
+            * lv.diff_clk, // `diff_clk` is `0` in case a selector == true
+        );
 
-        // Check: if address changed, then clock did not change
-        yield_constr.constraint(local_new_addr * lv.diff_clk);
-
-        // Check: `diff_addr_next` is  `addr_next - addr_cur`
-        yield_constr.constraint_transition(nv.diff_addr - nv.addr + lv.addr);
+        // Address constraints
+        // -------------------
+        // We need to ensure that `diff_addr` always encapsulates difference in addr
+        // between two rows
+        yield_constr.constraint_transition(are_equal(nv.addr, lv.addr + nv.diff_addr));
 
         // Check: either the next operation is a store or the `value` stays the same.
         yield_constr
