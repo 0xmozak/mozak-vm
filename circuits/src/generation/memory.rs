@@ -79,8 +79,16 @@ pub fn generate_memory_init_trace_from_program<F: RichField>(program: &Program) 
         .collect()
 }
 
+/// Generates memory trace using static component `program` for
+/// memory initialization and dynamic component `step_rows` for
+/// access (load and store) of memory elements. Trace constraints
+/// are supposed to abide by read-only and read-write address
+/// constraints.
 #[must_use]
 pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row]) -> Vec<Memory<F>> {
+    // `merged_trace` is address sorted combination of static and
+    // dynamic memory trace components of program (ELF and execution)
+    // `merge` operation is expected to be stable
     let mut merged_trace: Vec<Memory<F>> = generate_memory_init_trace_from_program::<F>(program)
         .into_iter()
         .merge_by(
@@ -89,6 +97,8 @@ pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row])
         )
         .collect();
 
+    // Ensures constraints by filling remaining inter-row
+    // relation values: clock difference and addr difference
     let mut last_clk = F::ZERO;
     let mut last_addr = F::ZERO;
     for mem in &mut merged_trace {
