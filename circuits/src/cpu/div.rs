@@ -23,10 +23,10 @@ pub(crate) fn constraints<P: PackedField>(
     let two_to_32 = CpuState::<P>::shifted(32);
     let dividend_value = lv.op1_value;
     let dividend_sign = lv.op1_sign_bit;
-    let dividend_full_range = CpuState::<P>::op1_full_range(lv);
+    let dividend_full_range = lv.op1_full_range();
     let divisor_value = lv.op2_value;
     let divisor_abs = lv.op2_abs;
-    let divisor_full_range = CpuState::<P>::op2_full_range(lv);
+    let divisor_full_range = lv.op2_full_range();
 
     // The following columns are used only in this function, which requires extra
     // checks or range checks.
