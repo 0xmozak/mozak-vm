@@ -31,9 +31,9 @@ pub(crate) fn signed_constraints<P: PackedField>(
     is_binary(yield_constr, lv.op1_sign_bit);
     is_binary(yield_constr, lv.op2_sign_bit);
     // When op1 is not signed as per instruction semantics, op1_sign_bit must be 0.
-    yield_constr.constraint((P::ONES - lv.is_op1_signed()) * lv.op1_sign_bit);
+    yield_constr.constraint((P::ONES - lv.inst.is_op1_signed) * lv.op1_sign_bit);
     // When op2 is not signed as per instruction semantics, op2_sign_bit must be 0.
-    yield_constr.constraint((P::ONES - lv.is_op2_signed()) * lv.op2_sign_bit);
+    yield_constr.constraint((P::ONES - lv.inst.is_op2_signed) * lv.op2_sign_bit);
 }
 
 pub(crate) fn slt_constraints<P: PackedField>(
@@ -41,7 +41,7 @@ pub(crate) fn slt_constraints<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // Check: the destination has the same value as stored in `less_than`.
-    yield_constr.constraint((lv.inst.ops.slt + lv.inst.ops.sltu) * (lv.less_than - lv.dst_value));
+    yield_constr.constraint(lv.inst.ops.slt * (lv.less_than - lv.dst_value));
 }
 
 #[cfg(test)]
