@@ -173,8 +173,9 @@ impl<T: PackedField> CpuState<T> {
             + self.inst.ops.rem
     }
 
-    /// The value of the designated register in rs2.
-    pub fn populate_rs2_value(&self) -> T {
+    /// The value of the designated register rs2.
+    /// This expression has degree 2.
+    pub fn rs2_value(&self) -> T {
         // Note: we could skip 0, because r0 is always 0.
         // But we keep it to make it easier to reason about the code.
         (0..32)

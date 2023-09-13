@@ -25,8 +25,7 @@ pub(crate) fn constraints<P: PackedField>(
     let and_gadget = and_gadget(&lv.xor);
     yield_constr
         .constraint(is_shift * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0b1_1111)));
-    let rs2 = CpuState::<P>::populate_rs2_value(lv);
-    yield_constr.constraint(is_shift * (and_gadget.input_b - rs2 - lv.inst.imm_value));
+    yield_constr.constraint(is_shift * (and_gadget.input_b - lv.rs2_value() - lv.inst.imm_value));
 
     yield_constr.constraint(is_shift * (and_gadget.output - lv.bitshift.amount));
 }
