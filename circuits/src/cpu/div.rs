@@ -194,7 +194,7 @@ mod tests {
     }
 
     #[test]
-    fn prove_div_example() { prove_div::<MozakStark<F, D>>(2147483648, 4294967295, 28); }
+    fn prove_div_example() { prove_div::<MozakStark<F, D>>(2_147_483_648, 4_294_967_295, 28); }
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
