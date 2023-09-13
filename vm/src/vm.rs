@@ -938,7 +938,7 @@ mod tests {
                 &[],
                 &[(rs1, rs1_value as u32), (rs2, rs2_value as u32)]
             );
-            // assert_eq!(state_before_final(&e).get_register_value(rd), div(rs1_value as u32, rs2_value as u32));
+            assert_eq!(state_before_final(&e).get_register_value(rd), div(rs1_value as u32, rs2_value as u32));
         }
 
         #[test]
