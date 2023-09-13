@@ -9,6 +9,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuState;
+use super::mul::bit_to_sign;
 use crate::cpu::stark::is_binary;
 
 /// Constraints for DIV / REM / DIVU / REMU / SRL instructions
@@ -66,8 +67,7 @@ pub(crate) fn constraints<P: PackedField>(
     // Part B is only slightly harder: borrowing the concept of 'slack variables' from linear programming (https://en.wikipedia.org/wiki/Slack_variable) we get:
     // (B') remainder + slack + 1 = divisor
     //      with range_check(slack)
-    let remainder_abs =
-        (P::ONES - remainder_sign * P::Scalar::from_canonical_u32(2)) * remainder_full_range;
+    let remainder_abs = bit_to_sign(remainder_sign) * remainder_full_range;
     yield_constr
         .constraint(divisor_abs * (remainder_abs + P::ONES + remainder_slack - divisor_abs));
 
