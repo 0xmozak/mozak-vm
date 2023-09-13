@@ -182,8 +182,6 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let divs = &ops.div + &ops.rem + &ops.srl;
     let muls = &ops.mul + &ops.mulh + &ops.sll;
 
-    let is_running = cpu.is_running;
-
     vec![
         CpuTable::new(vec![cpu.quotient], divs.clone()),
         CpuTable::new(vec![cpu.remainder], divs.clone()),
@@ -198,14 +196,14 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
                 cpu.op1_value.clone() - &cpu.op1_sign_bit * F::from_canonical_u64((1_u64) << 32)
                     + &cpu.inst.is_op1_signed * F::from_canonical_u64((1_u64) << 31),
             ],
-            is_running.clone(),
+            cpu.inst.is_op1_signed,
         ),
         CpuTable::new(
             vec![
                 cpu.op2_value.clone() - &cpu.op2_sign_bit * F::from_canonical_u64((1_u64) << 32)
                     + &cpu.inst.is_op2_signed * F::from_canonical_u64((1_u64) << 31),
             ],
-            is_running,
+            cpu.inst.is_op2_signed,
         ),
     ]
 }
