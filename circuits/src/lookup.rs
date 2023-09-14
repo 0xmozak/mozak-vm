@@ -119,6 +119,8 @@ impl Lookup {
         let mut z = Vec::with_capacity(multiplicities.len());
         z.push(F::ZERO);
         for i in 0..multiplicities.len() - 1 {
+            // This expression asserts Lemma 5 within the paper:
+            // 1 / (x + f(x)) - m(x) / (x + t(x)) = 0
             let x = helper_columns[..self.looking_columns.len()]
                 .iter()
                 .map(|col| col.values[i])
