@@ -90,20 +90,30 @@ impl Lookup {
         let num_helper_columns = self.num_helper_columns();
         let mut helper_columns: Vec<PolynomialValues<F>> = Vec::with_capacity(num_helper_columns);
 
-        for col in self.looking_columns.iter() {
-            let mut looking = trace_poly_values[*col].values.clone();
-            for x in looking.iter_mut() {
+        // Calculates 1 / x + f(x), which prepares the column to be constrained as per
+        // Lemma 5 within the LogUp paper.
+        fn log_derivative<F: Field>(mut column: Vec<F>, challenge: F) -> PolynomialValues<F> {
+            for x in column.iter_mut() {
                 *x = challenge + *x;
             }
 
-            helper_columns.push(F::batch_multiplicative_inverse(&looking).into());
+            PolynomialValues::from(F::batch_multiplicative_inverse(&column))
         }
 
-        let mut looked = trace_poly_values[self.looked_column].values.clone();
-        for x in looked.iter_mut() {
-            *x = challenge + *x;
+        // This prepares the 1 / (x + f(x)) column.
+        for col in self.looking_columns.iter() {
+            helper_columns.push(log_derivative(
+                trace_poly_values[*col].values.clone(),
+                challenge,
+            ));
         }
-        helper_columns.push(F::batch_multiplicative_inverse(&looked).into());
+
+        // This prepares the 1 / (x + t(x)) column. The multiplicities, m(x), is
+        // multiplied below.
+        helper_columns.push(log_derivative(
+            trace_poly_values[self.looked_column].values.clone(),
+            challenge,
+        ));
 
         let multiplicities = &trace_poly_values[self.multiplicity_column].values;
         let mut z = Vec::with_capacity(multiplicities.len());
@@ -113,6 +123,7 @@ impl Lookup {
                 .iter()
                 .map(|col| col.values[i])
                 .sum::<F>()
+                // We multiply m(x) into the helper column we calculated above.
                 - multiplicities[i] * helper_columns.last().unwrap().values[i];
             z.push(z[i] + x);
         }
