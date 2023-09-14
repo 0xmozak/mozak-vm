@@ -173,8 +173,11 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
                 match imm.bit_range(11, 5) {
                     // For Risc-V it's SRAI, but we handle it as SRA.
                     0b010_0000 => (Op::SRA, itype),
-                    // For Risc-V it's SRLI, but we handle it as SRL.
-                    0 => (Op::SRL, itype),
+                    // For Risc-V it's SRLI, but we handle it as DIVU.
+                    0 => (Op::DIVU, Args {
+                        imm: 1 << itype.imm,
+                        ..itype
+                    }),
                     #[tarpaulin::skip]
                     _ => Default::default(),
                 }
@@ -399,11 +402,11 @@ mod tests {
     fn srli(word: u32, rd: u8, rs1: u8, imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
         let match_ins = Instruction {
-            op: Op::SRL,
+            op: Op::DIVU,
             args: Args {
                 rd,
                 rs1,
-                imm,
+                imm: 1 << imm,
                 ..Default::default()
             },
         };
