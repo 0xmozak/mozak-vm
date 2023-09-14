@@ -1,6 +1,5 @@
 use std::borrow::Borrow;
 use std::marker::PhantomData;
-use std::ops::Add;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -46,8 +45,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // no change in addr, `diff_addr` (and consequently `diff_addr_inv`)
         // remain `0` when multiplied to each other give `0`.
         let (is_local_a_new_addr, is_next_a_new_addr) = (
-            lv.diff_addr * lv.diff_addr_inv,    // constrained below
-            nv.diff_addr * nv.diff_addr_inv,    // constrained below
+            lv.diff_addr * lv.diff_addr_inv, // constrained below
+            nv.diff_addr * nv.diff_addr_inv, // constrained below
         );
 
         // Boolean constraints
@@ -60,6 +59,19 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // Also ensure that "difference" values are consistent with their inverses
         is_binary(yield_constr, is_local_a_new_addr);
         is_binary(yield_constr, is_next_a_new_addr);
+
+        // Difference value constraints
+        // ----------------------------
+        // If address hasn't changed between rows, both `diff_addr` and
+        // `diff_addr_inv` needs to be zero
+        yield_constr.constraint(
+            is_not(is_local_a_new_addr) // selector
+            * lv.diff_addr, // should be zero if selector == true
+        );
+        yield_constr.constraint(
+            is_not(is_local_a_new_addr) // selector
+            * lv.diff_addr_inv, // should be zero if selector == true
+        );
 
         // First row constraints
         // ---------------------
@@ -112,14 +124,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // it needs to begin with a `SB` (store) operation before any further access
         yield_constr.constraint(
             is_local_a_new_addr * is_not(lv.is_init)                            // selector
-            * are_equal(lv.op, FE::from_canonical_usize(OPCODE_SB).into()) // constrain `SB` as operation if selector == true
+            * are_equal(lv.op, FE::from_canonical_usize(OPCODE_SB)), /* constrain `SB` as
+                                                                      * operation if selector ==
+                                                                      * true */
         );
 
         // However, `SB` based initialization can not occur on read-only marked memory
         // We are assuming no other store operations exist (half word or full word)
         yield_constr.constraint(
-            is_local_a_new_addr * is_not(lv.is_writable)
-            * is_not(are_equal(lv.op, FE::from_canonical_usize(OPCODE_SB).into()))
+            is_local_a_new_addr
+                * is_not(lv.is_writable)
+                * is_not(are_equal(lv.op, FE::from_canonical_usize(OPCODE_SB))),
         );
 
         // Operation constraints
@@ -128,6 +143,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // load and store). These are represented in `op` as either `0` or `1`. We
         // constrain them here
         is_binary(yield_constr, lv.op);
+
+        // No `SB` operation can be seen if memory address is not marked `writable`
+        yield_constr.constraint(
+            is_not(lv.is_writable)                                                  // selector
+            * is_not(are_equal(lv.op, FE::from_canonical_usize(OPCODE_SB)))    // should be zero i.e. lv.op != OPCODE_SB if selector == true
+        );
+
+        // Only if `SB` operation is seen, value can change between rows
+        yield_constr.constraint(
+            are_equal(nv.op, FE::from_canonical_usize(OPCODE_SB)) * are_equal(nv.value, lv.value),
+        );
 
         // Clock constraints
         // -----------------
@@ -152,14 +178,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // between two rows
         yield_constr.constraint_transition(are_equal(nv.addr, lv.addr + nv.diff_addr));
 
-        // Check: either the next operation is a store or the `value` stays the same.
-        yield_constr
-            .constraint((nv.op - FE::from_canonical_usize(OPCODE_SB)) * (nv.value - lv.value));
-
-        // Check: either `diff_addr_inv` is inverse of `diff_addr`, or they both are 0.
-        yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr);
-        yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr_inv);
-
+        // Padding constraints
+        // -------------------
         // Once we have padding, all subsequent rows are padding; ie not
         // `is_executed`.
         yield_constr.constraint_transition((lv.is_executed - nv.is_executed) * nv.is_executed);
