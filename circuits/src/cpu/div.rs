@@ -65,7 +65,6 @@ pub(crate) fn constraints<P: PackedField>(
     // Ensure that 'skip_check_quotient_sign' can only be set to 1 in the presence
     // of the above exceptions. For other potential values, it does not
     // matter and will not break any constraints.
-    is_binary(yield_constr, lv.skip_check_quotient_sign);
     yield_constr.constraint(
         lv.skip_check_quotient_sign * divisor_full_range * (quotient_value + quotient_full_range),
     );
