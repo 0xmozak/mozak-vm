@@ -44,6 +44,8 @@ pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row])
         let mem_diff_addr = mem_addr - trace.last().map_or(F::ZERO, |last| last.addr);
         trace.push(Memory {
             is_executed: F::ONE,
+            is_writable: F::ONE,
+            is_init: F::ZERO,
             addr: mem_addr,
             clk: mem_clk,
             op: get_memory_inst_op(&inst),
@@ -87,15 +89,15 @@ mod tests {
         let inv = inv::<F>;
         #[rustfmt::skip]
         prep_table(vec![
-            // is_executed  addr  clk   op  value  diff_addr  diff_addr_inv  diff_clk
-            [  1,            100,  0,    sb,  255,    100,     inv(100),            0],
-            [  1,            100,  1,    lbu, 255,      0,           0,             1],
-            [  1,            100,  4,    sb,   10,      0,           0,             3],
-            [  1,            100,  5,    lbu,  10,      0,           0,             1],
-            [  1,            200,  2,    sb,   15,    100,     inv(100),            0],
-            [  1,            200,  3,    lbu,  15,      0,           0,             1],
-            [  0,            200,  3,    lbu,  15,      0,           0,             0],
-            [  0,            200,  3,    lbu , 15,      0,           0,             0],
+            // is_executed  is_writable   is_init   addr  clk   op  value  diff_addr  diff_addr_inv  diff_clk
+            [  1,                 1,        0,      100,  0,    sb,  255,    100,     inv(100),            0],
+            [  1,                 1,        0,      100,  1,    lbu, 255,      0,           0,             1],
+            [  1,                 1,        0,      100,  4,    sb,   10,      0,           0,             3],
+            [  1,                 1,        0,      100,  5,    lbu,  10,      0,           0,             1],
+            [  1,                 1,        0,      200,  2,    sb,   15,    100,     inv(100),            0],
+            [  1,                 1,        0,      200,  3,    lbu,  15,      0,           0,             1],
+            [  0,                 1,        0,      200,  3,    lbu,  15,      0,           0,             0],
+            [  0,                 1,        0,      200,  3,    lbu , 15,      0,           0,             0],
         ])
     }
 
