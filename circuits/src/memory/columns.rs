@@ -10,6 +10,12 @@ pub struct Memory<T> {
     /// Indicates if a row comes from VM execution, or whether it's padding.
     pub is_executed: T,
 
+    /// Indicates if a the memory address is writable.
+    pub is_writable: T,
+
+    /// Indicates if a the memory address is initialized with this entry.
+    pub is_init: T,
+
     /// Memory address.
     pub addr: T,
 
@@ -40,6 +46,8 @@ pub const NUM_MEM_COLS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     vec![
+        // Ascending ordered, contigous "address" view constraint
+        MemoryTable::new(Column::singles([MAP.addr]), Column::single(MAP.is_executed)),
         MemoryTable::new(
             Column::singles([MAP.diff_addr]),
             Column::single(MAP.is_executed),
