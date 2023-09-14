@@ -134,6 +134,139 @@ pub fn generate_rangecheck_trace<F: RichField>(
     })
 }
 
+mod helpers {
+    use std::collections::HashMap;
+
+    use plonky2::hash::hash_types::RichField;
+
+    pub fn get_skip_approx<F: RichField>(fixed_range_check_u16: &[F]) -> u16 {
+        let input_as_u16_sorted: Vec<u16> = itertools::sorted(
+            fixed_range_check_u16
+            .iter()
+            .map(|field_element| u16::try_from(field_element.to_canonical_u64()).expect("Casting to u16 should succeed"))
+        ).collect();
+    
+    
+        // ensure that first and last elements of sorted input are 0 and u16::MAX, respectively
+        assert_eq!(input_as_u16_sorted[0], 0);
+        assert_eq!(input_as_u16_sorted[input_as_u16_sorted.len() - 1], u16::MAX);
+
+        let diff_vec_sorted: Vec<u16> = itertools::sorted(get_diff_values(&input_as_u16_sorted)).collect();
+
+        let skip = main_algorithm(&diff_vec_sorted);
+
+        skip
+    }
+
+    fn get_diff_values(input_as_u16_sorted: &[u16]) -> Vec<u16> {
+        let mut diff_vec = vec![];
+        let mut prev_val = input_as_u16_sorted[0];
+        for val in input_as_u16_sorted.into_iter().skip(1) {
+            let diff = val - prev_val;
+            if diff != 0 && diff != 1 {
+                diff_vec.push(diff);
+            }
+            prev_val = *val;
+        }
+        diff_vec
+    }
+
+    fn main_algorithm(diff_vec_sorted: &[u16]) -> u16 {
+        let diff_vec_sorted_f64: Vec<f64> =  diff_vec_sorted.iter().map(|x| *x as f64).collect();
+        let mut curr_min_heuristic_value = u16::MAX as f64;   // sum of diff never exceeds u16::MAX
+        let mut curr_best_guess: u16 = 0;
+
+        let mut prefix_sum = 0f64;
+        let mut suffix_sum: f64 = diff_vec_sorted_f64.iter().sum();
+
+        let n = diff_vec_sorted_f64.len();
+
+        let mut reps: HashMap::<u16, f64> = HashMap::default();
+
+        for l in 0..n { 
+            let curr_val = diff_vec_sorted[l];
+            *reps.entry(curr_val).or_insert(0f64) += 1f64;
+
+            prefix_sum += diff_vec_sorted_f64[l];
+            suffix_sum -= diff_vec_sorted_f64[l];
+
+            let n_minus_l_f64 = (n - 1 - l) as f64;
+
+            // statistical best guess. Main indended usage is do detect large jumps
+            let mut heuristic_best_guess = (2f64 * suffix_sum / n_minus_l_f64).sqrt() as u32 as f64;
+            let mut heuristic_value = prefix_sum + n_minus_l_f64 * (heuristic_best_guess);
+            if l == (n - 1) || diff_vec_sorted_f64[l] >= heuristic_best_guess || diff_vec_sorted_f64[l+1] <= heuristic_best_guess {
+                // statistical guess doesn't lie in desired range or we are at the end
+                // change the guess to leftmost value of current interval
+                heuristic_best_guess = diff_vec_sorted_f64[l];
+                heuristic_value = prefix_sum - reps[&curr_val] * (diff_vec_sorted_f64[l] - 1f64) + suffix_sum / diff_vec_sorted_f64[l] + diff_vec_sorted_f64[l]  * n_minus_l_f64 / 2f64;
+            }
+
+            if heuristic_value < curr_min_heuristic_value {
+                curr_min_heuristic_value = heuristic_value;
+                curr_best_guess = heuristic_best_guess as u16;
+            }
+        }
+        
+
+        curr_best_guess
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use proptest::{proptest, prop_assume};
+        use proptest::prelude::ProptestConfig;
+        use plonky2::field::types::Sample;
+
+        use crate::generation::rangecheck::helpers::main_algorithm;
+
+        fn find_sum_q_plus_r(v: &[u16], val: &u16) -> u16 {
+            let mut sum = 0;
+            for other_val in v.iter(){
+                let q = other_val / val;
+                let r = other_val % val;
+                sum += q + r;
+            }
+            sum
+        }
+        fn optimal(v: &[u16]) -> u16 {
+            let max = v.iter().fold(0, |acc, x| acc.max(*x));
+            let mut optimal = u16::MAX;
+            let mut curr_guess = 0;
+            for val in 2..max+1{
+                let sum = find_sum_q_plus_r(v, &val);
+                if sum < optimal {
+                    optimal = sum;
+                    curr_guess = val;
+                }
+            }
+            curr_guess
+        }
+
+        fn example(v: &[u16]){
+            // let v = vec![4, 5, 10, 1123, 2523, 3452];
+            let optimal = optimal(v);
+            let alg_out = main_algorithm(v);
+
+            let optimal_steps = find_sum_q_plus_r(&v, &optimal);
+            let alg_steps =find_sum_q_plus_r(&v, &alg_out);
+            println!("optimal is {} with steps {}", optimal, optimal_steps);
+            println!("algorithm returns {} with steps {}", alg_out, alg_steps);
+        }
+
+        proptest!(
+            #![proptest_config(ProptestConfig::with_cases(1))]
+            #[test]
+            fn rand_test(u: Vec<u8>) {
+                prop_assume!(u.len() > 10);
+                let mut v: Vec<u16> = u[..10].iter().map(|x| *x as u16).collect();
+                v.sort();
+                example(&v);
+            }
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use mozak_vm::instruction::{Args, Instruction, Op};
