@@ -44,8 +44,8 @@ pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row])
         let mem_diff_addr = mem_addr - trace.last().map_or(F::ZERO, |last| last.addr);
         trace.push(Memory {
             is_executed: F::ONE,
-            is_init: F::ZERO,
             is_writable: F::ONE,
+            is_init: F::ZERO,
             addr: mem_addr,
             clk: mem_clk,
             op: get_memory_inst_op(&inst),
