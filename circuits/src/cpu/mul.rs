@@ -87,7 +87,7 @@ pub(crate) fn constraints<P: PackedField>(
     // non-negative/unsigned. As an optimization, we take advantage of the fact
     // that is_op1_signed == 0 implies is_op2_signed == 0 for all our operations.
     // (In fact, the two values only differ for MULHSU.)
-    yield_constr.constraint((P::ONES - lv.inst.is_op2_signed) * product_sign);
+    yield_constr.constraint((P::ONES - lv.inst.is_op1_signed) * product_sign);
 
     // Ensure skip_check_product_sign can be set to 1 only when either ob1_abs or
     // op2_abs is 0. This check is essential for the subsequent constraints.
