@@ -46,8 +46,6 @@ pub const NUM_MEM_COLS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     vec![
-        // Ascending ordered, contigous "address" view constraint
-        MemoryTable::new(Column::singles([MAP.addr]), Column::single(MAP.is_executed)),
         MemoryTable::new(
             Column::singles([MAP.diff_addr]),
             Column::single(MAP.is_executed),
