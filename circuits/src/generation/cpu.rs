@@ -343,6 +343,7 @@ mod tests {
                     rs2: 1,
                     rd: 1,
                     imm: 3,
+                    ..Default::default()
                 },
                 filter: 1,
             },
@@ -354,6 +355,7 @@ mod tests {
                     rs2: 3,
                     rd: 2,
                     imm: 2,
+                    ..Default::default()
                 },
                 filter: 1,
             },
@@ -365,6 +367,7 @@ mod tests {
                     rs2: 2,
                     rd: 3,
                     imm: 1,
+                    ..Default::default()
                 },
                 filter: 1,
             },
@@ -376,6 +379,7 @@ mod tests {
                     rs2: 3,
                     rd: 3,
                     imm: 3,
+                    ..Default::default()
                 },
                 filter: 0,
             },
@@ -394,6 +398,7 @@ mod tests {
                     rs2: 1,
                     rd: 1,
                     imm: 3,
+                    ..Default::default()
                 },
                 filter: 1,
             },
@@ -405,6 +410,7 @@ mod tests {
                     rs2: 1,
                     rd: 1,
                     imm: 3,
+                    ..Default::default()
                 },
                 filter: 0,
             },
@@ -416,6 +422,7 @@ mod tests {
                     rs2: 3,
                     rd: 2,
                     imm: 2,
+                    ..Default::default()
                 },
                 filter: 1,
             },
@@ -427,6 +434,7 @@ mod tests {
                     rs2: 2,
                     rd: 3,
                     imm: 1,
+                    ..Default::default()
                 },
                 filter: 1,
             },

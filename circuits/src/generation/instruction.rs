@@ -68,6 +68,8 @@ impl<F: RichField> From<columns::Instruction<F>> for InstructionRow<F> {
             rs2: ascending_sum(inst.rs2_select),
             rd: ascending_sum(inst.rd_select),
             imm: inst.imm_value,
+            is_op1_signed: inst.is_op1_signed,
+            is_op2_signed: inst.is_op2_signed,
         }
     }
 }
