@@ -107,7 +107,8 @@ pub fn generate_rangecheck_trace<F: RichField>(
     let num_rows = trace[0].len();
 
     if num_rows > RANGE_CHECK_U16_SIZE {
-        trace[MAP.multiplicities].resize(num_rows, F::ZERO);
+        let last = trace[MAP.multiplicities][u16::MAX as usize];
+        trace[MAP.multiplicities].resize(num_rows, last);
         trace[MAP.fixed_range_check_u16]
             .resize(num_rows, F::from_canonical_u64(u64::from(u16::MAX)));
     }
