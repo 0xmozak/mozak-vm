@@ -192,8 +192,9 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
+    #[allow(clippy::cast_sign_loss)]
     #[test]
-    fn prove_div_example() { prove_div::<MozakStark<F, D>>(2_147_483_648, 4_294_967_295, 28); }
+    fn prove_div_example() { prove_div::<MozakStark<F, D>>(i32::MIN as u32, -1_i32 as u32, 28); }
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]

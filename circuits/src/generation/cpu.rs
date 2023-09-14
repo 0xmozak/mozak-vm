@@ -196,7 +196,7 @@ fn generate_div_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
         row.quotient_value = from_u32(quotient_full_range as u32);
         row.quotient_sign = F::from_bool(quotient_full_range.is_negative());
         row.skip_check_quotient_sign = F::from_bool(quotient_full_range == 0);
-        if dividend_full_range == -2_147_483_648 && divisor_full_range == -1 {
+        if dividend_full_range == -2 ^ 31 && divisor_full_range == -1 {
             // Special case for dividend == -2^31, divisor == -1:
             // quotient_sign == 1 (quotient = -2^31).
             row.skip_check_quotient_sign = F::ONE;
