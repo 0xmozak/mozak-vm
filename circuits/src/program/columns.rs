@@ -27,6 +27,7 @@ pub struct ProgramRom<T> {
     /// Filters out instructions that are duplicates, i.e., appear more than
     /// once in the trace.
     pub filter: T,
+    pub phantomcol: T,
 }
 
 // Total number of columns.

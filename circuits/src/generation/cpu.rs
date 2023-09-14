@@ -236,6 +236,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
             Some(ProgramRom {
                 filter: F::from_bool(Some(inst.pc) != previous_pc.replace(inst.pc)),
                 inst: InstructionRow::from(inst),
+                phantomcol: F::ZERO,
             })
         })
         .collect();
@@ -340,6 +341,7 @@ mod tests {
                     imm: 3,
                 },
                 filter: 1,
+                phantomcol: 0,
             },
             ProgramRom {
                 inst: InstructionRow {
@@ -351,6 +353,7 @@ mod tests {
                     imm: 2,
                 },
                 filter: 1,
+                phantomcol: 0,
             },
             ProgramRom {
                 inst: InstructionRow {
@@ -362,6 +365,7 @@ mod tests {
                     imm: 1,
                 },
                 filter: 1,
+                phantomcol: 0,
             },
             ProgramRom {
                 inst: InstructionRow {
@@ -373,6 +377,7 @@ mod tests {
                     imm: 3,
                 },
                 filter: 0,
+                phantomcol: 0,
             },
         ]
         .into_iter()
@@ -391,6 +396,7 @@ mod tests {
                     imm: 3,
                 },
                 filter: 1,
+                phantomcol: 0,
             },
             ProgramRom {
                 inst: InstructionRow {
@@ -402,6 +408,7 @@ mod tests {
                     imm: 3,
                 },
                 filter: 0,
+                phantomcol: 0,
             },
             ProgramRom {
                 inst: InstructionRow {
@@ -413,6 +420,7 @@ mod tests {
                     imm: 2,
                 },
                 filter: 1,
+                phantomcol: 0,
             },
             ProgramRom {
                 inst: InstructionRow {
@@ -424,6 +432,7 @@ mod tests {
                     imm: 1,
                 },
                 filter: 1,
+                phantomcol: 0,
             },
         ]
         .into_iter()
