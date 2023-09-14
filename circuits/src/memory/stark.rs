@@ -56,7 +56,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary(yield_constr, lv.is_executed);
         is_binary(yield_constr, lv.is_writable);
         is_binary(yield_constr, lv.is_init);
-        // Also ensure that "difference" values are consistent with their inverses
+
         is_binary(yield_constr, is_local_a_new_addr);
         is_binary(yield_constr, is_next_a_new_addr);
 
