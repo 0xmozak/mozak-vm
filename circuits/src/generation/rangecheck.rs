@@ -88,7 +88,6 @@ pub fn generate_rangecheck_trace<F: RichField>(
                 u32::try_from(val.to_canonical_u64()).expect("casting value to u32 should succeed"),
             );
             let rangecheck_row = RangeCheckColumnsView {
-                val,
                 limb_lo,
                 limb_hi,
                 filter: F::ONE,
@@ -107,7 +106,7 @@ pub fn generate_rangecheck_trace<F: RichField>(
     trace[MAP.fixed_range_check_u16] = (0..RANGE_CHECK_U16_SIZE as u64)
         .map(F::from_noncanonical_u64)
         .collect();
-    let num_rows = trace[MAP.val].len();
+    let num_rows = trace[MAP.filter].len();
     trace[MAP.fixed_range_check_u16].resize(num_rows, F::from_canonical_u64(u64::from(u16::MAX)));
 
     // This permutation is done in accordance to the [Halo2 lookup argument
@@ -171,24 +170,8 @@ mod tests {
         // Check values that we are interested in
         assert_eq!(trace[MAP.filter][0], F::ONE);
         assert_eq!(trace[MAP.filter][1], F::ONE);
-        assert_eq!(trace[MAP.val][0], GoldilocksField(0x0001_fffe));
-        assert_eq!(trace[MAP.val][1], GoldilocksField(0));
         assert_eq!(trace[MAP.limb_hi][0], GoldilocksField(0x0001));
         assert_eq!(trace[MAP.limb_lo][0], GoldilocksField(0xfffe));
         assert_eq!(trace[MAP.limb_lo][1], GoldilocksField(0));
-
-        // Ensure rest of trace is zeroed out
-        for filter in &trace[MAP.filter][2..] {
-            assert_eq!(filter, &F::ZERO);
-        }
-        for value in &trace[MAP.val][2..] {
-            assert_eq!(value, &F::ZERO);
-        }
-        for limb_hi in &trace[MAP.limb_hi][1..] {
-            assert_eq!(limb_hi, &F::ZERO);
-        }
-        for limb_lo in &trace[MAP.limb_lo][2..] {
-            assert_eq!(limb_lo, &F::ZERO);
-        }
     }
 }

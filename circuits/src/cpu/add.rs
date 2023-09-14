@@ -63,10 +63,10 @@ mod tests {
         }
     }
     proptest! {
-            #![proptest_config(ProptestConfig::with_cases(1))]
-            #[test]
-            fn prove_add_mozak(a in u32_extra(), b in u32_extra(), rd in reg()) {
-                prove_add::<MozakStark<F, D>>(a, b, rd);
-            }
+        #![proptest_config(ProptestConfig::with_cases(1))]
+        #[test]
+        fn prove_add_mozak(a in u32_extra(), b in u32_extra(), rd in reg()) {
+            prove_add::<MozakStark<F, D>>(a, b, rd);
+        }
     }
 }
