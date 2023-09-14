@@ -27,9 +27,6 @@ pub struct ProgramRom<T> {
     /// Filters out instructions that are duplicates, i.e., appear more than
     /// once in the trace.
     pub filter: T,
-    /// TODO(Supragya): Phantom column to make the [(); X]: thingy work.
-    /// No practical need otherwise, remove when possible.
-    pub phantomcol: T,
 }
 
 // Total number of columns.
