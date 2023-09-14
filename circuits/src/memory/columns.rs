@@ -10,6 +10,12 @@ pub struct Memory<T> {
     /// Indicates if a row comes from VM execution, or whether it's padding.
     pub is_executed: T,
 
+    /// Indicates if a the memory address is writable.
+    pub is_writable: T,
+
+    /// Indicates if a the memory address is initialized with this entry.
+    pub is_init: T,
+
     /// Memory address.
     pub addr: T,
 
