@@ -23,15 +23,6 @@ pub(crate) struct RangeCheckColumnsView<T> {
 
     /// Fixed column containing values 0, 1, .., 2^16 - 1.
     pub(crate) fixed_range_check_u16: T,
-
-    /// Fixed column containing values 0, 1, .., 2^16 - 1.
-    pub(crate) dummyb: T,
-
-    /// Fixed column containing values 0, 1, .., 2^16 - 1.
-    pub(crate) dummyc: T,
-
-    /// Fixed column containing values 0, 1, .., 2^16 - 1.
-    pub(crate) dummyd: T,
 }
 columns_view_impl!(RangeCheckColumnsView);
 make_col_map!(RangeCheckColumnsView);
