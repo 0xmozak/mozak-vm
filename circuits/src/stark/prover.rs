@@ -444,13 +444,13 @@ where
         timing,
     )?;
 
-    let rangecheck_u16_proof = prove_single_table::<F, C, RangeCheckLimbStark<F, D>, D>(
-        &mozak_stark.rangecheck_u16_stark,
+    let rangecheck_range_proof = prove_single_table::<F, C, RangeCheckLimbStark<F, D>, D>(
+        &mozak_stark.rangecheck_limb_stark,
         config,
-        &traces_poly_values[TableKind::RangeCheckU16 as usize],
-        &trace_commitments[TableKind::RangeCheckU16 as usize],
+        &traces_poly_values[TableKind::RangeCheckLimb as usize],
+        &trace_commitments[TableKind::RangeCheckLimb as usize],
         [],
-        &ctl_data_per_table[TableKind::RangeCheckU16 as usize],
+        &ctl_data_per_table[TableKind::RangeCheckLimb as usize],
         challenger,
         timing,
     )?;
@@ -462,7 +462,7 @@ where
         shift_amount_proof,
         program_proof,
         memory_proof,
-        rangecheck_u16_proof,
+        rangecheck_range_proof,
     ])
 }
 

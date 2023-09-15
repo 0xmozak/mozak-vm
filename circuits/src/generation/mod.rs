@@ -53,7 +53,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let program_rows = generate_program_rom_trace(program);
     let memory_rows = generate_memory_trace(program, &record.executed);
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
-    let rangecheck_u16_rows = generate_rangecheck_limb_trace(&rangecheck_rows);
+    let rangecheck_limb_rows = generate_rangecheck_limb_trace(&rangecheck_rows);
 
     let cpu_trace = trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows));
     let rangecheck_trace = trace_rows_to_poly_values(rangecheck_rows);
@@ -61,7 +61,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let shift_amount_trace = trace_rows_to_poly_values(shift_amount_rows);
     let program_trace = trace_rows_to_poly_values(program_rows);
     let memory_trace = trace_rows_to_poly_values(memory_rows);
-    let rangecheck_u16_trace = trace_rows_to_poly_values(rangecheck_u16_rows);
+    let rangecheck_limb_trace = trace_rows_to_poly_values(rangecheck_limb_rows);
     [
         cpu_trace,
         rangecheck_trace,
@@ -69,7 +69,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         shift_amount_trace,
         program_trace,
         memory_trace,
-        rangecheck_u16_trace,
+        rangecheck_limb_trace,
     ]
 }
 
@@ -106,7 +106,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:, {
-    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, rangecheck_u16_trace]: &[Vec<
+    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, rangecheck_limb_trace]: &[Vec<
         PolynomialValues<F>,
     >;
         NUM_TABLES] = traces_poly_values;
@@ -155,9 +155,9 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
             &[],
         ),
         debug_single_trace::<F, D, RangeCheckLimbStark<F, D>>(
-            &mozak_stark.rangecheck_u16_stark,
-            rangecheck_u16_trace,
-            "RANGECHECK_U16_STARK",
+            &mozak_stark.rangecheck_limb_stark,
+            rangecheck_limb_trace,
+            "RANGECHECK_LIMB_STARK",
             &[],
         ),
     ]
