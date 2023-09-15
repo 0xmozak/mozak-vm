@@ -206,10 +206,7 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
         CpuTable::new(vec![cpu.quotient], divs.clone()),
         CpuTable::new(vec![cpu.remainder], divs.clone()),
         CpuTable::new(vec![cpu.remainder_slack], divs),
-        CpuTable::new(
-            vec![cpu.dst_value],
-            ops.add.clone() + ops.sub.clone() + ops.jalr.clone(),
-        ),
+        CpuTable::new(vec![cpu.dst_value], &ops.add + &ops.sub + &ops.jalr),
         CpuTable::new(vec![cpu.inst.pc], ops.jalr.clone()),
         CpuTable::new(vec![cpu.abs_diff], &ops.bge + &ops.blt),
         CpuTable::new(vec![cpu.product_high_limb], muls.clone()),
