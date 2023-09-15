@@ -26,7 +26,7 @@ use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
-use crate::limbs::stark::LimbsStark;
+use crate::rangecheck_u16::stark::RangeCheckU16Stark;
 use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
@@ -55,7 +55,7 @@ where
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
-    [(); LimbsStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckU16Stark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
@@ -93,7 +93,7 @@ where
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
-    [(); LimbsStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckU16Stark::<F, D>::COLUMNS]:,
     // [(); ProgramStark::<F, D>::COLUMNS]:,
     // [(); CpuStark::<F, D>::COLUMNS]:,
     // [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
@@ -384,16 +384,7 @@ where
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
-    [(); LimbsStark::<F, D>::COLUMNS]:,
-    // [(); ProgramStark::<F, D>::COLUMNS]:,
-    // [(); CpuStark::<F, D>::COLUMNS]:,
-    // [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    // [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    // [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
-    // [(); XorStark::<F, D>::COLUMNS]:,
-    // [(); BitshiftStark::<F, D>::COLUMNS]:,
-    // [(); MemoryStark::<F, D>::COLUMNS]:,
-    // [(); LimbsStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckU16Stark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
@@ -461,13 +452,13 @@ where
         timing,
     )?;
 
-    let limbs_proof = prove_single_table::<F, C, LimbsStark<F, D>, D>(
-        &mozak_stark.limbs_stark,
+    let rangecheck_u16_proof = prove_single_table::<F, C, RangeCheckU16Stark<F, D>, D>(
+        &mozak_stark.rangecheck_u16_stark,
         config,
-        &traces_poly_values[TableKind::Limbs as usize],
-        &trace_commitments[TableKind::Limbs as usize],
+        &traces_poly_values[TableKind::RangeCheckU16 as usize],
+        &trace_commitments[TableKind::RangeCheckU16 as usize],
         [],
-        &ctl_data_per_table[TableKind::Limbs as usize],
+        &ctl_data_per_table[TableKind::RangeCheckU16 as usize],
         challenger,
         timing,
     )?;
@@ -479,7 +470,7 @@ where
         shift_amount_proof,
         program_proof,
         memory_proof,
-        limbs_proof,
+        rangecheck_u16_proof,
     ])
 }
 

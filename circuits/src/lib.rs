@@ -19,7 +19,7 @@ pub mod columns_view;
 pub mod cpu;
 pub mod cross_table_lookup;
 pub mod generation;
-pub mod limbs;
+pub mod rangecheck_u16;
 pub mod linear_combination;
 pub mod memory;
 pub mod memoryinit;

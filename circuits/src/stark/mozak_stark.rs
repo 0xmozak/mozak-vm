@@ -10,7 +10,7 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
-use crate::limbs::stark::LimbsStark;
+use crate::rangecheck_u16::stark::RangeCheckU16Stark;
 use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::rangecheck_looking;
@@ -26,7 +26,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub shift_amount_stark: BitshiftStark<F, D>,
     pub program_stark: ProgramStark<F, D>,
     pub memory_stark: MemoryStark<F, D>,
-    pub limbs_stark: LimbsStark<F, D>,
+    pub rangecheck_u16_stark: RangeCheckU16Stark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 7],
     pub debug: bool,
 }
@@ -49,7 +49,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             shift_amount_stark: BitshiftStark::default(),
             program_stark: ProgramStark::default(),
             memory_stark: MemoryStark::default(),
-            limbs_stark: LimbsStark::default(),
+            rangecheck_u16_stark: RangeCheckU16Stark::default(),
             cross_table_lookups: [
                 RangecheckTable::lookups(),
                 XorCpuTable::lookups(),
@@ -57,7 +57,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 InnerCpuTable::lookups(),
                 ProgramCpuTable::lookups(),
                 MemoryCpuTable::lookups(),
-                RangeCheckLimbsTable::lookups(),
+                RangeCheckU16Table::lookups(),
             ],
             debug: false,
         }
@@ -73,7 +73,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.shift_amount_stark.num_permutation_batches(config),
             self.program_stark.num_permutation_batches(config),
             self.memory_stark.num_permutation_batches(config),
-            self.limbs_stark.num_permutation_batches(config),
+            self.rangecheck_u16_stark.num_permutation_batches(config),
         ]
     }
 
@@ -85,7 +85,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.shift_amount_stark.permutation_batch_size(),
             self.program_stark.permutation_batch_size(),
             self.memory_stark.permutation_batch_size(),
-            self.limbs_stark.permutation_batch_size(),
+            self.rangecheck_u16_stark.permutation_batch_size(),
         ]
     }
 
@@ -108,7 +108,7 @@ pub enum TableKind {
     Bitshift = 3,
     Program = 4,
     Memory = 5,
-    Limbs = 6,
+    RangeCheckU16 = 6,
 }
 
 impl TableKind {
@@ -121,7 +121,7 @@ impl TableKind {
             TableKind::Bitshift,
             TableKind::Program,
             TableKind::Memory,
-            TableKind::Limbs,
+            TableKind::RangeCheckU16,
         ]
     }
 }
@@ -161,7 +161,7 @@ pub struct ProgramTable<F: Field>(Table<F>);
 /// Represents a memory trace table in the Mozak VM.
 pub struct MemoryTable<F: Field>(Table<F>);
 
-pub struct LimbsTable<F: Field>(Table<F>);
+pub struct RangeChecku16Table<F: Field>(Table<F>);
 
 impl<F: Field> RangeCheckTable<F> {
     #[allow(clippy::new_ret_no_self)]
@@ -205,10 +205,10 @@ impl<F: Field> MemoryTable<F> {
     }
 }
 
-impl<F: Field> LimbsTable<F> {
+impl<F: Field> RangeChecku16Table<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
-        Table::new(TableKind::Limbs, columns, filter_column)
+        Table::new(TableKind::RangeCheckU16, columns, filter_column)
     }
 }
 
@@ -314,14 +314,14 @@ impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
     }
 }
 
-pub struct RangeCheckLimbsTable<F: Field>(CrossTableLookup<F>);
-impl<F: Field> Lookups<F> for RangeCheckLimbsTable<F> {
+pub struct RangeCheckU16Table<F: Field>(CrossTableLookup<F>);
+impl<F: Field> Lookups<F> for RangeCheckU16Table<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
             rangecheck_looking(),
-            LimbsTable::new(
-                crate::limbs::columns::data(),
-                crate::limbs::columns::filter(),
+            RangeChecku16Table::new(
+                crate::rangecheck_u16::columns::data(),
+                crate::rangecheck_u16::columns::filter(),
             ),
         )
     }

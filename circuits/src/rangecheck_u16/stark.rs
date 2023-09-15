@@ -9,17 +9,17 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use super::columns::Limbs;
+use super::columns::RangeCheckU16;
 use crate::columns_view::NumberOfColumns;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
-pub struct LimbsStark<F, const D: usize> {
+pub struct RangeCheckU16Stark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for LimbsStark<F, D> {
-    const COLUMNS: usize = Limbs::<()>::NUMBER_OF_COLUMNS;
+impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckU16Stark<F, D> {
+    const COLUMNS: usize = RangeCheckU16::<()>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
 
     /// Given the u32 value and the u16 limbs found in our variables to be
@@ -33,8 +33,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for LimbsStark<F,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &Limbs<P> = vars.local_values.borrow();
-        let nv: &Limbs<P> = vars.next_values.borrow();
+        let lv: &RangeCheckU16<P> = vars.local_values.borrow();
+        let nv: &RangeCheckU16<P> = vars.next_values.borrow();
         // Check: the `fixed_range_check_u16` forms a sequence from 0 to 2^16-1.
         //  this column will be used to connect to the permutation columns,
         //  `fixed_range_check_u16_permuted_hi` and `fixed_range_check_u16_permuted_lo`.

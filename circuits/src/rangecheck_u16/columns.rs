@@ -5,26 +5,14 @@ use crate::cross_table_lookup::Column;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct Limbs<T> {
+pub struct RangeCheckU16<T> {
     // Column containing values 0..u16::MAX, with possible duplicates.
     pub range_check_u16: T,
     // Filter to indicate a value to be range checked is not a dummy value.
     pub filter: T,
 }
-columns_view_impl!(Limbs);
-make_col_map!(Limbs);
-
-// /// Columns containing the data to be range checked in the Mozak
-// /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
-// #[must_use]
-// pub fn data_incoming<F: Field>() -> Vec<Column<F>> {
-//     vec![Column::single(MAP.limb_lo) + Column::single(MAP.limb_hi) *
-// F::from_canonical_u32(1 << 16)] }
-
-// #[must_use]
-// pub fn data_outgoing<F: Field>() -> Vec<Column<F>> {
-//     vec![Column::single(MAP.limb_lo), Column::single(MAP.limb_hi)]
-// }
+columns_view_impl!(RangeCheckU16);
+make_col_map!(RangeCheckU16);
 
 #[must_use]
 pub fn data<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.range_check_u16)] }
