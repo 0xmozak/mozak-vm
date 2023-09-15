@@ -45,29 +45,31 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     memory_trace: &[Memory<F>],
 ) -> Vec<RangeCheckColumnsView<F>> {
-    let mut trace: Vec<RangeCheckColumnsView<F>> = vec![];
+    pad_trace_with_default(
+        RangecheckTable::lookups()
+            .looking_tables
+            .into_iter()
+            .flat_map(|looking_table| {
+                let values = match looking_table.kind {
+                    TableKind::Cpu => extract(cpu_trace, &looking_table),
+                    TableKind::Memory => extract(memory_trace, &looking_table),
+                    other => unimplemented!("Can't range check {other:#?} tables"),
+                };
 
-    for looking_table in RangecheckTable::lookups().looking_tables {
-        let values = match looking_table.kind {
-            TableKind::Cpu => extract(cpu_trace, &looking_table),
-            TableKind::Memory => extract(memory_trace, &looking_table),
-            other => unimplemented!("Can't range check {other:#?} tables"),
-        };
-
-        for val in values {
-            let (limb_hi, limb_lo) = limbs_from_u32(
-                u32::try_from(val.to_canonical_u64()).expect("casting value to u32 should succeed"),
-            );
-            trace.push(RangeCheckColumnsView {
-                limb_lo,
-                limb_hi,
-                filter: F::ONE,
-            });
-        }
-    }
-
-    // Pad our trace to max(RANGE_CHECK_U16_SIZE, trace[0].len())
-    pad_trace_with_default(trace)
+                values.into_iter().map(move |val| {
+                    let (limb_hi, limb_lo) = limbs_from_u32(
+                        u32::try_from(val.to_canonical_u64())
+                            .expect("casting value to u32 should succeed"),
+                    );
+                    RangeCheckColumnsView {
+                        limb_lo,
+                        limb_hi,
+                        filter: F::ONE,
+                    }
+                })
+            })
+            .collect(),
+    )
 }
 
 #[cfg(test)]
