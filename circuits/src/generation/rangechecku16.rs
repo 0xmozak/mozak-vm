@@ -22,8 +22,8 @@ pub(crate) fn generate_rangechecku16_trace<F: RichField>(
         rangecheck_trace
             .iter()
             .filter(|row| row.filter.is_one())
-            .flat_map(|row| [row.limb_lo, row.limb_hi])
-            .map(|x| x.to_canonical_u64())
+            .flat_map(|row| [&row.limb_lo, &row.limb_hi])
+            .map(F::to_canonical_u64)
             .sorted()
             .merge_join_by(0..=u64::from(u16::MAX), u64::cmp)
             .map(|value_or_dummy| {
