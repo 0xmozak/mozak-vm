@@ -23,8 +23,8 @@ pub(crate) fn constraints<P: PackedField>(
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-    use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{reg, simple_test_code, u32_extra};
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::{reg, simple_test_code, u32_extra};
 
     use crate::cpu::stark::CpuStark;
     use crate::stark::mozak_stark::MozakStark;

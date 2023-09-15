@@ -30,7 +30,7 @@ impl<P: PackedField> OpSelectors<P> {
     // Note: ecall is only 'jumping' in the sense that a 'halt'
     // does not bump the PC. It sort-of jumps back to itself.
     pub fn is_jumping(&self) -> P {
-        self.beq + self.bge + self.bgeu + self.blt + self.bltu + self.bne + self.ecall + self.jalr
+        self.beq + self.bge + self.blt + self.bne + self.ecall + self.jalr
     }
 
     /// List of opcodes that only bump the program counter.
@@ -172,7 +172,7 @@ fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
 fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
     let wrap_at = CpuState::<P>::shifted(32);
     let ops = &lv.inst.ops;
-    let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bltu + ops.bge + ops.bgeu;
+    let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bge;
     let is_shift_operation = ops.sll + ops.srl;
 
     yield_constr.constraint(is_branch_operation * (lv.op2_value - lv.rs2_value()));

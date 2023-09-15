@@ -1,6 +1,6 @@
 use anyhow::Result;
-use mozak_vm::elf::Program;
-use mozak_vm::vm::ExecutionRecord;
+use mozak_runner::elf::Program;
+use mozak_runner::vm::ExecutionRecord;
 use plonky2::fri::FriConfig;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};

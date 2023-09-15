@@ -1,4 +1,4 @@
-use mozak_vm::elf::Program;
+use mozak_runner::elf::Program;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::Instruction;

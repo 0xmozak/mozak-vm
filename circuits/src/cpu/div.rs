@@ -107,17 +107,15 @@ pub(crate) fn constraints<P: PackedField>(
 
     // Last, we 'copy' our results:
     let dst = lv.dst_value;
-    let is_div_ops = lv.inst.ops.divu + lv.inst.ops.div + lv.inst.ops.srl;
-    let is_rem_ops = lv.inst.ops.remu + lv.inst.ops.rem;
-    yield_constr.constraint(is_div_ops * (dst - quotient_value));
-    yield_constr.constraint(is_rem_ops * (dst - remainder_value));
+    yield_constr.constraint((lv.inst.ops.div + lv.inst.ops.srl) * (dst - quotient_value));
+    yield_constr.constraint(lv.inst.ops.rem * (dst - remainder_value));
 }
 
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test_code, u32_extra};
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::{simple_test_code, u32_extra};
     use proptest::prelude::{prop_assert_eq, ProptestConfig};
     use proptest::test_runner::TestCaseError;
     use proptest::{prop_assert, proptest};

@@ -19,20 +19,13 @@ pub struct OpSelectors<T> {
     pub or: T,
     pub and: T,
     pub div: T,
-    pub divu: T,
     pub rem: T,
-    /// Remainder Unsigned
-    pub remu: T,
     pub mul: T,
     pub mulh: T,
-    pub mulhsu: T,
-    pub mulhu: T,
     /// Shift Left Logical by amount
     pub sll: T,
     /// Set Less Than
     pub slt: T,
-    /// Set Less Than Unsigned comparison
-    pub sltu: T,
     /// Shift Right Logical by amount
     pub srl: T,
     /// Jump And Link Register
@@ -48,12 +41,8 @@ pub struct OpSelectors<T> {
     pub lbu: T,
     /// Branch Less Than
     pub blt: T,
-    /// Branch Less Than Unsigned comparison
-    pub bltu: T,
     /// Branch Greater or Equal
     pub bge: T,
-    /// Branch Greater or Equal Unsigned comparison
-    pub bgeu: T,
     /// Environment Call
     pub ecall: T,
 }
@@ -68,6 +57,8 @@ pub struct Instruction<T> {
 
     /// Selects the current operation type
     pub ops: OpSelectors<T>,
+    pub is_op1_signed: T,
+    pub is_op2_signed: T,
     /// Selects the register to use as source for `rs1`
     pub rs1_select: [T; 32],
     /// Selects the register to use as source for `rs2`
@@ -163,17 +154,6 @@ impl<T: PackedField> CpuState<T> {
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
 
-    // TODO(Matthias): unify where we specify `is_op(1|2)_signed` for constraints
-    // and trace generation.
-    pub fn is_op2_signed(&self) -> T {
-        self.inst.ops.slt
-            + self.inst.ops.bge
-            + self.inst.ops.blt
-            + self.inst.ops.mulh
-            + self.inst.ops.div
-            + self.inst.ops.rem
-    }
-
     /// The value of the designated register in rs2.
     pub fn rs2_value(&self) -> T {
         // Note: we could skip 0, because r0 is always 0.
@@ -182,8 +162,6 @@ impl<T: PackedField> CpuState<T> {
             .map(|reg| self.inst.rs2_select[reg] * self.regs[reg])
             .sum()
     }
-
-    pub fn is_op1_signed(&self) -> T { self.is_op2_signed() + self.inst.ops.mulhsu }
 
     /// Value of the first operand, as if converted to i64.
     ///
@@ -211,36 +189,32 @@ impl<T: PackedField> CpuState<T> {
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let cpu = MAP.cpu.map(Column::from);
     let ops = &cpu.inst.ops;
-    let divs = &ops.divu + &ops.remu + &ops.srl + &ops.div + &ops.rem;
-    let muls = &ops.mul + &ops.mulhu + &ops.mulhsu + &ops.mulh + &ops.sll;
-
-    let is_running = cpu.is_running;
-
-    let is_op2_signed = &ops.slt + &ops.bge + &ops.blt + &ops.mulh + &ops.div + &ops.rem;
-    let is_op1_signed = &is_op2_signed + &ops.mulhsu;
+    let divs = &ops.div + &ops.rem + &ops.srl;
+    let muls = &ops.mul + &ops.mulh + &ops.sll;
 
     vec![
         CpuTable::new(vec![cpu.quotient_value.clone()], divs.clone()),
         CpuTable::new(vec![cpu.remainder_value.clone()], divs.clone()),
-        CpuTable::new(vec![cpu.remainder_slack], divs.clone()),
-        CpuTable::new(vec![cpu.dst_value], ops.add.clone()),
+        CpuTable::new(vec![cpu.remainder_slack], divs),
+        CpuTable::new(vec![cpu.dst_value], &ops.add + &ops.sub + &ops.jalr),
+        CpuTable::new(vec![cpu.inst.pc], ops.jalr.clone()),
         CpuTable::new(vec![cpu.abs_diff], &ops.bge + &ops.blt),
         CpuTable::new(vec![cpu.product_high_limb], muls.clone()),
         CpuTable::new(vec![cpu.product_low_limb], muls),
         // apply range constraints for the sign bits of each operand
         CpuTable::new(
             vec![
-                cpu.op1_value - &cpu.op1_sign_bit * F::from_canonical_u64(1 << 32)
-                    + &is_op1_signed * F::from_canonical_u64(1 << 31),
+                cpu.op1_value - cpu.op1_sign_bit * F::from_canonical_u64(1 << 32)
+                    + &cpu.inst.is_op1_signed * F::from_canonical_u64(1 << 31),
             ],
-            is_running.clone(),
+            cpu.inst.is_op1_signed,
         ),
         CpuTable::new(
             vec![
-                cpu.op2_value - &cpu.op2_sign_bit * F::from_canonical_u64(1 << 32)
-                    + &is_op2_signed * F::from_canonical_u64(1 << 31),
+                cpu.op2_value - cpu.op2_sign_bit * F::from_canonical_u64(1 << 32)
+                    + &cpu.inst.is_op2_signed * F::from_canonical_u64(1 << 31),
             ],
-            is_running,
+            cpu.inst.is_op2_signed,
         ),
     ]
 }
@@ -305,6 +279,8 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
         Column::ascending_sum(inst.rs2_select),
         Column::ascending_sum(inst.rd_select),
         Column::single(inst.imm_value),
+        Column::single(inst.is_op1_signed),
+        Column::single(inst.is_op2_signed),
     ]
 }
 

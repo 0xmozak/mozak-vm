@@ -3,9 +3,17 @@ edition = "2021"
 name = "min-max-mozak-guest"
 version = "0.1.0"
 
-[dependencies]
-guest = { path = "../../guest" }
+[target.'cfg(target_os="zkvm")'.dependencies.guest]
+path = "../../guest"
+
+[features]
+x86 = []
 
 [[bin]]
 name = "min-max"
 path = "main.rs"
+
+[[bin]]
+name = "min-max-x86"
+path = "main_x86.rs"
+required-features = ["x86"]
