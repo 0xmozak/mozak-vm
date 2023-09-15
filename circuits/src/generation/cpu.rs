@@ -130,9 +130,9 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
         (is_negative, absolute_value)
     };
     let (is_op2_negative, op2_abs) =
-        compute_sign_and_abs(row.inst.is_op2_signed().is_nonzero(), aux.op2);
+        compute_sign_and_abs(row.inst.is_op2_signed.is_nonzero(), aux.op2);
     let (is_op1_negative, op1_abs) =
-        compute_sign_and_abs(row.inst.is_op1_signed().is_nonzero(), aux.op1);
+        compute_sign_and_abs(row.inst.is_op1_signed.is_nonzero(), aux.op1);
 
     // Determine product sign and absolute value.
     let mut product_sign = is_op1_negative ^ is_op2_negative;
@@ -177,12 +177,12 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_sign_loss)]
 fn generate_div_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
-    let dividend_full_range = compute_full_range(row.is_op1_signed().is_nonzero(), aux.op1);
-    let divisor_full_range = compute_full_range(row.is_op2_signed().is_nonzero(), aux.op2);
+    let dividend_full_range = compute_full_range(row.inst.is_op1_signed.is_nonzero(), aux.op1);
+    let divisor_full_range = compute_full_range(row.inst.is_op2_signed.is_nonzero(), aux.op2);
 
     if divisor_full_range == 0 {
         row.quotient_value = from_u32(0xFFFF_FFFF);
-        row.quotient_sign = if row.is_op2_signed().is_nonzero() {
+        row.quotient_sign = if row.inst.is_op2_signed.is_nonzero() {
             F::ONE
         } else {
             F::ZERO
