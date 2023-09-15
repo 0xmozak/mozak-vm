@@ -57,7 +57,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 InnerCpuTable::lookups(),
                 ProgramCpuTable::lookups(),
                 MemoryCpuTable::lookups(),
-                RangeCheckLimbTable::lookups(),
+                LimbTable::lookups(),
             ],
             debug: false,
         }
@@ -314,8 +314,8 @@ impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
     }
 }
 
-pub struct RangeCheckLimbTable<F: Field>(CrossTableLookup<F>);
-impl<F: Field> Lookups<F> for RangeCheckLimbTable<F> {
+pub struct LimbTable<F: Field>(CrossTableLookup<F>);
+impl<F: Field> Lookups<F> for LimbTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
             rangecheck_looking(),
