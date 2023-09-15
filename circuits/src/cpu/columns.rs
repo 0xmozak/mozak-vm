@@ -28,6 +28,8 @@ pub struct OpSelectors<T> {
     pub slt: T,
     /// Shift Right Logical by amount
     pub srl: T,
+    /// Arithmetic Right Shifts
+    pub sra: T,
     /// Jump And Link Register
     pub jalr: T,
     /// Branch on Equal
@@ -189,7 +191,7 @@ impl<T: PackedField> CpuState<T> {
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let cpu = MAP.cpu.map(Column::from);
     let ops = &cpu.inst.ops;
-    let divs = &ops.div + &ops.rem + &ops.srl;
+    let divs = &ops.div + &ops.rem + &ops.srl + &ops.sra;
     let muls = &ops.mul + &ops.mulh + &ops.sll;
 
     vec![
@@ -245,11 +247,11 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(self) -> T {
         // TODO: Add SRA, once we implement its constraints.
-        self.xor + self.or + self.and + self.srl + self.sll
+        self.xor + self.or + self.and + self.srl + self.sll + self.sra
     }
 
     // TODO: Add SRA, once we implement its constraints.
-    pub fn ops_that_shift(self) -> T { self.sll + self.srl }
+    pub fn ops_that_shift(self) -> T { self.sll + self.srl + self.sra }
 
     // TODO: Add other mem ops like SH, SW, LB, LW, LH, LHU as we implement the
     // constraints.

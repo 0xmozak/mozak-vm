@@ -1,8 +1,8 @@
 //! This module implements constraints for division operations, including
-//! DIVU, REMU, DIV, REM and SRL instructions.
+//! DIVU, REMU, DIV, REM, SRL and SRA instructions.
 //!
 //! Here, SRL stands for 'shift right logical'.  We can treat it as a variant of
-//! unsigned multiplication.
+//! unsigned division. Same for SRA.
 
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
@@ -12,10 +12,7 @@ use super::columns::CpuState;
 use crate::cpu::mul::bit_to_sign;
 use crate::cpu::stark::is_binary;
 
-/// Constraints for DIV / REM / DIVU / REMU / SRL instructions
-///
-/// SRL stands for 'shift right logical'.  We can treat it as a variant of
-/// unsigned division.
+/// Constraints for DIV / REM / DIVU / REMU / SRL / SRA instructions
 #[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
@@ -117,8 +114,9 @@ pub(crate) fn constraints<P: PackedField>(
 
     // Last, we 'copy' our results:
     let dst = lv.dst_value;
-    yield_constr.constraint((lv.inst.ops.div + lv.inst.ops.srl) * (dst - quotient_value));
-    yield_constr.constraint(lv.inst.ops.rem * (dst - remainder_value));
+    let ops = lv.inst.ops;
+    yield_constr.constraint((ops.div + ops.srl + ops.sra) * (dst - quotient_value));
+    yield_constr.constraint(ops.rem * (dst - remainder_value));
 }
 
 #[cfg(test)]
@@ -205,7 +203,7 @@ mod tests {
     fn prove_div_example() { prove_div::<MozakStark<F, D>>(i32::MIN as u32, -1_i32 as u32, 28); }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(4))]
+        #![proptest_config(ProptestConfig::with_cases(100))]
         #[test]
         fn inv_is_big(x in u32_extra()) {
             type F = plonky2::field::goldilocks_field::GoldilocksField;
