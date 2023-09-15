@@ -25,7 +25,7 @@ pub(crate) fn generate_limbs_trace<F: RichField>(
             .flat_map(|row| [row.limb_lo, row.limb_hi])
             .map(|x| x.to_canonical_u64())
             .sorted()
-            .merge_join_by(0..u64::from(u16::MAX), u64::cmp)
+            .merge_join_by(0..=u64::from(u16::MAX), u64::cmp)
             .map(|value_or_dummy| {
                 Limbs {
                     filter: value_or_dummy.has_left().into(),
