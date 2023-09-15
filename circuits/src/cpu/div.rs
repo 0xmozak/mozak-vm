@@ -39,7 +39,7 @@ pub(crate) fn constraints<P: PackedField>(
     let remainder_value = lv.remainder_value;
     let remainder_sign = lv.remainder_sign;
     let remainder_slack = lv.remainder_slack;
-    let quotient_full_range = quotient_value - quotient_sign * two_to_32;
+    let quotient_full_range = quotient_value - quotient_sign * two_to_32; // Equation (1)
     let remainder_full_range = remainder_value - remainder_sign * two_to_32;
     let quotient_abs = bit_to_sign(quotient_sign) * quotient_full_range;
     let remainder_abs = bit_to_sign(remainder_sign) * remainder_full_range;
@@ -65,6 +65,16 @@ pub(crate) fn constraints<P: PackedField>(
     // Ensure that 'skip_check_quotient_sign' can only be set to 1 in the presence
     // of the above exceptions. For other potential values, it does not
     // matter and will not break any constraints.
+    // 'skip_check_quotient_sign' is introduced to keep the constraints low-degree.
+    //
+    // Some notes about 'quotient_value + quotient_full_range':
+    // According to equation (1), it can be written as:
+    //     quotient_value * 2 = quotient_sign * two_to_32
+    // 1. When quotient = 0, quotient_value = quotient_full_range = 0.
+    // 2. When quotient = 2^31 (overflow case for quotient_sign = 1), quotient_value
+    //    = 2^31, quotient_full_range = -2^31.
+    // For a range-checked quotient_value, a malicious prover cannot set this
+    // expression to 0 with any other values.
     yield_constr.constraint(
         lv.skip_check_quotient_sign * divisor_full_range * (quotient_value + quotient_full_range),
     );
