@@ -24,7 +24,7 @@ pub mod memory;
 pub mod memoryinit;
 pub mod program;
 pub mod rangecheck;
-pub mod rangecheck_u16;
+pub mod rangecheck_limb;
 pub mod stark;
 #[cfg(any(feature = "test", test))]
 pub mod test_utils;

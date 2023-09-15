@@ -14,7 +14,7 @@ use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::rangecheck_looking;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::rangecheck_u16::stark::RangeCheckU16Stark;
+use crate::rangecheck_limb::stark::RangeCheckLimbStark;
 use crate::xor::stark::XorStark;
 use crate::{bitshift, cpu, memory, program, rangecheck, xor};
 
@@ -26,7 +26,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub shift_amount_stark: BitshiftStark<F, D>,
     pub program_stark: ProgramStark<F, D>,
     pub memory_stark: MemoryStark<F, D>,
-    pub rangecheck_u16_stark: RangeCheckU16Stark<F, D>,
+    pub rangecheck_u16_stark: RangeCheckLimbStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 7],
     pub debug: bool,
 }
@@ -49,7 +49,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             shift_amount_stark: BitshiftStark::default(),
             program_stark: ProgramStark::default(),
             memory_stark: MemoryStark::default(),
-            rangecheck_u16_stark: RangeCheckU16Stark::default(),
+            rangecheck_u16_stark: RangeCheckLimbStark::default(),
             cross_table_lookups: [
                 RangecheckTable::lookups(),
                 XorCpuTable::lookups(),
@@ -320,8 +320,8 @@ impl<F: Field> Lookups<F> for RangeCheckU16Table<F> {
         CrossTableLookup::new(
             rangecheck_looking(),
             RangeChecku16Table::new(
-                crate::rangecheck_u16::columns::data(),
-                crate::rangecheck_u16::columns::filter(),
+                crate::rangecheck_limb::columns::data(),
+                crate::rangecheck_limb::columns::filter(),
             ),
         )
     }
