@@ -29,10 +29,10 @@ pub(crate) fn constraints<P: PackedField>(
     // In the following code, we are looking at p/q.
     let p = lv.op1_value;
     let q = lv.divisor;
-    yield_constr.constraint((ops.divu + ops.remu) * (q - lv.op2_value));
+    yield_constr.constraint((ops.div + ops.rem) * (q - lv.op2_value));
 
     // Check: for DIVU and REMU, divisor `q` is assigned from `op2`
-    yield_constr.constraint((lv.inst.ops.divu + lv.inst.ops.remu) * (q - lv.op2_value));
+    yield_constr.constraint((ops.div + ops.rem) * (q - lv.op2_value));
 
     // Check: for SRL, divisor `q` is assigned as `2^(op2 & 0b1_111)`.
     // We only take lowest 5 bits of the op2 for the shift amount.
@@ -94,16 +94,16 @@ pub(crate) fn constraints<P: PackedField>(
     // Finally, we select the correct output.
 
     // Check: for DIVU and SRL we output the quotient `m`.
-    yield_constr.constraint((lv.inst.ops.divu + lv.inst.ops.srl) * (dst - m));
+    yield_constr.constraint((ops.div + ops.srl) * (dst - m));
     // Check: for REMU we output the remainder `r`.
-    yield_constr.constraint(lv.inst.ops.remu * (dst - r));
+    yield_constr.constraint(ops.rem * (dst - r));
 }
 
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test_code, u32_extra};
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::{simple_test_code, u32_extra};
     use proptest::prelude::{prop_assert_eq, ProptestConfig};
     use proptest::test_runner::TestCaseError;
     use proptest::{prop_assert, proptest};
