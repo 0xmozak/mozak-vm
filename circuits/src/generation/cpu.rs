@@ -75,8 +75,9 @@ pub fn generate_cpu_trace<F: RichField>(
             row.regs[j as usize] = from_u32(state.get_register_value(j));
         }
 
-        generate_mul_row(&mut row, &inst, aux);
-        generate_divu_row(&mut row, &inst, aux);
+        generate_shift_row(&mut row, aux);
+        generate_mul_row(&mut row, aux);
+        generate_div_row(&mut row, aux);
         generate_sign_handling(&mut row, aux);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
@@ -93,35 +94,45 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
 
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
-fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
-    // Helper function to determine sign and absolute value.
-    let sign_and_absolute = |is_signed: bool, x: u32| {
-        if is_signed {
-            ((x as i32) < 0, (x as i32).unsigned_abs())
-        } else {
-            (false, x)
-        }
-    };
-
-    // Calculate op2 values.
-    let (is_op2_negative, op2_abs) = if let Op::SLL = inst.op {
-        let shift_amount = aux.op2 & 0b1_1111;
-        let shift_power = 1_u32 << shift_amount;
-
-        row.bitshift = Bitshift {
-            amount: shift_amount,
-            multiplier: shift_power,
-        }
-        .map(from_u32);
-
-        sign_and_absolute(false, shift_power)
+fn generate_shift_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
+    let shift_power = aux.op2;
+    let shift_amount = if shift_power == 0 {
+        0
     } else {
-        sign_and_absolute(row.inst.is_op2_signed.is_nonzero(), aux.op2)
+        31_u32 - shift_power.leading_zeros()
     };
+    row.bitshift = Bitshift {
+        amount: shift_amount,
+        multiplier: shift_power,
+    }
+    .map(from_u32);
+}
 
-    // Calculate op1 values.
+#[allow(clippy::cast_possible_wrap)]
+#[allow(clippy::cast_lossless)]
+fn compute_full_range(is_signed: bool, value: u32) -> i64 {
+    if is_signed {
+        value as i32 as i64
+    } else {
+        value as i64
+    }
+}
+
+#[allow(clippy::cast_possible_wrap)]
+#[allow(clippy::similar_names)]
+#[allow(clippy::cast_possible_truncation)]
+fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
+    // Helper function to determine sign and absolute value.
+    let compute_sign_and_abs: fn(bool, u32) -> (bool, u32) = |is_signed, value| {
+        let full_range = compute_full_range(is_signed, value);
+        let is_negative = full_range.is_negative();
+        let absolute_value = full_range.unsigned_abs() as u32;
+        (is_negative, absolute_value)
+    };
+    let (is_op2_negative, op2_abs) =
+        compute_sign_and_abs(row.inst.is_op2_signed.is_nonzero(), aux.op2);
     let (is_op1_negative, op1_abs) =
-        sign_and_absolute(row.inst.is_op1_signed.is_nonzero(), aux.op1);
+        compute_sign_and_abs(row.inst.is_op1_signed.is_nonzero(), aux.op1);
 
     // Determine product sign and absolute value.
     let mut product_sign = is_op1_negative ^ is_op2_negative;
@@ -162,34 +173,43 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
-    let dividend = aux.op1;
+#[allow(clippy::cast_lossless)]
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_sign_loss)]
+fn generate_div_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
+    let dividend_full_range = compute_full_range(row.inst.is_op1_signed.is_nonzero(), aux.op1);
+    let divisor_full_range = compute_full_range(row.inst.is_op2_signed.is_nonzero(), aux.op2);
 
-    let divisor = if let Op::SRL = inst.op {
-        let shift_amount = aux.op2 & 0x1F;
-        let shift_power = 1_u32 << shift_amount;
-        row.bitshift = Bitshift {
-            amount: shift_amount,
-            multiplier: shift_power,
+    if divisor_full_range == 0 {
+        row.quotient_value = from_u32(0xFFFF_FFFF);
+        row.quotient_sign = if row.inst.is_op2_signed.is_nonzero() {
+            F::ONE
+        } else {
+            F::ZERO
+        };
+        row.remainder_value = from_u32(aux.op1);
+        row.remainder_slack = F::ZERO;
+        row.remainder_sign = F::from_bool(dividend_full_range.is_negative());
+        row.skip_check_quotient_sign = F::ONE;
+    } else {
+        let quotient_full_range = dividend_full_range / divisor_full_range;
+        row.quotient_value = from_u32(quotient_full_range as u32);
+        row.quotient_sign = F::from_bool(quotient_full_range.is_negative());
+        row.skip_check_quotient_sign = F::from_bool(quotient_full_range == 0);
+        if dividend_full_range == -2 ^ 31 && divisor_full_range == -1 {
+            // Special case for dividend == -2^31, divisor == -1:
+            // quotient_sign == 1 (quotient = -2^31).
+            row.skip_check_quotient_sign = F::ONE;
+            row.quotient_sign = F::ONE;
         }
-        .map(from_u32);
-        shift_power
-    } else {
-        aux.op2
-    };
-
-    row.divisor = from_u32(divisor);
-
-    if let 0 = divisor {
-        row.quotient = from_u32(u32::MAX);
-        row.remainder = from_u32(dividend);
-        row.remainder_slack = from_u32(0_u32);
-    } else {
-        row.quotient = from_u32(dividend / divisor);
-        row.remainder = from_u32(dividend % divisor);
-        row.remainder_slack = from_u32(divisor - dividend % divisor - 1);
+        let remainder = dividend_full_range % divisor_full_range;
+        let remainder_abs = remainder.unsigned_abs();
+        row.remainder_value = from_u32(remainder as u32);
+        row.remainder_slack =
+            F::from_noncanonical_u64(divisor_full_range.unsigned_abs() - 1 - remainder_abs);
+        row.remainder_sign = F::from_bool(remainder.is_negative());
     }
-    row.divisor_inv = from_u32::<F>(divisor).try_inverse().unwrap_or_default();
+    row.op2_value_inv = from_u32::<F>(aux.op2).try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]
