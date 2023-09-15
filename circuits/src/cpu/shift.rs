@@ -160,6 +160,9 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn prove_sra_example() { prove_sra::<MozakStark<F, D>>(-3_i32 as u32, 1, 21, 2, 12).unwrap(); }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(100))]
         #[test]

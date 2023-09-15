@@ -12,7 +12,7 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
             imm_value: inst.args.imm,
             is_op1_signed: matches!(
                 inst.op,
-                Op::SLT | Op::DIV | Op::REM | Op::MULH | Op::MULHSU | Op::BLT | Op::BGE
+                Op::SLT | Op::DIV | Op::REM | Op::MULH | Op::MULHSU | Op::BLT | Op::BGE | Op::SRA
             )
             .into(),
             is_op2_signed: matches!(
