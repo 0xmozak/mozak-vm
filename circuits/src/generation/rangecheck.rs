@@ -70,45 +70,44 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
     pad_trace_with_default(trace)
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use mozak_runner::instruction::{Args, Instruction, Op};
-//     use mozak_runner::test_utils::simple_test_code;
-//     use plonky2::field::goldilocks_field::GoldilocksField;
-//     use plonky2::field::types::Field;
+#[cfg(test)]
+mod tests {
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::simple_test_code;
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::types::Field;
 
-//     use super::*;
-//     use crate::generation::cpu::generate_cpu_trace;
-//     use crate::generation::memory::generate_memory_trace;
+    use super::*;
+    use crate::generation::cpu::generate_cpu_trace;
+    use crate::generation::memory::generate_memory_trace;
 
-//     #[test]
-//     fn test_add_instruction_inserts_rangecheck() {
-//         type F = GoldilocksField;
-//         let (program, record) = simple_test_code(
-//             &[Instruction {
-//                 op: Op::ADD,
-//                 args: Args {
-//                     rd: 5,
-//                     rs1: 6,
-//                     rs2: 7,
-//                     ..Args::default()
-//                 },
-//             }],
-//             // Use values that would become limbs later
-//             &[],
-//             &[(6, 0xffff), (7, 0xffff)],
-//         );
+    #[test]
+    fn test_add_instruction_inserts_rangecheck() {
+        type F = GoldilocksField;
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: 5,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            // Use values that would become limbs later
+            &[],
+            &[(6, 0xffff), (7, 0xffff)],
+        );
 
-//         let cpu_rows = generate_cpu_trace::<F>(&program, &record);
-//         let memory_rows = generate_memory_trace::<F>(&program,
-// &record.executed);         let trace =
-// generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
+        let cpu_rows = generate_cpu_trace::<F>(&program, &record);
+        let memory_rows = generate_memory_trace::<F>(&program, &record.executed);
+        let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
-//         // Check values that we are interested in
-//         assert_eq!(trace[MAP.filter][0], F::ONE);
-//         assert_eq!(trace[MAP.filter][1], F::ONE);
-//         assert_eq!(trace[MAP.limb_hi][0], GoldilocksField(0x0001));
-//         assert_eq!(trace[MAP.limb_lo][0], GoldilocksField(0xfffe));
-//         assert_eq!(trace[MAP.limb_lo][1], GoldilocksField(0));
-//     }
-// }
+        // Check values that we are interested in
+        assert_eq!(trace[0].filter, F::ONE);
+        assert_eq!(trace[1].filter, F::ONE);
+        assert_eq!(trace[0].limb_hi, GoldilocksField(0x0001));
+        assert_eq!(trace[0].limb_lo, GoldilocksField(0xfffe));
+        assert_eq!(trace[1].limb_lo, GoldilocksField(0));
+    }
+}

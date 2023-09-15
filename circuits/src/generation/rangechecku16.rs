@@ -1,8 +1,8 @@
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
-use crate::rangecheck_u16::columns::RangeCheckU16;
 use crate::rangecheck::columns::RangeCheckColumnsView;
+use crate::rangecheck_u16::columns::RangeCheckU16;
 
 #[must_use]
 pub fn pad_trace<F: RichField>(mut trace: Vec<RangeCheckU16<F>>) -> Vec<RangeCheckU16<F>> {

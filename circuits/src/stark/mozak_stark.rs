@@ -10,11 +10,11 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
-use crate::rangecheck_u16::stark::RangeCheckU16Stark;
 use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::rangecheck_looking;
 use crate::rangecheck::stark::RangeCheckStark;
+use crate::rangecheck_u16::stark::RangeCheckU16Stark;
 use crate::xor::stark::XorStark;
 use crate::{bitshift, cpu, memory, program, rangecheck, xor};
 

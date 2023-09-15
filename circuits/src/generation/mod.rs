@@ -4,11 +4,11 @@
 pub mod bitshift;
 pub mod cpu;
 pub mod instruction;
-pub mod rangechecku16;
 pub mod memory;
 pub mod memoryinit;
 pub mod program;
 pub mod rangecheck;
+pub mod rangechecku16;
 pub mod xor;
 
 use std::borrow::Borrow;
@@ -27,17 +27,17 @@ use starky::vars::StarkEvaluationVars;
 
 use self::bitshift::generate_shift_amount_trace;
 use self::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
-use self::rangechecku16::generate_rangechecku16_trace;
 use self::memory::generate_memory_trace;
 use self::rangecheck::generate_rangecheck_trace;
+use self::rangechecku16::generate_rangechecku16_trace;
 use self::xor::generate_xor_trace;
 use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::program::generate_program_rom_trace;
-use crate::rangecheck_u16::stark::RangeCheckU16Stark;
 use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
+use crate::rangecheck_u16::stark::RangeCheckU16Stark;
 use crate::stark::mozak_stark::{MozakStark, PublicInputs, NUM_TABLES};
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 use crate::xor::stark::XorStark;

@@ -19,12 +19,12 @@ pub mod columns_view;
 pub mod cpu;
 pub mod cross_table_lookup;
 pub mod generation;
-pub mod rangecheck_u16;
 pub mod linear_combination;
 pub mod memory;
 pub mod memoryinit;
 pub mod program;
 pub mod rangecheck;
+pub mod rangecheck_u16;
 pub mod stark;
 #[cfg(any(feature = "test", test))]
 pub mod test_utils;
