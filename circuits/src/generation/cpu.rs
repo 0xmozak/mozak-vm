@@ -206,7 +206,7 @@ fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
             row.skip_check_quotient_sign = F::ONE;
             row.quotient_sign = F::ONE;
         }
-        let remainder = dividend_full_range % divisor_full_range;
+        let remainder = dividend_full_range - quotient_full_range * divisor_full_range;
         let remainder_abs = remainder.unsigned_abs();
         row.remainder_value = from_u32(remainder as u32);
         row.remainder_slack =

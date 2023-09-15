@@ -54,7 +54,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 ProgramCpuTable::lookups(),
                 MemoryCpuTable::lookups(),
             ],
-            debug: true,
+            debug: false,
         }
     }
 }

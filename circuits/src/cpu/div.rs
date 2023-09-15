@@ -18,6 +18,7 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
+    let ops = lv.inst.ops;
     let two_to_32 = CpuState::<P>::shifted(32);
     let dividend_value = lv.op1_value;
     let dividend_sign = lv.op1_sign_bit;
@@ -43,12 +44,18 @@ pub(crate) fn constraints<P: PackedField>(
 
     // For both signed and unsigned division, it holds that
     // |dividend| = |divisor| × |quotient| + |remainder|.
-    yield_constr.constraint(divisor_abs * quotient_abs + remainder_abs - dividend_abs);
+    // Note that for SRA, the remainder may have a different sign as the dividend.
+    yield_constr.constraint(
+        divisor_abs * quotient_abs - ops.sra * bit_to_sign(remainder_sign) * remainder_abs
+            + (P::ONES - ops.sra) * remainder_abs
+            - dividend_abs,
+    );
 
     // We also need to make sure quotient_sign and remainder_sign are set correctly.
     is_binary(yield_constr, remainder_sign);
     is_binary(yield_constr, dividend_sign);
-    yield_constr.constraint(remainder_value * (dividend_sign - remainder_sign));
+    yield_constr
+        .constraint((P::ONES - ops.sra) * remainder_value * (dividend_sign - remainder_sign));
 
     // Quotient_sign = dividend_sign * divisor_sign, with three exceptions:
     // 1. When divisor = 0, this case is handled below.
@@ -114,7 +121,6 @@ pub(crate) fn constraints<P: PackedField>(
 
     // Last, we 'copy' our results:
     let dst = lv.dst_value;
-    let ops = lv.inst.ops;
     yield_constr.constraint((ops.div + ops.srl + ops.sra) * (dst - quotient_value));
     yield_constr.constraint(ops.rem * (dst - remainder_value));
 }
