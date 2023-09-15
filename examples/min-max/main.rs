@@ -1,13 +1,13 @@
 #![no_main]
 #![feature(restricted_std)]
 
-use core::assert;
+mod core_logic;
+
+use crate::core_logic::min_max;
 
 pub fn main() {
-    let min = std::cmp::min(100_u32, 1000_u32);
-    let max = std::cmp::max(100_u32, 1000_u32);
-    assert!(min < max);
-    guest::env::write(&max.to_be_bytes());
+    let result = min_max();
+    guest::env::write(&result);
 }
 
 guest::entry!(main);
