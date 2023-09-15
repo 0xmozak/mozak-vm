@@ -50,6 +50,11 @@ pub fn data<F: Field>() -> Vec<Column<F>> {
     vec![Column::single(MAP.limb_lo) + Column::single(MAP.limb_hi) * F::from_canonical_u32(1 << 16)]
 }
 
+#[must_use]
+pub fn data_outgoing<F: Field>() -> Vec<Column<F>> {
+    vec![Column::single(MAP.limb_lo), Column::single(MAP.limb_hi)]
+}
+
 /// Column for a binary filter to indicate whether a row in the
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 /// contains a non-dummy value to be range checked.

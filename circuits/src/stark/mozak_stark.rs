@@ -10,6 +10,7 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
+use crate::limbs::stark::LimbsStark;
 use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
@@ -24,6 +25,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub shift_amount_stark: BitshiftStark<F, D>,
     pub program_stark: ProgramStark<F, D>,
     pub memory_stark: MemoryStark<F, D>,
+    pub limbs_stark: LimbsStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 6],
     pub debug: bool,
 }
@@ -40,12 +42,13 @@ pub struct PublicInputs<F> {
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
     fn default() -> Self {
         Self {
-            cpu_stark: CpuStark::default(),
-            rangecheck_stark: RangeCheckStark::default(),
-            xor_stark: XorStark::default(),
-            shift_amount_stark: BitshiftStark::default(),
-            program_stark: ProgramStark::default(),
-            memory_stark: MemoryStark::default(),
+                        cpu_stark: CpuStark::default(),
+                        rangecheck_stark: RangeCheckStark::default(),
+                        xor_stark: XorStark::default(),
+                        shift_amount_stark: BitshiftStark::default(),
+                        program_stark: ProgramStark::default(),
+                        memory_stark: MemoryStark::default(),
+                        limbs_stark: LimbsStark::default(),
             cross_table_lookups: [
                 RangecheckTable::lookups(),
                 XorCpuTable::lookups(),
@@ -68,6 +71,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.shift_amount_stark.num_permutation_batches(config),
             self.program_stark.num_permutation_batches(config),
             self.memory_stark.num_permutation_batches(config),
+            self.limbs_stark.num_permutation_batches(config),
         ]
     }
 
@@ -79,6 +83,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.shift_amount_stark.permutation_batch_size(),
             self.program_stark.permutation_batch_size(),
             self.memory_stark.permutation_batch_size(),
+            self.limbs_stark.permutation_batch_size(),
         ]
     }
 
@@ -91,7 +96,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 6;
+pub(crate) const NUM_TABLES: usize = 7;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum TableKind {
@@ -101,6 +106,7 @@ pub enum TableKind {
     Bitshift = 3,
     Program = 4,
     Memory = 5,
+    Limbs = 6,
 }
 
 impl TableKind {
@@ -113,6 +119,7 @@ impl TableKind {
             TableKind::Bitshift,
             TableKind::Program,
             TableKind::Memory,
+            TableKind::Limbs,
         ]
     }
 }
@@ -151,6 +158,8 @@ pub struct ProgramTable<F: Field>(Table<F>);
 
 /// Represents a memory trace table in the Mozak VM.
 pub struct MemoryTable<F: Field>(Table<F>);
+
+pub struct LimbsTable<F: Field>(Table<F>);
 
 impl<F: Field> RangeCheckTable<F> {
     #[allow(clippy::new_ret_no_self)]
@@ -191,6 +200,13 @@ impl<F: Field> MemoryTable<F> {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
         Table::new(TableKind::Memory, columns, filter_column)
+    }
+}
+
+impl<F: Field> LimbsTable<F> {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
+        Table::new(TableKind::Limbs, columns, filter_column)
     }
 }
 

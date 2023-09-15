@@ -26,6 +26,7 @@ use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
+use crate::limbs::stark::LimbsStark;
 use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
@@ -54,6 +55,7 @@ where
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); LimbsStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
@@ -83,14 +85,23 @@ pub fn prove_with_traces<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
+    [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
-    [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); LimbsStark::<F, D>::COLUMNS]:,
+    // [(); ProgramStark::<F, D>::COLUMNS]:,
+    // [(); CpuStark::<F, D>::COLUMNS]:,
+    // [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
+    // [(); RangeCheckStark::<F, D>::COLUMNS]:,
+    // [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
+    // [(); XorStark::<F, D>::COLUMNS]:,
+    // [(); BitshiftStark::<F, D>::COLUMNS]:,
+    // [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
@@ -365,14 +376,24 @@ pub fn prove_with_commitments<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
+    [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
     [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
-    [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); LimbsStark::<F, D>::COLUMNS]:,
+    // [(); ProgramStark::<F, D>::COLUMNS]:,
+    // [(); CpuStark::<F, D>::COLUMNS]:,
+    // [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
+    // [(); RangeCheckStark::<F, D>::COLUMNS]:,
+    // [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
+    // [(); XorStark::<F, D>::COLUMNS]:,
+    // [(); BitshiftStark::<F, D>::COLUMNS]:,
+    // [(); MemoryStark::<F, D>::COLUMNS]:,
+    // [(); LimbsStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
@@ -440,6 +461,17 @@ where
         timing,
     )?;
 
+    let limbs_proof = prove_single_table::<F, C, LimbsStark<F, D>, D>(
+        &mozak_stark.limbs_stark,
+        config,
+        &traces_poly_values[TableKind::Limbs as usize],
+        &trace_commitments[TableKind::Limbs as usize],
+        [],
+        &ctl_data_per_table[TableKind::Limbs as usize],
+        challenger,
+        timing,
+    )?;
+
     Ok([
         cpu_proof,
         rangecheck_proof,
@@ -447,6 +479,7 @@ where
         shift_amount_proof,
         program_proof,
         memory_proof,
+        limbs_proof,
     ])
 }
 
