@@ -1,6 +1,6 @@
 use itertools::{self, Itertools};
-use mozak_vm::elf::Program;
-use mozak_vm::vm::Row;
+use mozak_runner::elf::Program;
+use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::memory::columns::Memory;
