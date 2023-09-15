@@ -50,13 +50,13 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
             .looking_tables
             .into_iter()
             .flat_map(|looking_table| {
-                let values = match looking_table.kind {
+                match looking_table.kind {
                     TableKind::Cpu => extract(cpu_trace, &looking_table),
                     TableKind::Memory => extract(memory_trace, &looking_table),
                     other => unimplemented!("Can't range check {other:#?} tables"),
-                };
-
-                values.into_iter().map(move |val| {
+                }
+                .into_iter()
+                .map(move |val| {
                     let (limb_hi, limb_lo) = limbs_from_u32(
                         u32::try_from(val.to_canonical_u64())
                             .expect("casting value to u32 should succeed"),
