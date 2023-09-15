@@ -13,8 +13,8 @@ pub mod xor;
 use std::borrow::Borrow;
 
 use itertools::Itertools;
-use mozak_vm::elf::Program;
-use mozak_vm::vm::ExecutionRecord;
+use mozak_executor::elf::Program;
+use mozak_executor::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;

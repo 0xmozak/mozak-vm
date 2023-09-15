@@ -1,5 +1,5 @@
 use itertools::izip;
-use mozak_vm::instruction::{Instruction, Op};
+use mozak_executor::instruction::{Instruction, Op};
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns;

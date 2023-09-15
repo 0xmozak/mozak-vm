@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
 use itertools::{chain, Itertools};
-use mozak_vm::elf::Program;
-use mozak_vm::instruction::{Instruction, Op};
-use mozak_vm::state::{Aux, State};
-use mozak_vm::vm::{ExecutionRecord, Row};
+use mozak_executor::elf::Program;
+use mozak_executor::instruction::{Instruction, Op};
+use mozak_executor::state::{Aux, State};
+use mozak_executor::vm::{ExecutionRecord, Row};
 use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;

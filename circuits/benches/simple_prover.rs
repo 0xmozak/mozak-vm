@@ -3,7 +3,7 @@ use std::time::Duration;
 use criterion::{criterion_group, criterion_main, Criterion};
 use mozak_circuits::stark::mozak_stark::MozakStark;
 use mozak_circuits::test_utils::ProveAndVerify;
-use mozak_vm::test_utils::simple_test_code;
+use mozak_executor::test_utils::simple_test_code;
 
 fn bench_prove_verify_all(c: &mut Criterion) {
     let _ = env_logger::builder().try_init();

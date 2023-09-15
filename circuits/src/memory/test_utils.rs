@@ -1,8 +1,8 @@
-use mozak_vm::elf::Program;
-use mozak_vm::instruction::Op::{LBU, SB};
-use mozak_vm::instruction::{Args, Instruction};
-use mozak_vm::test_utils::simple_test_code;
-use mozak_vm::vm::ExecutionRecord;
+use mozak_executor::elf::Program;
+use mozak_executor::instruction::Op::{LBU, SB};
+use mozak_executor::instruction::{Args, Instruction};
+use mozak_executor::test_utils::simple_test_code;
+use mozak_executor::vm::ExecutionRecord;
 
 #[must_use]
 pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord) {

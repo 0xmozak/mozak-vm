@@ -1,5 +1,5 @@
-use mozak_vm::instruction::{Instruction, Op};
-use mozak_vm::vm::Row;
+use mozak_executor::instruction::{Instruction, Op};
+use mozak_executor::vm::Row;
 use plonky2::field::types::Field;
 
 pub(crate) const OPCODE_SB: usize = 0;

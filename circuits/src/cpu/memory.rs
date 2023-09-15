@@ -1,8 +1,8 @@
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-    use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test_code, u32_extra, u8_extra};
+    use mozak_executor::instruction::{Args, Instruction, Op};
+    use mozak_executor::test_utils::{simple_test_code, u32_extra, u8_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
