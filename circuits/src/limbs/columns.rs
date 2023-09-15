@@ -6,8 +6,9 @@ use crate::cross_table_lookup::Column;
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Limbs<T> {
+    // Column containing values 0..u16::MAX, with possible duplicates.
     pub range_check_u16: T,
-    // TODO: check whether we could get by without a filter?
+    // Filter to indicate a value to be range checked is not a dummy value.
     pub filter: T,
 }
 columns_view_impl!(Limbs);

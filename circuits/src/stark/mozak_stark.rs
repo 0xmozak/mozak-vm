@@ -10,7 +10,6 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
-use crate::generation::limbs;
 use crate::limbs::stark::LimbsStark;
 use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;

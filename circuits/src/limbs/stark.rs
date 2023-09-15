@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -27,11 +28,22 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for LimbsStark<F,
     ///   2. rangecheck for limbs.
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
-        _vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
-        _yield_constr: &mut ConstraintConsumer<P>,
+        vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
+        let lv: &Limbs<P> = vars.local_values.borrow();
+        let nv: &Limbs<P> = vars.next_values.borrow();
+        // Check: the `fixed_range_check_u16` forms a sequence from 0 to 2^16-1.
+        //  this column will be used to connect to the permutation columns,
+        //  `fixed_range_check_u16_permuted_hi` and `fixed_range_check_u16_permuted_lo`.
+        yield_constr.constraint_first_row(lv.range_check_u16);
+        yield_constr.constraint_transition(
+            (nv.range_check_u16 - lv.range_check_u16 - FE::ONE)
+                * (nv.range_check_u16 - lv.range_check_u16),
+        );
+        yield_constr.constraint_last_row(lv.range_check_u16 - FE::from_canonical_u16(u16::MAX));
     }
 
     #[no_coverage]

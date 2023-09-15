@@ -56,7 +56,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let limbs_rows = generate_limbs_trace(&rangecheck_rows);
 
     let cpu_trace = trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows));
-    let rangecheck_trace = trace_to_poly_values(rangecheck_rows);
+    let rangecheck_trace = trace_rows_to_poly_values(rangecheck_rows);
     let xor_trace = trace_rows_to_poly_values(xor_rows);
     let shift_amount_trace = trace_rows_to_poly_values(shift_amount_rows);
     let program_trace = trace_rows_to_poly_values(program_rows);
@@ -99,7 +99,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 ) where
     [(); CpuStark::<F, D>::COLUMNS]:,
     [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); RangeCheckStark::<F, D>::COLUMNS]:,
+    // [(); RangeCheckStark::<F, D>::COLUMNS]:,
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
