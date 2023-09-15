@@ -116,11 +116,12 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
 
         sign_and_absolute(false, shift_power)
     } else {
-        sign_and_absolute(row.is_op2_signed().is_nonzero(), aux.op2)
+        sign_and_absolute(row.inst.is_op2_signed.is_nonzero(), aux.op2)
     };
 
     // Calculate op1 values.
-    let (is_op1_negative, op1_abs) = sign_and_absolute(row.is_op1_signed().is_nonzero(), aux.op1);
+    let (is_op1_negative, op1_abs) =
+        sign_and_absolute(row.inst.is_op1_signed.is_nonzero(), aux.op1);
 
     // Determine product sign and absolute value.
     let mut product_sign = is_op1_negative ^ is_op2_negative;
@@ -194,8 +195,8 @@ fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, au
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_lossless)]
 fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
-    let op1_full_range = sign_extend(row.is_op1_signed().is_nonzero(), aux.op1);
-    let op2_full_range = sign_extend(row.is_op2_signed().is_nonzero(), aux.op2);
+    let op1_full_range = sign_extend(row.inst.is_op1_signed.is_nonzero(), aux.op1);
+    let op2_full_range = sign_extend(row.inst.is_op2_signed.is_nonzero(), aux.op2);
 
     row.op1_sign_bit = F::from_bool(op1_full_range < 0);
     row.op2_sign_bit = F::from_bool(op2_full_range < 0);
@@ -280,6 +281,7 @@ mod tests {
                     rs2_select: selection(1),
                     rd_select: selection(1),
                     imm_value: 3,
+                    ..Default::default()
                 },
                 is_running: 1,
                 ..Default::default()
@@ -292,6 +294,7 @@ mod tests {
                     rs2_select: selection(3),
                     rd_select: selection(2),
                     imm_value: 2,
+                    ..Default::default()
                 },
                 is_running: 1,
                 ..Default::default()
@@ -304,6 +307,7 @@ mod tests {
                     rs2_select: selection(1),
                     rd_select: selection(1),
                     imm_value: 3,
+                    ..Default::default()
                 },
                 is_running: 1,
                 ..Default::default()
@@ -316,6 +320,7 @@ mod tests {
                     rs2_select: selection(4),
                     rd_select: selection(4),
                     imm_value: 4,
+                    ..Default::default()
                 },
                 is_running: 0,
                 ..Default::default()
@@ -338,6 +343,7 @@ mod tests {
                     rs2: 1,
                     rd: 1,
                     imm: 3,
+                    ..Default::default()
                 },
                 filter: 1,
             },
@@ -349,6 +355,7 @@ mod tests {
                     rs2: 3,
                     rd: 2,
                     imm: 2,
+                    ..Default::default()
                 },
                 filter: 1,
             },
@@ -360,6 +367,7 @@ mod tests {
                     rs2: 2,
                     rd: 3,
                     imm: 1,
+                    ..Default::default()
                 },
                 filter: 1,
             },
@@ -371,6 +379,7 @@ mod tests {
                     rs2: 3,
                     rd: 3,
                     imm: 3,
+                    ..Default::default()
                 },
                 filter: 0,
             },
@@ -389,6 +398,7 @@ mod tests {
                     rs2: 1,
                     rd: 1,
                     imm: 3,
+                    ..Default::default()
                 },
                 filter: 1,
             },
@@ -400,6 +410,7 @@ mod tests {
                     rs2: 1,
                     rd: 1,
                     imm: 3,
+                    ..Default::default()
                 },
                 filter: 0,
             },
@@ -411,6 +422,7 @@ mod tests {
                     rs2: 3,
                     rd: 2,
                     imm: 2,
+                    ..Default::default()
                 },
                 filter: 1,
             },
@@ -422,6 +434,7 @@ mod tests {
                     rs2: 2,
                     rd: 3,
                     imm: 1,
+                    ..Default::default()
                 },
                 filter: 1,
             },
