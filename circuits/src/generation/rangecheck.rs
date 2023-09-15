@@ -10,12 +10,7 @@ use crate::utils::pad_trace_with_default;
 
 /// Converts a u32 into 2 u16 limbs represented in [`RichField`].
 #[must_use]
-pub fn limbs_from_u32<F: RichField>(value: u32) -> (F, F) {
-    (
-        F::from_noncanonical_u64((value >> 16).into()),
-        F::from_noncanonical_u64((value & 0xffff).into()),
-    )
-}
+pub fn limbs_from_u32(value: u32) -> [u8; 4] { value.to_le_bytes() }
 
 pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<F>
 where
@@ -57,15 +52,14 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
                 }
                 .into_iter()
                 .map(move |val| {
-                    let (limb_hi, limb_lo) = limbs_from_u32(
-                        u32::try_from(val.to_canonical_u64())
-                            .expect("casting value to u32 should succeed"),
-                    );
                     RangeCheckColumnsView {
-                        limb_lo,
-                        limb_hi,
-                        filter: F::ONE,
+                        limbs: limbs_from_u32(
+                            u32::try_from(val.to_canonical_u64())
+                                .expect("casting value to u32 should succeed"),
+                        ),
+                        filter: 1,
                     }
+                    .map(F::from_canonical_u8)
                 })
             })
             .collect(),
@@ -108,8 +102,10 @@ mod tests {
         // Check values that we are interested in
         assert_eq!(trace[0].filter, F::ONE);
         assert_eq!(trace[1].filter, F::ONE);
-        assert_eq!(trace[0].limb_hi, GoldilocksField(0x0001));
-        assert_eq!(trace[0].limb_lo, GoldilocksField(0xfffe));
-        assert_eq!(trace[1].limb_lo, GoldilocksField(0));
+        assert_eq!(trace[0].limbs[0], GoldilocksField(0xfe));
+        assert_eq!(trace[0].limbs[1], GoldilocksField(0xff));
+        assert_eq!(trace[0].limbs[2], GoldilocksField(0x01));
+        assert_eq!(trace[0].limbs[3], GoldilocksField(0x00));
+        assert_eq!(trace[1].limbs[0], GoldilocksField(0));
     }
 }

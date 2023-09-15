@@ -7,13 +7,9 @@ use crate::stark::mozak_stark::{RangeCheckTable, Table};
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub(crate) struct RangeCheckColumnsView<T> {
-    /// Column containing the lower limb (u16) of the u32 value to be range
+    /// The limbs (u8) of the u32 value to be range
     /// checked.
-    pub(crate) limb_lo: T,
-
-    /// Column containing the upper limb (u16) of the u32 value to be range
-    /// checked.
-    pub(crate) limb_hi: T,
+    pub(crate) limbs: [T; 4],
 
     /// Column to indicate that a value to be range checked is not a dummy
     /// value.
@@ -29,15 +25,21 @@ pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COL
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
 pub fn data<F: Field>() -> Vec<Column<F>> {
-    vec![Column::single(MAP.limb_lo) + Column::single(MAP.limb_hi) * F::from_canonical_u32(1 << 16)]
+    vec![(0..4)
+        .map(|limb| Column::single(MAP.limbs[limb]) * F::from_canonical_u32(1 << (8 * limb)))
+        .sum()]
 }
 
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
-    vec![
-        RangeCheckTable::new(Column::singles([MAP.limb_lo]), Column::single(MAP.filter)),
-        RangeCheckTable::new(Column::singles([MAP.limb_hi]), Column::single(MAP.filter)),
-    ]
+    (0..4)
+        .map(|limb| {
+            RangeCheckTable::new(
+                Column::singles([MAP.limbs[limb]]),
+                Column::single(MAP.filter),
+            )
+        })
+        .collect()
 }
 
 /// Column for a binary filter to indicate whether a row in the

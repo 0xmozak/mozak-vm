@@ -43,7 +43,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckU16
             (nv.range_check_u16 - lv.range_check_u16 - FE::ONE)
                 * (nv.range_check_u16 - lv.range_check_u16),
         );
-        yield_constr.constraint_last_row(lv.range_check_u16 - FE::from_canonical_u16(u16::MAX));
+        yield_constr.constraint_last_row(lv.range_check_u16 - FE::from_canonical_u8(u8::MAX));
     }
 
     #[no_coverage]

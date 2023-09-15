@@ -9,7 +9,7 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<RangeCheckU16<F>>) -> Vec<RangeChe
     let len = trace.len().next_power_of_two();
     trace.resize(len, RangeCheckU16 {
         filter: F::ZERO,
-        range_check_u16: F::from_canonical_u16(u16::MAX),
+        range_check_u16: F::from_canonical_u8(u8::MAX),
     });
     trace
 }
@@ -22,10 +22,10 @@ pub(crate) fn generate_rangechecku16_trace<F: RichField>(
         rangecheck_trace
             .iter()
             .filter(|row| row.filter.is_one())
-            .flat_map(|row| [&row.limb_lo, &row.limb_hi])
+            .flat_map(|row| &row.limbs)
             .map(F::to_canonical_u64)
             .sorted()
-            .merge_join_by(0..=u64::from(u16::MAX), u64::cmp)
+            .merge_join_by(0..=u64::from(u8::MAX), u64::cmp)
             .map(|value_or_dummy| {
                 RangeCheckU16 {
                     filter: value_or_dummy.has_left().into(),
