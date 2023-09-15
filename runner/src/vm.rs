@@ -674,7 +674,6 @@ mod tests {
                     imm: offset,
                     ..Args::default()
                 }
-
                 )],&[],
                 &[(address, memory_value as u32)],
                 &[(rs2, rs2_value)]
