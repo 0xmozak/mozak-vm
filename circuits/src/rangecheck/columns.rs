@@ -2,6 +2,7 @@ use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
+use crate::stark::mozak_stark::{RangeCheckTable, Table};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -51,8 +52,11 @@ pub fn data<F: Field>() -> Vec<Column<F>> {
 }
 
 #[must_use]
-pub fn data_outgoing<F: Field>() -> Vec<Column<F>> {
-    vec![Column::single(MAP.limb_lo), Column::single(MAP.limb_hi)]
+pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
+    vec![
+        RangeCheckTable::new(Column::singles([MAP.limb_lo]), Column::single(MAP.filter)),
+        RangeCheckTable::new(Column::singles([MAP.limb_hi]), Column::single(MAP.filter)),
+    ]
 }
 
 /// Column for a binary filter to indicate whether a row in the

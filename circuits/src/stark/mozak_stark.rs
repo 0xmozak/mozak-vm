@@ -10,9 +10,11 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
+use crate::generation::limbs;
 use crate::limbs::stark::LimbsStark;
 use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
+use crate::rangecheck::columns::rangecheck_looking;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::xor::stark::XorStark;
 use crate::{bitshift, cpu, memory, program, rangecheck, xor};
@@ -26,7 +28,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub program_stark: ProgramStark<F, D>,
     pub memory_stark: MemoryStark<F, D>,
     pub limbs_stark: LimbsStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 6],
+    pub cross_table_lookups: [CrossTableLookup<F>; 7],
     pub debug: bool,
 }
 
@@ -42,13 +44,13 @@ pub struct PublicInputs<F> {
 impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> {
     fn default() -> Self {
         Self {
-                        cpu_stark: CpuStark::default(),
-                        rangecheck_stark: RangeCheckStark::default(),
-                        xor_stark: XorStark::default(),
-                        shift_amount_stark: BitshiftStark::default(),
-                        program_stark: ProgramStark::default(),
-                        memory_stark: MemoryStark::default(),
-                        limbs_stark: LimbsStark::default(),
+            cpu_stark: CpuStark::default(),
+            rangecheck_stark: RangeCheckStark::default(),
+            xor_stark: XorStark::default(),
+            shift_amount_stark: BitshiftStark::default(),
+            program_stark: ProgramStark::default(),
+            memory_stark: MemoryStark::default(),
+            limbs_stark: LimbsStark::default(),
             cross_table_lookups: [
                 RangecheckTable::lookups(),
                 XorCpuTable::lookups(),
@@ -56,6 +58,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 InnerCpuTable::lookups(),
                 ProgramCpuTable::lookups(),
                 MemoryCpuTable::lookups(),
+                RangeCheckLimbsTable::lookups(),
             ],
             debug: false,
         }
@@ -307,6 +310,19 @@ impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
             ProgramTable::new(
                 program::columns::data_for_ctl(),
                 Column::single(program::columns::MAP.filter),
+            ),
+        )
+    }
+}
+
+pub struct RangeCheckLimbsTable<F: Field>(CrossTableLookup<F>);
+impl<F: Field> Lookups<F> for RangeCheckLimbsTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            rangecheck_looking(),
+            LimbsTable::new(
+                crate::limbs::columns::data(),
+                crate::limbs::columns::filter(),
             ),
         )
     }
