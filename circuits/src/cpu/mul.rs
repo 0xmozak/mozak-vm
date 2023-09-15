@@ -164,6 +164,7 @@ mod tests {
                 },
             }],
             &[],
+            &[],
             &[(6, a as u32), (7, b)],
         );
         let res = i64::from(a).wrapping_mul(i64::from(b));
@@ -220,6 +221,7 @@ mod tests {
                 },
             }],
             &[],
+            &[],
             &[(6, a), (7, b)],
         );
         let (low, _high) = a.widening_mul(b);
@@ -239,6 +241,7 @@ mod tests {
                     ..Args::default()
                 },
             }],
+            &[],
             &[],
             &[(6, a), (7, b)],
         );
@@ -262,6 +265,7 @@ mod tests {
                 },
             }],
             &[],
+            &[],
             &[(6, a as u32), (7, b as u32)],
         );
         let (res, overflow) = i64::from(a).overflowing_mul(i64::from(b));
@@ -284,6 +288,7 @@ mod tests {
                     ..Args::default()
                 },
             }],
+            &[],
             &[],
             &[(6, a as u32), (7, b)],
         );
@@ -324,6 +329,7 @@ mod tests {
                     },
                 },
             ],
+            &[],
             &[],
             &[(rs1, p), (rs2, q)],
         );

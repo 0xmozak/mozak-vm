@@ -461,7 +461,7 @@ mod tests {
 
     #[test]
     fn prove_halt() {
-        let (program, record) = simple_test_code(&[], &[], &[]);
+        let (program, record) = simple_test_code(&[], &[], &[], &[]);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
@@ -475,7 +475,7 @@ mod tests {
                 ..Args::default()
             },
         };
-        let (program, record) = simple_test_code(&[lui], &[], &[]);
+        let (program, record) = simple_test_code(&[lui], &[], &[], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
@@ -491,6 +491,7 @@ mod tests {
                     ..Args::default()
                 },
             }],
+            &[],
             &[],
             &[],
         );
@@ -510,6 +511,7 @@ mod tests {
                     ..Args::default()
                 },
             }],
+            &[],
             &[],
             &[(1, 2)],
         );

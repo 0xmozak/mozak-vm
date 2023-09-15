@@ -160,6 +160,7 @@ mod tests {
             }],
             // Use values that would become limbs later
             &[],
+            &[],
             &[(6, 0xffff), (7, 0xffff)],
         );
 

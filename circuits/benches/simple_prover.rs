@@ -11,7 +11,7 @@ fn bench_prove_verify_all(c: &mut Criterion) {
     group.measurement_time(Duration::new(10, 0));
     group.bench_function("prove_verify_all", |b| {
         b.iter(|| {
-            let (program, record) = simple_test_code(&[], &[], &[]);
+            let (program, record) = simple_test_code(&[], &[], &[], &[]);
             MozakStark::prove_and_verify(&program, &record)
         })
     });

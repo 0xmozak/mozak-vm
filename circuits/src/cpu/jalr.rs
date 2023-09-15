@@ -62,6 +62,7 @@ mod tests {
             }],
             &[],
             &[],
+            &[],
         );
         assert_eq!(record.last_state.get_pc(), 8);
         CpuStark::prove_and_verify(&program, &record).unwrap();
@@ -79,6 +80,7 @@ mod tests {
                     ..Args::default()
                 },
             }],
+            &[],
             &[],
             &[(0x1, 0)],
         );
@@ -99,6 +101,7 @@ mod tests {
                 },
             }],
             &[],
+            &[],
             &[(0x1, 4)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
@@ -117,6 +120,7 @@ mod tests {
                     ..Args::default()
                 },
             }],
+            &[],
             &[],
             &[(0x1, 0)],
         );
@@ -149,6 +153,7 @@ mod tests {
                     },
                 },
             ],
+            &[],
             &[],
             &[],
         );
@@ -188,7 +193,7 @@ mod tests {
                         ..Args::default()
                     },
                 }],
-                &[],
+                &[],&[],
                 &[(rs1, rs1_val)],
             );
             assert_eq!(record.executed.len(), 3);

@@ -42,6 +42,7 @@ mod tests {
                 },
             }],
             &[],
+            &[],
             &[(6, a), (7, b)],
         );
         assert_eq!(record.last_state.get_register_value(5), a.wrapping_sub(b));

@@ -119,7 +119,7 @@ mod tests {
         };
         // We use 3 similar instructions here to ensure duplicates and padding work
         // during trace generation.
-        let (program, record) = simple_test_code(&[sll, sll, sll], &[], &[(7, p), (8, q)]);
+        let (program, record) = simple_test_code(&[sll, sll, sll], &[], &[], &[(7, p), (8, q)]);
         assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
         MozakStark::prove_and_verify(&program, &record)
     }
@@ -140,7 +140,7 @@ mod tests {
 
         // We use 3 similar instructions here to ensure duplicates and padding work
         // during trace generation.
-        let (program, record) = simple_test_code(&[srl, srl, srl], &[], &[(7, p), (8, q)]);
+        let (program, record) = simple_test_code(&[srl, srl, srl], &[], &[], &[(7, p), (8, q)]);
         assert_eq!(record.executed[0].aux.dst_val, p >> (q & 0x1F));
         MozakStark::prove_and_verify(&program, &record)
     }
@@ -168,7 +168,7 @@ mod tests {
                     },
                 }
                 ],
-                &[],
+                &[],&[],
                 &[(7, p), (8, q)],
             );
             prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));

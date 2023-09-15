@@ -129,6 +129,7 @@ mod tests {
                 },
             ],
             &[],
+            &[],
             &[(5, a), (6, b)],
         );
         // assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));

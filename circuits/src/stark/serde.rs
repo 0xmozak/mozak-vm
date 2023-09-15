@@ -45,7 +45,7 @@ mod tests {
 
     #[test]
     fn test_serialization_deserialization() {
-        let (program, record) = simple_test_code(&[], &[], &[]);
+        let (program, record) = simple_test_code(&[], &[], &[], &[]);
         let stark = S::default();
         let config = standard_faster_config();
         let public_inputs = PublicInputs {

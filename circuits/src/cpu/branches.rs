@@ -119,6 +119,7 @@ mod tests {
                 },
             ],
             &[],
+            &[],
             &[(6, a), (7, b)],
         );
         let taken = match op {
