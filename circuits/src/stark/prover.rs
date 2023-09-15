@@ -2,8 +2,8 @@
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
-use mozak_executor::elf::Program;
-use mozak_executor::vm::ExecutionRecord;
+use mozak_runner::elf::Program;
+use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
 use plonky2::field::polynomial::PolynomialValues;
@@ -453,8 +453,8 @@ where
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-    use mozak_executor::instruction::{Args, Instruction, Op};
-    use mozak_executor::test_utils::simple_test_code;
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::simple_test_code;
 
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;

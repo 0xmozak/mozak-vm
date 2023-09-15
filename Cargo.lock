@@ -898,7 +898,7 @@ dependencies = [
  "itertools 0.11.0",
  "lazy_static",
  "log",
- "mozak-executor",
+ "mozak-runner",
  "plonky2",
  "plonky2_maybe_rayon",
  "proptest",
@@ -920,14 +920,14 @@ dependencies = [
  "itertools 0.11.0",
  "log",
  "mozak-circuits",
- "mozak-executor",
+ "mozak-runner",
  "plonky2",
  "proptest",
  "shadow-rs",
 ]
 
 [[package]]
-name = "mozak-executor"
+name = "mozak-runner"
 version = "0.1.0"
 dependencies = [
  "anyhow",

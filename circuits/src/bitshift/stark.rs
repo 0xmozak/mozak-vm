@@ -83,8 +83,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use anyhow::Result;
-    use mozak_executor::instruction::{Args, Instruction, Op};
-    use mozak_executor::test_utils::{simple_test_code, u32_extra};
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::{simple_test_code, u32_extra};
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use proptest::{prop_assert_eq, proptest};
     use starky::stark_testing::test_stark_low_degree;

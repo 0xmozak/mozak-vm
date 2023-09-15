@@ -74,8 +74,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use mozak_executor::instruction::{Args, Instruction, Op};
-    use mozak_executor::test_utils::simple_test_code;
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::simple_test_code;
     use plonky2::timed;
     use plonky2::util::timing::TimingTree;
     use starky::prover::prove as prove_table;

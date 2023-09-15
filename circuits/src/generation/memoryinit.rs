@@ -1,4 +1,4 @@
-use mozak_executor::elf::Program;
+use mozak_runner::elf::Program;
 use plonky2::hash::hash_types::RichField;
 
 use crate::memoryinit::columns::{MemElement, MemoryInit};

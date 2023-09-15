@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use mozak_executor::elf::Program;
-use mozak_executor::state::State;
-use mozak_executor::vm::step;
+use mozak_runner::elf::Program;
+use mozak_runner::state::State;
+use mozak_runner::vm::step;
 
 pub(crate) fn bench_fibonacci() {
     let elf = std::fs::read("benches/fibonacci.elf").unwrap();

@@ -1,7 +1,7 @@
 use anyhow::Result;
-use mozak_executor::elf::Program;
-use mozak_executor::state::State;
-use mozak_executor::vm::step;
+use mozak_runner::elf::Program;
+use mozak_runner::state::State;
+use mozak_runner::vm::step;
 
 /// This macro takes in an identifier as the test name and the file name of a
 /// compiled ELF and runs it through the Mozak VM to ensure correctness of the

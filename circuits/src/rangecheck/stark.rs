@@ -97,8 +97,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
 mod tests {
     use anyhow::Result;
     use log::trace;
-    use mozak_executor::instruction::{Args, Instruction, Op};
-    use mozak_executor::test_utils::simple_test_code;
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::simple_test_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};

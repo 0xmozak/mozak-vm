@@ -102,8 +102,8 @@ pub(crate) fn constraints<P: PackedField>(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use mozak_executor::instruction::{Args, Instruction, Op};
-    use mozak_executor::test_utils::{simple_test_code, u32_extra};
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::{simple_test_code, u32_extra};
     use proptest::prelude::{prop_assert_eq, ProptestConfig};
     use proptest::test_runner::TestCaseError;
     use proptest::{prop_assert, proptest};
