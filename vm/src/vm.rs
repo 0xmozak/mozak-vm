@@ -281,6 +281,7 @@ mod tests {
     };
     use crate::vm::step;
 
+    #[allow(clippy::similar_names)]
     fn simple_test_code(
         code: &[Instruction],
         ro_mem: &[(u32, u32)],
