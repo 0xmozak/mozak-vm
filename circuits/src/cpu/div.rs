@@ -44,10 +44,12 @@ pub(crate) fn constraints<P: PackedField>(
 
     // For both signed and unsigned division, it holds that
     // |dividend| = |divisor| × |quotient| + |remainder|.
-    // Note that for SRA, the remainder may have a different sign as the dividend.
+    // Note that for SRA the remainder is always non-negative, so when dividend < 0
+    // this equation becomes |dividend| = |divisor| × |quotient| - remainder.
     yield_constr.constraint(
-        divisor_abs * quotient_abs - ops.sra * bit_to_sign(remainder_sign) * remainder_abs
+        divisor_abs * quotient_abs
             + (P::ONES - ops.sra) * remainder_abs
+            + ops.sra * (bit_to_sign(dividend_sign) * remainder_full_range)
             - dividend_abs,
     );
 
@@ -56,6 +58,7 @@ pub(crate) fn constraints<P: PackedField>(
     is_binary(yield_constr, dividend_sign);
     yield_constr
         .constraint((P::ONES - ops.sra) * remainder_value * (dividend_sign - remainder_sign));
+    yield_constr.constraint(ops.sra * remainder_sign);
 
     // Quotient_sign = dividend_sign * divisor_sign, with three exceptions:
     // 1. When divisor = 0, this case is handled below.
@@ -206,7 +209,7 @@ mod tests {
 
     #[allow(clippy::cast_sign_loss)]
     #[test]
-    fn prove_div_example() { prove_div::<MozakStark<F, D>>(i32::MIN as u32, -1_i32 as u32, 28); }
+    fn prove_div_example() { prove_div::<CpuStark<F, D>>(i32::MIN as u32, -1_i32 as u32, 28); }
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(100))]
