@@ -116,14 +116,15 @@ pub struct CpuState<T> {
     pub bitshift: Bitshift<T>,
 
     // Division evaluation columns
-    pub quotient: T,
-    pub remainder: T,
-    /// Value of `divisor - remainder - 1`
+    pub op2_value_inv: T,
+    pub quotient_value: T, // range check u32 required
+    pub quotient_sign: T,
+    pub skip_check_quotient_sign: T,
+    pub remainder_value: T, // range check u32 required
+    pub remainder_sign: T,
+    /// Value of `divisor_abs - remainder_abs - 1`
     /// Used as a helper column to check that `remainder < divisor`.
-    pub remainder_slack: T,
-    /// Used as a helper column to check if `divisor` is zero
-    pub divisor_inv: T,
-    pub divisor: T,
+    pub remainder_slack: T, // range check u32 required
 
     // Product evaluation columns
     pub op1_abs: T,
@@ -152,6 +153,15 @@ pub const NUM_CPU_COLS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 impl<T: PackedField> CpuState<T> {
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
+
+    /// The value of the designated register in rs2.
+    pub fn rs2_value(&self) -> T {
+        // Note: we could skip 0, because r0 is always 0.
+        // But we keep it to make it easier to reason about the code.
+        (0..32)
+            .map(|reg| self.inst.rs2_select[reg] * self.regs[reg])
+            .sum()
+    }
 
     /// Value of the first operand, as if converted to i64.
     ///
@@ -183,8 +193,8 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let muls = &ops.mul + &ops.mulh + &ops.sll;
 
     vec![
-        CpuTable::new(vec![cpu.quotient], divs.clone()),
-        CpuTable::new(vec![cpu.remainder], divs.clone()),
+        CpuTable::new(vec![cpu.quotient_value.clone()], divs.clone()),
+        CpuTable::new(vec![cpu.remainder_value.clone()], divs.clone()),
         CpuTable::new(vec![cpu.remainder_slack], divs),
         CpuTable::new(vec![cpu.dst_value], &ops.add + &ops.sub + &ops.jalr),
         CpuTable::new(vec![cpu.inst.pc], ops.jalr.clone()),
