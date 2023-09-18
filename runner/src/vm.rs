@@ -4,7 +4,7 @@ use crate::elf::Program;
 use crate::instruction::{Args, Op};
 use crate::state::{Aux, State};
 use crate::system::ecall;
-use crate::system::reg_abi::REG_A0;
+use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2};
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
@@ -91,6 +91,10 @@ impl State {
     }
 
     #[must_use]
+    /// # Panics
+    ///
+    /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
+    /// bytes.
     pub fn ecall(self) -> (Aux, Self) {
         match self.get_register_value(REG_A0) {
             ecall::HALT => {
@@ -102,6 +106,27 @@ impl State {
                         ..Aux::default()
                     },
                     self.halt(),
+                )
+            }
+            ecall::IO_READ => {
+                let num_bytes = self.get_register_value(REG_A1);
+                let pointer = self.get_register_value(REG_A2);
+                let memory_address = self.load_u32(pointer);
+                let io_tape = self.io_tape.clone();
+                (
+                    Aux::default(),
+                    (0..num_bytes)
+                        .map(|i| {
+                            (
+                                memory_address.wrapping_add(i),
+                                io_tape
+                                    .get(i as usize)
+                                    .copied()
+                                    .expect("I/O tape does not have sufficient bytes"),
+                            )
+                        })
+                        .fold(self, |acc, (i, byte)| acc.store_u8(i, byte).unwrap())
+                        .bump_pc(),
                 )
             }
             _ => (Aux::default(), self.bump_pc()),

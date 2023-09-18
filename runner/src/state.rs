@@ -32,6 +32,7 @@ pub struct State {
     pub pc: u32,
     pub rw_memory: HashMap<u32, u8>,
     pub ro_memory: HashMap<u32, u8>,
+    pub io_tape: Vec<u8>,
 }
 
 #[allow(clippy::similar_names)]
@@ -42,12 +43,14 @@ impl From<Program> for State {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
+            io_tape,
         }: Program,
     ) -> Self {
         Self {
             pc,
             rw_memory,
             ro_memory,
+            io_tape,
             ..Default::default()
         }
     }

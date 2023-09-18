@@ -1,6 +1,8 @@
 // Copyright 2023 MOZAK.
 
 use std::collections::HashSet;
+use std::fs::OpenOptions;
+use std::io::Read;
 
 use anyhow::{anyhow, ensure, Result};
 use derive_more::Deref;
@@ -31,6 +33,9 @@ pub struct Program {
 
     /// Executable code of the ELF, read only
     pub ro_code: Code,
+
+    /// I/O logs
+    pub io_tape: Vec<u8>,
 }
 
 #[derive(Clone, Debug, Default, Deref)]
@@ -72,6 +77,7 @@ impl From<HashMap<u32, u8>> for Program {
             ro_code: Code::from(&image),
             ro_memory: Data::default(),
             rw_memory: Data(image),
+            io_tape: vec![],
         }
     }
 }
@@ -177,11 +183,17 @@ impl Program {
         // and ro_memory. (RWX segments would show up in ro_code and rw_memory.)
         let ro_code = Code::from(&extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?);
 
+        // Load I/O tape from file.
+        let mut io_tape_file = OpenOptions::new().read(true).open("iotape.txt")?;
+        let mut io_tape = vec![];
+        io_tape_file.read_to_end(&mut io_tape)?;
+
         Ok(Program {
             entry_point,
             ro_memory,
             rw_memory,
             ro_code,
+            io_tape,
         })
     }
 }

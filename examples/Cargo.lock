@@ -140,6 +140,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stdin-mozak-guest"
+version = "0.1.0"
+dependencies = [
+ "guest",
+]
+
+[[package]]
 name = "typenum"
 version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
