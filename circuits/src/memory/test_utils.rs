@@ -44,7 +44,8 @@ pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord) {
         .flatten()
         .copied()
         .collect::<Vec<_>>();
-    let (program, record) = simple_test_code(&code, &[], &[(1, 255), (2, 10), (3, 15)]);
+    let (program, record) =
+        simple_test_code(&code, &[(100, 0), (200, 0)], &[(1, 255), (2, 10), (3, 15)]);
 
     if repeats > 0 {
         let state = &record.last_state;
