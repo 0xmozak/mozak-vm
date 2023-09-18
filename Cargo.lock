@@ -895,6 +895,7 @@ dependencies = [
  "criterion",
  "env_logger",
  "flexbuffers",
+ "im",
  "itertools 0.11.0",
  "lazy_static",
  "log",
