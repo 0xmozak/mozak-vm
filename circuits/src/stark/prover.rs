@@ -29,6 +29,7 @@ use crate::generation::{debug_traces, generate_traces};
 use crate::memory::stark::MemoryStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
+use crate::rangecheck_limb::stark::RangeCheckLimbStark;
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 use crate::stark::permutation::compute_permutation_z_polys;
@@ -54,6 +55,7 @@ where
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
@@ -91,6 +93,7 @@ where
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
@@ -373,6 +376,7 @@ where
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
@@ -440,6 +444,17 @@ where
         timing,
     )?;
 
+    let rangecheck_range_proof = prove_single_table::<F, C, RangeCheckLimbStark<F, D>, D>(
+        &mozak_stark.rangecheck_limb_stark,
+        config,
+        &traces_poly_values[TableKind::RangeCheckLimb as usize],
+        &trace_commitments[TableKind::RangeCheckLimb as usize],
+        [],
+        &ctl_data_per_table[TableKind::RangeCheckLimb as usize],
+        challenger,
+        timing,
+    )?;
+
     Ok([
         cpu_proof,
         rangecheck_proof,
@@ -447,6 +462,7 @@ where
         shift_amount_proof,
         program_proof,
         memory_proof,
+        rangecheck_range_proof,
     ])
 }
 
