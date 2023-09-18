@@ -7,6 +7,7 @@ pub mod ecall;
 pub mod jalr;
 pub mod memory;
 pub mod mul;
+pub mod shift;
 pub mod signed_comparison;
 pub mod stark;
 pub mod sub;

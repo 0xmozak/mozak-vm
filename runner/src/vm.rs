@@ -145,16 +145,18 @@ impl State {
         // TODO: consider factoring out this logic from `register_op`, `branch_op`,
         // `memory_load` etc.
         let op1 = self.get_register_value(inst.args.rs1);
+        let rs2_raw = self.get_register_value(inst.args.rs2);
         // For branch instructions, both op2 and imm serve different purposes.
         // Therefore, we avoid adding them together here.
         let op2 = if matches!(
             inst.op,
             Op::BEQ | Op::BNE | Op::BLT | Op::BLTU | Op::BGE | Op::BGEU
         ) {
-            self.get_register_value(inst.args.rs2)
+            rs2_raw
+        } else if matches!(inst.op, Op::SRL | Op::SLL) {
+            1u32 << (rs2_raw.wrapping_add(inst.args.imm) & 0b1_1111)
         } else {
-            self.get_register_value(inst.args.rs2)
-                .wrapping_add(inst.args.imm)
+            rs2_raw.wrapping_add(inst.args.imm)
         };
 
         let (aux, state) = match inst.op {
@@ -303,6 +305,23 @@ mod tests {
         assert_eq!(
             state_before_final(&e).get_register_value(rd),
             divu(rs1_value, imm)
+        );
+    }
+
+    fn mul_with_imm(rd: u8, rs1: u8, rs1_value: u32, imm: u32) {
+        let e = simple_test_code(
+            &[Instruction::new(Op::MUL, Args {
+                rd,
+                rs1,
+                imm,
+                ..Args::default()
+            })],
+            &[],
+            &[(rs1, rs1_value)],
+        );
+        assert_eq!(
+            state_before_final(&e).get_register_value(rd),
+            rs1_value.wrapping_mul(imm),
         );
     }
 
@@ -643,20 +662,9 @@ mod tests {
         }
 
         #[test]
-        fn slli_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
-            let e = simple_test_code(
-                &[Instruction::new(
-                    Op::SLL,
-                    Args { rd,
-                    rs1,
-                    imm,
-                    ..Args::default()
-                }
-                )],
-                &[],
-                &[(rs1, rs1_value)]
-            );
-            assert_eq!(state_before_final(&e).get_register_value(rd), rs1_value << (imm & 0b1_1111));
+        fn slli_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in 0..32u8) {
+            // slli is implemented as MUL with 1 << imm
+            mul_with_imm(rd, rs1, rs1_value, 1 << imm);
         }
 
         #[test]
@@ -860,6 +868,12 @@ mod tests {
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
             assert_eq!(state_before_final(&e).get_register_value(rd), prod);
+        }
+
+        #[test]
+        #[allow(clippy::cast_possible_truncation)]
+        fn mul_with_imm_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
+            mul_with_imm(rd, rs1, rs1_value, imm);
         }
 
         #[test]
