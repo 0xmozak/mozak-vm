@@ -9,7 +9,7 @@ use elf::file::Class;
 use elf::segment::ProgramHeader;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
-use itertools::Itertools;
+use itertools::{iproduct, Itertools};
 
 use crate::decode::decode_instruction;
 use crate::instruction::Instruction;
@@ -78,6 +78,9 @@ impl From<HashMap<u32, u8>> for Program {
 
 impl From<HashMap<u32, u32>> for Program {
     fn from(image: HashMap<u32, u32>) -> Self {
+        for (addr, val) in image.iter() {
+            assert!(addr % 4 == 0, "Misaligned code: {addr:x} {val:x}");
+        }
         Self::from(
             image
                 .iter()
@@ -90,6 +93,11 @@ impl From<HashMap<u32, u32>> for Program {
 impl From<HashMap<u32, u32>> for Data {
     #[allow(clippy::cast_possible_truncation)]
     fn from(image: HashMap<u32, u32>) -> Self {
+        if image.len() > 1 {
+            for (i, (&a, &b)) in iproduct!(0..4, image.keys().sorted().circular_tuple_windows()) {
+                assert!(a.wrapping_add(i) != b, "Overlapping data: {a:x} {b:x}");
+            }
+        }
         Data(
             image
                 .iter()
