@@ -58,9 +58,6 @@ fn pc_ticks_up<P: PackedField>(
 /// See <https://en.wikipedia.org/wiki/One-hot>
 fn one_hots<P: PackedField>(inst: &Instruction<P>, yield_constr: &mut ConstraintConsumer<P>) {
     one_hot(inst.ops, yield_constr);
-    one_hot(inst.rs1_select, yield_constr);
-    one_hot(inst.rs2_select, yield_constr);
-    one_hot(inst.rd_select, yield_constr);
 }
 
 fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
@@ -126,45 +123,41 @@ fn check_permuted_inst_cols<P: PackedField>(
 
 /// Only the destination register can change its value.  
 /// All other registers must keep the same value as in the previous row.
-fn only_rd_changes<P: PackedField>(
-    lv: &CpuState<P>,
-    nv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    // Note: we could skip 0, because r0 is always 0.
-    // But we keep it to make it easier to reason about the code.
-    (0..32).for_each(|reg| {
-        yield_constr.constraint_transition(
-            (P::ONES - lv.inst.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]),
-        );
-    });
-}
+// fn only_rd_changes<P: PackedField>(
+//     lv: &CpuState<P>,
+//     nv: &CpuState<P>,
+//     yield_constr: &mut ConstraintConsumer<P>,
+// ) {
+//     // Note: we could skip 0, because r0 is always 0.
+//     // But we keep it to make it easier to reason about the code.
+//     yield_constr.constraint_transition((P::ONES - lv.inst.rd) * (lv.regs[reg] - nv.regs[reg]));
+// }
 
 /// The destination register should change to `dst_value`.
-fn rd_assigned_correctly<P: PackedField>(
-    lv: &CpuState<P>,
-    nv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    // Note: we skip 0 here, because it's already forced to 0 permanently by
-    // `r0_always_0`
-    (1..32).for_each(|reg| {
-        yield_constr
-            .constraint_transition((lv.inst.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
-    });
-}
+// fn rd_assigned_correctly<P: PackedField>(
+//     lv: &CpuState<P>,
+//     nv: &CpuState<P>,
+//     yield_constr: &mut ConstraintConsumer<P>,
+// ) {
+//     // Note: we skip 0 here, because it's already forced to 0 permanently by
+//     // `r0_always_0`
+//     (1..32).for_each(|reg| {
+//         yield_constr
+//             .constraint_transition((lv.inst.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
+//     });
+// }
 
 /// First operand should be assigned with the value of the designated register.
-fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
-    yield_constr.constraint(
-        lv.op1_value
-            // Note: we could skip 0, because r0 is always 0.
-            // But we keep it to make it easier to reason about the code.
-            - (0..32)
-            .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
-            .sum::<P>(),
-    );
-}
+// fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>)
+// {     yield_constr.constraint(
+//         lv.op1_value
+//             // Note: we could skip 0, because r0 is always 0.
+//             // But we keep it to make it easier to reason about the code.
+//             - (0..32)
+//             .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
+//             .sum::<P>(),
+//     );
+// }
 
 /// Constraints for values in op2, which is the sum of the value of the second
 /// operand register and the immediate value (except for branch instructions).
@@ -175,12 +168,13 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bge;
     let is_shift_operation = ops.sll + ops.srl;
 
-    yield_constr.constraint(is_branch_operation * (lv.op2_value - lv.rs2_value()));
+    // yield_constr.constraint(is_branch_operation * (lv.op2_value -
+    // lv.rs2_value()));
     yield_constr.constraint(is_shift_operation * (lv.op2_value - lv.bitshift.multiplier));
-    yield_constr.constraint(
-        (P::ONES - is_branch_operation - is_shift_operation)
-            * (lv.op2_value_overflowing - lv.inst.imm_value - lv.rs2_value()),
-    );
+    // yield_constr.constraint(
+    //     (P::ONES - is_branch_operation - is_shift_operation)
+    //         * (lv.op2_value_overflowing - lv.inst.imm_value - lv.rs2_value()),
+    // );
     yield_constr.constraint(
         (P::ONES - is_branch_operation - is_shift_operation)
             * (lv.op2_value_overflowing - lv.op2_value)
@@ -238,11 +232,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         one_hots(&lv.inst, yield_constr);
 
         // Registers
-        r0_always_0(lv, yield_constr);
-        only_rd_changes(lv, nv, yield_constr);
-        rd_assigned_correctly(lv, nv, yield_constr);
-        populate_op1_value(lv, yield_constr);
-        populate_op2_value(lv, yield_constr);
+        // r0_always_0(lv, yield_constr);
+        // only_rd_changes(lv, nv, yield_constr);
+        // rd_assigned_correctly(lv, nv, yield_constr);
+        // populate_op1_value(lv, yield_constr);
+        // populate_op2_value(lv, yield_constr);
 
         // add constraint
         add::constraints(lv, yield_constr);

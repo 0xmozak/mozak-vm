@@ -60,11 +60,11 @@ pub struct Instruction<T> {
     pub is_op1_signed: T,
     pub is_op2_signed: T,
     /// Selects the register to use as source for `rs1`
-    pub rs1_select: [T; 32],
+    // pub rs1: T,
     /// Selects the register to use as source for `rs2`
-    pub rs2_select: [T; 32],
+    // pub rs2: T,
     /// Selects the register to use as destination for `rd`
-    pub rd_select: [T; 32],
+    // pub rd: T,
     /// Special immediate value used for code constants
     pub imm_value: T,
 }
@@ -155,13 +155,11 @@ impl<T: PackedField> CpuState<T> {
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
 
     /// The value of the designated register in rs2.
-    pub fn rs2_value(&self) -> T {
-        // Note: we could skip 0, because r0 is always 0.
-        // But we keep it to make it easier to reason about the code.
-        (0..32)
-            .map(|reg| self.inst.rs2_select[reg] * self.regs[reg])
-            .sum()
-    }
+    // pub fn rs2_value(&self) -> T {
+    //     // Note: we could skip 0, because r0 is always 0.
+    //     // But we keep it to make it easier to reason about the code.
+    //     self.inst.rs2 * self.regs[reg]
+    // }
 
     /// Value of the first operand, as if converted to i64.
     ///
@@ -275,9 +273,6 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(inst.pc),
         Column::ascending_sum(inst.ops),
-        Column::ascending_sum(inst.rs1_select),
-        Column::ascending_sum(inst.rs2_select),
-        Column::ascending_sum(inst.rd_select),
         Column::single(inst.imm_value),
         Column::single(inst.is_op1_signed),
         Column::single(inst.is_op2_signed),

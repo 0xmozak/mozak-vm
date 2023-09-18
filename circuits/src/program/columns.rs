@@ -12,9 +12,9 @@ pub struct InstructionRow<T> {
     pub pc: T,
     /// internal opcode, not the opcode from RISC-V
     pub opcode: T,
-    pub rs1: T,
-    pub rs2: T,
-    pub rd: T,
+    // pub rs1: T,
+    // pub rs2: T,
+    // pub rd: T,
     pub imm: T,
     // TODO: these could be folded into `opcode`.
     pub is_op1_signed: T,

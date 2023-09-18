@@ -297,9 +297,9 @@ mod tests {
                 inst: Instruction {
                     pc: 1,
                     ops: selection(3),
-                    rs1_select: selection(2),
-                    rs2_select: selection(1),
-                    rd_select: selection(1),
+                    // rs1_select: selection(2),
+                    // rs2_select: selection(1),
+                    // rd_select: selection(1),
                     imm_value: 3,
                     ..Default::default()
                 },
@@ -310,9 +310,9 @@ mod tests {
                 inst: Instruction {
                     pc: 2,
                     ops: selection(1),
-                    rs1_select: selection(3),
-                    rs2_select: selection(3),
-                    rd_select: selection(2),
+                    // rs1_select: selection(3),
+                    // rs2_select: selection(3),
+                    // rd_select: selection(2),
                     imm_value: 2,
                     ..Default::default()
                 },
@@ -323,9 +323,9 @@ mod tests {
                 inst: Instruction {
                     pc: 1,
                     ops: selection(3),
-                    rs1_select: selection(2),
-                    rs2_select: selection(1),
-                    rd_select: selection(1),
+                    // rs1_select: selection(2),
+                    // rs2_select: selection(1),
+                    // rd_select: selection(1),
                     imm_value: 3,
                     ..Default::default()
                 },
@@ -336,9 +336,9 @@ mod tests {
                 inst: Instruction {
                     pc: 1,
                     ops: selection(4),
-                    rs1_select: selection(4),
-                    rs2_select: selection(4),
-                    rd_select: selection(4),
+                    // rs1_select: selection(4),
+                    // rs2_select: selection(4),
+                    // rd_select: selection(4),
                     imm_value: 4,
                     ..Default::default()
                 },
@@ -359,9 +359,9 @@ mod tests {
                 inst: InstructionRow {
                     pc: 1,
                     opcode: 3,
-                    rs1: 2,
-                    rs2: 1,
-                    rd: 1,
+                    // rs1: 2,
+                    // rs2: 1,
+                    // rd: 1,
                     imm: 3,
                     ..Default::default()
                 },
@@ -371,9 +371,9 @@ mod tests {
                 inst: InstructionRow {
                     pc: 2,
                     opcode: 1,
-                    rs1: 3,
-                    rs2: 3,
-                    rd: 2,
+                    // rs1: 3,
+                    // rs2: 3,
+                    // rd: 2,
                     imm: 2,
                     ..Default::default()
                 },
@@ -383,9 +383,9 @@ mod tests {
                 inst: InstructionRow {
                     pc: 3,
                     opcode: 2,
-                    rs1: 1,
-                    rs2: 2,
-                    rd: 3,
+                    // rs1: 1,
+                    // rs2: 2,
+                    // rd: 3,
                     imm: 1,
                     ..Default::default()
                 },
@@ -395,9 +395,9 @@ mod tests {
                 inst: InstructionRow {
                     pc: 1,
                     opcode: 3,
-                    rs1: 3,
-                    rs2: 3,
-                    rd: 3,
+                    // rs1: 3,
+                    // rs2: 3,
+                    // rd: 3,
                     imm: 3,
                     ..Default::default()
                 },
@@ -414,9 +414,9 @@ mod tests {
                 inst: InstructionRow {
                     pc: 1,
                     opcode: 3,
-                    rs1: 2,
-                    rs2: 1,
-                    rd: 1,
+                    // rs1: 2,
+                    // rs2: 1,
+                    // rd: 1,
                     imm: 3,
                     ..Default::default()
                 },
@@ -426,9 +426,9 @@ mod tests {
                 inst: InstructionRow {
                     pc: 1,
                     opcode: 3,
-                    rs1: 2,
-                    rs2: 1,
-                    rd: 1,
+                    // rs1: 2,
+                    // rs2: 1,
+                    // rd: 1,
                     imm: 3,
                     ..Default::default()
                 },
@@ -438,9 +438,9 @@ mod tests {
                 inst: InstructionRow {
                     pc: 2,
                     opcode: 1,
-                    rs1: 3,
-                    rs2: 3,
-                    rd: 2,
+                    // rs1: 3,
+                    // rs2: 3,
+                    // rd: 2,
                     imm: 2,
                     ..Default::default()
                 },
@@ -450,9 +450,9 @@ mod tests {
                 inst: InstructionRow {
                     pc: 3,
                     opcode: 2,
-                    rs1: 1,
-                    rs2: 2,
-                    rd: 3,
+                    // rs1: 1,
+                    // rs2: 2,
+                    // rd: 3,
                     imm: 1,
                     ..Default::default()
                 },

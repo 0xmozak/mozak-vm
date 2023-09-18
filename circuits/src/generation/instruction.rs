@@ -46,9 +46,9 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
             #[tarpaulin::skip]
             other => unimplemented!("Opcode {other:?} not supported, yet."),
         } = 1;
-        cols.rs1_select[inst.args.rs1 as usize] = 1;
-        cols.rs2_select[inst.args.rs2 as usize] = 1;
-        cols.rd_select[inst.args.rd as usize] = 1;
+        // cols.rs1_select[inst.args.rs1 as usize] = 1;
+        // cols.rs2_select[inst.args.rs2 as usize] = 1;
+        // cols.rd_select[inst.args.rd as usize] = 1;
         cols
     }
 }
@@ -64,9 +64,9 @@ impl<F: RichField> From<columns::Instruction<F>> for InstructionRow<F> {
         Self {
             pc: inst.pc,
             opcode: ascending_sum(inst.ops),
-            rs1: ascending_sum(inst.rs1_select),
-            rs2: ascending_sum(inst.rs2_select),
-            rd: ascending_sum(inst.rd_select),
+            // rs1: ascending_sum(inst.rs1_select),
+            // rs2: ascending_sum(inst.rs2_select),
+            // rd: ascending_sum(inst.rd_select),
             imm: inst.imm_value,
             is_op1_signed: inst.is_op1_signed,
             is_op2_signed: inst.is_op2_signed,
