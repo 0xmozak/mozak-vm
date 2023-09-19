@@ -44,11 +44,15 @@ enum Command {
     Decode { elf: Input },
     /// Decode and execute a given ELF. Prints the final state of
     /// the registers
-    Run { elf: Input },
+    Run { elf: Input, io_tape: Input },
     /// Prove and verify the execution of a given ELF
-    ProveAndVerify { elf: Input },
+    ProveAndVerify { elf: Input, io_tape: Input },
     /// Prove the execution of given ELF and write proof to file.
-    Prove { elf: Input, proof: Output },
+    Prove {
+        elf: Input,
+        io_tape: Input,
+        proof: Output,
+    },
     /// Verify the given proof from file.
     Verify { proof: Input },
     /// Compute the Program Rom Hash of the given ELF.
@@ -87,11 +91,16 @@ fn build_info() {
     println!("{}", build::GIT_STATUS_FILE);
 }
 
-fn load_program(mut elf: Input) -> Result<Program> {
+fn load_program(mut elf: Input, io_tape: Option<Input>) -> Result<Program> {
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
-    Program::load_elf(&elf_bytes)
+    let mut io_tape_bytes = Vec::new();
+    if io_tape.is_some() {
+        let bytes_read = io_tape.unwrap().read_to_end(&mut io_tape_bytes)?;
+        debug!("Read {bytes_read} of io_tape data.");
+    }
+    Program::load_elf(&elf_bytes, &io_tape_bytes)
 }
 
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi`
@@ -106,23 +115,27 @@ fn main() -> Result<()> {
     } else {
         match cli.command {
             Command::Decode { elf } => {
-                let program = load_program(elf)?;
+                let program = load_program(elf, None)?;
                 debug!("{program:?}");
             }
-            Command::Run { elf } => {
-                let program = load_program(elf)?;
+            Command::Run { elf, io_tape } => {
+                let program = load_program(elf, Some(io_tape))?;
                 let state = State::from(&program);
                 let state = step(&program, state)?.last_state;
                 debug!("{:?}", state.registers);
             }
-            Command::ProveAndVerify { elf } => {
-                let program = load_program(elf)?;
+            Command::ProveAndVerify { elf, io_tape } => {
+                let program = load_program(elf, Some(io_tape))?;
                 let state = State::from(&program);
                 let record = step(&program, state)?;
                 MozakStark::prove_and_verify(&program, &record)?;
             }
-            Command::Prove { elf, mut proof } => {
-                let program = load_program(elf)?;
+            Command::Prove {
+                elf,
+                io_tape,
+                mut proof,
+            } => {
+                let program = load_program(elf, Some(io_tape))?;
                 let state = State::from(&program);
                 let record = step(&program, state)?;
                 let stark = if cli.debug {
@@ -154,7 +167,7 @@ fn main() -> Result<()> {
                 debug!("proof verified successfully!");
             }
             Command::ProgramRomHash { elf } => {
-                let program = load_program(elf)?;
+                let program = load_program(elf, None)?;
                 let trace = generate_program_rom_trace(&program);
                 let trace_poly_values = trace_rows_to_poly_values(trace);
                 let rate_bits = config.fri_config.rate_bits;
@@ -171,7 +184,7 @@ fn main() -> Result<()> {
                 println!("{trace_cap:?}");
             }
             Command::MemoryInitHash { elf } => {
-                let program = load_program(elf)?;
+                let program = load_program(elf, None)?;
                 let trace = generate_memory_init_trace(&program);
                 let trace_poly_values: Vec<
                     plonky2::field::polynomial::PolynomialValues<

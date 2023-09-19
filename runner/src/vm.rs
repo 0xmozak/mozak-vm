@@ -109,8 +109,8 @@ impl State {
                 )
             }
             ecall::IO_READ => {
-                let num_bytes = self.get_register_value(REG_A1);
-                let pointer = self.get_register_value(REG_A2);
+                let pointer = self.get_register_value(REG_A1);
+                let num_bytes = self.get_register_value(REG_A2);
                 let memory_address = self.load_u32(pointer);
                 let io_tape = self.io_tape.clone();
                 (
@@ -121,11 +121,10 @@ impl State {
                                 memory_address.wrapping_add(i),
                                 io_tape
                                     .get(i as usize)
-                                    .copied()
                                     .expect("I/O tape does not have sufficient bytes"),
                             )
                         })
-                        .fold(self, |acc, (i, byte)| acc.store_u8(i, byte).unwrap())
+                        .fold(self, |acc, (i, byte)| acc.store_u8(i, *byte).unwrap())
                         .bump_pc(),
                 )
             }

@@ -7,13 +7,13 @@ version = "0.1.0"
 path = "../../guest"
 
 [features]
-x86 = []
+native = []
 
 [[bin]]
 name = "stdin"
 path = "main.rs"
 
 [[bin]]
-name = "stdin-x86"
-path = "main_x86.rs"
-required-features = ["x86"]
+name = "stdin-native"
+path = "main_native.rs"
+required-features = ["native"]

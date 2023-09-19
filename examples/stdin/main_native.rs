@@ -9,6 +9,6 @@ fn main() {
         stdin: Box::new(BufReader::new(stdin())),
     };
     let mut buffer = [0; 1];
-    let n = mozak_io.read(&mut buffer).expect("READ faileed");
+    let n = mozak_io.read(&mut buffer).expect("READ failed");
     println!("The bytes: {:?}", &buffer[..n]);
 }

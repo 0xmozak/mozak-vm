@@ -12,7 +12,7 @@ pub fn main() {
         stdin: Box::new(BufReader::new(stdin())),
     };
     let mut buffer = [0_u8; 1];
-    let n = mozak_io.read(buffer.as_mut()).expect("READ faileed");
+    let n = mozak_io.read(buffer.as_mut()).expect("READ failed");
     assert!(buffer[0] != 0);
     guest::env::write(&n.to_be_bytes());
 }

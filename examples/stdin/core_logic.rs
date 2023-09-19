@@ -12,8 +12,8 @@ impl<'a> Read for MozakIo<'a> {
             core::arch::asm!(
                "ecall",
                in ("a0") 1,
-               in ("a1") buf.len(),
-               in ("a2") &buf,
+               in ("a1") &buf,
+               in ("a2") buf.len(),
             );
             Ok(buf.len())
         }
