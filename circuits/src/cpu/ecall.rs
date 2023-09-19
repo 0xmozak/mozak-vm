@@ -2,7 +2,7 @@
 //! 'ECALL'.
 
 use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
+// use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuState;
@@ -15,7 +15,7 @@ pub(crate) fn constraints<P: PackedField>(
     // TODO: this needs to change, when we add support for more system calls.
     // At the moment, the only system call we support is 'halt', ie ecall with x10 =
     // 0. Everything else is invalid.
-    yield_constr.constraint(lv.inst.ops.ecall * (lv.regs[10] - P::Scalar::from_canonical_u8(0)));
+    // yield_constr.constraint(lv.inst.ops.ecall * (lv.regs[10] - P::Scalar::from_canonical_u8(0)));
     // Thus we can equate ecall with halt in the next row.
     // Crucially, this prevents a malicious prover from just halting the program
     // anywhere else.

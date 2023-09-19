@@ -90,7 +90,7 @@ pub struct CpuState<T> {
     pub dst_value: T,
 
     /// Values of the registers.
-    pub regs: [T; 32],
+    // pub regs: [T; 32],
 
     // 0 means non-negative, 1 means negative.
     // (If number is unsigned, it is non-negative.)

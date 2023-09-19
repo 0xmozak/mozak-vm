@@ -71,9 +71,9 @@ pub fn generate_cpu_trace<F: RichField>(
             ..CpuState::default()
         };
 
-        for j in 0..32 {
-            row.regs[j as usize] = from_u32(state.get_register_value(j));
-        }
+        // for j in 0..32 {
+        //     row.regs[j as usize] = from_u32(state.get_register_value(j));
+        // }
 
         generate_shift_row(&mut row, aux);
         generate_mul_row(&mut row, aux);

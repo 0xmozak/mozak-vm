@@ -99,11 +99,6 @@ fn clock_ticks<P: PackedField>(
     yield_constr.constraint_transition(clock_diff - lv.is_running);
 }
 
-/// Register 0 is always 0
-fn r0_always_0<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
-    yield_constr.constraint(lv.regs[0]);
-}
-
 /// This function ensures that for each unique value present in
 /// the instruction column the [`filter`] flag is `1`. This is done by comparing
 /// the local row and the next row values.
@@ -158,29 +153,6 @@ fn check_permuted_inst_cols<P: PackedField>(
 //             .sum::<P>(),
 //     );
 // }
-
-/// Constraints for values in op2, which is the sum of the value of the second
-/// operand register and the immediate value (except for branch instructions).
-/// This may overflow.
-fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
-    let wrap_at = CpuState::<P>::shifted(32);
-    let ops = &lv.inst.ops;
-    let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bge;
-    let is_shift_operation = ops.sll + ops.srl;
-
-    // yield_constr.constraint(is_branch_operation * (lv.op2_value -
-    // lv.rs2_value()));
-    yield_constr.constraint(is_shift_operation * (lv.op2_value - lv.bitshift.multiplier));
-    // yield_constr.constraint(
-    //     (P::ONES - is_branch_operation - is_shift_operation)
-    //         * (lv.op2_value_overflowing - lv.inst.imm_value - lv.rs2_value()),
-    // );
-    yield_constr.constraint(
-        (P::ONES - is_branch_operation - is_shift_operation)
-            * (lv.op2_value_overflowing - lv.op2_value)
-            * (lv.op2_value_overflowing - lv.op2_value - wrap_at * ops.is_mem_op()),
-    );
-}
 
 fn halted<P: PackedField>(
     lv: &CpuState<P>,
