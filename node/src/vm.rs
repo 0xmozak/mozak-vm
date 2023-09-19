@@ -1,9 +1,8 @@
-pub use mozak_vm::elf::Code;
-use mozak_vm::elf::Program;
+use std::fmt::Error;
 
-use crate::rpc::message::Argument;
-use crate::space::object::Object;
-use crate::ApplicationStorage;
+pub use mozak_runner::elf::Code;
+
+use crate::space::object::{Object, TransitionFunction};
 
 /// Executes the VM instance on the provided program and returns the output of
 /// the program as well as updated states.
@@ -11,20 +10,30 @@ use crate::ApplicationStorage;
 /// We do not support programs that make calls to other programs yet.
 /// Though we can recursively call this function to support that.
 #[allow(unused_variables)] // TODO - remove
-pub fn run_program(
-    elf: &Code,
-    inputs: &Vec<Argument>,
-    memory: &ApplicationStorage,
-) -> (Vec<Argument>, Vec<Object>, Vec<Object>) {
+pub fn run_transition_function(
+    transition_function: &TransitionFunction,
+    read_objects: &Vec<Object>,
+    changed_objects_before: &Vec<Object>,
+    changed_objects_after: &Vec<Object>,
+    inputs: &Vec<u8>,
+) -> Result<(), Error> {
     // Execute the VM instance here and return the updated state
     // We will need to convert from the Message Input to the VM Input format
 
-    let program = Program {
-        entry_point: 0,
-        ro_memory: Default::default(),
-        rw_memory: Default::default(),
-        ro_code: elf.clone(),
-    };
+    // TODO - run VM
 
-    return (vec![], vec![], vec![]);
+    Ok(())
+}
+
+#[allow(unused_variables)] // TODO - remove
+pub fn prove_transition_function(
+    transition_function: &TransitionFunction,
+    read_objects: &Vec<Object>,
+    changed_objects_before: &Vec<Object>,
+    changed_objects_after: &Vec<Object>,
+    inputs: &Vec<u8>,
+) -> Result<(), Error> {
+    // TODO - Run mozak prover
+
+    Ok(())
 }

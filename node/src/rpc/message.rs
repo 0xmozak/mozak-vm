@@ -1,48 +1,71 @@
 use rand::distributions::Standard;
 use rand::prelude::Distribution;
-use rand::{Rng, RngCore};
+use rand::Rng;
+use serde::{Deserialize, Serialize};
 
-use crate::rpc::message::Argument::U32;
 use crate::space::object::Object;
 use crate::Id;
 
-/// A raw Message data passed from the clients to the node. This will be parsed
-/// into a [Message].
-/// TODO - use a serialization format like protobuf or bincode.
-pub struct RawMessage {
-    data: Vec<u8>,
-}
-
-impl From<RawMessage> for Message {
-    fn from(#[allow(unused_variables)] message: RawMessage) -> Self { unimplemented!() }
-}
-
-/// Message
-#[derive(Debug, Clone)]
-pub struct Message {
-    pub target_program: Id,
-    pub read_states: Vec<Id>,
+/// Message that contains all the information needed to verify a Program Storage
+/// transition.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransitionMessage {
+    /// The program that defines the transition that is being called
+    pub owner_program_id: Id,
+    /// The transition that is being called
+    pub target_transition_id: Id,
+    /// The objects that are being read by the transition
+    pub read_objects: Vec<Id>,
+    /// The objects that are being changed by the transition
     pub changed_objects: Vec<Object>,
-    pub inputs: Vec<Argument>,
-}
-
-/// Supported types of inputs
-/// We Support what the RISC-V supports
-/// Though we can add more types for convenience and readability
-#[derive(Debug, Clone)]
-pub enum Argument {
-    U32(u32),
-    U32Array(Vec<u32>),
+    /// The inputs to the transition, represented as a serialised byte array
+    pub input: Vec<u8>,
 }
 
 #[cfg(feature = "dummy-system")]
-impl Distribution<Message> for Standard {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Message {
-        Message {
-            target_program: Id([0; 32]),
-            read_states: vec![],
+impl Distribution<TransitionMessage> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> TransitionMessage {
+        TransitionMessage {
+            owner_program_id: rng.gen(),
+            target_transition_id: rng.gen(),
+            read_objects: vec![rng.gen(); 10],
             changed_objects: vec![],
-            inputs: vec![U32(rng.next_u32())],
+            input: vec![],
         }
+    }
+}
+
+#[cfg(all(test, feature = "dummy-system"))]
+mod test {
+    use flexbuffers::FlexbufferSerializer;
+
+    use super::*;
+
+    #[test]
+    fn test_serialisation_deserialization() {
+        let mut rng = rand::thread_rng();
+
+        let message: TransitionMessage = rng.gen();
+
+        let mut serializer = FlexbufferSerializer::new();
+        message.serialize(&mut serializer).unwrap();
+
+        let deserialized_message: TransitionMessage =
+            flexbuffers::from_slice(serializer.view()).unwrap();
+
+        assert_eq!(message.read_objects, deserialized_message.read_objects);
+        assert_eq!(
+            message.changed_objects,
+            deserialized_message.changed_objects
+        );
+        assert_eq!(message.input, deserialized_message.input);
+        assert_eq!(
+            message.owner_program_id,
+            deserialized_message.owner_program_id
+        );
+        assert_eq!(
+            message.target_transition_id,
+            deserialized_message.target_transition_id
+        );
     }
 }

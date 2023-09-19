@@ -1,7 +1,7 @@
 use rand::prelude::Distribution;
 use rand::{Rng, RngCore, SeedableRng};
 
-use crate::rpc::message::Message;
+use crate::rpc::message::TransitionMessage;
 
 /// The service that is responsible for handling the action messages received
 /// from the client.
@@ -11,7 +11,7 @@ pub trait RPC {
 
     /// Returns the next message to be processed.
     /// TODO - make function async.
-    fn get_next_message(&mut self) -> Message;
+    fn get_next_message(&mut self) -> TransitionMessage;
 }
 
 #[cfg(feature = "dummy-system")]
@@ -29,7 +29,7 @@ impl RPC for DummyRPC {
         Self { rng }
     }
 
-    fn get_next_message(&mut self) -> Message { self.rng.gen() }
+    fn get_next_message(&mut self) -> TransitionMessage { self.rng.gen() }
 }
 
 #[cfg(test)]
@@ -42,6 +42,6 @@ mod tests {
     fn test_dummy_message_service() {
         let mut service = DummyRPC::new();
         let message = service.get_next_message();
-        assert_matches!(message, Message { .. });
+        assert_matches!(message, TransitionMessage { .. });
     }
 }

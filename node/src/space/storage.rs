@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::space::object::program::ProgramContent;
 use crate::space::object::Object::Program;
-use crate::space::object::{Object, Transition};
+use crate::space::object::{Object, TransitionFunction};
 use crate::Id;
 
 /// Id-focused storage for the application space.
@@ -19,7 +19,7 @@ impl ApplicationStorage {
     pub fn initiate() -> Self {
         // Transition that allows any transition.
         // TODO - pass it a real transition.
-        let yes_man_transition = Transition::default();
+        let yes_man_transition = TransitionFunction::default();
 
         let genesis_object = Program(ProgramContent::new(0, true, Id::default(), vec![
             yes_man_transition,

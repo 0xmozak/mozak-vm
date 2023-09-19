@@ -3,9 +3,10 @@ use std::ops::Deref;
 use rand::distributions::Standard;
 use rand::prelude::Distribution;
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 
 /// ID is a unique identifier for any part of the system.
-#[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Id(pub [u8; 32]);
 
 impl Deref for Id {

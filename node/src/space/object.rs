@@ -1,10 +1,7 @@
 use std::fmt::Debug;
-use std::hash::{Hash, Hasher};
-use std::ops::Deref;
 
-pub use mozak_vm::elf::Program as Transition;
-use serde::{Deserialize, Serialize};
-use sha3::digest::FixedOutput;
+pub use mozak_runner::elf::Program as TransitionFunction;
+use serde::{Deserialize, Serialize, Serializer};
 use sha3::Digest;
 
 use crate::Id;
@@ -26,7 +23,7 @@ impl PartialEq for Object {
 }
 
 impl Object {
-    pub(crate) fn id(&self) -> Id {
+    pub fn id(&self) -> Id {
         match self {
             Object::Program(program) => program.id(),
             Object::Data(data) => data.id(),
@@ -128,7 +125,7 @@ pub(crate) mod program {
         /// the state update.
         /// The transition ID is a hash of the program that is used to validate
         /// the transition.
-        pub accepted_transitions: HashMap<Id, Transition>,
+        pub allowed_transitions: HashMap<Id, TransitionFunction>,
     }
 
     impl ObjectContent for ProgramContent {
@@ -137,9 +134,13 @@ pub(crate) mod program {
         fn owner_id(&self) -> &Id { &self.owner_id }
 
         fn data(&self) -> Data {
-            self.accepted_transitions
+            self.allowed_transitions
                 .iter()
-                .map(|(id, program)| transition_to_bytes(program).copy_from_slice(id.as_slice()))
+                .map(|(id, program)| {
+                    let mut bytes = transition_to_bytes(program);
+                    bytes.extend_from_slice(id.as_slice());
+                    bytes
+                })
                 .flatten()
                 .collect()
         }
@@ -151,20 +152,20 @@ pub(crate) mod program {
             version: u64,
             mutable: bool,
             owner_id: Id,
-            accepted_transitions: Vec<Transition>,
+            allowed_transitions: Vec<TransitionFunction>,
         ) -> Self {
             let id = Self::generate_id(vec![
                 version.to_be_bytes().to_vec(),
                 vec![mutable as u8],
                 owner_id.to_vec(),
-                accepted_transitions
+                allowed_transitions
                     .iter()
                     .map(|it| transition_to_bytes(it))
                     .flatten()
                     .collect(),
             ]);
 
-            let accepted_transitions = accepted_transitions
+            let accepted_transitions = allowed_transitions
                 .into_iter()
                 .map(|transition| {
                     let id = generate_transition_id(&transition);
@@ -177,22 +178,24 @@ pub(crate) mod program {
                 version,
                 mutable,
                 owner_id,
-                accepted_transitions,
+                allowed_transitions: accepted_transitions,
             }
         }
     }
 
     /// Converts a transition function into a byte vector.
     /// TODO - add code that converts the transition into bytes.
-    fn transition_to_bytes(transition: &Transition) -> Vec<u8> {
+    fn transition_to_bytes(transition: &TransitionFunction) -> Vec<u8> {
         let mut result = vec![];
+
+        result.extend_from_slice(&transition.entry_point.to_be_bytes());
 
         result
     }
 
     /// Generates a unique ID for the transition function.
     /// Currently, we use SHA3-256 hash function to generate the ID.
-    fn generate_transition_id(transition: &Transition) -> Id {
+    fn generate_transition_id(transition: &TransitionFunction) -> Id {
         let mut hasher = sha3::Sha3_256::new();
         hasher.update(transition_to_bytes(transition));
         let hash = hasher.finalize();
@@ -202,6 +205,8 @@ pub(crate) mod program {
 }
 
 pub(crate) mod data {
+    use serde::{Deserialize, Serialize};
+
     use crate::space::object::{Data, ObjectContent};
     use crate::Id;
 
@@ -209,7 +214,7 @@ pub(crate) mod data {
     ///
     /// This object stores the data that can be changed as long as it is valid
     /// transition according to the constraining program.
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct DataContent {
         /// Unique object ID
         id: Id,
