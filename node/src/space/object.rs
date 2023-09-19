@@ -3,12 +3,13 @@ use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 
 pub use mozak_vm::elf::Program as Transition;
+use serde::{Deserialize, Serialize};
 use sha3::digest::FixedOutput;
 use sha3::Digest;
 
 use crate::Id;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Object {
     Program(program::ProgramContent),
     Data(data::DataContent),
@@ -108,7 +109,7 @@ pub(crate) mod program {
     /// This object type is used to constrain the
     /// evolution of other objects. It contains the program code that is used to
     /// validate the object evolution.
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct ProgramContent {
         /// Unique object ID
         id: Id,
@@ -138,7 +139,7 @@ pub(crate) mod program {
         fn data(&self) -> Data {
             self.accepted_transitions
                 .iter()
-                .map(|it| transition_to_bytes(it))
+                .map(|(id, program)| transition_to_bytes(program).copy_from_slice(id.as_slice()))
                 .flatten()
                 .collect()
         }
@@ -163,6 +164,14 @@ pub(crate) mod program {
                     .collect(),
             ]);
 
+            let accepted_transitions = accepted_transitions
+                .into_iter()
+                .map(|transition| {
+                    let id = generate_transition_id(&transition);
+                    (id, transition)
+                })
+                .collect();
+
             Self {
                 id,
                 version,
@@ -173,13 +182,22 @@ pub(crate) mod program {
         }
     }
 
-    /// Converts a Transition into a byte vector.
+    /// Converts a transition function into a byte vector.
+    /// TODO - add code that converts the transition into bytes.
     fn transition_to_bytes(transition: &Transition) -> Vec<u8> {
         let mut result = vec![];
 
-        // TODO - add code that converts the transition into bytes.
-
         result
+    }
+
+    /// Generates a unique ID for the transition function.
+    /// Currently, we use SHA3-256 hash function to generate the ID.
+    fn generate_transition_id(transition: &Transition) -> Id {
+        let mut hasher = sha3::Sha3_256::new();
+        hasher.update(transition_to_bytes(transition));
+        let hash = hasher.finalize();
+
+        Id(hash.into())
     }
 }
 
