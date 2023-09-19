@@ -4,7 +4,6 @@
 #![feature(no_coverage)]
 #![feature(register_tool)]
 #![feature(bigint_helper_methods)]
-#![feature(int_roundings)]
 #![register_tool(tarpaulin)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]

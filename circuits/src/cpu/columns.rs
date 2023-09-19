@@ -246,11 +246,9 @@ pub fn filter_for_memory<F: Field>() -> Column<F> { MAP.cpu.map(Column::from).in
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(self) -> T {
-        // TODO: Add SRA, once we implement its constraints.
         self.xor + self.or + self.and + self.srl + self.sll + self.sra
     }
 
-    // TODO: Add SRA, once we implement its constraints.
     pub fn ops_that_shift(self) -> T { self.sll + self.srl + self.sra }
 
     // TODO: Add other mem ops like SH, SW, LB, LW, LH, LHU as we implement the
