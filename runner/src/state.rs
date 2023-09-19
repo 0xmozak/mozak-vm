@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
 use im::hashmap::HashMap;
@@ -38,7 +38,7 @@ pub struct State {
 }
 
 #[derive(Clone, Debug)]
-pub struct IoTape(pub Arc<[u8]>);
+pub struct IoTape(pub Rc<[u8]>);
 
 impl std::ops::Deref for IoTape {
     type Target = [u8];
