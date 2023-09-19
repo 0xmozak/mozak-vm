@@ -59,15 +59,28 @@ pub fn ascending_sum<F: RichField, I: IntoIterator<Item = F>>(cs: I) -> F {
         .sum()
 }
 
+/// A combination of the input fields, each shifted by a specific number of
+/// bits.
+pub fn shift_combination<F: RichField, I: IntoIterator<Item = F>>(cs: I, shift_amount: usize) -> F {
+    izip![(0..).map(F::from_canonical_u64), cs]
+        .map(|(i, x)| (1 << (i * shift_amount)) * x)
+        .sum()
+}
+
 impl<F: RichField> From<columns::Instruction<F>> for InstructionRow<F> {
     fn from(inst: columns::Instruction<F>) -> Self {
         Self {
             pc: inst.pc,
-            opcode: ascending_sum(inst.ops),
-            rs1: ascending_sum(inst.rs1_select),
-            rs2: ascending_sum(inst.rs2_select),
-            rd: ascending_sum(inst.rd_select),
-            imm: inst.imm_value,
+            combined_opcode_rs1_rs2_rd_imm: shift_combination(
+                [
+                    ascending_sum(inst.ops),
+                    ascending_sum(inst.rs1_select),
+                    ascending_sum(inst.rs2_select),
+                    ascending_sum(inst.rd_select),
+                    inst.imm_value,
+                ],
+                5,
+            ),
             is_op1_signed: inst.is_op1_signed,
             is_op2_signed: inst.is_op2_signed,
         }

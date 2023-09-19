@@ -190,6 +190,21 @@ impl<F: Field> Column<F> {
     }
 
     #[must_use]
+    pub fn shift_combination<I: IntoIterator<Item = impl Borrow<usize>>>(
+        cs: I,
+        shift_amount: usize,
+    ) -> Self {
+        Column {
+            linear_combination: cs
+                .into_iter()
+                .enumerate()
+                .map(|(i, c)| (*c.borrow(), F::from_canonical_usize(1 << shift_amount * i)))
+                .collect(),
+            constant: F::ZERO,
+        }
+    }
+
+    #[must_use]
     pub fn ascending_sum<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
             linear_combination: cs
