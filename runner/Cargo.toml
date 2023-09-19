@@ -24,7 +24,7 @@ proptest = { version = "1.2.0", optional = true }
 criterion = { version = "0.5.1", features = ["html_reports"] }
 env_logger = { version = "0.10.0" }
 proptest = "1.2.0"
-test-case = "3.1.0"
+test-case = "3.2.1"
 
 [[bench]]
 harness = false
