@@ -38,6 +38,13 @@ impl Object {
             _ => None,
         }
     }
+
+    pub fn as_data(&self) -> Option<&data::DataContent> {
+        match self {
+            Object::Data(data) => Some(data),
+            _ => None,
+        }
+    }
 }
 
 /// Wraps an Object Content into an Object enum.
@@ -92,6 +99,8 @@ pub(crate) trait ObjectContent: Debug + Clone {
 type Data = Vec<u8>;
 
 pub(crate) mod program {
+    use std::collections::HashMap;
+
     use super::*;
 
     /// A Program type of object.
@@ -113,11 +122,12 @@ pub(crate) mod program {
         owner_id: Id,
         /// A list of accepted transitions that are allowed to be executed on
         /// the objects that are owned.
-        /// TODO - consider converting into a map, where the key is program
-        /// hash. During state update the user will propose a new state,
+        /// During state update the user will propose a new state,
         /// as well as provide the ID of the transition that validates
         /// the state update.
-        pub accepted_transitions: Vec<Transition>,
+        /// The transition ID is a hash of the program that is used to validate
+        /// the transition.
+        pub accepted_transitions: HashMap<Id, Transition>,
     }
 
     impl ObjectContent for ProgramContent {
