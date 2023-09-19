@@ -5,6 +5,7 @@ use std::io::{Read, Write};
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clio::{Input, Output};
+use jemallocator::Jemalloc;
 use log::debug;
 use mozak_circuits::generation::memoryinit::generate_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
@@ -23,6 +24,9 @@ use plonky2::util::timing::TimingTree;
 use shadow_rs::shadow;
 
 shadow!(build);
+
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
