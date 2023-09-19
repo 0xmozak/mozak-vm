@@ -19,12 +19,15 @@ im = "15.1.0"
 itertools = "0.11.0"
 log = "0.4.20"
 proptest = { version = "1.2.0", optional = true }
+serde = { version = "1.0.188", optional = true }
+serde_json = { version = "1.0.105", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }
 env_logger = { version = "0.10.0" }
 proptest = "1.2.0"
 test-case = "3.2.1"
+serde_json = "1.0.105"
 
 [[bench]]
 harness = false
@@ -33,4 +36,5 @@ name = "fibonacci"
 [features]
 default = ["std"]
 std = ["anyhow/std"]
-test = ["env_logger", "proptest"]
+test = ["env_logger", "proptest", "serde_json"]
+serialize = ["serde", "im/serde"]
