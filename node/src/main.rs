@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 
 use node::{
-    prove_transition_function, run_transition_function, ConsensusSystem, DummyConsensusSystem,
-    DummyRPC, Object, RPC,
+    merge_transition_proofs, prove_transition_function, run_transition_function, ConsensusSystem,
+    DummyConsensusSystem, DummyRPC, Object, RPC,
 };
-
-use crate::placeholder::*;
 
 #[cfg(feature = "dummy-system")]
 fn main() {
@@ -120,26 +118,15 @@ fn main() {
             continue;
         }
 
-        let (merged_state_updates, merged_read_states, merged_proof) =
-            merge_state_updates(&pending_transitions);
+        let (merged_objects_updates, merged_public_input, merged_proof) =
+            merge_transition_proofs(&pending_transitions);
 
         // 4. We push the merged state updates to the consensus system
         network
-            .push_state_updates(merged_state_updates, merged_read_states, merged_proof)
+            .push_state_updates(merged_objects_updates, merged_public_input, merged_proof)
             .unwrap();
         // 5. We update the state of the space with the merged state updates. All state
         //    updates proofs must now be based on this state.
         latest_storage_state = network.fetch_last_settled_state();
-    }
-}
-
-#[allow(unused_variables)]
-mod placeholder {
-    use node::{Id, Object, ProgramRunProof};
-
-    pub fn merge_state_updates(
-        p0: &Vec<(Vec<Object>, Vec<Object>, Vec<u8>, (), Id)>,
-    ) -> (Vec<Object>, Vec<Object>, ProgramRunProof) {
-        unimplemented!()
     }
 }

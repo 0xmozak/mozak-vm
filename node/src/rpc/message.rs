@@ -49,9 +49,10 @@ mod test {
 
         let mut serializer = FlexbufferSerializer::new();
         message.serialize(&mut serializer).unwrap();
+        let serialized_message = serializer.view();
 
         let deserialized_message: TransitionMessage =
-            flexbuffers::from_slice(serializer.view()).unwrap();
+            flexbuffers::from_slice(serialized_message).unwrap();
 
         assert_eq!(message.read_objects, deserialized_message.read_objects);
         assert_eq!(

@@ -12,7 +12,9 @@ flexbuffers = "2.0.0"
 thiserror = "1.0.48"
 rand = { version = "0.8.5", optional = true }
 sha3 = "0.10.8"
-mozak-runner = { git = "https://github.com/0xmozak/mozak-vm.git", branch = "main", features = ["serialize"] }
+
+mozak-runner = { git = "https://github.com/0xmozak/mozak-vm.git", branch = "main", features = ["serialize", "test"] }
+mozak-circuits = { git = "https://github.com/0xmozak/mozak-vm.git", branch = "main", features = ["test"] }
 
 [features]
 default = ["dummy-system"]
