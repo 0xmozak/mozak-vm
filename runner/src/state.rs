@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{anyhow, Result};
 use im::hashmap::HashMap;
 use log::trace;
@@ -32,7 +34,20 @@ pub struct State {
     pub pc: u32,
     pub rw_memory: HashMap<u32, u8>,
     pub ro_memory: HashMap<u32, u8>,
-    pub io_tape: Vec<u8>,
+    pub io_tape: IoTape,
+}
+
+#[derive(Clone, Debug)]
+pub struct IoTape(pub Arc<[u8]>);
+
+impl std::ops::Deref for IoTape {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+impl Default for IoTape {
+    fn default() -> Self { IoTape(vec![].into()) }
 }
 
 #[allow(clippy::similar_names)]
