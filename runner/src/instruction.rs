@@ -1,4 +1,8 @@
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct Args {
     pub rd: u8,
     pub rs1: u8,
@@ -7,6 +11,7 @@ pub struct Args {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 #[repr(u8)]
 pub enum Op {
     ADD,
@@ -59,6 +64,7 @@ pub const NOOP: Instruction = Instruction {
 };
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct Instruction {
     pub op: Op,
     pub args: Args,
