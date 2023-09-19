@@ -107,7 +107,8 @@ fn load_program(mut elf: Input, io_tape: Option<Input>) -> Result<Program> {
     Program::load_elf(&elf_bytes, &io_tape_bytes)
 }
 
-/// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi`
+/// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
+/// iotape.txt`
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let config = standard_faster_config();
@@ -190,11 +191,7 @@ fn main() -> Result<()> {
             Command::MemoryInitHash { elf } => {
                 let program = load_program(elf, None)?;
                 let trace = generate_memory_init_trace(&program);
-                let trace_poly_values: Vec<
-                    plonky2::field::polynomial::PolynomialValues<
-                        plonky2::field::goldilocks_field::GoldilocksField,
-                    >,
-                > = trace_rows_to_poly_values(trace);
+                let trace_poly_values = trace_rows_to_poly_values(trace);
                 let rate_bits = config.fri_config.rate_bits;
                 let cap_height = config.fri_config.cap_height;
                 let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
