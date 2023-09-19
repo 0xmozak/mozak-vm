@@ -3,6 +3,7 @@ use rand::prelude::Distribution;
 use rand::{Rng, RngCore};
 
 use crate::rpc::message::Argument::U32;
+use crate::space::object::Object;
 use crate::Id;
 
 /// A raw Message data passed from the clients to the node. This will be parsed
@@ -20,11 +21,9 @@ impl From<RawMessage> for Message {
 #[derive(Debug, Clone)]
 pub struct Message {
     pub target_program: Id,
+    pub read_states: Vec<Id>,
+    pub changed_objects: Vec<Object>,
     pub inputs: Vec<Argument>,
-}
-
-impl Message {
-    pub fn destruct(self) -> (Id, Vec<Argument>) { (self.target_program, self.inputs) }
 }
 
 /// Supported types of inputs
@@ -41,6 +40,8 @@ impl Distribution<Message> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Message {
         Message {
             target_program: Id([0; 32]),
+            read_states: vec![],
+            changed_objects: vec![],
             inputs: vec![U32(rng.next_u32())],
         }
     }

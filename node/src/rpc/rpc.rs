@@ -5,7 +5,7 @@ use crate::rpc::message::Message;
 
 /// The service that is responsible for handling the action messages received
 /// from the client.
-pub trait MessageService {
+pub trait RPC {
     /// Creates a new service instance.
     fn new() -> Self;
 
@@ -15,12 +15,12 @@ pub trait MessageService {
 }
 
 #[cfg(feature = "dummy-system")]
-pub struct DummyMessageService {
+pub struct DummyRPC {
     rng: Box<dyn RngCore>,
 }
 
 #[cfg(feature = "dummy-system")]
-impl MessageService for DummyMessageService {
+impl RPC for DummyRPC {
     fn new() -> Self {
         // Set up the random number generator with a fixed seed.
         let rng = rand::rngs::StdRng::from_seed([0; 32]);
@@ -40,7 +40,7 @@ mod tests {
 
     #[test]
     fn test_dummy_message_service() {
-        let mut service = DummyMessageService::new();
+        let mut service = DummyRPC::new();
         let message = service.get_next_message();
         assert_matches!(message, Message { .. });
     }

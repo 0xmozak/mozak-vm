@@ -1,5 +1,9 @@
+pub use mozak_vm::elf::Code;
+use mozak_vm::elf::Program;
+
 use crate::rpc::message::Argument;
-use crate::{Blob, SpaceStorage};
+use crate::space::object::Object;
+use crate::ApplicationStorage;
 
 /// Executes the VM instance on the provided program and returns the output of
 /// the program as well as updated states.
@@ -8,36 +12,19 @@ use crate::{Blob, SpaceStorage};
 /// Though we can recursively call this function to support that.
 #[allow(unused_variables)] // TODO - remove
 pub fn run_program(
-    elf: &ELF,
+    elf: &Code,
     inputs: &Vec<Argument>,
-    memory: &SpaceStorage,
-) -> (Vec<Argument>, Vec<Blob>, Vec<Blob>) {
+    memory: &ApplicationStorage,
+) -> (Vec<Argument>, Vec<Object>, Vec<Object>) {
     // Execute the VM instance here and return the updated state
     // We will need to convert from the Message Input to the VM Input format
 
-    unimplemented!()
-}
+    let program = Program {
+        entry_point: 0,
+        ro_memory: Default::default(),
+        rw_memory: Default::default(),
+        ro_code: elf.clone(),
+    };
 
-/// ELF data.
-/// TODO - replace with representation from the `mozak-vm` crate.
-#[derive(Debug, Clone)]
-pub struct ELF {
-    /// The entry point of the program.
-    pub(crate) entry_point: u64,
-    /// The size of the program.
-    pub(crate) size: u64,
-    /// The code of the program.
-    pub(crate) code: Vec<u8>,
-}
-
-impl From<&ELF> for Vec<u8> {
-    fn from(elf: &ELF) -> Self {
-        let entry_point_bytes = elf.entry_point.to_be_bytes().to_vec();
-        let size_bytes = elf.size.to_be_bytes().to_vec();
-        entry_point_bytes
-            .into_iter()
-            .chain(size_bytes.into_iter())
-            .chain(elf.code.clone().into_iter())
-            .collect()
-    }
+    return (vec![], vec![], vec![]);
 }

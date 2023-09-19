@@ -3,11 +3,11 @@
 pub use id::Id;
 pub use proof::ProgramRunProof;
 pub use rpc::message::{Argument, Message};
-pub use rpc::message_service::{DummyMessageService, MessageService};
-pub use space::blobs::Blob;
+pub use rpc::rpc::{DummyRPC, RPC};
 pub use space::consensus::{ConsensusSystem, DummyConsensusSystem};
-pub use space::storage::SpaceStorage;
-pub use vm::{run_program, ELF};
+pub use space::object::Object;
+pub use space::storage::ApplicationStorage;
+pub use vm::run_program;
 
 /// Module that handles rpc interactions with the node.
 mod rpc;

@@ -1,14 +1,11 @@
-use node::{
-    run_program, ConsensusSystem, DummyConsensusSystem, DummyMessageService, MessageService,
-};
+use node::{run_program, Argument, ConsensusSystem, DummyConsensusSystem, DummyRPC, Id, RPC};
 
 use crate::placeholder::*;
 
-#[allow(unused_variables)]
 #[cfg(feature = "dummy-system")]
 fn main() {
     // Initiate a new message service that will receive messages from clients.
-    let mut message_service = DummyMessageService::new();
+    let mut message_service = DummyRPC::new();
 
     let mut network = DummyConsensusSystem::initiate();
 
@@ -24,20 +21,23 @@ fn main() {
         // TODO - multithread it
         let (updated_states, viewed_states, update_proof) = {
             // 1. Obtain target program and program arguments from the message
-            let (program_id, program_input) = message.destruct();
-            // 2. Get the Program from the Program Manager
+            let (program_id, program_input): (Id, &Vec<Argument>) = (Id::default(), &Vec::new()); // parse_transaction(message);
+                                                                                                  // 2. Get the Program from the Program Manager
             let program = latest_state
-                .get_blob(program_id)
+                .get_object(program_id)
                 .unwrap()
                 .as_program()
                 .unwrap();
 
             // 3. Run the Program in the RISC-V VM
-            let (output, read_states, updated_states) =
-                run_program(program, &program_input, latest_state);
+            let (output, read_states, updated_states) = run_program(
+                &program.accepted_transitions[0].ro_code,
+                &program_input,
+                latest_state,
+            );
             // 4. Prove that the Program was run correctly in the RISC-V VM
             let (update_proof) = prove_program_run(
-                program,
+                (), // program
                 &program_input,
                 output,
                 &read_states,
@@ -71,20 +71,20 @@ fn main() {
 
 #[allow(unused_variables)]
 mod placeholder {
-    use node::{Argument, Blob, Id, Message, ProgramRunProof, ELF};
+    use node::{Argument, Id, Message, Object, ProgramRunProof};
 
     pub fn merge_state_updates(
-        p0: &Vec<(Vec<Blob>, Vec<Blob>, ())>,
-    ) -> (Vec<Blob>, Vec<Blob>, ProgramRunProof) {
+        p0: &Vec<(Vec<Object>, Vec<Object>, ())>,
+    ) -> (Vec<Object>, Vec<Object>, ProgramRunProof) {
         unimplemented!()
     }
 
     pub fn prove_program_run(
-        p0: &ELF,
+        p0: (),
         p1: &Vec<Argument>,
         p2: Vec<Argument>,
-        p3: &Vec<Blob>,
-        p4: &Vec<Blob>,
+        p3: &Vec<Object>,
+        p4: &Vec<Object>,
     ) -> () {
         unimplemented!()
     }

@@ -11,6 +11,7 @@ type = "lib"
 thiserror = "1.0.48"
 rand = { version = "0.8.5", optional = true }
 sha3 = "0.10.8"
+mozak-vm = { git = "https://github.com/0xmozak/mozak-vm.git", branch = "main" }
 
 [features]
 default = ["dummy-system"]

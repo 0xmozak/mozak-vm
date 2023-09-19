@@ -1,95 +1,112 @@
 use std::collections::HashMap;
 
-use crate::space::blobs::Blob;
+use crate::space::object::program::ProgramContent;
+use crate::space::object::Object::Program;
+use crate::space::object::{Object, Transition};
 use crate::Id;
 
-/// Stores a collection of the space blobs.
-/// We index them by their id.
-pub struct SpaceStorage {
-    blobs: HashMap<Id, Blob>,
+/// Id-focused storage for the application space.
+pub struct ApplicationStorage {
+    objects: HashMap<Id, Object>,
 }
 
-impl SpaceStorage {
-    /// Initiates a new empty storage.
+impl ApplicationStorage {
+    /// Initiates a new storage.
+    /// We always add the genesis object to the storage.
+    /// This object is a program that allows any transition.
+    /// It is up to the user to then add more programs to the storage.
+    /// This is the only object that is self-owned.
     pub fn initiate() -> Self {
-        SpaceStorage {
-            blobs: HashMap::new(),
+        // Transition that allows any transition.
+        // TODO - pass it a real transition.
+        let yes_man_transition = Transition::default();
+
+        let genesis_object = Program(ProgramContent::new(0, true, Id::default(), vec![
+            yes_man_transition,
+        ]));
+
+        let mut storage = ApplicationStorage::new();
+
+        storage.update_objects(vec![genesis_object]);
+
+        storage
+    }
+
+    /// Creates a new empty storage.
+    fn new() -> Self {
+        ApplicationStorage {
+            objects: HashMap::new(),
         }
     }
 
-    /// Returns a blob by its id.
-    pub fn get_blob(&self, id: Id) -> Option<&Blob> { self.blobs.get(&id) }
+    /// Returns an object by its id. If the object does not exist, then we
+    /// return None.
+    pub fn get_object(&self, id: Id) -> Option<&Object> { self.objects.get(&id) }
 
-    /// Updates a list of blobs in the storage. If a blob with the same id
-    /// already exists, then we update replace it with the new one.
+    /// Adds a list of objects to the storage. If an object with the same id
+    /// already exists, then the update replaces it with the new one.
     ///
-    /// We will be pushing updates to the network as a list of chnged blobs, as
-    /// well as a proof that the state transition of the blobs is valid. Hence
-    /// we will use the batch update method.
-    pub fn update_blobs(&mut self, blobs: Vec<Blob>) {
-        for blob in blobs {
-            self.blobs.insert(blob.id().clone(), blob);
+    /// We will be pushing updates to the network as a list of changed objects,
+    /// as well as a proof that the state transition of the blobs is valid.
+    /// Hence we will use the batch update method.
+    pub fn update_objects(&mut self, objects: Vec<Object>) {
+        for object in objects {
+            self.objects.insert(object.id(), object);
         }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use std::assert_matches::assert_matches;
+
     use super::*;
-    use crate::space::blobs::BlobDetails;
+    use crate::space::object::data::DataContent;
+    use crate::space::object::ObjectContent;
 
     #[test]
-    fn test_space_storage() {
-        let mut storage = SpaceStorage::initiate();
+    fn test_storage() {
+        let mut storage = ApplicationStorage::initiate();
 
-        let (is_executable, owner, id_parameters, data) =
+        let owner = Id::default();
+
+        let (is_executable, owner_id, id_parameters, data) =
             (false, Id::default(), Vec::<&[u8]>::new(), vec![
                 1, 2, 3, 4, 5,
             ]);
 
-        let blob = Blob::new(is_executable, owner, id_parameters, data);
-        let blob_id = *blob.id();
-        let parsed_data = blob.data();
-        storage.update_blobs(vec![blob]);
+        let object = DataContent::new(true, owner_id, vec![1u8]);
+        let object_id = object.id();
+        let wrapped_object = Object::Data(object);
 
-        let retrieved_blob = storage.get_blob(blob_id).unwrap();
+        storage.update_objects(vec![wrapped_object]);
 
-        // Check that all blob parameters are the same.
-        assert_eq!(blob_id, *retrieved_blob.id());
-        assert_eq!(is_executable, retrieved_blob.is_executable());
-        assert_eq!(owner, retrieved_blob.owner);
-        assert_eq!(parsed_data, retrieved_blob.data());
+        let retrieved_object = storage.get_object(object_id).unwrap();
+
+        // Check that all object parameters are the same.
+        assert_matches!(retrieved_object, Object::Data(object));
     }
 
     #[test]
     fn test_that_blobs_with_same_id_replace_each_other() {
-        let mut storage = SpaceStorage::initiate();
+        let mut storage = ApplicationStorage::initiate();
 
-        let (is_executable, owner, id_parameters, data) =
-            (false, Id::default(), Vec::<&[u8]>::new(), vec![
-                1, 2, 3, 4, 5,
-            ]);
+        let owner = Id::default();
 
-        let blob = Blob::new(is_executable, owner, id_parameters, data);
-        let blob_id = *blob.id();
-        storage.update_blobs(vec![blob]);
+        let object = DataContent::new(true, owner, vec![1u8]);
+        let object_id = object.id();
 
-        let (new_kind, new_owner, new_id_parameters, new_data) =
-            (BlobDetails::Data, Id::default(), Vec::<&[u8]>::new(), vec![
-                1, 2, 3, 4, 5, 6, 7, 8, 9,
-            ]);
+        let wrapped_object = Object::Data(object.clone());
 
-        let updated_blob = Blob::new(is_executable, new_owner, new_id_parameters, new_data);
-        let new_parsed_data = updated_blob.data();
-        assert_eq!(blob_id, *updated_blob.id());
-        storage.update_blobs(vec![updated_blob]);
+        storage.update_objects(vec![wrapped_object]);
 
-        let retrieved_blob = storage.get_blob(blob_id).unwrap();
+        let updated_object = object.transition(vec![2u8]);
+        let wrapped_updated_object = Object::Data(updated_object);
 
-        // Check that all blob parameters are the same.
-        assert_eq!(blob_id, *retrieved_blob.id());
-        assert_eq!(is_executable, retrieved_blob.is_executable());
-        assert_eq!(new_owner, retrieved_blob.owner);
-        assert_eq!(new_parsed_data, retrieved_blob.data());
+        storage.update_objects(vec![wrapped_updated_object]);
+
+        let retrieved_object = storage.get_object(object_id).unwrap();
+
+        assert_matches!(retrieved_object, Object::Data(updated_object));
     }
 }

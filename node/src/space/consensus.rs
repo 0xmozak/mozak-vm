@@ -1,8 +1,8 @@
 use thiserror::Error;
 
 use crate::proof::ProgramRunProof;
-use crate::space::blobs::Blob;
-use crate::space::storage::SpaceStorage;
+use crate::space::object::Object;
+use crate::space::storage::ApplicationStorage;
 
 pub trait ConsensusSystem {
     fn initiate() -> Self;
@@ -13,13 +13,13 @@ pub trait ConsensusSystem {
     /// TODO - use hashes of changed and read blobs to reduce the public inputs.
     fn push_state_updates(
         &mut self,
-        updated_blobs: Vec<Blob>,
-        read_blobs: Vec<Blob>,
+        updated_blobs: Vec<Object>,
+        read_blobs: Vec<Object>,
         proof: ProgramRunProof,
     ) -> Result<(), ConsensusError>;
 
     /// Fetches the latest state that we have reached consensus on
-    fn fetch_last_settled_state(&self) -> &SpaceStorage;
+    fn fetch_last_settled_state(&self) -> &ApplicationStorage;
 }
 
 #[derive(Error, Debug)]
@@ -35,29 +35,29 @@ pub enum ConsensusError {
 /// can continue to process and execute messages.
 #[cfg(feature = "dummy-system")]
 pub struct DummyConsensusSystem {
-    storage: SpaceStorage,
+    storage: ApplicationStorage,
 }
 
 #[cfg(feature = "dummy-system")]
 impl ConsensusSystem for DummyConsensusSystem {
     fn initiate() -> Self {
         Self {
-            storage: SpaceStorage::initiate(),
+            storage: ApplicationStorage::initiate(),
         }
     }
 
     fn push_state_updates(
         &mut self,
-        updated_blobs: Vec<Blob>,
-        _read_blobs: Vec<Blob>,
+        updated_blobs: Vec<Object>,
+        _read_blobs: Vec<Object>,
         _proof: ProgramRunProof,
     ) -> Result<(), ConsensusError> {
-        self.storage.update_blobs(updated_blobs);
+        self.storage.update_objects(updated_blobs);
 
         // TODO - check the update proof here
 
         Ok(())
     }
 
-    fn fetch_last_settled_state(&self) -> &SpaceStorage { &self.storage }
+    fn fetch_last_settled_state(&self) -> &ApplicationStorage { &self.storage }
 }
