@@ -190,14 +190,14 @@ impl<F: Field> Column<F> {
     }
 
     #[must_use]
-    pub fn shift_combination(columns: Vec<Self>, shift: usize) -> Self {
+    pub fn shift_combination(terms: Vec<Self>, alpha: usize) -> Self {
         let mut linear_combination = Vec::new();
         let constant = F::ZERO;
 
-        for (i, column) in columns.into_iter().enumerate() {
-            let shift_value = F::from_canonical_usize(1 << (i * shift));
+        for (i, column) in terms.into_iter().enumerate() {
+            let base = F::from_canonical_usize(alpha.pow(i as u32));
             for (idx, value) in column.linear_combination.into_iter() {
-                linear_combination.push((idx, value * shift_value));
+                linear_combination.push((idx, value * base));
             }
         }
 

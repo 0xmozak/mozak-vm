@@ -274,18 +274,27 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
     let inst = MAP.cpu.inst;
     vec![
         Column::single(inst.pc),
+        // Combine columns into a single column where each field occupies a specific number of
+        // bits.
+        // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5
+        //   bits.
+        // - is_op1_signed and is_op2_signed: These fields occupy 1 bit each.
+        // - rs1_select, rs2_select, and rd_select: These fields require 5 bits each.
+        // - imm_value: This field requires 32 bits.
+        // Therefore, the total bit requirement is 5 * 6 + 32 = 62 bits, which is less than the
+        // size of the Goldilocks field.
         Column::shift_combination(
             vec![
                 Column::ascending_sum(inst.ops),
+                Column::single(inst.is_op1_signed),
+                Column::single(inst.is_op2_signed),
                 Column::ascending_sum(inst.rs1_select),
                 Column::ascending_sum(inst.rs2_select),
                 Column::ascending_sum(inst.rd_select),
                 Column::single(inst.imm_value),
             ],
-            5,
+            1 << 5,
         ),
-        Column::single(inst.is_op1_signed),
-        Column::single(inst.is_op2_signed),
     ]
 }
 
