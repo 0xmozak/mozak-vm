@@ -190,13 +190,13 @@ impl<F: Field> Column<F> {
     }
 
     #[must_use]
-    pub fn reduce_with_powers(terms: Vec<Self>, alpha: usize) -> Self {
+    pub fn reduce_with_powers(terms: Vec<Self>, alpha: u64) -> Self {
         Self {
             linear_combination: terms
                 .into_iter()
                 .enumerate()
                 .flat_map(|(i, column)| {
-                    let base = F::from_canonical_usize(
+                    let base = F::from_canonical_u64(
                         alpha.pow(u32::try_from(i).expect("casting value to u32 should succeed")),
                     );
                     column

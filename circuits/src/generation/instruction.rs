@@ -60,8 +60,8 @@ pub fn ascending_sum<F: RichField, I: IntoIterator<Item = F>>(cs: I) -> F {
         .sum()
 }
 
-pub fn reduce_with_powers<F: RichField, I: IntoIterator<Item = F>>(terms: I, alpha: usize) -> F {
-    izip!((0..).map(|i| F::from_canonical_usize(alpha.pow(i))), terms)
+pub fn reduce_with_powers<F: RichField, I: IntoIterator<Item = F>>(terms: I, alpha: u64) -> F {
+    izip!((0..).map(|i| F::from_canonical_u64(alpha.pow(i))), terms)
         .map(|(base, val)| base * val)
         .sum()
 }
