@@ -355,11 +355,14 @@ mod tests {
         .collect();
 
         let reduce_with_powers = |values: Vec<usize>| {
-            values
-                .into_iter()
-                .enumerate()
-                .map(|(i, x)| (1 << (i * 5)) * x)
-                .sum::<usize>() as u32
+            u32::try_from(
+                values
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, x)| (1 << (i * 5)) * x)
+                    .sum::<usize>(),
+            )
+            .expect("casting value to u32 should succeed")
         };
 
         let program_trace: Vec<ProgramRom<F>> = [
