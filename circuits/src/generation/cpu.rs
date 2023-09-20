@@ -192,7 +192,7 @@ fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
         row.remainder_sign = F::from_bool(dividend_full_range.is_negative());
         row.skip_check_quotient_sign = F::ONE;
     } else {
-        let quotient_full_range = if inst.op == Op::SRA {
+        let quotient_full_range = if matches!(inst.op, Op::SRA) {
             dividend_full_range.div_euclid(divisor_full_range)
         } else {
             dividend_full_range / divisor_full_range
