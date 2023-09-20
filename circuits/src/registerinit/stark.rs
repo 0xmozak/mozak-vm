@@ -23,6 +23,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterInitS
     const COLUMNS: usize = RegisterInit::<F>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
 
+    /// Constraints for the [`RegisterInitStark`].
+    ///
+    /// For sanity check, we can constrain the register address column to be in
+    /// a running sum from 0..=31, but since this fixed table is known to
+    /// both prover and verifier, we do not need to do so here.
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
@@ -31,7 +36,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterInitS
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let lv: &RegisterInit<P> = vars.local_values.borrow();
+        // Check: r0 will always be a dummy, so we want to check is_dummy == true.
         yield_constr.constraint_first_row(P::ONES - lv.is_dummy);
+        // Check: `is_dummy` is a binary filter column.
         is_binary(yield_constr, lv.is_dummy);
     }
 
@@ -74,7 +81,6 @@ mod tests {
     fn prove_reg_init() -> Result<()> {
         let program = Program::default();
         let executed = ExecutionRecord::default();
-
         RegisterInitStark::prove_and_verify(&program, &executed)?;
         Ok(())
     }

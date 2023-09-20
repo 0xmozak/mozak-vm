@@ -1,4 +1,4 @@
-use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::columns_view::{columns_view_impl, make_col_map};
 
 columns_view_impl!(RegisterInit);
 make_col_map!(RegisterInit);
@@ -18,5 +18,3 @@ pub struct RegisterInit<T> {
     /// be 0, so `is_dummy` should be 1 for the first row.
     pub is_dummy: T,
 }
-
-pub const NUM_REGISTERINIT_COLS: usize = RegisterInit::<()>::NUMBER_OF_COLUMNS;

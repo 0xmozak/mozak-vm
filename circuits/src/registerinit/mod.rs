@@ -10,6 +10,6 @@
 //!
 //! TODO: update this comment when Register STARK is done
 //! Note that this STARK acts as an auxiliary STARK to the
-//! Register STARK, which a register file.
+//! Register STARK, which is a register file.
 pub mod columns;
 pub mod stark;
