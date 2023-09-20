@@ -10,6 +10,8 @@ use elf::segment::ProgramHeader;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
 use itertools::{iproduct, Itertools};
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
 use crate::instruction::Instruction;
@@ -18,6 +20,7 @@ use crate::util::load_u32;
 
 /// A RISC program
 #[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct Program {
     /// The entrypoint of the program
     pub entry_point: u32,
@@ -38,9 +41,11 @@ pub struct Program {
 }
 
 #[derive(Clone, Debug, Default, Deref)]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct Code(pub HashMap<u32, Instruction>);
 
 #[derive(Clone, Debug, Default, Deref)]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct Data(pub HashMap<u32, u8>);
 
 impl Code {
@@ -189,5 +194,23 @@ impl Program {
             ro_code,
             io_tape: IoTape(io_tape.into()),
         })
+    }
+}
+
+#[cfg(all(test, feature = "serialize"))]
+mod test {
+    use crate::elf::Program;
+
+    #[test]
+    fn test_serialize_deserialize() {
+        let program = Program::default();
+        let serialized = serde_json::to_string(&program).unwrap();
+        let deserialized: Program = serde_json::from_str(&serialized).unwrap();
+
+        // Check that all object parameters are the same.
+        assert_eq!(program.entry_point, deserialized.entry_point);
+        assert_eq!(program.ro_memory.0, deserialized.ro_memory.0);
+        assert_eq!(program.rw_memory.0, deserialized.rw_memory.0);
+        assert_eq!(program.ro_code.0, deserialized.ro_code.0);
     }
 }
