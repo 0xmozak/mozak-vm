@@ -3,11 +3,11 @@ use std::rc::Rc;
 use anyhow::{anyhow, Result};
 use im::hashmap::HashMap;
 use log::trace;
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
 
 use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction};
-#[cfg(feature = "serialize")]
-use serde::{Deserialize, Serialize};
 
 /// State of our VM
 ///
