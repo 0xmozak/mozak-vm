@@ -191,19 +191,19 @@ impl<F: Field> Column<F> {
 
     #[must_use]
     pub fn reduce_with_powers(terms: Vec<Self>, alpha: usize) -> Self {
-        let mut linear_combination = Vec::new();
-        let constant = F::ZERO;
-
-        for (i, column) in terms.into_iter().enumerate() {
-            let base = F::from_canonical_usize(alpha.pow(i as u32));
-            for (idx, value) in column.linear_combination.into_iter() {
-                linear_combination.push((idx, value * base));
-            }
-        }
-
         Self {
-            linear_combination,
-            constant,
+            linear_combination: terms
+                .into_iter()
+                .enumerate()
+                .flat_map(|(i, column)| {
+                    let base = F::from_canonical_usize(alpha.pow(i as u32));
+                    column
+                        .linear_combination
+                        .into_iter()
+                        .map(move |(idx, value)| (idx, value * base))
+                })
+                .collect(),
+            constant: F::ZERO,
         }
     }
 
