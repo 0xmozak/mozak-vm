@@ -354,15 +354,19 @@ mod tests {
         })
         .collect();
 
+        let shift_combine = |values: Vec<usize>| {
+            values
+                .into_iter()
+                .enumerate()
+                .map(|(i, x)| 1 << (i * 5) * x)
+                .sum::<usize>() as u32
+        };
+
         let program_trace: Vec<ProgramRom<F>> = [
             ProgramRom {
                 inst: InstructionRow {
                     pc: 1,
-                    opcode: 3,
-                    rs1: 2,
-                    rs2: 1,
-                    rd: 1,
-                    imm: 3,
+                    combined_opcode_rs1_rs2_rd_imm: shift_combine(vec![3, 2, 1, 1, 3]),
                     ..Default::default()
                 },
                 filter: 1,
@@ -370,11 +374,7 @@ mod tests {
             ProgramRom {
                 inst: InstructionRow {
                     pc: 2,
-                    opcode: 1,
-                    rs1: 3,
-                    rs2: 3,
-                    rd: 2,
-                    imm: 2,
+                    combined_opcode_rs1_rs2_rd_imm: shift_combine(vec![1, 3, 3, 2, 2]),
                     ..Default::default()
                 },
                 filter: 1,
@@ -382,11 +382,7 @@ mod tests {
             ProgramRom {
                 inst: InstructionRow {
                     pc: 3,
-                    opcode: 2,
-                    rs1: 1,
-                    rs2: 2,
-                    rd: 3,
-                    imm: 1,
+                    combined_opcode_rs1_rs2_rd_imm: shift_combine(vec![2, 1, 2, 3, 1]),
                     ..Default::default()
                 },
                 filter: 1,
@@ -394,11 +390,7 @@ mod tests {
             ProgramRom {
                 inst: InstructionRow {
                     pc: 1,
-                    opcode: 3,
-                    rs1: 3,
-                    rs2: 3,
-                    rd: 3,
-                    imm: 3,
+                    combined_opcode_rs1_rs2_rd_imm: shift_combine(vec![3, 3, 3, 3, 3]),
                     ..Default::default()
                 },
                 filter: 0,
@@ -413,11 +405,7 @@ mod tests {
             ProgramRom {
                 inst: InstructionRow {
                     pc: 1,
-                    opcode: 3,
-                    rs1: 2,
-                    rs2: 1,
-                    rd: 1,
-                    imm: 3,
+                    combined_opcode_rs1_rs2_rd_imm: shift_combine(vec![3, 2, 1, 1, 3]),
                     ..Default::default()
                 },
                 filter: 1,
@@ -425,11 +413,7 @@ mod tests {
             ProgramRom {
                 inst: InstructionRow {
                     pc: 1,
-                    opcode: 3,
-                    rs1: 2,
-                    rs2: 1,
-                    rd: 1,
-                    imm: 3,
+                    combined_opcode_rs1_rs2_rd_imm: shift_combine(vec![3, 2, 1, 1, 3]),
                     ..Default::default()
                 },
                 filter: 0,
@@ -437,11 +421,7 @@ mod tests {
             ProgramRom {
                 inst: InstructionRow {
                     pc: 2,
-                    opcode: 1,
-                    rs1: 3,
-                    rs2: 3,
-                    rd: 2,
-                    imm: 2,
+                    combined_opcode_rs1_rs2_rd_imm: shift_combine(vec![1, 3, 3, 2, 2]),
                     ..Default::default()
                 },
                 filter: 1,
@@ -449,11 +429,7 @@ mod tests {
             ProgramRom {
                 inst: InstructionRow {
                     pc: 3,
-                    opcode: 2,
-                    rs1: 1,
-                    rs2: 2,
-                    rd: 3,
-                    imm: 1,
+                    combined_opcode_rs1_rs2_rd_imm: shift_combine(vec![2, 1, 2, 3, 1]),
                     ..Default::default()
                 },
                 filter: 1,

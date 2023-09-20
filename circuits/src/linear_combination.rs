@@ -192,7 +192,7 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn shift_combination(columns: Vec<Self>, shift: usize) -> Self {
         let mut linear_combination = Vec::new();
-        let mut constant = F::ZERO;
+        let constant = F::ZERO;
 
         for (i, column) in columns.into_iter().enumerate() {
             let shift_value = F::from_canonical_usize(1 << (i * shift));

@@ -61,9 +61,9 @@ pub fn ascending_sum<F: RichField, I: IntoIterator<Item = F>>(cs: I) -> F {
 
 /// A combination of the input fields, each shifted by a specific number of
 /// bits.
-pub fn shift_combination<F: RichField, I: IntoIterator<Item = F>>(cs: I, shift_amount: usize) -> F {
-    izip![(0..).map(F::from_canonical_u64), cs]
-        .map(|(i, x)| (1 << (i * shift_amount)) * x)
+pub fn shift_combination<F: RichField, I: IntoIterator<Item = F>>(cs: I, shift: usize) -> F {
+    izip!((0..).map(|i| F::from_canonical_u64(1 << (i * shift))), cs)
+        .map(|(shifted_val, x)| shifted_val * x)
         .sum()
 }
 
