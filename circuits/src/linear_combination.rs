@@ -190,7 +190,7 @@ impl<F: Field> Column<F> {
     }
 
     #[must_use]
-    pub fn shift_combination(terms: Vec<Self>, alpha: usize) -> Self {
+    pub fn reduce_with_powers(terms: Vec<Self>, alpha: usize) -> Self {
         let mut linear_combination = Vec::new();
         let constant = F::ZERO;
 
