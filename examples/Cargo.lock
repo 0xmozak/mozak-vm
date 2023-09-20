@@ -226,7 +226,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rkyv-mozak-guest"
+name = "rkyv-serialization-mozak-guest"
 version = "0.1.0"
 dependencies = [
  "guest",
