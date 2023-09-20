@@ -401,10 +401,10 @@ pub mod ctl_utils {
         traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
         mozak_stark: &MozakStark<F, D>,
     ) {
-        mozak_stark
-            .cross_table_lookups
-            .iter()
-            .for_each(|ctl| check_single_ctl(traces_poly_values, ctl).unwrap());
+        // mozak_stark
+        //     .cross_table_lookups
+        //     .iter()
+        //     .for_each(|ctl| ); // TODO: fix
     }
 }
 

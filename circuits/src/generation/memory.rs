@@ -12,6 +12,7 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
     trace.resize(trace.len().next_power_of_two(), Memory {
         // Some columns need special treatment..
         is_executed: F::ZERO,
+        is_init: F::ZERO,
         diff_addr: F::ZERO,
         diff_addr_inv: F::ZERO,
         diff_clk: F::ZERO,
@@ -111,7 +112,6 @@ pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row])
     for mem in &mut merged_trace {
         mem.diff_addr = mem.addr - last_addr;
         mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
-        println!("multiplication of {:?}, {:?} = {:?}", mem.diff_addr, mem.diff_addr_inv, mem.diff_addr * mem.diff_addr_inv);
         if mem.addr == last_addr {
             mem.diff_clk = mem.clk - last_clk;
         }
