@@ -281,6 +281,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
 
 #[cfg(test)]
 mod tests {
+    use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use crate::columns_view::selection;
@@ -358,15 +359,12 @@ mod tests {
         })
         .collect();
 
-        let reduce_with_powers = |values: Vec<usize>| {
-            u32::try_from(
-                values
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, x)| (1 << (i * 5)) * x)
-                    .sum::<usize>(),
-            )
-            .expect("casting value to u32 should succeed")
+        let reduce_with_powers = |values: Vec<u64>| {
+            values
+                .into_iter()
+                .enumerate()
+                .map(|(i, x)| (1 << (i * 5)) * x)
+                .sum::<u64>()
         };
 
         let program_trace: Vec<ProgramRom<F>> = [
@@ -407,7 +405,7 @@ mod tests {
             },
         ]
         .into_iter()
-        .map(|row| row.map(from_u32))
+        .map(|row| row.map(F::from_canonical_u64))
         .collect();
 
         let permuted = generate_permuted_inst_trace(&cpu_trace, &program_trace);
@@ -442,7 +440,7 @@ mod tests {
             },
         ]
         .into_iter()
-        .map(|row| row.map(from_u32))
+        .map(|row| row.map(F::from_canonical_u64))
         .collect();
         assert_eq!(permuted, expected_permuted);
     }
