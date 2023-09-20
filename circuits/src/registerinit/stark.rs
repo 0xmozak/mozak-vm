@@ -36,8 +36,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterInitS
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let lv: &RegisterInit<P> = vars.local_values.borrow();
-        // Check: r0 will always be a dummy, so we want to check is_dummy == true.
-        yield_constr.constraint_first_row(P::ONES - lv.is_dummy);
         // Check: `is_dummy` is a binary filter column.
         is_binary(yield_constr, lv.is_dummy);
     }
