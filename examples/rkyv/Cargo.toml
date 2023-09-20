@@ -1,0 +1,22 @@
+[package]
+edition = "2021"
+name = "rkyv-mozak-guest"
+version = "0.1.0"
+
+[target.'cfg(target_os="zkvm")'.dependencies.guest]
+path = "../../guest"
+
+[features]
+native = []
+
+[dependencies]
+rkyv = { version = "0.7.42", default-features = false, features = ["size_32", "alloc"] }
+
+[[bin]]
+name = "rkyv"
+path = "main.rs"
+
+[[bin]]
+name = "rkyv-native"
+path = "main_native.rs"
+required-features = ["native"]
