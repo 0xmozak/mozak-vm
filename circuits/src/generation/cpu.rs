@@ -374,7 +374,6 @@ mod tests {
                     // rd_select: 1,
                     // imm_value: 3,
                     inst_data: reduce_with_powers(vec![3, 0, 0, 2, 1, 1, 3]),
-                    ..Default::default()
                 },
                 filter: 1,
             },
@@ -382,7 +381,6 @@ mod tests {
                 inst: InstructionRow {
                     pc: 2,
                     inst_data: reduce_with_powers(vec![1, 0, 0, 3, 3, 2, 2]),
-                    ..Default::default()
                 },
                 filter: 1,
             },
@@ -390,7 +388,6 @@ mod tests {
                 inst: InstructionRow {
                     pc: 3,
                     inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
-                    ..Default::default()
                 },
                 filter: 1,
             },
@@ -398,7 +395,6 @@ mod tests {
                 inst: InstructionRow {
                     pc: 1,
                     inst_data: reduce_with_powers(vec![3, 0, 0, 3, 3, 3, 3]),
-                    ..Default::default()
                 },
                 filter: 0,
             },
@@ -413,7 +409,6 @@ mod tests {
                 inst: InstructionRow {
                     pc: 1,
                     inst_data: reduce_with_powers(vec![3, 0, 0, 2, 1, 1, 3]),
-                    ..Default::default()
                 },
                 filter: 1,
             },
@@ -421,7 +416,6 @@ mod tests {
                 inst: InstructionRow {
                     pc: 1,
                     inst_data: reduce_with_powers(vec![3, 0, 0, 2, 1, 1, 3]),
-                    ..Default::default()
                 },
                 filter: 0,
             },
@@ -429,7 +423,6 @@ mod tests {
                 inst: InstructionRow {
                     pc: 2,
                     inst_data: reduce_with_powers(vec![1, 0, 0, 3, 3, 2, 2]),
-                    ..Default::default()
                 },
                 filter: 1,
             },
@@ -437,7 +430,6 @@ mod tests {
                 inst: InstructionRow {
                     pc: 3,
                     inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
-                    ..Default::default()
                 },
                 filter: 1,
             },

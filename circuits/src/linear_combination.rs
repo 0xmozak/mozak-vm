@@ -196,7 +196,9 @@ impl<F: Field> Column<F> {
                 .into_iter()
                 .enumerate()
                 .flat_map(|(i, column)| {
-                    let base = F::from_canonical_usize(alpha.pow(i as u32));
+                    let base = F::from_canonical_usize(
+                        alpha.pow(u32::try_from(i).expect("casting value to u32 should succeed")),
+                    );
                     column
                         .linear_combination
                         .into_iter()
