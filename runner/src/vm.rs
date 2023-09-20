@@ -153,7 +153,7 @@ impl State {
             Op::BEQ | Op::BNE | Op::BLT | Op::BLTU | Op::BGE | Op::BGEU
         ) {
             rs2_raw
-        } else if matches!(inst.op, Op::SRL | Op::SLL) {
+        } else if matches!(inst.op, Op::SRL | Op::SLL | Op::SRA) {
             1u32 << (rs2_raw.wrapping_add(inst.args.imm) & 0b1_1111)
         } else {
             rs2_raw.wrapping_add(inst.args.imm)

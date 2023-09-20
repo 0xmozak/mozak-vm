@@ -1,8 +1,8 @@
 //! This module implements constraints for shift operations, including
-//! SRL and SLL instructions.
+//! SRL,SRA and SLL instructions.
 //!
 //! Here, SLL stands for 'shift left logical'.  We can treat it as a variant of
-//! unsigned multiplication. Same for SRL, but with division.
+//! unsigned multiplication. Same for SRL and SRA, but with division.
 
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
@@ -15,7 +15,7 @@ pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_shift = lv.inst.ops.sll + lv.inst.ops.srl;
+    let is_shift = lv.inst.ops.sll + lv.inst.ops.srl + lv.inst.ops.sra;
     // Check: multiplier is assigned as `2^(rs2 value & 0b1_111)`.
     // We only take lowest 5 bits of the rs2 for the shift amount.
     // This is following the RISC-V specification.
@@ -122,9 +122,46 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
         Ok(())
     }
+    fn prove_sra<Stark: ProveAndVerify>(
+        p: u32,
+        q: u32,
+        rs1: u8,
+        rs2: u8,
+        rd: u8,
+    ) -> Result<(), TestCaseError> {
+        prop_assume!(rs1 != rs2);
+        prop_assume!(rs1 != rd);
+        prop_assume!(rs2 != rd);
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::SRA,
+                    args: Args {
+                        rd,
+                        rs1,
+                        rs2,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::SRA,
+                    args: Args {
+                        rd,
+                        rs1,
+                        imm: q,
+                        ..Args::default()
+                    },
+                },
+            ],
+            &[],
+            &[(rs1, p), (rs2, q)],
+        );
+        Stark::prove_and_verify(&program, &record).unwrap();
+        Ok(())
+    }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(4))]
+        #![proptest_config(ProptestConfig::with_cases(100))]
         #[test]
         fn prove_sll_cpu(p in u32_extra(), q in u32_extra(), rs1 in reg(), rs2 in reg(), rd in reg()) {
             prove_sll::<CpuStark<F, D>>(p, q, rs1, rs2, rd)?;
@@ -132,6 +169,10 @@ mod tests {
         #[test]
         fn prove_srl_cpu(p in u32_extra(), q in u32_extra(), rs1 in reg(), rs2 in reg(), rd in reg()) {
             prove_srl::<CpuStark<F, D>>(p, q, rs1, rs2, rd)?;
+        }
+        #[test]
+        fn prove_sra_cpu(p in u32_extra(), q in u32_extra(), rs1 in reg(), rs2 in reg(), rd in reg()) {
+            prove_sra::<CpuStark<F, D>>(p, q, rs1, rs2, rd)?;
         }
     }
 
@@ -144,6 +185,10 @@ mod tests {
         #[test]
         fn prove_srl_mozak(p in u32_extra(), q in u32_extra(), rs1 in reg(), rs2 in reg(), rd in reg()) {
             prove_srl::<MozakStark<F, D>>(p, q, rs1, rs2, rd)?;
+        }
+        #[test]
+        fn prove_sra_mozak(p in u32_extra(), q in u32_extra(), rs1 in reg(), rs2 in reg(), rd in reg()) {
+            prove_sra::<MozakStark<F, D>>(p, q, rs1, rs2, rd)?;
         }
     }
 }

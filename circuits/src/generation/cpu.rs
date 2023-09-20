@@ -77,7 +77,7 @@ pub fn generate_cpu_trace<F: RichField>(
 
         generate_shift_row(&mut row, aux);
         generate_mul_row(&mut row, aux);
-        generate_div_row(&mut row, aux);
+        generate_div_row(&mut row, &inst, aux);
         generate_sign_handling(&mut row, aux);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
@@ -176,7 +176,7 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
 #[allow(clippy::cast_lossless)]
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_sign_loss)]
-fn generate_div_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
+fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
     let dividend_full_range = compute_full_range(row.inst.is_op1_signed.is_nonzero(), aux.op1);
     let divisor_full_range = compute_full_range(row.inst.is_op2_signed.is_nonzero(), aux.op2);
 
@@ -192,7 +192,11 @@ fn generate_div_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
         row.remainder_sign = F::from_bool(dividend_full_range.is_negative());
         row.skip_check_quotient_sign = F::ONE;
     } else {
-        let quotient_full_range = dividend_full_range / divisor_full_range;
+        let quotient_full_range = if matches!(inst.op, Op::SRA) {
+            dividend_full_range.div_euclid(divisor_full_range)
+        } else {
+            dividend_full_range / divisor_full_range
+        };
         row.quotient_value = from_u32(quotient_full_range as u32);
         row.quotient_sign = F::from_bool(quotient_full_range.is_negative());
         row.skip_check_quotient_sign = F::from_bool(quotient_full_range == 0);
@@ -202,7 +206,7 @@ fn generate_div_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
             row.skip_check_quotient_sign = F::ONE;
             row.quotient_sign = F::ONE;
         }
-        let remainder = dividend_full_range % divisor_full_range;
+        let remainder = dividend_full_range - quotient_full_range * divisor_full_range;
         let remainder_abs = remainder.unsigned_abs();
         row.remainder_value = from_u32(remainder as u32);
         row.remainder_slack =
@@ -229,11 +233,11 @@ fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
 fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {
     let a = match inst.op {
         Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
-        Op::SRL | Op::SLL => 0b1_1111,
+        Op::SRL | Op::SLL | Op::SRA => 0b1_1111,
         _ => 0,
     };
     let b = match inst.op {
-        Op::AND | Op::OR | Op::XOR | Op::SRL | Op::SLL => state
+        Op::AND | Op::OR | Op::XOR | Op::SRL | Op::SLL | Op::SRA => state
             .get_register_value(inst.args.rs2)
             .wrapping_add(inst.args.imm),
         _ => 0,
