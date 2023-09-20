@@ -6,6 +6,8 @@ use log::trace;
 
 use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction};
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
 
 /// State of our VM
 ///
@@ -38,6 +40,7 @@ pub struct State {
 }
 
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct IoTape(pub Rc<[u8]>);
 
 impl std::ops::Deref for IoTape {
