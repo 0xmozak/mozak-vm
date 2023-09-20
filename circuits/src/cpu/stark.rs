@@ -80,6 +80,8 @@ fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
 
 /// Ensure an expression only takes on values 0 or 1.
 /// Doubles the degree of the provided expression `x`.
+/// So as long as we are targeting degree <= 3,
+/// you should only call this with at most linear expressions.
 pub fn is_binary<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
     yield_constr.constraint(x * (P::ONES - x));
 }
