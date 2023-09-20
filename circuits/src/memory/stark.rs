@@ -12,6 +12,7 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 use crate::cpu::stark::is_binary;
 use crate::memory::columns::{Memory, NUM_MEM_COLS};
 use crate::memory::trace::OPCODE_SB;
+use crate::stark::utils::{are_equal, is_not};
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -34,50 +35,156 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv: &Memory<P> = vars.local_values.borrow();
         let nv: &Memory<P> = vars.next_values.borrow();
 
-        // Both `new_addr` values are 1 if the address changed, 0 otherwise
-        let local_new_addr = lv.diff_addr * lv.diff_addr_inv;
-        let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
+        // Boolean variables describing whether the current row and
+        // next row has a change of address when compared to the
+        // previous entry in the table. This works on the assumption
+        // that any change in addr will have non-zero `diff_addr` and
+        // consequently `diff_addr_inv` values. Any non-zero values for
+        // `diff_addr` will lead "correct" `diff_addr_inv` to be multiplicative
+        // inverse in the field leading multiplied value `1`. In case there is
+        // no change in addr, `diff_addr` (and consequently `diff_addr_inv`)
+        // remain `0` when multiplied to each other give `0`.
+        let (is_local_a_new_addr, is_next_a_new_addr) = (
+            lv.diff_addr * lv.diff_addr_inv, // constrained below
+            nv.diff_addr * nv.diff_addr_inv, // constrained below
+        );
 
-        // For the initial state of memory access, we request:
-        // 1. First opcode is `sb`
-        // 2. `diff_addr` is initiated as `addr - 0`
-        // 3. `addr` != 0
-        // 4. `diff_clk` is initiated as `0`
-        yield_constr.constraint_first_row(lv.op - FE::from_canonical_usize(OPCODE_SB));
-        yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
-        yield_constr.constraint_first_row(lv.diff_clk);
+        println!("value of local new addr: {:?}", lv);
 
-        // Consequently, we constrain:
-
+        // Boolean constraints
+        // -------------------
+        // Constrain certain columns of the memory table to be only
+        // exercising boolean values.
         is_binary(yield_constr, lv.is_executed);
-        // We only have two different ops at the moment, so we use a binary variable to
-        // represent them:
-        is_binary(yield_constr, lv.op);
+        is_binary(yield_constr, lv.is_writable);
+        is_binary(yield_constr, lv.is_init);
 
-        // Check: if address for next instruction changed, then opcode was `sb`
-        yield_constr.constraint(local_new_addr * (lv.op - FE::from_canonical_usize(OPCODE_SB)));
+        is_binary(yield_constr, is_local_a_new_addr);
+        // is_binary(yield_constr, is_next_a_new_addr);
 
-        // Check: if next address did not change, diff_clk_next is `clk` difference
-        yield_constr
-            .constraint_transition((nv.diff_clk - nv.clk + lv.clk) * (next_new_addr - P::ONES));
+        // // Difference value constraints
+        // // ----------------------------
+        // // If address hasn't changed between rows, both `diff_addr` and
+        // // `diff_addr_inv` needs to be zero
+        // yield_constr.constraint(
+        //     is_not(is_local_a_new_addr) // selector
+        //     * lv.diff_addr, // should be zero if selector == true
+        // );
+        // yield_constr.constraint(
+        //     is_not(is_local_a_new_addr) // selector
+        //     * lv.diff_addr_inv, // should be zero if selector == true
+        // );
 
-        // Check: if address changed, then clock did not change
-        yield_constr.constraint(local_new_addr * lv.diff_clk);
+        // // First row constraints
+        // // ---------------------
+        // // When starting off, the first `addr` we encounter is supposed to be
+        // // relatively away from `0` by `diff_addr`, consequently `addr` and
+        // // `diff_addr` are same for the first row. As a matter of preference,
+        // // we can have any `clk` in the first row, but `diff_clk` is `0`.
+        // // This is because when `addr` changes, `diff_clk` is expected to be `0`.
+        // yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
+        // yield_constr.constraint_first_row(lv.diff_clk);
 
-        // Check: `diff_addr_next` is  `addr_next - addr_cur`
-        yield_constr.constraint_transition(nv.diff_addr - nv.addr + lv.addr);
+        // // Ascending ordered, contigous "address" view constraint
+        // // ------------------------------------------------------
+        // // All memory init / accesses for a given `addr` is described via contigous
+        // // rows. This is constrained by range-check on `diff_addr` which in 32-bit
+        // // RISC can only assume values 0 till 2^32-1. If similar range-checking
+        // // constraint is put on `addr` as well, the only possibility of
+        // // non-contigous address view occurs when the prime order of field in
+        // // question is of size less than 2*(2^32 - 1). Both `.addr` and `.diff_addr`
+        // // is constrained in `pub fn rangecheck_looking<F: Field>()` subsequently.
 
-        // Check: either the next operation is a store or the `value` stays the same.
-        yield_constr
-            .constraint((nv.op - FE::from_canonical_usize(OPCODE_SB)) * (nv.value - lv.value));
+        // // Memory initialization Constraints
+        // // ---------------------------------
+        // // Memory table is assumed to be ordered by `addr` in asc order.
+        // // such that whenever we describe an memory init / access
+        // // pattern of an "address", a correct table gurantees the following:
+        // //    All rows for a specific `addr` start with either a memory init (via static
+        // //    ELF) with `is_init` flag set (case for ro or rw static memory) or `SB`
+        // //    (case for heap / other dynamic addresses). It is assumed that static
+        // //    memory init operation happens before any execution has started and
+        // //    consequently `clk` should be `0` for such entries.
+        // // NOTE: We rely on 'Ascending ordered, contigous "address" view constraint'
+        // // since if that is broken, for same address different contigous blocks could
+        // // present case for being derived from static ELF and dynamic (execution) at
+        // // the same time.
 
-        // Check: either `diff_addr_inv` is inverse of `diff_addr`, or they both are 0.
-        yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr);
-        yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr_inv);
+        // // Ensure all `is_init` entries are only when `is_executed` is `1`.
+        // // If `is_init` == `1` and `is_executed` == `0`, the following is
+        // // not binary.
+        // is_binary(yield_constr, lv.is_executed - lv.is_init);
 
-        // Once we have padding, all subsequent rows are padding; ie not
-        // `is_executed`.
-        yield_constr.constraint_transition((lv.is_executed - nv.is_executed) * nv.is_executed);
+        // // If the `addr` talks about an address coming from a static address-space
+        // // i.e. ELF itself, it has first row as `is_init` and the `clk` would be `0`.
+        // yield_constr.constraint(
+        //     is_local_a_new_addr * lv.is_init    // selector
+        //     * lv.clk, // constrain clk to be `0` if selector == true
+        // );
+
+        // // If instead, the `addr` talks about an address not coming from static ELF,
+        // // it needs to begin with a `SB` (store) operation before any further access
+        // yield_constr.constraint(
+        //     is_local_a_new_addr * is_not(lv.is_init)                            // selector
+        //     * are_equal(lv.op, FE::from_canonical_usize(OPCODE_SB)), /* constrain `SB` as
+        //                                                               * operation if selector ==
+        //                                                               * true */
+        // );
+
+        // // However, `SB` based initialization can not occur on read-only marked memory
+        // // We are assuming no other store operations exist (half word or full word)
+        // yield_constr.constraint(
+        //     is_local_a_new_addr
+        //         * is_not(lv.is_writable)
+        //         * is_not(are_equal(lv.op, FE::from_canonical_usize(OPCODE_SB))),
+        // );
+
+        // // Operation constraints
+        // // ---------------------
+        // // Currently we only support `SB` and `LB` operations (no half-word or full-word
+        // // load and store). These are represented in `op` as either `0` or `1`. We
+        // // constrain them here
+        // is_binary(yield_constr, lv.op);
+
+        // // No `SB` operation can be seen if memory address is not marked `writable`
+        // yield_constr.constraint(
+        //     is_not(lv.is_writable)                                                  // selector
+        //     * is_not(are_equal(lv.op, FE::from_canonical_usize(OPCODE_SB)))    // should be zero i.e. lv.op != OPCODE_SB if selector == true
+        // );
+
+        // // Only if `SB` operation is seen, value can change between rows
+        // yield_constr.constraint(
+        //     are_equal(nv.op, FE::from_canonical_usize(OPCODE_SB)) * are_equal(nv.value, lv.value),
+        // );
+
+        // // Clock constraints
+        // // -----------------
+        // // `diff_clk` assumes the value "new row's `clk`" - "current row's `clk`" in
+        // // case both new row and current row talk about the same addr. However,
+        // // in case the "new row" describes an `addr` different from the current
+        // // row, we expect `diff_clk` to be `0`. New row's clk remains
+        // // unconstrained in such situation.
+        // yield_constr.constraint_transition(
+        //     is_not(is_next_a_new_addr)              // selector
+        //     * are_equal(nv.diff_clk, nv.clk - lv.clk), /* `diff_clk` matches difference if
+        //                                                 * selector == true */
+        // );
+        // yield_constr.constraint_transition(
+        //     is_local_a_new_addr         // selector
+        //     * lv.diff_clk, // `diff_clk` is `0` in case a selector == true
+        // );
+
+        // // Address constraints
+        // // -------------------
+        // // We need to ensure that `diff_addr` always encapsulates difference in addr
+        // // between two rows
+        // yield_constr.constraint_transition(are_equal(nv.addr, lv.addr + nv.diff_addr));
+
+        // // Padding constraints
+        // // -------------------
+        // // Once we have padding, all subsequent rows are padding; ie not
+        // // `is_executed`.
+        // yield_constr.constraint_transition((lv.is_executed - nv.is_executed) * nv.is_executed);
     }
 
     fn constraint_degree(&self) -> usize { 3 }

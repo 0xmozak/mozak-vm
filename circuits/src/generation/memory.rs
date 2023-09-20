@@ -111,6 +111,7 @@ pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row])
     for mem in &mut merged_trace {
         mem.diff_addr = mem.addr - last_addr;
         mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
+        println!("multiplication of {:?}, {:?} = {:?}", mem.diff_addr, mem.diff_addr_inv, mem.diff_addr * mem.diff_addr_inv);
         if mem.addr == last_addr {
             mem.diff_clk = mem.clk - last_clk;
         }
