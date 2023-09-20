@@ -47,3 +47,35 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterInitS
 
     fn constraint_degree(&self) -> usize { 3 }
 }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use mozak_runner::elf::Program;
+    use mozak_runner::vm::ExecutionRecord;
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use starky::stark_testing::test_stark_low_degree;
+
+    use super::*;
+    use crate::test_utils::ProveAndVerify;
+
+    const D: usize = 2;
+    type C = PoseidonGoldilocksConfig;
+    type F = <C as GenericConfig<D>>::F;
+    type S = RegisterInitStark<F, D>;
+
+    #[test]
+    fn test_degree() -> Result<()> {
+        let stark = S::default();
+        test_stark_low_degree(stark)
+    }
+
+    #[test]
+    fn prove_reg_init() -> Result<()> {
+        let program = Program::default();
+        let executed = ExecutionRecord::default();
+
+        RegisterInitStark::prove_and_verify(&program, &executed)?;
+        Ok(())
+    }
+}
