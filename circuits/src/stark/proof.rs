@@ -7,7 +7,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::GenericConfig;
-use plonky2_maybe_rayon::{MaybeParIter, ParallelIterator};
+use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 

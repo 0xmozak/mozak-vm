@@ -15,7 +15,7 @@ use plonky2::plonk::config::{GenericConfig, Hasher};
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
-use plonky2_maybe_rayon::{MaybeIntoParIter, ParallelIterator};
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
