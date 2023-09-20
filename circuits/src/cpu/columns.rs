@@ -4,7 +4,6 @@ use plonky2::field::types::Field;
 use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
-use crate::generation::instruction::ascending_sum;
 use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::{CpuTable, Table};
 use crate::xor::columns::XorView;
@@ -276,12 +275,12 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(inst.pc),
         Column::shift_combination(
-            [
-                ascending_sum(inst.ops),
-                ascending_sum(inst.rs1_select),
-                ascending_sum(inst.rs2_select),
-                ascending_sum(inst.rd_select),
-                inst.imm_value,
+            vec![
+                Column::ascending_sum(inst.ops),
+                Column::ascending_sum(inst.rs1_select),
+                Column::ascending_sum(inst.rs2_select),
+                Column::ascending_sum(inst.rd_select),
+                Column::single(inst.imm_value),
             ],
             5,
         ),

@@ -190,17 +190,20 @@ impl<F: Field> Column<F> {
     }
 
     #[must_use]
-    pub fn shift_combination<I: IntoIterator<Item = impl Borrow<usize>>>(
-        cs: I,
-        shift_amount: usize,
-    ) -> Self {
-        Column {
-            linear_combination: cs
-                .into_iter()
-                .enumerate()
-                .map(|(i, c)| (*c.borrow(), F::from_canonical_usize(1 << shift_amount * i)))
-                .collect(),
-            constant: F::ZERO,
+    pub fn shift_combination(columns: Vec<Self>, shift: usize) -> Self {
+        let mut linear_combination = Vec::new();
+        let mut constant = F::ZERO;
+
+        for (i, column) in columns.into_iter().enumerate() {
+            let shift_value = F::from_canonical_usize(1 << (i * shift));
+            for (idx, value) in column.linear_combination.into_iter() {
+                linear_combination.push((idx, value * shift_value));
+            }
+        }
+
+        Self {
+            linear_combination,
+            constant,
         }
     }
 
