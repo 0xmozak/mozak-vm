@@ -109,6 +109,7 @@ impl State {
                 )
             }
             ecall::IO_READ => {
+                // TODO: Support more than IO_READ calls.
                 let pointer = self.get_register_value(REG_A1);
                 let num_bytes = self.get_register_value(REG_A2);
                 let memory_address = self.load_u32(pointer);
