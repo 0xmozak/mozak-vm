@@ -103,6 +103,7 @@ pub fn prove_transition_function(
 }
 
 /// Function that verifies the proof of a transition function.
+#[allow(dead_code)] // TODO - remove
 pub fn verify_transition_function_proof(proof: TransitionProof) -> Result<(), Error> {
     let stark = S::default();
 
@@ -122,6 +123,7 @@ pub fn batch_transition_proofs(
 }
 
 /// Function that verifies the proof of a batched transition.
+#[allow(dead_code)] // TODO - remove
 pub fn verify_batched_transition_proof(proof: BatchedTransitionProof) -> Result<(), Error> {
     let stark = S::default();
 
