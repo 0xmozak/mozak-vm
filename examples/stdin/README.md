@@ -7,8 +7,8 @@ cargo +nightly build --release --bin stdin
 
 To run on your system, use the following (kindly change target triple as per your machine's architecture):
 ```sh
-# from root
-cd examples && cargo +nightly run --target x86_64-unknown-linux-gnu --release --bin stdin-native --features="native"`
+# from project root
+cd examples && cargo +nightly run --target x86_64-unknown-linux-gnu --release --bin stdin-native --features="native"
 ```
 
 You will have to type some input to be captured on the IO tape.
