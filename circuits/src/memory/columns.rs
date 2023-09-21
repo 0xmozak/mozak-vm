@@ -19,17 +19,9 @@ pub struct Memory<T> {
     /// Operations (one-hot encoded)
     /// One of `is_sb`, `is_lbu` or `is_init`(static meminit from ELF) == 1.
     /// If none are `1`, it is a padding row
-    pub is_sb: T,
-
-    /// Operations (one-hot encoded)
-    /// One of `is_sb`, `is_lbu` or `is_init`(static meminit from ELF) == 1.
-    /// If none are `1`, it is a padding row
-    pub is_lbu: T,
-
-    /// Operations (one-hot encoded)
-    /// One of `is_sb`, `is_lbu` or `is_init`(static meminit from ELF) == 1.
-    /// If none are `1`, it is a padding row
-    pub is_init: T,
+    pub is_sb: T, // RISC-V Operation: SB
+    pub is_lbu: T,  // RISC-V Operation: LBU
+    pub is_init: T, // Memory Initialisation from ELF (prior to vm execution)
 
     /// Value of memory access.
     pub value: T,
