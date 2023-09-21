@@ -194,14 +194,12 @@ mod tests {
         let program = Program {
             ro_memory: Data(
                 [(100, 5), (101, 6)]
-                    .iter()
-                    .cloned()
+                    .into_iter()
                     .collect::<HashMap<u32, u8>>(),
             ),
             rw_memory: Data(
                 [(200, 7), (201, 8)]
-                    .iter()
-                    .cloned()
+                    .into_iter()
                     .collect::<HashMap<u32, u8>>(),
             ),
             ..Program::default()
