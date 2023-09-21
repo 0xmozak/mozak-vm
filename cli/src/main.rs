@@ -95,16 +95,19 @@ fn build_info() {
     println!("{}", build::GIT_STATUS_FILE);
 }
 
-fn load_program(mut elf: Input, io_tape: Option<Input>) -> Result<Program> {
+fn load_tape(mut io_tape: impl Read) -> Result<Vec<u8>> {
+    let mut io_tape_bytes = Vec::new();
+    let bytes_read = io_tape.read_to_end(&mut io_tape_bytes)?;
+    debug!("Read {bytes_read} of io_tape data.");
+    Ok(io_tape_bytes)
+
+}
+
+fn load_program(mut elf: Input) -> Result<Program> {
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
-    let mut io_tape_bytes = Vec::new();
-    if let Some(mut io_tape) = io_tape {
-        let bytes_read = io_tape.read_to_end(&mut io_tape_bytes)?;
-        debug!("Read {bytes_read} of io_tape data.");
-    }
-    Program::load_elf(&elf_bytes, &io_tape_bytes)
+    Program::load_elf(&elf_bytes)
 }
 
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
@@ -120,18 +123,18 @@ fn main() -> Result<()> {
     } else {
         match cli.command {
             Command::Decode { elf } => {
-                let program = load_program(elf, None)?;
+                let program = load_program(elf)?;
                 debug!("{program:?}");
             }
             Command::Run { elf, io_tape } => {
-                let program = load_program(elf, Some(io_tape))?;
-                let state = State::from(&program);
+                let program = load_program(elf)?;
+                let state = State::new(program.clone(), &load_tape(io_tape)?);
                 let state = step(&program, state)?.last_state;
                 debug!("{:?}", state.registers);
             }
             Command::ProveAndVerify { elf, io_tape } => {
-                let program = load_program(elf, Some(io_tape))?;
-                let state = State::from(&program);
+                let program = load_program(elf)?;
+                let state = State::new(program.clone(), &load_tape(io_tape)?);
                 let record = step(&program, state)?;
                 MozakStark::prove_and_verify(&program, &record)?;
             }
@@ -140,8 +143,8 @@ fn main() -> Result<()> {
                 io_tape,
                 mut proof,
             } => {
-                let program = load_program(elf, Some(io_tape))?;
-                let state = State::from(&program);
+                let program = load_program(elf)?;
+                let state = State::new(program.clone(), &load_tape(io_tape)?);
                 let record = step(&program, state)?;
                 let stark = if cli.debug {
                     MozakStark::default_debug()
@@ -172,7 +175,7 @@ fn main() -> Result<()> {
                 debug!("proof verified successfully!");
             }
             Command::ProgramRomHash { elf } => {
-                let program = load_program(elf, None)?;
+                let program = load_program(elf)?;
                 let trace = generate_program_rom_trace(&program);
                 let trace_poly_values = trace_rows_to_poly_values(trace);
                 let rate_bits = config.fri_config.rate_bits;
@@ -189,7 +192,7 @@ fn main() -> Result<()> {
                 println!("{trace_cap:?}");
             }
             Command::MemoryInitHash { elf } => {
-                let program = load_program(elf, None)?;
+                let program = load_program(elf)?;
                 let trace = generate_memory_init_trace(&program);
                 let trace_poly_values = trace_rows_to_poly_values(trace);
                 let rate_bits = config.fri_config.rate_bits;

@@ -7,7 +7,7 @@ use mozak_runner::vm::step;
 
 pub(crate) fn bench_fibonacci() {
     let elf = std::fs::read("benches/fibonacci.elf").unwrap();
-    let program = Program::load_elf(&elf, &[]).unwrap();
+    let program = Program::load_elf(&elf).unwrap();
     let state = State::from(&program);
     let _state = step(&program, state).unwrap();
 }

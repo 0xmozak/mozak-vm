@@ -23,7 +23,7 @@ macro_rules! test_elf {
             let _ = env_logger::try_init();
             let elf_name = format!("tests/testdata/{}", $file_name);
             let elf = std::fs::read(elf_name)?;
-            let program = Program::load_elf(&elf, &[])?;
+            let program = Program::load_elf(&elf)?;
             let state = State::from(&program);
             let state = step(&program, state)?.last_state;
             // At the end of every test,
