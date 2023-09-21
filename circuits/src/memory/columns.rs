@@ -60,7 +60,14 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.value)] }
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
+    vec![
+        Column::single(MAP.clk),
+        // TODO(Supragya): Add CTL for Opcodes SB and LBU, requires memory table
+        // to have one-hot OP encoding
+        Column::single(MAP.value),
+    ]
+}
 
 /// Column for a binary filter to indicate a lookup from the CPU table into
 /// Memory stark table.
