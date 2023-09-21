@@ -7,13 +7,13 @@ version = "0.1.0"
 path = "../../guest"
 
 [features]
-x86 = []
+native = []
 
 [[bin]]
 name = "min-max"
 path = "main.rs"
 
 [[bin]]
-name = "min-max-x86"
-path = "main_x86.rs"
-required-features = ["x86"]
+name = "min-max-native"
+path = "main_native.rs"
+required-features = ["native"]

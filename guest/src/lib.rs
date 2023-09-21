@@ -1,4 +1,4 @@
-#![feature(restricted_std)]
+#![no_std]
 mod alloc;
 pub mod env;
 
@@ -49,3 +49,11 @@ _start:
 "#,
     sym STACK_TOP
 );
+
+#[cfg(all(not(feature = "std"), target_os = "zkvm"))]
+mod handlers {
+    use core::panic::PanicInfo;
+
+    #[panic_handler]
+    fn panic_fault(_panic_info: &PanicInfo) -> ! { unimplemented!() }
+}
