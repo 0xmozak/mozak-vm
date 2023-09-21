@@ -176,7 +176,7 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     let wrap_at = CpuState::<P>::shifted(32);
     let ops = &lv.inst.ops;
     let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bge;
-    let is_shift_operation = ops.sll + ops.srl;
+    let is_shift_operation = ops.sll + ops.srl + ops.sra;
 
     yield_constr.constraint(is_branch_operation * (lv.op2_value - lv.rs2_value()));
     yield_constr.constraint(is_shift_operation * (lv.op2_value - lv.bitshift.multiplier));
