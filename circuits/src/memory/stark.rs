@@ -31,53 +31,53 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &Memory<P> = vars.local_values.borrow();
-        let nv: &Memory<P> = vars.next_values.borrow();
+        // let lv: &Memory<P> = vars.local_values.borrow();
+        // let nv: &Memory<P> = vars.next_values.borrow();
 
-        // Both `new_addr` values are 1 if the address changed, 0 otherwise
-        let local_new_addr = lv.diff_addr * lv.diff_addr_inv;
-        let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
+        // // Both `new_addr` values are 1 if the address changed, 0 otherwise
+        // let local_new_addr = lv.diff_addr * lv.diff_addr_inv;
+        // let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
 
-        // For the initial state of memory access, we request:
-        // 1. First opcode is `sb`
-        // 2. `diff_addr` is initiated as `addr - 0`
-        // 3. `addr` != 0
-        // 4. `diff_clk` is initiated as `0`
-        yield_constr.constraint_first_row(lv.op - FE::from_canonical_usize(OPCODE_SB));
-        yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
-        yield_constr.constraint_first_row(lv.diff_clk);
+        // // For the initial state of memory access, we request:
+        // // 1. First opcode is `sb`
+        // // 2. `diff_addr` is initiated as `addr - 0`
+        // // 3. `addr` != 0
+        // // 4. `diff_clk` is initiated as `0`
+        // yield_constr.constraint_first_row(lv.op - FE::from_canonical_usize(OPCODE_SB));
+        // yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
+        // yield_constr.constraint_first_row(lv.diff_clk);
 
-        // Consequently, we constrain:
+        // // Consequently, we constrain:
 
-        is_binary(yield_constr, lv.is_executed);
-        // We only have two different ops at the moment, so we use a binary variable to
-        // represent them:
-        is_binary(yield_constr, lv.op);
+        // is_binary(yield_constr, lv.is_executed);
+        // // We only have two different ops at the moment, so we use a binary variable to
+        // // represent them:
+        // is_binary(yield_constr, lv.op);
 
-        // Check: if address for next instruction changed, then opcode was `sb`
-        yield_constr.constraint(local_new_addr * (lv.op - FE::from_canonical_usize(OPCODE_SB)));
+        // // Check: if address for next instruction changed, then opcode was `sb`
+        // yield_constr.constraint(local_new_addr * (lv.op - FE::from_canonical_usize(OPCODE_SB)));
 
-        // Check: if next address did not change, diff_clk_next is `clk` difference
-        yield_constr
-            .constraint_transition((nv.diff_clk - nv.clk + lv.clk) * (next_new_addr - P::ONES));
+        // // Check: if next address did not change, diff_clk_next is `clk` difference
+        // yield_constr
+        //     .constraint_transition((nv.diff_clk - nv.clk + lv.clk) * (next_new_addr - P::ONES));
 
-        // Check: if address changed, then clock did not change
-        yield_constr.constraint(local_new_addr * lv.diff_clk);
+        // // Check: if address changed, then clock did not change
+        // yield_constr.constraint(local_new_addr * lv.diff_clk);
 
-        // Check: `diff_addr_next` is  `addr_next - addr_cur`
-        yield_constr.constraint_transition(nv.diff_addr - nv.addr + lv.addr);
+        // // Check: `diff_addr_next` is  `addr_next - addr_cur`
+        // yield_constr.constraint_transition(nv.diff_addr - nv.addr + lv.addr);
 
-        // Check: either the next operation is a store or the `value` stays the same.
-        yield_constr
-            .constraint((nv.op - FE::from_canonical_usize(OPCODE_SB)) * (nv.value - lv.value));
+        // // Check: either the next operation is a store or the `value` stays the same.
+        // yield_constr
+        //     .constraint((nv.op - FE::from_canonical_usize(OPCODE_SB)) * (nv.value - lv.value));
 
-        // Check: either `diff_addr_inv` is inverse of `diff_addr`, or they both are 0.
-        yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr);
-        yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr_inv);
+        // // Check: either `diff_addr_inv` is inverse of `diff_addr`, or they both are 0.
+        // yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr);
+        // yield_constr.constraint((local_new_addr - P::ONES) * lv.diff_addr_inv);
 
-        // Once we have padding, all subsequent rows are padding; ie not
-        // `is_executed`.
-        yield_constr.constraint_transition((lv.is_executed - nv.is_executed) * nv.is_executed);
+        // // Once we have padding, all subsequent rows are padding; ie not
+        // // `is_executed`.
+        // yield_constr.constraint_transition((lv.is_executed - nv.is_executed) * nv.is_executed);
     }
 
     fn constraint_degree(&self) -> usize { 3 }

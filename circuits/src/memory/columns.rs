@@ -7,14 +7,8 @@ use crate::stark::mozak_stark::{MemoryTable, Table};
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Memory<T> {
-    /// Indicates if a row comes from VM execution, or whether it's padding.
-    pub is_executed: T,
-
     /// Indicates if a the memory address is writable.
     pub is_writable: T,
-
-    /// Indicates if a the memory address is initialized with this entry.
-    pub is_init: T,
 
     /// Memory address.
     pub addr: T,
@@ -22,8 +16,20 @@ pub struct Memory<T> {
     // Clock at memory access.
     pub clk: T,
 
-    /// Opcode of memory access.
-    pub op: T,
+    /// Operations (one-hot encoded)
+    /// One of `is_sb`, `is_lbu` or `is_init`(static meminit from ELF) == 1.
+    /// If none are `1`, it is a padding row
+    pub is_sb: T,
+
+    /// Operations (one-hot encoded)
+    /// One of `is_sb`, `is_lbu` or `is_init`(static meminit from ELF) == 1.
+    /// If none are `1`, it is a padding row
+    pub is_lbu: T,
+
+    /// Operations (one-hot encoded)
+    /// One of `is_sb`, `is_lbu` or `is_init`(static meminit from ELF) == 1.
+    /// If none are `1`, it is a padding row
+    pub is_init: T,
 
     /// Value of memory access.
     pub value: T,
@@ -48,11 +54,11 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     vec![
         MemoryTable::new(
             Column::singles([MAP.diff_addr]),
-            Column::single(MAP.is_executed),
+            Column::many([MAP.is_sb + MAP.is_lbu + MAP.is_init]),  // Condition for is_executed
         ),
         MemoryTable::new(
             Column::singles([MAP.diff_clk]),
-            Column::single(MAP.is_executed),
+            Column::many([MAP.is_sb + MAP.is_lbu + MAP.is_init]),  // Condition for is_executed
         ),
     ]
 }
@@ -72,4 +78,4 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 /// Column for a binary filter to indicate a lookup from the CPU table into
 /// Memory stark table.
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(MAP.is_executed) }
+pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::many([MAP.is_sb + MAP.is_lbu + MAP.is_init]) }
