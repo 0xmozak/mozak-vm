@@ -61,14 +61,12 @@ impl From<Program> for State {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
-            io_tape,
         }: Program,
     ) -> Self {
         Self {
             pc,
             rw_memory,
             ro_memory,
-            io_tape,
             ..Default::default()
         }
     }
@@ -92,6 +90,26 @@ pub struct Aux {
 }
 
 impl State {
+    #[must_use]
+    #[allow(clippy::similar_names)]
+    pub fn new(
+        Program {
+            ro_code: Code(_),
+            rw_memory: Data(rw_memory),
+            ro_memory: Data(ro_memory),
+            entry_point: pc,
+        }: Program,
+        io_tape: &[u8],
+    ) -> Self {
+        Self {
+            pc,
+            rw_memory,
+            ro_memory,
+            io_tape: IoTape(io_tape.into()),
+            ..Default::default()
+        }
+    }
+
     #[must_use]
     pub fn register_op<F>(self, data: &Args, op: F) -> (Aux, Self)
     where

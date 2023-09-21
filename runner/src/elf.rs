@@ -15,7 +15,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
 use crate::instruction::Instruction;
-use crate::state::IoTape;
 use crate::util::load_u32;
 
 /// A RISC program
@@ -35,9 +34,6 @@ pub struct Program {
 
     /// Executable code of the ELF, read only
     pub ro_code: Code,
-
-    /// I/O logs
-    pub io_tape: IoTape,
 }
 
 #[derive(Clone, Debug, Default, Deref)]
@@ -81,7 +77,6 @@ impl From<HashMap<u32, u8>> for Program {
             ro_code: Code::from(&image),
             ro_memory: Data::default(),
             rw_memory: Data(image),
-            io_tape: IoTape::default(),
         }
     }
 }
@@ -138,7 +133,7 @@ impl Program {
     // exercise the error handling?
     #[tarpaulin::skip]
     #[allow(clippy::similar_names)]
-    pub fn load_elf(input: &[u8], io_tape: &[u8]) -> Result<Program> {
+    pub fn load_elf(input: &[u8]) -> Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
         ensure!(elf.ehdr.class == Class::ELF32, "Not a 32-bit ELF");
         ensure!(
@@ -192,7 +187,6 @@ impl Program {
             ro_memory,
             rw_memory,
             ro_code,
-            io_tape: IoTape(io_tape.into()),
         })
     }
 }
