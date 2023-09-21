@@ -398,8 +398,8 @@ pub mod ctl_utils {
         Ok(())
     }
     pub fn debug_ctl<F: RichField + Extendable<D>, const D: usize>(
-        traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
-        mozak_stark: &MozakStark<F, D>,
+        _traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+        _mozak_stark: &MozakStark<F, D>,
     ) {
         // mozak_stark
         //     .cross_table_lookups
