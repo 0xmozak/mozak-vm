@@ -1,4 +1,7 @@
 #![no_std]
+
+extern crate alloc as rust_alloc;
+
 mod alloc;
 pub mod env;
 
@@ -52,8 +55,15 @@ _start:
 
 #[cfg(all(not(feature = "std"), target_os = "zkvm"))]
 mod handlers {
+    use core::arch::asm;
     use core::panic::PanicInfo;
 
     #[panic_handler]
-    fn panic_fault(_panic_info: &PanicInfo) -> ! { unimplemented!() }
+    fn panic_fault(panic_info: &PanicInfo) -> ! {
+        let msg = rust_alloc::format!("{}", panic_info);
+        unsafe {
+            asm!("ecall", in ("a0") 1, in ("a1") msg.len(), in ("a2") msg.as_ptr());
+        }
+        unreachable!();
+    }
 }
