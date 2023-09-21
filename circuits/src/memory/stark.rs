@@ -33,7 +33,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv: &Memory<P> = vars.local_values.borrow();
         let nv: &Memory<P> = vars.next_values.borrow();
 
-        // // Both `new_addr` values are 1 if the address changed, 0 otherwise
+        // Both `new_addr` values are 1 if the address changed, 0 otherwise
         let local_new_addr = lv.diff_addr * lv.diff_addr_inv;
         let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
         let local_is_executed = lv.is_sb + lv.is_lbu + lv.is_init;
@@ -55,7 +55,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // Check: if address for next instruction changed, then opcode was `sb`
         yield_constr.constraint(local_new_addr * (P::ONES - lv.is_sb));
 
-        // // Check: if next address did not change, diff_clk_next is `clk` difference
+        // Check: if next address did not change, diff_clk_next is `clk` difference
         yield_constr
             .constraint_transition((nv.diff_clk - nv.clk + lv.clk) * (next_new_addr - P::ONES));
 

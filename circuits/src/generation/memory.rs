@@ -49,8 +49,8 @@ pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row])
             is_writable: F::ONE,
             addr: mem_addr,
             clk: mem_clk,
-            is_sb: if inst.op == Op::SB { F::ONE } else { F::ZERO },
-            is_lbu: if inst.op == Op::LBU { F::ONE } else { F::ZERO },
+            is_sb: F::from_bool(matches!(inst.op, Op::SB)),
+            is_lbu: F::from_bool(matches!(inst.op, Op::LBU)),
             is_init: F::ZERO, // TODO(Supragya): To be populated when meminit entries are added
             value: F::from_canonical_u32(s.aux.dst_val),
             diff_addr: mem_diff_addr,
