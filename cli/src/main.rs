@@ -100,8 +100,8 @@ fn load_program(mut elf: Input, io_tape: Option<Input>) -> Result<Program> {
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
     let mut io_tape_bytes = Vec::new();
-    if io_tape.is_some() {
-        let bytes_read = io_tape.unwrap().read_to_end(&mut io_tape_bytes)?;
+    if let Some(mut io_tape) = io_tape {
+        let bytes_read = io_tape.read_to_end(&mut io_tape_bytes)?;
         debug!("Read {bytes_read} of io_tape data.");
     }
     Program::load_elf(&elf_bytes, &io_tape_bytes)
