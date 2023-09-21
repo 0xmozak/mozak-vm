@@ -145,7 +145,6 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let stark = S::default();
         let trace_poly_values =
             trace_rows_to_poly_values(generate_memory_trace(program, &record.executed));
-
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,

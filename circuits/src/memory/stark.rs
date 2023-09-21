@@ -40,16 +40,16 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let next_is_executed = nv.is_sb + nv.is_lbu + nv.is_init;
 
         // For the initial state of memory access, we request:
-        // 1. First opcode is `sb`
-        // 2. `diff_addr` is initiated as `addr - 0`
-        // 3. `addr` != 0
-        // 4. `diff_clk` is initiated as `0`
-        yield_constr.constraint_first_row(local_is_executed * (P::ONES - lv.is_sb));
+        // `diff_addr` is initiated as `addr - 0`
+        // `diff_clk` is initiated as `0`
         yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
         yield_constr.constraint_first_row(lv.diff_clk);
 
         // Consequently, we constrain:
 
+        is_binary(yield_constr, lv.is_sb);
+        is_binary(yield_constr, lv.is_lbu);
+        is_binary(yield_constr, lv.is_init);
         is_binary(yield_constr, local_is_executed);
 
         // Check: if address for next instruction changed, then opcode was `sb`

@@ -16,9 +16,9 @@ pub struct Memory<T> {
     // Clock at memory access.
     pub clk: T,
 
-    /// Operations (one-hot encoded)
-    /// One of `is_sb`, `is_lbu` or `is_init`(static meminit from ELF) == 1.
-    /// If none are `1`, it is a padding row
+    // Operations (one-hot encoded)
+    // One of `is_sb`, `is_lbu` or `is_init`(static meminit from ELF) == 1.
+    // If none are `1`, it is a padding row
     /// Binary filter column to represent a RISC-V SB operation.
     pub is_sb: T,
     /// Binary filter column to represent a RISC-V LBU operation.
