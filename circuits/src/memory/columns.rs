@@ -51,15 +51,11 @@ pub const NUM_MEM_COLS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
+    let mem = MAP.map(Column::from);
+    let is_executed = mem.is_sb + mem.is_lbu + mem.is_init;
     vec![
-        MemoryTable::new(
-            Column::singles([MAP.diff_addr]),
-            Column::many([MAP.is_sb + MAP.is_lbu + MAP.is_init]),  // Condition for is_executed
-        ),
-        MemoryTable::new(
-            Column::singles([MAP.diff_clk]),
-            Column::many([MAP.is_sb + MAP.is_lbu + MAP.is_init]),  // Condition for is_executed
-        ),
+        MemoryTable::new(Column::singles([MAP.diff_addr]), is_executed.clone()),
+        MemoryTable::new(Column::singles([MAP.diff_clk]), is_executed),
     ]
 }
 
@@ -78,4 +74,7 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 /// Column for a binary filter to indicate a lookup from the CPU table into
 /// Memory stark table.
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::many([MAP.is_sb + MAP.is_lbu + MAP.is_init]) }
+pub fn filter_for_cpu<F: Field>() -> Column<F> {
+    let mem = MAP.map(Column::from);
+    mem.is_sb + mem.is_lbu + mem.is_init
+}

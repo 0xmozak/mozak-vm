@@ -5,7 +5,7 @@ use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::memory::columns::Memory;
-use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk, get_memory_inst_op};
+use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk};
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
@@ -49,8 +49,8 @@ pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row])
             is_writable: F::ONE,
             addr: mem_addr,
             clk: mem_clk,
-            is_sb: if inst.op == Op::SB {F::ONE} else {F::ZERO},
-            is_lbu: if inst.op == Op::LBU {F::ONE} else {F::ZERO},
+            is_sb: if inst.op == Op::SB { F::ONE } else { F::ZERO },
+            is_lbu: if inst.op == Op::LBU { F::ONE } else { F::ZERO },
             is_init: F::ZERO, // TODO(Supragya): To be populated when meminit entries are added
             value: F::from_canonical_u32(s.aux.dst_val),
             diff_addr: mem_diff_addr,
