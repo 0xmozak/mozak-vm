@@ -100,7 +100,6 @@ fn load_tape(mut io_tape: impl Read) -> Result<Vec<u8>> {
     let bytes_read = io_tape.read_to_end(&mut io_tape_bytes)?;
     debug!("Read {bytes_read} of io_tape data.");
     Ok(io_tape_bytes)
-
 }
 
 fn load_program(mut elf: Input) -> Result<Program> {
