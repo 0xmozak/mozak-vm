@@ -236,7 +236,14 @@ pub fn filter_for_xor<F: Field>() -> Column<F> {
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_memory<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.cpu.dst_value)] }
+pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
+    vec![
+        Column::single(MAP.cpu.clk),
+        // TODO(Supragya): Add CTL for Opcodes SB and LBU, requires memory table
+        // to have one-hot OP encoding
+        Column::single(MAP.cpu.dst_value),
+    ]
+}
 
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
