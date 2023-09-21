@@ -3,7 +3,7 @@ use rand::prelude::Distribution;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
-use crate::space::object::Object;
+use crate::network::object::Object;
 use crate::Id;
 
 /// Message that contains all the information needed to verify a Program Storage
@@ -15,7 +15,7 @@ pub struct TransitionMessage {
     /// The transition that is being called
     pub target_transition_id: Id,
     /// The objects that are being read by the transition
-    pub read_objects: Vec<Id>,
+    pub read_objects_id: Vec<Id>,
     /// The objects that are being changed by the transition
     pub changed_objects: Vec<Object>,
     /// The inputs to the transition, represented as a serialised byte array
@@ -28,7 +28,7 @@ impl Distribution<TransitionMessage> for Standard {
         TransitionMessage {
             owner_program_id: rng.gen(),
             target_transition_id: rng.gen(),
-            read_objects: vec![rng.gen(); 10],
+            read_objects_id: vec![rng.gen(); 10],
             changed_objects: vec![],
             input: vec![],
         }
@@ -54,7 +54,10 @@ mod test {
         let deserialized_message: TransitionMessage =
             flexbuffers::from_slice(serialized_message).unwrap();
 
-        assert_eq!(message.read_objects, deserialized_message.read_objects);
+        assert_eq!(
+            message.read_objects_id,
+            deserialized_message.read_objects_id
+        );
         assert_eq!(
             message.changed_objects,
             deserialized_message.changed_objects

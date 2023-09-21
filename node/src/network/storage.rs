@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use crate::space::object::program::ProgramContent;
-use crate::space::object::Object::Program;
-use crate::space::object::{Object, TransitionFunction};
+use crate::network::object::program::ProgramContent;
+use crate::network::object::Object::Program;
+use crate::network::object::{Object, TransitionFunction};
 use crate::Id;
 
-/// Id-focused storage for the application space.
+/// Id-focused storage for the application network.
 pub struct ApplicationStorage {
     objects: HashMap<Id, Object>,
 }
@@ -58,22 +58,15 @@ impl ApplicationStorage {
 
 #[cfg(test)]
 mod test {
-    use std::assert_matches::assert_matches;
-
     use super::*;
-    use crate::space::object::data::DataContent;
-    use crate::space::object::ObjectContent;
+    use crate::network::object::data::DataContent;
+    use crate::network::object::ObjectContent;
 
     #[test]
     fn test_storage() {
         let mut storage = ApplicationStorage::initiate();
 
-        let owner = Id::default();
-
-        let (is_executable, owner_id, id_parameters, data) =
-            (false, Id::default(), Vec::<&[u8]>::new(), vec![
-                1, 2, 3, 4, 5,
-            ]);
+        let owner_id = Id::default();
 
         let object = DataContent::new(true, owner_id, vec![1u8]);
         let object_id = object.id();
@@ -83,8 +76,14 @@ mod test {
 
         let retrieved_object = storage.get_object(object_id).unwrap();
 
-        // Check that all object parameters are the same.
-        assert_matches!(retrieved_object, Object::Data(object));
+        match retrieved_object {
+            Program(_) => panic!("Expected a Data object"),
+            Object::Data(ret_object_content) =>
+                if object_id == ret_object_content.id() { // pass
+                } else {
+                    panic!("Expected the same object")
+                },
+        }
     }
 
     #[test]
@@ -100,13 +99,21 @@ mod test {
 
         storage.update_objects(vec![wrapped_object]);
 
-        let updated_object = object.transition(vec![2u8]);
+        let new_data = vec![2u8];
+        let updated_object = object.transition(new_data.clone());
         let wrapped_updated_object = Object::Data(updated_object);
 
         storage.update_objects(vec![wrapped_updated_object]);
 
         let retrieved_object = storage.get_object(object_id).unwrap();
 
-        assert_matches!(retrieved_object, Object::Data(updated_object));
+        match retrieved_object {
+            Program(_) => panic!("Expected a Data object"),
+            Object::Data(ret_object_content) =>
+                if object_id == ret_object_content.id() && new_data == ret_object_content.data { // pass
+                } else {
+                    panic!("Expected the same object")
+                },
+        }
     }
 }

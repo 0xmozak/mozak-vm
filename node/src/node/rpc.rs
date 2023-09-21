@@ -1,7 +1,6 @@
-use rand::prelude::Distribution;
 use rand::{Rng, RngCore, SeedableRng};
 
-use crate::rpc::message::TransitionMessage;
+use crate::node::message::TransitionMessage;
 
 /// The service that is responsible for handling the action messages received
 /// from the client.

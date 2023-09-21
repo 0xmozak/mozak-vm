@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use node::{
-    merge_transition_proofs, prove_transition_function, run_transition_function, ConsensusSystem,
-    DummyConsensusSystem, DummyRPC, Object, RPC,
+    batch_batched_transition_proof, batch_transition_proofs, prove_transition_function,
+    run_transition_function, ConsensusSystem, DummyConsensusSystem, DummyRPC, Object,
+    TransitionWithProof, RPC,
 };
 
 #[cfg(feature = "dummy-system")]
@@ -23,7 +24,7 @@ fn main() {
 
         // 2. Start a thread to work with the transaction
         // TODO - multithread it
-        let (updated_states, viewed_states, input, update_proof) = {
+        let transition_with_proof = {
             // 1. Get the Transition Function that will be validated from the Storage
             let program = latest_storage_state
                 .get_object(message.owner_program_id)
@@ -38,7 +39,7 @@ fn main() {
 
             // 2. Get actual objects from the Storage
             let read_objects: Vec<Object> = message
-                .read_objects
+                .read_objects_id
                 .iter()
                 .map(|id| latest_storage_state.get_object(*id).unwrap().clone())
                 .collect();
@@ -53,7 +54,7 @@ fn main() {
                         .clone()
                 })
                 .collect();
-            let changed_objects_after = message.changed_objects;
+            let changed_objects_after = &message.changed_objects;
 
             // 3. Check that the read object has not been proposed to change since the last
             //    state update. If it has, we then reject the transaction.
@@ -87,24 +88,21 @@ fn main() {
             )
             .unwrap();
 
-            (
-                read_objects,
-                changed_objects_after,
-                message.input,
-                transition_proof,
-            )
+            TransitionWithProof {
+                transition_id: message.target_transition_id,
+                read_objects_id: message.read_objects_id,
+                changed_objects: message.changed_objects,
+                proof: transition_proof,
+            }
         };
         // 6. Add states to the list of changed states, and their associated proofs
-        updated_states.iter().for_each(|object| {
-            object_updates.insert(object.id(), pending_transitions.len());
-        });
-        pending_transitions.push((
-            updated_states,
-            viewed_states,
-            input,
-            update_proof,
-            message.target_transition_id,
-        ));
+        transition_with_proof
+            .changed_objects
+            .iter()
+            .for_each(|object| {
+                object_updates.insert(object.id(), pending_transitions.len());
+            });
+        pending_transitions.push(transition_with_proof);
 
         // 3. Once in a while, collect the state updates and try to squash them. We can
         //    only squash state updates that don't conflict with each other (whose
@@ -118,15 +116,15 @@ fn main() {
             continue;
         }
 
-        let (merged_objects_updates, merged_public_input, merged_proof) =
-            merge_transition_proofs(&pending_transitions);
+        let batched_transition_proof = batch_transition_proofs(&pending_transitions);
+
+        let block_transition_proof =
+            batch_batched_transition_proof([batched_transition_proof].as_slice());
 
         // 4. We push the merged state updates to the consensus system
-        network
-            .push_state_updates(merged_objects_updates, merged_public_input, merged_proof)
-            .unwrap();
-        // 5. We update the state of the space with the merged state updates. All state
-        //    updates proofs must now be based on this state.
+        network.push_block_update(block_transition_proof).unwrap();
+        // 5. We update the state of the network with the merged state updates. All
+        //    state updates proofs must now be based on this state.
         latest_storage_state = network.fetch_last_settled_state();
     }
 }

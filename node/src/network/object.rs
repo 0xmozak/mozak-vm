@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 pub use mozak_runner::elf::Program as TransitionFunction;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use sha3::Digest;
 
 use crate::Id;
@@ -61,7 +61,7 @@ build_wrapper!(data::DataContent, Data);
 
 impl Eq for Object {}
 
-/// Our application space is a collection of objects of different types, which
+/// Our application network is a collection of objects of different types, which
 /// depends on the type of data that is stored in the object.
 pub(crate) trait ObjectContent: Debug + Clone {
     /// The unique id of the object, can be considered as an object address.
@@ -136,12 +136,11 @@ pub(crate) mod program {
         fn data(&self) -> Data {
             self.allowed_transitions
                 .iter()
-                .map(|(id, program)| {
+                .flat_map(|(id, program)| {
                     let mut bytes = transition_to_bytes(program);
                     bytes.extend_from_slice(id.as_slice());
                     bytes
                 })
-                .flatten()
                 .collect()
         }
     }
@@ -160,8 +159,7 @@ pub(crate) mod program {
                 owner_id.to_vec(),
                 allowed_transitions
                     .iter()
-                    .map(|it| transition_to_bytes(it))
-                    .flatten()
+                    .flat_map(transition_to_bytes)
                     .collect(),
             ]);
 
@@ -207,7 +205,7 @@ pub(crate) mod program {
 pub(crate) mod data {
     use serde::{Deserialize, Serialize};
 
-    use crate::space::object::{Data, ObjectContent};
+    use crate::network::object::{Data, ObjectContent};
     use crate::Id;
 
     /// A Data type of object.
@@ -258,7 +256,7 @@ pub(crate) mod data {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::space::object::data::DataContent;
+    use crate::network::object::data::DataContent;
 
     #[test]
     fn test_object_equality() {
@@ -294,7 +292,7 @@ mod test {
             Object::Program(program::ProgramContent::new(0, false, owner_id, vec![]));
 
         for wrapped_object in vec![wrapped_data_object, wrapped_program_object] {
-            let _res = match wrapped_object {
+            match wrapped_object {
                 Object::Data(_object) => (),
                 Object::Program(_object) => (),
             };

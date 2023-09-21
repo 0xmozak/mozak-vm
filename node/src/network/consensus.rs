@@ -1,8 +1,7 @@
 use thiserror::Error;
 
-use crate::proof::ProgramRunProof;
-use crate::space::object::Object;
-use crate::space::storage::ApplicationStorage;
+use crate::network::storage::ApplicationStorage;
+use crate::proof::{verify_block_transition_proof, BlockTransitionWithProof};
 
 pub trait ConsensusSystem {
     fn initiate() -> Self;
@@ -11,11 +10,9 @@ pub trait ConsensusSystem {
     /// `updated_blobs` and `read_blobs` are the public inputs to the STARK
     /// proof.
     /// TODO - use hashes of changed and read blobs to reduce the public inputs.
-    fn push_state_updates(
+    fn push_block_update(
         &mut self,
-        updated_blobs: Vec<Object>,
-        read_blobs: Vec<Object>,
-        proof: ProgramRunProof,
+        block_transition: BlockTransitionWithProof,
     ) -> Result<(), ConsensusError>;
 
     /// Fetches the latest state that we have reached consensus on
@@ -46,13 +43,18 @@ impl ConsensusSystem for DummyConsensusSystem {
         }
     }
 
-    fn push_state_updates(
+    /// Pushes a state update with proof to the consensus system.
+    /// For now, we will not verify the proof, but just update the state.
+    fn push_block_update(
         &mut self,
-        updated_blobs: Vec<Object>,
-        _read_blobs: Vec<Object>,
-        _proof: ProgramRunProof,
+        block_transition: BlockTransitionWithProof,
     ) -> Result<(), ConsensusError> {
-        self.storage.update_objects(updated_blobs);
+        let updated_objects = block_transition.changed_objects;
+
+        verify_block_transition_proof(block_transition.proof)
+            .map_err(|_| ConsensusError::IncorrectProof)?;
+
+        self.storage.update_objects(updated_objects);
 
         // TODO - check the update proof here
 

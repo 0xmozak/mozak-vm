@@ -1,20 +1,23 @@
 #![feature(assert_matches)]
 
 pub use id::Id;
-pub use proof::ProgramRunProof;
-pub use rpc::message::TransitionMessage;
-pub use rpc::rpc::{DummyRPC, RPC};
-pub use space::consensus::{ConsensusSystem, DummyConsensusSystem};
-pub use space::object::Object;
-pub use space::storage::ApplicationStorage;
-pub use vm::{merge_transition_proofs, prove_transition_function, run_transition_function};
+pub use network::consensus::{ConsensusSystem, DummyConsensusSystem};
+pub use network::object::Object;
+pub use network::storage::ApplicationStorage;
+pub use node::message::TransitionMessage;
+pub use node::rpc::{DummyRPC, RPC};
+pub use proof::{
+    batch_batched_transition_proof, batch_transition_proofs, prove_transition_function,
+    TransitionWithProof,
+};
+pub use vm::run_transition_function;
 
-/// Module that handles rpc interactions with the node.
-mod rpc;
+/// Module that handles node interactions with the node.
+mod node;
 
 mod id;
 
+/// Module that contains the network management logic.
+mod network;
 mod proof;
-/// Module that contains the space management logic.
-mod space;
 mod vm;
