@@ -8,7 +8,7 @@ use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::util::{log2_ceil, transpose};
-use plonky2_maybe_rayon::{IndexedParallelIterator, MaybeIntoParIter, ParallelIterator};
+use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
 use starky::stark::Stark;

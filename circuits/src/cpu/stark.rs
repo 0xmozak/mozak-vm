@@ -79,6 +79,9 @@ fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
 }
 
 /// Ensure an expression only takes on values 0 or 1.
+/// This doubles the degree of the provided expression `x`,
+/// so as long as we are targeting degree <= 3,
+/// this should only be called with at most linear expressions.
 pub fn is_binary<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
     yield_constr.constraint(x * (P::ONES - x));
 }
@@ -173,7 +176,7 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     let wrap_at = CpuState::<P>::shifted(32);
     let ops = &lv.inst.ops;
     let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bge;
-    let is_shift_operation = ops.sll + ops.srl;
+    let is_shift_operation = ops.sll + ops.srl + ops.sra;
 
     yield_constr.constraint(is_branch_operation * (lv.op2_value - lv.rs2_value()));
     yield_constr.constraint(is_shift_operation * (lv.op2_value - lv.bitshift.multiplier));
