@@ -17,5 +17,5 @@ Finally, you can use `mozak-cli` to run the example. Keep in mind that the built
 
 ```sh
 # from project root
-cargo run --bin mozak-cli run ./examples/target/riscv32im-mozak-zkvm-elf/release/stdin ./examples/iotape.txt 
+cargo run run ./examples/target/riscv32im-mozak-zkvm-elf/release/stdin ./examples/iotape.txt
 ```
