@@ -86,7 +86,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // non-contigous address view occurs when the prime order of field in
         // question is of size less than 2*(2^32 - 1).
 
-        // // Memory initialization Constraints
+        // Memory initialization Constraints
         // ---------------------------------
         // Memory table is assumed to be ordered by `addr` in asc order.
         // such that whenever we describe an memory init / access
