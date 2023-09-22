@@ -51,7 +51,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary(yield_constr, lv.is_executed());
 
         // Check: if address for next instruction changed, then opcode was `sb`
-        yield_constr.constraint(local_new_addr * (P::ONES - lv.is_sb));  // TODO(Supragya): To be changed when mem-init is added
+        yield_constr.constraint(local_new_addr * (P::ONES - lv.is_sb)); // TODO(Supragya): To be changed when mem-init is added
 
         // Check: if next address did not change, diff_clk_next is `clk` difference
         yield_constr
