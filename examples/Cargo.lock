@@ -107,6 +107,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "panic"
+version = "0.1.0"
+dependencies = [
+ "guest",
+]
+
+[[package]]
 name = "proc-macro-hack"
 version = "0.5.20+deprecated"
 source = "registry+https://github.com/rust-lang/crates.io-index"
