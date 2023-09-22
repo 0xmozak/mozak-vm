@@ -104,7 +104,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // All memory init happens prior to exec and the `clk` would be `0`.
         yield_constr.constraint(
             lv.is_init    // selector, selects for init rows
-                * lv.clk, // constrain clk to be `0` if selector, i.e. init row
+            * lv.clk, // constrain clk to be `0` if selector, i.e. init row
         );
 
         // If instead, the `addr` talks about an address not coming from static ELF,
@@ -143,7 +143,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         );
         yield_constr.constraint_transition(
             is_local_a_new_addr   // selector, selects for rows with new addr compared to last row
-                * lv.diff_clk, // `diff_clk` is `0` in case a selector is of change of addr
+            * lv.diff_clk, // `diff_clk` is `0` in case a selector is of change of addr
         );
 
         // Address constraints
