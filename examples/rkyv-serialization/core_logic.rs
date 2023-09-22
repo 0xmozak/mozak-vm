@@ -1,3 +1,7 @@
+extern crate alloc;
+use alloc::string::String;
+use alloc::vec::Vec;
+
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]

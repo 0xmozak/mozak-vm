@@ -1,7 +1,11 @@
 #![no_main]
-#![feature(restricted_std)]
+#![no_std]
 
+extern crate alloc;
 mod core_logic;
+
+use alloc::string::ToString;
+use alloc::vec;
 
 use rkyv::Deserialize;
 

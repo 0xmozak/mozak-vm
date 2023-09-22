@@ -1,5 +1,5 @@
 #![no_main]
-#![feature(restricted_std)]
+#![no_std]
 
 mod core_logic;
 

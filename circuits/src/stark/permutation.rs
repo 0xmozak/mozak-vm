@@ -16,7 +16,7 @@ use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::Hasher;
 use plonky2::plonk::plonk_common::reduce_with_powers;
 use plonky2::util::reducing::ReducingFactor;
-use plonky2_maybe_rayon::{MaybeIntoParIter, ParallelIterator};
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
 use starky::permutation::PermutationPair;
