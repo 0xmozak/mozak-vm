@@ -1,5 +1,7 @@
+extern crate alloc;
+
+use alloc::vec::Vec;
 use core::arch::asm;
-use std::vec::Vec;
 
 static mut OUTPUT_BYTES: Option<Vec<u8>> = None;
 

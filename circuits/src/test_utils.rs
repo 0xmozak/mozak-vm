@@ -53,6 +53,17 @@ pub fn standard_faster_config() -> StarkConfig {
     }
 }
 
+/// Prepares the table of a trace. Useful for trace generation tests.
+#[must_use]
+pub fn prep_table<F: RichField, T, const N: usize>(table: Vec<[u64; N]>) -> Vec<T>
+where
+    T: FromIterator<F>, {
+    table
+        .into_iter()
+        .map(|row| row.into_iter().map(F::from_canonical_u64).collect())
+        .collect()
+}
+
 pub trait ProveAndVerify {
     /// Prove and verify a [`Stark`].
     ///
