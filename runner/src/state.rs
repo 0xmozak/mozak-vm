@@ -34,19 +34,19 @@ pub struct State {
     pub ro_memory: HashMap<u32, u8>,
 }
 
-/// By default, all `State` start with clk `1`. This is to differentiate
-/// execution clocks (1 and above) from clk value of `0` which is
+/// By default, all `State` start with `clk` 1. This is to differentiate
+/// execution clocks (1 and above) from `clk` value of 0 which is
 /// reserved for any initialisation concerns. e.g. memory initialization
 /// prior to program execution, register initialization etc.
 impl Default for State {
     fn default() -> Self {
         Self {
             clk: 1,
-            halted: bool::default(),
-            registers: [0; 32],
-            pc: u32::default(),
-            rw_memory: HashMap::<u32, u8>::default(),
-            ro_memory: HashMap::<u32, u8>::default(),
+            halted: Default::default(),
+            registers: Default::default(),
+            pc: Default::default(),
+            rw_memory: HashMap::default(),
+            ro_memory: HashMap::default(),
         }
     }
 }
