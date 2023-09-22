@@ -94,8 +94,9 @@ impl State {
 
     #[must_use]
     /// # Panics
+    ///
     /// Panics on executing PANIC syscall and also if vector to string
-    /// converstaion fails.
+    /// conversion fails.
     pub fn ecall(self) -> (Aux, Self) {
         match self.get_register_value(REG_A0) {
             ecall::HALT => {
@@ -117,8 +118,8 @@ impl State {
                     msg_vec.push(self.load_u8(addr));
                 }
                 panic!(
-                    "VM panickec with msg: {}",
-                    from_utf8(&msg_vec).expect("Could not convert Vec<u8> to &str")
+                    "VM panicked with msg: {}",
+                    from_utf8(&msg_vec).expect("A valid utf8 VM panic message should be provided")
                 );
             }
             _ => (Aux::default(), self.bump_pc()),
