@@ -171,10 +171,24 @@ impl Program {
                 .try_collect()
         };
 
-        let ro_memory = Data(extract(|flags| {
-            (flags & elf::abi::PF_R == elf::abi::PF_R)
-                && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
-        })?);
+        // let ro_memory = Data(extract(|flags| {
+        //     (flags & elf::abi::PF_R == elf::abi::PF_R)
+        //         && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
+        // })?);
+
+        let ro_memory = Data(
+            {
+                let segment = elf.section_header_by_name(".rodata").unwrap().unwrap();
+                let mem_size: usize = segment.sh_size.try_into()?;
+                let vaddr: u32 = segment.sh_addr.try_into()?;
+                let offset  = segment.sh_offset.try_into()?;
+                (vaddr..).zip(
+                    input[offset..offset + mem_size]
+                        .iter()
+                        .copied(),
+                ).collect()
+            }
+        );
         let rw_memory = Data(extract(|flags| flags == elf::abi::PF_R | elf::abi::PF_W)?);
         // Because we are implementing a modified Harvard Architecture, we make an
         // independent copy of the executable segments. In practice,

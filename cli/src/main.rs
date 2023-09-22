@@ -111,6 +111,8 @@ fn main() -> Result<()> {
         match cli.command {
             Command::Decode { elf } => {
                 let program = load_program(elf)?;
+                // let rodata = program.ro_memory;
+                // debug!("{rodata:?}");
                 debug!("{program:?}");
             }
             Command::Run { elf } => {
