@@ -74,16 +74,9 @@ mod tests {
     use plonky2::hash::hash_types::RichField;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use crate::memory::columns::{self as mem_cols, Memory};
+    use crate::memory::columns::Memory;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::test_utils::inv;
-
-    fn prep_table<F: RichField>(table: Vec<[u64; mem_cols::NUM_MEM_COLS]>) -> Vec<Memory<F>> {
-        table
-            .into_iter()
-            .map(|row| row.into_iter().map(F::from_canonical_u64).collect())
-            .collect()
-    }
+    use crate::test_utils::{inv, prep_table};
 
     fn expected_trace<F: RichField>() -> Vec<Memory<F>> {
         let inv = inv::<F>;
