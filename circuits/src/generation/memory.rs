@@ -76,6 +76,7 @@ mod tests {
 
     use crate::memory::columns::Memory;
     use crate::memory::test_utils::memory_trace_test_case;
+    use crate::memory::trace::{OPCODE_LBU, OPCODE_SB};
     use crate::test_utils::{inv, prep_table};
 
     fn expected_trace<F: RichField>() -> Vec<Memory<F>> {
