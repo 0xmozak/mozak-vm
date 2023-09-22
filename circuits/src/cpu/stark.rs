@@ -262,8 +262,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         ecall::constraints(lv, nv, yield_constr);
         halted(lv, nv, yield_constr);
 
-        // Clock starts at 0
-        yield_constr.constraint_first_row(lv.clk);
+        // Clock starts at 1. This is to differentiate
+        // execution clocks (1 and above) from clk value of `0` which is
+        // reserved for any initialisation concerns. e.g. memory initialisation
+        // prior to program execution, register initialisation etc.
+        yield_constr.constraint_first_row(P::ONES - lv.clk);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
