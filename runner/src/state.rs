@@ -41,16 +41,24 @@ pub struct State {
 
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
-pub struct IoTape(pub Rc<[u8]>);
+pub struct IoTape {
+    pub data: Rc<[u8]>,
+    pub read_index: usize,
+}
 
 impl std::ops::Deref for IoTape {
     type Target = [u8];
 
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target { &self.data }
 }
 
 impl Default for IoTape {
-    fn default() -> Self { IoTape(vec![].into()) }
+    fn default() -> Self {
+        IoTape {
+            data: vec![].into(),
+            read_index: 0,
+        }
+    }
 }
 
 #[allow(clippy::similar_names)]
@@ -105,7 +113,10 @@ impl State {
             pc,
             rw_memory,
             ro_memory,
-            io_tape: IoTape(io_tape.into()),
+            io_tape: IoTape {
+                data: io_tape.into(),
+                read_index: 0,
+            },
             ..Default::default()
         }
     }
@@ -265,5 +276,17 @@ impl State {
         let inst = program.ro_code.get_instruction(pc);
         trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}");
         inst
+    }
+
+    #[must_use]
+    pub fn read_iobytes(mut self, num_bytes: usize) -> (Vec<u8>, Self) {
+        let read_index = self.io_tape.read_index;
+        let remaining_len = self.io_tape.len() - read_index;
+        let limit = num_bytes.min(remaining_len);
+        self.io_tape.read_index += limit;
+        (
+            self.io_tape.data[read_index..(read_index + limit)].to_vec(),
+            self,
+        )
     }
 }

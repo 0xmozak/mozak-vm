@@ -11,4 +11,10 @@ fn main() {
     let mut buffer = [0; 1];
     let n = mozak_io.read(&mut buffer).expect("READ failed");
     println!("The bytes: {:?}", &buffer[..n]);
+    let mut buffer = [0; 5];
+    let n = mozak_io.read(&mut buffer).expect("READ failed");
+    println!("The bytes: {:?}", &buffer[..n]);
+    let mut buffer = [0; 5];
+    let n = mozak_io.read(&mut buffer).expect("READ failed");
+    println!("The bytes: {:?}", &buffer[..n]);
 }

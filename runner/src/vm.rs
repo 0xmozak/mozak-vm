@@ -113,26 +113,26 @@ impl State {
                 )
             }
             ecall::IO_READ => {
-                // TODO: Support more than IO_READ calls.
                 let pointer = self.get_register_value(REG_A1);
                 let num_bytes_requsted = self.get_register_value(REG_A2);
                 let memory_address = self.load_u32(pointer);
-                let io_tape = self.io_tape.clone();
-                let io_tape_len = io_tape.len() as u32;
-                let limit = num_bytes_requsted.min(io_tape_len);
+                let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
                 (
                     Aux::default(),
-                    (0..limit)
-                        .map(|i| {
-                            (
-                                memory_address.wrapping_add(i),
-                                io_tape
-                                    .get(i as usize)
-                                    .expect("Can never fail as i < limit <= io_tape_len"),
+                    data.iter()
+                        .enumerate()
+                        .fold(updated_self, |acc, (i, byte)| {
+                            acc.store_u8(
+                                memory_address
+                                    .wrapping_add(u32::try_from(i).expect("cannot fit i into u32")),
+                                *byte,
                             )
+                            .unwrap()
                         })
-                        .fold(self, |acc, (i, byte)| acc.store_u8(i, *byte).unwrap())
-                        .set_register_value(REG_A0, limit as u32)
+                        .set_register_value(
+                            REG_A0,
+                            u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
+                        )
                         .bump_pc(),
                 )
             }
