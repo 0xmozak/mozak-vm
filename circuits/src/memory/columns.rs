@@ -1,3 +1,5 @@
+use core::ops::Add;
+
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
@@ -41,16 +43,22 @@ pub struct Memory<T> {
 columns_view_impl!(Memory);
 make_col_map!(Memory);
 
+impl<T: Clone + Add<Output = T>> Memory<T> {
+    pub fn is_executed(&self) -> T {
+        let s: Memory<T> = self.clone();
+        s.is_sb + s.is_lbu + s.is_init
+    }
+}
+
 /// Total number of columns.
 pub const NUM_MEM_COLS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let mem = MAP.map(Column::from);
-    let is_executed = mem.is_sb + mem.is_lbu + mem.is_init;
     vec![
-        MemoryTable::new(Column::singles([MAP.diff_addr]), is_executed.clone()),
-        MemoryTable::new(Column::singles([MAP.diff_clk]), is_executed),
+        MemoryTable::new(Column::singles([MAP.diff_addr]), mem.is_executed()),
+        MemoryTable::new(Column::singles([MAP.diff_clk]), mem.is_executed()),
     ]
 }
 

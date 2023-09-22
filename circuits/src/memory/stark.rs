@@ -36,8 +36,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // Both `new_addr` values are 1 if the address changed, 0 otherwise
         let local_new_addr = lv.diff_addr * lv.diff_addr_inv;
         let next_new_addr = nv.diff_addr * nv.diff_addr_inv;
-        let local_is_executed = lv.is_sb + lv.is_lbu + lv.is_init;
-        let next_is_executed = nv.is_sb + nv.is_lbu + nv.is_init;
 
         // For the initial state of memory access, we request:
         // `diff_addr` is initiated as `addr - 0`
@@ -50,7 +48,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary(yield_constr, lv.is_sb);
         is_binary(yield_constr, lv.is_lbu);
         is_binary(yield_constr, lv.is_init);
-        is_binary(yield_constr, local_is_executed);
+        is_binary(yield_constr, lv.is_executed());
 
         // Check: if address for next instruction changed, then opcode was `sb`
         yield_constr.constraint(local_new_addr * (P::ONES - lv.is_sb));
@@ -75,7 +73,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // Once we have padding, all subsequent rows are padding; ie not
         // `is_executed`.
         yield_constr
-            .constraint_transition((local_is_executed - next_is_executed) * next_is_executed);
+            .constraint_transition((lv.is_executed() - nv.is_executed()) * nv.is_executed());
     }
 
     fn constraint_degree(&self) -> usize { 3 }
