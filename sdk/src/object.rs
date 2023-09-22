@@ -9,11 +9,8 @@ pub struct Object {
     version: u64,
     /// Flag if the object is mutable or not
     mutable: bool,
-    /// Owner of the object. Only the owner can modify the object.
-    /// Owner can be account, another program, or the same as program field
+    /// Owner of the object. Only the owner program can modify the object.
     owner: PubKey,
-    /// Program where Object belongs to and modified through
-    program: PubKey,
     /// Data object is storing
     data: Vec<u8>,
 }
