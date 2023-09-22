@@ -50,7 +50,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // Boolean constraints
         // -------------------
         // Constrain certain columns of the memory table to be only
-        // exercising boolean values.
+        // boolean values.
         is_binary(yield_constr, lv.is_writable);
         is_binary(yield_constr, lv.is_sb);
         is_binary(yield_constr, lv.is_lbu);
@@ -62,10 +62,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint(lv.diff_addr * (P::ONES - is_local_a_new_addr));
         yield_constr.constraint(lv.diff_addr_inv * (P::ONES - is_local_a_new_addr));
 
-        // `is_next_a_new_addr` should be binary. To keep constraint degree <= 3,
-        // the following is used
-        yield_constr.constraint(nv.diff_addr * (P::ONES - is_next_a_new_addr));
-        yield_constr.constraint(nv.diff_addr_inv * (P::ONES - is_next_a_new_addr));
+        // `is_next_a_new_addr` should be binary. However under context where `nv` is
+        // `lv` a similar test runs as given above constraining it being a
+        // boolean. Hence, we do not explicitly check for `is_next_a_new_addr`
+        // to be boolean here.
 
         // First row constraints
         // ---------------------
@@ -81,14 +81,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // ------------------------------------------------------
         // All memory init / accesses for a given `addr` is described via contigous
         // rows. This is constrained by range-check on `diff_addr` which in 32-bit
-        // RISC can only assume values 0 till 2^32-1. If similar range-checking
+        // RISC can only assume values 0..1<<32. If similar range-checking
         // constraint is put on `addr` as well, the only possibility of
         // non-contigous address view occurs when the prime order of field in
         // question is of size less than 2*(2^32 - 1).
 
         // Memory initialization Constraints
         // ---------------------------------
-        // Memory table is assumed to be ordered by `addr` in asc order.
+        // The memory table is assumed to be ordered by `addr` in ascending order.
         // such that whenever we describe an memory init / access
         // pattern of an "address", a correct table gurantees the following:
         //    All rows for a specific `addr` start with either a memory init (via static
@@ -97,9 +97,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         //    memory init operation happens before any execution has started and
         //    consequently `clk` should be `0` for such entries.
         // NOTE: We rely on 'Ascending ordered, contigous "address" view constraint'
-        // since if that is broken, for same address different contigous blocks could
-        // present case for being derived from static ELF and dynamic (execution) at
-        // the same time.
+        // to provide us with a guarantee of single contigous block of rows per `addr`.
+        // If that gurantee does not exist, for some address `x`, different contigous
+        // blocks of rows in memory table can present case for them being derived from
+        // static ELF and dynamic (execution) at the same time or being writable as
+        // well as non-writable at the same time.
 
         // All memory init happens prior to exec and the `clk` would be `0`.
         yield_constr.constraint(
@@ -125,7 +127,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         // Only if `SB` operation is seen, value can change between rows
         yield_constr.constraint(
-            (P::ONES - nv.is_sb) // selector, selects for non-SB rows
+            (P::ONES - nv.is_sb) // selector, selects for non-SB rows, TODO(Supragya): account for mem-init rows
             * (nv.value - lv.value), // No value change if non-SB operation
         );
 
