@@ -1,3 +1,5 @@
+use std::str::from_utf8;
+
 use anyhow::Result;
 
 use crate::elf::Program;
@@ -95,6 +97,8 @@ impl State {
     ///
     /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
     /// bytes.
+    /// Panics on executing PANIC syscall and also if vector to string
+    /// conversion fails.
     pub fn ecall(self) -> (Aux, Self) {
         match self.get_register_value(REG_A0) {
             ecall::HALT => {
@@ -128,6 +132,18 @@ impl State {
                         .fold(self, |acc, (i, byte)| acc.store_u8(i, *byte).unwrap())
                         .bump_pc(),
                 )
+            }
+            ecall::PANIC => {
+                let msg_len = self.get_register_value(REG_A1);
+                let msg_ptr = self.get_register_value(REG_A2);
+                let mut msg_vec = vec![];
+                for addr in msg_ptr..(msg_ptr + msg_len) {
+                    msg_vec.push(self.load_u8(addr));
+                }
+                panic!(
+                    "VM panicked with msg: {}",
+                    from_utf8(&msg_vec).expect("A valid utf8 VM panic message should be provided")
+                );
             }
             _ => (Aux::default(), self.bump_pc()),
         }
