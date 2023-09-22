@@ -36,8 +36,8 @@ pub struct State {
 
 /// By default, all `State` start with clk `1`. This is to differentiate
 /// execution clocks (1 and above) from clk value of `0` which is
-/// reserved for any initialisation concerns. e.g. memory initialisation
-/// prior to program execution, register initialisation etc.
+/// reserved for any initialisation concerns. e.g. memory initialization
+/// prior to program execution, register initialization etc.
 impl Default for State {
     fn default() -> Self {
         Self {
