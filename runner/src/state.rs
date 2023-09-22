@@ -74,6 +74,7 @@ impl Default for State {
             pc: Default::default(),
             rw_memory: HashMap::default(),
             ro_memory: HashMap::default(),
+            io_tape: IoTape::default(),
         }
     }
 }
