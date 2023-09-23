@@ -281,6 +281,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
 
 #[cfg(test)]
 mod tests {
+    use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use crate::columns_view::selection;
@@ -358,58 +359,53 @@ mod tests {
         })
         .collect();
 
+        let reduce_with_powers = |values: Vec<u64>| {
+            values
+                .into_iter()
+                .enumerate()
+                .map(|(i, x)| (1 << (i * 5)) * x)
+                .sum::<u64>()
+        };
+
         let program_trace: Vec<ProgramRom<F>> = [
             ProgramRom {
                 inst: InstructionRow {
                     pc: 1,
-                    opcode: 3,
-                    rs1: 2,
-                    rs2: 1,
-                    rd: 1,
-                    imm: 3,
-                    ..Default::default()
+                    // opcode: 3,
+                    // is_op1_signed: 0,
+                    // is_op2_signed: 0,
+                    // rs1_select: 2,
+                    // rs2_select: 1,
+                    // rd_select: 1,
+                    // imm_value: 3,
+                    inst_data: reduce_with_powers(vec![3, 0, 0, 2, 1, 1, 3]),
                 },
                 filter: 1,
             },
             ProgramRom {
                 inst: InstructionRow {
                     pc: 2,
-                    opcode: 1,
-                    rs1: 3,
-                    rs2: 3,
-                    rd: 2,
-                    imm: 2,
-                    ..Default::default()
+                    inst_data: reduce_with_powers(vec![1, 0, 0, 3, 3, 2, 2]),
                 },
                 filter: 1,
             },
             ProgramRom {
                 inst: InstructionRow {
                     pc: 3,
-                    opcode: 2,
-                    rs1: 1,
-                    rs2: 2,
-                    rd: 3,
-                    imm: 1,
-                    ..Default::default()
+                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
                 },
                 filter: 1,
             },
             ProgramRom {
                 inst: InstructionRow {
                     pc: 1,
-                    opcode: 3,
-                    rs1: 3,
-                    rs2: 3,
-                    rd: 3,
-                    imm: 3,
-                    ..Default::default()
+                    inst_data: reduce_with_powers(vec![3, 0, 0, 3, 3, 3, 3]),
                 },
                 filter: 0,
             },
         ]
         .into_iter()
-        .map(|row| row.map(from_u32))
+        .map(|row| row.map(F::from_canonical_u64))
         .collect();
 
         let permuted = generate_permuted_inst_trace(&cpu_trace, &program_trace);
@@ -417,54 +413,34 @@ mod tests {
             ProgramRom {
                 inst: InstructionRow {
                     pc: 1,
-                    opcode: 3,
-                    rs1: 2,
-                    rs2: 1,
-                    rd: 1,
-                    imm: 3,
-                    ..Default::default()
+                    inst_data: reduce_with_powers(vec![3, 0, 0, 2, 1, 1, 3]),
                 },
                 filter: 1,
             },
             ProgramRom {
                 inst: InstructionRow {
                     pc: 1,
-                    opcode: 3,
-                    rs1: 2,
-                    rs2: 1,
-                    rd: 1,
-                    imm: 3,
-                    ..Default::default()
+                    inst_data: reduce_with_powers(vec![3, 0, 0, 2, 1, 1, 3]),
                 },
                 filter: 0,
             },
             ProgramRom {
                 inst: InstructionRow {
                     pc: 2,
-                    opcode: 1,
-                    rs1: 3,
-                    rs2: 3,
-                    rd: 2,
-                    imm: 2,
-                    ..Default::default()
+                    inst_data: reduce_with_powers(vec![1, 0, 0, 3, 3, 2, 2]),
                 },
                 filter: 1,
             },
             ProgramRom {
                 inst: InstructionRow {
                     pc: 3,
-                    opcode: 2,
-                    rs1: 1,
-                    rs2: 2,
-                    rd: 3,
-                    imm: 1,
-                    ..Default::default()
+                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
                 },
                 filter: 1,
             },
         ]
         .into_iter()
-        .map(|row| row.map(from_u32))
+        .map(|row| row.map(F::from_canonical_u64))
         .collect();
         assert_eq!(permuted, expected_permuted);
     }

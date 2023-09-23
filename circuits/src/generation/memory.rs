@@ -74,30 +74,23 @@ mod tests {
     use plonky2::hash::hash_types::RichField;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use crate::memory::columns::{self as mem_cols, Memory};
+    use crate::memory::columns::Memory;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::test_utils::inv;
-
-    fn prep_table<F: RichField>(table: Vec<[u64; mem_cols::NUM_MEM_COLS]>) -> Vec<Memory<F>> {
-        table
-            .into_iter()
-            .map(|row| row.into_iter().map(F::from_canonical_u64).collect())
-            .collect()
-    }
+    use crate::test_utils::{inv, prep_table};
 
     fn expected_trace<F: RichField>() -> Vec<Memory<F>> {
         let inv = inv::<F>;
         #[rustfmt::skip]
         prep_table(vec![
             // is_writable   addr  clk   is_sb, is_lbu, is_init, value  diff_addr  diff_addr_inv  diff_clk
-            [        1,      100,  0,        1,      0,       0,  255,    100,     inv(100),            0],
-            [        1,      100,  1,        0,      1,       0,  255,      0,           0,             1],
-            [        1,      100,  4,        1,      0,       0,   10,      0,           0,             3],
-            [        1,      100,  5,        0,      1,       0,   10,      0,           0,             1],
-            [        1,      200,  2,        1,      0,       0,   15,    100,     inv(100),            0],
-            [        1,      200,  3,        0,      1,       0,   15,      0,           0,             1],
-            [        1,      200,  3,        0,      0,       0,   15,      0,           0,             0],
-            [        1,      200,  3,        0,      0,       0,   15,      0,           0,             0],
+            [        1,      100,  1,        1,      0,       0,  255,    100,     inv(100),            0],
+            [        1,      100,  2,        0,      1,       0,  255,      0,           0,             1],
+            [        1,      100,  5,        1,      0,       0,   10,      0,           0,             3],
+            [        1,      100,  6,        0,      1,       0,   10,      0,           0,             1],
+            [        1,      200,  3,        1,      0,       0,   15,    100,     inv(100),            0],
+            [        1,      200,  4,        0,      1,       0,   15,      0,           0,             1],
+            [        1,      200,  4,        0,      0,       0,   15,      0,           0,             0],
+            [        1,      200,  4,        0,      0,       0,   15,      0,           0,             0],
         ])
     }
 
