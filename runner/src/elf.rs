@@ -146,6 +146,27 @@ impl Program {
         );
         let entry_point: u32 = elf.ehdr.e_entry.try_into()?;
         ensure!(entry_point % 4 == 0, "Misaligned entrypoint");
+
+        // we are only interested in `.rodata` and `.rodata1` for `ro_memory`
+        let section_names = [".rodata", ".rodata1"];
+        let ro_memory = Data(
+            section_names
+                .into_iter()
+                .map(|name| -> Result<_> {
+                    match elf.section_header_by_name(name)? {
+                        Some(segment) => {
+                            let mem_size: usize = segment.sh_size.try_into()?;
+                            let vaddr: u32 = segment.sh_addr.try_into()?;
+                            let offset = segment.sh_offset.try_into()?;
+                            Ok((vaddr..).zip(input[offset..offset + mem_size].iter().copied()))
+                        }
+                        None => Ok((0u32..).zip([].iter().copied())),
+                    }
+                })
+                .flatten_ok()
+                .try_collect()?,
+        );
+
         let segments = elf
             .segments()
             .ok_or_else(|| anyhow!("Missing segment table"))?;
@@ -171,24 +192,6 @@ impl Program {
                 .try_collect()
         };
 
-        // let ro_memory = Data(extract(|flags| {
-        //     (flags & elf::abi::PF_R == elf::abi::PF_R)
-        //         && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
-        // })?);
-
-        let ro_memory = Data(
-            {
-                let segment = elf.section_header_by_name(".rodata").unwrap().unwrap();
-                let mem_size: usize = segment.sh_size.try_into()?;
-                let vaddr: u32 = segment.sh_addr.try_into()?;
-                let offset  = segment.sh_offset.try_into()?;
-                (vaddr..).zip(
-                    input[offset..offset + mem_size]
-                        .iter()
-                        .copied(),
-                ).collect()
-            }
-        );
         let rw_memory = Data(extract(|flags| flags == elf::abi::PF_R | elf::abi::PF_W)?);
         // Because we are implementing a modified Harvard Architecture, we make an
         // independent copy of the executable segments. In practice,
