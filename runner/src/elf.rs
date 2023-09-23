@@ -160,8 +160,9 @@ impl Program {
                             let offset = segment.sh_offset.try_into()?;
                             Ok((vaddr..).zip(input[offset..offset + mem_size].iter().copied()))
                         }
-                        // We don't have shdrs, or don't have a strtab. Hence we can't find a section by its name.
-                        // We return empty Zip in this case.
+                        // We don't have shdrs, or don't have a strtab. Hence we can't find a
+                        // section by its name. We return empty Zip in this
+                        // case.
                         None => Ok((0u32..).zip([].iter().copied())),
                     }
                 })
