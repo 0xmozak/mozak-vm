@@ -44,42 +44,41 @@ pub fn generate_register_trace<F: RichField>(
     for Row { state, .. } in executed {
         let inst = state.current_instruction(program);
 
-        let rs1_row = (inst.args.rs1 != 0).then_some(Register {
-            reg_addr: F::from_canonical_u8(inst.args.rs1),
-            did_addr_change: F::ZERO,
-            value: F::from_canonical_u32(state.get_register_value(inst.args.rs1)),
-            augmented_clk: F::from_canonical_u64((state.clk + 1) * 2),
-            is_init: F::ZERO,
-            is_read: F::ONE,
-            is_write: F::ZERO,
+        (inst.args.rs1 != 0).then(|| {
+            trace.append(&mut vec![Register {
+                reg_addr: F::from_canonical_u8(inst.args.rs1),
+                did_addr_change: F::ZERO,
+                value: F::from_canonical_u32(state.get_register_value(inst.args.rs1)),
+                augmented_clk: F::from_canonical_u64((state.clk) * 2),
+                is_init: F::ZERO,
+                is_read: F::ONE,
+                is_write: F::ZERO,
+            }])
         });
 
-        let rs2_row = (inst.args.rs2 != 0).then_some(Register {
-            reg_addr: F::from_canonical_u8(inst.args.rs2),
-            did_addr_change: F::ZERO,
-            value: F::from_canonical_u32(state.get_register_value(inst.args.rs2)),
-            augmented_clk: F::from_canonical_u64((state.clk + 1) * 2),
-            is_init: F::ZERO,
-            is_read: F::ONE,
-            is_write: F::ZERO,
+        (inst.args.rs2 != 0).then(|| {
+            trace.append(&mut vec![Register {
+                reg_addr: F::from_canonical_u8(inst.args.rs2),
+                did_addr_change: F::ZERO,
+                value: F::from_canonical_u32(state.get_register_value(inst.args.rs2)),
+                augmented_clk: F::from_canonical_u64((state.clk) * 2),
+                is_init: F::ZERO,
+                is_read: F::ONE,
+                is_write: F::ZERO,
+            }])
         });
 
-        let rd_row = (inst.args.rd != 0).then_some(Register {
-            reg_addr: F::from_canonical_u8(inst.args.rd),
-            did_addr_change: F::ZERO,
-            value: F::from_canonical_u32(state.get_register_value(inst.args.rd)),
-            augmented_clk: F::from_canonical_u64((state.clk + 1) * 2 + 1),
-            is_init: F::ZERO,
-            is_read: F::ZERO,
-            is_write: F::ONE,
+        (inst.args.rd != 0).then(|| {
+            trace.append(&mut vec![Register {
+                reg_addr: F::from_canonical_u8(inst.args.rd),
+                did_addr_change: F::ZERO,
+                value: F::from_canonical_u32(state.get_register_value(inst.args.rd)),
+                augmented_clk: F::from_canonical_u64((state.clk) * 2 + 1),
+                is_init: F::ZERO,
+                is_read: F::ZERO,
+                is_write: F::ONE,
+            }])
         });
-
-        trace.extend_from_slice(
-            &[rs1_row, rs2_row, rd_row]
-                .into_iter()
-                .flatten()
-                .collect_vec(),
-        );
     }
 
     sort_by_addr(trace)
@@ -88,6 +87,7 @@ pub fn generate_register_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
+    use log::debug;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::simple_test_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
@@ -148,7 +148,7 @@ mod tests {
         let mut expected_trace = prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
             (1..32)
                 .map(|i|
-                // Columns (repeated for registers 0-31):
+                // Columns (repeated for registers 1-31):
                 // reg_addr did_addr_change value augmented_clk is_init is_read is_write
                 [         i,              0,    0,            0,      1,      0,       0])
                 .collect_vec(),
@@ -178,6 +178,7 @@ mod tests {
         // Finally, this is the sorted trace, where we populate `did_addr_change`.
         let expected_trace = sort_by_addr(expected_trace);
 
+        debug!("{:#?}", trace);
         (0..trace.len()).for_each(|i| {
             assert_eq!(
                 trace[i], expected_trace[i],
