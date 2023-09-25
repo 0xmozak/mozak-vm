@@ -60,7 +60,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // `is_local_a_new_addr` should be binary. To keep constraint degree <= 3,
         // the following is used
         yield_constr.constraint(lv.diff_addr * (P::ONES - is_local_a_new_addr));
-        yield_constr.constraint(lv.diff_addr_inv * (P::ONES - is_local_a_new_addr));
 
         // `is_next_a_new_addr` should be binary. However under context where `nv` is
         // `lv` a similar test runs as given above constraining it being a
@@ -104,31 +103,21 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // well as non-writable at the same time.
 
         // All memory init happens prior to exec and the `clk` would be `0`.
-        yield_constr.constraint(
-            lv.is_init    // selector, selects for init rows
-            * lv.clk, // constrain clk to be `0` if selector, i.e. init row
-        );
+        yield_constr.constraint(lv.is_init * lv.clk);
 
         // If instead, the `addr` talks about an address not coming from static ELF,
         // it needs to begin with a `SB` (store) operation before any further access
-        yield_constr.constraint(
-            is_local_a_new_addr    // selector, selects for rows with new addr compared to last row
-            * (P::ONES - lv.is_sb), /* constrain `SB` as the first operation if local is a new
-                                     * address */
-        );
+        yield_constr.constraint(is_local_a_new_addr * (P::ONES - lv.is_sb));
 
         // Operation constraints
         // ---------------------
         // No `SB` operation can be seen if memory address is not marked `writable`
-        yield_constr.constraint(
-            (P::ONES - lv.is_writable) // selector, selects for non-writable rows
-            * lv.is_sb, // No `SB` operation for any non-writable rows
-        );
+        yield_constr.constraint((P::ONES - lv.is_writable) * lv.is_sb);
 
         // Only if `SB` operation is seen, value can change between rows
         yield_constr.constraint(
-            (P::ONES - nv.is_sb) // selector, selects for non-SB rows, TODO(Supragya): account for mem-init rows
-            * (nv.value - lv.value), // No value change if non-SB operation
+            (P::ONES - nv.is_sb) // TODO(Supragya): account for mem-init rows
+            * (nv.value - lv.value),
         );
 
         // Clock constraints
@@ -139,14 +128,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // row, we expect `diff_clk` to be `0`. New row's clk remains
         // unconstrained in such situation.
         yield_constr.constraint_transition(
-            (P::ONES - is_next_a_new_addr)  // selector, selects is upcoming row has diff addr
-            * (nv.diff_clk - (nv.clk - lv.clk)), /* upcoming row's `diff_clk` matches difference
-                                                  * if addr are different */
+            (P::ONES - is_next_a_new_addr) * (nv.diff_clk - (nv.clk - lv.clk)),
         );
-        yield_constr.constraint_transition(
-            is_local_a_new_addr   // selector, selects for rows with new addr compared to last row
-            * lv.diff_clk, // `diff_clk` is `0` in case a selector is of change of addr
-        );
+        yield_constr.constraint_transition(is_local_a_new_addr * lv.diff_clk);
 
         // Address constraints
         // -------------------
