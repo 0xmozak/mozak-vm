@@ -113,9 +113,8 @@ impl State {
                 )
             }
             ecall::IO_READ => {
-                let pointer = self.get_register_value(REG_A1);
+                let buffer_start = self.get_register_value(REG_A1);
                 let num_bytes_requsted = self.get_register_value(REG_A2);
-                let memory_address = self.load_u32(pointer);
                 let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
                 (
                     Aux::default(),
@@ -124,7 +123,7 @@ impl State {
                         .fold(updated_self, |updated_self, (i, byte)| {
                             updated_self
                                 .store_u8(
-                                    memory_address.wrapping_add(
+                                    buffer_start.wrapping_add(
                                         u32::try_from(i).expect("cannot fit i into u32"),
                                     ),
                                     *byte,
