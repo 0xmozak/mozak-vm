@@ -134,7 +134,13 @@ mod tests {
                 rd: 5,
                 ..Args::default()
             }),
-        ];
+             Instruction::new(Op::ADD, Args {
+                rs1: 5,
+                rd: 4,
+                imm: 100, 
+                ..Args::default()
+            }),
+       ];
 
         let (program, record) = simple_test_code(&instructions, &[], &[(6, 100), (7, 200)]);
 
@@ -163,15 +169,22 @@ mod tests {
                 //
                 // Columns:
                 // reg_addr did_addr_change value augmented_clk is_init is_read is_write
+                //
+                // Instructions: in order of (rs1, rs2/imm, rd)
+                // ADD r6, r7, r4
                 [        6,              0,  100,            2,      0,      1,       0],
                 [        7,              0,  200,            2,      0,      1,       0],
                 [        4,              0,  0,              3,      0,      0,       1],
+                // ADD r4, r6, r5
                 [        4,              0,  300,            4,      0,      1,       0],
                 [        6,              0,  100,            4,      0,      1,       0],
                 [        5,              0,  0,              5,      0,      0,       1],
+                // ADD r5, 100, r4 (note: imm values are ignored)
+                [        5,              0,  400,            6,      0,      1,       0],
+                [        4,              0,  300,            7,      0,      0,       1],
                 // Next, we add the instructions added in `simple_test_code()`
                 // Note that we filter out operations that act on r0.
-                [        10,             0,  0,              7,      0,      0,       1],
+                [        10,             0,  0,              9,      0,      0,       1],
             ]),
         );
 
