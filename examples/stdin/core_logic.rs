@@ -3,6 +3,8 @@ use std::io::Read;
 
 pub struct MozakIo<'a> {
     pub stdin: Box<dyn Read + 'a>,
+    #[cfg(not(target_os = "zkvm"))]
+    pub io_tape_file: String,
 }
 
 impl<'a> Read for MozakIo<'a> {
@@ -26,7 +28,7 @@ impl<'a> Read for MozakIo<'a> {
             let mut io_tape = std::fs::OpenOptions::new()
                 .append(true)
                 .create(true)
-                .open("iotape.txt")
+                .open(self.io_tape_file.as_str())
                 .expect("cannot open tape");
             io_tape.write(buf).expect("write failed");
             Ok(n_bytes)
