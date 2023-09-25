@@ -7,7 +7,7 @@ use crate::register::columns::Register;
 
 /// Returns the rows sorted in the order of the register 'address'.
 #[must_use]
-pub fn sort_by_addr<F: RichField>(trace: Vec<Register<F>>) -> Vec<Register<F>> {
+pub fn sort_by_address<F: RichField>(trace: Vec<Register<F>>) -> Vec<Register<F>> {
     trace
         .into_iter()
         // Sorting is stable, and rows are already ordered by row.state.clk
@@ -25,13 +25,29 @@ fn init_register_trace<F: RichField>() -> Vec<Register<F>> {
         .collect()
 }
 
+#[must_use]
+pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> {
+    let len = trace.len().next_power_of_two();
+    trace.resize(len, Register {
+        // We want these 3 filter columns = 0,
+        // so we can constrain is_dummy = is_init + is_read + is_write.
+        is_init: F::ZERO,
+        is_read: F::ZERO,
+        is_write: F::ZERO,
+        // ..And fill other columns with duplicate of last real trace row.
+        ..*trace.last().unwrap()
+    });
+    trace
+}
+
 /// Generates the trace for registers.
 ///
 /// There are 3 steps:
 /// 1) populate the trace with a similar layout as the
 /// [`RegisterInit` table](crate::registerinit::columns),
 /// 2) go through the program and extract all ops that act on registers,
-/// 3) pad with dummy rows.
+/// filling up this table,
+/// 3) pad with dummy rows to ensure that trace is a power of 2.
 #[must_use]
 pub fn generate_register_trace<F: RichField>(
     program: &Program,
@@ -44,6 +60,8 @@ pub fn generate_register_trace<F: RichField>(
     for Row { state, .. } in executed {
         let inst = state.current_instruction(program);
 
+        // Ignore r0 because r0 should always be 0.
+        // TODO: assert r0 = 0 constraint in CPU trace.
         (inst.args.rs1 != 0).then(|| {
             trace.append(&mut vec![Register {
                 addr: F::from_canonical_u8(inst.args.rs1),
@@ -81,16 +99,16 @@ pub fn generate_register_trace<F: RichField>(
         });
     }
 
-    sort_by_addr(trace)
+    pad_trace(sort_by_address(trace))
 }
 
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
-    use log::debug;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::simple_test_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::types::Field;
 
     use super::*;
     use crate::columns_view::NumberOfColumns;
@@ -101,11 +119,12 @@ mod tests {
     #[test]
     fn generate_reg_trace_initial() {
         let trace = init_register_trace();
+        #[rustfmt::skip]
         let expected_trace = prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
             (1..32)
                 .map(|i|
                 // Columns (repeated for registers 0-31):
-                // addr did_addr_change value augmented_clk is_init is_read is_write
+                //     addr  did_addr_change value augmented_clk is_init is_read is_write
                 [         i,              0,    0,            0,      1,      0,       0])
                 .collect_vec(),
         );
@@ -189,14 +208,30 @@ mod tests {
         );
 
         // Finally, this is the sorted trace, where we populate `did_addr_change`.
-        let expected_trace = sort_by_addr(expected_trace);
+        let expected_trace = sort_by_address(expected_trace);
 
-        debug!("{:#?}", trace);
-        (0..trace.len()).for_each(|i| {
+        (0..expected_trace.len()).for_each(|i| {
             assert_eq!(
                 trace[i], expected_trace[i],
                 "Final trace is wrong at row {i}"
             );
         });
+
+        // Check the paddings.
+        // It is important for is_init = is_read = is_write = 0.
+        (expected_trace.len()..trace.len()).for_each(|i| {
+            assert_eq!(
+                trace[i],
+                Register {
+                    is_init: F::ZERO,
+                    is_read: F::ZERO,
+                    is_write: F::ZERO,
+                    ..*trace.last().unwrap()
+                },
+                "Final trace is wrong at row {i}"
+            );
+        });
+
+        assert!(trace.len().is_power_of_two());
     }
 }
