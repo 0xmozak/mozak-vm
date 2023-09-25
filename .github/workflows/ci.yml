@@ -69,7 +69,7 @@ jobs:
         uses: ./.github/actions/rust
 
       - name: Install taplo
-        run: cargo install taplo-cli
+        run: cargo install taplo-cli --locked
 
       - name: taplo fmt
         run: taplo fmt --check
