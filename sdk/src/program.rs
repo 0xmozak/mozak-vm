@@ -1,5 +1,6 @@
 use crate::pubkey::PubKey;
 
+#[allow(dead_code)] // TODO: Used soon
 pub struct Program {
     /// Unique program ID (Address)
     id: PubKey,
