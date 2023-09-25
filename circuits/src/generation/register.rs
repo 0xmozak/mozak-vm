@@ -11,14 +11,14 @@ pub fn sort_by_addr<F: RichField>(trace: Vec<Register<F>>) -> Vec<Register<F>> {
     trace
         .into_iter()
         // Sorting is stable, and rows are already ordered by row.state.clk
-        .sorted_by_key(|row| row.reg_addr.to_noncanonical_u64())
+        .sorted_by_key(|row| row.addr.to_noncanonical_u64())
         .collect()
 }
 
 fn init_register_trace<F: RichField>() -> Vec<Register<F>> {
     (1..32)
         .map(|i| Register {
-            reg_addr: F::from_canonical_usize(i),
+            addr: F::from_canonical_usize(i),
             is_init: F::ONE,
             ..Default::default()
         })
@@ -46,38 +46,38 @@ pub fn generate_register_trace<F: RichField>(
 
         (inst.args.rs1 != 0).then(|| {
             trace.append(&mut vec![Register {
-                reg_addr: F::from_canonical_u8(inst.args.rs1),
+                addr: F::from_canonical_u8(inst.args.rs1),
                 did_addr_change: F::ZERO,
                 value: F::from_canonical_u32(state.get_register_value(inst.args.rs1)),
                 augmented_clk: F::from_canonical_u64((state.clk) * 2),
                 is_init: F::ZERO,
                 is_read: F::ONE,
                 is_write: F::ZERO,
-            }])
+            }]);
         });
 
         (inst.args.rs2 != 0).then(|| {
             trace.append(&mut vec![Register {
-                reg_addr: F::from_canonical_u8(inst.args.rs2),
+                addr: F::from_canonical_u8(inst.args.rs2),
                 did_addr_change: F::ZERO,
                 value: F::from_canonical_u32(state.get_register_value(inst.args.rs2)),
                 augmented_clk: F::from_canonical_u64((state.clk) * 2),
                 is_init: F::ZERO,
                 is_read: F::ONE,
                 is_write: F::ZERO,
-            }])
+            }]);
         });
 
         (inst.args.rd != 0).then(|| {
             trace.append(&mut vec![Register {
-                reg_addr: F::from_canonical_u8(inst.args.rd),
+                addr: F::from_canonical_u8(inst.args.rd),
                 did_addr_change: F::ZERO,
                 value: F::from_canonical_u32(state.get_register_value(inst.args.rd)),
                 augmented_clk: F::from_canonical_u64((state.clk) * 2 + 1),
                 is_init: F::ZERO,
                 is_read: F::ZERO,
                 is_write: F::ONE,
-            }])
+            }]);
         });
     }
 
@@ -105,7 +105,7 @@ mod tests {
             (1..32)
                 .map(|i|
                 // Columns (repeated for registers 0-31):
-                // reg_addr did_addr_change value augmented_clk is_init is_read is_write
+                // addr did_addr_change value augmented_clk is_init is_read is_write
                 [         i,              0,    0,            0,      1,      0,       0])
                 .collect_vec(),
         );
@@ -134,13 +134,13 @@ mod tests {
                 rd: 5,
                 ..Args::default()
             }),
-             Instruction::new(Op::ADD, Args {
+            Instruction::new(Op::ADD, Args {
                 rs1: 5,
                 rd: 4,
-                imm: 100, 
+                imm: 100,
                 ..Args::default()
             }),
-       ];
+        ];
 
         let (program, record) = simple_test_code(&instructions, &[], &[(6, 100), (7, 200)]);
 
@@ -155,7 +155,7 @@ mod tests {
             (1..32)
                 .map(|i|
                 // Columns (repeated for registers 1-31):
-                // reg_addr did_addr_change value augmented_clk is_init is_read is_write
+                // addr did_addr_change value augmented_clk is_init is_read is_write
                 [         i,              0,    0,            0,      1,      0,       0])
                 .collect_vec(),
         );
@@ -168,7 +168,7 @@ mod tests {
                 // First, populate the table with the instructions from the above test code.
                 //
                 // Columns:
-                // reg_addr did_addr_change value augmented_clk is_init is_read is_write
+                // addr did_addr_change value augmented_clk is_init is_read is_write
                 //
                 // Instructions: in order of (rs1, rs2/imm, rd)
                 // ADD r6, r7, r4

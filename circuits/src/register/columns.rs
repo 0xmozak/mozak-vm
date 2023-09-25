@@ -7,10 +7,11 @@ make_col_map!(Register);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Register<T> {
-    /// The 'address' that indexes into 1 of our 32 registers. Should only
-    /// take values 0-31, so this column should be a running sum
-    /// from 0 to 31 (inclusive).
-    pub reg_addr: T,
+    /// The register 'address' that indexes into 1 of our 32 registers.
+    /// Should only take values 0-31, so this column should be a running sum
+    /// from 0 to 31 (inclusive). Note that this isn't the same as memory
+    /// address.
+    pub addr: T,
 
     /// Binary filter column that marks a row if the register 'address' is
     /// different from the previous row, marking a change in address.
