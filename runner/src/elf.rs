@@ -149,7 +149,7 @@ impl Program {
 
         let ro_memory = Data(
             // we are only interested in `.rodata` and `.rodata1` for `ro_memory`
-           [".rodata", ".rodata1"]
+            [".rodata", ".rodata1"]
                 .into_iter()
                 .map(|name| -> Result<_> {
                     match elf.section_header_by_name(name)? {
