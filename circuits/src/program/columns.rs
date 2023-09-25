@@ -10,15 +10,12 @@ pub struct InstructionRow<T> {
     // Design doc for CPU <> Program cross-table-lookup:
     // https://www.notion.so/0xmozak/Cross-Table-Lookup-bbe98d9471114c36a278f0c491f203e5#c3876d13c1f94b7ab154ea1f8b908181
     pub pc: T,
-    /// internal opcode, not the opcode from RISC-V
-    pub opcode: T,
-    pub rs1: T,
-    pub rs2: T,
-    pub rd: T,
-    pub imm: T,
-    // TODO: these could be folded into `opcode`.
-    pub is_op1_signed: T,
-    pub is_op2_signed: T,
+    /// inst_data include:
+    /// - ops: This is an internal opcode, not the opcode from RISC-V
+    /// - is_op1_signed and is_op2_signed
+    /// - rs1_select, rs2_select, and rd_select
+    /// - imm_value
+    pub inst_data: T,
 }
 
 columns_view_impl!(ProgramRom);
