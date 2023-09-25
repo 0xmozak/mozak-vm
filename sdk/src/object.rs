@@ -2,6 +2,7 @@ use std::fmt;
 
 use crate::pubkey::PubKey;
 
+#[allow(dead_code)] // TODO: Used soon
 pub struct Object {
     /// Unique object ID (Address)
     id: PubKey,

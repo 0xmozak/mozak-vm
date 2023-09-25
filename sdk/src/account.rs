@@ -1,5 +1,6 @@
 use crate::pubkey::PubKey;
 
+#[allow(dead_code)] // TODO: Used soon
 pub struct Account {
     /// Public key of the account (address)
     id: PubKey,
