@@ -34,7 +34,8 @@ pub struct Memory<T> {
     /// Difference between current and previous address.
     pub diff_addr: T,
 
-    /// Inverse of the above column. 0 if the `diff_addr` is 0.
+    /// (Hint column) Multiplicative inverse of the above `diff_addr`.
+    /// 0 if the `diff_addr` is 0.
     pub diff_addr_inv: T,
 
     /// Difference between current and previous clock.
