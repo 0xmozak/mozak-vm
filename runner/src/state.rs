@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
+use derive_more::Deref;
 use im::hashmap::HashMap;
 use log::trace;
 #[cfg(feature = "serialize")]
@@ -39,23 +40,18 @@ pub struct State {
     pub io_tape: IoTape,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default, Deref)]
 #[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct IoTape {
-    pub data: Rc<[u8]>,
+    #[deref]
+    pub data: Rc<Vec<u8>>,
     pub read_index: usize,
 }
 
-impl std::ops::Deref for IoTape {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target { &self.data }
-}
-
-impl Default for IoTape {
-    fn default() -> Self {
-        IoTape {
-            data: vec![].into(),
+impl From<&[u8]> for IoTape {
+    fn from(data: &[u8]) -> Self {
+        Self {
+            data: Rc::new(data.to_vec()),
             read_index: 0,
         }
     }
@@ -120,10 +116,10 @@ impl State {
     #[allow(clippy::similar_names)]
     pub fn new(
         Program {
-            ro_code: Code(_),
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
+            ..
         }: Program,
         io_tape: &[u8],
     ) -> Self {
@@ -131,10 +127,7 @@ impl State {
             pc,
             rw_memory,
             ro_memory,
-            io_tape: IoTape {
-                data: io_tape.into(),
-                read_index: 0,
-            },
+            io_tape: io_tape.into(),
             ..Default::default()
         }
     }

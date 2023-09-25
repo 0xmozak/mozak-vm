@@ -1,3 +1,4 @@
+// TODO: Unify core_logic with this file. See https://github.com/0xmozak/mozak-vm/issues/664
 mod core_logic;
 
 use std::io::{stdin, BufReader, Read};

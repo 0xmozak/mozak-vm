@@ -121,13 +121,15 @@ impl State {
                     Aux::default(),
                     data.iter()
                         .enumerate()
-                        .fold(updated_self, |acc, (i, byte)| {
-                            acc.store_u8(
-                                memory_address
-                                    .wrapping_add(u32::try_from(i).expect("cannot fit i into u32")),
-                                *byte,
-                            )
-                            .unwrap()
+                        .fold(updated_self, |updated_self, (i, byte)| {
+                            updated_self
+                                .store_u8(
+                                    memory_address.wrapping_add(
+                                        u32::try_from(i).expect("cannot fit i into u32"),
+                                    ),
+                                    *byte,
+                                )
+                                .unwrap()
                         })
                         .set_register_value(
                             REG_A0,
