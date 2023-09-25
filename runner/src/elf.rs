@@ -147,10 +147,9 @@ impl Program {
         let entry_point: u32 = elf.ehdr.e_entry.try_into()?;
         ensure!(entry_point % 4 == 0, "Misaligned entrypoint");
 
-        // we are only interested in `.rodata` and `.rodata1` for `ro_memory`
-        let section_names = [".rodata", ".rodata1"];
         let ro_memory = Data(
-            section_names
+            // we are only interested in `.rodata` and `.rodata1` for `ro_memory`
+           [".rodata", ".rodata1"]
                 .into_iter()
                 .map(|name| -> Result<_> {
                     match elf.section_header_by_name(name)? {
