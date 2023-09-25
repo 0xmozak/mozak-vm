@@ -73,7 +73,7 @@ fn main() {
                 transition_function,
                 &read_objects,
                 &changed_objects_before,
-                &changed_objects_after,
+                changed_objects_after,
                 &message.input,
             )
             .unwrap();
@@ -83,7 +83,7 @@ fn main() {
                 transition_function,
                 &read_objects,
                 &changed_objects_before,
-                &changed_objects_after,
+                changed_objects_after,
                 &message.input,
             )
             .unwrap();
