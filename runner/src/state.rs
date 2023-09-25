@@ -24,7 +24,7 @@ use crate::instruction::{Args, Instruction};
 /// by default. The FENCE instruction can be used to make the CPU update the
 /// instruction cache on many CPUs.  But we deliberately don't support that
 /// usecase.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct State {
     pub clk: u64,
     pub halted: bool,
@@ -32,6 +32,23 @@ pub struct State {
     pub pc: u32,
     pub rw_memory: HashMap<u32, u8>,
     pub ro_memory: HashMap<u32, u8>,
+}
+
+/// By default, all `State` start with `clk` 1. This is to differentiate
+/// execution clocks (1 and above) from `clk` value of 0 which is
+/// reserved for any initialisation concerns. e.g. memory initialization
+/// prior to program execution, register initialization etc.
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            clk: 1,
+            halted: Default::default(),
+            registers: Default::default(),
+            pc: Default::default(),
+            rw_memory: HashMap::default(),
+            ro_memory: HashMap::default(),
+        }
+    }
 }
 
 #[allow(clippy::similar_names)]
