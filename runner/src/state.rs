@@ -1,6 +1,11 @@
+use std::rc::Rc;
+
 use anyhow::{anyhow, Result};
+use derive_more::Deref;
 use im::hashmap::HashMap;
 use log::trace;
+#[cfg(feature = "serialize")]
+use serde::{Deserialize, Serialize};
 
 use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction};
@@ -32,6 +37,24 @@ pub struct State {
     pub pc: u32,
     pub rw_memory: HashMap<u32, u8>,
     pub ro_memory: HashMap<u32, u8>,
+    pub io_tape: IoTape,
+}
+
+#[derive(Clone, Debug, Default, Deref)]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+pub struct IoTape {
+    #[deref]
+    pub data: Rc<Vec<u8>>,
+    pub read_index: usize,
+}
+
+impl From<&[u8]> for IoTape {
+    fn from(data: &[u8]) -> Self {
+        Self {
+            data: Rc::new(data.to_vec()),
+            read_index: 0,
+        }
+    }
 }
 
 /// By default, all `State` start with `clk` 1. This is to differentiate
@@ -47,6 +70,7 @@ impl Default for State {
             pc: Default::default(),
             rw_memory: HashMap::default(),
             ro_memory: HashMap::default(),
+            io_tape: IoTape::default(),
         }
     }
 }
@@ -88,6 +112,26 @@ pub struct Aux {
 }
 
 impl State {
+    #[must_use]
+    #[allow(clippy::similar_names)]
+    pub fn new(
+        Program {
+            rw_memory: Data(rw_memory),
+            ro_memory: Data(ro_memory),
+            entry_point: pc,
+            ..
+        }: Program,
+        io_tape: &[u8],
+    ) -> Self {
+        Self {
+            pc,
+            rw_memory,
+            ro_memory,
+            io_tape: io_tape.into(),
+            ..Default::default()
+        }
+    }
+
     #[must_use]
     pub fn register_op<F>(self, data: &Args, op: F) -> (Aux, Self)
     where
@@ -243,5 +287,17 @@ impl State {
         let inst = program.ro_code.get_instruction(pc);
         trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}");
         inst
+    }
+
+    #[must_use]
+    pub fn read_iobytes(mut self, num_bytes: usize) -> (Vec<u8>, Self) {
+        let read_index = self.io_tape.read_index;
+        let remaining_len = self.io_tape.len() - read_index;
+        let limit = num_bytes.min(remaining_len);
+        self.io_tape.read_index += limit;
+        (
+            self.io_tape.data[read_index..(read_index + limit)].to_vec(),
+            self,
+        )
     }
 }
