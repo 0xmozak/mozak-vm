@@ -22,6 +22,11 @@ jobs:
       - name: Install rust toolkit
         uses: ./.github/actions/rust
 
+      - name: Give GitHub Actions access to mozak-vm 
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.MOZAK_VM_DEPLOY_KEY }}
+
       - name: Run tests
         run: cargo nextest run --locked --all-targets
 
@@ -33,6 +38,11 @@ jobs:
 
       - name: Install rust toolkit
         uses: ./.github/actions/rust
+
+      - name: Give GitHub Actions access to mozak-vm 
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.MOZAK_VM_DEPLOY_KEY }}
 
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
