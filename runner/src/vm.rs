@@ -95,6 +95,8 @@ impl State {
     #[must_use]
     /// # Panics
     ///
+    /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
+    /// bytes.
     /// Panics on executing PANIC syscall and also if vector to string
     /// conversion fails.
     pub fn ecall(self) -> (Aux, Self) {
@@ -108,6 +110,31 @@ impl State {
                         ..Aux::default()
                     },
                     self.halt(),
+                )
+            }
+            ecall::IO_READ => {
+                let buffer_start = self.get_register_value(REG_A1);
+                let num_bytes_requsted = self.get_register_value(REG_A2);
+                let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
+                (
+                    Aux::default(),
+                    data.iter()
+                        .enumerate()
+                        .fold(updated_self, |updated_self, (i, byte)| {
+                            updated_self
+                                .store_u8(
+                                    buffer_start.wrapping_add(
+                                        u32::try_from(i).expect("cannot fit i into u32"),
+                                    ),
+                                    *byte,
+                                )
+                                .unwrap()
+                        })
+                        .set_register_value(
+                            REG_A0,
+                            u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
+                        )
+                        .bump_pc(),
                 )
             }
             ecall::PANIC => {
