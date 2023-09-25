@@ -68,8 +68,9 @@ jobs:
       - name: Install rust toolkit
         uses: ./.github/actions/rust
 
-      - name: Install taplo
-        run: cargo install taplo-cli --locked
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: taplo-cli
 
       - name: taplo fmt
         run: taplo fmt --check
