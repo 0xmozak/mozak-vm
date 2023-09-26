@@ -1,3 +1,14 @@
 [workspace]
-members = ["yes_man"]
-resolver = "2"
+
+[package]
+edition = "2021"
+name = "yes-man-mozak-transition"
+version = "0.1.0"
+
+[dependencies]
+object-sdk = { path = "../object-sdk" }
+guest = { git = "ssh://git@github.com/0xmozak/mozak-vm.git", branch = "main" }
+
+[[bin]]
+name = "yes_man_transition"
+path = "yes_man.rs"
