@@ -31,7 +31,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
     ///    are binary columns.
     /// 3) `is_dummy` only take values 0 or 1.
     /// 4) Only rd changes.
-    /// 5) Address changes only when nv.is_init == 1.
+    /// 5) Address changes only when `nv.is_init` == 1.
     /// 6) Address either stays the same or increments by 1.
     /// 7) Trace should end with register address 31.
     ///
@@ -108,7 +108,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
 mod tests {
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::simple_test_code;
+    use mozak_runner::test_utils::{simple_test_code, u32_extra, reg};
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use starky::stark_testing::test_stark_low_degree;
 
@@ -126,31 +126,36 @@ mod tests {
         test_stark_low_degree(stark)
     }
 
-    #[test]
-    fn prove_reg() -> Result<()> {
-        let instructions = [
-            Instruction::new(Op::ADD, Args {
-                rs1: 6,
-                rs2: 7,
-                rd: 4,
-                ..Args::default()
-            }),
-            Instruction::new(Op::ADD, Args {
-                rs1: 4,
-                rs2: 6,
-                rd: 5,
-                ..Args::default()
-            }),
-            Instruction::new(Op::ADD, Args {
-                rs1: 5,
-                rd: 4,
-                imm: 100,
-                ..Args::default()
-            }),
-        ];
+    fn prove_stark<Stark: ProveAndVerify>(a: u32, b: u32, rd: u8) {
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, a), (7, b)],
+        );
+        if rd != 0 {
+            assert_eq!(
+                record.executed[1].state.get_register_value(rd),
+                a.wrapping_add(b)
+            );
+        }
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
 
-        let (program, record) = simple_test_code(&instructions, &[], &[(6, 100), (7, 200)]);
-        RegisterStark::prove_and_verify(&program, &record)?;
-        Ok(())
+    use proptest::prelude::ProptestConfig;
+    use proptest::proptest;
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(4))]
+        #[test]
+        fn prove_register(a in u32_extra(), b in u32_extra(), rd in reg()) {
+            prove_stark::<RegisterStark<F, D>>(a, b, rd);
+        }
     }
 }
