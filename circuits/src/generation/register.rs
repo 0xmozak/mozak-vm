@@ -217,16 +217,16 @@ mod tests {
             );
         });
 
-        // Check the paddings.
-        // It is important for is_init = is_read = is_write = 0.
+        // Check the paddings. Important checks:
+        // 1) Padded address = 31, since it's in the last row.
+        // 2) is_dummy = is_init + is_read + is_write = 0, for CTL
+        // with the `RegisterInitStark`.
         (expected_trace.len()..trace.len()).for_each(|i| {
             assert_eq!(
                 trace[i],
                 Register {
-                    is_init: F::ZERO,
-                    is_read: F::ZERO,
-                    is_write: F::ZERO,
-                    ..*trace.last().unwrap()
+                    addr: F::from_canonical_u8(31),
+                    ..Default::default()
                 },
                 "Final trace is wrong at row {i}"
             );
