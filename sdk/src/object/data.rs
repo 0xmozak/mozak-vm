@@ -31,6 +31,7 @@ impl ObjectContent for DataContent {
 
 impl DataContent {
     /// Creates a new Data object.
+    #[cfg(not(feature = "no-std"))]
     pub fn new(mutable: bool, owner_id: Id, data: Data) -> Self {
         let id = Self::generate_id(vec![vec![mutable as u8], owner_id.to_vec(), data.clone()]);
         Self {

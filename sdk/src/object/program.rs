@@ -84,6 +84,7 @@ fn transition_to_bytes(transition: &TransitionFunction) -> Vec<u8> {
 
 /// Generates a unique ID for the transition function.
 /// Currently, we use SHA3-256 hash function to generate the ID.
+#[cfg(not(feature = "no-std"))]
 pub fn generate_transition_id(transition: &TransitionFunction) -> Id {
     let mut hasher = sha3::Sha3_256::new();
     hasher.update(transition_to_bytes(transition));

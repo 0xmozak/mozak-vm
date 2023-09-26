@@ -1,10 +1,10 @@
 use std::ops::Deref;
 
-#[cfg(feature = "dummy-system")]
+#[cfg(all(feature = "dummy-system", not(feature = "no-std")))]
 use rand::distributions::Standard;
-#[cfg(feature = "dummy-system")]
+#[cfg(all(feature = "dummy-system", not(feature = "no-std")))]
 use rand::prelude::Distribution;
-#[cfg(feature = "dummy-system")]
+#[cfg(all(feature = "dummy-system", not(feature = "no-std")))]
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +18,7 @@ impl Deref for Id {
     fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-#[cfg(feature = "dummy-system")]
+#[cfg(all(feature = "dummy-system", not(feature = "no-std")))]
 impl Distribution<Id> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Id { Id(rng.gen()) }
 }

@@ -8,15 +8,18 @@ type = "lib"
 
 [dependencies]
 serde = { version = "1.0.188", features = ["derive"] }
-sha3 = "0.10.8"
-
+sha3 = { version = "0.10.8", optional = true }
 mozak-runner = { git = "ssh://git@github.com/0xmozak/mozak-vm.git", branch = "main", features = [
-  "serialize",
-  "test",
-] }
+    "serialize",
+    "test",
+], optional = true }
+
+im = "15.1.0"
 
 rand = { version = "0.8.5", optional = true }
 
 [features]
-
 dummy-system = ["rand"]
+no-std = []
+default = ["dummy-system"]
+

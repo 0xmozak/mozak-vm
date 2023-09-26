@@ -15,6 +15,8 @@ pub enum Object {
     Data(data::DataContent),
 }
 
+#[cfg(not(feature = "no-std"))]
+
 impl Default for Object {
     fn default() -> Self { Object::Program(program::ProgramContent::default()) }
 }
@@ -85,6 +87,7 @@ pub trait ObjectContent: Debug + Clone {
 
     /// Generates a unique ID for the object.
     /// Currently, we use SHA3-256 hash function to generate the ID.
+    #[cfg(not(feature = "no-std"))]
     fn generate_id<T: Into<Box<[u8]>> + Clone>(parameters: Vec<T>) -> Id {
         let mut hasher = sha3::Sha3_256::new();
         parameters
@@ -96,7 +99,7 @@ pub trait ObjectContent: Debug + Clone {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "no-std")))]
 mod test {
     use super::*;
     use crate::object::data::DataContent;

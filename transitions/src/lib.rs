@@ -5,8 +5,8 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 
-// use mozak_node_sdk::Object;
+use mozak_node_sdk::TransitionFunction;
 
-pub fn deserialize_input() -> Vec<u8> { vec![] }
+pub fn deserialize_input() -> Vec<TransitionFunction> { vec![] }
 
 pub const TMP: &str = "tmp";
