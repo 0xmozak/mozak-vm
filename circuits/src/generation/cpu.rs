@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
 use itertools::{chain, Itertools};
-use mozak_vm::elf::Program;
-use mozak_vm::instruction::{Instruction, Op};
-use mozak_vm::state::{Aux, State};
-use mozak_vm::vm::{ExecutionRecord, Row};
+use mozak_runner::elf::Program;
+use mozak_runner::instruction::{Instruction, Op};
+use mozak_runner::state::{Aux, State};
+use mozak_runner::vm::{ExecutionRecord, Row};
 use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;
@@ -75,8 +75,9 @@ pub fn generate_cpu_trace<F: RichField>(
             row.regs[j as usize] = from_u32(state.get_register_value(j));
         }
 
-        generate_mul_row(&mut row, &inst, aux);
-        generate_divu_row(&mut row, &inst, aux);
+        generate_shift_row(&mut row, aux);
+        generate_mul_row(&mut row, aux);
+        generate_div_row(&mut row, &inst, aux);
         generate_sign_handling(&mut row, aux);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
@@ -93,34 +94,45 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
 
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
-fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
-    // Helper function to determine sign and absolute value.
-    let sign_and_absolute = |is_signed: bool, x: u32| {
-        if is_signed {
-            ((x as i32) < 0, (x as i32).unsigned_abs())
-        } else {
-            (false, x)
-        }
-    };
-
-    // Calculate op2 values.
-    let (is_op2_negative, op2_abs) = if let Op::SLL = inst.op {
-        let shift_amount = aux.op2 & 0b1_1111;
-        let shift_power = 1_u32 << shift_amount;
-
-        row.bitshift = Bitshift {
-            amount: shift_amount,
-            multiplier: shift_power,
-        }
-        .map(from_u32);
-
-        sign_and_absolute(false, shift_power)
+fn generate_shift_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
+    let shift_power = aux.op2;
+    let shift_amount = if shift_power == 0 {
+        0
     } else {
-        sign_and_absolute(row.is_op2_signed().is_nonzero(), aux.op2)
+        31_u32 - shift_power.leading_zeros()
     };
+    row.bitshift = Bitshift {
+        amount: shift_amount,
+        multiplier: shift_power,
+    }
+    .map(from_u32);
+}
 
-    // Calculate op1 values.
-    let (is_op1_negative, op1_abs) = sign_and_absolute(row.is_op1_signed().is_nonzero(), aux.op1);
+#[allow(clippy::cast_possible_wrap)]
+#[allow(clippy::cast_lossless)]
+fn compute_full_range(is_signed: bool, value: u32) -> i64 {
+    if is_signed {
+        value as i32 as i64
+    } else {
+        value as i64
+    }
+}
+
+#[allow(clippy::cast_possible_wrap)]
+#[allow(clippy::similar_names)]
+#[allow(clippy::cast_possible_truncation)]
+fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
+    // Helper function to determine sign and absolute value.
+    let compute_sign_and_abs: fn(bool, u32) -> (bool, u32) = |is_signed, value| {
+        let full_range = compute_full_range(is_signed, value);
+        let is_negative = full_range.is_negative();
+        let absolute_value = full_range.unsigned_abs() as u32;
+        (is_negative, absolute_value)
+    };
+    let (is_op2_negative, op2_abs) =
+        compute_sign_and_abs(row.inst.is_op2_signed.is_nonzero(), aux.op2);
+    let (is_op1_negative, op1_abs) =
+        compute_sign_and_abs(row.inst.is_op1_signed.is_nonzero(), aux.op1);
 
     // Determine product sign and absolute value.
     let mut product_sign = is_op1_negative ^ is_op2_negative;
@@ -161,41 +173,54 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
 }
 
 #[allow(clippy::cast_possible_wrap)]
-fn generate_divu_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
-    let dividend = aux.op1;
+#[allow(clippy::cast_lossless)]
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_sign_loss)]
+fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
+    let dividend_full_range = compute_full_range(row.inst.is_op1_signed.is_nonzero(), aux.op1);
+    let divisor_full_range = compute_full_range(row.inst.is_op2_signed.is_nonzero(), aux.op2);
 
-    let divisor = if let Op::SRL = inst.op {
-        let shift_amount = aux.op2 & 0x1F;
-        let shift_power = 1_u32 << shift_amount;
-        row.bitshift = Bitshift {
-            amount: shift_amount,
-            multiplier: shift_power,
+    if divisor_full_range == 0 {
+        row.quotient_value = from_u32(0xFFFF_FFFF);
+        row.quotient_sign = if row.inst.is_op2_signed.is_nonzero() {
+            F::ONE
+        } else {
+            F::ZERO
+        };
+        row.remainder_value = from_u32(aux.op1);
+        row.remainder_slack = F::ZERO;
+        row.remainder_sign = F::from_bool(dividend_full_range.is_negative());
+        row.skip_check_quotient_sign = F::ONE;
+    } else {
+        let quotient_full_range = if matches!(inst.op, Op::SRA) {
+            dividend_full_range.div_euclid(divisor_full_range)
+        } else {
+            dividend_full_range / divisor_full_range
+        };
+        row.quotient_value = from_u32(quotient_full_range as u32);
+        row.quotient_sign = F::from_bool(quotient_full_range.is_negative());
+        row.skip_check_quotient_sign = F::from_bool(quotient_full_range == 0);
+        if dividend_full_range == -2 ^ 31 && divisor_full_range == -1 {
+            // Special case for dividend == -2^31, divisor == -1:
+            // quotient_sign == 1 (quotient = -2^31).
+            row.skip_check_quotient_sign = F::ONE;
+            row.quotient_sign = F::ONE;
         }
-        .map(from_u32);
-        shift_power
-    } else {
-        aux.op2
-    };
-
-    row.divisor = from_u32(divisor);
-
-    if let 0 = divisor {
-        row.quotient = from_u32(u32::MAX);
-        row.remainder = from_u32(dividend);
-        row.remainder_slack = from_u32(0_u32);
-    } else {
-        row.quotient = from_u32(dividend / divisor);
-        row.remainder = from_u32(dividend % divisor);
-        row.remainder_slack = from_u32(divisor - dividend % divisor - 1);
+        let remainder = dividend_full_range - quotient_full_range * divisor_full_range;
+        let remainder_abs = remainder.unsigned_abs();
+        row.remainder_value = from_u32(remainder as u32);
+        row.remainder_slack =
+            F::from_noncanonical_u64(divisor_full_range.unsigned_abs() - 1 - remainder_abs);
+        row.remainder_sign = F::from_bool(remainder.is_negative());
     }
-    row.divisor_inv = from_u32::<F>(divisor).try_inverse().unwrap_or_default();
+    row.op2_value_inv = from_u32::<F>(aux.op2).try_inverse().unwrap_or_default();
 }
 
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_lossless)]
 fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
-    let op1_full_range = sign_extend(row.is_op1_signed().is_nonzero(), aux.op1);
-    let op2_full_range = sign_extend(row.is_op2_signed().is_nonzero(), aux.op2);
+    let op1_full_range = sign_extend(row.inst.is_op1_signed.is_nonzero(), aux.op1);
+    let op2_full_range = sign_extend(row.inst.is_op2_signed.is_nonzero(), aux.op2);
 
     row.op1_sign_bit = F::from_bool(op1_full_range < 0);
     row.op2_sign_bit = F::from_bool(op2_full_range < 0);
@@ -208,11 +233,11 @@ fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
 fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {
     let a = match inst.op {
         Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
-        Op::SRL | Op::SLL => 0b1_1111,
+        Op::SRL | Op::SLL | Op::SRA => 0b1_1111,
         _ => 0,
     };
     let b = match inst.op {
-        Op::AND | Op::OR | Op::XOR | Op::SRL | Op::SLL => state
+        Op::AND | Op::OR | Op::XOR | Op::SRL | Op::SLL | Op::SRA => state
             .get_register_value(inst.args.rs2)
             .wrapping_add(inst.args.imm),
         _ => 0,
@@ -256,6 +281,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
 
 #[cfg(test)]
 mod tests {
+    use plonky2::field::types::Field;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use crate::columns_view::selection;
@@ -280,6 +306,7 @@ mod tests {
                     rs2_select: selection(1),
                     rd_select: selection(1),
                     imm_value: 3,
+                    ..Default::default()
                 },
                 is_running: 1,
                 ..Default::default()
@@ -292,6 +319,7 @@ mod tests {
                     rs2_select: selection(3),
                     rd_select: selection(2),
                     imm_value: 2,
+                    ..Default::default()
                 },
                 is_running: 1,
                 ..Default::default()
@@ -304,6 +332,7 @@ mod tests {
                     rs2_select: selection(1),
                     rd_select: selection(1),
                     imm_value: 3,
+                    ..Default::default()
                 },
                 is_running: 1,
                 ..Default::default()
@@ -316,6 +345,7 @@ mod tests {
                     rs2_select: selection(4),
                     rd_select: selection(4),
                     imm_value: 4,
+                    ..Default::default()
                 },
                 is_running: 0,
                 ..Default::default()
@@ -329,54 +359,53 @@ mod tests {
         })
         .collect();
 
+        let reduce_with_powers = |values: Vec<u64>| {
+            values
+                .into_iter()
+                .enumerate()
+                .map(|(i, x)| (1 << (i * 5)) * x)
+                .sum::<u64>()
+        };
+
         let program_trace: Vec<ProgramRom<F>> = [
             ProgramRom {
                 inst: InstructionRow {
                     pc: 1,
-                    opcode: 3,
-                    rs1: 2,
-                    rs2: 1,
-                    rd: 1,
-                    imm: 3,
+                    // opcode: 3,
+                    // is_op1_signed: 0,
+                    // is_op2_signed: 0,
+                    // rs1_select: 2,
+                    // rs2_select: 1,
+                    // rd_select: 1,
+                    // imm_value: 3,
+                    inst_data: reduce_with_powers(vec![3, 0, 0, 2, 1, 1, 3]),
                 },
                 filter: 1,
             },
             ProgramRom {
                 inst: InstructionRow {
                     pc: 2,
-                    opcode: 1,
-                    rs1: 3,
-                    rs2: 3,
-                    rd: 2,
-                    imm: 2,
+                    inst_data: reduce_with_powers(vec![1, 0, 0, 3, 3, 2, 2]),
                 },
                 filter: 1,
             },
             ProgramRom {
                 inst: InstructionRow {
                     pc: 3,
-                    opcode: 2,
-                    rs1: 1,
-                    rs2: 2,
-                    rd: 3,
-                    imm: 1,
+                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
                 },
                 filter: 1,
             },
             ProgramRom {
                 inst: InstructionRow {
                     pc: 1,
-                    opcode: 3,
-                    rs1: 3,
-                    rs2: 3,
-                    rd: 3,
-                    imm: 3,
+                    inst_data: reduce_with_powers(vec![3, 0, 0, 3, 3, 3, 3]),
                 },
                 filter: 0,
             },
         ]
         .into_iter()
-        .map(|row| row.map(from_u32))
+        .map(|row| row.map(F::from_canonical_u64))
         .collect();
 
         let permuted = generate_permuted_inst_trace(&cpu_trace, &program_trace);
@@ -384,50 +413,34 @@ mod tests {
             ProgramRom {
                 inst: InstructionRow {
                     pc: 1,
-                    opcode: 3,
-                    rs1: 2,
-                    rs2: 1,
-                    rd: 1,
-                    imm: 3,
+                    inst_data: reduce_with_powers(vec![3, 0, 0, 2, 1, 1, 3]),
                 },
                 filter: 1,
             },
             ProgramRom {
                 inst: InstructionRow {
                     pc: 1,
-                    opcode: 3,
-                    rs1: 2,
-                    rs2: 1,
-                    rd: 1,
-                    imm: 3,
+                    inst_data: reduce_with_powers(vec![3, 0, 0, 2, 1, 1, 3]),
                 },
                 filter: 0,
             },
             ProgramRom {
                 inst: InstructionRow {
                     pc: 2,
-                    opcode: 1,
-                    rs1: 3,
-                    rs2: 3,
-                    rd: 2,
-                    imm: 2,
+                    inst_data: reduce_with_powers(vec![1, 0, 0, 3, 3, 2, 2]),
                 },
                 filter: 1,
             },
             ProgramRom {
                 inst: InstructionRow {
                     pc: 3,
-                    opcode: 2,
-                    rs1: 1,
-                    rs2: 2,
-                    rd: 3,
-                    imm: 1,
+                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
                 },
                 filter: 1,
             },
         ]
         .into_iter()
-        .map(|row| row.map(from_u32))
+        .map(|row| row.map(F::from_canonical_u64))
         .collect();
         assert_eq!(permuted, expected_permuted);
     }

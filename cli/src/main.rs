@@ -5,6 +5,7 @@ use std::io::{Read, Write};
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clio::{Input, Output};
+use jemallocator::Jemalloc;
 use log::debug;
 use mozak_circuits::generation::memoryinit::generate_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
@@ -14,15 +15,18 @@ use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{standard_faster_config, ProveAndVerify, C, D, F, S};
-use mozak_vm::elf::Program;
-use mozak_vm::state::State;
-use mozak_vm::vm::step;
+use mozak_runner::elf::Program;
+use mozak_runner::state::State;
+use mozak_runner::vm::step;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::util::timing::TimingTree;
 use shadow_rs::shadow;
 
 shadow!(build);
+
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -44,11 +48,15 @@ enum Command {
     Decode { elf: Input },
     /// Decode and execute a given ELF. Prints the final state of
     /// the registers
-    Run { elf: Input },
+    Run { elf: Input, io_tape: Input },
     /// Prove and verify the execution of a given ELF
-    ProveAndVerify { elf: Input },
+    ProveAndVerify { elf: Input, io_tape: Input },
     /// Prove the execution of given ELF and write proof to file.
-    Prove { elf: Input, proof: Output },
+    Prove {
+        elf: Input,
+        io_tape: Input,
+        proof: Output,
+    },
     /// Verify the given proof from file.
     Verify { proof: Input },
     /// Compute the Program Rom Hash of the given ELF.
@@ -87,6 +95,13 @@ fn build_info() {
     println!("{}", build::GIT_STATUS_FILE);
 }
 
+fn load_tape(mut io_tape: impl Read) -> Result<Vec<u8>> {
+    let mut io_tape_bytes = Vec::new();
+    let bytes_read = io_tape.read_to_end(&mut io_tape_bytes)?;
+    debug!("Read {bytes_read} of io_tape data.");
+    Ok(io_tape_bytes)
+}
+
 fn load_program(mut elf: Input) -> Result<Program> {
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
@@ -94,7 +109,8 @@ fn load_program(mut elf: Input) -> Result<Program> {
     Program::load_elf(&elf_bytes)
 }
 
-/// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi`
+#[rustfmt::skip]
+/// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi iotape.txt`
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let config = standard_faster_config();
@@ -109,21 +125,25 @@ fn main() -> Result<()> {
                 let program = load_program(elf)?;
                 debug!("{program:?}");
             }
-            Command::Run { elf } => {
+            Command::Run { elf, io_tape } => {
                 let program = load_program(elf)?;
-                let state = State::from(&program);
+                let state = State::new(program.clone(), &load_tape(io_tape)?);
                 let state = step(&program, state)?.last_state;
                 debug!("{:?}", state.registers);
             }
-            Command::ProveAndVerify { elf } => {
+            Command::ProveAndVerify { elf, io_tape } => {
                 let program = load_program(elf)?;
-                let state = State::from(&program);
+                let state = State::new(program.clone(), &load_tape(io_tape)?);
                 let record = step(&program, state)?;
                 MozakStark::prove_and_verify(&program, &record)?;
             }
-            Command::Prove { elf, mut proof } => {
+            Command::Prove {
+                elf,
+                io_tape,
+                mut proof,
+            } => {
                 let program = load_program(elf)?;
-                let state = State::from(&program);
+                let state = State::new(program.clone(), &load_tape(io_tape)?);
                 let record = step(&program, state)?;
                 let stark = if cli.debug {
                     MozakStark::default_debug()
@@ -173,11 +193,7 @@ fn main() -> Result<()> {
             Command::MemoryInitHash { elf } => {
                 let program = load_program(elf)?;
                 let trace = generate_memory_init_trace(&program);
-                let trace_poly_values: Vec<
-                    plonky2::field::polynomial::PolynomialValues<
-                        plonky2::field::goldilocks_field::GoldilocksField,
-                    >,
-                > = trace_rows_to_poly_values(trace);
+                let trace_poly_values = trace_rows_to_poly_values(trace);
                 let rate_bits = config.fri_config.rate_bits;
                 let cap_height = config.fri_config.cap_height;
                 let trace_commitment = PolynomialBatch::<F, C, D>::from_values(

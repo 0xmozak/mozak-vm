@@ -1,6 +1,6 @@
 use anyhow::Result;
-use mozak_vm::elf::Program;
-use mozak_vm::vm::ExecutionRecord;
+use mozak_runner::elf::Program;
+use mozak_runner::vm::ExecutionRecord;
 use plonky2::fri::FriConfig;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
@@ -18,9 +18,11 @@ use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
+use crate::generation::registerinit::generate_register_init_trace;
 use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
+use crate::registerinit::stark::RegisterInitStark;
 use crate::stark::mozak_stark::{MozakStark, PublicInputs};
 use crate::stark::prover::prove;
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
@@ -51,6 +53,17 @@ pub fn standard_faster_config() -> StarkConfig {
             ..config.fri_config
         },
     }
+}
+
+/// Prepares the table of a trace. Useful for trace generation tests.
+#[must_use]
+pub fn prep_table<F: RichField, T, const N: usize>(table: Vec<[u64; N]>) -> Vec<T>
+where
+    T: FromIterator<F>, {
+    table
+        .into_iter()
+        .map(|row| row.into_iter().map(F::from_canonical_u64).collect())
+        .collect()
 }
 
 pub trait ProveAndVerify {
@@ -103,7 +116,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let cpu_trace = generate_cpu_trace(program, record);
         let memory_trace = generate_memory_trace::<F>(program, &record.executed);
         let trace_poly_values =
-            trace_to_poly_values(generate_rangecheck_trace(&cpu_trace, &memory_trace));
+            trace_rows_to_poly_values(generate_rangecheck_trace(&cpu_trace, &memory_trace));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -165,6 +178,26 @@ impl ProveAndVerify for BitshiftStark<F, D> {
         let stark = S::default();
         let cpu_rows = generate_cpu_trace::<F>(program, record);
         let trace = generate_shift_amount_trace(&cpu_rows);
+        let trace_poly_values = trace_rows_to_poly_values(trace);
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            [],
+            &mut TimingTree::default(),
+        )?;
+
+        verify_stark_proof(stark, proof, &config)
+    }
+}
+
+impl ProveAndVerify for RegisterInitStark<F, D> {
+    fn prove_and_verify(_program: &Program, _record: &ExecutionRecord) -> Result<()> {
+        type S = RegisterInitStark<F, D>;
+        let config = standard_faster_config();
+
+        let stark = S::default();
+        let trace = generate_register_init_trace::<F>();
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
             stark,

@@ -1,17 +1,20 @@
 use itertools::{self, Itertools};
-use mozak_vm::elf::Program;
-use mozak_vm::vm::Row;
+use mozak_runner::elf::Program;
+use mozak_runner::instruction::Op;
+use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::memory::columns::Memory;
-use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk, get_memory_inst_op};
+use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk};
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
     trace.resize(trace.len().next_power_of_two(), Memory {
         // Some columns need special treatment..
-        is_executed: F::ZERO,
+        is_sb: F::ZERO,
+        is_lbu: F::ZERO,
+        is_init: F::ZERO,
         diff_addr: F::ZERO,
         diff_addr_inv: F::ZERO,
         diff_clk: F::ZERO,
@@ -120,33 +123,23 @@ mod tests {
     use plonky2::hash::hash_types::RichField;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use crate::memory::columns::{self as mem_cols, Memory};
+    use crate::memory::columns::Memory;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::memory::trace::{OPCODE_LBU, OPCODE_SB};
-    use crate::test_utils::inv;
-
-    fn prep_table<F: RichField>(table: Vec<[u64; mem_cols::NUM_MEM_COLS]>) -> Vec<Memory<F>> {
-        table
-            .into_iter()
-            .map(|row| row.into_iter().map(F::from_canonical_u64).collect())
-            .collect()
-    }
+    use crate::test_utils::{inv, prep_table};
 
     fn expected_trace<F: RichField>() -> Vec<Memory<F>> {
-        let sb = OPCODE_SB as u64;
-        let lbu = OPCODE_LBU as u64;
         let inv = inv::<F>;
         #[rustfmt::skip]
         prep_table(vec![
-            // is_executed  is_writable   is_init   addr  clk   op  value  diff_addr  diff_addr_inv  diff_clk
-            [  1,                 1,        0,      100,  0,    sb,  255,    100,     inv(100),            0],
-            [  1,                 1,        0,      100,  1,    lbu, 255,      0,           0,             1],
-            [  1,                 1,        0,      100,  4,    sb,   10,      0,           0,             3],
-            [  1,                 1,        0,      100,  5,    lbu,  10,      0,           0,             1],
-            [  1,                 1,        0,      200,  2,    sb,   15,    100,     inv(100),            0],
-            [  1,                 1,        0,      200,  3,    lbu,  15,      0,           0,             1],
-            [  0,                 1,        0,      200,  3,    lbu,  15,      0,           0,             0],
-            [  0,                 1,        0,      200,  3,    lbu , 15,      0,           0,             0],
+            // is_writable   addr  clk   is_sb, is_lbu, is_init, value  diff_addr  diff_addr_inv  diff_clk
+            [        1,      100,  1,        1,      0,       0,  255,    100,     inv(100),            0],
+            [        1,      100,  2,        0,      1,       0,  255,      0,           0,             1],
+            [        1,      100,  5,        1,      0,       0,   10,      0,           0,             3],
+            [        1,      100,  6,        0,      1,       0,   10,      0,           0,             1],
+            [        1,      200,  3,        1,      0,       0,   15,    100,     inv(100),            0],
+            [        1,      200,  4,        0,      1,       0,   15,      0,           0,             1],
+            [        1,      200,  4,        0,      0,       0,   15,      0,           0,             0],
+            [        1,      200,  4,        0,      0,       0,   15,      0,           0,             0],
         ])
     }
 

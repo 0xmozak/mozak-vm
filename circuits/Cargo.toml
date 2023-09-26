@@ -16,9 +16,9 @@ flexbuffers = "2.0.0"
 itertools = "0.11.0"
 lazy_static = "1.4.0"
 log = "0.4.20"
-mozak-vm = { path = "../vm" }
+mozak-runner = { path = "../runner" }
 plonky2 = "0.1.3"
-plonky2_maybe_rayon = "0.1.0"
+rayon = "1.8.0"
 serde = { version = "1.0", features = ["derive"] }
 starky = "0.1.1"
 thiserror = "1.0.48"
@@ -26,7 +26,8 @@ thiserror = "1.0.48"
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }
 env_logger = { version = "0.10.0" }
-mozak-vm = { path = "../vm", features = ["test"] }
+jemallocator = "0.5.4"
+mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.2.0"
 
 [features]
