@@ -69,8 +69,8 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(MAP.clk),
-        // TODO(Supragya): Add CTL for Opcodes SB and LBU, requires memory table
-        // to have one-hot OP encoding
+        // Column::single(MAP.is_sb),
+        // Column::single(MAP.is_lbu),
         Column::single(MAP.value),
     ]
 }
@@ -80,5 +80,5 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> {
     let mem = MAP.map(Column::from);
-    mem.is_sb + mem.is_lbu + mem.is_init
+    mem.is_sb + mem.is_lbu
 }
