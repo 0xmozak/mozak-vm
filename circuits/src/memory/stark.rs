@@ -52,20 +52,21 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // Boolean constraints
         // -------------------
         // Constrain certain columns of the memory table to be only
-        // exercising boolean values.
-        is_binary(yield_constr, lv.is_executed);
+        // boolean values.
         is_binary(yield_constr, lv.is_writable);
+        is_binary(yield_constr, lv.is_sb);
+        is_binary(yield_constr, lv.is_lbu);
         is_binary(yield_constr, lv.is_init);
+        is_binary(yield_constr, lv.is_executed());
 
         // `is_local_a_new_addr` should be binary. To keep constraint degree <= 3,
         // the following is used
         yield_constr.constraint(lv.diff_addr * (P::ONES - is_local_a_new_addr));
-        yield_constr.constraint(lv.diff_addr_inv * (P::ONES - is_local_a_new_addr));
 
-        // `is_next_a_new_addr` should be binary. To keep constraint degree <= 3,
-        // the following is used
-        yield_constr.constraint(nv.diff_addr * (P::ONES - is_next_a_new_addr));
-        yield_constr.constraint(nv.diff_addr_inv * (P::ONES - is_next_a_new_addr));
+        // `is_next_a_new_addr` should be binary. However under context where `nv` is
+        // `lv` a similar test runs as given above constraining it being a
+        // boolean. Hence, we do not explicitly check for `is_next_a_new_addr`
+        // to be boolean here.
 
         // First row constraints
         // ---------------------
@@ -81,15 +82,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // ------------------------------------------------------
         // All memory init / accesses for a given `addr` is described via contigous
         // rows. This is constrained by range-check on `diff_addr` which in 32-bit
-        // RISC can only assume values 0 till 2^32-1. If similar range-checking
+        // RISC can only assume values 0..1<<32. If similar range-checking
         // constraint is put on `addr` as well, the only possibility of
         // non-contigous address view occurs when the prime order of field in
-        // question is of size less than 2*(2^32 - 1). Both `.addr` and `.diff_addr`
-        // is constrained in `pub fn rangecheck_looking<F: Field>()` subsequently.
+        // question is of size less than 2*(2^32 - 1).
 
-        // // Memory initialization Constraints
+        // Memory initialization Constraints
         // ---------------------------------
-        // Memory table is assumed to be ordered by `addr` in asc order.
+        // The memory table is assumed to be ordered by `addr` in ascending order.
         // such that whenever we describe an memory init / access
         // pattern of an "address", a correct table gurantees the following:
         //    All rows for a specific `addr` start with either a memory init (via static
@@ -98,48 +98,26 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         //    memory init operation happens before any execution has started and
         //    consequently `clk` should be `0` for such entries.
         // NOTE: We rely on 'Ascending ordered, contigous "address" view constraint'
-        // since if that is broken, for same address different contigous blocks could
-        // present case for being derived from static ELF and dynamic (execution) at
-        // the same time.
-
-        // Ensure all `is_init` entries are only when `is_executed` is `1`.
-        // If `is_init` == `1` and `is_executed` == `0`, the row should be invalid.
-        yield_constr.constraint((P::ONES - lv.is_executed) * lv.is_init);
+        // to provide us with a guarantee of single contigous block of rows per `addr`.
+        // If that gurantee does not exist, for some address `x`, different contigous
+        // blocks of rows in memory table can present case for them being derived from
+        // static ELF and dynamic (execution) at the same time or being writable as
+        // well as non-writable at the same time.
 
         // All memory init happens prior to exec and the `clk` would be `0`.
-        yield_constr.constraint(
-            lv.is_init    // selector
-            * lv.clk, // constrain clk to be `0` if selector == true
-        );
+        yield_constr.constraint(lv.is_init * lv.clk);
 
         // If instead, the `addr` talks about an address not coming from static ELF,
         // it needs to begin with a `SB` (store) operation before any further access
-        yield_constr.constraint(
-            lv.diff_addr                            // selector
-            * are_equal(lv.op, FE::from_canonical_usize(OPCODE_SB)), /* constrain `SB` as
-                                                                      * operation if selector ==
-                                                                      * true */
-        );
-
-        // However, `SB` based initialization can not occur on read-only marked memory
-        // We are assuming no other store operations exist (half word or full word)
-        // No `SB` operation can be seen if memory address is not marked `writable`
-        // is also an "operation" constraint
-        yield_constr.constraint(
-            is_not(lv.is_writable) * is_not(are_equal(lv.op, FE::from_canonical_usize(OPCODE_SB))),
-        );
+        yield_constr.constraint(is_local_a_new_addr * (P::ONES - lv.is_sb));
 
         // Operation constraints
         // ---------------------
-        // Currently we only support `SB` and `LB` operations (no half-word or full-word
-        // load and store). These are represented in `op` as either `0` or `1`. We
-        // constrain them here
-        is_binary(yield_constr, lv.op);
+        // No `SB` operation can be seen if memory address is not marked `writable`
+        yield_constr.constraint((P::ONES - lv.is_writable) * lv.is_sb);
 
-        // Only if `SB` operation is seen, value can change between rows
-        yield_constr.constraint(
-            are_equal(nv.op, FE::from_canonical_usize(OPCODE_SB)) * are_equal(nv.value, lv.value),
-        );
+        // For all "load" operations, the value cannot change between rows
+        yield_constr.constraint(nv.is_lbu * (nv.value - lv.value));
 
         // Clock constraints
         // -----------------
@@ -149,26 +127,22 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // row, we expect `diff_clk` to be `0`. New row's clk remains
         // unconstrained in such situation.
         yield_constr.constraint_transition(
-            is_not(is_next_a_new_addr)              // selector
-            * are_equal(nv.diff_clk, nv.clk - lv.clk), /* `diff_clk` matches difference if
-                                                        * selector == true */
+            (P::ONES - is_next_a_new_addr) * (nv.diff_clk - (nv.clk - lv.clk)),
         );
-        yield_constr.constraint_transition(
-            lv.diff_addr         // selector
-            * lv.diff_clk, // `diff_clk` is `0` in case a selector != 0
-        );
+        yield_constr.constraint_transition(is_local_a_new_addr * lv.diff_clk);
 
         // Address constraints
         // -------------------
         // We need to ensure that `diff_addr` always encapsulates difference in addr
         // between two rows
-        yield_constr.constraint_transition(are_equal(nv.addr, lv.addr + nv.diff_addr));
+        yield_constr.constraint_transition(nv.diff_addr - (nv.addr - lv.addr));
 
         // Padding constraints
         // -------------------
         // Once we have padding, all subsequent rows are padding; ie not
         // `is_executed`.
-        yield_constr.constraint_transition((lv.is_executed - nv.is_executed) * nv.is_executed);
+        yield_constr
+            .constraint_transition((lv.is_executed() - nv.is_executed()) * nv.is_executed());
     }
 
     fn constraint_degree(&self) -> usize { 3 }

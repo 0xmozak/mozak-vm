@@ -1,19 +1,20 @@
 [package]
 edition = "2021"
-name = "min-max-mozak-guest"
+name = "stdin-mozak-guest"
 version = "0.1.0"
 
 [target.'cfg(target_os="zkvm")'.dependencies.guest]
+features = ["std"]
 path = "../../guest"
 
 [features]
 native = []
 
 [[bin]]
-name = "min-max"
+name = "stdin"
 path = "main.rs"
 
 [[bin]]
-name = "min-max-native"
+name = "stdin-native"
 path = "main_native.rs"
 required-features = ["native"]

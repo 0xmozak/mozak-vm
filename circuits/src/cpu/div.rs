@@ -1,8 +1,8 @@
 //! This module implements constraints for division operations, including
-//! DIVU, REMU, DIV, REM and SRL instructions.
+//! DIVU, REMU, DIV, REM, SRL and SRA instructions.
 //!
 //! Here, SRL stands for 'shift right logical'.  We can treat it as a variant of
-//! unsigned multiplication.
+//! unsigned division. Same for SRA.
 
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
@@ -12,15 +12,13 @@ use super::columns::CpuState;
 use crate::cpu::mul::bit_to_sign;
 use crate::cpu::stark::is_binary;
 
-/// Constraints for DIV / REM / DIVU / REMU / SRL instructions
-///
-/// SRL stands for 'shift right logical'.  We can treat it as a variant of
-/// unsigned division.
+/// Constraints for DIV / REM / DIVU / REMU / SRL / SRA instructions
 #[allow(clippy::similar_names)]
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
+    let ops = lv.inst.ops;
     let two_to_32 = CpuState::<P>::shifted(32);
     let dividend_value = lv.op1_value;
     let dividend_sign = lv.op1_sign_bit;
@@ -46,12 +44,21 @@ pub(crate) fn constraints<P: PackedField>(
 
     // For both signed and unsigned division, it holds that
     // |dividend| = |divisor| × |quotient| + |remainder|.
-    yield_constr.constraint(divisor_abs * quotient_abs + remainder_abs - dividend_abs);
+    // Note that for SRA the remainder is always non-negative, so when dividend < 0
+    // this equation becomes |dividend| = |divisor| × |quotient| - remainder.
+    yield_constr.constraint(
+        divisor_abs * quotient_abs
+            + (P::ONES - ops.sra) * remainder_abs
+            + ops.sra * (bit_to_sign(dividend_sign) * remainder_full_range)
+            - dividend_abs,
+    );
 
     // We also need to make sure quotient_sign and remainder_sign are set correctly.
     is_binary(yield_constr, remainder_sign);
     is_binary(yield_constr, dividend_sign);
-    yield_constr.constraint(remainder_value * (dividend_sign - remainder_sign));
+    yield_constr
+        .constraint((P::ONES - ops.sra) * remainder_value * (dividend_sign - remainder_sign));
+    yield_constr.constraint(ops.sra * remainder_sign);
 
     // Quotient_sign = dividend_sign * divisor_sign, with three exceptions:
     // 1. When divisor = 0, this case is handled below.
@@ -117,8 +124,8 @@ pub(crate) fn constraints<P: PackedField>(
 
     // Last, we 'copy' our results:
     let dst = lv.dst_value;
-    yield_constr.constraint((lv.inst.ops.div + lv.inst.ops.srl) * (dst - quotient_value));
-    yield_constr.constraint(lv.inst.ops.rem * (dst - remainder_value));
+    yield_constr.constraint((ops.div + ops.srl + ops.sra) * (dst - quotient_value));
+    yield_constr.constraint(ops.rem * (dst - remainder_value));
 }
 
 #[cfg(test)]
@@ -202,10 +209,10 @@ mod tests {
 
     #[allow(clippy::cast_sign_loss)]
     #[test]
-    fn prove_div_example() { prove_div::<MozakStark<F, D>>(i32::MIN as u32, -1_i32 as u32, 28); }
+    fn prove_div_example() { prove_div::<CpuStark<F, D>>(i32::MIN as u32, -1_i32 as u32, 28); }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(4))]
+        #![proptest_config(ProptestConfig::with_cases(100))]
         #[test]
         fn inv_is_big(x in u32_extra()) {
             type F = plonky2::field::goldilocks_field::GoldilocksField;

@@ -1,5 +1,5 @@
 #![no_main]
-#![feature(restricted_std)]
+#![no_std]
 
 use core::assert_eq;
 

@@ -1,17 +1,19 @@
 use itertools::{self, Itertools};
 use mozak_runner::elf::Program;
+use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::memory::columns::Memory;
-use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk, get_memory_inst_op};
+use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk};
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
     trace.resize(trace.len().next_power_of_two(), Memory {
         // Some columns need special treatment..
-        is_executed: F::ZERO,
+        is_sb: F::ZERO,
+        is_lbu: F::ZERO,
         is_init: F::ZERO,
         diff_addr: F::ZERO,
         diff_addr_inv: F::ZERO,
@@ -132,7 +134,7 @@ mod tests {
     use plonky2::hash::hash_types::RichField;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
-    use crate::memory::columns::{self as mem_cols, Memory};
+    use crate::memory::columns::Memory;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::memory::trace::{OPCODE_LBU, OPCODE_SB};
     use crate::test_utils::inv;
@@ -149,8 +151,6 @@ mod tests {
     }
 
     fn expected_trace<F: RichField>() -> Vec<Memory<F>> {
-        let sb = OPCODE_SB as u64;
-        let lbu = OPCODE_LBU as u64;
         let inv = inv::<F>;
         #[rustfmt::skip]
         prep_table(vec![

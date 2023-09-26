@@ -176,7 +176,7 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     let wrap_at = CpuState::<P>::shifted(32);
     let ops = &lv.inst.ops;
     let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bge;
-    let is_shift_operation = ops.sll + ops.srl;
+    let is_shift_operation = ops.sll + ops.srl + ops.sra;
 
     yield_constr.constraint(is_branch_operation * (lv.op2_value - lv.rs2_value()));
     yield_constr.constraint(is_shift_operation * (lv.op2_value - lv.bitshift.multiplier));
@@ -262,8 +262,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         ecall::constraints(lv, nv, yield_constr);
         halted(lv, nv, yield_constr);
 
-        // Clock starts at 0
-        yield_constr.constraint_first_row(lv.clk);
+        // Clock starts at 1. This is to differentiate
+        // execution clocks (1 and above) from clk value of `0` which is
+        // reserved for any initialisation concerns. e.g. memory initialization
+        // prior to program execution, register initialization etc.
+        yield_constr.constraint_first_row(P::ONES - lv.clk);
     }
 
     fn constraint_degree(&self) -> usize { 3 }

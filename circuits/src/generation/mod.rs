@@ -9,6 +9,7 @@ pub mod memoryinit;
 pub mod program;
 pub mod rangecheck;
 pub mod rangecheck_limb;
+pub mod registerinit;
 pub mod xor;
 
 use std::borrow::Borrow;
@@ -103,7 +104,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
-    [(); ProgramStark::<F, D>::COLUMNS]:,
+    // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:, {
     let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, rangecheck_limb_trace]: &[Vec<

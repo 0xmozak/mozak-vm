@@ -28,6 +28,8 @@ pub struct OpSelectors<T> {
     pub slt: T,
     /// Shift Right Logical by amount
     pub srl: T,
+    /// Arithmetic Right Shifts
+    pub sra: T,
     /// Jump And Link Register
     pub jalr: T,
     /// Branch on Equal
@@ -189,7 +191,7 @@ impl<T: PackedField> CpuState<T> {
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let cpu = MAP.cpu.map(Column::from);
     let ops = &cpu.inst.ops;
-    let divs = &ops.div + &ops.rem + &ops.srl;
+    let divs = &ops.div + &ops.rem + &ops.srl + &ops.sra;
     let muls = &ops.mul + &ops.mulh + &ops.sll;
 
     vec![
@@ -234,7 +236,14 @@ pub fn filter_for_xor<F: Field>() -> Column<F> {
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_memory<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.cpu.dst_value)] }
+pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
+    vec![
+        Column::single(MAP.cpu.clk),
+        // TODO(Supragya): Add CTL for Opcodes SB and LBU, requires memory table
+        // to have one-hot OP encoding
+        Column::single(MAP.cpu.dst_value),
+    ]
+}
 
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -244,12 +253,10 @@ pub fn filter_for_memory<F: Field>() -> Column<F> { MAP.cpu.map(Column::from).in
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(self) -> T {
-        // TODO: Add SRA, once we implement its constraints.
-        self.xor + self.or + self.and + self.srl + self.sll
+        self.xor + self.or + self.and + self.srl + self.sll + self.sra
     }
 
-    // TODO: Add SRA, once we implement its constraints.
-    pub fn ops_that_shift(self) -> T { self.sll + self.srl }
+    pub fn ops_that_shift(self) -> T { self.sll + self.srl + self.sra }
 
     // TODO: Add other mem ops like SH, SW, LB, LW, LH, LHU as we implement the
     // constraints.
@@ -274,13 +281,28 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
     let inst = MAP.cpu.inst;
     vec![
         Column::single(inst.pc),
-        Column::ascending_sum(inst.ops),
-        Column::ascending_sum(inst.rs1_select),
-        Column::ascending_sum(inst.rs2_select),
-        Column::ascending_sum(inst.rd_select),
-        Column::single(inst.imm_value),
-        Column::single(inst.is_op1_signed),
-        Column::single(inst.is_op2_signed),
+        // Combine columns into a single column.
+        // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5
+        //   bits.
+        // - is_op1_signed and is_op2_signed: These fields occupy 1 bit each.
+        // - rs1_select, rs2_select, and rd_select: These fields require 5 bits each.
+        // - imm_value: This field requires 32 bits.
+        // Therefore, the total bit requirement is 5 * 6 + 32 = 62 bits, which is less than the
+        // size of the Goldilocks field.
+        // Note: The imm_value field, having more than 5 bits, must be positioned as the last
+        // column in the list to ensure the correct functioning of 'reduce_with_powers'.
+        Column::reduce_with_powers(
+            vec![
+                Column::ascending_sum(inst.ops),
+                Column::single(inst.is_op1_signed),
+                Column::single(inst.is_op2_signed),
+                Column::ascending_sum(inst.rs1_select),
+                Column::ascending_sum(inst.rs2_select),
+                Column::ascending_sum(inst.rd_select),
+                Column::single(inst.imm_value),
+            ],
+            1 << 5,
+        ),
     ]
 }
 

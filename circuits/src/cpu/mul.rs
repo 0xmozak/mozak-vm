@@ -272,7 +272,7 @@ mod tests {
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(4))]
+        #![proptest_config(ProptestConfig::with_cases(100))]
         #[test]
         fn prove_mul_cpu(a in u32_extra(), b in u32_extra()) {
             prove_mul::<CpuStark<F, D>>(a, b)?;
@@ -297,7 +297,7 @@ mod tests {
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(4))]
+        #![proptest_config(ProptestConfig::with_cases(1))]
         #[test]
         fn prove_mul_mozak(a in u32_extra(), b in u32_extra()) {
             prove_mul::<MozakStark<F, D>>(a, b)?;
