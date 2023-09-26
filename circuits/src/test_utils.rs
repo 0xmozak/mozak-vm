@@ -219,10 +219,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
         let config = standard_faster_config();
 
         let stark = S::default();
-        let trace = generate_register_trace::<F>(&program, &record);
-        for t in trace.iter() {
-        println!("{:?}", t);
-        }
+        let trace = generate_register_trace::<F>(program, record);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
             stark,

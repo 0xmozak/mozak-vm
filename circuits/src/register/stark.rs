@@ -36,8 +36,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
 
         // Virtual dummy column to differentiate between real rows and padding rows.
         // TODO: CTL dummy column against `RegisterInit`
-        let lv_dummy = lv.is_init + lv.is_read + lv.is_write;
-        let nv_dummy = nv.is_init + nv.is_read + nv.is_write;
+        let local_dummy = lv.is_init + lv.is_read + lv.is_write;
+        let next_dummy = nv.is_init + nv.is_read + nv.is_write;
 
         // Check: first register address == 1, i.e. we do not have register address 0
         // in our trace.
@@ -47,7 +47,18 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         is_binary(yield_constr, lv.is_init);
         is_binary(yield_constr, lv.is_read);
         is_binary(yield_constr, lv.is_write);
-        is_binary(yield_constr, lv_dummy);
+        is_binary(yield_constr, local_dummy);
+
+        // Check: virtual dummy column can flip between 1 or 0
+        // (local_dummy - next_dummy - 1) is expressed as such, because
+        // local_dummy = 1 in the last real row, and
+        // next_dummy = 0 in the first padding row.
+        yield_constr.constraint_transition((next_dummy - local_dummy) * (local_dummy - next_dummy - P::ONES));
+
+
+        // Only when next row is an init row, i.e. `is_init` == 1,
+        // then the register entry can change address.
+        yield_constr.constraint_transition((nv.is_read + nv.is_write) * (nv.addr - lv.addr));
 
         // Check: for any register, `is_read` should not change the value of the
         // register. Only `is_write`, `is_init` or `is_dummy` should be able to
@@ -55,16 +66,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         yield_constr.constraint_transition(
             lv.is_read * (nv.value - lv.value) * (nv.addr - lv.addr - P::ONES),
         );
-
-        // Check: virtual dummy column can flip between 1 or 0
-        // (lv_dummy - nv_dummy - 1) is expressed as such, because
-        // lv_dummy = 1 in the last real row, and
-        // nv_dummy = 0 in the first padding row.
-        yield_constr.constraint_transition((nv_dummy - lv_dummy) * (lv_dummy - nv_dummy - P::ONES));
-
-        // Only when next row is an init row, i.e. `is_init` == 1,
-        // then the register entry can change address.
-        yield_constr.constraint_transition((nv.is_read + nv.is_write) * (nv.addr - lv.addr));
 
         // Check: last register address == 31
         yield_constr.constraint_last_row(lv.addr - P::from(FE::from_canonical_u8(31)));
