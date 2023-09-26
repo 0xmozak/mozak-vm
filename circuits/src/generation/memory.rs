@@ -180,13 +180,13 @@ mod tests {
             ro_memory: Data(
                 [(100, 5), (101, 6)]
                     .iter()
-                    .cloned()
+                    .copied()
                     .collect::<HashMap<u32, u8>>(),
             ),
             rw_memory: Data(
                 [(200, 7), (201, 8)]
                     .iter()
-                    .cloned()
+                    .copied()
                     .collect::<HashMap<u32, u8>>(),
             ),
             ..Program::default()
