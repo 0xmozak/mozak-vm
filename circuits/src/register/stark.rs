@@ -79,8 +79,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         );
 
         // Constraint 5: Address changes only when nv.is_init == 1.
-        // Only when next row is an init row, i.e. `is_init` == 1,
-        // then the register entry can change address.
+        // We reformulate the above constraint to be:
+        // if next `is_read` == 1 or next `is_write` == 1, the address cannot
+        // change.
         yield_constr.constraint_transition((nv.is_read + nv.is_write) * (nv.addr - lv.addr));
 
         // Constraint 6: Address either stays the same or increments by 1.
