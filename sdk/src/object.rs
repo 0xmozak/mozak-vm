@@ -1,6 +1,5 @@
-use std::fmt::Debug;
-
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "std")]
 use sha3::Digest;
 
 use crate::Id;
@@ -9,7 +8,8 @@ pub mod program;
 
 pub mod data;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "std", derive(Debug))]
 pub enum Object {
     Program(program::ProgramContent),
     Data(data::DataContent),
@@ -72,7 +72,7 @@ impl Eq for Object {}
 
 /// Our application network is a collection of objects of different types, which
 /// depends on the type of data that is stored in the object.
-pub trait ObjectContent: Debug + Clone {
+pub trait ObjectContent: Clone {
     /// The unique id of the object, can be considered as an object address.
     ///
     /// It is generated deterministically based on the constraining program id,
@@ -87,7 +87,7 @@ pub trait ObjectContent: Debug + Clone {
 
     /// Generates a unique ID for the object.
     /// Currently, we use SHA3-256 hash function to generate the ID.
-    #[cfg(not(feature = "no-std"))]
+    #[cfg(feature = "std")]
     fn generate_id<T: Into<Box<[u8]>> + Clone>(parameters: Vec<T>) -> Id {
         let mut hasher = sha3::Sha3_256::new();
         parameters
@@ -99,7 +99,7 @@ pub trait ObjectContent: Debug + Clone {
     }
 }
 
-#[cfg(all(test, not(feature = "no-std")))]
+#[cfg(all(test, feature = "std"))]
 mod test {
     use super::*;
     use crate::object::data::DataContent;

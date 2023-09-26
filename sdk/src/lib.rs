@@ -1,6 +1,8 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
 pub use id::Id;
 pub use object::{data, program, Object, ObjectContent};
-pub use transition::TransitionFunction;
+pub use transition::Transition;
 
 pub mod id;
 

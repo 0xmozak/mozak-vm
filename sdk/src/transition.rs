@@ -1,13 +1,60 @@
+extern crate alloc;
+
+use alloc::vec::Vec;
+
+#[cfg(feature = "std")]
 use im::HashMap;
-#[cfg(not(feature = "no-std"))]
-use mozak_runner::elf;
+#[cfg(feature = "std")]
+use mozak_runner::{elf, instruction};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "std")]
+use sha3::Digest;
+
+use crate::Id;
+
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "std", derive(Debug))]
+pub struct Transition {
+    id: Id,
+    pub program: Program,
+}
+
+impl Transition {
+    #[cfg(feature = "std")]
+    pub fn new(program: Program) -> Self {
+        let id = Self::generate_id(program.clone());
+        Self { id, program }
+    }
+
+    /// Generates a unique ID for the transition function.
+    /// Currently, we use SHA3-256 hash function to generate the ID.
+    #[cfg(feature = "std")]
+    pub fn generate_id(program: Program) -> Id {
+        let mut hasher = sha3::Sha3_256::new();
+        hasher.update(<Vec<u8>>::from(program));
+        let hash = hasher.finalize();
+
+        Id(hash.into())
+    }
+
+    pub fn id(&self) -> Id { self.id }
+}
+
+impl From<Program> for Vec<u8> {
+    fn from(program: Program) -> Self {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&program.entry_point.to_be_bytes());
+        // TODO - add code that converts the transition into bytes.
+        bytes
+    }
+}
 
 /// A RISC program (same as mozak_runner::elf::Program)
 /// We reimplement it here to avoid a dependency on mozak_runner
 /// As the mozak_runner crate is unable to be compiled into "no_std" code
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct TransitionFunction {
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "std", derive(Debug))]
+pub struct Program {
     /// The entrypoint of the program
     pub entry_point: u32,
 
@@ -23,41 +70,62 @@ pub struct TransitionFunction {
     pub ro_code: Code,
 }
 
-#[cfg(not(feature = "no-std"))]
-impl Into<Program> for TransitionFunction {
-    fn into(self) -> Program {
-        Program {
-            entry_point: self.entry_point,
-            ro_memory: self.ro_memory.0,
-            rw_memory: self.rw_memory.0,
-            ro_code: self.ro_code.0,
+#[cfg(feature = "std")]
+impl From<Program> for elf::Program {
+    fn from(transition: Program) -> Self {
+        elf::Program {
+            entry_point: transition.entry_point,
+            ro_memory: transition.ro_memory.into(),
+            rw_memory: transition.rw_memory.into(),
+            ro_code: transition.ro_code.into(),
         }
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Data(pub HashMap<u32, u8>);
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "std", derive(Debug))]
+pub struct Data(pub Vec<(u32, u8)>);
 
-#[cfg(not(feature = "no-std"))]
-impl Into<elf::Data> for Data {
-    fn into(self) -> elf::Data { elf::Data(self.0) }
+#[cfg(feature = "std")]
+impl From<Data> for elf::Data {
+    fn from(data: Data) -> Self { elf::Data(HashMap::from(data.0)) }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct Code(pub HashMap<u32, Instruction>);
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "std", derive(Debug))]
+pub struct Code(pub Vec<(u32, Instruction)>);
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
+#[cfg(feature = "std")]
+impl From<Code> for elf::Code {
+    fn from(code: Code) -> Self {
+        elf::Code(HashMap::from(
+            code.0
+                .iter()
+                .map(|(pos, inst)| (*pos, instruction::Instruction::from(*inst)))
+                .collect::<Vec<_>>(),
+        ))
+    }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "std", derive(Debug))]
 pub struct Instruction {
     pub op: Op,
     pub args: Args,
 }
 
-#[cfg(not(feature = "no-std"))]
-impl Into<elf::Code> for Code {
-    fn into(self) -> elf::Code { elf::Code(self.0) }
+#[cfg(feature = "std")]
+impl From<Instruction> for instruction::Instruction {
+    fn from(inst: Instruction) -> Self {
+        instruction::Instruction {
+            op: inst.op.into(),
+            args: inst.args.into(),
+        }
+    }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "std", derive(Debug))]
 #[repr(u8)]
 #[allow(clippy::all)]
 pub enum Op {
@@ -99,50 +167,51 @@ pub enum Op {
     UNKNOWN,
 }
 
-#[cfg(not(feature = "no-std"))]
-impl Into<elf::Op> for Op {
-    fn into(self) -> elf::Op {
-        match self {
-            Op::ADD => elf::Op::ADD,
-            Op::SUB => elf::Op::SUB,
-            Op::SRL => elf::Op::SRL,
-            Op::SRA => elf::Op::SRA,
-            Op::SLL => elf::Op::SLL,
-            Op::SLT => elf::Op::SLT,
-            Op::SLTU => elf::Op::SLTU,
-            Op::LB => elf::Op::LB,
-            Op::LH => elf::Op::LH,
-            Op::LW => elf::Op::LW,
-            Op::LBU => elf::Op::LBU,
-            Op::LHU => elf::Op::LHU,
-            Op::XOR => elf::Op::XOR,
-            Op::JALR => elf::Op::JALR,
-            Op::BEQ => elf::Op::BEQ,
-            Op::BNE => elf::Op::BNE,
-            Op::BLT => elf::Op::BLT,
-            Op::BGE => elf::Op::BGE,
-            Op::BLTU => elf::Op::BLTU,
-            Op::BGEU => elf::Op::BGEU,
-            Op::AND => elf::Op::AND,
-            Op::OR => elf::Op::OR,
-            Op::SW => elf::Op::SW,
-            Op::SH => elf::Op::SH,
-            Op::SB => elf::Op::SB,
-            Op::MUL => elf::Op::MUL,
-            Op::MULH => elf::Op::MULH,
-            Op::MULHU => elf::Op::MULHU,
-            Op::MULHSU => elf::Op::MULHSU,
-            Op::DIV => elf::Op::DIV,
-            Op::DIVU => elf::Op::DIVU,
-            Op::REM => elf::Op::REM,
-            Op::REMU => elf::Op::REMU,
-            Op::ECALL => elf::Op::ECALL,
-            Op::UNKNOWN => elf::Op::UNKNOWN,
+#[cfg(feature = "std")]
+impl From<Op> for instruction::Op {
+    fn from(op: Op) -> Self {
+        match op {
+            Op::ADD => instruction::Op::ADD,
+            Op::SUB => instruction::Op::SUB,
+            Op::SRL => instruction::Op::SRL,
+            Op::SRA => instruction::Op::SRA,
+            Op::SLL => instruction::Op::SLL,
+            Op::SLT => instruction::Op::SLT,
+            Op::SLTU => instruction::Op::SLTU,
+            Op::LB => instruction::Op::LB,
+            Op::LH => instruction::Op::LH,
+            Op::LW => instruction::Op::LW,
+            Op::LBU => instruction::Op::LBU,
+            Op::LHU => instruction::Op::LHU,
+            Op::XOR => instruction::Op::XOR,
+            Op::JALR => instruction::Op::JALR,
+            Op::BEQ => instruction::Op::BEQ,
+            Op::BNE => instruction::Op::BNE,
+            Op::BLT => instruction::Op::BLT,
+            Op::BGE => instruction::Op::BGE,
+            Op::BLTU => instruction::Op::BLTU,
+            Op::BGEU => instruction::Op::BGEU,
+            Op::AND => instruction::Op::AND,
+            Op::OR => instruction::Op::OR,
+            Op::SW => instruction::Op::SW,
+            Op::SH => instruction::Op::SH,
+            Op::SB => instruction::Op::SB,
+            Op::MUL => instruction::Op::MUL,
+            Op::MULH => instruction::Op::MULH,
+            Op::MULHU => instruction::Op::MULHU,
+            Op::MULHSU => instruction::Op::MULHSU,
+            Op::DIV => instruction::Op::DIV,
+            Op::DIVU => instruction::Op::DIVU,
+            Op::REM => instruction::Op::REM,
+            Op::REMU => instruction::Op::REMU,
+            Op::ECALL => instruction::Op::ECALL,
+            Op::UNKNOWN => instruction::Op::UNKNOWN,
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "std", derive(Debug))]
 pub struct Args {
     pub rd: u8,
     pub rs1: u8,
@@ -150,14 +219,14 @@ pub struct Args {
     pub imm: u32,
 }
 
-#[cfg(not(feature = "no-std"))]
-impl Into<elf::Args> for Args {
-    fn into(self) -> elf::Args {
-        elf::Args {
-            rd: self.rd,
-            rs1: self.rs1,
-            rs2: self.rs2,
-            imm: self.imm,
+#[cfg(feature = "std")]
+impl From<Args> for instruction::Args {
+    fn from(args: Args) -> Self {
+        instruction::Args {
+            rd: args.rd,
+            rs1: args.rs1,
+            rs2: args.rs2,
+            imm: args.imm,
         }
     }
 }

@@ -6,5 +6,6 @@ name = "mozak-transitions"
 version = "0.1.0"
 
 [dependencies]
-mozak-node-sdk = { path = "../sdk", features = ["no-std"] }
+mozak-node-sdk = { path = "../sdk", default-features = false }
+
 guest = { git = "ssh://git@github.com/0xmozak/mozak-vm.git", branch = "main" }

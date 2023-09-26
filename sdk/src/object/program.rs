@@ -1,14 +1,16 @@
-use std::collections::HashMap;
+extern crate alloc;
+use alloc::vec::Vec;
 
 use super::*;
-use crate::TransitionFunction;
+use crate::Transition;
 
 /// A Program type of object.
 ///
 /// This object type is used to constrain the
 /// evolution of other objects. It contains the program code that is used to
 /// validate the object evolution.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "std", derive(Debug))]
 pub struct ProgramContent {
     /// Unique object ID
     id: Id,
@@ -27,7 +29,7 @@ pub struct ProgramContent {
     /// the state update.
     /// The transition ID is a hash of the program that is used to validate
     /// the transition.
-    pub allowed_transitions: HashMap<Id, TransitionFunction>,
+    pub validating_transitions: Vec<Transition>,
 }
 
 impl ObjectContent for ProgramContent {
@@ -36,13 +38,14 @@ impl ObjectContent for ProgramContent {
     fn owner_id(&self) -> &Id { &self.owner_id }
 }
 
+#[cfg(feature = "std")]
 impl ProgramContent {
     /// Creates a new Program object.
     pub fn new(
         version: u64,
         mutable: bool,
         owner_id: Id,
-        validating_transitions: Vec<TransitionFunction>,
+        validating_transitions: Vec<Transition>,
     ) -> Self {
         let id = Self::generate_id(vec![
             version.to_be_bytes().to_vec(),
@@ -50,45 +53,16 @@ impl ProgramContent {
             owner_id.to_vec(),
             validating_transitions
                 .iter()
-                .flat_map(transition_to_bytes)
+                .flat_map(|t| t.id().to_vec())
                 .collect(),
         ]);
-
-        let validating_transitions = validating_transitions
-            .into_iter()
-            .map(|transition| {
-                let id = generate_transition_id(&transition);
-                (id, transition)
-            })
-            .collect();
 
         Self {
             id,
             version,
             mutable,
             owner_id,
-            allowed_transitions: validating_transitions,
+            validating_transitions,
         }
     }
-}
-
-/// Converts a transition function into a byte vector.
-/// TODO - add code that converts the transition into bytes.
-fn transition_to_bytes(transition: &TransitionFunction) -> Vec<u8> {
-    let mut result = vec![];
-
-    result.extend_from_slice(&transition.entry_point.to_be_bytes());
-
-    result
-}
-
-/// Generates a unique ID for the transition function.
-/// Currently, we use SHA3-256 hash function to generate the ID.
-#[cfg(not(feature = "no-std"))]
-pub fn generate_transition_id(transition: &TransitionFunction) -> Id {
-    let mut hasher = sha3::Sha3_256::new();
-    hasher.update(transition_to_bytes(transition));
-    let hash = hasher.finalize();
-
-    Id(hash.into())
 }
