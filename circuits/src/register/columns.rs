@@ -13,12 +13,6 @@ pub struct Register<T> {
     /// address.
     pub addr: T,
 
-    /// Binary filter column that marks a row if the register 'address' is
-    /// different from the previous row, marking a change in address.
-    // TODO: think about if `is_init` column is sufficient to act as a
-    // marker for if address changed
-    pub did_addr_change: T,
-
     /// Value of the register at time (in clk) of access.
     pub value: T,
 

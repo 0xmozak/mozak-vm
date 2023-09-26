@@ -65,7 +65,6 @@ pub fn generate_register_trace<F: RichField>(
         (inst.args.rs1 != 0).then(|| {
             trace.append(&mut vec![Register {
                 addr: F::from_canonical_u8(inst.args.rs1),
-                did_addr_change: F::ZERO,
                 value: F::from_canonical_u32(state.get_register_value(inst.args.rs1)),
                 augmented_clk: F::from_canonical_u64((state.clk) * 2),
                 is_init: F::ZERO,
@@ -77,7 +76,6 @@ pub fn generate_register_trace<F: RichField>(
         (inst.args.rs2 != 0).then(|| {
             trace.append(&mut vec![Register {
                 addr: F::from_canonical_u8(inst.args.rs2),
-                did_addr_change: F::ZERO,
                 value: F::from_canonical_u32(state.get_register_value(inst.args.rs2)),
                 augmented_clk: F::from_canonical_u64((state.clk) * 2),
                 is_init: F::ZERO,
@@ -89,7 +87,6 @@ pub fn generate_register_trace<F: RichField>(
         (inst.args.rd != 0).then(|| {
             trace.append(&mut vec![Register {
                 addr: F::from_canonical_u8(inst.args.rd),
-                did_addr_change: F::ZERO,
                 value: F::from_canonical_u32(state.get_register_value(inst.args.rd)),
                 augmented_clk: F::from_canonical_u64((state.clk) * 2 + 1),
                 is_init: F::ZERO,
@@ -124,8 +121,8 @@ mod tests {
             (1..32)
                 .map(|i|
                 // Columns (repeated for registers 0-31):
-                //     addr  did_addr_change value augmented_clk is_init is_read is_write
-                [         i,              0,    0,            0,      1,      0,       0])
+                //     addr  value augmented_clk is_init is_read is_write
+                [         i,     0,            0,      1,      0,       0])
                 .collect_vec(),
         );
         (0..31).for_each(|i| {
@@ -171,11 +168,12 @@ mod tests {
         // This is just the initial trace, similar to structure of
         // [`RegisterInit`](registerinit).
         let mut expected_trace = prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
+            #[rustfmt::skip]
             (1..32)
                 .map(|i|
                 // Columns (repeated for registers 1-31):
-                // addr did_addr_change value augmented_clk is_init is_read is_write
-                [         i,              0,    0,            0,      1,      0,       0])
+                // addr value augmented_clk is_init is_read is_write
+                [     i,    0,            0,      1,      0,       0])
                 .collect_vec(),
         );
 
@@ -187,27 +185,27 @@ mod tests {
                 // First, populate the table with the instructions from the above test code.
                 //
                 // Columns:
-                // addr did_addr_change value augmented_clk is_init is_read is_write
+                // addr value augmented_clk is_init is_read is_write
                 //
                 // Instructions: in order of (rs1, rs2/imm, rd)
                 // ADD r6, r7, r4
-                [        6,              0,  100,            2,      0,      1,       0],
-                [        7,              0,  200,            2,      0,      1,       0],
-                [        4,              0,  0,              3,      0,      0,       1],
+                [    6,  100,         2,        0,      1,       0],
+                [    7,  200,         2,        0,      1,       0],
+                [    4,    0,         3,        0,      0,       1],
                 // ADD r4, r6, r5
-                [        4,              0,  300,            4,      0,      1,       0],
-                [        6,              0,  100,            4,      0,      1,       0],
-                [        5,              0,  0,              5,      0,      0,       1],
+                [    4,  300,         4,        0,      1,       0],
+                [    6,  100,         4,        0,      1,       0],
+                [    5,    0,         5,        0,      0,       1],
                 // ADD r5, 100, r4 (note: imm values are ignored)
-                [        5,              0,  400,            6,      0,      1,       0],
-                [        4,              0,  300,            7,      0,      0,       1],
+                [    5,  400,         6,        0,      1,       0],
+                [    4,  300,         7,        0,      0,       1],
                 // Next, we add the instructions added in `simple_test_code()`
                 // Note that we filter out operations that act on r0.
-                [        10,             0,  0,              9,      0,      0,       1],
+                [    10,   0,         9,        0,      0,       1],
             ]),
         );
 
-        // Finally, this is the sorted trace, where we populate `did_addr_change`.
+        // Finally, this is the sorted trace.
         let expected_trace = sort_by_address(expected_trace);
 
         (0..expected_trace.len()).for_each(|i| {
