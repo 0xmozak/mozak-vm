@@ -3,10 +3,11 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-use crate::network::object::TransitionFunction;
+use mozak_node_sdk::{Object, TransitionFunction};
+
 use crate::{
     batch_batched_transition_proof, batch_transition_proofs, prove_transition_function,
-    run_transition_function, ConsensusSystem, Object, TransitionWithProof, RPC,
+    run_transition_function, ConsensusSystem, TransitionWithProof, RPC,
 };
 
 pub struct Sequencer();
@@ -158,11 +159,11 @@ impl Sequencer {
 
 #[cfg(all(feature = "dummy-system", test))]
 mod test {
-    use crate::network::object::program::{generate_transition_id, ProgramContent};
+    use mozak_node_sdk::program::{generate_transition_id, ProgramContent};
+    use mozak_node_sdk::{Id, Object};
+
     use crate::sequencer::Sequencer;
-    use crate::{
-        ConsensusSystem, DummyConsensusSystem, Id, Object, ScenarioRPC, TransitionMessage, RPC,
-    };
+    use crate::{ConsensusSystem, DummyConsensusSystem, ScenarioRPC, TransitionMessage, RPC};
 
     #[test]
     fn no_message_test() {

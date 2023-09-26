@@ -1,12 +1,11 @@
 use std::fmt::Error;
 
 use flexbuffers::FlexbufferSerializer;
+use mozak_node_sdk::{Object, TransitionFunction};
 pub use mozak_runner::elf::Code;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use serde::{Deserialize, Serialize};
-
-use crate::network::object::{Object, TransitionFunction};
 
 /// Executes the VM instance on the provided program and returns the output of
 /// the program as well as updated states.

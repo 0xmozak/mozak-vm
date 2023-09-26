@@ -1,12 +1,22 @@
 [package]
-name = "sdk"
+name = "mozak-node-sdk"
 version = "0.1.0"
 edition = "2021"
+type = "lib"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ed25519-dalek = { version = "2.0.0", features = ["rand_core"] }
-ed25519-dalek-bip32 = "0.3.0"
-rand = "0.8.5"
-tiny-bip39 = "1.0.0"
+serde = { version = "1.0.188", features = ["derive"] }
+sha3 = "0.10.8"
+
+mozak-runner = { git = "ssh://git@github.com/0xmozak/mozak-vm.git", branch = "main", features = [
+  "serialize",
+  "test",
+] }
+
+rand = { version = "0.8.5", optional = true }
+
+[features]
+
+dummy-system = ["rand"]

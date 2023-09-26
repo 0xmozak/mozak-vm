@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use crate::network::object::Object;
-use crate::Id;
+use mozak_node_sdk::{Id, Object};
 
 /// Id-focused storage for the application network.
 pub struct ApplicationStorage {
@@ -48,10 +47,10 @@ impl ApplicationStorage {
 
 #[cfg(test)]
 mod test {
+    use mozak_node_sdk::data::DataContent;
+    use mozak_node_sdk::ObjectContent;
+
     use super::*;
-    use crate::network::object::data::DataContent;
-    use crate::network::object::ObjectContent;
-    use crate::Object;
 
     #[test]
     fn test_storage() {

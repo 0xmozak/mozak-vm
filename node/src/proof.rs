@@ -6,15 +6,14 @@ use mozak_circuits::stark::proof::AllProof;
 #[allow(unused_imports)] // TODO - remove
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{D, F, S};
+use mozak_node_sdk::{Id, Object, TransitionFunction};
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 #[allow(unused_imports)] // TODO - remove
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 
-use crate::network::object::TransitionFunction;
 use crate::vm::prepare_vm_input;
-use crate::{Id, Object};
 
 /// Proof that a transition function was executed correctly.
 pub type TransitionProof = (); // TODO - replace with `AllProof<GoldilocksField, C, 2>` once we have prover

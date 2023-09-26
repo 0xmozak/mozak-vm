@@ -12,6 +12,7 @@ thiserror = "1.0.48"
 rand = { version = "0.8.5", optional = true }
 sha3 = "0.10.8"
 
+mozak-node-sdk = { path = "../sdk" }
 mozak-runner = { git = "ssh://git@github.com/0xmozak/mozak-vm.git", branch = "main", features = [
   "serialize",
   "test",
@@ -25,4 +26,4 @@ plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
 default = ["dummy-system"]
 test-features = ["dummy-system"]
 
-dummy-system = ["rand"]
+dummy-system = ["rand", "mozak-node-sdk/dummy-system"]

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["sdk", "node", "object-sdk"]
+members = ["sdk", "node", "sdk"]
 
 
 [patch.crates-io]
