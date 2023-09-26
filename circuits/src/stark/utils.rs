@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::util::transpose;
@@ -20,12 +19,6 @@ pub fn transpose_trace<F: Field, Row: IntoIterator<Item = F>>(trace_rows: Vec<Ro
             .collect_vec(),
     )
 }
-
-/// Shorthand for negation (0 if 1 and vice versa)
-pub fn is_not<P: PackedField>(x: P) -> P { P::ONES - x }
-
-/// Returns zero if both elements are equal, non-zero otherwise
-pub fn are_equal<P: PackedField, T: Into<P>>(x: P, y: T) -> P { x - y.into() }
 
 /// A helper function to transpose a row-wise trace and put it in the format
 /// that `prove` expects.
