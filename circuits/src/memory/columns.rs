@@ -80,5 +80,5 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> {
     let mem = MAP.map(Column::from);
-    mem.is_sb + mem.is_lbu + mem.is_init
+    mem.is_sb + mem.is_lbu
 }
