@@ -11,7 +11,7 @@ pub fn generate_register_init_trace<F: RichField>() -> Vec<RegisterInit<F>> {
             .map(|i| RegisterInit {
                 reg_addr: F::from_canonical_usize(i),
                 value: F::ZERO,
-                is_used: F::from_bool(i == 0),
+                is_used: F::from_bool(i != 0),
             })
             .collect(),
     )
