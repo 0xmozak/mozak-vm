@@ -39,17 +39,16 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
         .map(|row| {
             let addr: F = get_memory_inst_addr(row);
             let addr_u32: Result<u32, _> = addr.to_canonical_u64().try_into();
+            let op = &(row.state).current_instruction(program).op;
             Memory {
-                is_executed: F::ONE,
                 is_writable: F::from_bool(program.rw_memory.contains_key(&addr_u32.unwrap())),
-                is_init: F::ZERO,
                 addr,
                 clk: get_memory_inst_clk(row),
-                op: get_memory_inst_op(&(row.state).current_instruction(program)),
+                is_sb: F::from_bool(matches!(op, Op::SB)),
+                is_lbu: F::from_bool(matches!(op, Op::LBU)),
+                is_init: F::ZERO,
                 value: F::from_canonical_u32(row.aux.dst_val),
-                diff_addr: F::ZERO,     // To be fixed later during interleaving
-                diff_addr_inv: F::ZERO, // To be fixed later during interleaving
-                diff_clk: F::ZERO,      // To be fixed later during interleaving
+                ..Default::default()
             }
         })
         .sorted_by_key(|memory| memory.addr.to_canonical_u64())
@@ -66,16 +65,14 @@ pub fn generate_memory_init_trace_from_program<F: RichField>(program: &Program) 
         .into_iter()
         .flat_map(|(is_writable, mem)| {
             mem.iter().map(move |(&addr, &value)| Memory {
-                is_executed: F::ONE,
                 is_writable,
-                is_init: F::ONE,
                 addr: F::from_canonical_u32(addr),
                 clk: F::ZERO,
-                op: F::ZERO,
+                is_sb: F::ZERO,
+                is_lbu: F::ZERO,
+                is_init: F::ONE,
                 value: F::from_canonical_u8(value),
-                diff_addr: F::ZERO,     // To be fixed later during interleaving
-                diff_addr_inv: F::ZERO, // To be fixed later during interleaving
-                diff_clk: F::ZERO,      // To be fixed later during interleaving
+                ..Default::default()
             })
         })
         .sorted_by_key(|memory| memory.addr.to_canonical_u64())
@@ -136,45 +133,33 @@ mod tests {
 
     use crate::memory::columns::Memory;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::memory::trace::{OPCODE_LBU, OPCODE_SB};
-    use crate::test_utils::inv;
+    use crate::test_utils::{inv, prep_table};
 
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
 
-    fn prep_table<F: RichField>(table: Vec<[u64; mem_cols::NUM_MEM_COLS]>) -> Vec<Memory<F>> {
-        table
-            .into_iter()
-            .map(|row| row.into_iter().map(F::from_canonical_u64).collect())
-            .collect()
-    }
-
     fn expected_trace<F: RichField>() -> Vec<Memory<F>> {
         let inv = inv::<F>;
         #[rustfmt::skip]
         prep_table(vec![
-            // is_executed  is_writable   is_init   addr  clk   op  value  diff_addr  diff_addr_inv  diff_clk
-            [  1,                 1,        1,      100,  0,     0,    0,    100,     inv(100),            0],  // Memory Init: 100
-            [  1,                 1,        0,      100,  0,    sb,  255,      0,           0,             0],  // Operations:  100
-            [  1,                 1,        0,      100,  1,    lbu, 255,      0,           0,             1],  // Operations:  100
-            [  1,                 1,        0,      100,  4,    sb,   10,      0,           0,             3],  // Operations:  100
-            [  1,                 1,        0,      100,  5,    lbu,  10,      0,           0,             1],  // Operations:  100
-
-            [  1,                 1,        1,      101,  0,     0,    0,      1,      inv(1),             0],  // Memory Init: 101
-            [  1,                 1,        1,      102,  0,     0,    0,      1,      inv(1),             0],  // Memory Init: 102
-            [  1,                 1,        1,      103,  0,     0,    0,      1,      inv(1),             0],  // Memory Init: 103
-
-            [  1,                 1,        1,      200,  0,     0,    0,     97,     inv(97),             0],  // Memory Init: 200
-            [  1,                 1,        0,      200,  2,    sb,   15,      0,           0,             2],  // Operations:  200
-            [  1,                 1,        0,      200,  3,    lbu,  15,      0,           0,             1],  // Operations:  200
-
-            [  1,                 1,        1,      201,  0,     0,    0,      1,      inv(1),             0],  // Memory Init: 201
-            [  1,                 1,        1,      202,  0,     0,    0,      1,      inv(1),             0],  // Memory Init: 202
-            [  1,                 1,        1,      203,  0,     0,    0,      1,      inv(1),             0],  // Memory Init: 203
-
-            [  0,                 1,        1,      203,  0,     0,    0,      0,           0,             0],  // Padding
-            [  0,                 1,        1,      203,  0,     0,    0,      0,           0,             0],  // Padding
+            //is_writable  addr   clk  is_sb, is_lbu, is_init  value  diff_addr  diff_addr_inv  diff_clk
+            [       1,     100,   0,     0,     0,       1,        0,    100,     inv(100),            0],  // Memory Init: 100
+            [       1,     100,   1,     1,     0,       0,      255,      0,           0,             1],  // Operations:  100
+            [       1,     100,   2,     0,     1,       0,      255,      0,           0,             1],  // Operations:  100
+            [       1,     100,   5,     1,     0,       0,       10,      0,           0,             3],  // Operations:  100
+            [       1,     100,   6,     0,     1,       0,       10,      0,           0,             1],  // Operations:  100
+            [       1,     101,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 101
+            [       1,     102,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 102
+            [       1,     103,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 103
+            [       1,     200,   0,     0,     0,       1,        0,     97,     inv(97),             0],  // Memory Init: 200
+            [       1,     200,   3,     1,     0,       0,       15,      0,           0,             3],  // Operations:  200
+            [       1,     200,   4,     0,     1,       0,       15,      0,           0,             1],  // Operations:  200
+            [       1,     201,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 201
+            [       1,     202,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 202
+            [       1,     203,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 203
+            [       1,     203,   0,     0,     0,       0,        0,      0,           0,             0],  // Padding
+            [       1,     203,   0,     0,     0,       0,        0,      0,           0,             0],  // Padding
         ])
     }
 
@@ -212,11 +197,11 @@ mod tests {
         let inv = inv::<F>;
         #[rustfmt::skip]
         assert_eq!(trace, prep_table(vec![
-            // is_executed  is_writable   is_init   addr  clk   op  value  diff_addr  diff_addr_inv  diff_clk
-            [  1,                 0,        1,      100,  0,    0,   5,    100,    inv(100),             0],
-            [  1,                 0,        1,      101,  0,    0,   6,      1,           1,             0],
-            [  1,                 1,        1,      200,  0,    0,   7,     99,     inv(99),             0],
-            [  1,                 1,        1,      201,  0,    0,   8,      1,           1,             0],
+            // is_writable   addr   clk  is_sb, is_lbu, is_init   value  diff_addr  diff_addr_inv  diff_clk
+            [        0,      100,   0,      0,    0,    1,       5,    100,    inv(100),             0],
+            [        0,      101,   0,      0,    0,    1,       6,      1,           1,             0],
+            [        1,      200,   0,      0,    0,    1,       7,     99,     inv(99),             0],
+            [        1,      201,   0,      0,    0,    1,       8,      1,           1,             0],
         ]));
     }
 }
