@@ -11,7 +11,7 @@ pub fn generate_register_init_trace<F: RichField>() -> Vec<RegisterInit<F>> {
             .map(|i| RegisterInit {
                 reg_addr: F::from_canonical_usize(i),
                 value: F::ZERO,
-                is_dummy: if i == 0 { F::ONE } else { F::ZERO },
+                is_used: if i == 0 { F::ZERO } else { F::ONE },
             })
             .collect(),
     )
@@ -31,11 +31,10 @@ mod tests {
         let trace = generate_register_init_trace::<F>();
         assert_eq!(trace.len(), 32);
         for (i, r) in trace.iter().enumerate().take(32) {
-            if i == 0 {
-                assert!(r.is_dummy.is_one());
-            } else {
-                assert!(r.is_dummy.is_zero());
-            }
+            assert!(match i {
+                0 => r.is_used.is_zero(),
+                _ => r.is_used.is_one(),
+            });
             assert_eq!(r.reg_addr, F::from_canonical_usize(i));
             assert_eq!(r.value, F::ZERO);
         }
