@@ -114,11 +114,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // No `SB` operation can be seen if memory address is not marked `writable`
         yield_constr.constraint((P::ONES - lv.is_writable) * lv.is_sb);
 
-        // Only if `SB` operation is seen, value can change between rows
-        yield_constr.constraint(
-            (P::ONES - nv.is_sb) // TODO(Supragya): account for mem-init rows
-            * (nv.value - lv.value),
-        );
+        // For all "load" operations, the value cannot change between rows
+        yield_constr.constraint(nv.is_lbu * (nv.value - lv.value));
 
         // Clock constraints
         // -----------------
