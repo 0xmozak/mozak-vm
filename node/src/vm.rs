@@ -1,8 +1,9 @@
 use std::fmt::Error;
 
 use flexbuffers::FlexbufferSerializer;
-use mozak_node_sdk::{Object, TransitionFunction};
+use mozak_node_sdk::{Object, Transition};
 pub use mozak_runner::elf::Code;
+use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use serde::{Deserialize, Serialize};
@@ -14,7 +15,7 @@ use serde::{Deserialize, Serialize};
 /// Though we can recursively call this function to support that.
 #[allow(unused_variables)] // TODO - remove
 pub fn run_transition_function(
-    transition_function: &TransitionFunction,
+    transition_function: &Transition,
     read_objects: &[Object],
     changed_objects_before: &[Object],
     changed_objects_after: &[Object],
@@ -31,8 +32,10 @@ pub fn run_transition_function(
 
     // TODO - provide input_bytes as input to the VM
 
-    let state = State::from(transition_function);
-    let state = step(transition_function, state).unwrap().last_state;
+    let transition_function = Program::from(transition_function.program.clone());
+
+    let state = State::from(transition_function.clone());
+    let state = step(&transition_function, state).unwrap().last_state;
 
     // TODO - check that the state has not reverted
 

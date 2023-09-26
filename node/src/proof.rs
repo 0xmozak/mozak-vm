@@ -6,7 +6,8 @@ use mozak_circuits::stark::proof::AllProof;
 #[allow(unused_imports)] // TODO - remove
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{D, F, S};
-use mozak_node_sdk::{Id, Object, TransitionFunction};
+use mozak_node_sdk::{Id, Object, Transition};
+use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 #[allow(unused_imports)] // TODO - remove
@@ -61,7 +62,7 @@ pub struct BlockTransitionWithProof {
 
 #[allow(unused_variables)] // TODO - remove
 pub fn prove_transition_function(
-    transition_function: &TransitionFunction,
+    transition_function: &Transition,
     read_objects: &[Object],
     changed_objects_before: &[Object],
     changed_objects_after: &[Object],
@@ -78,8 +79,12 @@ pub fn prove_transition_function(
 
     // TODO - provide input_bytes as input to the VM
 
-    let state = State::from(transition_function);
-    let record = step(transition_function, state).unwrap();
+    // TODO - implement AsRef<Program> for Transition
+    let elf_program: Program = transition_function.program.clone().into();
+    let entry_point = elf_program.entry_point;
+
+    let state = State::from(elf_program.clone());
+    let record = step(&elf_program, state).unwrap();
 
     #[cfg(feature = "dummy-system")]
     let stark = MozakStark::<F, D>::default_debug();
@@ -88,7 +93,7 @@ pub fn prove_transition_function(
     let stark = MozakStark::default();
 
     let public_inputs = PublicInputs {
-        entry_point: F::from_canonical_u32(transition_function.entry_point),
+        entry_point: F::from_canonical_u32(entry_point),
     };
     // TODO - uncomment once we have prover working
     // let all_proof = prove::<F, C, D>(

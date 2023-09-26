@@ -3,7 +3,8 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-use mozak_node_sdk::{Object, TransitionFunction};
+use mozak_node_sdk::{Object, Transition};
+use mozak_runner::elf::Program;
 
 use crate::{
     batch_batched_transition_proof, batch_transition_proofs, prove_transition_function,
@@ -42,8 +43,10 @@ impl Sequencer {
                     .unwrap();
 
                 let transition_function = program
-                    .allowed_transitions
-                    .get(&message.target_transition_id)
+                    .validating_transitions
+                    .iter()
+                    .find(|transition| transition.id() == message.target_transition_id)
+                    .ok_or("Transition not found") // Currently, we panic if the transition is not found.
                     .unwrap();
 
                 // 2. Get actual objects from the Storage
@@ -141,17 +144,16 @@ impl Sequencer {
 
     /// Loads a transition function from an ELF file on disk.
     #[allow(dead_code)] // TODO - remove this
-    fn load_transition_from_file<P: AsRef<Path>>(
-        path: P,
-    ) -> Result<TransitionFunction, &'static str> {
+    fn load_transition_from_file<P: AsRef<Path>>(path: P) -> Result<Transition, &'static str> {
         println!("Current directory: {:?}", std::env::current_dir().unwrap());
 
         let mut file = File::open(path).map_err(|_| "Could not open file")?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer).unwrap();
 
-        let transition =
-            TransitionFunction::load_elf(buffer.as_slice()).map_err(|_| "Could not load ELF")?;
+        let program = Program::load_elf(buffer.as_slice()).map_err(|_| "Could not load ELF")?;
+
+        let transition = Transition::new(program.into());
 
         Ok(transition)
     }
@@ -159,7 +161,7 @@ impl Sequencer {
 
 #[cfg(all(feature = "dummy-system", test))]
 mod test {
-    use mozak_node_sdk::program::{generate_transition_id, ProgramContent};
+    use mozak_node_sdk::program::ProgramContent;
     use mozak_node_sdk::{Id, Object};
 
     use crate::sequencer::Sequencer;
@@ -193,7 +195,7 @@ mod test {
             // We do not do any state transition, but just push a message to the network.
             let message_1 = TransitionMessage {
                 owner_program_id: root_object_id,
-                target_transition_id: generate_transition_id(&yes_man_transition),
+                target_transition_id: yes_man_transition.id(),
                 read_objects_id: Vec::new(),
                 changed_objects: Vec::new(),
                 input: Vec::new(),

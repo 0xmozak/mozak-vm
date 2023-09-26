@@ -7,11 +7,14 @@ type = "lib"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = { version = "1.0.188", features = ["derive", "alloc"], default-features = false }
+serde = { version = "1.0.188", features = [
+  "derive",
+  "alloc",
+], default-features = false }
 sha3 = { version = "0.10.8", optional = true }
 mozak-runner = { git = "ssh://git@github.com/0xmozak/mozak-vm.git", branch = "main", features = [
-    "serialize",
-    "test",
+  "serialize",
+  "test",
 ], optional = true }
 
 im = { version = "15.1.0", optional = true }
@@ -21,4 +24,4 @@ rand = { version = "0.8.5", optional = true }
 [features]
 default = ["dummy-system", "std"]
 dummy-system = ["rand"]
-std = []
+std = ["sha3", "mozak-runner", "im"]

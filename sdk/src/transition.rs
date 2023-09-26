@@ -82,6 +82,18 @@ impl From<Program> for elf::Program {
     }
 }
 
+#[cfg(feature = "std")]
+impl From<elf::Program> for Program {
+    fn from(elf: elf::Program) -> Self {
+        Self {
+            entry_point: elf.entry_point,
+            ro_memory: elf.ro_memory.into(),
+            rw_memory: elf.rw_memory.into(),
+            ro_code: elf.ro_code.into(),
+        }
+    }
+}
+
 #[derive(Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct Data(pub Vec<(u32, u8)>);
@@ -89,6 +101,11 @@ pub struct Data(pub Vec<(u32, u8)>);
 #[cfg(feature = "std")]
 impl From<Data> for elf::Data {
     fn from(data: Data) -> Self { elf::Data(HashMap::from(data.0)) }
+}
+
+#[cfg(feature = "std")]
+impl From<elf::Data> for Data {
+    fn from(data: elf::Data) -> Self { Self(data.0.into_iter().collect()) }
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -107,6 +124,18 @@ impl From<Code> for elf::Code {
     }
 }
 
+#[cfg(feature = "std")]
+impl From<elf::Code> for Code {
+    fn from(code: elf::Code) -> Self {
+        Self(
+            code.0
+                .into_iter()
+                .map(|(pos, inst)| (pos, Instruction::from(inst)))
+                .collect(),
+        )
+    }
+}
+
 #[derive(Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct Instruction {
@@ -118,6 +147,16 @@ pub struct Instruction {
 impl From<Instruction> for instruction::Instruction {
     fn from(inst: Instruction) -> Self {
         instruction::Instruction {
+            op: inst.op.into(),
+            args: inst.args.into(),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<instruction::Instruction> for Instruction {
+    fn from(inst: instruction::Instruction) -> Self {
+        Self {
             op: inst.op.into(),
             args: inst.args.into(),
         }
@@ -210,6 +249,49 @@ impl From<Op> for instruction::Op {
     }
 }
 
+#[cfg(feature = "std")]
+impl From<instruction::Op> for Op {
+    fn from(op: instruction::Op) -> Self {
+        match op {
+            instruction::Op::ADD => Op::ADD,
+            instruction::Op::SUB => Op::SUB,
+            instruction::Op::SRL => Op::SRL,
+            instruction::Op::SRA => Op::SRA,
+            instruction::Op::SLL => Op::SLL,
+            instruction::Op::SLT => Op::SLT,
+            instruction::Op::SLTU => Op::SLTU,
+            instruction::Op::LB => Op::LB,
+            instruction::Op::LH => Op::LH,
+            instruction::Op::LW => Op::LW,
+            instruction::Op::LBU => Op::LBU,
+            instruction::Op::LHU => Op::LHU,
+            instruction::Op::XOR => Op::XOR,
+            instruction::Op::JALR => Op::JALR,
+            instruction::Op::BEQ => Op::BEQ,
+            instruction::Op::BNE => Op::BNE,
+            instruction::Op::BLT => Op::BLT,
+            instruction::Op::BGE => Op::BGE,
+            instruction::Op::BLTU => Op::BLTU,
+            instruction::Op::BGEU => Op::BGEU,
+            instruction::Op::AND => Op::AND,
+            instruction::Op::OR => Op::OR,
+            instruction::Op::SW => Op::SW,
+            instruction::Op::SH => Op::SH,
+            instruction::Op::SB => Op::SB,
+            instruction::Op::MUL => Op::MUL,
+            instruction::Op::MULH => Op::MULH,
+            instruction::Op::MULHU => Op::MULHU,
+            instruction::Op::MULHSU => Op::MULHSU,
+            instruction::Op::DIV => Op::DIV,
+            instruction::Op::DIVU => Op::DIVU,
+            instruction::Op::REM => Op::REM,
+            instruction::Op::REMU => Op::REMU,
+            instruction::Op::ECALL => Op::ECALL,
+            instruction::Op::UNKNOWN => Op::UNKNOWN,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct Args {
@@ -223,6 +305,18 @@ pub struct Args {
 impl From<Args> for instruction::Args {
     fn from(args: Args) -> Self {
         instruction::Args {
+            rd: args.rd,
+            rs1: args.rs1,
+            rs2: args.rs2,
+            imm: args.imm,
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<instruction::Args> for Args {
+    fn from(args: instruction::Args) -> Self {
+        Self {
             rd: args.rd,
             rs1: args.rs1,
             rs2: args.rs2,
