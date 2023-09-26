@@ -143,74 +143,27 @@ impl<F: Field> Table<F> {
     }
 }
 
-/// Represents a range check trace table in the Mozak VM.
-pub struct RangeCheckTable<F: Field>(Table<F>);
+/// Macro to instantiate a new table for cross table lookups.
+macro_rules! table_impl {
+    ($t: ident, $tk: expr) => {
+        pub struct $t<F: Field>(Table<F>);
 
-/// Represents a cpu trace table in the Mozak VM.
-pub struct CpuTable<F: Field>(Table<F>);
-
-/// Represents a xor trace table in the Mozak VM.
-pub struct XorTable<F: Field>(Table<F>);
-
-/// Represents a shift amount trace table in the Mozak VM.
-pub struct BitshiftTable<F: Field>(Table<F>);
-
-/// Represents a program trace table in the Mozak VM.
-pub struct ProgramTable<F: Field>(Table<F>);
-
-/// Represents a memory trace table in the Mozak VM.
-pub struct MemoryTable<F: Field>(Table<F>);
-
-pub struct RangeCheckLimbTable<F: Field>(Table<F>);
-
-impl<F: Field> RangeCheckTable<F> {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
-        Table::new(TableKind::RangeCheck, columns, filter_column)
-    }
+        impl<F: Field> $t<F> {
+            #[allow(clippy::new_ret_no_self)]
+            pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
+                Table::new($tk, columns, filter_column)
+            }
+        }
+    };
 }
 
-impl<F: Field> CpuTable<F> {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
-        Table::new(TableKind::Cpu, columns, filter_column)
-    }
-}
-
-impl<F: Field> XorTable<F> {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
-        Table::new(TableKind::Xor, columns, filter_column)
-    }
-}
-
-impl<F: Field> BitshiftTable<F> {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
-        Table::new(TableKind::Bitshift, columns, filter_column)
-    }
-}
-
-impl<F: Field> ProgramTable<F> {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
-        Table::new(TableKind::Program, columns, filter_column)
-    }
-}
-
-impl<F: Field> MemoryTable<F> {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
-        Table::new(TableKind::Memory, columns, filter_column)
-    }
-}
-
-impl<F: Field> RangeCheckLimbTable<F> {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
-        Table::new(TableKind::RangeCheckLimb, columns, filter_column)
-    }
-}
+table_impl!(RangeCheckTable, TableKind::RangeCheck);
+table_impl!(CpuTable, TableKind::Cpu);
+table_impl!(XorTable, TableKind::Xor);
+table_impl!(BitshiftTable, TableKind::Bitshift);
+table_impl!(ProgramTable, TableKind::Program);
+table_impl!(MemoryTable, TableKind::Memory);
+table_impl!(RangeCheckLimbTable, TableKind::RangeCheckLimb);
 
 pub trait Lookups<F: Field> {
     fn lookups() -> CrossTableLookup<F>;
