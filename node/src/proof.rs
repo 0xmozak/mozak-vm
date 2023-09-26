@@ -1,22 +1,24 @@
 use std::fmt::Error;
 
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
+#[allow(unused_imports)] // TODO - remove
 use mozak_circuits::stark::proof::AllProof;
-use mozak_circuits::stark::prover::prove;
+#[allow(unused_imports)] // TODO - remove
 use mozak_circuits::stark::verifier::verify_proof;
-use mozak_circuits::test_utils::{standard_faster_config, C, D, F, S};
+use mozak_circuits::test_utils::{D, F, S};
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
+#[allow(unused_imports)] // TODO - remove
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
-use plonky2::util::timing::TimingTree;
 
 use crate::network::object::TransitionFunction;
 use crate::vm::prepare_vm_input;
 use crate::{Id, Object};
 
 /// Proof that a transition function was executed correctly.
-pub type TransitionProof = AllProof<GoldilocksField, C, 2>;
+pub type TransitionProof = (); // TODO - replace with `AllProof<GoldilocksField, C, 2>` once we have prover
+                               // working
 
 /// Proof that a batch of transition functions was executed correctly.
 /// Can be used by user to generate a transition with private inputs, or to
@@ -65,7 +67,7 @@ pub fn prove_transition_function(
     changed_objects_before: &[Object],
     changed_objects_after: &[Object],
     inputs: &[u8],
-) -> Result<TransitionProof, Error> {
+) -> Result<TransitionProof, &'static str> {
     let vm_input = prepare_vm_input(
         read_objects,
         changed_objects_before,
@@ -81,7 +83,7 @@ pub fn prove_transition_function(
     let record = step(transition_function, state).unwrap();
 
     #[cfg(feature = "dummy-system")]
-    let stark = MozakStark::default_debug();
+    let stark = MozakStark::<F, D>::default_debug();
 
     #[cfg(not(feature = "dummy-system"))]
     let stark = MozakStark::default();
@@ -89,32 +91,37 @@ pub fn prove_transition_function(
     let public_inputs = PublicInputs {
         entry_point: F::from_canonical_u32(transition_function.entry_point),
     };
-    let all_proof = prove::<F, C, D>(
-        transition_function,
-        &record,
-        &stark,
-        &standard_faster_config(),
-        public_inputs,
-        &mut TimingTree::default(),
-    )
-    .unwrap();
+    // TODO - uncomment once we have prover working
+    // let all_proof = prove::<F, C, D>(
+    //     transition_function,
+    //     &record,
+    //     &stark,
+    //     &standard_faster_config(),
+    //     public_inputs,
+    //     &mut TimingTree::default(),
+    // )
+    // .map_err(|err| format!("Failed to generate the proof: {}",
+    // err.to_string()))?;
 
-    Ok(all_proof)
+    // TODO - Change to `Ok(all_proof)` once we have prover working
+    #[allow(clippy::all)]
+    Ok(TransitionProof::default())
 }
 
 /// Function that verifies the proof of a transition function.
 #[allow(dead_code)] // TODO - remove
+#[allow(unused_variables)] // TODO - remove
 pub fn verify_transition_function_proof(proof: TransitionProof) -> Result<(), Error> {
-    let stark = S::default();
+    // TODO - uncomment once we have prover working
+    // let stark = S::default();
 
-    verify_proof(stark, proof, &standard_faster_config()).unwrap();
+    // verify_proof(stark, proof, &standard_faster_config()).unwrap();
 
     Ok(())
 }
 
 /// Function that merges multiple transition proofs into a single proof.
 /// Done for optimisation.
-#[allow(dead_code)] // TODO - remove
 #[allow(unused_variables)] // TODO - remove
 pub fn batch_transition_proofs(
     transitions_with_proofs: &[TransitionWithProof],
@@ -124,10 +131,11 @@ pub fn batch_transition_proofs(
 
 /// Function that verifies the proof of a batched transition.
 #[allow(dead_code)] // TODO - remove
+#[allow(unused_variables)] // TODO - remove
 pub fn verify_batched_transition_proof(proof: BatchedTransitionProof) -> Result<(), Error> {
     let stark = S::default();
 
-    verify_proof(stark, proof, &standard_faster_config()).unwrap();
+    // TODO - add code to verify the proof
 
     Ok(())
 }
@@ -135,7 +143,6 @@ pub fn verify_batched_transition_proof(proof: BatchedTransitionProof) -> Result<
 /// This function merges batch of transition proofs into a single proof.
 /// Done for optimisation as well as to allow users to generate a transition
 /// with private inputs.
-#[allow(dead_code)] // TODO - remove
 #[allow(unused_variables)] // TODO - remove
 pub fn batch_batched_transition_proof(
     transitions_with_proofs: &[BatchedTransitionsWithProof],
@@ -144,10 +151,11 @@ pub fn batch_batched_transition_proof(
 }
 
 /// Function that verifies the proof of a block transition.
+#[allow(unused_variables)] // TODO - remove
 pub fn verify_block_transition_proof(proof: BlockTransitionProof) -> Result<(), Error> {
     let stark = S::default();
 
-    verify_proof(stark, proof, &standard_faster_config()).unwrap();
+    // TODO - add code to verify the proof
 
     Ok(())
 }

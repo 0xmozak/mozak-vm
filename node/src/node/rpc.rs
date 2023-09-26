@@ -10,9 +10,10 @@ pub trait RPC {
 
     /// Returns the next message to be processed.
     /// TODO - make function async.
-    fn get_next_message(&mut self) -> TransitionMessage;
+    fn get_next_message(&mut self) -> Option<TransitionMessage>;
 }
 
+/// RPC that generates random messages.
 #[cfg(feature = "dummy-system")]
 pub struct DummyRPC {
     rng: Box<dyn RngCore>,
@@ -28,7 +29,32 @@ impl RPC for DummyRPC {
         Self { rng }
     }
 
-    fn get_next_message(&mut self) -> TransitionMessage { self.rng.gen() }
+    fn get_next_message(&mut self) -> Option<TransitionMessage> { Some(self.rng.gen()) }
+}
+
+/// RPC that receives a scenario of messages and then returns them one by one.
+#[cfg(feature = "dummy-system")]
+pub struct ScenarioRPC {
+    messages: Vec<TransitionMessage>,
+}
+
+#[cfg(feature = "dummy-system")]
+impl RPC for ScenarioRPC {
+    fn new() -> Self {
+        let messages = vec![];
+        Self { messages }
+    }
+
+    fn get_next_message(&mut self) -> Option<TransitionMessage> { self.messages.pop() }
+}
+
+#[cfg(feature = "dummy-system")]
+impl ScenarioRPC {
+    /// Batch imports a scenario into the RPC.
+    pub fn import_scenario(messages: Vec<TransitionMessage>) -> Self { Self { messages } }
+
+    /// Adds a message to the RPC scenario queue.
+    pub fn add_message(&mut self, message: TransitionMessage) { self.messages.push(message); }
 }
 
 #[cfg(test)]
@@ -41,6 +67,6 @@ mod tests {
     fn test_dummy_message_service() {
         let mut service = DummyRPC::new();
         let message = service.get_next_message();
-        assert_matches!(message, TransitionMessage { .. });
+        assert_matches!(message, Some(TransitionMessage { .. }));
     }
 }

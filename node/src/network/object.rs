@@ -12,6 +12,10 @@ pub enum Object {
     Data(data::DataContent),
 }
 
+impl Default for Object {
+    fn default() -> Self { Object::Program(program::ProgramContent::default()) }
+}
+
 impl PartialEq for Object {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -106,7 +110,7 @@ pub(crate) mod program {
     /// This object type is used to constrain the
     /// evolution of other objects. It contains the program code that is used to
     /// validate the object evolution.
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Serialize, Deserialize, Default)]
     pub struct ProgramContent {
         /// Unique object ID
         id: Id,
@@ -151,19 +155,19 @@ pub(crate) mod program {
             version: u64,
             mutable: bool,
             owner_id: Id,
-            allowed_transitions: Vec<TransitionFunction>,
+            validating_transitions: Vec<TransitionFunction>,
         ) -> Self {
             let id = Self::generate_id(vec![
                 version.to_be_bytes().to_vec(),
                 vec![mutable as u8],
                 owner_id.to_vec(),
-                allowed_transitions
+                validating_transitions
                     .iter()
                     .flat_map(transition_to_bytes)
                     .collect(),
             ]);
 
-            let accepted_transitions = allowed_transitions
+            let validating_transitions = validating_transitions
                 .into_iter()
                 .map(|transition| {
                     let id = generate_transition_id(&transition);
@@ -176,7 +180,7 @@ pub(crate) mod program {
                 version,
                 mutable,
                 owner_id,
-                allowed_transitions: accepted_transitions,
+                allowed_transitions: validating_transitions,
             }
         }
     }
@@ -193,7 +197,7 @@ pub(crate) mod program {
 
     /// Generates a unique ID for the transition function.
     /// Currently, we use SHA3-256 hash function to generate the ID.
-    fn generate_transition_id(transition: &TransitionFunction) -> Id {
+    pub fn generate_transition_id(transition: &TransitionFunction) -> Id {
         let mut hasher = sha3::Sha3_256::new();
         hasher.update(transition_to_bytes(transition));
         let hash = hasher.finalize();

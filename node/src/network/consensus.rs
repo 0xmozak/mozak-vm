@@ -2,9 +2,10 @@ use thiserror::Error;
 
 use crate::network::storage::ApplicationStorage;
 use crate::proof::{verify_block_transition_proof, BlockTransitionWithProof};
+use crate::Object;
 
 pub trait ConsensusSystem {
-    fn initiate() -> Self;
+    fn initiate(root_object: Object) -> Self;
 
     /// Pushes a state update with proof to the consensus system.
     /// `updated_blobs` and `read_blobs` are the public inputs to the STARK
@@ -37,9 +38,9 @@ pub struct DummyConsensusSystem {
 
 #[cfg(feature = "dummy-system")]
 impl ConsensusSystem for DummyConsensusSystem {
-    fn initiate() -> Self {
+    fn initiate(root_object: Object) -> Self {
         Self {
-            storage: ApplicationStorage::initiate(),
+            storage: ApplicationStorage::initiate(root_object),
         }
     }
 
@@ -51,6 +52,7 @@ impl ConsensusSystem for DummyConsensusSystem {
     ) -> Result<(), ConsensusError> {
         let updated_objects = block_transition.changed_objects;
 
+        #[allow(clippy::all)]
         verify_block_transition_proof(block_transition.proof)
             .map_err(|_| ConsensusError::IncorrectProof)?;
 

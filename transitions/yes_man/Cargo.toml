@@ -1,0 +1,11 @@
+[package]
+edition = "2021"
+name = "yes-man-mozak-transition"
+version = "0.1.0"
+
+[dependencies]
+guest = { git = "ssh://git@github.com/0xmozak/mozak-vm.git", branch = "main" }
+
+[[bin]]
+name = "yes_man_transition"
+path = "main.rs"

@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use crate::network::object::program::ProgramContent;
-use crate::network::object::Object::Program;
-use crate::network::object::{Object, TransitionFunction};
+use crate::network::object::Object;
 use crate::Id;
 
 /// Id-focused storage for the application network.
@@ -16,18 +14,10 @@ impl ApplicationStorage {
     /// This object is a program that allows any transition.
     /// It is up to the user to then add more programs to the storage.
     /// This is the only object that is self-owned.
-    pub fn initiate() -> Self {
-        // Transition that allows any transition.
-        // TODO - pass it a real transition.
-        let yes_man_transition = TransitionFunction::default();
-
-        let genesis_object = Program(ProgramContent::new(0, true, Id::default(), vec![
-            yes_man_transition,
-        ]));
-
+    pub fn initiate(root_object: Object) -> Self {
         let mut storage = ApplicationStorage::new();
 
-        storage.update_objects(vec![genesis_object]);
+        storage.update_objects(vec![root_object]);
 
         storage
     }
@@ -61,10 +51,13 @@ mod test {
     use super::*;
     use crate::network::object::data::DataContent;
     use crate::network::object::ObjectContent;
+    use crate::Object;
 
     #[test]
     fn test_storage() {
-        let mut storage = ApplicationStorage::initiate();
+        let root_object = Object::default();
+
+        let mut storage = ApplicationStorage::initiate(root_object);
 
         let owner_id = Id::default();
 
@@ -77,7 +70,7 @@ mod test {
         let retrieved_object = storage.get_object(object_id).unwrap();
 
         match retrieved_object {
-            Program(_) => panic!("Expected a Data object"),
+            Object::Program(_) => panic!("Expected a Data object"),
             Object::Data(ret_object_content) =>
                 if object_id == ret_object_content.id() { // pass
                 } else {
@@ -88,7 +81,9 @@ mod test {
 
     #[test]
     fn test_that_blobs_with_same_id_replace_each_other() {
-        let mut storage = ApplicationStorage::initiate();
+        let root_object = Object::default();
+
+        let mut storage = ApplicationStorage::initiate(root_object);
 
         let owner = Id::default();
 
@@ -108,7 +103,7 @@ mod test {
         let retrieved_object = storage.get_object(object_id).unwrap();
 
         match retrieved_object {
-            Program(_) => panic!("Expected a Data object"),
+            Object::Program(_) => panic!("Expected a Data object"),
             Object::Data(ret_object_content) =>
                 if object_id == ret_object_content.id() && new_data == ret_object_content.data { // pass
                 } else {
