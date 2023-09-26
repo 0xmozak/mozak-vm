@@ -32,7 +32,7 @@ where
 /// # Panics
 ///
 /// Panics if:
-/// 1. conversion of u32 values to u8 limbs,
+/// 1. conversion of u32 values to u8 limbs fails,
 /// 2. trace width does not match the number of columns,
 /// 3. attempting to range check tuples instead of single values.
 #[must_use]

@@ -23,7 +23,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     // NOTE: Actual range check happens in RangeCheckLimbStark. A CrossTableLookup
     // between RangeCheckStark and others like MemoryStark and CpuStark ensure
     // that both have same value. A CrossTableLookup between RangeCheckStark and
-    // RangeCheckLimbStark ensures that each limbs from this stark are covered
+    // RangeCheckLimbStark ensures that each limb from this stark are covered
     // in RangeCheckLimbStark.
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
