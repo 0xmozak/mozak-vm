@@ -14,9 +14,10 @@ pub struct RegisterInit<T> {
     pub value: T,
 
     /// Binary column that marks a register as used to include in cross table
-    /// lookups.
+    /// lookups against `RegisterStark`'s `is_init` column. This also serves as
+    /// an implicit range check on our register addresses.
     ///
-    /// In our design, r0 should always be unused, so it's always 0. 
+    /// In our design, r0 should always be unused, so it's always 0.
     /// The other registers (r1-r31) should all be 1.
     pub is_used: T,
 }
