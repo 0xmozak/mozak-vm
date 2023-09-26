@@ -58,6 +58,7 @@ pub const NUM_MEM_COLS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let mem = MAP.map(Column::from);
     vec![
+        MemoryTable::new(Column::singles([MAP.addr]), mem.is_executed()),
         MemoryTable::new(Column::singles([MAP.diff_addr]), mem.is_executed()),
         MemoryTable::new(Column::singles([MAP.diff_clk]), mem.is_executed()),
     ]

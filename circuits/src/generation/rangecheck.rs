@@ -8,7 +8,7 @@ use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
 use crate::utils::pad_trace_with_default;
 
-/// Converts a u32 into 2 u16 limbs represented in [`RichField`].
+/// Converts a u32 into 4 u8 limbs represented in [`RichField`].
 #[must_use]
 pub fn limbs_from_u32(value: u32) -> [u8; 4] { value.to_le_bytes() }
 
@@ -32,7 +32,7 @@ where
 /// # Panics
 ///
 /// Panics if:
-/// 1. conversion of u32 values to u16 limbs,
+/// 1. conversion of u32 values to u8 limbs fails,
 /// 2. trace width does not match the number of columns,
 /// 3. attempting to range check tuples instead of single values.
 #[must_use]
