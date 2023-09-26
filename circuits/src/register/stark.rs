@@ -23,7 +23,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
     const COLUMNS: usize = Register::<F>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
 
-    /// Constraints for the [`RegisterStark`].
+    /// Constraints for the [`RegisterStark`]:
     ///
     /// 1) Trace should start with register address 1 - we exclude 0 for ease of
     ///    CTLs.
@@ -86,7 +86,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
 
         // Constraint 6: Address either stays the same or increments by 1.
         yield_constr.constraint_transition((nv.addr - lv.addr) * (nv.addr - lv.addr - P::ONES));
-
 
         // Constraint 7: last register address == 31
         yield_constr.constraint_last_row(lv.addr - P::from(FE::from_canonical_u8(31)));
