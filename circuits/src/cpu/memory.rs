@@ -65,7 +65,7 @@ mod tests {
                     },
                 },
             ],
-            &[(imm + offset, 0)],
+            &[(imm.wrapping_add(offset), 0)],
             &[(1, content.into()), (2, offset)],
         );
 
