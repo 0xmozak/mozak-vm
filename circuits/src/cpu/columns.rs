@@ -239,8 +239,8 @@ pub fn filter_for_xor<F: Field>() -> Column<F> {
 pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(MAP.cpu.clk),
-        // Column::single(MAP.cpu.inst.ops.sb),
-        // Column::single(MAP.cpu.inst.ops.lbu),
+        Column::single(MAP.cpu.inst.ops.sb),
+        Column::single(MAP.cpu.inst.ops.lbu),
         Column::single(MAP.cpu.dst_value),
     ]
 }
