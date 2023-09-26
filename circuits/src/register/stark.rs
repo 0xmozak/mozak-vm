@@ -108,7 +108,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
 mod tests {
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{simple_test_code, u32_extra, reg};
+    use mozak_runner::test_utils::{reg, simple_test_code, u32_extra};
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use starky::stark_testing::test_stark_low_degree;
 
@@ -126,17 +126,28 @@ mod tests {
         test_stark_low_degree(stark)
     }
 
-    fn prove_stark<Stark: ProveAndVerify>(a: u32, b: u32, rd: u8) {
+    fn prove_stark<Stark: ProveAndVerify>(a: u32, b: u32, imm: u32, rd: u8) {
         let (program, record) = simple_test_code(
-            &[Instruction {
-                op: Op::ADD,
-                args: Args {
-                    rd,
-                    rs1: 6,
-                    rs2: 7,
-                    ..Args::default()
+            &[
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd,
+                        rs1: 6,
+                        rs2: 7,
+                        ..Args::default()
+                    },
                 },
-            }],
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd,
+                        rs1: 6,
+                        imm,
+                        ..Args::default()
+                    },
+                },
+            ],
             &[],
             &[(6, a), (7, b)],
         );
@@ -154,8 +165,8 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
-        fn prove_register(a in u32_extra(), b in u32_extra(), rd in reg()) {
-            prove_stark::<RegisterStark<F, D>>(a, b, rd);
+        fn prove_register(a in u32_extra(), b in u32_extra(), imm in u32_extra(), rd in reg()) {
+            prove_stark::<RegisterStark<F, D>>(a, b, imm, rd);
         }
     }
 }
