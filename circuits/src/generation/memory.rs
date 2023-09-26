@@ -6,6 +6,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::memory::columns::Memory;
 use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk};
+use crate::stark::utils::merge_by_key;
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
@@ -89,20 +90,12 @@ pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row])
     // `merged_trace` is address sorted combination of static and
     // dynamic memory trace components of program (ELF and execution)
     // `merge` operation is expected to be stable
-    let mut merged_trace: Vec<Memory<F>> = generate_memory_init_trace_from_program::<F>(program)
-        .into_iter()
-        .merge_by(
-            generate_memory_trace_from_execution(program, step_rows),
-            |x, y| {
-                let (x_u64, y_u64) = (x.addr.to_canonical_u64(), y.addr.to_canonical_u64());
-                if x_u64 == y_u64 {
-                    x.is_init.to_canonical_u64() == 1
-                } else {
-                    x_u64 < y_u64
-                }
-            },
-        )
-        .collect();
+    let mut merged_trace: Vec<Memory<F>> = merge_by_key(
+        generate_memory_init_trace_from_program::<F>(program).into_iter(),
+        generate_memory_trace_from_execution(program, step_rows),
+        |memory| (memory.addr.to_canonical_u64(), memory.is_init.is_zero()),
+    )
+    .collect();
 
     // Ensures constraints by filling remaining inter-row
     // relation values: clock difference and addr difference
