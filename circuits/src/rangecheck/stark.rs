@@ -20,10 +20,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     const COLUMNS: usize = columns::NUM_RC_COLS;
     const PUBLIC_INPUTS: usize = 0;
 
-    /// Given the u32 value and the u16 limbs found in our variables to be
-    /// evaluated, perform:
-    ///   1. sumcheck between val (u32) and limbs (u16),
-    ///   2. rangecheck for limbs.
+    // NOTE: Actual range check happens in RangeCheckLimbStark. A CrossTableLookup
+    // between RangeCheckStark and others like MemoryStark and CpuStark ensure
+    // that both have same value. A CrossTableLookup between RangeCheckStark and
+    // RangeCheckLimbStark ensures that each limbs from this stark are covered
+    // in RangeCheckLimbStark.
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         _vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
