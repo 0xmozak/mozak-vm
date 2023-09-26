@@ -5,16 +5,11 @@ version = 3
 [[package]]
 name = "guest"
 version = "0.1.0"
-source = "git+ssh://git@github.com/0xmozak/mozak-vm.git?branch=main#acb2b5efe9515ed44737557d240ffd15d97cb209"
+source = "git+ssh://git@github.com/0xmozak/mozak-vm.git?branch=main#09acdd50224912220c6ac34c69f8d02ada9c3132"
 
 [[package]]
-name = "object-sdk"
-version = "0.1.0"
-
-[[package]]
-name = "yes-man-mozak-transition"
+name = "mozak-transitions"
 version = "0.1.0"
 dependencies = [
  "guest",
- "object-sdk",
 ]

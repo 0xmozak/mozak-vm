@@ -3,9 +3,13 @@
 
 use core::assert;
 
+use mozak_transitions::TMP;
+
 fn yes_man() -> bool { true }
 
 pub fn main() {
+    assert!(TMP.is_empty());
+
     let valid = yes_man();
     assert!(valid);
     guest::env::write(&(valid as u32).to_le_bytes());

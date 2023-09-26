@@ -2,13 +2,9 @@
 
 [package]
 edition = "2021"
-name = "yes-man-mozak-transition"
+name = "mozak-transitions"
 version = "0.1.0"
 
 [dependencies]
-mozak-node-sdk = { path = "../sdk" }
+#mozak-node-sdk = { path = "../sdk" }
 guest = { git = "ssh://git@github.com/0xmozak/mozak-vm.git", branch = "main" }
-
-[[bin]]
-name = "yes_man_transition"
-path = "yes_man.rs"
