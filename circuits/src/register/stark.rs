@@ -24,6 +24,19 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
     const PUBLIC_INPUTS: usize = 0;
 
     /// Constraints for the [`RegisterStark`].
+    ///
+    /// 1) Trace should start with register address 1 - we exclude 0 for ease of
+    ///    CTLs.
+    /// 2) `is_init`, `is_read`, `is_write`, and the virtual `is_dummy` column
+    ///    are binary columns.
+    /// 3) `is_dummy` only take values 0 or 1.
+    /// 4) Only rd changes.
+    /// 5) Address changes only when nv.is_init == 1.
+    /// 6) Address either stays the same or increments by 1.
+    /// 7) Trace should end with register address 31.
+    ///
+    /// For more details, refer to the [Notion
+    /// document](https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2).
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
@@ -35,39 +48,46 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         let nv: &Register<P> = vars.next_values.borrow();
 
         // Virtual dummy column to differentiate between real rows and padding rows.
-        // TODO: CTL dummy column against `RegisterInit`
         let local_dummy = lv.is_init + lv.is_read + lv.is_write;
         let next_dummy = nv.is_init + nv.is_read + nv.is_write;
 
-        // Check: first register address == 1, i.e. we do not have register address 0
-        // in our trace.
+        // Constraint 1: trace rows starts with register address 1.
         yield_constr.constraint_first_row(lv.addr - P::ONES);
 
-        // Check: filter columns take 0 or 1 values only.
+        // Constraint 2: filter columns take 0 or 1 values only.
         is_binary(yield_constr, lv.is_init);
         is_binary(yield_constr, lv.is_read);
         is_binary(yield_constr, lv.is_write);
         is_binary(yield_constr, local_dummy);
 
-        // Check: virtual dummy column can flip between 1 or 0
+        // Constraint 3: virtual dummy column can only take values 0 or 1.
         // (local_dummy - next_dummy - 1) is expressed as such, because
         // local_dummy = 1 in the last real row, and
         // next_dummy = 0 in the first padding row.
-        yield_constr.constraint_transition((next_dummy - local_dummy) * (local_dummy - next_dummy - P::ONES));
+        yield_constr.constraint_transition(
+            (next_dummy - local_dummy) * (local_dummy - next_dummy - P::ONES),
+        );
 
-
-        // Only when next row is an init row, i.e. `is_init` == 1,
-        // then the register entry can change address.
-        yield_constr.constraint_transition((nv.is_read + nv.is_write) * (nv.addr - lv.addr));
-
-        // Check: for any register, `is_read` should not change the value of the
-        // register. Only `is_write`, `is_init` or `is_dummy` should be able to
-        // change the values.
+        // Constraint 4: only rd changes.
+        // We reformulate the above constraint as such:
+        // For any register, only `is_write`, `is_init` or `is_dummy`
+        // should be able to change the values.
+        // `is_read` should not change the value of the
+        // register.
         yield_constr.constraint_transition(
             lv.is_read * (nv.value - lv.value) * (nv.addr - lv.addr - P::ONES),
         );
 
-        // Check: last register address == 31
+        // Constraint 5: Address changes only when nv.is_init == 1.
+        // Only when next row is an init row, i.e. `is_init` == 1,
+        // then the register entry can change address.
+        yield_constr.constraint_transition((nv.is_read + nv.is_write) * (nv.addr - lv.addr));
+
+        // Constraint 6: Address either stays the same or increments by 1.
+        yield_constr.constraint_transition((nv.addr - lv.addr) * (nv.addr - lv.addr - P::ONES));
+
+
+        // Constraint 7: last register address == 31
         yield_constr.constraint_last_row(lv.addr - P::from(FE::from_canonical_u8(31)));
     }
 
