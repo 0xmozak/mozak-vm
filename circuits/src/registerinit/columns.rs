@@ -19,5 +19,5 @@ pub struct RegisterInit<T> {
     ///
     /// In our design, r0 should always be unused, so it's always 0.
     /// The other registers (r1-r31) should all be 1.
-    pub is_used: T,
+    pub is_looked_up: T,
 }
