@@ -27,9 +27,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
     ///
     /// 1) Trace should start with register address 1 - we exclude 0 for ease of
     ///    CTLs.
-    /// 2) `is_init`, `is_read`, `is_write`, and the virtual `is_dummy` column
-    ///    are binary columns.
-    /// 3) `is_dummy` only take values 0 or 1.
+    /// 2) `is_init`, `is_read`, `is_write`, and the virtual `dummy` column are
+    ///    binary columns. The `dummy` column is the sum of all the other filter
+    ///    columns combined, to differentiate between real trace rows and
+    ///    padding rows.
+    /// 3) The virtual `dummy` column only take values 0 or 1.
     /// 4) Only rd changes.
     /// 5) Address changes only when `nv.is_init` == 1.
     /// 6) Address either stays the same or increments by 1.
@@ -47,7 +49,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         let lv: &Register<P> = vars.local_values.borrow();
         let nv: &Register<P> = vars.next_values.borrow();
 
-        // Virtual dummy column to differentiate between real rows and padding rows.
+        // Virtual `dummy` column to differentiate between real rows and padding rows.
         let local_dummy = lv.is_init + lv.is_read + lv.is_write;
         let next_dummy = nv.is_init + nv.is_read + nv.is_write;
 
@@ -60,7 +62,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         is_binary(yield_constr, lv.is_write);
         is_binary(yield_constr, local_dummy);
 
-        // Constraint 3: virtual dummy column can only take values 0 or 1.
+        // Constraint 3: virtual `dummy` column can only take values 0 or 1.
         // (local_dummy - next_dummy - 1) is expressed as such, because
         // local_dummy = 1 in the last real row, and
         // next_dummy = 0 in the first padding row.
@@ -70,10 +72,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
 
         // Constraint 4: only rd changes.
         // We reformulate the above constraint as such:
-        // For any register, only `is_write`, `is_init` or `is_dummy`
-        // should be able to change the values.
-        // `is_read` should not change the value of the
-        // register.
+        // For any register, only `is_write`, `is_init` or the virtual `dummy`
+        // column should be able to change values of registers.
+        // `is_read` should not change the values of registers.
         yield_constr.constraint_transition(
             lv.is_read * (nv.value - lv.value) * (nv.addr - lv.addr - P::ONES),
         );
