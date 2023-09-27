@@ -1,3 +1,4 @@
+use derive_more::Display;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +11,7 @@ pub struct Args {
     pub imm: u32,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Display)]
 #[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 #[repr(u8)]
 pub enum Op {

@@ -1,6 +1,6 @@
 use std::str::from_utf8;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
@@ -176,11 +176,14 @@ impl State {
         )
     }
 
-    #[must_use]
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
-    pub fn execute_instruction(self, program: &Program) -> (Aux, Self) {
+    /// # Errors
+    ///
+    /// Errors if the program contains an instruction with an unsupported
+    /// opcode.
+    pub fn execute_instruction(self, program: &Program) -> Result<(Aux, Self)> {
         let inst = self.current_instruction(program);
         macro_rules! rop {
             ($op: expr) => {
@@ -246,9 +249,9 @@ impl State {
             Op::DIVU => rop!(divu),
             Op::REM => rop!(rem),
             Op::REMU => rop!(remu),
-            Op::UNKNOWN => unimplemented!("Unknown instruction"),
+            Op::UNKNOWN => return Err(anyhow!("Unsupported opcode: {}", inst.op)),
         };
-        (
+        Ok((
             Aux {
                 new_pc: state.get_pc(),
                 op1,
@@ -256,7 +259,7 @@ impl State {
                 ..aux
             },
             state.bump_clock(),
-        )
+        ))
     }
 }
 
@@ -290,7 +293,7 @@ pub struct ExecutionRecord {
 pub fn step(program: &Program, mut last_state: State) -> Result<ExecutionRecord> {
     let mut executed = vec![];
     while !last_state.has_halted() {
-        let (aux, new_state) = last_state.clone().execute_instruction(program);
+        let (aux, new_state) = last_state.clone().execute_instruction(program)?;
         executed.push(Row {
             state: last_state,
             aux,
