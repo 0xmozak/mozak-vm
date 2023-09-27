@@ -13,8 +13,11 @@ pub struct RegisterInit<T> {
     /// Value of the register.
     pub value: T,
 
-    /// Binary column that marks a row as a dummy to exclude from cross table
-    /// lookups. In our design, this should be r0, which should always
-    /// be 0, so `is_dummy` should be 1 for the first row.
-    pub is_dummy: T,
+    /// Binary column that marks a register as used to include in cross table
+    /// lookups against `RegisterStark`'s `is_init` column. This also serves as
+    /// an implicit range check on our register addresses.
+    ///
+    /// In our design, r0 should always be unused, so it's always 0.
+    /// The other registers (r1-r31) should all be 1.
+    pub is_looked_up: T,
 }

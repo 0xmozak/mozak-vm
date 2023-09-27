@@ -55,7 +55,7 @@ pub fn standard_faster_config() -> StarkConfig {
     }
 }
 
-/// Prepares the table of a trace. Useful for trace generation tests.
+/// Prepares a table of a trace. Useful for trace generation tests.
 #[must_use]
 pub fn prep_table<F: RichField, T, const N: usize>(table: Vec<[u64; N]>) -> Vec<T>
 where
