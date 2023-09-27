@@ -1,6 +1,6 @@
 use std::str::from_utf8;
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
@@ -176,10 +176,13 @@ impl State {
         )
     }
 
-    #[must_use]
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
+    /// # Errors
+    ///
+    /// Errors if the program contains an instruction with an unsupported
+    /// opcode.
     pub fn execute_instruction(self, program: &Program) -> Result<(Aux, Self)> {
         let inst = self.current_instruction(program);
         macro_rules! rop {
