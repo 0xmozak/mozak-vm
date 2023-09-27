@@ -60,7 +60,7 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
 /// interleaved with runtime memory trace generated from VM
 /// execution for final memory trace.
 #[must_use]
-pub fn generate_memory_init_trace_from_program<F: RichField>(program: &Program) -> Vec<Memory<F>> {
+pub fn generate_memory_init_trace_from_program<F: RichField>(program: &Program) -> impl Iterator<Item = Memory<F>> {
     [(F::ZERO, &program.ro_memory), (F::ONE, &program.rw_memory)]
         .into_iter()
         .flat_map(|(is_writable, mem)| {
@@ -76,7 +76,6 @@ pub fn generate_memory_init_trace_from_program<F: RichField>(program: &Program) 
             })
         })
         .sorted_by_key(|memory| memory.addr.to_canonical_u64())
-        .collect()
 }
 
 /// Generates memory trace using static component `program` for
