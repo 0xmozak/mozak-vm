@@ -246,7 +246,7 @@ impl State {
             Op::DIVU => rop!(divu),
             Op::REM => rop!(rem),
             Op::REMU => rop!(remu),
-            Op::UNKNOWN => return Err(anyhow!("Unknown instruction")),
+            Op::UNKNOWN => return Err(anyhow!("Unsupported opcode: {}", inst.op)),
         };
         Ok((
             Aux {
