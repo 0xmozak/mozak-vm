@@ -20,7 +20,7 @@ mod tests {
                     ..Args::default()
                 },
             }],
-            &[],
+            &[(b, 0)],
             &[(6, a), (7, b)],
         );
 
@@ -65,7 +65,7 @@ mod tests {
                     },
                 },
             ],
-            &[],
+            &[(imm.wrapping_add(offset), 0)],
             &[(1, content.into()), (2, offset)],
         );
 
