@@ -172,7 +172,8 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn constant(constant: F) -> Self {
         Column {
-            linear_combination: vec![],
+            lv_linear_combination: vec![],
+            nv_linear_combination: vec![],
             constant,
         }
     }
@@ -228,22 +229,9 @@ impl<F: Field> Column<F> {
 
     #[must_use]
     pub fn reduce_with_powers(terms: Vec<Self>, alpha: u64) -> Self {
-        Self {
-            linear_combination: terms
-                .into_iter()
-                .enumerate()
-                .flat_map(|(i, column)| {
-                    let base = F::from_canonical_u64(
-                        alpha.pow(u32::try_from(i).expect("casting value to u32 should succeed")),
-                    );
-                    column
-                        .linear_combination
-                        .into_iter()
-                        .map(move |(idx, value)| (idx, value * base))
-                })
-                .collect(),
-            constant: F::ZERO,
-        }
+        terms.into_iter().rev().fold(Self::default(), |acc, term| {
+            acc * F::from_canonical_u64(alpha) + term
+        })
     }
 
     #[must_use]
