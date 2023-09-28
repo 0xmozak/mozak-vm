@@ -83,3 +83,19 @@ pub fn filter_for_cpu<F: Field>() -> Column<F> {
     let mem = MAP.map(Column::from);
     mem.is_sb + mem.is_lbu
 }
+
+/// Columns containing the data which are looked up in the `MemoryInit` Table
+#[must_use]
+pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
+    vec![
+        Column::single(MAP.is_writable),
+        Column::single(MAP.addr),
+        Column::single(MAP.clk),
+        Column::single(MAP.value),
+        Column::single(MAP.is_init),
+    ]
+}
+
+/// Column for a binary filter to indicate a lookup to the `MemoryInit` Table
+#[must_use]
+pub fn filter_for_memoryinit<F: Field>() -> Column<F> { Column::single(MAP.is_init) }

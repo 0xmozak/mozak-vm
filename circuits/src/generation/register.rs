@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use mozak_runner::elf::Program;
+use mozak_runner::state::State;
 use mozak_runner::vm::{ExecutionRecord, Row};
 use plonky2::hash::hash_types::RichField;
 
@@ -15,18 +16,12 @@ pub fn sort_by_address<F: RichField>(trace: Vec<Register<F>>) -> Vec<Register<F>
         .collect()
 }
 
-fn init_register_trace<F: RichField>(executed: &Row) -> Vec<Register<F>> {
+fn init_register_trace<F: RichField>(state: &State) -> Vec<Register<F>> {
     (1..32)
         .map(|i| Register {
-            addr: F::from_canonical_usize(i),
+            addr: F::from_canonical_u8(i),
             is_init: F::ONE,
-            value: F::from_canonical_u64(u64::from(
-                executed.state.get_register_value(
-                    i.try_into().expect(
-                        "Casting a register represented in u32 (0-31) to u8 should succeed",
-                    ),
-                ),
-            )),
+            value: F::from_canonical_u32(state.get_register_value(i)),
             ..Default::default()
         })
         .collect()
@@ -60,9 +55,13 @@ pub fn generate_register_trace<F: RichField>(
     program: &Program,
     record: &ExecutionRecord,
 ) -> Vec<Register<F>> {
-    let ExecutionRecord { executed, .. } = record;
+    let ExecutionRecord {
+        executed,
+        last_state,
+    } = record;
 
-    let mut trace = init_register_trace(&record.executed[0]);
+    let mut trace =
+        init_register_trace(record.executed.first().map_or(last_state, |row| &row.state));
 
     for Row { state, .. } in executed {
         let inst = state.current_instruction(program);
@@ -175,7 +174,7 @@ mod tests {
     #[test]
     fn generate_reg_trace_initial() {
         let (_, record) = setup();
-        let trace = init_register_trace::<F>(&record.executed[0]);
+        let trace = init_register_trace::<F>(&record.executed[0].state);
         let expected_trace = expected_trace();
         (0..31).for_each(|i| {
             assert_eq!(

@@ -27,6 +27,7 @@ use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
 use crate::memory::stark::MemoryStark;
+use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_limb::stark::RangeCheckLimbStark;
@@ -55,6 +56,7 @@ where
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, record);
@@ -93,6 +95,7 @@ where
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let rate_bits = config.fri_config.rate_bits;
@@ -161,9 +164,11 @@ where
     );
 
     let program_rom_trace_cap = trace_caps[TableKind::Program as usize].clone();
+    let memory_init_trace_cap = trace_caps[TableKind::MemoryInit as usize].clone();
     Ok(AllProof {
         stark_proofs,
         program_rom_trace_cap,
+        memory_init_trace_cap,
         public_inputs,
     })
 }
@@ -376,6 +381,7 @@ where
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
@@ -444,6 +450,17 @@ where
         timing,
     )?;
 
+    let memory_init_proof = prove_single_table::<F, C, MemoryInitStark<F, D>, D>(
+        &mozak_stark.memory_init_stark,
+        config,
+        &traces_poly_values[TableKind::MemoryInit as usize],
+        &trace_commitments[TableKind::MemoryInit as usize],
+        [],
+        &ctl_data_per_table[TableKind::MemoryInit as usize],
+        challenger,
+        timing,
+    )?;
+
     let rangecheck_range_proof = prove_single_table::<F, C, RangeCheckLimbStark<F, D>, D>(
         &mozak_stark.rangecheck_limb_stark,
         config,
@@ -462,6 +479,7 @@ where
         shift_amount_proof,
         program_proof,
         memory_proof,
+        memory_init_proof,
         rangecheck_range_proof,
     ])
 }
