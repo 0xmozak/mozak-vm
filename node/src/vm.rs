@@ -5,7 +5,7 @@ pub use mozak_runner::elf::Code;
 use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
-use postcard::to_vec;
+use postcard::to_allocvec;
 
 /// Executes the VM instance on the provided program and returns the output of
 /// the program as well as updated states.
@@ -17,7 +17,7 @@ pub fn run_transition_function(
     transition_function: &Transition,
     transition_input: &TransitionInput,
 ) -> Result<(), Error> {
-    let vm_input = to_vec(transition_input).unwrap();
+    let vm_input = to_allocvec(transition_input).unwrap();
 
     // Execute the VM instance based on the input
 

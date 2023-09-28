@@ -13,7 +13,7 @@ use mozak_runner::vm::step;
 #[allow(unused_imports)] // TODO - remove
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
-use postcard::to_vec;
+use postcard::to_allocvec;
 
 /// Proof that a transition function was executed correctly.
 pub type TransitionProof = (); // TODO - replace with `AllProof<GoldilocksField, C, 2>` once we have prover
@@ -64,7 +64,7 @@ pub fn prove_transition_function(
     transition_function: &Transition,
     transition_input: &TransitionInput,
 ) -> Result<TransitionProof, &'static str> {
-    let vm_input = to_vec(&transition_input).unwrap();
+    let vm_input = to_allocvec(&transition_input).unwrap();
 
     // Execute the VM instance based on the input
 
