@@ -84,7 +84,7 @@ pub fn filter_for_cpu<F: Field>() -> Column<F> {
     mem.is_sb + mem.is_lbu
 }
 
-/// Columns containing the data which are looked to the MemoryInit Table
+/// Columns containing the data which are looked to the `MemoryInit` Table
 #[must_use]
 pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
     vec![
@@ -94,8 +94,6 @@ pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
     ]
 }
 
-/// Column for a binary filter to indicate a lookup to MemoryInit Table
+/// Column for a binary filter to indicate a lookup to `MemoryInit` Table
 #[must_use]
-pub fn filter_for_memoryinit<F: Field>() -> Column<F> {
-    Column::single(MAP.is_init)
-}
+pub fn filter_for_memoryinit<F: Field>() -> Column<F> { Column::single(MAP.is_init) }

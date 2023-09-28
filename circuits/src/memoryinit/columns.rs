@@ -29,12 +29,10 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(MAP.element.address),
         Column::single(MAP.element.value),
-        Column::single(MAP.is_writable)
+        Column::single(MAP.is_writable),
     ]
 }
 
 /// Column for a binary filter to indicate a lookup from the Memory Table
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> {
-    Column::single(MAP.filter)
-}
+pub fn filter_for_memory<F: Field>() -> Column<F> { Column::single(MAP.filter) }
