@@ -170,6 +170,14 @@ impl<F: Field> Column<F> {
     }
 
     #[must_use]
+    pub fn constant(constant: F) -> Self {
+        Column {
+            linear_combination: vec![],
+            constant,
+        }
+    }
+
+    #[must_use]
     pub fn not(c: usize) -> Self {
         Self {
             lv_linear_combination: vec![],
