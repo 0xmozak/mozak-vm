@@ -19,6 +19,12 @@ use crate::rangecheck_limb::stark::RangeCheckLimbStark;
 use crate::xor::stark::XorStark;
 use crate::{bitshift, cpu, memory, memoryinit, program, rangecheck, xor};
 
+pub trait Id {
+    fn id() -> String {
+        "GenericId".to_string()
+    }
+}
+
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cpu_stark: CpuStark<F, D>,

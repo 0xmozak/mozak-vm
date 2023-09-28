@@ -13,11 +13,18 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::XorColumnsView;
 use crate::columns_view::NumberOfColumns;
+use crate::stark::mozak_stark::Id;
 
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct XorStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> Id for XorStark<F, D> {
+    fn id() -> String {
+    "XorStark".to_string()
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D> {

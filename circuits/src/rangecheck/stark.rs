@@ -7,6 +7,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
+use crate::stark::mozak_stark::Id;
 
 use super::columns;
 
@@ -14,6 +15,12 @@ use super::columns;
 #[allow(clippy::module_name_repetitions)]
 pub struct RangeCheckStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> Id for RangeCheckStark<F, D> {
+    fn id() -> String {
+    "RangeCheckStark".to_string()
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckStark<F, D> {

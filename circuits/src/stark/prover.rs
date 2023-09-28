@@ -36,6 +36,7 @@ use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProduc
 use crate::stark::permutation::compute_permutation_z_polys;
 use crate::stark::poly::compute_quotient_polys;
 use crate::xor::stark::XorStark;
+use crate::stark::mozak_stark::Id;
 
 pub fn prove<F, C, const D: usize>(
     program: &Program,
@@ -194,7 +195,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-    S: Stark<F, D>,
+    S: Stark<F, D> + Id,
     [(); C::Hasher::HASH_SIZE]:,
     [(); S::COLUMNS]:,
     [(); S::PUBLIC_INPUTS]:, {
@@ -215,7 +216,7 @@ where
         .get_n_grand_product_challenge_sets(config.num_challenges, stark.permutation_batch_size());
     let mut permutation_zs = timed!(
         timing,
-        "compute permutation Z(x) polys",
+        format!("{}: compute permutation Z(x) polys", <S as Id>::id()).as_str(),
         compute_permutation_z_polys::<F, S, D>(
             stark,
             config,
@@ -234,7 +235,7 @@ where
 
     let permutation_ctl_zs_commitment = timed!(
         timing,
-        "compute Zs commitment",
+        format!("{}: compute Zs commitment", <S as Id>::id()).as_str(),
         PolynomialBatch::from_values(
             z_polys,
             rate_bits,
@@ -251,7 +252,7 @@ where
     let alphas = challenger.get_n_challenges(config.num_challenges);
     let quotient_polys = timed!(
         timing,
-        "compute quotient polys",
+        format!("{}: compute quotient polynomial", <S as Id>::id()).as_str(),
         compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
             stark,
             trace_commitment,
@@ -268,7 +269,7 @@ where
 
     let all_quotient_chunks = timed!(
         timing,
-        "split quotient polys",
+        format!("{}: split quotient polynomial", <S as Id>::id()).as_str(),
         quotient_polys
             .into_par_iter()
             .flat_map(|mut quotient_poly| {
@@ -284,7 +285,7 @@ where
     );
     let quotient_commitment = timed!(
         timing,
-        "compute quotient commitment",
+        format!("{}: compute quotient commitment", <S as Id>::id()).as_str(),
         PolynomialBatch::from_coeffs(
             all_quotient_chunks,
             rate_bits,
@@ -328,7 +329,7 @@ where
 
     let opening_proof = timed!(
         timing,
-        "compute openings proof",
+        format!("{}: compute opening proofs", <S as Id>::id()).as_str(),
         PolynomialBatch::prove_openings(
             &stark.fri_instance(
                 zeta,

@@ -16,12 +16,18 @@ use super::{add, bitwise, branches, div, ecall, jalr, mul, signed_comparison, su
 use crate::columns_view::NumberOfColumns;
 use crate::cpu::shift;
 use crate::program::columns::ProgramRom;
-use crate::stark::mozak_stark::PublicInputs;
+use crate::stark::mozak_stark::{Id, PublicInputs};
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> Id for CpuStark<F, D> {
+    fn id() -> String {
+    "CpuStark".to_string()
+    }
 }
 
 impl<P: PackedField> OpSelectors<P> {

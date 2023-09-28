@@ -12,11 +12,18 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 use super::columns::MemoryInit;
 use crate::columns_view::NumberOfColumns;
 use crate::cpu::stark::is_binary;
+use crate::stark::mozak_stark::Id;
 
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct MemoryInitStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> Id for MemoryInitStark<F, D> {
+    fn id() -> String {
+    "MemoryInit".to_string()
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryInitStark<F, D> {

@@ -11,11 +11,18 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::RangeCheckLimb;
 use crate::columns_view::NumberOfColumns;
+use crate::stark::mozak_stark::Id;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RangeCheckLimbStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> Id for RangeCheckLimbStark<F, D> {
+    fn id() -> String {
+    "RangeCheckLimbStark".to_string()
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckLimbStark<F, D> {

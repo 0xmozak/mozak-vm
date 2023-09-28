@@ -11,11 +11,18 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use crate::cpu::stark::is_binary;
 use crate::memory::columns::{Memory, NUM_MEM_COLS};
+use crate::stark::mozak_stark::Id;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct MemoryStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> Id for MemoryStark<F, D> {
+    fn id() -> String {
+    "MemoryStark".to_string()
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F, D> {
