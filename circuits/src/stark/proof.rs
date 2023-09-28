@@ -7,15 +7,13 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::GenericConfig;
-use plonky2_maybe_rayon::{MaybeParIter, ParallelIterator};
+use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
-use super::permutation::{
-    get_grand_product_challenge_set, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
-};
 use crate::stark::mozak_stark::PublicInputs;
+use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,11 +69,8 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
 
         let num_challenges = config.num_challenges;
 
-        let permutation_challenge_sets = get_n_grand_product_challenge_sets(
-            challenger,
-            num_challenges,
-            stark_permutation_batch_size,
-        );
+        let permutation_challenge_sets = challenger
+            .get_n_grand_product_challenge_sets(num_challenges, stark_permutation_batch_size);
 
         challenger.observe_cap(permutation_ctl_zs_cap);
 
@@ -211,6 +206,7 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     pub stark_proofs: [StarkProof<F, C, D>; NUM_TABLES],
     pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
+    pub memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub public_inputs: PublicInputs<F>,
 }
 
@@ -234,8 +230,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 
         // TODO: Observe public values.
 
-        let ctl_challenges =
-            get_grand_product_challenge_set(&mut challenger, config.num_challenges);
+        let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
 
         let num_permutation_batch_sizes = all_stark.permutation_batch_sizes();
 

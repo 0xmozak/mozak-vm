@@ -1,10 +1,12 @@
-use anyhow::Result;
+use std::str::from_utf8;
+
+use anyhow::{anyhow, Result};
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
 use crate::state::{Aux, State};
 use crate::system::ecall;
-use crate::system::reg_abi::REG_A0;
+use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2};
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
@@ -91,6 +93,12 @@ impl State {
     }
 
     #[must_use]
+    /// # Panics
+    ///
+    /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
+    /// bytes.
+    /// Panics on executing PANIC syscall and also if vector to string
+    /// conversion fails.
     pub fn ecall(self) -> (Aux, Self) {
         match self.get_register_value(REG_A0) {
             ecall::HALT => {
@@ -103,6 +111,43 @@ impl State {
                     },
                     self.halt(),
                 )
+            }
+            ecall::IO_READ => {
+                let buffer_start = self.get_register_value(REG_A1);
+                let num_bytes_requsted = self.get_register_value(REG_A2);
+                let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
+                (
+                    Aux::default(),
+                    data.iter()
+                        .enumerate()
+                        .fold(updated_self, |updated_self, (i, byte)| {
+                            updated_self
+                                .store_u8(
+                                    buffer_start.wrapping_add(
+                                        u32::try_from(i).expect("cannot fit i into u32"),
+                                    ),
+                                    *byte,
+                                )
+                                .unwrap()
+                        })
+                        .set_register_value(
+                            REG_A0,
+                            u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
+                        )
+                        .bump_pc(),
+                )
+            }
+            ecall::PANIC => {
+                let msg_len = self.get_register_value(REG_A1);
+                let msg_ptr = self.get_register_value(REG_A2);
+                let mut msg_vec = vec![];
+                for addr in msg_ptr..(msg_ptr + msg_len) {
+                    msg_vec.push(self.load_u8(addr));
+                }
+                panic!(
+                    "VM panicked with msg: {}",
+                    from_utf8(&msg_vec).expect("A valid utf8 VM panic message should be provided")
+                );
             }
             _ => (Aux::default(), self.bump_pc()),
         }
@@ -131,11 +176,14 @@ impl State {
         )
     }
 
-    #[must_use]
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
-    pub fn execute_instruction(self, program: &Program) -> (Aux, Self) {
+    /// # Errors
+    ///
+    /// Errors if the program contains an instruction with an unsupported
+    /// opcode.
+    pub fn execute_instruction(self, program: &Program) -> Result<(Aux, Self)> {
         let inst = self.current_instruction(program);
         macro_rules! rop {
             ($op: expr) => {
@@ -145,16 +193,18 @@ impl State {
         // TODO: consider factoring out this logic from `register_op`, `branch_op`,
         // `memory_load` etc.
         let op1 = self.get_register_value(inst.args.rs1);
+        let rs2_raw = self.get_register_value(inst.args.rs2);
         // For branch instructions, both op2 and imm serve different purposes.
         // Therefore, we avoid adding them together here.
         let op2 = if matches!(
             inst.op,
             Op::BEQ | Op::BNE | Op::BLT | Op::BLTU | Op::BGE | Op::BGEU
         ) {
-            self.get_register_value(inst.args.rs2)
+            rs2_raw
+        } else if matches!(inst.op, Op::SRL | Op::SLL | Op::SRA) {
+            1u32 << (rs2_raw.wrapping_add(inst.args.imm) & 0b1_1111)
         } else {
-            self.get_register_value(inst.args.rs2)
-                .wrapping_add(inst.args.imm)
+            rs2_raw.wrapping_add(inst.args.imm)
         };
 
         let (aux, state) = match inst.op {
@@ -199,9 +249,9 @@ impl State {
             Op::DIVU => rop!(divu),
             Op::REM => rop!(rem),
             Op::REMU => rop!(remu),
-            Op::UNKNOWN => unimplemented!("Unknown instruction"),
+            Op::UNKNOWN => return Err(anyhow!("Unsupported opcode: {}", inst.op)),
         };
-        (
+        Ok((
             Aux {
                 new_pc: state.get_pc(),
                 op1,
@@ -209,7 +259,7 @@ impl State {
                 ..aux
             },
             state.bump_clock(),
-        )
+        ))
     }
 }
 
@@ -243,7 +293,7 @@ pub struct ExecutionRecord {
 pub fn step(program: &Program, mut last_state: State) -> Result<ExecutionRecord> {
     let mut executed = vec![];
     while !last_state.has_halted() {
-        let (aux, new_state) = last_state.clone().execute_instruction(program);
+        let (aux, new_state) = last_state.clone().execute_instruction(program)?;
         executed.push(Row {
             state: last_state,
             aux,
@@ -287,6 +337,40 @@ mod tests {
         regs: &[(u8, u32)],
     ) -> ExecutionRecord {
         crate::test_utils::simple_test_code(code, mem, regs).1
+    }
+
+    fn divu_with_imm(rd: u8, rs1: u8, rs1_value: u32, imm: u32) {
+        let e = simple_test_code(
+            &[Instruction::new(Op::DIVU, Args {
+                rd,
+                rs1,
+                imm,
+                ..Args::default()
+            })],
+            &[],
+            &[(rs1, rs1_value)],
+        );
+        assert_eq!(
+            state_before_final(&e).get_register_value(rd),
+            divu(rs1_value, imm)
+        );
+    }
+
+    fn mul_with_imm(rd: u8, rs1: u8, rs1_value: u32, imm: u32) {
+        let e = simple_test_code(
+            &[Instruction::new(Op::MUL, Args {
+                rd,
+                rs1,
+                imm,
+                ..Args::default()
+            })],
+            &[],
+            &[(rs1, rs1_value)],
+        );
+        assert_eq!(
+            state_before_final(&e).get_register_value(rd),
+            rs1_value.wrapping_mul(imm),
+        );
     }
 
     proptest! {
@@ -416,23 +500,9 @@ mod tests {
         }
 
         #[test]
-        fn srli_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
-            let e = simple_test_code(
-                &[Instruction::new(
-                    Op::SRL,
-                    Args { rd,
-                    rs1,
-                    imm,
-                        ..Args::default()
-                        }
-                )],
-                &[],
-                &[(rs1, rs1_value)]
-            );
-            assert_eq!(
-                state_before_final(&e).get_register_value(rd),
-                rs1_value >> (imm & 0b1_1111)
-            );
+        fn srli_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in 0..32u8) {
+            // srli is implemented as DIVU with divisor being 1 << imm.
+            divu_with_imm(rd, rs1, rs1_value, 1 << imm);
         }
 
         #[test]
@@ -640,20 +710,9 @@ mod tests {
         }
 
         #[test]
-        fn slli_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
-            let e = simple_test_code(
-                &[Instruction::new(
-                    Op::SLL,
-                    Args { rd,
-                    rs1,
-                    imm,
-                    ..Args::default()
-                }
-                )],
-                &[],
-                &[(rs1, rs1_value)]
-            );
-            assert_eq!(state_before_final(&e).get_register_value(rd), rs1_value << (imm & 0b1_1111));
+        fn slli_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in 0..32u8) {
+            // slli is implemented as MUL with 1 << imm
+            mul_with_imm(rd, rs1, rs1_value, 1 << imm);
         }
 
         #[test]
@@ -861,6 +920,12 @@ mod tests {
 
         #[test]
         #[allow(clippy::cast_possible_truncation)]
+        fn mul_with_imm_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
+            mul_with_imm(rd, rs1, rs1_value, imm);
+        }
+
+        #[test]
+        #[allow(clippy::cast_possible_truncation)]
         fn mulh_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in i32_extra(), rs2_value in i32_extra()) {
             prop_assume!(rs1 != rs2);
             let prod: i64 = i64::from(rs1_value) * i64::from(rs2_value);
@@ -956,6 +1021,12 @@ mod tests {
                 &[(rs1, rs1_value), (rs2, rs2_value)]
             );
             assert_eq!(state_before_final(&e).get_register_value(rd), divu(rs1_value, rs2_value));
+        }
+
+        #[test]
+        fn divu_with_imm_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
+            prop_assume!(imm != 0);
+            divu_with_imm(rd, rs1, rs1_value, imm);
         }
 
         #[test]

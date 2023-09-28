@@ -2,8 +2,8 @@
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
-use mozak_vm::elf::Program;
-use mozak_vm::vm::ExecutionRecord;
+use mozak_runner::elf::Program;
+use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
 use plonky2::field::polynomial::PolynomialValues;
@@ -15,12 +15,11 @@ use plonky2::plonk::config::{GenericConfig, Hasher};
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
-use plonky2_maybe_rayon::{MaybeIntoParIter, ParallelIterator};
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
-use super::permutation::get_grand_product_challenge_set;
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
@@ -28,12 +27,13 @@ use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
 use crate::memory::stark::MemoryStark;
+use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
+use crate::rangecheck_limb::stark::RangeCheckLimbStark;
 use crate::stark::mozak_stark::PublicInputs;
-use crate::stark::permutation::{
-    compute_permutation_z_polys, get_n_grand_product_challenge_sets, GrandProductChallengeSet,
-};
+use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
+use crate::stark::permutation::compute_permutation_z_polys;
 use crate::stark::poly::compute_quotient_polys;
 use crate::xor::stark::XorStark;
 
@@ -54,8 +54,10 @@ where
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
-    [(); ProgramStark::<F, D>::COLUMNS]:,
+    // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); MemoryInitStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
@@ -91,15 +93,17 @@ where
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
-    [(); ProgramStark::<F, D>::COLUMNS]:,
+    // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); MemoryInitStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
     let trace_commitments = timed!(
         timing,
-        "compute all trace commitments",
+        "Compute trace commitments for each table",
         traces_poly_values
             .iter()
             .zip_eq(TableKind::all())
@@ -128,15 +132,16 @@ where
         .iter()
         .map(|c| c.merkle_tree.cap.clone())
         .collect::<Vec<_>>();
+    // Add trace commitments to the challenger entropy pool.
     let mut challenger = Challenger::<F, C::Hasher>::new();
     for cap in &trace_caps {
         challenger.observe_cap(cap);
     }
 
-    let ctl_challenges = get_grand_product_challenge_set(&mut challenger, config.num_challenges);
+    let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
     let ctl_data_per_table = timed!(
         timing,
-        "compute CTL data",
+        "Compute CTL data for each table",
         cross_table_lookup_data::<F, D>(
             traces_poly_values,
             &mozak_stark.cross_table_lookups,
@@ -159,9 +164,11 @@ where
     );
 
     let program_rom_trace_cap = trace_caps[TableKind::Program as usize].clone();
+    let memory_init_trace_cap = trace_caps[TableKind::MemoryInit as usize].clone();
     Ok(AllProof {
         stark_proofs,
         program_rom_trace_cap,
+        memory_init_trace_cap,
         public_inputs,
     })
 }
@@ -203,12 +210,8 @@ where
     challenger.compact();
 
     // Permutation arguments.
-    let permutation_challenges: Vec<GrandProductChallengeSet<F>> =
-        get_n_grand_product_challenge_sets(
-            challenger,
-            config.num_challenges,
-            stark.permutation_batch_size(),
-        );
+    let permutation_challenges: Vec<GrandProductChallengeSet<F>> = challenger
+        .get_n_grand_product_challenge_sets(config.num_challenges, stark.permutation_batch_size());
     let mut permutation_zs = timed!(
         timing,
         "compute permutation Z(x) polys",
@@ -376,8 +379,10 @@ where
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
-    [(); ProgramStark::<F, D>::COLUMNS]:,
+    // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); MemoryInitStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
         &mozak_stark.cpu_stark,
@@ -445,6 +450,28 @@ where
         timing,
     )?;
 
+    let memory_init_proof = prove_single_table::<F, C, MemoryInitStark<F, D>, D>(
+        &mozak_stark.memory_init_stark,
+        config,
+        &traces_poly_values[TableKind::MemoryInit as usize],
+        &trace_commitments[TableKind::MemoryInit as usize],
+        [],
+        &ctl_data_per_table[TableKind::MemoryInit as usize],
+        challenger,
+        timing,
+    )?;
+
+    let rangecheck_range_proof = prove_single_table::<F, C, RangeCheckLimbStark<F, D>, D>(
+        &mozak_stark.rangecheck_limb_stark,
+        config,
+        &traces_poly_values[TableKind::RangeCheckLimb as usize],
+        &trace_commitments[TableKind::RangeCheckLimb as usize],
+        [],
+        &ctl_data_per_table[TableKind::RangeCheckLimb as usize],
+        challenger,
+        timing,
+    )?;
+
     Ok([
         cpu_proof,
         rangecheck_proof,
@@ -452,14 +479,16 @@ where
         shift_amount_proof,
         program_proof,
         memory_proof,
+        memory_init_proof,
+        rangecheck_range_proof,
     ])
 }
 
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-    use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::simple_test_code;
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::simple_test_code;
 
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;

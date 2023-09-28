@@ -170,6 +170,14 @@ impl<F: Field> Column<F> {
     }
 
     #[must_use]
+    pub fn constant(constant: F) -> Self {
+        Column {
+            linear_combination: vec![],
+            constant,
+        }
+    }
+
+    #[must_use]
     pub fn not(c: usize) -> Self {
         Self {
             lv_linear_combination: vec![],
@@ -214,6 +222,26 @@ impl<F: Field> Column<F> {
         Column {
             lv_linear_combination: vec![],
             nv_linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect(),
+            constant: F::ZERO,
+        }
+    }
+
+    #[must_use]
+    pub fn reduce_with_powers(terms: Vec<Self>, alpha: u64) -> Self {
+        Self {
+            linear_combination: terms
+                .into_iter()
+                .enumerate()
+                .flat_map(|(i, column)| {
+                    let base = F::from_canonical_u64(
+                        alpha.pow(u32::try_from(i).expect("casting value to u32 should succeed")),
+                    );
+                    column
+                        .linear_combination
+                        .into_iter()
+                        .map(move |(idx, value)| (idx, value * base))
+                })
+                .collect(),
             constant: F::ZERO,
         }
     }

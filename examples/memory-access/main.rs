@@ -1,7 +1,9 @@
 #![no_main]
-#![feature(restricted_std)]
+#![no_std]
 
-use std::vec::Vec;
+extern crate alloc;
+use alloc::vec;
+use alloc::vec::Vec;
 
 pub fn main() {
     let vector: Vec<u8> = vec![128];

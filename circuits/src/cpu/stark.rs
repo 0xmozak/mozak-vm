@@ -14,6 +14,7 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 use super::columns::{CpuColumnsExtended, CpuState, Instruction, OpSelectors};
 use super::{add, bitwise, branches, div, ecall, jalr, mul, signed_comparison, sub};
 use crate::columns_view::NumberOfColumns;
+use crate::cpu::shift;
 use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::PublicInputs;
 
@@ -29,7 +30,7 @@ impl<P: PackedField> OpSelectors<P> {
     // Note: ecall is only 'jumping' in the sense that a 'halt'
     // does not bump the PC. It sort-of jumps back to itself.
     pub fn is_jumping(&self) -> P {
-        self.beq + self.bge + self.bgeu + self.blt + self.bltu + self.bne + self.ecall + self.jalr
+        self.beq + self.bge + self.blt + self.bne + self.ecall + self.jalr
     }
 
     /// List of opcodes that only bump the program counter.
@@ -78,6 +79,9 @@ fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
 }
 
 /// Ensure an expression only takes on values 0 or 1.
+/// This doubles the degree of the provided expression `x`,
+/// so as long as we are targeting degree <= 3,
+/// this should only be called with at most linear expressions.
 pub fn is_binary<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
     yield_constr.constraint(x * (P::ONES - x));
 }
@@ -160,8 +164,8 @@ fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
             // Note: we could skip 0, because r0 is always 0.
             // But we keep it to make it easier to reason about the code.
             - (0..32)
-                .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
-                .sum::<P>(),
+            .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
+            .sum::<P>(),
     );
 }
 
@@ -171,22 +175,17 @@ fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
 fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
     let wrap_at = CpuState::<P>::shifted(32);
     let ops = &lv.inst.ops;
-    let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bltu + ops.bge + ops.bgeu;
+    let is_branch_operation = ops.beq + ops.bne + ops.blt + ops.bge;
+    let is_shift_operation = ops.sll + ops.srl + ops.sra;
 
-    // Note: we could skip 0, because r0 is always 0.
-    // But we keep the constraints simple here.
-    let rs2_value = (0..32)
-        .map(|reg| lv.inst.rs2_select[reg] * lv.regs[reg])
-        .sum::<P>();
-
-    yield_constr.constraint(is_branch_operation * (lv.op2_value - rs2_value));
+    yield_constr.constraint(is_branch_operation * (lv.op2_value - lv.rs2_value()));
+    yield_constr.constraint(is_shift_operation * (lv.op2_value - lv.bitshift.multiplier));
     yield_constr.constraint(
-        (P::ONES - is_branch_operation)
-            * (lv.op2_value_overflowing - lv.inst.imm_value - rs2_value),
+        (P::ONES - is_branch_operation - is_shift_operation)
+            * (lv.op2_value_overflowing - lv.inst.imm_value - lv.rs2_value()),
     );
-
     yield_constr.constraint(
-        (P::ONES - is_branch_operation)
+        (P::ONES - is_branch_operation - is_shift_operation)
             * (lv.op2_value_overflowing - lv.op2_value)
             * (lv.op2_value_overflowing - lv.op2_value - wrap_at * ops.is_mem_op()),
     );
@@ -256,14 +255,18 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         branches::constraints(lv, nv, yield_constr);
         signed_comparison::signed_constraints(lv, yield_constr);
         signed_comparison::slt_constraints(lv, yield_constr);
+        shift::constraints(lv, yield_constr);
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
         ecall::constraints(lv, nv, yield_constr);
         halted(lv, nv, yield_constr);
 
-        // Clock starts at 0
-        yield_constr.constraint_first_row(lv.clk);
+        // Clock starts at 1. This is to differentiate
+        // execution clocks (1 and above) from clk value of `0` which is
+        // reserved for any initialisation concerns. e.g. memory initialization
+        // prior to program execution, register initialization etc.
+        yield_constr.constraint_first_row(P::ONES - lv.clk);
     }
 
     fn constraint_degree(&self) -> usize { 3 }

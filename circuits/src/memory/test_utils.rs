@@ -1,8 +1,8 @@
-use mozak_vm::elf::Program;
-use mozak_vm::instruction::Op::{LBU, SB};
-use mozak_vm::instruction::{Args, Instruction};
-use mozak_vm::test_utils::simple_test_code;
-use mozak_vm::vm::ExecutionRecord;
+use mozak_runner::elf::Program;
+use mozak_runner::instruction::Op::{LBU, SB};
+use mozak_runner::instruction::{Args, Instruction};
+use mozak_runner::test_utils::simple_test_code;
+use mozak_runner::vm::ExecutionRecord;
 
 #[must_use]
 pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord) {
@@ -44,7 +44,8 @@ pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord) {
         .flatten()
         .copied()
         .collect::<Vec<_>>();
-    let (program, record) = simple_test_code(&code, &[], &[(1, 255), (2, 10), (3, 15)]);
+    let (program, record) =
+        simple_test_code(&code, &[(100, 0), (200, 0)], &[(1, 255), (2, 10), (3, 15)]);
 
     if repeats > 0 {
         let state = &record.last_state;

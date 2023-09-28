@@ -16,8 +16,10 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
 use crate::memory::stark::MemoryStark;
+use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
+use crate::rangecheck_limb::stark::RangeCheckLimbStark;
 use crate::stark::permutation::PermutationCheckVars;
 use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
@@ -37,8 +39,10 @@ where
     [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
     [(); XorStark::<F, D>::COLUMNS]:,
     [(); BitshiftStark::<F, D>::COLUMNS]:,
-    [(); ProgramStark::<F, D>::COLUMNS]:,
+    // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); MemoryInitStark::<F, D>::COLUMNS]:,
+    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let AllProofChallenges {
         stark_challenges,
@@ -53,6 +57,8 @@ where
         shift_amount_stark,
         program_stark,
         memory_stark,
+        memory_init_stark,
+        rangecheck_limb_stark,
         cross_table_lookups,
         ..
     } = mozak_stark;
@@ -61,6 +67,12 @@ where
         all_proof.stark_proofs[TableKind::Program as usize].trace_cap
             == all_proof.program_rom_trace_cap,
         "Mismatch between Program ROM trace caps"
+    );
+
+    ensure!(
+        all_proof.stark_proofs[TableKind::MemoryInit as usize].trace_cap
+            == all_proof.memory_init_trace_cap,
+        "Mismatch between MemoryInit trace caps"
     );
 
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
@@ -121,6 +133,24 @@ where
         &stark_challenges[TableKind::Memory as usize],
         [],
         &ctl_vars_per_table[TableKind::Memory as usize],
+        config,
+    )?;
+
+    verify_stark_proof_with_challenges::<F, C, MemoryInitStark<F, D>, D>(
+        &memory_init_stark,
+        &all_proof.stark_proofs[TableKind::MemoryInit as usize],
+        &stark_challenges[TableKind::MemoryInit as usize],
+        [],
+        &ctl_vars_per_table[TableKind::MemoryInit as usize],
+        config,
+    )?;
+
+    verify_stark_proof_with_challenges::<F, C, RangeCheckLimbStark<F, D>, D>(
+        &rangecheck_limb_stark,
+        &all_proof.stark_proofs[TableKind::RangeCheckLimb as usize],
+        &stark_challenges[TableKind::RangeCheckLimb as usize],
+        [],
+        &ctl_vars_per_table[TableKind::RangeCheckLimb as usize],
         config,
     )?;
 
