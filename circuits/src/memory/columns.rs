@@ -84,7 +84,7 @@ pub fn filter_for_cpu<F: Field>() -> Column<F> {
     mem.is_sb + mem.is_lbu
 }
 
-/// Columns containing the data which are looked to the `MemoryInit` Table
+/// Columns containing the data which are looked up in the `MemoryInit` Table
 #[must_use]
 pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
     vec![
