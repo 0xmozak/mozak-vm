@@ -23,7 +23,7 @@ pub struct MemoryInit<T> {
 
 pub const NUM_MEMORYINIT_COLS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;
 
-/// Columns containing the data which are looked from the Memory Table
+/// Columns containing the data which are looked up from the Memory Table
 #[must_use]
 pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
     vec![
