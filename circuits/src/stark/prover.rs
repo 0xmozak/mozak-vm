@@ -161,6 +161,7 @@ where
     );
 
     let program_rom_trace_cap = trace_caps[TableKind::Program as usize].clone();
+    timing.print();
     Ok(AllProof {
         stark_proofs,
         program_rom_trace_cap,

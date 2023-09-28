@@ -271,6 +271,12 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn prove_mul_vivek() {
+        let res = prove_mul::<MozakStark<F, D>>(100, 200200);
+        assert!(res.is_ok());
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(100))]
         #[test]
