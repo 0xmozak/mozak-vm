@@ -54,9 +54,7 @@ pub(crate) fn constraints<P: PackedField>(
 ) {
     let ops = &lv.inst.ops;
     let is_blt = ops.blt;
-    let is_bltu = ops.bltu;
     let is_bge = ops.bge;
-    let is_bgeu = ops.bgeu;
 
     let bumped_pc = lv.inst.pc + P::Scalar::from_noncanonical_u64(4);
     let branched_pc = lv.inst.imm_value;
@@ -67,12 +65,12 @@ pub(crate) fn constraints<P: PackedField>(
     // Check: for BLT and BLTU branch if `lt == 1`, otherwise just increment the pc.
     // Note that BLT and BLTU behave equivalently, as `lt` handles signed
     // conversions.
-    yield_constr.constraint((is_blt + is_bltu) * lt * (next_pc - branched_pc));
-    yield_constr.constraint((is_blt + is_bltu) * (P::ONES - lt) * (next_pc - bumped_pc));
+    yield_constr.constraint(is_blt * lt * (next_pc - branched_pc));
+    yield_constr.constraint(is_blt * (P::ONES - lt) * (next_pc - bumped_pc));
 
     // Check: for BGE and BGEU we reverse the checks of BLT and BLTU.
-    yield_constr.constraint((is_bge + is_bgeu) * lt * (next_pc - bumped_pc));
-    yield_constr.constraint((is_bge + is_bgeu) * (P::ONES - lt) * (next_pc - branched_pc));
+    yield_constr.constraint(is_bge * lt * (next_pc - bumped_pc));
+    yield_constr.constraint(is_bge * (P::ONES - lt) * (next_pc - branched_pc));
 
     // Check: for BEQ, branch if `normalised_diff == 0`, otherwise increment the pc.
     yield_constr.constraint(ops.beq * (P::ONES - lv.normalised_diff) * (next_pc - branched_pc));
@@ -86,8 +84,8 @@ pub(crate) fn constraints<P: PackedField>(
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-    use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test_code, state_before_final, u32_extra};
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::{simple_test_code, state_before_final, u32_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::strategy::Just;
     use proptest::{prop_oneof, proptest};

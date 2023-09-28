@@ -1,8 +1,8 @@
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-    use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{simple_test_code, u32_extra, u8_extra};
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::{simple_test_code, u32_extra, u8_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
@@ -20,7 +20,7 @@ mod tests {
                     ..Args::default()
                 },
             }],
-            &[],
+            &[(b, 0)],
             &[(6, a), (7, b)],
         );
 
@@ -65,7 +65,7 @@ mod tests {
                     },
                 },
             ],
-            &[],
+            &[(imm.wrapping_add(offset), 0)],
             &[(1, content.into()), (2, offset)],
         );
 

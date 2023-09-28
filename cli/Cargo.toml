@@ -12,7 +12,7 @@ version = "0.1.0"
 build = "build.rs"
 
 [dependencies]
-clap = { version = "4.3.24", features = [
+clap = { version = "4.4.4", features = [
   "derive",
   "cargo",
   "env",
@@ -20,7 +20,7 @@ clap = { version = "4.3.24", features = [
   "wrap_help",
 ] }
 mozak-circuits = { path = "../circuits", features = ["test"] }
-mozak-vm = { path = "../vm", features = ["test"] }
+mozak-runner = { path = "../runner", features = ["test"] }
 # TODO(Matthias): implement shell completion for CLI via clap_complete
 # clap_complete = "4.3.2"
 anyhow = "1.0.72"
@@ -29,14 +29,15 @@ clap_derive = "4.3.2"
 clio = { version = "0.3.4", features = ["http-ureq", "clap-parse"] }
 env_logger = "0.10.0"
 itertools = "0.11.0"
+jemallocator = "0.5.4"
 log = "0.4.20"
 plonky2 = "0.1.3"
-shadow-rs = "0.23.0"
+shadow-rs = "0.24.0"
 
 [dev-dependencies]
 mozak-circuits = { path = "../circuits", features = ["test"] }
-mozak-vm = { path = "../vm", features = ["test"] }
+mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.2.0"
 
 [build-dependencies]
-shadow-rs = "0.23.0"
+shadow-rs = "0.24.0"

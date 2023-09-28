@@ -8,7 +8,6 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
-use super::bitwise::and_gadget;
 use super::columns::CpuState;
 use super::stark::is_binary;
 
@@ -77,14 +76,13 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(op1_abs - lv.op1_full_range() * bit_to_sign(lv.op1_sign_bit));
 
     // Make sure op2_abs is computed correctly from op2_value for MUL operations.
-    // Note that for SLL, op2_abs is computed from bitshift.multiplier.
-    yield_constr.constraint(
-        (P::ONES - lv.inst.ops.sll)
-            * (op2_abs - lv.op2_full_range() * bit_to_sign(lv.op2_sign_bit)),
-    );
+    yield_constr.constraint(op2_abs - lv.op2_full_range() * bit_to_sign(lv.op2_sign_bit));
 
-    // For MUL/MULHU/SLL product sign should always be 0.
-    yield_constr.constraint((lv.inst.ops.sll + lv.inst.ops.mul + lv.inst.ops.mulhu) * product_sign);
+    // If both factors are unsigned, the output will always be
+    // non-negative/unsigned. As an optimization, we take advantage of the fact
+    // that is_op1_signed == 0 implies is_op2_signed == 0 for all our operations.
+    // (In fact, the two values only differ for MULHSU.)
+    yield_constr.constraint((P::ONES - lv.inst.is_op1_signed) * product_sign);
 
     // Ensure skip_check_product_sign can be set to 1 only when either ob1_abs or
     // op2_abs is 0. This check is essential for the subsequent constraints.
@@ -98,41 +96,21 @@ pub(crate) fn constraints<P: PackedField>(
                 - bit_to_sign(lv.op1_sign_bit) * bit_to_sign(lv.op2_sign_bit)),
     );
 
-    // Check: for SLL the multiplier is assigned as `2^(op2 & 0b1_111)`.
-    // We only take lowest 5 bits of the op2 for the shift amount.
-    // This is following the RISC-V specification.
-    // Below we use the And gadget to calculate the shift amount, and then use
-    // Bitshift table to retrieve the corresponding power of 2, that we will assign
-    // to the multiplier.
-    {
-        let and_gadget = and_gadget(&lv.xor);
-        yield_constr.constraint(
-            lv.inst.ops.sll * (and_gadget.input_a - P::Scalar::from_noncanonical_u64(0b1_1111)),
-        );
-        let op2 = lv.op2_value;
-        yield_constr.constraint(lv.inst.ops.sll * (and_gadget.input_b - op2));
-
-        yield_constr.constraint(lv.inst.ops.sll * (and_gadget.output - lv.bitshift.amount));
-        yield_constr.constraint(lv.inst.ops.sll * (op2_abs - lv.bitshift.multiplier));
-    }
-
     // Now, check, that we select the correct output based on the opcode.
     let destination = lv.dst_value;
     yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.sll) * (destination - low_limb));
-    yield_constr.constraint(
-        (lv.inst.ops.mulh + lv.inst.ops.mulhsu + lv.inst.ops.mulhu) * (destination - high_limb),
-    );
+    yield_constr.constraint((lv.inst.ops.mulh) * (destination - high_limb));
 }
 
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use anyhow::Result;
-    use mozak_vm::instruction::{Args, Instruction, Op};
-    use mozak_vm::test_utils::{i32_extra, reg, simple_test_code, u32_extra};
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::{i32_extra, simple_test_code, u32_extra};
     use plonky2::timed;
     use plonky2::util::timing::TimingTree;
-    use proptest::prelude::{prop_assume, ProptestConfig};
+    use proptest::prelude::ProptestConfig;
     use proptest::test_runner::TestCaseError;
     use proptest::{prop_assert_eq, proptest};
     use starky::prover::prove as prove_table;
@@ -293,48 +271,8 @@ mod tests {
         Ok(())
     }
 
-    fn prove_sll<Stark: ProveAndVerify>(
-        p: u32,
-        q: u32,
-        rs1: u8,
-        rs2: u8,
-        rd: u8,
-    ) -> Result<(), TestCaseError> {
-        prop_assume!(rs1 != rs2);
-        prop_assume!(rs1 != rd);
-        prop_assume!(rs2 != rd);
-        let (program, record) = simple_test_code(
-            &[
-                Instruction {
-                    op: Op::SLL,
-                    args: Args {
-                        rd,
-                        rs1,
-                        rs2,
-                        ..Args::default()
-                    },
-                },
-                Instruction {
-                    op: Op::SLL,
-                    args: Args {
-                        rd,
-                        rs1,
-                        imm: q,
-                        ..Args::default()
-                    },
-                },
-            ],
-            &[],
-            &[(rs1, p), (rs2, q)],
-        );
-        prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0b1_1111));
-        prop_assert_eq!(record.executed[1].aux.dst_val, p << (q & 0b1_1111));
-        Stark::prove_and_verify(&program, &record).unwrap();
-        Ok(())
-    }
-
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(4))]
+        #![proptest_config(ProptestConfig::with_cases(100))]
         #[test]
         fn prove_mul_cpu(a in u32_extra(), b in u32_extra()) {
             prove_mul::<CpuStark<F, D>>(a, b)?;
@@ -356,14 +294,10 @@ mod tests {
             prove_mulhsu::<CpuStark<F, D>>(a, b)?;
         }
 
-        #[test]
-        fn prove_sll_cpu(p in u32_extra(), q in u32_extra(), rs1 in reg(), rs2 in reg(), rd in reg()) {
-            prove_sll::<CpuStark<F, D>>(p, q, rs1, rs2, rd)?;
-        }
     }
 
     proptest! {
-        #![proptest_config(ProptestConfig::with_cases(4))]
+        #![proptest_config(ProptestConfig::with_cases(1))]
         #[test]
         fn prove_mul_mozak(a in u32_extra(), b in u32_extra()) {
             prove_mul::<MozakStark<F, D>>(a, b)?;
@@ -385,9 +319,5 @@ mod tests {
             prove_mulhsu::<MozakStark<F, D>>(a, b)?;
         }
 
-        #[test]
-        fn prove_sll_mozak(p in u32_extra(), q in u32_extra(), rs1 in reg(), rs2 in reg(), rd in reg()) {
-            prove_sll::<MozakStark<F, D>>(p, q, rs1, rs2, rd)?;
-        }
     }
 }

@@ -18,21 +18,18 @@ pub struct OpSelectors<T> {
     pub xor: T,
     pub or: T,
     pub and: T,
-    pub divu: T,
-    /// Remainder Unsigned
-    pub remu: T,
+    pub div: T,
+    pub rem: T,
     pub mul: T,
     pub mulh: T,
-    pub mulhsu: T,
-    pub mulhu: T,
     /// Shift Left Logical by amount
     pub sll: T,
     /// Set Less Than
     pub slt: T,
-    /// Set Less Than Unsigned comparison
-    pub sltu: T,
     /// Shift Right Logical by amount
     pub srl: T,
+    /// Arithmetic Right Shifts
+    pub sra: T,
     /// Jump And Link Register
     pub jalr: T,
     /// Branch on Equal
@@ -46,12 +43,8 @@ pub struct OpSelectors<T> {
     pub lbu: T,
     /// Branch Less Than
     pub blt: T,
-    /// Branch Less Than Unsigned comparison
-    pub bltu: T,
     /// Branch Greater or Equal
     pub bge: T,
-    /// Branch Greater or Equal Unsigned comparison
-    pub bgeu: T,
     /// Environment Call
     pub ecall: T,
 }
@@ -66,6 +59,8 @@ pub struct Instruction<T> {
 
     /// Selects the current operation type
     pub ops: OpSelectors<T>,
+    pub is_op1_signed: T,
+    pub is_op2_signed: T,
     /// Selects the register to use as source for `rs1`
     pub rs1_select: [T; 32],
     /// Selects the register to use as source for `rs2`
@@ -123,14 +118,15 @@ pub struct CpuState<T> {
     pub bitshift: Bitshift<T>,
 
     // Division evaluation columns
-    pub quotient: T,
-    pub remainder: T,
-    /// Value of `divisor - remainder - 1`
+    pub op2_value_inv: T,
+    pub quotient_value: T, // range check u32 required
+    pub quotient_sign: T,
+    pub skip_check_quotient_sign: T,
+    pub remainder_value: T, // range check u32 required
+    pub remainder_sign: T,
+    /// Value of `divisor_abs - remainder_abs - 1`
     /// Used as a helper column to check that `remainder < divisor`.
-    pub remainder_slack: T,
-    /// Used as a helper column to check if `divisor` is zero
-    pub divisor_inv: T,
-    pub divisor: T,
+    pub remainder_slack: T, // range check u32 required
 
     // Product evaluation columns
     pub op1_abs: T,
@@ -160,13 +156,14 @@ impl<T: PackedField> CpuState<T> {
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
 
-    // TODO(Matthias): unify where we specify `is_op(1|2)_signed` for constraints
-    // and trace generation.
-    pub fn is_op2_signed(&self) -> T {
-        self.inst.ops.slt + self.inst.ops.bge + self.inst.ops.blt + self.inst.ops.mulh
+    /// The value of the designated register in rs2.
+    pub fn rs2_value(&self) -> T {
+        // Note: we could skip 0, because r0 is always 0.
+        // But we keep it to make it easier to reason about the code.
+        (0..32)
+            .map(|reg| self.inst.rs2_select[reg] * self.regs[reg])
+            .sum()
     }
-
-    pub fn is_op1_signed(&self) -> T { self.is_op2_signed() + self.inst.ops.mulhsu }
 
     /// Value of the first operand, as if converted to i64.
     ///
@@ -194,36 +191,32 @@ impl<T: PackedField> CpuState<T> {
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let cpu = MAP.cpu.map(Column::from);
     let ops = &cpu.inst.ops;
-    let divs = &ops.divu + &ops.remu + &ops.srl;
-    let muls = &ops.mul + &ops.mulhu + &ops.mulhsu + &ops.mulh + &ops.sll;
-
-    let is_running = cpu.is_running;
-
-    let is_op2_signed = &ops.slt + &ops.bge + &ops.blt + &ops.mulh;
-    let is_op1_signed = &is_op2_signed + &ops.mulhsu;
+    let divs = &ops.div + &ops.rem + &ops.srl + &ops.sra;
+    let muls = &ops.mul + &ops.mulh + &ops.sll;
 
     vec![
-        CpuTable::new(vec![cpu.quotient], divs.clone()),
-        CpuTable::new(vec![cpu.remainder], divs.clone()),
+        CpuTable::new(vec![cpu.quotient_value.clone()], divs.clone()),
+        CpuTable::new(vec![cpu.remainder_value.clone()], divs.clone()),
         CpuTable::new(vec![cpu.remainder_slack], divs),
-        CpuTable::new(vec![cpu.dst_value], ops.add.clone()),
+        CpuTable::new(vec![cpu.dst_value], &ops.add + &ops.sub + &ops.jalr),
+        CpuTable::new(vec![cpu.inst.pc], ops.jalr.clone()),
         CpuTable::new(vec![cpu.abs_diff], &ops.bge + &ops.blt),
         CpuTable::new(vec![cpu.product_high_limb], muls.clone()),
         CpuTable::new(vec![cpu.product_low_limb], muls),
         // apply range constraints for the sign bits of each operand
         CpuTable::new(
             vec![
-                cpu.op1_value.clone() - &cpu.op1_sign_bit * F::from_canonical_u64((1_u64) << 32)
-                    + &is_op1_signed * F::from_canonical_u64((1_u64) << 31),
+                cpu.op1_value - cpu.op1_sign_bit * F::from_canonical_u64(1 << 32)
+                    + &cpu.inst.is_op1_signed * F::from_canonical_u64(1 << 31),
             ],
-            is_running.clone(),
+            cpu.inst.is_op1_signed,
         ),
         CpuTable::new(
             vec![
-                cpu.op2_value.clone() - &cpu.op2_sign_bit * F::from_canonical_u64((1_u64) << 32)
-                    + &is_op2_signed * F::from_canonical_u64((1_u64) << 31),
+                cpu.op2_value - cpu.op2_sign_bit * F::from_canonical_u64(1 << 32)
+                    + &cpu.inst.is_op2_signed * F::from_canonical_u64(1 << 31),
             ],
-            is_running,
+            cpu.inst.is_op2_signed,
         ),
     ]
 }
@@ -243,7 +236,14 @@ pub fn filter_for_xor<F: Field>() -> Column<F> {
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_memory<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.cpu.dst_value)] }
+pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
+    vec![
+        Column::single(MAP.cpu.clk),
+        Column::single(MAP.cpu.inst.ops.sb),
+        Column::single(MAP.cpu.inst.ops.lbu),
+        Column::single(MAP.cpu.dst_value),
+    ]
+}
 
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
@@ -253,12 +253,10 @@ pub fn filter_for_memory<F: Field>() -> Column<F> { MAP.cpu.map(Column::from).in
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(self) -> T {
-        // TODO: Add SRA, once we implement its constraints.
-        self.xor + self.or + self.and + self.srl + self.sll
+        self.xor + self.or + self.and + self.srl + self.sll + self.sra
     }
 
-    // TODO: Add SRA, once we implement its constraints.
-    pub fn ops_that_shift(self) -> T { self.sll + self.srl }
+    pub fn ops_that_shift(self) -> T { self.sll + self.srl + self.sra }
 
     // TODO: Add other mem ops like SH, SW, LB, LW, LH, LHU as we implement the
     // constraints.
@@ -283,11 +281,28 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
     let inst = MAP.cpu.inst;
     vec![
         Column::single(inst.pc),
-        Column::ascending_sum(inst.ops),
-        Column::ascending_sum(inst.rs1_select),
-        Column::ascending_sum(inst.rs2_select),
-        Column::ascending_sum(inst.rd_select),
-        Column::single(inst.imm_value),
+        // Combine columns into a single column.
+        // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5
+        //   bits.
+        // - is_op1_signed and is_op2_signed: These fields occupy 1 bit each.
+        // - rs1_select, rs2_select, and rd_select: These fields require 5 bits each.
+        // - imm_value: This field requires 32 bits.
+        // Therefore, the total bit requirement is 5 * 6 + 32 = 62 bits, which is less than the
+        // size of the Goldilocks field.
+        // Note: The imm_value field, having more than 5 bits, must be positioned as the last
+        // column in the list to ensure the correct functioning of 'reduce_with_powers'.
+        Column::reduce_with_powers(
+            vec![
+                Column::ascending_sum(inst.ops),
+                Column::single(inst.is_op1_signed),
+                Column::single(inst.is_op2_signed),
+                Column::ascending_sum(inst.rs1_select),
+                Column::ascending_sum(inst.rs2_select),
+                Column::ascending_sum(inst.rd_select),
+                Column::single(inst.imm_value),
+            ],
+            1 << 5,
+        ),
     ]
 }
 

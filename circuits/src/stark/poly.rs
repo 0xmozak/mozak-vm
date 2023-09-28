@@ -8,14 +8,15 @@ use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::util::{log2_ceil, transpose};
-use plonky2_maybe_rayon::{IndexedParallelIterator, MaybeIntoParIter, ParallelIterator};
+use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
 use starky::stark::Stark;
 use starky::vars::StarkEvaluationVars;
 
-use super::permutation::{eval_permutation_checks, GrandProductChallengeSet, PermutationCheckVars};
+use super::permutation::{eval_permutation_checks, PermutationCheckVars};
 use crate::cross_table_lookup::{eval_cross_table_lookup_checks, CtlCheckVars, CtlData};
+use crate::stark::permutation::challenge::GrandProductChallengeSet;
 
 /// Computes the quotient polynomials `(sum alpha^i C_i(x)) / Z_H(x)` for
 /// `alpha` in `alphas`, where the `C_i`s are the Stark constraints.

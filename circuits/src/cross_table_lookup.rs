@@ -13,7 +13,7 @@ use thiserror::Error;
 
 pub use crate::linear_combination::Column;
 use crate::stark::mozak_stark::{Table, NUM_TABLES};
-use crate::stark::permutation::{GrandProductChallenge, GrandProductChallengeSet};
+use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::StarkProof;
 
 #[derive(Error, Debug)]

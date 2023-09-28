@@ -219,6 +219,13 @@ impl<F: Field> Column<F> {
     }
 
     #[must_use]
+    pub fn reduce_with_powers(terms: Vec<Self>, alpha: u64) -> Self {
+        terms.into_iter().rev().fold(Self::default(), |acc, term| {
+            acc * F::from_canonical_u64(alpha) + term
+        })
+    }
+
+    #[must_use]
     pub fn ascending_sum<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
             lv_linear_combination: vec![],
