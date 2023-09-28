@@ -15,11 +15,18 @@ pub fn sort_by_address<F: RichField>(trace: Vec<Register<F>>) -> Vec<Register<F>
         .collect()
 }
 
-fn init_register_trace<F: RichField>() -> Vec<Register<F>> {
+fn init_register_trace<F: RichField>(executed: &Row) -> Vec<Register<F>> {
     (1..32)
         .map(|i| Register {
             addr: F::from_canonical_usize(i),
             is_init: F::ONE,
+            value: F::from_canonical_u64(u64::from(
+                executed.state.get_register_value(
+                    i.try_into().expect(
+                        "Casting a register represented in u32 (0-31) to u8 should succeed",
+                    ),
+                ),
+            )),
             ..Default::default()
         })
         .collect()
@@ -55,7 +62,7 @@ pub fn generate_register_trace<F: RichField>(
 ) -> Vec<Register<F>> {
     let ExecutionRecord { executed, .. } = record;
 
-    let mut trace = init_register_trace();
+    let mut trace = init_register_trace(&record.executed[0]);
 
     for Row { state, .. } in executed {
         let inst = state.current_instruction(program);
@@ -113,28 +120,7 @@ mod tests {
 
     type F = GoldilocksField;
 
-    #[test]
-    fn generate_reg_trace_initial() {
-        let trace = init_register_trace();
-        #[rustfmt::skip]
-        let expected_trace = prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
-            (1..32)
-                .map(|i|
-                // Columns (repeated for registers 0-31):
-                //     addr  value augmented_clk is_init is_read is_write
-                [         i,     0,            0,      1,      0,       0])
-                .collect_vec(),
-        );
-        (0..31).for_each(|i| {
-            assert_eq!(
-                trace[i], expected_trace[i],
-                "Initial trace setup is wrong at row {i}"
-            );
-        });
-    }
-
-    #[test]
-    fn generate_reg_trace() {
+    fn setup() -> (Program, ExecutionRecord) {
         // Use same instructions as in the Notion document, see:
         // https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2?pvs=4#0729f89ddc724967ac991c9e299cc4fc
         let instructions = [
@@ -158,7 +144,45 @@ mod tests {
             }),
         ];
 
-        let (program, record) = simple_test_code(&instructions, &[], &[(6, 100), (7, 200)]);
+        simple_test_code(&instructions, &[], &[(6, 100), (7, 200)])
+    }
+
+    fn expected_trace<F: RichField>() -> Vec<Register<F>> 
+        where [();  Register::<F>::NUMBER_OF_COLUMNS ]:
+    {
+        #[rustfmt::skip]
+        prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
+            (1..32)
+                .map(|i| {
+                    let value = match i {
+                        6 => 100,
+                        7 => 200,
+                        _ => 0,
+                    };
+                    // Columns (repeated for registers 0-31):
+                    // addr  value augmented_clk is_init is_read is_write
+                    [     i, value,            0,      1,      0,      0]
+                })
+                .collect_vec(),
+        )
+    }
+
+    #[test]
+    fn generate_reg_trace_initial() {
+        let (_, record) = setup();
+        let trace = init_register_trace::<F>(&record.executed[0]);
+        let expected_trace = expected_trace();
+        (0..31).for_each(|i| {
+            assert_eq!(
+                trace[i], expected_trace[i],
+                "Initial trace setup is wrong at row {i}"
+            );
+        });
+    }
+
+    #[test]
+    fn generate_reg_trace() {
+        let (program, record) = setup();
 
         // TODO: generate this from cpu rows?
         // For now, use program and record directly to avoid changing the CPU columns
@@ -167,15 +191,7 @@ mod tests {
 
         // This is just the initial trace, similar to structure of
         // [`RegisterInit`](registerinit).
-        let mut expected_trace = prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
-            #[rustfmt::skip]
-            (1..32)
-                .map(|i|
-                // Columns (repeated for registers 1-31):
-                // addr value augmented_clk is_init is_read is_write
-                [     i,    0,            0,      1,      0,       0])
-                .collect_vec(),
-        );
+        let mut expected_trace = expected_trace();
 
         // This is the unsorted trace consisting of the init table, entries from the
         // instructions and the cleanup instructions from `simple_test_code()`.
