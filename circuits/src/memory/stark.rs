@@ -107,7 +107,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         // If instead, the `addr` talks about an address not coming from static ELF,
         // it needs to begin with a `SB` (store) operation before any further access
-        yield_constr.constraint(is_local_a_new_addr * (P::ONES - lv.is_sb));
+        // However `clk` value `0` is a special case.
+        yield_constr.constraint(lv.diff_addr * lv.clk * (P::ONES - lv.is_sb));
 
         // Operation constraints
         // ---------------------

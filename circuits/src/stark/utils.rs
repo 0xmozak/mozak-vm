@@ -1,4 +1,4 @@
-use itertools::Itertools;
+use itertools::{Itertools, MergeBy};
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::util::transpose;
@@ -27,4 +27,17 @@ pub fn trace_rows_to_poly_values<F: Field, Row: IntoIterator<Item = F>>(
     trace_rows: Vec<Row>,
 ) -> Vec<PolynomialValues<F>> {
     trace_to_poly_values(transpose_trace(trace_rows))
+}
+
+pub fn merge_by_key<Iter, J, F, Key>(
+    iter: Iter,
+    other: J,
+    mut key: F,
+) -> MergeBy<Iter, J::IntoIter, impl FnMut(&Iter::Item, &Iter::Item) -> bool>
+where
+    Iter: Sized + Iterator,
+    J: IntoIterator<Item = Iter::Item>,
+    F: FnMut(&Iter::Item) -> Key,
+    Key: PartialOrd, {
+    iter.merge_by(other, move |x, y| key(x) < key(y))
 }

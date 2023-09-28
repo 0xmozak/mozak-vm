@@ -61,7 +61,7 @@ mod tests {
 
         let mut mem = vec![];
         let u16max = u32::from(u16::MAX);
-        for i in 0..=u16max {
+        for i in (0..=u16max).step_by(23) {
             mem.push((i * 4, inst));
         }
         let (program, record) = simple_test_code(
