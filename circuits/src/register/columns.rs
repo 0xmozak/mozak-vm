@@ -22,6 +22,9 @@ pub struct Register<T> {
     /// to ensure that we do not write to the register before we read.
     pub augmented_clk: T,
 
+    // TODO: Could possibly be removed, once we are able to do CTL for
+    // a linear combination of lv and nv.
+    // See: https://github.com/0xmozak/mozak-vm/pull/534
     /// Diff of augmented clock at register access. Note that this is the diff
     /// of the local `augmented_clk` - previous `augmented_clk`, not next
     /// `augmented_clk` - local `augmented_clk`.
