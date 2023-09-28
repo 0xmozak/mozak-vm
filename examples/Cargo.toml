@@ -12,3 +12,8 @@ branch = "main"
 
 [dependencies]
 mozak-node-sdk = { path = "../sdk", default-features = false }
+serde = { version = "1.0.188", features = [
+    "derive",
+    "alloc",
+], default-features = false }
+postcard = { version = "1.0.7", features = ["alloc"] }

@@ -1,13 +1,16 @@
 #![no_main]
 #![no_std]
 
-use examples::deserialize_input;
+use examples::Transition;
+use mozak_node_sdk::TransitionInput;
 
-pub fn main() {
-    let valid = !deserialize_input().is_empty();
+struct AtLeastOneNewObject;
 
-    assert!(valid);
-    guest::env::write(&(valid as u32).to_le_bytes());
+impl Transition for AtLeastOneNewObject {
+    fn validate(transition_input: TransitionInput) -> bool {
+        // Yes Man always returns true.
+        transition_input.changed_objects_after.len() > 0
+    }
 }
 
-guest::entry!(main);
+guest::entry!(AtLeastOneNewObject::run);

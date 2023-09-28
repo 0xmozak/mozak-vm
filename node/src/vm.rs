@@ -6,6 +6,7 @@ pub use mozak_runner::elf::Code;
 use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
+use postcard::to_vec;
 use serde::Serialize;
 
 /// Executes the VM instance on the provided program and returns the output of
@@ -16,17 +17,9 @@ use serde::Serialize;
 #[allow(unused_variables)] // TODO - remove
 pub fn run_transition_function(
     transition_function: &Transition,
-    read_objects: &[Object],
-    changed_objects_before: &[Object],
-    changed_objects_after: &[Object],
-    inputs: &[u8],
+    transition_input: &TransitionInput,
 ) -> Result<(), Error> {
-    let vm_input = prepare_vm_input(
-        read_objects,
-        changed_objects_before,
-        changed_objects_after,
-        inputs,
-    );
+    let vm_input = to_vec(transition_input).unwrap();
 
     // Execute the VM instance based on the input
 

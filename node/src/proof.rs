@@ -6,15 +6,14 @@ use mozak_circuits::stark::proof::AllProof;
 #[allow(unused_imports)] // TODO - remove
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{D, F, S};
-use mozak_node_sdk::{Id, Object, Transition};
+use mozak_node_sdk::{Id, Object, Transition, TransitionInput};
 use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 #[allow(unused_imports)] // TODO - remove
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
-
-use crate::vm::prepare_vm_input;
+use postcard::to_vec;
 
 /// Proof that a transition function was executed correctly.
 pub type TransitionProof = (); // TODO - replace with `AllProof<GoldilocksField, C, 2>` once we have prover
@@ -63,17 +62,9 @@ pub struct BlockTransitionWithProof {
 #[allow(unused_variables)] // TODO - remove
 pub fn prove_transition_function(
     transition_function: &Transition,
-    read_objects: &[Object],
-    changed_objects_before: &[Object],
-    changed_objects_after: &[Object],
-    inputs: &[u8],
+    transition_input: &TransitionInput,
 ) -> Result<TransitionProof, &'static str> {
-    let vm_input = prepare_vm_input(
-        read_objects,
-        changed_objects_before,
-        changed_objects_after,
-        inputs,
-    );
+    let vm_input = to_vec(&transition_input).unwrap();
 
     // Execute the VM instance based on the input
 

@@ -1,18 +1,17 @@
 #![no_main]
 #![no_std]
 
-use core::assert;
+use examples::Transition;
+use mozak_node_sdk::TransitionInput;
 
-use examples::TMP;
+struct YesManTransition;
 
-fn yes_man() -> bool { true }
-
-pub fn main() {
-    assert!(TMP.is_empty());
-
-    let valid = yes_man();
-    assert!(valid);
-    guest::env::write(&(valid as u32).to_le_bytes());
+impl Transition for YesManTransition {
+    #[allow(unused_variables)]
+    fn validate(transition_input: TransitionInput) -> bool {
+        // Yes Man always returns true.
+        true
+    }
 }
 
-guest::entry!(main);
+guest::entry!(YesManTransition::run);

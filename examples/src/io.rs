@@ -42,9 +42,9 @@ impl MozakIo<'_> {
     /// The function first reads the first 4 bytes to determine the number of
     /// bytes to read. Then it reads the remaining bytes.
     /// The function returns the bytes read.
-    fn read_all(&mut self) -> io::Result<Vec<u8>> {
+    pub(crate) fn read_all(&mut self) -> io::Result<Vec<u8>> {
         // Read the first 4 bytes to determine the number of bytes to read.
-        let mut len: usize;
+        let len: usize;
         let mut buf = [0_u8; 4];
         self.read(&mut buf)?;
 
@@ -59,14 +59,14 @@ impl MozakIo<'_> {
     }
 
     #[cfg(target_os = "zkvm")]
-    pub fn new<'a>() -> MozakIo<'a> {
+    pub(crate) fn new<'a>() -> MozakIo<'a> {
         MozakIo {
             stdin: Box::new(io::stdin()),
         }
     }
 
     #[cfg(not(target_os = "zkvm"))]
-    pub fn new<'a>(io_tape_file: String) -> MozakIo<'a> {
+    pub(crate) fn new<'a>(io_tape_file: String) -> MozakIo<'a> {
         MozakIo {
             stdin: Box::new(io::stdin()),
             io_tape_file,

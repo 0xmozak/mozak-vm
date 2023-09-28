@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-use mozak_node_sdk::{Object, Transition};
+use mozak_node_sdk::{Object, Transition, TransitionInput};
 use mozak_runner::elf::Program;
 
 use crate::{
@@ -66,7 +66,7 @@ impl Sequencer {
                             .clone()
                     })
                     .collect();
-                let changed_objects_after = &message.changed_objects;
+                let changed_objects_after = message.changed_objects;
 
                 // 3. Check that the read object has not been proposed to change since the last
                 //    state update. If it has, we then reject the transaction.
@@ -79,32 +79,29 @@ impl Sequencer {
                     }
                 });
 
+                // 4. Create a transition input from the read objects, changed objects before
+                //    and after, and the input
+
+                let transition_input = TransitionInput {
+                    read_objects,
+                    changed_objects_before,
+                    changed_objects_after,
+                    input: message.input,
+                };
+
                 // 4. Check the transition to be satisfied in the RISC-V VM, before doing hard
                 //    work of proving it
-                run_transition_function(
-                    transition_function,
-                    &read_objects,
-                    &changed_objects_before,
-                    changed_objects_after,
-                    &message.input,
-                )
-                .unwrap();
+                run_transition_function(transition_function, &transition_input).unwrap();
 
                 #[allow(clippy::all)]
                 // 5. Prove that the transition was run correctly in the RISC-V VM
-                let transition_proof = prove_transition_function(
-                    transition_function,
-                    &read_objects,
-                    &changed_objects_before,
-                    changed_objects_after,
-                    &message.input,
-                )
-                .unwrap();
+                let transition_proof =
+                    prove_transition_function(transition_function, &transition_input).unwrap();
 
                 TransitionWithProof {
                     transition_id: message.target_transition_id,
                     read_objects_id: message.read_objects_id,
-                    changed_objects: message.changed_objects,
+                    changed_objects: transition_input.changed_objects_after,
                     proof: transition_proof,
                 }
             };
