@@ -274,7 +274,7 @@ mod tests {
                     addr: F::from_canonical_u8(31),
                     ..Default::default()
                 },
-                "Final trace is wrong at row {i}"
+                "Padding is wrong at row {i}"
             );
         });
 
