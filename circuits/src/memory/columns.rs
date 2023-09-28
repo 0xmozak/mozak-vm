@@ -94,6 +94,6 @@ pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
     ]
 }
 
-/// Column for a binary filter to indicate a lookup to `MemoryInit` Table
+/// Column for a binary filter to indicate a lookup to the `MemoryInit` Table
 #[must_use]
 pub fn filter_for_memoryinit<F: Field>() -> Column<F> { Column::single(MAP.is_init) }
