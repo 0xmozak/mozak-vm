@@ -224,7 +224,6 @@ mod tests {
         let expected_trace = sort_by_address(expected_trace);
 
         (0..expected_trace.len()).for_each(|i| {
-            println!("{:?}", trace[i]);
             assert_eq!(
                 trace[i], expected_trace[i],
                 "Final trace is wrong at row {i}"
