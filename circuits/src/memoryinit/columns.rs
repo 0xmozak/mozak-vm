@@ -27,9 +27,13 @@ pub const NUM_MEMORYINIT_COLS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;
 #[must_use]
 pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
     vec![
-        Column::single(MAP.element.address),
-        Column::single(MAP.element.value),
         Column::single(MAP.is_writable),
+        Column::single(MAP.element.address),
+        // clk:
+        Column::constant(F::ZERO),
+        Column::single(MAP.element.value),
+        // is_init:
+        Column::constant(F::ONE),
     ]
 }
 

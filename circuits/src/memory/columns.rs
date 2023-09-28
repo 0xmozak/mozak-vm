@@ -88,9 +88,11 @@ pub fn filter_for_cpu<F: Field>() -> Column<F> {
 #[must_use]
 pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
     vec![
-        Column::single(MAP.addr),
-        Column::single(MAP.value),
         Column::single(MAP.is_writable),
+        Column::single(MAP.addr),
+        Column::single(MAP.clk),
+        Column::single(MAP.value),
+        Column::single(MAP.is_init),
     ]
 }
 
