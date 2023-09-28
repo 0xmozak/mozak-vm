@@ -30,6 +30,7 @@ use starky::vars::StarkEvaluationVars;
 use self::bitshift::generate_shift_amount_trace;
 use self::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
 use self::memory::generate_memory_trace;
+use self::memoryinit::generate_memory_init_trace;
 use self::rangecheck::generate_rangecheck_trace;
 use self::rangecheck_limb::generate_rangecheck_limb_trace;
 use self::xor::generate_xor_trace;
@@ -37,6 +38,7 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::program::generate_program_rom_trace;
 use crate::memory::stark::MemoryStark;
+use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_limb::stark::RangeCheckLimbStark;
@@ -53,6 +55,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
+    let memory_init_rows = generate_memory_init_trace(program);
     let memory_rows = generate_memory_trace(program, &record.executed);
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
     let rangecheck_limb_rows = generate_rangecheck_limb_trace(&rangecheck_rows);
@@ -63,6 +66,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let shift_amount_trace = trace_rows_to_poly_values(shift_amount_rows);
     let program_trace = trace_rows_to_poly_values(program_rows);
     let memory_trace = trace_rows_to_poly_values(memory_rows);
+    let memory_init_trace = trace_rows_to_poly_values(memory_init_rows);
     let rangecheck_limb_trace = trace_rows_to_poly_values(rangecheck_limb_rows);
     [
         cpu_trace,
@@ -71,6 +75,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         shift_amount_trace,
         program_trace,
         memory_trace,
+        memory_init_trace,
         rangecheck_limb_trace,
     ]
 }
@@ -107,8 +112,9 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     [(); BitshiftStark::<F, D>::COLUMNS]:,
     // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
+    [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:, {
-    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, rangecheck_limb_trace]: &[Vec<
+    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, memory_init_trace, rangecheck_limb_trace]: &[Vec<
         PolynomialValues<F>,
     >;
         NUM_TABLES] = traces_poly_values;
@@ -154,6 +160,13 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
             &mozak_stark.memory_stark,
             memory_trace,
             "MEMORY_STARK",
+            &[],
+        ),
+        // MemoryInit
+        debug_single_trace::<F, D, MemoryInitStark<F, D>>(
+            &mozak_stark.memory_init_stark,
+            memory_init_trace,
+            "MEMORY_INIT_STARK",
             &[],
         ),
         debug_single_trace::<F, D, RangeCheckLimbStark<F, D>>(
