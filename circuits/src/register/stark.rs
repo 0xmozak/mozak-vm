@@ -76,7 +76,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         // column should be able to change values of registers.
         // `is_read` should not change the values of registers.
         yield_constr.constraint_transition(
-            lv.is_read * (nv.value - lv.value) * (nv.addr - lv.addr - P::ONES),
+            nv.is_read * (nv.value - lv.value),
         );
 
         // Constraint 5: Address changes only when nv.is_init == 1.
