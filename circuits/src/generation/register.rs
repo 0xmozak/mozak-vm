@@ -75,6 +75,7 @@ pub fn generate_register_trace<F: RichField>(
                 addr: F::from_canonical_u8(inst.args.rs1),
                 value: F::from_canonical_u32(state.get_register_value(inst.args.rs1)),
                 augmented_clk,
+                // `unwrap()`s are OK here because we will always have an initial trace.
                 diff_augmented_clk: augmented_clk - trace.last().unwrap().augmented_clk,
                 is_init: F::ZERO,
                 is_read: F::ONE,
