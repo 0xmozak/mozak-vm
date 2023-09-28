@@ -110,6 +110,7 @@ pub fn generate_register_trace<F: RichField>(
     trace = sort_by_address(trace);
 
     // TODO: Rewrite this more efficiently and avoid allocating a temp vector.
+    // Populate the `diff_augmented_clk` column, after addresses are sorted.
     let mut diff_augmented_clk: Vec<F> = Vec::with_capacity(trace.len());
     for (prev, curr) in trace.iter().circular_tuple_windows() {
         diff_augmented_clk.push(curr.augmented_clk - prev.augmented_clk);
@@ -117,6 +118,8 @@ pub fn generate_register_trace<F: RichField>(
 
     for (i, reg) in trace.iter_mut().enumerate() {
         reg.diff_augmented_clk = match i {
+            // It is OK to unwrap, since we know that we will definitely
+            // have some value in the trace.
             0 => diff_augmented_clk.pop().unwrap(),
             _ => diff_augmented_clk[i - 1],
         }
