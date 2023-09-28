@@ -49,7 +49,9 @@ impl MozakIo<'_> {
         self.read(&mut buf)?;
 
         // Convert the first 4 bytes to usize.
-        len = usize::from_le_bytes(buf);
+        // We do not use `from_le_bytes` because in some native environments
+        // the usize is 8 bytes.
+        len = usize::try_from(u32::from_be_bytes(buf)).expect("Could not convert to usize");
 
         // Read the remaining bytes.
         let mut buf = vec![0_u8; len];

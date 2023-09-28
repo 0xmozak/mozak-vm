@@ -1,4 +1,5 @@
-#![feature(restricted_std)]
+#![cfg_attr(target_os = "zkvm", feature(restricted_std))]
+#![cfg_attr(target_os = "zkvm", no_main)]
 
 use std::ops::Deref;
 
@@ -36,9 +37,27 @@ pub trait Transition {
         let transition_input = read_input(reader);
         let valid = Self::validate(transition_input);
 
+        assert!(valid, "Transition is not valid");
+
+        #[cfg(target_os = "zkvm")]
         guest::env::write(&(valid as u32).to_le_bytes());
     }
 
     /// Validates the transition and returns if it is valid or not.
     fn validate(transition_input: TransitionInput) -> bool;
+}
+
+/// This macro sets up the entry point for a `zkvm` target, and provides a
+/// default `main` function for non-`zkvm` targets. It takes a single argument:
+/// the name of a struct which implements a `run` method to be used as the entry
+/// point for `zkvm`
+#[macro_export]
+macro_rules! setup_main {
+    ($struct_name:ident) => {
+        #[cfg(target_os = "zkvm")]
+        guest::entry!($struct_name::run);
+
+        #[cfg(not(target_os = "zkvm"))]
+        fn main() {}
+    };
 }
