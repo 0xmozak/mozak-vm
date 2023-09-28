@@ -75,10 +75,8 @@ pub fn generate_register_trace<F: RichField>(
                 addr: F::from_canonical_u8(inst.args.rs1),
                 value: F::from_canonical_u32(state.get_register_value(inst.args.rs1)),
                 augmented_clk,
-                diff_augmented_clk: F::ZERO,
-                is_init: F::ZERO,
                 is_read: F::ONE,
-                is_write: F::ZERO,
+                ..Default::default()
             }]);
         });
 
@@ -87,10 +85,8 @@ pub fn generate_register_trace<F: RichField>(
                 addr: F::from_canonical_u8(inst.args.rs2),
                 value: F::from_canonical_u32(state.get_register_value(inst.args.rs2)),
                 augmented_clk: augmented_clk + F::ONE,
-                diff_augmented_clk: F::ZERO,
-                is_init: F::ZERO,
                 is_read: F::ONE,
-                is_write: F::ZERO,
+                ..Default::default()
             }]);
         });
 
@@ -99,10 +95,8 @@ pub fn generate_register_trace<F: RichField>(
                 addr: F::from_canonical_u8(inst.args.rd),
                 value: F::from_canonical_u32(state.get_register_value(inst.args.rd)),
                 augmented_clk: augmented_clk + F::TWO,
-                diff_augmented_clk: F::ZERO,
-                is_init: F::ZERO,
-                is_read: F::ZERO,
                 is_write: F::ONE,
+                ..Default::default()
             }]);
         });
     }
