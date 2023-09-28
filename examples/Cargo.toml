@@ -1,0 +1,14 @@
+[workspace]
+
+[package]
+edition = "2021"
+name = "examples"
+version = "0.1.0"
+
+[target.'cfg(target_os="zkvm")'.dependencies.guest]
+features = ["std"]
+git = "ssh://git@github.com/0xmozak/mozak-vm.git"
+branch = "main"
+
+[dependencies]
+mozak-node-sdk = { path = "../sdk", default-features = false }

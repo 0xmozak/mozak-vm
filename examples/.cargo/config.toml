@@ -14,4 +14,4 @@ rustflags = ["-C", "passes=loweratomic"]
 target = "./.cargo/riscv32im-mozak-zkvm-elf.json"
 
 [target.riscv32im-mozak-zkvm-elf]
-runner = "../target/release/mozak-cli -vvv run"
+runner = "mozak-cli -vvv run"

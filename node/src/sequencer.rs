@@ -179,7 +179,7 @@ mod test {
     #[test]
     fn single_message_test() -> Result<(), &'static str> {
         let yes_man_transition =
-            Sequencer::load_transition_from_file("../transitions/elf/yes_man_transition")?;
+            Sequencer::load_transition_from_file("../examples/elf/yes_man_transition")?;
         let root_object = {
             Object::Program(ProgramContent::new(0, false, Id([0u8; 32]), vec![
                 yes_man_transition.clone(),

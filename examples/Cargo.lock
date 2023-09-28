@@ -3,6 +3,14 @@
 version = 3
 
 [[package]]
+name = "examples"
+version = "0.1.0"
+dependencies = [
+ "guest",
+ "mozak-node-sdk",
+]
+
+[[package]]
 name = "guest"
 version = "0.1.0"
 source = "git+ssh://git@github.com/0xmozak/mozak-vm.git?branch=main#09acdd50224912220c6ac34c69f8d02ada9c3132"
@@ -12,14 +20,6 @@ name = "mozak-node-sdk"
 version = "0.1.0"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "mozak-transitions"
-version = "0.1.0"
-dependencies = [
- "guest",
- "mozak-node-sdk",
 ]
 
 [[package]]

@@ -1,16 +1,11 @@
 #![no_main]
 #![no_std]
 
-use core::assert;
-
-use mozak_transitions::TMP;
-
-fn yes_man() -> bool { true }
+use examples::deserialize_input;
 
 pub fn main() {
-    assert!(TMP.is_empty());
+    let valid = !deserialize_input().is_empty();
 
-    let valid = yes_man();
     assert!(valid);
     guest::env::write(&(valid as u32).to_le_bytes());
 }
