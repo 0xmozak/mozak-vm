@@ -35,7 +35,7 @@ impl Distribution<TransitionMessage> for Standard {
 
 #[cfg(all(test, feature = "dummy-system"))]
 mod test {
-    use flexbuffers::FlexbufferSerializer;
+    use postcard::to_allocvec;
 
     use super::*;
 
@@ -45,12 +45,10 @@ mod test {
 
         let message: TransitionMessage = rng.gen();
 
-        let mut serializer = FlexbufferSerializer::new();
-        message.serialize(&mut serializer).unwrap();
-        let serialized_message = serializer.view();
+        let serialized_message: Vec<u8> = to_allocvec(&message).unwrap();
 
         let deserialized_message: TransitionMessage =
-            flexbuffers::from_slice(serialized_message).unwrap();
+            postcard::from_bytes(&serialized_message).unwrap();
 
         assert_eq!(
             message.read_objects_id,

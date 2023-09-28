@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1.0.188", features = ["derive"] }
-flexbuffers = "2.0.0"
+postcard = { version = "1.0.7", features = ["alloc"] }
 thiserror = "1.0.48"
 rand = { version = "0.8.5", optional = true }
 sha3 = "0.10.8"
