@@ -1,8 +1,10 @@
-pub mod account;
-pub mod instruction;
-pub mod message;
-pub mod object;
-pub mod program;
-pub mod pubkey;
-pub mod signature;
-pub mod tx;
+#![cfg_attr(not(feature = "std"), no_std)]
+
+pub use id::Id;
+pub use object::{data, program, Object, ObjectContent};
+pub use transition::Transition;
+
+pub mod id;
+
+mod object;
+mod transition;

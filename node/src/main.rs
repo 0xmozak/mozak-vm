@@ -1,4 +1,5 @@
-use node::{ConsensusSystem, DummyConsensusSystem, DummyRPC, Object, Sequencer, RPC};
+use mozak_node_sdk::Object;
+use node::{ConsensusSystem, DummyConsensusSystem, DummyRPC, Sequencer, RPC};
 
 #[cfg(feature = "dummy-system")]
 fn main() {

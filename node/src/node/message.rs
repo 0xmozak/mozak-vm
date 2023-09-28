@@ -1,10 +1,8 @@
+use mozak_node_sdk::{Id, Object};
 use rand::distributions::Standard;
 use rand::prelude::Distribution;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-
-use crate::network::object::Object;
-use crate::Id;
 
 /// Message that contains all the information needed to verify a Program Storage
 /// transition.

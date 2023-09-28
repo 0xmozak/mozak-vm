@@ -1,8 +1,8 @@
+use mozak_node_sdk::Object;
 use thiserror::Error;
 
 use crate::network::storage::ApplicationStorage;
 use crate::proof::{verify_block_transition_proof, BlockTransitionWithProof};
-use crate::Object;
 
 pub trait ConsensusSystem {
     fn initiate(root_object: Object) -> Self;

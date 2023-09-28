@@ -1,3 +1,11 @@
 [workspace]
-members = ["yes_man"]
-resolver = "2"
+
+[package]
+edition = "2021"
+name = "mozak-transitions"
+version = "0.1.0"
+
+[dependencies]
+mozak-node-sdk = { path = "../sdk", default-features = false }
+
+guest = { git = "ssh://git@github.com/0xmozak/mozak-vm.git", branch = "main" }
