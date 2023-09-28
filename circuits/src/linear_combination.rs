@@ -163,35 +163,33 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn always() -> Self {
         Column {
-            lv_linear_combination: vec![],
-            nv_linear_combination: vec![],
             constant: F::ONE,
+            ..Default::default()
         }
     }
 
     #[must_use]
     pub fn constant(constant: F) -> Self {
         Column {
-            linear_combination: vec![],
             constant,
+            ..Default::default()
         }
     }
 
     #[must_use]
     pub fn not(c: usize) -> Self {
         Self {
-            lv_linear_combination: vec![],
             nv_linear_combination: vec![(c, F::NEG_ONE)],
             constant: F::ONE,
+            ..Default::default()
         }
     }
 
     #[must_use]
     pub fn single(c: usize) -> Self {
         Self {
-            lv_linear_combination: vec![],
             nv_linear_combination: vec![(c, F::ONE)],
-            constant: F::ZERO,
+            ..Default::default()
         }
     }
 
@@ -199,8 +197,7 @@ impl<F: Field> Column<F> {
     pub fn single_prev(c: usize) -> Self {
         Self {
             lv_linear_combination: vec![(c, F::ONE)],
-            nv_linear_combination: vec![],
-            constant: F::ZERO,
+            ..Default::default()
         }
     }
 
@@ -220,9 +217,8 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn many<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
-            lv_linear_combination: vec![],
             nv_linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect(),
-            constant: F::ZERO,
+            ..Default::default()
         }
     }
 
@@ -236,13 +232,12 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn ascending_sum<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
-            lv_linear_combination: vec![],
             nv_linear_combination: cs
                 .into_iter()
                 .enumerate()
                 .map(|(i, c)| (*c.borrow(), F::from_canonical_usize(i)))
                 .collect(),
-            constant: F::ZERO,
+            ..Default::default()
         }
     }
 
