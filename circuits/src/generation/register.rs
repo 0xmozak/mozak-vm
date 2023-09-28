@@ -67,13 +67,16 @@ pub fn generate_register_trace<F: RichField>(
     for Row { state, .. } in executed {
         let inst = state.current_instruction(program);
 
+        let augmented_clk = F::from_canonical_u64((state.clk) * 3);
+
         // Ignore r0 because r0 should always be 0.
         // TODO: assert r0 = 0 constraint in CPU trace.
         (inst.args.rs1 != 0).then(|| {
             trace.append(&mut vec![Register {
                 addr: F::from_canonical_u8(inst.args.rs1),
                 value: F::from_canonical_u32(state.get_register_value(inst.args.rs1)),
-                augmented_clk: F::from_canonical_u64((state.clk) * 2),
+                augmented_clk,
+                diff_augmented_clk: augmented_clk - trace.last().unwrap().augmented_clk,
                 is_init: F::ZERO,
                 is_read: F::ONE,
                 is_write: F::ZERO,
@@ -84,7 +87,8 @@ pub fn generate_register_trace<F: RichField>(
             trace.append(&mut vec![Register {
                 addr: F::from_canonical_u8(inst.args.rs2),
                 value: F::from_canonical_u32(state.get_register_value(inst.args.rs2)),
-                augmented_clk: F::from_canonical_u64((state.clk) * 2),
+                augmented_clk: augmented_clk + F::ONE,
+                diff_augmented_clk: augmented_clk + F::ONE - trace.last().unwrap().augmented_clk,
                 is_init: F::ZERO,
                 is_read: F::ONE,
                 is_write: F::ZERO,
@@ -95,7 +99,8 @@ pub fn generate_register_trace<F: RichField>(
             trace.append(&mut vec![Register {
                 addr: F::from_canonical_u8(inst.args.rd),
                 value: F::from_canonical_u32(state.get_register_value(inst.args.rd)),
-                augmented_clk: F::from_canonical_u64((state.clk) * 2 + 1),
+                augmented_clk: augmented_clk + F::TWO,
+                diff_augmented_clk: augmented_clk + F::TWO - trace.last().unwrap().augmented_clk,
                 is_init: F::ZERO,
                 is_read: F::ZERO,
                 is_write: F::ONE,
@@ -160,8 +165,8 @@ mod tests {
                         _ => 0,
                     };
                     // Columns (repeated for registers 0-31):
-                    // addr  value augmented_clk is_init is_read is_write
-                    [     i, value,            0,      1,      0,      0]
+                    // addr  value augmented_clk  diff_augmented_clk  is_init is_read is_write
+                    [     i, value,            0,                 0,        1,      0,      0]
                 })
                 .collect_vec(),
         )
@@ -201,23 +206,18 @@ mod tests {
                 // First, populate the table with the instructions from the above test code.
                 //
                 // Columns:
-                // addr value augmented_clk is_init is_read is_write
-                //
-                // Instructions: in order of (rs1, rs2/imm, rd)
-                // ADD r6, r7, r4
-                [    6,  100,         2,        0,      1,       0],
-                [    7,  200,         2,        0,      1,       0],
-                [    4,    0,         3,        0,      0,       1],
-                // ADD r4, r6, r5
-                [    4,  300,         4,        0,      1,       0],
-                [    6,  100,         4,        0,      1,       0],
-                [    5,    0,         5,        0,      0,       1],
-                // ADD r5, 100, r4 (note: imm values are ignored)
-                [    5,  400,         6,        0,      1,       0],
-                [    4,  300,         7,        0,      0,       1],
+                // addr value augmented_clk  diff_augmented_clk  is_init is_read is_write
+                [    6,  100,             3,                 3,        0,      1,       0], // ADD r6,
+                [    7,  200,             4,                 1,        0,      1,       0], //     r7,
+                [    4,    0,             5,                 1,        0,      0,       1], //     r4
+                [    4,  300,             6,                 1,        0,      1,       0], // ADD r4,
+                [    6,  100,             7,                 1,        0,      1,       0], //     r6,
+                [    5,    0,             8,                 1,        0,      0,       1], //     r5
+                [    5,  400,             9,                 1,        0,      1,       0], // ADD r5 100
+                [    4,  300,             11,                2,        0,      0,       1], //     r4
                 // Next, we add the instructions added in `simple_test_code()`
                 // Note that we filter out operations that act on r0.
-                [    10,   0,         9,        0,      0,       1],
+                [    10,   0,             14,                3,        0,      0,       1],
             ]),
         );
 
@@ -225,6 +225,7 @@ mod tests {
         let expected_trace = sort_by_address(expected_trace);
 
         (0..expected_trace.len()).for_each(|i| {
+            println!("{:?}", trace[i]);
             assert_eq!(
                 trace[i], expected_trace[i],
                 "Final trace is wrong at row {i}"

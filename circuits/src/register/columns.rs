@@ -22,6 +22,14 @@ pub struct Register<T> {
     /// to ensure that we do not write to the register before we read.
     pub augmented_clk: T,
 
+    /// Diff of augmented clock at register access. Note that this is the diff
+    /// of the local `augmented_clk` - previous `augmented_clk`, not next
+    /// `augmented_clk` - local `augmented_clk`.
+    ///
+    /// This column is range-checked to ensure the ordering of the rows based on
+    /// the `augmented_clk`.
+    pub diff_augmented_clk: T,
+
     /// Binary filter column that marks a row as the initialization of
     /// a register.
     pub is_init: T,
