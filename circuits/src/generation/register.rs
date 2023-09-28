@@ -55,9 +55,13 @@ pub fn generate_register_trace<F: RichField>(
     program: &Program,
     record: &ExecutionRecord,
 ) -> Vec<Register<F>> {
-    let ExecutionRecord { executed, last_state } = record;
+    let ExecutionRecord {
+        executed,
+        last_state,
+    } = record;
 
-    let mut trace = init_register_trace(record.executed.first().map_or(last_state, |row| &row.state));
+    let mut trace =
+        init_register_trace(record.executed.first().map_or(last_state, |row| &row.state));
 
     for Row { state, .. } in executed {
         let inst = state.current_instruction(program);
