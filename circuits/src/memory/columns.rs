@@ -99,3 +99,24 @@ pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
 /// Column for a binary filter to indicate a lookup to the `MemoryInit` Table
 #[must_use]
 pub fn filter_for_memoryinit<F: Field>() -> Column<F> { Column::single(MAP.is_init) }
+
+/// Columns containing the data which are looked from the CPU table into Memory
+/// stark table.
+#[must_use]
+pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
+    vec![
+        Column::single(MAP.clk),
+        Column::single(MAP.addr),
+        Column::single(MAP.value),
+        Column::single(MAP.is_sb),
+        Column::single(MAP.is_lbu),
+    ]
+}
+
+/// Column for a binary filter to indicate a lookup from the CPU table into
+/// Memory stark table.
+#[must_use]
+pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
+    let mem = MAP.map(Column::from);
+    mem.is_sb + mem.is_lbu + mem.is_init
+}

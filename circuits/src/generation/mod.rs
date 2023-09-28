@@ -3,6 +3,7 @@
 
 pub mod bitshift;
 pub mod cpu;
+pub mod halfword_memory;
 pub mod instruction;
 pub mod memory;
 pub mod memoryinit;
@@ -36,8 +37,10 @@ use self::rangecheck_limb::generate_rangecheck_limb_trace;
 use self::xor::generate_xor_trace;
 use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
+use crate::generation::halfword_memory::generate_halfword_memory_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::memory::stark::MemoryStark;
+use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
@@ -59,6 +62,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_rows = generate_memory_trace(program, &record.executed);
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
     let rangecheck_limb_rows = generate_rangecheck_limb_trace(&rangecheck_rows);
+    let halfword_memory_rows = generate_halfword_memory_trace(program, &record.executed);
 
     let cpu_trace = trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows));
     let rangecheck_trace = trace_rows_to_poly_values(rangecheck_rows);
@@ -68,6 +72,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_trace = trace_rows_to_poly_values(memory_rows);
     let memory_init_trace = trace_rows_to_poly_values(memory_init_rows);
     let rangecheck_limb_trace = trace_rows_to_poly_values(rangecheck_limb_rows);
+    let halfword_memory = trace_rows_to_poly_values(halfword_memory_rows);
     [
         cpu_trace,
         rangecheck_trace,
@@ -77,6 +82,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         memory_trace,
         memory_init_trace,
         rangecheck_limb_trace,
+        halfword_memory,
     ]
 }
 
@@ -113,8 +119,9 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:, {
-    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, memory_init_trace, rangecheck_limb_trace]: &[Vec<
+    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
+    [(); HalfWordMemoryStark::<F, D>::COLUMNS]:, {
+    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, memory_init_trace, rangecheck_limb_trace,halfword_memory_trace]: &[Vec<
         PolynomialValues<F>,
     >;
         NUM_TABLES] = traces_poly_values;
@@ -173,6 +180,13 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
             &mozak_stark.rangecheck_limb_stark,
             rangecheck_limb_trace,
             "RANGECHECK_LIMB_STARK",
+            &[],
+        ),
+        // Halfword Memory
+        debug_single_trace::<F, D, HalfWordMemoryStark<F, D>>(
+            &mozak_stark.halfword_memory_stark,
+            halfword_memory_trace,
+            "HALFWORD_MEMORY_STARK",
             &[],
         ),
     ]
