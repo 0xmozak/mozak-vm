@@ -1,13 +1,11 @@
 use std::fmt::Error;
 
-use flexbuffers::FlexbufferSerializer;
-use mozak_node_sdk::{Object, Transition, TransitionInput};
+use mozak_node_sdk::{Transition, TransitionInput};
 pub use mozak_runner::elf::Code;
 use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use postcard::to_vec;
-use serde::Serialize;
 
 /// Executes the VM instance on the provided program and returns the output of
 /// the program as well as updated states.
@@ -33,25 +31,4 @@ pub fn run_transition_function(
     // TODO - check that the state has not reverted
 
     Ok(())
-}
-
-/// We use the Flex-buffer serialisation to convert transition function inputs
-/// into a byte array
-pub(super) fn prepare_vm_input(
-    read_objects: &[Object],
-    changed_objects_before: &[Object],
-    changed_objects_after: &[Object],
-    inputs: &[u8],
-) -> Vec<u8> {
-    let input = TransitionInput {
-        read_objects: read_objects.to_vec(),
-        changed_objects_before: changed_objects_before.to_vec(),
-        changed_objects_after: changed_objects_after.to_vec(),
-        input: inputs.to_vec(),
-    };
-    let mut serializer = FlexbufferSerializer::new();
-    input.serialize(&mut serializer).unwrap();
-    let serialized_input = serializer.view();
-
-    serialized_input.to_vec()
 }
