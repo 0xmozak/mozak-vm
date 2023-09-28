@@ -29,7 +29,6 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
 /// `Program`. These need to be further interleaved with
 /// static memory trace generated from `Program` for final
 /// execution for final memory trace.
-#[must_use]
 pub fn generate_memory_trace_from_execution<F: RichField>(
     program: &Program,
     step_rows: &[Row],
@@ -62,7 +61,6 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
 /// and read-write memory initializations. These need to be further
 /// interleaved with runtime memory trace generated from VM
 /// execution for final memory trace.
-#[must_use]
 pub fn generate_memory_init_trace_from_program<F: RichField>(
     program: &Program,
 ) -> impl Iterator<Item = Memory<F>> {
@@ -94,7 +92,7 @@ pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row])
     // dynamic memory trace components of program (ELF and execution)
     // `merge` operation is expected to be stable
     let mut merged_trace: Vec<Memory<F>> = merge_by_key(
-        generate_memory_init_trace_from_program::<F>(program).into_iter(),
+        generate_memory_init_trace_from_program::<F>(program),
         generate_memory_trace_from_execution(program, step_rows),
         |memory| (memory.addr.to_canonical_u64(), memory.is_init.is_zero()),
     )
