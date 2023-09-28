@@ -147,9 +147,9 @@ mod tests {
         simple_test_code(&instructions, &[], &[(6, 100), (7, 200)])
     }
 
-    fn expected_trace<F: RichField>() -> Vec<Register<F>> 
-        where [();  Register::<F>::NUMBER_OF_COLUMNS ]:
-    {
+    fn expected_trace<F: RichField>() -> Vec<Register<F>>
+    where
+        [(); Register::<F>::NUMBER_OF_COLUMNS]:, {
         #[rustfmt::skip]
         prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
             (1..32)
