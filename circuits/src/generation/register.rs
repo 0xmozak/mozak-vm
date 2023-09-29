@@ -66,13 +66,13 @@ pub fn generate_register_trace<F: RichField>(
             .map(|row| &row.state)
             .filter(move |state| reg(&state.current_instruction(program).args) != 0)
             .map(move |state| {
-                let inst = state.current_instruction(program);
+                let reg = reg(&state.current_instruction(program).args);
 
                 // Ignore r0 because r0 should always be 0.
                 // TODO: assert r0 = 0 constraint in CPU trace.
                 Register {
-                    addr: F::from_canonical_u8(reg(&inst.args)),
-                    value: F::from_canonical_u32(state.get_register_value(reg(&inst.args))),
+                    addr: F::from_canonical_u8(reg),
+                    value: F::from_canonical_u32(state.get_register_value(reg)),
                     augmented_clk: F::from_canonical_u64(state.clk * 3 + clk_offset),
                     ops,
                     ..Default::default()
