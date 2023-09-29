@@ -3,7 +3,12 @@ name: CI
 on:
   push:
     branches: [ "main" ]
-  pull_request: { }
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
