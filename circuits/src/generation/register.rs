@@ -1,10 +1,11 @@
-use itertools::Itertools;
+use itertools::{chain, izip, Itertools};
 use mozak_runner::elf::Program;
+use mozak_runner::instruction::Args;
 use mozak_runner::state::State;
-use mozak_runner::vm::{ExecutionRecord, Row};
+use mozak_runner::vm::ExecutionRecord;
 use plonky2::hash::hash_types::RichField;
 
-use crate::register::columns::Register;
+use crate::register::columns::{dummy, init, read, write, Ops, Register};
 
 /// Returns the rows sorted in the order of the register 'address'.
 #[must_use]
@@ -22,7 +23,7 @@ fn init_register_trace<F: RichField>(state: &State) -> Vec<Register<F>> {
     (1..32)
         .map(|i| Register {
             addr: F::from_canonical_u8(i),
-            is_init: F::ONE,
+            ops: init(),
             value: F::from_canonical_u32(state.get_register_value(i)),
             ..Default::default()
         })
@@ -33,11 +34,7 @@ fn init_register_trace<F: RichField>(state: &State) -> Vec<Register<F>> {
 pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> {
     let len = trace.len().next_power_of_two();
     trace.resize(len, Register {
-        // We want these 3 filter columns = 0,
-        // so we can constrain is_used = is_init + is_read + is_write.
-        is_init: F::ZERO,
-        is_read: F::ZERO,
-        is_write: F::ZERO,
+        ops: dummy(),
         // ..And fill other columns with duplicate of last real trace row.
         ..*trace.last().unwrap()
     });
@@ -63,66 +60,52 @@ pub fn generate_register_trace<F: RichField>(
         last_state,
     } = record;
 
-    let mut trace =
-        init_register_trace(record.executed.first().map_or(last_state, |row| &row.state));
+    let f = |reg: fn(&Args) -> u8, ops: Ops<F>, clk_offset: u64| -> _ {
+        executed
+            .iter()
+            .map(|row| &row.state)
+            .filter(move |state| reg(&state.current_instruction(program).args) != 0)
+            .map(move |state| {
+                let inst = state.current_instruction(program);
 
-    for Row { state, .. } in executed {
-        let inst = state.current_instruction(program);
+                // Ignore r0 because r0 should always be 0.
+                // TODO: assert r0 = 0 constraint in CPU trace.
+                Register {
+                    addr: F::from_canonical_u8(reg(&inst.args)),
+                    value: F::from_canonical_u32(state.get_register_value(reg(&inst.args))),
+                    augmented_clk: F::from_canonical_u64(state.clk * 3 + clk_offset),
+                    ops,
+                    ..Default::default()
+                }
+            })
+    };
+    let mut trace = sort_by_address(
+        chain!(
+            init_register_trace(record.executed.first().map_or(last_state, |row| &row.state)),
+            f(|Args { rs1, .. }| *rs1, read(), 0),
+            f(|Args { rs2, .. }| *rs2, read(), 1),
+            f(|Args { rd, .. }| *rd, write(), 2)
+        )
+        .collect_vec(),
+    );
 
-        let augmented_clk = F::from_canonical_u64((state.clk) * 3);
-
-        // Ignore r0 because r0 should always be 0.
-        // TODO: assert r0 = 0 constraint in CPU trace.
-        (inst.args.rs1 != 0).then(|| {
-            trace.append(&mut vec![Register {
-                addr: F::from_canonical_u8(inst.args.rs1),
-                value: F::from_canonical_u32(state.get_register_value(inst.args.rs1)),
-                augmented_clk,
-                is_read: F::ONE,
-                ..Default::default()
-            }]);
-        });
-
-        (inst.args.rs2 != 0).then(|| {
-            trace.append(&mut vec![Register {
-                addr: F::from_canonical_u8(inst.args.rs2),
-                value: F::from_canonical_u32(state.get_register_value(inst.args.rs2)),
-                augmented_clk: augmented_clk + F::ONE,
-                is_read: F::ONE,
-                ..Default::default()
-            }]);
-        });
-
-        (inst.args.rd != 0).then(|| {
-            trace.append(&mut vec![Register {
-                addr: F::from_canonical_u8(inst.args.rd),
-                value: F::from_canonical_u32(state.get_register_value(inst.args.rd)),
-                augmented_clk: augmented_clk + F::TWO,
-                is_write: F::ONE,
-                ..Default::default()
-            }]);
-        });
-    }
-
-    let mut trace = sort_by_address(trace);
-
-    // TODO: Rewrite this more efficiently and avoid allocating a temp vector.
     // Populate the `diff_augmented_clk` column, after addresses are sorted.
-    let mut diff_augmented_clk: Vec<F> = Vec::with_capacity(trace.len());
-    for (prev, curr) in trace.iter().circular_tuple_windows() {
-        diff_augmented_clk.push(curr.augmented_clk - prev.augmented_clk);
-    }
+    // TODO: Consider rewriting this to avoid allocating a temp vector.
+    let mut diff_augmented_clk = trace
+        .iter()
+        .circular_tuple_windows()
+        .map(|(lv, nv)| nv.augmented_clk - lv.augmented_clk)
+        .collect_vec();
+    diff_augmented_clk.rotate_right(1);
 
-    for (i, reg) in trace.iter_mut().enumerate() {
-        reg.diff_augmented_clk = match i {
-            // It is OK to unwrap, since we know that we will definitely
-            // have some value in the trace.
-            0 => diff_augmented_clk.pop().unwrap(),
-            _ => diff_augmented_clk[i - 1],
-        }
-    }
-
-    pad_trace(trace)
+    pad_trace(
+        izip!(&mut trace, diff_augmented_clk)
+            .map(|(reg, diff_augmented_clk)| Register {
+                diff_augmented_clk,
+                ..*reg
+            })
+            .collect_vec(),
+    )
 }
 
 #[cfg(test)]

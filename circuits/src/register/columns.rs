@@ -1,7 +1,50 @@
+use plonky2::field::types::Field;
+
 use crate::columns_view::{columns_view_impl, make_col_map};
 
 columns_view_impl!(Register);
 make_col_map!(Register);
+
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct Ops<T> {
+    /// Binary filter column that marks a row as the initialization of
+    /// a register.
+    pub is_init: T,
+
+    /// Binary filter column that marks a row as a register read.
+    pub is_read: T,
+
+    /// Binary filter column that marks a row as a register write.
+    pub is_write: T,
+}
+
+#[must_use]
+pub fn init<T: Field>() -> Ops<T> {
+    Ops {
+        is_init: T::ONE,
+        ..Default::default()
+    }
+}
+
+#[must_use]
+pub fn read<T: Field>() -> Ops<T> {
+    Ops {
+        is_read: T::ONE,
+        ..Default::default()
+    }
+}
+
+#[must_use]
+pub fn write<T: Field>() -> Ops<T> {
+    Ops {
+        is_write: T::ONE,
+        ..Default::default()
+    }
+}
+
+#[must_use]
+pub fn dummy<T: Field>() -> Ops<T> { Ops::default() }
 
 /// [`Design doc for RegisterSTARK`](https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2?pvs=4#0729f89ddc724967ac991c9e299cc4fc)
 #[repr(C)]
@@ -32,14 +75,5 @@ pub struct Register<T> {
     /// This column is range-checked to ensure the ordering of the rows based on
     /// the `augmented_clk`.
     pub diff_augmented_clk: T,
-
-    /// Binary filter column that marks a row as the initialization of
-    /// a register.
-    pub is_init: T,
-
-    /// Binary filter column that marks a row as a register read.
-    pub is_read: T,
-
-    /// Binary filter column that marks a row as a register write.
-    pub is_write: T,
+    pub ops: Ops<T>,
 }
