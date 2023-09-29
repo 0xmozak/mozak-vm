@@ -8,12 +8,14 @@ use crate::register::columns::Register;
 
 /// Returns the rows sorted in the order of the register 'address'.
 #[must_use]
-pub fn sort_by_address<F: RichField>(trace: Vec<Register<F>>) -> Vec<Register<F>> {
+pub fn sort_by_address<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> {
+    trace.sort_by_key(|row| {
+        (
+            row.addr.to_noncanonical_u64(),
+            row.augmented_clk.to_noncanonical_u64(),
+        )
+    });
     trace
-        .into_iter()
-        // Sorting is stable, and rows are already ordered by row.state.clk
-        .sorted_by_key(|row| row.addr.to_noncanonical_u64())
-        .collect()
 }
 
 fn init_register_trace<F: RichField>(state: &State) -> Vec<Register<F>> {
@@ -102,7 +104,7 @@ pub fn generate_register_trace<F: RichField>(
         });
     }
 
-    trace = sort_by_address(trace);
+    let mut trace = sort_by_address(trace);
 
     // TODO: Rewrite this more efficiently and avoid allocating a temp vector.
     // Populate the `diff_augmented_clk` column, after addresses are sorted.
