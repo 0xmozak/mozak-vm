@@ -60,7 +60,7 @@ pub fn generate_register_trace<F: RichField>(
         last_state,
     } = record;
 
-    let f = |reg: fn(&Args) -> u8, ops: Ops<F>, clk_offset: u64| -> _ {
+    let build_single_register_trace = |reg: fn(&Args) -> u8, ops: Ops<F>, clk_offset: u64| -> _ {
         executed
             .iter()
             .map(|row| &row.state)
@@ -82,9 +82,9 @@ pub fn generate_register_trace<F: RichField>(
     let trace = sort_by_address(
         chain!(
             init_register_trace(record.executed.first().map_or(last_state, |row| &row.state)),
-            f(|Args { rs1, .. }| *rs1, read(), 0),
-            f(|Args { rs2, .. }| *rs2, read(), 1),
-            f(|Args { rd, .. }| *rd, write(), 2)
+            build_single_register_trace(|Args { rs1, .. }| *rs1, read(), 0),
+            build_single_register_trace(|Args { rs2, .. }| *rs2, read(), 1),
+            build_single_register_trace(|Args { rd, .. }| *rd, write(), 2)
         )
         .collect_vec(),
     );
