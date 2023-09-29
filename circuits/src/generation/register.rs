@@ -79,7 +79,7 @@ pub fn generate_register_trace<F: RichField>(
                 }
             })
     };
-    let mut trace = sort_by_address(
+    let trace = sort_by_address(
         chain!(
             init_register_trace(record.executed.first().map_or(last_state, |row| &row.state)),
             f(|Args { rs1, .. }| *rs1, read(), 0),
@@ -99,10 +99,10 @@ pub fn generate_register_trace<F: RichField>(
     diff_augmented_clk.rotate_right(1);
 
     pad_trace(
-        izip!(&mut trace, diff_augmented_clk)
+        izip!(trace, diff_augmented_clk)
             .map(|(reg, diff_augmented_clk)| Register {
                 diff_augmented_clk,
-                ..*reg
+                ..reg
             })
             .collect_vec(),
     )
