@@ -8,7 +8,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::register::columns::{dummy, init, read, write, Ops, Register};
 
 /// Sort rows into blocks of ascending addresses, and then sort each block
-/// internally by augmented_clk
+/// internally by `augmented_clk`
 #[must_use]
 pub fn sort_into_address_blocks<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> {
     trace.sort_by_key(|row| {
@@ -61,31 +61,32 @@ pub fn generate_register_trace<F: RichField>(
         last_state,
     } = record;
 
-    let build_single_register_trace = |reg: fn(&Args) -> u8, ops: Ops<F>, clk_offset: u64| -> _ {
-        executed
-            .iter()
-            .map(|row| &row.state)
-            .filter(move |state| reg(&state.current_instruction(program).args) != 0)
-            .map(move |state| {
-                let reg = reg(&state.current_instruction(program).args);
+    let build_single_register_trace_row =
+        |reg: fn(&Args) -> u8, ops: Ops<F>, clk_offset: u64| -> _ {
+            executed
+                .iter()
+                .map(|row| &row.state)
+                .filter(move |state| reg(&state.current_instruction(program).args) != 0)
+                .map(move |state| {
+                    let reg = reg(&state.current_instruction(program).args);
 
-                // Ignore r0 because r0 should always be 0.
-                // TODO: assert r0 = 0 constraint in CPU trace.
-                Register {
-                    addr: F::from_canonical_u8(reg),
-                    value: F::from_canonical_u32(state.get_register_value(reg)),
-                    augmented_clk: F::from_canonical_u64(state.clk * 3 + clk_offset),
-                    ops,
-                    ..Default::default()
-                }
-            })
-    };
+                    // Ignore r0 because r0 should always be 0.
+                    // TODO: assert r0 = 0 constraint in CPU trace.
+                    Register {
+                        addr: F::from_canonical_u8(reg),
+                        value: F::from_canonical_u32(state.get_register_value(reg)),
+                        augmented_clk: F::from_canonical_u64(state.clk * 3 + clk_offset),
+                        ops,
+                        ..Default::default()
+                    }
+                })
+        };
     let trace = sort_into_address_blocks(
         chain!(
             init_register_trace(record.executed.first().map_or(last_state, |row| &row.state)),
-            build_single_register_trace(|Args { rs1, .. }| *rs1, read(), 0),
-            build_single_register_trace(|Args { rs2, .. }| *rs2, read(), 1),
-            build_single_register_trace(|Args { rd, .. }| *rd, write(), 2)
+            build_single_register_trace_row(|Args { rs1, .. }| *rs1, read(), 0),
+            build_single_register_trace_row(|Args { rs2, .. }| *rs2, read(), 1),
+            build_single_register_trace_row(|Args { rd, .. }| *rd, write(), 2)
         )
         .collect_vec(),
     );

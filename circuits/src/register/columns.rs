@@ -79,5 +79,7 @@ pub struct Register<T> {
     /// This column is range-checked to ensure the ordering of the rows based on
     /// the `augmented_clk`.
     pub diff_augmented_clk: T,
+
+    /// Columns that indicate what action is taken on the register.
     pub ops: Ops<T>,
 }
