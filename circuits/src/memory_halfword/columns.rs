@@ -46,26 +46,18 @@ impl<T: Clone + Add<Output = T>> HalfWordMemory<T> {
 /// Total number of columns.
 pub const NUM_HW_MEM_COLS: usize = HalfWordMemory::<()>::NUMBER_OF_COLUMNS;
 
-// /// TBD - each byte is range-checked in byte-memory table so, maybe avoided
-// // #[must_use]
-// pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
-//     let mem = MAP.map(Column::from);
-//     vec![
-//         HalfWordMemoryTable::new(Column::singles([MAP.limb0]),
-// mem.is_executed()),         HalfWordMemoryTable::new(Column::singles([MAP.
-// limb1]), mem.is_executed()),     ]
-// }
-
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
+    let mem = MAP.map(Column::from);
     vec![
-        Column::single(MAP.clk),
-        Column::single(MAP.addr),
-        Column::single(MAP.limb0) + Column::single(MAP.limb1) * F::from_canonical_u32(1 << 8),
-        Column::single(MAP.is_lhu),
-        Column::single(MAP.is_sh),
+        mem.clk,
+        mem.addr,
+        // Column::reduce_with_powers(vec![mem.limb0, mem.limb1], 1 << 8),
+        mem.limb0 + mem.limb1 * F::from_canonical_u32(1 << 8),
+        mem.is_lhu,
+        mem.is_sh,
     ]
 }
 
@@ -73,26 +65,22 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 /// into Memory stark table.
 #[must_use]
 pub fn data_for_memory_limb0<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::single(MAP.clk),
-        Column::single(MAP.addr),
-        Column::single(MAP.limb0),
-        Column::single(MAP.is_lhu),
-        Column::single(MAP.is_sh),
-    ]
+    let mem = MAP.map(Column::from);
+    vec![mem.clk, mem.addr, mem.limb0, mem.is_lhu, mem.is_sh]
 }
 
 /// Columns containing the data which are looked from the halfword memory table
 /// into Memory stark table.
 #[must_use]
 pub fn data_for_memory_limb1<F: Field>() -> Vec<Column<F>> {
+    let mem = MAP.map(Column::from);
     vec![
-        Column::single(MAP.clk),
-        Column::single(MAP.addr_limb1),
-        Column::single(MAP.limb1),
-        Column::single(MAP.is_lhu),
-        Column::single(MAP.is_sh),
-        // TODO: Roman - add is_init constant
+        mem.clk,
+        mem.addr,
+        mem.limb1,
+        mem.is_lhu,
+        mem.is_sh,
+        Column::constant(F::ONE), // is_init
     ]
 }
 

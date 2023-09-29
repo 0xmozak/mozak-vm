@@ -65,6 +65,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 MemoryInitMemoryTable::lookups(),
                 LimbTable::lookups(),
                 HalfWordMemoryCpuTable::lookups(),
+                // HalfWordMemoryToMemoryTable::lookups(), // TODO: Roman - fix tests
             ],
             halfword_memory_stark: HalfWordMemoryStark::default(),
             debug: false,
