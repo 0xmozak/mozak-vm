@@ -20,9 +20,7 @@ pub struct RangeCheckLimbStark<F, const D: usize> {
 }
 
 impl<F, const D: usize> Id for RangeCheckLimbStark<F, D> {
-    fn id() -> String {
-    "RangeCheckLimbStark".to_string()
-    }
+    fn id() -> String { "RangeCheckLimbStark".to_string() }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckLimbStark<F, D> {

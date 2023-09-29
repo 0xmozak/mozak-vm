@@ -21,9 +21,7 @@ pub struct ProgramStark<F, const D: usize> {
 }
 
 impl<F, const D: usize> Id for ProgramStark<F, D> {
-    fn id() -> String {
-    "ProgramStark".to_string()
-    }
+    fn id() -> String { "ProgramStark".to_string() }
 }
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ProgramStark<F, D> {
     const COLUMNS: usize = ProgramRom::<F>::NUMBER_OF_COLUMNS;

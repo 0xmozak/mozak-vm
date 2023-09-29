@@ -22,9 +22,7 @@ pub struct XorStark<F, const D: usize> {
 }
 
 impl<F, const D: usize> Id for XorStark<F, D> {
-    fn id() -> String {
-    "XorStark".to_string()
-    }
+    fn id() -> String { "XorStark".to_string() }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D> {

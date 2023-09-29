@@ -25,9 +25,7 @@ pub struct CpuStark<F, const D: usize> {
 }
 
 impl<F, const D: usize> Id for CpuStark<F, D> {
-    fn id() -> String {
-    "CpuStark".to_string()
-    }
+    fn id() -> String { "CpuStark".to_string() }
 }
 
 impl<P: PackedField> OpSelectors<P> {

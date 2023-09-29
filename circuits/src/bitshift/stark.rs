@@ -20,9 +20,7 @@ pub struct BitshiftStark<F, const D: usize> {
 }
 
 impl<F, const D: usize> Id for BitshiftStark<F, D> {
-    fn id() -> String {
-    "BitshiftStark".to_string()
-    }
+    fn id() -> String { "BitshiftStark".to_string() }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark<F, D> {

@@ -21,9 +21,7 @@ pub struct MemoryInitStark<F, const D: usize> {
 }
 
 impl<F, const D: usize> Id for MemoryInitStark<F, D> {
-    fn id() -> String {
-    "MemoryInit".to_string()
-    }
+    fn id() -> String { "MemoryInit".to_string() }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryInitStark<F, D> {

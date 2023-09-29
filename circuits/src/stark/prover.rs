@@ -2,6 +2,8 @@
 
 use anyhow::{ensure, Result};
 use itertools::Itertools;
+use log::log_enabled;
+use log::Level::Debug;
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -31,12 +33,11 @@ use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_limb::stark::RangeCheckLimbStark;
-use crate::stark::mozak_stark::PublicInputs;
+use crate::stark::mozak_stark::{Id, PublicInputs};
 use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 use crate::stark::permutation::compute_permutation_z_polys;
 use crate::stark::poly::compute_quotient_polys;
 use crate::xor::stark::XorStark;
-use crate::stark::mozak_stark::Id;
 
 pub fn prove<F, C, const D: usize>(
     program: &Program,
@@ -166,7 +167,9 @@ where
 
     let program_rom_trace_cap = trace_caps[TableKind::Program as usize].clone();
     let memory_init_trace_cap = trace_caps[TableKind::MemoryInit as usize].clone();
-    timing.print();
+    if log_enabled!(Debug) {
+        timing.print();
+    }
     Ok(AllProof {
         stark_proofs,
         program_rom_trace_cap,
