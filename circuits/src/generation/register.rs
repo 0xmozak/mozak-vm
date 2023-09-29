@@ -7,9 +7,10 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::register::columns::{dummy, init, read, write, Ops, Register};
 
-/// Returns the rows sorted in the order of the register 'address'.
+/// Sort rows into blocks of ascending addresses, and then sort each block
+/// internally by augmented_clk
 #[must_use]
-pub fn sort_by_address<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> {
+pub fn sort_into_address_blocks<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> {
     trace.sort_by_key(|row| {
         (
             row.addr.to_noncanonical_u64(),
@@ -79,7 +80,7 @@ pub fn generate_register_trace<F: RichField>(
                 }
             })
     };
-    let trace = sort_by_address(
+    let trace = sort_into_address_blocks(
         chain!(
             init_register_trace(record.executed.first().map_or(last_state, |row| &row.state)),
             build_single_register_trace(|Args { rs1, .. }| *rs1, read(), 0),
