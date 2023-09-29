@@ -20,6 +20,7 @@ use crate::xor::stark::XorStark;
 use crate::{bitshift, cpu, memory, memoryinit, program, rangecheck, xor};
 
 pub trait Id {
+    #[must_use]
     fn id() -> String { "GenericId".to_string() }
 }
 
