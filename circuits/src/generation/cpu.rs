@@ -67,7 +67,7 @@ pub fn generate_cpu_trace<F: RichField>(
             // if we have two (conflicting) users in the same row.
             bitshift: Bitshift::from(0).map(F::from_canonical_u64),
             xor: generate_xor_row(&inst, state),
-
+            mem_addr: F::from_canonical_u32(aux.mem_addr.unwrap_or_default()),
             ..CpuState::default()
         };
 
