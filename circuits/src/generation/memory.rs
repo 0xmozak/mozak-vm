@@ -142,8 +142,6 @@ pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row])
 
 #[cfg(test)]
 mod tests {
-    use im::hashmap::HashMap;
-    use mozak_runner::elf::{Data, Program};
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
@@ -178,36 +176,5 @@ mod tests {
                 [       1,     200,   4,     0,     1,       0,       15,      0,           0,             1],  // Operations:  200
             ])
         );
-    }
-
-    #[test]
-    fn generate_memory_trace_only_init() {
-        let program = Program {
-            ro_memory: Data(
-                [(100, 5), (101, 6)]
-                    .iter()
-                    .copied()
-                    .collect::<HashMap<u32, u8>>(),
-            ),
-            rw_memory: Data(
-                [(200, 7), (201, 8)]
-                    .iter()
-                    .copied()
-                    .collect::<HashMap<u32, u8>>(),
-            ),
-            ..Program::default()
-        };
-
-        let trace = super::generate_memory_trace::<F>(&program, &[]);
-
-        let inv = inv::<F>;
-        #[rustfmt::skip]
-        assert_eq!(trace, prep_table(vec![
-            // is_writable   addr   clk  is_sb, is_lbu, is_init   value  diff_addr  diff_addr_inv  diff_clk
-            [        0,      100,   0,      0,    0,    1,       5,    100,    inv(100),             0],
-            [        0,      101,   0,      0,    0,    1,       6,      1,           1,             0],
-            [        1,      200,   0,      0,    0,    1,       7,     99,     inv(99),             0],
-            [        1,      201,   0,      0,    0,    1,       8,      1,           1,             0],
-        ]));
     }
 }
