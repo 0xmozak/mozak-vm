@@ -43,6 +43,10 @@ pub fn write<T: Field>() -> Ops<T> {
     }
 }
 
+/// Create a dummy [`Ops`]
+///
+/// We want these 3 filter columns = 0,
+/// so we can constrain is_used = is_init + is_read + is_write.
 #[must_use]
 pub fn dummy<T: Field>() -> Ops<T> { Ops::default() }
 
