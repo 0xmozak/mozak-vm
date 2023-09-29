@@ -91,9 +91,10 @@ pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row])
     // `merge_trace_iter` provides a peekable (can view into the next element
     // without yielding) iterator which may contain initializations for memory
     // addresses not accessed by dynamic execution of the program. One reason for
-    // unused init are a side effect of system being 32-bit (hence init being 32-bit)
-    // but load and store being byte operations. e.g. init of address 100 adds entries
-    // for 100, 101, 102, 103, all of which may not be used in execution
+    // unused init are a side effect of system being 32-bit (hence init being
+    // 32-bit) but load and store being byte operations. e.g. init of address
+    // 100 adds entries for 100, 101, 102, 103, all of which may not be used in
+    // execution
     let mut merged_trace_iter = merge_by_key(
         generate_memory_init_trace_from_program::<F>(program),
         generate_memory_trace_from_execution(program, step_rows),
@@ -113,7 +114,8 @@ pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row])
             if current.is_init.is_one() && next.is_init.is_one() {
                 continue;
             }
-        } else if current.is_init.is_one() { // If last element is init, skip that as well
+        } else if current.is_init.is_one() {
+            // If last element is init, skip that as well
             continue;
         }
         merged_trace.push(current);
