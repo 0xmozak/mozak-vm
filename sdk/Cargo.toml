@@ -19,6 +19,7 @@ mozak-runner = { git = "ssh://git@github.com/0xmozak/mozak-vm.git", branch = "ma
 im = { version = "15.1.0", optional = true }
 
 rand = { version = "0.8.5", optional = true }
+derive_more = "0.99.17"
 
 [features]
 default = ["dummy-system", "std"]
