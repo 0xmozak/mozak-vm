@@ -32,7 +32,7 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> 
     let len = trace.len().next_power_of_two();
     trace.resize(len, Register {
         // We want these 3 filter columns = 0,
-        // so we can constrain is_dummy = is_init + is_read + is_write.
+        // so we can constrain is_used = is_init + is_read + is_write.
         is_init: F::ZERO,
         is_read: F::ZERO,
         is_write: F::ZERO,
@@ -49,7 +49,8 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> 
 /// [`RegisterInit` table](crate::registerinit::columns),
 /// 2) go through the program and extract all ops that act on registers,
 /// filling up this table,
-/// 3) pad with dummy rows to ensure that trace is a power of 2.
+/// 3) pad with dummy rows (`is_used` == 0) to ensure that trace is a power of
+///    2.
 #[must_use]
 pub fn generate_register_trace<F: RichField>(
     program: &Program,
@@ -240,6 +241,8 @@ mod tests {
             ],
         );
 
+        // Finally, append the above trace with the extra init rows with unused
+        // registers.
         let mut final_init_rows = prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
             #[rustfmt::skip]
             (12..32).map(|i|
@@ -247,9 +250,9 @@ mod tests {
                 [     i,   0,             0,                 0,        1,      0,       0]
             ).collect(),
         );
-
         expected_trace.append(&mut final_init_rows);
 
+        // Check the final trace.
         (0..expected_trace.len()).for_each(|i| {
             assert_eq!(
                 trace[i], expected_trace[i],
@@ -259,7 +262,7 @@ mod tests {
 
         // Check the paddings. Important checks:
         // 1) Padded address = 31, since it's in the last row.
-        // 2) is_dummy = is_init + is_read + is_write = 0, for CTL
+        // 2) is_used = is_init + is_read + is_write = 0, for CTL
         // with the `RegisterInitStark`.
         (expected_trace.len()..trace.len()).for_each(|i| {
             assert_eq!(
