@@ -88,15 +88,36 @@ pub fn generate_memory_init_trace_from_program<F: RichField>(
 /// constraints.
 #[must_use]
 pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row]) -> Vec<Memory<F>> {
-    // `merged_trace` is address sorted combination of static and
-    // dynamic memory trace components of program (ELF and execution)
-    // `merge` operation is expected to be stable
-    let mut merged_trace: Vec<Memory<F>> = merge_by_key(
+    // `merge_trace_iter` provides a peekable (can view into the next element
+    // without yielding) iterator which may contain initializations for memory
+    // addresses not accessed by dynamic execution of the program. One reason for
+    // unused init are a side effect of system being 32-bit (hence init being 32-bit)
+    // but load and store being byte operations. e.g. init of address 100 adds entries
+    // for 100, 101, 102, 103, all of which may not be used in execution
+    let mut merged_trace_iter = merge_by_key(
         generate_memory_init_trace_from_program::<F>(program),
         generate_memory_trace_from_execution(program, step_rows),
         |memory| (memory.addr.to_canonical_u64(), memory.is_init.is_zero()),
     )
-    .collect();
+    .peekable();
+
+    // `merged_trace` is address sorted combination of static and
+    // dynamic memory trace components of program (ELF and execution)
+    // `merge` operation is expected to be stable. It is initialized with
+    // reserved space as hinted lower bound by `merged_trace_iter`
+    let mut merged_trace: Vec<Memory<F>> = Vec::with_capacity(merged_trace_iter.size_hint().0);
+
+    // removes elements from trace whose init values are never accessed
+    while let Some(current) = merged_trace_iter.next() {
+        if let Some(&next) = merged_trace_iter.peek() {
+            if current.is_init.is_one() && next.is_init.is_one() {
+                continue;
+            }
+        } else if current.is_init.is_one() { // If last element is init, skip that as well
+            continue;
+        }
+        merged_trace.push(current);
+    }
 
     // Ensures constraints by filling remaining inter-row
     // relation values: clock difference and addr difference
@@ -150,17 +171,9 @@ mod tests {
                 [       1,     100,   2,     0,     1,       0,      255,      0,           0,             1],  // Operations:  100
                 [       1,     100,   5,     1,     0,       0,       10,      0,           0,             3],  // Operations:  100
                 [       1,     100,   6,     0,     1,       0,       10,      0,           0,             1],  // Operations:  100
-                [       1,     101,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 101
-                [       1,     102,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 102
-                [       1,     103,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 103
-                [       1,     200,   0,     0,     0,       1,        0,     97,     inv(97),             0],  // Memory Init: 200
+                [       1,     200,   0,     0,     0,       1,        0,    100,    inv(100),             0],  // Memory Init: 200
                 [       1,     200,   3,     1,     0,       0,       15,      0,           0,             3],  // Operations:  200
                 [       1,     200,   4,     0,     1,       0,       15,      0,           0,             1],  // Operations:  200
-                [       1,     201,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 201
-                [       1,     202,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 202
-                [       1,     203,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 203
-                [       1,     203,   0,     0,     0,       0,        0,      0,           0,             0],  // Padding
-                [       1,     203,   0,     0,     0,       0,        0,      0,           0,             0],  // Padding
             ])
         );
     }
