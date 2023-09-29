@@ -96,6 +96,8 @@ pub fn generate_register_trace<F: RichField>(
         .circular_tuple_windows()
         .map(|(lv, nv)| nv.augmented_clk - lv.augmented_clk)
         .collect_vec();
+    // Circular tuple windows starts with indices (0, 1), (1, 2) .. (last,
+    // first==0), but we need (last, first=0), (0, 1), .. (last-1, last).
     diff_augmented_clk.rotate_right(1);
 
     pad_trace(
