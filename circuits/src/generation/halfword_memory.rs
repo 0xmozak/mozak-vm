@@ -24,10 +24,14 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<HalfWordMemory<F>>) -> Vec<HalfWor
 /// TODO(Roman): consider maybe using memory-generation loop once and not
 /// multiple times (refactoring)
 #[must_use]
-pub fn filter_memory_trace(step_rows: &[Row]) -> Vec<&Row> {
+pub fn filter_memory_trace<'a>(program: &'a Program, step_rows: &'a [Row]) -> Vec<&'a Row> {
     step_rows
         .iter()
-        .filter(|row| row.aux.mem_addr.is_some())
+        .filter(|row| {
+            row.aux.mem_addr.is_some()
+                && (matches!(row.state.current_instruction(program).op, Op::SH)
+                    || matches!(row.state.current_instruction(program).op, Op::LHU))
+        })
         // Sorting is stable, and rows are already ordered by row.state.clk
         .sorted_by_key(|row| row.aux.mem_addr)
         .collect_vec()
@@ -38,7 +42,7 @@ pub fn generate_halfword_memory_trace<F: RichField>(
     program: &Program,
     step_rows: &[Row],
 ) -> Vec<HalfWordMemory<F>> {
-    let filtered_step_rows = filter_memory_trace(step_rows);
+    let filtered_step_rows = filter_memory_trace(program, step_rows);
 
     let mut trace: Vec<HalfWordMemory<F>> = vec![];
     for s in &filtered_step_rows {
