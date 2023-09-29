@@ -6,11 +6,10 @@ use alloc::vec::Vec;
 use im::HashMap;
 #[cfg(feature = "std")]
 use mozak_runner::{elf, instruction};
+pub(crate) use risc5::Program;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "std")]
 use sha3::Digest;
-
-pub(crate) use risc5::Program;
 
 use crate::{Id, Object};
 
@@ -50,10 +49,9 @@ pub struct TransitionInput {
     pub input: Vec<u8>,
 }
 
-
 mod risc5 {
     use super::*;
-    
+
     /// A RISC program (same as mozak_runner::elf::Program)
     /// We reimplement it here to avoid a dependency on mozak_runner
     /// As the mozak_runner crate is unable to be compiled into "no_std" code
