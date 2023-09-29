@@ -55,9 +55,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         let local_is_used = lv.is_init + lv.is_read + lv.is_write;
         let next_is_used = nv.is_init + nv.is_read + nv.is_write;
 
-        // Constraint 1: trace rows starts with register address 1.
-        yield_constr.constraint_first_row(lv.addr - P::ONES);
-
         // Constraint 2: filter columns take 0 or 1 values only.
         is_binary(yield_constr, lv.is_init);
         is_binary(yield_constr, lv.is_read);
@@ -88,8 +85,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         // Constraint 6: Address either stays the same or increments by 1.
         yield_constr.constraint_transition((nv.addr - lv.addr) * (nv.addr - lv.addr - P::ONES));
 
-        // Constraint 7: last register address == 31
-        yield_constr.constraint_last_row(lv.addr - P::from(FE::from_canonical_u8(31)));
+        yield_constr.constraint_first_row(lv.addr - P::ONES);
+
+        // This combines 2 constraints,
+        //   a) Constraint 1: trace rows starts with register address 1,
+        //   b) Constraint 7: last register address == 31,
+        // by using the fact that `vars.next_values` wrap around.
+        yield_constr.constraint_last_row(lv.addr - nv.addr - P::from(FE::from_canonical_u8(30)));
     }
 
     #[no_coverage]
