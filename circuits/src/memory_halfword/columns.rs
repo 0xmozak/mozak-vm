@@ -54,8 +54,8 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
     vec![
         mem.clk,
         mem.addr,
-        // Column::reduce_with_powers(vec![mem.limb0, mem.limb1], 1 << 8),
-        mem.limb0 + mem.limb1 * F::from_canonical_u32(1 << 8),
+        Column::reduce_with_powers(vec![mem.limb0, mem.limb1], 1 << 8),
+        // mem.limb0 + mem.limb1 * F::from_canonical_u32(1 << 8),
         mem.is_lhu,
         mem.is_sh,
     ]
@@ -66,7 +66,11 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 #[must_use]
 pub fn data_for_memory_limb0<F: Field>() -> Vec<Column<F>> {
     let mem = MAP.map(Column::from);
-    vec![mem.clk, mem.addr, mem.limb0, mem.is_lhu, mem.is_sh]
+    vec![
+        mem.clk, mem.addr, mem.limb0, mem.is_sh,
+        mem.is_lhu,
+        // Column::constant(F::ONE), // is_writable
+    ]
 }
 
 /// Columns containing the data which are looked from the halfword memory table
@@ -76,23 +80,23 @@ pub fn data_for_memory_limb1<F: Field>() -> Vec<Column<F>> {
     let mem = MAP.map(Column::from);
     vec![
         mem.clk,
-        mem.addr,
+        mem.addr_limb1,
         mem.limb1,
-        mem.is_lhu,
         mem.is_sh,
-        Column::constant(F::ONE), // is_init
+        mem.is_lhu,
+        // Column::constant(F::ONE), // is_writable
     ]
 }
 
 /// Column for a binary filter to indicate a lookup from the CPU table into
-/// Memory stark table.
+/// Halfword Memory stark table.
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> {
     let mem = MAP.map(Column::from);
     mem.is_sh + mem.is_lhu
 }
-/// Column for a binary filter to indicate a lookup from the CPU table into
-/// Memory stark table.
+/// Column for a binary filter to indicate a lookup from the Halfword Memory
+/// table into Memory stark table.
 #[must_use]
 pub fn filter_for_memory<F: Field>() -> Column<F> {
     let mem = MAP.map(Column::from);

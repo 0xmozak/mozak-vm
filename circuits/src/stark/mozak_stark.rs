@@ -30,7 +30,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub memory_stark: MemoryStark<F, D>,
     pub memory_init_stark: MemoryInitStark<F, D>,
     pub rangecheck_limb_stark: RangeCheckLimbStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 9],
+    pub cross_table_lookups: [CrossTableLookup<F>; 10],
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
     pub debug: bool,
 }
@@ -65,7 +65,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 MemoryInitMemoryTable::lookups(),
                 LimbTable::lookups(),
                 HalfWordMemoryCpuTable::lookups(),
-                // HalfWordMemoryToMemoryTable::lookups(), // TODO: Roman - fix tests
+                HalfWordMemoryToMemoryTable::lookups(), // TODO: Roman - fix tests
             ],
             halfword_memory_stark: HalfWordMemoryStark::default(),
             debug: false,
