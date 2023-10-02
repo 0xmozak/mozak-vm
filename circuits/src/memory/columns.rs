@@ -52,7 +52,7 @@ make_col_map!(Memory);
 impl<T: Clone + Add<Output = T>> Memory<T> {
     pub fn is_executed(&self) -> T {
         let s: Memory<T> = self.clone();
-        s.is_sb + s.is_lbu + s.is_init
+        s.is_sb + s.is_lb + s.is_lbu + s.is_init
     }
 }
 

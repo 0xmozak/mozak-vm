@@ -53,6 +53,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // boolean values.
         is_binary(yield_constr, lv.is_writable);
         is_binary(yield_constr, lv.is_sb);
+        is_binary(yield_constr, lv.is_lb);
         is_binary(yield_constr, lv.is_lbu);
         is_binary(yield_constr, lv.is_init);
         is_binary(yield_constr, lv.is_executed());
