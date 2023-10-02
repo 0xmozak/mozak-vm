@@ -29,8 +29,6 @@ pub struct HalfWordMemory<T> {
     /// Memory address.
     pub addrs: [T; 2],
     pub ops: Ops<T>,
-    /// Address of LSB byte
-    pub addr_limb1: T,
     pub limbs: [T; 2],
     // dummy - TODO: remove it once rust-generics problem are solved
     pub dummy: [T; 17],

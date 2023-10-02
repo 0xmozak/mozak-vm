@@ -40,19 +40,15 @@ pub fn generate_halfword_memory_trace<F: RichField>(
     pad_mem_trace(
         filter_memory_trace(program, step_rows)
             .map(|s| {
-                let inst = s.state.current_instruction(program);
-                let mem_clk = get_memory_inst_clk(s);
+                let op = s.state.current_instruction(program).op;
                 let mem_addr = get_memory_inst_addr(s);
                 HalfWordMemory {
-                    clk: mem_clk,
+                    clk: get_memory_inst_clk(s),
                     addrs: [mem_addr, mem_addr + F::ONE],
                     ops: Ops {
-                        is_sh: F::from_bool(matches!(inst.op, Op::SH)),
-                        is_lhu: F::from_bool(matches!(inst.op, Op::LHU)),
+                        is_sh: F::from_bool(matches!(op, Op::SH)),
+                        is_lhu: F::from_bool(matches!(op, Op::LHU)),
                     },
-                    addr_limb1: F::from_canonical_u32(
-                        s.aux.mem_addr.unwrap_or_default().wrapping_add(1),
-                    ),
                     limbs: [
                         F::from_canonical_u32(s.aux.dst_val & 0xFF),
                         F::from_canonical_u32((s.aux.dst_val >> 8) & 0xFF),
