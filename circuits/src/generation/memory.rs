@@ -56,7 +56,7 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
                 ..Default::default()
             }
         })
-        .sorted_by_key(|memory| memory.addr.to_canonical_u64())
+        .sorted_by_key(key)
 }
 
 /// Generates Memory trace from a memory init table.
@@ -66,10 +66,24 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
 pub fn transform_memory_init<F: RichField>(
     memory_init_rows: &[MemoryInit<F>],
 ) -> impl Iterator<Item = Memory<F>> {
-    memory_init_rows
+    memory_init_rows.iter().map(Memory::from).sorted_by_key(key)
+}
+
+/// Generates Memory trace from a memory init table.
+///
+/// These need to be further interleaved with runtime memory trace generated
+/// from VM execution for final memory trace.
+pub fn transform_halfword_memory<F: RichField>(
+    halfword_memory: &[HalfWordMemory<F>],
+) -> impl Iterator<Item = Memory<F>> {
+    halfword_memory
         .iter()
-        .map(Memory::from)
-        .sorted_by_key(|memory| memory.addr.to_canonical_u64())
+        .flat_map(|row| Into::<Vec<Memory<F>>>::into(row))
+        .sorted_by_key(key)
+}
+
+fn key<F: RichField>(memory: &Memory<F>) -> (u64, bool) {
+    (memory.addr.to_canonical_u64(), memory.is_init.is_zero())
 }
 
 /// Generates memory trace using static component `program` for
@@ -82,15 +96,19 @@ pub fn generate_memory_trace<F: RichField>(
     program: &Program,
     step_rows: &[Row],
     memory_init_rows: &[MemoryInit<F>],
-    _halfword_memory_rows: &[HalfWordMemory<F>],
+    halfword_memory_rows: &[HalfWordMemory<F>],
 ) -> Vec<Memory<F>> {
     // `merged_trace` is address sorted combination of static and
     // dynamic memory trace components of program (ELF and execution)
     // `merge` operation is expected to be stable
     let mut merged_trace: Vec<Memory<F>> = merge_by_key(
-        transform_memory_init::<F>(memory_init_rows),
-        generate_memory_trace_from_execution(program, step_rows),
-        |memory| (memory.addr.to_canonical_u64(), memory.is_init.is_zero()),
+        merge_by_key(
+            transform_memory_init::<F>(memory_init_rows),
+            generate_memory_trace_from_execution(program, step_rows),
+            key,
+        ),
+        transform_halfword_memory(halfword_memory_rows),
+        key,
     )
     .collect();
 

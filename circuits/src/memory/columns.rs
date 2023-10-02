@@ -5,6 +5,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
+use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memoryinit::columns::MemoryInit;
 use crate::stark::mozak_stark::{MemoryTable, Table};
 
@@ -55,6 +56,20 @@ impl<F: RichField> From<&MemoryInit<F>> for Memory<F> {
             value: row.element.value,
             ..Default::default()
         }
+    }
+}
+
+impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
+    fn from(val: &HalfWordMemory<F>) -> Self {
+        (0..2)
+            .map(|i| Memory {
+                is_writable: F::ZERO,
+                addr: val.addrs[i],
+                is_init: F::ONE,
+                value: val.limbs[i],
+                ..Default::default()
+            })
+            .collect()
     }
 }
 
