@@ -76,10 +76,10 @@ pub fn data_for_memory_limb0<F: Field>() -> Vec<Column<F>> {
     let mem = MAP.map(Column::from);
     vec![
         mem.clk,
-        mem.addrs[0].clone(),
-        mem.limbs[0].clone(),
-        mem.ops.is_lhu,
         mem.ops.is_sh,
+        mem.ops.is_lhu,
+        mem.limbs[0].clone(),
+        mem.addrs[0].clone(),
     ]
 }
 
@@ -90,10 +90,10 @@ pub fn data_for_memory_limb1<F: Field>() -> Vec<Column<F>> {
     let mem = MAP.map(Column::from);
     vec![
         mem.clk,
-        mem.addrs[1].clone(),
-        mem.limbs[1].clone(),
-        mem.ops.is_lhu,
         mem.ops.is_sh,
+        mem.ops.is_lhu,
+        mem.limbs[1].clone(),
+        mem.addrs[1].clone(),
         // TODO: Roman - add is_init constant
     ]
 }
