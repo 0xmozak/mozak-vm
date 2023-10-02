@@ -223,10 +223,11 @@ impl<F: Field> Column<F> {
     }
 
     #[must_use]
-    pub fn reduce_with_powers(terms: Vec<Self>, alpha: u64) -> Self {
-        terms.into_iter().rev().fold(Self::default(), |acc, term| {
-            acc * F::from_canonical_u64(alpha) + term
-        })
+    pub fn reduce_with_powers(terms: &[Self], alpha: F) -> Self {
+        terms
+            .iter()
+            .rev()
+            .fold(Self::default(), |acc, term| acc * alpha + term)
     }
 
     #[must_use]

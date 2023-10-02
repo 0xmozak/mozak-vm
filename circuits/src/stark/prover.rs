@@ -1,7 +1,11 @@
 #![allow(clippy::too_many_lines)]
 
+use std::fmt::Display;
+
 use anyhow::{ensure, Result};
 use itertools::Itertools;
+use log::log_enabled;
+use log::Level::Debug;
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -28,7 +32,6 @@ use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
 use crate::memory::stark::MemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
-use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_limb::stark::RangeCheckLimbStark;
 use crate::stark::mozak_stark::PublicInputs;
@@ -165,6 +168,9 @@ where
 
     let program_rom_trace_cap = trace_caps[TableKind::Program as usize].clone();
     let memory_init_trace_cap = trace_caps[TableKind::MemoryInit as usize].clone();
+    if log_enabled!(Debug) {
+        timing.print();
+    }
     Ok(AllProof {
         stark_proofs,
         program_rom_trace_cap,
@@ -193,7 +199,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-    S: Stark<F, D>,
+    S: Stark<F, D> + Display,
     [(); C::Hasher::HASH_SIZE]:,
     [(); S::COLUMNS]:,
     [(); S::PUBLIC_INPUTS]:, {
@@ -214,7 +220,7 @@ where
         .get_n_grand_product_challenge_sets(config.num_challenges, stark.permutation_batch_size());
     let mut permutation_zs = timed!(
         timing,
-        "compute permutation Z(x) polys",
+        format!("{stark}: compute permutation Z(x) polys").as_str(),
         compute_permutation_z_polys::<F, S, D>(
             stark,
             config,
@@ -233,7 +239,7 @@ where
 
     let permutation_ctl_zs_commitment = timed!(
         timing,
-        "compute Zs commitment",
+        format!("{stark}: compute Zs commitment").as_str(),
         PolynomialBatch::from_values(
             z_polys,
             rate_bits,
@@ -250,7 +256,7 @@ where
     let alphas = challenger.get_n_challenges(config.num_challenges);
     let quotient_polys = timed!(
         timing,
-        "compute quotient polys",
+        format!("{stark}: compute quotient polynomial").as_str(),
         compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
             stark,
             trace_commitment,
@@ -267,7 +273,7 @@ where
 
     let all_quotient_chunks = timed!(
         timing,
-        "split quotient polys",
+        format!("{stark}: split quotient polynomial").as_str(),
         quotient_polys
             .into_par_iter()
             .flat_map(|mut quotient_poly| {
@@ -283,7 +289,7 @@ where
     );
     let quotient_commitment = timed!(
         timing,
-        "compute quotient commitment",
+        format!("{stark}: compute quotient commitment").as_str(),
         PolynomialBatch::from_coeffs(
             all_quotient_chunks,
             rate_bits,
@@ -327,7 +333,7 @@ where
 
     let opening_proof = timed!(
         timing,
-        "compute openings proof",
+        format!("{stark}: compute opening proofs").as_str(),
         PolynomialBatch::prove_openings(
             &stark.fri_instance(
                 zeta,
@@ -384,103 +390,36 @@ where
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
-    let cpu_proof = prove_single_table::<F, C, CpuStark<F, D>, D>(
-        &mozak_stark.cpu_stark,
-        config,
-        &traces_poly_values[TableKind::Cpu as usize],
-        &trace_commitments[TableKind::Cpu as usize],
-        [public_inputs.entry_point],
-        &ctl_data_per_table[TableKind::Cpu as usize],
-        challenger,
-        timing,
-    )?;
-
-    let rangecheck_proof = prove_single_table::<F, C, RangeCheckStark<F, D>, D>(
-        &mozak_stark.rangecheck_stark,
-        config,
-        &traces_poly_values[TableKind::RangeCheck as usize],
-        &trace_commitments[TableKind::RangeCheck as usize],
-        [],
-        &ctl_data_per_table[TableKind::RangeCheck as usize],
-        challenger,
-        timing,
-    )?;
-
-    let xor_proof = prove_single_table::<F, C, XorStark<F, D>, D>(
-        &mozak_stark.xor_stark,
-        config,
-        &traces_poly_values[TableKind::Xor as usize],
-        &trace_commitments[TableKind::Xor as usize],
-        [],
-        &ctl_data_per_table[TableKind::Xor as usize],
-        challenger,
-        timing,
-    )?;
-
-    let shift_amount_proof = prove_single_table::<F, C, BitshiftStark<F, D>, D>(
-        &mozak_stark.shift_amount_stark,
-        config,
-        &traces_poly_values[TableKind::Bitshift as usize],
-        &trace_commitments[TableKind::Bitshift as usize],
-        [],
-        &ctl_data_per_table[TableKind::Bitshift as usize],
-        challenger,
-        timing,
-    )?;
-
-    let program_proof = prove_single_table::<F, C, ProgramStark<F, D>, D>(
-        &mozak_stark.program_stark,
-        config,
-        &traces_poly_values[TableKind::Program as usize],
-        &trace_commitments[TableKind::Program as usize],
-        [],
-        &ctl_data_per_table[TableKind::Program as usize],
-        challenger,
-        timing,
-    )?;
-
-    let memory_proof = prove_single_table::<F, C, MemoryStark<F, D>, D>(
-        &mozak_stark.memory_stark,
-        config,
-        &traces_poly_values[TableKind::Memory as usize],
-        &trace_commitments[TableKind::Memory as usize],
-        [],
-        &ctl_data_per_table[TableKind::Memory as usize],
-        challenger,
-        timing,
-    )?;
-
-    let memory_init_proof = prove_single_table::<F, C, MemoryInitStark<F, D>, D>(
-        &mozak_stark.memory_init_stark,
-        config,
-        &traces_poly_values[TableKind::MemoryInit as usize],
-        &trace_commitments[TableKind::MemoryInit as usize],
-        [],
-        &ctl_data_per_table[TableKind::MemoryInit as usize],
-        challenger,
-        timing,
-    )?;
-
-    let rangecheck_range_proof = prove_single_table::<F, C, RangeCheckLimbStark<F, D>, D>(
-        &mozak_stark.rangecheck_limb_stark,
-        config,
-        &traces_poly_values[TableKind::RangeCheckLimb as usize],
-        &trace_commitments[TableKind::RangeCheckLimb as usize],
-        [],
-        &ctl_data_per_table[TableKind::RangeCheckLimb as usize],
-        challenger,
-        timing,
-    )?;
+    macro_rules! make_proof {
+        ($stark: expr, $kind: expr, $public_inputs: expr) => {
+            prove_single_table(
+                &$stark,
+                config,
+                &traces_poly_values[$kind as usize],
+                &trace_commitments[$kind as usize],
+                $public_inputs,
+                &ctl_data_per_table[$kind as usize],
+                challenger,
+                timing,
+            )
+        };
+    }
 
     Ok([
-        cpu_proof,
-        rangecheck_proof,
-        xor_proof,
-        shift_amount_proof,
-        program_proof,
-        memory_proof,
-        memory_init_proof,
-        rangecheck_range_proof,
+        make_proof!(mozak_stark.cpu_stark, TableKind::Cpu, [
+            public_inputs.entry_point
+        ])?,
+        make_proof!(mozak_stark.rangecheck_stark, TableKind::RangeCheck, [])?,
+        make_proof!(mozak_stark.xor_stark, TableKind::Xor, [])?,
+        make_proof!(mozak_stark.shift_amount_stark, TableKind::Bitshift, [])?,
+        make_proof!(mozak_stark.program_stark, TableKind::Program, [])?,
+        make_proof!(mozak_stark.memory_stark, TableKind::Memory, [])?,
+        make_proof!(mozak_stark.memory_init_stark, TableKind::MemoryInit, [])?,
+        make_proof!(
+            mozak_stark.rangecheck_limb_stark,
+            TableKind::RangeCheckLimb,
+            []
+        )?,
     ])
 }
 

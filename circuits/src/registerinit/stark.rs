@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::fmt::Display;
 use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -17,6 +18,12 @@ use crate::cpu::stark::is_binary;
 #[allow(clippy::module_name_repetitions)]
 pub struct RegisterInitStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> Display for RegisterInitStark<F, D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "RegisterInitStark")
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterInitStark<F, D> {
@@ -40,7 +47,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterInitS
         is_binary(yield_constr, lv.is_looked_up);
     }
 
-    #[no_coverage]
+    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,

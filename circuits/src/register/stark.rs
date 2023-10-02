@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -17,6 +18,12 @@ pub struct RegisterStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
+impl<F, const D: usize> Display for RegisterStark<F, D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "RegisterStark")
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark<F, D> {
     const COLUMNS: usize = Register::<F>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
@@ -32,7 +39,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         unimplemented!()
     }
 
-    #[no_coverage]
+    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,
