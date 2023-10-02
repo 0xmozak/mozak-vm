@@ -80,7 +80,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         // We reformulate the above constraint to be:
         // if next `is_read` == 1 or next `is_write` == 1, the address cannot
         // change.
-        yield_constr.constraint_transition((nv.ops.is_read + nv.ops.is_write) * (nv.addr - lv.addr));
+        yield_constr
+            .constraint_transition((nv.ops.is_read + nv.ops.is_write) * (nv.addr - lv.addr));
 
         // Constraint 6: Address either stays the same or increments by 1.
         yield_constr.constraint_transition((nv.addr - lv.addr) * (nv.addr - lv.addr - P::ONES));
