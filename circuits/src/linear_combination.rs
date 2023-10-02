@@ -198,23 +198,11 @@ impl<F: Field> Column<F> {
     }
 
     #[must_use]
-    pub fn reduce_with_powers(terms: Vec<Self>, alpha: u64) -> Self {
-        Self {
-            linear_combination: terms
-                .into_iter()
-                .enumerate()
-                .flat_map(|(i, column)| {
-                    let base = F::from_canonical_u64(
-                        alpha.pow(u32::try_from(i).expect("casting value to u32 should succeed")),
-                    );
-                    column
-                        .linear_combination
-                        .into_iter()
-                        .map(move |(idx, value)| (idx, value * base))
-                })
-                .collect(),
-            constant: F::ZERO,
-        }
+    pub fn reduce_with_powers(terms: &[Self], alpha: F) -> Self {
+        terms
+            .iter()
+            .rev()
+            .fold(Self::default(), |acc, term| acc * alpha + term)
     }
 
     #[must_use]

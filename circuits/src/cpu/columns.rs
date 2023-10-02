@@ -294,7 +294,7 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
         // Note: The imm_value field, having more than 5 bits, must be positioned as the last
         // column in the list to ensure the correct functioning of 'reduce_with_powers'.
         Column::reduce_with_powers(
-            vec![
+            &[
                 Column::ascending_sum(inst.ops),
                 Column::single(inst.is_op1_signed),
                 Column::single(inst.is_op2_signed),
@@ -303,7 +303,7 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
                 Column::ascending_sum(inst.rd_select),
                 Column::single(inst.imm_value),
             ],
-            1 << 5,
+            F::from_canonical_u16(1 << 5),
         ),
     ]
 }
