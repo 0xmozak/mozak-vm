@@ -65,7 +65,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
 
     fn constraint_degree(&self) -> usize { 3 }
 
-    #[no_coverage]
+    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,

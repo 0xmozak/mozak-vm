@@ -1,26 +1,30 @@
-use itertools::Itertools;
+use itertools::{chain, izip, Itertools};
 use mozak_runner::elf::Program;
+use mozak_runner::instruction::Args;
 use mozak_runner::state::State;
-use mozak_runner::vm::{ExecutionRecord, Row};
+use mozak_runner::vm::ExecutionRecord;
 use plonky2::hash::hash_types::RichField;
 
-use crate::register::columns::Register;
+use crate::register::columns::{dummy, init, read, write, Ops, Register};
 
-/// Returns the rows sorted in the order of the register 'address'.
+/// Sort rows into blocks of ascending addresses, and then sort each block
+/// internally by `augmented_clk`
 #[must_use]
-pub fn sort_by_address<F: RichField>(trace: Vec<Register<F>>) -> Vec<Register<F>> {
+pub fn sort_into_address_blocks<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> {
+    trace.sort_by_key(|row| {
+        (
+            row.addr.to_noncanonical_u64(),
+            row.augmented_clk.to_noncanonical_u64(),
+        )
+    });
     trace
-        .into_iter()
-        // Sorting is stable, and rows are already ordered by row.state.clk
-        .sorted_by_key(|row| row.addr.to_noncanonical_u64())
-        .collect()
 }
 
 fn init_register_trace<F: RichField>(state: &State) -> Vec<Register<F>> {
     (1..32)
         .map(|i| Register {
             addr: F::from_canonical_u8(i),
-            is_init: F::ONE,
+            ops: init(),
             value: F::from_canonical_u32(state.get_register_value(i)),
             ..Default::default()
         })
@@ -31,11 +35,7 @@ fn init_register_trace<F: RichField>(state: &State) -> Vec<Register<F>> {
 pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> {
     let len = trace.len().next_power_of_two();
     trace.resize(len, Register {
-        // We want these 3 filter columns = 0,
-        // so we can constrain is_dummy = is_init + is_read + is_write.
-        is_init: F::ZERO,
-        is_read: F::ZERO,
-        is_write: F::ZERO,
+        ops: dummy(),
         // ..And fill other columns with duplicate of last real trace row.
         ..*trace.last().unwrap()
     });
@@ -49,7 +49,8 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> 
 /// [`RegisterInit` table](crate::registerinit::columns),
 /// 2) go through the program and extract all ops that act on registers,
 /// filling up this table,
-/// 3) pad with dummy rows to ensure that trace is a power of 2.
+/// 3) pad with dummy rows (`is_used` == 0) to ensure that trace is a power of
+///    2.
 #[must_use]
 pub fn generate_register_trace<F: RichField>(
     program: &Program,
@@ -60,49 +61,55 @@ pub fn generate_register_trace<F: RichField>(
         last_state,
     } = record;
 
-    let mut trace =
-        init_register_trace(record.executed.first().map_or(last_state, |row| &row.state));
+    let build_single_register_trace_row =
+        |reg: fn(&Args) -> u8, ops: Ops<F>, clk_offset: u64| -> _ {
+            executed
+                .iter()
+                .map(|row| &row.state)
+                .filter(move |state| reg(&state.current_instruction(program).args) != 0)
+                .map(move |state| {
+                    let reg = reg(&state.current_instruction(program).args);
 
-    for Row { state, .. } in executed {
-        let inst = state.current_instruction(program);
+                    // Ignore r0 because r0 should always be 0.
+                    // TODO: assert r0 = 0 constraint in CPU trace.
+                    Register {
+                        addr: F::from_canonical_u8(reg),
+                        value: F::from_canonical_u32(state.get_register_value(reg)),
+                        augmented_clk: F::from_canonical_u64(state.clk * 3 + clk_offset),
+                        ops,
+                        ..Default::default()
+                    }
+                })
+        };
+    let trace = sort_into_address_blocks(
+        chain!(
+            init_register_trace(record.executed.first().map_or(last_state, |row| &row.state)),
+            build_single_register_trace_row(|Args { rs1, .. }| *rs1, read(), 0),
+            build_single_register_trace_row(|Args { rs2, .. }| *rs2, read(), 1),
+            build_single_register_trace_row(|Args { rd, .. }| *rd, write(), 2)
+        )
+        .collect_vec(),
+    );
 
-        // Ignore r0 because r0 should always be 0.
-        // TODO: assert r0 = 0 constraint in CPU trace.
-        (inst.args.rs1 != 0).then(|| {
-            trace.append(&mut vec![Register {
-                addr: F::from_canonical_u8(inst.args.rs1),
-                value: F::from_canonical_u32(state.get_register_value(inst.args.rs1)),
-                augmented_clk: F::from_canonical_u64((state.clk) * 2),
-                is_init: F::ZERO,
-                is_read: F::ONE,
-                is_write: F::ZERO,
-            }]);
-        });
+    // Populate the `diff_augmented_clk` column, after addresses are sorted.
+    // TODO: Consider rewriting this to avoid allocating a temp vector.
+    let mut diff_augmented_clk = trace
+        .iter()
+        .circular_tuple_windows()
+        .map(|(lv, nv)| nv.augmented_clk - lv.augmented_clk)
+        .collect_vec();
+    // `.circular_tuple_windows` gives us tuples with indices (0, 1), (1, 2) ..
+    // (last, first==0), but we need (last, first=0), (0, 1), .. (last-1, last).
+    diff_augmented_clk.rotate_right(1);
 
-        (inst.args.rs2 != 0).then(|| {
-            trace.append(&mut vec![Register {
-                addr: F::from_canonical_u8(inst.args.rs2),
-                value: F::from_canonical_u32(state.get_register_value(inst.args.rs2)),
-                augmented_clk: F::from_canonical_u64((state.clk) * 2),
-                is_init: F::ZERO,
-                is_read: F::ONE,
-                is_write: F::ZERO,
-            }]);
-        });
-
-        (inst.args.rd != 0).then(|| {
-            trace.append(&mut vec![Register {
-                addr: F::from_canonical_u8(inst.args.rd),
-                value: F::from_canonical_u32(state.get_register_value(inst.args.rd)),
-                augmented_clk: F::from_canonical_u64((state.clk) * 2 + 1),
-                is_init: F::ZERO,
-                is_read: F::ZERO,
-                is_write: F::ONE,
-            }]);
-        });
-    }
-
-    pad_trace(sort_by_address(trace))
+    pad_trace(
+        izip!(trace, diff_augmented_clk)
+            .map(|(reg, diff_augmented_clk)| Register {
+                diff_augmented_clk,
+                ..reg
+            })
+            .collect_vec(),
+    )
 }
 
 #[cfg(test)]
@@ -111,7 +118,7 @@ mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::simple_test_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::field::types::Field;
+    use plonky2::field::types::{Field, PrimeField64};
 
     use super::*;
     use crate::columns_view::NumberOfColumns;
@@ -146,7 +153,7 @@ mod tests {
         simple_test_code(&instructions, &[], &[(6, 100), (7, 200)])
     }
 
-    fn expected_trace<F: RichField>() -> Vec<Register<F>>
+    fn expected_trace_initial<F: RichField>() -> Vec<Register<F>>
     where
         [(); Register::<F>::NUMBER_OF_COLUMNS]:, {
         #[rustfmt::skip]
@@ -159,8 +166,8 @@ mod tests {
                         _ => 0,
                     };
                     // Columns (repeated for registers 0-31):
-                    // addr  value augmented_clk is_init is_read is_write
-                    [     i, value,            0,      1,      0,      0]
+                    // addr  value augmented_clk  diff_augmented_clk  is_init is_read is_write
+                    [     i, value,            0,                 0,        1,      0,      0]
                 })
                 .collect_vec(),
         )
@@ -170,14 +177,16 @@ mod tests {
     fn generate_reg_trace_initial() {
         let (_, record) = setup();
         let trace = init_register_trace::<F>(&record.executed[0].state);
-        let expected_trace = expected_trace();
+        let expected_trace_initial = expected_trace_initial();
         (0..31).for_each(|i| {
             assert_eq!(
-                trace[i], expected_trace[i],
+                trace[i], expected_trace_initial[i],
                 "Initial trace setup is wrong at row {i}"
             );
         });
     }
+
+    fn neg(val: u64) -> u64 { (F::ZERO - F::from_canonical_u64(val)).to_canonical_u64() }
 
     #[test]
     fn generate_reg_trace() {
@@ -188,41 +197,51 @@ mod tests {
         // yet.
         let trace = generate_register_trace::<F>(&program, &record);
 
-        // This is just the initial trace, similar to structure of
-        // [`RegisterInit`](registerinit).
-        let mut expected_trace = expected_trace();
-
-        // This is the unsorted trace consisting of the init table, entries from the
-        // instructions and the cleanup instructions from `simple_test_code()`.
-        expected_trace.extend_from_slice(
+        // This is the actual trace of the instructions.
+        let mut expected_trace = prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
             #[rustfmt::skip]
-            &prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(vec![
+            vec![
                 // First, populate the table with the instructions from the above test code.
+                // Note that we filter out operations that act on r0.
                 //
                 // Columns:
-                // addr value augmented_clk is_init is_read is_write
-                //
-                // Instructions: in order of (rs1, rs2/imm, rd)
-                // ADD r6, r7, r4
-                [    6,  100,         2,        0,      1,       0],
-                [    7,  200,         2,        0,      1,       0],
-                [    4,    0,         3,        0,      0,       1],
-                // ADD r4, r6, r5
-                [    4,  300,         4,        0,      1,       0],
-                [    6,  100,         4,        0,      1,       0],
-                [    5,    0,         5,        0,      0,       1],
-                // ADD r5, 100, r4 (note: imm values are ignored)
-                [    5,  400,         6,        0,      1,       0],
-                [    4,  300,         7,        0,      0,       1],
-                // Next, we add the instructions added in `simple_test_code()`
-                // Note that we filter out operations that act on r0.
-                [    10,   0,         9,        0,      0,       1],
-            ]),
+                // addr value augmented_clk  diff_augmented_clk  is_init is_read is_write
+                [    1,    0,             0,                 0,        1,      0,       0], // init
+                [    2,    0,             0,                 0,        1,      0,       0], // init
+                [    3,    0,             0,                 0,        1,      0,       0], // init
+                [    4,    0,             0,                 0,        1,      0,       0], // init
+                [    4,    0,             5,                 5,        0,      0,       1], // 1st inst
+                [    4,  300,             6,                 1,        0,      1,       0], // 2nd inst
+                [    4,  300,            11,                 5,        0,      0,       1], // 3rd inst 
+                [    5,    0,             0,           neg(11),        1,      0,       0], // init
+                [    5,    0,             8,                 8,        0,      0,       1], // 2nd inst
+                [    5,  400,             9,                 1,        0,      1,       0], // 3rd inst
+                [    6,  100,             0,            neg(9),        1,      0,       0], // init
+                [    6,  100,             3,                 3,        0,      1,       0], // 1st inst
+                [    6,  100,             7,                 4,        0,      1,       0], // 2nd inst
+                [    7,  200,             0,            neg(7),        1,      0,       0], // init
+                [    7,  200,             4,                 4,        0,      1,       0], // 1st inst
+                [    8,    0,             0,            neg(4),        1,      0,       0], // init
+                [    9,    0,             0,                 0,        1,      0,       0], // init
+                [    10,   0,             0,                 0,        1,      0,       0], // init
+                // This is one part of the instructions added in the setup fn `simple_test_code()`
+                [    10,   0,            14,                14,        0,      0,       1],
+                [    11,   0,             0,           neg(14),        1,      0,       0], // init
+            ],
         );
 
-        // Finally, this is the sorted trace.
-        let expected_trace = sort_by_address(expected_trace);
+        // Finally, append the above trace with the extra init rows with unused
+        // registers.
+        let mut final_init_rows = prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
+            #[rustfmt::skip]
+            (12..32).map(|i|
+                // addr value augmented_clk  diff_augmented_clk  is_init is_read is_write
+                [     i,   0,             0,                 0,        1,      0,       0]
+            ).collect(),
+        );
+        expected_trace.append(&mut final_init_rows);
 
+        // Check the final trace.
         (0..expected_trace.len()).for_each(|i| {
             assert_eq!(
                 trace[i], expected_trace[i],
@@ -232,7 +251,7 @@ mod tests {
 
         // Check the paddings. Important checks:
         // 1) Padded address = 31, since it's in the last row.
-        // 2) is_dummy = is_init + is_read + is_write = 0, for CTL
+        // 2) is_used = is_init + is_read + is_write = 0, for CTL
         // with the `RegisterInitStark`.
         (expected_trace.len()..trace.len()).for_each(|i| {
             assert_eq!(
@@ -241,7 +260,7 @@ mod tests {
                     addr: F::from_canonical_u8(31),
                     ..Default::default()
                 },
-                "Final trace is wrong at row {i}"
+                "Padding is wrong at row {i}"
             );
         });
 

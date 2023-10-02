@@ -3,7 +3,12 @@ name: CI
 on:
   push:
     branches: [ "main" ]
-  pull_request: {}
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
@@ -55,11 +60,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install rust toolkit
-        uses: ./.github/actions/rust
-
-      - name: Install taplo
-        run: cargo install taplo-cli
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: taplo-cli
 
       - name: taplo fmt
         run: taplo fmt --check
