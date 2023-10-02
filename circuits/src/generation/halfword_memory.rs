@@ -53,7 +53,6 @@ pub fn generate_halfword_memory_trace<F: RichField>(
                         F::from_canonical_u32(s.aux.dst_val & 0xFF),
                         F::from_canonical_u32((s.aux.dst_val >> 8) & 0xFF),
                     ],
-                    ..Default::default()
                 }
             })
             .collect_vec(),

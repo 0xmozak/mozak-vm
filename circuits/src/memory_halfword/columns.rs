@@ -26,12 +26,10 @@ pub struct Ops<T> {
 pub struct HalfWordMemory<T> {
     /// Clock at memory access.
     pub clk: T,
-    /// Memory address.
-    pub addrs: [T; 2],
     pub ops: Ops<T>,
+    /// Memory addresses for the one byte limbs
+    pub addrs: [T; 2],
     pub limbs: [T; 2],
-    // dummy - TODO: remove it once rust-generics problem are solved
-    pub dummy: [T; 17],
 }
 
 columns_view_impl!(HalfWordMemory);

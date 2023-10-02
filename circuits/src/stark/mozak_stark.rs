@@ -11,6 +11,7 @@ use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::memory::stark::MemoryStark;
+use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::rangecheck_looking;
@@ -29,6 +30,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub memory_stark: MemoryStark<F, D>,
     pub memory_init_stark: MemoryInitStark<F, D>,
     pub rangecheck_limb_stark: RangeCheckLimbStark<F, D>,
+    pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 8],
     pub debug: bool,
 }
@@ -53,6 +55,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             memory_stark: MemoryStark::default(),
             memory_init_stark: MemoryInitStark::default(),
             rangecheck_limb_stark: RangeCheckLimbStark::default(),
+            halfword_memory_stark: HalfWordMemoryStark::default(),
             cross_table_lookups: [
                 RangecheckTable::lookups(),
                 XorCpuTable::lookups(),
@@ -79,6 +82,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.memory_stark.num_permutation_batches(config),
             self.memory_init_stark.num_permutation_batches(config),
             self.rangecheck_limb_stark.num_permutation_batches(config),
+            self.halfword_memory_stark.num_permutation_batches(config),
         ]
     }
 
@@ -92,6 +96,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.memory_stark.permutation_batch_size(),
             self.memory_init_stark.permutation_batch_size(),
             self.rangecheck_limb_stark.permutation_batch_size(),
+            self.halfword_memory_stark.permutation_batch_size(),
         ]
     }
 
@@ -104,7 +109,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 8;
+pub(crate) const NUM_TABLES: usize = 9;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum TableKind {
@@ -116,6 +121,7 @@ pub enum TableKind {
     Memory = 5,
     MemoryInit = 6,
     RangeCheckLimb = 7,
+    HalfWordMemory = 8,
 }
 
 impl TableKind {
@@ -130,6 +136,7 @@ impl TableKind {
             TableKind::Memory,
             TableKind::MemoryInit,
             TableKind::RangeCheckLimb,
+            TableKind::HalfWordMemory,
         ]
     }
 }
