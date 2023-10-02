@@ -47,29 +47,33 @@ pub struct Memory<T> {
 columns_view_impl!(Memory);
 make_col_map!(Memory);
 
-impl<F: RichField> From<&MemoryInit<F>> for Memory<F> {
+impl<F: RichField> From<&MemoryInit<F>> for Option<Memory<F>> {
     fn from(row: &MemoryInit<F>) -> Self {
-        Memory {
+        row.filter.is_one().then(|| Memory {
             is_writable: row.is_writable,
             addr: row.element.address,
             is_init: F::ONE,
             value: row.element.value,
             ..Default::default()
-        }
+        })
     }
 }
 
 impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
     fn from(val: &HalfWordMemory<F>) -> Self {
-        (0..2)
-            .map(|i| Memory {
-                is_writable: F::ZERO,
-                addr: val.addrs[i],
-                is_init: F::ONE,
-                value: val.limbs[i],
-                ..Default::default()
-            })
-            .collect()
+        if (val.ops.is_lhu + val.ops.is_sh).is_zero() {
+            vec![]
+        } else {
+            (0..2)
+                .map(|i| Memory {
+                    is_writable: F::ZERO,
+                    addr: val.addrs[i],
+                    is_init: F::ONE,
+                    value: val.limbs[i],
+                    ..Default::default()
+                })
+                .collect()
+        }
     }
 }
 

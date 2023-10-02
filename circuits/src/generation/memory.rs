@@ -68,8 +68,7 @@ pub fn transform_memory_init<F: RichField>(
 ) -> impl Iterator<Item = Memory<F>> {
     memory_init_rows
         .iter()
-        .filter(|row| row.filter.is_one())
-        .map(Memory::from)
+        .filter_map(Option::<Memory<F>>::from)
         .sorted_by_key(key)
 }
 
@@ -82,7 +81,6 @@ pub fn transform_halfword<F: RichField>(
 ) -> impl Iterator<Item = Memory<F>> {
     halfword_memory
         .iter()
-        .filter(|row| (row.ops.is_sh + row.ops.is_lhu).is_one())
         .flat_map(Into::<Vec<Memory<F>>>::into)
         .sorted_by_key(key)
 }
