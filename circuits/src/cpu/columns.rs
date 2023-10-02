@@ -38,9 +38,11 @@ pub struct OpSelectors<T> {
     pub bne: T,
     /// Store Byte
     pub sb: T,
+    pub sh: T,
     /// Load Byte Unsigned and places it in the least significant byte position
     /// of the target register.
     pub lbu: T,
+    pub lhu: T,
     /// Branch Less Than
     pub blt: T,
     /// Branch Greater or Equal

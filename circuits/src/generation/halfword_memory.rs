@@ -51,10 +51,7 @@ pub fn generate_halfword_memory_trace<F: RichField>(
             addr: mem_addr,
             is_sh: F::from_bool(matches!(inst.op, Op::SH)),
             is_lhu: F::from_bool(matches!(inst.op, Op::LHU)),
-            addr_limb1: F::from_canonical_u32(u32::wrapping_add(
-                s.aux.mem_addr.unwrap_or_default(),
-                1,
-            )),
+            addr_limb1: F::from_canonical_u32(s.aux.mem_addr.unwrap_or_default().wrapping_add(1)),
             limb0: F::from_canonical_u32(s.aux.dst_val & 0xFF),
             limb1: F::from_canonical_u32((s.aux.dst_val >> 8) & 0xFF),
             ..Default::default()
