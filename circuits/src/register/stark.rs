@@ -94,7 +94,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         yield_constr.constraint_last_row(lv.addr - nv.addr - P::from(FE::from_canonical_u8(30)));
     }
 
-    #[no_coverage]
+    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,
