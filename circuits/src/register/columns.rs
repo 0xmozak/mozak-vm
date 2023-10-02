@@ -19,6 +19,10 @@ pub struct Ops<T> {
     pub is_write: T,
 }
 
+impl<T: core::ops::Add<Output = T>> Ops<T> {
+    pub fn is_used(self) -> T { self.is_init + self.is_read + self.is_write }
+}
+
 #[must_use]
 pub fn init<T: Field>() -> Ops<T> {
     Ops {

@@ -52,13 +52,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         // We create a virtual column known as `is_used`, which flags a row as
         // being 'used' if it any one of the filter columns are turned on.
         // This is to differentiate between real rows and padding rows.
-        let local_is_used = lv.is_init + lv.is_read + lv.is_write;
-        let next_is_used = nv.is_init + nv.is_read + nv.is_write;
+        let local_is_used = lv.ops.is_used();
+        let next_is_used = nv.ops.is_used();
 
         // Constraint 2: filter columns take 0 or 1 values only.
-        is_binary(yield_constr, lv.is_init);
-        is_binary(yield_constr, lv.is_read);
-        is_binary(yield_constr, lv.is_write);
+        is_binary(yield_constr, lv.ops.is_init);
+        is_binary(yield_constr, lv.ops.is_read);
+        is_binary(yield_constr, lv.ops.is_write);
         is_binary(yield_constr, local_is_used);
 
         // Constraint 3: virtual `is_used` column can only take values 0 or 1.
@@ -74,13 +74,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         // For any register, only `is_write`, `is_init` or the virtual `is_used`
         // column should be able to change values of registers.
         // `is_read` should not change the values of registers.
-        yield_constr.constraint_transition(nv.is_read * (nv.value - lv.value));
+        yield_constr.constraint_transition(nv.ops.is_read * (nv.value - lv.value));
 
         // Constraint 5: Address changes only when nv.is_init == 1.
         // We reformulate the above constraint to be:
         // if next `is_read` == 1 or next `is_write` == 1, the address cannot
         // change.
-        yield_constr.constraint_transition((nv.is_read + nv.is_write) * (nv.addr - lv.addr));
+        yield_constr.constraint_transition((nv.ops.is_read + nv.ops.is_write) * (nv.addr - lv.addr));
 
         // Constraint 6: Address either stays the same or increments by 1.
         yield_constr.constraint_transition((nv.addr - lv.addr) * (nv.addr - lv.addr - P::ONES));
