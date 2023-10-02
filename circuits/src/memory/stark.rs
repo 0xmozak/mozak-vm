@@ -56,6 +56,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary(yield_constr, lv.is_lb);
         is_binary(yield_constr, lv.is_lbu);
         is_binary(yield_constr, lv.is_init);
+        is_binary(yield_constr, lv.value_sign_bit);
         is_binary(yield_constr, lv.is_executed());
 
         // `is_local_a_new_addr` should be binary. To keep constraint degree <= 3,
