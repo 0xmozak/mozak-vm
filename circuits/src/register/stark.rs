@@ -32,7 +32,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         unimplemented!()
     }
 
-    #[no_coverage]
+    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,
