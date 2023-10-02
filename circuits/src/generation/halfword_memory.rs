@@ -30,8 +30,7 @@ pub fn filter_memory_trace<'a>(program: &'a Program, step_rows: &'a [Row]) -> Ve
         .filter(|row|
             matches!(row.state.current_instruction(program).op, Op::LHU | Op::SH)
         )
-        // Sorting is stable, and rows are already ordered by row.state.clk
-        .sorted_by_key(|row| row.aux.mem_addr)
+        .sorted_by_key(|row| (row.aux.mem_addr, row.state.clk))
         .collect_vec()
 }
 
