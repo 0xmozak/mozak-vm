@@ -60,12 +60,13 @@ pub const NUM_HW_MEM_COLS: usize = HalfWordMemory::<()>::NUMBER_OF_COLUMNS;
 /// stark table.
 #[must_use]
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
+    let mem = MAP.map(Column::from);
     vec![
-        Column::single(MAP.clk),
-        Column::single(MAP.addr),
-        Column::single(MAP.limb0) + Column::single(MAP.limb1) * F::from_canonical_u32(1 << 8),
-        Column::single(MAP.is_lhu),
-        Column::single(MAP.is_sh),
+        mem.clk,
+        mem.addr,
+        Column::reduce_with_powers(&[mem.limb0, mem.limb1], F::from_canonical_u16(1 << 8)),
+        mem.is_lhu,
+        mem.is_sh,
     ]
 }
 
