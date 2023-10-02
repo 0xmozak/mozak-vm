@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use jemallocator::Jemalloc;
+use tikv_jemallocator::Jemalloc;
 use mozak_circuits::stark::mozak_stark::MozakStark;
 use mozak_circuits::test_utils::ProveAndVerify;
 use mozak_runner::instruction::{Args, Instruction, Op};
