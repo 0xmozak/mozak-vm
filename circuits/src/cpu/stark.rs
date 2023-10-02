@@ -37,7 +37,7 @@ impl<P: PackedField> OpSelectors<P> {
     pub fn is_straightline(&self) -> P { P::ONES - self.is_jumping() }
 
     /// List of opcodes that work with memory.
-    pub fn is_mem_op(&self) -> P { self.sb + self.lbu }
+    pub fn is_mem_op(&self) -> P { self.sb + self.lbu + self.sh + self.lhu }
 }
 
 /// Ensure that if opcode is straight line, then program counter is incremented
