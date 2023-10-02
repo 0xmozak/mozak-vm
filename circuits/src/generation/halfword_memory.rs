@@ -27,11 +27,9 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<HalfWordMemory<F>>) -> Vec<HalfWor
 pub fn filter_memory_trace<'a>(program: &'a Program, step_rows: &'a [Row]) -> Vec<&'a Row> {
     step_rows
         .iter()
-        .filter(|row| {
-            row.aux.mem_addr.is_some()
-                && (matches!(row.state.current_instruction(program).op, Op::SH)
-                    || matches!(row.state.current_instruction(program).op, Op::LHU))
-        })
+        .filter(|row|
+            matches!(row.state.current_instruction(program).op, Op::LHU | Op::SH)
+        )
         // Sorting is stable, and rows are already ordered by row.state.clk
         .sorted_by_key(|row| row.aux.mem_addr)
         .collect_vec()
