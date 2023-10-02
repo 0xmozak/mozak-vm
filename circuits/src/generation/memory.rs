@@ -85,8 +85,9 @@ pub fn transform_halfword<F: RichField>(
         .sorted_by_key(key)
 }
 
-fn key<F: RichField>(memory: &Memory<F>) -> (u64, bool) {
-    (memory.addr.to_canonical_u64(), memory.is_init.is_zero())
+fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64, bool) {
+    (memory.addr.to_canonical_u64(), u64::MAX - memory.is_executed().to_canonical_u64(), memory.is_init.is_zero())
+    // memory.addr.to_canonical_u64()
 }
 
 /// Generates memory trace using static component `program` for
