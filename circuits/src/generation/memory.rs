@@ -14,6 +14,7 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
     trace.resize(trace.len().next_power_of_two(), Memory {
         // Some columns need special treatment..
         is_sb: F::ZERO,
+        is_lb: F::ZERO,
         is_lbu: F::ZERO,
         is_init: F::ZERO,
         diff_addr: F::ZERO,
@@ -48,9 +49,11 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
                 addr,
                 clk: get_memory_inst_clk(row),
                 is_sb: F::from_bool(matches!(op, Op::SB)),
+                is_lb: F::from_bool(matches!(op, Op::LB)),
                 is_lbu: F::from_bool(matches!(op, Op::LBU)),
                 is_init: F::ZERO,
                 value: F::from_canonical_u32(row.aux.dst_val),
+                value_sign_bit: F::from_bool(row.aux.dst_val > 127),
                 ..Default::default()
             }
         })
@@ -72,9 +75,11 @@ pub fn generate_memory_init_trace_from_program<F: RichField>(
                 addr: F::from_canonical_u32(addr),
                 clk: F::ZERO,
                 is_sb: F::ZERO,
+                is_lb: F::ZERO,
                 is_lbu: F::ZERO,
                 is_init: F::ONE,
                 value: F::from_canonical_u8(value),
+                value_sign_bit: F::from_bool(value > 127),
                 ..Default::default()
             })
         })
@@ -144,23 +149,23 @@ mod tests {
             trace,
             #[rustfmt::skip]
             prep_table(vec![
-                //is_writable  addr   clk  is_sb, is_lbu, is_init  value  diff_addr  diff_addr_inv  diff_clk
-                [       1,     100,   0,     0,     0,       1,        0,    100,     inv(100),            0],  // Memory Init: 100
-                [       1,     100,   1,     1,     0,       0,      255,      0,           0,             1],  // Operations:  100
-                [       1,     100,   2,     0,     1,       0,      255,      0,           0,             1],  // Operations:  100
-                [       1,     100,   5,     1,     0,       0,       10,      0,           0,             3],  // Operations:  100
-                [       1,     100,   6,     0,     1,       0,       10,      0,           0,             1],  // Operations:  100
-                [       1,     101,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 101
-                [       1,     102,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 102
-                [       1,     103,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 103
-                [       1,     200,   0,     0,     0,       1,        0,     97,     inv(97),             0],  // Memory Init: 200
-                [       1,     200,   3,     1,     0,       0,       15,      0,           0,             3],  // Operations:  200
-                [       1,     200,   4,     0,     1,       0,       15,      0,           0,             1],  // Operations:  200
-                [       1,     201,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 201
-                [       1,     202,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 202
-                [       1,     203,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 203
-                [       1,     203,   0,     0,     0,       0,        0,      0,           0,             0],  // Padding
-                [       1,     203,   0,     0,     0,       0,        0,      0,           0,             0],  // Padding
+                //is_writable  addr   clk  is_sb,  is_lb, is_lbu, is_init  value   value_sign_bit,  diff_addr  diff_addr_inv  diff_clk
+                [       1,     100,   0,     0,     0,     0,       1,        0,        0,              100,     inv(100),            0],  // Memory Init: 100
+                [       1,     100,   1,     1,     0,     0,       0,      255,        1,                0,           0,             1],  // Operations:  100
+                [       1,     100,   2,     0,     0,     1,       0,      255,        1,                0,           0,             1],  // Operations:  100
+                [       1,     100,   5,     1,     0,     0,       0,       10,        0,                0,           0,             3],  // Operations:  100
+                [       1,     100,   6,     0,     0,     1,       0,       10,        0,                0,           0,             1],  // Operations:  100
+                [       1,     101,   0,     0,     0,     0,       1,        0,        0,                1,      inv(1),             0],  // Memory Init: 101
+                [       1,     102,   0,     0,     0,     0,       1,        0,        0,                1,      inv(1),             0],  // Memory Init: 102
+                [       1,     103,   0,     0,     0,     0,       1,        0,        0,                1,      inv(1),             0],  // Memory Init: 103
+                [       1,     200,   0,     0,     0,     0,       1,        0,        0,               97,     inv(97),             0],  // Memory Init: 200
+                [       1,     200,   3,     1,     0,     0,       0,       15,        0,                0,           0,             3],  // Operations:  200
+                [       1,     200,   4,     0,     0,     1,       0,       15,        0,                0,           0,             1],  // Operations:  200
+                [       1,     201,   0,     0,     0,     0,       1,        0,        0,                1,      inv(1),             0],  // Memory Init: 201
+                [       1,     202,   0,     0,     0,     0,       1,        0,        0,                1,      inv(1),             0],  // Memory Init: 202
+                [       1,     203,   0,     0,     0,     0,       1,        0,        0,                1,      inv(1),             0],  // Memory Init: 203
+                [       1,     203,   0,     0,     0,     0,       0,        0,        0,                0,           0,             0],  // Padding
+                [       1,     203,   0,     0,     0,     0,       0,        0,        0,                0,           0,             0],  // Padding
             ])
         );
     }
@@ -188,11 +193,11 @@ mod tests {
         let inv = inv::<F>;
         #[rustfmt::skip]
         assert_eq!(trace, prep_table(vec![
-            // is_writable   addr   clk  is_sb, is_lbu, is_init   value  diff_addr  diff_addr_inv  diff_clk
-            [        0,      100,   0,      0,    0,    1,       5,    100,    inv(100),             0],
-            [        0,      101,   0,      0,    0,    1,       6,      1,           1,             0],
-            [        1,      200,   0,      0,    0,    1,       7,     99,     inv(99),             0],
-            [        1,      201,   0,      0,    0,    1,       8,      1,           1,             0],
+            // is_writable   addr   clk  is_sb, is_lb, is_lbu, is_init   value  value_sign_bit   diff_addr  diff_addr_inv  diff_clk
+            [        0,      100,   0,      0,    0,    0,        1,       5,     0,                100,    inv(100),             0],
+            [        0,      101,   0,      0,    0,    0,        1,       6,     0,                  1,           1,             0],
+            [        1,      200,   0,      0,    0,    0,        1,       7,     0,                 99,     inv(99),             0],
+            [        1,      201,   0,      0,    0,    0,        1,       8,     0,                  1,           1,             0],
         ]));
     }
 }

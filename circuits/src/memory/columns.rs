@@ -19,10 +19,12 @@ pub struct Memory<T> {
     pub clk: T,
 
     // Operations (one-hot encoded)
-    // One of `is_sb`, `is_lbu` or `is_init`(static meminit from ELF) == 1.
+    // One of `is_sb`, `is_lb`, `is_lbu` or `is_init`(static meminit from ELF) == 1.
     // If none are `1`, it is a padding row
     /// Binary filter column to represent a RISC-V SB operation.
     pub is_sb: T,
+    /// Binary filter column to represent a RISC-V LB operation.
+    pub is_lb: T,
     /// Binary filter column to represent a RISC-V LBU operation.
     pub is_lbu: T,
     /// Memory Initialisation from ELF (prior to vm execution)
@@ -30,6 +32,9 @@ pub struct Memory<T> {
 
     /// Value of memory access.
     pub value: T,
+
+    /// Is `value` greater than 127. Useful in `LB` operations
+    pub value_sign_bit: T,
 
     /// Difference between current and previous address.
     pub diff_addr: T,
