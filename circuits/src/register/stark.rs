@@ -35,7 +35,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
     /// 4) Only rd changes.
     /// 5) Address changes only when `nv.is_init` == 1.
     /// 6) Address either stays the same or increments by 1.
-    /// 7) Trace should end with register address 31.
+    /// 7) `augmented_clk` is 0 for all `is_init` rows. 
+    /// 8) Trace should end with register address 31.
     ///
     /// For more details, refer to the [Notion
     /// document](https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2).
@@ -86,11 +87,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         // Constraint 6: Address either stays the same or increments by 1.
         yield_constr.constraint_transition((nv.addr - lv.addr) * (nv.addr - lv.addr - P::ONES));
 
-        yield_constr.constraint_first_row(lv.addr - P::ONES);
+        // Constraint 7: `augmented_clk` is 0 for all `is_init` rows. 
+        yield_constr.constraint(lv.ops.is_init * lv.augmented_clk);
 
         // This combines 2 constraints,
         //   a) Constraint 1: trace rows starts with register address 1,
-        //   b) Constraint 7: last register address == 31,
+        //   b) Constraint 8: last register address == 31,
         // by using the fact that `vars.next_values` wrap around.
         yield_constr.constraint_last_row(lv.addr - nv.addr - P::from(FE::from_canonical_u8(30)));
     }
