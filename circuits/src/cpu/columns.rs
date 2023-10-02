@@ -139,6 +139,7 @@ pub struct CpuState<T> {
     /// when product_sign is 0 and `product_high_limb != 0` when
     /// product_sign is 1
     pub product_high_limb_inv_helper: T,
+    pub mem_addr: T,
 }
 
 make_col_map!(CpuColumnsExtended);
@@ -242,6 +243,7 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
         Column::single(MAP.cpu.inst.ops.sb),
         Column::single(MAP.cpu.inst.ops.lbu),
         Column::single(MAP.cpu.dst_value),
+        Column::single(MAP.cpu.mem_addr),
     ]
 }
 
