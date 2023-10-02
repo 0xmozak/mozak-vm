@@ -59,10 +59,15 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
     let memory_init_rows = generate_memory_init_trace(program);
-    let memory_rows = generate_memory_trace(program, &record.executed);
+    let halfword_memory_rows = generate_halfword_memory_trace(program, &record.executed);
+    let memory_rows = generate_memory_trace(
+        program,
+        &record.executed,
+        &memory_init_rows,
+        &halfword_memory_rows,
+    );
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
     let rangecheck_limb_rows = generate_rangecheck_limb_trace(&rangecheck_rows);
-    let halfword_memory_rows = generate_halfword_memory_trace(program, &record.executed);
 
     let cpu_trace = trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows));
     let rangecheck_trace = trace_rows_to_poly_values(rangecheck_rows);

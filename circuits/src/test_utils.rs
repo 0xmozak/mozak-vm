@@ -15,7 +15,9 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::bitshift::generate_shift_amount_trace;
 use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
+use crate::generation::halfword_memory::generate_halfword_memory_trace;
 use crate::generation::memory::generate_memory_trace;
+use crate::generation::memoryinit::generate_memory_init_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
 use crate::generation::registerinit::generate_register_init_trace;
@@ -114,7 +116,10 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
 
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(program, record);
-        let memory_trace = generate_memory_trace::<F>(program, &record.executed);
+        let memory_init = generate_memory_init_trace(program);
+        let halfword_memory = generate_halfword_memory_trace(program, &record.executed);
+        let memory_trace =
+            generate_memory_trace::<F>(program, &record.executed, &memory_init, &halfword_memory);
         let trace_poly_values =
             trace_rows_to_poly_values(generate_rangecheck_trace(&cpu_trace, &memory_trace));
         let proof = prove_table::<F, C, S, D>(
@@ -156,8 +161,14 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let config = standard_faster_config();
 
         let stark = S::default();
-        let trace_poly_values =
-            trace_rows_to_poly_values(generate_memory_trace(program, &record.executed));
+        let memory_init = generate_memory_init_trace(program);
+        let halfword_memory = generate_halfword_memory_trace(program, &record.executed);
+        let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(
+            program,
+            &record.executed,
+            &memory_init,
+            &halfword_memory,
+        ));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,

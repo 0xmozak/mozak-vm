@@ -1,9 +1,11 @@
 use core::ops::Add;
 
 use plonky2::field::types::Field;
+use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
+use crate::memoryinit::columns::MemoryInit;
 use crate::stark::mozak_stark::{MemoryTable, Table};
 
 #[repr(C)]
@@ -43,6 +45,18 @@ pub struct Memory<T> {
 }
 columns_view_impl!(Memory);
 make_col_map!(Memory);
+
+impl<F: RichField> From<&MemoryInit<F>> for Memory<F> {
+    fn from(row: &MemoryInit<F>) -> Self {
+        Memory {
+            is_writable: row.is_writable,
+            addr: row.element.address,
+            is_init: F::ONE,
+            value: row.element.value,
+            ..Default::default()
+        }
+    }
+}
 
 impl<T: Clone + Add<Output = T>> Memory<T> {
     pub fn is_executed(&self) -> T {
