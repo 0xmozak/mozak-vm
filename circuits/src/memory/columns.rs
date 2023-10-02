@@ -96,36 +96,23 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_looked<F: Field>() -> Vec<Column<F>> {
+    let mem = MAP.map(Column::from);
     vec![
-        Column::single(MAP.clk),
-        Column::single(MAP.is_sb),
-        Column::single(MAP.is_lbu),
-        Column::single(MAP.value),
-        Column::single(MAP.addr),
+        mem.is_writable,
+        mem.addr,
+        mem.clk,
+        mem.is_sb,
+        mem.is_lbu,
+        mem.is_init,
+        mem.value,
     ]
 }
 
 /// Column for a binary filter to indicate a lookup from the CPU table into
 /// Memory stark table.
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> {
+pub fn filter<F: Field>() -> Column<F> {
     let mem = MAP.map(Column::from);
-    mem.is_sb + mem.is_lbu
+    mem.is_sb + mem.is_lbu + mem.is_init
 }
-
-/// Columns containing the data which are looked up in the `MemoryInit` Table
-#[must_use]
-pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::single(MAP.is_writable),
-        Column::single(MAP.addr),
-        Column::single(MAP.clk),
-        Column::single(MAP.value),
-        Column::single(MAP.is_init),
-    ]
-}
-
-/// Column for a binary filter to indicate a lookup to the `MemoryInit` Table
-#[must_use]
-pub fn filter_for_memoryinit<F: Field>() -> Column<F> { Column::single(MAP.is_init) }

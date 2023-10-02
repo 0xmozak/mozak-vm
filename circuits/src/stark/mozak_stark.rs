@@ -31,7 +31,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub memory_init_stark: MemoryInitStark<F, D>,
     pub rangecheck_limb_stark: RangeCheckLimbStark<F, D>,
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 8],
+    pub cross_table_lookups: [CrossTableLookup<F>; 7],
     pub debug: bool,
 }
 
@@ -63,7 +63,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 InnerCpuTable::lookups(),
                 ProgramCpuTable::lookups(),
                 IntoMemoryTable::lookups(),
-                MemoryInitMemoryTable::lookups(),
                 LimbTable::lookups(),
             ],
             debug: false,
@@ -234,10 +233,14 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
                     memory_halfword::columns::data_for_memory_limb1(),
                     memory_halfword::columns::filter(),
                 ),
+                MemoryInitTable::new(
+                    memoryinit::columns::data_for_memory(),
+                    memoryinit::columns::filter_for_memory(),
+                ),
             ],
             MemoryTable::new(
-                memory::columns::data_for_cpu(),
-                memory::columns::filter_for_cpu(),
+                memory::columns::data_for_looked(),
+                memory::columns::filter(),
             ),
         )
     }
@@ -245,20 +248,20 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
 
 pub struct MemoryInitMemoryTable<F: Field>(CrossTableLookup<F>);
 
-impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
-        CrossTableLookup::new(
-            vec![MemoryTable::new(
-                memory::columns::data_for_memoryinit(),
-                memory::columns::filter_for_memoryinit(),
-            )],
-            MemoryInitTable::new(
-                memoryinit::columns::data_for_memory(),
-                memoryinit::columns::filter_for_memory(),
-            ),
-        )
-    }
-}
+// impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
+//     fn lookups() -> CrossTableLookup<F> {
+//         CrossTableLookup::new(
+//             vec![MemoryTable::new(
+//                 memory::columns::data_for_memoryinit(),
+//                 memory::columns::filter_for_memoryinit(),
+//             )],
+//             MemoryInitTable::new(
+//                 memoryinit::columns::data_for_memory(),
+//                 memoryinit::columns::filter_for_memory(),
+//             ),
+//         )
+//     }
+// }
 
 pub struct BitshiftCpuTable<F: Field>(CrossTableLookup<F>);
 

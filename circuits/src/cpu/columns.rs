@@ -240,12 +240,19 @@ pub fn filter_for_xor<F: Field>() -> Column<F> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
+    let cpu = MAP.cpu.map(Column::from);
+    let ops = cpu.inst.ops;
+    // TODO(Matthias): introduce named fields for CTL
     vec![
-        Column::single(MAP.cpu.clk),
-        Column::single(MAP.cpu.inst.ops.sb),
-        Column::single(MAP.cpu.inst.ops.lbu),
-        Column::single(MAP.cpu.dst_value),
-        Column::single(MAP.cpu.mem_addr),
+        // is_writable:
+        ops.sb.clone(),
+        cpu.mem_addr,
+        cpu.clk,
+        ops.sb,
+        ops.lbu,
+        // is_init:
+        Column::constant(F::ZERO),
+        cpu.dst_value,
     ]
 }
 

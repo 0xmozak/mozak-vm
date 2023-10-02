@@ -26,14 +26,19 @@ pub const NUM_MEMORYINIT_COLS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;
 /// Columns containing the data which are looked up from the Memory Table
 #[must_use]
 pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
+    let mem = MAP.map(Column::from);
     vec![
-        Column::single(MAP.is_writable),
-        Column::single(MAP.element.address),
+        mem.is_writable,
+        mem.element.address,
         // clk:
         Column::constant(F::ZERO),
-        Column::single(MAP.element.value),
+        // is_sb,
+        Column::constant(F::ZERO),
+        // is_lbu,
+        Column::constant(F::ZERO),
         // is_init:
         Column::constant(F::ONE),
+        mem.element.value,
     ]
 }
 
