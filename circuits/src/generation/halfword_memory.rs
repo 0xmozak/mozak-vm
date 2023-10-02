@@ -46,8 +46,8 @@ pub fn generate_halfword_memory_trace<F: RichField>(
                     clk: get_memory_inst_clk(s),
                     addrs: [mem_addr, mem_addr + F::ONE],
                     ops: Ops {
-                        is_sh: F::from_bool(matches!(op, Op::SH)),
-                        is_lhu: F::from_bool(matches!(op, Op::LHU)),
+                        is_store: F::from_bool(matches!(op, Op::SH)),
+                        is_load_unsigned: F::from_bool(matches!(op, Op::LHU)),
                     },
                     limbs: [
                         F::from_canonical_u32(s.aux.dst_val & 0xFF),

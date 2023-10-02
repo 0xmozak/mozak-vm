@@ -33,8 +33,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemor
         let lv: &HalfWordMemory<P> = vars.local_values.borrow();
         // let nv: &HalfWordMemory<P> = vars.next_values.borrow();
 
-        is_binary(yield_constr, lv.ops.is_sh);
-        is_binary(yield_constr, lv.ops.is_lhu);
+        is_binary(yield_constr, lv.ops.is_store);
+        is_binary(yield_constr, lv.ops.is_load_unsigned);
         // TBD - why it is needed ???
         is_binary(yield_constr, lv.is_executed());
 

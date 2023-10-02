@@ -15,8 +15,8 @@ use crate::stark::utils::merge_by_key;
 fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
     trace.resize(trace.len().next_power_of_two(), Memory {
         // Some columns need special treatment..
-        is_sb: F::ZERO,
-        is_lbu: F::ZERO,
+        is_store: F::ZERO,
+        is_load_unsigned: F::ZERO,
         is_init: F::ZERO,
         diff_addr: F::ZERO,
         diff_addr_inv: F::ZERO,
@@ -49,8 +49,8 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
                 is_writable: F::from_bool(program.rw_memory.contains_key(&addr_u32)),
                 addr,
                 clk: get_memory_inst_clk(row),
-                is_sb: F::from_bool(matches!(op, Op::SB)),
-                is_lbu: F::from_bool(matches!(op, Op::LBU)),
+                is_store: F::from_bool(matches!(op, Op::SB)),
+                is_load_unsigned: F::from_bool(matches!(op, Op::LBU)),
                 is_init: F::ZERO,
                 value: F::from_canonical_u32(row.aux.dst_val),
                 ..Default::default()
@@ -86,7 +86,11 @@ pub fn transform_halfword<F: RichField>(
 }
 
 fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64, bool) {
-    (memory.addr.to_canonical_u64(), u64::MAX - memory.is_executed().to_canonical_u64(), memory.is_init.is_zero())
+    (
+        memory.addr.to_canonical_u64(),
+        u64::MAX - memory.is_executed().to_canonical_u64(),
+        memory.is_init.is_zero(),
+    )
     // memory.addr.to_canonical_u64()
 }
 
@@ -115,11 +119,13 @@ pub fn generate_memory_trace<F: RichField>(
         key,
     )
     .collect();
+    // TODO: FIX is_writable
 
     // Ensures constraints by filling remaining inter-row
-    // relation values: clock difference and addr difference
+    // relation values: clock difference and addr difference and is_writable
     let mut last_clk = F::ZERO;
     let mut last_addr = F::ZERO;
+    let mut last_is_writable = F::ZERO;
     for mem in &mut merged_trace {
         mem.diff_addr = mem.addr - last_addr;
         mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
@@ -127,6 +133,11 @@ pub fn generate_memory_trace<F: RichField>(
             mem.diff_clk = mem.clk - last_clk;
         }
         (last_clk, last_addr) = (mem.clk, mem.addr);
+        // rows with is_init set are the source of truth about is_writable
+        if mem.is_init.is_one() {
+            last_is_writable = mem.is_writable;
+        }
+        mem.is_writable = last_is_writable;
     }
 
     // If the trace length is not a power of two, we need to extend the trace to the

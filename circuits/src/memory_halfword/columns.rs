@@ -13,9 +13,9 @@ pub struct Ops<T> {
     // One of `is_sh`, `is_lhu`
     // If none are `1`, it is a padding row
     /// Binary filter column to represent a RISC-V SH operation.
-    pub is_sh: T,
+    pub is_store: T,
     /// Binary filter column to represent a RISC-V LHU operation.
-    pub is_lhu: T,
+    pub is_load_unsigned: T,
 }
 
 // TODO(roman): address_limbs & value columns can be optimized
@@ -38,7 +38,7 @@ make_col_map!(HalfWordMemory);
 impl<T: Clone + Add<Output = T>> HalfWordMemory<T> {
     pub fn is_executed(&self) -> T {
         let ops: Ops<T> = self.ops.clone();
-        ops.is_lhu + ops.is_sh
+        ops.is_load_unsigned + ops.is_store
     }
 }
 
@@ -64,8 +64,8 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
         mem.clk,
         mem.addrs[0].clone(),
         Column::reduce_with_powers(&mem.limbs, F::from_canonical_u16(1 << 8)),
-        mem.ops.is_lhu,
-        mem.ops.is_sh,
+        mem.ops.is_load_unsigned,
+        mem.ops.is_store,
     ]
 }
 
@@ -76,8 +76,8 @@ pub fn data_for_memory_limb0<F: Field>() -> Vec<Column<F>> {
     let mem = MAP.map(Column::from);
     vec![
         mem.clk,
-        mem.ops.is_sh,
-        mem.ops.is_lhu,
+        mem.ops.is_store,
+        mem.ops.is_load_unsigned,
         mem.limbs[0].clone(),
         mem.addrs[0].clone(),
     ]
@@ -90,8 +90,8 @@ pub fn data_for_memory_limb1<F: Field>() -> Vec<Column<F>> {
     let mem = MAP.map(Column::from);
     vec![
         mem.clk,
-        mem.ops.is_sh,
-        mem.ops.is_lhu,
+        mem.ops.is_store,
+        mem.ops.is_load_unsigned,
         mem.limbs[1].clone(),
         mem.addrs[1].clone(),
         // TODO: Roman - add is_init constant

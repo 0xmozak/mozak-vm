@@ -22,12 +22,12 @@ pub struct Memory<T> {
     pub clk: T,
 
     // Operations (one-hot encoded)
-    // One of `is_sb`, `is_lbu` or `is_init`(static meminit from ELF) == 1.
+    // One of `is_store`, `is_load_unsigned` or `is_init`(static meminit from ELF) == 1.
     // If none are `1`, it is a padding row
     /// Binary filter column to represent a RISC-V SB operation.
-    pub is_sb: T,
+    pub is_store: T,
     /// Binary filter column to represent a RISC-V LBU operation.
-    pub is_lbu: T,
+    pub is_load_unsigned: T,
     /// Memory Initialisation from ELF (prior to vm execution)
     pub is_init: T,
 
@@ -61,15 +61,16 @@ impl<F: RichField> From<&MemoryInit<F>> for Option<Memory<F>> {
 
 impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
     fn from(val: &HalfWordMemory<F>) -> Self {
-        if (val.ops.is_lhu + val.ops.is_sh).is_zero() {
+        if (val.ops.is_load_unsigned + val.ops.is_store).is_zero() {
             vec![]
         } else {
             (0..2)
                 .map(|i| Memory {
-                    is_writable: F::ZERO,
+                    clk: val.clk,
                     addr: val.addrs[i],
-                    is_init: F::ONE,
                     value: val.limbs[i],
+                    is_store: val.ops.is_store,
+                    is_load_unsigned: val.ops.is_load_unsigned,
                     ..Default::default()
                 })
                 .collect()
@@ -80,7 +81,7 @@ impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
 impl<T: Clone + Add<Output = T>> Memory<T> {
     pub fn is_executed(&self) -> T {
         let s: Memory<T> = self.clone();
-        s.is_sb + s.is_lbu + s.is_init
+        s.is_store + s.is_load_unsigned + s.is_init
     }
 }
 
@@ -103,8 +104,8 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(MAP.clk),
-        Column::single(MAP.is_sb),
-        Column::single(MAP.is_lbu),
+        Column::single(MAP.is_store),
+        Column::single(MAP.is_load_unsigned),
         Column::single(MAP.value),
         Column::single(MAP.addr),
     ]
@@ -115,7 +116,7 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> {
     let mem = MAP.map(Column::from);
-    mem.is_sb + mem.is_lbu
+    mem.is_store + mem.is_load_unsigned
 }
 
 /// Columns containing the data which are looked up in the `MemoryInit` Table
