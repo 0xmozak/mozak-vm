@@ -1,13 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 extern crate alloc;
-use alloc::vec::Vec;
 
-use crate::object::ObjectContent;
+use crate::object::{Data, ObjectContent};
 use crate::Id;
-
-/// Generic data representation, that all objects should be able to convert to.
-type Data = Vec<u8>;
 
 /// A Data type of object.
 ///
@@ -17,30 +13,29 @@ type Data = Vec<u8>;
 pub struct DataContent {
     /// Unique object ID
     id: Id,
-    /// Flag if the program is mutable or not
+    /// Flag if the object is mutable or not
     mutable: bool,
-    /// Owner of the program. The owner describes how the program can
-    /// evolve.
-    owner_id: Id,
-    /// Data object is storing
+    /// Owner of the object. The owner describes how the object can change.
+    owner: Id,
+    /// Raw data for the object
     pub data: Data,
 }
 
 impl ObjectContent for DataContent {
     fn id(&self) -> Id { self.id }
 
-    fn owner_id(&self) -> &Id { &self.owner_id }
+    fn owner(&self) -> &Id { &self.owner }
 }
 
 impl DataContent {
     /// Creates a new Data object.
     #[cfg(feature = "std")]
-    pub fn new(mutable: bool, owner_id: Id, data: Data) -> Self {
-        let id = Self::generate_id(vec![vec![mutable as u8], owner_id.to_vec(), data.clone()]);
+    pub fn new(mutable: bool, owner: Id, data: Data) -> Self {
+        let id = Self::generate_id(vec![vec![mutable as u8], owner.to_vec(), data.clone()]);
         Self {
             id,
             mutable,
-            owner_id,
+            owner,
             data,
         }
     }

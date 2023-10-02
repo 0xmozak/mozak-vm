@@ -2,12 +2,16 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "std")]
 use sha3::Digest;
 
-use crate::Id;
-
+pub mod data;
 pub mod program;
 
-pub mod data;
+use super::Id;
 
+/// Generic data representation, that all objects should be able to convert to.
+type Data = Vec<u8>;
+
+/// A generic object type.
+/// It can be either a Program or Data object.
 #[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub enum Object {
@@ -16,7 +20,6 @@ pub enum Object {
 }
 
 #[cfg(not(feature = "no-std"))]
-
 impl Default for Object {
     fn default() -> Self { Object::Program(program::ProgramContent::default()) }
 }
@@ -83,7 +86,7 @@ pub trait ObjectContent: Clone {
     /// Id of an object that controls how the object can evolve.
     /// Typically, this object would be a program that has a list of state
     /// transitions that are allowed.
-    fn owner_id(&self) -> &Id;
+    fn owner(&self) -> &Id;
 
     /// Generates a unique ID for the object.
     /// Currently, we use SHA3-256 hash function to generate the ID.
@@ -106,9 +109,9 @@ mod test {
 
     #[test]
     fn test_object_equality() {
-        let owner_id = Id::default();
+        let owner = Id::default();
 
-        let object = DataContent::new(false, owner_id, vec![1u8]);
+        let object = DataContent::new(false, owner, vec![1u8]);
         let object_changed = object.transition(vec![2u8]);
 
         assert_eq!(object.id(), object_changed.id());
@@ -117,25 +120,25 @@ mod test {
 
     #[test]
     fn test_object_id_generation() {
-        let owner_id = Id::default();
+        let owner = Id::default();
 
-        let object = DataContent::new(false, owner_id, vec![1u8]);
+        let object = DataContent::new(false, owner, vec![1u8]);
 
         let id = object.id();
         let expected_id =
-            DataContent::generate_id(vec![vec![false as u8], owner_id.to_vec(), vec![1u8]]);
+            DataContent::generate_id(vec![vec![false as u8], owner.to_vec(), vec![1u8]]);
 
         assert_eq!(id, expected_id);
     }
 
     #[test]
     fn casting_downcasting() {
-        let owner_id = Id::default();
+        let owner = Id::default();
 
-        let wrapped_data_object = Object::Data(DataContent::new(false, owner_id, vec![1u8]));
+        let wrapped_data_object = Object::Data(DataContent::new(false, owner, vec![1u8]));
 
         let wrapped_program_object =
-            Object::Program(program::ProgramContent::new(0, false, owner_id, vec![]));
+            Object::Program(program::ProgramContent::new(0, false, owner, vec![]));
 
         for wrapped_object in vec![wrapped_data_object, wrapped_program_object] {
             match wrapped_object {

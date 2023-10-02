@@ -19,9 +19,8 @@ pub struct ProgramContent {
     version: u64,
     /// Flag if the program is mutable or not
     mutable: bool,
-    /// Owner of the program. The owner describes how the program can
-    /// evolve.
-    owner_id: Id,
+    /// Owner of the program. The owner describes how the program can change.
+    owner: Id,
     /// A list of accepted transitions that are allowed to be executed on
     /// the objects that are owned.
     /// During state update the user will propose a new state,
@@ -35,7 +34,7 @@ pub struct ProgramContent {
 impl ObjectContent for ProgramContent {
     fn id(&self) -> Id { self.id }
 
-    fn owner_id(&self) -> &Id { &self.owner_id }
+    fn owner(&self) -> &Id { &self.owner }
 }
 
 #[cfg(feature = "std")]
@@ -44,13 +43,13 @@ impl ProgramContent {
     pub fn new(
         version: u64,
         mutable: bool,
-        owner_id: Id,
+        owner: Id,
         validating_transitions: Vec<Transition>,
     ) -> Self {
         let id = Self::generate_id(vec![
             version.to_be_bytes().to_vec(),
             vec![mutable as u8],
-            owner_id.to_vec(),
+            owner.to_vec(),
             validating_transitions
                 .iter()
                 .flat_map(|t| t.id().to_vec())
@@ -61,7 +60,7 @@ impl ProgramContent {
             id,
             version,
             mutable,
-            owner_id,
+            owner,
             validating_transitions,
         }
     }

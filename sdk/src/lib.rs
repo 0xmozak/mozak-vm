@@ -5,6 +5,5 @@ pub use object::{data, program, Object, ObjectContent};
 pub use transition::{Transition, TransitionInput};
 
 pub mod id;
-
-mod object;
+pub mod object;
 mod transition;
