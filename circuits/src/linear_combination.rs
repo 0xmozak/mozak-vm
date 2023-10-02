@@ -201,7 +201,6 @@ impl<F: Field> Column<F> {
     pub fn reduce_with_powers(terms: &[Self], alpha: F) -> Self {
         terms
             .iter()
-            .rev()
             .fold(Self::default(), |acc, term| acc * alpha + term)
     }
 

@@ -1,3 +1,5 @@
+use std::ops::{Add, Mul};
+
 use itertools::izip;
 use mozak_runner::instruction::{Instruction, Op};
 use plonky2::hash::hash_types::RichField;
@@ -60,10 +62,14 @@ pub fn ascending_sum<F: RichField, I: IntoIterator<Item = F>>(cs: I) -> F {
         .sum()
 }
 
-pub fn reduce_with_powers<F: RichField, I: IntoIterator<Item = F>>(terms: I, alpha: u64) -> F {
-    izip!((0..).map(|i| F::from_canonical_u64(alpha.pow(i))), terms)
-        .map(|(base, val)| base * val)
-        .sum()
+pub fn reduce_with_powers<F: RichField, X: Default>(terms: &[X], alpha: F) -> X
+where &X: Add<X, Output=X> + Mul<F, Output=X>,
+     X: Mul<F, Output = X>
+{
+    terms
+    .iter()
+    .rev()
+    .fold(Default::default(), |acc, term| term + acc * alpha)
 }
 
 impl<F: RichField> From<columns::Instruction<F>> for InstructionRow<F> {
@@ -72,15 +78,15 @@ impl<F: RichField> From<columns::Instruction<F>> for InstructionRow<F> {
             pc: inst.pc,
             inst_data: reduce_with_powers(
                 [
+                    inst.imm_value,
                     ascending_sum(inst.ops),
                     inst.is_op1_signed,
                     inst.is_op2_signed,
                     ascending_sum(inst.rs1_select),
                     ascending_sum(inst.rs2_select),
                     ascending_sum(inst.rd_select),
-                    inst.imm_value,
                 ],
-                1 << 5,
+                F::from_canonical_u8(1 << 5),
             ),
         }
     }
