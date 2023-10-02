@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::fmt::Display;
 use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -12,7 +13,6 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 use super::columns::ProgramRom;
 use crate::columns_view::NumberOfColumns;
 use crate::cpu::stark::is_binary;
-use crate::stark::mozak_stark::Id;
 
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -20,8 +20,8 @@ pub struct ProgramStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F, const D: usize> Id for ProgramStark<F, D> {
-    fn id() -> String { "ProgramStark".to_string() }
+impl<F, const D: usize> Display for ProgramStark<F, D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "ProgramStark") }
 }
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ProgramStark<F, D> {
     const COLUMNS: usize = ProgramRom::<F>::NUMBER_OF_COLUMNS;

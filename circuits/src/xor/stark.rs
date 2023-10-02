@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::fmt::Display;
 use std::marker::PhantomData;
 
 use itertools::{chain, izip};
@@ -13,7 +14,6 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::XorColumnsView;
 use crate::columns_view::NumberOfColumns;
-use crate::stark::mozak_stark::Id;
 
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -21,8 +21,8 @@ pub struct XorStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F, const D: usize> Id for XorStark<F, D> {
-    fn id() -> String { "XorStark".to_string() }
+impl<F, const D: usize> Display for XorStark<F, D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "XorStark") }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D> {

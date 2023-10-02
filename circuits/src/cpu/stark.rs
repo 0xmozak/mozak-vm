@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::fmt::Display;
 use std::marker::PhantomData;
 
 use itertools::izip;
@@ -16,7 +17,7 @@ use super::{add, bitwise, branches, div, ecall, jalr, mul, signed_comparison, su
 use crate::columns_view::NumberOfColumns;
 use crate::cpu::shift;
 use crate::program::columns::ProgramRom;
-use crate::stark::mozak_stark::{Id, PublicInputs};
+use crate::stark::mozak_stark::PublicInputs;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -24,8 +25,8 @@ pub struct CpuStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F, const D: usize> Id for CpuStark<F, D> {
-    fn id() -> String { "CpuStark".to_string() }
+impl<F, const D: usize> Display for CpuStark<F, D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "CpuStark") }
 }
 
 impl<P: PackedField> OpSelectors<P> {

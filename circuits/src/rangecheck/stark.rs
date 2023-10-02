@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -9,7 +10,6 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns;
-use crate::stark::mozak_stark::Id;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -17,8 +17,10 @@ pub struct RangeCheckStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F, const D: usize> Id for RangeCheckStark<F, D> {
-    fn id() -> String { "RangeCheckStark".to_string() }
+impl<F, const D: usize> Display for RangeCheckStark<F, D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "RangeCheckStark")
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckStark<F, D> {

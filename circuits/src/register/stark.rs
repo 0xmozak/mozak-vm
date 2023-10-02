@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -15,6 +16,12 @@ use crate::columns_view::NumberOfColumns;
 #[allow(clippy::module_name_repetitions)]
 pub struct RegisterStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> Display for RegisterStark<F, D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "RegisterStark")
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark<F, D> {
