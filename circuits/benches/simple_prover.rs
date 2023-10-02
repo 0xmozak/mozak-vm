@@ -1,11 +1,11 @@
 use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use tikv_jemallocator::Jemalloc;
 use mozak_circuits::stark::mozak_stark::MozakStark;
 use mozak_circuits::test_utils::ProveAndVerify;
 use mozak_runner::instruction::{Args, Instruction, Op};
 use mozak_runner::test_utils::simple_test_code;
+use tikv_jemallocator::Jemalloc;
 
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
