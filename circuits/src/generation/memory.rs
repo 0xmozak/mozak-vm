@@ -73,12 +73,12 @@ pub fn transform_memory_init<F: RichField>(
 ///
 /// These need to be further interleaved with runtime memory trace generated
 /// from VM execution for final memory trace.
-pub fn transform_halfword_memory<F: RichField>(
+pub fn transform_halfword<F: RichField>(
     halfword_memory: &[HalfWordMemory<F>],
 ) -> impl Iterator<Item = Memory<F>> {
     halfword_memory
         .iter()
-        .flat_map(|row| Into::<Vec<Memory<F>>>::into(row))
+        .flat_map(Into::<Vec<Memory<F>>>::into)
         .sorted_by_key(key)
 }
 
@@ -107,7 +107,7 @@ pub fn generate_memory_trace<F: RichField>(
             generate_memory_trace_from_execution(program, step_rows),
             key,
         ),
-        transform_halfword_memory(halfword_memory_rows),
+        transform_halfword(halfword_memory_rows),
         key,
     )
     .collect();

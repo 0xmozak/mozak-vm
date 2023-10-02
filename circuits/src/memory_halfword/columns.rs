@@ -98,17 +98,9 @@ pub fn data_for_memory_limb1<F: Field>() -> Vec<Column<F>> {
     ]
 }
 
-/// Column for a binary filter to indicate a lookup from the CPU table into
-/// Memory stark table.
+/// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> {
-    let ops = MAP.map(Column::from).ops;
-    ops.is_sh + ops.is_lhu
-}
-/// Column for a binary filter to indicate a lookup from the CPU table into
-/// Memory stark table.
-#[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> {
+pub fn filter<F: Field>() -> Column<F> {
     let ops = MAP.map(Column::from).ops;
     ops.is_sh + ops.is_lhu
 }
