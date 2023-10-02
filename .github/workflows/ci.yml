@@ -51,12 +51,10 @@ jobs:
       - name: Install rust toolkit
         uses: ./.github/actions/rust
 
-      - name: Build examples 
+      - name: Build all examples 
         run: | 
           cd examples
-          for i in $(find */Cargo.toml); do
-            cargo build --manifest-path $i
-          done
+          git ls-files -z '*/Cargo.toml' | xargs -0 --max-args=1 -- cargo build --manifest-path
 
   cargo-fmt:
     if: github.event.pull_request.draft == false
