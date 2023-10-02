@@ -42,6 +42,20 @@ jobs:
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
 
+  cargo-build-examples:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install rust toolkit
+        uses: ./.github/actions/rust
+
+      - name: Build all examples 
+        run: | 
+          cd examples
+          git ls-files -z '*/Cargo.toml' | xargs -0 --max-args=1 -- cargo build --manifest-path
+
   cargo-fmt:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
