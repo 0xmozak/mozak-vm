@@ -153,7 +153,7 @@ impl<F: Field> Sum<usize> for Column<F> {
 impl<F: Field> From<usize> for Column<F> {
     fn from(idx: usize) -> Self {
         Self {
-            nv_linear_combination: vec![(idx, F::ONE)],
+            lv_linear_combination: vec![(idx, F::ONE)],
             ..Self::default()
         }
     }
@@ -179,7 +179,7 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn not(c: usize) -> Self {
         Self {
-            nv_linear_combination: vec![(c, F::NEG_ONE)],
+            lv_linear_combination: vec![(c, F::NEG_ONE)],
             constant: F::ONE,
             ..Default::default()
         }
@@ -188,21 +188,21 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn single(c: usize) -> Self {
         Self {
-            nv_linear_combination: vec![(c, F::ONE)],
-            ..Default::default()
-        }
-    }
-
-    #[must_use]
-    pub fn single_prev(c: usize) -> Self {
-        Self {
             lv_linear_combination: vec![(c, F::ONE)],
             ..Default::default()
         }
     }
 
     #[must_use]
-    pub fn single_diff(c: usize) -> Self { Self::single(c) - Self::single_prev(c) }
+    pub fn single_next(c: usize) -> Self {
+        Self {
+            nv_linear_combination: vec![(c, F::ONE)],
+            ..Default::default()
+        }
+    }
+
+    #[must_use]
+    pub fn single_diff(c: usize) -> Self { Self::single_next(c) - Self::single(c) }
 
     pub fn singles<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Vec<Self> {
         cs.into_iter().map(|c| Self::single(*c.borrow())).collect()
@@ -217,7 +217,7 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn many<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
-            nv_linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect(),
+            lv_linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect(),
             ..Default::default()
         }
     }
@@ -232,7 +232,7 @@ impl<F: Field> Column<F> {
     #[must_use]
     pub fn ascending_sum<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
-            nv_linear_combination: cs
+            lv_linear_combination: cs
                 .into_iter()
                 .enumerate()
                 .map(|(i, c)| (*c.borrow(), F::from_canonical_usize(i)))
@@ -261,21 +261,14 @@ impl<F: Field> Column<F> {
     /// Evaluate on an row of a table given in column-major form.
     #[allow(clippy::cast_possible_wrap)]
     pub fn eval_table(&self, table: &[PolynomialValues<F>], row: usize) -> F {
-        #[allow(clippy::cast_possible_truncation)]
-        fn lookup<B>(a: &Vec<B>, i: i64) -> &B { &a[i.rem_euclid(a.len() as i64) as usize] }
-        // TODO(Matthias): review this carefully.
-        // Why do we have to do (row - 1, row), and why doesn't (row, row + 1) work
         self.lv_linear_combination
             .iter()
-            .map(|&(c, f)| {
-                // TODO: Add tests.
-                *lookup(&table[c].values, row as i64 - 1) * f
-            })
+            .map(|&(c, f)| table[c].values[row] * f)
             .sum::<F>()
             + self
                 .nv_linear_combination
                 .iter()
-                .map(|&(c, f)| table[c].values[row] * f)
+                .map(|&(c, f)| table[c].values[(row + 1) % table[c].values.len()] * f)
                 .sum::<F>()
             + self.constant
     }
@@ -307,7 +300,7 @@ impl<F: Field> Column<F> {
     where
         F: RichField + Extendable<D>, {
         let pairs = self
-            .nv_linear_combination
+            .lv_linear_combination
             .iter()
             .map(|&(c, f)| {
                 (

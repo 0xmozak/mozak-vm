@@ -155,18 +155,38 @@ fn partial_products<F: Field>(
     let mut partial_prod = F::ONE;
     let degree = trace[0].len();
     let mut res = Vec::with_capacity(degree);
-    for i in 0..degree {
-        let filter = filter_column.eval_table(trace, i);
 
+    // design of table looks like this
+    //       |  filter  |   value   |  partial_prod |
+    //       |    1     |    x_1    |  x_3          |
+    //       |    0     |    x_2    |  x_3 * x_1    |
+    //       |    1     |    x_3    |  x_3 * x_1    |
+    // this is done so that now transition constraint looks like
+    //       z_next = z_local * select(value_local, filter_local)
+    // That is, there is no need for reconstruction of value_next.
+    // In current design which uses lv and nv values from columns to construct the
+    // final value_local, its impossible to construct value_next from lv and nv
+    // values of current row
+
+    let combine_if_filter_at_i = |i| -> F {
+        let filter = filter_column.eval_table(trace, i);
         if filter.is_one() {
             let evals = columns
                 .iter()
                 .map(|c| c.eval_table(trace, i))
                 .collect::<Vec<_>>();
-            partial_prod *= challenge.combine(evals.iter());
+            challenge.combine(evals.iter())
         } else {
             assert_eq!(filter, F::ZERO, "Non-binary filter?");
-        };
+            F::ONE
+        }
+    };
+
+    partial_prod *= combine_if_filter_at_i(degree - 1);
+    res.push(partial_prod);
+
+    for i in 0..degree - 1 {
+        partial_prod *= combine_if_filter_at_i(i);
         res.push(partial_prod);
     }
     res.into()

@@ -104,13 +104,10 @@ mod tests {
         // Check values that we are interested in
         assert_eq!(trace[0].filter, F::ONE);
         assert_eq!(trace[1].filter, F::ONE);
-        assert_eq!(trace[0].limbs[0], GoldilocksField(0));
-        assert_eq!(trace[0].limbs[1], GoldilocksField(0));
-        assert_eq!(trace[0].limbs[2], GoldilocksField(0));
-        assert_eq!(trace[0].limbs[3], GoldilocksField(0));
-        assert_eq!(trace[1].limbs[0], GoldilocksField(0xfe));
-        assert_eq!(trace[1].limbs[1], GoldilocksField(0xff));
-        assert_eq!(trace[1].limbs[2], GoldilocksField(0x01));
-        assert_eq!(trace[1].limbs[3], GoldilocksField(0));
+        assert_eq!(trace[0].limbs[0], GoldilocksField(0xfe));
+        assert_eq!(trace[0].limbs[1], GoldilocksField(0xff));
+        assert_eq!(trace[0].limbs[2], GoldilocksField(0x01));
+        assert_eq!(trace[0].limbs[3], GoldilocksField(0x00));
+        assert_eq!(trace[1].limbs[0], GoldilocksField(0));
     }
 }
