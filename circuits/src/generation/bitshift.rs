@@ -11,8 +11,10 @@ fn filter_shift_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> impl Iterator<
         .map(|row| row.bitshift.amount.to_noncanonical_u64())
 }
 
-pub fn pad_trace<Row: Copy>(mut trace: Vec<Row>, default: Row) -> Vec<Row> {
+pub fn pad_trace<Row: Copy + core::fmt::Debug>(mut trace: Vec<Row>, default: Row) -> Vec<Row> {
+    println!("trace.len(): {} {}", trace.len(), trace.len().next_power_of_two());
     trace.resize(trace.len().next_power_of_two(), default);
+    println!("\n{trace:?}");
     trace
 }
 
@@ -20,6 +22,7 @@ pub fn pad_trace<Row: Copy>(mut trace: Vec<Row>, default: Row) -> Vec<Row> {
 pub fn generate_shift_amount_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
 ) -> Vec<BitshiftView<F>> {
+    print!("{:?}", cpu_trace[0]);
     pad_trace(
         filter_shift_trace(cpu_trace)
             .sorted()

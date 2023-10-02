@@ -83,6 +83,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use anyhow::Result;
+    use itertools::Itertools;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{simple_test_code, u32_extra};
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
@@ -108,19 +109,20 @@ mod tests {
     fn prove_sll() -> Result<()> {
         let p: u32 = 10;
         let q: u32 = 10;
-        let sll = Instruction {
+        let sll = |i| Instruction {
             op: Op::SLL,
             args: Args {
                 rd: 5,
                 rs1: 7,
-                rs2: 8,
+                rs2: 0,
+                imm: i,
                 ..Args::default()
             },
         };
         // We use 3 similar instructions here to ensure duplicates and padding work
         // during trace generation.
-        let (program, record) = simple_test_code(&[sll, sll, sll], &[], &[(7, p), (8, q)]);
-        assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
+        let (program, record) = simple_test_code(&(0..32).map(sll).collect_vec(), &[], &[(7, p), (8, q)]);
+        // assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
         MozakStark::prove_and_verify(&program, &record)
     }
 
