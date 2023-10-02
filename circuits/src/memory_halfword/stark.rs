@@ -33,21 +33,20 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemor
         let lv: &HalfWordMemory<P> = vars.local_values.borrow();
         // let nv: &HalfWordMemory<P> = vars.next_values.borrow();
 
-        is_binary(yield_constr, lv.is_sh);
-        is_binary(yield_constr, lv.is_lhu);
+        is_binary(yield_constr, lv.ops.is_sh);
+        is_binary(yield_constr, lv.ops.is_lhu);
         // TBD - why it is needed ???
         is_binary(yield_constr, lv.is_executed());
 
         // address-L1 == address + 1
         let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
-        let added = lv.addr + P::ONES;
+        let added = lv.addrs[0] + P::ONES;
         let wrapped = added - wrap_at;
 
         // Check: the resulting sum is wrapped if necessary.
         // As the result is range checked, this make the choice deterministic,
         // even for a malicious prover.
-        yield_constr
-            .constraint(lv.is_executed() * (lv.addr_limb1 - added) * (lv.addr_limb1 - wrapped));
+        yield_constr.constraint(lv.is_executed() * (lv.addrs[1] - added) * (lv.addrs[1] - wrapped));
     }
 
     #[coverage(off)]
