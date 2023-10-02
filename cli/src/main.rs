@@ -7,7 +7,6 @@ use std::io::{Read, Write};
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clio::{Input, Output};
-use jemallocator::Jemalloc;
 use log::debug;
 use mozak_circuits::generation::memoryinit::generate_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
@@ -24,6 +23,7 @@ use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::util::timing::TimingTree;
 use shadow_rs::shadow;
+use tikv_jemallocator::Jemalloc;
 
 shadow!(build);
 

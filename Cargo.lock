@@ -765,26 +765,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af150ab688ff2122fcef229be89cb50dd66af9e01a4ff320cc137eecc9bacc38"
 
 [[package]]
-name = "jemalloc-sys"
-version = "0.5.4+5.3.0-patched"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac6c1946e1cea1788cbfde01c993b52a10e2da07f4bac608228d1bed20bfebf2"
-dependencies = [
- "cc",
- "libc",
-]
-
-[[package]]
-name = "jemallocator"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0de374a9f8e63150e6f5e8a60cc14c668226d7a347d8aee1a45766e3c4dd3bc"
-dependencies = [
- "jemalloc-sys",
- "libc",
-]
-
-[[package]]
 name = "jobserver"
 version = "0.1.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -901,7 +881,6 @@ dependencies = [
  "flexbuffers",
  "im",
  "itertools 0.11.0",
- "jemallocator",
  "lazy_static",
  "log",
  "mozak-runner",
@@ -911,6 +890,7 @@ dependencies = [
  "serde",
  "starky",
  "thiserror",
+ "tikv-jemallocator",
 ]
 
 [[package]]
@@ -924,13 +904,13 @@ dependencies = [
  "clio",
  "env_logger",
  "itertools 0.11.0",
- "jemallocator",
  "log",
  "mozak-circuits",
  "mozak-runner",
  "plonky2",
  "proptest",
  "shadow-rs",
+ "tikv-jemallocator",
 ]
 
 [[package]]
@@ -1695,6 +1675,26 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.37",
+]
+
+[[package]]
+name = "tikv-jemalloc-sys"
+version = "0.5.4+5.3.0-patched"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9402443cb8fd499b6f327e40565234ff34dbda27460c5b47db0db77443dd85d1"
+dependencies = [
+ "cc",
+ "libc",
+]
+
+[[package]]
+name = "tikv-jemallocator"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "965fe0c26be5c56c94e38ba547249074803efd52adfb66de62107d95aab3eaca"
+dependencies = [
+ "libc",
+ "tikv-jemalloc-sys",
 ]
 
 [[package]]
