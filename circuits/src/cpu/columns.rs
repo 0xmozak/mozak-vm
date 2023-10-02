@@ -252,7 +252,9 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> { MAP.cpu.map(Column::from).inst.ops.mem_ops() }
+pub fn filter_for_memory<F: Field>() -> Column<F> {
+    MAP.cpu.map(Column::from).inst.ops.byte_mem_ops()
+}
 
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
@@ -264,7 +266,7 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
 
     // TODO: Add other mem ops like SH, SW, LB, LW, LH, LHU as we implement the
     // constraints.
-    pub fn mem_ops(self) -> T { self.sb + self.lbu }
+    pub fn byte_mem_ops(self) -> T { self.sb + self.lbu }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.

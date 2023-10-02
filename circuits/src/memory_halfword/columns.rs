@@ -100,7 +100,4 @@ pub fn data_for_memory_limb1<F: Field>() -> Vec<Column<F>> {
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter<F: Field>() -> Column<F> {
-    let ops = MAP.map(Column::from).ops;
-    ops.is_sh + ops.is_lhu
-}
+pub fn filter<F: Field>() -> Column<F> { MAP.map(Column::from).is_executed() }

@@ -66,7 +66,11 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
 pub fn transform_memory_init<F: RichField>(
     memory_init_rows: &[MemoryInit<F>],
 ) -> impl Iterator<Item = Memory<F>> {
-    memory_init_rows.iter().map(Memory::from).sorted_by_key(key)
+    memory_init_rows
+        .iter()
+        .filter(|row| row.filter.is_one())
+        .map(Memory::from)
+        .sorted_by_key(key)
 }
 
 /// Generates Memory trace from a memory init table.
@@ -78,6 +82,7 @@ pub fn transform_halfword<F: RichField>(
 ) -> impl Iterator<Item = Memory<F>> {
     halfword_memory
         .iter()
+        .filter(|row| (row.ops.is_sh + row.ops.is_lhu).is_one())
         .flat_map(Into::<Vec<Memory<F>>>::into)
         .sorted_by_key(key)
 }
