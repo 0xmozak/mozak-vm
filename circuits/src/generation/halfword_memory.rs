@@ -20,8 +20,6 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<HalfWordMemory<F>>) -> Vec<HalfWor
 }
 
 /// Returns the rows sorted in the order of the instruction address.
-/// TODO(Roman): consider maybe using memory-generation loop once and not
-/// multiple times (refactoring)
 pub fn filter_memory_trace<'a>(
     program: &'a Program,
     step_rows: &'a [Row],

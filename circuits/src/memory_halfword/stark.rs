@@ -62,47 +62,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemor
     fn constraint_degree(&self) -> usize { 3 }
 }
 
-// TODO: Roman - add tests
-// #[cfg(test)]
-// mod tests {
-//     use anyhow::Result;
-//     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-//     use starky::stark_testing::test_stark_low_degree;
-//
-//     use crate::memory_halfword::stark::HalfWordMemoryStark;
-//     use crate::memory_halfword::test_utils::halfword_memory_trace_test_case;
-//     use crate::stark::mozak_stark::MozakStark;
-//     use crate::test_utils::ProveAndVerify;
-//
-//     const D: usize = 2;
-//     type C = PoseidonGoldilocksConfig;
-//     type F = <C as GenericConfig<D>>::F;
-//     type S = HalfWordMemoryStark<F, D>;
-//
-//     #[test]
-//     fn test_degree() -> Result<()> {
-//         let stark = S::default();
-//         test_stark_low_degree(stark)
-//     }
-//
-//     #[test]
-//     fn prove_memory_sh_lhu_all() -> Result<()> {
-//         let (program, executed) = halfword_memory_trace_test_case(1);
-//         MozakStark::prove_and_verify(&program, &executed)?;
-//         Ok(())
-//     }
-
-// #[test]
-// // fn prove_memory_sh_lhu() -> Result<()> {
-//     for repeats in 0..8 {
-//         // let (program, executed) =
-//         // halfword_memory_trace_test_case(repeats);
-//         // HalfWordMemoryStark::prove_and_verify(&program, &executed)?;
-//     }
-//     Ok(())
-// }
-//}
-
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {

@@ -37,7 +37,10 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
 ) -> impl Iterator<Item = Memory<F>> {
     step_rows
         .iter()
-        .filter(|row| row.aux.mem_addr.is_some())
+        .filter(|row| {
+            row.aux.mem_addr.is_some()
+                && matches!(row.state.current_instruction(program).op, Op::LBU | Op::SB)
+        })
         .map(|row| {
             let addr: F = get_memory_inst_addr(row);
             let addr_u32: u32 = addr
@@ -85,13 +88,13 @@ pub fn transform_halfword<F: RichField>(
         .sorted_by_key(key)
 }
 
-fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64, bool) {
+fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64, u64, bool) {
     (
         memory.addr.to_canonical_u64(),
+        memory.clk.to_canonical_u64(),
         u64::MAX - memory.is_executed().to_canonical_u64(),
         memory.is_init.is_zero(),
     )
-    // memory.addr.to_canonical_u64()
 }
 
 /// Generates memory trace using static component `program` for
@@ -118,8 +121,8 @@ pub fn generate_memory_trace<F: RichField>(
         transform_halfword(halfword_memory_rows),
         key,
     )
+    .sorted_by_key(key)
     .collect();
-    // TODO: FIX is_writable
 
     // Ensures constraints by filling remaining inter-row
     // relation values: clock difference and addr difference and is_writable
@@ -139,7 +142,6 @@ pub fn generate_memory_trace<F: RichField>(
         }
         mem.is_writable = last_is_writable;
     }
-
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
     // of the trace.
