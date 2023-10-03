@@ -191,11 +191,11 @@ mod tests {
         let (program, record) =
             simple_test_code(&divu_remu_instructions(rd), &[], &[(1, p), (2, q)]);
         prop_assert_eq!(
-            record.executed[0].aux.dst_val_unsigned,
+            record.executed[0].aux.dst_val,
             if let 0 = q { 0xffff_ffff } else { p / q }
         );
         prop_assert_eq!(
-            record.executed[1].aux.dst_val_unsigned,
+            record.executed[1].aux.dst_val,
             if let 0 = q { p } else { p % q }
         );
         Stark::prove_and_verify(&program, &record).unwrap();

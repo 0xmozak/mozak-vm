@@ -145,7 +145,7 @@ mod tests {
             &[(6, a as u32), (7, b)],
         );
         let res = i64::from(a).wrapping_mul(i64::from(b));
-        assert_eq!(record.executed[0].aux.dst_val_unsigned, (res >> 32) as u32);
+        assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
         let mut timing = TimingTree::new("mulhsu", log::Level::Debug);
         let cpu_trace = timed!(
             timing,
@@ -201,7 +201,7 @@ mod tests {
             &[(6, a), (7, b)],
         );
         let (low, _high) = a.widening_mul(b);
-        prop_assert_eq!(record.executed[0].aux.dst_val_unsigned, low);
+        prop_assert_eq!(record.executed[0].aux.dst_val, low);
         Stark::prove_and_verify(&program, &record).unwrap();
         Ok(())
     }
@@ -221,7 +221,7 @@ mod tests {
             &[(6, a), (7, b)],
         );
         let (_low, high) = a.widening_mul(b);
-        prop_assert_eq!(record.executed[0].aux.dst_val_unsigned, high);
+        prop_assert_eq!(record.executed[0].aux.dst_val, high);
         Stark::prove_and_verify(&program, &record).unwrap();
         Ok(())
     }
@@ -244,7 +244,7 @@ mod tests {
         );
         let (res, overflow) = i64::from(a).overflowing_mul(i64::from(b));
         assert!(!overflow);
-        prop_assert_eq!(record.executed[0].aux.dst_val_unsigned, (res >> 32) as u32);
+        prop_assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
         Stark::prove_and_verify(&program, &record).unwrap();
         Ok(())
     }
@@ -266,7 +266,7 @@ mod tests {
             &[(6, a as u32), (7, b)],
         );
         let (res, _overflow) = i64::from(a).overflowing_mul(i64::from(b));
-        prop_assert_eq!(record.executed[0].aux.dst_val_unsigned, (res >> 32) as u32);
+        prop_assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
         Stark::prove_and_verify(&program, &record).unwrap();
         Ok(())
     }

@@ -50,7 +50,7 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
                 is_sb: F::from_bool(matches!(op, Op::SB)),
                 is_lbu: F::from_bool(matches!(op, Op::LBU)),
                 is_init: F::ZERO,
-                value: F::from_canonical_u32(row.aux.dst_val_unsigned),
+                value: F::from_canonical_u32(row.aux.dst_val),
                 ..Default::default()
             }
         })

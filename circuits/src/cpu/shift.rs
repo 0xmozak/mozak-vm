@@ -78,8 +78,8 @@ mod tests {
             &[],
             &[(rs1, p), (rs2, q)],
         );
-        prop_assert_eq!(record.executed[0].aux.dst_val_unsigned, p >> (q & 0b1_1111));
-        prop_assert_eq!(record.executed[1].aux.dst_val_unsigned, p >> (q & 0b1_1111));
+        prop_assert_eq!(record.executed[0].aux.dst_val, p >> (q & 0b1_1111));
+        prop_assert_eq!(record.executed[1].aux.dst_val, p >> (q & 0b1_1111));
         Stark::prove_and_verify(&program, &record).unwrap();
         Ok(())
     }
@@ -117,8 +117,8 @@ mod tests {
             &[],
             &[(rs1, p), (rs2, q)],
         );
-        prop_assert_eq!(record.executed[0].aux.dst_val_unsigned, p << (q & 0b1_1111));
-        prop_assert_eq!(record.executed[1].aux.dst_val_unsigned, p << (q & 0b1_1111));
+        prop_assert_eq!(record.executed[0].aux.dst_val, p << (q & 0b1_1111));
+        prop_assert_eq!(record.executed[1].aux.dst_val, p << (q & 0b1_1111));
         Stark::prove_and_verify(&program, &record).unwrap();
         Ok(())
     }
