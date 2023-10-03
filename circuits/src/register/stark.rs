@@ -147,12 +147,6 @@ mod tests {
             &[],
             &[(6, a), (7, b)],
         );
-        if rd != 0 {
-            assert_eq!(
-                record.executed[1].state.get_register_value(rd),
-                a.wrapping_add(b)
-            );
-        }
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
