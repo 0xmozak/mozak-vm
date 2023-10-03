@@ -16,6 +16,8 @@ use starky::stark::{LookupConfig, Stark};
 use super::mozak_stark::{MozakStark, TableKind};
 use super::proof::AllProof;
 use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
+use crate::register::stark::RegisterStark;
+use crate::registerinit::stark::RegisterInitStark;
 use crate::stark::permutation::PermutationCheckVars;
 use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
@@ -43,6 +45,8 @@ where
         memory_stark,
         memory_init_stark,
         rangecheck_limb_stark,
+        register_init_stark,
+        register_stark,
         cross_table_lookups,
         halfword_memory_stark,
         ..
@@ -89,7 +93,8 @@ where
     verify!(memory_init_stark, TableKind::MemoryInit, &[]);
     verify!(rangecheck_limb_stark, TableKind::RangeCheckLimb, &[]);
     verify!(halfword_memory_stark, TableKind::HalfWordMemory, &[]);
-
+    verify!(register_init_stark, TableKind::RegisterInit, &[]);
+    verify!(register_stark, TableKind::Register, &[]);
     verify_cross_table_lookups::<F, D>(&cross_table_lookups, &all_proof.all_ctl_zs_last(), config)?;
     Ok(())
 }
