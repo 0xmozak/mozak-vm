@@ -54,8 +54,8 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
         mem.clk,
         mem.addrs[0].clone(),
         Column::reduce_with_powers(&mem.limbs, F::from_canonical_u16(1 << 8)),
-        mem.ops.is_load_unsigned,
         mem.ops.is_store,
+        mem.ops.is_load_unsigned,
     ]
 }
 
