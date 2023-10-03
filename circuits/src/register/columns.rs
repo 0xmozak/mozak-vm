@@ -86,6 +86,9 @@ pub struct Register<T> {
     pub ops: Ops<T>,
 }
 
+/// We create a virtual column known as `is_used`, which flags a row as
+/// being 'used' if it any one of the ops columns are turned on.
+/// This is to differentiate between real rows and padding rows.
 impl<T: Add<Output = T>> Register<T> {
     pub fn is_used(self) -> T { self.ops.is_init + self.ops.is_read + self.ops.is_write }
 }

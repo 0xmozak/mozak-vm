@@ -57,10 +57,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         let lv: &Register<P> = vars.local_values.borrow();
         let nv: &Register<P> = vars.next_values.borrow();
 
-        // We create a virtual column known as `is_used`, which flags a row as
-        // being 'used' if it any one of the filter columns are turned on.
-        // This is to differentiate between real rows and padding rows.
-
         // Constraint 2: filter columns take 0 or 1 values only.
         is_binary(yield_constr, lv.ops.is_init);
         is_binary(yield_constr, lv.ops.is_read);
