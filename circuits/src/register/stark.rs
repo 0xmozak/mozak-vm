@@ -32,18 +32,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
 
     /// Constraints for the [`RegisterStark`]:
     ///
-    /// 1) Trace should start with register address 1 - we exclude 0 for ease of
-    ///    CTLs.
-    /// 2) `is_init`, `is_read`, `is_write`, and the virtual `is_used` column
+    /// 1) `is_init`, `is_read`, `is_write`, and the virtual `is_used` column
     ///    are binary columns. The `is_used` column is the sum of all the other
     ///    filter columns combined, to differentiate between real trace rows and
     ///    padding rows.
-    /// 3) The virtual `is_used` column only take values 0 or 1.
-    /// 4) Only rd changes.
-    /// 5) Address changes only when `nv.is_init` == 1.
-    /// 6) Address either stays the same or increments by 1.
-    /// 7) `augmented_clk` is 0 for all `is_init` rows.
-    /// 8) Trace should end with register address 31.
+    /// 2) The virtual `is_used` column only take values 0 or 1.
+    /// 3) Only rd changes.
+    /// 4) Address changes only when `nv.is_init` == 1.
+    /// 5) Address either stays the same or increments by 1.
+    /// 6) `augmented_clk` is 0 for all `is_init` rows.
     ///
     /// For more details, refer to the [Notion
     /// document](https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2).
@@ -57,43 +54,37 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         let lv: &Register<P> = vars.local_values.borrow();
         let nv: &Register<P> = vars.next_values.borrow();
 
-        // Constraint 2: filter columns take 0 or 1 values only.
+        // Constraint 1: filter columns take 0 or 1 values only.
         is_binary(yield_constr, lv.ops.is_init);
         is_binary(yield_constr, lv.ops.is_read);
         is_binary(yield_constr, lv.ops.is_write);
         is_binary(yield_constr, lv.is_used());
 
-        // Constraint 3: virtual `is_used` column can only take values 0 or 1.
+        // Constraint 2: virtual `is_used` column can only take values 0 or 1.
         // (lv.is_used() - nv.is_used() - 1) is expressed as such, because
         // lv.is_used() = 1 in the last real row, and
         // nv.is_used() = 0 in the first padding row.
         yield_constr.constraint_transition(nv.is_used() * (nv.is_used() - lv.is_used()));
 
-        // Constraint 4: only rd changes.
+        // Constraint 3: only rd changes.
         // We reformulate the above constraint as such:
         // For any register, only `is_write`, `is_init` or the virtual `is_used`
         // column should be able to change values of registers.
         // `is_read` should not change the values of registers.
         yield_constr.constraint_transition(nv.ops.is_read * (nv.value - lv.value));
 
-        // Constraint 5: Address changes only when nv.is_init == 1.
+        // Constraint 4: Address changes only when nv.is_init == 1.
         // We reformulate the above constraint to be:
         // if next `is_read` == 1 or next `is_write` == 1, the address cannot
         // change.
         yield_constr
             .constraint_transition((nv.ops.is_read + nv.ops.is_write) * (nv.addr - lv.addr));
 
-        // Constraint 6: Address either stays the same or increments by 1.
+        // Constraint 5: Address either stays the same or increments by 1.
         yield_constr.constraint_transition((nv.addr - lv.addr) * (nv.addr - lv.addr - P::ONES));
 
-        // Constraint 7: `augmented_clk` is 0 for all `is_init` rows.
+        // Constraint 6: `augmented_clk` is 0 for all `is_init` rows.
         yield_constr.constraint(lv.ops.is_init * lv.augmented_clk);
-
-        // This combines 2 constraints,
-        //   a) Constraint 1: trace rows starts with register address 1,
-        //   b) Constraint 8: last register address == 31,
-        // by using the fact that `vars.next_values` wrap around.
-        yield_constr.constraint_last_row(lv.addr - nv.addr - P::from(FE::from_canonical_u8(30)));
     }
 
     #[coverage(off)]
