@@ -103,7 +103,7 @@ impl From<&Program> for State {
 pub struct Aux {
     // This could be an Option<u32>, but given how Risc-V instruction are specified,
     // 0 serves as a default value just fine.
-    pub dst_val: u32,
+    pub dst_val_unsigned: u32,
     pub new_pc: u32,
     pub mem_addr: Option<u32>,
     pub will_halt: bool,
@@ -141,7 +141,7 @@ impl State {
         let dst_val = op(op1, op2);
         (
             Aux {
-                dst_val,
+                dst_val_unsigned: dst_val,
                 ..Aux::default()
             },
             self.set_register_value(data.rd, dst_val).bump_pc(),
@@ -160,7 +160,7 @@ impl State {
         let dst_val = op(&mem);
         (
             Aux {
-                dst_val,
+                dst_val_unsigned: dst_val,
                 mem_addr: Some(addr),
                 ..Default::default()
             },

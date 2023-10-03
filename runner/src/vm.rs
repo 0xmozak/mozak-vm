@@ -85,7 +85,7 @@ impl State {
         let dst_val = self.get_pc().wrapping_add(4);
         (
             Aux {
-                dst_val,
+                dst_val_unsigned: dst_val,
                 ..Default::default()
             },
             self.set_pc(new_pc).set_register_value(inst.rd, dst_val),
@@ -164,7 +164,7 @@ impl State {
         let addr = self.get_register_value(inst.rs2).wrapping_add(inst.imm);
         (
             Aux {
-                dst_val,
+                dst_val_unsigned: dst_val,
                 mem_addr: Some(addr),
                 ..Default::default()
             },

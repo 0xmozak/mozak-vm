@@ -59,9 +59,11 @@ pub fn generate_cpu_trace<F: RichField>(
             op2_value_overflowing: from_u32::<F>(state.get_register_value(inst.args.rs2))
                 + from_u32(inst.args.imm),
             // NOTE: Updated value of DST register is next step.
-            dst_value: from_u32(aux.dst_val), /* TODO(Supragya): Change, to derive from
-                                               * `mem_access_raw` */
-            mem_access_raw: from_u32(aux.dst_val),
+            dst_value: from_u32(aux.dst_val_unsigned), /* TODO(Supragya): Change, to derive from
+                                                        * `mem_access_raw` */
+            is_dst_signed: F::ZERO, // TODO(Supragya): Fix these before merge
+            dst_sign_bit: F::ZERO,  // TODO(Supragya): Fix these before merge
+            mem_access_raw: from_u32(aux.dst_val_unsigned),
             is_running: F::from_bool(!state.halted),
             // Valid defaults for the powers-of-two gadget.
             // To be overridden by users of the gadget.

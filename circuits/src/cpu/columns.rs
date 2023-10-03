@@ -93,6 +93,8 @@ pub struct CpuState<T> {
     /// `dst_value` contains "correct" (modified from `mem_access_raw` for
     /// signed operations) value targetted towards `dst`.
     pub dst_value: T,
+    pub is_dst_signed: T,
+    pub dst_sign_bit: T,
 
     /// `mem_access_raw` contains values fetched or stored into the memory
     /// table. These values are always unsigned by nature (as mem table does

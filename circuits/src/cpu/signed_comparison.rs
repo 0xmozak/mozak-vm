@@ -30,10 +30,13 @@ pub(crate) fn signed_constraints<P: PackedField>(
 ) {
     is_binary(yield_constr, lv.op1_sign_bit);
     is_binary(yield_constr, lv.op2_sign_bit);
+    is_binary(yield_constr, lv.dst_sign_bit);
     // When op1 is not signed as per instruction semantics, op1_sign_bit must be 0.
     yield_constr.constraint((P::ONES - lv.inst.is_op1_signed) * lv.op1_sign_bit);
     // When op2 is not signed as per instruction semantics, op2_sign_bit must be 0.
     yield_constr.constraint((P::ONES - lv.inst.is_op2_signed) * lv.op2_sign_bit);
+    // When dst is not signed as per instruction semantics, dst_sign_bit must be 0.
+    yield_constr.constraint((P::ONES - lv.is_dst_signed) * lv.dst_sign_bit);
 }
 
 pub(crate) fn slt_constraints<P: PackedField>(
