@@ -89,7 +89,15 @@ pub struct CpuState<T> {
     /// The sum of the value of the second operand and the immediate value as
     /// field elements. Ie summed without wrapping to fit into u32.
     pub op2_value_overflowing: T,
+
+    /// `dst_value` contains "correct" (modified from `mem_access_raw` for
+    /// signed operations) value targetted towards `dst`.
     pub dst_value: T,
+
+    /// `mem_access_raw` contains values fetched or stored into the memory
+    /// table. These values are always unsigned by nature (as mem table does
+    /// not differentiate between signed and unsigned values).
+    pub mem_access_raw: T,
 
     /// Values of the registers.
     pub regs: [T; 32],
@@ -242,7 +250,7 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
         Column::single(MAP.cpu.clk),
         Column::single(MAP.cpu.inst.ops.sb),
         Column::single(MAP.cpu.inst.ops.lbu),
-        Column::single(MAP.cpu.dst_value),
+        Column::single(MAP.cpu.mem_access_raw),
         Column::single(MAP.cpu.mem_addr),
     ]
 }
