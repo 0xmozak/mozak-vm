@@ -64,7 +64,6 @@ pub enum Op {
     SH,
     // Store Word: M[rs1+imm][0:31] = rs2[0:31]
     SW,
-    JALR,
     // Branch == : if(rs1 == rs2) PC += imm
     BEQ,
     // Branch != : if(rs1 != rs2) PC += imm
@@ -77,6 +76,8 @@ pub enum Op {
     BLTU,
     // Branch >= (U) : if(rs1 >= rs2) PC += imm
     BGEU,
+    // Jump And Link Reg: rd = PC+4; PC = rs1 + imm
+    JALR,
 
     // Environment Call: Transfer Control to OS
     ECALL,
