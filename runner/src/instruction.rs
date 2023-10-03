@@ -42,10 +42,10 @@ pub enum Op {
     // Shift Right Arithmetic: rd = rs1 >> rs2 /
     // Shift Right Arithmetic Immediate: rd = rs1 >> imm[0:4]
     SRA,
-    // Set Less Than: rd = (rs1 < rs2)?1:0
+    // Set Less Than: rd = (rs1 < rs2)?1:0 /
     // Set Less Than Immediate: rd = (rs1 < imm)?1:0
     SLT,
-    // Set Less Than (U): rd = (rs1 < rs2)?1:0
+    // Set Less Than (U): rd = (rs1 < rs2)?1:0 /
     // Set Less Than Immediate (U): rd = (rs1 < imm)?1:0
     SLTU,
     // Load Byte: rd = M[rs1+imm][0:7]
