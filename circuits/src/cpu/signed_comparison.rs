@@ -5,7 +5,7 @@ use plonky2::field::packed::PackedField;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuState;
-use crate::cpu::stark::is_binary;
+use crate::stark::utils::is_binary;
 
 /// # Explanation
 ///
