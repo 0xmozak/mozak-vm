@@ -1,7 +1,17 @@
 use itertools::{Itertools, MergeBy};
+use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::util::transpose;
+use starky::constraint_consumer::ConstraintConsumer;
+
+/// Ensure an expression only takes on values 0 or 1.
+/// This doubles the degree of the provided expression `x`,
+/// so as long as we are targeting degree <= 3,
+/// this should only be called with at most linear expressions.
+pub fn is_binary<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P) {
+    yield_constr.constraint(x * (P::ONES - x));
+}
 
 #[must_use]
 pub fn trace_to_poly_values<F: Field, Grid: IntoIterator<Item = Vec<F>>>(

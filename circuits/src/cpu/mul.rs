@@ -9,7 +9,7 @@ use plonky2::field::types::Field;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuState;
-use super::stark::is_binary;
+use crate::stark::utils::is_binary;
 
 /// Converts from a sign-bit to a multiplicative sign.
 ///
