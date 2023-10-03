@@ -10,7 +10,7 @@ use crate::cross_table_lookup::Column;
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Ops<T> {
-    // One of `is_sh`, `is_lhu`
+    // One of `is_store`, `is_load_u`
     // If none are `1`, it is a padding row
     /// Binary filter column to represent a RISC-V SH operation.
     pub is_store: T,
@@ -44,16 +44,6 @@ impl<T: Clone + Add<Output = T>> HalfWordMemory<T> {
 
 /// Total number of columns.
 pub const NUM_HW_MEM_COLS: usize = HalfWordMemory::<()>::NUMBER_OF_COLUMNS;
-
-// /// TBD - each byte is range-checked in byte-memory table so, maybe avoided
-// // #[must_use]
-// pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
-//     let mem = MAP.map(Column::from);
-//     vec![
-//         HalfWordMemoryTable::new(Column::singles([MAP.limb0]),
-// mem.is_executed()),         HalfWordMemoryTable::new(Column::singles([MAP.
-// limb1]), mem.is_executed()),     ]
-// }
 
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.

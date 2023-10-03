@@ -39,10 +39,12 @@ pub fn generate_halfword_memory_trace<F: RichField>(
         filter_memory_trace(program, step_rows)
             .map(|s| {
                 let op = s.state.current_instruction(program).op;
-                let mem_addr = get_memory_inst_addr(s);
+                let mem_addr0 = get_memory_inst_addr(s);
+                let mem_addr1 =
+                    F::from_canonical_u32(u32::wrapping_add(s.aux.mem_addr.unwrap_or_default(), 1));
                 HalfWordMemory {
                     clk: get_memory_inst_clk(s),
-                    addrs: [mem_addr, mem_addr + F::ONE],
+                    addrs: [mem_addr0, mem_addr1],
                     ops: Ops {
                         is_store: F::from_bool(matches!(op, Op::SH)),
                         is_load_unsigned: F::from_bool(matches!(op, Op::LHU)),
