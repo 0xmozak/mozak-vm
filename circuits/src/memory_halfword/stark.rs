@@ -33,24 +33,23 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemor
         let lv: &HalfWordMemory<P> = vars.local_values.borrow();
         // let nv: &HalfWordMemory<P> = vars.next_values.borrow();
 
-        is_binary(yield_constr, lv.is_sh);
-        is_binary(yield_constr, lv.is_lhu);
+        is_binary(yield_constr, lv.ops.is_store);
+        is_binary(yield_constr, lv.ops.is_load_unsigned);
         // TBD - why it is needed ???
         is_binary(yield_constr, lv.is_executed());
 
         // address-L1 == address + 1
         let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
-        let added = lv.addr + P::ONES;
+        let added = lv.addrs[0] + P::ONES;
         let wrapped = added - wrap_at;
 
         // Check: the resulting sum is wrapped if necessary.
         // As the result is range checked, this make the choice deterministic,
         // even for a malicious prover.
-        yield_constr
-            .constraint(lv.is_executed() * (lv.addr_limb1 - added) * (lv.addr_limb1 - wrapped));
+        yield_constr.constraint(lv.is_executed() * (lv.addrs[1] - added) * (lv.addrs[1] - wrapped));
     }
 
-    #[no_coverage]
+    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,
@@ -63,43 +62,54 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemor
     fn constraint_degree(&self) -> usize { 3 }
 }
 
-// TODO: Roman - add tests
-// #[cfg(test)]
-// mod tests {
-//     use anyhow::Result;
-//     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-//     use starky::stark_testing::test_stark_low_degree;
-//
-//     use crate::memory_halfword::stark::HalfWordMemoryStark;
-//     use crate::memory_halfword::test_utils::halfword_memory_trace_test_case;
-//     use crate::stark::mozak_stark::MozakStark;
-//     use crate::test_utils::ProveAndVerify;
-//
-//     const D: usize = 2;
-//     type C = PoseidonGoldilocksConfig;
-//     type F = <C as GenericConfig<D>>::F;
-//     type S = HalfWordMemoryStark<F, D>;
-//
-//     #[test]
-//     fn test_degree() -> Result<()> {
-//         let stark = S::default();
-//         test_stark_low_degree(stark)
-//     }
-//
-//     #[test]
-//     fn prove_memory_sh_lhu_all() -> Result<()> {
-//         let (program, executed) = halfword_memory_trace_test_case(1);
-//         MozakStark::prove_and_verify(&program, &executed)?;
-//         Ok(())
-//     }
+#[cfg(test)]
+#[allow(clippy::cast_possible_wrap)]
+mod tests {
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::{simple_test_code, u32_extra, u8_extra};
+    use proptest::prelude::ProptestConfig;
+    use proptest::proptest;
 
-// #[test]
-// // fn prove_memory_sh_lhu() -> Result<()> {
-//     for repeats in 0..8 {
-//         // let (program, executed) =
-//         // halfword_memory_trace_test_case(repeats);
-//         // HalfWordMemoryStark::prove_and_verify(&program, &executed)?;
-//     }
-//     Ok(())
-// }
-//}
+    // use crate::cpu::stark::CpuStark;
+    use crate::stark::mozak_stark::MozakStark;
+    use crate::test_utils::{ProveAndVerify, D, F};
+    pub fn prove_mem_read_write<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::SH,
+                    args: Args {
+                        rs1: 1,
+                        rs2: 2,
+                        imm,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::LHU,
+                    args: Args {
+                        rs2: 2,
+                        imm,
+                        ..Args::default()
+                    },
+                },
+            ],
+            &[(imm.wrapping_add(offset), 0)],
+            &[(1, content.into()), (2, offset)],
+        );
+
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(1))]
+        // #[test]
+        // fn prove_sb_mozak(a in u32_extra(), b in u32_extra()) {
+        //     prove_sb::<MozakStark<F, D>>(a, b);
+        // }
+
+        #[test]
+        fn prove_mem_read_write_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_mem_read_write::<MozakStark<F, D>>(offset, imm, content);
+        }
+    }
+}

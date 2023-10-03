@@ -30,8 +30,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub memory_stark: MemoryStark<F, D>,
     pub memory_init_stark: MemoryInitStark<F, D>,
     pub rangecheck_limb_stark: RangeCheckLimbStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 9],
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
+    pub cross_table_lookups: [CrossTableLookup<F>; 8],
     pub debug: bool,
 }
 
@@ -55,19 +55,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             memory_stark: MemoryStark::default(),
             memory_init_stark: MemoryInitStark::default(),
             rangecheck_limb_stark: RangeCheckLimbStark::default(),
+            halfword_memory_stark: HalfWordMemoryStark::default(),
             cross_table_lookups: [
                 RangecheckTable::lookups(),
                 XorCpuTable::lookups(),
                 BitshiftCpuTable::lookups(),
                 InnerCpuTable::lookups(),
                 ProgramCpuTable::lookups(),
-                MemoryCpuTable::lookups(),
+                IntoMemoryTable::lookups(),
                 MemoryInitMemoryTable::lookups(),
                 LimbTable::lookups(),
-                HalfWordMemoryCpuTable::lookups(),
-                // HalfWordMemoryToMemoryTable::lookups(), // TODO: Roman - fix tests
             ],
-            halfword_memory_stark: HalfWordMemoryStark::default(),
             debug: false,
         }
     }
@@ -218,15 +216,25 @@ impl<F: Field> Lookups<F> for XorCpuTable<F> {
     }
 }
 
-pub struct MemoryCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct IntoMemoryTable<F: Field>(CrossTableLookup<F>);
 
-impl<F: Field> Lookups<F> for MemoryCpuTable<F> {
+impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_memory(),
-                cpu::columns::filter_for_memory(),
-            )],
+            vec![
+                CpuTable::new(
+                    cpu::columns::data_for_memory(),
+                    cpu::columns::filter_for_memory(),
+                ),
+                HalfWordMemoryTable::new(
+                    memory_halfword::columns::data_for_memory_limb0(),
+                    memory_halfword::columns::filter(),
+                ),
+                HalfWordMemoryTable::new(
+                    memory_halfword::columns::data_for_memory_limb1(),
+                    memory_halfword::columns::filter(),
+                ),
+            ],
             MemoryTable::new(
                 memory::columns::data_for_cpu(),
                 memory::columns::filter_for_cpu(),
@@ -247,46 +255,6 @@ impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
             MemoryInitTable::new(
                 memoryinit::columns::data_for_memory(),
                 memoryinit::columns::filter_for_memory(),
-            ),
-        )
-    }
-}
-
-pub struct HalfWordMemoryCpuTable<F: Field>(CrossTableLookup<F>);
-
-impl<F: Field> Lookups<F> for HalfWordMemoryCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
-        CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_halfword_memory(),
-                cpu::columns::filter_for_halfword_memory(),
-            )],
-            HalfWordMemoryTable::new(
-                memory_halfword::columns::data_for_cpu(),
-                memory_halfword::columns::filter_for_cpu(),
-            ),
-        )
-    }
-}
-
-pub struct HalfWordMemoryToMemoryTable<F: Field>(CrossTableLookup<F>);
-
-impl<F: Field> Lookups<F> for HalfWordMemoryToMemoryTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
-        CrossTableLookup::new(
-            vec![
-                HalfWordMemoryTable::new(
-                    memory_halfword::columns::data_for_memory_limb0(),
-                    memory_halfword::columns::filter_for_memory(),
-                ),
-                HalfWordMemoryTable::new(
-                    memory_halfword::columns::data_for_memory_limb1(),
-                    memory_halfword::columns::filter_for_memory(),
-                ),
-            ],
-            MemoryTable::new(
-                memory::columns::data_for_halfword_memory(),
-                memory::columns::filter_for_halfword_memory(),
             ),
         )
     }

@@ -7,7 +7,7 @@ Building the programs require Rust nightly toolchain. Exploring the generated EL
 ## Building ELFs
 
 ```bash
-cargo +nightly build
+cargo build
 ```
 This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/debug/`.
 
