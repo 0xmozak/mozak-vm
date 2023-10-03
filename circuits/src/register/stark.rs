@@ -34,7 +34,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
     ///
     /// 1) `is_init`, `is_read`, `is_write`, and the virtual `is_used` column
     ///    are binary columns. The `is_used` column is the sum of all the other
-    ///    filter columns combined, to differentiate between real trace rows and
+    ///    ops columns combined, to differentiate between real trace rows and
     ///    padding rows.
     /// 2) The virtual `is_used` column only take values 0 or 1.
     /// 3) Only rd changes.
