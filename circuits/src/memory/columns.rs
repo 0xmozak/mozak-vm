@@ -27,10 +27,6 @@ pub struct Memory<T> {
     pub is_lbu: T,
     /// Memory Initialisation from ELF (prior to vm execution)
     pub is_init: T,
-    /// Binary filter column to represent a RISC-V SH operation.
-    pub is_sh: T,
-    /// Binary filter column to represent a RISC-V LHU operation.
-    pub is_lhu: T,
 
     /// Value of memory access.
     pub value: T,
@@ -105,24 +101,23 @@ pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
 #[must_use]
 pub fn filter_for_memoryinit<F: Field>() -> Column<F> { Column::single(MAP.is_init) }
 
-/// Columns containing the data which are looked from the Halfword table into
-/// Memory stark table.
+/// Columns containing the data which are looked from the CPU table into Memory
+/// stark table.
 #[must_use]
 pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(MAP.clk),
         Column::single(MAP.addr),
         Column::single(MAP.value),
-        Column::single(MAP.is_sh),
-        Column::single(MAP.is_lhu),
-        // Column::single(MAP.is_writable),
+        Column::single(MAP.is_sb),
+        Column::single(MAP.is_lbu),
     ]
 }
 
-/// Column for a binary filter to indicate a lookup from the Halfword table into
+/// Column for a binary filter to indicate a lookup from the CPU table into
 /// Memory stark table.
 #[must_use]
 pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
     let mem = MAP.map(Column::from);
-    mem.is_sh + mem.is_lhu
+    mem.is_sb + mem.is_lbu + mem.is_init
 }
