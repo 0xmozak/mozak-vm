@@ -60,22 +60,18 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         // We create a virtual column known as `is_used`, which flags a row as
         // being 'used' if it any one of the filter columns are turned on.
         // This is to differentiate between real rows and padding rows.
-        let local_is_used = lv.ops.is_used();
-        let next_is_used = nv.ops.is_used();
 
         // Constraint 2: filter columns take 0 or 1 values only.
         is_binary(yield_constr, lv.ops.is_init);
         is_binary(yield_constr, lv.ops.is_read);
         is_binary(yield_constr, lv.ops.is_write);
-        is_binary(yield_constr, local_is_used);
+        is_binary(yield_constr, lv.is_used());
 
         // Constraint 3: virtual `is_used` column can only take values 0 or 1.
-        // (local_is_used - next_is_used - 1) is expressed as such, because
-        // local_is_used = 1 in the last real row, and
-        // next_is_used = 0 in the first padding row.
-        yield_constr.constraint_transition(
-            (next_is_used - local_is_used) * (local_is_used - next_is_used - P::ONES),
-        );
+        // (lv.is_used() - nv.is_used() - 1) is expressed as such, because
+        // lv.is_used() = 1 in the last real row, and
+        // nv.is_used() = 0 in the first padding row.
+        yield_constr.constraint_transition(nv.is_used() * (nv.is_used() - lv.is_used()));
 
         // Constraint 4: only rd changes.
         // We reformulate the above constraint as such:

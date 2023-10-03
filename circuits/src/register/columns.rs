@@ -1,3 +1,5 @@
+use core::ops::Add;
+
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
@@ -17,10 +19,6 @@ pub struct Ops<T> {
 
     /// Binary filter column that marks a row as a register write.
     pub is_write: T,
-}
-
-impl<T: core::ops::Add<Output = T>> Ops<T> {
-    pub fn is_used(self) -> T { self.is_init + self.is_read + self.is_write }
 }
 
 #[must_use]
@@ -86,4 +84,8 @@ pub struct Register<T> {
 
     /// Columns that indicate what action is taken on the register.
     pub ops: Ops<T>,
+}
+
+impl<T: Add<Output = T>> Register<T> {
+    pub fn is_used(self) -> T { self.ops.is_init + self.ops.is_read + self.ops.is_write }
 }
