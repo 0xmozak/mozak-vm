@@ -143,8 +143,8 @@ pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
         Column::single(MAP.clk),
         Column::single(MAP.addr),
         Column::single(MAP.value),
-        Column::single(MAP.is_sb),
-        Column::single(MAP.is_lbu),
+        Column::single(MAP.is_store),
+        Column::single(MAP.is_load_unsigned),
     ]
 }
 
@@ -153,5 +153,5 @@ pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
 #[must_use]
 pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
     let mem = MAP.map(Column::from);
-    mem.is_sb + mem.is_lbu + mem.is_init
+    mem.is_store + mem.is_load_unsigned
 }
