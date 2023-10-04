@@ -61,8 +61,7 @@ pub fn generate_cpu_trace<F: RichField>(
             // NOTE: Updated value of DST register is next step.
             dst_value: from_u32(aux.dst_val), /* TODO(Supragya): Change, to derive from
                                                * `mem_access_raw` */
-            is_dst_signed: F::ZERO, // TODO(Supragya): Fix these before merge
-            dst_sign_bit: F::ZERO,  // TODO(Supragya): Fix these before merge
+            dst_sign_bit: F::ZERO, // TODO(Supragya): Fix these before merge
             mem_access_raw: from_u32(aux.dst_val),
             is_running: F::from_bool(!state.halted),
             // Valid defaults for the powers-of-two gadget.

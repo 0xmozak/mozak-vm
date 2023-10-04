@@ -36,7 +36,7 @@ pub(crate) fn signed_constraints<P: PackedField>(
     // When op2 is not signed as per instruction semantics, op2_sign_bit must be 0.
     yield_constr.constraint((P::ONES - lv.inst.is_op2_signed) * lv.op2_sign_bit);
     // When dst is not signed as per instruction semantics, dst_sign_bit must be 0.
-    yield_constr.constraint((P::ONES - lv.is_dst_signed) * lv.dst_sign_bit);
+    yield_constr.constraint((P::ONES - lv.inst.is_dst_signed) * lv.dst_sign_bit);
 }
 
 pub(crate) fn slt_constraints<P: PackedField>(

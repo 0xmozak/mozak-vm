@@ -61,6 +61,7 @@ pub struct Instruction<T> {
     pub ops: OpSelectors<T>,
     pub is_op1_signed: T,
     pub is_op2_signed: T,
+    pub is_dst_signed: T,
     /// Selects the register to use as source for `rs1`
     pub rs1_select: [T; 32],
     /// Selects the register to use as source for `rs2`
@@ -93,7 +94,6 @@ pub struct CpuState<T> {
     /// `dst_value` contains "correct" (modified from `mem_access_raw` for
     /// signed operations) value targetted towards `dst`.
     pub dst_value: T,
-    pub is_dst_signed: T,
     pub dst_sign_bit: T,
 
     /// `mem_access_raw` contains values fetched or stored into the memory
