@@ -1,5 +1,5 @@
 //! This module implements constraints for memory access, both for load and
-//! store Supported operators include: `SB` 'Save Byte', `LB` and `LBU` 'Load
+//! store. Supported operators include: `SB` 'Save Byte', `LB` and `LBU` 'Load
 //! Byte' and 'Load Byte Unsigned'
 
 use plonky2::field::extension::FieldExtension;
@@ -64,6 +64,24 @@ mod tests {
 
         Stark::prove_and_verify(&program, &record).unwrap();
     }
+
+    fn prove_lb<Stark: ProveAndVerify>(a: u32, b: u32) {
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::LB,
+                args: Args {
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, a), (7, b)],
+        );
+
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
     // NOTE: prove_lbu fails with MozakSnark
     fn prove_lbu<Stark: ProveAndVerify>(a: u32, b: u32) {
         let (program, record) = simple_test_code(
@@ -115,6 +133,11 @@ mod tests {
         #[test]
         fn prove_sb_cpu(a in u32_extra(), b in u32_extra()) {
             prove_sb::<CpuStark<F, D>>(a, b);
+        }
+
+        #[test]
+        fn prove_lb_cpu(a in u32_extra(), b in u32_extra()) {
+            prove_lb::<CpuStark<F, D>>(a, b);
         }
 
         #[test]
