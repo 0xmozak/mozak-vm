@@ -251,7 +251,7 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(MAP.cpu.clk),
         Column::single(MAP.cpu.inst.ops.sb),
-        Column::single(MAP.cpu.inst.ops.lb),
+        Column::single(MAP.cpu.inst.ops.lb), // For both `LB` and `LBU`
         Column::single(MAP.cpu.mem_access_raw),
         Column::single(MAP.cpu.mem_addr),
     ]
