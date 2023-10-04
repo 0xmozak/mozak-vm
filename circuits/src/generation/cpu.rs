@@ -51,7 +51,6 @@ pub fn generate_cpu_trace<F: RichField>(
 
     for Row { state, aux } in chain![executed, last_row] {
         let inst = state.current_instruction(program);
-        let mem_access_raw = from_u32(aux.dst_val);
 
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
@@ -61,8 +60,8 @@ pub fn generate_cpu_trace<F: RichField>(
             op2_value_overflowing: from_u32::<F>(state.get_register_value(inst.args.rs2))
                 + from_u32(inst.args.imm),
             // NOTE: Updated value of DST register is next step.
-            dst_value: mem_access_raw,
-            mem_access_raw,
+            dst_value: from_u32(aux.dst_val),
+            mem_access_raw: from_u32(aux.mem.unwrap_or_default().1),
             is_running: F::from_bool(!state.halted),
             // Valid defaults for the powers-of-two gadget.
             // To be overridden by users of the gadget.
@@ -227,7 +226,6 @@ fn memory_sign_handling<F: RichField>(row: &mut CpuState<F>, inst: &Instruction,
         Op::LB => aux.dst_val >= 1 << 7,
         _ => false,
     });
-    row.mem_access_raw = F::from_canonical_u32(aux.mem.unwrap_or_default().1);
 }
 
 #[allow(clippy::cast_possible_wrap)]
