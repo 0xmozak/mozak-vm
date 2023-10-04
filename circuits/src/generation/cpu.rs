@@ -12,7 +12,7 @@ use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::stark::utils::transpose_trace;
-use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend, sign_extend_u8};
+use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend};
 use crate::xor::columns::XorView;
 
 #[must_use]
@@ -82,6 +82,7 @@ pub fn generate_cpu_trace<F: RichField>(
         generate_mul_row(&mut row, aux);
         generate_div_row(&mut row, &inst, aux);
         generate_sign_handling(&mut row, aux);
+        memory_sign_handling(&mut row, &inst, aux);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
     }
@@ -219,26 +220,21 @@ fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
     row.op2_value_inv = from_u32::<F>(aux.op2).try_inverse().unwrap_or_default();
 }
 
+fn memory_sign_handling<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
+    // sign extension needs to be from `u8` in case of `LB`
+    // TODO: add LB support
+    row.dst_sign_bit = F::from_bool(match inst.op {
+        Op::LB => aux.dst_val >= 1 << 7,
+        _ => false,
+    });
+    row.mem_access_raw = F::from_canonical_u32(aux.mem.unwrap_or_default().1);
+}
+
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_lossless)]
 fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
     let op1_full_range = sign_extend(row.inst.is_op1_signed.is_nonzero(), aux.op1);
     let op2_full_range = sign_extend(row.inst.is_op2_signed.is_nonzero(), aux.op2);
-    // sign extension needs to be from `u8` in case of `LB`
-    if row.inst.ops.lb.is_nonzero() {
-        row.dst_sign_bit = F::from_bool(
-            sign_extend_u8(
-                row.inst.is_dst_signed.is_nonzero(),
-                aux.dst_val.try_into().unwrap_or_default(),
-            ) < 0,
-        );
-
-        if row.dst_sign_bit.is_nonzero() {
-            row.dst_value = row.mem_access_raw + from_u32(0xFFFF_FF00);
-        }
-    }
-    // and sign extension needs to be from `u16` in case of `LH`
-    // TODO: Implement case from `row.inst.ops.lh.is_nonzero()` when `LH` supported
 
     row.op1_sign_bit = F::from_bool(op1_full_range < 0);
     row.op2_sign_bit = F::from_bool(op2_full_range < 0);
