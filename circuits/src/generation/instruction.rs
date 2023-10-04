@@ -25,7 +25,7 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
         };
         *match inst.op {
             Op::ADD => &mut cols.ops.add,
-            Op::LBU | Op::LB => &mut cols.ops.lbu,
+            Op::LBU | Op::LB => &mut cols.ops.lb,
             Op::SLL => &mut cols.ops.sll,
             Op::SLT | Op::SLTU => &mut cols.ops.slt,
             Op::SB => &mut cols.ops.sb,

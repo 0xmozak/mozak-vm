@@ -57,3 +57,13 @@ pub fn sign_extend(is_signed: bool, x: u32) -> i64 {
         i64::from(x)
     }
 }
+
+#[must_use]
+#[allow(clippy::cast_possible_wrap)]
+pub fn sign_extend_u8(is_signed: bool, x: u8) -> i64 {
+    if is_signed {
+        i64::from(x as i8)
+    } else {
+        i64::from(x)
+    }
+}

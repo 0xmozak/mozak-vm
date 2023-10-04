@@ -38,9 +38,9 @@ pub struct OpSelectors<T> {
     pub bne: T,
     /// Store Byte
     pub sb: T,
-    /// Load Byte Unsigned and places it in the least significant byte position
-    /// of the target register.
-    pub lbu: T,
+    /// Load Byte (includes unsigned version LBU) and places it
+    /// in the least significant byte position of the target register.
+    pub lb: T,
     /// Branch Less Than
     pub blt: T,
     /// Branch Greater or Equal
@@ -251,7 +251,7 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(MAP.cpu.clk),
         Column::single(MAP.cpu.inst.ops.sb),
-        Column::single(MAP.cpu.inst.ops.lbu),
+        Column::single(MAP.cpu.inst.ops.lb),
         Column::single(MAP.cpu.mem_access_raw),
         Column::single(MAP.cpu.mem_addr),
     ]
@@ -272,7 +272,7 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
 
     // TODO: Add other mem ops like SH, SW, LB, LW, LH, LHU as we implement the
     // constraints.
-    pub fn mem_ops(self) -> T { self.sb + self.lbu }
+    pub fn mem_ops(self) -> T { self.sb + self.lb }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.

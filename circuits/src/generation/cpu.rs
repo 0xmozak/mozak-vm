@@ -12,7 +12,7 @@ use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::stark::utils::transpose_trace;
-use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend};
+use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend, sign_extend_u8};
 use crate::xor::columns::XorView;
 
 #[must_use]
@@ -51,6 +51,8 @@ pub fn generate_cpu_trace<F: RichField>(
 
     for Row { state, aux } in chain![executed, last_row] {
         let inst = state.current_instruction(program);
+        let mem_access_raw = from_u32(aux.dst_val);
+
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
             inst: cpu_cols::Instruction::from((state.get_pc(), inst)).map(from_u32),
@@ -59,10 +61,8 @@ pub fn generate_cpu_trace<F: RichField>(
             op2_value_overflowing: from_u32::<F>(state.get_register_value(inst.args.rs2))
                 + from_u32(inst.args.imm),
             // NOTE: Updated value of DST register is next step.
-            dst_value: from_u32(aux.dst_val), /* TODO(Supragya): Change, to derive from
-                                               * `mem_access_raw` */
-            dst_sign_bit: F::ZERO, // TODO(Supragya): Fix these before merge
-            mem_access_raw: from_u32(aux.dst_val),
+            dst_value: mem_access_raw,
+            mem_access_raw,
             is_running: F::from_bool(!state.halted),
             // Valid defaults for the powers-of-two gadget.
             // To be overridden by users of the gadget.
@@ -224,9 +224,21 @@ fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
 fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
     let op1_full_range = sign_extend(row.inst.is_op1_signed.is_nonzero(), aux.op1);
     let op2_full_range = sign_extend(row.inst.is_op2_signed.is_nonzero(), aux.op2);
+    // Sign extend `dst` from `u32`
+    let mut dst_full_range = sign_extend(row.inst.is_dst_signed.is_nonzero(), aux.dst_val);
+    // However, sign extension needs to be from `u8` in case of `LB`
+    if row.inst.ops.lb.is_nonzero() {
+        dst_full_range = sign_extend_u8(
+            row.inst.is_dst_signed.is_nonzero(),
+            aux.dst_val.try_into().unwrap_or_default(),
+        );
+    }
+    // and sign extension needs to be from `u16` in case of `LH`
+    // TODO: Implement case from `row.inst.ops.lh.is_nonzero()` when `LH` supported
 
     row.op1_sign_bit = F::from_bool(op1_full_range < 0);
     row.op2_sign_bit = F::from_bool(op2_full_range < 0);
+    row.dst_sign_bit = F::from_bool(dst_full_range < 0);
 
     row.less_than = F::from_bool(op1_full_range < op2_full_range);
     let abs_diff = op1_full_range.abs_diff(op2_full_range);
