@@ -18,10 +18,12 @@ use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
+use crate::generation::register::generate_register_trace;
 use crate::generation::registerinit::generate_register_init_trace;
 use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
+use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::stark::mozak_stark::{MozakStark, PublicInputs};
 use crate::stark::prover::prove;
@@ -198,6 +200,26 @@ impl ProveAndVerify for RegisterInitStark<F, D> {
 
         let stark = S::default();
         let trace = generate_register_init_trace::<F>();
+        let trace_poly_values = trace_rows_to_poly_values(trace);
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            [],
+            &mut TimingTree::default(),
+        )?;
+
+        verify_stark_proof(stark, proof, &config)
+    }
+}
+
+impl ProveAndVerify for RegisterStark<F, D> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+        type S = RegisterStark<F, D>;
+        let config = standard_faster_config();
+
+        let stark = S::default();
+        let trace = generate_register_trace::<F>(program, record);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
             stark,
