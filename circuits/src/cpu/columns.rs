@@ -99,7 +99,7 @@ pub struct CpuState<T> {
     /// `mem_access_raw` contains values fetched or stored into the memory
     /// table. These values are always unsigned by nature (as mem table does
     /// not differentiate between signed and unsigned values).
-    pub mem_access_raw: T,
+    pub mem_value_raw: T,
 
     /// Values of the registers.
     pub regs: [T; 32],
@@ -266,7 +266,7 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
         Column::single(MAP.cpu.clk),
         Column::single(MAP.cpu.inst.ops.sb),
         Column::single(MAP.cpu.inst.ops.lb), // For both `LB` and `LBU`
-        Column::single(MAP.cpu.mem_access_raw),
+        Column::single(MAP.cpu.mem_value_raw),
         Column::single(MAP.cpu.mem_addr),
     ]
 }

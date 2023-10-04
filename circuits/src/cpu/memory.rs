@@ -24,7 +24,7 @@ pub(crate) fn signed_constraints<F, FE, P, const D2: usize>(
 
     // Ensure `mem_access_raw` and `dst_value` are similar if unsigned operation
     yield_constr.constraint(
-        lv.inst.ops.lb * (P::ONES - lv.inst.is_dst_signed) * (lv.dst_value - lv.mem_access_raw),
+        lv.inst.ops.lb * (P::ONES - lv.inst.is_dst_signed) * (lv.dst_value - lv.mem_value_raw),
     );
 
     // Ensure `dst_value` is `0xFFFF_FF00` greater than
@@ -32,7 +32,7 @@ pub(crate) fn signed_constraints<F, FE, P, const D2: usize>(
     yield_constr.constraint(
         lv.inst.ops.lb
             * lv.dst_sign_bit
-            * (lv.dst_value - (lv.mem_access_raw + FE::from_canonical_u32(0xFFFF_FF00))),
+            * (lv.dst_value - (lv.mem_value_raw + FE::from_canonical_u32(0xFFFF_FF00))),
     );
 }
 

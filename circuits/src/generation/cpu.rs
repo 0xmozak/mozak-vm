@@ -69,7 +69,7 @@ pub fn generate_cpu_trace<F: RichField>(
             bitshift: Bitshift::from(0).map(F::from_canonical_u64),
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().0),
-            mem_access_raw: from_u32(aux.mem.unwrap_or_default().1),
+            mem_value_raw: from_u32(aux.mem.unwrap_or_default().1),
             ..CpuState::default()
         };
 
