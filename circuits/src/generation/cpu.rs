@@ -61,7 +61,6 @@ pub fn generate_cpu_trace<F: RichField>(
                 + from_u32(inst.args.imm),
             // NOTE: Updated value of DST register is next step.
             dst_value: from_u32(aux.dst_val),
-            mem_access_raw: from_u32(aux.mem.unwrap_or_default().1),
             is_running: F::from_bool(!state.halted),
             // Valid defaults for the powers-of-two gadget.
             // To be overridden by users of the gadget.
@@ -70,6 +69,7 @@ pub fn generate_cpu_trace<F: RichField>(
             bitshift: Bitshift::from(0).map(F::from_canonical_u64),
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().0),
+            mem_access_raw: from_u32(aux.mem.unwrap_or_default().1),
             ..CpuState::default()
         };
 
