@@ -68,9 +68,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
 
         // Constraint 3: only rd changes.
         // We reformulate the above constraint as such:
-        // For any register, only `is_write`, `is_init` or the virtual `is_used`
-        // column should be able to change values of registers.
-        // `is_read` should not change the values of registers.
+        // For any register, if the current op is not `is_write`,
+        // the next value should remain the same as the local value.
         yield_constr.constraint_transition(
             (P::ONES - lv.ops.is_write) * (nv.addr - lv.addr - P::ONES) * (nv.value - lv.value),
         );
