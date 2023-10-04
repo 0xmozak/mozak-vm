@@ -1,0 +1,18 @@
+[package]
+categories = ["proc-macro"]
+description = "A simple derive macro for the Display trait"
+edition = "2021"
+keywords = ["derive", "display", "macro"]
+license = "All rights reserved"
+name = "simple-display-derive"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-vm"
+version = "0.1.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.67"
+quote = "1.0.33"
+syn = { version = "2.0.37", features = ["full"] }

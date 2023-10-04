@@ -888,6 +888,7 @@ dependencies = [
  "proptest",
  "rayon",
  "serde",
+ "simple-display-derive",
  "starky",
  "thiserror",
  "tikv-jemallocator",
@@ -1525,6 +1526,15 @@ dependencies = [
  "is_debug",
  "time",
  "tzdb",
+]
+
+[[package]]
+name = "simple-display-derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.37",
 ]
 
 [[package]]

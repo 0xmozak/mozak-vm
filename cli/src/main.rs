@@ -8,6 +8,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clio::{Input, Output};
 use log::debug;
+use mozak_circuits::cpu::stark::CpuStark;
 use mozak_circuits::generation::memoryinit::generate_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
@@ -114,6 +115,7 @@ fn load_program(mut elf: Input) -> Result<Program> {
 #[rustfmt::skip]
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi iotape.txt`
 fn main() -> Result<()> {
+    println!("{}", CpuStark::<(), 2>{_f: std::marker::PhantomData});
     let cli = Cli::parse();
     let config = standard_faster_config();
     env_logger::Builder::new()

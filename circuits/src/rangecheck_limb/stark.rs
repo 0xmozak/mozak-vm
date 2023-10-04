@@ -1,11 +1,11 @@
 use std::borrow::Borrow;
-use std::fmt::Display;
 use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use simple_display_derive::SimpleDisplay;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
@@ -13,16 +13,10 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 use super::columns::RangeCheckLimb;
 use crate::columns_view::NumberOfColumns;
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, SimpleDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RangeCheckLimbStark<F, const D: usize> {
     pub _f: PhantomData<F>,
-}
-
-impl<F, const D: usize> Display for RangeCheckLimbStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "RangeCheckLimbStark")
-    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckLimbStark<F, D> {

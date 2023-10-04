@@ -1,5 +1,4 @@
 use std::borrow::Borrow;
-use std::fmt::Display;
 use std::marker::PhantomData;
 
 use itertools::izip;
@@ -8,6 +7,7 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use simple_display_derive::SimpleDisplay;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
@@ -20,14 +20,10 @@ use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::utils::is_binary;
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, SimpleDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {
     pub _f: PhantomData<F>,
-}
-
-impl<F, const D: usize> Display for CpuStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "CpuStark") }
 }
 
 impl<P: PackedField> OpSelectors<P> {

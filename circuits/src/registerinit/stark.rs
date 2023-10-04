@@ -1,11 +1,11 @@
 use std::borrow::Borrow;
-use std::fmt::Display;
 use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use simple_display_derive::SimpleDisplay;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
@@ -14,16 +14,10 @@ use super::columns::RegisterInit;
 use crate::columns_view::NumberOfColumns;
 use crate::stark::utils::is_binary;
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SimpleDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RegisterInitStark<F, const D: usize> {
     pub _f: PhantomData<F>,
-}
-
-impl<F, const D: usize> Display for RegisterInitStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "RegisterInitStark")
-    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterInitStark<F, D> {
