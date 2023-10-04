@@ -1,3 +1,40 @@
+//! This module implements constraints for memory access, both for load and
+//! store Supported operators include: `SB` 'Save Byte', `LB` and `LBU` 'Load
+//! Byte' and 'Load Byte Unsigned'
+
+use plonky2::field::extension::FieldExtension;
+use plonky2::field::packed::PackedField;
+use starky::constraint_consumer::ConstraintConsumer;
+
+use super::columns::CpuState;
+use crate::stark::utils::is_binary;
+
+/// Ensure that `dst_value` and `mem_access_raw` only differ
+/// in case of `LB` and only by `0xFFFF_FF00`
+pub(crate) fn signed_constraints<F, FE, P, const D2: usize>(
+    lv: &CpuState<P>,
+    yield_constr: &mut ConstraintConsumer<P>,
+) where
+    FE: FieldExtension<D2, BaseField = F>,
+    P: PackedField<Scalar = FE>, {
+    is_binary(yield_constr, lv.dst_sign_bit);
+    // When dst is not signed as per instruction semantics, dst_sign_bit must be 0.
+    yield_constr.constraint((P::ONES - lv.inst.is_dst_signed) * lv.dst_sign_bit);
+
+    // Ensure `mem_access_raw` and `dst_value` are similar if unsigned operation
+    yield_constr.constraint(
+        lv.inst.ops.lb * (P::ONES - lv.inst.is_dst_signed) * (lv.dst_value - lv.mem_access_raw),
+    );
+
+    // Ensure `dst_value` is `0xFFFF_FF00` greater than
+    // `mem_access_raw` in case `dst_sign_bit` is set
+    yield_constr.constraint(
+        lv.inst.ops.lb
+            * lv.dst_sign_bit
+            * (lv.dst_value - (lv.mem_access_raw + FE::from_canonical_u32(0xFFFF_FF00))),
+    );
+}
+
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
