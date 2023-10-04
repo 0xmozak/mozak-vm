@@ -23,81 +23,85 @@ pub struct Args {
 #[repr(u8)]
 pub enum Op {
     // RV32I Base Integer Instructions
-    // ADD: rd = rs1 + rs2 / ADDI: rd = rs1 + imm
+    /// ADD: rd = rs1 + rs2
+    /// ADDI: rd = rs1 + imm
     ADD,
-    // SUB: rd = rs1 - rs2
+    /// SUB: rd = rs1 - rs2
     SUB,
-    // XOR: rd = rs1 ^ rs2 / XOR Immediate: rd = rs1 ˆ imm
+    /// XOR: rd = rs1 ^ rs2
+    /// XOR Immediate: rd = rs1 ˆ imm
     XOR,
-    // OR: rd = rs1 | rs2 / OR Immediate: rd = rs1 | imm
+    /// OR: rd = rs1 | rs2
+    /// OR Immediate: rd = rs1 | imm
     OR,
-    // AND: rd = rs1 & rs2 / AND Immediate: rd = rs1 & imm
+    /// AND: rd = rs1 & rs2
+    /// AND Immediate: rd = rs1 & imm
     AND,
-    // Shift Left Logical: rd = rs1 << rs2 /
-    // Shift Left Logical Immediate: rd = rs1 << imm[0:4]
+    /// Shift Left Logical: rd = rs1 << rs2
+    /// Shift Left Logical Immediate: rd = rs1 << imm[0:4]
     SLL,
-    // Shift Right Logical: rd = rs1 >> rs2 /
-    // Shift Right Logical Immediate: rd = rs1 >> imm[0:4]
+    /// Shift Right Logical: rd = rs1 >> rs2
+    /// Shift Right Logical Immediate: rd = rs1 >> imm[0:4]
     SRL,
-    // Shift Right Arithmetic: rd = rs1 >> rs2 /
-    // Shift Right Arithmetic Immediate: rd = rs1 >> imm[0:4]
+    /// Shift Right Arithmetic: rd = rs1 >> rs2
+    /// Shift Right Arithmetic Immediate: rd = rs1 >> imm[0:4]
     SRA,
-    // Set Less Than: rd = (rs1 < rs2)?1:0 /
-    // Set Less Than Immediate: rd = (rs1 < imm)?1:0
+    /// Set Less Than: rd = (rs1 < rs2)?1:0
+    /// Set Less Than Immediate: rd = (rs1 < imm)?1:0
     SLT,
-    // Set Less Than (U): rd = (rs1 < rs2)?1:0 /
-    // Set Less Than Immediate (U): rd = (rs1 < imm)?1:0
+    /// Set Less Than (U): rd = (rs1 < rs2)?1:0
+    /// Set Less Than Immediate (U): rd = (rs1 < imm)?1:0
     SLTU,
-    // Load Byte: rd = M[rs1+imm][0:7]
+    /// Load Byte: rd = M[rs1+imm][0:7]
     LB,
-    // Load Half: rd = M[rs1+imm][0:15]
+    /// Load Half: rd = M[rs1+imm][0:15]
     LH,
-    // Load Word: rd = M[rs1+imm][0:31]
+    /// Load Word: rd = M[rs1+imm][0:31]
     LW,
-    // Load Byte (U): rd = M[rs1+imm][0:7]
+    /// Load Byte (U): rd = M[rs1+imm][0:7]
     LBU,
-    // Load Half (U): rd = M[rs1+imm][0:15]
+    /// Load Half (U): rd = M[rs1+imm][0:15]
     LHU,
-    // Store Byte: M[rs1+imm][0:7] = rs2[0:7]
+    /// Store Byte: M[rs1+imm][0:7] = rs2[0:7]
     SB,
-    // Store Half: M[rs1+imm][0:15] = rs2[0:15]
+    /// Store Half: M[rs1+imm][0:15] = rs2[0:15]
     SH,
-    // Store Word: M[rs1+imm][0:31] = rs2[0:31]
+    /// Store Word: M[rs1+imm][0:31] = rs2[0:31]
     SW,
-    // Branch == : if(rs1 == rs2) PC += imm
+    /// Branch == : if(rs1 == rs2) PC += imm
     BEQ,
-    // Branch != : if(rs1 != rs2) PC += imm
+    /// Branch != : if(rs1 != rs2) PC += imm
     BNE,
-    // Branch < : if(rs1 < rs2) PC += imm
+    /// Branch < : if(rs1 < rs2) PC += imm
     BLT,
-    // Branch >= : if(rs1 >= rs2) PC += imm
+    /// Branch >= : if(rs1 >= rs2) PC += imm
     BGE,
-    // Branch < (U) : if(rs1 < rs2) PC += imm
+    /// Branch < (U) : if(rs1 < rs2) PC += imm
     BLTU,
-    // Branch >= (U) : if(rs1 >= rs2) PC += imm
+    /// Branch >= (U) : if(rs1 >= rs2) PC += imm
     BGEU,
-    // Jump And Link Reg: rd = PC+4; PC = rs1 + imm
+    /// Jump And Link Reg: rd = PC+4; PC = rs1 + imm
     JALR,
 
-    // Environment Call: Transfer Control to OS
+    /// Environment Call: Transfer Control to OS
     ECALL,
 
     // RV32M Multiply Extension
-    // MUL: rd = (rs1 * rs2)[31:0]
+    /// MUL: rd = (rs1 * rs2)[31:0]
     MUL,
-    // MUL High: rd = (rs1 * rs2)[63:32]
+    /// MUL High: rd = (rs1 * rs2)[63:32]
     MULH,
-    // MUL High (S) (U): rd = (rs1 * rs2)[63:32]
+    /// MUL High (S) (U): rd = (rs1 * rs2)[63:32]
     MULHU,
-    // MUL High (U): rd = (rs1 * rs2)[63:32]
+    /// MUL High (U): rd = (rs1 * rs2)[63:32]
     MULHSU,
-    // DIV: rd = (rs1 / rs2)
+    /// DIV: rd = (rs1 / rs2)
     DIV,
-    // DIV (U): rd = (rs1 / rs2)
+    /// DIV (U): rd = (rs1 / rs2)
     DIVU,
-    // Remainder: rd = (rs1 % rs2)
+    /// Remainder: rd = (rs1 % rs2)
     REM,
-    // Remainder (U): rd = (rs1 % rs2)
+    /// Remainder (U): rd = (rs1 % rs2)
     REMU,
 
     #[default]
