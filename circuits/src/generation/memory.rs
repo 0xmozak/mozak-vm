@@ -42,13 +42,13 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
         })
         .map(|row| {
             let addr: F = get_memory_inst_addr(row);
-            let addr_u32: u32 = addr
+            let _: u32 = addr
                 .to_canonical_u64()
                 .try_into()
                 .expect("casting addr (F) to u32 should not fail");
             let op = &(row.state).current_instruction(program).op;
             Memory {
-                is_writable: F::from_bool(program.rw_memory.contains_key(&addr_u32)),
+                is_writable: F::ZERO,
                 addr,
                 clk: get_memory_inst_clk(row),
                 is_store: F::from_bool(matches!(op, Op::SB)),
@@ -109,6 +109,7 @@ pub fn generate_memory_trace<F: RichField>(
     // relation values: clock difference and addr difference and is_writable
     let mut last_clk = F::ZERO;
     let mut last_addr = F::ZERO;
+    let mut last_is_writable = F::ZERO;
     for mem in &mut merged_trace {
         mem.diff_addr = mem.addr - last_addr;
         mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
@@ -116,6 +117,11 @@ pub fn generate_memory_trace<F: RichField>(
             mem.diff_clk = mem.clk - last_clk;
         }
         (last_clk, last_addr) = (mem.clk, mem.addr);
+        // rows with is_init set are the source of truth about is_writable
+        if mem.is_init.is_one() {
+            last_is_writable = mem.is_writable;
+        }
+        mem.is_writable = last_is_writable;
     }
 
     // If the trace length is not a power of two, we need to extend the trace to the
