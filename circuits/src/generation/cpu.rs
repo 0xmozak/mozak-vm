@@ -221,7 +221,7 @@ fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
 
 fn memory_sign_handling<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
     // sign extension needs to be from `u8` in case of `LB`
-    // TODO: add LB support
+    // TODO: add LH support
     row.dst_sign_bit = F::from_bool(match inst.op {
         Op::LB => aux.dst_val >= 1 << 7,
         _ => false,
