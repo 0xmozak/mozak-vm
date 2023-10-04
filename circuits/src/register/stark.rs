@@ -68,13 +68,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
 
         // Constraint 3: only rd changes.
         // We reformulate the above constraint as such:
-        // Given 2 trace rows of the same register, the values should not change if the
-        // register is not being written to in the first row, or if the register
-        // is not being initialized in the second row, ie. address did not
-        // change.
-        yield_constr.constraint_transition(
-            (P::ONES - lv.ops.is_write) * (P::ONES - nv.ops.is_init) * (nv.value - lv.value),
-        );
+        // For any register, only `is_write`, `is_init` or the virtual `is_used`
+        // column should be able to change values of registers.
+        // `is_read` should not change the values of registers.
+        yield_constr.constraint_transition(nv.ops.is_read * (nv.value - lv.value));
 
         // Constraint 4: Address changes only when nv.is_init == 1.
         // We reformulate the above constraint to be:
