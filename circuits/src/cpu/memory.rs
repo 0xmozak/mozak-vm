@@ -10,7 +10,8 @@ use super::columns::CpuState;
 use crate::stark::utils::is_binary;
 
 /// Ensure that `dst_value` and `mem_access_raw` only differ
-/// in case of `LB` and only by `0xFFFF_FF00`
+/// in case of `LB` and only by `0xFFFF_FF00`. The correctness
+/// of value presented in `dst_sign_bit` is ensured via range-check
 pub(crate) fn signed_constraints<F, FE, P, const D2: usize>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
