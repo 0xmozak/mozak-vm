@@ -160,7 +160,6 @@ mod tests {
         #[test]
         fn prove_register(a in u32_extra(), b in u32_extra(), imm in u32_extra(), rd in reg()) {
             prove_stark::<RegisterStark<F, D>>(a, b, imm, rd);
-            // prove_stark::<RegisterStark<F, D>>(24767, 2147483648, 2147483647, 6);
         }
     }
 }
