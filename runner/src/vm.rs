@@ -60,23 +60,40 @@ pub fn remu(a: u32, b: u32) -> u32 {
 }
 
 #[must_use]
+pub fn dup(x: u32) -> (u32, u32) { (x, x) }
+
+#[must_use]
+pub fn lbu_raw(mem: &[u8; 4]) -> u32 { mem[0].into() }
+
+#[must_use]
+pub fn lbu(mem: &[u8; 4]) -> (u32, u32) { dup(lbu_raw(mem)) }
+
+#[must_use]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
-pub fn lb(mem: &[u8; 4]) -> u32 { i32::from(mem[0] as i8) as u32 }
+#[allow(clippy::cast_possible_truncation)]
+pub fn lb(mem: &[u8; 4]) -> (u32, u32) {
+    let raw = lbu_raw(mem);
+    (raw, i32::from(raw as i8) as u32)
+}
 
 #[must_use]
-pub fn lbu(mem: &[u8; 4]) -> u32 { mem[0].into() }
+pub fn lhu_raw(mem: &[u8; 4]) -> u32 { u16::from_le_bytes([mem[0], mem[1]]).into() }
+
+#[must_use]
+pub fn lhu(mem: &[u8; 4]) -> (u32, u32) { dup(lhu_raw(mem)) }
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
-pub fn lh(mem: &[u8; 4]) -> u32 { i32::from(i16::from_le_bytes([mem[0], mem[1]])) as u32 }
+#[allow(clippy::cast_possible_truncation)]
+pub fn lh(mem: &[u8; 4]) -> (u32, u32) {
+    let raw = lhu_raw(mem);
+    (raw, i32::from(raw as i16) as u32)
+}
 
 #[must_use]
-pub fn lhu(mem: &[u8; 4]) -> u32 { u16::from_le_bytes([mem[0], mem[1]]).into() }
-
-#[must_use]
-pub fn lw(mem: &[u8; 4]) -> u32 { u32::from_le_bytes(*mem) }
+pub fn lw(mem: &[u8; 4]) -> (u32, u32) { dup(u32::from_le_bytes(*mem)) }
 
 impl State {
     #[must_use]
@@ -165,7 +182,7 @@ impl State {
         (
             Aux {
                 dst_val,
-                mem_addr: Some(addr),
+                mem: Some((addr, dst_val)),
                 ..Default::default()
             },
             (0..bytes)
@@ -857,7 +874,7 @@ mod tests {
             );
             // lh will return [0, 1] as LSBs and will set MSBs to 0xFFFF
             let state = state_before_final(&e);
-            let memory_value = lh(
+            let (_, memory_value) = lh(
                 &[
                     state.load_u8(address),
                     state.load_u8(address.wrapping_add(1)),
@@ -887,7 +904,7 @@ mod tests {
             );
 
             let state = state_before_final(&e);
-            let memory_value = lw(
+            let (_, memory_value) = lw(
                 &[
                     state.load_u8(address),
                     state.load_u8(address.wrapping_add(1)),

@@ -105,7 +105,7 @@ pub struct Aux {
     // 0 serves as a default value just fine.
     pub dst_val: u32,
     pub new_pc: u32,
-    pub mem_addr: Option<u32>,
+    pub mem: Option<(u32, u32)>,
     pub will_halt: bool,
     pub op1: u32,
     pub op2: u32,
@@ -149,7 +149,7 @@ impl State {
     }
 
     #[must_use]
-    pub fn memory_load(self, data: &Args, op: fn(&[u8; 4]) -> u32) -> (Aux, Self) {
+    pub fn memory_load(self, data: &Args, op: fn(&[u8; 4]) -> (u32, u32)) -> (Aux, Self) {
         let addr: u32 = self.get_register_value(data.rs2).wrapping_add(data.imm);
         let mem = [
             self.load_u8(addr),
@@ -157,11 +157,11 @@ impl State {
             self.load_u8(addr.wrapping_add(2)),
             self.load_u8(addr.wrapping_add(3)),
         ];
-        let dst_val = op(&mem);
+        let (raw, dst_val) = op(&mem);
         (
             Aux {
                 dst_val,
-                mem_addr: Some(addr),
+                mem: Some((addr, raw)),
                 ..Default::default()
             },
             self.set_register_value(data.rd, dst_val).bump_pc(),
