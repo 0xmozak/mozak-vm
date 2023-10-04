@@ -1,12 +1,17 @@
 use std::str::from_utf8;
 
 use anyhow::{anyhow, Result};
+use log::debug;
+use plonky2::field::goldilocks_field::GoldilocksField;
+use plonky2::field::types::Field;
+use plonky2::hash::poseidon::PoseidonHash;
+use plonky2::plonk::config::{GenericHashOut, Hasher};
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
 use crate::state::{Aux, State};
 use crate::system::ecall;
-use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2};
+use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
@@ -148,6 +153,34 @@ impl State {
                     "VM panicked with msg: {}",
                     from_utf8(&msg_vec).expect("A valid utf8 VM panic message should be provided")
                 );
+            }
+            ecall::POSEIDON => {
+                let input_ptr = self.get_register_value(REG_A1);
+                // lengths are in bytes
+                let input_len = self.get_register_value(REG_A2);
+                let output_ptr = self.get_register_value(REG_A3);
+                let output_len = 32;
+                let input: Vec<GoldilocksField> = (0..input_len)
+                    .map(|i| GoldilocksField::from_canonical_u8(self.load_u8(input_ptr + i)))
+                    .collect();
+                let hash = PoseidonHash::hash_no_pad(&input).to_bytes();
+                assert!(output_len == hash.len());
+                (
+                    Aux::default(),
+                    hash.iter()
+                        .enumerate()
+                        .fold(self, |updated_self, (i, byte)| {
+                            updated_self
+                                .store_u8(
+                                    output_ptr.wrapping_add(
+                                        u32::try_from(i).expect("cannot fit i into u32"),
+                                    ),
+                                    *byte,
+                                )
+                                .unwrap()
+                        })
+                        .bump_pc(),
+                )
             }
             _ => (Aux::default(), self.bump_pc()),
         }

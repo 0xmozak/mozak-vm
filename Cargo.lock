@@ -926,6 +926,7 @@ dependencies = [
  "im",
  "itertools 0.11.0",
  "log",
+ "plonky2",
  "proptest",
  "serde",
  "serde_json",

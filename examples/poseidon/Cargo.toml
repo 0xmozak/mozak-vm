@@ -1,0 +1,12 @@
+[package]
+edition = "2021"
+name = "poseidon-example-mozak-guest"
+version = "0.1.0"
+
+[dependencies]
+guest = { path = "../../guest" }
+hex-literal = "0.2.2"
+
+[[bin]]
+name = "poseidon-example"
+path = "main.rs"
