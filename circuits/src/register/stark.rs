@@ -68,10 +68,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
 
         // Constraint 3: only rd changes.
         // We reformulate the above constraint as such:
-        // For any register, if the current op is not `is_write`,
-        // the next value should remain the same as the local value.
+        // Given 2 trace rows of the same register, the values should not change if the
+        // register is not being written to in the first row, or if the register
+        // is not being initialized in the second row, ie. address did not
+        // change.
         yield_constr.constraint_transition(
-            (P::ONES - lv.ops.is_write) * (nv.addr - lv.addr - P::ONES) * (nv.value - lv.value),
+            (P::ONES - lv.ops.is_write) * (P::ONES - nv.ops.is_init) * (nv.value - lv.value),
         );
 
         // Constraint 4: Address changes only when nv.is_init == 1.
@@ -158,6 +160,7 @@ mod tests {
         #[test]
         fn prove_register(a in u32_extra(), b in u32_extra(), imm in u32_extra(), rd in reg()) {
             prove_stark::<RegisterStark<F, D>>(a, b, imm, rd);
+            // prove_stark::<RegisterStark<F, D>>(24767, 2147483648, 2147483647, 6);
         }
     }
 }
