@@ -115,7 +115,6 @@ fn load_program(mut elf: Input) -> Result<Program> {
 #[rustfmt::skip]
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi iotape.txt`
 fn main() -> Result<()> {
-    println!("{}", CpuStark::<(), 2>{_f: std::marker::PhantomData});
     let cli = Cli::parse();
     let config = standard_faster_config();
     env_logger::Builder::new()
