@@ -38,9 +38,11 @@ pub struct OpSelectors<T> {
     pub bne: T,
     /// Store Byte
     pub sb: T,
+    pub sh: T,
     /// Load Byte Unsigned and places it in the least significant byte position
     /// of the target register.
     pub lbu: T,
+    pub lhu: T,
     /// Branch Less Than
     pub blt: T,
     /// Branch Greater or Equal
@@ -250,7 +252,29 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> { MAP.cpu.map(Column::from).inst.ops.mem_ops() }
+pub fn filter_for_memory<F: Field>() -> Column<F> {
+    MAP.cpu.map(Column::from).inst.ops.byte_mem_ops()
+}
+
+/// Column containing the data to be matched against Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
+    vec![
+        Column::single(MAP.cpu.clk),
+        Column::single(MAP.cpu.mem_addr),
+        Column::single(MAP.cpu.dst_value),
+        Column::single(MAP.cpu.inst.ops.sh),
+        Column::single(MAP.cpu.inst.ops.lhu),
+    ]
+}
+
+/// Column for a binary filter for memory instruction in Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
+    MAP.cpu.map(Column::from).inst.ops.halfword_mem_ops()
+}
 
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
@@ -262,7 +286,9 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
 
     // TODO: Add other mem ops like SH, SW, LB, LW, LH, LHU as we implement the
     // constraints.
-    pub fn mem_ops(self) -> T { self.sb + self.lbu }
+    pub fn byte_mem_ops(self) -> T { self.sb + self.lbu }
+
+    pub fn halfword_mem_ops(self) -> T { self.sh + self.lhu }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.

@@ -16,6 +16,7 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
 use crate::memory::stark::MemoryStark;
+use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
@@ -25,6 +26,7 @@ use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
 use crate::xor::stark::XorStark;
 
+#[allow(clippy::too_many_lines)]
 pub fn verify_proof<F, C, const D: usize>(
     mozak_stark: MozakStark<F, D>,
     all_proof: AllProof<F, C, D>,
@@ -43,6 +45,7 @@ where
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
+    [(); HalfWordMemoryStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let AllProofChallenges {
         stark_challenges,
@@ -60,6 +63,7 @@ where
         memory_init_stark,
         rangecheck_limb_stark,
         cross_table_lookups,
+        halfword_memory_stark,
         ..
     } = mozak_stark;
 
@@ -151,6 +155,15 @@ where
         &stark_challenges[TableKind::RangeCheckLimb as usize],
         [],
         &ctl_vars_per_table[TableKind::RangeCheckLimb as usize],
+        config,
+    )?;
+
+    verify_stark_proof_with_challenges::<F, C, HalfWordMemoryStark<F, D>, D>(
+        &halfword_memory_stark,
+        &all_proof.stark_proofs[TableKind::HalfWordMemory as usize],
+        &stark_challenges[TableKind::HalfWordMemory as usize],
+        [],
+        &ctl_vars_per_table[TableKind::HalfWordMemory as usize],
         config,
     )?;
 

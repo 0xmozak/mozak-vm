@@ -6,6 +6,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::memory::columns::Memory;
 use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk};
+use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memoryinit::columns::MemoryInit;
 use crate::stark::utils::merge_by_key;
 
@@ -74,6 +75,19 @@ pub fn transform_memory_init<F: RichField>(
         .sorted_by_key(key)
 }
 
+/// Generates Memory trace from a memory init table.
+///
+/// These need to be further interleaved with runtime memory trace generated
+/// from VM execution for final memory trace.
+pub fn transform_halfword<F: RichField>(
+    halfword_memory: &[HalfWordMemory<F>],
+) -> impl Iterator<Item = Memory<F>> {
+    halfword_memory
+        .iter()
+        .flat_map(Into::<Vec<Memory<F>>>::into)
+        .sorted_by_key(key)
+}
+
 fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64, u64, bool) {
     (
         memory.addr.to_canonical_u64(),
@@ -93,13 +107,18 @@ pub fn generate_memory_trace<F: RichField>(
     program: &Program,
     step_rows: &[Row],
     memory_init_rows: &[MemoryInit<F>],
+    halfword_memory_rows: &[HalfWordMemory<F>],
 ) -> Vec<Memory<F>> {
     // `merged_trace` is address sorted combination of static and
     // dynamic memory trace components of program (ELF and execution)
     // `merge` operation is expected to be stable
     let mut merged_trace: Vec<Memory<F>> = merge_by_key(
-        transform_memory_init::<F>(memory_init_rows),
-        generate_memory_trace_from_execution(program, step_rows),
+        merge_by_key(
+            transform_memory_init::<F>(memory_init_rows),
+            generate_memory_trace_from_execution(program, step_rows),
+            key,
+        ),
+        transform_halfword(halfword_memory_rows),
         key,
     )
     .sorted_by_key(key)
@@ -137,6 +156,7 @@ mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
+    use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::test_utils::{inv, prep_table};
@@ -153,11 +173,13 @@ mod tests {
         let (program, record) = memory_trace_test_case(1);
 
         let memory_init = generate_memory_init_trace(&program);
+        let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(
             &program,
             &record.executed,
             &memory_init,
+            &halfword_memory,
         );
         let inv = inv::<F>;
         assert_eq!(
@@ -204,7 +226,9 @@ mod tests {
         };
 
         let memory_init = generate_memory_init_trace(&program);
-        let trace = super::generate_memory_trace::<F>(&program, &[], &memory_init);
+        let halfword_memory = generate_halfword_memory_trace(&program, &[]);
+        let trace =
+            super::generate_memory_trace::<F>(&program, &[], &memory_init, &halfword_memory);
 
         let inv = inv::<F>;
         #[rustfmt::skip]
