@@ -1,3 +1,5 @@
+use core::ops::Add;
+
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
@@ -82,4 +84,11 @@ pub struct Register<T> {
 
     /// Columns that indicate what action is taken on the register.
     pub ops: Ops<T>,
+}
+
+/// We create a virtual column known as `is_used`, which flags a row as
+/// being 'used' if it any one of the ops columns are turned on.
+/// This is to differentiate between real rows and padding rows.
+impl<T: Add<Output = T>> Register<T> {
+    pub fn is_used(self) -> T { self.ops.is_init + self.ops.is_read + self.ops.is_write }
 }
