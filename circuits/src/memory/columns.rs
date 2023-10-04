@@ -61,7 +61,7 @@ impl<F: RichField> From<&MemoryInit<F>> for Option<Memory<F>> {
 
 impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
     fn from(val: &HalfWordMemory<F>) -> Self {
-        if (val.ops.is_load_unsigned + val.ops.is_store).is_zero() {
+        if (val.ops.is_load + val.ops.is_store).is_zero() {
             vec![]
         } else {
             (0..2)
@@ -70,7 +70,7 @@ impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
                     addr: val.addrs[i],
                     value: val.limbs[i],
                     is_store: val.ops.is_store,
-                    is_load: val.ops.is_load_unsigned,
+                    is_load: val.ops.is_load,
                     ..Default::default()
                 })
                 .collect()

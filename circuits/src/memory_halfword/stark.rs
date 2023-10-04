@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::fmt::Display;
 use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -9,8 +10,8 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use crate::cpu::stark::is_binary;
 use crate::memory_halfword::columns::{HalfWordMemory, NUM_HW_MEM_COLS};
+use crate::stark::utils::is_binary;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -33,7 +34,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemor
         let lv: &HalfWordMemory<P> = vars.local_values.borrow();
 
         is_binary(yield_constr, lv.ops.is_store);
-        is_binary(yield_constr, lv.ops.is_load_unsigned);
+        is_binary(yield_constr, lv.ops.is_load);
         is_binary(yield_constr, lv.is_executed());
 
         let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
@@ -57,6 +58,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemor
     }
 
     fn constraint_degree(&self) -> usize { 3 }
+}
+
+impl<F, const D: usize> Display for HalfWordMemoryStark<F, D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "HalfWordMemoryStark")
+    }
 }
 
 #[cfg(test)]
