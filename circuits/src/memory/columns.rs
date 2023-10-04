@@ -27,7 +27,7 @@ pub struct Memory<T> {
     /// Binary filter column to represent a RISC-V SB operation.
     pub is_store: T,
     /// Binary filter column to represent a RISC-V LBU operation.
-    pub is_load_unsigned: T,
+    pub is_load: T,
     /// Memory Initialisation from ELF (prior to vm execution)
     pub is_init: T,
 
@@ -70,7 +70,7 @@ impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
                     addr: val.addrs[i],
                     value: val.limbs[i],
                     is_store: val.ops.is_store,
-                    is_load_unsigned: val.ops.is_load_unsigned,
+                    is_load: val.ops.is_load_unsigned,
                     ..Default::default()
                 })
                 .collect()
@@ -81,7 +81,7 @@ impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
 impl<T: Clone + Add<Output = T>> Memory<T> {
     pub fn is_executed(&self) -> T {
         let s: Memory<T> = self.clone();
-        s.is_store + s.is_load_unsigned + s.is_init
+        s.is_store + s.is_load + s.is_init
     }
 }
 
@@ -105,7 +105,7 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(MAP.clk),
         Column::single(MAP.is_store),
-        Column::single(MAP.is_load_unsigned),
+        Column::single(MAP.is_load),
         Column::single(MAP.value),
         Column::single(MAP.addr),
     ]
@@ -116,7 +116,7 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> {
     let mem = MAP.map(Column::from);
-    mem.is_store + mem.is_load_unsigned
+    mem.is_store + mem.is_load
 }
 
 /// Columns containing the data which are looked up in the `MemoryInit` Table
@@ -144,7 +144,7 @@ pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
         Column::single(MAP.addr),
         Column::single(MAP.value),
         Column::single(MAP.is_store),
-        Column::single(MAP.is_load_unsigned),
+        Column::single(MAP.is_load),
     ]
 }
 
@@ -153,5 +153,5 @@ pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
 #[must_use]
 pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
     let mem = MAP.map(Column::from);
-    mem.is_store + mem.is_load_unsigned
+    mem.is_store + mem.is_load
 }

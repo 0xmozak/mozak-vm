@@ -16,7 +16,7 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
     trace.resize(trace.len().next_power_of_two(), Memory {
         // Some columns need special treatment..
         is_store: F::ZERO,
-        is_load_unsigned: F::ZERO,
+        is_load: F::ZERO,
         is_init: F::ZERO,
         diff_addr: F::ZERO,
         diff_addr_inv: F::ZERO,
@@ -53,7 +53,7 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
                 addr,
                 clk: get_memory_inst_clk(row),
                 is_store: F::from_bool(matches!(op, Op::SB)),
-                is_load_unsigned: F::from_bool(matches!(op, Op::LBU)),
+                is_load: F::from_bool(matches!(op, Op::LBU)),
                 is_init: F::ZERO,
                 value: F::from_canonical_u32(row.aux.dst_val),
                 ..Default::default()

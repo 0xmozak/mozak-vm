@@ -53,7 +53,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // boolean values.
         is_binary(yield_constr, lv.is_writable);
         is_binary(yield_constr, lv.is_store);
-        is_binary(yield_constr, lv.is_load_unsigned);
+        is_binary(yield_constr, lv.is_load);
         is_binary(yield_constr, lv.is_init);
         is_binary(yield_constr, lv.is_executed());
 
@@ -116,7 +116,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint((P::ONES - lv.is_writable) * lv.is_store);
 
         // For all "load" operations, the value cannot change between rows
-        yield_constr.constraint(nv.is_load_unsigned * (nv.value - lv.value));
+        yield_constr.constraint(nv.is_load * (nv.value - lv.value));
 
         // Clock constraints
         // -----------------

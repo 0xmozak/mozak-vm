@@ -31,14 +31,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemor
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
         let lv: &HalfWordMemory<P> = vars.local_values.borrow();
-        // let nv: &HalfWordMemory<P> = vars.next_values.borrow();
 
         is_binary(yield_constr, lv.ops.is_store);
         is_binary(yield_constr, lv.ops.is_load_unsigned);
-        // TBD - why it is needed ???
         is_binary(yield_constr, lv.is_executed());
 
-        // address-L1 == address + 1
         let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
         let added = lv.addrs[0] + P::ONES;
         let wrapped = added - wrap_at;
@@ -102,10 +99,6 @@ mod tests {
     }
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1))]
-        // #[test]
-        // fn prove_sb_mozak(a in u32_extra(), b in u32_extra()) {
-        //     prove_sb::<MozakStark<F, D>>(a, b);
-        // }
 
         #[test]
         fn prove_mem_read_write_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
