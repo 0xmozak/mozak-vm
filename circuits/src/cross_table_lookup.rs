@@ -436,9 +436,25 @@ mod tests {
     use super::*;
     use crate::stark::mozak_stark::{CpuTable, Lookups, RangeCheckTable};
 
+    #[allow(clippy::similar_names)]
     /// Specify which column(s) to find data related to lookups.
-    fn lookup_data<F: Field>(col_indices: &[usize]) -> Vec<Column<F>> {
-        Column::singles(col_indices)
+    /// If the lengths of `lv_col_indices` and `nv_col_indices` are not same,
+    /// then we resize smaller one with empty column and then add componentwise
+    fn lookup_data<F: Field>(lv_col_indices: &[usize], nv_col_indices: &[usize]) -> Vec<Column<F>> {
+        // use usual lv values of the rows
+        let mut lv_columns = Column::singles(lv_col_indices);
+        // use nv values of the rows
+        let mut nv_columns = Column::singles_next(nv_col_indices);
+        if lv_columns.len() < nv_columns.len() {
+            lv_columns.resize(nv_columns.len(), Column::default());
+        } else {
+            nv_columns.resize(lv_columns.len(), Column::default());
+        }
+        lv_columns
+            .into_iter()
+            .zip(nv_columns)
+            .map(|(lv, nv)| lv + nv)
+            .collect()
     }
 
     /// Specify the column index of the filter column used in lookups.
@@ -453,8 +469,8 @@ mod tests {
         /// be used generically for tests.
         fn lookups() -> CrossTableLookup<F> {
             CrossTableLookup {
-                looking_tables: vec![CpuTable::new(lookup_data(&[1]), lookup_filter(2))],
-                looked_table: RangeCheckTable::new(lookup_data(&[1]), lookup_filter(0)),
+                looking_tables: vec![CpuTable::new(lookup_data(&[1], &[2]), lookup_filter(0))],
+                looked_table: RangeCheckTable::new(lookup_data(&[1], &[]), lookup_filter(0)),
             }
         }
     }
@@ -514,6 +530,25 @@ mod tests {
             self
         }
 
+        /// Set all polynomial values at a given column index `col_idx` to
+        /// alternate between `value_1` and `value_2`. Useful for testing
+        /// combination of lv and nv values
+        pub fn set_values_alternate(
+            mut self,
+            col_idx: usize,
+            value_1: usize,
+            value_2: usize,
+        ) -> TraceBuilder<F> {
+            let len = self.trace[col_idx].len();
+            let new_v: Vec<F> = (0..len)
+                .map(|i| F::from_canonical_usize(value_1 * ((i + 1) & 1) + value_2 * (i & 1)))
+                .collect();
+            let values = PolynomialValues::from(new_v);
+            self.trace[col_idx] = values;
+
+            self
+        }
+
         pub fn build(self) -> Vec<PolynomialValues<F>> { self.trace }
     }
     /// A generic cross lookup table.
@@ -525,8 +560,8 @@ mod tests {
         /// be used generically for tests.
         fn lookups() -> CrossTableLookup<F> {
             CrossTableLookup {
-                looking_tables: vec![CpuTable::new(lookup_data(&[0]), lookup_filter(0))],
-                looked_table: RangeCheckTable::new(lookup_data(&[1]), lookup_filter(0)),
+                looking_tables: vec![CpuTable::new(lookup_data(&[1], &[2]), lookup_filter(0))],
+                looked_table: RangeCheckTable::new(lookup_data(&[1], &[]), lookup_filter(0)),
             }
         }
     }
@@ -540,7 +575,7 @@ mod tests {
         let dummy_cross_table_lookup: CrossTableLookup<F> = NonBinaryFilterTable::lookups();
 
         let foo_trace: Vec<PolynomialValues<F>> =
-            TraceBuilder::new(3, 4).one(2).set_values(1, 5).build();
+            TraceBuilder::new(3, 4).one(1).set_values(1, 5).build(); // filter column is random
         let bar_trace: Vec<PolynomialValues<F>> =
             TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
         let traces = vec![foo_trace, bar_trace];
@@ -552,19 +587,24 @@ mod tests {
 
     /// Create a trace with inconsistent values, which should
     /// cause our manual checks to fail.
-    /// Here, `foo_trace` has all values in column 1 set to 4,
-    /// while `bar_trace` has all values in column 1 set to 5.
-    /// Since [`FooBarTable`] has defined column 1 to contain lookup data,
-    /// our manual checks will fail this test.
+    /// Here, `foo_trace` has all values in column 1 and 2 set to alternate
+    /// between 2 and 3 while `bar_trace` has all values in column 1 set to
+    /// 6. Since lookup data is sum of lv values of column 1 and nv values
+    /// of column 2 from `foo_trace`, our manual checks will fail this test.
     #[test]
     fn test_ctl_inconsistent_tables() {
         type F = GoldilocksField;
         let dummy_cross_table_lookup: CrossTableLookup<F> = FooBarTable::lookups();
 
-        let foo_trace: Vec<PolynomialValues<F>> =
-            TraceBuilder::new(3, 4).one(2).set_values(1, 4).build();
-        let bar_trace: Vec<PolynomialValues<F>> =
-            TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
+        let foo_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4)
+            .one(0) // filter column
+            .set_values_alternate(1, 2, 3)
+            .set_values_alternate(2, 2, 3)
+            .build();
+        let bar_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4)
+            .one(0) // filter column
+            .set_values(1, 6)
+            .build();
         let traces = vec![foo_trace, bar_trace];
         assert!(matches!(
             check_single_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
@@ -573,18 +613,27 @@ mod tests {
     }
 
     /// Happy path test where all checks go as plan.
+    /// Here, `foo_trace` has all values in column 1 set to alternate between 2
+    /// and 3, and values in column 2 set to alternate between 3 and 2 while
+    /// `bar_trace` has all values in column 1 set to 5. Since lookup data
+    /// is sum of lv values of column 1 and nv values of column 2 from
+    /// `foo_trace`, our manual checks will pass the test
     #[test]
     fn test_ctl() -> Result<()> {
         type F = GoldilocksField;
         let dummy_cross_table_lookup: CrossTableLookup<F> = FooBarTable::lookups();
 
-        let foo_trace: Vec<PolynomialValues<F>> =
-            TraceBuilder::new(3, 4).one(2).set_values(1, 5).build();
-        let bar_trace: Vec<PolynomialValues<F>> =
-            TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
+        let foo_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4)
+            .one(0) // filter column
+            .set_values_alternate(1, 2, 3)
+            .set_values_alternate(2, 2, 3)
+            .build();
+        let bar_trace: Vec<PolynomialValues<F>> = TraceBuilder::new(3, 4)
+            .one(0) // filter column
+            .set_values(1, 5)
+            .build();
         let traces = vec![foo_trace, bar_trace];
         check_single_ctl(&traces, &dummy_cross_table_lookup)?;
-
         Ok(())
     }
 }

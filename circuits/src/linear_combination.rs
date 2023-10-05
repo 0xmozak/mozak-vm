@@ -193,6 +193,8 @@ impl<F: Field> Column<F> {
         }
     }
 
+    /// Returns a column whose ith row refers to nv value of ith row of the
+    /// column with given index c.
     #[must_use]
     pub fn single_next(c: usize) -> Self {
         Self {
@@ -208,6 +210,12 @@ impl<F: Field> Column<F> {
         cs.into_iter().map(|c| Self::single(*c.borrow())).collect()
     }
 
+    pub fn singles_next<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Vec<Self> {
+        cs.into_iter()
+            .map(|c| Self::single_next(*c.borrow()))
+            .collect()
+    }
+
     pub fn singles_diff<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Vec<Self> {
         cs.into_iter()
             .map(|c| Self::single_diff(*c.borrow()))
@@ -218,6 +226,14 @@ impl<F: Field> Column<F> {
     pub fn many<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
         Column {
             lv_linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect(),
+            ..Default::default()
+        }
+    }
+
+    #[must_use]
+    pub fn many_next<I: IntoIterator<Item = impl Borrow<usize>>>(cs: I) -> Self {
+        Column {
+            nv_linear_combination: cs.into_iter().map(|c| (*c.borrow(), F::ONE)).collect(),
             ..Default::default()
         }
     }
