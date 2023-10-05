@@ -79,7 +79,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // we can have any `clk` in the first row, but `diff_clk` is `0`.
         // This is because when `addr` changes, `diff_clk` is expected to be `0`.
         yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
-        yield_constr.constraint_first_row(lv.diff_clk);
+        // yield_constr.constraint_first_row(lv.diff_clk);
 
         // Ascending ordered, contigous "address" view constraint
         // ------------------------------------------------------
