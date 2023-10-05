@@ -48,7 +48,7 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
                 addr,
                 clk: get_memory_inst_clk(row),
                 is_store: F::from_bool(matches!(op, Op::SB)),
-                is_load: F::from_bool(matches!(op, Op::LBU)),
+                is_load: F::from_bool(matches!(op, Op::LB | Op::LBU)),
                 is_init: F::ZERO,
                 value: F::from_canonical_u32(row.aux.dst_val),
                 ..Default::default()

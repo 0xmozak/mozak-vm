@@ -51,6 +51,7 @@ pub fn generate_cpu_trace<F: RichField>(
 
     for Row { state, aux } in chain![executed, last_row] {
         let inst = state.current_instruction(program);
+
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
             inst: cpu_cols::Instruction::from((state.get_pc(), inst)).map(from_u32),
@@ -68,6 +69,7 @@ pub fn generate_cpu_trace<F: RichField>(
             bitshift: Bitshift::from(0).map(F::from_canonical_u64),
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
+            mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
             ..CpuState::default()
         };
 
@@ -78,7 +80,8 @@ pub fn generate_cpu_trace<F: RichField>(
         generate_shift_row(&mut row, aux);
         generate_mul_row(&mut row, aux);
         generate_div_row(&mut row, &inst, aux);
-        generate_sign_handling(&mut row, aux);
+        operands_sign_handling(&mut row, aux);
+        memory_sign_handling(&mut row, &inst, aux);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
     }
@@ -216,9 +219,18 @@ fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
     row.op2_value_inv = from_u32::<F>(aux.op2).try_inverse().unwrap_or_default();
 }
 
+fn memory_sign_handling<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
+    // sign extension needs to be from `u8` in case of `LB`
+    // TODO: add LH support
+    row.dst_sign_bit = F::from_bool(match inst.op {
+        Op::LB => aux.dst_val >= 1 << 7,
+        _ => false,
+    });
+}
+
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_lossless)]
-fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
+fn operands_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
     let op1_full_range = sign_extend(row.inst.is_op1_signed.is_nonzero(), aux.op1);
     let op2_full_range = sign_extend(row.inst.is_op2_signed.is_nonzero(), aux.op2);
 
