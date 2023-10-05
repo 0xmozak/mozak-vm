@@ -20,17 +20,13 @@ pub(crate) fn signed_constraints<P: PackedField>(
     // When dst is not signed as per instruction semantics, dst_sign_bit must be 0.
     yield_constr.constraint((P::ONES - lv.inst.is_dst_signed) * lv.dst_sign_bit);
 
-    // Ensure `mem_access_raw` and `dst_value` are equal for unsigned memory access
-    yield_constr.constraint(
-        lv.inst.ops.lb * (P::ONES - lv.inst.is_dst_signed) * (lv.dst_value - lv.mem_value_raw),
-    );
-
     // Ensure `dst_value` is `0xFFFF_FF00` greater than
     // `mem_access_raw` in case `dst_sign_bit` is set
     yield_constr.constraint(
         lv.inst.ops.lb
-            * lv.dst_sign_bit
-            * (lv.dst_value - (lv.mem_value_raw + P::Scalar::from_canonical_u32(0xFFFF_FF00))),
+            * (lv.dst_value
+                - (lv.mem_value_raw
+                    + lv.dst_sign_bit * P::Scalar::from_canonical_u32(0xFFFF_FF00))),
     );
 }
 
