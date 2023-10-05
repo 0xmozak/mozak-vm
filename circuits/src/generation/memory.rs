@@ -117,7 +117,8 @@ pub fn generate_memory_trace<F: RichField>(
             mem.diff_clk = mem.clk - last_clk;
         }
         (last_clk, last_addr) = (mem.clk, mem.addr);
-        // rows with is_init set are the source of truth about is_writable
+        // Rows with `is_init` set are the source of truth about` is_writable` for the
+        // block of operations with the same address.
         if mem.is_init.is_one() {
             last_is_writable = mem.is_writable;
         }
