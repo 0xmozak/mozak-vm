@@ -3,6 +3,7 @@ use std::ops::Index;
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
+use super::rangecheck::extract;
 use crate::cpu::columns::CpuState;
 use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::rangecheck_limb::columns::RangeCheckLimb;
@@ -18,24 +19,6 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<RangeCheckLimb<F>>) -> Vec<RangeCh
     trace
 }
 
-pub fn extract_u8<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<F>
-where
-    V: Index<usize, Output = F> + 'a, {
-    if let [column] = &looking_table.columns[..] {
-        trace
-            .iter()
-            .filter(|&row| looking_table.filter_column.eval(row).is_one())
-            .map(|row| {
-                let val: F = column.eval(row);
-                assert!(u8::try_from(val.to_canonical_u64()).is_ok());
-                val
-            })
-            .collect()
-    } else {
-        panic!("Can only range check single values, not tuples.")
-    }
-}
-
 #[must_use]
 pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
@@ -46,9 +29,9 @@ pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
             .looking_tables
             .into_iter()
             .flat_map(|looking_table| match looking_table.kind {
-                TableKind::RangeCheck => extract_u8(rangecheck_trace, &looking_table),
-                TableKind::Cpu => extract_u8(cpu_trace, &looking_table),
-                other => unimplemented!("Can't range check {other:#?} tables"),
+                TableKind::RangeCheck => extract(rangecheck_trace, &looking_table),
+                TableKind::Cpu => extract(cpu_trace, &looking_table),
+                other => unimplemented!("Can't range check {other:?} tables"),
             })
             .map(|limb| F::to_canonical_u64(&limb))
             .sorted()
