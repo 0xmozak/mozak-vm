@@ -13,7 +13,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{CpuColumnsExtended, CpuState, Instruction, OpSelectors};
-use super::{add, bitwise, branches, div, ecall, jalr, mul, signed_comparison, sub};
+use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::NumberOfColumns;
 use crate::cpu::shift;
 use crate::program::columns::ProgramRom;
@@ -43,7 +43,7 @@ impl<P: PackedField> OpSelectors<P> {
     pub fn is_straightline(&self) -> P { P::ONES - self.is_jumping() }
 
     /// List of opcodes that work with memory.
-    pub fn is_mem_op(&self) -> P { self.sb + self.lbu }
+    pub fn is_mem_op(&self) -> P { self.sb + self.lb }
 }
 
 /// Ensure that if opcode is straight line, then program counter is incremented
@@ -251,6 +251,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         bitwise::constraints(lv, yield_constr);
         branches::comparison_constraints(lv, yield_constr);
         branches::constraints(lv, nv, yield_constr);
+        memory::signed_constraints(lv, yield_constr);
         signed_comparison::signed_constraints(lv, yield_constr);
         signed_comparison::slt_constraints(lv, yield_constr);
         shift::constraints(lv, yield_constr);
