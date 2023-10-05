@@ -99,7 +99,7 @@ impl From<&Program> for State {
 }
 
 /// Auxiliary information about the instruction execution
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Aux {
     // This could be an Option<u32>, but given how Risc-V instruction are specified,
     // 0 serves as a default value just fine.
