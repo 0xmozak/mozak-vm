@@ -119,7 +119,7 @@ pub const NOOP: Instruction = Instruction {
     },
 };
 
-/// A RV32 [Instruction]
+/// Internal representation of a decoded RV32 [Instruction]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 #[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct Instruction {
