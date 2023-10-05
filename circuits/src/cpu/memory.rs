@@ -63,33 +63,30 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    fn prove_lb<Stark: ProveAndVerify>(a: u32, b: u32) {
+    /// Tests for `LB` and `LBU` assuming read memory location
+    /// is part of static ELF (read-write memory address space)
+    /// TODO: Further testing needs to be done for non-init
+    /// memory locations.
+    fn prove_lb_and_lbu<Stark: ProveAndVerify>(a: u32, b: u32) {
         let (program, record) = simple_test_code(
-            &[Instruction {
-                op: Op::LB,
-                args: Args {
-                    rs1: 6,
-                    rs2: 7,
-                    ..Args::default()
+            &[
+                Instruction {
+                    op: Op::LB,
+                    args: Args {
+                        rs1: 6,
+                        rs2: 7,
+                        ..Args::default()
+                    },
                 },
-            }],
-            &[(b, 0)],
-            &[(6, a), (7, b)],
-        );
-
-        Stark::prove_and_verify(&program, &record).unwrap();
-    }
-
-    fn prove_lbu<Stark: ProveAndVerify>(a: u32, b: u32) {
-        let (program, record) = simple_test_code(
-            &[Instruction {
-                op: Op::LBU,
-                args: Args {
-                    rs1: 6,
-                    rs2: 7,
-                    ..Args::default()
+                Instruction {
+                    op: Op::LBU,
+                    args: Args {
+                        rs1: 6,
+                        rs2: 7,
+                        ..Args::default()
+                    },
                 },
-            }],
+            ],
             &[(b, 0)],
             &[(6, a), (7, b)],
         );
@@ -134,22 +131,12 @@ mod tests {
 
         #[test]
         fn prove_lb_cpu(a in u32_extra(), b in u32_extra()) {
-            prove_lb::<CpuStark<F, D>>(a, b);
+            prove_lb_and_lbu::<CpuStark<F, D>>(a, b);
         }
 
         #[test]
         fn prove_lb_mozak(a in u32_extra(), b in u32_extra()) {
-            prove_lb::<MozakStark<F, D>>(a, b);
-        }
-
-        #[test]
-        fn prove_lbu_cpu(a in u32_extra(), b in u32_extra()) {
-            prove_lbu::<CpuStark<F, D>>(a, b);
-        }
-
-        #[test]
-        fn prove_lbu_mozak(a in u32_extra(), b in u32_extra()) {
-            prove_lbu::<MozakStark<F, D>>(a, b);
+            prove_lb_and_lbu::<MozakStark<F, D>>(a, b);
         }
 
         #[test]
