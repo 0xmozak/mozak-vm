@@ -1,5 +1,3 @@
-use std::ops::Index;
-
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
@@ -7,7 +5,7 @@ use super::rangecheck::extract;
 use crate::cpu::columns::CpuState;
 use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::rangecheck_limb::columns::RangeCheckLimb;
-use crate::stark::mozak_stark::{LimbTable, Lookups, Table, TableKind};
+use crate::stark::mozak_stark::{LimbTable, Lookups, TableKind};
 
 #[must_use]
 pub fn pad_trace<F: RichField>(mut trace: Vec<RangeCheckLimb<F>>) -> Vec<RangeCheckLimb<F>> {
