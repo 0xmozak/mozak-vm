@@ -23,34 +23,26 @@ pub struct Args {
 #[repr(u8)]
 pub enum Op {
     // RV32I Base Integer Instructions
-    /// ADD: rd = rs1 + rs2
-    /// ADDI: rd = rs1 + imm
+    /// ADD (Immediate): rd = rs1 + (rs2 + imm)
     ADD,
     /// SUB: rd = rs1 - rs2
     SUB,
-    /// XOR: rd = rs1 ^ rs2
-    /// XOR Immediate: rd = rs1 ˆ imm
+    /// XOR (Immediate): rd = rs1 ^ (rs2 + imm)
     XOR,
-    /// OR: rd = rs1 | rs2
-    /// OR Immediate: rd = rs1 | imm
+    /// OR (Immediate): rd = rs1 | (rs2 + imm)
     OR,
-    /// AND: rd = rs1 & rs2
-    /// AND Immediate: rd = rs1 & imm
+    /// AND (Immediate): rd = rs1 & (rs2 + imm)
     AND,
     /// Shift Left Logical: rd = rs1 << rs2
-    /// Shift Left Logical Immediate: rd = rs1 << imm
+    /// Shift Right Logical Immediate is handled as `MUL`
     SLL,
-    /// Shift Right Logical: rd = rs1 >> rs2
-    /// Shift Right Logical Immediate: rd = rs1 >> imm
+    /// Shift Right Logical (Immediate): rd = rs1 >> (rs2 + imm)
     SRL,
-    /// Shift Right Arithmetic: rd = rs1 >> rs2
-    /// Shift Right Arithmetic Immediate: rd = rs1 >> imm
+    /// Shift Right Arithmetic (Immediate): rd = rs1 >> (rs2 + imm)
     SRA,
-    /// Set Less Than: rd = (rs1 < rs2)?1:0
-    /// Set Less Than Immediate: rd = (rs1 < imm)?1:0
+    /// Set Less Than (Immediate): rd = (rs1 < (rs2 + imm))?1:0
     SLT,
-    /// Set Less Than (U): rd = (rs1 < rs2)?1:0
-    /// Set Less Than Immediate (U): rd = (rs1 < imm)?1:0
+    /// Set Less Than (Immediate) (U): rd = (rs1 < (rs2 + imm))?1:0
     SLTU,
     /// Load Byte: rd = M[rs1+imm]
     LB,
@@ -80,6 +72,7 @@ pub enum Op {
     BLTU,
     /// Branch >= (U) : if(rs1 >= rs2) PC += imm
     BGEU,
+    /// Jump: rd = PC+4; PC += imm
     /// Jump And Link Reg: rd = PC+4; PC = rs1 + imm
     JALR,
 
@@ -87,21 +80,24 @@ pub enum Op {
     ECALL,
 
     // RV32M Multiply Extension
-    /// MUL: rd = (rs1 * rs2)
+    /// MUL: Place the lower 32 bits result of rs1 * rs2 in rd
     MUL,
-    /// MUL High: rd = (rs1 * rs2)
+    /// MUL High:
+    /// Place the upper 32 bits result of signed rs1 * signed rs2 in rd
     MULH,
-    /// MUL High (S) (U): rd = (rs1 * rs2)
+    /// MUL High (S) (U):
+    /// Place the upper 32 bits result of unsigned rs1 * unsigned rs2 in rd
     MULHU,
-    /// MUL High (U): rd = (rs1 * rs2)
+    /// MUL High (U):
+    /// Place the upper 32 bits result of signed rs1 * unsigned rs2 in rd
     MULHSU,
-    /// DIV: rd = (rs1 / rs2)
+    /// DIV: rd = signed rs1 / signed rs2
     DIV,
-    /// DIV (U): rd = (rs1 / rs2)
+    /// DIV (U): rd = unsigned rs1 / unsigned rs2
     DIVU,
-    /// Remainder: rd = (rs1 % rs2)
+    /// Remainder: rd = signed rs1 % signed rs2
     REM,
-    /// Remainder (U): rd = (rs1 % rs2)
+    /// Remainder (U): rd = unsigned rs1 % unsigned rs2
     REMU,
 
     #[default]
