@@ -227,7 +227,7 @@ fn memory_sign_handling<F: RichField>(row: &mut CpuState<F>, inst: &Instruction,
         Op::LB => aux.dst_val >= 1 << 7,
         _ => false,
     });
-    row.mem_access_raw = F::from_canonical_u32(aux.mem.unwrap_or_default().1);
+    row.mem_access_raw = F::from_canonical_u32(aux.mem.unwrap_or_default().raw_value);
 }
 
 #[allow(clippy::cast_possible_wrap)]
