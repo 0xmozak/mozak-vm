@@ -146,7 +146,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
             &[],
         ),
         // Xor
-        debug_single_trace::<F, D, XorStark<F, D>>(&mozak_stark.xor_stark, xor, "XOR_STARK", &[]),
+        debug_single_trace::<F, D, XorStark<F, D>>(&mozak_stark.xor_stark, xor, &[]),
         // Bitshift
         debug_single_trace::<F, D, BitshiftStark<F, D>>(
             &mozak_stark.shift_amount_stark,

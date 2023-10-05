@@ -41,7 +41,7 @@ pub struct OpSelectors<T> {
     pub sh: T,
     /// Load Byte Unsigned and places it in the least significant byte position
     /// of the target register.
-    pub lbu: T,
+    pub lb: T,
     pub lhu: T,
     /// Branch Less Than
     pub blt: T,
@@ -310,7 +310,7 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
 
     // TODO: Add other mem ops like SH, SW, LB, LW, LH, LHU as we implement the
     // constraints.
-    pub fn byte_mem_ops(self) -> T { self.sb + self.lbu }
+    pub fn byte_mem_ops(self) -> T { self.sb + self.lb }
 
     pub fn halfword_mem_ops(self) -> T { self.sh + self.lhu }
 }

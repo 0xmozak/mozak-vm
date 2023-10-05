@@ -43,7 +43,7 @@ impl<P: PackedField> OpSelectors<P> {
     pub fn is_straightline(&self) -> P { P::ONES - self.is_jumping() }
 
     /// List of opcodes that work with memory.
-    pub fn is_mem_op(&self) -> P { self.sb + self.lbu + self.sh + self.lhu }
+    pub fn is_mem_op(&self) -> P { self.sb + self.lb + self.sh + self.lhu }
 }
 
 /// Ensure that if opcode is straight line, then program counter is incremented
@@ -251,6 +251,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         bitwise::constraints(lv, yield_constr);
         branches::comparison_constraints(lv, yield_constr);
         branches::constraints(lv, nv, yield_constr);
+        memory::signed_constraints(lv, yield_constr);
         signed_comparison::signed_constraints(lv, yield_constr);
         signed_comparison::slt_constraints(lv, yield_constr);
         shift::constraints(lv, yield_constr);

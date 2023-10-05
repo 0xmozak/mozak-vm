@@ -27,7 +27,7 @@ pub fn filter_memory_trace<'a>(
     step_rows
         .iter()
         .filter(|row| matches!(row.state.current_instruction(program).op, Op::LHU | Op::SH))
-        .sorted_by_key(|row| (row.aux.mem_addr, row.state.clk))
+        .sorted_by_key(|row| (row.aux.mem.unwrap().addr, row.state.clk))
 }
 
 #[must_use]
@@ -41,7 +41,7 @@ pub fn generate_halfword_memory_trace<F: RichField>(
                 let op = s.state.current_instruction(program).op;
                 let mem_addr0 = get_memory_inst_addr(s);
                 let mem_addr1 =
-                    F::from_canonical_u32(u32::wrapping_add(s.aux.mem_addr.unwrap_or_default(), 1));
+                    F::from_canonical_u32(u32::wrapping_add(s.aux.mem.unwrap_or_default().addr, 1));
                 HalfWordMemory {
                     clk: get_memory_inst_clk(s),
                     addrs: [mem_addr0, mem_addr1],
