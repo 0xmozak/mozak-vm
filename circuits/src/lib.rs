@@ -1,5 +1,4 @@
 #![allow(incomplete_features)]
-#![feature(generic_const_exprs)]
 #![feature(stmt_expr_attributes)]
 #![feature(coverage_attribute)]
 #![feature(register_tool)]

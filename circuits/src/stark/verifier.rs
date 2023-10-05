@@ -33,16 +33,6 @@ pub fn verify_proof<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-    [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); XorStark::<F, D>::COLUMNS]:,
-    [(); BitshiftStark::<F, D>::COLUMNS]:,
-    // [(); ProgramStark::<F, D>::COLUMNS]:,
-    [(); MemoryStark::<F, D>::COLUMNS]:,
-    [(); MemoryInitStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let AllProofChallenges {
         stark_challenges,
@@ -167,13 +157,11 @@ pub(crate) fn verify_stark_proof_with_challenges<
     stark: &S,
     proof: &StarkProof<F, C, D>,
     challenges: &StarkProofChallenges<F, D>,
-    public_inputs: [F; S::PUBLIC_INPUTS],
+    public_inputs: [F],
     ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
     config: &StarkConfig,
 ) -> Result<()>
 where
-    [(); S::COLUMNS]:,
-    [(); S::PUBLIC_INPUTS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     validate_proof_shape(stark, proof, config, ctl_vars.len())?;
     let StarkOpeningSet {
@@ -283,7 +271,6 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
-    [(); S::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let StarkProof {
         trace_cap,

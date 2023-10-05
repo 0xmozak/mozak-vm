@@ -51,16 +51,7 @@ pub fn prove<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-    [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); XorStark::<F, D>::COLUMNS]:,
-    [(); BitshiftStark::<F, D>::COLUMNS]:,
-    // [(); ProgramStark::<F, D>::COLUMNS]:,
-    [(); MemoryStark::<F, D>::COLUMNS]:,
-    [(); MemoryInitStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
+
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
@@ -90,16 +81,6 @@ pub fn prove_with_traces<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-    [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); XorStark::<F, D>::COLUMNS]:,
-    [(); BitshiftStark::<F, D>::COLUMNS]:,
-    // [(); ProgramStark::<F, D>::COLUMNS]:,
-    [(); MemoryStark::<F, D>::COLUMNS]:,
-    [(); MemoryInitStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
@@ -200,9 +181,7 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D> + Display,
-    [(); C::Hasher::HASH_SIZE]:,
-    [(); S::COLUMNS]:,
-    [(); S::PUBLIC_INPUTS]:, {
+    [(); C::Hasher::HASH_SIZE]:, {
     let degree = trace_poly_values[0].len();
     let degree_bits = log2_strict(degree);
     let fri_params = config.fri_params(degree_bits);
@@ -262,7 +241,7 @@ where
             trace_commitment,
             &permutation_ctl_zs_commitment,
             &permutation_challenges,
-            public_inputs,
+            &public_inputs,
             ctl_data,
             &alphas,
             degree_bits,
@@ -379,16 +358,6 @@ pub fn prove_with_commitments<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-    [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); XorStark::<F, D>::COLUMNS]:,
-    [(); BitshiftStark::<F, D>::COLUMNS]:,
-    // [(); ProgramStark::<F, D>::COLUMNS]:,
-    [(); MemoryStark::<F, D>::COLUMNS]:,
-    [(); MemoryInitStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     macro_rules! make_proof {
         ($stark: expr, $kind: expr, $public_inputs: expr) => {

@@ -13,4 +13,5 @@ lto = "fat"
 
 [patch.crates-io]
 plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
-starky = { git = "https://github.com/0xmozak/plonky2.git" }
+#starky = { git = "https://github.com/0xmozak/plonky2.git", branch = "bing/const-generic-exprs-begone" }
+starky = { path = "../plonky2/starky" }

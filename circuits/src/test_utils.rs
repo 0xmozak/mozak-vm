@@ -205,7 +205,7 @@ impl ProveAndVerify for RegisterInitStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            [],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -225,7 +225,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            [],
+            &[],
             &mut TimingTree::default(),
         )?;
 

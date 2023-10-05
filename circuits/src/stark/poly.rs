@@ -25,7 +25,7 @@ pub(crate) fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     trace_commitment: &'a PolynomialBatch<F, C, D>,
     permutation_ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
     permutation_challenges: &'a [GrandProductChallengeSet<F>],
-    public_inputs: [F; S::PUBLIC_INPUTS],
+    public_inputs: &[F],
     ctl_data: &CtlData<F>,
     alphas: &[F],
     degree_bits: usize,
@@ -36,9 +36,7 @@ where
     F: RichField + Extendable<D>,
     P: PackedField<Scalar = F>,
     C: GenericConfig<D, F = F>,
-    S: Stark<F, D>,
-    [(); S::COLUMNS]:,
-    [(); S::PUBLIC_INPUTS]:, {
+    S: Stark<F, D>, {
     let degree = 1 << degree_bits;
     let rate_bits = config.fri_config.rate_bits;
 
@@ -160,7 +158,7 @@ where
 pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark: &S,
     config: &StarkConfig,
-    vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
+    vars: S::EvaluationFrame<FE, P, D2>,
     permutation_vars: PermutationCheckVars<F, FE, P, D2>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
     consumer: &mut ConstraintConsumer<P>,

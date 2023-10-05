@@ -1,14 +1,14 @@
-use std::borrow::Borrow;
 use std::fmt::Display;
 use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
-use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::Register;
 use crate::columns_view::NumberOfColumns;
@@ -26,9 +26,17 @@ impl<F, const D: usize> Display for RegisterStark<F, D> {
     }
 }
 
+// const COLUMNS: usize = Register::<()>::NUMBER_OF_COLUMNS;
+const COLUMNS: usize = Register::<()>::NUMBER_OF_COLUMNS;
+const PUBLIC_INPUTS: usize = 0;
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark<F, D> {
-    const COLUMNS: usize = Register::<F>::NUMBER_OF_COLUMNS;
-    const PUBLIC_INPUTS: usize = 0;
+    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
+    where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>;
+    type EvaluationFrameTarget =
+        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
     /// Constraints for the [`RegisterStark`]:
     ///
@@ -46,13 +54,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
     /// document](https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2).
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
-        vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        vars: &Self::EvaluationFrame<FE, P, D2>,
         yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &Register<P> = vars.local_values.borrow();
-        let nv: &Register<P> = vars.next_values.borrow();
+        let lv: &Register<P> = vars.get_local_values().try_into().unwrap();
+        let nv: &Register<P> = vars.get_next_values().try_into().unwrap();
 
         // Constraint 1: filter columns take 0 or 1 values only.
         is_binary(yield_constr, lv.ops.is_init);
@@ -91,7 +99,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,
-        _vars: StarkEvaluationTargets<D, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        _vars: &Self::EvaluationFrameTarget,
         _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         unimplemented!()

@@ -7,6 +7,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::GenericConfig;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
+use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 use starky::vars::StarkEvaluationVars;
 use thiserror::Error;
@@ -260,7 +261,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
     }
 }
 pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const D2: usize>(
-    vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
+    vars: S::EvaluationFrame<FE, P, D2>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
     consumer: &mut ConstraintConsumer<P>,
 ) where

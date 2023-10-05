@@ -88,7 +88,7 @@ pub fn transpose_polys<
     S: Stark<F, D>,
 >(
     cols: Vec<PolynomialValues<F>>,
-) -> Vec<[F; S::COLUMNS]> {
+) -> Vec<F> {
     transpose(
         &cols
             .into_iter()
@@ -104,17 +104,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     mozak_stark: &MozakStark<F, D>,
     public_inputs: &PublicInputs<F>,
-) where
-    [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); XorStark::<F, D>::COLUMNS]:,
-    [(); BitshiftStark::<F, D>::COLUMNS]:,
-    // [(); ProgramStark::<F, D>::COLUMNS]:,
-    [(); MemoryStark::<F, D>::COLUMNS]:,
-    [(); MemoryInitStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:, {
+) {
     let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, memory_init_trace, rangecheck_limb_trace]: &[Vec<
         PolynomialValues<F>,
     >;
@@ -178,11 +168,10 @@ pub fn debug_single_trace<
 >(
     stark: &S,
     trace_rows: &[PolynomialValues<F>],
-    public_inputs: &[F; S::PUBLIC_INPUTS],
+    public_inputs: &[F],
 ) -> bool
 where
-    [(); S::COLUMNS]:,
-    [(); S::PUBLIC_INPUTS]:, {
+{
     transpose_polys::<F, D, S>(trace_rows.to_vec())
         .iter()
         .enumerate()
