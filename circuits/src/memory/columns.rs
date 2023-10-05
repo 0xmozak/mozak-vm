@@ -22,12 +22,12 @@ pub struct Memory<T> {
     // One of `is_sb`, `is_lb` or `is_init`(static meminit from ELF) == 1.
     // If none are `1`, it is a padding row
     /// Binary filter column to represent a RISC-V SB operation.
-    pub is_sb: T,
+    pub is_store: T,
     /// Binary filter column to represent a RISC-V LB & LBU operation.
     /// Note: Memory table does not concern itself with verifying the
     /// signed nature of the `value` and hence treats `LB` and `LBU`
     /// in the same way.
-    pub is_lb: T,
+    pub is_load: T,
     /// Memory Initialisation from ELF (prior to vm execution)
     pub is_init: T,
 
@@ -50,7 +50,7 @@ make_col_map!(Memory);
 impl<T: Clone + Add<Output = T>> Memory<T> {
     pub fn is_executed(&self) -> T {
         let s: Memory<T> = self.clone();
-        s.is_sb + s.is_lb + s.is_init
+        s.is_store + s.is_load + s.is_init
     }
 }
 
@@ -73,8 +73,8 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(MAP.clk),
-        Column::single(MAP.is_sb),
-        Column::single(MAP.is_lb), // For both `LB` and `LBU`
+        Column::single(MAP.is_store),
+        Column::single(MAP.is_load), // For both `LB` and `LBU`
         Column::single(MAP.value),
         Column::single(MAP.addr),
     ]
@@ -85,7 +85,7 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> {
     let mem = MAP.map(Column::from);
-    mem.is_sb + mem.is_lb
+    mem.is_store + mem.is_load
 }
 
 /// Columns containing the data which are looked up in the `MemoryInit` Table
