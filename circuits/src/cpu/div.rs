@@ -10,7 +10,7 @@ use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuState;
 use crate::cpu::mul::bit_to_sign;
-use crate::cpu::stark::is_binary;
+use crate::stark::utils::is_binary;
 
 /// Constraints for DIV / REM / DIVU / REMU / SRL / SRA instructions
 #[allow(clippy::similar_names)]

@@ -65,17 +65,20 @@ pub fn generate_register_trace<F: RichField>(
         |reg: fn(&Args) -> u8, ops: Ops<F>, clk_offset: u64| -> _ {
             executed
                 .iter()
-                .map(|row| &row.state)
-                .filter(move |state| reg(&state.current_instruction(program).args) != 0)
-                .map(move |state| {
-                    let reg = reg(&state.current_instruction(program).args);
+                .filter(move |row| reg(&row.state.current_instruction(program).args) != 0)
+                .map(move |row| {
+                    let reg = reg(&row.state.current_instruction(program).args);
 
                     // Ignore r0 because r0 should always be 0.
                     // TODO: assert r0 = 0 constraint in CPU trace.
                     Register {
                         addr: F::from_canonical_u8(reg),
-                        value: F::from_canonical_u32(state.get_register_value(reg)),
-                        augmented_clk: F::from_canonical_u64(state.clk * 3 + clk_offset),
+                        value: F::from_canonical_u32(if ops.is_write.is_one() {
+                            row.aux.dst_val
+                        } else {
+                            row.state.get_register_value(reg)
+                        }),
+                        augmented_clk: F::from_canonical_u64(row.state.clk * 3 + clk_offset),
                         ops,
                         ..Default::default()
                     }
@@ -210,11 +213,11 @@ mod tests {
                 [    2,    0,             0,                 0,        1,      0,       0], // init
                 [    3,    0,             0,                 0,        1,      0,       0], // init
                 [    4,    0,             0,                 0,        1,      0,       0], // init
-                [    4,    0,             5,                 5,        0,      0,       1], // 1st inst
+                [    4,  300,             5,                 5,        0,      0,       1], // 1st inst
                 [    4,  300,             6,                 1,        0,      1,       0], // 2nd inst
-                [    4,  300,            11,                 5,        0,      0,       1], // 3rd inst 
+                [    4,  500,            11,                 5,        0,      0,       1], // 3rd inst 
                 [    5,    0,             0,           neg(11),        1,      0,       0], // init
-                [    5,    0,             8,                 8,        0,      0,       1], // 2nd inst
+                [    5,  400,             8,                 8,        0,      0,       1], // 2nd inst
                 [    5,  400,             9,                 1,        0,      1,       0], // 3rd inst
                 [    6,  100,             0,            neg(9),        1,      0,       0], // init
                 [    6,  100,             3,                 3,        0,      1,       0], // 1st inst

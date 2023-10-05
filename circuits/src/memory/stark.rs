@@ -10,8 +10,8 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use crate::cpu::stark::is_binary;
 use crate::memory::columns::{Memory, NUM_MEM_COLS};
+use crate::stark::utils::is_binary;
 
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
@@ -57,8 +57,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // Constrain certain columns of the memory table to be only
         // boolean values.
         is_binary(yield_constr, lv.is_writable);
-        is_binary(yield_constr, lv.is_sb);
-        is_binary(yield_constr, lv.is_lbu);
+        is_binary(yield_constr, lv.is_store);
+        is_binary(yield_constr, lv.is_load);
         is_binary(yield_constr, lv.is_init);
         is_binary(yield_constr, lv.is_executed());
 
@@ -113,15 +113,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // If instead, the `addr` talks about an address not coming from static ELF,
         // it needs to begin with a `SB` (store) operation before any further access
         // However `clk` value `0` is a special case.
-        yield_constr.constraint(lv.diff_addr * lv.clk * (P::ONES - lv.is_sb));
+        yield_constr.constraint(lv.diff_addr * lv.clk * (P::ONES - lv.is_store));
 
         // Operation constraints
         // ---------------------
         // No `SB` operation can be seen if memory address is not marked `writable`
-        yield_constr.constraint((P::ONES - lv.is_writable) * lv.is_sb);
+        yield_constr.constraint((P::ONES - lv.is_writable) * lv.is_store);
 
         // For all "load" operations, the value cannot change between rows
-        yield_constr.constraint(nv.is_lbu * (nv.value - lv.value));
+        yield_constr.constraint(nv.is_load * (nv.value - lv.value));
 
         // Clock constraints
         // -----------------
