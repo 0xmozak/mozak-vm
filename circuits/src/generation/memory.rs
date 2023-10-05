@@ -48,7 +48,6 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
                 .expect("casting addr (F) to u32 should not fail");
             let op = &(row.state).current_instruction(program).op;
             Memory {
-                is_writable: F::ZERO,
                 addr,
                 clk: get_memory_inst_clk(row),
                 is_store: F::from_bool(matches!(op, Op::SB)),
