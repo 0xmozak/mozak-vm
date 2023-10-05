@@ -1,4 +1,4 @@
-use itertools::chain;
+use itertools::{chain, Itertools};
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
@@ -297,7 +297,7 @@ pub struct LimbTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for LimbTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
-            rangecheck_looking(),
+            chain!(rangecheck_looking(), cpu::columns::rangecheck_looking_u8(),).collect_vec(),
             RangeCheckLimbTable::new(
                 crate::rangecheck_limb::columns::data(),
                 crate::rangecheck_limb::columns::filter(),

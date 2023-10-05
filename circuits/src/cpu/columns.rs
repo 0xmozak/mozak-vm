@@ -232,6 +232,15 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     ]
 }
 
+/// Expressions we need to range check for u8 values
+#[must_use]
+pub fn rangecheck_looking_u8<F: Field>() -> Vec<Table<F>> {
+    let cpu = MAP.cpu.map(Column::from);
+
+    // example rangecheck of u8
+    vec![CpuTable::new(vec![cpu.dst_value], cpu.inst.ops.lb)]
+}
+
 /// Columns containing the data to be matched against Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]

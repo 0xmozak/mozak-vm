@@ -35,7 +35,7 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
 ) -> impl Iterator<Item = Memory<F>> {
     step_rows
         .iter()
-        .filter(|row| row.aux.mem_addr.is_some())
+        .filter(|row| row.aux.mem.is_some())
         .map(|row| {
             let addr: F = get_memory_inst_addr(row);
             let addr_u32: u32 = addr
