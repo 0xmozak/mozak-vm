@@ -119,11 +119,13 @@ pub const NOOP: Instruction = Instruction {
     },
 };
 
-/// A RV32 [Instruction] with [Op] and [Args]
+/// A RV32 [Instruction]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 #[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct Instruction {
+    /// Operand of Instruction
     pub op: Op,
+    /// Arguments of Instruction
     pub args: Args,
 }
 
