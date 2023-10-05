@@ -73,14 +73,13 @@ mod tests {
                     ..Args::default()
                 },
             }],
-            &[],
+            &[(b, 0)],
             &[(6, a), (7, b)],
         );
 
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    // NOTE: prove_lbu fails with MozakSnark
     fn prove_lbu<Stark: ProveAndVerify>(a: u32, b: u32) {
         let (program, record) = simple_test_code(
             &[Instruction {
@@ -91,7 +90,7 @@ mod tests {
                     ..Args::default()
                 },
             }],
-            &[],
+            &[(b, 0)],
             &[(6, a), (7, b)],
         );
 
@@ -139,8 +138,18 @@ mod tests {
         }
 
         #[test]
+        fn prove_lb_mozak(a in u32_extra(), b in u32_extra()) {
+            prove_lb::<MozakStark<F, D>>(a, b);
+        }
+
+        #[test]
         fn prove_lbu_cpu(a in u32_extra(), b in u32_extra()) {
             prove_lbu::<CpuStark<F, D>>(a, b);
+        }
+
+        #[test]
+        fn prove_lbu_mozak(a in u32_extra(), b in u32_extra()) {
+            prove_lbu::<MozakStark<F, D>>(a, b);
         }
 
         #[test]
