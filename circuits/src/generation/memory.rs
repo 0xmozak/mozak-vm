@@ -37,7 +37,7 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
     step_rows
         .iter()
         .filter(|row| {
-            row.aux.mem_addr.is_some()
+            row.aux.mem.is_some()
                 && matches!(row.state.current_instruction(program).op, Op::LBU | Op::SB)
         })
         .map(|row| {
