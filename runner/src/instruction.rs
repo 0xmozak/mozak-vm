@@ -128,7 +128,7 @@ pub struct Instruction {
 }
 
 impl Instruction {
-    /// Constructs a new [Instruction] with [Op] and [Args]
+    /// Creates a new [Instruction] given [Op] and [Args]
     #[must_use]
     pub fn new(op: Op, args: Args) -> Self { Instruction { op, args } }
 }
