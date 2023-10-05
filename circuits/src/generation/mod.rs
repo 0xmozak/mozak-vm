@@ -15,6 +15,7 @@ pub mod registerinit;
 pub mod xor;
 
 use std::borrow::Borrow;
+use std::fmt::Display;
 
 use itertools::Itertools;
 use mozak_runner::elf::Program;
@@ -67,7 +68,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &halfword_memory_rows,
     );
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
-    let rangecheck_limb_rows = generate_rangecheck_limb_trace(&rangecheck_rows);
+    let rangecheck_limb_rows = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows);
 
     let cpu_trace = trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows));
     let rangecheck_trace = trace_rows_to_poly_values(rangecheck_rows);
@@ -131,24 +132,17 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 
     assert!([
         // Program ROM
-        debug_single_trace::<F, D, ProgramStark<F, D>>(
-            &mozak_stark.program_stark,
-            program,
-            "PROGRAM_ROM_STARK",
-            &[],
-        ),
+        debug_single_trace::<F, D, ProgramStark<F, D>>(&mozak_stark.program_stark, program, &[],),
         // CPU
         debug_single_trace::<F, D, CpuStark<F, D>>(
             &mozak_stark.cpu_stark,
             cpu,
-            "CPU_STARK",
             public_inputs.borrow(),
         ),
         // Range check
         debug_single_trace::<F, D, RangeCheckStark<F, D>>(
             &mozak_stark.rangecheck_stark,
             rangecheck,
-            "RANGE_CHECK_STARK",
             &[],
         ),
         // Xor
@@ -157,33 +151,24 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
         debug_single_trace::<F, D, BitshiftStark<F, D>>(
             &mozak_stark.shift_amount_stark,
             shift_amount,
-            "BITSHIFT_STARK",
             &[],
         ),
         // Memory
-        debug_single_trace::<F, D, MemoryStark<F, D>>(
-            &mozak_stark.memory_stark,
-            memory,
-            "MEMORY_STARK",
-            &[],
-        ),
+        debug_single_trace::<F, D, MemoryStark<F, D>>(&mozak_stark.memory_stark, memory, &[],),
         // MemoryInit
         debug_single_trace::<F, D, MemoryInitStark<F, D>>(
             &mozak_stark.memory_init_stark,
             memory_init,
-            "MEMORY_INIT_STARK",
             &[],
         ),
         debug_single_trace::<F, D, RangeCheckLimbStark<F, D>>(
             &mozak_stark.rangecheck_limb_stark,
             rangecheck_limb,
-            "RANGECHECK_LIMB_STARK",
             &[],
         ),
         debug_single_trace::<F, D, HalfWordMemoryStark<F, D>>(
             &mozak_stark.halfword_memory_stark,
             halfword_memory,
-            "HALFWORD_STARK",
             &[],
         ),
     ]
@@ -191,10 +176,13 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     .all(|x| x));
 }
 
-pub fn debug_single_trace<F: RichField + Extendable<D>, const D: usize, S: Stark<F, D>>(
+pub fn debug_single_trace<
+    F: RichField + Extendable<D>,
+    const D: usize,
+    S: Stark<F, D> + Display,
+>(
     stark: &S,
     trace_rows: &[PolynomialValues<F>],
-    stark_name: &str,
     public_inputs: &[F; S::PUBLIC_INPUTS],
 ) -> bool
 where
@@ -215,7 +203,7 @@ where
                 &mut consumer,
             );
             if consumer.debug_api_has_constraint_failed() {
-                println!("Debug constraints for {stark_name}");
+                println!("Debug constraints for {stark}");
                 println!("lv-row[{lv_row}] - values: {lv:?}");
                 println!("nv-row[{nv_row}] - values: {nv:?}");
                 false

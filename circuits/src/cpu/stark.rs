@@ -13,7 +13,7 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{CpuColumnsExtended, CpuState, Instruction, OpSelectors};
-use super::{add, bitwise, branches, div, ecall, jalr, mul, signed_comparison, sub};
+use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::NumberOfColumns;
 use crate::cpu::shift;
 use crate::program::columns::ProgramRom;
