@@ -78,6 +78,7 @@ pub fn transform_memory_init<F: RichField>(
         .sorted_by_key(key)
 }
 
+fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64) {
 /// Generates Memory trace from a memory init table.
 ///
 /// These need to be further interleaved with runtime memory trace generated
@@ -91,12 +92,10 @@ pub fn transform_halfword<F: RichField>(
         .sorted_by_key(key)
 }
 
-fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64, u64, bool) {
+fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64) {
     (
         memory.addr.to_canonical_u64(),
         memory.clk.to_canonical_u64(),
-        u64::MAX - memory.is_executed().to_canonical_u64(),
-        memory.is_init.is_zero(),
     )
 }
 
