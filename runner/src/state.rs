@@ -98,20 +98,14 @@ impl From<&Program> for State {
     fn from(program: &Program) -> Self { Self::from(program.clone()) }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct MemEntry {
-    pub addr: u32,
-    pub raw_value: u32,
-}
-
 /// Auxiliary information about the instruction execution
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Aux {
     // This could be an Option<u32>, but given how Risc-V instruction are specified,
     // 0 serves as a default value just fine.
     pub dst_val: u32,
     pub new_pc: u32,
-    pub mem: Option<MemEntry>,
+    pub mem_addr: Option<u32>,
     pub will_halt: bool,
     pub op1: u32,
     pub op2: u32,
@@ -155,7 +149,7 @@ impl State {
     }
 
     #[must_use]
-    pub fn memory_load(self, data: &Args, op: fn(&[u8; 4]) -> (u32, u32)) -> (Aux, Self) {
+    pub fn memory_load(self, data: &Args, op: fn(&[u8; 4]) -> u32) -> (Aux, Self) {
         let addr: u32 = self.get_register_value(data.rs2).wrapping_add(data.imm);
         let mem = [
             self.load_u8(addr),
@@ -163,11 +157,11 @@ impl State {
             self.load_u8(addr.wrapping_add(2)),
             self.load_u8(addr.wrapping_add(3)),
         ];
-        let (raw_value, dst_val) = op(&mem);
+        let dst_val = op(&mem);
         (
             Aux {
                 dst_val,
-                mem: Some(MemEntry { addr, raw_value }),
+                mem_addr: Some(addr),
                 ..Default::default()
             },
             self.set_register_value(data.rd, dst_val).bump_pc(),
