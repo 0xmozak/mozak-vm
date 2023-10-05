@@ -80,7 +80,7 @@ pub fn generate_cpu_trace<F: RichField>(
         generate_shift_row(&mut row, aux);
         generate_mul_row(&mut row, aux);
         generate_div_row(&mut row, &inst, aux);
-        generate_sign_handling(&mut row, aux);
+        operands_sign_handling(&mut row, aux);
         memory_sign_handling(&mut row, &inst, aux);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
@@ -230,7 +230,7 @@ fn memory_sign_handling<F: RichField>(row: &mut CpuState<F>, inst: &Instruction,
 
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_lossless)]
-fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
+fn operands_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
     let op1_full_range = sign_extend(row.inst.is_op1_signed.is_nonzero(), aux.op1);
     let op2_full_range = sign_extend(row.inst.is_op2_signed.is_nonzero(), aux.op2);
 
