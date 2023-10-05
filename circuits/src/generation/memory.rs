@@ -78,7 +78,6 @@ pub fn transform_memory_init<F: RichField>(
         .sorted_by_key(key)
 }
 
-fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64) {
 /// Generates Memory trace from a memory init table.
 ///
 /// These need to be further interleaved with runtime memory trace generated
