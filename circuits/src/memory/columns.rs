@@ -22,11 +22,14 @@ pub struct Memory<T> {
     pub clk: T,
 
     // Operations (one-hot encoded)
-    // One of `is_sb`, `is_lbu` or `is_init`(static meminit from ELF) == 1.
+    // One of `is_sb`, `is_lb` or `is_init`(static meminit from ELF) == 1.
     // If none are `1`, it is a padding row
     /// Binary filter column to represent a RISC-V SB operation.
     pub is_store: T,
-    /// Binary filter column to represent a RISC-V LBU operation.
+    /// Binary filter column to represent a RISC-V LB & LBU operation.
+    /// Note: Memory table does not concern itself with verifying the
+    /// signed nature of the `value` and hence treats `LB` and `LBU`
+    /// in the same way.
     pub is_load: T,
     /// Memory Initialisation from ELF (prior to vm execution)
     pub is_init: T,
@@ -48,6 +51,8 @@ columns_view_impl!(Memory);
 make_col_map!(Memory);
 
 impl<F: RichField> From<&MemoryInit<F>> for Option<Memory<F>> {
+    /// All other fields are intentionally set to defaults, and clk is
+    /// deliberately set to zero
     fn from(row: &MemoryInit<F>) -> Self {
         row.filter.is_one().then(|| Memory {
             is_writable: row.is_writable,

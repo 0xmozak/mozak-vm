@@ -38,8 +38,11 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
     step_rows
         .iter()
         .filter(|row| {
-            row.aux.mem_addr.is_some()
-                && matches!(row.state.current_instruction(program).op, Op::LBU | Op::SB)
+            row.aux.mem.is_some()
+                && matches!(
+                    row.state.current_instruction(program).op,
+                    Op::LB | Op::LBU | Op::SB
+                )
         })
         .map(|row| {
             let addr: F = get_memory_inst_addr(row);
@@ -53,7 +56,7 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
                 addr,
                 clk: get_memory_inst_clk(row),
                 is_store: F::from_bool(matches!(op, Op::SB)),
-                is_load: F::from_bool(matches!(op, Op::LBU)),
+                is_load: F::from_bool(matches!(op, Op::LB | Op::LBU)),
                 is_init: F::ZERO,
                 value: F::from_canonical_u32(row.aux.dst_val),
                 ..Default::default()
@@ -88,12 +91,10 @@ pub fn transform_halfword<F: RichField>(
         .sorted_by_key(key)
 }
 
-fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64, u64, bool) {
+fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64) {
     (
         memory.addr.to_canonical_u64(),
         memory.clk.to_canonical_u64(),
-        u64::MAX - memory.is_executed().to_canonical_u64(),
-        memory.is_init.is_zero(),
     )
 }
 
