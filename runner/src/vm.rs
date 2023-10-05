@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
-use crate::state::{Aux, State};
+use crate::state::{Aux, MemEntry, State};
 use crate::system::ecall;
 use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2};
 
@@ -177,17 +177,17 @@ impl State {
     /// TODO: Review the decision to panic.  We might also switch to using a
     /// Result, so that the caller can handle this.
     pub fn store(self, inst: &Args, bytes: u32) -> (Aux, Self) {
-        let dst_val: u32 = self.get_register_value(inst.rs1);
+        let raw_value: u32 = self.get_register_value(inst.rs1);
         let addr = self.get_register_value(inst.rs2).wrapping_add(inst.imm);
         (
             Aux {
-                dst_val,
-                mem: Some((addr, dst_val)),
+                dst_val: raw_value,
+                mem: Some(MemEntry { addr, raw_value }),
                 ..Default::default()
             },
             (0..bytes)
                 .map(|i| addr.wrapping_add(i))
-                .zip(dst_val.to_le_bytes())
+                .zip(raw_value.to_le_bytes())
                 .fold(self, |acc, (i, byte)| acc.store_u8(i, byte).unwrap())
                 .bump_pc(),
         )
