@@ -1,3 +1,4 @@
+use derive_columns_view::ColumnsView;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 
@@ -51,7 +52,7 @@ pub struct OpSelectors<T> {
 
 columns_view_impl!(Instruction);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub struct Instruction<T> {
     /// The original instruction (+ imm_value) used for program
     /// cross-table-lookup.
@@ -73,7 +74,7 @@ pub struct Instruction<T> {
 
 columns_view_impl!(CpuState);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub struct CpuState<T> {
     pub clk: T,
     pub inst: Instruction<T>,
@@ -145,7 +146,7 @@ pub struct CpuState<T> {
 make_col_map!(CpuColumnsExtended);
 columns_view_impl!(CpuColumnsExtended);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub struct CpuColumnsExtended<T> {
     pub cpu: CpuState<T>,
     pub permuted: ProgramRom<T>,

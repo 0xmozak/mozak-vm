@@ -1,10 +1,11 @@
+use derive_columns_view::ColumnsView;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub struct XorColumnsView<T> {
     /// This column indicates if the row has a corresponding execution row
     /// in the CPU table or if it is a dummy row (which is used to fill the
@@ -20,7 +21,7 @@ columns_view_impl!(XorColumnsView);
 make_col_map!(XorColumnsView);
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub struct XorView<T> {
     pub a: T,
     pub b: T,

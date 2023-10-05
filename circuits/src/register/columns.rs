@@ -1,5 +1,6 @@
 use core::ops::Add;
 
+use derive_columns_view::ColumnsView;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
@@ -54,7 +55,7 @@ pub fn dummy<T: Field>() -> Ops<T> { Ops::default() }
 
 /// [`Design doc for RegisterSTARK`](https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2?pvs=4#0729f89ddc724967ac991c9e299cc4fc)
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub struct Register<T> {
     /// The register 'address' that indexes into 1 of our 32 registers.
     /// Should only take values 0-31, so this column should be a running sum

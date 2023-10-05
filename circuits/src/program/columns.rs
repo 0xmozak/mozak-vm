@@ -1,3 +1,4 @@
+use derive_columns_view::ColumnsView;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
@@ -5,7 +6,7 @@ use crate::cross_table_lookup::Column;
 
 columns_view_impl!(InstructionRow);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub struct InstructionRow<T> {
     // Design doc for CPU <> Program cross-table-lookup:
     // https://www.notion.so/0xmozak/Cross-Table-Lookup-bbe98d9471114c36a278f0c491f203e5#c3876d13c1f94b7ab154ea1f8b908181
@@ -21,7 +22,7 @@ pub struct InstructionRow<T> {
 columns_view_impl!(ProgramRom);
 make_col_map!(ProgramRom);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub struct ProgramRom<T> {
     pub inst: InstructionRow<T>,
     /// Filters out instructions that are duplicates, i.e., appear more than

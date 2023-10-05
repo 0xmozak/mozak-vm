@@ -1,3 +1,4 @@
+use derive_columns_view::ColumnsView;
 use itertools::chain;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
@@ -36,7 +37,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
 columns_view_impl!(PublicInputs);
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, Serialize, Deserialize, ColumnsView)]
 #[serde(bound = "F: Field")]
 pub struct PublicInputs<F> {
     pub entry_point: F,

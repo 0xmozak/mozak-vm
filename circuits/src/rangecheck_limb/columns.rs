@@ -1,10 +1,11 @@
+use derive_columns_view::ColumnsView;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub struct RangeCheckLimb<T> {
     // Column containing values 0..u8::MAX, with possible duplicates.
     pub element: T,

@@ -1,3 +1,4 @@
+use derive_columns_view::ColumnsView;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
@@ -5,7 +6,7 @@ use crate::cross_table_lookup::Column;
 use crate::stark::mozak_stark::{RangeCheckTable, Table};
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub(crate) struct RangeCheckColumnsView<T> {
     /// The limbs (u8) of the u32 value to be range
     /// checked.

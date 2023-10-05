@@ -1,3 +1,4 @@
+use derive_columns_view::ColumnsView;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
@@ -14,7 +15,7 @@ pub struct MemElement<T> {
 columns_view_impl!(MemoryInit);
 make_col_map!(MemoryInit);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub struct MemoryInit<T> {
     pub element: MemElement<T>,
     pub filter: T,

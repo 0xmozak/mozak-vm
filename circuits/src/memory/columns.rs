@@ -1,5 +1,6 @@
 use core::ops::Add;
 
+use derive_columns_view::ColumnsView;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
@@ -7,7 +8,7 @@ use crate::cross_table_lookup::Column;
 use crate::stark::mozak_stark::{MemoryTable, Table};
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub struct Memory<T> {
     /// Indicates if a the memory address is writable.
     pub is_writable: T,

@@ -1,5 +1,5 @@
 [workspace]
-members = ["cli", "runner", "circuits", "simple-display-derive"]
+members = ["cli", "runner", "circuits", "simple-display-derive", "derive-columns-view"]
 resolver = "2"
 
 [profile.test]

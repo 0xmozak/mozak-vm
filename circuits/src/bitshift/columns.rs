@@ -1,3 +1,4 @@
+use derive_columns_view::ColumnsView;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
@@ -23,7 +24,7 @@ impl From<u64> for Bitshift<u64> {
 make_col_map!(BitshiftView);
 columns_view_impl!(BitshiftView);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub struct BitshiftView<T> {
     /// This column tells if the row has a corresponding value row
     /// in the CPU table. If not, then this is a padding row, used to
