@@ -68,7 +68,7 @@ pub enum Op {
     SH,
     /// Store Word: M[rs1+imm] = rs2
     SW,
-    /// Branch == : if(rs1 == rs2) PC += imm
+    /// Branch == : if(rs1 == rs2) PC = imm
     BEQ,
     /// Branch != : if(rs1 != rs2) PC += imm
     BNE,
