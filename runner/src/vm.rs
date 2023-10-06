@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
-use crate::state::{Aux, State};
+use crate::state::{Aux, MemEntry, State};
 use crate::system::ecall;
 use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2};
 
@@ -60,23 +60,40 @@ pub fn remu(a: u32, b: u32) -> u32 {
 }
 
 #[must_use]
+pub fn dup(x: u32) -> (u32, u32) { (x, x) }
+
+#[must_use]
+pub fn lbu_raw(mem: &[u8; 4]) -> u32 { mem[0].into() }
+
+#[must_use]
+pub fn lbu(mem: &[u8; 4]) -> (u32, u32) { dup(lbu_raw(mem)) }
+
+#[must_use]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
-pub fn lb(mem: &[u8; 4]) -> u32 { i32::from(mem[0] as i8) as u32 }
+#[allow(clippy::cast_possible_truncation)]
+pub fn lb(mem: &[u8; 4]) -> (u32, u32) {
+    let raw = lbu_raw(mem);
+    (raw, i32::from(raw as i8) as u32)
+}
 
 #[must_use]
-pub fn lbu(mem: &[u8; 4]) -> u32 { mem[0].into() }
+pub fn lhu_raw(mem: &[u8; 4]) -> u32 { u16::from_le_bytes([mem[0], mem[1]]).into() }
+
+#[must_use]
+pub fn lhu(mem: &[u8; 4]) -> (u32, u32) { dup(lhu_raw(mem)) }
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
-pub fn lh(mem: &[u8; 4]) -> u32 { i32::from(i16::from_le_bytes([mem[0], mem[1]])) as u32 }
+#[allow(clippy::cast_possible_truncation)]
+pub fn lh(mem: &[u8; 4]) -> (u32, u32) {
+    let raw = lhu_raw(mem);
+    (raw, i32::from(raw as i16) as u32)
+}
 
 #[must_use]
-pub fn lhu(mem: &[u8; 4]) -> u32 { u16::from_le_bytes([mem[0], mem[1]]).into() }
-
-#[must_use]
-pub fn lw(mem: &[u8; 4]) -> u32 { u32::from_le_bytes(*mem) }
+pub fn lw(mem: &[u8; 4]) -> (u32, u32) { dup(u32::from_le_bytes(*mem)) }
 
 impl State {
     #[must_use]
@@ -160,17 +177,17 @@ impl State {
     /// TODO: Review the decision to panic.  We might also switch to using a
     /// Result, so that the caller can handle this.
     pub fn store(self, inst: &Args, bytes: u32) -> (Aux, Self) {
-        let dst_val: u32 = self.get_register_value(inst.rs1);
+        let raw_value: u32 = self.get_register_value(inst.rs1);
         let addr = self.get_register_value(inst.rs2).wrapping_add(inst.imm);
         (
             Aux {
-                dst_val,
-                mem_addr: Some(addr),
+                dst_val: raw_value,
+                mem: Some(MemEntry { addr, raw_value }),
                 ..Default::default()
             },
             (0..bytes)
                 .map(|i| addr.wrapping_add(i))
-                .zip(dst_val.to_le_bytes())
+                .zip(raw_value.to_le_bytes())
                 .fold(self, |acc, (i, byte)| acc.store_u8(i, byte).unwrap())
                 .bump_pc(),
         )
@@ -857,7 +874,7 @@ mod tests {
             );
             // lh will return [0, 1] as LSBs and will set MSBs to 0xFFFF
             let state = state_before_final(&e);
-            let memory_value = lh(
+            let (_, memory_value) = lh(
                 &[
                     state.load_u8(address),
                     state.load_u8(address.wrapping_add(1)),
@@ -887,7 +904,7 @@ mod tests {
             );
 
             let state = state_before_final(&e);
-            let memory_value = lw(
+            let (_, memory_value) = lw(
                 &[
                     state.load_u8(address),
                     state.load_u8(address.wrapping_add(1)),

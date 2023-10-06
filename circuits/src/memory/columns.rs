@@ -1,9 +1,11 @@
 use core::ops::Add;
 
 use plonky2::field::types::Field;
+use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
+use crate::memoryinit::columns::MemoryInit;
 use crate::stark::mozak_stark::{MemoryTable, Table};
 
 #[repr(C)]
@@ -19,12 +21,15 @@ pub struct Memory<T> {
     pub clk: T,
 
     // Operations (one-hot encoded)
-    // One of `is_sb`, `is_lbu` or `is_init`(static meminit from ELF) == 1.
+    // One of `is_sb`, `is_lb` or `is_init`(static meminit from ELF) == 1.
     // If none are `1`, it is a padding row
     /// Binary filter column to represent a RISC-V SB operation.
-    pub is_sb: T,
-    /// Binary filter column to represent a RISC-V LBU operation.
-    pub is_lbu: T,
+    pub is_store: T,
+    /// Binary filter column to represent a RISC-V LB & LBU operation.
+    /// Note: Memory table does not concern itself with verifying the
+    /// signed nature of the `value` and hence treats `LB` and `LBU`
+    /// in the same way.
+    pub is_load: T,
     /// Memory Initialisation from ELF (prior to vm execution)
     pub is_init: T,
 
@@ -44,10 +49,24 @@ pub struct Memory<T> {
 columns_view_impl!(Memory);
 make_col_map!(Memory);
 
+impl<F: RichField> From<&MemoryInit<F>> for Option<Memory<F>> {
+    /// All other fields are intentionally set to defaults, and clk is
+    /// deliberately set to zero
+    fn from(row: &MemoryInit<F>) -> Self {
+        row.filter.is_one().then(|| Memory {
+            is_writable: row.is_writable,
+            addr: row.element.address,
+            is_init: F::ONE,
+            value: row.element.value,
+            ..Default::default()
+        })
+    }
+}
+
 impl<T: Clone + Add<Output = T>> Memory<T> {
     pub fn is_executed(&self) -> T {
         let s: Memory<T> = self.clone();
-        s.is_sb + s.is_lbu + s.is_init
+        s.is_store + s.is_load + s.is_init
     }
 }
 
@@ -70,8 +89,8 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(MAP.clk),
-        Column::single(MAP.is_sb),
-        Column::single(MAP.is_lbu),
+        Column::single(MAP.is_store),
+        Column::single(MAP.is_load),
         Column::single(MAP.value),
         Column::single(MAP.addr),
     ]
@@ -82,7 +101,7 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> {
     let mem = MAP.map(Column::from);
-    mem.is_sb + mem.is_lbu
+    mem.is_store + mem.is_load
 }
 
 /// Columns containing the data which are looked up in the `MemoryInit` Table
