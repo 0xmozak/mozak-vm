@@ -12,9 +12,9 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{Bitshift, BitshiftView};
 use crate::columns_view::NumberOfColumns;
-use crate::display::derive_display_name;
+use crate::display::derive_display_stark_name;
 
-derive_display_name!(BitshiftStark);
+derive_display_stark_name!(BitshiftStark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct BitshiftStark<F, const D: usize> {

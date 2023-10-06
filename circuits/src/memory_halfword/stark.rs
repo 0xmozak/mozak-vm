@@ -10,11 +10,11 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use crate::display::derive_display_name;
+use crate::display::derive_display_stark_name;
 use crate::memory_halfword::columns::{HalfWordMemory, NUM_HW_MEM_COLS};
 use crate::stark::utils::is_binary;
 
-derive_display_name!(HalfWordMemoryStark);
+derive_display_stark_name!(HalfWordMemoryStark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct HalfWordMemoryStark<F, const D: usize> {

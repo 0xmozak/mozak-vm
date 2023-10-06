@@ -12,10 +12,10 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::RegisterInit;
 use crate::columns_view::NumberOfColumns;
-use crate::display::derive_display_name;
+use crate::display::derive_display_stark_name;
 use crate::stark::utils::is_binary;
 
-derive_display_name!(RegisterInitStark);
+derive_display_stark_name!(RegisterInitStark);
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RegisterInitStark<F, const D: usize> {

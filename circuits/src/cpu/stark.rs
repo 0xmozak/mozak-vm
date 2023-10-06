@@ -16,12 +16,12 @@ use super::columns::{CpuColumnsExtended, CpuState, Instruction, OpSelectors};
 use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::NumberOfColumns;
 use crate::cpu::shift;
-use crate::display::derive_display_name;
+use crate::display::derive_display_stark_name;
 use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::utils::is_binary;
 
-derive_display_name!(CpuStark);
+derive_display_stark_name!(CpuStark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {

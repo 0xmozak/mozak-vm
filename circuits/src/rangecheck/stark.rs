@@ -10,9 +10,9 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns;
-use crate::display::derive_display_name;
+use crate::display::derive_display_stark_name;
 
-derive_display_name!(RangeCheckStark);
+derive_display_stark_name!(RangeCheckStark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RangeCheckStark<F, const D: usize> {

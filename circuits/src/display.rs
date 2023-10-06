@@ -1,4 +1,4 @@
-macro_rules! derive_display_name {
+macro_rules! derive_display_stark_name {
     ($s: ident) => {
         impl<F, const D: usize> Display for $s<F, D> {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -8,4 +8,4 @@ macro_rules! derive_display_name {
     };
 }
 
-pub(crate) use derive_display_name;
+pub(crate) use derive_display_stark_name;

@@ -12,9 +12,9 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::RangeCheckLimb;
 use crate::columns_view::NumberOfColumns;
-use crate::display::derive_display_name;
+use crate::display::derive_display_stark_name;
 
-derive_display_name!(RangeCheckLimbStark);
+derive_display_stark_name!(RangeCheckLimbStark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RangeCheckLimbStark<F, const D: usize> {

@@ -12,10 +12,10 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::ProgramRom;
 use crate::columns_view::NumberOfColumns;
-use crate::display::derive_display_name;
+use crate::display::derive_display_stark_name;
 use crate::stark::utils::is_binary;
 
-derive_display_name!(ProgramStark);
+derive_display_stark_name!(ProgramStark);
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct ProgramStark<F, const D: usize> {
