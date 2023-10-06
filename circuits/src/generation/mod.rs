@@ -57,7 +57,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
     let memory_init_rows = generate_memory_init_trace(program);
-    let memory_rows = generate_memory_trace(program, &record.executed);
+    let memory_rows = generate_memory_trace(program, &record.executed, &memory_init_rows);
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
     let rangecheck_limb_rows = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows);
 
