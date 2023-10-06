@@ -42,7 +42,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ProgramStark<
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &ProgramRom<P> = vars.get_local_values().into();
+        let lv: &ProgramRom<P> = vars.get_local_values().try_into().unwrap();
         is_binary(yield_constr, lv.filter);
     }
 

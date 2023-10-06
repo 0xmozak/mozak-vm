@@ -43,7 +43,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &XorColumnsView<_> = vars.get_local_values().into();
+        let lv: &XorColumnsView<_> = vars.get_local_values().try_into().unwrap();
 
         // We first convert both input and output to bit representation
         // We then work with the bit representations to check the Xor result.

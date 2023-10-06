@@ -77,7 +77,8 @@ where
         &cpu_stark,
         &all_proof.stark_proofs[TableKind::Cpu as usize],
         &stark_challenges[TableKind::Cpu as usize],
-        all_proof.public_inputs.into(),
+        &[],
+        // all_proof.public_inputs.try_into().unwrap(),
         &ctl_vars_per_table[TableKind::Cpu as usize],
         config,
     )?;

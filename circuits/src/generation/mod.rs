@@ -102,7 +102,7 @@ pub fn transpose_polys<
 pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     mozak_stark: &MozakStark<F, D>,
-    public_inputs: PublicInputs<F>,
+    public_inputs: &PublicInputs<F>,
 ) {
     let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, memory_init_trace, rangecheck_limb_trace]: &[Vec<
         PolynomialValues<F>,
@@ -121,7 +121,8 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
             debug_single_trace::<F, D, CpuStark<F, D>>(
                 &mozak_stark.cpu_stark,
                 cpu_trace,
-                public_inputs.into(),
+                &[],
+                // public_inputs.try_into().unwrap(),
             ),
             // Range check
             debug_single_trace::<F, D, RangeCheckStark<F, D>>(

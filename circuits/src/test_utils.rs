@@ -93,14 +93,15 @@ impl ProveAndVerify for CpuStark<F, D> {
             generate_cpu_trace(program, record),
             &generate_program_rom_trace(program),
         ));
-        let public_inputs = PublicInputs {
+        let public_inputs: PublicInputs<F> = PublicInputs {
             entry_point: from_u32(program.entry_point),
         };
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
             trace_poly_values,
-            public_inputs.into(),
+            &[],
+            // public_inputs.try_into().unwrap(),
             &mut TimingTree::default(),
         )?;
 

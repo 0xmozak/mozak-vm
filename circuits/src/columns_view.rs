@@ -60,8 +60,10 @@ macro_rules! columns_view_impl {
             }
         }
 
-        impl<T> From<$s<T>> for &[T] {
-            fn from(value: $s<T>) -> Self {
+        impl<T> From<&[T]> for &$s<T> {
+            fn from(value: &[T]) -> Self {
+                let value: &[T; std::mem::size_of::<$s<u8>>()] =
+                    value.try_into().expect("slice of correct length");
                 unsafe { crate::columns_view::transmute_without_compile_time_size_checks(value) }
             }
         }

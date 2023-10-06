@@ -44,8 +44,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &Memory<P> = vars.get_local_values().into();
-        let nv: &Memory<P> = vars.get_next_values().into();
+        let lv: &Memory<P> = vars.get_local_values().try_into().unwrap();
+        let nv: &Memory<P> = vars.get_next_values().try_into().unwrap();
 
         // Boolean variables describing whether the current row and
         // next row has a change of address when compared to the

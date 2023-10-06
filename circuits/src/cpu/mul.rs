@@ -161,7 +161,7 @@ mod tests {
             ))
         );
         let stark = S::default();
-        let public_inputs = PublicInputs {
+        let public_inputs: PublicInputs<F> = PublicInputs {
             entry_point: from_u32(program.entry_point),
         };
 
@@ -172,7 +172,8 @@ mod tests {
                 stark,
                 &config,
                 trace_poly_values,
-                public_inputs.into(),
+                &[],
+                // &public_inputs.into(),
                 &mut timing,
             )
         );
