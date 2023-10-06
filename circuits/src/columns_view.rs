@@ -8,23 +8,7 @@ use std::mem::{size_of, transmute_copy, ManuallyDrop};
 use std::ops::IndexMut;
 
 pub(crate) unsafe fn transmute_without_compile_time_size_checks<T, U>(t: T) -> U {
-    //   println!(
-    //       "trans (T): {} {}",
-    //       std::any::type_name::<T>(),
-    //       size_of::<T>()
-    //   );
-    //   println!(
-    //       "trans (U): {} {}",
-    //       std::any::type_name::<U>(),
-    //       size_of::<U>()
-    //   );
-    debug_assert_eq!(
-        size_of::<T>(),
-        size_of::<U>(),
-        "{} {}",
-        std::any::type_name::<T>(),
-        std::any::type_name::<U>()
-    );
+    debug_assert_eq!(size_of::<T>(), size_of::<U>());
     // We need to avoid `t` being dropped automatically, so we use ManuallyDrop.
     // We copy the bit pattern.  The original `t` is no longer safe to use,
     // (and that's why we pass it by move, not by reference).
