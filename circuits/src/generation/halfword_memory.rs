@@ -19,7 +19,8 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<HalfWordMemory<F>>) -> Vec<HalfWor
     trace
 }
 
-/// Filter the memory trace to only include halfword load and store instructions.
+/// Filter the memory trace to only include halfword load and store
+/// instructions.
 pub fn filter_memory_trace<'a>(
     program: &'a Program,
     step_rows: &'a [Row],
