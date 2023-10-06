@@ -225,7 +225,7 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
             vec![
                 CpuTable::new(
                     cpu::columns::data_for_memory(),
-                    cpu::columns::filter_for_memory(),
+                    cpu::columns::filter_for_byte_memory(),
                 ),
                 HalfWordMemoryTable::new(
                     memory_halfword::columns::data_for_memory_limb0(),

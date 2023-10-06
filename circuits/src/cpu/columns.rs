@@ -276,7 +276,7 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> {
+pub fn filter_for_byte_memory<F: Field>() -> Column<F> {
     MAP.cpu.map(Column::from).inst.ops.byte_mem_ops()
 }
 
