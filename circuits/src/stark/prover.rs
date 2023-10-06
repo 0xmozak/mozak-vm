@@ -31,6 +31,7 @@ use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
 use crate::memory::stark::MemoryStark;
+use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::rangecheck::stark::RangeCheckStark;
@@ -63,6 +64,7 @@ where
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); HalfWordMemoryStark::<F, D>::COLUMNS]:,
+    [(); FullWordMemoryStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
@@ -103,6 +105,7 @@ where
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); HalfWordMemoryStark::<F, D>::COLUMNS]:,
+    [(); FullWordMemoryStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
@@ -393,6 +396,7 @@ where
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); HalfWordMemoryStark::<F, D>::COLUMNS]:,
+    [(); FullWordMemoryStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     macro_rules! make_proof {
         ($stark: expr, $kind: expr, $public_inputs: expr) => {
@@ -427,6 +431,11 @@ where
         make_proof!(
             mozak_stark.halfword_memory_stark,
             TableKind::HalfWordMemory,
+            []
+        )?,
+        make_proof!(
+            mozak_stark.fullword_memory_stark,
+            TableKind::FullWordMemory,
             []
         )?,
     ])

@@ -16,6 +16,7 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
 use crate::memory::stark::MemoryStark;
+use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
 // use crate::program::stark::ProgramStark;
@@ -46,6 +47,7 @@ where
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); HalfWordMemoryStark::<F, D>::COLUMNS]:,
+    [(); FullWordMemoryStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let AllProofChallenges {
         stark_challenges,
@@ -64,6 +66,7 @@ where
         rangecheck_limb_stark,
         cross_table_lookups,
         halfword_memory_stark,
+        fullword_memory_stark,
         ..
     } = mozak_stark;
 
@@ -108,6 +111,7 @@ where
     verify!(memory_init_stark, TableKind::MemoryInit, []);
     verify!(rangecheck_limb_stark, TableKind::RangeCheckLimb, []);
     verify!(halfword_memory_stark, TableKind::HalfWordMemory, []);
+    verify!(fullword_memory_stark, TableKind::FullWordMemory, []);
 
     verify_stark_proof_with_challenges::<F, C, HalfWordMemoryStark<F, D>, D>(
         &halfword_memory_stark,

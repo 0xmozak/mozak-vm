@@ -3,6 +3,7 @@
 
 pub mod bitshift;
 pub mod cpu;
+pub mod fullword_memory;
 pub mod halfword_memory;
 pub mod instruction;
 pub mod memory;
@@ -31,6 +32,7 @@ use starky::vars::StarkEvaluationVars;
 
 use self::bitshift::generate_shift_amount_trace;
 use self::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
+use self::fullword_memory::generate_fullword_memory_trace;
 use self::halfword_memory::generate_halfword_memory_trace;
 use self::memory::generate_memory_trace;
 use self::memoryinit::generate_memory_init_trace;
@@ -41,6 +43,7 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::program::generate_program_rom_trace;
 use crate::memory::stark::MemoryStark;
+use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
@@ -61,6 +64,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let program_rows = generate_program_rom_trace(program);
     let memory_init_rows = generate_memory_init_trace(program);
     let halfword_memory_rows = generate_halfword_memory_trace(program, &record.executed);
+    let fullword_memory_rows = generate_fullword_memory_trace(program, &record.executed);
     let memory_rows = generate_memory_trace(
         program,
         &record.executed,
@@ -79,6 +83,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_init_trace = trace_rows_to_poly_values(memory_init_rows);
     let rangecheck_limb_trace = trace_rows_to_poly_values(rangecheck_limb_rows);
     let halfword_memory_trace = trace_rows_to_poly_values(halfword_memory_rows);
+    let fullword_memory_trace = trace_rows_to_poly_values(fullword_memory_rows);
     [
         cpu_trace,
         rangecheck_trace,
@@ -89,6 +94,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         memory_init_trace,
         rangecheck_limb_trace,
         halfword_memory_trace,
+        fullword_memory_trace,
     ]
 }
 
@@ -126,8 +132,9 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
-    [(); HalfWordMemoryStark::<F, D>::COLUMNS]:, {
-    let [cpu, rangecheck, xor, shift_amount, program, memory, memory_init, rangecheck_limb, halfword_memory] =
+    [(); HalfWordMemoryStark::<F, D>::COLUMNS]:,
+    [(); FullWordMemoryStark::<F, D>::COLUMNS]:, {
+    let [cpu, rangecheck, xor, shift_amount, program, memory, memory_init, rangecheck_limb, halfword_memory, fullword_memory] =
         traces_poly_values;
 
     assert!([
@@ -169,6 +176,11 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
         debug_single_trace::<F, D, HalfWordMemoryStark<F, D>>(
             &mozak_stark.halfword_memory_stark,
             halfword_memory,
+            &[],
+        ),
+        debug_single_trace::<F, D, FullWordMemoryStark<F, D>>(
+            &mozak_stark.fullword_memory_stark,
+            fullword_memory,
             &[],
         ),
     ]

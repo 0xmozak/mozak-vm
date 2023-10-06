@@ -21,6 +21,7 @@ pub mod cross_table_lookup;
 pub mod generation;
 pub mod linear_combination;
 pub mod memory;
+pub mod memory_fullword;
 pub mod memory_halfword;
 pub mod memoryinit;
 pub mod program;
