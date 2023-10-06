@@ -2,7 +2,7 @@ pub mod ecall {
     pub const HALT: u32 = 0;
     pub const PANIC: u32 = 1;
     pub const IO_READ: u32 = 2;
-    pub const POSEIDON: u32 = 3;
+    pub const POSEIDON2: u32 = 3;
 }
 
 pub mod reg_abi {

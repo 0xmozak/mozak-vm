@@ -8,7 +8,7 @@ impl Digest {
     pub fn as_bytes(&self) -> &[u8] { &self.0 }
 }
 
-pub fn poseidon_hash(input: &[u8]) -> Digest {
+pub fn poseidon2_hash(input: &[u8]) -> Digest {
     let mut output = [0; DIGEST_BYTES];
     #[cfg(target_os = "zkvm")]
     unsafe {

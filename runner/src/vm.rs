@@ -6,7 +6,7 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::hashing::PlonkyPermutation;
-use plonky2::hash::poseidon::PoseidonPermutation;
+use plonky2::hash::poseidon2::Poseidon2Permutation;
 use plonky2::plonk::config::GenericHashOut;
 
 use crate::elf::Program;
@@ -156,7 +156,7 @@ impl State {
                     from_utf8(&msg_vec).expect("A valid utf8 VM panic message should be provided")
                 );
             }
-            ecall::POSEIDON => {
+            ecall::POSEIDON2 => {
                 let input_ptr = self.get_register_value(REG_A1);
                 // lengths are in bytes
                 let input_len = self.get_register_value(REG_A2);
@@ -167,7 +167,7 @@ impl State {
                     .collect();
                 let hash = hash_n_to_m_no_pad::<
                     GoldilocksField,
-                    PoseidonPermutation<GoldilocksField>,
+                    Poseidon2Permutation<GoldilocksField>,
                 >(&input)
                 .to_bytes();
                 assert!(output_len == hash.len());

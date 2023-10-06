@@ -3,15 +3,15 @@
 
 use core::assert_eq;
 
-use guest::hash::poseidon_hash;
+use guest::hash::poseidon2_hash;
 use hex_literal::hex;
 
 pub fn main() {
     let data = "Mozak-VM";
-    let hash = poseidon_hash(data.as_bytes());
+    let hash = poseidon2_hash(data.as_bytes());
     assert_eq!(
         hash.as_bytes()[..],
-        hex!("6f43508b66e312f0ff05382d9d8dbca3c4eb4d12e24ddd54b062f71c1c08e7a4")[..]
+        hex!("aad35ba40f7c24e9f45292e8d3d0b26f492b0921cf534b2301d8085501f1176d")[..]
     );
     guest::env::write(hash.as_bytes());
 }
