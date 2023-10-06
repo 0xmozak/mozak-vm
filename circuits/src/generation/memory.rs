@@ -47,7 +47,6 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
             let addr: F = get_memory_inst_addr(row);
             let op = &(row.state).current_instruction(program).op;
             Memory {
-                is_writable: F::ZERO,
                 addr,
                 clk: get_memory_inst_clk(row),
                 is_store: F::from_bool(matches!(op, Op::SB)),
