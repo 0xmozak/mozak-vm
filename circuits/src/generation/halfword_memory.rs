@@ -19,7 +19,7 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<HalfWordMemory<F>>) -> Vec<HalfWor
     trace
 }
 
-/// Returns the rows sorted in the order of the instruction address.
+/// Filter the memory trace to only include halfword load and store instructions.
 pub fn filter_memory_trace<'a>(
     program: &'a Program,
     step_rows: &'a [Row],
@@ -27,7 +27,6 @@ pub fn filter_memory_trace<'a>(
     step_rows
         .iter()
         .filter(|row| matches!(row.state.current_instruction(program).op, Op::LHU | Op::SH))
-        .sorted_by_key(|row| (row.aux.mem.unwrap().addr, row.state.clk))
 }
 
 #[must_use]
