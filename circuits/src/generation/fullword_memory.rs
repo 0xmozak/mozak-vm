@@ -26,12 +26,12 @@ pub fn filter_memory_trace<'a>(
 ) -> impl Iterator<Item = &'a Row> {
     step_rows
         .iter()
-        .filter(|row| matches!(row.state.current_instruction(program).op, Op::LHU | Op::SH))
+        .filter(|row| matches!(row.state.current_instruction(program).op, Op::LWU | Op::SW))
         .sorted_by_key(|row| (row.aux.mem.unwrap_or_default().addr, row.state.clk))
 }
 
 #[must_use]
-pub fn generate_halfword_memory_trace<F: RichField>(
+pub fn generate_fullword_memory_trace<F: RichField>(
     program: &Program,
     step_rows: &[Row],
 ) -> Vec<FullWordMemory<F>> {
