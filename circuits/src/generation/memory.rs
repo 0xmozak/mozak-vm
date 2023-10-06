@@ -105,10 +105,11 @@ pub fn generate_memory_trace<F: RichField>(
     // dynamic memory trace components of program (ELF and execution)
     // `merge` operation is expected to be stable
     let mut merged_trace: Vec<Memory<F>> = chain!(
-            transform_memory_init::<F>(memory_init_rows),
-            generate_memory_trace_from_execution(program, step_rows),
+        transform_memory_init::<F>(memory_init_rows),
+        generate_memory_trace_from_execution(program, step_rows),
         transform_halfword(halfword_memory_rows),
-    ).collect();
+    )
+    .collect();
     merged_trace.sort_by_key(key);
 
     // Ensures constraints by filling remaining inter-row
