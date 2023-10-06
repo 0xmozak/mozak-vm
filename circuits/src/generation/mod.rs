@@ -115,60 +115,50 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:, {
-    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, memory_init_trace, rangecheck_limb_trace]: &[Vec<
+    let [cpu, rangecheck, xor, shift_amount, program, memory, memory_init, rangecheck_limb]: &[Vec<
         PolynomialValues<F>,
     >;
         NUM_TABLES] = traces_poly_values;
 
-    assert!(
-        [
-            // Program ROM
-            debug_single_trace::<F, D, ProgramStark<F, D>>(
-                &mozak_stark.program_stark,
-                program_trace,
-                &[],
-            ),
-            // CPU
-            debug_single_trace::<F, D, CpuStark<F, D>>(
-                &mozak_stark.cpu_stark,
-                cpu_trace,
-                public_inputs.borrow(),
-            ),
-            // Range check
-            debug_single_trace::<F, D, RangeCheckStark<F, D>>(
-                &mozak_stark.rangecheck_stark,
-                rangecheck_trace,
-                &[],
-            ),
-            // Xor
-            debug_single_trace::<F, D, XorStark<F, D>>(&mozak_stark.xor_stark, xor_trace, &[]),
-            // Bitshift
-            debug_single_trace::<F, D, BitshiftStark<F, D>>(
-                &mozak_stark.shift_amount_stark,
-                shift_amount_trace,
-                &[],
-            ),
-            // Memory
-            debug_single_trace::<F, D, MemoryStark<F, D>>(
-                &mozak_stark.memory_stark,
-                memory_trace,
-                &[],
-            ),
-            // MemoryInit
-            debug_single_trace::<F, D, MemoryInitStark<F, D>>(
-                &mozak_stark.memory_init_stark,
-                memory_init_trace,
-                &[],
-            ),
-            debug_single_trace::<F, D, RangeCheckLimbStark<F, D>>(
-                &mozak_stark.rangecheck_limb_stark,
-                rangecheck_limb_trace,
-                &[],
-            ),
-        ]
-        .into_iter()
-        .all(|x| x)
-    );
+    assert!([
+        // Program ROM
+        debug_single_trace::<F, D, ProgramStark<F, D>>(&mozak_stark.program_stark, program, &[],),
+        // CPU
+        debug_single_trace::<F, D, CpuStark<F, D>>(
+            &mozak_stark.cpu_stark,
+            cpu,
+            public_inputs.borrow(),
+        ),
+        // Range check
+        debug_single_trace::<F, D, RangeCheckStark<F, D>>(
+            &mozak_stark.rangecheck_stark,
+            rangecheck,
+            &[],
+        ),
+        // Xor
+        debug_single_trace::<F, D, XorStark<F, D>>(&mozak_stark.xor_stark, xor, &[]),
+        // Bitshift
+        debug_single_trace::<F, D, BitshiftStark<F, D>>(
+            &mozak_stark.shift_amount_stark,
+            shift_amount,
+            &[],
+        ),
+        // Memory
+        debug_single_trace::<F, D, MemoryStark<F, D>>(&mozak_stark.memory_stark, memory, &[],),
+        // MemoryInit
+        debug_single_trace::<F, D, MemoryInitStark<F, D>>(
+            &mozak_stark.memory_init_stark,
+            memory_init,
+            &[],
+        ),
+        debug_single_trace::<F, D, RangeCheckLimbStark<F, D>>(
+            &mozak_stark.rangecheck_limb_stark,
+            rangecheck_limb,
+            &[],
+        ),
+    ]
+    .into_iter()
+    .all(|x| x));
 }
 
 pub fn debug_single_trace<
