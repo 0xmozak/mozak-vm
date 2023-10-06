@@ -107,13 +107,8 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 /// stark table.
 #[must_use]
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::single(MAP.clk),
-        Column::single(MAP.is_store),
-        Column::single(MAP.is_load),
-        Column::single(MAP.value),
-        Column::single(MAP.addr),
-    ]
+    let map = MAP.map(Column::from);
+    vec![map.clk, map.is_store, map.is_load, map.value, map.addr]
 }
 
 /// Column for a binary filter to indicate a lookup from the CPU table into
