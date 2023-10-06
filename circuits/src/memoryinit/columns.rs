@@ -6,7 +6,7 @@ use crate::cross_table_lookup::Column;
 
 columns_view_impl!(MemElement);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub struct MemElement<T> {
     pub address: T,
     pub value: T,

@@ -6,7 +6,7 @@ use crate::cross_table_lookup::Column;
 
 columns_view_impl!(Bitshift);
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub struct Bitshift<T> {
     pub amount: T,
     pub multiplier: T,

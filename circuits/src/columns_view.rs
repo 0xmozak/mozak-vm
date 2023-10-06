@@ -43,11 +43,16 @@ macro_rules! columns_view_impl {
             }
         }
 
-        impl<T> From<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
-            fn from(value: [T; std::mem::size_of::<$s<u8>>()]) -> Self {
-                unsafe { crate::columns_view::transmute_without_compile_time_size_checks(value) }
-            }
-        }
+        // impl<T> crate::columns_view::NumberOfColumns for $s<T> {
+        //     // `u8` is guaranteed to have a `size_of` of 1.
+        //     const NUMBER_OF_COLUMNS: usize = std::mem::size_of::<$s<u8>>();
+        // }
+
+        // impl<T> From<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
+        //     fn from(value: [T; std::mem::size_of::<$s<u8>>()]) -> Self {
+        //         unsafe { crate::columns_view::transmute_without_compile_time_size_checks(value) }
+        //     }
+        // }
 
         impl<T> From<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
             fn from(value: $s<T>) -> Self {

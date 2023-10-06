@@ -12,7 +12,7 @@ use crate::xor::columns::XorView;
 columns_view_impl!(OpSelectors);
 /// Selectors for which instruction is currently active.
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default, ColumnsView)]
 pub struct OpSelectors<T> {
     pub add: T,
     pub sub: T,

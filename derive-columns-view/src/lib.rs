@@ -17,17 +17,11 @@ pub fn derive(input: TokenStream) -> TokenStream {
             const NUMBER_OF_COLUMNS: usize = #size;
         }
 
-        // impl #impl_generics From<[#t; #size]> for #ident #ty_generics #where_clause {
-        //     fn from(value: [#t; #size]) -> Self {
-        //         unsafe { crate::columns_view::transmute_without_compile_time_size_checks(value) }
-        //     }
-        // }
-        // impl #impl_generics From<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
-        //     fn from(value: [T; std::mem::size_of::<$s<u8>>()]) -> Self {
-        //         unsafe { crate::columns_view::transmute_without_compile_time_size_checks(value) }
-        //     }
-        // }
-
+        impl #impl_generics From<[#t; #size]> for #ident #ty_generics #where_clause {
+            fn from(value: [#t; #size]) -> Self {
+                unsafe { crate::columns_view::transmute_without_compile_time_size_checks(value) }
+            }
+        }
     };
     proc_macro::TokenStream::from(output)
 }
