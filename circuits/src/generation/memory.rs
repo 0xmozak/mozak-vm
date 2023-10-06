@@ -1,4 +1,4 @@
-use itertools::{self, Itertools};
+use itertools::{self, chain};
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
@@ -8,7 +8,6 @@ use crate::memory::columns::Memory;
 use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk};
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memoryinit::columns::MemoryInit;
-use crate::stark::utils::merge_by_key;
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
@@ -31,10 +30,10 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
 /// `Program`. These need to be further interleaved with
 /// static memory trace generated from `Program` for final
 /// execution for final memory trace.
-pub fn generate_memory_trace_from_execution<F: RichField>(
-    program: &Program,
-    step_rows: &[Row],
-) -> impl Iterator<Item = Memory<F>> {
+pub fn generate_memory_trace_from_execution<'a, F: RichField>(
+    program: &'a Program,
+    step_rows: &'a [Row],
+) -> impl Iterator<Item = Memory<F>> + 'a {
     step_rows
         .iter()
         .filter(|row| {
@@ -46,13 +45,8 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
         })
         .map(|row| {
             let addr: F = get_memory_inst_addr(row);
-            let _: u32 = addr
-                .to_canonical_u64()
-                .try_into()
-                .expect("casting addr (F) to u32 should not fail");
             let op = &(row.state).current_instruction(program).op;
             Memory {
-                is_writable: F::ZERO,
                 addr,
                 clk: get_memory_inst_clk(row),
                 is_store: F::from_bool(matches!(op, Op::SB)),
@@ -62,7 +56,6 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
                 ..Default::default()
             }
         })
-        .sorted_by_key(key)
 }
 
 /// Generates Memory trace from a memory init table.
@@ -71,11 +64,10 @@ pub fn generate_memory_trace_from_execution<F: RichField>(
 /// from VM execution for final memory trace.
 pub fn transform_memory_init<F: RichField>(
     memory_init_rows: &[MemoryInit<F>],
-) -> impl Iterator<Item = Memory<F>> {
+) -> impl Iterator<Item = Memory<F>> + '_ {
     memory_init_rows
         .iter()
         .filter_map(Option::<Memory<F>>::from)
-        .sorted_by_key(key)
 }
 
 /// Generates Memory trace from a memory init table.
@@ -84,11 +76,10 @@ pub fn transform_memory_init<F: RichField>(
 /// from VM execution for final memory trace.
 pub fn transform_halfword<F: RichField>(
     halfword_memory: &[HalfWordMemory<F>],
-) -> impl Iterator<Item = Memory<F>> {
+) -> impl Iterator<Item = Memory<F>> + '_ {
     halfword_memory
         .iter()
         .flat_map(Into::<Vec<Memory<F>>>::into)
-        .sorted_by_key(key)
 }
 
 fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64) {
@@ -113,17 +104,13 @@ pub fn generate_memory_trace<F: RichField>(
     // `merged_trace` is address sorted combination of static and
     // dynamic memory trace components of program (ELF and execution)
     // `merge` operation is expected to be stable
-    let mut merged_trace: Vec<Memory<F>> = merge_by_key(
-        merge_by_key(
-            transform_memory_init::<F>(memory_init_rows),
-            generate_memory_trace_from_execution(program, step_rows),
-            key,
-        ),
+    let mut merged_trace: Vec<Memory<F>> = chain!(
+        transform_memory_init::<F>(memory_init_rows),
+        generate_memory_trace_from_execution(program, step_rows),
         transform_halfword(halfword_memory_rows),
-        key,
     )
-    .sorted_by_key(key)
     .collect();
+    merged_trace.sort_by_key(key);
 
     // Ensures constraints by filling remaining inter-row
     // relation values: clock difference and addr difference and is_writable

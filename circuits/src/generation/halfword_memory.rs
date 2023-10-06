@@ -4,7 +4,7 @@ use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
-use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk};
+use crate::memory::trace::get_memory_inst_clk;
 use crate::memory_halfword::columns::{HalfWordMemory, Ops};
 
 /// Pad the memory trace to a power of 2.
@@ -19,7 +19,8 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<HalfWordMemory<F>>) -> Vec<HalfWor
     trace
 }
 
-/// Returns the rows sorted in the order of the instruction address.
+/// Filter the memory trace to only include halfword load and store
+/// instructions.
 pub fn filter_memory_trace<'a>(
     program: &'a Program,
     step_rows: &'a [Row],
@@ -27,7 +28,6 @@ pub fn filter_memory_trace<'a>(
     step_rows
         .iter()
         .filter(|row| matches!(row.state.current_instruction(program).op, Op::LHU | Op::SH))
-        .sorted_by_key(|row| (row.aux.mem.unwrap().addr, row.state.clk))
 }
 
 #[must_use]
@@ -39,12 +39,14 @@ pub fn generate_halfword_memory_trace<F: RichField>(
         filter_memory_trace(program, step_rows)
             .map(|s| {
                 let op = s.state.current_instruction(program).op;
-                let mem_addr0 = get_memory_inst_addr(s);
-                let mem_addr1 =
-                    F::from_canonical_u32(u32::wrapping_add(s.aux.mem.unwrap_or_default().addr, 1));
+                let mem_addr0 = s.aux.mem.unwrap_or_default().addr;
+                let mem_addr1 = mem_addr0.wrapping_add(1);
                 HalfWordMemory {
                     clk: get_memory_inst_clk(s),
-                    addrs: [mem_addr0, mem_addr1],
+                    addrs: [
+                        F::from_canonical_u32(mem_addr0),
+                        F::from_canonical_u32(mem_addr1),
+                    ],
                     ops: Ops {
                         is_store: F::from_bool(matches!(op, Op::SH)),
                         is_load: F::from_bool(matches!(op, Op::LHU)),

@@ -3,7 +3,6 @@
 
 pub mod bitshift;
 pub mod cpu;
-pub mod fullword_memory;
 pub mod halfword_memory;
 pub mod instruction;
 pub mod memory;

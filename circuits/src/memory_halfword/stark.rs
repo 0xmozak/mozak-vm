@@ -19,6 +19,12 @@ pub struct HalfWordMemoryStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
+impl<F, const D: usize> Display for HalfWordMemoryStark<F, D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "HalfWordMemoryStark")
+    }
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemoryStark<F, D> {
     const COLUMNS: usize = NUM_HW_MEM_COLS;
     const PUBLIC_INPUTS: usize = 0;
@@ -58,12 +64,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemor
     }
 
     fn constraint_degree(&self) -> usize { 3 }
-}
-
-impl<F, const D: usize> Display for HalfWordMemoryStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "HalfWordMemoryStark")
-    }
 }
 
 #[cfg(test)]
