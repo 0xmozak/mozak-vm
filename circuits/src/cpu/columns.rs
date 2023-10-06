@@ -284,12 +284,13 @@ pub fn filter_for_byte_memory<F: Field>() -> Column<F> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
+    let cpu = MAP.cpu.map(Column::from);
     vec![
-        Column::single(MAP.cpu.clk),
-        Column::single(MAP.cpu.mem_addr),
-        Column::single(MAP.cpu.dst_value),
-        Column::single(MAP.cpu.inst.ops.sh),
-        Column::single(MAP.cpu.inst.ops.lhu),
+        cpu.clk,
+        cpu.mem_addr,
+        cpu.dst_value,
+        cpu.inst.ops.sh,
+        cpu.inst.ops.lhu,
     ]
 }
 
