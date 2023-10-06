@@ -18,7 +18,7 @@ use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
 use crate::memory::stark::MemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
-use crate::program::stark::ProgramStark;
+// use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_limb::stark::RangeCheckLimbStark;
 use crate::stark::permutation::PermutationCheckVars;
@@ -26,7 +26,6 @@ use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
 use crate::xor::stark::XorStark;
 
-#[allow(clippy::too_many_lines)]
 pub fn verify_proof<F, C, const D: usize>(
     mozak_stark: MozakStark<F, D>,
     all_proof: AllProof<F, C, D>,
@@ -86,86 +85,28 @@ where
         &nums_permutation_zs,
     );
 
-    verify_stark_proof_with_challenges::<F, C, CpuStark<F, D>, D>(
-        &cpu_stark,
-        &all_proof.stark_proofs[TableKind::Cpu as usize],
-        &stark_challenges[TableKind::Cpu as usize],
-        all_proof.public_inputs.into(),
-        &ctl_vars_per_table[TableKind::Cpu as usize],
-        config,
-    )?;
+    macro_rules! verify {
+        ($stark: expr, $kind: expr, $public_inputs: expr) => {
+            verify_stark_proof_with_challenges(
+                &$stark,
+                &all_proof.stark_proofs[$kind as usize],
+                &stark_challenges[$kind as usize],
+                $public_inputs,
+                &ctl_vars_per_table[$kind as usize],
+                config,
+            )?;
+        };
+    }
 
-    verify_stark_proof_with_challenges::<F, C, RangeCheckStark<F, D>, D>(
-        &rangecheck_stark,
-        &all_proof.stark_proofs[TableKind::RangeCheck as usize],
-        &stark_challenges[TableKind::RangeCheck as usize],
-        [],
-        &ctl_vars_per_table[TableKind::RangeCheck as usize],
-        config,
-    )?;
-
-    verify_stark_proof_with_challenges::<F, C, XorStark<F, D>, D>(
-        &xor_stark,
-        &all_proof.stark_proofs[TableKind::Xor as usize],
-        &stark_challenges[TableKind::Xor as usize],
-        [],
-        &ctl_vars_per_table[TableKind::Xor as usize],
-        config,
-    )?;
-
-    verify_stark_proof_with_challenges::<F, C, BitshiftStark<F, D>, D>(
-        &shift_amount_stark,
-        &all_proof.stark_proofs[TableKind::Bitshift as usize],
-        &stark_challenges[TableKind::Bitshift as usize],
-        [],
-        &ctl_vars_per_table[TableKind::Bitshift as usize],
-        config,
-    )?;
-
-    verify_stark_proof_with_challenges::<F, C, ProgramStark<F, D>, D>(
-        &program_stark,
-        &all_proof.stark_proofs[TableKind::Program as usize],
-        &stark_challenges[TableKind::Program as usize],
-        [],
-        &ctl_vars_per_table[TableKind::Program as usize],
-        config,
-    )?;
-
-    verify_stark_proof_with_challenges::<F, C, MemoryStark<F, D>, D>(
-        &memory_stark,
-        &all_proof.stark_proofs[TableKind::Memory as usize],
-        &stark_challenges[TableKind::Memory as usize],
-        [],
-        &ctl_vars_per_table[TableKind::Memory as usize],
-        config,
-    )?;
-
-    verify_stark_proof_with_challenges::<F, C, MemoryInitStark<F, D>, D>(
-        &memory_init_stark,
-        &all_proof.stark_proofs[TableKind::MemoryInit as usize],
-        &stark_challenges[TableKind::MemoryInit as usize],
-        [],
-        &ctl_vars_per_table[TableKind::MemoryInit as usize],
-        config,
-    )?;
-
-    verify_stark_proof_with_challenges::<F, C, RangeCheckLimbStark<F, D>, D>(
-        &rangecheck_limb_stark,
-        &all_proof.stark_proofs[TableKind::RangeCheckLimb as usize],
-        &stark_challenges[TableKind::RangeCheckLimb as usize],
-        [],
-        &ctl_vars_per_table[TableKind::RangeCheckLimb as usize],
-        config,
-    )?;
-
-    verify_stark_proof_with_challenges::<F, C, HalfWordMemoryStark<F, D>, D>(
-        &halfword_memory_stark,
-        &all_proof.stark_proofs[TableKind::HalfWordMemory as usize],
-        &stark_challenges[TableKind::HalfWordMemory as usize],
-        [],
-        &ctl_vars_per_table[TableKind::HalfWordMemory as usize],
-        config,
-    )?;
+    verify!(cpu_stark, TableKind::Cpu, all_proof.public_inputs.into());
+    verify!(rangecheck_stark, TableKind::RangeCheck, []);
+    verify!(xor_stark, TableKind::Xor, []);
+    verify!(shift_amount_stark, TableKind::Bitshift, []);
+    verify!(program_stark, TableKind::Program, []);
+    verify!(memory_stark, TableKind::Memory, []);
+    verify!(memory_init_stark, TableKind::MemoryInit, []);
+    verify!(rangecheck_limb_stark, TableKind::RangeCheckLimb, []);
+    verify!(halfword_memory_stark, TableKind::HalfWordMemory, []);
 
     verify_cross_table_lookups::<F, D>(&cross_table_lookups, &all_proof.all_ctl_zs_last(), config)?;
     Ok(())
