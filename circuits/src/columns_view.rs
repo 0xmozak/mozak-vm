@@ -50,15 +50,17 @@ macro_rules! columns_view_impl {
 
         // impl<T> From<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
         //     fn from(value: [T; std::mem::size_of::<$s<u8>>()]) -> Self {
-        //         unsafe { crate::columns_view::transmute_without_compile_time_size_checks(value) }
+        //         unsafe {
+        // crate::columns_view::transmute_without_compile_time_size_checks(value) }
         //     }
         // }
 
-        impl<T> From<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
-            fn from(value: $s<T>) -> Self {
-                unsafe { crate::columns_view::transmute_without_compile_time_size_checks(value) }
-            }
-        }
+        // impl<T> From<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
+        //     fn from(value: $s<T>) -> Self {
+        //         unsafe {
+        // crate::columns_view::transmute_without_compile_time_size_checks(value) }
+        //     }
+        // }
 
         impl<T> std::borrow::Borrow<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
             fn borrow(&self) -> &$s<T> {
