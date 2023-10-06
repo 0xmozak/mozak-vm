@@ -1,11 +1,13 @@
+use std::iter::repeat;
 use std::str::from_utf8;
 
 use anyhow::{anyhow, Result};
-use log::debug;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
-use plonky2::hash::poseidon::PoseidonHash;
-use plonky2::plonk::config::{GenericHashOut, Hasher};
+use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hashing::PlonkyPermutation;
+use plonky2::hash::poseidon::PoseidonPermutation;
+use plonky2::plonk::config::GenericHashOut;
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
@@ -163,7 +165,11 @@ impl State {
                 let input: Vec<GoldilocksField> = (0..input_len)
                     .map(|i| GoldilocksField::from_canonical_u8(self.load_u8(input_ptr + i)))
                     .collect();
-                let hash = PoseidonHash::hash_no_pad(&input).to_bytes();
+                let hash = hash_n_to_m_no_pad::<
+                    GoldilocksField,
+                    PoseidonPermutation<GoldilocksField>,
+                >(&input)
+                .to_bytes();
                 assert!(output_len == hash.len());
                 (
                     Aux::default(),
@@ -346,6 +352,28 @@ pub fn step(program: &Program, mut last_state: State) -> Result<ExecutionRecord>
         executed,
         last_state,
     })
+}
+
+fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(inputs: &[F]) -> HashOut<F> {
+    let mut perm = P::new(repeat(F::ZERO));
+
+    // Absorb all input chunks.
+    for chunk in inputs.chunks(P::RATE) {
+        perm.set_from_slice(chunk, 0);
+        perm.permute();
+    }
+
+    // Squeeze untill we have the desired number of outputs.
+    let mut outputs = Vec::new();
+    loop {
+        for &item in perm.squeeze() {
+            outputs.push(item);
+            if outputs.len() == NUM_HASH_OUT_ELTS {
+                return HashOut::from_vec(outputs);
+            }
+        }
+        perm.permute();
+    }
 }
 
 #[cfg(test)]
