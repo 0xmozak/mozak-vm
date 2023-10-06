@@ -10,17 +10,13 @@ use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns;
+use crate::display::derive_display_name;
 
+derive_display_name!(RangeCheckStark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RangeCheckStark<F, const D: usize> {
     pub _f: PhantomData<F>,
-}
-
-impl<F, const D: usize> Display for RangeCheckStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "RangeCheckStark")
-    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckStark<F, D> {

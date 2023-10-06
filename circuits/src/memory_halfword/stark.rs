@@ -10,19 +10,15 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::stark::Stark;
 use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
+use crate::display::derive_display_name;
 use crate::memory_halfword::columns::{HalfWordMemory, NUM_HW_MEM_COLS};
 use crate::stark::utils::is_binary;
 
+derive_display_name!(HalfWordMemoryStark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct HalfWordMemoryStark<F, const D: usize> {
     pub _f: PhantomData<F>,
-}
-
-impl<F, const D: usize> Display for HalfWordMemoryStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "HalfWordMemoryStark")
-    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemoryStark<F, D> {

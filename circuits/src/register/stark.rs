@@ -12,18 +12,14 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::Register;
 use crate::columns_view::NumberOfColumns;
+use crate::display::derive_display_name;
 use crate::stark::utils::is_binary;
 
+derive_display_name!(RegisterStark);
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RegisterStark<F, const D: usize> {
     pub _f: PhantomData<F>,
-}
-
-impl<F, const D: usize> Display for RegisterStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "RegisterStark")
-    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark<F, D> {

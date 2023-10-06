@@ -12,17 +12,16 @@ use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::ProgramRom;
 use crate::columns_view::NumberOfColumns;
+use crate::display::derive_display_name;
 use crate::stark::utils::is_binary;
 
+derive_display_name!(ProgramStark);
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct ProgramStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F, const D: usize> Display for ProgramStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "ProgramStark") }
-}
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ProgramStark<F, D> {
     const COLUMNS: usize = ProgramRom::<F>::NUMBER_OF_COLUMNS;
     const PUBLIC_INPUTS: usize = 0;
