@@ -5,6 +5,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
+use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memoryinit::columns::MemoryInit;
 use crate::stark::mozak_stark::{MemoryTable, Table};
 
@@ -63,6 +64,25 @@ impl<F: RichField> From<&MemoryInit<F>> for Option<Memory<F>> {
     }
 }
 
+impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
+    fn from(val: &HalfWordMemory<F>) -> Self {
+        if (val.ops.is_load + val.ops.is_store).is_zero() {
+            vec![]
+        } else {
+            (0..2)
+                .map(|i| Memory {
+                    clk: val.clk,
+                    addr: val.addrs[i],
+                    value: val.limbs[i],
+                    is_store: val.ops.is_store,
+                    is_load: val.ops.is_load,
+                    ..Default::default()
+                })
+                .collect()
+        }
+    }
+}
+
 impl<T: Clone + Add<Output = T>> Memory<T> {
     pub fn is_executed(&self) -> T {
         let s: Memory<T> = self.clone();
@@ -87,13 +107,8 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 /// stark table.
 #[must_use]
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::single(MAP.clk),
-        Column::single(MAP.is_store),
-        Column::single(MAP.is_load),
-        Column::single(MAP.value),
-        Column::single(MAP.addr),
-    ]
+    let map = MAP.map(Column::from);
+    vec![map.clk, map.is_store, map.is_load, map.value, map.addr]
 }
 
 /// Column for a binary filter to indicate a lookup from the CPU table into
@@ -119,3 +134,24 @@ pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
 /// Column for a binary filter to indicate a lookup to the `MemoryInit` Table
 #[must_use]
 pub fn filter_for_memoryinit<F: Field>() -> Column<F> { Column::single(MAP.is_init) }
+
+/// Columns containing the data which are looked from the CPU table into Memory
+/// stark table.
+#[must_use]
+pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
+    vec![
+        Column::single(MAP.clk),
+        Column::single(MAP.addr),
+        Column::single(MAP.value),
+        Column::single(MAP.is_store),
+        Column::single(MAP.is_load),
+    ]
+}
+
+/// Column for a binary filter to indicate a lookup from the CPU table into
+/// Memory stark table.
+#[must_use]
+pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
+    let mem = MAP.map(Column::from);
+    mem.is_store + mem.is_load
+}
