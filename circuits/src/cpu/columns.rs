@@ -39,10 +39,12 @@ pub struct OpSelectors<T> {
     /// Store Byte
     pub sb: T,
     pub sh: T,
+    pub sw: T,
     /// Load Byte Unsigned and places it in the least significant byte position
     /// of the target register.
     pub lb: T,
     pub lhu: T,
+    pub lw: T,
     /// Branch Less Than
     pub blt: T,
     /// Branch Greater or Equal
@@ -314,6 +316,8 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     pub fn byte_mem_ops(self) -> T { self.sb + self.lb }
 
     pub fn halfword_mem_ops(self) -> T { self.sh + self.lhu }
+
+    pub fn fullword_mem_ops(self) -> T { self.sw + self.lw }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.
