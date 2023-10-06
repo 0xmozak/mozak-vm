@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::fmt::Display;
 use std::marker::PhantomData;
 
@@ -7,7 +8,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
+use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::Register;
@@ -16,11 +17,11 @@ use crate::stark::utils::is_binary;
 
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
-pub struct RegisterStark<F, const D: usize> {
+pub struct RegisterStark<F: RichField + Extendable<D>, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F, const D: usize> Display for RegisterStark<F, D> {
+impl<F: RichField + Extendable<D>, const D: usize> Display for RegisterStark<F, D> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "RegisterStark")
     }
@@ -32,6 +33,7 @@ const PUBLIC_INPUTS: usize = 0;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
+
     where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>;
@@ -39,7 +41,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
     /// Constraints for the [`RegisterStark`]:
-    ///
+
     /// 1) `is_init`, `is_read`, `is_write`, and the virtual `is_used` column
     ///    are binary columns. The `is_used` column is the sum of all the other
     ///    ops columns combined, to differentiate between real trace rows and
@@ -59,8 +61,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &Register<P> = vars.get_local_values().try_into().unwrap();
-        let nv: &Register<P> = vars.get_next_values().try_into().unwrap();
+        let lv: &Register<P> = vars.get_local_values().into();
+        let nv: &Register<P> = vars.get_next_values().into();
 
         // Constraint 1: filter columns take 0 or 1 values only.
         is_binary(yield_constr, lv.ops.is_init);

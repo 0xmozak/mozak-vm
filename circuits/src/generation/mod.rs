@@ -13,7 +13,6 @@ pub mod register;
 pub mod registerinit;
 pub mod xor;
 
-use std::borrow::Borrow;
 use std::fmt::Display;
 
 use itertools::Itertools;
@@ -25,8 +24,8 @@ use plonky2::field::polynomial::PolynomialValues;
 use plonky2::hash::hash_types::RichField;
 use plonky2::util::transpose;
 use starky::constraint_consumer::ConstraintConsumer;
+use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
-use starky::vars::StarkEvaluationVars;
 
 use self::bitshift::generate_shift_amount_trace;
 use self::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
@@ -96,14 +95,14 @@ pub fn transpose_polys<
             .collect_vec(),
     )
     .into_iter()
-    .map(|row| row.try_into().unwrap())
+    .flat_map(|row| row)
     .collect_vec()
 }
 
 pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     mozak_stark: &MozakStark<F, D>,
-    public_inputs: &PublicInputs<F>,
+    public_inputs: PublicInputs<F>,
 ) {
     let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, memory_init_trace, rangecheck_limb_trace]: &[Vec<
         PolynomialValues<F>,
@@ -122,7 +121,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
             debug_single_trace::<F, D, CpuStark<F, D>>(
                 &mozak_stark.cpu_stark,
                 cpu_trace,
-                public_inputs.borrow(),
+                public_inputs.into(),
             ),
             // Range check
             debug_single_trace::<F, D, RangeCheckStark<F, D>>(
@@ -169,23 +168,16 @@ pub fn debug_single_trace<
     stark: &S,
     trace_rows: &[PolynomialValues<F>],
     public_inputs: &[F],
-) -> bool
-where
-{
+) -> bool {
     transpose_polys::<F, D, S>(trace_rows.to_vec())
         .iter()
         .enumerate()
         .circular_tuple_windows()
         .map(|((lv_row, lv), (nv_row, nv))| {
             let mut consumer = ConstraintConsumer::new_debug_api(lv_row == 0, nv_row == 0);
-            stark.eval_packed_generic(
-                StarkEvaluationVars {
-                    local_values: lv,
-                    next_values: nv,
-                    public_inputs,
-                },
-                &mut consumer,
-            );
+            let vars =
+                StarkEvaluationFrame::from_values(lv.as_slice(), nv.as_slice(), public_inputs);
+            stark.eval_packed_generic(&vars, &mut consumer);
             if consumer.debug_api_has_constraint_failed() {
                 println!("Debug constraints for {stark}");
                 println!("lv-row[{lv_row}] - values: {lv:?}");

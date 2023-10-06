@@ -123,7 +123,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            [],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -144,7 +144,7 @@ impl ProveAndVerify for XorStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            [],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -164,7 +164,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            [],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -185,7 +185,7 @@ impl ProveAndVerify for BitshiftStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            [],
+            &[],
             &mut TimingTree::default(),
         )?;
 

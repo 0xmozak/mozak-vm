@@ -1,4 +1,5 @@
 use anyhow::{ensure, Result};
+use itertools::Itertools;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::types::Field;
 use plonky2::fri::verifier::verify_fri_proof;
@@ -7,8 +8,8 @@ use plonky2::plonk::config::{GenericConfig, Hasher};
 use plonky2::plonk::plonk_common::reduce_with_powers;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
+use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
-use starky::vars::StarkEvaluationVars;
 
 use super::mozak_stark::{MozakStark, TableKind};
 use super::proof::AllProof;
@@ -85,7 +86,7 @@ where
         &rangecheck_stark,
         &all_proof.stark_proofs[TableKind::RangeCheck as usize],
         &stark_challenges[TableKind::RangeCheck as usize],
-        [],
+        &[],
         &ctl_vars_per_table[TableKind::RangeCheck as usize],
         config,
     )?;
@@ -94,7 +95,7 @@ where
         &xor_stark,
         &all_proof.stark_proofs[TableKind::Xor as usize],
         &stark_challenges[TableKind::Xor as usize],
-        [],
+        &[],
         &ctl_vars_per_table[TableKind::Xor as usize],
         config,
     )?;
@@ -103,7 +104,7 @@ where
         &shift_amount_stark,
         &all_proof.stark_proofs[TableKind::Bitshift as usize],
         &stark_challenges[TableKind::Bitshift as usize],
-        [],
+        &[],
         &ctl_vars_per_table[TableKind::Bitshift as usize],
         config,
     )?;
@@ -112,7 +113,7 @@ where
         &program_stark,
         &all_proof.stark_proofs[TableKind::Program as usize],
         &stark_challenges[TableKind::Program as usize],
-        [],
+        &[],
         &ctl_vars_per_table[TableKind::Program as usize],
         config,
     )?;
@@ -121,7 +122,7 @@ where
         &memory_stark,
         &all_proof.stark_proofs[TableKind::Memory as usize],
         &stark_challenges[TableKind::Memory as usize],
-        [],
+        &[],
         &ctl_vars_per_table[TableKind::Memory as usize],
         config,
     )?;
@@ -130,7 +131,7 @@ where
         &memory_init_stark,
         &all_proof.stark_proofs[TableKind::MemoryInit as usize],
         &stark_challenges[TableKind::MemoryInit as usize],
-        [],
+        &[],
         &ctl_vars_per_table[TableKind::MemoryInit as usize],
         config,
     )?;
@@ -139,7 +140,7 @@ where
         &rangecheck_limb_stark,
         &all_proof.stark_proofs[TableKind::RangeCheckLimb as usize],
         &stark_challenges[TableKind::RangeCheckLimb as usize],
-        [],
+        &[],
         &ctl_vars_per_table[TableKind::RangeCheckLimb as usize],
         config,
     )?;
@@ -157,7 +158,7 @@ pub(crate) fn verify_stark_proof_with_challenges<
     stark: &S,
     proof: &StarkProof<F, C, D>,
     challenges: &StarkProofChallenges<F, D>,
-    public_inputs: [F],
+    public_inputs: &[F],
     ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
     config: &StarkConfig,
 ) -> Result<()>
@@ -173,16 +174,14 @@ where
         quotient_polys,
     } = &proof.openings;
 
-    let vars = StarkEvaluationVars {
-        local_values: &local_values.clone().try_into().unwrap(),
-        next_values: &next_values.clone().try_into().unwrap(),
-        public_inputs: &public_inputs
+    let vars = S::EvaluationFrame::from_values(
+        &local_values,
+        &next_values,
+        &public_inputs
             .into_iter()
-            .map(F::Extension::from_basefield)
-            .collect::<Vec<_>>()
-            .try_into()
-            .expect("mapping public inputs to the extension field should succeed"),
-    };
+            .map(|pi| F::Extension::from_basefield(*pi))
+            .collect_vec(),
+    );
 
     let degree_bits = proof.recover_degree_bits(config);
     let (l_0, l_last) = eval_l_0_and_l_last(degree_bits, challenges.stark_zeta);

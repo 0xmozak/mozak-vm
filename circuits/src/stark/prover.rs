@@ -25,20 +25,13 @@ use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
-use crate::bitshift::stark::BitshiftStark;
-use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
-use crate::memory::stark::MemoryStark;
-use crate::memoryinit::stark::MemoryInitStark;
-use crate::rangecheck::stark::RangeCheckStark;
-use crate::rangecheck_limb::stark::RangeCheckLimbStark;
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 use crate::stark::permutation::compute_permutation_z_polys;
 use crate::stark::poly::compute_quotient_polys;
-use crate::xor::stark::XorStark;
 
 pub fn prove<F, C, const D: usize>(
     program: &Program,
@@ -55,7 +48,7 @@ where
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
-        debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
+        debug_traces(&traces_poly_values, mozak_stark, public_inputs);
         debug_ctl(&traces_poly_values, mozak_stark);
     }
     prove_with_traces(
@@ -172,7 +165,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     config: &StarkConfig,
     trace_poly_values: &[PolynomialValues<F>],
     trace_commitment: &PolynomialBatch<F, C, D>,
-    public_inputs: [F; S::PUBLIC_INPUTS],
+    public_inputs: &[F],
     ctl_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
@@ -366,7 +359,7 @@ where
                 config,
                 &traces_poly_values[$kind as usize],
                 &trace_commitments[$kind as usize],
-                $public_inputs,
+                &$public_inputs,
                 &ctl_data_per_table[$kind as usize],
                 challenger,
                 timing,

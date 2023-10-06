@@ -11,8 +11,8 @@ use plonky2::util::{log2_ceil, transpose};
 use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
+use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
-use starky::vars::StarkEvaluationVars;
 
 use super::permutation::{eval_permutation_checks, PermutationCheckVars};
 use crate::cross_table_lookup::{eval_cross_table_lookup_checks, CtlCheckVars, CtlData};
@@ -59,7 +59,7 @@ where
     let z_h_on_coset = ZeroPolyOnCoset::<F>::new(degree_bits, quotient_degree_bits);
 
     // Retrieve the LDE values at index `i`.
-    let get_trace_values_packed = |i_start| -> [P; S::COLUMNS] {
+    let get_trace_values_packed = |i_start| -> Vec<P> {
         trace_commitment
             .get_lde_values_packed(i_start, step)
             .try_into()
@@ -95,11 +95,11 @@ where
                 lagrange_basis_first,
                 lagrange_basis_last,
             );
-            let vars = StarkEvaluationVars {
-                local_values: &get_trace_values_packed(i_start),
-                next_values: &get_trace_values_packed(i_next_start),
-                public_inputs: &public_inputs,
-            };
+            let vars = StarkEvaluationFrame::from_values(
+                &get_trace_values_packed(i_start),
+                &get_trace_values_packed(i_next_start),
+                &public_inputs,
+            );
             let permutation_check_vars = PermutationCheckVars {
                 local_zs: permutation_ctl_zs_commitment.get_lde_values_packed(i_start, step)
                     [..num_permutation_zs]
@@ -167,7 +167,7 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
     S: Stark<F, D>, {
-    stark.eval_packed_generic(vars, consumer);
-    eval_permutation_checks::<F, FE, P, S, D, D2>(stark, config, vars, permutation_vars, consumer);
+    stark.eval_packed_generic(&vars, consumer);
+    eval_permutation_checks::<F, FE, P, S, D, D2>(stark, config, &vars, permutation_vars, consumer);
     eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
 }
