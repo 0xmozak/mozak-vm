@@ -62,11 +62,11 @@ macro_rules! columns_view_impl {
         //     }
         // }
 
-        impl<T> std::borrow::Borrow<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
-            fn borrow(&self) -> &$s<T> {
-                unsafe { &*(self as *const [T; std::mem::size_of::<$s<u8>>()]).cast::<$s<T>>() }
-            }
-        }
+        // impl<T> std::borrow::Borrow<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
+        //     fn borrow(&self) -> &$s<T> {
+        //         unsafe { &*(self as *const [T;
+        // std::mem::size_of::<$s<u8>>()]).cast::<$s<T>>() }     }
+        // }
 
         impl<T> std::borrow::BorrowMut<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
             fn borrow_mut(&mut self) -> &mut $s<T> {

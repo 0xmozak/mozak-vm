@@ -31,6 +31,12 @@ pub fn derive(input: TokenStream) -> TokenStream {
             }
         }
 
+        impl #impl_generics std::borrow::Borrow<#ident #ty_generics> for #array {
+            fn borrow(&self) -> &#ident #ty_generics {
+                unsafe { &*(self as *const #array).cast::<#ident #ty_generics>() }
+            }
+        }
+
     };
     proc_macro::TokenStream::from(output)
 }
