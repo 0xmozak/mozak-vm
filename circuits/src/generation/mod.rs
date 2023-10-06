@@ -3,6 +3,7 @@
 
 pub mod bitshift;
 pub mod cpu;
+pub mod halfword_memory;
 pub mod instruction;
 pub mod memory;
 pub mod memoryinit;
@@ -30,6 +31,7 @@ use starky::vars::StarkEvaluationVars;
 
 use self::bitshift::generate_shift_amount_trace;
 use self::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
+use self::halfword_memory::generate_halfword_memory_trace;
 use self::memory::generate_memory_trace;
 use self::memoryinit::generate_memory_init_trace;
 use self::rangecheck::generate_rangecheck_trace;
@@ -39,6 +41,7 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::program::generate_program_rom_trace;
 use crate::memory::stark::MemoryStark;
+use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
@@ -57,7 +60,13 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
     let memory_init_rows = generate_memory_init_trace(program);
-    let memory_rows = generate_memory_trace(program, &record.executed, &memory_init_rows);
+    let halfword_memory_rows = generate_halfword_memory_trace(program, &record.executed);
+    let memory_rows = generate_memory_trace(
+        program,
+        &record.executed,
+        &memory_init_rows,
+        &halfword_memory_rows,
+    );
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
     let rangecheck_limb_rows = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows);
 
@@ -69,6 +78,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_trace = trace_rows_to_poly_values(memory_rows);
     let memory_init_trace = trace_rows_to_poly_values(memory_init_rows);
     let rangecheck_limb_trace = trace_rows_to_poly_values(rangecheck_limb_rows);
+    let halfword_memory_trace = trace_rows_to_poly_values(halfword_memory_rows);
     [
         cpu_trace,
         rangecheck_trace,
@@ -78,6 +88,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         memory_trace,
         memory_init_trace,
         rangecheck_limb_trace,
+        halfword_memory_trace,
     ]
 }
 
@@ -114,61 +125,55 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:, {
-    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, memory_init_trace, rangecheck_limb_trace]: &[Vec<
-        PolynomialValues<F>,
-    >;
-        NUM_TABLES] = traces_poly_values;
+    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
+    [(); HalfWordMemoryStark::<F, D>::COLUMNS]:, {
+    let [cpu, rangecheck, xor, shift_amount, program, memory, memory_init, rangecheck_limb, halfword_memory] =
+        traces_poly_values;
 
-    assert!(
-        [
-            // Program ROM
-            debug_single_trace::<F, D, ProgramStark<F, D>>(
-                &mozak_stark.program_stark,
-                program_trace,
-                &[],
-            ),
-            // CPU
-            debug_single_trace::<F, D, CpuStark<F, D>>(
-                &mozak_stark.cpu_stark,
-                cpu_trace,
-                public_inputs.borrow(),
-            ),
-            // Range check
-            debug_single_trace::<F, D, RangeCheckStark<F, D>>(
-                &mozak_stark.rangecheck_stark,
-                rangecheck_trace,
-                &[],
-            ),
-            // Xor
-            debug_single_trace::<F, D, XorStark<F, D>>(&mozak_stark.xor_stark, xor_trace, &[]),
-            // Bitshift
-            debug_single_trace::<F, D, BitshiftStark<F, D>>(
-                &mozak_stark.shift_amount_stark,
-                shift_amount_trace,
-                &[],
-            ),
-            // Memory
-            debug_single_trace::<F, D, MemoryStark<F, D>>(
-                &mozak_stark.memory_stark,
-                memory_trace,
-                &[],
-            ),
-            // MemoryInit
-            debug_single_trace::<F, D, MemoryInitStark<F, D>>(
-                &mozak_stark.memory_init_stark,
-                memory_init_trace,
-                &[],
-            ),
-            debug_single_trace::<F, D, RangeCheckLimbStark<F, D>>(
-                &mozak_stark.rangecheck_limb_stark,
-                rangecheck_limb_trace,
-                &[],
-            ),
-        ]
-        .into_iter()
-        .all(|x| x)
-    );
+    assert!([
+        // Program ROM
+        debug_single_trace::<F, D, ProgramStark<F, D>>(&mozak_stark.program_stark, program, &[],),
+        // CPU
+        debug_single_trace::<F, D, CpuStark<F, D>>(
+            &mozak_stark.cpu_stark,
+            cpu,
+            public_inputs.borrow(),
+        ),
+        // Range check
+        debug_single_trace::<F, D, RangeCheckStark<F, D>>(
+            &mozak_stark.rangecheck_stark,
+            rangecheck,
+            &[],
+        ),
+        // Xor
+        debug_single_trace::<F, D, XorStark<F, D>>(&mozak_stark.xor_stark, xor, &[]),
+        // Bitshift
+        debug_single_trace::<F, D, BitshiftStark<F, D>>(
+            &mozak_stark.shift_amount_stark,
+            shift_amount,
+            &[],
+        ),
+        // Memory
+        debug_single_trace::<F, D, MemoryStark<F, D>>(&mozak_stark.memory_stark, memory, &[],),
+        // MemoryInit
+        debug_single_trace::<F, D, MemoryInitStark<F, D>>(
+            &mozak_stark.memory_init_stark,
+            memory_init,
+            &[],
+        ),
+        debug_single_trace::<F, D, RangeCheckLimbStark<F, D>>(
+            &mozak_stark.rangecheck_limb_stark,
+            rangecheck_limb,
+            &[],
+        ),
+        debug_single_trace::<F, D, HalfWordMemoryStark<F, D>>(
+            &mozak_stark.halfword_memory_stark,
+            halfword_memory,
+            &[],
+        ),
+    ]
+    .into_iter()
+    .all(|x| x));
 }
 
 pub fn debug_single_trace<
