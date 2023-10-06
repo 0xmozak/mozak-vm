@@ -50,6 +50,8 @@ columns_view_impl!(Memory);
 make_col_map!(Memory);
 
 impl<F: RichField> From<&MemoryInit<F>> for Option<Memory<F>> {
+    /// All other fields are intentionally set to defaults, and clk is
+    /// deliberately set to zero
     fn from(row: &MemoryInit<F>) -> Self {
         row.filter.is_one().then(|| Memory {
             is_writable: row.is_writable,
