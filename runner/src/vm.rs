@@ -2,8 +2,6 @@ use std::iter::repeat;
 use std::str::from_utf8;
 
 use anyhow::{anyhow, Result};
-use plonky2::field::goldilocks_field::GoldilocksField;
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
@@ -85,7 +83,7 @@ pub fn lhu(mem: &[u8; 4]) -> u32 { u16::from_le_bytes([mem[0], mem[1]]).into() }
 #[must_use]
 pub fn lw(mem: &[u8; 4]) -> u32 { u32::from_le_bytes(*mem) }
 
-impl State {
+impl<F: RichField> State<F> {
     #[must_use]
     pub fn jalr(self, inst: &Args) -> (Aux, Self) {
         let new_pc = self.get_register_value(inst.rs1).wrapping_add(inst.imm) & !1;
@@ -162,20 +160,18 @@ impl State {
                 let input_len = self.get_register_value(REG_A2);
                 let output_ptr = self.get_register_value(REG_A3);
                 let output_len = 32;
-                let input: Vec<GoldilocksField> = (0..input_len)
-                    .map(|i| GoldilocksField::from_canonical_u8(self.load_u8(input_ptr + i)))
+                let input: Vec<F> = (0..input_len)
+                    .map(|i| F::from_canonical_u8(self.load_u8(input_ptr + i)))
                     .collect();
-                let hash = hash_n_to_m_no_pad::<
-                    GoldilocksField,
-                    Poseidon2Permutation<GoldilocksField>,
-                >(&input)
-                .to_bytes();
+                let (hash, updated_self) =
+                    self.hash_n_to_m_no_pad::<Poseidon2Permutation<F>>(input.as_slice());
+                let hash = hash.to_bytes();
                 assert!(output_len == hash.len());
                 (
                     Aux::default(),
                     hash.iter()
                         .enumerate()
-                        .fold(self, |updated_self, (i, byte)| {
+                        .fold(updated_self, |updated_self, (i, byte)| {
                             updated_self
                                 .store_u8(
                                     output_ptr.wrapping_add(
@@ -213,6 +209,35 @@ impl State {
                 .fold(self, |acc, (i, byte)| acc.store_u8(i, byte).unwrap())
                 .bump_pc(),
         )
+    }
+
+    fn hash_n_to_m_no_pad<P: PlonkyPermutation<F>>(mut self, inputs: &[F]) -> (HashOut<F>, Self) {
+        let mut perm = P::new(repeat(F::ZERO));
+
+        // Absorb all input chunks.
+        for chunk in inputs.chunks(P::RATE) {
+            perm.set_from_slice(chunk, 0);
+            self.poseidon2_preimages.push(
+                perm.as_ref()
+                    .try_into()
+                    .expect("lenght must be equal to poseidon2 STATE_SIZE"),
+            );
+            perm.permute();
+        }
+
+        // Squeeze untill we have the desired number of outputs.
+        let mut outputs = Vec::new();
+        loop {
+            for &item in perm.squeeze() {
+                outputs.push(item);
+                if outputs.len() == NUM_HASH_OUT_ELTS {
+                    return (HashOut::from_vec(outputs), self);
+                }
+            }
+            self.poseidon2_preimages
+                .push(perm.as_ref().try_into().expect("length must be 12"));
+            perm.permute();
+        }
     }
 
     #[allow(clippy::cast_sign_loss)]
@@ -305,15 +330,15 @@ impl State {
 /// Each row corresponds to the state of the VM _just before_ executing the
 /// instruction that the program counter points to.
 #[derive(Debug, Clone, Default)]
-pub struct Row {
-    pub state: State,
+pub struct Row<T: RichField> {
+    pub state: State<T>,
     pub aux: Aux,
 }
 
 #[derive(Debug, Default)]
-pub struct ExecutionRecord {
-    pub executed: Vec<Row>,
-    pub last_state: State,
+pub struct ExecutionRecord<T: RichField> {
+    pub executed: Vec<Row<T>>,
+    pub last_state: State<T>,
 }
 
 /// Execute a program
@@ -329,7 +354,10 @@ pub struct ExecutionRecord {
 /// This is a temporary measure to catch problems with accidental infinite
 /// loops. (Matthias had some trouble debugging a problem with jumps
 /// earlier.)
-pub fn step(program: &Program, mut last_state: State) -> Result<ExecutionRecord> {
+pub fn step<T: RichField>(
+    program: &Program,
+    mut last_state: State<T>,
+) -> Result<ExecutionRecord<T>> {
     let mut executed = vec![];
     while !last_state.has_halted() {
         let (aux, new_state) = last_state.clone().execute_instruction(program)?;
@@ -348,32 +376,10 @@ pub fn step(program: &Program, mut last_state: State) -> Result<ExecutionRecord>
             );
         }
     }
-    Ok(ExecutionRecord {
+    Ok(ExecutionRecord::<T> {
         executed,
         last_state,
     })
-}
-
-fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(inputs: &[F]) -> HashOut<F> {
-    let mut perm = P::new(repeat(F::ZERO));
-
-    // Absorb all input chunks.
-    for chunk in inputs.chunks(P::RATE) {
-        perm.set_from_slice(chunk, 0);
-        perm.permute();
-    }
-
-    // Squeeze untill we have the desired number of outputs.
-    let mut outputs = Vec::new();
-    loop {
-        for &item in perm.squeeze() {
-            outputs.push(item);
-            if outputs.len() == NUM_HASH_OUT_ELTS {
-                return HashOut::from_vec(outputs);
-            }
-        }
-        perm.permute();
-    }
 }
 
 #[cfg(test)]
@@ -381,6 +387,7 @@ fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(inputs: &[F]) -> Ha
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use im::HashMap;
+    use plonky2::field::goldilocks_field::GoldilocksField;
     use proptest::prelude::ProptestConfig;
     use proptest::{prop_assume, proptest};
 
@@ -396,7 +403,7 @@ mod tests {
         code: &[Instruction],
         mem: &[(u32, u32)],
         regs: &[(u8, u32)],
-    ) -> ExecutionRecord {
+    ) -> ExecutionRecord<GoldilocksField> {
         crate::test_utils::simple_test_code(code, mem, regs).1
     }
 
@@ -1406,7 +1413,11 @@ mod tests {
 
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
-    fn simple_test(exit_at: u32, mem: &[(u32, u32)], regs: &[(u8, u32)]) -> ExecutionRecord {
+    fn simple_test(
+        exit_at: u32,
+        mem: &[(u32, u32)],
+        regs: &[(u8, u32)],
+    ) -> ExecutionRecord<GoldilocksField> {
         // TODO(Matthias): stick this line into proper common setup?
         let _ = env_logger::try_init();
         let exit_inst =

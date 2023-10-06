@@ -4,11 +4,12 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
+use plonky2::field::goldilocks_field::GoldilocksField;
 
 pub(crate) fn bench_fibonacci() {
     let elf = std::fs::read("benches/fibonacci.elf").unwrap();
     let program = Program::load_elf(&elf).unwrap();
-    let state = State::from(&program);
+    let state = State::<GoldilocksField>::from(&program);
     let _state = step(&program, state).unwrap();
 }
 

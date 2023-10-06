@@ -79,11 +79,11 @@ pub trait ProveAndVerify {
     ///
     /// # Errors
     /// Errors if proving or verifying the STARK fails.
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()>;
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()>;
 }
 
 impl ProveAndVerify for CpuStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = CpuStark<F, D>;
 
         let config = standard_faster_config();
@@ -109,7 +109,7 @@ impl ProveAndVerify for CpuStark<F, D> {
 }
 
 impl ProveAndVerify for RangeCheckStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = RangeCheckStark<F, D>;
 
         let config = standard_faster_config();
@@ -132,7 +132,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
 }
 
 impl ProveAndVerify for XorStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = XorStark<F, D>;
 
         let config = standard_faster_config();
@@ -153,7 +153,7 @@ impl ProveAndVerify for XorStark<F, D> {
 }
 
 impl ProveAndVerify for MemoryStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = MemoryStark<F, D>;
         let config = standard_faster_config();
 
@@ -173,7 +173,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
 }
 
 impl ProveAndVerify for BitshiftStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = BitshiftStark<F, D>;
         let config = standard_faster_config();
 
@@ -194,7 +194,7 @@ impl ProveAndVerify for BitshiftStark<F, D> {
 }
 
 impl ProveAndVerify for RegisterInitStark<F, D> {
-    fn prove_and_verify(_program: &Program, _record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(_program: &Program, _record: &ExecutionRecord<F>) -> Result<()> {
         type S = RegisterInitStark<F, D>;
         let config = standard_faster_config();
 
@@ -214,7 +214,7 @@ impl ProveAndVerify for RegisterInitStark<F, D> {
 }
 
 impl ProveAndVerify for RegisterStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = RegisterStark<F, D>;
         let config = standard_faster_config();
 
@@ -240,7 +240,7 @@ impl ProveAndVerify for MozakStark<F, D> {
     /// this proves and verifies ALL starks and lookups within the Mozak
     /// ZKVM. This should be preferred if the test is concerned with the
     /// consistency of the final [`MozakStark`].
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         let stark = S::default();
         let config = standard_faster_config();
         let public_inputs = PublicInputs {

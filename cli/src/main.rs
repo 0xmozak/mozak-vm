@@ -19,6 +19,7 @@ use mozak_circuits::test_utils::{standard_faster_config, ProveAndVerify, C, D, F
 use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
+use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::util::timing::TimingTree;
@@ -129,13 +130,13 @@ fn main() -> Result<()> {
             }
             Command::Run { elf, io_tape } => {
                 let program = load_program(elf)?;
-                let state = State::new(program.clone(), &load_tape(io_tape)?);
+                let state = State::<GoldilocksField>::new(program.clone(), &load_tape(io_tape)?);
                 let state = step(&program, state)?.last_state;
                 debug!("{:?}", state.registers);
             }
             Command::ProveAndVerify { elf, io_tape } => {
                 let program = load_program(elf)?;
-                let state = State::new(program.clone(), &load_tape(io_tape)?);
+                let state = State::<GoldilocksField>::new(program.clone(), &load_tape(io_tape)?);
                 let record = step(&program, state)?;
                 MozakStark::prove_and_verify(&program, &record)?;
             }
@@ -145,7 +146,7 @@ fn main() -> Result<()> {
                 mut proof,
             } => {
                 let program = load_program(elf)?;
-                let state = State::new(program.clone(), &load_tape(io_tape)?);
+                let state = State::<GoldilocksField>::new(program.clone(), &load_tape(io_tape)?);
                 let record = step(&program, state)?;
                 let stark = if cli.debug {
                     MozakStark::default_debug()

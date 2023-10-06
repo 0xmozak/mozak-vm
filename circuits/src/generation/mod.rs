@@ -23,6 +23,8 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::hash::hash_types::RichField;
 use plonky2::util::transpose;
+use poseidon2_starky::plonky2::generation::{generate_poseidon2_trace as poseidon2_trace, Row};
+use poseidon2_starky::plonky2::stark::Poseidon2_12Stark;
 use starky::constraint_consumer::ConstraintConsumer;
 use starky::stark::Stark;
 use starky::vars::StarkEvaluationVars;
@@ -49,7 +51,7 @@ use crate::xor::stark::XorStark;
 #[must_use]
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
-    record: &ExecutionRecord,
+    record: &ExecutionRecord<F>,
 ) -> [Vec<PolynomialValues<F>>; NUM_TABLES] {
     let cpu_rows = generate_cpu_trace::<F>(program, record);
     let xor_rows = generate_xor_trace(&cpu_rows);
@@ -68,6 +70,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_trace = trace_rows_to_poly_values(memory_rows);
     let memory_init_trace = trace_rows_to_poly_values(memory_init_rows);
     let rangecheck_limb_trace = trace_rows_to_poly_values(rangecheck_limb_rows);
+    let poseidon2_trace = generate_poseidon2_trace::<F>(record);
     [
         cpu_trace,
         rangecheck_trace,
@@ -77,7 +80,21 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         memory_trace,
         memory_init_trace,
         rangecheck_limb_trace,
+        poseidon2_trace,
     ]
+}
+
+fn generate_poseidon2_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<PolynomialValues<F>> {
+    let mut rows_vec = vec![];
+    for exe in &record.executed {
+        for preimage in &exe.state.poseidon2_preimages {
+            rows_vec.push(Row {
+                preimage: *preimage,
+            });
+        }
+    }
+    let trace = poseidon2_trace(&rows_vec);
+    trace_to_poly_values(trace)
 }
 
 #[must_use]
@@ -113,8 +130,9 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
+    [(); Poseidon2_12Stark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:, {
-    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, memory_init_trace, rangecheck_limb_trace]: &[Vec<
+    let [cpu_trace, rangecheck_trace, xor_trace, shift_amount_trace, program_trace, memory_trace, memory_init_trace, rangecheck_limb_trace, poseidon2_trace]: &[Vec<
         PolynomialValues<F>,
     >;
         NUM_TABLES] = traces_poly_values;
@@ -173,6 +191,12 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
             &mozak_stark.rangecheck_limb_stark,
             rangecheck_limb_trace,
             "RANGECHECK_LIMB_STARK",
+            &[],
+        ),
+        debug_single_trace::<F, D, Poseidon2_12Stark<F, D>>(
+            &mozak_stark.poseidon2_stark,
+            poseidon2_trace,
+            "POSEIDON2_STARK",
             &[],
         ),
     ]

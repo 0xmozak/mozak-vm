@@ -4,6 +4,8 @@ use anyhow::{anyhow, Result};
 use derive_more::Deref;
 use im::hashmap::HashMap;
 use log::trace;
+use plonky2::hash::hash_types::RichField;
+use plonky2::hash::poseidon2::WIDTH;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 
@@ -30,7 +32,7 @@ use crate::instruction::{Args, Instruction};
 /// instruction cache on many CPUs.  But we deliberately don't support that
 /// usecase.
 #[derive(Clone, Debug)]
-pub struct State {
+pub struct State<F: RichField> {
     pub clk: u64,
     pub halted: bool,
     pub registers: [u32; 32],
@@ -38,6 +40,7 @@ pub struct State {
     pub rw_memory: HashMap<u32, u8>,
     pub ro_memory: HashMap<u32, u8>,
     pub io_tape: IoTape,
+    pub poseidon2_preimages: Vec<[F; WIDTH]>,
 }
 
 #[derive(Clone, Debug, Default, Deref)]
@@ -61,7 +64,7 @@ impl From<&[u8]> for IoTape {
 /// execution clocks (1 and above) from `clk` value of 0 which is
 /// reserved for any initialisation concerns. e.g. memory initialization
 /// prior to program execution, register initialization etc.
-impl Default for State {
+impl<F: RichField> Default for State<F> {
     fn default() -> Self {
         Self {
             clk: 1,
@@ -71,12 +74,13 @@ impl Default for State {
             rw_memory: HashMap::default(),
             ro_memory: HashMap::default(),
             io_tape: IoTape::default(),
+            poseidon2_preimages: vec![],
         }
     }
 }
 
 #[allow(clippy::similar_names)]
-impl From<Program> for State {
+impl<F: RichField> From<Program> for State<F> {
     fn from(
         Program {
             ro_code: Code(_),
@@ -94,7 +98,7 @@ impl From<Program> for State {
     }
 }
 
-impl From<&Program> for State {
+impl<F: RichField> From<&Program> for State<F> {
     fn from(program: &Program) -> Self { Self::from(program.clone()) }
 }
 
@@ -111,7 +115,7 @@ pub struct Aux {
     pub op2: u32,
 }
 
-impl State {
+impl<F: RichField> State<F> {
     #[must_use]
     #[allow(clippy::similar_names)]
     pub fn new(
@@ -133,9 +137,9 @@ impl State {
     }
 
     #[must_use]
-    pub fn register_op<F>(self, data: &Args, op: F) -> (Aux, Self)
+    pub fn register_op<Fun>(self, data: &Args, op: Fun) -> (Aux, Self)
     where
-        F: FnOnce(u32, u32) -> u32, {
+        Fun: FnOnce(u32, u32) -> u32, {
         let op1 = self.get_register_value(data.rs1);
         let op2 = self.get_register_value(data.rs2).wrapping_add(data.imm);
         let dst_val = op(op1, op2);
@@ -170,7 +174,7 @@ impl State {
 
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
-    pub fn branch_op(self, data: &Args, op: fn(u32, u32) -> bool) -> (Aux, State) {
+    pub fn branch_op(self, data: &Args, op: fn(u32, u32) -> bool) -> (Aux, State<F>) {
         let op1 = self.get_register_value(data.rs1);
         let op2 = self.get_register_value(data.rs2);
         (
@@ -184,7 +188,7 @@ impl State {
     }
 }
 
-impl State {
+impl<F: RichField> State<F> {
     #[must_use]
     pub fn halt(mut self) -> Self {
         self.halted = true;

@@ -33,7 +33,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
 
 pub fn generate_cpu_trace<F: RichField>(
     program: &Program,
-    record: &ExecutionRecord,
+    record: &ExecutionRecord<F>,
 ) -> Vec<CpuState<F>> {
     let mut trace: Vec<CpuState<F>> = vec![];
     let ExecutionRecord {
@@ -230,7 +230,7 @@ fn generate_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
     row.abs_diff = F::from_noncanonical_u64(abs_diff);
 }
 
-fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State) -> XorView<F> {
+fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State<F>) -> XorView<F> {
     let a = match inst.op {
         Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
         Op::SRL | Op::SLL | Op::SRA => 0b1_1111,

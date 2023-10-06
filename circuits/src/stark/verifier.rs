@@ -5,6 +5,7 @@ use plonky2::fri::verifier::verify_fri_proof;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{GenericConfig, Hasher};
 use plonky2::plonk::plonk_common::reduce_with_powers;
+use poseidon2_starky::plonky2::stark::Poseidon2_12Stark;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
 use starky::stark::{LookupConfig, Stark};
@@ -25,6 +26,7 @@ use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
 use crate::xor::stark::XorStark;
 
+#[allow(clippy::too_many_lines)]
 pub fn verify_proof<F, C, const D: usize>(
     mozak_stark: MozakStark<F, D>,
     all_proof: AllProof<F, C, D>,
@@ -42,6 +44,7 @@ where
     // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
+    [(); Poseidon2_12Stark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let AllProofChallenges {
@@ -59,6 +62,7 @@ where
         memory_stark,
         memory_init_stark,
         rangecheck_limb_stark,
+        poseidon2_stark,
         cross_table_lookups,
         ..
     } = mozak_stark;
@@ -151,6 +155,15 @@ where
         &stark_challenges[TableKind::RangeCheckLimb as usize],
         [],
         &ctl_vars_per_table[TableKind::RangeCheckLimb as usize],
+        config,
+    )?;
+
+    verify_stark_proof_with_challenges::<F, C, Poseidon2_12Stark<F, D>, D>(
+        &poseidon2_stark,
+        &all_proof.stark_proofs[TableKind::Poseidon2 as usize],
+        &stark_challenges[TableKind::Poseidon2 as usize],
+        [],
+        &ctl_vars_per_table[TableKind::Poseidon2 as usize],
         config,
     )?;
 

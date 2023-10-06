@@ -19,6 +19,7 @@ use plonky2::plonk::config::{GenericConfig, Hasher};
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
+use poseidon2_starky::plonky2::stark::Poseidon2_12Stark;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
@@ -42,7 +43,7 @@ use crate::xor::stark::XorStark;
 
 pub fn prove<F, C, const D: usize>(
     program: &Program,
-    record: &ExecutionRecord,
+    record: &ExecutionRecord<F>,
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     public_inputs: PublicInputs<F>,
@@ -60,6 +61,7 @@ where
     // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
+    [(); Poseidon2_12Stark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, record);
@@ -100,6 +102,7 @@ where
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
+    [(); Poseidon2_12Stark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
@@ -388,6 +391,7 @@ where
     // [(); ProgramStark::<F, D>::COLUMNS]:,
     [(); MemoryStark::<F, D>::COLUMNS]:,
     [(); MemoryInitStark::<F, D>::COLUMNS]:,
+    [(); Poseidon2_12Stark::<F, D>::COLUMNS]:,
     [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
     [(); C::Hasher::HASH_SIZE]:, {
     macro_rules! make_proof {
@@ -415,6 +419,7 @@ where
         make_proof!(mozak_stark.program_stark, TableKind::Program, [])?,
         make_proof!(mozak_stark.memory_stark, TableKind::Memory, [])?,
         make_proof!(mozak_stark.memory_init_stark, TableKind::MemoryInit, [])?,
+        make_proof!(mozak_stark.poseidon2_stark, TableKind::Poseidon2, [])?,
         make_proof!(
             mozak_stark.rangecheck_limb_stark,
             TableKind::RangeCheckLimb,

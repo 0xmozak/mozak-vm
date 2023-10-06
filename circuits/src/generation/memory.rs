@@ -31,7 +31,7 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
 /// execution for final memory trace.
 pub fn generate_memory_trace_from_execution<F: RichField>(
     program: &Program,
-    step_rows: &[Row],
+    step_rows: &[Row<F>],
 ) -> impl Iterator<Item = Memory<F>> {
     step_rows
         .iter()
@@ -87,7 +87,10 @@ pub fn generate_memory_init_trace_from_program<F: RichField>(
 /// are supposed to abide by read-only and read-write address
 /// constraints.
 #[must_use]
-pub fn generate_memory_trace<F: RichField>(program: &Program, step_rows: &[Row]) -> Vec<Memory<F>> {
+pub fn generate_memory_trace<F: RichField>(
+    program: &Program,
+    step_rows: &[Row<F>],
+) -> Vec<Memory<F>> {
     // `merged_trace` is address sorted combination of static and
     // dynamic memory trace components of program (ELF and execution)
     // `merge` operation is expected to be stable

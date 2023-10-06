@@ -2,6 +2,7 @@ use anyhow::Result;
 use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
+use plonky2::field::goldilocks_field::GoldilocksField;
 
 /// This macro takes in an identifier as the test name and the file name of a
 /// compiled ELF and runs it through the Mozak VM to ensure correctness of the
@@ -24,7 +25,7 @@ macro_rules! test_elf {
             let elf_name = format!("tests/testdata/{}", $file_name);
             let elf = std::fs::read(elf_name)?;
             let program = Program::load_elf(&elf)?;
-            let state = State::from(&program);
+            let state = State::<GoldilocksField>::from(&program);
             let state = step(&program, state)?.last_state;
             // At the end of every test,
             // register a0(x10) is set to 0 before an ECALL if it passes
