@@ -228,11 +228,11 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
                     cpu::columns::filter_for_byte_memory(),
                 ),
                 HalfWordMemoryTable::new(
-                    memory_halfword::columns::data_for_memory_limb0(),
+                    memory_halfword::columns::data_for_memory_limb(0),
                     memory_halfword::columns::filter(),
                 ),
                 HalfWordMemoryTable::new(
-                    memory_halfword::columns::data_for_memory_limb1(),
+                    memory_halfword::columns::data_for_memory_limb(1),
                     memory_halfword::columns::filter(),
                 ),
             ],

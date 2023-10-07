@@ -62,29 +62,18 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 /// Columns containing the data which are looked from the halfword memory table
 /// into Memory stark table.
 #[must_use]
-pub fn data_for_memory_limb0<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_memory_limb<F: Field>(limb_index: usize) -> Vec<Column<F>> {
+    assert!(
+        limb_index < 2,
+        "limb_index is {limb_index} but is should be in 0..1 range"
+    );
     let mem = MAP.map(Column::from);
     vec![
         mem.clk,
         mem.ops.is_store,
         mem.ops.is_load,
-        mem.limbs[0].clone(),
-        mem.addrs[0].clone(),
-    ]
-}
-
-/// Columns containing the data which are looked from the halfword memory table
-/// into Memory stark table.
-#[must_use]
-pub fn data_for_memory_limb1<F: Field>() -> Vec<Column<F>> {
-    let mem = MAP.map(Column::from);
-    vec![
-        mem.clk,
-        mem.ops.is_store,
-        mem.ops.is_load,
-        mem.limbs[1].clone(),
-        mem.addrs[1].clone(),
-        // TODO: Roman - add is_init constant
+        mem.limbs[limb_index].clone(),
+        mem.addrs[limb_index].clone(),
     ]
 }
 
