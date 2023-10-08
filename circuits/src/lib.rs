@@ -22,6 +22,7 @@ pub mod generation;
 pub mod linear_combination;
 pub mod memory;
 pub mod memory_halfword;
+pub mod memory_io;
 pub mod memoryinit;
 pub mod program;
 pub mod rangecheck;
