@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::fmt::Display;
 use std::marker::PhantomData;
 
@@ -7,10 +6,11 @@ use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
-use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{CpuColumnsExtended, CpuState, Instruction, OpSelectors};
 use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
@@ -208,22 +208,30 @@ fn halted<P: PackedField>(
     }
 }
 
+const COLUMNS: usize = CpuColumnsExtended::<()>::NUMBER_OF_COLUMNS;
+// Public inputs: [PC of the first row]
+const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
-    const COLUMNS: usize = CpuColumnsExtended::<F>::NUMBER_OF_COLUMNS;
-    // Public inputs: [PC of the first row]
-    const PUBLIC_INPUTS: usize = PublicInputs::<F>::NUMBER_OF_COLUMNS;
+    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
+
+    where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>;
+    type EvaluationFrameTarget =
+        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
     #[allow(clippy::similar_names)]
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
-        vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        vars: &Self::EvaluationFrame<FE, P, D2>,
         yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &CpuColumnsExtended<_> = vars.local_values.borrow();
-        let nv: &CpuColumnsExtended<_> = vars.next_values.borrow();
-        let public_inputs: &PublicInputs<_> = vars.public_inputs.borrow();
+        let lv: &CpuColumnsExtended<_> = vars.get_local_values().try_into().unwrap();
+        let nv: &CpuColumnsExtended<_> = vars.get_next_values().try_into().unwrap();
+        let public_inputs: &PublicInputs<_> = vars.get_public_inputs().try_into().unwrap();
 
         // Constrain the CPU transition between previous `lv` state and next `nv`
         // state.
@@ -274,7 +282,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,
-        _vars: StarkEvaluationTargets<D, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        _vars: &Self::EvaluationFrameTarget,
         _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         unimplemented!()

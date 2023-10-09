@@ -7,8 +7,8 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::GenericConfig;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
+use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
-use starky::vars::StarkEvaluationVars;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
@@ -260,7 +260,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
     }
 }
 pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const D2: usize>(
-    vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
+    vars: &S::EvaluationFrame<FE, P, D2>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
     consumer: &mut ConstraintConsumer<P>,
 ) where
@@ -276,21 +276,24 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
             columns,
             filter_column,
         } = lookup_vars;
+
+        let local_values = vars.get_local_values();
+        let next_values = vars.get_next_values();
+
         let combine = |v: &[P]| -> P {
             let evals = columns.iter().map(|c| c.eval(v)).collect::<Vec<_>>();
             challenges.combine(evals.iter())
         };
         let filter = |v: &[P]| -> P { filter_column.eval(v) };
-        let local_filter = filter(vars.local_values);
-        let next_filter = filter(vars.next_values);
+        let local_filter = filter(local_values);
+        let next_filter = filter(next_values);
         let select = |filter, x| filter * x + P::ONES - filter;
 
         // Check value of `Z(1)`
-        consumer.constraint_first_row(*local_z - select(local_filter, combine(vars.local_values)));
+        consumer.constraint_first_row(*local_z - select(local_filter, combine(local_values)));
         // Check `Z(gw) = combination * Z(w)`
-        consumer.constraint_transition(
-            *next_z - *local_z * select(next_filter, combine(vars.next_values)),
-        );
+        consumer
+            .constraint_transition(*next_z - *local_z * select(next_filter, combine(next_values)));
     }
 }
 
