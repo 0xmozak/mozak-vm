@@ -105,7 +105,7 @@ pub enum Op {
 }
 
 /// NOP Instruction in Risc-V is encoded as ADDI x0, x0, 0.
-pub const NOOP: Instruction = Instruction {
+pub const NOP: Instruction = Instruction {
     op: Op::ADD,
     args: Args {
         rd: 0,
