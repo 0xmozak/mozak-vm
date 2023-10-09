@@ -99,7 +99,7 @@ pub fn transpose_polys<
     S: Stark<F, D>,
 >(
     cols: Vec<PolynomialValues<F>>,
-) -> Vec<F> {
+) -> Vec<Vec<F>> {
     transpose(
         &cols
             .into_iter()
@@ -107,7 +107,6 @@ pub fn transpose_polys<
             .collect_vec(),
     )
     .into_iter()
-    .flatten()
     .collect_vec()
 }
 
