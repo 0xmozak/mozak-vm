@@ -3,6 +3,7 @@
 
 pub mod bitshift;
 pub mod cpu;
+pub mod fullword_memory;
 pub mod halfword_memory;
 pub mod instruction;
 pub mod memory;
@@ -42,6 +43,7 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::program::generate_program_rom_trace;
 use crate::memory::stark::MemoryStark;
+use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
@@ -68,6 +70,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &record.executed,
         &memory_init_rows,
         &halfword_memory_rows,
+        &fullword_memory_rows,
     );
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
     let rangecheck_limb_rows = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows);
@@ -119,7 +122,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     public_inputs: &PublicInputs<F>,
 ) {
-    let [cpu, rangecheck, xor, shift_amount, program, memory, memory_init, rangecheck_limb, halfword_memory] =
+    let [cpu, rangecheck, xor, shift_amount, program, memory, memory_init, rangecheck_limb, halfword_memory, fullword_memory] =
         traces_poly_values;
 
     assert!([

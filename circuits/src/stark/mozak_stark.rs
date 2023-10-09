@@ -376,7 +376,7 @@ impl<F: Field> Lookups<F> for FullWordMemoryCpuTable<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_fullword_memory(),
-                cpu::columns::filter_for_halfword_memory(),
+                cpu::columns::filter_for_fullword_memory(),
             )],
             FullWordMemoryTable::new(
                 memory_fullword::columns::data_for_cpu(),

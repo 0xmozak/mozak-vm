@@ -45,6 +45,7 @@ where
         rangecheck_limb_stark,
         cross_table_lookups,
         halfword_memory_stark,
+        fullword_memory_stark,
         ..
     } = mozak_stark;
 

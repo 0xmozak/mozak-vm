@@ -29,8 +29,6 @@ pub struct FullWordMemory<T> {
     /// Memory addresses for the one byte limbs
     pub addrs: [T; 4],
     pub limbs: [T; 4],
-    // TODO: remove it
-    pub dummy: [T; 17],
 }
 
 columns_view_impl!(FullWordMemory);
