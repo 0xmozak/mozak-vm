@@ -12,5 +12,5 @@ opt-level = 3
 lto = "fat"
 
 [patch.crates-io]
-plonky2 = { git = "https://github.com/0xmozak/plonky2.git", branch = "bing/const-generic-exprs-begone" }
-starky = { git = "https://github.com/0xmozak/plonky2.git", branch = "bing/const-generic-exprs-begone" }
+plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
+starky = { git = "https://github.com/0xmozak/plonky2.git" }
