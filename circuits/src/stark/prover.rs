@@ -44,7 +44,6 @@ pub fn prove<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-
     [(); C::Hasher::HASH_SIZE]:, {
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
@@ -380,6 +379,11 @@ where
         make_proof!(
             mozak_stark.rangecheck_limb_stark,
             TableKind::RangeCheckLimb,
+            []
+        )?,
+        make_proof!(
+            mozak_stark.halfword_memory_stark,
+            TableKind::HalfWordMemory,
             []
         )?,
     ])
