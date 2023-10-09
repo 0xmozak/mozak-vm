@@ -2,7 +2,6 @@
 #![feature(stmt_expr_attributes)]
 #![feature(coverage_attribute)]
 #![feature(register_tool)]
-#![feature(generic_const_exprs)]
 #![feature(type_name_of_val)]
 #![feature(bigint_helper_methods)]
 #![register_tool(tarpaulin)]

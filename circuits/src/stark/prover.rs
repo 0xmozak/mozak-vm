@@ -15,7 +15,7 @@ use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
-use plonky2::plonk::config::{GenericConfig, Hasher};
+use plonky2::plonk::config::GenericConfig;
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
@@ -43,8 +43,7 @@ pub fn prove<F, C, const D: usize>(
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    [(); C::Hasher::HASH_SIZE]:, {
+    C: GenericConfig<D, F = F>, {
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
@@ -72,8 +71,7 @@ pub fn prove_with_traces<F, C, const D: usize>(
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    [(); C::Hasher::HASH_SIZE]:, {
+    C: GenericConfig<D, F = F>, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
@@ -172,8 +170,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-    S: Stark<F, D> + Display,
-    [(); C::Hasher::HASH_SIZE]:, {
+    S: Stark<F, D> + Display, {
     let degree = trace_poly_values[0].len();
     let degree_bits = log2_strict(degree);
     let fri_params = config.fri_params(degree_bits);
@@ -349,8 +346,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
 ) -> Result<[StarkProof<F, C, D>; NUM_TABLES]>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    [(); C::Hasher::HASH_SIZE]:, {
+    C: GenericConfig<D, F = F>, {
     macro_rules! make_proof {
         ($stark: expr, $kind: expr, $public_inputs: expr) => {
             prove_single_table(
