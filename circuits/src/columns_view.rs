@@ -60,6 +60,14 @@ macro_rules! columns_view_impl {
             }
         }
 
+        impl<T> From<&[T]> for &$s<T> {
+            fn from(value: &[T]) -> Self {
+                let value: &[T; std::mem::size_of::<$s<u8>>()] =
+                    value.try_into().expect("slice of correct length");
+                unsafe { crate::columns_view::transmute_without_compile_time_size_checks(value) }
+            }
+        }
+
         impl<T> std::borrow::Borrow<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
             fn borrow(&self) -> &$s<T> {
                 unsafe { &*(self as *const [T; std::mem::size_of::<$s<u8>>()]).cast::<$s<T>>() }
@@ -81,6 +89,12 @@ macro_rules! columns_view_impl {
         impl<T> std::borrow::BorrowMut<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
             fn borrow_mut(&mut self) -> &mut [T; std::mem::size_of::<$s<u8>>()] {
                 unsafe { &mut *(self as *mut $s<T>).cast::<[T; std::mem::size_of::<$s<u8>>()]>() }
+            }
+        }
+
+        impl<T> std::borrow::Borrow<[T]> for $s<T> {
+            fn borrow(&self) -> &[T] {
+                unsafe { &*(self as *const $s<T>).cast::<[T; std::mem::size_of::<$s<u8>>()]>() }
             }
         }
 
