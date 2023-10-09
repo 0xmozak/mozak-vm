@@ -59,12 +59,8 @@ where
     let z_h_on_coset = ZeroPolyOnCoset::<F>::new(degree_bits, quotient_degree_bits);
 
     // Retrieve the LDE values at index `i`.
-    let get_trace_values_packed = |i_start| -> Vec<P> {
-        trace_commitment
-            .get_lde_values_packed(i_start, step)
-            .try_into()
-            .unwrap()
-    };
+    let get_trace_values_packed =
+        |i_start| -> Vec<P> { trace_commitment.get_lde_values_packed(i_start, step) };
 
     // Last element of the subgroup.
     let last = F::primitive_root_of_unity(degree_bits).inverse();
@@ -98,7 +94,7 @@ where
             let vars = StarkEvaluationFrame::from_values(
                 &get_trace_values_packed(i_start),
                 &get_trace_values_packed(i_next_start),
-                &public_inputs,
+                public_inputs,
             );
             let permutation_check_vars = PermutationCheckVars {
                 local_zs: permutation_ctl_zs_commitment.get_lde_values_packed(i_start, step)
@@ -126,7 +122,7 @@ where
             eval_vanishing_poly::<F, F, P, S, D, 1>(
                 stark,
                 config,
-                vars,
+                &vars,
                 permutation_check_vars,
                 &ctl_vars,
                 &mut consumer,
@@ -158,7 +154,7 @@ where
 pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark: &S,
     config: &StarkConfig,
-    vars: S::EvaluationFrame<FE, P, D2>,
+    vars: &S::EvaluationFrame<FE, P, D2>,
     permutation_vars: PermutationCheckVars<F, FE, P, D2>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
     consumer: &mut ConstraintConsumer<P>,
@@ -167,7 +163,7 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
     S: Stark<F, D>, {
-    stark.eval_packed_generic(&vars, consumer);
-    eval_permutation_checks::<F, FE, P, S, D, D2>(stark, config, &vars, permutation_vars, consumer);
+    stark.eval_packed_generic(vars, consumer);
+    eval_permutation_checks::<F, FE, P, S, D, D2>(stark, config, vars, permutation_vars, consumer);
     eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
 }

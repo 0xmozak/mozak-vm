@@ -233,7 +233,7 @@ where
             trace_commitment,
             &permutation_ctl_zs_commitment,
             &permutation_challenges,
-            &public_inputs,
+            public_inputs,
             ctl_data,
             &alphas,
             degree_bits,

@@ -107,7 +107,7 @@ pub fn transpose_polys<
             .collect_vec(),
     )
     .into_iter()
-    .flat_map(|row| row)
+    .flatten()
     .collect_vec()
 }
 

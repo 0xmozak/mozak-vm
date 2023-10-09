@@ -260,7 +260,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
     }
 }
 pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const D2: usize>(
-    vars: S::EvaluationFrame<FE, P, D2>,
+    vars: &S::EvaluationFrame<FE, P, D2>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
     consumer: &mut ConstraintConsumer<P>,
 ) where

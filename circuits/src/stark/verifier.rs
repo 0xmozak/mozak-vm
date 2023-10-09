@@ -121,10 +121,10 @@ where
     } = &proof.openings;
 
     let vars = S::EvaluationFrame::from_values(
-        &local_values,
-        &next_values,
+        local_values,
+        next_values,
         &public_inputs
-            .into_iter()
+            .iter()
             .map(|pi| F::Extension::from_basefield(*pi))
             .collect_vec(),
     );
@@ -152,7 +152,7 @@ where
     eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
         stark,
         config,
-        vars,
+        &vars,
         permutation_data,
         ctl_vars,
         &mut consumer,
