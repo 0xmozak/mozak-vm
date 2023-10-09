@@ -51,7 +51,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for FullWordMemor
         let mut added: [P; 3] = [P::ZEROS; 3];
         let mut wrapped: [P; 3] = [P::ZEROS; 3];
         for i in 0..3 {
-            added[i] = lv.addrs[i + 1] + P::ONES;
+            added[i] = lv.addrs[i] + P::ONES;
             wrapped[i] = added[i] - wrap_at;
 
             yield_constr.constraint(

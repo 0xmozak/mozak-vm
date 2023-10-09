@@ -192,7 +192,7 @@ table_impl!(MemoryTable, TableKind::Memory);
 table_impl!(MemoryInitTable, TableKind::MemoryInit);
 table_impl!(RangeCheckLimbTable, TableKind::RangeCheckLimb);
 table_impl!(HalfWordMemoryTable, TableKind::HalfWordMemory);
-table_impl!(FullWordMemoryTable, TableKind::HalfWordMemory);
+table_impl!(FullWordMemoryTable, TableKind::FullWordMemory);
 
 pub trait Lookups<F: Field> {
     fn lookups() -> CrossTableLookup<F>;
