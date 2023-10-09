@@ -14,6 +14,7 @@ pub mod register;
 pub mod registerinit;
 pub mod xor;
 
+use std::borrow::Borrow;
 use std::fmt::Display;
 
 use itertools::Itertools;
@@ -125,8 +126,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
         debug_single_trace::<F, D, CpuStark<F, D>>(
             &mozak_stark.cpu_stark,
             cpu,
-            // public_inputs.try_into()
-            &[],
+            public_inputs.borrow()
         ),
         // Range check
         debug_single_trace::<F, D, RangeCheckStark<F, D>>(

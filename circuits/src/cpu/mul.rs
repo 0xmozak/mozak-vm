@@ -105,6 +105,9 @@ pub(crate) fn constraints<P: PackedField>(
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
+
+    use std::borrow::Borrow;
+
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{i32_extra, simple_test_code, u32_extra};
@@ -172,8 +175,7 @@ mod tests {
                 stark,
                 &config,
                 trace_poly_values,
-                &[],
-                // &public_inputs.into(),
+                public_inputs.borrow(),
                 &mut timing,
             )
         );

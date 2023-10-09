@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use anyhow::{ensure, Result};
 use itertools::Itertools;
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -79,12 +81,7 @@ where
         };
     }
 
-    verify!(
-        cpu_stark,
-        TableKind::Cpu,
-        //&all_proof.public_inputs.try_into().unwrap()
-        &[]
-    );
+    verify!(cpu_stark, TableKind::Cpu, all_proof.public_inputs.borrow());
     verify!(rangecheck_stark, TableKind::RangeCheck, &[]);
     verify!(xor_stark, TableKind::Xor, &[]);
     verify!(shift_amount_stark, TableKind::Bitshift, &[]);

@@ -92,6 +92,12 @@ macro_rules! columns_view_impl {
             }
         }
 
+        impl<T> std::borrow::Borrow<[T]> for $s<T> {
+            fn borrow(&self) -> &[T] {
+                unsafe { &*(self as *const $s<T>).cast::<[T; std::mem::size_of::<$s<u8>>()]>() }
+            }
+        }
+
         impl<T, I> std::ops::Index<I> for $s<T>
         where
             [T]: std::ops::Index<I>,

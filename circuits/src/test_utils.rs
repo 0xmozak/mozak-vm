@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use anyhow::Result;
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
@@ -103,8 +105,7 @@ impl ProveAndVerify for CpuStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            &[],
-            // public_inputs.try_into().unwrap(),
+            public_inputs.borrow(),
             &mut TimingTree::default(),
         )?;
 
