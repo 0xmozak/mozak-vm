@@ -1086,6 +1086,7 @@ checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=bing/const-generic-exprs-begone#0af518feda5a668dd4b497c46613a04c134f94be"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1109,6 +1110,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=bing/const-generic-exprs-begone#0af518feda5a668dd4b497c46613a04c134f94be"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -1123,6 +1125,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=bing/const-generic-exprs-begone#0af518feda5a668dd4b497c46613a04c134f94be"
 dependencies = [
  "rayon",
 ]
@@ -1130,6 +1133,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=bing/const-generic-exprs-begone#0af518feda5a668dd4b497c46613a04c134f94be"
 
 [[package]]
 name = "plotters"
@@ -1542,6 +1546,7 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "starky"
 version = "0.1.2"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=bing/const-generic-exprs-begone#0af518feda5a668dd4b497c46613a04c134f94be"
 dependencies = [
  "anyhow",
  "backtrace",
