@@ -3,7 +3,7 @@ use core::ops::Add;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 
-use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memoryinit::columns::MemoryInit;
@@ -89,9 +89,6 @@ impl<T: Clone + Add<Output = T>> Memory<T> {
         s.is_store + s.is_load + s.is_init
     }
 }
-
-/// Total number of columns.
-pub const NUM_MEM_COLS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {

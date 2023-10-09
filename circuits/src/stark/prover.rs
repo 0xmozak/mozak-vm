@@ -15,7 +15,7 @@ use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
-use plonky2::plonk::config::{GenericConfig, Hasher};
+use plonky2::plonk::config::GenericConfig;
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
@@ -25,21 +25,13 @@ use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
-use crate::bitshift::stark::BitshiftStark;
-use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
-use crate::memory::stark::MemoryStark;
-use crate::memory_halfword::stark::HalfWordMemoryStark;
-use crate::memoryinit::stark::MemoryInitStark;
-use crate::rangecheck::stark::RangeCheckStark;
-use crate::rangecheck_limb::stark::RangeCheckLimbStark;
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 use crate::stark::permutation::compute_permutation_z_polys;
 use crate::stark::poly::compute_quotient_polys;
-use crate::xor::stark::XorStark;
 
 pub fn prove<F, C, const D: usize>(
     program: &Program,
@@ -51,19 +43,7 @@ pub fn prove<F, C, const D: usize>(
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); XorStark::<F, D>::COLUMNS]:,
-    [(); BitshiftStark::<F, D>::COLUMNS]:,
-    // [(); ProgramStark::<F, D>::COLUMNS]:,
-    [(); MemoryStark::<F, D>::COLUMNS]:,
-    [(); MemoryInitStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
-    [(); HalfWordMemoryStark::<F, D>::COLUMNS]:,
-    [(); C::Hasher::HASH_SIZE]:, {
+    C: GenericConfig<D, F = F>, {
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
@@ -91,19 +71,7 @@ pub fn prove_with_traces<F, C, const D: usize>(
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); XorStark::<F, D>::COLUMNS]:,
-    [(); BitshiftStark::<F, D>::COLUMNS]:,
-    // [(); ProgramStark::<F, D>::COLUMNS]:,
-    [(); MemoryStark::<F, D>::COLUMNS]:,
-    [(); MemoryInitStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
-    [(); HalfWordMemoryStark::<F, D>::COLUMNS]:,
-    [(); C::Hasher::HASH_SIZE]:, {
+    C: GenericConfig<D, F = F>, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
@@ -194,7 +162,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     config: &StarkConfig,
     trace_poly_values: &[PolynomialValues<F>],
     trace_commitment: &PolynomialBatch<F, C, D>,
-    public_inputs: [F; S::PUBLIC_INPUTS],
+    public_inputs: &[F],
     ctl_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
@@ -202,10 +170,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-    S: Stark<F, D> + Display,
-    [(); C::Hasher::HASH_SIZE]:,
-    [(); S::COLUMNS]:,
-    [(); S::PUBLIC_INPUTS]:, {
+    S: Stark<F, D> + Display, {
     let degree = trace_poly_values[0].len();
     let degree_bits = log2_strict(degree);
     let fri_params = config.fri_params(degree_bits);
@@ -381,19 +346,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
 ) -> Result<[StarkProof<F, C, D>; NUM_TABLES]>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); XorStark::<F, D>::COLUMNS]:,
-    [(); BitshiftStark::<F, D>::COLUMNS]:,
-    // [(); ProgramStark::<F, D>::COLUMNS]:,
-    [(); MemoryStark::<F, D>::COLUMNS]:,
-    [(); MemoryInitStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
-    [(); HalfWordMemoryStark::<F, D>::COLUMNS]:,
-    [(); C::Hasher::HASH_SIZE]:, {
+    C: GenericConfig<D, F = F>, {
     macro_rules! make_proof {
         ($stark: expr, $kind: expr, $public_inputs: expr) => {
             prove_single_table(
@@ -401,7 +354,7 @@ where
                 config,
                 &traces_poly_values[$kind as usize],
                 &trace_commitments[$kind as usize],
-                $public_inputs,
+                &$public_inputs,
                 &ctl_data_per_table[$kind as usize],
                 challenger,
                 timing,
