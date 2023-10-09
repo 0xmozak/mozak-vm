@@ -164,7 +164,7 @@ mod tests {
             ))
         );
         let stark = S::default();
-        let public_inputs: PublicInputs<F> = PublicInputs {
+        let public_inputs = PublicInputs {
             entry_point: from_u32(program.entry_point),
         };
 
