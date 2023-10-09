@@ -26,7 +26,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Display for RegisterStark<F, 
     }
 }
 
-// const COLUMNS: usize = Register::<()>::NUMBER_OF_COLUMNS;
 const COLUMNS: usize = Register::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
