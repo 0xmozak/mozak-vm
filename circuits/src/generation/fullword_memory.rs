@@ -26,7 +26,7 @@ pub fn filter_memory_trace<'a>(
 ) -> impl Iterator<Item = &'a Row> {
     step_rows
         .iter()
-        .filter(|row| matches!(row.state.current_instruction(program).op, Op::LWU | Op::SW))
+        .filter(|row| matches!(row.state.current_instruction(program).op, Op::LW | Op::SW))
         .sorted_by_key(|row| (row.aux.mem.unwrap_or_default().addr, row.state.clk))
 }
 
@@ -51,8 +51,8 @@ pub fn generate_fullword_memory_trace<F: RichField>(
                     clk: get_memory_inst_clk(s),
                     addrs: mem_addr,
                     ops: Ops {
-                        is_store: F::from_bool(matches!(op, Op::SH)),
-                        is_load: F::from_bool(matches!(op, Op::LHU)),
+                        is_store: F::from_bool(matches!(op, Op::SW)),
+                        is_load: F::from_bool(matches!(op, Op::LW)),
                     },
                     limbs: [
                         F::from_canonical_u32(s.aux.dst_val & 0xFF),

@@ -91,15 +91,6 @@ where
     verify!(rangecheck_limb_stark, TableKind::RangeCheckLimb, &[]);
     verify!(halfword_memory_stark, TableKind::HalfWordMemory, &[]);
 
-    verify_stark_proof_with_challenges::<F, C, HalfWordMemoryStark<F, D>, D>(
-        &halfword_memory_stark,
-        &all_proof.stark_proofs[TableKind::HalfWordMemory as usize],
-        &stark_challenges[TableKind::HalfWordMemory as usize],
-        [],
-        &ctl_vars_per_table[TableKind::HalfWordMemory as usize],
-        config,
-    )?;
-
     verify_cross_table_lookups::<F, D>(&cross_table_lookups, &all_proof.all_ctl_zs_last(), config)?;
     Ok(())
 }
