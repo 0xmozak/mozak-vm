@@ -210,7 +210,7 @@ fn halted<P: PackedField>(
 
 const COLUMNS: usize = CpuColumnsExtended::<()>::NUMBER_OF_COLUMNS;
 // Public inputs: [PC of the first row]
-const PUBLIC_INPUTS: usize = 1;
+const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
