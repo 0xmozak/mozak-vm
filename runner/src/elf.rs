@@ -17,7 +17,7 @@ use crate::decode::decode_instruction;
 use crate::instruction::Instruction;
 use crate::util::load_u32;
 
-/// A RISC program
+/// A Risc-V program
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct Program {
@@ -36,6 +36,7 @@ pub struct Program {
     pub ro_code: Code,
 }
 
+/// Executable code of the ELF
 #[derive(Clone, Debug, Default, Deref)]
 #[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct Code(pub HashMap<u32, Instruction>);
