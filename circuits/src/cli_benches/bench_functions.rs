@@ -30,37 +30,37 @@ pub fn sample_bench(reg_value: u32) -> Result<(), anyhow::Error> {
     MozakStark::prove_and_verify(&program, &record)
 }
 
+/// Currently we support only the bench 
+/// functions that take one argument
 #[derive(PartialEq, Debug)]
 pub enum BenchFunction {
-    SampleBench(u32),
+    SampleBench,
 }
 
 impl BenchFunction {
-    pub fn run(&self) -> Result<(), anyhow::Error> {
+    pub fn run(&self, parameter: u32) -> Result<(), anyhow::Error> {
         match self {
-            BenchFunction::SampleBench(reg_value) => sample_bench(*reg_value),
+            BenchFunction::SampleBench => sample_bench(parameter),
         }
     }
 
-    /// helper function to extract a parameter from a string
-    fn extract_field<'a>(input: &'a str, field: &str) -> Result<&'a str> {
-        input
-            .split('&')
-            .find(|param| param.starts_with(field))
-            .map_or(Err(anyhow::anyhow!("Invalid input")), |param| {
-                param
-                    .split('=')
-                    .nth(1)
-                    .ok_or(anyhow::anyhow!("param not of format field=value"))
-            })
-    }
+    // /// helper function to extract a parameter from a string
+    // fn extract_field<'a>(input: &'a str, field: &str) -> Result<&'a str> {
+    //     input
+    //         .split('&')
+    //         .find(|param| param.starts_with(field))
+    //         .map_or(Err(anyhow::anyhow!("Invalid input")), |param| {
+    //             param
+    //                 .split('=')
+    //                 .nth(1)
+    //                 .ok_or(anyhow::anyhow!("param not of format field=value"))
+    //         })
+    // }
 
-    pub fn from_name_and_params(function_name: &str, parameters: &str) -> Result<Self> {
+    pub fn from_name(function_name: &str) -> Result<Self> {
         match function_name {
             "sample_bench" => {
-                // expect paramter string "reg=reg_value"
-                let reg_value: u32 = Self::extract_field(parameters, "reg")?.parse()?;
-                Ok(BenchFunction::SampleBench(reg_value))
+                Ok(BenchFunction::SampleBench)
             }
             _ => Err(anyhow::anyhow!("Invalid bench function")),
         }
@@ -78,8 +78,14 @@ mod tests {
     #[test]
     fn test_from_string() {
         assert_eq!(
-            super::BenchFunction::from_name_and_params("sample_bench", "reg=123").unwrap(),
-            super::BenchFunction::SampleBench(123)
+            super::BenchFunction::from_name("sample_bench").unwrap(),
+            super::BenchFunction::SampleBench
         );
+    }
+
+    #[test]
+    fn test_run() {
+        let function = super::BenchFunction::SampleBench;
+        assert!(function.run(123).is_ok());
     }
 }

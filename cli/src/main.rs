@@ -70,7 +70,7 @@ enum Command {
     /// Bench the function with given parameters
     Bench {
         function: String,
-        parameters: String,
+        parameter: u32,
     },
 }
 
@@ -116,10 +116,6 @@ fn load_program(mut elf: Input) -> Result<Program> {
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
     Program::load_elf(&elf_bytes)
-}
-
-fn load_function(function_name: &str, parameters: &str) -> Result<BenchFunction> {
-    BenchFunction::from_name_and_params(function_name, parameters)
 }
 
 #[rustfmt::skip]
@@ -221,9 +217,9 @@ fn main() -> Result<()> {
                 let trace_cap = trace_commitment.merkle_tree.cap;
                 println!("{trace_cap:?}");
             }
-            Command::Bench { function, parameters } => {
-                let function = load_function(&function, &parameters)?;
-                function.run()?;
+            Command::Bench { function, parameter } => {
+                let function = BenchFunction::from_name(&function)?;
+                function.run(parameter)?;
                 println!("Benchmark finished successfully!");
             }
             Command::BuildInfo => unreachable!(),
