@@ -62,7 +62,7 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 /// into Memory stark table.
 #[must_use]
 pub fn data_for_memory_limb<F: Field>(limb_index: usize) -> Vec<Column<F>> {
-    assert!(limb_index < 4, "limb-index can be 0..3");
+    assert!(limb_index < 4, "limb-index can be 0..4");
     let mem = MAP.map(Column::from);
     vec![
         mem.clk,
