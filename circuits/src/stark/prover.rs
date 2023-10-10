@@ -382,6 +382,8 @@ where
             TableKind::HalfWordMemory,
             []
         )?,
+        make_proof!(mozak_stark.register_init_stark, TableKind::RegisterInit, [])?,
+        make_proof!(mozak_stark.register_stark, TableKind::Register, [])?,
     ])
 }
 
