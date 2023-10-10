@@ -65,7 +65,7 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 pub fn data_for_memory_limb<F: Field>(limb_index: usize) -> Vec<Column<F>> {
     assert!(
         limb_index < 2,
-        "limb_index is {limb_index} but is should be in 0..1 range"
+        "limb_index is {limb_index} but is should be in 0..2 range"
     );
     let mem = MAP.map(Column::from);
     vec![
