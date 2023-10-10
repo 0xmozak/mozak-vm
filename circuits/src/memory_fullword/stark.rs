@@ -48,14 +48,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for FullWordMemor
         // As the result is range checked, this make the choice deterministic,
         // even for a malicious prover.
         let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
-        let mut added: [P; 3] = [P::ZEROS; 3];
-        let mut wrapped: [P; 3] = [P::ZEROS; 3];
-        for i in 0..3 {
-            added[i] = lv.addrs[i] + P::ONES;
-            wrapped[i] = added[i] - wrap_at;
-
+        for i in 1..4 {
+            let target = lv.addrs[0] + P::Scalar::from_canonical_usize(i);
             yield_constr.constraint(
-                lv.is_executed() * (lv.addrs[i + 1] - added[i]) * (lv.addrs[i + 1] - wrapped[i]),
+                lv.is_executed() * (lv.addrs[i] - target) * (lv.addrs[i] + wrap_at - target),
             );
         }
     }
