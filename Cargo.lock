@@ -1086,7 +1086,7 @@ checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/0xmozak/plonky2.git#0a241bb2ac0c01ef557c3106e144340c13ed29aa"
+source = "git+https://github.com/0xmozak/plonky2.git#0be4546f60f114b2ed8ada8d8792498232c0970e"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1110,7 +1110,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#0a241bb2ac0c01ef557c3106e144340c13ed29aa"
+source = "git+https://github.com/0xmozak/plonky2.git#0be4546f60f114b2ed8ada8d8792498232c0970e"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -1125,7 +1125,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#0a241bb2ac0c01ef557c3106e144340c13ed29aa"
+source = "git+https://github.com/0xmozak/plonky2.git#0be4546f60f114b2ed8ada8d8792498232c0970e"
 dependencies = [
  "rayon",
 ]
@@ -1133,7 +1133,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#0a241bb2ac0c01ef557c3106e144340c13ed29aa"
+source = "git+https://github.com/0xmozak/plonky2.git#0be4546f60f114b2ed8ada8d8792498232c0970e"
 
 [[package]]
 name = "plotters"
@@ -1401,9 +1401,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.15"
+version = "0.38.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2f9da0cbd88f9f09e7814e388301c8414c51c62aa6ce1e4b5c551d49d96e531"
+checksum = "f25469e9ae0f3d0047ca8b93fc56843f38e6774f0914a107ff8b41be8be8e0b7"
 dependencies = [
  "bitflags 2.4.0",
  "errno",
@@ -1546,7 +1546,7 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "starky"
 version = "0.1.2"
-source = "git+https://github.com/0xmozak/plonky2.git#0a241bb2ac0c01ef557c3106e144340c13ed29aa"
+source = "git+https://github.com/0xmozak/plonky2.git#0be4546f60f114b2ed8ada8d8792498232c0970e"
 dependencies = [
  "anyhow",
  "backtrace",
