@@ -9,7 +9,7 @@ use crate::cross_table_lookup::Column;
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Ops<T> {
-    // One of `is_store`, `is_load_u`
+    // One of `is_store`, `is_load`
     // If none are `1`, it is a padding row
     /// Binary filter column to represent a RISC-V SH operation.
     pub is_store: T,
