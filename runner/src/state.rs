@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
-use derive_more::Deref;
+use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use log::trace;
 #[cfg(feature = "serialize")]
@@ -104,6 +104,21 @@ pub struct MemEntry {
     pub raw_value: u32,
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Default)]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[repr(u8)]
+pub enum IoOpcode {
+    #[default]
+    Store,
+    Load,
+}
+#[derive(Debug, Clone, Copy, Default)]
+pub struct IoEntry {
+    pub addr: u32,
+    pub size: u32,
+    pub op: IoOpcode,
+}
+
 /// Auxiliary information about the instruction execution
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Aux {
@@ -115,6 +130,7 @@ pub struct Aux {
     pub will_halt: bool,
     pub op1: u32,
     pub op2: u32,
+    pub io: Option<IoEntry>,
 }
 
 impl State {
