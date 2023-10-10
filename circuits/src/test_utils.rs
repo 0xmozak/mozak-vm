@@ -5,7 +5,7 @@ use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::fri::FriConfig;
 use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
@@ -17,6 +17,7 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::bitshift::generate_shift_amount_trace;
 use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
+use crate::generation::fullword_memory::generate_fullword_memory_trace;
 use crate::generation::halfword_memory::generate_halfword_memory_trace;
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::memoryinit::generate_memory_init_trace;
@@ -26,6 +27,7 @@ use crate::generation::register::generate_register_trace;
 use crate::generation::registerinit::generate_register_init_trace;
 use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
+use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::register::stark::RegisterStark;
@@ -39,7 +41,7 @@ use crate::xor::stark::XorStark;
 
 pub type S = MozakStark<F, D>;
 pub const D: usize = 2;
-pub type C = PoseidonGoldilocksConfig;
+pub type C = Poseidon2GoldilocksConfig;
 pub type F = <C as GenericConfig<D>>::F;
 
 #[must_use]
@@ -123,8 +125,14 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let cpu_trace = generate_cpu_trace(program, record);
         let memory_init = generate_memory_init_trace(program);
         let halfword_memory = generate_halfword_memory_trace(program, &record.executed);
-        let memory_trace =
-            generate_memory_trace::<F>(program, &record.executed, &memory_init, &halfword_memory);
+        let fullword_memory = generate_fullword_memory_trace(program, &record.executed);
+        let memory_trace = generate_memory_trace::<F>(
+            program,
+            &record.executed,
+            &memory_init,
+            &halfword_memory,
+            &fullword_memory,
+        );
         let trace_poly_values =
             trace_rows_to_poly_values(generate_rangecheck_trace(&cpu_trace, &memory_trace));
         let proof = prove_table::<F, C, S, D>(
@@ -168,11 +176,13 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let stark = S::default();
         let memory_init = generate_memory_init_trace(program);
         let halfword_memory = generate_halfword_memory_trace(program, &record.executed);
+        let fullword_memory = generate_fullword_memory_trace(program, &record.executed);
         let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(
             program,
             &record.executed,
             &memory_init,
             &halfword_memory,
+            &fullword_memory,
         ));
         let proof = prove_table::<F, C, S, D>(
             stark,
@@ -194,6 +204,26 @@ impl ProveAndVerify for HalfWordMemoryStark<F, D> {
         let stark = S::default();
         let trace_poly_values =
             trace_rows_to_poly_values(generate_halfword_memory_trace(program, &record.executed));
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            &[],
+            &mut TimingTree::default(),
+        )?;
+
+        verify_stark_proof(stark, proof, &config)
+    }
+}
+
+impl ProveAndVerify for FullWordMemoryStark<F, D> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+        type S = FullWordMemoryStark<F, D>;
+        let config = standard_faster_config();
+
+        let stark = S::default();
+        let trace_poly_values =
+            trace_rows_to_poly_values(generate_fullword_memory_trace(program, &record.executed));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,

@@ -43,7 +43,7 @@ impl<P: PackedField> OpSelectors<P> {
     pub fn is_straightline(&self) -> P { P::ONES - self.is_jumping() }
 
     /// List of opcodes that work with memory.
-    pub fn is_mem_op(&self) -> P { self.sb + self.lb + self.sh + self.lhu }
+    pub fn is_mem_op(&self) -> P { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
 }
 
 /// Ensure that if opcode is straight line, then program counter is incremented
@@ -292,7 +292,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use starky::stark_testing::test_stark_low_degree;
 
     use crate::cpu::stark::CpuStark;
@@ -300,7 +300,7 @@ mod tests {
     #[test]
     fn test_degree() -> Result<()> {
         const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
+        type C = Poseidon2GoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
         type S = CpuStark<F, D>;
 
