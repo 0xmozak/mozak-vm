@@ -70,7 +70,6 @@ impl From<&HashMap<u32, u8>> for Code {
 // rw_memory and ro_code. In the future we might want to add ones for ro_memory
 // as well (or leave it to be manually constructed by the caller).
 impl From<HashMap<u32, u8>> for Program {
-    #[tarpaulin::skip]
     fn from(image: HashMap<u32, u8>) -> Self {
         Self {
             entry_point: 0_u32,
@@ -131,7 +130,6 @@ impl Program {
     // This function is actually mostly covered by tests, but it's too annoying to work out how to
     // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
     // exercise the error handling?
-    #[tarpaulin::skip]
     #[allow(clippy::similar_names)]
     pub fn load_elf(input: &[u8]) -> Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;

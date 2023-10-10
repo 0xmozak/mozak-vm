@@ -127,7 +127,6 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             (0x1, 0x01) => (Op::MULH, rtype),
             (0x2, 0x01) => (Op::MULHSU, rtype),
             (0x3, 0x01) => (Op::MULHU, rtype),
-            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b000_0011 => match bf.func3() {
@@ -136,14 +135,12 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             0x2 => (Op::LW, itype_load),
             0x4 => (Op::LBU, itype_load),
             0x5 => (Op::LHU, itype_load),
-            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b010_0011 => match bf.func3() {
             0x0 => (Op::SB, stype),
             0x1 => (Op::SH, stype),
             0x2 => (Op::SW, stype),
-            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b001_0011 => match bf.func3() {
@@ -178,7 +175,6 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
                         imm: 1 << itype.imm,
                         ..itype
                     }),
-                    #[tarpaulin::skip]
                     _ => Default::default(),
                 }
             }
@@ -186,7 +182,6 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             0x6 => (Op::OR, itype),
             // For Risc-V it's ANDI, but we handle it as AND.
             0x7 => (Op::AND, itype),
-            #[tarpaulin::skip]
             _ => Default::default(),
         },
         #[allow(clippy::match_same_arms)]
@@ -194,11 +189,9 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             (0x0, 0x0) => (Op::ECALL, Args::default()),
             // For RISC-V this would be MRET,
             // but so far we implemented it as a no-op.
-            #[tarpaulin::skip]
             (0x0, 0x302) => noop,
             // For RISC-V this would be EBREAK,
             // but so far we implemented it as a no-op.
-            #[tarpaulin::skip]
             (0x0, 0x1) => noop,
             // For RISC-V this would be (Op::CSRRW, itype),
             // but so far we implemented it as a no-op.
@@ -209,14 +202,12 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             // For RISC-V this would be (Op::CSRRWI, itype),
             // but so far we implemented it as a no-op.
             (0x5, _) => noop,
-            #[tarpaulin::skip]
             _ => Default::default(),
         },
         // For Risc-V its JAL, but we handle it as JALR.
         0b110_1111 => (Op::JALR, jtype),
         0b110_0111 => match bf.func3() {
             0x0 => (Op::JALR, itype),
-            #[tarpaulin::skip]
             _ => Default::default(),
         },
         0b110_0011 => match bf.func3() {
@@ -226,7 +217,6 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             0x5 => (Op::BGE, btype),
             0x6 => (Op::BLTU, btype),
             0x7 => (Op::BGEU, btype),
-            #[tarpaulin::skip]
             _ => Default::default(),
         },
         // LUI in RISC-V; but our ADD instruction is general enough to express the same semantics
@@ -238,7 +228,6 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         // For RISC-V this would be (Op::FENCE, itype)
         // but so far we implemented it as a no-op.
         0b000_1111 => noop,
-        #[tarpaulin::skip]
         _ => Default::default(),
     };
 
