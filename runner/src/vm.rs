@@ -109,63 +109,69 @@ impl State {
         )
     }
 
-    #[must_use]
+    fn ecall_halt(self) -> (Aux, Self) {
+        // Note: we don't advance the program counter for 'halt'.
+        // That is we treat 'halt' like an endless loop.
+        (
+            Aux {
+                will_halt: true,
+                ..Aux::default()
+            },
+            self.halt(),
+        )
+    }
+
     /// # Panics
     ///
     /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
     /// bytes.
-    /// Panics on executing PANIC syscall and also if vector to string
-    /// conversion fails.
+    fn ecall_io_read(self) -> (Aux, Self) {
+        let buffer_start = self.get_register_value(REG_A1);
+        let num_bytes_requsted = self.get_register_value(REG_A2);
+        let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
+        (
+            Aux::default(),
+            data.iter()
+                .enumerate()
+                .fold(updated_self, |updated_self, (i, byte)| {
+                    updated_self
+                        .store_u8(
+                            buffer_start
+                                .wrapping_add(u32::try_from(i).expect("cannot fit i into u32")),
+                            *byte,
+                        )
+                        .unwrap()
+                })
+                .set_register_value(
+                    REG_A0,
+                    u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
+                )
+                .bump_pc(),
+        )
+    }
+
+    /// # Panics
+    ///
+    /// Panics if vector<u8> to string conversion fails.
+    fn ecall_panic(self) -> (Aux, Self) {
+        let msg_len = self.get_register_value(REG_A1);
+        let msg_ptr = self.get_register_value(REG_A2);
+        let mut msg_vec = vec![];
+        for addr in msg_ptr..(msg_ptr + msg_len) {
+            msg_vec.push(self.load_u8(addr));
+        }
+        panic!(
+            "VM panicked with msg: {}",
+            from_utf8(&msg_vec).expect("A valid utf8 VM panic message should be provided")
+        );
+    }
+
+    #[must_use]
     pub fn ecall(self) -> (Aux, Self) {
         match self.get_register_value(REG_A0) {
-            ecall::HALT => {
-                // Note: we don't advance the program counter for 'halt'.
-                // That is we treat 'halt' like an endless loop.
-                (
-                    Aux {
-                        will_halt: true,
-                        ..Aux::default()
-                    },
-                    self.halt(),
-                )
-            }
-            ecall::IO_READ => {
-                let buffer_start = self.get_register_value(REG_A1);
-                let num_bytes_requsted = self.get_register_value(REG_A2);
-                let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
-                (
-                    Aux::default(),
-                    data.iter()
-                        .enumerate()
-                        .fold(updated_self, |updated_self, (i, byte)| {
-                            updated_self
-                                .store_u8(
-                                    buffer_start.wrapping_add(
-                                        u32::try_from(i).expect("cannot fit i into u32"),
-                                    ),
-                                    *byte,
-                                )
-                                .unwrap()
-                        })
-                        .set_register_value(
-                            REG_A0,
-                            u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
-                        )
-                        .bump_pc(),
-                )
-            }
-            ecall::PANIC => {
-                let msg_len = self.get_register_value(REG_A1);
-                let msg_ptr = self.get_register_value(REG_A2);
-                let mut msg_vec = vec![];
-                for addr in msg_ptr..(msg_ptr + msg_len) {
-                    msg_vec.push(self.load_u8(addr));
-                }
-                panic!(
-                    "VM panicked with msg: {}",
-                    from_utf8(&msg_vec).expect("A valid utf8 VM panic message should be provided")
-                );
-            }
+            ecall::HALT => self.ecall_halt(),
+            ecall::IO_READ => self.ecall_io_read(),
+            ecall::PANIC => self.ecall_panic(),
             _ => (Aux::default(), self.bump_pc()),
         }
     }
