@@ -39,10 +39,12 @@ pub struct OpSelectors<T> {
     /// Store Byte
     pub sb: T,
     pub sh: T,
+    pub sw: T,
     /// Load Byte Unsigned and places it in the least significant byte position
     /// of the target register.
     pub lb: T,
     pub lh: T,
+    pub lw: T,
     /// Branch Less Than
     pub blt: T,
     /// Branch Greater or Equal
@@ -301,6 +303,27 @@ pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
     MAP.cpu.map(Column::from).inst.ops.halfword_mem_ops()
 }
 
+/// Column containing the data to be matched against Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn data_for_fullword_memory<F: Field>() -> Vec<Column<F>> {
+    let cpu = MAP.cpu.map(Column::from);
+    vec![
+        cpu.clk,
+        cpu.mem_addr,
+        cpu.dst_value,
+        cpu.inst.ops.sw,
+        cpu.inst.ops.lw,
+    ]
+}
+
+/// Column for a binary filter for memory instruction in Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_fullword_memory<F: Field>() -> Column<F> {
+    MAP.cpu.map(Column::from).inst.ops.fullword_mem_ops()
+}
+
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(self) -> T {
@@ -314,6 +337,8 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     pub fn byte_mem_ops(self) -> T { self.sb + self.lb }
 
     pub fn halfword_mem_ops(self) -> T { self.sh + self.lh }
+
+    pub fn fullword_mem_ops(self) -> T { self.sw + self.lw }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.
