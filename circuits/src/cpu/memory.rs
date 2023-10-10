@@ -28,6 +28,15 @@ pub(crate) fn signed_constraints<P: PackedField>(
                 - (lv.mem_value_raw
                     + lv.dst_sign_bit * P::Scalar::from_canonical_u32(0xFFFF_FF00))),
     );
+
+    // Ensure `dst_value` is `0xFFFF_0000` greater than
+    // `mem_access_raw` in case `dst_sign_bit` is set
+    yield_constr.constraint(
+        lv.inst.ops.lh
+            * (lv.dst_value
+                - (lv.mem_value_raw
+                    + lv.dst_sign_bit * P::Scalar::from_canonical_u32(0xFFFF_0000))),
+    );
 }
 
 #[cfg(test)]
