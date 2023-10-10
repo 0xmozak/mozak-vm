@@ -113,11 +113,10 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
     proptest! {
-            #![proptest_config(ProptestConfig::with_cases(1))]
-
-            #[test]
-            fn prove_mem_read_write_mozak(offset in u32_extra(), imm in
-    u32_extra(), content in u8_extra()) {
-    prove_mem_read_write::<MozakStark<F, D>>(offset, imm, content);         }
+        #![proptest_config(ProptestConfig::with_cases(1))]
+        #[test]
+        fn prove_mem_read_write_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_mem_read_write::<MozakStark<F, D>>(offset, imm, content);
         }
+    }
 }
