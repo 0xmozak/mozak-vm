@@ -68,10 +68,7 @@ enum Command {
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
     /// Bench the function with given parameters
-    Bench {
-        function: String,
-        parameter: u32,
-    },
+    Bench { function: String, parameter: u32 },
 }
 
 fn build_info() {
