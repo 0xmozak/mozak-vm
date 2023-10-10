@@ -4,7 +4,7 @@ use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
-use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk};
+use crate::memory::trace::get_memory_inst_clk;
 use crate::memory_fullword::columns::{FullWordMemory, Ops};
 
 /// Pad the memory trace to a power of 2.
@@ -39,27 +39,29 @@ pub fn generate_fullword_memory_trace<F: RichField>(
         filter_memory_trace(program, step_rows)
             .map(|s| {
                 let op = s.state.current_instruction(program).op;
-                let mut mem_addr: [F; 4] = [F::ZERO; 4];
-                mem_addr[0] = get_memory_inst_addr(s);
-                for i in 1..4_u32 {
-                    mem_addr[i as usize] = F::from_canonical_u32(u32::wrapping_add(
-                        s.aux.mem.unwrap_or_default().addr,
-                        i,
-                    ));
-                }
+                let base_addr = s.aux.mem.unwrap_or_default().addr;
+                let addrs: [F; 4] = (0..4)
+                    .map(|i| F::from_canonical_u32(base_addr.wrapping_add(i)))
+                    .collect_vec()
+                    .try_into()
+                    .unwrap();
+                let limbs = s
+                    .aux
+                    .dst_val
+                    .to_le_bytes()
+                    .into_iter()
+                    .map(F::from_canonical_u8)
+                    .collect_vec()
+                    .try_into()
+                    .unwrap();
                 FullWordMemory {
                     clk: get_memory_inst_clk(s),
-                    addrs: mem_addr,
+                    addrs,
                     ops: Ops {
                         is_store: F::from_bool(matches!(op, Op::SW)),
                         is_load: F::from_bool(matches!(op, Op::LW)),
                     },
-                    limbs: [
-                        F::from_canonical_u32(s.aux.dst_val & 0xFF),
-                        F::from_canonical_u32((s.aux.dst_val >> 8) & 0xFF),
-                        F::from_canonical_u32((s.aux.dst_val >> 16) & 0xFF),
-                        F::from_canonical_u32((s.aux.dst_val >> 24) & 0xFF),
-                    ],
+                    limbs,
                 }
             })
             .collect_vec(),
