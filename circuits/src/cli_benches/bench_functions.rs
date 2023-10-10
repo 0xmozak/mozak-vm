@@ -30,7 +30,7 @@ pub fn sample_bench(reg_value: u32) -> Result<(), anyhow::Error> {
     MozakStark::prove_and_verify(&program, &record)
 }
 
-/// Currently we support only the bench 
+/// Currently we support only the bench
 /// functions that take one argument
 #[derive(PartialEq, Debug)]
 pub enum BenchFunction {
@@ -59,9 +59,7 @@ impl BenchFunction {
 
     pub fn from_name(function_name: &str) -> Result<Self> {
         match function_name {
-            "sample_bench" => {
-                Ok(BenchFunction::SampleBench)
-            }
+            "sample_bench" => Ok(BenchFunction::SampleBench),
             _ => Err(anyhow::anyhow!("Invalid bench function")),
         }
     }
