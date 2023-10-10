@@ -19,7 +19,7 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<FullWordMemory<F>>) -> Vec<FullWor
     trace
 }
 
-/// Returns the rows sorted in the order of the instruction address.
+/// Returns the rows with full word memory instructions.
 pub fn filter_memory_trace<'a>(
     program: &'a Program,
     step_rows: &'a [Row],
@@ -27,7 +27,6 @@ pub fn filter_memory_trace<'a>(
     step_rows
         .iter()
         .filter(|row| matches!(row.state.current_instruction(program).op, Op::LW | Op::SW))
-        .sorted_by_key(|row| (row.aux.mem.unwrap_or_default().addr, row.state.clk))
 }
 
 #[must_use]
