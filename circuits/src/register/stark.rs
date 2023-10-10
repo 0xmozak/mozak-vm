@@ -113,14 +113,14 @@ mod tests {
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{reg, simple_test_code, u32_extra};
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use starky::stark_testing::test_stark_low_degree;
 
     use super::*;
     use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
-    type C = PoseidonGoldilocksConfig;
+    type C = Poseidon2GoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
     type S = RegisterStark<F, D>;
 
