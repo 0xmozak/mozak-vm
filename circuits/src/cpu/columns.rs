@@ -42,7 +42,7 @@ pub struct OpSelectors<T> {
     /// Load Byte Unsigned and places it in the least significant byte position
     /// of the target register.
     pub lb: T,
-    pub lhu: T,
+    pub lh: T,
     /// Branch Less Than
     pub blt: T,
     /// Branch Greater or Equal
@@ -290,7 +290,7 @@ pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
         cpu.mem_addr,
         cpu.dst_value,
         cpu.inst.ops.sh,
-        cpu.inst.ops.lhu,
+        cpu.inst.ops.lh,
     ]
 }
 
@@ -313,7 +313,7 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     // constraints.
     pub fn byte_mem_ops(self) -> T { self.sb + self.lb }
 
-    pub fn halfword_mem_ops(self) -> T { self.sh + self.lhu }
+    pub fn halfword_mem_ops(self) -> T { self.sh + self.lh }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.
