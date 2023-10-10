@@ -39,7 +39,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
     pub register_init_stark: RegisterInitStark<F, D>,
     pub register_stark: RegisterStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 11],
+    pub cross_table_lookups: [CrossTableLookup<F>; 12],
     pub debug: bool,
 }
 
