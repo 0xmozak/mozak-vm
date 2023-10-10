@@ -433,6 +433,7 @@ pub mod ctl_utils {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use itertools::Itertools;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::polynomial::PolynomialValues;
 
@@ -446,18 +447,14 @@ mod tests {
     /// then we resize smaller one with empty column and then add componentwise
     fn lookup_data<F: Field>(lv_col_indices: &[usize], nv_col_indices: &[usize]) -> Vec<Column<F>> {
         // use usual lv values of the rows
-        let mut lv_columns = Column::singles(lv_col_indices);
+        let lv_columns = Column::singles(lv_col_indices);
         // use nv values of the rows
-        let mut nv_columns = Column::singles_next(nv_col_indices);
-        if lv_columns.len() < nv_columns.len() {
-            lv_columns.resize(nv_columns.len(), Column::default());
-        } else {
-            nv_columns.resize(lv_columns.len(), Column::default());
-        }
+        let nv_columns = Column::singles_next(nv_col_indices);
+
         lv_columns
             .into_iter()
-            .zip(nv_columns)
-            .map(|(lv, nv)| lv + nv)
+            .zip_longest(nv_columns)
+            .map(|item| item.reduce(std::ops::Add::add))
             .collect()
     }
 
