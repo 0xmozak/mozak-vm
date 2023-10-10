@@ -102,11 +102,7 @@ mod tests {
                     },
                 },
                 Instruction {
-                    op: if is_unsigned {
-                        Op::LHU
-                    } else {
-                        Op::LH
-                    },
+                    op: if is_unsigned { Op::LHU } else { Op::LH },
                     args: Args {
                         rs2: 2,
                         imm,
