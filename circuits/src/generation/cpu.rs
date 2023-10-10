@@ -295,7 +295,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
     use plonky2::field::types::Field;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
 
     use crate::columns_view::selection;
     use crate::cpu::columns::{CpuState, Instruction};
@@ -307,7 +307,7 @@ mod tests {
     #[allow(clippy::too_many_lines)]
     fn test_permuted_inst_trace() {
         const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
+        type C = Poseidon2GoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
         let cpu_trace: Vec<CpuState<F>> = [

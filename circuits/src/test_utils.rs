@@ -5,7 +5,7 @@ use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::fri::FriConfig;
 use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
@@ -41,7 +41,7 @@ use crate::xor::stark::XorStark;
 
 pub type S = MozakStark<F, D>;
 pub const D: usize = 2;
-pub type C = PoseidonGoldilocksConfig;
+pub type C = Poseidon2GoldilocksConfig;
 pub type F = <C as GenericConfig<D>>::F;
 
 #[must_use]
