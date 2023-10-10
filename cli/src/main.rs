@@ -3,7 +3,6 @@
 // TODO: remove this when shadow_rs updates enough.
 #![allow(clippy::needless_raw_string_hashes)]
 use std::io::{Read, Write};
-mod bench_functions;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clio::{Input, Output};
