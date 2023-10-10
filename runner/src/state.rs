@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction};
 
-/// State of our VM
+/// State of Risc-V VM
 ///
 /// Note: In general clone is not necessarily what you want, but in our case we
 /// carefully picked the type of `memory` to be clonable in about O(1)

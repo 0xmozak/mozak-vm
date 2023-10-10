@@ -1,5 +1,3 @@
-// Copyright 2023 MOZAK.
-
 use std::collections::HashSet;
 
 use anyhow::{anyhow, ensure, Result};
@@ -37,15 +35,21 @@ pub struct Program {
 }
 
 /// Executable code of the ELF
+///
+/// A wrapper of a map from pc to [Instruction]
 #[derive(Clone, Debug, Default, Deref)]
 #[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct Code(pub HashMap<u32, Instruction>);
 
+/// Memory of Risc-V Program
+///
+/// A wrapper around a map from a 32-bit address to a byte of memory
 #[derive(Clone, Debug, Default, Deref)]
 #[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct Data(pub HashMap<u32, u8>);
 
 impl Code {
+    /// Get [Instruction] given `pc`
     #[must_use]
     pub fn get_instruction(&self, pc: u32) -> Instruction {
         let Code(code) = self;
