@@ -541,11 +541,14 @@ mod tests {
             value_2: usize,
         ) -> TraceBuilder<F> {
             let len = self.trace[col_idx].len();
-            let new_v: Vec<F> = (0..len)
-                .map(|i| F::from_canonical_usize(value_1 * ((i + 1) & 1) + value_2 * (i & 1)))
-                .collect();
-            let values = PolynomialValues::from(new_v);
-            self.trace[col_idx] = values;
+            self.trace[col_idx] = PolynomialValues::from(
+                [value_1, value_2]
+                    .into_iter()
+                    .cycle()
+                    .take(len)
+                    .map(F::from_canonical_usize)
+                    .collect_vec(),
+            );
 
             self
         }
