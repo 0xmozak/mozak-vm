@@ -4,6 +4,7 @@ use mozak_runner::instruction::{Args, Instruction};
 use mozak_runner::test_utils::simple_test_code;
 use mozak_runner::vm::ExecutionRecord;
 
+// TODO(Matthias): Consider unifying with the byte memory example?
 #[must_use]
 pub fn fullword_memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord) {
     let new = Instruction::new;
