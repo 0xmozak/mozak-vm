@@ -43,17 +43,16 @@ impl BenchFunction {
     }
 
     /// helper function to extract a parameter from a string
-    fn extract_field<'a, 'b>(input: &'a str, field: &'b str) -> Result<&'a str> {
+    fn extract_field<'a>(input: &'a str, field: &str) -> Result<&'a str> {
         input
             .split('&')
             .find(|param| param.starts_with(field))
-            .map(|param| {
+            .map_or(Err(anyhow::anyhow!("Invalid input")), |param| {
                 param
                     .split('=')
                     .nth(1)
                     .ok_or(anyhow::anyhow!("param not of format field=value"))
             })
-            .unwrap_or(Err(anyhow::anyhow!("Invalid input")))
     }
 
     pub fn from_name_and_params(function_name: &str, parameters: &str) -> Result<Self> {

@@ -3,6 +3,7 @@
 // TODO: remove this when shadow_rs updates enough.
 #![allow(clippy::needless_raw_string_hashes)]
 use std::io::{Read, Write};
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clio::{Input, Output};
@@ -66,7 +67,10 @@ enum Command {
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
     /// Bench the function with given parameters
-    Bench { function: String, parameters: String },
+    Bench {
+        function: String,
+        parameters: String,
+    },
 }
 
 fn build_info() {
@@ -113,11 +117,12 @@ fn load_program(mut elf: Input) -> Result<Program> {
     Program::load_elf(&elf_bytes)
 }
 
-fn load_function(function_name: String, parameters: String) -> Result<BenchFunction> {
-    BenchFunction::from_name_and_params(&function_name, &parameters)
+fn load_function(function_name: &str, parameters: &str) -> Result<BenchFunction> {
+    BenchFunction::from_name_and_params(function_name, parameters)
 }
 
 #[rustfmt::skip]
+#[allow(clippy::too_many_lines)]
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi iotape.txt`
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -216,7 +221,7 @@ fn main() -> Result<()> {
                 println!("{trace_cap:?}");
             }
             Command::Bench { function, parameters } => {
-                let function = load_function(function, parameters)?;
+                let function = load_function(&function, &parameters)?;
                 function.run()?;
                 println!("Benchmark finished successfully!");
             }
