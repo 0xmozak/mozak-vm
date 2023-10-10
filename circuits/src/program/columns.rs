@@ -13,7 +13,7 @@ pub struct InstructionRow<T> {
     /// inst_data include:
     /// - ops: This is an internal opcode, not the opcode from RISC-V
     /// - is_op1_signed and is_op2_signed
-    /// - rs1_select, rs2_select, and rd_select
+    /// - rs1_select, rs2_select, and rd
     /// - imm_value
     pub inst_data: T,
 }

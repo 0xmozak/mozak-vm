@@ -66,7 +66,6 @@ fn one_hots<P: PackedField>(inst: &Instruction<P>, yield_constr: &mut Constraint
     one_hot(inst.ops, yield_constr);
     one_hot(inst.rs1_select, yield_constr);
     one_hot(inst.rs2_select, yield_constr);
-    one_hot(inst.rd_select, yield_constr);
 }
 
 fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
@@ -123,36 +122,6 @@ fn check_permuted_inst_cols<P: PackedField>(
     for (lv_col, nv_col) in izip![lv.inst, nv.inst] {
         yield_constr.constraint((nv.filter - P::ONES) * (lv_col - nv_col));
     }
-}
-
-/// Only the destination register can change its value.  
-/// All other registers must keep the same value as in the previous row.
-fn only_rd_changes<P: PackedField>(
-    lv: &CpuState<P>,
-    nv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    // Note: we could skip 0, because r0 is always 0.
-    // But we keep it to make it easier to reason about the code.
-    (0..32).for_each(|reg| {
-        yield_constr.constraint_transition(
-            (P::ONES - lv.inst.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]),
-        );
-    });
-}
-
-/// The destination register should change to `dst_value`.
-fn rd_assigned_correctly<P: PackedField>(
-    lv: &CpuState<P>,
-    nv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    // Note: we skip 0 here, because it's already forced to 0 permanently by
-    // `r0_always_0`
-    (1..32).for_each(|reg| {
-        yield_constr
-            .constraint_transition((lv.inst.rd_select[reg]) * (lv.dst_value - nv.regs[reg]));
-    });
 }
 
 /// First operand should be assigned with the value of the designated register.
@@ -248,8 +217,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 
         // Registers
         r0_always_0(lv, yield_constr);
-        only_rd_changes(lv, nv, yield_constr);
-        rd_assigned_correctly(lv, nv, yield_constr);
         populate_op1_value(lv, yield_constr);
         populate_op2_value(lv, yield_constr);
 

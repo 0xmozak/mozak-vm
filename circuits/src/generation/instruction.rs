@@ -55,7 +55,8 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
         } = 1;
         cols.rs1_select[inst.args.rs1 as usize] = 1;
         cols.rs2_select[inst.args.rs2 as usize] = 1;
-        cols.rd_select[inst.args.rd as usize] = 1;
+        cols.rd = u32::from(inst.args.rd);
+        cols.rd_not_zero = u32::from(inst.args.rd > 0);
         cols
     }
 }
@@ -83,7 +84,7 @@ impl<F: RichField> From<columns::Instruction<F>> for InstructionRow<F> {
                     inst.is_op2_signed,
                     ascending_sum(inst.rs1_select),
                     ascending_sum(inst.rs2_select),
-                    ascending_sum(inst.rd_select),
+                    inst.rd,
                     inst.imm_value,
                 ],
                 1 << 5,

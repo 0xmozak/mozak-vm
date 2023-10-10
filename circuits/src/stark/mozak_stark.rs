@@ -79,6 +79,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
                 RegisterRegInitTable::lookups(),
+                CpuRegisterTable::lookups(),
             ],
             debug: false,
         }
@@ -414,6 +415,23 @@ impl<F: Field> Lookups<F> for RegisterRegInitTable<F> {
             RegisterInitTable::new(
                 crate::registerinit::columns::data_for_register(),
                 crate::registerinit::columns::filter_for_register(),
+            ),
+        )
+    }
+}
+
+pub struct CpuRegisterTable<F: Field>(CrossTableLookup<F>);
+impl<F: Field> Lookups<F> for CpuRegisterTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        let cpu_looking_rd = vec![CpuTable::new(
+            cpu::columns::data_for_register_rd(),
+            cpu::columns::filter_for_register_rd(),
+        )];
+        CrossTableLookup::new(
+            cpu_looking_rd,
+            RegisterTable::new(
+                crate::register::columns::data_for_cpu_rd(),
+                crate::register::columns::filter_for_cpu_rd(),
             ),
         )
     }

@@ -66,12 +66,20 @@ pub struct Instruction<T> {
     pub is_op1_signed: T,
     pub is_op2_signed: T,
     pub is_dst_signed: T,
+    // There are 32 registers in RISC-V, which typically would require
+    // 32 + 32 + 32 selector columns (in addition to the 32 register columns).
+    // We optimize here by relying on cross table lookups and indexing register
+    // usage via 'addresses', e.g. if r6 is written to, then rd = 6.
+    // TODO: Convert to `rs1`
     /// Selects the register to use as source for `rs1`
     pub rs1_select: [T; 32],
+    // TODO: Convert to `rs2`
     /// Selects the register to use as source for `rs2`
     pub rs2_select: [T; 32],
-    /// Selects the register to use as destination for `rd`
-    pub rd_select: [T; 32],
+    /// The 'address' of the register to use as destination for `rd`.
+    pub rd: T,
+    /// Filter column for register `rd`. Is one when rd is being used.
+    pub rd_not_zero: T,
     /// Special immediate value used for code constants
     pub imm_value: T,
 }
@@ -363,7 +371,7 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
         // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5
         //   bits.
         // - is_op1_signed and is_op2_signed: These fields occupy 1 bit each.
-        // - rs1_select, rs2_select, and rd_select: These fields require 5 bits each.
+        // - rs1_select, rs2_select, and rd: These fields require 5 bits each.
         // - imm_value: This field requires 32 bits.
         // Therefore, the total bit requirement is 5 * 6 + 32 = 62 bits, which is less than the
         // size of the Goldilocks field.
@@ -376,7 +384,7 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
                 Column::single(inst.is_op2_signed),
                 Column::ascending_sum(inst.rs1_select),
                 Column::ascending_sum(inst.rs2_select),
-                Column::ascending_sum(inst.rd_select),
+                Column::single(inst.rd),
                 Column::single(inst.imm_value),
             ],
             F::from_canonical_u16(1 << 5),
@@ -387,3 +395,15 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
 /// Columns containing the data of permuted instructions.
 #[must_use]
 pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.permuted.inst) }
+
+#[must_use]
+pub fn data_for_register_rd<F: Field>() -> Vec<Column<F>> {
+    vec![
+        Column::single(MAP.cpu.inst.rd),
+        Column::single(MAP.cpu.dst_value),
+        Column::single(MAP.cpu.clk) * F::from_canonical_u8(3) + F::TWO,
+    ]
+}
+
+#[must_use]
+pub fn filter_for_register_rd<F: Field>() -> Column<F> { Column::single(MAP.cpu.inst.rd_not_zero) }

@@ -317,7 +317,7 @@ mod tests {
                     ops: selection(3),
                     rs1_select: selection(2),
                     rs2_select: selection(1),
-                    rd_select: selection(1),
+                    rd: 1,
                     imm_value: 3,
                     ..Default::default()
                 },
@@ -330,7 +330,7 @@ mod tests {
                     ops: selection(1),
                     rs1_select: selection(3),
                     rs2_select: selection(3),
-                    rd_select: selection(2),
+                    rd: 2,
                     imm_value: 2,
                     ..Default::default()
                 },
@@ -343,7 +343,7 @@ mod tests {
                     ops: selection(3),
                     rs1_select: selection(2),
                     rs2_select: selection(1),
-                    rd_select: selection(1),
+                    rd: 1,
                     imm_value: 3,
                     ..Default::default()
                 },
@@ -356,7 +356,7 @@ mod tests {
                     ops: selection(4),
                     rs1_select: selection(4),
                     rs2_select: selection(4),
-                    rd_select: selection(4),
+                    rd: 4,
                     imm_value: 4,
                     ..Default::default()
                 },
@@ -389,7 +389,7 @@ mod tests {
                     // is_op2_signed: 0,
                     // rs1_select: 2,
                     // rs2_select: 1,
-                    // rd_select: 1,
+                    // rd: 1,
                     // imm_value: 3,
                     inst_data: reduce_with_powers(vec![3, 0, 0, 2, 1, 1, 3]),
                 },
