@@ -142,7 +142,7 @@ mod tests {
     use im::hashmap::HashMap;
     use mozak_runner::elf::{Data, Program};
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
 
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
@@ -150,7 +150,7 @@ mod tests {
     use crate::test_utils::{inv, prep_table};
 
     const D: usize = 2;
-    type C = PoseidonGoldilocksConfig;
+    type C = Poseidon2GoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
 
     // This test simulates the scenario of a set of instructions
