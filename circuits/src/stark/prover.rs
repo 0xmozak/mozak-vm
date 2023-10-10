@@ -1,5 +1,3 @@
-#![allow(clippy::too_many_lines)]
-
 use std::fmt::Display;
 
 use anyhow::{ensure, Result};
@@ -157,6 +155,7 @@ where
 /// there are no z polys, or if our
 /// opening points are in our subgroup `H`,
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_lines)]
 pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     stark: &S,
     config: &StarkConfig,

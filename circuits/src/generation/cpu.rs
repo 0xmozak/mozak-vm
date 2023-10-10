@@ -384,13 +384,6 @@ mod tests {
             ProgramRom {
                 inst: InstructionRow {
                     pc: 1,
-                    // opcode: 3,
-                    // is_op1_signed: 0,
-                    // is_op2_signed: 0,
-                    // rs1_select: 2,
-                    // rs2_select: 1,
-                    // rd_select: 1,
-                    // imm_value: 3,
                     inst_data: reduce_with_powers(vec![3, 0, 0, 2, 1, 1, 3]),
                 },
                 filter: 1,
