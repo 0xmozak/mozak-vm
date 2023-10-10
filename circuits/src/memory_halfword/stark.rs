@@ -102,7 +102,7 @@ mod tests {
                     },
                 },
                 Instruction {
-                    op: if let true = is_unsigned {
+                    op: if is_unsigned {
                         Op::LHU
                     } else {
                         Op::LH
