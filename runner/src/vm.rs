@@ -152,7 +152,7 @@ impl State {
 
     /// # Panics
     ///
-    /// Panics if vector<u8> to string conversion fails.
+    /// Panics if Vec<u8> to string conversion fails.
     fn ecall_panic(self) -> (Aux, Self) {
         let msg_len = self.get_register_value(REG_A1);
         let msg_ptr = self.get_register_value(REG_A2);
