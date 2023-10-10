@@ -6,6 +6,7 @@ use im::hashmap::HashMap;
 use log::trace;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
+use serde::{Deserializer, Serializer};
 
 use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction};
@@ -41,11 +42,34 @@ pub struct State {
 }
 
 #[derive(Clone, Debug, Default, Deref)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct IoTape {
     #[deref]
     pub data: Rc<Vec<u8>>,
     pub read_index: usize,
+}
+
+#[cfg(feature = "serialize")]
+impl Serialize for IoTape {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer, {
+        let data = &*self.data; // Dereference Rc to get the underlying Vec<u8>
+        let serializable_struct = (data, self.read_index);
+        serializable_struct.serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serialize")]
+impl<'de> Deserialize<'de> for IoTape {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>, {
+        let (data, read_index) = <(Vec<u8>, usize)>::deserialize(deserializer)?;
+        Ok(IoTape {
+            data: Rc::new(data),
+            read_index,
+        })
+    }
 }
 
 impl From<&[u8]> for IoTape {
