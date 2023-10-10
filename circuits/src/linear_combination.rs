@@ -3,7 +3,7 @@ use core::ops::{Add, Mul, Neg, Sub};
 use std::borrow::Borrow;
 use std::ops::Index;
 
-use itertools::{EitherOrBoth, Itertools};
+use itertools::Itertools;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -50,12 +50,11 @@ impl<F: Field> Add<Self> for Column<F> {
             rlc.sort_by_key(|&(col_idx, _)| col_idx);
             slc.into_iter()
                 .merge_join_by(rlc, |(l, _), (r, _)| l.cmp(r))
-                .map(|x| match x {
-                    EitherOrBoth::Left(pair) | EitherOrBoth::Right(pair) => pair,
-                    EitherOrBoth::Both((idx0, c0), (idx1, c1)) => {
+                .map(|item| {
+                    item.reduce(|(idx0, c0), (idx1, c1)| {
                         assert_eq!(idx0, idx1);
                         (idx0, c0 + c1)
-                    }
+                    })
                 })
                 .collect()
         };
