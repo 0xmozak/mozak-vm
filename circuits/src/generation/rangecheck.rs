@@ -1,5 +1,6 @@
 use std::ops::Index;
 
+use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
@@ -18,8 +19,9 @@ where
     if let [column] = &looking_table.columns[..] {
         trace
             .iter()
-            .filter(|&row| looking_table.filter_column.eval(row).is_one())
-            .map(|row| column.eval(row))
+            .circular_tuple_windows()
+            .filter(|&(prev_row, row)| looking_table.filter_column.eval(prev_row, row).is_one())
+            .map(|(prev_row, row)| column.eval(prev_row, row))
             .collect()
     } else {
         panic!("Can only range check single values, not tuples.")
