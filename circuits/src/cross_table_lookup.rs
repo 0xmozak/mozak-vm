@@ -1,4 +1,5 @@
 use anyhow::{ensure, Result};
+use itertools::Itertools;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -152,10 +153,6 @@ fn partial_products<F: Field>(
     filter_column: &Column<F>,
     challenge: GrandProductChallenge<F>,
 ) -> PolynomialValues<F> {
-    let mut partial_prod = F::ONE;
-    let degree = trace[0].len();
-    let mut res = Vec::with_capacity(degree);
-
     // design of table looks like this
     //       |  filter  |   value   |  partial_prod |
     //       |    1     |    x_1    |  x_3          |
@@ -182,14 +179,18 @@ fn partial_products<F: Field>(
         }
     };
 
-    partial_prod *= combine_if_filter_at_i(degree - 1);
-    res.push(partial_prod);
-
-    for i in 0..degree - 1 {
-        partial_prod *= combine_if_filter_at_i(i);
-        res.push(partial_prod);
-    }
-    res.into()
+    let degree = trace[0].len();
+    let mut degrees = (0..degree).collect::<Vec<_>>();
+    degrees.rotate_right(1);
+    degrees
+        .into_iter()
+        .map(combine_if_filter_at_i)
+        .scan(F::ONE, |partial_prod: &mut F, combined| {
+            *partial_prod *= combined;
+            Some(*partial_prod)
+        })
+        .collect_vec()
+        .into()
 }
 
 #[allow(unused)]
