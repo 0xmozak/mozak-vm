@@ -44,19 +44,6 @@ impl BenchFunction {
         }
     }
 
-    // /// helper function to extract a parameter from a string
-    // fn extract_field<'a>(input: &'a str, field: &str) -> Result<&'a str> {
-    //     input
-    //         .split('&')
-    //         .find(|param| param.starts_with(field))
-    //         .map_or(Err(anyhow::anyhow!("Invalid input")), |param| {
-    //             param
-    //                 .split('=')
-    //                 .nth(1)
-    //                 .ok_or(anyhow::anyhow!("param not of format field=value"))
-    //         })
-    // }
-
     pub fn from_name(function_name: &str) -> Result<Self> {
         match function_name {
             "sample_bench" => Ok(BenchFunction::SampleBench),
@@ -64,9 +51,6 @@ impl BenchFunction {
         }
     }
 }
-
-// Input is string of form "name=name&age=age". Write a function to extract the
-// u8 value name.
 
 /// Mostly intended just to debug the bench functions
 mod tests {

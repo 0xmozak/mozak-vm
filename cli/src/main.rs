@@ -66,7 +66,7 @@ enum Command {
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
-    /// Bench the function with given parameters
+    /// Bench the function with given parameter
     Bench { function: String, parameter: u32 },
 }
 
