@@ -84,7 +84,12 @@ mod tests {
     // use crate::cpu::stark::CpuStark;
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::{ProveAndVerify, D, F};
-    pub fn prove_mem_read_write<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
+    pub fn prove_mem_read_write<Stark: ProveAndVerify>(
+        offset: u32,
+        imm: u32,
+        content: u8,
+        is_unsigned: bool,
+    ) {
         let (program, record) = simple_test_code(
             &[
                 Instruction {
@@ -97,7 +102,7 @@ mod tests {
                     },
                 },
                 Instruction {
-                    op: Op::LHU,
+                    op: if is_unsigned { Op::LHU } else { Op::LH },
                     args: Args {
                         rs2: 2,
                         imm,
@@ -115,8 +120,8 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(1))]
 
         #[test]
-        fn prove_mem_read_write_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
-            prove_mem_read_write::<MozakStark<F, D>>(offset, imm, content);
+        fn prove_mem_read_write_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra(), is_unsigned: bool) {
+            prove_mem_read_write::<MozakStark<F, D>>(offset, imm, content, is_unsigned);
         }
     }
 }
