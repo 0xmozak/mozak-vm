@@ -3,11 +3,12 @@
 // TODO: remove this when shadow_rs updates enough.
 #![allow(clippy::needless_raw_string_hashes)]
 use std::io::{Read, Write};
-
+mod bench_functions;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clio::{Input, Output};
 use log::debug;
+use mozak_circuits::cli_benches::bench_functions::BenchFunction;
 use mozak_circuits::generation::memoryinit::generate_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
@@ -65,6 +66,8 @@ enum Command {
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
+    /// Bench the function with given parameters
+    Bench { function: String, parameters: String },
 }
 
 fn build_info() {
@@ -109,6 +112,10 @@ fn load_program(mut elf: Input) -> Result<Program> {
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
     Program::load_elf(&elf_bytes)
+}
+
+fn load_function(function_name: String, parameters: String) -> Result<BenchFunction> {
+    BenchFunction::from_name_and_params(&function_name, &parameters)
 }
 
 #[rustfmt::skip]
@@ -208,6 +215,11 @@ fn main() -> Result<()> {
                 );
                 let trace_cap = trace_commitment.merkle_tree.cap;
                 println!("{trace_cap:?}");
+            }
+            Command::Bench { function, parameters } => {
+                let function = load_function(function, parameters)?;
+                function.run()?;
+                println!("Benchmark finished successfully!");
             }
             Command::BuildInfo => unreachable!(),
         }
