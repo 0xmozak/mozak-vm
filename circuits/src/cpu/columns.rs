@@ -369,7 +369,7 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
         // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5
         //   bits.
         // - is_op1_signed and is_op2_signed: These fields occupy 1 bit each.
-        // - rs1, rs2_select, and rd: These fields require 5 bits each.
+        // - rs1, rs2, and rd: These fields require 5 bits each.
         // - imm_value: This field requires 32 bits.
         // Therefore, the total bit requirement is 5 * 6 + 32 = 62 bits, which is less than the
         // size of the Goldilocks field.
@@ -401,7 +401,7 @@ pub fn data_for_register_rd<F: Field>() -> Vec<Column<F>> {
         Column::single(MAP.cpu.dst_value),
         Column::single(MAP.cpu.clk) * F::from_canonical_u8(3) + F::TWO,
         Column::constant(F::ZERO), // is_read
-        Column::constant(F::ONE),  // is_Write
+        Column::constant(F::ONE),  // is_write
     ]
 }
 
