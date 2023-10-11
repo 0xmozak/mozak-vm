@@ -1,5 +1,6 @@
 use std::ops::Index;
 
+use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
@@ -18,8 +19,9 @@ where
     if let [column] = &looking_table.columns[..] {
         trace
             .iter()
-            .filter(|&row| looking_table.filter_column.eval(row).is_one())
-            .map(|row| column.eval(row))
+            .circular_tuple_windows()
+            .filter(|&(prev_row, row)| looking_table.filter_column.eval(prev_row, row).is_one())
+            .map(|(prev_row, row)| column.eval(prev_row, row))
             .collect()
     } else {
         panic!("Can only range check single values, not tuples.")
@@ -75,6 +77,7 @@ mod tests {
 
     use super::*;
     use crate::generation::cpu::generate_cpu_trace;
+    use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
@@ -100,8 +103,14 @@ mod tests {
         let cpu_rows = generate_cpu_trace::<F>(&program, &record);
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
-        let memory_rows =
-            generate_memory_trace::<F>(&program, &record.executed, &memory_init, &halfword_memory);
+        let fullword_memory = generate_fullword_memory_trace(&program, &record.executed);
+        let memory_rows = generate_memory_trace::<F>(
+            &program,
+            &record.executed,
+            &memory_init,
+            &halfword_memory,
+            &fullword_memory,
+        );
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
         // Check values that we are interested in

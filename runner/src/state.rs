@@ -4,7 +4,6 @@ use anyhow::{anyhow, Result};
 use derive_more::Deref;
 use im::hashmap::HashMap;
 use log::trace;
-#[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 
 use crate::elf::{Code, Data, Program};
@@ -40,8 +39,7 @@ pub struct State {
     pub io_tape: IoTape,
 }
 
-#[derive(Clone, Debug, Default, Deref)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct IoTape {
     #[deref]
     pub data: Rc<Vec<u8>>,

@@ -221,9 +221,10 @@ fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
 
 fn memory_sign_handling<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
     // sign extension needs to be from `u8` in case of `LB`
-    // TODO: add LH support
+    // sign extension needs to be from `u16` in case of `LH`
     row.dst_sign_bit = F::from_bool(match inst.op {
         Op::LB => aux.dst_val >= 1 << 7,
+        Op::LH => aux.dst_val >= 1 << 15,
         _ => false,
     });
 }
@@ -294,7 +295,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
     use plonky2::field::types::Field;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
 
     use crate::columns_view::selection;
     use crate::cpu::columns::{CpuState, Instruction};
@@ -306,7 +307,7 @@ mod tests {
     #[allow(clippy::too_many_lines)]
     fn test_permuted_inst_trace() {
         const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
+        type C = Poseidon2GoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
         let cpu_trace: Vec<CpuState<F>> = [

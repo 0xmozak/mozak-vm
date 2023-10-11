@@ -1,11 +1,9 @@
 //! RV32I Base Integer Instructions + RV32M Multiply Extension
 use derive_more::Display;
-#[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 
 /// Arguments of a RISC-V instruction
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
 pub struct Args {
     /// Destination Register
     pub rd: u8,
@@ -18,8 +16,7 @@ pub struct Args {
 }
 
 /// Operands of RV32I + RV32M
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Display)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Display, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum Op {
     // RV32I Base Integer Instructions
@@ -116,8 +113,7 @@ pub const NOP: Instruction = Instruction {
 };
 
 /// Internal representation of a decoded RV32 [Instruction]
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
 pub struct Instruction {
     /// Operand of Instruction
     pub op: Op,
