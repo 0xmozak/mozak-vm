@@ -22,9 +22,12 @@ def test_in_tmp(rebuild: bool):
         os.mkdir(tmpfolder)
         create_repo_from_commmit(commit, tmpfolder)
         build_release(cli_repo)
-    for value in range(100, 3000, 100):
+    data = {"values": [], "time_taken": []}
+    for value in range(100, 1000, 100):
         time_taken = bench("sample_bench", value, cli_repo)
-        print(f"time taken is {time_taken}")
+        data["values"].append(value)
+        data["time_taken"].append(time_taken)
+    write_into_csv(data, "data.csv")
 
 
 # test_sample_bench()
