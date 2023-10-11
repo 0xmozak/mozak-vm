@@ -19,6 +19,6 @@ def bench(bench_function: str, parameter: int, cli_repo: str) -> float:
         args=["cargo", "run", "--release", "bench", bench_function, f"{parameter}"],
         cwd=cli_repo,
     )
-    pattern = r"\d+\.\d"
+    pattern = r"\d+\.\d+"
     time_taken = re.findall(pattern, stdout.decode())[0]
     return float(time_taken)
