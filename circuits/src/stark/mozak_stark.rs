@@ -441,7 +441,7 @@ impl<F: Field> Lookups<F> for IoMemoryCpuTable<F> {
                 cpu::columns::data_for_io_memory(),
                 cpu::columns::filter_for_io_memory(),
             )],
-            FullWordMemoryTable::new(
+            IoMemoryTable::new(
                 memory_io::columns::data_for_cpu(),
                 memory_io::columns::filter_for_cpu(),
             ),

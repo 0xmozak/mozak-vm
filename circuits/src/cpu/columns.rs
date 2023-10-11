@@ -346,7 +346,8 @@ pub fn data_for_io_memory<F: Field>() -> Vec<Column<F>> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_io_memory<F: Field>() -> Column<F> {
-    MAP.cpu.map(Column::from).is_io_store + MAP.cpu.map(Column::from).is_io_load
+    let cpu = MAP.cpu.map(Column::from);
+    cpu.is_io_load + cpu.is_io_store
 }
 
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {

@@ -109,6 +109,7 @@ pub struct MemEntry {
 #[repr(u8)]
 pub enum IoOpcode {
     #[default]
+    None,
     Store,
     Load,
 }
