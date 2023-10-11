@@ -215,8 +215,8 @@ fn main() -> Result<()> {
             }
             Command::Bench { function, parameter } => {
                 let function = BenchFunction::from_name(&function)?;
-                let time_taken = timeit!(function.run(parameter)?);
-                println!("Time taken is {time_taken:?}");
+                let time_taken = timeit!(function.run(parameter)?).as_secs_f32();
+                println!("{time_taken}");
             }
             Command::BuildInfo => unreachable!(),
         }

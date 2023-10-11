@@ -6,3 +6,4 @@ cobertura.xml
 .idea/
 .vscode/
 **/__pycache__
+tmp
