@@ -28,6 +28,7 @@ def test_in_tmp(rebuild: bool):
         data["values"].append(value)
         data["time_taken"].append(time_taken)
     write_into_csv(data, "data.csv")
+    plot_csv_data("data.csv")
 
 
 # test_sample_bench()
