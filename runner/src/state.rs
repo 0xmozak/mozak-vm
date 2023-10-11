@@ -316,6 +316,6 @@ mod test {
         let serialized = serde_json::to_string(&io_tape).unwrap();
         let deserialized: IoTape = serde_json::from_str(&serialized).unwrap();
         assert_eq!(io_tape.read_index, deserialized.read_index);
-        assert_eq!(&*io_tape.data, &*deserialized.data);
+        assert_eq!(io_tape.data, deserialized.data);
     }
 }
