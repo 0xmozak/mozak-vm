@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use itertools::{chain, Itertools};
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Instruction, Op};
-use mozak_runner::state::{Aux, State};
+use mozak_runner::state::{Aux, IoOpcode, State};
 use mozak_runner::vm::{ExecutionRecord, Row};
 use plonky2::hash::hash_types::RichField;
 
@@ -70,6 +70,10 @@ pub fn generate_cpu_trace<F: RichField>(
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
+            io_addr: F::from_canonical_u32(aux.io.unwrap_or_default().addr),
+            io_size: F::from_canonical_u32(aux.io.unwrap_or_default().size),
+            is_io_store: F::from_bool(matches!(aux.io.unwrap_or_default().op, IoOpcode::Store)),
+            is_io_load: F::from_bool(matches!(aux.io.unwrap_or_default().op, IoOpcode::Load)),
             ..CpuState::default()
         };
 
