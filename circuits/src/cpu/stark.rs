@@ -117,18 +117,6 @@ fn check_permuted_inst_cols<P: PackedField>(
     }
 }
 
-/// First operand should be assigned with the value of the designated register.
-// fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>)
-// {    yield_constr.constraint(
-//        lv.op1_value
-//            // Note: we could skip 0, because r0 is always 0.
-//            // But we keep it to make it easier to reason about the code.
-//            - (0..32)
-//            .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
-//            .sum::<P>(),
-//    );
-//}
-
 /// Constraints for values in op2, which is the sum of the value of the second
 /// operand register and the immediate value (except for branch instructions).
 /// This may overflow.
