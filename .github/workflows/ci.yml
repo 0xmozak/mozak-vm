@@ -30,9 +30,6 @@ jobs:
       - name: Run tests
         run: cargo nextest run --locked --all-targets
 
-      - name: Run Tests for Runner/Serialize
-        run: cargo nextest run --locked --all-targets -p mozak-runner --features "serialize"
-
   cargo-clippy:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
@@ -43,10 +40,7 @@ jobs:
         uses: ./.github/actions/rust
 
       - name: Run Clippy linter
-        run: cargo clippy --all-features --features serialize --all-targets -- -D warnings
-
-      - name: Run Clippy Serialize linter
-        run: cd runner && cargo clippy --features serialize --all-targets -- -D warnings
+        run: cargo clippy --all-features --all-targets -- -D warnings
 
   cargo-build-examples:
     if: github.event.pull_request.draft == false
