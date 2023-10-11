@@ -215,11 +215,23 @@ fn main() -> Result<()> {
             }
             Command::Bench { function, parameter } => {
                 let function = BenchFunction::from_name(&function)?;
-                function.run(parameter)?;
-                println!("Benchmark finished successfully!");
+                let time_taken = timeit!(function.run(parameter)?);
+                println!("Time taken is {time_taken:?}");
             }
             Command::BuildInfo => unreachable!(),
         }
     }
     Ok(())
+}
+
+#[macro_export]
+macro_rules! timeit {
+    ($func:expr) => {{
+        let start_time = std::time::Instant::now();
+        let _ = $func;
+        let elapsed_time = start_time.elapsed();
+        elapsed_time
+        // println!("Time taken: {:?}", elapsed_time);
+        // result
+    }};
 }
