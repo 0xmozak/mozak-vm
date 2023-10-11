@@ -1,7 +1,8 @@
-import os
 import re
 import subprocess
-import csv
+
+import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def create_repo_from_commmit(commit: str, tmpfolder) -> None:
@@ -27,8 +28,22 @@ def bench(bench_function: str, parameter: int, cli_repo: str) -> float:
 
 
 def write_into_csv(data: dict, csv_file_path) -> None:
-    with open(csv_file_path, "w+", newline="") as csv_file:
-        csv_writer = csv.writer(csv_file)
-        csv_writer.writerow(data.keys())
-        rows = zip(*data.values())  # Transpose the data to match rows
-        csv_writer.writerows(rows)
+    df = pd.DataFrame(data)
+    csv_file_path = "data.csv"
+    df.to_csv(csv_file_path, index=False)
+
+
+def plot_csv_data(csv_file_path):
+    data = pd.read_csv(csv_file_path)
+    columns = list(data.columns)
+    x_data = data[columns[0]]
+    y_data = data[columns[1]]
+    plt.figure(figsize=(10, 6))
+    plt.plot(
+        x_data, y_data, marker="o", color="b", linestyle="-", linewidth=2, markersize=8
+    )
+    plt.xlabel("values")
+    plt.ylabel("time_taken")
+    plt.title("Bench results")
+    plt.legend()
+    plt.show()
