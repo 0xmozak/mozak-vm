@@ -10,7 +10,6 @@ use elf::segment::ProgramHeader;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
 use itertools::{iproduct, Itertools};
-#[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
@@ -18,8 +17,7 @@ use crate::instruction::Instruction;
 use crate::util::load_u32;
 
 /// A RISC program
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Program {
     /// The entrypoint of the program
     pub entry_point: u32,
@@ -36,12 +34,10 @@ pub struct Program {
     pub ro_code: Code,
 }
 
-#[derive(Clone, Debug, Default, Deref)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct Code(pub HashMap<u32, Instruction>);
 
-#[derive(Clone, Debug, Default, Deref)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct Data(pub HashMap<u32, u8>);
 
 impl Code {
@@ -191,7 +187,7 @@ impl Program {
     }
 }
 
-#[cfg(all(test, feature = "serialize"))]
+#[cfg(test)]
 mod test {
     use crate::elf::Program;
 

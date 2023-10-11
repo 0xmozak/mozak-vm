@@ -305,3 +305,17 @@ impl State {
         )
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::state::IoTape;
+
+    #[test]
+    fn test_io_tape_serialization() {
+        let io_tape = IoTape::from(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..]);
+        let serialized = serde_json::to_string(&io_tape).unwrap();
+        let deserialized: IoTape = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(io_tape.read_index, deserialized.read_index);
+        assert_eq!(io_tape.data, deserialized.data);
+    }
+}
