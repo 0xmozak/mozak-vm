@@ -6,7 +6,6 @@ use im::hashmap::HashMap;
 use log::trace;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::WIDTH;
-#[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 
 use crate::elf::{Code, Data, Program};
@@ -43,8 +42,7 @@ pub struct State<F: RichField> {
     pub poseidon2_preimages: Vec<[F; WIDTH]>,
 }
 
-#[derive(Clone, Debug, Default, Deref)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct IoTape {
     #[deref]
     pub data: Rc<Vec<u8>>,
