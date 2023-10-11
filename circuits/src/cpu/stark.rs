@@ -59,13 +59,9 @@ fn pc_ticks_up<P: PackedField>(
     );
 }
 
-/// Enforce that selectors of opcode as well as registers are one-hot encoded.
+/// Enforce that selectors of opcode are one-hot encoded.
 /// Ie exactly one of them should be 1, and all others 0 in each row.
 /// See <https://en.wikipedia.org/wiki/One-hot>
-fn one_hots<P: PackedField>(inst: &Instruction<P>, yield_constr: &mut ConstraintConsumer<P>) {
-    one_hot(inst.ops, yield_constr);
-}
-
 fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
     selectors: Selectors,
     yield_constr: &mut ConstraintConsumer<P>,
@@ -193,12 +189,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         yield_constr.constraint_first_row(lv.inst.pc - public_inputs.entry_point);
         clock_ticks(lv, nv, yield_constr);
         pc_ticks_up(lv, nv, yield_constr);
+        one_hot(lv.inst.ops, yield_constr);
 
-        one_hots(&lv.inst, yield_constr);
-
-        // Registers
-        // r0_always_0(lv, yield_constr);
-        // populate_op1_value(lv, yield_constr);
         populate_op2_value(lv, yield_constr);
 
         // add constraint
