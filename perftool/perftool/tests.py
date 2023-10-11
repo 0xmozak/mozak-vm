@@ -10,3 +10,6 @@ def test_sample_bench():
         cli_repo = os.path.join(tmpfolder, "cli")
         build_release(cli_repo)
         run_bench("sample_bench", 12, cli_repo)
+
+
+test_sample_bench()
