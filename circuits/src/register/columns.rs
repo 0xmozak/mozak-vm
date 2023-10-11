@@ -106,6 +106,8 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
         Column::single(MAP.addr),
         Column::single(MAP.value),
         Column::single(MAP.augmented_clk),
+        Column::single(MAP.ops.is_read),
+        Column::single(MAP.ops.is_write),
     ]
 }
 

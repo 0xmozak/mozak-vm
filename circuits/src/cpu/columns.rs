@@ -400,6 +400,8 @@ pub fn data_for_register_rd<F: Field>() -> Vec<Column<F>> {
         Column::single(MAP.cpu.inst.rd),
         Column::single(MAP.cpu.dst_value),
         Column::single(MAP.cpu.clk) * F::from_canonical_u8(3) + F::TWO,
+        Column::constant(F::ZERO), // is_read
+        Column::constant(F::ONE),  // is_Write
     ]
 }
 
@@ -412,6 +414,8 @@ pub fn data_for_register_rs1<F: Field>() -> Vec<Column<F>> {
         Column::single(MAP.cpu.inst.rs1),
         Column::single(MAP.cpu.op1_value),
         Column::single(MAP.cpu.clk) * F::from_canonical_u8(3),
+        Column::constant(F::ONE),  // is_read
+        Column::constant(F::ZERO), // is_write
     ]
 }
 
@@ -426,6 +430,8 @@ pub fn data_for_register_rs2<F: Field>() -> Vec<Column<F>> {
         Column::single(MAP.cpu.inst.rs2),
         Column::single(MAP.cpu.rs2_value),
         Column::single(MAP.cpu.clk) * F::from_canonical_u8(3) + F::ONE,
+        Column::constant(F::ONE),  // is_read
+        Column::constant(F::ZERO), // is_write
     ]
 }
 
