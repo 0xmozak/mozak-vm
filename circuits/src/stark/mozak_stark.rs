@@ -423,15 +423,24 @@ impl<F: Field> Lookups<F> for RegisterRegInitTable<F> {
 pub struct CpuRegisterTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for CpuRegisterTable<F> {
     fn lookups() -> CrossTableLookup<F> {
-        let cpu_looking_rd = vec![CpuTable::new(
+        let cpu_looking_rd = CpuTable::new(
             cpu::columns::data_for_register_rd(),
             cpu::columns::filter_for_register_rd(),
-        )];
+        );
+        let cpu_looking_rs1 = CpuTable::new(
+            cpu::columns::data_for_register_rs1(),
+            cpu::columns::filter_for_register_rs1(),
+        );
+        let cpu_looking_rs2 = CpuTable::new(
+            cpu::columns::data_for_register_rs2(),
+            cpu::columns::filter_for_register_rs2(),
+        );
+
         CrossTableLookup::new(
-            cpu_looking_rd,
+            vec![cpu_looking_rd, cpu_looking_rs1, cpu_looking_rs2],
             RegisterTable::new(
-                crate::register::columns::data_for_cpu_rd(),
-                crate::register::columns::filter_for_cpu_rd(),
+                crate::register::columns::data_for_cpu(),
+                crate::register::columns::filter_for_cpu(),
             ),
         )
     }

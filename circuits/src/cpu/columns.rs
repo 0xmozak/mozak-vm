@@ -72,10 +72,14 @@ pub struct Instruction<T> {
     // usage via 'addresses', e.g. if r6 is written to, then rd = 6.
     // TODO: Convert to `rs1`
     /// Selects the register to use as source for `rs1`
-    pub rs1_select: [T; 32],
+    pub rs1: T,
+    /// Filter column for register `rs1`. Is one when rs1 is being used.
+    pub rs1_not_zero: T,
     // TODO: Convert to `rs2`
     /// Selects the register to use as source for `rs2`
-    pub rs2_select: [T; 32],
+    pub rs2: T,
+    /// Filter column for register `rs2`. Is one when rs2 is being used.
+    pub rs2_not_zero: T,
     /// The 'address' of the register to use as destination for `rd`.
     pub rd: T,
     /// Filter column for register `rd`. Is one when rd is being used.
@@ -113,8 +117,12 @@ pub struct CpuState<T> {
     /// not differentiate between signed and unsigned values).
     pub mem_value_raw: T,
 
-    /// Values of the registers.
-    pub regs: [T; 32],
+    /// Value of register `rs2`.
+    pub rs2_value: T,
+
+    /// Value of register `10`. This should typically only
+    /// be used for ECALL.
+    pub reg_10: T,
 
     // 0 means non-negative, 1 means negative.
     // (If number is unsigned, it is non-negative.)
@@ -178,15 +186,6 @@ pub const NUM_CPU_COLS: usize = CpuState::<()>::NUMBER_OF_COLUMNS;
 impl<T: PackedField> CpuState<T> {
     #[must_use]
     pub fn shifted(places: u64) -> T::Scalar { T::Scalar::from_canonical_u64(1 << places) }
-
-    /// The value of the designated register in rs2.
-    pub fn rs2_value(&self) -> T {
-        // Note: we could skip 0, because r0 is always 0.
-        // But we keep it to make it easier to reason about the code.
-        (0..32)
-            .map(|reg| self.inst.rs2_select[reg] * self.regs[reg])
-            .sum()
-    }
 
     /// Value of the first operand, as if converted to i64.
     ///
@@ -371,7 +370,7 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
         // - ops: This is an internal opcode, not the opcode from RISC-V, and can fit within 5
         //   bits.
         // - is_op1_signed and is_op2_signed: These fields occupy 1 bit each.
-        // - rs1_select, rs2_select, and rd: These fields require 5 bits each.
+        // - rs1, rs2_select, and rd: These fields require 5 bits each.
         // - imm_value: This field requires 32 bits.
         // Therefore, the total bit requirement is 5 * 6 + 32 = 62 bits, which is less than the
         // size of the Goldilocks field.
@@ -382,8 +381,8 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
                 Column::ascending_sum(inst.ops),
                 Column::single(inst.is_op1_signed),
                 Column::single(inst.is_op2_signed),
-                Column::ascending_sum(inst.rs1_select),
-                Column::ascending_sum(inst.rs2_select),
+                Column::single(inst.rs1),
+                Column::single(inst.rs2),
                 Column::single(inst.rd),
                 Column::single(inst.imm_value),
             ],
@@ -407,3 +406,31 @@ pub fn data_for_register_rd<F: Field>() -> Vec<Column<F>> {
 
 #[must_use]
 pub fn filter_for_register_rd<F: Field>() -> Column<F> { Column::single(MAP.cpu.inst.rd_not_zero) }
+
+#[must_use]
+pub fn data_for_register_rs1<F: Field>() -> Vec<Column<F>> {
+    vec![
+        Column::single(MAP.cpu.inst.rs1),
+        Column::single(MAP.cpu.op1_value),
+        Column::single(MAP.cpu.clk) * F::from_canonical_u8(3),
+    ]
+}
+
+#[must_use]
+pub fn filter_for_register_rs1<F: Field>() -> Column<F> {
+    Column::single(MAP.cpu.inst.rs1_not_zero)
+}
+
+#[must_use]
+pub fn data_for_register_rs2<F: Field>() -> Vec<Column<F>> {
+    vec![
+        Column::single(MAP.cpu.inst.rs2),
+        Column::single(MAP.cpu.rs2_value),
+        Column::single(MAP.cpu.clk) * F::from_canonical_u8(3) + F::ONE,
+    ]
+}
+
+#[must_use]
+pub fn filter_for_register_rs2<F: Field>() -> Column<F> {
+    Column::single(MAP.cpu.inst.rs2_not_zero)
+}

@@ -70,12 +70,9 @@ pub fn generate_cpu_trace<F: RichField>(
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
+            rs2_value: from_u32(state.get_register_value(inst.args.rs2)),
             ..CpuState::default()
         };
-
-        for j in 0..32 {
-            row.regs[j as usize] = from_u32(state.get_register_value(j));
-        }
 
         generate_shift_row(&mut row, aux);
         generate_mul_row(&mut row, aux);
@@ -315,8 +312,8 @@ mod tests {
                 inst: Instruction {
                     pc: 1,
                     ops: selection(3),
-                    rs1_select: selection(2),
-                    rs2_select: selection(1),
+                    rs1: 2,
+                    rs2: 1,
                     rd: 1,
                     imm_value: 3,
                     ..Default::default()
@@ -328,8 +325,8 @@ mod tests {
                 inst: Instruction {
                     pc: 2,
                     ops: selection(1),
-                    rs1_select: selection(3),
-                    rs2_select: selection(3),
+                    rs1: 3,
+                    rs2: 3,
                     rd: 2,
                     imm_value: 2,
                     ..Default::default()
@@ -341,8 +338,8 @@ mod tests {
                 inst: Instruction {
                     pc: 1,
                     ops: selection(3),
-                    rs1_select: selection(2),
-                    rs2_select: selection(1),
+                    rs1: 2,
+                    rs2: 1,
                     rd: 1,
                     imm_value: 3,
                     ..Default::default()
@@ -354,8 +351,8 @@ mod tests {
                 inst: Instruction {
                     pc: 1,
                     ops: selection(4),
-                    rs1_select: selection(4),
-                    rs2_select: selection(4),
+                    rs1: 4,
+                    rs2: 4,
                     rd: 4,
                     imm_value: 4,
                     ..Default::default()
@@ -387,8 +384,8 @@ mod tests {
                     // opcode: 3,
                     // is_op1_signed: 0,
                     // is_op2_signed: 0,
-                    // rs1_select: 2,
-                    // rs2_select: 1,
+                    // rs1: 2,
+                    // rs2: 1,
                     // rd: 1,
                     // imm_value: 3,
                     inst_data: reduce_with_powers(vec![3, 0, 0, 2, 1, 1, 3]),

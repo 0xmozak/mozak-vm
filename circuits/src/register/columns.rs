@@ -101,7 +101,7 @@ pub fn data_for_register_init<F: Field>() -> Vec<Column<F>> { Column::singles([M
 pub fn filter_for_register_init<F: Field>() -> Column<F> { Column::from(MAP.ops.is_init) }
 
 #[must_use]
-pub fn data_for_cpu_rd<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(MAP.addr),
         Column::single(MAP.value),
@@ -110,4 +110,7 @@ pub fn data_for_cpu_rd<F: Field>() -> Vec<Column<F>> {
 }
 
 #[must_use]
-pub fn filter_for_cpu_rd<F: Field>() -> Column<F> { Column::single(MAP.ops.is_write) }
+pub fn filter_for_cpu<F: Field>() -> Column<F> {
+    let is_used = MAP.map(Column::from);
+    is_used.ops.is_write + is_used.ops.is_read
+}
