@@ -191,11 +191,12 @@ impl Program {
     }
 }
 
-#[cfg(all(test, feature = "serialize"))]
+#[cfg(test)]
 mod test {
     use crate::elf::Program;
 
     #[test]
+    #[cfg(feature = "serialize")]
     fn test_serialize_deserialize() {
         let program = Program::default();
         let serialized = serde_json::to_string(&program).unwrap();
