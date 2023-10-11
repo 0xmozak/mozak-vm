@@ -18,6 +18,7 @@ def bench(bench_function: str, parameter: int, cli_repo: str) -> float:
     stdout = subprocess.check_output(
         args=["cargo", "run", "--release", "bench", bench_function, f"{parameter}"],
         cwd=cli_repo,
+        stderr=subprocess.DEVNULL,
     )
     pattern = r"\d+\.\d+"
     time_taken = re.findall(pattern, stdout.decode())[0]
