@@ -118,7 +118,7 @@ pub struct CpuState<T> {
     /// Value of register `rs2`.
     pub rs2_value: T,
 
-    // TODO: move this to [`RegisterStark`](crate::register::columns)?
+    // TODO(bing): move this to [`RegisterStark`](crate::register::columns)?
     /// Value of register `10`. This should typically only
     /// be used for ECALL.
     pub reg_10: T,
