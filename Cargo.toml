@@ -12,5 +12,5 @@ opt-level = 3
 lto = "fat"
 
 [patch.crates-io]
-plonky2 = { git = "https://github.com/0xmozak/plonky2.git", branch = "vivek/poseidon2" }
-starky = { git = "https://github.com/0xmozak/plonky2.git", branch = "vivek/poseidon2" }
+plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
+starky = { git = "https://github.com/0xmozak/plonky2.git" }

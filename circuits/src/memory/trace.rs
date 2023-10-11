@@ -3,7 +3,7 @@ use plonky2::hash::hash_types::RichField;
 
 #[must_use]
 pub fn get_memory_inst_addr<F: RichField>(row: &Row<F>) -> F {
-    F::from_canonical_u32(row.aux.mem_addr.unwrap_or_default())
+    F::from_canonical_u32(row.aux.mem.unwrap_or_default().addr)
 }
 
 #[must_use]

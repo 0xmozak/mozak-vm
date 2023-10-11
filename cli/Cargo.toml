@@ -31,7 +31,7 @@ env_logger = "0.10.0"
 itertools = "0.11.0"
 log = "0.4.20"
 plonky2 = "0.1.3"
-shadow-rs = "0.24.0"
+shadow-rs = "0.24.1"
 tikv-jemallocator = "0.5"
 
 [dev-dependencies]
@@ -40,4 +40,4 @@ mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.2.0"
 
 [build-dependencies]
-shadow-rs = "0.24.0"
+shadow-rs = "0.24.1"
