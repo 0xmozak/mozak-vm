@@ -60,10 +60,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
         //    lv.address == nv.address + 1 (wrapped)
         //    lv.size == nv.size - 1 (not-wrapped)
         let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
-        let added = nv.address + P::ONES;
+        let added = nv.addr + P::ONES;
         let wrapped = added - wrap_at;
         yield_constr
-            .constraint_transition(nv.is_memory() * (lv.address - added) * (lv.address - wrapped));
+            .constraint_transition(nv.is_memory() * (lv.addr - added) * (lv.addr - wrapped));
         yield_constr.constraint_transition(nv.is_io() * (lv.size - (nv.size - P::ONES)));
     }
 

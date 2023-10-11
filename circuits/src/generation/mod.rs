@@ -14,6 +14,7 @@ pub mod rangecheck_limb;
 pub mod register;
 pub mod registerinit;
 pub mod xor;
+mod io_memory;
 
 use std::borrow::Borrow;
 use std::fmt::Display;

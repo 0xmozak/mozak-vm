@@ -27,13 +27,14 @@ pub struct Ops<T> {
 pub struct InputOutputMemory<T> {
     /// Clock at memory access.
     pub clk: T,
-    pub ops: Ops<T>,
     /// Address: start-address
-    pub address: T,
+    pub addr: T,
     /// Size: size of io-chunk in bytes
     pub size: T,
     /// Value: byte value
     pub value: T,
+    /// Operation: io_store/load io_memory_store/load
+    pub ops: Ops<T>,
 }
 
 columns_view_impl!(InputOutputMemory);
@@ -66,7 +67,7 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
     let mem = MAP.map(Column::from);
     vec![
         mem.clk,
-        mem.address,
+        mem.addr,
         mem.size,
         mem.ops.is_io_store,
         mem.ops.is_io_load,
@@ -87,7 +88,7 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
         mem.ops.is_memory_store,
         mem.ops.is_memory_load,
         mem.value,
-        mem.address,
+        mem.addr,
     ]
 }
 

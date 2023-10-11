@@ -134,7 +134,7 @@ impl State {
                 io: Some(IoEntry {
                     addr: buffer_start,
                     size: num_bytes_requsted,
-                    op: IoOpcode::Load,
+                    op: IoOpcode::Store,
                 }),
                 ..Default::default()
             },
