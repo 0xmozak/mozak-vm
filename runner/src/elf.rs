@@ -15,7 +15,7 @@ use crate::decode::decode_instruction;
 use crate::instruction::Instruction;
 use crate::util::load_u32;
 
-/// A Risc-V program
+/// A RISC-V program
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct Program {
@@ -41,7 +41,7 @@ pub struct Program {
 #[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct Code(pub HashMap<u32, Instruction>);
 
-/// Memory of Risc-V Program
+/// Memory of RISC-V Program
 ///
 /// A wrapper around a map from a 32-bit address to a byte of memory
 #[derive(Clone, Debug, Default, Deref)]

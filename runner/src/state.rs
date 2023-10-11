@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction};
 
-/// State of Risc-V VM
+/// State of RISC-V VM
 ///
 /// Note: In general clone is not necessarily what you want, but in our case we
 /// carefully picked the type of `memory` to be clonable in about O(1)
@@ -25,7 +25,7 @@ use crate::instruction::{Args, Instruction};
 /// You can think of this as instructions being cached at the start of the
 /// program and that cache never updating afterwards.
 ///
-/// This is very similar to what many real world CPUs, including Risc-V ones, do
+/// This is very similar to what many real world CPUs, including RISC-V ones, do
 /// by default. The FENCE instruction can be used to make the CPU update the
 /// instruction cache on many CPUs.  But we deliberately don't support that
 /// usecase.
@@ -107,7 +107,7 @@ pub struct MemEntry {
 /// Auxiliary information about the instruction execution
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Aux {
-    // This could be an Option<u32>, but given how Risc-V instruction are specified,
+    // This could be an Option<u32>, but given how RISC-V instruction are specified,
     // 0 serves as a default value just fine.
     pub dst_val: u32,
     pub new_pc: u32,

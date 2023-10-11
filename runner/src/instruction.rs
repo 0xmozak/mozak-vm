@@ -3,7 +3,7 @@ use derive_more::Display;
 #[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 
-/// Arguments of a Risc-V instruction
+/// Arguments of a RISC-V instruction
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
 #[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 pub struct Args {
@@ -104,7 +104,7 @@ pub enum Op {
     UNKNOWN,
 }
 
-/// NOP Instruction in Risc-V is encoded as ADDI x0, x0, 0.
+/// NOP Instruction in RISC-V is encoded as ADDI x0, x0, 0.
 pub const NOP: Instruction = Instruction {
     op: Op::ADD,
     args: Args {
