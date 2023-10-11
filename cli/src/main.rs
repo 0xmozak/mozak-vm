@@ -228,10 +228,8 @@ fn main() -> Result<()> {
 macro_rules! timeit {
     ($func:expr) => {{
         let start_time = std::time::Instant::now();
-        let _ = $func;
+        let _: () = $func;
         let elapsed_time = start_time.elapsed();
         elapsed_time
-        // println!("Time taken: {:?}", elapsed_time);
-        // result
     }};
 }
