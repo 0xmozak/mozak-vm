@@ -30,6 +30,9 @@ jobs:
       - name: Run tests
         run: cargo nextest run --locked --all-targets
 
+      - name: Run Tests for Runner/Serialize
+        run: cargo nextest run --locked --all-targets -p mozak-runner --features "serialize"
+
   cargo-clippy:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
