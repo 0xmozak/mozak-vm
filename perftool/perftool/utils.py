@@ -13,7 +13,7 @@ def build_release(cli_repo: str) -> None:
 
 def run_bench(bench_function: str, parameter: int, cli_repo: str) -> None:
     subprocess.run(
-        ["cargo", "run", "bench", bench_function, str(parameter)],
+        ["cargo", "run", "--release", "bench", bench_function, f"{parameter}"],
         cwd=cli_repo,
         check=True,
     )
