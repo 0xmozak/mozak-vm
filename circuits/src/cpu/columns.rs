@@ -70,12 +70,10 @@ pub struct Instruction<T> {
     // 32 + 32 + 32 selector columns (in addition to the 32 register columns).
     // We optimize here by relying on cross table lookups and indexing register
     // usage via 'addresses', e.g. if r6 is written to, then rd = 6.
-    // TODO: Convert to `rs1`
     /// Selects the register to use as source for `rs1`
     pub rs1: T,
     /// Filter column for register `rs1`. Is one when rs1 is being used.
     pub rs1_not_zero: T,
-    // TODO: Convert to `rs2`
     /// Selects the register to use as source for `rs2`
     pub rs2: T,
     /// Filter column for register `rs2`. Is one when rs2 is being used.
