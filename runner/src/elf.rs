@@ -32,7 +32,6 @@ pub struct Program {
     pub ro_code: Code,
 }
 
-
 /// Executable code of the ELF
 ///
 /// A wrapper of a map from pc to [Instruction]
