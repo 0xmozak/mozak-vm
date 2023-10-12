@@ -8,7 +8,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clio::{Input, Output};
 use log::debug;
-use mozak_circuits::cli_benches::bench_functions::BenchFunction;
+use mozak_circuits::cli_benches::bench_functions::BenchArgs;
 use mozak_circuits::generation::memoryinit::generate_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
@@ -68,7 +68,7 @@ enum Command {
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
     /// Bench the function with given parameter
-    Bench { function: String, parameter: u32 },
+    Bench(BenchArgs),
 }
 
 fn build_info() {
@@ -214,9 +214,8 @@ fn main() -> Result<()> {
                 let trace_cap = trace_commitment.merkle_tree.cap;
                 println!("{trace_cap:?}");
             }
-            Command::Bench { function, parameter } => {
-                let function = BenchFunction::from_name(&function)?;
-                let time_taken = timeit!(function.run(parameter)?).as_secs_f32();
+            Command::Bench (bench) => {
+                let time_taken = timeit!(bench.run()?).as_secs_f32();
                 println!("{time_taken}");
             }
             Command::BuildInfo => unreachable!(),
