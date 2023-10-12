@@ -57,7 +57,7 @@ def write_into_csv(data: dict, csv_file_path) -> None:
     df.to_csv(csv_file_path, index=False)
 
 
-def plot_csv_data(csv_file_path):
+def plot_csv_data(csv_file_path, bench_function: str):
     data = pd.read_csv(csv_file_path)
     columns = list(data.columns)
     x_data = data[columns[0]]
@@ -72,7 +72,7 @@ def plot_csv_data(csv_file_path):
     plt.plot(x_data, predicted_y, color="r", label="Linear Regression Line")
     plt.xlabel("values")
     plt.ylabel("time_taken")
-    plt.title("Bench results")
+    plt.title(f"results for {bench_function}")
     plt.legend()
     info_text = f"Slope: {slope:.6f}\nIntercept: {intercept:.6f}"
     plt.text(
