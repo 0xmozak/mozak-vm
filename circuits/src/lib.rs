@@ -1,8 +1,3 @@
-#![feature(stmt_expr_attributes)]
-#![feature(coverage_attribute)]
-#![feature(register_tool)]
-#![feature(bigint_helper_methods)]
-#![register_tool(tarpaulin)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
 // TODO: When things have settled a bit, and we make a big push to improve docs, we can remove these

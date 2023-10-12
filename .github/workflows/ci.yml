@@ -51,8 +51,8 @@ jobs:
       - name: Install rust toolkit
         uses: ./.github/actions/rust
 
-      - name: Build all examples 
-        run: | 
+      - name: Build all examples
+        run: |
           cd examples
           git ls-files -z '*/Cargo.toml' | xargs -0 --max-args=1 -- cargo build --manifest-path
 

@@ -95,7 +95,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
         yield_constr.constraint(lv.ops.is_init * lv.augmented_clk);
     }
 
-    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,
