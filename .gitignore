@@ -7,5 +7,5 @@ cobertura.xml
 .vscode/
 **/__pycache__
 tmp
-data.csv
+*.csv
 .env
