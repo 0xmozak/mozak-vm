@@ -24,17 +24,29 @@ def test_sample_bench():
         # print(f"time taken is {time_taken} ")
 
 
+def rm_tree(pth):
+    pth = Path(pth)
+    for child in pth.glob("*"):
+        if child.is_file() or child.is_symlink():
+            child.unlink()
+        else:
+            rm_tree(child)
+    pth.rmdir()
+
+
 def test_in_tmp(rebuild: bool, commit_1: str, commit_2: str):
     bench_function = "sample-bench"
     tmpfolder = Path.cwd() / "tmp"
-    tmpfolder.mkdir()
+    tmpfolder.mkdir(exist_ok=True)
     commit_1_folder = tmpfolder / commit_1[:7]
     commit_2_folder = tmpfolder / commit_2[:7]
     cli_repo_1 = commit_1_folder / "cli"
     cli_repo_2 = commit_2_folder / "cli"
     if rebuild:
-        commit_1_folder.mkdir()
-        commit_2_folder.mkdir()
+        rm_tree(tmpfolder)
+        tmpfolder.mkdir()
+        commit_1_folder.mkdir(exist_ok=True)
+        commit_2_folder.mkdir(exist_ok=True)
         create_repo_from_commmit(commit_1, str(commit_1_folder))
         create_repo_from_commmit(commit_2, str(commit_2_folder))
         build_release(cli_repo_1)
