@@ -203,7 +203,7 @@ mod tests {
             &[],
             &[(6, a), (7, b)],
         );
-        let (low, _high) = a.widening_mul(b);
+        let low = a.wrapping_mul(b);
         prop_assert_eq!(record.executed[0].aux.dst_val, low);
         Stark::prove_and_verify(&program, &record).unwrap();
         Ok(())
@@ -223,8 +223,8 @@ mod tests {
             &[],
             &[(6, a), (7, b)],
         );
-        let (_low, high) = a.widening_mul(b);
-        prop_assert_eq!(record.executed[0].aux.dst_val, high);
+        let (res, _) = u64::from(a).overflowing_mul(u64::from(b));
+        prop_assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
         Stark::prove_and_verify(&program, &record).unwrap();
         Ok(())
     }
