@@ -5,18 +5,25 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 import numpy as np
+from scipy.stats import linregress
 
 
 def sample(num_samples: int, min_value: int, max_value: int, mean: int) -> list[int]:
-    # lognormal was chosen so that we can
-    # keep samples as uniform as possible while
-    # at the same time we don't generate
-    # too many large values which can slow down
-    # the benches
+    def distribution_sample(use_uniform: bool = True) -> float:
+        if use_uniform:
+            return np.random.uniform(min_value, max_value)
+        else:
+            # lognormal can be chosen if we want to
+            # keep samples as uniform as possible while
+            # at the same time don't want to generate
+            # too many large values which can slow down
+            # the benches
+            sigma = 0.7
+            return np.random.lognormal(mean=np.log(mean) + sigma**2, sigma=sigma)
+
     samples = []
-    sigma = 0.7
     while len(samples) < num_samples:
-        sample = np.random.lognormal(mean=np.log(mean) + sigma**2, sigma=sigma)
+        sample = distribution_sample()
         if sample > min_value and sample < max_value:
             samples.append(int(sample))
     return list(samples)
@@ -55,15 +62,28 @@ def plot_csv_data(csv_file_path):
     columns = list(data.columns)
     x_data = data[columns[0]]
     y_data = data[columns[1]]
-    plt.figure(figsize=(10, 6))
+    slope, intercept, _, _, _ = linregress(x_data, y_data)
+    predicted_y = intercept + slope * np.array(x_data)
+    plt.figure(figsize=(8, 6))
     plt.scatter(
         x_data,
         y_data,
     )
+    plt.plot(x_data, predicted_y, color="r", label="Linear Regression Line")
     plt.xlabel("values")
     plt.ylabel("time_taken")
     plt.title("Bench results")
     plt.legend()
+    info_text = f"Slope: {slope:.6f}\nIntercept: {intercept:.6f}"
+    plt.text(
+        0.05,
+        0.75,
+        info_text,
+        transform=plt.gca().transAxes,
+        bbox=dict(facecolor="white", edgecolor="black", boxstyle="round,pad=0.5"),
+        verticalalignment="top",
+        fontsize=12,
+    )
     plt.show()
 
 
