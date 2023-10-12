@@ -39,8 +39,9 @@ def plot_csv_data(csv_file_path):
     x_data = data[columns[0]]
     y_data = data[columns[1]]
     plt.figure(figsize=(10, 6))
-    plt.plot(
-        x_data, y_data, marker="o", color="b", linestyle="-", linewidth=2, markersize=8
+    plt.scatter(
+        x_data,
+        y_data,
     )
     plt.xlabel("values")
     plt.ylabel("time_taken")
