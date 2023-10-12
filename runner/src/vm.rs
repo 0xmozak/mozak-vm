@@ -133,8 +133,8 @@ impl State {
             Aux {
                 io: Some(IoEntry {
                     addr: buffer_start,
-                    size: num_bytes_requsted,
                     op: IoOpcode::Store,
+                    data: data.clone(),
                 }),
                 ..Default::default()
             },

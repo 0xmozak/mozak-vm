@@ -22,7 +22,7 @@ fn pad_io_mem_trace<F: RichField>(
 pub fn filter(step_rows: &[Row]) -> impl Iterator<Item = &Row> {
     step_rows.iter().filter(|row| {
         matches!(
-            row.aux.io.unwrap_or_default().op,
+            row.aux.io.clone().unwrap_or_default().op,
             IoOpcode::Load | IoOpcode::Store
         )
     })
@@ -30,44 +30,42 @@ pub fn filter(step_rows: &[Row]) -> impl Iterator<Item = &Row> {
 
 #[must_use]
 pub fn generate_io_memory_trace<F: RichField>(
-    program: &Program,
+    _program: &Program,
     step_rows: &[Row],
 ) -> Vec<InputOutputMemory<F>> {
     pad_io_mem_trace(
         filter(step_rows)
             .map(|s| {
-                let local_op = s.aux.io.unwrap_or_default().op;
+                let io = s.aux.io.clone().unwrap_or_default();
+                let local_op = io.op;
                 let mut extended = vec![];
-                for i in 0..s.aux.io.unwrap_or_default().size {
-                    let local_address = s.aux.io.unwrap_or_default().addr.wrapping_add(i);
-                    let local_size = s.aux.io.unwrap_or_default().size - i;
-                    let local_value = program.rw_memory.get(&local_address).unwrap();
+                // initial io-element
+                extended.fill(InputOutputMemory {
+                    clk: get_memory_inst_clk(s),
+                    addr: F::from_canonical_u32(io.addr),
+                    size: F::from_canonical_u32(u32::try_from(io.data.len()).unwrap()),
+                    value: F::from_canonical_u8(*io.data.get(0).unwrap()),
+                    ops: Ops {
+                        is_io_store: F::from_bool(matches!(local_op, IoOpcode::Store)),
+                        is_io_load: F::from_bool(matches!(local_op, IoOpcode::Load)),
+                        is_memory_store: F::ZERO,
+                        is_memory_load: F::ZERO,
+                    },
+                });
+                // extended memory elements
+                for (i, local_value) in io.data.iter().enumerate() {
+                    let local_address = io.addr.wrapping_add(u32::try_from(i).unwrap());
+                    let local_size = u32::try_from(io.data.len() - i - 1).unwrap();
                     extended.fill(InputOutputMemory {
                         clk: get_memory_inst_clk(s),
                         addr: F::from_canonical_u32(local_address),
                         size: F::from_canonical_u32(local_size),
                         value: F::from_canonical_u8(*local_value),
                         ops: Ops {
-                            is_io_store: if i == 0 {
-                                F::from_bool(matches!(local_op, IoOpcode::Store))
-                            } else {
-                                F::ZERO
-                            },
-                            is_io_load: if i == 0 {
-                                F::from_bool(matches!(local_op, IoOpcode::Load))
-                            } else {
-                                F::ZERO
-                            },
-                            is_memory_store: if i == 0 {
-                                F::ZERO
-                            } else {
-                                F::from_bool(matches!(local_op, IoOpcode::Store))
-                            },
-                            is_memory_load: if i == 0 {
-                                F::ZERO
-                            } else {
-                                F::from_bool(matches!(local_op, IoOpcode::Load))
-                            },
+                            is_io_store: F::ZERO,
+                            is_io_load: F::ZERO,
+                            is_memory_store: F::from_bool(matches!(local_op, IoOpcode::Store)),
+                            is_memory_load: F::from_bool(matches!(local_op, IoOpcode::Load)),
                         },
                     });
                 }

@@ -46,12 +46,12 @@ pub fn generate_cpu_trace<F: RichField>(
         // The last state is the final state after the last execution.  Thus naturally it has no
         // associated auxiliarye execution information. We use a dummy aux to make the row
         // generation work, but we could refactor to make this unnecessary.
-        aux: executed.last().unwrap().aux,
+        aux: executed.last().unwrap().aux.clone(),
     }];
 
     for Row { state, aux } in chain![executed, last_row] {
         let inst = state.current_instruction(program);
-
+        let io = aux.io.clone().unwrap_or_default();
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
             inst: cpu_cols::Instruction::from((state.get_pc(), inst)).map(from_u32),
@@ -70,10 +70,10 @@ pub fn generate_cpu_trace<F: RichField>(
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
-            io_addr: F::from_canonical_u32(aux.io.unwrap_or_default().addr),
-            io_size: F::from_canonical_u32(aux.io.unwrap_or_default().size),
-            is_io_store: F::from_bool(matches!(aux.io.unwrap_or_default().op, IoOpcode::Store)),
-            is_io_load: F::from_bool(matches!(aux.io.unwrap_or_default().op, IoOpcode::Load)),
+            io_addr: F::from_canonical_u32(io.addr),
+            io_size: F::from_canonical_u32(u32::try_from(io.data.len()).unwrap()),
+            is_io_store: F::from_bool(matches!(io.op, IoOpcode::Store)),
+            is_io_load: F::from_bool(matches!(io.op, IoOpcode::Load)),
             ..CpuState::default()
         };
 

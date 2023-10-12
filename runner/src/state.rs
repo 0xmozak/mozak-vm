@@ -113,15 +113,15 @@ pub enum IoOpcode {
     Store,
     Load,
 }
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct IoEntry {
     pub addr: u32,
-    pub size: u32,
     pub op: IoOpcode,
+    pub data: Vec<u8>,
 }
 
 /// Auxiliary information about the instruction execution
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Aux {
     // This could be an Option<u32>, but given how Risc-V instruction are specified,
     // 0 serves as a default value just fine.

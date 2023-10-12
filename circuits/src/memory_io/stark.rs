@@ -54,16 +54,18 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
         is_binary(yield_constr, lv.ops.is_io_load);
         is_binary(yield_constr, lv.is_executed());
 
-        // If nv.is_io() == 1: lv.size == 0
-        yield_constr.constraint_transition(nv.is_io() * lv.size);
+        // If nv.is_io() == 1: lv.size == 0, also forces the last row to be size == 0 !
+        yield_constr.constraint(nv.is_io() * lv.size);
         // If nv.is_memory() == 1:
         //    lv.address == nv.address + 1 (wrapped)
         //    lv.size == nv.size - 1 (not-wrapped)
         let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
         let added = nv.addr + P::ONES;
         let wrapped = added - wrap_at;
+        // lv.address == nv.address + 1 (wrapped)
         yield_constr
             .constraint_transition(nv.is_memory() * (lv.addr - added) * (lv.addr - wrapped));
+        // lv.size == nv.size - 1 (not-wrapped)
         yield_constr.constraint_transition(nv.is_io() * (lv.size - (nv.size - P::ONES)));
     }
 
