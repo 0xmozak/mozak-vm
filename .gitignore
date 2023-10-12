@@ -8,3 +8,4 @@ cobertura.xml
 **/__pycache__
 tmp
 data.csv
+.env

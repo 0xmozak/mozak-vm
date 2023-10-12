@@ -1,6 +1,7 @@
 import os
 from utils import *
 import tempfile
+from tqdm import tqdm
 
 commit = "80526ef9f23b239bae6fbd96a2bc237dabd30fdd"
 
@@ -23,7 +24,7 @@ def test_in_tmp(rebuild: bool):
         create_repo_from_commmit(commit, tmpfolder)
         build_release(cli_repo)
     data = {"values": [], "time_taken": []}
-    for value in range(100, 1000, 100):
+    for value in tqdm(sample(num_samples=30, min_value=100, max_value=1000, mean=200)):
         time_taken = bench("sample_bench", value, cli_repo)
         data["values"].append(value)
         data["time_taken"].append(time_taken)

@@ -4,6 +4,23 @@ import subprocess
 import pandas as pd
 import matplotlib.pyplot as plt
 
+import numpy as np
+
+
+def sample(num_samples: int, min_value: int, max_value: int, mean: int) -> list[int]:
+    # lognormal was chosen so that we can
+    # keep samples as uniform as possible while
+    # at the same time we don't generate
+    # too many large values which can slow down
+    # the benches
+    samples = []
+    sigma = 0.7
+    while len(samples) < num_samples:
+        sample = np.random.lognormal(mean=np.log(mean) + sigma**2, sigma=sigma)
+        if sample > min_value and sample < max_value:
+            samples.append(int(sample))
+    return list(samples)
+
 
 def create_repo_from_commmit(commit: str, tmpfolder) -> None:
     subprocess.run(
@@ -48,3 +65,13 @@ def plot_csv_data(csv_file_path):
     plt.title("Bench results")
     plt.legend()
     plt.show()
+
+
+# test how sample distribution plot looks like.
+def plot_samples(num_samples: int, min_value: int, max_value: int, mean: int):
+    samples = sample(num_samples, min_value, max_value, mean)
+    plt.hist(samples, bins=10)
+    plt.show()
+
+
+# plot_samples(1000, 100, 20000, 5000)
