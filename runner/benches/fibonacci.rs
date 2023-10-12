@@ -5,7 +5,7 @@ use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 
-const FIBO_ELF_EXAMPLE_PATH: &str = "examples/target/riscv32im-mozak-zkvm-elf/release/fibonacci";
+const FIBO_ELF_EXAMPLE_PATH: &str = "examples/target/riscv32im-mozak-zkvm-elf/debug/fibonacci";
 
 fn fibonacci_benchmark(c: &mut Criterion) {
     let elf_path = std::env::current_dir()
@@ -16,7 +16,7 @@ fn fibonacci_benchmark(c: &mut Criterion) {
     let elf = std::fs::read(elf_path).expect(
         "Reading the fibonacci elf should not fail.
         You may need to build the fibonacci program within the examples directory
-        eg. `cd examples/fibonacci && cargo build --release`",
+        eg. `cd examples/fibonacci && cargo build`",
     );
 
     let _ = env_logger::builder().try_init();
