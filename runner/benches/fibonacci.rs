@@ -14,8 +14,8 @@ fn fibonacci_benchmark(c: &mut Criterion) {
         .unwrap()
         .join(FIBO_ELF_EXAMPLE_PATH);
     let elf = std::fs::read(elf_path).expect(
-        "Reading elf should not fail
-        - you may need to build the fibonacci program within the examples directory
+        "Reading the fibonacci elf should not fail.
+        You may need to build the fibonacci program within the examples directory
         eg. `cd examples/fibonacci && cargo build --release`",
     );
 
