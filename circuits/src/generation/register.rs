@@ -155,6 +155,7 @@ mod tests {
         simple_test_code(&instructions, &[], &[(6, 100), (7, 200)])
     }
 
+    #[rustfmt::skip]
     fn expected_trace_initial<F: RichField>() -> Vec<Register<F>> {
         prep_table(
             (1..32)
@@ -164,7 +165,6 @@ mod tests {
                         7 => 200,
                         _ => 0,
                     };
-                    #[rustfmt::skip]
                     // Columns (repeated for registers 0-31):
                     // addr  value augmented_clk  diff_augmented_clk  is_init is_read is_write
                     [     i, value,            0,                 0,        1,      0,      0]
@@ -189,6 +189,7 @@ mod tests {
     fn neg(val: u64) -> u64 { (F::ZERO - F::from_canonical_u64(val)).to_canonical_u64() }
 
     #[test]
+    #[rustfmt::skip]
     fn generate_reg_trace() {
         let (program, record) = setup();
 
@@ -199,7 +200,6 @@ mod tests {
 
         // This is the actual trace of the instructions.
         let mut expected_trace = prep_table(
-            #[rustfmt::skip]
             vec![
                 // First, populate the table with the instructions from the above test code.
                 // Note that we filter out operations that act on r0.
@@ -233,7 +233,6 @@ mod tests {
         // Finally, append the above trace with the extra init rows with unused
         // registers.
         let mut final_init_rows = prep_table(
-            #[rustfmt::skip]
             (12..32).map(|i|
                 // addr value augmented_clk  diff_augmented_clk  is_init is_read is_write
                 [     i,   0,             0,                 0,        1,      0,       0]

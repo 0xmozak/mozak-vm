@@ -49,7 +49,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryInitSta
         is_binary(yield_constr, lv.filter);
     }
 
-    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,

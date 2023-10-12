@@ -60,7 +60,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemor
         yield_constr.constraint(lv.is_executed() * (lv.addrs[1] - added) * (lv.addrs[1] - wrapped));
     }
 
-    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,
