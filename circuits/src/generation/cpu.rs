@@ -46,7 +46,7 @@ pub fn generate_cpu_trace<F: RichField>(
         // The last state is the final state after the last execution.  Thus naturally it has no
         // associated auxiliarye execution information. We use a dummy aux to make the row
         // generation work, but we could refactor to make this unnecessary.
-        aux: executed.last().unwrap().aux,
+        aux: executed.last().unwrap().aux.clone(),
     }];
 
     for Row { state, aux } in chain![executed, last_row] {
@@ -97,7 +97,7 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
 
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
-fn generate_shift_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
+fn generate_shift_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux<F>) {
     let shift_power = aux.op2;
     let shift_amount = if shift_power == 0 {
         0
@@ -124,7 +124,7 @@ fn compute_full_range(is_signed: bool, value: u32) -> i64 {
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
 #[allow(clippy::cast_possible_truncation)]
-fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
+fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux<F>) {
     // Helper function to determine sign and absolute value.
     let compute_sign_and_abs: fn(bool, u32) -> (bool, u32) = |is_signed, value| {
         let full_range = compute_full_range(is_signed, value);
@@ -179,7 +179,7 @@ fn generate_mul_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
 #[allow(clippy::cast_lossless)]
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_sign_loss)]
-fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
+fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux<F>) {
     let dividend_full_range = compute_full_range(row.inst.is_op1_signed.is_nonzero(), aux.op1);
     let divisor_full_range = compute_full_range(row.inst.is_op2_signed.is_nonzero(), aux.op2);
 
@@ -219,7 +219,7 @@ fn generate_div_row<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux
     row.op2_value_inv = from_u32::<F>(aux.op2).try_inverse().unwrap_or_default();
 }
 
-fn memory_sign_handling<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux) {
+fn memory_sign_handling<F: RichField>(row: &mut CpuState<F>, inst: &Instruction, aux: &Aux<F>) {
     // sign extension needs to be from `u8` in case of `LB`
     // sign extension needs to be from `u16` in case of `LH`
     row.dst_sign_bit = F::from_bool(match inst.op {
@@ -231,7 +231,7 @@ fn memory_sign_handling<F: RichField>(row: &mut CpuState<F>, inst: &Instruction,
 
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_lossless)]
-fn operands_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux) {
+fn operands_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux<F>) {
     let op1_full_range = sign_extend(row.inst.is_op1_signed.is_nonzero(), aux.op1);
     let op2_full_range = sign_extend(row.inst.is_op2_signed.is_nonzero(), aux.op2);
 

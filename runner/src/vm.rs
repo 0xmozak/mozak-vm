@@ -9,7 +9,7 @@ use plonky2::plonk::config::GenericHashOut;
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
-use crate::state::{Aux, MemEntry, State};
+use crate::state::{Aux, MemEntry, Poseidon2Entry, Poseidon2SpongeData, State};
 use crate::system::ecall;
 use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
 
@@ -102,7 +102,7 @@ pub fn lw(mem: &[u8; 4]) -> (u32, u32) { dup(u32::from_le_bytes(*mem)) }
 
 impl<F: RichField> State<F> {
     #[must_use]
-    pub fn jalr(self, inst: &Args) -> (Aux, Self) {
+    pub fn jalr(self, inst: &Args) -> (Aux<F>, Self) {
         let new_pc = self.get_register_value(inst.rs1).wrapping_add(inst.imm) & !1;
         let dst_val = self.get_pc().wrapping_add(4);
         (
@@ -114,7 +114,7 @@ impl<F: RichField> State<F> {
         )
     }
 
-    fn ecall_halt(self) -> (Aux, Self) {
+    fn ecall_halt(self) -> (Aux<F>, Self) {
         // Note: we don't advance the program counter for 'halt'.
         // That is we treat 'halt' like an endless loop.
         (
@@ -130,7 +130,7 @@ impl<F: RichField> State<F> {
     ///
     /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
     /// bytes.
-    fn ecall_io_read(self) -> (Aux, Self) {
+    fn ecall_io_read(self) -> (Aux<F>, Self) {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requsted = self.get_register_value(REG_A2);
         let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
@@ -158,7 +158,7 @@ impl<F: RichField> State<F> {
     /// # Panics
     ///
     /// Panics if Vec<u8> to string conversion fails.
-    fn ecall_panic(self) -> (Aux, Self) {
+    fn ecall_panic(self) -> (Aux<F>, Self) {
         let msg_len = self.get_register_value(REG_A1);
         let msg_ptr = self.get_register_value(REG_A2);
         let mut msg_vec = vec![];
@@ -171,7 +171,7 @@ impl<F: RichField> State<F> {
         );
     }
 
-    fn ecall_poseidon2(self) -> (Aux, Self) {
+    fn ecall_poseidon2(self) -> (Aux<F>, Self) {
         let input_ptr = self.get_register_value(REG_A1);
         // lengths are in bytes
         let input_len = self.get_register_value(REG_A2);
@@ -180,15 +180,22 @@ impl<F: RichField> State<F> {
         let input: Vec<F> = (0..input_len)
             .map(|i| F::from_canonical_u8(self.load_u8(input_ptr + i)))
             .collect();
-        let (hash, updated_self) =
-            self.hash_n_to_m_with_pad::<Poseidon2Permutation<F>>(input.as_slice());
+        let (hash, sponge_data) =
+            hash_n_to_m_with_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
         let hash = hash.to_bytes();
         assert!(output_len == hash.len());
         (
-            Aux::default(),
+            Aux {
+                poseidon2: Some(Poseidon2Entry {
+                    addr: input_ptr,
+                    len: input_len,
+                    sponge_data,
+                }),
+                ..Default::default()
+            },
             hash.iter()
                 .enumerate()
-                .fold(updated_self, |updated_self, (i, byte)| {
+                .fold(self, |updated_self, (i, byte)| {
                     updated_self
                         .store_u8(
                             output_ptr
@@ -202,7 +209,7 @@ impl<F: RichField> State<F> {
     }
 
     #[must_use]
-    pub fn ecall(self) -> (Aux, Self) {
+    pub fn ecall(self) -> (Aux<F>, Self) {
         match self.get_register_value(REG_A0) {
             ecall::HALT => self.ecall_halt(),
             ecall::IO_READ => self.ecall_io_read(),
@@ -218,7 +225,7 @@ impl<F: RichField> State<F> {
     /// Panics in case we intend to store to a read-only location
     /// TODO: Review the decision to panic.  We might also switch to using a
     /// Result, so that the caller can handle this.
-    pub fn store(self, inst: &Args, bytes: u32) -> (Aux, Self) {
+    pub fn store(self, inst: &Args, bytes: u32) -> (Aux<F>, Self) {
         let raw_value: u32 = self.get_register_value(inst.rs1);
         let addr = self.get_register_value(inst.rs2).wrapping_add(inst.imm);
         (
@@ -235,41 +242,6 @@ impl<F: RichField> State<F> {
         )
     }
 
-    fn hash_n_to_m_with_pad<P: PlonkyPermutation<F>>(mut self, inputs: &[F]) -> (HashOut<F>, Self) {
-        let mut perm = P::new(repeat(F::ZERO));
-        let mut inputs = inputs.to_vec();
-        let len = inputs.len();
-        // Add padding of required
-        if len % P::RATE != 0 {
-            inputs.resize(((len / P::RATE) + 1) * P::RATE, F::ZERO);
-        }
-
-        // Absorb all input chunks.
-        for chunk in inputs.chunks(P::RATE) {
-            perm.set_from_slice(chunk, 0);
-            self.poseidon2_preimages.push(
-                perm.as_ref()
-                    .try_into()
-                    .expect("lenght must be equal to poseidon2 STATE_SIZE"),
-            );
-            perm.permute();
-        }
-
-        // Squeeze untill we have the desired number of outputs.
-        let mut outputs = Vec::new();
-        loop {
-            for &item in perm.squeeze() {
-                outputs.push(item);
-                if outputs.len() == NUM_HASH_OUT_ELTS {
-                    return (HashOut::from_vec(outputs), self);
-                }
-            }
-            self.poseidon2_preimages
-                .push(perm.as_ref().try_into().expect("length must be 12"));
-            perm.permute();
-        }
-    }
-
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::cast_possible_wrap)]
@@ -277,7 +249,7 @@ impl<F: RichField> State<F> {
     ///
     /// Errors if the program contains an instruction with an unsupported
     /// opcode.
-    pub fn execute_instruction(self, program: &Program) -> Result<(Aux, Self)> {
+    pub fn execute_instruction(self, program: &Program) -> Result<(Aux<F>, Self)> {
         let inst = self.current_instruction(program);
         macro_rules! rop {
             ($op: expr) => {
@@ -360,15 +332,15 @@ impl<F: RichField> State<F> {
 /// Each row corresponds to the state of the VM _just before_ executing the
 /// instruction that the program counter points to.
 #[derive(Debug, Clone, Default)]
-pub struct Row<T: RichField> {
-    pub state: State<T>,
-    pub aux: Aux,
+pub struct Row<F: RichField> {
+    pub state: State<F>,
+    pub aux: Aux<F>,
 }
 
 #[derive(Debug, Default)]
-pub struct ExecutionRecord<T: RichField> {
-    pub executed: Vec<Row<T>>,
-    pub last_state: State<T>,
+pub struct ExecutionRecord<F: RichField> {
+    pub executed: Vec<Row<F>>,
+    pub last_state: State<F>,
 }
 
 /// Execute a program
@@ -384,10 +356,10 @@ pub struct ExecutionRecord<T: RichField> {
 /// This is a temporary measure to catch problems with accidental infinite
 /// loops. (Matthias had some trouble debugging a problem with jumps
 /// earlier.)
-pub fn step<T: RichField>(
+pub fn step<F: RichField>(
     program: &Program,
-    mut last_state: State<T>,
-) -> Result<ExecutionRecord<T>> {
+    mut last_state: State<F>,
+) -> Result<ExecutionRecord<F>> {
     let mut executed = vec![];
     while !last_state.has_halted() {
         let (aux, new_state) = last_state.clone().execute_instruction(program)?;
@@ -406,10 +378,54 @@ pub fn step<T: RichField>(
             );
         }
     }
-    Ok(ExecutionRecord::<T> {
+    Ok(ExecutionRecord::<F> {
         executed,
         last_state,
     })
+}
+
+fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
+    inputs: &[F],
+) -> (HashOut<F>, Poseidon2SpongeData<F>) {
+    let permute_and_record_data = |perm: &mut P, sponge_data: &mut Poseidon2SpongeData<F>| {
+        let preimage: [F; 12] = perm
+            .as_ref()
+            .try_into()
+            .expect("lenght must be equal to poseidon2 STATE_SIZE");
+        perm.permute();
+        let output = perm
+            .as_ref()
+            .try_into()
+            .expect("lenght must be equal to poseidon2 STATE_SIZE");
+        sponge_data.push((preimage, output));
+    };
+
+    let mut perm = P::new(repeat(F::ZERO));
+    let mut inputs = inputs.to_vec();
+    let len = inputs.len();
+    // Add padding of required
+    if len % P::RATE != 0 {
+        inputs.resize(((len / P::RATE) + 1) * P::RATE, F::ZERO);
+    }
+    let mut sponge_data = Vec::new();
+
+    // Absorb all input chunks.
+    for chunk in inputs.chunks(P::RATE) {
+        perm.set_from_slice(chunk, 0);
+        permute_and_record_data(&mut perm, &mut sponge_data);
+    }
+
+    // Squeeze untill we have the desired number of outputs.
+    let mut outputs = Vec::new();
+    loop {
+        for &item in perm.squeeze() {
+            outputs.push(item);
+            if outputs.len() == NUM_HASH_OUT_ELTS {
+                return (HashOut::from_vec(outputs), sponge_data);
+            }
+        }
+        permute_and_record_data(&mut perm, &mut sponge_data);
+    }
 }
 
 #[cfg(test)]
