@@ -181,7 +181,7 @@ impl<F: RichField> State<F> {
             .map(|i| F::from_canonical_u8(self.load_u8(input_ptr + i)))
             .collect();
         let (hash, updated_self) =
-            self.hash_n_to_m_no_pad::<Poseidon2Permutation<F>>(input.as_slice());
+            self.hash_n_to_m_with_pad::<Poseidon2Permutation<F>>(input.as_slice());
         let hash = hash.to_bytes();
         assert!(output_len == hash.len());
         (
@@ -235,8 +235,14 @@ impl<F: RichField> State<F> {
         )
     }
 
-    fn hash_n_to_m_no_pad<P: PlonkyPermutation<F>>(mut self, inputs: &[F]) -> (HashOut<F>, Self) {
+    fn hash_n_to_m_with_pad<P: PlonkyPermutation<F>>(mut self, inputs: &[F]) -> (HashOut<F>, Self) {
         let mut perm = P::new(repeat(F::ZERO));
+        let mut inputs = inputs.to_vec();
+        let len = inputs.len();
+        // Add padding of required
+        if len % P::RATE != 0 {
+            inputs.resize(((len / P::RATE) + 1) * P::RATE, F::ZERO);
+        }
 
         // Absorb all input chunks.
         for chunk in inputs.chunks(P::RATE) {
