@@ -121,21 +121,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     ]
 }
 
-// fn generate_poseidon2_trace<F: RichField>(record: &ExecutionRecord<F>) ->
-// Vec<PolynomialValues<F>> {     let mut rows_vec = vec![];
-//     for exe in &record.executed {
-//         if let Some(poseidon2_data) = exe.aux.poseidon2.clone() {
-//             for (preimage, _output) in &poseidon2_data.sponge_data {
-//                 rows_vec.push(Row {
-//                     preimage: *preimage,
-//                 });
-//             }
-//         }
-//     }
-//     let trace = poseidon2_trace(&rows_vec);
-//     trace_to_poly_values(trace)
-// }
-
 #[must_use]
 pub fn transpose_polys<
     F: RichField + Extendable<D> + PackedField,
