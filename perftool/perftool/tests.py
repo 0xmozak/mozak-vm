@@ -1,6 +1,13 @@
 from pathlib import Path
-from utils import *
+import random
 import tempfile
+
+from utils import (
+    build_release,
+    create_repo_from_commmit,
+    sample_and_bench,
+    write_into_csv,
+)
 
 
 commit_1 = "28a5108e5f617d93ea055564c00c08844fee5a0a"
@@ -53,18 +60,46 @@ def test_in_tmp(rebuild: bool, commit_1: str, commit_2: str):
         build_release(cli_repo_1)
         build_release(cli_repo_2)
 
-    data_1 = bench_all_values(
-        cli_repo_1, bench_function, num_samples=10, min_value=10, max_value=100
-    )
-    data_2 = bench_all_values(
-        cli_repo_2, bench_function, num_samples=10, min_value=10, max_value=100
-    )
-    data_1_csv_file = Path("data_1.csv")
-    data_2_csv_file = Path("data_2.csv")
-    write_into_csv(data_1, data_1_csv_file)
-    write_into_csv(data_2, data_2_csv_file)
-    plot_both(data_1_csv_file, data_2_csv_file, bench_function)
+    # data_1 = bench_all_values(
+    #     cli_repo_1, bench_function, num_samples=10, min_value=10, max_value=100
+    # )
+    # data_2 = bench_all_values(
+    #     cli_repo_2, bench_function, num_samples=10, min_value=10, max_value=100
+    # )
+
+    data_1_csv_file = tmpfolder / "data_1.csv"
+    data_2_csv_file = tmpfolder / "data_2.csv"
+    # write_into_csv(data_1, data_1_csv_file)
+    # write_into_csv(data_2, data_2_csv_file)
+    # plot_both(data_1_csv_file, data_2_csv_file, bench_function)
+    i = 0
+    while True:
+        try:
+            (cli_repo, data_csv_file) = random.choice(
+                [(cli_repo_1, data_1_csv_file), (cli_repo_2, data_2_csv_file)]
+            )
+            data = sample_and_bench(
+                cli_repo, bench_function, min_value=10, max_value=100
+            )
+            write_into_csv(data, data_csv_file)
+            i += 1
+        except KeyboardInterrupt:
+            print("Press Ctrl-C again to clean files and exit")
+            try:
+                while True:
+                    pass
+            except KeyboardInterrupt:
+                print("cleaning csv files")
+            data_1_csv_file.unlink()
+            data_2_csv_file.unlink()
+            print("Exiting...")
+            break
+    print(f"sampled {i} number of times")
+    return
 
 
-test_sample_bench()
-# test_in_tmp(rebuild=False, commit_1=commit_1, commit_2=commit_2)
+# test_sample_bench()
+test_in_tmp(rebuild=False, commit_1=commit_1, commit_2=commit_2)
+
+# todo: have own plot functions for different benches
+# todo: add linter
