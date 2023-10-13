@@ -45,6 +45,7 @@ where
         memory_init_stark,
         rangecheck_limb_stark,
         poseidon2_stark,
+        poseidon2_sponge_stark,
         register_init_stark,
         register_stark,
         cross_table_lookups,
@@ -96,6 +97,7 @@ where
     verify!(halfword_memory_stark, TableKind::HalfWordMemory, &[]);
     verify!(fullword_memory_stark, TableKind::FullWordMemory, &[]);
     verify!(poseidon2_stark, TableKind::Poseidon2, &[]);
+    verify!(poseidon2_sponge_stark, TableKind::Poseidon2Sponge, &[]);
 
     verify!(register_init_stark, TableKind::RegisterInit, &[]);
     verify!(register_stark, TableKind::Register, &[]);

@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
@@ -17,6 +18,12 @@ use crate::stark::utils::is_binary;
 #[allow(clippy::module_name_repetitions)]
 pub struct Poseidon2SpongeStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> Display for Poseidon2SpongeStark<F, D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Poseidon2SpongeStark")
+    }
 }
 
 const COLUMNS: usize = NUM_POSEIDON2_SPONGE_COLS;
@@ -45,6 +52,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
 
         is_binary(yield_constr, lv.ops.is_init_permute);
         is_binary(yield_constr, lv.ops.is_permute);
+        is_binary(yield_constr, lv.is_exe);
+
+        // is_permute can't be dummy row
+        yield_constr.constraint((lv.is_exe - P::ONES) * (lv.ops.is_permute - P::ONES));
 
         // Except next row is init_permute, start_index is decresed by 8
         yield_constr.constraint(
