@@ -3,8 +3,9 @@ use core::ops::Add;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 
-use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
+use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memoryinit::columns::MemoryInit;
 use crate::stark::mozak_stark::{MemoryTable, Table};
@@ -83,15 +84,31 @@ impl<F: RichField> From<&HalfWordMemory<F>> for Vec<Memory<F>> {
     }
 }
 
+impl<F: RichField> From<&FullWordMemory<F>> for Vec<Memory<F>> {
+    fn from(val: &FullWordMemory<F>) -> Self {
+        if (val.ops.is_load + val.ops.is_store).is_zero() {
+            vec![]
+        } else {
+            (0..4)
+                .map(|i| Memory {
+                    clk: val.clk,
+                    addr: val.addrs[i],
+                    value: val.limbs[i],
+                    is_store: val.ops.is_store,
+                    is_load: val.ops.is_load,
+                    ..Default::default()
+                })
+                .collect()
+        }
+    }
+}
+
 impl<T: Clone + Add<Output = T>> Memory<T> {
     pub fn is_executed(&self) -> T {
         let s: Memory<T> = self.clone();
         s.is_store + s.is_load + s.is_init
     }
 }
-
-/// Total number of columns.
-pub const NUM_MEM_COLS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
