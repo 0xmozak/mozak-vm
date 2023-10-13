@@ -3,7 +3,7 @@ import subprocess
 from typing import Tuple
 from pathlib import Path
 import random
-
+from tqdm import tqdm
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -49,6 +49,22 @@ def bench(bench_function: str, parameter: int, cli_repo: Path) -> float:
     pattern = r"\d+\.\d+"
     time_taken = re.findall(pattern, stdout.decode())[0]
     return float(time_taken)
+
+
+def bench_all_values(
+    cli_repo: Path,
+    bench_function: str,
+    num_samples: int,
+    min_value: int,
+    max_value: int,
+    mean: int = 0,
+) -> dict:
+    data = {"values": [], "time_taken (in s)": []}
+    for value in tqdm(sample(num_samples, min_value, max_value, mean)):
+        time_taken = bench(bench_function, value, cli_repo)
+        data["values"].append(value)
+        data["time_taken (in s)"].append(time_taken)
+    return data
 
 
 def write_into_csv(data: dict, csv_file_path: Path) -> None:
