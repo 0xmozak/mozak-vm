@@ -26,7 +26,7 @@ def load_from_config():
 
 
 def write_tmpfolder_name_into_config(tmpfolder_name: str):
-    config_file = Path.cwd() / "perftool" / "config.json"
+    config_file = Path.cwd() / "config.json"
     config = json.load(Path.open(config_file, "r"))
     config["tmpfolder"] = tmpfolder_name
     json.dump(config, Path.open(config_file, "w"))
@@ -93,9 +93,16 @@ def build():
 @app.command()
 def clean():
     _, _, tmpfolder = load_from_config()
+    if tmpfolder == "":
+        print("Please run build command first")
+        return
     tmpfolder = Path(tmpfolder)
-    shutil.rmtree(tmpfolder)
-    write_tmpfolder_name_into_config("")
+    # ensure we delete only stuff in tmp. Works only on linux (maybe)
+    # TODO: Make this platform independent
+    if tmpfolder.name.startswith("tmp"):
+        shutil.rmtree(tmpfolder)
+        write_tmpfolder_name_into_config("")
+    print("Cleaned successfully")
 
 
 if __name__ == "__main__":
