@@ -4,7 +4,6 @@ use anyhow::{anyhow, Result};
 use derive_more::Deref;
 use im::hashmap::HashMap;
 use log::trace;
-#[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 
 use crate::elf::{Code, Data, Program};
@@ -40,8 +39,7 @@ pub struct State {
     pub io_tape: IoTape,
 }
 
-#[derive(Clone, Debug, Default, Deref)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct IoTape {
     #[deref]
     pub data: Rc<Vec<u8>>,
@@ -305,5 +303,19 @@ impl State {
             self.io_tape.data[read_index..(read_index + limit)].to_vec(),
             self,
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::state::IoTape;
+
+    #[test]
+    fn test_io_tape_serialization() {
+        let io_tape = IoTape::from(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..]);
+        let serialized = serde_json::to_string(&io_tape).unwrap();
+        let deserialized: IoTape = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(io_tape.read_index, deserialized.read_index);
+        assert_eq!(io_tape.data, deserialized.data);
     }
 }
