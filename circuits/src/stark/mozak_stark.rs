@@ -37,12 +37,12 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub memory_stark: MemoryStark<F, D>,
     pub memory_init_stark: MemoryInitStark<F, D>,
     pub rangecheck_limb_stark: RangeCheckLimbStark<F, D>,
-    pub poseidon2_stark: Poseidon2_12Stark<F, D>,
-    pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
     pub register_init_stark: RegisterInitStark<F, D>,
     pub register_stark: RegisterStark<F, D>,
+    pub poseidon2_stark: Poseidon2_12Stark<F, D>,
+    pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 13],
     pub debug: bool,
 }
@@ -104,12 +104,12 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.memory_stark.num_permutation_batches(config),
             self.memory_init_stark.num_permutation_batches(config),
             self.rangecheck_limb_stark.num_permutation_batches(config),
-            self.poseidon2_stark.num_permutation_batches(config),
-            self.poseidon2_sponge_stark.num_permutation_batches(config),
             self.halfword_memory_stark.num_permutation_batches(config),
             self.fullword_memory_stark.num_permutation_batches(config),
             self.register_init_stark.num_permutation_batches(config),
             self.register_stark.num_permutation_batches(config),
+            self.poseidon2_stark.num_permutation_batches(config),
+            self.poseidon2_sponge_stark.num_permutation_batches(config),
         ]
     }
 
@@ -123,12 +123,12 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.memory_stark.permutation_batch_size(),
             self.memory_init_stark.permutation_batch_size(),
             self.rangecheck_limb_stark.permutation_batch_size(),
-            self.poseidon2_stark.permutation_batch_size(),
-            self.poseidon2_sponge_stark.permutation_batch_size(),
             self.halfword_memory_stark.permutation_batch_size(),
             self.fullword_memory_stark.permutation_batch_size(),
             self.register_init_stark.permutation_batch_size(),
             self.register_stark.permutation_batch_size(),
+            self.poseidon2_stark.permutation_batch_size(),
+            self.poseidon2_sponge_stark.permutation_batch_size(),
         ]
     }
 

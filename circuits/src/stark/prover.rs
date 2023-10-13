@@ -372,12 +372,6 @@ where
         make_proof!(mozak_stark.program_stark, TableKind::Program, [])?,
         make_proof!(mozak_stark.memory_stark, TableKind::Memory, [])?,
         make_proof!(mozak_stark.memory_init_stark, TableKind::MemoryInit, [])?,
-        make_proof!(mozak_stark.poseidon2_stark, TableKind::Poseidon2, [])?,
-        make_proof!(
-            mozak_stark.poseidon2_sponge_stark,
-            TableKind::Poseidon2Sponge,
-            []
-        )?,
         make_proof!(
             mozak_stark.rangecheck_limb_stark,
             TableKind::RangeCheckLimb,
@@ -394,6 +388,12 @@ where
             []
         )?,
         make_proof!(mozak_stark.register_init_stark, TableKind::RegisterInit, [])?,
+        make_proof!(mozak_stark.poseidon2_stark, TableKind::Poseidon2, [])?,
+        make_proof!(
+            mozak_stark.poseidon2_sponge_stark,
+            TableKind::Poseidon2Sponge,
+            []
+        )?,
         make_proof!(mozak_stark.register_stark, TableKind::Register, [])?,
     ])
 }

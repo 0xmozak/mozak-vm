@@ -44,13 +44,13 @@ where
         memory_stark,
         memory_init_stark,
         rangecheck_limb_stark,
-        poseidon2_stark,
-        poseidon2_sponge_stark,
         register_init_stark,
         register_stark,
         cross_table_lookups,
         halfword_memory_stark,
         fullword_memory_stark,
+        poseidon2_stark,
+        poseidon2_sponge_stark,
         ..
     } = mozak_stark;
 
@@ -96,11 +96,11 @@ where
     verify!(rangecheck_limb_stark, TableKind::RangeCheckLimb, &[]);
     verify!(halfword_memory_stark, TableKind::HalfWordMemory, &[]);
     verify!(fullword_memory_stark, TableKind::FullWordMemory, &[]);
-    verify!(poseidon2_stark, TableKind::Poseidon2, &[]);
-    verify!(poseidon2_sponge_stark, TableKind::Poseidon2Sponge, &[]);
 
     verify!(register_init_stark, TableKind::RegisterInit, &[]);
     verify!(register_stark, TableKind::Register, &[]);
+    verify!(poseidon2_stark, TableKind::Poseidon2, &[]);
+    verify!(poseidon2_sponge_stark, TableKind::Poseidon2Sponge, &[]);
     verify_cross_table_lookups::<F, D>(&cross_table_lookups, &all_proof.all_ctl_zs_last(), config)?;
     Ok(())
 }
