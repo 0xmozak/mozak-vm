@@ -4,17 +4,20 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::iop::target::Target;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
 use starky::config::StarkConfig;
-use starky::constraint_consumer::ConstraintConsumer;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::stark::Stark;
-use starky::vars::StarkEvaluationVars;
+use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-use crate::stark::mozak_stark::{Table, NUM_TABLES};
+use crate::stark::mozak_stark::{Table, TableKind, NUM_TABLES};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
-use crate::stark::proof::StarkProof;
+use crate::stark::proof::{ StarkProofTarget, StarkProofWithMetadata};
 
 #[derive(Error, Debug)]
 pub enum LookupError {
@@ -193,6 +196,15 @@ impl<F: Field> CrossTableLookup<F> {
             looked_table,
         }
     }
+
+    pub(crate) fn num_ctl_zs(ctls: &[Self], table: TableKind, num_challenges: usize) -> usize {
+        let mut num_ctls = 0;
+        for ctl in ctls {
+            let all_tables = std::iter::once(&ctl.looked_table).chain(&ctl.looking_tables);
+            num_ctls += all_tables.filter(|twc| twc.kind == table).count();
+        }
+        num_ctls * num_challenges
+    }
 }
 
 #[derive(Clone)]
@@ -212,7 +224,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
     CtlCheckVars<'a, F, F::Extension, F::Extension, D>
 {
     pub(crate) fn from_proofs<C: GenericConfig<D, F = F>>(
-        proofs: &[StarkProof<F, C, D>; NUM_TABLES],
+        proofs: &[StarkProofWithMetadata<F, C, D>; NUM_TABLES],
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
         num_permutation_zs: &[usize; NUM_TABLES],
@@ -221,7 +233,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
             .iter()
             .zip(num_permutation_zs)
             .map(|(p, &num_perms)| {
-                let openings = &p.openings;
+                let openings = &p.proof.openings;
                 let ctl_zs = openings.permutation_ctl_zs.iter().skip(num_perms);
                 let ctl_zs_next = openings.permutation_ctl_zs_next.iter().skip(num_perms);
                 ctl_zs.zip(ctl_zs_next)
@@ -292,6 +304,162 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
             *next_z - *local_z * select(next_filter, combine(vars.next_values)),
         );
     }
+}
+
+#[derive(Clone)]
+pub struct CtlCheckVarsTarget<'a, F: Field, const D: usize> {
+    pub(crate) local_z: ExtensionTarget<D>,
+    pub(crate) next_z: ExtensionTarget<D>,
+    pub(crate) challenges: GrandProductChallenge<Target>,
+    pub(crate) columns: &'a [Column<F>],
+    pub(crate) filter_column: &'a Column<F>,
+}
+
+impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
+    pub(crate) fn from_proof(
+        table: TableKind,
+        proof: &StarkProofTarget<D>,
+        cross_table_lookups: &'a [CrossTableLookup<F>],
+        ctl_challenges: &'a GrandProductChallengeSet<Target>,
+        num_permutation_zs: usize,
+    ) -> Vec<Self> {
+        let mut ctl_zs = {
+            let openings = &proof.openings;
+            let ctl_zs = openings.permutation_ctl_zs.iter().skip(num_permutation_zs);
+            let ctl_zs_next = openings
+                .permutation_ctl_zs_next
+                .iter()
+                .skip(num_permutation_zs);
+            ctl_zs.zip(ctl_zs_next)
+        };
+
+        let mut ctl_vars = vec![];
+        for CrossTableLookup {
+            looking_tables,
+            looked_table,
+        } in cross_table_lookups
+        {
+            for &challenges in &ctl_challenges.challenges {
+                for looking_table in looking_tables {
+                    if looking_table.kind == table {
+                        let (looking_z, looking_z_next) = ctl_zs.next().unwrap();
+                        ctl_vars.push(Self {
+                            local_z: *looking_z,
+                            next_z: *looking_z_next,
+                            challenges,
+                            columns: &looking_table.columns,
+                            filter_column: &looking_table.filter_column,
+                        });
+                    }
+                }
+
+                if looked_table.kind == table {
+                    let (looked_z, looked_z_next) = ctl_zs.next().unwrap();
+                    ctl_vars.push(Self {
+                        local_z: *looked_z,
+                        next_z: *looked_z_next,
+                        challenges,
+                        columns: &looked_table.columns,
+                        filter_column: &looked_table.filter_column,
+                    });
+                }
+            }
+        }
+        assert!(ctl_zs.next().is_none());
+        ctl_vars
+    }
+}
+
+pub(crate) fn eval_cross_table_lookup_checks_circuit<
+    S: Stark<F, D>,
+    F: RichField + Extendable<D>,
+    const D: usize,
+>(
+    builder: &mut CircuitBuilder<F, D>,
+    vars: StarkEvaluationTargets<D, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
+    ctl_vars: &[CtlCheckVarsTarget<F, D>],
+    consumer: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    for lookup_vars in ctl_vars {
+        let CtlCheckVarsTarget {
+            local_z,
+            next_z,
+            challenges,
+            columns,
+            filter_column,
+        } = lookup_vars;
+
+        let one = builder.one_extension();
+        let local_filter = if let column = filter_column {
+            column.eval_circuit(builder, vars.local_values)
+        } else {
+            one
+        };
+        let next_filter = if let column = filter_column {
+            column.eval_circuit(builder, vars.next_values)
+        } else {
+            one
+        };
+        fn select<F: RichField + Extendable<D>, const D: usize>(
+            builder: &mut CircuitBuilder<F, D>,
+            filter: ExtensionTarget<D>,
+            x: ExtensionTarget<D>,
+        ) -> ExtensionTarget<D> {
+            let one = builder.one_extension();
+            let tmp = builder.sub_extension(one, filter);
+            builder.mul_add_extension(filter, x, tmp) // filter * x + 1 - filter
+        }
+
+        // Check value of `Z(1)`
+        let local_columns_eval = columns
+            .iter()
+            .map(|c| c.eval_circuit(builder, vars.local_values))
+            .collect::<Vec<_>>();
+        let combined_local = challenges.combine_circuit(builder, &local_columns_eval);
+        let selected_local = select(builder, local_filter, combined_local);
+        let first_row = builder.sub_extension(*local_z, selected_local);
+        consumer.constraint_first_row(builder, first_row);
+        // Check `Z(gw) = combination * Z(w)`
+        let next_columns_eval = columns
+            .iter()
+            .map(|c| c.eval_circuit(builder, vars.next_values))
+            .collect::<Vec<_>>();
+        let combined_next = challenges.combine_circuit(builder, &next_columns_eval);
+        let selected_next = select(builder, next_filter, combined_next);
+        let mut transition = builder.mul_extension(*local_z, selected_next);
+        transition = builder.sub_extension(*next_z, transition);
+        consumer.constraint_transition(builder, transition);
+    }
+}
+
+pub(crate) fn verify_cross_table_lookups_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    cross_table_lookups: Vec<CrossTableLookup<F>>,
+    ctl_zs_lasts: [Vec<Target>; NUM_TABLES],
+    ctl_extra_looking_products: Vec<Vec<Target>>,
+    inner_config: &StarkConfig,
+) {
+    let mut ctl_zs_openings = ctl_zs_lasts.iter().map(|v| v.iter()).collect::<Vec<_>>();
+    for CrossTableLookup {
+        looking_tables,
+        looked_table,
+    } in cross_table_lookups.into_iter()
+    {
+        let extra_product_vec = &ctl_extra_looking_products[looked_table.kind as usize];
+        for c in 0..inner_config.num_challenges {
+            let mut looking_zs_prod = builder.mul_many(
+                looking_tables
+                    .iter()
+                    .map(|table| *ctl_zs_openings[table.kind as usize].next().unwrap()),
+            );
+
+            looking_zs_prod = builder.mul(looking_zs_prod, extra_product_vec[c]);
+
+            let looked_z = *ctl_zs_openings[looked_table.kind as usize].next().unwrap();
+            builder.connect(looked_z, looking_zs_prod);
+        }
+    }
+    debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));
 }
 
 pub mod ctl_utils {

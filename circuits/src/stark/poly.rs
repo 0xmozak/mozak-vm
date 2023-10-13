@@ -6,17 +6,22 @@ use plonky2::field::polynomial::{PolynomialCoeffs, PolynomialValues};
 use plonky2::field::zero_poly_coset::ZeroPolyOnCoset;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::util::{log2_ceil, transpose};
 use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
-use starky::constraint_consumer::ConstraintConsumer;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::stark::Stark;
-use starky::vars::StarkEvaluationVars;
+use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::permutation::{eval_permutation_checks, PermutationCheckVars};
-use crate::cross_table_lookup::{eval_cross_table_lookup_checks, CtlCheckVars, CtlData};
+use crate::cross_table_lookup::{
+    eval_cross_table_lookup_checks, eval_cross_table_lookup_checks_circuit, CtlCheckVars,
+    CtlCheckVarsTarget, CtlData,
+};
 use crate::stark::permutation::challenge::GrandProductChallengeSet;
+use crate::stark::permutation::{eval_permutation_checks_circuit, PermutationCheckDataTarget};
 
 /// Computes the quotient polynomials `(sum alpha^i C_i(x)) / Z_H(x)` for
 /// `alpha` in `alphas`, where the `C_i`s are the Stark constraints.
@@ -172,4 +177,30 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark.eval_packed_generic(vars, consumer);
     eval_permutation_checks::<F, FE, P, S, D, D2>(stark, config, vars, permutation_vars, consumer);
     eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
+}
+
+pub(crate) fn eval_vanishing_poly_circuit<F, S, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    stark: &S,
+    config: &StarkConfig,
+    vars: StarkEvaluationTargets<D, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
+    permutation_data: Option<PermutationCheckDataTarget<D>>,
+    ctl_vars: &[CtlCheckVarsTarget<F, D>],
+    consumer: &mut RecursiveConstraintConsumer<F, D>,
+) where
+    F: RichField + Extendable<D>,
+    S: Stark<F, D>,
+    [(); S::COLUMNS]:, {
+    stark.eval_ext_circuit(builder, vars, consumer);
+    if let Some(permutation_data) = permutation_data {
+        eval_permutation_checks_circuit::<F, S, D>(
+            builder,
+            stark,
+            config,
+            vars,
+            permutation_data,
+            consumer,
+        );
+    }
+    eval_cross_table_lookup_checks_circuit::<S, F, D>(builder, vars, ctl_vars, consumer);
 }

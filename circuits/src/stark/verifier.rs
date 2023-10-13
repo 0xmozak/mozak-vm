@@ -64,13 +64,17 @@ where
     } = mozak_stark;
 
     ensure!(
-        all_proof.stark_proofs[TableKind::Program as usize].trace_cap
+        all_proof.stark_proofs[TableKind::Program as usize]
+            .proof
+            .trace_cap
             == all_proof.program_rom_trace_cap,
         "Mismatch between Program ROM trace caps"
     );
 
     ensure!(
-        all_proof.stark_proofs[TableKind::MemoryInit as usize].trace_cap
+        all_proof.stark_proofs[TableKind::MemoryInit as usize]
+            .proof
+            .trace_cap
             == all_proof.memory_init_trace_cap,
         "Mismatch between MemoryInit trace caps"
     );
@@ -84,7 +88,7 @@ where
 
     verify_stark_proof_with_challenges::<F, C, CpuStark<F, D>, D>(
         &cpu_stark,
-        &all_proof.stark_proofs[TableKind::Cpu as usize],
+        &all_proof.stark_proofs[TableKind::Cpu as usize].proof,
         &stark_challenges[TableKind::Cpu as usize],
         all_proof.public_inputs.into(),
         &ctl_vars_per_table[TableKind::Cpu as usize],
@@ -93,7 +97,7 @@ where
 
     verify_stark_proof_with_challenges::<F, C, RangeCheckStark<F, D>, D>(
         &rangecheck_stark,
-        &all_proof.stark_proofs[TableKind::RangeCheck as usize],
+        &all_proof.stark_proofs[TableKind::RangeCheck as usize].proof,
         &stark_challenges[TableKind::RangeCheck as usize],
         [],
         &ctl_vars_per_table[TableKind::RangeCheck as usize],
@@ -102,7 +106,7 @@ where
 
     verify_stark_proof_with_challenges::<F, C, XorStark<F, D>, D>(
         &xor_stark,
-        &all_proof.stark_proofs[TableKind::Xor as usize],
+        &all_proof.stark_proofs[TableKind::Xor as usize].proof,
         &stark_challenges[TableKind::Xor as usize],
         [],
         &ctl_vars_per_table[TableKind::Xor as usize],
@@ -111,7 +115,7 @@ where
 
     verify_stark_proof_with_challenges::<F, C, BitshiftStark<F, D>, D>(
         &shift_amount_stark,
-        &all_proof.stark_proofs[TableKind::Bitshift as usize],
+        &all_proof.stark_proofs[TableKind::Bitshift as usize].proof,
         &stark_challenges[TableKind::Bitshift as usize],
         [],
         &ctl_vars_per_table[TableKind::Bitshift as usize],
@@ -120,7 +124,7 @@ where
 
     verify_stark_proof_with_challenges::<F, C, ProgramStark<F, D>, D>(
         &program_stark,
-        &all_proof.stark_proofs[TableKind::Program as usize],
+        &all_proof.stark_proofs[TableKind::Program as usize].proof,
         &stark_challenges[TableKind::Program as usize],
         [],
         &ctl_vars_per_table[TableKind::Program as usize],
@@ -129,7 +133,7 @@ where
 
     verify_stark_proof_with_challenges::<F, C, MemoryStark<F, D>, D>(
         &memory_stark,
-        &all_proof.stark_proofs[TableKind::Memory as usize],
+        &all_proof.stark_proofs[TableKind::Memory as usize].proof,
         &stark_challenges[TableKind::Memory as usize],
         [],
         &ctl_vars_per_table[TableKind::Memory as usize],
@@ -138,7 +142,7 @@ where
 
     verify_stark_proof_with_challenges::<F, C, MemoryInitStark<F, D>, D>(
         &memory_init_stark,
-        &all_proof.stark_proofs[TableKind::MemoryInit as usize],
+        &all_proof.stark_proofs[TableKind::MemoryInit as usize].proof,
         &stark_challenges[TableKind::MemoryInit as usize],
         [],
         &ctl_vars_per_table[TableKind::MemoryInit as usize],
@@ -147,7 +151,7 @@ where
 
     verify_stark_proof_with_challenges::<F, C, RangeCheckLimbStark<F, D>, D>(
         &rangecheck_limb_stark,
-        &all_proof.stark_proofs[TableKind::RangeCheckLimb as usize],
+        &all_proof.stark_proofs[TableKind::RangeCheckLimb as usize].proof,
         &stark_challenges[TableKind::RangeCheckLimb as usize],
         [],
         &ctl_vars_per_table[TableKind::RangeCheckLimb as usize],
