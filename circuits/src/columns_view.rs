@@ -154,6 +154,8 @@ macro_rules! columns_view_impl {
 }
 pub(crate) use columns_view_impl;
 
+/// Implement a static `MAP` of the ColumnsView from an array [0,1,2...] where
+/// the length of the array is equal to [NumberOfColumns] of the ColumnsView
 macro_rules! make_col_map {
     ($s: ident) => {
         lazy_static::lazy_static! {
@@ -169,6 +171,7 @@ macro_rules! make_col_map {
 }
 pub(crate) use make_col_map;
 
+/// Return a selector that is only active at index `which`
 #[must_use]
 pub fn selection<T: IndexMut<usize, Output = u32> + Default>(which: usize) -> T {
     let mut selectors = T::default();

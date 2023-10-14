@@ -15,8 +15,11 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 /// Represent a linear combination of columns.
 #[derive(Clone, Debug, Default)]
 pub struct Column<F: Field> {
+    /// Linear combination of the local row
     lv_linear_combination: Vec<(usize, F)>,
+    /// Linear combination of the next row
     nv_linear_combination: Vec<(usize, F)>,
+    /// Constant of linear combination
     constant: F,
 }
 
