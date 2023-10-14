@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use itertools::Itertools;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::fri::oracle::PolynomialBatch;
@@ -13,7 +15,9 @@ use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
-use serde::{Deserialize, Serialize};
+use serde::de::{SeqAccess, Visitor};
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starky::config::StarkConfig;
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
@@ -362,18 +366,21 @@ impl<const D: usize> StarkOpeningSetTarget<D> {
 
 /// A `StarkProof` along with some metadata about the initial Fiat-Shamir state,
 /// which is used when creating a recursive wrapper proof around a STARK proof.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound = "")]
 pub struct StarkProofWithMetadata<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    // TODO: Support serialization of `init_challenger_state`.
+    #[serde(skip)]
     pub(crate) init_challenger_state: <C::Hasher as Hasher<F>>::Permutation,
     // TODO: set it back to pub(crate) when cpu trace len is a public input
     pub proof: StarkProof<F, C, D>,
 }
 
-#[derive(Debug, Clone)]
-#[allow(clippy::module_name_repetitions)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(bound = "")]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     pub stark_proofs: [StarkProofWithMetadata<F, C, D>; NUM_TABLES],
     pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,

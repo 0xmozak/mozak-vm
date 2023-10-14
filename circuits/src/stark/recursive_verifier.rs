@@ -153,16 +153,15 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
 /// Represents a circuit which recursively verifies a STARK proof.
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) struct StarkWrapperCircuit<F, C, const D: usize>
-    where
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F>,
-        C::Hasher: AlgebraicHasher<F>,
-{
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    C::Hasher: AlgebraicHasher<F>, {
     pub(crate) circuit: CircuitData<F, C, D>,
     pub(crate) stark_proof_target: StarkProofTarget<D>,
     pub(crate) ctl_challenges_target: GrandProductChallengeSet<Target>,
     pub(crate) init_challenger_state_target:
-    <C::Hasher as AlgebraicHasher<F>>::AlgebraicPermutation,
+        <C::Hasher as AlgebraicHasher<F>>::AlgebraicPermutation,
     pub(crate) zero_target: Target,
 }
 
@@ -248,6 +247,8 @@ pub(crate) fn recursive_stark_circuit<
 ) -> StarkWrapperCircuit<F, C, D>
 where
     [(); S::COLUMNS]:,
+    [(); S::PUBLIC_INPUTS]:,
+    [(); C::Hasher::HASH_SIZE]:,
     C::Hasher: AlgebraicHasher<F>, {
     let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
     let zero_target = builder.zero();
@@ -256,10 +257,16 @@ where
     let num_permutation_batch_size = stark.permutation_batch_size();
     let num_ctl_zs =
         CrossTableLookup::num_ctl_zs(cross_table_lookups, table, inner_config.num_challenges);
-    let proof_target =
-        add_virtual_stark_proof(&mut builder, stark, inner_config, degree_bits, num_ctl_zs);
+    let proof_target = add_virtual_stark_proof_with_pis(
+        &mut builder,
+        stark,
+        inner_config,
+        degree_bits,
+        num_ctl_zs,
+    );
     builder.register_public_inputs(
         &proof_target
+            .proof
             .trace_cap
             .0
             .iter()
@@ -278,7 +285,7 @@ where
 
     let ctl_vars = CtlCheckVarsTarget::from_proof(
         table,
-        &proof_target,
+        &proof_target.proof,
         cross_table_lookups,
         &ctl_challenges_target,
         num_permutation_zs,
@@ -290,7 +297,7 @@ where
         }));
     let mut challenger =
         RecursiveChallenger::<F, C::Hasher, D>::from_state(init_challenger_state_target);
-    let challenges = proof_target.get_challenges::<F, C>(
+    let challenges = proof_target.proof.get_challenges::<F, C>(
         &mut builder,
         &mut challenger,
         num_permutation_zs > 0,
@@ -300,7 +307,7 @@ where
     let challenger_state = challenger.compact(&mut builder);
     builder.register_public_inputs(challenger_state.as_ref());
 
-    builder.register_public_inputs(&proof_target.openings.ctl_zs_last);
+    builder.register_public_inputs(&proof_target.proof.openings.ctl_zs_last);
 
     verify_stark_proof_with_challenges_circuit::<F, C, _, D>(
         &mut builder,
@@ -321,7 +328,7 @@ where
     let circuit = builder.build::<C>();
     StarkWrapperCircuit {
         circuit,
-        stark_proof_target: proof_target,
+        stark_proof_target: proof_target.proof,
         ctl_challenges_target,
         init_challenger_state_target,
         zero_target,
@@ -355,7 +362,9 @@ fn verify_stark_proof_with_challenges_circuit<
     inner_config: &StarkConfig,
 ) where
     C::Hasher: AlgebraicHasher<F>,
-    [(); S::COLUMNS]:, {
+    [(); S::COLUMNS]:,
+    [(); S::PUBLIC_INPUTS]:,
+    [(); C::Hasher::HASH_SIZE]:, {
     let zero = builder.zero();
     let one = builder.one_extension();
 
@@ -367,10 +376,18 @@ fn verify_stark_proof_with_challenges_circuit<
         ctl_zs_last,
         quotient_polys,
     } = &proof.proof.openings;
+
+    let default_target = Target::default();
+    let mut public_inputs_array: [ExtensionTarget<D>; S::PUBLIC_INPUTS] =
+        unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+    for input in public_inputs_array.iter_mut() {
+        *input = ExtensionTarget([default_target; D]);
+    }
+
     let vars = StarkEvaluationTargets {
         local_values: &local_values.to_vec().try_into().unwrap(),
         next_values: &next_values.to_vec().try_into().unwrap(),
-        public_inputs: &proof.public_inputs.try_into().unwrap(),
+        public_inputs: &public_inputs_array,
     };
 
     let degree_bits = proof.proof.recover_degree_bits(inner_config);
@@ -467,6 +484,25 @@ fn eval_l_0_and_l_last_circuit<F: RichField + Extendable<D>, const D: usize>(
         builder.div_extension(z_x, l_0_deno),
         builder.div_extension(z_x, l_last_deno),
     )
+}
+
+pub(crate) fn add_virtual_stark_proof_with_pis<
+    F: RichField + Extendable<D>,
+    S: Stark<F, D>,
+    const D: usize,
+>(
+    builder: &mut CircuitBuilder<F, D>,
+    stark: &S,
+    config: &StarkConfig,
+    degree_bits: usize,
+    num_ctl_zs: usize,
+) -> StarkProofWithPublicInputsTarget<D> {
+    let proof = add_virtual_stark_proof::<F, S, D>(builder, stark, config, degree_bits, num_ctl_zs);
+    let public_inputs = builder.add_virtual_targets(S::PUBLIC_INPUTS);
+    StarkProofWithPublicInputsTarget {
+        proof,
+        public_inputs,
+    }
 }
 
 pub(crate) fn add_virtual_stark_proof<

@@ -17,7 +17,7 @@ use thiserror::Error;
 pub use crate::linear_combination::Column;
 use crate::stark::mozak_stark::{Table, TableKind, NUM_TABLES};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
-use crate::stark::proof::{ StarkProofTarget, StarkProofWithMetadata};
+use crate::stark::proof::{StarkProofTarget, StarkProofWithMetadata};
 
 #[derive(Error, Debug)]
 pub enum LookupError {
