@@ -3,6 +3,7 @@ use core::ops::Add;
 use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
+use crate::linear_combination::Column;
 
 columns_view_impl!(Register);
 make_col_map!(Register);
@@ -92,3 +93,9 @@ pub struct Register<T> {
 impl<T: Add<Output = T>> Register<T> {
     pub fn is_used(self) -> T { self.ops.is_init + self.ops.is_read + self.ops.is_write }
 }
+
+#[must_use]
+pub fn data_for_register_init<F: Field>() -> Vec<Column<F>> { Column::singles([MAP.addr]) }
+
+#[must_use]
+pub fn filter_for_register_init<F: Field>() -> Column<F> { Column::from(MAP.ops.is_init) }

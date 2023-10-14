@@ -22,8 +22,8 @@ use plonky2::util::reducing::ReducingFactorTarget;
 use plonky2::with_context;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::RecursiveConstraintConsumer;
+use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
-use starky::vars::StarkEvaluationTargets;
 
 use crate::cross_table_lookup::{verify_cross_table_lookups, CrossTableLookup, CtlCheckVarsTarget};
 use crate::stark::mozak_stark::{TableKind, NUM_TABLES};
@@ -246,9 +246,6 @@ pub(crate) fn recursive_stark_circuit<
     min_degree_bits: usize,
 ) -> StarkWrapperCircuit<F, C, D>
 where
-    [(); S::COLUMNS]:,
-    [(); S::PUBLIC_INPUTS]:,
-    [(); C::Hasher::HASH_SIZE]:,
     C::Hasher: AlgebraicHasher<F>, {
     let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
     let zero_target = builder.zero();
@@ -361,10 +358,7 @@ fn verify_stark_proof_with_challenges_circuit<
     ctl_vars: &[CtlCheckVarsTarget<F, D>],
     inner_config: &StarkConfig,
 ) where
-    C::Hasher: AlgebraicHasher<F>,
-    [(); S::COLUMNS]:,
-    [(); S::PUBLIC_INPUTS]:,
-    [(); C::Hasher::HASH_SIZE]:, {
+    C::Hasher: AlgebraicHasher<F>, {
     let zero = builder.zero();
     let one = builder.one_extension();
 
@@ -377,18 +371,14 @@ fn verify_stark_proof_with_challenges_circuit<
         quotient_polys,
     } = &proof.proof.openings;
 
-    let default_target = Target::default();
-    let mut public_inputs_array: [ExtensionTarget<D>; S::PUBLIC_INPUTS] =
-        unsafe { std::mem::MaybeUninit::uninit().assume_init() };
-    for input in public_inputs_array.iter_mut() {
-        *input = ExtensionTarget([default_target; D]);
-    }
+    let converted_public_inputs: Vec<ExtensionTarget<D>> = proof
+        .public_inputs
+        .iter()
+        .map(|target| builder.convert_to_ext(*target)) // replace with actual conversion function/method
+        .collect();
 
-    let vars = StarkEvaluationTargets {
-        local_values: &local_values.to_vec().try_into().unwrap(),
-        next_values: &next_values.to_vec().try_into().unwrap(),
-        public_inputs: &public_inputs_array,
-    };
+    let vars =
+        S::EvaluationFrameTarget::from_values(local_values, next_values, &converted_public_inputs);
 
     let degree_bits = proof.proof.recover_degree_bits(inner_config);
     let zeta_pow_deg = builder.exp_power_of_2_extension(challenges.stark_zeta, degree_bits);
@@ -423,7 +413,7 @@ fn verify_stark_proof_with_challenges_circuit<
             builder,
             stark,
             inner_config,
-            vars,
+            &vars,
             permutation_data,
             ctl_vars,
             &mut consumer,

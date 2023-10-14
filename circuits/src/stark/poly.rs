@@ -12,8 +12,8 @@ use plonky2::util::{log2_ceil, transpose};
 use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
-use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::permutation::{eval_permutation_checks, PermutationCheckVars};
 use crate::cross_table_lookup::{
@@ -30,7 +30,7 @@ pub(crate) fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     trace_commitment: &'a PolynomialBatch<F, C, D>,
     permutation_ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
     permutation_challenges: &'a [GrandProductChallengeSet<F>],
-    public_inputs: [F; S::PUBLIC_INPUTS],
+    public_inputs: &[F],
     ctl_data: &CtlData<F>,
     alphas: &[F],
     degree_bits: usize,
@@ -41,9 +41,7 @@ where
     F: RichField + Extendable<D>,
     P: PackedField<Scalar = F>,
     C: GenericConfig<D, F = F>,
-    S: Stark<F, D>,
-    [(); S::COLUMNS]:,
-    [(); S::PUBLIC_INPUTS]:, {
+    S: Stark<F, D>, {
     let degree = 1 << degree_bits;
     let rate_bits = config.fri_config.rate_bits;
 
@@ -66,12 +64,8 @@ where
     let z_h_on_coset = ZeroPolyOnCoset::<F>::new(degree_bits, quotient_degree_bits);
 
     // Retrieve the LDE values at index `i`.
-    let get_trace_values_packed = |i_start| -> [P; S::COLUMNS] {
-        trace_commitment
-            .get_lde_values_packed(i_start, step)
-            .try_into()
-            .unwrap()
-    };
+    let get_trace_values_packed =
+        |i_start| -> Vec<P> { trace_commitment.get_lde_values_packed(i_start, step) };
 
     // Last element of the subgroup.
     let last = F::primitive_root_of_unity(degree_bits).inverse();
@@ -102,11 +96,11 @@ where
                 lagrange_basis_first,
                 lagrange_basis_last,
             );
-            let vars = StarkEvaluationVars {
-                local_values: &get_trace_values_packed(i_start),
-                next_values: &get_trace_values_packed(i_next_start),
-                public_inputs: &public_inputs,
-            };
+            let vars = StarkEvaluationFrame::from_values(
+                &get_trace_values_packed(i_start),
+                &get_trace_values_packed(i_next_start),
+                public_inputs,
+            );
             let permutation_check_vars = PermutationCheckVars {
                 local_zs: permutation_ctl_zs_commitment.get_lde_values_packed(i_start, step)
                     [..num_permutation_zs]
@@ -133,7 +127,7 @@ where
             eval_vanishing_poly::<F, F, P, S, D, 1>(
                 stark,
                 config,
-                vars,
+                &vars,
                 permutation_check_vars,
                 &ctl_vars,
                 &mut consumer,
@@ -165,7 +159,7 @@ where
 pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark: &S,
     config: &StarkConfig,
-    vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
+    vars: &S::EvaluationFrame<FE, P, D2>,
     permutation_vars: PermutationCheckVars<F, FE, P, D2>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
     consumer: &mut ConstraintConsumer<P>,
@@ -183,14 +177,13 @@ pub(crate) fn eval_vanishing_poly_circuit<F, S, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     stark: &S,
     config: &StarkConfig,
-    vars: StarkEvaluationTargets<D, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
+    vars: &S::EvaluationFrameTarget,
     permutation_data: Option<PermutationCheckDataTarget<D>>,
     ctl_vars: &[CtlCheckVarsTarget<F, D>],
     consumer: &mut RecursiveConstraintConsumer<F, D>,
 ) where
     F: RichField + Extendable<D>,
-    S: Stark<F, D>,
-    [(); S::COLUMNS]:, {
+    S: Stark<F, D>, {
     stark.eval_ext_circuit(builder, vars, consumer);
     if let Some(permutation_data) = permutation_data {
         eval_permutation_checks_circuit::<F, S, D>(

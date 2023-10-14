@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
-use crate::state::{Aux, State};
+use crate::state::{Aux, MemEntry, State};
 use crate::system::ecall;
 use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2};
 
@@ -60,23 +60,40 @@ pub fn remu(a: u32, b: u32) -> u32 {
 }
 
 #[must_use]
+pub fn dup(x: u32) -> (u32, u32) { (x, x) }
+
+#[must_use]
+pub fn lbu_raw(mem: &[u8; 4]) -> u32 { mem[0].into() }
+
+#[must_use]
+pub fn lbu(mem: &[u8; 4]) -> (u32, u32) { dup(lbu_raw(mem)) }
+
+#[must_use]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
-pub fn lb(mem: &[u8; 4]) -> u32 { i32::from(mem[0] as i8) as u32 }
+#[allow(clippy::cast_possible_truncation)]
+pub fn lb(mem: &[u8; 4]) -> (u32, u32) {
+    let raw = lbu_raw(mem);
+    (raw, i32::from(raw as i8) as u32)
+}
 
 #[must_use]
-pub fn lbu(mem: &[u8; 4]) -> u32 { mem[0].into() }
+pub fn lhu_raw(mem: &[u8; 4]) -> u32 { u16::from_le_bytes([mem[0], mem[1]]).into() }
+
+#[must_use]
+pub fn lhu(mem: &[u8; 4]) -> (u32, u32) { dup(lhu_raw(mem)) }
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
-pub fn lh(mem: &[u8; 4]) -> u32 { i32::from(i16::from_le_bytes([mem[0], mem[1]])) as u32 }
+#[allow(clippy::cast_possible_truncation)]
+pub fn lh(mem: &[u8; 4]) -> (u32, u32) {
+    let raw = lhu_raw(mem);
+    (raw, i32::from(raw as i16) as u32)
+}
 
 #[must_use]
-pub fn lhu(mem: &[u8; 4]) -> u32 { u16::from_le_bytes([mem[0], mem[1]]).into() }
-
-#[must_use]
-pub fn lw(mem: &[u8; 4]) -> u32 { u32::from_le_bytes(*mem) }
+pub fn lw(mem: &[u8; 4]) -> (u32, u32) { dup(u32::from_le_bytes(*mem)) }
 
 impl State {
     #[must_use]
@@ -92,63 +109,69 @@ impl State {
         )
     }
 
-    #[must_use]
+    fn ecall_halt(self) -> (Aux, Self) {
+        // Note: we don't advance the program counter for 'halt'.
+        // That is we treat 'halt' like an endless loop.
+        (
+            Aux {
+                will_halt: true,
+                ..Aux::default()
+            },
+            self.halt(),
+        )
+    }
+
     /// # Panics
     ///
     /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
     /// bytes.
-    /// Panics on executing PANIC syscall and also if vector to string
-    /// conversion fails.
+    fn ecall_io_read(self) -> (Aux, Self) {
+        let buffer_start = self.get_register_value(REG_A1);
+        let num_bytes_requsted = self.get_register_value(REG_A2);
+        let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
+        (
+            Aux::default(),
+            data.iter()
+                .enumerate()
+                .fold(updated_self, |updated_self, (i, byte)| {
+                    updated_self
+                        .store_u8(
+                            buffer_start
+                                .wrapping_add(u32::try_from(i).expect("cannot fit i into u32")),
+                            *byte,
+                        )
+                        .unwrap()
+                })
+                .set_register_value(
+                    REG_A0,
+                    u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
+                )
+                .bump_pc(),
+        )
+    }
+
+    /// # Panics
+    ///
+    /// Panics if Vec<u8> to string conversion fails.
+    fn ecall_panic(self) -> (Aux, Self) {
+        let msg_len = self.get_register_value(REG_A1);
+        let msg_ptr = self.get_register_value(REG_A2);
+        let mut msg_vec = vec![];
+        for addr in msg_ptr..(msg_ptr + msg_len) {
+            msg_vec.push(self.load_u8(addr));
+        }
+        panic!(
+            "VM panicked with msg: {}",
+            from_utf8(&msg_vec).expect("A valid utf8 VM panic message should be provided")
+        );
+    }
+
+    #[must_use]
     pub fn ecall(self) -> (Aux, Self) {
         match self.get_register_value(REG_A0) {
-            ecall::HALT => {
-                // Note: we don't advance the program counter for 'halt'.
-                // That is we treat 'halt' like an endless loop.
-                (
-                    Aux {
-                        will_halt: true,
-                        ..Aux::default()
-                    },
-                    self.halt(),
-                )
-            }
-            ecall::IO_READ => {
-                let buffer_start = self.get_register_value(REG_A1);
-                let num_bytes_requsted = self.get_register_value(REG_A2);
-                let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
-                (
-                    Aux::default(),
-                    data.iter()
-                        .enumerate()
-                        .fold(updated_self, |updated_self, (i, byte)| {
-                            updated_self
-                                .store_u8(
-                                    buffer_start.wrapping_add(
-                                        u32::try_from(i).expect("cannot fit i into u32"),
-                                    ),
-                                    *byte,
-                                )
-                                .unwrap()
-                        })
-                        .set_register_value(
-                            REG_A0,
-                            u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
-                        )
-                        .bump_pc(),
-                )
-            }
-            ecall::PANIC => {
-                let msg_len = self.get_register_value(REG_A1);
-                let msg_ptr = self.get_register_value(REG_A2);
-                let mut msg_vec = vec![];
-                for addr in msg_ptr..(msg_ptr + msg_len) {
-                    msg_vec.push(self.load_u8(addr));
-                }
-                panic!(
-                    "VM panicked with msg: {}",
-                    from_utf8(&msg_vec).expect("A valid utf8 VM panic message should be provided")
-                );
-            }
+            ecall::HALT => self.ecall_halt(),
+            ecall::IO_READ => self.ecall_io_read(),
+            ecall::PANIC => self.ecall_panic(),
             _ => (Aux::default(), self.bump_pc()),
         }
     }
@@ -160,17 +183,17 @@ impl State {
     /// TODO: Review the decision to panic.  We might also switch to using a
     /// Result, so that the caller can handle this.
     pub fn store(self, inst: &Args, bytes: u32) -> (Aux, Self) {
-        let dst_val: u32 = self.get_register_value(inst.rs1);
+        let raw_value: u32 = self.get_register_value(inst.rs1);
         let addr = self.get_register_value(inst.rs2).wrapping_add(inst.imm);
         (
             Aux {
-                dst_val,
-                mem_addr: Some(addr),
+                dst_val: raw_value,
+                mem: Some(MemEntry { addr, raw_value }),
                 ..Default::default()
             },
             (0..bytes)
                 .map(|i| addr.wrapping_add(i))
-                .zip(dst_val.to_le_bytes())
+                .zip(raw_value.to_le_bytes())
                 .fold(self, |acc, (i, byte)| acc.store_u8(i, byte).unwrap())
                 .bump_pc(),
         )
@@ -857,7 +880,7 @@ mod tests {
             );
             // lh will return [0, 1] as LSBs and will set MSBs to 0xFFFF
             let state = state_before_final(&e);
-            let memory_value = lh(
+            let (_, memory_value) = lh(
                 &[
                     state.load_u8(address),
                     state.load_u8(address.wrapping_add(1)),
@@ -887,7 +910,7 @@ mod tests {
             );
 
             let state = state_before_final(&e);
-            let memory_value = lw(
+            let (_, memory_value) = lw(
                 &[
                     state.load_u8(address),
                     state.load_u8(address.wrapping_add(1)),
