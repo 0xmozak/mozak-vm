@@ -21,9 +21,11 @@ def sample(min_value: int, max_value: int, mean: int = 0) -> int:
 
     value = None
     while value is None:
+        # by default, we use uniform distribution to sample
         value = int(distribution_sample())
-        if value >= min_value and value <= max_value:
-            break
+        # following line can be uncommented if we want to use lognormal distribution
+        # if value >= min_value and value <= max_value:
+        #     break
     return value
 
 
@@ -52,22 +54,6 @@ def bench(bench_function: str, parameter: int, cli_repo: Path) -> float:
     pattern = r"\d+\.\d+"
     time_taken = re.findall(pattern, stdout.decode())[0]
     return float(time_taken)
-
-
-# def bench_all_values(
-#     cli_repo: Path,
-#     bench_function: str,
-#     num_samples: int,
-#     min_value: int,
-#     max_value: int,
-#     mean: int = 0,
-# ) -> dict:
-#     data = {"values": [], "time_taken (in s)": []}
-#     for value in tqdm(sample(num_samples, min_value, max_value, mean)):
-#         time_taken = bench(bench_function, value, cli_repo)
-#         data["values"].append(value)
-#         data["time_taken (in s)"].append(time_taken)
-#     return data
 
 
 def sample_and_bench(
