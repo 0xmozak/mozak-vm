@@ -384,7 +384,11 @@ pub fn step<F: RichField>(
     })
 }
 
-fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
+///  # Panics
+///
+/// Panics if `PlonkyPermutation` is implemneted on `STATE_SIZE` different than
+/// 12.
+pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
     inputs: &[F],
 ) -> (HashOut<F>, Poseidon2SpongeData<F>) {
     let permute_and_record_data = |perm: &mut P, sponge_data: &mut Poseidon2SpongeData<F>| {
