@@ -1,3 +1,12 @@
 [workspace]
-members = ["fibonacci", "min-max", "memory-access", "panic", "static-mem-access", "sha2", "rkyv-serialization", "stdin"]
+members = [
+  "fibonacci",
+  "min-max",
+  "memory-access",
+  "panic",
+  "static-mem-access",
+  "sha2",
+  "rkyv-serialization",
+  "stdin",
+]
 resolver = "2"

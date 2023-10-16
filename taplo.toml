@@ -2,5 +2,5 @@
 [formatting]
 align_comments = false
 array_auto_collapse = false
-array_auto_expand = false
+array_auto_expand = true # for easier diff viewing.
 reorder_keys = true
