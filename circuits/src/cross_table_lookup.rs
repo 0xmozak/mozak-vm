@@ -175,11 +175,12 @@ fn partial_products<F: Field>(
             challenge.combine(evals.iter())
         } else {
             assert_eq!(filter, F::ZERO, "Non-binary filter?");
-            return F::ONE;
+            F::ONE
         }
     };
 
     let degree = trace[0].len();
+    // log::trace!("degree: {}", degree);
     let mut degrees = (0..degree).collect::<Vec<_>>();
     degrees.rotate_right(1);
     degrees

@@ -49,8 +49,8 @@ where
         cross_table_lookups,
         halfword_memory_stark,
         fullword_memory_stark,
-        poseidon2_stark,
         poseidon2_sponge_stark,
+        poseidon2_stark,
         ..
     } = mozak_stark;
 

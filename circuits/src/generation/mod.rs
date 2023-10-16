@@ -116,8 +116,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         fullword_memory_trace,
         register_init_trace,
         register_trace,
-        poseidon2_trace,
         poseidon2_sponge_trace,
+        poseidon2_trace,
     ]
 }
 
@@ -144,7 +144,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     public_inputs: &PublicInputs<F>,
 ) {
-    let [cpu, rangecheck, xor, shift_amount, program, memory, memory_init, rangecheck_limb, halfword_memory, fullword_memory, register_init, register, poseidon2, poseidon2_sponge] =
+    let [cpu, rangecheck, xor, shift_amount, program, memory, memory_init, rangecheck_limb, halfword_memory, fullword_memory, register_init, register, poseidon2_sponge, poseidon2] =
         traces_poly_values;
     assert!(
         [
@@ -204,14 +204,14 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
                 register,
                 &[],
             ),
-            debug_single_trace::<F, D, Poseidon2_12Stark<F, D>>(
-                &mozak_stark.poseidon2_stark,
-                poseidon2,
-                &[],
-            ),
             debug_single_trace::<F, D, Poseidon2SpongeStark<F, D>>(
                 &mozak_stark.poseidon2_sponge_stark,
                 poseidon2_sponge,
+                &[],
+            ),
+            debug_single_trace::<F, D, Poseidon2_12Stark<F, D>>(
+                &mozak_stark.poseidon2_stark,
+                poseidon2,
                 &[],
             ),
         ]

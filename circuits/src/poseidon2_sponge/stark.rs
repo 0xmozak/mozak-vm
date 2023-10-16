@@ -54,12 +54,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         is_binary(yield_constr, lv.ops.is_permute);
         is_binary(yield_constr, lv.is_exe);
 
-        // is_permute can't be dummy row
-        yield_constr.constraint((lv.is_exe - P::ONES) * (lv.ops.is_permute - P::ONES));
+        // dummy row as is_permute = 0 and is_init_permute = 0
+        yield_constr.constraint((lv.is_exe - P::ONES) * lv.ops.is_permute * lv.ops.is_init_permute);
 
-        // Except next row is init_permute, start_index is decresed by 8
+        // if current row is not dummy and next row is not is_init_permute
+        // start_index decreases by 8
         yield_constr.constraint(
-            (nv.ops.is_init_permute - P::ONES)
+            lv.is_exe
+                * (nv.ops.is_init_permute - P::ONES)
                 * (lv.start_index - (nv.start_index + P::Scalar::from_canonical_u8(8))),
         );
 

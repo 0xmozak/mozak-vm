@@ -226,8 +226,8 @@ table_impl!(HalfWordMemoryTable, TableKind::HalfWordMemory);
 table_impl!(FullWordMemoryTable, TableKind::FullWordMemory);
 table_impl!(RegisterInitTable, TableKind::RegisterInit);
 table_impl!(RegisterTable, TableKind::Register);
-table_impl!(Poseidon2Table, TableKind::Poseidon2);
 table_impl!(Poseidon2SpongeTable, TableKind::Poseidon2Sponge);
+table_impl!(Poseidon2Table, TableKind::Poseidon2);
 
 pub trait Lookups<F: Field> {
     fn lookups() -> CrossTableLookup<F>;
