@@ -47,6 +47,7 @@ pub type F = <C as GenericConfig<D>>::F;
 #[must_use]
 pub fn standard_faster_config() -> StarkConfig {
     let config = StarkConfig::standard_fast_config();
+    // return config;
     StarkConfig {
         security_bits: 1,
         num_challenges: 2,

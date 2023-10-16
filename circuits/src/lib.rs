@@ -23,7 +23,7 @@ pub mod rangecheck_limb;
 pub mod register;
 pub mod registerinit;
 pub mod stark;
-#[cfg(any(feature = "test", test))]
+// #[cfg(any(feature = "test", test, bench))]
 pub mod test_utils;
 pub mod utils;
 pub mod xor;

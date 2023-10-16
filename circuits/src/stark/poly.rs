@@ -80,6 +80,10 @@ where
             let i_next_start = (i_start + next_step) % size;
             let i_range = i_start..i_start + P::WIDTH;
 
+            println!("P::WIDTH: {:?}", P::WIDTH);
+            println!("i_range: {:?}", i_range);
+            println!("coset: {} {:?}", coset.len(), coset);
+            // let x = *P::from_slice(&coset[i_range.clone()]);
             let x = *P::from_slice(&coset[i_range.clone()]);
             let z_last = x - last;
             let lagrange_basis_first = *P::from_slice(&lagrange_first.values[i_range.clone()]);
