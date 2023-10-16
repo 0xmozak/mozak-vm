@@ -27,8 +27,8 @@ jobs:
       - name: Install rust toolkit
         uses: ./.github/actions/rust
 
-      - name: Build benchmark ELF
-        run: cd examples/fibonacci && cargo build
+      - name: Build ELF(s) for benchmarking
+        run: cd examples/fibonacci && cargo build --release
 
       - name: Run tests
         run: cargo nextest run --locked --all-targets
