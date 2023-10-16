@@ -115,7 +115,7 @@ fn generate_poseidon2_states<F: RichField>(
 
 #[must_use]
 pub fn generate_poseidon2_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<Poseidon2State<F>> {
-    pad_trace(
+    let trace = pad_trace(
         step_rows
             .iter()
             .filter(|row| row.aux.poseidon2.is_some())
@@ -127,7 +127,9 @@ pub fn generate_poseidon2_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<Posei
             .into_iter()
             .flatten()
             .collect::<Vec<Poseidon2State<F>>>(),
-    )
+    );
+    log::trace!("Poseison2 trace {:?}", trace);
+    trace
 }
 
 #[cfg(test)]

@@ -1,4 +1,6 @@
 use plonky2::field::types::Field;
+use plonky2::hash::hash_types::RichField;
+use plonky2::hash::poseidon2::Poseidon2;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::linear_combination::Column;
@@ -11,7 +13,7 @@ pub struct Ops<T> {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Poseidon2Sponge<T> {
     pub clk: T,
     pub ops: Ops<T>,
@@ -20,6 +22,20 @@ pub struct Poseidon2Sponge<T> {
     pub preimage: [T; 12],
     pub output: [T; 12],
     pub is_exe: T,
+}
+
+impl<F: RichField> Default for Poseidon2Sponge<F> {
+    fn default() -> Self {
+        Self {
+            clk: F::default(),
+            ops: Ops::<F>::default(),
+            addr: F::default(),
+            start_index: F::default(),
+            preimage: [F::default(); 12],
+            output: <F as Poseidon2>::poseidon2([F::default(); 12]),
+            is_exe: F::default(),
+        }
+    }
 }
 
 columns_view_impl!(Poseidon2Sponge);

@@ -175,7 +175,7 @@ fn partial_products<F: Field>(
             challenge.combine(evals.iter())
         } else {
             assert_eq!(filter, F::ZERO, "Non-binary filter?");
-            F::ONE
+            return F::ONE;
         }
     };
 

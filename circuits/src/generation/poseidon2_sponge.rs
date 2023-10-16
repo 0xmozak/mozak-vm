@@ -59,12 +59,14 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
 pub fn generate_poseidon2_sponge_trace<F: RichField>(
     step_rows: &[Row<F>],
 ) -> Vec<Poseidon2Sponge<F>> {
-    pad_poseidon2_sponge_trace(
+    let trace = pad_poseidon2_sponge_trace(
         filter(step_rows)
             .map(|s| unroll_sponge_data(s))
             .collect_vec()
             .into_iter()
             .flatten()
             .collect::<Vec<Poseidon2Sponge<F>>>(),
-    )
+    );
+    log::trace!("Poseidon2 Sponge trace {:?}", trace);
+    trace
 }
