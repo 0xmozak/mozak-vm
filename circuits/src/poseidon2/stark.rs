@@ -14,6 +14,7 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::Poseidon2State;
+use crate::display::derive_display_stark_name;
 use crate::poseidon2::columns::{NUM_POSEIDON2_COLS, ROUNDS_F, ROUNDS_P, SBOX_DEGREE, STATE_SIZE};
 use crate::stark::utils::is_binary;
 
@@ -181,16 +182,11 @@ where
     out
 }
 
+derive_display_stark_name!(Poseidon2_12Stark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct Poseidon2_12Stark<F, const D: usize> {
     pub _f: PhantomData<F>,
-}
-
-impl<F, const D: usize> Display for Poseidon2_12Stark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Poseidon2_12Stark")
-    }
 }
 
 const COLUMNS: usize = NUM_POSEIDON2_COLS;

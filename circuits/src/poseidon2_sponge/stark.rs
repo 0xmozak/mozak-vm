@@ -11,19 +11,15 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::NUM_POSEIDON2_SPONGE_COLS;
+use crate::display::derive_display_stark_name;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::stark::utils::is_binary;
 
+derive_display_stark_name!(Poseidon2SpongeStark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct Poseidon2SpongeStark<F, const D: usize> {
     pub _f: PhantomData<F>,
-}
-
-impl<F, const D: usize> Display for Poseidon2SpongeStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Poseidon2SpongeStark")
-    }
 }
 
 const COLUMNS: usize = NUM_POSEIDON2_SPONGE_COLS;
