@@ -12,17 +12,13 @@ use starky::stark::Stark;
 
 use super::columns::RangeCheckLimb;
 use crate::columns_view::NumberOfColumns;
+use crate::display::derive_display_stark_name;
 
+derive_display_stark_name!(RangeCheckLimbStark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RangeCheckLimbStark<F, const D: usize> {
     pub _f: PhantomData<F>,
-}
-
-impl<F, const D: usize> Display for RangeCheckLimbStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "RangeCheckLimbStark")
-    }
 }
 
 const COLUMNS: usize = RangeCheckLimb::<()>::NUMBER_OF_COLUMNS;
@@ -54,7 +50,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckLim
         yield_constr.constraint_last_row(lv.element - FE::from_canonical_u8(u8::MAX));
     }
 
-    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,

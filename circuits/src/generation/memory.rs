@@ -188,6 +188,7 @@ mod tests {
     // which perform store byte (SB) and load byte unsigned (LBU) operations
     // to memory and then checks if the memory trace is generated correctly.
     #[test]
+    #[rustfmt::skip]
     fn generate_memory_trace() {
         let (program, record) = memory_trace_test_case(1);
 
@@ -207,7 +208,6 @@ mod tests {
         let inv = inv::<F>;
         assert_eq!(
             trace,
-            #[rustfmt::skip]
             prep_table(vec![
                 //is_writable  addr   clk  is_sb, is_lbu, is_init  value  diff_addr  diff_addr_inv  diff_clk
                 [       1,     100,   0,     0,     0,       1,        0,    100,     inv(100),            0],  // Memory Init: 100
@@ -231,6 +231,7 @@ mod tests {
     }
 
     #[test]
+    #[rustfmt::skip]
     fn generate_memory_trace_only_init() {
         let program = Program {
             ro_memory: Data(
@@ -262,7 +263,6 @@ mod tests {
         );
 
         let inv = inv::<F>;
-        #[rustfmt::skip]
         assert_eq!(trace, prep_table(vec![
             // is_writable   addr   clk  is_sb, is_lbu, is_init   value  diff_addr  diff_addr_inv  diff_clk
             [        0,      100,   0,      0,    0,    1,       5,    100,    inv(100),             0],

@@ -12,19 +12,16 @@ use starky::stark::Stark;
 
 use super::columns::RegisterInit;
 use crate::columns_view::NumberOfColumns;
+use crate::display::derive_display_stark_name;
 use crate::stark::utils::is_binary;
 
+derive_display_stark_name!(RegisterInitStark);
 #[derive(Clone, Copy, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RegisterInitStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F, const D: usize> Display for RegisterInitStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "RegisterInitStark")
-    }
-}
 const COLUMNS: usize = RegisterInit::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
@@ -54,7 +51,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterInitS
         is_binary(yield_constr, lv.is_looked_up);
     }
 
-    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,
