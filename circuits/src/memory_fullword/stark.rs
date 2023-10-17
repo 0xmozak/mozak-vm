@@ -10,9 +10,11 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
+use crate::display::derive_display_stark_name;
 use crate::memory_fullword::columns::{FullWordMemory, NUM_HW_MEM_COLS};
 use crate::stark::utils::is_binary;
 
+derive_display_stark_name!(FullWordMemoryStark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct FullWordMemoryStark<F, const D: usize> {
@@ -66,12 +68,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for FullWordMemor
     }
 
     fn constraint_degree(&self) -> usize { 3 }
-}
-
-impl<F, const D: usize> Display for FullWordMemoryStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "FullWordMemoryStark")
-    }
 }
 
 #[cfg(test)]
