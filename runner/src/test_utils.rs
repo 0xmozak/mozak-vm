@@ -84,6 +84,7 @@ pub fn simple_test_code(
     simple_test_code_with_ro_memory(code, &[], rw_mem, regs, &[])
 }
 
+#[must_use]
 #[allow(clippy::missing_panics_doc)]
 pub fn simple_test_code_with_io_tape(
     code: &[Instruction],

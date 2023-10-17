@@ -135,7 +135,7 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 1),                        // A2 - size
             ],
-            &[content.clone()],
+            &[content],
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
