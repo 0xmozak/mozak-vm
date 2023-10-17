@@ -72,6 +72,7 @@ impl Lookup {
                 - vars.local_values[self.multiplicity_column]
                     * lookup_vars.local_values[offset + num_helper_columns - 2];
             yield_constr.constraint(next_z - z - y);
+            // println!("lookup vars: {:?}", lookup_vars.local_values);
         }
     }
 
@@ -118,7 +119,7 @@ impl Lookup {
         let multiplicities = &trace_poly_values[self.multiplicity_column].values;
         let mut z = Vec::with_capacity(multiplicities.len());
         z.push(F::ZERO);
-        for i in 0..multiplicities.len() - 1 {
+        for i in 0..multiplicities.len() {
             // This expression asserts Lemma 5 within the paper:
             // 1 / (x + f(x)) - m(x) / (x + t(x)) = 0
             let x = helper_columns[..self.looking_columns.len()]
@@ -127,7 +128,12 @@ impl Lookup {
                 .sum::<F>()
                 // We multiply m(x) into the helper column we calculated above.
                 - multiplicities[i] * helper_columns.last().unwrap().values[i];
-            z.push(z[i] + x);
+            if i!=multiplicities.len() - 1{
+                z.push(z[i] + x);
+            }
+            else {
+                assert_eq!(z[i] + x, F::ZERO);
+            }
         }
         helper_columns.push(z.into());
 
