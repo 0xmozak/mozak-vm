@@ -33,7 +33,6 @@ use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProduc
 use crate::stark::permutation::compute_permutation_z_polys;
 use crate::stark::poly::compute_quotient_polys;
 use crate::stark::proof::StarkProofWithMetadata;
-use crate::xor::stark::XorStark;
 
 pub fn prove<F, C, const D: usize>(
     program: &Program,

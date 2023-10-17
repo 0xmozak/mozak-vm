@@ -16,7 +16,7 @@ use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierCircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
-use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
+use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::log2_ceil;
 use plonky2::util::reducing::ReducingFactorTarget;
 use plonky2::with_context;
@@ -204,32 +204,6 @@ where
     }
 }
 
-/// Represents a circuit which recursively verifies a PLONK proof.
-#[derive(Eq, PartialEq, Debug)]
-pub(crate) struct PlonkWrapperCircuit<F, C, const D: usize>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
-    pub(crate) circuit: CircuitData<F, C, D>,
-    pub(crate) proof_with_pis_target: ProofWithPublicInputsTarget<D>,
-}
-
-impl<F, C, const D: usize> PlonkWrapperCircuit<F, C, D>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    C::Hasher: AlgebraicHasher<F>,
-{
-    pub(crate) fn prove(
-        &self,
-        proof: &ProofWithPublicInputs<F, C, D>,
-    ) -> Result<ProofWithPublicInputs<F, C, D>> {
-        let mut inputs = PartialWitness::new();
-        inputs.set_proof_with_pis_target(&self.proof_with_pis_target, proof);
-        self.circuit.prove(inputs)
-    }
-}
-
 /// Returns the recursive Stark circuit.
 pub(crate) fn recursive_stark_circuit<
     F: RichField + Extendable<D>,
@@ -367,7 +341,7 @@ fn verify_stark_proof_with_challenges_circuit<
         next_values,
         permutation_ctl_zs,
         permutation_ctl_zs_next,
-        ctl_zs_last,
+        ctl_zs_last: _,
         quotient_polys,
     } = &proof.proof.openings;
 
@@ -569,4 +543,74 @@ pub(crate) fn set_stark_proof_target<F, C: GenericConfig<D, F = F>, W, const D: 
     );
 
     set_fri_proof_target(witness, &proof_target.opening_proof, &proof.opening_proof);
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::simple_test_code;
+    use plonky2::plonk::circuit_data::CircuitConfig;
+    use plonky2::util::timing::TimingTree;
+
+    use crate::program::stark::ProgramStark;
+    use crate::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
+    use crate::stark::prover::prove;
+    use crate::stark::recursive_verifier::recursive_stark_circuit;
+    use crate::stark::verifier::verify_proof;
+    use crate::test_utils::{standard_faster_config, C, D, F};
+    use crate::utils::from_u32;
+
+    #[ignore]
+    #[test]
+    fn recursive_verify_program_stark() -> Result<()> {
+        type S = MozakStark<F, D>;
+        let stark = S::default();
+        let config = standard_faster_config();
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: 5,
+                    rs1: 6,
+                    rs2: 7,
+                    ..Args::default()
+                },
+            }],
+            &[],
+            &[(6, 100), (7, 200)],
+        );
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program.entry_point),
+        };
+
+        let all_proof = prove::<F, C, D>(
+            &program,
+            &record,
+            &stark,
+            &config,
+            public_inputs,
+            &mut TimingTree::default(),
+        )
+        .unwrap();
+        verify_proof(stark.clone(), all_proof.clone(), &config).unwrap();
+
+        type PS = ProgramStark<F, D>;
+        let circuit_config = CircuitConfig::standard_recursion_config();
+        let stark_wrapper = recursive_stark_circuit::<F, C, PS, D>(
+            TableKind::Program,
+            &stark.program_stark,
+            12,
+            &stark.cross_table_lookups,
+            &config,
+            &circuit_config,
+            12,
+        );
+
+        let proof = stark_wrapper.prove(
+            &all_proof.stark_proofs[TableKind::Program as usize],
+            &all_proof.get_challenges(&stark, &config).ctl_challenges,
+        )?;
+        stark_wrapper.circuit.verify(proof)
+    }
 }

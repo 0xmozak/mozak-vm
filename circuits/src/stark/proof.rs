@@ -1,5 +1,3 @@
-use std::fmt::Write;
-
 use itertools::Itertools;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::fri::oracle::PolynomialBatch;
@@ -15,9 +13,7 @@ use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
-use serde::de::{SeqAccess, Visitor};
-use serde::ser::SerializeStruct;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
@@ -139,7 +135,7 @@ impl<const D: usize> StarkProofTarget<D> {
         &self,
         builder: &mut CircuitBuilder<F, D>,
         challenger: &mut RecursiveChallenger<F, C::Hasher, D>,
-        stark_use_permutation: bool,
+        _stark_use_permutation: bool,
         stark_permutation_batch_size: usize,
         config: &StarkConfig,
     ) -> StarkProofChallengesTarget<D>

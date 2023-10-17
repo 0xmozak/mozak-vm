@@ -411,17 +411,8 @@ pub(crate) fn eval_cross_table_lookup_checks_circuit<
             filter_column,
         } = lookup_vars;
 
-        let one = builder.one_extension();
-        let local_filter = if let column = filter_column {
-            column.eval_circuit(builder, vars.get_local_values())
-        } else {
-            one
-        };
-        let next_filter = if let column = filter_column {
-            column.eval_circuit(builder, vars.get_next_values())
-        } else {
-            one
-        };
+        let local_filter = filter_column.eval_circuit(builder, vars.get_local_values());
+        let next_filter = filter_column.eval_circuit(builder, vars.get_next_values());
         fn select<F: RichField + Extendable<D>, const D: usize>(
             builder: &mut CircuitBuilder<F, D>,
             filter: ExtensionTarget<D>,
@@ -454,6 +445,7 @@ pub(crate) fn eval_cross_table_lookup_checks_circuit<
     }
 }
 
+#[allow(unused)]
 pub(crate) fn verify_cross_table_lookups_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     cross_table_lookups: Vec<CrossTableLookup<F>>,
