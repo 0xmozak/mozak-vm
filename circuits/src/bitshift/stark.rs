@@ -1,14 +1,14 @@
-use std::borrow::Borrow;
 use std::fmt::Display;
 use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
-use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{Bitshift, BitshiftView};
 use crate::columns_view::NumberOfColumns;
@@ -21,19 +21,27 @@ pub struct BitshiftStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
+const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
+const PUBLIC_INPUTS: usize = 0;
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark<F, D> {
-    const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
-    const PUBLIC_INPUTS: usize = 0;
+    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
+
+    where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>;
+    type EvaluationFrameTarget =
+        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
-        vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        vars: &Self::EvaluationFrame<FE, P, D2>,
         yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &BitshiftView<P> = vars.local_values.borrow();
-        let nv: &BitshiftView<P> = vars.next_values.borrow();
+        let lv: &BitshiftView<P> = vars.get_local_values().try_into().unwrap();
+        let nv: &BitshiftView<P> = vars.get_next_values().try_into().unwrap();
         let lv: &Bitshift<P> = &lv.executed;
         let nv: &Bitshift<P> = &nv.executed;
 
@@ -71,11 +79,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
 
     fn constraint_degree(&self) -> usize { 3 }
 
-    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,
-        _vars: StarkEvaluationTargets<D, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        _vars: &Self::EvaluationFrameTarget,
         _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         unimplemented!()
@@ -88,7 +95,7 @@ mod tests {
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{simple_test_code, u32_extra};
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use proptest::{prop_assert_eq, proptest};
     use starky::stark_testing::test_stark_low_degree;
 
@@ -97,7 +104,7 @@ mod tests {
     use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
-    type C = PoseidonGoldilocksConfig;
+    type C = Poseidon2GoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
     type S = BitshiftStark<F, D>;
 

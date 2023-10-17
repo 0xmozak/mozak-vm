@@ -19,9 +19,9 @@ use plonky2::util::reducing::ReducingFactor;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
+use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::permutation::PermutationPair;
 use starky::stark::Stark;
-use starky::vars::StarkEvaluationVars;
 
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 
@@ -303,7 +303,7 @@ where
 pub(crate) fn eval_permutation_checks<F, FE, P, S, const D: usize, const D2: usize>(
     stark: &S,
     config: &StarkConfig,
-    vars: StarkEvaluationVars<FE, P, { S::COLUMNS }, { S::PUBLIC_INPUTS }>,
+    vars: &S::EvaluationFrame<FE, P, D2>,
     permutation_vars: PermutationCheckVars<F, FE, P, D2>,
     consumer: &mut ConstraintConsumer<P>,
 ) where
@@ -353,7 +353,7 @@ pub(crate) fn eval_permutation_checks<F, FE, P, S, const D: usize, const D2: usi
                 let mut factor = ReducingFactor::new(*beta);
                 let (lhs, rhs): (Vec<_>, Vec<_>) = column_pairs
                     .iter()
-                    .map(|&(i, j)| (vars.local_values[i], vars.local_values[j]))
+                    .map(|&(i, j)| (vars.get_local_values()[i], vars.get_local_values()[j]))
                     .unzip();
                 (
                     factor.reduce_ext(lhs.into_iter()) + FE::from_basefield(*gamma),

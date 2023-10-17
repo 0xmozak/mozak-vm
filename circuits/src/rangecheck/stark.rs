@@ -4,10 +4,11 @@ use std::marker::PhantomData;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
-use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns;
 use crate::display::derive_display_stark_name;
@@ -19,9 +20,17 @@ pub struct RangeCheckStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
+const COLUMNS: usize = columns::NUM_RC_COLS;
+const PUBLIC_INPUTS: usize = 0;
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckStark<F, D> {
-    const COLUMNS: usize = columns::NUM_RC_COLS;
-    const PUBLIC_INPUTS: usize = 0;
+    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
+
+    where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>;
+    type EvaluationFrameTarget =
+        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
     // NOTE: Actual range check happens in RangeCheckLimbStark. A CrossTableLookup
     // between RangeCheckStark and others like MemoryStark and CpuStark ensure
@@ -30,18 +39,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     // in RangeCheckLimbStark.
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
-        _vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        _vars: &Self::EvaluationFrame<FE, P, D2>,
         _yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
     }
 
-    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,
-        _vars: StarkEvaluationTargets<D, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        _vars: &Self::EvaluationFrameTarget,
         _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         unimplemented!()

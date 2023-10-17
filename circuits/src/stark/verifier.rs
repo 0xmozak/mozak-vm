@@ -1,30 +1,24 @@
+use std::borrow::Borrow;
+
 use anyhow::{ensure, Result};
+use itertools::Itertools;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::types::Field;
 use plonky2::fri::verifier::verify_fri_proof;
 use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::config::{GenericConfig, Hasher};
+use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::plonk_common::reduce_with_powers;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
+use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
-use starky::vars::StarkEvaluationVars;
 
 use super::mozak_stark::{MozakStark, TableKind};
 use super::proof::AllProof;
-use crate::bitshift::stark::BitshiftStark;
-use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
-use crate::memory::stark::MemoryStark;
-use crate::memory_halfword::stark::HalfWordMemoryStark;
-use crate::memoryinit::stark::MemoryInitStark;
-// use crate::program::stark::ProgramStark;
-use crate::rangecheck::stark::RangeCheckStark;
-use crate::rangecheck_limb::stark::RangeCheckLimbStark;
 use crate::stark::permutation::PermutationCheckVars;
 use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
-use crate::xor::stark::XorStark;
 
 pub fn verify_proof<F, C, const D: usize>(
     mozak_stark: MozakStark<F, D>,
@@ -33,19 +27,7 @@ pub fn verify_proof<F, C, const D: usize>(
 ) -> Result<()>
 where
     F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    [(); CpuStark::<F, D>::COLUMNS]:,
-    [(); CpuStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); RangeCheckStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckStark::<F, D>::PUBLIC_INPUTS]:,
-    [(); XorStark::<F, D>::COLUMNS]:,
-    [(); BitshiftStark::<F, D>::COLUMNS]:,
-    // [(); ProgramStark::<F, D>::COLUMNS]:,
-    [(); MemoryStark::<F, D>::COLUMNS]:,
-    [(); MemoryInitStark::<F, D>::COLUMNS]:,
-    [(); RangeCheckLimbStark::<F, D>::COLUMNS]:,
-    [(); HalfWordMemoryStark::<F, D>::COLUMNS]:,
-    [(); C::Hasher::HASH_SIZE]:, {
+    C: GenericConfig<D, F = F>, {
     let AllProofChallenges {
         stark_challenges,
         ctl_challenges,
@@ -61,8 +43,11 @@ where
         memory_stark,
         memory_init_stark,
         rangecheck_limb_stark,
+        register_init_stark,
+        register_stark,
         cross_table_lookups,
         halfword_memory_stark,
+        fullword_memory_stark,
         ..
     } = mozak_stark;
 
@@ -98,16 +83,19 @@ where
         };
     }
 
-    verify!(cpu_stark, TableKind::Cpu, all_proof.public_inputs.into());
-    verify!(rangecheck_stark, TableKind::RangeCheck, []);
-    verify!(xor_stark, TableKind::Xor, []);
-    verify!(shift_amount_stark, TableKind::Bitshift, []);
-    verify!(program_stark, TableKind::Program, []);
-    verify!(memory_stark, TableKind::Memory, []);
-    verify!(memory_init_stark, TableKind::MemoryInit, []);
-    verify!(rangecheck_limb_stark, TableKind::RangeCheckLimb, []);
-    verify!(halfword_memory_stark, TableKind::HalfWordMemory, []);
+    verify!(cpu_stark, TableKind::Cpu, all_proof.public_inputs.borrow());
+    verify!(rangecheck_stark, TableKind::RangeCheck, &[]);
+    verify!(xor_stark, TableKind::Xor, &[]);
+    verify!(shift_amount_stark, TableKind::Bitshift, &[]);
+    verify!(program_stark, TableKind::Program, &[]);
+    verify!(memory_stark, TableKind::Memory, &[]);
+    verify!(memory_init_stark, TableKind::MemoryInit, &[]);
+    verify!(rangecheck_limb_stark, TableKind::RangeCheckLimb, &[]);
+    verify!(halfword_memory_stark, TableKind::HalfWordMemory, &[]);
+    verify!(fullword_memory_stark, TableKind::FullWordMemory, &[]);
 
+    verify!(register_init_stark, TableKind::RegisterInit, &[]);
+    verify!(register_stark, TableKind::Register, &[]);
     verify_cross_table_lookups::<F, D>(&cross_table_lookups, &all_proof.all_ctl_zs_last(), config)?;
     Ok(())
 }
@@ -121,14 +109,12 @@ pub(crate) fn verify_stark_proof_with_challenges<
     stark: &S,
     proof: &StarkProof<F, C, D>,
     challenges: &StarkProofChallenges<F, D>,
-    public_inputs: [F; S::PUBLIC_INPUTS],
+    public_inputs: &[F],
     ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
     config: &StarkConfig,
 ) -> Result<()>
 where
-    [(); S::COLUMNS]:,
-    [(); S::PUBLIC_INPUTS]:,
-    [(); C::Hasher::HASH_SIZE]:, {
+{
     validate_proof_shape(stark, proof, config, ctl_vars.len())?;
     let StarkOpeningSet {
         local_values,
@@ -139,16 +125,14 @@ where
         quotient_polys,
     } = &proof.openings;
 
-    let vars = StarkEvaluationVars {
-        local_values: &local_values.clone().try_into().unwrap(),
-        next_values: &next_values.clone().try_into().unwrap(),
-        public_inputs: &public_inputs
-            .into_iter()
-            .map(F::Extension::from_basefield)
-            .collect::<Vec<_>>()
-            .try_into()
-            .expect("mapping public inputs to the extension field should succeed"),
-    };
+    let vars = S::EvaluationFrame::from_values(
+        local_values,
+        next_values,
+        &public_inputs
+            .iter()
+            .map(|pi| F::Extension::from_basefield(*pi))
+            .collect_vec(),
+    );
 
     let degree_bits = proof.recover_degree_bits(config);
     let (l_0, l_last) = eval_l_0_and_l_last(degree_bits, challenges.stark_zeta);
@@ -173,7 +157,7 @@ where
     eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
         stark,
         config,
-        vars,
+        &vars,
         permutation_data,
         ctl_vars,
         &mut consumer,
@@ -236,9 +220,7 @@ fn validate_proof_shape<F, C, S, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
-    S: Stark<F, D>,
-    [(); S::COLUMNS]:,
-    [(); C::Hasher::HASH_SIZE]:, {
+    S: Stark<F, D>, {
     let StarkProof {
         trace_cap,
         permutation_ctl_zs_cap,

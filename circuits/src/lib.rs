@@ -1,10 +1,3 @@
-#![allow(incomplete_features)]
-#![feature(generic_const_exprs)]
-#![feature(stmt_expr_attributes)]
-#![feature(coverage_attribute)]
-#![feature(register_tool)]
-#![feature(bigint_helper_methods)]
-#![register_tool(tarpaulin)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
 // TODO: When things have settled a bit, and we make a big push to improve docs, we can remove these
@@ -22,6 +15,7 @@ pub mod display;
 pub mod generation;
 pub mod linear_combination;
 pub mod memory;
+pub mod memory_fullword;
 pub mod memory_halfword;
 pub mod memoryinit;
 pub mod program;

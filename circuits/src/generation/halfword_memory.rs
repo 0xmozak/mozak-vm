@@ -25,9 +25,12 @@ pub fn filter_memory_trace<'a>(
     program: &'a Program,
     step_rows: &'a [Row],
 ) -> impl Iterator<Item = &'a Row> {
-    step_rows
-        .iter()
-        .filter(|row| matches!(row.state.current_instruction(program).op, Op::LHU | Op::SH))
+    step_rows.iter().filter(|row| {
+        matches!(
+            row.state.current_instruction(program).op,
+            Op::LH | Op::LHU | Op::SH
+        )
+    })
 }
 
 #[must_use]
@@ -49,7 +52,7 @@ pub fn generate_halfword_memory_trace<F: RichField>(
                     ],
                     ops: Ops {
                         is_store: F::from_bool(matches!(op, Op::SH)),
-                        is_load: F::from_bool(matches!(op, Op::LHU)),
+                        is_load: F::from_bool(matches!(op, Op::LH | Op::LHU)),
                     },
                     limbs: [
                         F::from_canonical_u32(s.aux.dst_val & 0xFF),
