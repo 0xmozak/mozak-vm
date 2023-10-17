@@ -138,6 +138,9 @@ pub fn generate_memory_trace<F: RichField>(
         transform_io(io_memory_rows),
     )
     .collect();
+    for io in io_memory_rows {
+        println!("io: {:?}", io);
+    }
     merged_trace.sort_by_key(key);
 
     // Ensures constraints by filling remaining inter-row
@@ -158,7 +161,9 @@ pub fn generate_memory_trace<F: RichField>(
         }
         mem.is_writable = last_is_writable;
     }
-
+    for m in &merged_trace {
+        println!("m: {:?}", m);
+    }
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
     // of the trace.

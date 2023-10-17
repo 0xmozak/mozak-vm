@@ -158,6 +158,7 @@ pub struct CpuState<T> {
     pub io_size: T,
     pub is_io_store: T,
     pub is_io_load: T,
+    pub is_halt: T,
 }
 
 make_col_map!(CpuColumnsExtended);

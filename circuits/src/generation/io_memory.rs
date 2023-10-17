@@ -15,6 +15,9 @@ fn pad_io_mem_trace<F: RichField>(
     trace.resize(trace.len().next_power_of_two(), InputOutputMemory {
         ..Default::default()
     });
+    for t in &trace {
+        println!("t: {:?}", t);
+    }
     trace
 }
 
@@ -22,7 +25,7 @@ fn pad_io_mem_trace<F: RichField>(
 pub fn filter(step_rows: &[Row]) -> impl Iterator<Item = &Row> {
     step_rows.iter().filter(|row| {
         matches!(
-            row.aux.io.clone().unwrap_or_default().op,
+            row.aux.io.clone().unwrap_or_default().op, // TODO: fix - copy big amount of data
             IoOpcode::Load | IoOpcode::Store
         )
     })
@@ -39,12 +42,17 @@ pub fn generate_io_memory_trace<F: RichField>(
                 let io = s.aux.io.clone().unwrap_or_default();
                 let local_op = io.op;
                 let mut extended = vec![];
+                let value = if io.data.is_empty() {
+                    0
+                } else {
+                    *io.data.first().unwrap()
+                };
                 // initial io-element
-                extended.fill(InputOutputMemory {
+                extended.push(InputOutputMemory {
                     clk: get_memory_inst_clk(s),
                     addr: F::from_canonical_u32(io.addr),
                     size: F::from_canonical_u32(u32::try_from(io.data.len()).unwrap()),
-                    value: F::from_canonical_u8(*io.data.get(0).unwrap()),
+                    value: F::from_canonical_u8(value),
                     ops: Ops {
                         is_io_store: F::from_bool(matches!(local_op, IoOpcode::Store)),
                         is_io_load: F::from_bool(matches!(local_op, IoOpcode::Load)),
@@ -56,7 +64,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                 for (i, local_value) in io.data.iter().enumerate() {
                     let local_address = io.addr.wrapping_add(u32::try_from(i).unwrap());
                     let local_size = u32::try_from(io.data.len() - i - 1).unwrap();
-                    extended.fill(InputOutputMemory {
+                    extended.push(InputOutputMemory {
                         clk: get_memory_inst_clk(s),
                         addr: F::from_canonical_u32(local_address),
                         size: F::from_canonical_u32(local_size),
