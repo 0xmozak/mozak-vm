@@ -401,7 +401,7 @@ where
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-
+    use itertools::izip;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
     use mozak_runner::test_utils::simple_test_code;
@@ -470,17 +470,9 @@ mod tests {
     #[test]
     fn prove_poseidon2() {
         let data = "💥 Mozak-VM Rocks With Poseidon2";
-        let input_start_addr = 1024;
+        let input_start_addr: u32 = 1024;
         let output_start_addr = 2048;
-        let mut data_bytes = data.as_bytes().to_vec();
-        if data_bytes.len() % 32 != 0 {
-            data_bytes.resize(((data_bytes.len() / 32) + 1) * 32, 0);
-        }
-        let mut mem_bytes = vec![];
-        for bytes in data_bytes.chunks(4) {
-            mem_bytes.push(u32::from_ne_bytes(bytes.try_into().expect("can't fail")));
-        }
-        let memory: Vec<(u32, u32)> = (input_start_addr..).step_by(4).zip(mem_bytes).collect();
+        let memory: Vec<(u32, u8)> = izip!((input_start_addr..), data.bytes()).collect();
 
         let (program, record) = simple_test_code(
             &[Instruction {

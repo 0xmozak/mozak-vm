@@ -1,4 +1,3 @@
-use im::hashmap::HashMap;
 use plonky2::field::goldilocks_field::GoldilocksField;
 #[cfg(any(feature = "test", test))]
 use proptest::prelude::any;
@@ -24,8 +23,8 @@ pub fn state_before_final(e: &ExecutionRecord<GoldilocksField>) -> &State<Goldil
 #[allow(clippy::similar_names)]
 pub fn simple_test_code_with_ro_memory(
     code: &[Instruction],
-    ro_mem: &[(u32, u32)],
-    rw_mem: &[(u32, u32)],
+    ro_mem: &[(u32, u8)],
+    rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
     let _ = env_logger::try_init();
@@ -59,8 +58,8 @@ pub fn simple_test_code_with_ro_memory(
     );
 
     let program = Program {
-        ro_memory: Data::from(ro_mem.iter().copied().collect::<HashMap<u32, u32>>()),
-        rw_memory: Data::from(rw_mem.iter().copied().collect::<HashMap<u32, u32>>()),
+        ro_memory: Data(ro_mem.iter().copied().collect()),
+        rw_memory: Data(rw_mem.iter().copied().collect()),
         ro_code,
         ..Default::default()
     };
@@ -79,7 +78,7 @@ pub fn simple_test_code_with_ro_memory(
 #[allow(clippy::missing_panics_doc)]
 pub fn simple_test_code(
     code: &[Instruction],
-    rw_mem: &[(u32, u32)],
+    rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
     simple_test_code_with_ro_memory(code, &[], rw_mem, regs)
