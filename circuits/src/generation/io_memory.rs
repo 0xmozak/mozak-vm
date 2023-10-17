@@ -15,9 +15,6 @@ fn pad_io_mem_trace<F: RichField>(
     trace.resize(trace.len().next_power_of_two(), InputOutputMemory {
         ..Default::default()
     });
-    for t in &trace {
-        println!("t: {:?}", t);
-    }
     trace
 }
 

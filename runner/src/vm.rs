@@ -131,6 +131,7 @@ impl State {
         let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
         (
             Aux {
+                dst_val: u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
                 io: Some(IoEntry {
                     addr: buffer_start,
                     op: IoOpcode::Store,

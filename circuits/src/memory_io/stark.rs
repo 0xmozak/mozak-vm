@@ -80,7 +80,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
         unimplemented!()
     }
 
-    fn constraint_degree(&self) -> usize { 3 }
+    fn constraint_degree(&self) -> usize { 4 }
 }
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
@@ -123,13 +123,27 @@ mod tests {
             &[
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
-                    op: Op::ADD,
+                    op: Op::ECALL,
                     args: Args {
                         rd: REG_A0,
-                        imm: ecall::IO_READ,
                         ..Args::default()
                     },
                 },
+            ],
+            &[(imm.wrapping_add(offset), 0)],
+            &[
+                (REG_A0, ecall::IO_READ),
+                (REG_A1, imm.wrapping_add(offset)), // A1 - address
+                (REG_A2, 1),                        // A2 - size
+            ],
+            &[content.clone()],
+        );
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    pub fn prove_io_read_failed_stark<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
+        let (program, record) = simple_test_code_with_io_tape(
+            &[
                 Instruction {
                     op: Op::ADD,
                     args: Args {
@@ -142,60 +156,63 @@ mod tests {
                     op: Op::ADD,
                     args: Args {
                         rd: REG_A2,
-                        imm: 1,
+                        imm: 4,
+                        ..Args::default()
+                    },
+                },
+                // set sys-call IO_READ in x10(or a0)
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A0,
+                        imm: ecall::IO_READ,
                         ..Args::default()
                     },
                 },
                 // add ecall to io_read
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args {
+                        rd: REG_A0, // return size
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A0,
+                        imm: 0,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A1,
+                        imm: 0,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A2,
+                        imm: 0,
+                        ..Args::default()
+                    },
                 },
             ],
             &[(imm.wrapping_add(offset), 0)],
             &[
-                (REG_A0, ecall::IO_READ),
-                (REG_A1, imm.wrapping_add(offset)), // A1 - address
-                (REG_A2, 1),                        // A2 - size
+                // (REG_A0, ecall::IO_READ),
+                // (REG_A1, imm.wrapping_add(offset)), // A1 - address
+                // (REG_A2, 1),                        // A2 - size
             ],
-            &[content],
+            &[content, content, content, content],
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
-    // pub fn prove_io_read_failed_snark<Stark: ProveAndVerify>(offset: u32, imm:
-    // u32, content: u8) {     let (program, record) =
-    // simple_test_code_with_io_tape(         &[
-    //             // put IO_READ in A0
-    //             Instruction {
-    //                 op: Op::ADD,
-    //                 args: Args {
-    //                     rd: REG_A0,
-    //                     imm: ecall::IO_READ,
-    //                     ..Args::default()
-    //                 },
-    //             },
-    //             // set sys-call IO_READ in x10(or a0)
-    //             Instruction {
-    //                 op: Op::ECALL,
-    //                 ..Default::default()
-    //             },
-    //         ],
-    //         &[(imm.wrapping_add(offset), 0)],
-    //         &[
-    //             // (REG_A0, ecall::IO_READ),
-    //             (REG_A1, imm.wrapping_add(offset)), // A1 - address
-    //             (REG_A2, 1),                        // A2 - size
-    //         ],
-    //         &[&[content]],
-    //     );
-    //
-    //     // let mut e = record.executed;
-    //     // let mut ef = e.first().unwrap(); // .state.io_tape.data.push(0);
-    //     // let mut io_tape = &ef.state.io_tape;
-    //     // let mut data = &io_tape.data;
-    //     // data.clone().push(0);
-    //     Stark::prove_and_verify(&program, &record).unwrap();
-    // }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1))]
         #[test]
@@ -205,6 +222,10 @@ mod tests {
         #[test]
         fn prove_io_read_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
             prove_io_read::<MozakStark<F, D>>(offset, imm, content);
+        }
+        #[test]
+        fn prove_io_read_mozak_failed_stark(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_io_read_failed_stark::<MozakStark<F, D>>(offset, imm, content);
         }
     }
 }
