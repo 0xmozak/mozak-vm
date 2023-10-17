@@ -13,7 +13,7 @@ use crate::memoryinit::columns::MemoryInit;
 /// Pad the memory trace to a power of 2.
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
-    trace.resize(trace.len().next_power_of_two(), Memory {
+    trace.resize(trace.len().next_power_of_two().max(4), Memory {
         // Some columns need special treatment..
         is_store: F::ZERO,
         is_load: F::ZERO,

@@ -41,7 +41,7 @@ pub fn pad_trace_with_default_to_len<Row: Default + Clone>(
 
 #[must_use]
 pub fn pad_trace_with_default<Row: Default + Clone>(trace: Vec<Row>) -> Vec<Row> {
-    let len = trace.len().next_power_of_two();
+    let len = trace.len().next_power_of_two().max(4);
     pad_trace_with_default_to_len(trace, len)
 }
 
