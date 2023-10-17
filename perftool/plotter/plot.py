@@ -74,6 +74,7 @@ def plot(bench_function: str):
         try:
             update_plot_from_csv(bench_function, data_1_csv_file, data_2_csv_file)
             plt.pause(5)
+            plt.close()
         except KeyboardInterrupt:
             plt.close()
             print("Plotting stopped.")

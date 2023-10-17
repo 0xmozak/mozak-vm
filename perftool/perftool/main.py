@@ -114,3 +114,25 @@ def clean():
 
 if __name__ == "__main__":
     app()
+
+
+# TODO: Keep the entire commit string, but shorten it only for the plots
+# TODO: Don't delete anything when Ctrl+C in bench command
+# TODO: Instead of putting csv files in tmp, put it in some folder like data/benchmark_name/commit_name.csv where
+#       it won't be deleted at reboot
+# TODO: Plotter will take input as the benchmark which will then plot csv files in the corresponding folder.
+# TODO (Optional): Plotter can take optional argument that will override and result in plotting only input commit(s)
+# TODO: Add function to save the plot as svg file. No need to show the plot. We can then "watch" in browser.
+# TODO: Add more info the plots like
+#       - Description of the benchmark
+#       - proper legend
+#       - proper title
+#       - proper x-axis label
+#       - proper y-axis label with unit (of time or could be memory). Avoid underscore in labels
+# TODO: Don't show info about slope and intercept. If needed, we can put in stdout.
+# TODO: use shapes with colors to differentiate between different plots for points as well as lines.
+# TODO: use smaller dots.
+# TODO: don't store the name of tmp folder into which we build. Instead create symbolic link from ./build(s) into some
+#       identifiable tmp The clean command can take the symbolic link, follow it, and delete the folder in tmp and link.
+# TODO: Make the commit names in config.json to be made more descriptive by user (like "with opt level 1") which can
+#       then be used in plot.
