@@ -124,7 +124,6 @@ mod tests {
     use plonky2::field::types::{Field, PrimeField64};
 
     use super::*;
-    use crate::columns_view::NumberOfColumns;
     use crate::test_utils::prep_table;
 
     type F = GoldilocksField;
@@ -156,11 +155,9 @@ mod tests {
         simple_test_code(&instructions, &[], &[(6, 100), (7, 200)])
     }
 
-    fn expected_trace_initial<F: RichField>() -> Vec<Register<F>>
-    where
-        [(); Register::<F>::NUMBER_OF_COLUMNS]:, {
-        #[rustfmt::skip]
-        prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
+    #[rustfmt::skip]
+    fn expected_trace_initial<F: RichField>() -> Vec<Register<F>> {
+        prep_table(
             (1..32)
                 .map(|i| {
                     let value = match i {
@@ -192,6 +189,7 @@ mod tests {
     fn neg(val: u64) -> u64 { (F::ZERO - F::from_canonical_u64(val)).to_canonical_u64() }
 
     #[test]
+    #[rustfmt::skip]
     fn generate_reg_trace() {
         let (program, record) = setup();
 
@@ -201,8 +199,7 @@ mod tests {
         let trace = generate_register_trace::<F>(&program, &record);
 
         // This is the actual trace of the instructions.
-        let mut expected_trace = prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
-            #[rustfmt::skip]
+        let mut expected_trace = prep_table(
             vec![
                 // First, populate the table with the instructions from the above test code.
                 // Note that we filter out operations that act on r0.
@@ -235,8 +232,7 @@ mod tests {
 
         // Finally, append the above trace with the extra init rows with unused
         // registers.
-        let mut final_init_rows = prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
-            #[rustfmt::skip]
+        let mut final_init_rows = prep_table(
             (12..32).map(|i|
                 // addr value augmented_clk  diff_augmented_clk  is_init is_read is_write
                 [     i,   0,             0,                 0,        1,      0,       0]

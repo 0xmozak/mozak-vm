@@ -10,7 +10,6 @@ use elf::segment::ProgramHeader;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
 use itertools::{iproduct, Itertools};
-#[cfg(feature = "serialize")]
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
@@ -18,8 +17,7 @@ use crate::instruction::Instruction;
 use crate::util::load_u32;
 
 /// A RISC program
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Program {
     /// The entrypoint of the program
     pub entry_point: u32,
@@ -36,12 +34,10 @@ pub struct Program {
     pub ro_code: Code,
 }
 
-#[derive(Clone, Debug, Default, Deref)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct Code(pub HashMap<u32, Instruction>);
 
-#[derive(Clone, Debug, Default, Deref)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct Data(pub HashMap<u32, u8>);
 
 impl Code {
@@ -70,7 +66,6 @@ impl From<&HashMap<u32, u8>> for Code {
 // rw_memory and ro_code. In the future we might want to add ones for ro_memory
 // as well (or leave it to be manually constructed by the caller).
 impl From<HashMap<u32, u8>> for Program {
-    #[tarpaulin::skip]
     fn from(image: HashMap<u32, u8>) -> Self {
         Self {
             entry_point: 0_u32,
@@ -131,7 +126,6 @@ impl Program {
     // This function is actually mostly covered by tests, but it's too annoying to work out how to
     // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
     // exercise the error handling?
-    #[tarpaulin::skip]
     #[allow(clippy::similar_names)]
     pub fn load_elf(input: &[u8]) -> Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
@@ -191,7 +185,7 @@ impl Program {
     }
 }
 
-#[cfg(all(test, feature = "serialize"))]
+#[cfg(test)]
 mod test {
     use crate::elf::Program;
 

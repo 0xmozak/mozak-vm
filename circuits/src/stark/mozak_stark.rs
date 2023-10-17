@@ -1,4 +1,4 @@
-use itertools::chain;
+use itertools::{chain, Itertools};
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
@@ -11,13 +11,19 @@ use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
 use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::memory::stark::MemoryStark;
+use crate::memory_fullword::stark::FullWordMemoryStark;
+use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::rangecheck_looking;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_limb::stark::RangeCheckLimbStark;
+use crate::register::stark::RegisterStark;
+use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::stark::XorStark;
-use crate::{bitshift, cpu, memory, memoryinit, program, rangecheck, xor};
+use crate::{
+    bitshift, cpu, memory, memory_fullword, memory_halfword, memoryinit, program, rangecheck, xor,
+};
 
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
@@ -29,7 +35,11 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub memory_stark: MemoryStark<F, D>,
     pub memory_init_stark: MemoryInitStark<F, D>,
     pub rangecheck_limb_stark: RangeCheckLimbStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 8],
+    pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
+    pub fullword_memory_stark: FullWordMemoryStark<F, D>,
+    pub register_init_stark: RegisterInitStark<F, D>,
+    pub register_stark: RegisterStark<F, D>,
+    pub cross_table_lookups: [CrossTableLookup<F>; 11],
     pub debug: bool,
 }
 
@@ -53,15 +63,22 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             memory_stark: MemoryStark::default(),
             memory_init_stark: MemoryInitStark::default(),
             rangecheck_limb_stark: RangeCheckLimbStark::default(),
+            halfword_memory_stark: HalfWordMemoryStark::default(),
+            fullword_memory_stark: FullWordMemoryStark::default(),
+            register_init_stark: RegisterInitStark::default(),
+            register_stark: RegisterStark::default(),
             cross_table_lookups: [
                 RangecheckTable::lookups(),
                 XorCpuTable::lookups(),
                 BitshiftCpuTable::lookups(),
                 InnerCpuTable::lookups(),
                 ProgramCpuTable::lookups(),
-                MemoryCpuTable::lookups(),
+                IntoMemoryTable::lookups(),
                 MemoryInitMemoryTable::lookups(),
                 LimbTable::lookups(),
+                HalfWordMemoryCpuTable::lookups(),
+                FullWordMemoryCpuTable::lookups(),
+                RegisterRegInitTable::lookups(),
             ],
             debug: false,
         }
@@ -79,6 +96,10 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.memory_stark.num_permutation_batches(config),
             self.memory_init_stark.num_permutation_batches(config),
             self.rangecheck_limb_stark.num_permutation_batches(config),
+            self.halfword_memory_stark.num_permutation_batches(config),
+            self.fullword_memory_stark.num_permutation_batches(config),
+            self.register_init_stark.num_permutation_batches(config),
+            self.register_stark.num_permutation_batches(config),
         ]
     }
 
@@ -92,6 +113,10 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.memory_stark.permutation_batch_size(),
             self.memory_init_stark.permutation_batch_size(),
             self.rangecheck_limb_stark.permutation_batch_size(),
+            self.halfword_memory_stark.permutation_batch_size(),
+            self.fullword_memory_stark.permutation_batch_size(),
+            self.register_init_stark.permutation_batch_size(),
+            self.register_stark.permutation_batch_size(),
         ]
     }
 
@@ -104,7 +129,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 8;
+pub(crate) const NUM_TABLES: usize = 12;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum TableKind {
@@ -116,6 +141,10 @@ pub enum TableKind {
     Memory = 5,
     MemoryInit = 6,
     RangeCheckLimb = 7,
+    HalfWordMemory = 8,
+    FullWordMemory = 9,
+    RegisterInit = 10,
+    Register = 11,
 }
 
 impl TableKind {
@@ -130,6 +159,10 @@ impl TableKind {
             TableKind::Memory,
             TableKind::MemoryInit,
             TableKind::RangeCheckLimb,
+            TableKind::HalfWordMemory,
+            TableKind::FullWordMemory,
+            TableKind::RegisterInit,
+            TableKind::Register,
         ]
     }
 }
@@ -173,6 +206,10 @@ table_impl!(ProgramTable, TableKind::Program);
 table_impl!(MemoryTable, TableKind::Memory);
 table_impl!(MemoryInitTable, TableKind::MemoryInit);
 table_impl!(RangeCheckLimbTable, TableKind::RangeCheckLimb);
+table_impl!(HalfWordMemoryTable, TableKind::HalfWordMemory);
+table_impl!(FullWordMemoryTable, TableKind::FullWordMemory);
+table_impl!(RegisterInitTable, TableKind::RegisterInit);
+table_impl!(RegisterTable, TableKind::Register);
 
 pub trait Lookups<F: Field> {
     fn lookups() -> CrossTableLookup<F>;
@@ -208,15 +245,41 @@ impl<F: Field> Lookups<F> for XorCpuTable<F> {
     }
 }
 
-pub struct MemoryCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct IntoMemoryTable<F: Field>(CrossTableLookup<F>);
 
-impl<F: Field> Lookups<F> for MemoryCpuTable<F> {
+impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
-            vec![CpuTable::new(
-                cpu::columns::data_for_memory(),
-                cpu::columns::filter_for_memory(),
-            )],
+            vec![
+                CpuTable::new(
+                    cpu::columns::data_for_memory(),
+                    cpu::columns::filter_for_byte_memory(),
+                ),
+                HalfWordMemoryTable::new(
+                    memory_halfword::columns::data_for_memory_limb(0),
+                    memory_halfword::columns::filter(),
+                ),
+                HalfWordMemoryTable::new(
+                    memory_halfword::columns::data_for_memory_limb(1),
+                    memory_halfword::columns::filter(),
+                ),
+                FullWordMemoryTable::new(
+                    memory_fullword::columns::data_for_memory_limb(0),
+                    memory_fullword::columns::filter(),
+                ),
+                FullWordMemoryTable::new(
+                    memory_fullword::columns::data_for_memory_limb(1),
+                    memory_fullword::columns::filter(),
+                ),
+                FullWordMemoryTable::new(
+                    memory_fullword::columns::data_for_memory_limb(2),
+                    memory_fullword::columns::filter(),
+                ),
+                FullWordMemoryTable::new(
+                    memory_fullword::columns::data_for_memory_limb(3),
+                    memory_fullword::columns::filter(),
+                ),
+            ],
             MemoryTable::new(
                 memory::columns::data_for_cpu(),
                 memory::columns::filter_for_cpu(),
@@ -297,10 +360,60 @@ pub struct LimbTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for LimbTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
-            rangecheck_looking(),
+            chain!(rangecheck_looking(), cpu::columns::rangecheck_looking_u8(),).collect_vec(),
             RangeCheckLimbTable::new(
                 crate::rangecheck_limb::columns::data(),
                 crate::rangecheck_limb::columns::filter(),
+            ),
+        )
+    }
+}
+
+pub struct HalfWordMemoryCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for HalfWordMemoryCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_halfword_memory(),
+                cpu::columns::filter_for_halfword_memory(),
+            )],
+            HalfWordMemoryTable::new(
+                memory_halfword::columns::data_for_cpu(),
+                memory_halfword::columns::filter(),
+            ),
+        )
+    }
+}
+
+pub struct FullWordMemoryCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for FullWordMemoryCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_fullword_memory(),
+                cpu::columns::filter_for_fullword_memory(),
+            )],
+            FullWordMemoryTable::new(
+                memory_fullword::columns::data_for_cpu(),
+                memory_fullword::columns::filter(),
+            ),
+        )
+    }
+}
+
+pub struct RegisterRegInitTable<F: Field>(CrossTableLookup<F>);
+impl<F: Field> Lookups<F> for RegisterRegInitTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![RegisterTable::new(
+                crate::register::columns::data_for_register_init(),
+                crate::register::columns::filter_for_register_init(),
+            )],
+            RegisterInitTable::new(
+                crate::registerinit::columns::data_for_register(),
+                crate::registerinit::columns::filter_for_register(),
             ),
         )
     }

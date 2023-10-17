@@ -20,14 +20,20 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
                 Op::SLT | Op::DIV | Op::REM | Op::MULH | Op::BLT | Op::BGE
             )
             .into(),
+            // is_dst_signed is also set in `memory_sign_handling` in circuits/generation/cpu
+            is_dst_signed: matches!(inst.op, Op::LB).into(),
             ..Self::default()
         };
         *match inst.op {
             Op::ADD => &mut cols.ops.add,
-            Op::LBU => &mut cols.ops.lbu,
+            Op::LBU | Op::LB => &mut cols.ops.lb,
+            Op::LH | Op::LHU => &mut cols.ops.lh,
+            Op::LW => &mut cols.ops.lw,
             Op::SLL => &mut cols.ops.sll,
             Op::SLT | Op::SLTU => &mut cols.ops.slt,
             Op::SB => &mut cols.ops.sb,
+            Op::SH => &mut cols.ops.sh,
+            Op::SW => &mut cols.ops.sw,
             Op::SRL => &mut cols.ops.srl,
             Op::SRA => &mut cols.ops.sra,
             Op::SUB => &mut cols.ops.sub,
@@ -44,8 +50,7 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
             Op::XOR => &mut cols.ops.xor,
             Op::OR => &mut cols.ops.or,
             Op::AND => &mut cols.ops.and,
-            #[tarpaulin::skip]
-            other => unimplemented!("Opcode {other:?} not supported, yet."),
+            other @ Op::UNKNOWN => unimplemented!("Opcode {other:?} not supported, yet."),
         } = 1;
         cols.rs1_select[inst.args.rs1 as usize] = 1;
         cols.rs2_select[inst.args.rs2 as usize] = 1;

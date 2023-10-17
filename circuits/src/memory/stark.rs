@@ -1,42 +1,49 @@
-use std::borrow::Borrow;
 use std::fmt::Display;
 use std::marker::PhantomData;
 
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
-use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
-use crate::memory::columns::{Memory, NUM_MEM_COLS};
+use crate::columns_view::NumberOfColumns;
+use crate::display::derive_display_stark_name;
+use crate::memory::columns::Memory;
 use crate::stark::utils::is_binary;
 
+derive_display_stark_name!(MemoryStark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct MemoryStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F, const D: usize> Display for MemoryStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "MemoryStark") }
-}
+const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
+const PUBLIC_INPUTS: usize = 0;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F, D> {
-    const COLUMNS: usize = NUM_MEM_COLS;
-    const PUBLIC_INPUTS: usize = 0;
+    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
+
+    where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>;
+    type EvaluationFrameTarget =
+        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
     // Constraints design: https://docs.google.com/presentation/d/1G4tmGl8V1W0Wqxv-MwjGjaM3zUF99dzTvFhpiood4x4/edit?usp=sharing
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
-        vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        vars: &Self::EvaluationFrame<FE, P, D2>,
         yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &Memory<P> = vars.local_values.borrow();
-        let nv: &Memory<P> = vars.next_values.borrow();
+        let lv: &Memory<P> = vars.get_local_values().try_into().unwrap();
+        let nv: &Memory<P> = vars.get_next_values().try_into().unwrap();
 
         // Boolean variables describing whether the current row and
         // next row has a change of address when compared to the
@@ -57,8 +64,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // Constrain certain columns of the memory table to be only
         // boolean values.
         is_binary(yield_constr, lv.is_writable);
-        is_binary(yield_constr, lv.is_sb);
-        is_binary(yield_constr, lv.is_lbu);
+        is_binary(yield_constr, lv.is_store);
+        is_binary(yield_constr, lv.is_load);
         is_binary(yield_constr, lv.is_init);
         is_binary(yield_constr, lv.is_executed());
 
@@ -113,15 +120,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // If instead, the `addr` talks about an address not coming from static ELF,
         // it needs to begin with a `SB` (store) operation before any further access
         // However `clk` value `0` is a special case.
-        yield_constr.constraint(lv.diff_addr * lv.clk * (P::ONES - lv.is_sb));
+        yield_constr.constraint(lv.diff_addr * lv.clk * (P::ONES - lv.is_store));
 
         // Operation constraints
         // ---------------------
         // No `SB` operation can be seen if memory address is not marked `writable`
-        yield_constr.constraint((P::ONES - lv.is_writable) * lv.is_sb);
+        yield_constr.constraint((P::ONES - lv.is_writable) * lv.is_store);
 
         // For all "load" operations, the value cannot change between rows
-        yield_constr.constraint(nv.is_lbu * (nv.value - lv.value));
+        yield_constr.constraint(nv.is_load * (nv.value - lv.value));
 
         // Clock constraints
         // -----------------
@@ -151,11 +158,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
     fn constraint_degree(&self) -> usize { 3 }
 
-    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,
-        _vars: StarkEvaluationTargets<D, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        _vars: &Self::EvaluationFrameTarget,
         _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         unimplemented!()
@@ -165,7 +171,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use starky::stark_testing::test_stark_low_degree;
 
     use crate::memory::stark::MemoryStark;
@@ -174,7 +180,7 @@ mod tests {
     use crate::test_utils::ProveAndVerify;
 
     const D: usize = 2;
-    type C = PoseidonGoldilocksConfig;
+    type C = Poseidon2GoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
     type S = MemoryStark<F, D>;
 
