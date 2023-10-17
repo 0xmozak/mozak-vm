@@ -70,7 +70,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
         yield_constr.constraint_transition(nv.is_io() * (nv.size - (lv.size - P::ONES)));
     }
 
-    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,
