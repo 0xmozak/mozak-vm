@@ -184,11 +184,18 @@ impl<F: RichField> State<F> {
             hash_n_to_m_with_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
         let hash = hash.to_bytes();
         assert!(output_len == hash.len());
+        let padded_len = |input_len: u32| {
+            if input_len % 8 == 0 {
+                input_len
+            } else {
+                input_len + (8 - input_len % 8)
+            }
+        };
         (
             Aux {
                 poseidon2: Some(Poseidon2Entry {
                     addr: input_ptr,
-                    len: input_len,
+                    len: padded_len(input_len),
                     sponge_data,
                 }),
                 ..Default::default()

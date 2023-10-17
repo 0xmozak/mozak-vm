@@ -30,6 +30,7 @@ im = "15.1.0"
 mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.2.0"
 tikv-jemallocator = "0.5"
+hex-literal = "0.2.2"
 
 [features]
 test = []

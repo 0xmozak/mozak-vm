@@ -401,7 +401,9 @@ where
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
+
     use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
     use mozak_runner::test_utils::simple_test_code;
 
     use crate::stark::mozak_stark::MozakStark;
@@ -462,6 +464,50 @@ mod tests {
             &[(1, 2)],
         );
         assert_eq!(record.last_state.get_pc(), 8);
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    #[test]
+    fn prove_poseidon2() {
+        let data = "💥 Mozak-VM Rocks With Poseidon2";
+        let input_start_addr = 1024;
+        let output_start_addr = 2048;
+        let mut data_bytes = data.as_bytes().to_vec();
+        if data_bytes.len() % 32 != 0 {
+            data_bytes.resize(((data_bytes.len() / 32) + 1) * 32, 0);
+        }
+        let mut mem_bytes = vec![];
+        for bytes in data_bytes.chunks(4) {
+            mem_bytes.push(u32::from_ne_bytes(bytes.try_into().expect("can't fail")));
+        }
+        let memory: Vec<(u32, u32)> = (input_start_addr..).step_by(4).zip(mem_bytes).collect();
+
+        let (program, record) = simple_test_code(
+            &[Instruction {
+                op: Op::ECALL,
+                ..Default::default()
+            }],
+            memory.as_slice(),
+            &[
+                (REG_A0, 3),
+                (REG_A1, input_start_addr),
+                (
+                    REG_A2,
+                    u32::try_from(data.as_bytes().len()).expect("don't use very long data"),
+                ),
+                (REG_A3, output_start_addr),
+            ],
+        );
+        let expected_output =
+            hex_literal::hex!("4afb11172461851820da91ce1b972afd87caf69abe4316097280a4784b1fe396");
+        for (i, byte) in expected_output.iter().enumerate() {
+            assert_eq!(
+                *byte,
+                record
+                    .last_state
+                    .load_u8(output_start_addr + u32::try_from(i).expect("can't fail"))
+            );
+        }
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 }
