@@ -3,6 +3,7 @@ import re
 import subprocess
 from pathlib import Path
 import random
+from typing import List
 import pandas as pd
 import numpy as np
 from pyparsing import Any
@@ -64,11 +65,11 @@ def sample_and_bench(
     bench_function: str,
     min_value: int,
     max_value: int,
-) -> dict[str, int | float]:
+) -> dict[str, List[int | float]]:
     parameter = sample(min_value, max_value)
     output = bench(bench_function, parameter, cli_repo)
     bench_data = load_bench_function_data(bench_function)
-    return {bench_data["parameter"]: parameter, bench_data["output"]: output}
+    return {bench_data["parameter"]: [parameter], bench_data["output"]: [output]}
 
 
 def load_bench_function_data(bench_function: str) -> dict[str, Any]:

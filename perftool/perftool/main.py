@@ -66,10 +66,12 @@ def bench(bench_function: str, min_value: int, max_value: int):
     # create data folder if it doesn't exist
     data_folder = Path.cwd() / "data"
     data_folder.mkdir(exist_ok=True)
-    commits = list(commit for (_commit_description, commit) in bench_commits)
+    data_bench_folder = data_folder / bench_function
+    data_bench_folder.mkdir(exist_ok=True)
+    commits = list(commit for (_commit_description, commit) in bench_commits.items())
     # initialize the csv files with headers if they does not exist
     for commit in commits:
-        data_csv_file = bench_folder / f"{commit}.csv"
+        data_csv_file = data_bench_folder / f"{commit}.csv"
         init_csv(data_csv_file, bench_function)
 
     num_samples = 0
@@ -122,32 +124,8 @@ def cleancsv(bench_function: str):
     for commit_csv_file in bench_commits_folder.iterdir():
         commit_csv_file.unlink()
     bench_commits_folder.rmdir()
-    print("Csv files sleaned successfully")
+    print("Csv files cleaned successfully")
 
 
 if __name__ == "__main__":
     app()
-
-
-# TODO: Keep the entire commit string, but shorten it only for the plots: Done
-# TODO: Don't delete anything when Ctrl+C in bench command: Done
-# TODO: Instead of putting csv files in tmp, put it in some folder like data/benchmark_name/commit_name.csv where
-#       it won't be deleted at reboot: Done
-# TODO: Plotter will take input as the benchmark which will then plot csv files in the corresponding folder.:Done
-# TODO (Optional): Plotter can take optional argument that will override and result in plotting only input commit(s)
-# TODO: Add function to save the plot as svg file. No need to show the plot. We can then "watch" in browser.: Done
-# TODO: Add more info the plots like
-#       - Description of the benchmark: Done
-#       - proper legend: Done
-#       - proper title: Done
-#       - proper x-axis label: Done
-#       - proper y-axis label with unit (of time or could be memory). Avoid underscore in labels: Done
-# TODO: Don't show info about slope and intercept. If needed, we can put in stdout.: Done
-# TODO: use shapes with colors to differentiate between different plots for points as well as lines.: Done
-# TODO: use smaller dots.: Done
-# TODO: don't store the name of tmp folder into which we build. Instead create symbolic link from ./build(s) into some
-#       identifiable tmp The clean command can take the symbolic link, follow it, and delete the folder in
-#       tmp and link: Done
-# TODO: Make the commit names in config.json to be made more descriptive by user (like "with opt level 1") which can
-#       then be used in plot.:Done
-# TODO: Support multiple commits.

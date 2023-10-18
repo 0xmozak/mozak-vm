@@ -12,10 +12,6 @@ from typing import Tuple
 app = typer.Typer()
 plt.style.use("seaborn-v0_8-colorblind")
 
-linecycler = cycle(["-", "--", "-.", ":"])
-markerscycler = cycle(["o", ",", "v", "^"])
-colorscycler = cycle(["r", "b", "c", "m"])
-
 
 def load_plot_data_from_config(bench_function: str) -> Tuple[dict, str, str, str]:
     config_file = Path.cwd() / "config.json"
@@ -46,18 +42,14 @@ def get_data_from_csv(csv_file_path: Path, x_label: str, y_label: str) -> Tuple:
 
 
 def plot_data(
-    x_data,
-    y_data,
-    predicted_y,
-    label: str,
+    x_data, y_data, predicted_y, label: str, color: str, marker: str, linestyle: str
 ):
-    color = next(colorscycler)
     plt.scatter(
         x=x_data,
         y=y_data,
         color=color,
         label=label,
-        marker=next(markerscycler),
+        marker=marker,
         s=10,
     )
     plt.plot(
@@ -65,11 +57,14 @@ def plot_data(
         predicted_y,
         color=color,
         label=f"{label} line",
-        linestyle=next(linecycler),
+        linestyle=linestyle,
     )
 
 
 def plot_all(bench_function: str):
+    linecycler = cycle(["-", "--", "-.", ":"])
+    markerscycler = cycle(["o", ",", "v", "^"])
+    colorscycler = cycle(["r", "b", "c", "m"])
     commits, description, x_label, y_label = load_plot_data_from_config(bench_function)
     plt.figure(figsize=(8, 6))
 
@@ -78,18 +73,22 @@ def plot_all(bench_function: str):
         x_data, y_data, slope, intercept, predicted_y = get_data_from_csv(
             csv_data_file, x_label, y_label
         )
+        color = next(colorscycler)
+        marker = next(markerscycler)
+        linestyle = next(linecycler)
         plot_data(
             x_data=x_data,
             y_data=y_data,
             predicted_y=predicted_y,
             label=commit_description,
+            color=color,
+            marker=marker,
+            linestyle=linestyle,
         )
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.title(description)
     plt.legend()
-
-    # TODO: save the plt file as svg file
 
 
 def update_plot_from_csv(bench_function: str):
