@@ -8,6 +8,7 @@ pub mod permutation;
 pub mod poly;
 pub mod proof;
 pub mod prover;
+#[cfg(test)]
 pub mod recursive_verifier;
 pub mod serde;
 pub mod utils;

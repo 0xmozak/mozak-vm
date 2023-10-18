@@ -165,6 +165,7 @@ pub(crate) mod challenge {
         GrandProductChallenge { beta, gamma }
     }
 
+    #[allow(clippy::similar_names)]
     pub(crate) fn get_grand_product_challenge_set_target<
         F: RichField + Extendable<D>,
         H: AlgebraicHasher<F>,
@@ -457,6 +458,7 @@ pub struct PermutationCheckDataTarget<const D: usize> {
     pub(crate) permutation_challenge_sets: Vec<GrandProductChallengeSet<Target>>,
 }
 
+#[allow(clippy::similar_names)]
 pub(crate) fn eval_permutation_checks_circuit<F, S, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     stark: &S,

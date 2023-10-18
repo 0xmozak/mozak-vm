@@ -218,6 +218,7 @@ impl<F: Field> CrossTableLookup<F> {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn num_ctl_zs(ctls: &[Self], table: TableKind, num_challenges: usize) -> usize {
         let mut num_ctls = 0;
         for ctl in ctls {

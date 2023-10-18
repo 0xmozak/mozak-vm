@@ -204,6 +204,7 @@ where
     }
 }
 
+#[allow(clippy::similar_names)]
 /// Returns the recursive Stark circuit.
 pub(crate) fn recursive_stark_circuit<
     F: RichField + Extendable<D>,
