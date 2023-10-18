@@ -187,26 +187,6 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     );
 }
 
-fn halted<P: PackedField>(
-    lv: &CpuState<P>,
-    nv: &CpuState<P>,
-    yield_constr: &mut ConstraintConsumer<P>,
-) {
-    let is_halted = P::ONES - lv.is_running;
-    is_binary(yield_constr, lv.is_running);
-
-    // TODO: change this when we support segmented proving.
-    // Last row must be 'halted', ie no longer is_running.
-    yield_constr.constraint_last_row(lv.is_running);
-
-    // Once we stop running, no subsequent row starts running again:
-    yield_constr.constraint_transition(is_halted * (nv.is_running - lv.is_running));
-    // Halted means that nothing changes anymore:
-    for (&lv_entry, &nv_entry) in izip!(lv, nv) {
-        yield_constr.constraint_transition(is_halted * (lv_entry - nv_entry));
-    }
-}
-
 const COLUMNS: usize = CpuColumnsExtended::<()>::NUMBER_OF_COLUMNS;
 // Public inputs: [PC of the first row]
 const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
@@ -266,7 +246,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
         ecall::constraints(lv, nv, yield_constr);
-        halted(lv, nv, yield_constr);
 
         // Clock starts at 1. This is to differentiate
         // execution clocks (1 and above) from clk value of `0` which is

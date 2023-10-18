@@ -10,7 +10,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
-use crate::memory_io::columns::{InputOutputMemory, NUM_HW_MEM_COLS};
+use crate::memory_io::columns::{InputOutputMemory, NUM_IO_MEM_COLS};
 use crate::stark::utils::is_binary;
 
 #[derive(Copy, Clone, Default)]
@@ -25,7 +25,7 @@ impl<F, const D: usize> Display for InputOuputMemoryStark<F, D> {
     }
 }
 
-const COLUMNS: usize = NUM_HW_MEM_COLS;
+const COLUMNS: usize = NUM_IO_MEM_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMemoryStark<F, D> {

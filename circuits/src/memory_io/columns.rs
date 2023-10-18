@@ -58,7 +58,7 @@ impl<T: Clone + Add<Output = T>> InputOutputMemory<T> {
 }
 
 /// Total number of columns.
-pub const NUM_HW_MEM_COLS: usize = InputOutputMemory::<()>::NUMBER_OF_COLUMNS;
+pub const NUM_IO_MEM_COLS: usize = InputOutputMemory::<()>::NUMBER_OF_COLUMNS;
 
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
