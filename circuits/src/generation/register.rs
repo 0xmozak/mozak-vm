@@ -33,7 +33,7 @@ fn init_register_trace<F: RichField>(state: &State) -> Vec<Register<F>> {
 
 #[must_use]
 pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> {
-    let len = trace.len().next_power_of_two();
+    let len = trace.len().next_power_of_two().max(4);
     trace.resize(len, Register {
         ops: dummy(),
         // ..And fill other columns with duplicate of last real trace row.
