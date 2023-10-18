@@ -154,6 +154,11 @@ pub struct CpuState<T> {
     /// product_sign is 1
     pub product_high_limb_inv_helper: T,
     pub mem_addr: T,
+    pub io_addr: T,
+    pub io_size: T,
+    pub is_io_store: T,
+    pub is_io_load: T,
+    pub is_halt: T,
 }
 
 make_col_map!(CpuColumnsExtended);
