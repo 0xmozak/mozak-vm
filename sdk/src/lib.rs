@@ -1,3 +1,4 @@
+#![deny(clippy::cargo)]
 pub mod account;
 pub mod crypto;
 pub mod id;

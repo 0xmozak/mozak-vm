@@ -1,11 +1,19 @@
 [package]
+edition = "2021"
 name = "mozak-node-sdk"
 version = "0.1.0"
-edition = "2021"
+
+categories = ["cryptography", "sdk"]
+description = "Mozak protocol sdk"
+keywords = ["crypto", "zero-knowledge", "sdk"]
+license = "All rights reserved"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-node"
+
 
 [dependencies]
-ed25519-dalek = { version = "2.0.0", features = ["rand_core"] }
 derive_more = "0.99.17"
+ed25519-dalek = { version = "2.0.0", features = ["rand_core"] }
 im = { version = "15.1.0" }
 rand = "0.8.5"
 sha3 = "0.10.8"

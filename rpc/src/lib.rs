@@ -1,1 +1,1 @@
-
+#![deny(clippy::cargo)]
