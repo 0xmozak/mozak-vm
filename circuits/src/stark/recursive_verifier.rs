@@ -23,7 +23,7 @@ use plonky2::with_context;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::RecursiveConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
-use starky::stark::Stark;
+use starky::stark::{LookupConfig, Stark};
 
 use crate::cross_table_lookup::{verify_cross_table_lookups, CrossTableLookup, CtlCheckVarsTarget};
 use crate::stark::mozak_stark::{TableKind, NUM_TABLES};
@@ -342,7 +342,7 @@ fn verify_stark_proof_with_challenges_circuit<
         next_values,
         permutation_ctl_zs,
         permutation_ctl_zs_next,
-        ctl_zs_last: _,
+        ctl_zs_last,
         quotient_polys,
     } = &proof.proof.openings;
 
@@ -421,6 +421,10 @@ fn verify_stark_proof_with_challenges_circuit<
         // degree_bits,
         // ctl_zs_last.len(),
         inner_config,
+        Some(&LookupConfig {
+            degree_bits,
+            num_zs: ctl_zs_last.len(),
+        }),
     );
     builder.verify_fri_proof::<C>(
         &fri_instance,
