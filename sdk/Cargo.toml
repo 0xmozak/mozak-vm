@@ -3,25 +3,14 @@ name = "mozak-node-sdk"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+ed25519-dalek = { version = "2.0.0", features = ["rand_core"] }
+derive_more = "0.99.17"
+im = { version = "15.1.0" }
+rand = "0.8.5"
+sha3 = "0.10.8"
+
 serde = { version = "1.0.188", features = [
   "derive",
   "alloc",
 ], default-features = false }
-sha3 = { version = "0.10.8", optional = true }
-mozak-runner = { git = "ssh://git@github.com/0xmozak/mozak-vm.git", branch = "main", features = [
-  "serialize",
-  "test",
-], optional = true }
-
-im = { version = "15.1.0", optional = true }
-
-rand = { version = "0.8.5", optional = true }
-derive_more = "0.99.17"
-
-[features]
-default = ["dummy-system", "std"]
-dummy-system = ["rand"]
-std = ["sha3", "mozak-runner", "im"]

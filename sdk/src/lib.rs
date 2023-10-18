@@ -1,9 +1,17 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+#![allow(unused_variables)]
+#![allow(dead_code)]
 
-pub use id::Id;
-pub use object::{data, program, Object, ObjectContent};
-pub use transition::{Transition, TransitionInput};
-
+pub mod account;
+pub mod crypto;
 pub mod id;
+pub mod instruction;
+pub mod message;
 pub mod object;
-mod transition;
+pub mod program;
+pub mod pubkey;
+pub mod signature;
+pub mod signer;
+pub mod tx;
+
+/// Generic data representation, that all objects should be able to convert to.
+type Data = Vec<u8>;

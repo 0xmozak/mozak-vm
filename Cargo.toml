@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["sdk", "node", "sdk"]
-
+members = ["sdk", "rpc"]
 
 [patch.crates-io]
 plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
