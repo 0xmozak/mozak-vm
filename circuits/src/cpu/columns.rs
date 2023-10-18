@@ -329,6 +329,28 @@ pub fn filter_for_fullword_memory<F: Field>() -> Column<F> {
     MAP.cpu.map(Column::from).inst.ops.fullword_mem_ops()
 }
 
+/// Column containing the data to be matched against IO Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn data_for_io_memory<F: Field>() -> Vec<Column<F>> {
+    let cpu = MAP.cpu.map(Column::from);
+    vec![
+        cpu.clk,
+        cpu.io_addr,
+        cpu.io_size,
+        cpu.is_io_store,
+        cpu.is_io_load,
+    ]
+}
+
+/// Column for a binary filter for memory instruction in IO Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_io_memory<F: Field>() -> Column<F> {
+    let cpu = MAP.cpu.map(Column::from);
+    cpu.is_io_load + cpu.is_io_store
+}
+
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(self) -> T {
