@@ -10,6 +10,7 @@ matplotlib = "^3.8.0"
 pandas = "^2.1.1"
 python = ">=3.11,<3.13"
 typer = "^0.9.0"
+seaborn = "^0.13.0"
 
 
 [build-system]

@@ -1,1 +1,13 @@
-{"commit_1": "28a5108e5f617d93ea055564c00c08844fee5a0a", "commit_2": "3011dd0a5600d0203af4385dde8cf383fbf7a360", "tmpfolder": "/tmp/tmpx68m4itx"}
+{
+    "benches": {
+        "sample-bench":{
+            "description": "Here is a sample description of the bench",
+            "parameter": "value",
+            "output": "time taken (in s)",
+            "commits": {
+                "sample commit 1": "28a5108e5f617d93ea055564c00c08844fee5a0a", 
+                "sample commit 2": "3011dd0a5600d0203af4385dde8cf383fbf7a360"
+            }
+        }
+    }
+}

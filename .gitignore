@@ -9,3 +9,4 @@ cobertura.xml
 tmp
 *.csv
 .env
+/perftool/build

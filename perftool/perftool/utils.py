@@ -1,3 +1,4 @@
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -67,6 +68,29 @@ def sample_and_bench(
     return {"value": [parameter], "time_taken": [time_taken]}
 
 
-def write_into_csv(data: dict, csv_file_path: Path, headers: bool) -> None:
+def load_bench_function_data(bench_function: str) -> dict:
+    config_file_path = Path.cwd() / "config.json"
+    with open(config_file_path, "r") as f:
+        config = json.load(f)
+        data = config["benches"][bench_function]
+    return data
+
+
+def init_csv(csv_file_path: Path, bench_function: str) -> None:
+    bench_function_data = load_bench_function_data(bench_function)
+    headers = [bench_function_data["parameter"], bench_function_data["output"]]
+    if csv_file_path.exists():
+        existing_headers = pd.read_csv(csv_file_path, nrows=0).columns.tolist()
+        if set(headers) != set(existing_headers):
+            raise ValueError(
+                f"Headers do not match the existing file: {existing_headers}"
+            )
+    else:
+        df = pd.DataFrame(columns=headers)
+        df.to_csv(csv_file_path, index=False)
+
+
+def write_into_csv(data: dict, csv_file_path: Path) -> None:
     df = pd.DataFrame(data)
-    df.to_csv(open(csv_file_path, "a"), header=headers, index=False)
+    with open(csv_file_path, "a") as f:
+        df.to_csv(f, header=False, index=False)
