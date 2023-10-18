@@ -1,1 +1,1 @@
-mod keypair;
+pub mod keypair;

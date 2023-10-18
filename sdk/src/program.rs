@@ -7,14 +7,14 @@ use crate::Data;
 #[derive(Clone, Default)]
 pub struct Program {
     /// Unique object ID
-    id: Id,
+    pub id: Id,
     /// Program version (each update increases the version).
     /// TODO - explain how the version is used.
-    version: u64,
+    pub version: u64,
     /// Flag if the program is mutable or not
-    mutable: bool,
+    pub mutable: bool,
     /// Owner of the program. The owner describes how the program can change.
-    owner: Id,
+    pub owner: Id,
     /// Executable code for the program
     pub code: Data,
 }

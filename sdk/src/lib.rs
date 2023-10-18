@@ -1,6 +1,3 @@
-#![allow(unused_variables)]
-#![allow(dead_code)]
-
 pub mod account;
 pub mod crypto;
 pub mod id;

@@ -13,13 +13,11 @@ impl Keypair {
     pub const SECRET_KEY_LENGTH: usize = 32;
     /// The length of a ed25519 `Signature`, in bytes.
     pub const SIGNATURE_LENGTH: usize = 64;
+}
 
+impl Default for Keypair {
     /// Constructs a new, random `Keypair` using `OsRng`
-    pub fn new() -> Self {
-        let mut csprng = OsRng;
-        let signing_key: Ed25519Keypair = Ed25519Keypair::generate(&mut csprng);
-        Keypair(signing_key)
-    }
+    fn default() -> Self { Keypair(Ed25519Keypair::generate(&mut OsRng)) }
 }
 
 #[cfg(test)]
@@ -28,7 +26,7 @@ mod tests {
 
     #[test]
     fn test_keypair_generate() {
-        let keypair = Keypair::new();
+        let keypair = Keypair::default();
         assert_eq!(keypair.0.to_bytes().len(), Keypair::SECRET_KEY_LENGTH);
     }
 }
