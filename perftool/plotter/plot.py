@@ -102,7 +102,7 @@ def plot(bench_function: str):
     while True:
         try:
             update_plot_from_csv(bench_function)
-            plt.savefig(plot_folder / f"{bench_function}.png")
+            plt.savefig(plot_folder / f"{bench_function}.svg")
             plt.close()
             time.sleep(5)
         except KeyboardInterrupt:
