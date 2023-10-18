@@ -41,6 +41,6 @@ pub struct BitshiftView<T> {
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.executed) }
 
 /// Columns containing the filter which indicates whether this row is a dummy
-/// padding. This function always return 0
+/// padding. This function always return 0.
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> { MAP.is_executed.into() }

@@ -1,3 +1,4 @@
+/// Implement Display by converting the Identifier to a String
 macro_rules! derive_display_stark_name {
     ($s: ident) => {
         impl<F, const D: usize> Display for $s<F, D> {

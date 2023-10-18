@@ -97,6 +97,7 @@ fn build_info() {
     println!("{}", build::GIT_STATUS_FILE);
 }
 
+/// Read a sequence of bytes from IO
 fn load_tape(mut io_tape: impl Read) -> Result<Vec<u8>> {
     let mut io_tape_bytes = Vec::new();
     let bytes_read = io_tape.read_to_end(&mut io_tape_bytes)?;

@@ -22,6 +22,7 @@ use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::utils::is_binary;
 
 derive_display_stark_name!(CpuStark);
+/// A Gadget for Common CPU Instructions
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {
@@ -187,6 +188,7 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     );
 }
 
+/// Constrain and check the conditions in which the program can be halted
 fn halted<P: PackedField>(
     lv: &CpuState<P>,
     nv: &CpuState<P>,

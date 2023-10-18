@@ -25,6 +25,11 @@ use crate::{
     bitshift, cpu, memory, memory_fullword, memory_halfword, memoryinit, program, rangecheck, xor,
 };
 
+/// STARK Gadgets of Mozak-VM
+///
+/// ## Generics
+/// `F`: The [Field] STARK is defined over
+/// `D`: Degree of the extension field of `F``
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cpu_stark: CpuStark<F, D>,

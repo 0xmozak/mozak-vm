@@ -15,6 +15,7 @@ use crate::columns_view::NumberOfColumns;
 use crate::display::derive_display_stark_name;
 
 derive_display_stark_name!(BitshiftStark);
+/// Bitshift Trace Constraints
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct BitshiftStark<F, const D: usize> {
