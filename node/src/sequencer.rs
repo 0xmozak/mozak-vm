@@ -158,11 +158,10 @@ impl Sequencer {
 
 #[cfg(all(feature = "dummy-system", test))]
 mod test {
-    use mozak_node_sdk::program::ProgramContent;
-    use mozak_node_sdk::{Id, Object};
+    use mozak_node_sdk::Object;
 
     use crate::sequencer::Sequencer;
-    use crate::{ConsensusSystem, DummyConsensusSystem, ScenarioRPC, TransitionMessage, RPC};
+    use crate::{ConsensusSystem, DummyConsensusSystem, ScenarioRPC, RPC};
 
     #[test]
     fn no_message_test() {
@@ -173,38 +172,39 @@ mod test {
         Sequencer::run(&mut network, &mut message_service);
     }
 
-    #[test]
-    fn single_message_test() -> Result<(), &'static str> {
-        let yes_man_transition =
-            Sequencer::load_transition_from_file("../examples/elf/yes_man_transition")?;
-        let root_object = {
-            Object::Program(ProgramContent::new(0, false, Id([0u8; 32]), vec![
-                yes_man_transition.clone(),
-            ]))
-        };
-        let root_object_id = root_object.id();
+    // TODO: this test relied on `examples` dir's yes_man_transition. Requires
+    // restructuring. #[test]
+    // fn single_message_test() -> Result<(), &'static str> {
+    //     let yes_man_transition =
+    //         Sequencer::load_transition_from_file("../examples/elf/
+    // yes_man_transition")?;     let root_object = {
+    //         Object::Program(ProgramContent::new(0, false, Id([0u8; 32]),
+    // vec![             yes_man_transition.clone(),
+    //         ]))
+    //     };
+    //     let root_object_id = root_object.id();
 
-        let mut network = DummyConsensusSystem::initiate(root_object);
+    //     let mut network = DummyConsensusSystem::initiate(root_object);
 
-        let mut message_service = {
-            let mut rpc = ScenarioRPC::new();
+    //     let mut message_service = {
+    //         let mut rpc = ScenarioRPC::new();
 
-            // We do not do any state transition, but just push a message to the network.
-            let message_1 = TransitionMessage {
-                owner_program_id: root_object_id,
-                target_transition_id: yes_man_transition.id(),
-                read_objects_id: Vec::new(),
-                changed_objects: Vec::new(),
-                input: Vec::new(),
-            };
+    //         // We do not do any state transition, but just push a message to
+    // the network.         let message_1 = TransitionMessage {
+    //             owner_program_id: root_object_id,
+    //             target_transition_id: yes_man_transition.id(),
+    //             read_objects_id: Vec::new(),
+    //             changed_objects: Vec::new(),
+    //             input: Vec::new(),
+    //         };
 
-            rpc.add_message(message_1);
+    //         rpc.add_message(message_1);
 
-            rpc
-        };
+    //         rpc
+    //     };
 
-        Sequencer::run(&mut network, &mut message_service);
+    //     Sequencer::run(&mut network, &mut message_service);
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 }
