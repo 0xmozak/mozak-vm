@@ -12,17 +12,13 @@ use starky::stark::Stark;
 
 use super::columns::{Bitshift, BitshiftView};
 use crate::columns_view::NumberOfColumns;
+use crate::display::derive_display_stark_name;
 
+derive_display_stark_name!(BitshiftStark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct BitshiftStark<F, const D: usize> {
     pub _f: PhantomData<F>,
-}
-
-impl<F, const D: usize> Display for BitshiftStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "BitshiftStark")
-    }
 }
 
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;
