@@ -140,7 +140,7 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read_failed_stark<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
+    pub fn prove_io_read_explicit<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
         let (program, record) = simple_test_code_with_io_tape(
             &[
                 Instruction {
@@ -202,11 +202,7 @@ mod tests {
                 },
             ],
             &[(imm.wrapping_add(offset), 0)],
-            &[
-                // (REG_A0, ecall::IO_READ),
-                // (REG_A1, imm.wrapping_add(offset)), // A1 - address
-                // (REG_A2, 1),                        // A2 - size
-            ],
+            &[],
             &[content, content, content, content],
         );
         Stark::prove_and_verify(&program, &record).unwrap();
@@ -223,8 +219,8 @@ mod tests {
             prove_io_read::<MozakStark<F, D>>(offset, imm, content);
         }
         #[test]
-        fn prove_io_read_mozak_failed_stark(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
-            prove_io_read_failed_stark::<MozakStark<F, D>>(offset, imm, content);
+        fn prove_io_read_mozak_explicit(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_io_read_explicit::<MozakStark<F, D>>(offset, imm, content);
         }
     }
 }
