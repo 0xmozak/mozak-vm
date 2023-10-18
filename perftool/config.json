@@ -5,8 +5,9 @@
             "parameter": "value",
             "output": "time taken (in s)",
             "commits": {
-                "sample commit 1": "28a5108e5f617d93ea055564c00c08844fee5a0a", 
-                "sample commit 2": "3011dd0a5600d0203af4385dde8cf383fbf7a360"
+                "Opt level 1": "b130356a10ef547351a041b31846e080dd5a3790", 
+                "Opt level 2": "5347386bafba52fbe230f3d4ebc3d25dc0b0a5fd",
+                "Opt level 3": "0c33c95d2824f85ce198c47e77977ca5942d10c1"
             }
         }
     }
