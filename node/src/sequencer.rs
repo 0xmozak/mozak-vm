@@ -158,11 +158,10 @@ impl Sequencer {
 
 #[cfg(all(feature = "dummy-system", test))]
 mod test {
-    use mozak_node_sdk::program::ProgramContent;
-    use mozak_node_sdk::{Id, Object};
+    use mozak_node_sdk::{Object};
 
     use crate::sequencer::Sequencer;
-    use crate::{ConsensusSystem, DummyConsensusSystem, ScenarioRPC, TransitionMessage, RPC};
+    use crate::{ConsensusSystem, DummyConsensusSystem, ScenarioRPC, RPC};
 
     #[test]
     fn no_message_test() {
