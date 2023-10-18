@@ -192,10 +192,8 @@ fn ecall<P: PackedField>(
     nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // ECALL can be used either HALT, poseidon2
-    // So only one of them will be set to one.
-    yield_constr
-        .constraint_transition(lv.inst.ops.ecall + (nv.is_running - P::ONES) - lv.is_poseidon2);
+    // ECALL can be used for HALT
+    yield_constr.constraint_transition(lv.inst.ops.ecall + (nv.is_running - P::ONES));
 }
 
 fn halted<P: PackedField>(

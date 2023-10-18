@@ -1,17 +1,16 @@
-use std::iter::repeat;
+
 use std::str::from_utf8;
 
 use anyhow::{anyhow, Result};
-use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
-use plonky2::hash::hashing::PlonkyPermutation;
-use plonky2::hash::poseidon2::Poseidon2Permutation;
-use plonky2::plonk::config::GenericHashOut;
+use plonky2::hash::hash_types::{RichField};
+
+
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
-use crate::state::{Aux, MemEntry, Poseidon2Entry, Poseidon2SpongeData, State};
+use crate::state::{Aux, MemEntry, State};
 use crate::system::ecall;
-use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
+use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2};
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
@@ -171,57 +170,12 @@ impl<F: RichField> State<F> {
         );
     }
 
-    fn ecall_poseidon2(self) -> (Aux<F>, Self) {
-        let input_ptr = self.get_register_value(REG_A1);
-        // lengths are in bytes
-        let input_len = self.get_register_value(REG_A2);
-        let output_ptr = self.get_register_value(REG_A3);
-        let output_len = 32;
-        let input: Vec<F> = (0..input_len)
-            .map(|i| F::from_canonical_u8(self.load_u8(input_ptr + i)))
-            .collect();
-        let (hash, sponge_data) =
-            hash_n_to_m_with_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
-        let hash = hash.to_bytes();
-        assert!(output_len == hash.len());
-        let padded_len = |input_len: u32| {
-            if input_len % 8 == 0 {
-                input_len
-            } else {
-                input_len + (8 - input_len % 8)
-            }
-        };
-        (
-            Aux {
-                poseidon2: Some(Poseidon2Entry {
-                    addr: input_ptr,
-                    len: padded_len(input_len),
-                    sponge_data,
-                }),
-                ..Default::default()
-            },
-            hash.iter()
-                .enumerate()
-                .fold(self, |updated_self, (i, byte)| {
-                    updated_self
-                        .store_u8(
-                            output_ptr
-                                .wrapping_add(u32::try_from(i).expect("cannot fit i into u32")),
-                            *byte,
-                        )
-                        .unwrap()
-                })
-                .bump_pc(),
-        )
-    }
-
     #[must_use]
     pub fn ecall(self) -> (Aux<F>, Self) {
         match self.get_register_value(REG_A0) {
             ecall::HALT => self.ecall_halt(),
             ecall::IO_READ => self.ecall_io_read(),
             ecall::PANIC => self.ecall_panic(),
-            ecall::POSEIDON2 => self.ecall_poseidon2(),
             _ => (Aux::default(), self.bump_pc()),
         }
     }
@@ -389,54 +343,6 @@ pub fn step<F: RichField>(
         executed,
         last_state,
     })
-}
-
-///  # Panics
-///
-/// Panics if `PlonkyPermutation` is implemneted on `STATE_SIZE` different than
-/// 12.
-pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
-    inputs: &[F],
-) -> (HashOut<F>, Poseidon2SpongeData<F>) {
-    let permute_and_record_data = |perm: &mut P, sponge_data: &mut Poseidon2SpongeData<F>| {
-        let preimage: [F; 12] = perm
-            .as_ref()
-            .try_into()
-            .expect("lenght must be equal to poseidon2 STATE_SIZE");
-        perm.permute();
-        let output = perm
-            .as_ref()
-            .try_into()
-            .expect("lenght must be equal to poseidon2 STATE_SIZE");
-        sponge_data.push((preimage, output));
-    };
-
-    let mut perm = P::new(repeat(F::ZERO));
-    let mut inputs = inputs.to_vec();
-    let len = inputs.len();
-    // Add padding of required
-    if len % P::RATE != 0 {
-        inputs.resize(((len / P::RATE) + 1) * P::RATE, F::ZERO);
-    }
-    let mut sponge_data = Vec::new();
-
-    // Absorb all input chunks.
-    for chunk in inputs.chunks(P::RATE) {
-        perm.set_from_slice(chunk, 0);
-        permute_and_record_data(&mut perm, &mut sponge_data);
-    }
-
-    // Squeeze untill we have the desired number of outputs.
-    let mut outputs = Vec::new();
-    loop {
-        for &item in perm.squeeze() {
-            outputs.push(item);
-            if outputs.len() == NUM_HASH_OUT_ELTS {
-                return (HashOut::from_vec(outputs), sponge_data);
-            }
-        }
-        permute_and_record_data(&mut perm, &mut sponge_data);
-    }
 }
 
 #[cfg(test)]

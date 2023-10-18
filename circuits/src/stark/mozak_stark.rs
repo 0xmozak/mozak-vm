@@ -14,8 +14,6 @@ use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
-use crate::poseidon2::stark::Poseidon2_12Stark;
-use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::rangecheck_looking;
 use crate::rangecheck::stark::RangeCheckStark;
@@ -41,9 +39,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
     pub register_init_stark: RegisterInitStark<F, D>,
     pub register_stark: RegisterStark<F, D>,
-    pub poseidon2_stark: Poseidon2_12Stark<F, D>,
-    pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 13],
+    pub cross_table_lookups: [CrossTableLookup<F>; 11],
     pub debug: bool,
 }
 
@@ -71,8 +67,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             fullword_memory_stark: FullWordMemoryStark::default(),
             register_init_stark: RegisterInitStark::default(),
             register_stark: RegisterStark::default(),
-            poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
-            poseidon2_stark: Poseidon2_12Stark::default(),
             cross_table_lookups: [
                 RangecheckTable::lookups(),
                 XorCpuTable::lookups(),
@@ -85,8 +79,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
                 RegisterRegInitTable::lookups(),
-                Poseidon2SpongeCpuTable::lookups(),
-                Poseidon2Poseidon2SpongeTable::lookups(),
             ],
             debug: false,
         }
@@ -108,8 +100,6 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.fullword_memory_stark.num_permutation_batches(config),
             self.register_init_stark.num_permutation_batches(config),
             self.register_stark.num_permutation_batches(config),
-            self.poseidon2_sponge_stark.num_permutation_batches(config),
-            self.poseidon2_stark.num_permutation_batches(config),
         ]
     }
 
@@ -127,8 +117,6 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.fullword_memory_stark.permutation_batch_size(),
             self.register_init_stark.permutation_batch_size(),
             self.register_stark.permutation_batch_size(),
-            self.poseidon2_sponge_stark.permutation_batch_size(),
-            self.poseidon2_stark.permutation_batch_size(),
         ]
     }
 
@@ -141,7 +129,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 14;
+pub(crate) const NUM_TABLES: usize = 12;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum TableKind {
@@ -157,8 +145,6 @@ pub enum TableKind {
     FullWordMemory = 9,
     RegisterInit = 10,
     Register = 11,
-    Poseidon2Sponge = 12,
-    Poseidon2 = 13,
 }
 
 impl TableKind {
@@ -177,8 +163,6 @@ impl TableKind {
             TableKind::FullWordMemory,
             TableKind::RegisterInit,
             TableKind::Register,
-            TableKind::Poseidon2Sponge,
-            TableKind::Poseidon2,
         ]
     }
 }
@@ -226,8 +210,6 @@ table_impl!(HalfWordMemoryTable, TableKind::HalfWordMemory);
 table_impl!(FullWordMemoryTable, TableKind::FullWordMemory);
 table_impl!(RegisterInitTable, TableKind::RegisterInit);
 table_impl!(RegisterTable, TableKind::Register);
-table_impl!(Poseidon2SpongeTable, TableKind::Poseidon2Sponge);
-table_impl!(Poseidon2Table, TableKind::Poseidon2);
 
 pub trait Lookups<F: Field> {
     fn lookups() -> CrossTableLookup<F>;
@@ -432,38 +414,6 @@ impl<F: Field> Lookups<F> for RegisterRegInitTable<F> {
             RegisterInitTable::new(
                 crate::registerinit::columns::data_for_register(),
                 crate::registerinit::columns::filter_for_register(),
-            ),
-        )
-    }
-}
-
-pub struct Poseidon2SpongeCpuTable<F: Field>(CrossTableLookup<F>);
-impl<F: Field> Lookups<F> for Poseidon2SpongeCpuTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
-        CrossTableLookup::new(
-            vec![Poseidon2SpongeTable::new(
-                crate::poseidon2_sponge::columns::data_for_cpu(),
-                crate::poseidon2_sponge::columns::filter_for_cpu(),
-            )],
-            CpuTable::new(
-                crate::cpu::columns::data_for_poseidone2_sponge(),
-                crate::cpu::columns::filter_for_poseidon2_sponge(),
-            ),
-        )
-    }
-}
-
-pub struct Poseidon2Poseidon2SpongeTable<F: Field>(CrossTableLookup<F>);
-impl<F: Field> Lookups<F> for Poseidon2Poseidon2SpongeTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
-        CrossTableLookup::new(
-            vec![Poseidon2Table::new(
-                crate::poseidon2::columns::data_for_sponge(),
-                crate::poseidon2::columns::filter_for_sponge(),
-            )],
-            Poseidon2SpongeTable::new(
-                crate::poseidon2_sponge::columns::data_for_poseidon2(),
-                crate::poseidon2_sponge::columns::filter_for_poseidon2(),
             ),
         )
     }

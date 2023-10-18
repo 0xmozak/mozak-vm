@@ -55,12 +55,7 @@ pub fn standard_faster_config() -> StarkConfig {
             // yet." So we automatically set the rate here as required by plonky2.
             // TODO(Matthias): Change to maximum of constraint degrees of all starks, as we
             // accumulate more types of starks.
-            rate_bits: log2_ceil(
-                S::default()
-                    .cpu_stark
-                    .constraint_degree()
-                    .max(S::default().poseidon2_stark.constraint_degree()),
-            ),
+            rate_bits: log2_ceil(S::default().cpu_stark.constraint_degree()),
             cap_height: 0,
             proof_of_work_bits: 0,
             num_query_rounds: 5,

@@ -26,7 +26,6 @@ thiserror = "1.0.48"
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }
 env_logger = { version = "0.10.0" }
-hex-literal = "0.2.2"
 im = "15.1.0"
 mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.2.0"

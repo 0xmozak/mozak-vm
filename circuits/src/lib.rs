@@ -19,7 +19,6 @@ pub mod memory_fullword;
 pub mod memory_halfword;
 pub mod memoryinit;
 pub mod poseidon2;
-pub mod poseidon2_sponge;
 pub mod program;
 pub mod rangecheck;
 pub mod rangecheck_limb;

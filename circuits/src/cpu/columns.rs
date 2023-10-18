@@ -154,9 +154,6 @@ pub struct CpuState<T> {
     /// product_sign is 1
     pub product_high_limb_inv_helper: T,
     pub mem_addr: T,
-    pub is_poseidon2: T,
-    pub poseidon2_input_addr: T,
-    pub poseidon2_input_len: T,
 }
 
 make_col_map!(CpuColumnsExtended);
@@ -390,15 +387,3 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
 /// Columns containing the data of permuted instructions.
 #[must_use]
 pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.permuted.inst) }
-
-#[must_use]
-pub fn data_for_poseidone2_sponge<F: Field>() -> Vec<Column<F>> {
-    let cpu = MAP.cpu.map(Column::from);
-    vec![cpu.clk, cpu.poseidon2_input_addr, cpu.poseidon2_input_len]
-}
-
-#[must_use]
-pub fn filter_for_poseidon2_sponge<F: Field>() -> Column<F> {
-    let cpu = MAP.cpu.map(Column::from);
-    cpu.is_poseidon2
-}
