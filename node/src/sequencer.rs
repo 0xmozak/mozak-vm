@@ -158,7 +158,7 @@ impl Sequencer {
 
 #[cfg(all(feature = "dummy-system", test))]
 mod test {
-    use mozak_node_sdk::{Object};
+    use mozak_node_sdk::Object;
 
     use crate::sequencer::Sequencer;
     use crate::{ConsensusSystem, DummyConsensusSystem, ScenarioRPC, RPC};
