@@ -5,6 +5,7 @@ pub struct Account {
     pub id: PubKey,
 }
 
+#[must_use]
 pub fn add(left: usize, right: usize) -> usize { left + right }
 
 #[cfg(test)]

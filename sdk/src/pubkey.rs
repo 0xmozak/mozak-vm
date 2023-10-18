@@ -1,6 +1,6 @@
 use std::{fmt, str};
 
-/// PubKey for the Account, Program, and Objects
+/// `PubKey` for the Account, Program, and Objects
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]
 pub struct PubKey(pub(crate) [u8; 32]);
 

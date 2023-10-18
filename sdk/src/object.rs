@@ -22,6 +22,7 @@ pub struct Object {
 
 impl Object {
     /// Creates a new Data object.
+    #[must_use]
     pub fn new(mutable: bool, owner: Id, data: Data, seed: u64) -> Self {
         let id = Id::derive(owner, seed);
         Self {
@@ -33,6 +34,7 @@ impl Object {
     }
 
     /// Updates the obj and return new obj
+    #[must_use]
     pub fn update(&self, data: Data) -> Self {
         let mut obj = self.clone();
         obj.data = data;

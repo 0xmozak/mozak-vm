@@ -21,6 +21,7 @@ pub struct Program {
 
 impl Program {
     /// Creates a new Program object.
+    #[must_use]
     pub fn new(version: u64, mutable: bool, owner: Id, seed: u64, code: Data) -> Self {
         let id = Id::derive(owner, seed);
         Self {

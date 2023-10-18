@@ -13,6 +13,7 @@ pub struct Id(pub [u8; 32]);
 
 impl Id {
     /// Creates a new ID from a byte slice.
+    #[must_use]
     pub fn new(id: &[u8]) -> Self {
         let mut bytes = [0u8; 32];
         bytes.copy_from_slice(id);
@@ -20,6 +21,7 @@ impl Id {
     }
 
     /// Derive ID from another id and a seed.
+    #[must_use]
     pub fn derive(id: Id, seed: u64) -> Self {
         let mut hasher = DefaultHash::new();
         hasher.update(id.to_vec());
@@ -29,6 +31,7 @@ impl Id {
     }
 
     /// Create random ID for testing
+    #[must_use]
     pub fn random() -> Self {
         use rand::Rng;
         let mut rng = rand::thread_rng();

@@ -9,6 +9,7 @@ pub struct Instruction {
     pub data: Vec<u8>,
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub struct CompressedInstruction {
     /// Index into the transaction keys array indicating the program account
     /// that executes this instruction.

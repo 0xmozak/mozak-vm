@@ -1,3 +1,4 @@
+#![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
 pub mod account;
 pub mod crypto;
