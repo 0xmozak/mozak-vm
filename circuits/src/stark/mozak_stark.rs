@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 use starky::stark::Stark;
 
+use super::lookup::{rangechecks_u32, CrossTableLogup};
 use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
@@ -39,7 +40,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
     pub register_init_stark: RegisterInitStark<F, D>,
     pub register_stark: RegisterStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 11],
+    pub cross_table_lookups: [CrossTableLookup<F>; 10],
+    pub cross_table_logups: Vec<CrossTableLogup>,
     pub debug: bool,
 }
 
@@ -68,7 +70,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             register_init_stark: RegisterInitStark::default(),
             register_stark: RegisterStark::default(),
             cross_table_lookups: [
-                RangecheckTable::lookups(),
                 XorCpuTable::lookups(),
                 BitshiftCpuTable::lookups(),
                 InnerCpuTable::lookups(),
@@ -80,6 +81,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 FullWordMemoryCpuTable::lookups(),
                 RegisterRegInitTable::lookups(),
             ],
+            cross_table_logups: vec![rangechecks_u32()],
             debug: false,
         }
     }
@@ -119,6 +121,25 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.register_stark.permutation_batch_size(),
         ]
     }
+
+    pub(crate) fn nums_logups(&self, config: &StarkConfig) -> [usize; NUM_TABLES] {
+        [
+            self.cpu_stark.num_permutation_batches(config),
+            self.rangecheck_stark.num_permutation_batches(config),
+            self.xor_stark.num_permutation_batches(config),
+            self.shift_amount_stark.num_permutation_batches(config),
+            self.program_stark.num_permutation_batches(config),
+            self.memory_stark.num_permutation_batches(config),
+            self.memory_init_stark.num_permutation_batches(config),
+            self.rangecheck_limb_stark.num_permutation_batches(config),
+            self.halfword_memory_stark.num_permutation_batches(config),
+            self.fullword_memory_stark.num_permutation_batches(config),
+            self.register_init_stark.num_permutation_batches(config),
+            self.register_stark.num_permutation_batches(config),
+        ]
+    }
+
+    pub(crate) fn num_logup_columns() {}
 
     #[must_use]
     pub fn default_debug() -> Self {
@@ -173,7 +194,6 @@ pub struct Table<F: Field> {
     pub(crate) columns: Vec<Column<F>>,
     pub(crate) filter_column: Column<F>,
 }
-
 impl<F: Field> Table<F> {
     pub fn new(kind: TableKind, columns: Vec<Column<F>>, filter_column: Column<F>) -> Self {
         Self {
@@ -360,7 +380,7 @@ pub struct LimbTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for LimbTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
-            chain!(rangecheck_looking(), cpu::columns::rangecheck_looking_u8(),).collect_vec(),
+            cpu::columns::rangecheck_looking_u8(),
             RangeCheckLimbTable::new(
                 crate::rangecheck_limb::columns::data(),
                 crate::rangecheck_limb::columns::filter(),

@@ -2,6 +2,7 @@
 //! Docs are still to be added, for now, please refer to notion
 //! `doc` section for details.
 
+pub mod lookup;
 #[allow(clippy::module_name_repetitions)]
 pub mod mozak_stark;
 pub mod permutation;

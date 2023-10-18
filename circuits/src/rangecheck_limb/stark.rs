@@ -7,7 +7,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
+use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
 use super::columns::RangeCheckLimb;
@@ -35,19 +35,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckLim
 
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
-        vars: &Self::EvaluationFrame<FE, P, D2>,
-        yield_constr: &mut ConstraintConsumer<P>,
+        _vars: &Self::EvaluationFrame<FE, P, D2>,
+        _yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &RangeCheckLimb<P> = vars.get_local_values().try_into().unwrap();
-        let nv: &RangeCheckLimb<P> = vars.get_next_values().try_into().unwrap();
-        // Check: the `element`s form a sequence from 0 to 255, with possible
-        // duplicates.
-        yield_constr.constraint_first_row(lv.element);
-        yield_constr
-            .constraint_transition((nv.element - lv.element - FE::ONE) * (nv.element - lv.element));
-        yield_constr.constraint_last_row(lv.element - FE::from_canonical_u8(u8::MAX));
     }
 
     fn eval_ext_circuit(

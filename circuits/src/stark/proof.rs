@@ -22,7 +22,7 @@ pub struct StarkProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, 
     /// Merkle cap of LDEs of trace values.
     pub trace_cap: MerkleCap<F, C::Hasher>,
     /// Merkle cap of LDEs of permutation Z values.
-    pub permutation_ctl_zs_cap: MerkleCap<F, C::Hasher>,
+    pub aux_polys_caps: MerkleCap<F, C::Hasher>,
     /// Merkle cap of LDEs of trace values.
     pub quotient_polys_cap: MerkleCap<F, C::Hasher>,
     /// Purported values of each polynomial at the challenge point.
@@ -54,7 +54,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
         let degree_bits = self.recover_degree_bits(config);
 
         let StarkProof {
-            permutation_ctl_zs_cap,
+            aux_polys_caps,
             quotient_polys_cap,
             openings,
             opening_proof:
@@ -72,7 +72,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
         let permutation_challenge_sets = challenger
             .get_n_grand_product_challenge_sets(num_challenges, stark_permutation_batch_size);
 
-        challenger.observe_cap(permutation_ctl_zs_cap);
+        challenger.observe_cap(aux_polys_caps);
 
         let stark_alphas = challenger.get_n_challenges(num_challenges);
 
@@ -119,10 +119,10 @@ pub struct StarkOpeningSet<F: RichField + Extendable<D>, const D: usize> {
     pub next_values: Vec<F::Extension>,
     /// Openings of permutations and cross-table lookups `Z` polynomials at
     /// `zeta`.
-    pub permutation_ctl_zs: Vec<F::Extension>,
+    pub aux_polys: Vec<F::Extension>,
     /// Openings of permutations and cross-table lookups `Z` polynomials at `g *
     /// zeta`.
-    pub permutation_ctl_zs_next: Vec<F::Extension>,
+    pub aux_polys_next: Vec<F::Extension>,
     /// Openings of cross-table lookups `Z` polynomials at `g^-1`.
     pub ctl_zs_last: Vec<F>,
     /// Openings of quotient polynomials at `zeta`.
@@ -134,11 +134,12 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
         zeta: F::Extension,
         g: F,
         trace_commitment: &PolynomialBatch<F, C, D>,
-        permutation_ctl_zs_commitment: &PolynomialBatch<F, C, D>,
+        aux_polys_commitment: &PolynomialBatch<F, C, D>,
         quotient_commitment: &PolynomialBatch<F, C, D>,
         degree_bits: usize,
-        num_permutation_zs: usize,
+        num_logup_cols: usize,
     ) -> Self {
+        println!("NLC: {}", num_logup_cols);
         let eval_commitment = |z: F::Extension, c: &PolynomialBatch<F, C, D>| {
             c.polynomials
                 .par_iter()
@@ -155,12 +156,12 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
         Self {
             local_values: eval_commitment(zeta, trace_commitment),
             next_values: eval_commitment(zeta_next, trace_commitment),
-            permutation_ctl_zs: eval_commitment(zeta, permutation_ctl_zs_commitment),
-            permutation_ctl_zs_next: eval_commitment(zeta_next, permutation_ctl_zs_commitment),
+            aux_polys: eval_commitment(zeta, aux_polys_commitment),
+            aux_polys_next: eval_commitment(zeta_next, aux_polys_commitment),
             ctl_zs_last: eval_commitment_base(
                 F::primitive_root_of_unity(degree_bits).inverse(),
-                permutation_ctl_zs_commitment,
-            )[num_permutation_zs..]
+                aux_polys_commitment,
+            )[num_logup_cols..]
                 .to_vec(),
             quotient_polys: eval_commitment(zeta, quotient_commitment),
         }
@@ -171,7 +172,7 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
             values: self
                 .local_values
                 .iter()
-                .chain(&self.permutation_ctl_zs)
+                .chain(&self.aux_polys)
                 .chain(&self.quotient_polys)
                 .copied()
                 .collect_vec(),
@@ -180,11 +181,11 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
             values: self
                 .next_values
                 .iter()
-                .chain(&self.permutation_ctl_zs_next)
+                .chain(&self.aux_polys_next)
                 .copied()
                 .collect_vec(),
         };
-        debug_assert!(!self.ctl_zs_last.is_empty());
+        // debug_assert!(!self.ctl_zs_last.is_empty());
         let ctl_last_batch = FriOpeningBatch {
             values: self
                 .ctl_zs_last

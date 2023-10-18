@@ -133,8 +133,9 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &halfword_memory,
             &fullword_memory,
         );
-        let trace_poly_values =
-            trace_rows_to_poly_values(generate_rangecheck_trace(&cpu_trace, &memory_trace));
+        let rc_rows = generate_rangecheck_trace(&cpu_trace, &memory_trace);
+
+        let trace_poly_values = trace_rows_to_poly_values(rc_rows);
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,

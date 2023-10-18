@@ -1,34 +1,46 @@
 use plonky2::field::types::Field;
 
-use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 use crate::stark::mozak_stark::{RangeCheckTable, Table};
 
+columns_view_impl!(MultiplicityView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub(crate) struct RangeCheckColumnsView<T> {
-    /// The limbs (u8) of the u32 value to be range
-    /// checked.
-    pub(crate) limbs: [T; 4],
+pub struct MultiplicityView<T> {
+    /// The unique value.
+    pub value: T,
 
-    /// Column to indicate that a value to be range checked is not a dummy
-    /// value.
-    pub(crate) filter: T,
+    /// The frequencies for which the accompanying value occur in
+    /// the trace. This is m(x) in the paper.
+    pub multiplicity: T,
 }
-columns_view_impl!(RangeCheckColumnsView);
-make_col_map!(RangeCheckColumnsView);
 
-/// Total number of columns for the range check table.
-pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COLUMNS;
+make_col_map!(RangeCheckColumnsView);
+columns_view_impl!(RangeCheckColumnsView);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct RangeCheckColumnsView<T> {
+    /// The u8 limbs.
+    pub limbs: [T; 4],
+
+    /// The filter.
+    pub filter: T,
+
+    /// logup
+    pub logup_u32: MultiplicityView<T>,
+}
 
 /// Columns containing the data to be range checked in the Mozak
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 #[must_use]
-pub fn data<F: Field>() -> Vec<Column<F>> {
-    vec![(0..4)
-        .map(|limb| Column::single(MAP.limbs[limb]) * F::from_canonical_u32(1 << (8 * limb)))
-        .sum()]
-}
+pub fn data<F: Field>() -> Vec<Column<F>> { vec![Column::always()] }
+
+/// Column for a binary filter to indicate whether a row in the
+/// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
+/// contains a non-dummy value to be range checked.
+#[must_use]
+pub fn filter<F: Field>() -> Column<F> { Column::always() }
 
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
@@ -41,9 +53,3 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
         })
         .collect()
 }
-
-/// Column for a binary filter to indicate whether a row in the
-/// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
-/// contains a non-dummy value to be range checked.
-#[must_use]
-pub fn filter<F: Field>() -> Column<F> { Column::single(MAP.filter) }

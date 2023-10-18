@@ -13,6 +13,7 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
+use crate::stark::lookup::{CrossTableLogup, LogupCheckVars};
 use crate::stark::mozak_stark::{Table, NUM_TABLES};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::StarkProof;
@@ -55,6 +56,12 @@ pub(crate) struct CtlZData<F: Field> {
     pub(crate) filter_column: Column<F>,
 }
 
+#[derive(Default)]
+pub(crate) struct LogupData<F: Field> {
+    pub(crate) looking: Vec<PolynomialValues<F>>,
+    pub(crate) looked: Vec<PolynomialValues<F>>,
+}
+
 pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: usize>(
     cross_table_lookups: &[CrossTableLookup<F>],
     ctl_zs_lasts: &[Vec<F>; NUM_TABLES],
@@ -86,6 +93,56 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));
 
     Ok(())
+}
+
+pub(crate) fn cross_table_logup_data<F: RichField, const D: usize>(
+    all_trace_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+    lookups: &[CrossTableLogup],
+    challenges: &[F],
+) -> [LogupData<F>; NUM_TABLES] {
+    let mut data_per_table = [0; NUM_TABLES].map(|_| LogupData::default());
+    for CrossTableLogup {
+        looking_tables,
+        looked_table,
+    } in lookups
+    {
+        fn log_derivative<F: Field>(mut column: Vec<F>, challenge: F) -> PolynomialValues<F> {
+            for x in &mut column {
+                *x = challenge + *x;
+            }
+
+            PolynomialValues::from(F::batch_multiplicative_inverse(&column))
+        }
+
+        for challenge in challenges {
+            // Calculates 1 / x + f(x), which prepares the column to be constrained as per
+            // Lemma 5 within the LogUp paper.
+
+            // Calculate all helper columns for looking.
+            for looking_table in looking_tables {
+                let looking_poly_values = &all_trace_poly_values[looking_table.kind as usize];
+
+                for col in &looking_table.columns {
+                    data_per_table[looking_table.kind as usize]
+                        .looking
+                        .push(log_derivative(
+                            looking_poly_values[*col].values.clone(),
+                            *challenge,
+                        ));
+                }
+            }
+
+            // Calculate all helper columns for looked.
+            let looked_poly_values = &all_trace_poly_values[looked_table.kind as usize];
+            data_per_table[looked_table.kind as usize]
+                .looked
+                .push(log_derivative(
+                    looked_poly_values[looked_table.table_column].values.clone(),
+                    *challenge,
+                ));
+        }
+    }
+    data_per_table
 }
 
 pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
@@ -216,7 +273,7 @@ impl<F: Field> CrossTableLookup<F> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CtlCheckVars<'a, F, FE, P, const D2: usize>
 where
     F: Field,
@@ -236,15 +293,16 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         proofs: &[StarkProof<F, C, D>; NUM_TABLES],
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
-        num_permutation_zs: &[usize; NUM_TABLES],
+        num_logups_per_table: &'a [usize; NUM_TABLES],
     ) -> [Vec<Self>; NUM_TABLES] {
         let mut ctl_zs = proofs
             .iter()
-            .zip(num_permutation_zs)
-            .map(|(p, &num_perms)| {
+            .zip(num_logups_per_table)
+            .map(|(p, &num)| {
+                // skip looking and looked
                 let openings = &p.openings;
-                let ctl_zs = openings.permutation_ctl_zs.iter().skip(num_perms);
-                let ctl_zs_next = openings.permutation_ctl_zs_next.iter().skip(num_perms);
+                let ctl_zs = openings.aux_polys.iter().skip(num);
+                let ctl_zs_next = openings.aux_polys_next.iter().skip(num);
                 ctl_zs.zip(ctl_zs_next)
             })
             .collect::<Vec<_>>();
@@ -277,9 +335,62 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                 });
             }
         }
+        for var in &ctl_vars_per_table {
+            println!("ctl vars per table {:?}", var.len());
+        }
         ctl_vars_per_table
     }
 }
+
+pub(crate) fn eval_cross_table_logup<F, FE, P, S, const D: usize, const D2: usize>(
+    _vars: &S::EvaluationFrame<FE, P, D2>,
+    logup_vars: &LogupCheckVars<F, FE, P, D2>,
+    challenges: &[F],
+    yield_constr: &mut ConstraintConsumer<P>,
+) where
+    F: RichField + Extendable<D>,
+    FE: FieldExtension<D2, BaseField = F>,
+    P: PackedField<Scalar = FE>,
+    S: Stark<F, D>, {
+    let LogupCheckVars {
+        looking_vars,
+        looked_vars,
+    } = logup_vars;
+    for challenge in challenges {
+        let mut looking_start: usize = 0;
+        let mut looked_start: usize = 0;
+
+        let challenge = FE::from_basefield(*challenge);
+        if !looking_vars.is_empty() {
+            let local_values = &looking_vars.local_values;
+            let len = local_values.len() / challenges.len();
+
+            for lv in local_values.iter().skip(looking_start).take(len) {
+                let x = lv;
+
+                // Check that the penultimate helper column contains `1/(table+challenge)`.
+                let x = *x * (*lv + challenge);
+                yield_constr.constraint(x - P::ONES);
+            }
+
+            looking_start += len;
+        }
+        if !looked_vars.is_empty() {
+            let local_values = &looked_vars.local_values;
+            let len = local_values.len() / challenges.len();
+
+            for lv in local_values.iter().skip(looked_start).take(len) {
+                let x = lv;
+
+                // Check that the penultimate helper column contains `1/(table+challenge)`.
+                let x = *x * (*lv + challenge);
+                yield_constr.constraint(x - P::ONES);
+            }
+            looked_start += len;
+        }
+    }
+}
+
 pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const D2: usize>(
     vars: &S::EvaluationFrame<FE, P, D2>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],

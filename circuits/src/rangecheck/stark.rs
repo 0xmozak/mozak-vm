@@ -7,10 +7,11 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
+use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
-use super::columns;
+use super::columns::RangeCheckColumnsView;
+use crate::columns_view::NumberOfColumns;
 use crate::display::derive_display_stark_name;
 
 derive_display_stark_name!(RangeCheckStark);
@@ -20,7 +21,8 @@ pub struct RangeCheckStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-const COLUMNS: usize = columns::NUM_RC_COLS;
+/// Total number of columns for the range check table.
+const COLUMNS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckStark<F, D> {
@@ -39,11 +41,20 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     // in RangeCheckLimbStark.
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
-        _vars: &Self::EvaluationFrame<FE, P, D2>,
-        _yield_constr: &mut ConstraintConsumer<P>,
+        vars: &Self::EvaluationFrame<FE, P, D2>,
+        yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
+        // let lv: &RangeCheckColumnsView<_> =
+        // vars.get_local_values().try_into().unwrap();
+
+        //        yield_constr.constraint(
+        //            lv.u32_logup.value
+        //                - lv.limbs .iter() .enumerate() .map(|(i, limb)| *limb
+        //                  * (P::Scalar::from_noncanonical_u64(1 << (8 * i))))
+        //                  .sum::<P>(),
+        //        );
     }
 
     fn eval_ext_circuit(
