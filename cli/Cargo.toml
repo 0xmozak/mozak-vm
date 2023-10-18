@@ -43,4 +43,4 @@ proptest = "1.2.0"
 shadow-rs = "0.24.1"
 
 [profile.release]
-opt-level = 1
+opt-level = 2
