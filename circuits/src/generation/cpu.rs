@@ -46,7 +46,7 @@ pub fn generate_cpu_trace<F: RichField>(
         // The last state is the final state after the last execution.  Thus naturally it has no
         // associated auxiliarye execution information. We use a dummy aux to make the row
         // generation work, but we could refactor to make this unnecessary.
-        aux: executed.last().unwrap().aux,
+        aux: executed.last().unwrap().aux.clone(),
     }];
 
     for Row { state, aux } in chain![executed, last_row] {

@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
-use derive_more::Deref;
+use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use log::trace;
 use serde::{Deserialize, Serialize};
@@ -102,8 +102,24 @@ pub struct MemEntry {
     pub raw_value: u32,
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Default)]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[repr(u8)]
+pub enum IoOpcode {
+    #[default]
+    None,
+    Store,
+    Load,
+}
+#[derive(Debug, Clone, Default)]
+pub struct IoEntry {
+    pub addr: u32,
+    pub op: IoOpcode,
+    pub data: Vec<u8>,
+}
+
 /// Auxiliary information about the instruction execution
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Aux {
     // This could be an Option<u32>, but given how Risc-V instruction are specified,
     // 0 serves as a default value just fine.
@@ -113,6 +129,7 @@ pub struct Aux {
     pub will_halt: bool,
     pub op1: u32,
     pub op2: u32,
+    pub io: Option<IoEntry>,
 }
 
 impl State {
