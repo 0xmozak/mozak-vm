@@ -6,6 +6,7 @@ pub mod cpu;
 pub mod fullword_memory;
 pub mod halfword_memory;
 pub mod instruction;
+pub mod io_memory;
 pub mod memory;
 pub mod memoryinit;
 pub mod program;
