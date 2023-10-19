@@ -379,14 +379,13 @@ pub fn step<F: RichField>(
     })
 }
 
+// Based on hash_n_to_m_no_pad() from plonky2/src/hash/hashing.rs
 pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(inputs: &[F]) -> HashOut<F> {
     let mut perm = P::new(repeat(F::ZERO));
     let mut inputs = inputs.to_vec();
     let len = inputs.len();
-    // Add padding of required
-    if len % P::RATE != 0 {
-        inputs.resize(((len / P::RATE) + 1) * P::RATE, F::ZERO);
-    }
+    // Add padding if required
+    inputs.resize(len.next_multiple_of(P::RATE), F::ZERO);
 
     // Absorb all input chunks.
     for chunk in inputs.chunks(P::RATE) {
@@ -463,6 +462,25 @@ mod tests {
         assert_eq!(
             state_before_final(&e).get_register_value(rd),
             rs1_value.wrapping_mul(imm),
+        );
+    }
+
+    #[test]
+    fn test_hash_n_to_m_with_pad() {
+        let data = "💥 Mozak-VM Rocks With Poseidon2";
+        let data_bytes = data.as_bytes();
+        let data_fields: Vec<GoldilocksField> = data_bytes
+            .iter()
+            .map(|x| GoldilocksField::from_canonical_u8(*x))
+            .collect();
+        let hash = super::hash_n_to_m_with_pad::<
+            GoldilocksField,
+            Poseidon2Permutation<GoldilocksField>,
+        >(&data_fields);
+        let hash_bytes = hash.to_bytes();
+        assert_eq!(
+            hash_bytes,
+            hex_literal::hex!("4afb11172461851820da91ce1b972afd87caf69abe4316097280a4784b1fe396")[..]
         );
     }
 
