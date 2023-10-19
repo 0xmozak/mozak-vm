@@ -19,7 +19,7 @@ fn pad_io_mem_trace<F: RichField>(
 }
 
 /// Returns the rows with full word memory instructions.
-pub fn filter(step_rows: &[Row]) -> impl Iterator<Item = &Row> {
+pub fn filter<F: RichField>(step_rows: &[Row<F>]) -> impl Iterator<Item = &Row<F>> {
     step_rows.iter().filter(|row| {
         matches!(
             row.aux.io.clone().unwrap_or_default().op, // TODO: fix - copy big amount of data
@@ -31,7 +31,7 @@ pub fn filter(step_rows: &[Row]) -> impl Iterator<Item = &Row> {
 #[must_use]
 pub fn generate_io_memory_trace<F: RichField>(
     _program: &Program,
-    step_rows: &[Row],
+    step_rows: &[Row<F>],
 ) -> Vec<InputOutputMemory<F>> {
     pad_io_mem_trace(
         filter(step_rows)

@@ -243,7 +243,7 @@ impl ProveAndVerify for FullWordMemoryStark<F, D> {
 }
 
 impl ProveAndVerify for InputOuputMemoryStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = InputOuputMemoryStark<F, D>;
         let config = standard_faster_config();
 
