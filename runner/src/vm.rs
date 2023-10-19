@@ -102,9 +102,9 @@ pub fn lh(mem: &[u8; 4]) -> (u32, u32) {
 #[must_use]
 pub fn lw(mem: &[u8; 4]) -> (u32, u32) { dup(u32::from_le_bytes(*mem)) }
 
-impl State {
+impl<F: RichField> State<F> {
     #[must_use]
-    pub fn jalr(self, inst: &Args) -> (Aux, Self) {
+    pub fn jalr(self, inst: &Args) -> (Aux<F>, Self) {
         let new_pc = self.get_register_value(inst.rs1).wrapping_add(inst.imm) & !1;
         let dst_val = self.get_pc().wrapping_add(4);
         (
@@ -116,7 +116,7 @@ impl State {
         )
     }
 
-    fn ecall_halt(self) -> (Aux, Self) {
+    fn ecall_halt(self) -> (Aux<F>, Self) {
         // Note: we don't advance the program counter for 'halt'.
         // That is we treat 'halt' like an endless loop.
         (
@@ -132,7 +132,7 @@ impl State {
     ///
     /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
     /// bytes.
-    fn ecall_io_read(self) -> (Aux, Self) {
+    fn ecall_io_read(self) -> (Aux<F>, Self) {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requsted = self.get_register_value(REG_A2);
         let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
@@ -160,7 +160,7 @@ impl State {
     /// # Panics
     ///
     /// Panics if Vec<u8> to string conversion fails.
-    fn ecall_panic(self) -> (Aux, Self) {
+    fn ecall_panic(self) -> (Aux<F>, Self) {
         let msg_len = self.get_register_value(REG_A1);
         let msg_ptr = self.get_register_value(REG_A2);
         let mut msg_vec = vec![];
@@ -173,7 +173,7 @@ impl State {
         );
     }
 
-    fn ecall_poseidon2(self) -> (Aux, Self) {
+    fn ecall_poseidon2(self) -> (Aux<F>, Self) {
         let input_ptr = self.get_register_value(REG_A1);
         // lengths are in bytes
         let input_len = self.get_register_value(REG_A2);
@@ -204,7 +204,7 @@ impl State {
     }
 
     #[must_use]
-    pub fn ecall(self) -> (Aux, Self) {
+    pub fn ecall(self) -> (Aux<F>, Self) {
         match self.get_register_value(REG_A0) {
             ecall::HALT => self.ecall_halt(),
             ecall::IO_READ => self.ecall_io_read(),
@@ -220,7 +220,7 @@ impl State {
     /// Panics in case we intend to store to a read-only location
     /// TODO: Review the decision to panic.  We might also switch to using a
     /// Result, so that the caller can handle this.
-    pub fn store(self, inst: &Args, bytes: u32) -> (Aux, Self) {
+    pub fn store(self, inst: &Args, bytes: u32) -> (Aux<F>, Self) {
         let raw_value: u32 = self.get_register_value(inst.rs1);
         let addr = self.get_register_value(inst.rs2).wrapping_add(inst.imm);
         (
@@ -244,7 +244,7 @@ impl State {
     ///
     /// Errors if the program contains an instruction with an unsupported
     /// opcode.
-    pub fn execute_instruction(self, program: &Program) -> Result<(Aux, Self)> {
+    pub fn execute_instruction(self, program: &Program) -> Result<(Aux<F>, Self)> {
         let inst = self.current_instruction(program);
         macro_rules! rop {
             ($op: expr) => {
@@ -327,15 +327,15 @@ impl State {
 /// Each row corresponds to the state of the VM _just before_ executing the
 /// instruction that the program counter points to.
 #[derive(Debug, Clone, Default)]
-pub struct Row {
-    pub state: State,
-    pub aux: Aux,
+pub struct Row<F: RichField> {
+    pub state: State<F>,
+    pub aux: Aux<F>,
 }
 
 #[derive(Debug, Default)]
-pub struct ExecutionRecord {
-    pub executed: Vec<Row>,
-    pub last_state: State,
+pub struct ExecutionRecord<F: RichField> {
+    pub executed: Vec<Row<F>>,
+    pub last_state: State<F>,
 }
 
 /// Execute a program
@@ -351,7 +351,10 @@ pub struct ExecutionRecord {
 /// This is a temporary measure to catch problems with accidental infinite
 /// loops. (Matthias had some trouble debugging a problem with jumps
 /// earlier.)
-pub fn step(program: &Program, mut last_state: State) -> Result<ExecutionRecord> {
+pub fn step<F: RichField>(
+    program: &Program,
+    mut last_state: State<F>,
+) -> Result<ExecutionRecord<F>> {
     let mut executed = vec![];
     while !last_state.has_halted() {
         let (aux, new_state) = last_state.clone().execute_instruction(program)?;
@@ -370,7 +373,7 @@ pub fn step(program: &Program, mut last_state: State) -> Result<ExecutionRecord>
             );
         }
     }
-    Ok(ExecutionRecord {
+    Ok(ExecutionRecord::<F> {
         executed,
         last_state,
     })
@@ -409,6 +412,7 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(inputs: &[F])
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use im::HashMap;
+    use plonky2::field::goldilocks_field::GoldilocksField;
     use proptest::prelude::ProptestConfig;
     use proptest::{prop_assume, proptest};
 
@@ -424,7 +428,7 @@ mod tests {
         code: &[Instruction],
         mem: &[(u32, u32)],
         regs: &[(u8, u32)],
-    ) -> ExecutionRecord {
+    ) -> ExecutionRecord<GoldilocksField> {
         crate::test_utils::simple_test_code(code, mem, regs).1
     }
 
@@ -1434,7 +1438,11 @@ mod tests {
 
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
-    fn simple_test(exit_at: u32, mem: &[(u32, u32)], regs: &[(u8, u32)]) -> ExecutionRecord {
+    fn simple_test(
+        exit_at: u32,
+        mem: &[(u32, u32)],
+        regs: &[(u8, u32)],
+    ) -> ExecutionRecord<GoldilocksField> {
         // TODO(Matthias): stick this line into proper common setup?
         let _ = env_logger::try_init();
         let exit_inst =

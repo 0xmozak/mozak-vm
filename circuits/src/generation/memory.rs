@@ -33,7 +33,7 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
 /// execution for final memory trace.
 pub fn generate_memory_trace_from_execution<'a, F: RichField>(
     program: &'a Program,
-    step_rows: &'a [Row],
+    step_rows: &'a [Row<F>],
 ) -> impl Iterator<Item = Memory<F>> + 'a {
     step_rows
         .iter()
@@ -110,7 +110,7 @@ fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64) {
 #[must_use]
 pub fn generate_memory_trace<F: RichField>(
     program: &Program,
-    step_rows: &[Row],
+    step_rows: &[Row<F>],
     memory_init_rows: &[MemoryInit<F>],
     halfword_memory_rows: &[HalfWordMemory<F>],
     fullword_memory_rows: &[FullWordMemory<F>],
