@@ -1,10 +1,7 @@
-
 use std::str::from_utf8;
 
 use anyhow::{anyhow, Result};
-use plonky2::hash::hash_types::{RichField};
-
-
+use plonky2::hash::hash_types::RichField;
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
