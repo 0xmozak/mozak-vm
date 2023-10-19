@@ -13,21 +13,19 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::{CpuColumnsExtended, CpuState, OpSelectors};
-use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
+use super::{add, bitwise, branches, div, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::NumberOfColumns;
 use crate::cpu::shift;
+use crate::display::derive_display_stark_name;
 use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::utils::is_binary;
 
+derive_display_stark_name!(CpuStark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {
     pub _f: PhantomData<F>,
-}
-
-impl<F, const D: usize> Display for CpuStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "CpuStark") }
 }
 
 impl<P: PackedField> OpSelectors<P> {
@@ -142,6 +140,20 @@ fn halted<P: PackedField>(
 ) {
     let is_halted = P::ONES - lv.is_running;
     is_binary(yield_constr, lv.is_running);
+
+    // VM can not be halt without using ECALL
+    // HALT syscall is ECALL with X10 = 0
+    // Crucially, this prevents a malicious prover from just halting the program
+    // anywhere else.
+    yield_constr.constraint_transition(lv.inst.ops.ecall + nv.is_running - P::ONES);
+    yield_constr.constraint_transition(
+        (nv.is_running - P::ONES) * (lv.regs[10] - P::Scalar::from_canonical_u8(0)),
+    );
+
+    // We also need to make sure that the program counter is not changed by the
+    // 'halt' system call.
+    yield_constr.constraint_transition((nv.is_running - P::ONES) * (nv.inst.pc - lv.inst.pc));
+
     // TODO: change this when we support segmented proving.
     // Last row must be 'halted', ie no longer is_running.
     yield_constr.constraint_last_row(lv.is_running);
@@ -206,7 +218,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
-        ecall::constraints(lv, nv, yield_constr);
         halted(lv, nv, yield_constr);
 
         // Clock starts at 1. This is to differentiate
