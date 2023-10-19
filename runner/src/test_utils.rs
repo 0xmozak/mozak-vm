@@ -1,4 +1,5 @@
 use im::hashmap::HashMap;
+use plonky2::field::goldilocks_field::GoldilocksField;
 #[cfg(any(feature = "test", test))]
 use proptest::prelude::any;
 #[cfg(any(feature = "test", test))]
@@ -14,7 +15,9 @@ use crate::vm::{step, ExecutionRecord};
 
 /// Returns the state just before the final state
 #[must_use]
-pub fn state_before_final(e: &ExecutionRecord) -> &State { &e.executed[e.executed.len() - 2].state }
+pub fn state_before_final(e: &ExecutionRecord<GoldilocksField>) -> &State<GoldilocksField> {
+    &e.executed[e.executed.len() - 2].state
+}
 
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
@@ -25,7 +28,7 @@ pub fn simple_test_code_with_ro_memory(
     rw_mem: &[(u32, u32)],
     regs: &[(u8, u32)],
     io_tape: &[u8],
-) -> (Program, ExecutionRecord) {
+) -> (Program, ExecutionRecord<GoldilocksField>) {
     let _ = env_logger::try_init();
     let ro_code = Code(
         (0..)
@@ -80,7 +83,7 @@ pub fn simple_test_code(
     code: &[Instruction],
     rw_mem: &[(u32, u32)],
     regs: &[(u8, u32)],
-) -> (Program, ExecutionRecord) {
+) -> (Program, ExecutionRecord<GoldilocksField>) {
     simple_test_code_with_ro_memory(code, &[], rw_mem, regs, &[])
 }
 
@@ -91,7 +94,7 @@ pub fn simple_test_code_with_io_tape(
     rw_mem: &[(u32, u32)],
     regs: &[(u8, u32)],
     io_tapes: &[u8],
-) -> (Program, ExecutionRecord) {
+) -> (Program, ExecutionRecord<GoldilocksField>) {
     simple_test_code_with_ro_memory(code, &[], rw_mem, regs, io_tapes)
 }
 
