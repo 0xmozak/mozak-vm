@@ -122,7 +122,7 @@ pub(crate) mod challenge {
 
     /// [`GrandProductChallenge`] repeated for [`num_challenges`] to boost
     /// soundness.
-    #[derive(Clone, Eq, PartialEq, Debug)]
+    #[derive(Clone, Eq, PartialEq, Debug, Default)]
     pub(crate) struct GrandProductChallengeSet<T: Copy + Eq + PartialEq + Debug> {
         pub(crate) challenges: Vec<GrandProductChallenge<T>>,
     }

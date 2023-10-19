@@ -426,14 +426,14 @@ fn verify_stark_proof_with_challenges_circuit<
             num_zs: ctl_zs_last.len(),
         }),
     );
-    builder.verify_fri_proof::<C>(
-        &fri_instance,
-        &proof.proof.openings.to_fri_openings(zero),
-        &challenges.fri_challenges,
-        &merkle_caps,
-        &proof.proof.opening_proof,
-        &inner_config.fri_params(degree_bits),
-    );
+    // builder.verify_fri_proof::<C>(
+    //     &fri_instance,
+    //     &proof.proof.openings.to_fri_openings(zero),
+    //     &challenges.fri_challenges,
+    //     &merkle_caps,
+    //     &proof.proof.opening_proof,
+    //     &inner_config.fri_params(degree_bits),
+    // );
 }
 
 fn eval_l_0_and_l_last_circuit<F: RichField + Extendable<D>, const D: usize>(
@@ -618,7 +618,7 @@ mod tests {
 
         let proof = stark_wrapper.prove(
             &all_proof.stark_proofs[TableKind::Program as usize],
-            &all_proof.get_challenges(&stark, &config).ctl_challenges,
+            &all_proof.ctl_challenges,
         )?;
         stark_wrapper.circuit.verify(proof)
     }

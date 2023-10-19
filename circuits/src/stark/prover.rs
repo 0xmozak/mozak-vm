@@ -145,6 +145,7 @@ where
     }
     Ok(AllProof {
         stark_proofs,
+        ctl_challenges,
         program_rom_trace_cap,
         memory_init_trace_cap,
         public_inputs,
