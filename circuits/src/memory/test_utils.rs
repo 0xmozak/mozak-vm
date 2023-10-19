@@ -3,9 +3,10 @@ use mozak_runner::instruction::Op::{LBU, SB};
 use mozak_runner::instruction::{Args, Instruction};
 use mozak_runner::test_utils::simple_test_code;
 use mozak_runner::vm::ExecutionRecord;
+use plonky2::field::goldilocks_field::GoldilocksField;
 
 #[must_use]
-pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord) {
+pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord<GoldilocksField>) {
     let new = Instruction::new;
     let instructions = [
         new(SB, Args {

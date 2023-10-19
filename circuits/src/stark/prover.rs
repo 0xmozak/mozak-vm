@@ -36,7 +36,7 @@ use crate::stark::proof::StarkProofWithMetadata;
 
 pub fn prove<F, C, const D: usize>(
     program: &Program,
-    record: &ExecutionRecord,
+    record: &ExecutionRecord<F>,
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     public_inputs: PublicInputs<F>,
