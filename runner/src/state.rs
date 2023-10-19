@@ -107,6 +107,7 @@ pub struct MemEntry {
     pub raw_value: u32,
 }
 
+// First part in pair is preimage and second is output.
 pub type Poseidon2SpongeData<F> = Vec<([F; WIDTH], [F; WIDTH])>;
 
 #[derive(Debug, Clone, Default)]
