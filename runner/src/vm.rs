@@ -1,13 +1,20 @@
+use std::iter::repeat;
 use std::str::from_utf8;
 
 use anyhow::{anyhow, Result};
-use plonky2::hash::hash_types::RichField;
+use itertools::izip;
+use plonky2::field::goldilocks_field::GoldilocksField;
+use plonky2::field::types::Field;
+use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hashing::PlonkyPermutation;
+use plonky2::hash::poseidon2::Poseidon2Permutation;
+use plonky2::plonk::config::GenericHashOut;
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
 use crate::state::{Aux, MemEntry, State};
 use crate::system::ecall;
-use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2};
+use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
@@ -167,12 +174,38 @@ impl<F: RichField> State<F> {
         );
     }
 
+    fn ecall_poseidon2(self) -> (Aux<F>, Self) {
+        let input_ptr = self.get_register_value(REG_A1);
+        // lengths are in bytes
+        let input_len = self.get_register_value(REG_A2);
+        let output_ptr = self.get_register_value(REG_A3);
+        let output_len = 32;
+        let input: Vec<GoldilocksField> = (0..input_len)
+            .map(|i| GoldilocksField::from_canonical_u8(self.load_u8(input_ptr + i)))
+            .collect();
+        let hash =
+            hash_n_to_m_with_pad::<GoldilocksField, Poseidon2Permutation<GoldilocksField>>(&input)
+                .to_bytes();
+        assert!(output_len == hash.len());
+        (
+            Aux::default(),
+            izip!(0.., hash)
+                .fold(self, |updated_self, (i, byte)| {
+                    updated_self
+                        .store_u8(output_ptr.wrapping_add(i), byte)
+                        .unwrap()
+                })
+                .bump_pc(),
+        )
+    }
+
     #[must_use]
     pub fn ecall(self) -> (Aux<F>, Self) {
         match self.get_register_value(REG_A0) {
             ecall::HALT => self.ecall_halt(),
             ecall::IO_READ => self.ecall_io_read(),
             ecall::PANIC => self.ecall_panic(),
+            ecall::POSEIDON2 => self.ecall_poseidon2(),
             _ => (Aux::default(), self.bump_pc()),
         }
     }
@@ -342,6 +375,33 @@ pub fn step<F: RichField>(
     })
 }
 
+// Based on hash_n_to_m_no_pad() from plonky2/src/hash/hashing.rs
+pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(inputs: &[F]) -> HashOut<F> {
+    let mut perm = P::new(repeat(F::ZERO));
+    let mut inputs = inputs.to_vec();
+    let len = inputs.len();
+    // Add padding if required
+    inputs.resize(len.next_multiple_of(P::RATE), F::ZERO);
+
+    // Absorb all input chunks.
+    for chunk in inputs.chunks(P::RATE) {
+        perm.set_from_slice(chunk, 0);
+        perm.permute();
+    }
+
+    // Squeeze untill we have the desired number of outputs.
+    let mut outputs = Vec::new();
+    loop {
+        for &item in perm.squeeze() {
+            outputs.push(item);
+            if outputs.len() == NUM_HASH_OUT_ELTS {
+                return HashOut::from_vec(outputs);
+            }
+        }
+        perm.permute();
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
@@ -398,6 +458,25 @@ mod tests {
         assert_eq!(
             state_before_final(&e).get_register_value(rd),
             rs1_value.wrapping_mul(imm),
+        );
+    }
+
+    #[test]
+    fn test_hash_n_to_m_with_pad() {
+        let data = "💥 Mozak-VM Rocks With Poseidon2";
+        let data_bytes = data.as_bytes();
+        let data_fields: Vec<GoldilocksField> = data_bytes
+            .iter()
+            .map(|x| GoldilocksField::from_canonical_u8(*x))
+            .collect();
+        let hash = super::hash_n_to_m_with_pad::<
+            GoldilocksField,
+            Poseidon2Permutation<GoldilocksField>,
+        >(&data_fields);
+        let hash_bytes = hash.to_bytes();
+        assert_eq!(
+            hash_bytes,
+            hex_literal::hex!("4afb11172461851820da91ce1b972afd87caf69abe4316097280a4784b1fe396")[..]
         );
     }
 
