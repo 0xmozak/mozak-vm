@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
-use derive_more::Deref;
+use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use log::trace;
 use plonky2::hash::hash_types::RichField;
@@ -107,6 +107,22 @@ pub struct MemEntry {
     pub raw_value: u32,
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Default)]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[repr(u8)]
+pub enum IoOpcode {
+    #[default]
+    None,
+    Store,
+    Load,
+}
+#[derive(Debug, Clone, Default)]
+pub struct IoEntry {
+    pub addr: u32,
+    pub op: IoOpcode,
+    pub data: Vec<u8>,
+}
+
 // First part in pair is preimage and second is output.
 pub type Poseidon2SpongeData<F> = Vec<([F; WIDTH], [F; WIDTH])>;
 
@@ -129,6 +145,7 @@ pub struct Aux<F: RichField> {
     pub op1: u32,
     pub op2: u32,
     pub poseidon2: Option<Poseidon2Entry<F>>,
+    pub io: Option<IoEntry>,
 }
 
 impl<F: RichField> State<F> {

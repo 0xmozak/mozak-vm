@@ -12,7 +12,7 @@ use plonky2::plonk::config::GenericHashOut;
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
-use crate::state::{Aux, MemEntry, State};
+use crate::state::{Aux, IoEntry, IoOpcode, MemEntry, State};
 use crate::system::ecall;
 use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
 
@@ -138,7 +138,15 @@ impl<F: RichField> State<F> {
         let num_bytes_requsted = self.get_register_value(REG_A2);
         let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
         (
-            Aux::default(),
+            Aux {
+                dst_val: u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
+                io: Some(IoEntry {
+                    addr: buffer_start,
+                    op: IoOpcode::Store,
+                    data: data.clone(),
+                }),
+                ..Default::default()
+            },
             data.iter()
                 .enumerate()
                 .fold(updated_self, |updated_self, (i, byte)| {
