@@ -2,6 +2,7 @@ use std::iter::repeat;
 use std::str::from_utf8;
 
 use anyhow::{anyhow, Result};
+use itertools::izip;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
@@ -188,15 +189,10 @@ impl<F: RichField> State<F> {
         assert!(output_len == hash.len());
         (
             Aux::default(),
-            hash.iter()
-                .enumerate()
+            izip!(0.., hash)
                 .fold(self, |updated_self, (i, byte)| {
                     updated_self
-                        .store_u8(
-                            output_ptr
-                                .wrapping_add(u32::try_from(i).expect("cannot fit i into u32")),
-                            *byte,
-                        )
+                        .store_u8(output_ptr.wrapping_add(i), byte)
                         .unwrap()
                 })
                 .bump_pc(),

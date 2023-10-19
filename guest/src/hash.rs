@@ -12,6 +12,8 @@ pub fn poseidon2_hash(input: &[u8]) -> Digest {
     let mut output = [0; DIGEST_BYTES];
     #[cfg(target_os = "zkvm")]
     unsafe {
+        // TODO: Hide details of syscall parameters in a function.
+        // https://github.com/0xmozak/mozak-vm/issues/767
         core::arch::asm!(
             "ecall",
             in ("a0") 3,
