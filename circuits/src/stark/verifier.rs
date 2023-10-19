@@ -20,6 +20,7 @@ use crate::stark::permutation::PermutationCheckVars;
 use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
 
+#[allow(clippy::too_many_lines)]
 pub fn verify_proof<F, C, const D: usize>(
     mozak_stark: MozakStark<F, D>,
     all_proof: AllProof<F, C, D>,

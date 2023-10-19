@@ -4,6 +4,7 @@ extern crate alloc as rust_alloc;
 
 mod alloc;
 pub mod env;
+pub mod hash;
 
 #[macro_export]
 macro_rules! entry {
