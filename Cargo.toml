@@ -5,8 +5,8 @@ resolver = "2"
 [profile.test]
 # We are running our tests with optimizations turned on to make them faster.
 # Plase turn optimizations off, when you want accurate stack traces for debugging.
-lto = "thin"
-opt-level = 1
+#lto = "thin"
+#opt-level = 1
 
 [profile.release]
 lto = "fat"

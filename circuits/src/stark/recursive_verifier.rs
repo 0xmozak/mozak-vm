@@ -557,13 +557,14 @@ mod tests {
     use mozak_runner::test_utils::simple_test_code;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::util::timing::TimingTree;
+    use starky::config::StarkConfig;
 
     use crate::program::stark::ProgramStark;
     use crate::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
     use crate::stark::prover::prove;
     use crate::stark::recursive_verifier::recursive_stark_circuit;
     use crate::stark::verifier::verify_proof;
-    use crate::test_utils::{standard_faster_config, C, D, F};
+    use crate::test_utils::{C, D, F};
     use crate::utils::from_u32;
 
     #[ignore]
@@ -571,7 +572,8 @@ mod tests {
     fn recursive_verify_program_stark() -> Result<()> {
         type S = MozakStark<F, D>;
         let stark = S::default();
-        let config = standard_faster_config();
+        let mut config = StarkConfig::standard_fast_config();
+        config.fri_config.cap_height = 1;
         let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::ADD,
@@ -601,11 +603,13 @@ mod tests {
         verify_proof(stark.clone(), all_proof.clone(), &config).unwrap();
 
         type PS = ProgramStark<F, D>;
-        let circuit_config = CircuitConfig::standard_recursion_config();
+        let mut circuit_config = CircuitConfig::standard_recursion_config();
+        circuit_config.num_routed_wires = 40;
+        circuit_config.fri_config.cap_height = 1;
         let stark_wrapper = recursive_stark_circuit::<F, C, PS, D>(
             TableKind::Program,
             &stark.program_stark,
-            12,
+            2,
             &stark.cross_table_lookups,
             &config,
             &circuit_config,
