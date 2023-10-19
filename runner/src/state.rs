@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
@@ -133,8 +134,8 @@ pub struct Poseidon2Entry<F: RichField> {
 }
 
 /// Auxiliary information about the instruction execution
-#[derive(Debug, Clone, Copy, Default)]
-pub struct Aux {
+#[derive(Debug, Clone, Default)]
+pub struct Aux<F: RichField> {
     // This could be an Option<u32>, but given how Risc-V instruction are specified,
     // 0 serves as a default value just fine.
     pub dst_val: u32,
@@ -144,6 +145,7 @@ pub struct Aux {
     pub op1: u32,
     pub op2: u32,
     pub poseidon2: Option<Poseidon2Entry<F>>,
+    pub io: Option<IoEntry>,
 }
 
 impl<F: RichField> State<F> {
