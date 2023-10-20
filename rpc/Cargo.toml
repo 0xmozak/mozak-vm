@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "mozak-node-rpc"
+name = "mozak-rpc"
 version = "0.1.0"
 
 categories = ["cryptography", "rpc"]

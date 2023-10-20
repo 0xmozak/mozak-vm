@@ -1,3 +1,3 @@
 [workspace]
-members = ["sdk", "rpc"]
+members = ["cli", "node", "sdk", "rpc"]
 resolver = "2"
