@@ -43,6 +43,7 @@ pub const NUM_POSEIDON2_COLS: usize = Poseidon2State::<()>::NUMBER_OF_COLUMNS;
 pub fn data_for_sponge<F: Field>() -> Vec<Column<F>> {
     let poseidon2 = MAP.map(Column::from);
     let mut data = poseidon2.input.to_vec();
+    // Extend data with outputs which is basically state after last full round.
     data.extend(
         poseidon2.state_after_second_full_rounds
             [STATE_SIZE * (ROUNDS_F / 2 - 1)..STATE_SIZE * (ROUNDS_F / 2)]
