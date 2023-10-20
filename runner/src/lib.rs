@@ -5,6 +5,8 @@
 #![deny(clippy::cargo)]
 // FIXME: Remove this, when proptest's macro is updated not to trigger clippy.
 #![allow(clippy::ignored_unit_patterns)]
+#![deny(unsafe_code)]
+#![deny(unused_crate_dependencies)]
 
 pub mod decode;
 pub mod elf;
