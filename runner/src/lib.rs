@@ -1,6 +1,3 @@
-#![feature(stmt_expr_attributes)]
-#![feature(register_tool)]
-#![register_tool(tarpaulin)]
 #![deny(clippy::pedantic)]
 #![deny(clippy::cargo)]
 // FIXME: Remove this, when proptest's macro is updated not to trigger clippy.

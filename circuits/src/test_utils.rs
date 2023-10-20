@@ -1,9 +1,11 @@
+use std::borrow::Borrow;
+
 use anyhow::Result;
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::fri::FriConfig;
 use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
@@ -15,13 +17,18 @@ use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::bitshift::generate_shift_amount_trace;
 use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
+use crate::generation::fullword_memory::generate_fullword_memory_trace;
+use crate::generation::halfword_memory::generate_halfword_memory_trace;
 use crate::generation::memory::generate_memory_trace;
+use crate::generation::memoryinit::generate_memory_init_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
 use crate::generation::register::generate_register_trace;
 use crate::generation::registerinit::generate_register_init_trace;
 use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
+use crate::memory_fullword::stark::FullWordMemoryStark;
+use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
@@ -34,7 +41,7 @@ use crate::xor::stark::XorStark;
 
 pub type S = MozakStark<F, D>;
 pub const D: usize = 2;
-pub type C = PoseidonGoldilocksConfig;
+pub type C = Poseidon2GoldilocksConfig;
 pub type F = <C as GenericConfig<D>>::F;
 
 #[must_use]
@@ -79,11 +86,11 @@ pub trait ProveAndVerify {
     ///
     /// # Errors
     /// Errors if proving or verifying the STARK fails.
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()>;
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()>;
 }
 
 impl ProveAndVerify for CpuStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = CpuStark<F, D>;
 
         let config = standard_faster_config();
@@ -93,14 +100,14 @@ impl ProveAndVerify for CpuStark<F, D> {
             generate_cpu_trace(program, record),
             &generate_program_rom_trace(program),
         ));
-        let public_inputs = PublicInputs {
+        let public_inputs: PublicInputs<F> = PublicInputs {
             entry_point: from_u32(program.entry_point),
         };
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
             trace_poly_values,
-            public_inputs.into(),
+            public_inputs.borrow(),
             &mut TimingTree::default(),
         )?;
 
@@ -109,21 +116,30 @@ impl ProveAndVerify for CpuStark<F, D> {
 }
 
 impl ProveAndVerify for RangeCheckStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = RangeCheckStark<F, D>;
 
         let config = standard_faster_config();
 
         let stark = S::default();
         let cpu_trace = generate_cpu_trace(program, record);
-        let memory_trace = generate_memory_trace::<F>(program, &record.executed);
+        let memory_init = generate_memory_init_trace(program);
+        let halfword_memory = generate_halfword_memory_trace(program, &record.executed);
+        let fullword_memory = generate_fullword_memory_trace(program, &record.executed);
+        let memory_trace = generate_memory_trace::<F>(
+            program,
+            &record.executed,
+            &memory_init,
+            &halfword_memory,
+            &fullword_memory,
+        );
         let trace_poly_values =
             trace_rows_to_poly_values(generate_rangecheck_trace(&cpu_trace, &memory_trace));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
             trace_poly_values,
-            [],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -132,7 +148,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
 }
 
 impl ProveAndVerify for XorStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = XorStark<F, D>;
 
         let config = standard_faster_config();
@@ -144,7 +160,7 @@ impl ProveAndVerify for XorStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            [],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -153,18 +169,66 @@ impl ProveAndVerify for XorStark<F, D> {
 }
 
 impl ProveAndVerify for MemoryStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = MemoryStark<F, D>;
         let config = standard_faster_config();
 
         let stark = S::default();
-        let trace_poly_values =
-            trace_rows_to_poly_values(generate_memory_trace(program, &record.executed));
+        let memory_init = generate_memory_init_trace(program);
+        let halfword_memory = generate_halfword_memory_trace(program, &record.executed);
+        let fullword_memory = generate_fullword_memory_trace(program, &record.executed);
+        let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(
+            program,
+            &record.executed,
+            &memory_init,
+            &halfword_memory,
+            &fullword_memory,
+        ));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
             trace_poly_values,
-            [],
+            &[],
+            &mut TimingTree::default(),
+        )?;
+
+        verify_stark_proof(stark, proof, &config)
+    }
+}
+
+impl ProveAndVerify for HalfWordMemoryStark<F, D> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
+        type S = HalfWordMemoryStark<F, D>;
+        let config = standard_faster_config();
+
+        let stark = S::default();
+        let trace_poly_values =
+            trace_rows_to_poly_values(generate_halfword_memory_trace(program, &record.executed));
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            &[],
+            &mut TimingTree::default(),
+        )?;
+
+        verify_stark_proof(stark, proof, &config)
+    }
+}
+
+impl ProveAndVerify for FullWordMemoryStark<F, D> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
+        type S = FullWordMemoryStark<F, D>;
+        let config = standard_faster_config();
+
+        let stark = S::default();
+        let trace_poly_values =
+            trace_rows_to_poly_values(generate_fullword_memory_trace(program, &record.executed));
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -173,7 +237,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
 }
 
 impl ProveAndVerify for BitshiftStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = BitshiftStark<F, D>;
         let config = standard_faster_config();
 
@@ -185,7 +249,7 @@ impl ProveAndVerify for BitshiftStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            [],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -194,7 +258,7 @@ impl ProveAndVerify for BitshiftStark<F, D> {
 }
 
 impl ProveAndVerify for RegisterInitStark<F, D> {
-    fn prove_and_verify(_program: &Program, _record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(_program: &Program, _record: &ExecutionRecord<F>) -> Result<()> {
         type S = RegisterInitStark<F, D>;
         let config = standard_faster_config();
 
@@ -205,7 +269,7 @@ impl ProveAndVerify for RegisterInitStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            [],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -214,7 +278,7 @@ impl ProveAndVerify for RegisterInitStark<F, D> {
 }
 
 impl ProveAndVerify for RegisterStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = RegisterStark<F, D>;
         let config = standard_faster_config();
 
@@ -225,7 +289,7 @@ impl ProveAndVerify for RegisterStark<F, D> {
             stark,
             &config,
             trace_poly_values,
-            [],
+            &[],
             &mut TimingTree::default(),
         )?;
 
@@ -240,7 +304,7 @@ impl ProveAndVerify for MozakStark<F, D> {
     /// this proves and verifies ALL starks and lookups within the Mozak
     /// ZKVM. This should be preferred if the test is concerned with the
     /// consistency of the final [`MozakStark`].
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord) -> Result<()> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         let stark = S::default();
         let config = standard_faster_config();
         let public_inputs = PublicInputs {

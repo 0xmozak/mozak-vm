@@ -1,10 +1,12 @@
+use std::marker::PhantomData;
 use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
-use derive_more::Deref;
+use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use log::trace;
-#[cfg(feature = "serialize")]
+use plonky2::hash::hash_types::RichField;
+use plonky2::hash::poseidon2::WIDTH;
 use serde::{Deserialize, Serialize};
 
 use crate::elf::{Code, Data, Program};
@@ -30,7 +32,7 @@ use crate::instruction::{Args, Instruction};
 /// instruction cache on many CPUs.  But we deliberately don't support that
 /// usecase.
 #[derive(Clone, Debug)]
-pub struct State {
+pub struct State<F: RichField> {
     pub clk: u64,
     pub halted: bool,
     pub registers: [u32; 32],
@@ -38,10 +40,10 @@ pub struct State {
     pub rw_memory: HashMap<u32, u8>,
     pub ro_memory: HashMap<u32, u8>,
     pub io_tape: IoTape,
+    _phantom: PhantomData<F>,
 }
 
-#[derive(Clone, Debug, Default, Deref)]
-#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct IoTape {
     #[deref]
     pub data: Rc<Vec<u8>>,
@@ -61,7 +63,7 @@ impl From<&[u8]> for IoTape {
 /// execution clocks (1 and above) from `clk` value of 0 which is
 /// reserved for any initialisation concerns. e.g. memory initialization
 /// prior to program execution, register initialization etc.
-impl Default for State {
+impl<F: RichField> Default for State<F> {
     fn default() -> Self {
         Self {
             clk: 1,
@@ -71,12 +73,13 @@ impl Default for State {
             rw_memory: HashMap::default(),
             ro_memory: HashMap::default(),
             io_tape: IoTape::default(),
+            _phantom: PhantomData,
         }
     }
 }
 
 #[allow(clippy::similar_names)]
-impl From<Program> for State {
+impl<F: RichField> From<Program> for State<F> {
     fn from(
         Program {
             ro_code: Code(_),
@@ -94,24 +97,58 @@ impl From<Program> for State {
     }
 }
 
-impl From<&Program> for State {
+impl<F: RichField> From<&Program> for State<F> {
     fn from(program: &Program) -> Self { Self::from(program.clone()) }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct MemEntry {
+    pub addr: u32,
+    pub raw_value: u32,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Default)]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[repr(u8)]
+pub enum IoOpcode {
+    #[default]
+    None,
+    Store,
+    Load,
+}
+#[derive(Debug, Clone, Default)]
+pub struct IoEntry {
+    pub addr: u32,
+    pub op: IoOpcode,
+    pub data: Vec<u8>,
+}
+
+// First part in pair is preimage and second is output.
+pub type Poseidon2SpongeData<F> = Vec<([F; WIDTH], [F; WIDTH])>;
+
+#[derive(Debug, Clone, Default)]
+pub struct Poseidon2Entry<F: RichField> {
+    pub addr: u32,
+    pub len: u32,
+    pub sponge_data: Poseidon2SpongeData<F>,
 }
 
 /// Auxiliary information about the instruction execution
 #[derive(Debug, Clone, Default)]
-pub struct Aux {
+pub struct Aux<F: RichField> {
     // This could be an Option<u32>, but given how Risc-V instruction are specified,
     // 0 serves as a default value just fine.
     pub dst_val: u32,
     pub new_pc: u32,
-    pub mem_addr: Option<u32>,
+    pub mem: Option<MemEntry>,
     pub will_halt: bool,
     pub op1: u32,
     pub op2: u32,
+    pub poseidon2: Option<Poseidon2Entry<F>>,
+    pub io: Option<IoEntry>,
 }
 
-impl State {
+impl<F: RichField> State<F> {
     #[must_use]
     #[allow(clippy::similar_names)]
     pub fn new(
@@ -133,9 +170,9 @@ impl State {
     }
 
     #[must_use]
-    pub fn register_op<F>(self, data: &Args, op: F) -> (Aux, Self)
+    pub fn register_op<Fun>(self, data: &Args, op: Fun) -> (Aux<F>, Self)
     where
-        F: FnOnce(u32, u32) -> u32, {
+        Fun: FnOnce(u32, u32) -> u32, {
         let op1 = self.get_register_value(data.rs1);
         let op2 = self.get_register_value(data.rs2).wrapping_add(data.imm);
         let dst_val = op(op1, op2);
@@ -149,7 +186,7 @@ impl State {
     }
 
     #[must_use]
-    pub fn memory_load(self, data: &Args, op: fn(&[u8; 4]) -> u32) -> (Aux, Self) {
+    pub fn memory_load(self, data: &Args, op: fn(&[u8; 4]) -> (u32, u32)) -> (Aux<F>, Self) {
         let addr: u32 = self.get_register_value(data.rs2).wrapping_add(data.imm);
         let mem = [
             self.load_u8(addr),
@@ -157,11 +194,11 @@ impl State {
             self.load_u8(addr.wrapping_add(2)),
             self.load_u8(addr.wrapping_add(3)),
         ];
-        let dst_val = op(&mem);
+        let (raw_value, dst_val) = op(&mem);
         (
             Aux {
                 dst_val,
-                mem_addr: Some(addr),
+                mem: Some(MemEntry { addr, raw_value }),
                 ..Default::default()
             },
             self.set_register_value(data.rd, dst_val).bump_pc(),
@@ -170,7 +207,7 @@ impl State {
 
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
-    pub fn branch_op(self, data: &Args, op: fn(u32, u32) -> bool) -> (Aux, State) {
+    pub fn branch_op(self, data: &Args, op: fn(u32, u32) -> bool) -> (Aux<F>, Self) {
         let op1 = self.get_register_value(data.rs1);
         let op2 = self.get_register_value(data.rs2);
         (
@@ -184,7 +221,7 @@ impl State {
     }
 }
 
-impl State {
+impl<F: RichField> State<F> {
     #[must_use]
     pub fn halt(mut self) -> Self {
         self.halted = true;
@@ -299,5 +336,19 @@ impl State {
             self.io_tape.data[read_index..(read_index + limit)].to_vec(),
             self,
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::state::IoTape;
+
+    #[test]
+    fn test_io_tape_serialization() {
+        let io_tape = IoTape::from(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..]);
+        let serialized = serde_json::to_string(&io_tape).unwrap();
+        let deserialized: IoTape = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(io_tape.read_index, deserialized.read_index);
+        assert_eq!(io_tape.data, deserialized.data);
     }
 }

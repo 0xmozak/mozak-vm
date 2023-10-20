@@ -105,6 +105,9 @@ pub(crate) fn constraints<P: PackedField>(
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
+
+    use std::borrow::Borrow;
+
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{i32_extra, simple_test_code, u32_extra};
@@ -172,7 +175,7 @@ mod tests {
                 stark,
                 &config,
                 trace_poly_values,
-                public_inputs.into(),
+                public_inputs.borrow(),
                 &mut timing,
             )
         );
@@ -200,7 +203,7 @@ mod tests {
             &[],
             &[(6, a), (7, b)],
         );
-        let (low, _high) = a.widening_mul(b);
+        let low = a.wrapping_mul(b);
         prop_assert_eq!(record.executed[0].aux.dst_val, low);
         Stark::prove_and_verify(&program, &record).unwrap();
         Ok(())
@@ -220,8 +223,8 @@ mod tests {
             &[],
             &[(6, a), (7, b)],
         );
-        let (_low, high) = a.widening_mul(b);
-        prop_assert_eq!(record.executed[0].aux.dst_val, high);
+        let (res, _) = u64::from(a).overflowing_mul(u64::from(b));
+        prop_assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
         Stark::prove_and_verify(&program, &record).unwrap();
         Ok(())
     }

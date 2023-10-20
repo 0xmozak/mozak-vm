@@ -38,9 +38,13 @@ pub struct OpSelectors<T> {
     pub bne: T,
     /// Store Byte
     pub sb: T,
+    pub sh: T,
+    pub sw: T,
     /// Load Byte Unsigned and places it in the least significant byte position
     /// of the target register.
-    pub lbu: T,
+    pub lb: T,
+    pub lh: T,
+    pub lw: T,
     /// Branch Less Than
     pub blt: T,
     /// Branch Greater or Equal
@@ -61,6 +65,7 @@ pub struct Instruction<T> {
     pub ops: OpSelectors<T>,
     pub is_op1_signed: T,
     pub is_op2_signed: T,
+    pub is_dst_signed: T,
     /// Selects the register to use as source for `rs1`
     pub rs1_select: [T; 32],
     /// Selects the register to use as source for `rs2`
@@ -89,7 +94,16 @@ pub struct CpuState<T> {
     /// The sum of the value of the second operand and the immediate value as
     /// field elements. Ie summed without wrapping to fit into u32.
     pub op2_value_overflowing: T,
+
+    /// `dst_value` contains "correct" (modified from `mem_access_raw` for
+    /// signed operations) value targetted towards `dst`.
     pub dst_value: T,
+    pub dst_sign_bit: T,
+
+    /// `mem_access_raw` contains values fetched or stored into the memory
+    /// table. These values are always unsigned by nature (as mem table does
+    /// not differentiate between signed and unsigned values).
+    pub mem_value_raw: T,
 
     /// Values of the registers.
     pub regs: [T; 32],
@@ -222,6 +236,20 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     ]
 }
 
+/// Expressions we need to range check for u8 values
+#[must_use]
+pub fn rangecheck_looking_u8<F: Field>() -> Vec<Table<F>> {
+    let cpu = MAP.cpu.map(Column::from);
+
+    vec![CpuTable::new(
+        vec![
+            cpu.dst_value - cpu.dst_sign_bit * F::from_canonical_u64(1 << 8)
+                + &cpu.inst.is_dst_signed * F::from_canonical_u64(1 << 7),
+        ],
+        cpu.inst.is_dst_signed,
+    )]
+}
+
 /// Columns containing the data to be matched against Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
@@ -241,8 +269,8 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(MAP.cpu.clk),
         Column::single(MAP.cpu.inst.ops.sb),
-        Column::single(MAP.cpu.inst.ops.lbu),
-        Column::single(MAP.cpu.dst_value),
+        Column::single(MAP.cpu.inst.ops.lb), // For both `LB` and `LBU`
+        Column::single(MAP.cpu.mem_value_raw),
         Column::single(MAP.cpu.mem_addr),
     ]
 }
@@ -250,7 +278,51 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
 /// Column for a binary filter for memory instruction in Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> { MAP.cpu.map(Column::from).inst.ops.mem_ops() }
+pub fn filter_for_byte_memory<F: Field>() -> Column<F> {
+    MAP.cpu.map(Column::from).inst.ops.byte_mem_ops()
+}
+
+/// Column containing the data to be matched against Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
+    let cpu = MAP.cpu.map(Column::from);
+    vec![
+        cpu.clk,
+        cpu.mem_addr,
+        cpu.dst_value,
+        cpu.inst.ops.sh,
+        cpu.inst.ops.lh,
+    ]
+}
+
+/// Column for a binary filter for memory instruction in Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
+    MAP.cpu.map(Column::from).inst.ops.halfword_mem_ops()
+}
+
+/// Column containing the data to be matched against Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn data_for_fullword_memory<F: Field>() -> Vec<Column<F>> {
+    let cpu = MAP.cpu.map(Column::from);
+    vec![
+        cpu.clk,
+        cpu.mem_addr,
+        cpu.dst_value,
+        cpu.inst.ops.sw,
+        cpu.inst.ops.lw,
+    ]
+}
+
+/// Column for a binary filter for memory instruction in Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_fullword_memory<F: Field>() -> Column<F> {
+    MAP.cpu.map(Column::from).inst.ops.fullword_mem_ops()
+}
 
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
@@ -262,7 +334,11 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
 
     // TODO: Add other mem ops like SH, SW, LB, LW, LH, LHU as we implement the
     // constraints.
-    pub fn mem_ops(self) -> T { self.sb + self.lbu }
+    pub fn byte_mem_ops(self) -> T { self.sb + self.lb }
+
+    pub fn halfword_mem_ops(self) -> T { self.sh + self.lh }
+
+    pub fn fullword_mem_ops(self) -> T { self.sw + self.lw }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.

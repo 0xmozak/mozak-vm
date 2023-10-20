@@ -20,7 +20,7 @@ pub fn sort_into_address_blocks<F: RichField>(mut trace: Vec<Register<F>>) -> Ve
     trace
 }
 
-fn init_register_trace<F: RichField>(state: &State) -> Vec<Register<F>> {
+fn init_register_trace<F: RichField>(state: &State<F>) -> Vec<Register<F>> {
     (1..32)
         .map(|i| Register {
             addr: F::from_canonical_u8(i),
@@ -54,7 +54,7 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> 
 #[must_use]
 pub fn generate_register_trace<F: RichField>(
     program: &Program,
-    record: &ExecutionRecord,
+    record: &ExecutionRecord<F>,
 ) -> Vec<Register<F>> {
     let ExecutionRecord {
         executed,
@@ -65,17 +65,20 @@ pub fn generate_register_trace<F: RichField>(
         |reg: fn(&Args) -> u8, ops: Ops<F>, clk_offset: u64| -> _ {
             executed
                 .iter()
-                .map(|row| &row.state)
-                .filter(move |state| reg(&state.current_instruction(program).args) != 0)
-                .map(move |state| {
-                    let reg = reg(&state.current_instruction(program).args);
+                .filter(move |row| reg(&row.state.current_instruction(program).args) != 0)
+                .map(move |row| {
+                    let reg = reg(&row.state.current_instruction(program).args);
 
                     // Ignore r0 because r0 should always be 0.
                     // TODO: assert r0 = 0 constraint in CPU trace.
                     Register {
                         addr: F::from_canonical_u8(reg),
-                        value: F::from_canonical_u32(state.get_register_value(reg)),
-                        augmented_clk: F::from_canonical_u64(state.clk * 3 + clk_offset),
+                        value: F::from_canonical_u32(if ops.is_write.is_one() {
+                            row.aux.dst_val
+                        } else {
+                            row.state.get_register_value(reg)
+                        }),
+                        augmented_clk: F::from_canonical_u64(row.state.clk * 3 + clk_offset),
                         ops,
                         ..Default::default()
                     }
@@ -121,12 +124,11 @@ mod tests {
     use plonky2::field::types::{Field, PrimeField64};
 
     use super::*;
-    use crate::columns_view::NumberOfColumns;
     use crate::test_utils::prep_table;
 
     type F = GoldilocksField;
 
-    fn setup() -> (Program, ExecutionRecord) {
+    fn setup() -> (Program, ExecutionRecord<F>) {
         // Use same instructions as in the Notion document, see:
         // https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2?pvs=4#0729f89ddc724967ac991c9e299cc4fc
         let instructions = [
@@ -153,11 +155,9 @@ mod tests {
         simple_test_code(&instructions, &[], &[(6, 100), (7, 200)])
     }
 
-    fn expected_trace_initial<F: RichField>() -> Vec<Register<F>>
-    where
-        [(); Register::<F>::NUMBER_OF_COLUMNS]:, {
-        #[rustfmt::skip]
-        prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
+    #[rustfmt::skip]
+    fn expected_trace_initial<F: RichField>() -> Vec<Register<F>> {
+        prep_table(
             (1..32)
                 .map(|i| {
                     let value = match i {
@@ -189,6 +189,7 @@ mod tests {
     fn neg(val: u64) -> u64 { (F::ZERO - F::from_canonical_u64(val)).to_canonical_u64() }
 
     #[test]
+    #[rustfmt::skip]
     fn generate_reg_trace() {
         let (program, record) = setup();
 
@@ -198,8 +199,7 @@ mod tests {
         let trace = generate_register_trace::<F>(&program, &record);
 
         // This is the actual trace of the instructions.
-        let mut expected_trace = prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
-            #[rustfmt::skip]
+        let mut expected_trace = prep_table(
             vec![
                 // First, populate the table with the instructions from the above test code.
                 // Note that we filter out operations that act on r0.
@@ -210,11 +210,11 @@ mod tests {
                 [    2,    0,             0,                 0,        1,      0,       0], // init
                 [    3,    0,             0,                 0,        1,      0,       0], // init
                 [    4,    0,             0,                 0,        1,      0,       0], // init
-                [    4,    0,             5,                 5,        0,      0,       1], // 1st inst
+                [    4,  300,             5,                 5,        0,      0,       1], // 1st inst
                 [    4,  300,             6,                 1,        0,      1,       0], // 2nd inst
-                [    4,  300,            11,                 5,        0,      0,       1], // 3rd inst 
+                [    4,  500,            11,                 5,        0,      0,       1], // 3rd inst 
                 [    5,    0,             0,           neg(11),        1,      0,       0], // init
-                [    5,    0,             8,                 8,        0,      0,       1], // 2nd inst
+                [    5,  400,             8,                 8,        0,      0,       1], // 2nd inst
                 [    5,  400,             9,                 1,        0,      1,       0], // 3rd inst
                 [    6,  100,             0,            neg(9),        1,      0,       0], // init
                 [    6,  100,             3,                 3,        0,      1,       0], // 1st inst
@@ -232,8 +232,7 @@ mod tests {
 
         // Finally, append the above trace with the extra init rows with unused
         // registers.
-        let mut final_init_rows = prep_table::<F, Register<F>, { Register::<F>::NUMBER_OF_COLUMNS }>(
-            #[rustfmt::skip]
+        let mut final_init_rows = prep_table(
             (12..32).map(|i|
                 // addr value augmented_clk  diff_augmented_clk  is_init is_read is_write
                 [     i,   0,             0,                 0,        1,      0,       0]

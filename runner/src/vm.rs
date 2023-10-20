@@ -1,12 +1,20 @@
+use std::iter::repeat;
 use std::str::from_utf8;
 
 use anyhow::{anyhow, Result};
+use itertools::izip;
+use plonky2::field::goldilocks_field::GoldilocksField;
+use plonky2::field::types::Field;
+use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hashing::PlonkyPermutation;
+use plonky2::hash::poseidon2::Poseidon2Permutation;
+use plonky2::plonk::config::GenericHashOut;
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
-use crate::state::{Aux, State};
+use crate::state::{Aux, IoEntry, IoOpcode, MemEntry, State};
 use crate::system::ecall;
-use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2};
+use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
@@ -60,27 +68,44 @@ pub fn remu(a: u32, b: u32) -> u32 {
 }
 
 #[must_use]
+pub fn dup(x: u32) -> (u32, u32) { (x, x) }
+
+#[must_use]
+pub fn lbu_raw(mem: &[u8; 4]) -> u32 { mem[0].into() }
+
+#[must_use]
+pub fn lbu(mem: &[u8; 4]) -> (u32, u32) { dup(lbu_raw(mem)) }
+
+#[must_use]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
-pub fn lb(mem: &[u8; 4]) -> u32 { i32::from(mem[0] as i8) as u32 }
+#[allow(clippy::cast_possible_truncation)]
+pub fn lb(mem: &[u8; 4]) -> (u32, u32) {
+    let raw = lbu_raw(mem);
+    (raw, i32::from(raw as i8) as u32)
+}
 
 #[must_use]
-pub fn lbu(mem: &[u8; 4]) -> u32 { mem[0].into() }
+pub fn lhu_raw(mem: &[u8; 4]) -> u32 { u16::from_le_bytes([mem[0], mem[1]]).into() }
+
+#[must_use]
+pub fn lhu(mem: &[u8; 4]) -> (u32, u32) { dup(lhu_raw(mem)) }
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
-pub fn lh(mem: &[u8; 4]) -> u32 { i32::from(i16::from_le_bytes([mem[0], mem[1]])) as u32 }
+#[allow(clippy::cast_possible_truncation)]
+pub fn lh(mem: &[u8; 4]) -> (u32, u32) {
+    let raw = lhu_raw(mem);
+    (raw, i32::from(raw as i16) as u32)
+}
 
 #[must_use]
-pub fn lhu(mem: &[u8; 4]) -> u32 { u16::from_le_bytes([mem[0], mem[1]]).into() }
+pub fn lw(mem: &[u8; 4]) -> (u32, u32) { dup(u32::from_le_bytes(*mem)) }
 
-#[must_use]
-pub fn lw(mem: &[u8; 4]) -> u32 { u32::from_le_bytes(*mem) }
-
-impl State {
+impl<F: RichField> State<F> {
     #[must_use]
-    pub fn jalr(self, inst: &Args) -> (Aux, Self) {
+    pub fn jalr(self, inst: &Args) -> (Aux<F>, Self) {
         let new_pc = self.get_register_value(inst.rs1).wrapping_add(inst.imm) & !1;
         let dst_val = self.get_pc().wrapping_add(4);
         (
@@ -92,63 +117,103 @@ impl State {
         )
     }
 
-    #[must_use]
+    fn ecall_halt(self) -> (Aux<F>, Self) {
+        // Note: we don't advance the program counter for 'halt'.
+        // That is we treat 'halt' like an endless loop.
+        (
+            Aux {
+                will_halt: true,
+                ..Aux::default()
+            },
+            self.halt(),
+        )
+    }
+
     /// # Panics
     ///
     /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
     /// bytes.
-    /// Panics on executing PANIC syscall and also if vector to string
-    /// conversion fails.
-    pub fn ecall(self) -> (Aux, Self) {
-        match self.get_register_value(REG_A0) {
-            ecall::HALT => {
-                // Note: we don't advance the program counter for 'halt'.
-                // That is we treat 'halt' like an endless loop.
-                (
-                    Aux {
-                        will_halt: true,
-                        ..Aux::default()
-                    },
-                    self.halt(),
-                )
-            }
-            ecall::IO_READ => {
-                let buffer_start = self.get_register_value(REG_A1);
-                let num_bytes_requsted = self.get_register_value(REG_A2);
-                let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
-                (
-                    Aux::default(),
-                    data.iter()
-                        .enumerate()
-                        .fold(updated_self, |updated_self, (i, byte)| {
-                            updated_self
-                                .store_u8(
-                                    buffer_start.wrapping_add(
-                                        u32::try_from(i).expect("cannot fit i into u32"),
-                                    ),
-                                    *byte,
-                                )
-                                .unwrap()
-                        })
-                        .set_register_value(
-                            REG_A0,
-                            u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
+    fn ecall_io_read(self) -> (Aux<F>, Self) {
+        let buffer_start = self.get_register_value(REG_A1);
+        let num_bytes_requsted = self.get_register_value(REG_A2);
+        let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
+        (
+            Aux {
+                dst_val: u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
+                io: Some(IoEntry {
+                    addr: buffer_start,
+                    op: IoOpcode::Store,
+                    data: data.clone(),
+                }),
+                ..Default::default()
+            },
+            data.iter()
+                .enumerate()
+                .fold(updated_self, |updated_self, (i, byte)| {
+                    updated_self
+                        .store_u8(
+                            buffer_start
+                                .wrapping_add(u32::try_from(i).expect("cannot fit i into u32")),
+                            *byte,
                         )
-                        .bump_pc(),
+                        .unwrap()
+                })
+                .set_register_value(
+                    REG_A0,
+                    u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
                 )
-            }
-            ecall::PANIC => {
-                let msg_len = self.get_register_value(REG_A1);
-                let msg_ptr = self.get_register_value(REG_A2);
-                let mut msg_vec = vec![];
-                for addr in msg_ptr..(msg_ptr + msg_len) {
-                    msg_vec.push(self.load_u8(addr));
-                }
-                panic!(
-                    "VM panicked with msg: {}",
-                    from_utf8(&msg_vec).expect("A valid utf8 VM panic message should be provided")
-                );
-            }
+                .bump_pc(),
+        )
+    }
+
+    /// # Panics
+    ///
+    /// Panics if Vec<u8> to string conversion fails.
+    fn ecall_panic(self) -> (Aux<F>, Self) {
+        let msg_len = self.get_register_value(REG_A1);
+        let msg_ptr = self.get_register_value(REG_A2);
+        let mut msg_vec = vec![];
+        for addr in msg_ptr..(msg_ptr + msg_len) {
+            msg_vec.push(self.load_u8(addr));
+        }
+        panic!(
+            "VM panicked with msg: {}",
+            from_utf8(&msg_vec).expect("A valid utf8 VM panic message should be provided")
+        );
+    }
+
+    fn ecall_poseidon2(self) -> (Aux<F>, Self) {
+        let input_ptr = self.get_register_value(REG_A1);
+        // lengths are in bytes
+        let input_len = self.get_register_value(REG_A2);
+        let output_ptr = self.get_register_value(REG_A3);
+        let output_len = 32;
+        let input: Vec<GoldilocksField> = (0..input_len)
+            .map(|i| GoldilocksField::from_canonical_u8(self.load_u8(input_ptr + i)))
+            .collect();
+        let hash =
+            hash_n_to_m_with_pad::<GoldilocksField, Poseidon2Permutation<GoldilocksField>>(&input)
+                .to_bytes();
+        assert!(output_len == hash.len());
+        (
+            Aux::default(),
+            izip!(0.., hash)
+                .fold(self, |updated_self, (i, byte)| {
+                    updated_self
+                        .store_u8(output_ptr.wrapping_add(i), byte)
+                        .unwrap()
+                })
+                .bump_pc(),
+        )
+    }
+
+    #[must_use]
+    pub fn ecall(self) -> (Aux<F>, Self) {
+        match self.get_register_value(REG_A0) {
+            ecall::HALT => self.ecall_halt(),
+            ecall::IO_READ => self.ecall_io_read(),
+            ecall::PANIC => self.ecall_panic(),
+            ecall::POSEIDON2 => self.ecall_poseidon2(),
             _ => (Aux::default(), self.bump_pc()),
         }
     }
@@ -159,18 +224,18 @@ impl State {
     /// Panics in case we intend to store to a read-only location
     /// TODO: Review the decision to panic.  We might also switch to using a
     /// Result, so that the caller can handle this.
-    pub fn store(self, inst: &Args, bytes: u32) -> (Aux, Self) {
-        let dst_val: u32 = self.get_register_value(inst.rs1);
+    pub fn store(self, inst: &Args, bytes: u32) -> (Aux<F>, Self) {
+        let raw_value: u32 = self.get_register_value(inst.rs1);
         let addr = self.get_register_value(inst.rs2).wrapping_add(inst.imm);
         (
             Aux {
-                dst_val,
-                mem_addr: Some(addr),
+                dst_val: raw_value,
+                mem: Some(MemEntry { addr, raw_value }),
                 ..Default::default()
             },
             (0..bytes)
                 .map(|i| addr.wrapping_add(i))
-                .zip(dst_val.to_le_bytes())
+                .zip(raw_value.to_le_bytes())
                 .fold(self, |acc, (i, byte)| acc.store_u8(i, byte).unwrap())
                 .bump_pc(),
         )
@@ -183,7 +248,7 @@ impl State {
     ///
     /// Errors if the program contains an instruction with an unsupported
     /// opcode.
-    pub fn execute_instruction(self, program: &Program) -> Result<(Aux, Self)> {
+    pub fn execute_instruction(self, program: &Program) -> Result<(Aux<F>, Self)> {
         let inst = self.current_instruction(program);
         macro_rules! rop {
             ($op: expr) => {
@@ -266,15 +331,15 @@ impl State {
 /// Each row corresponds to the state of the VM _just before_ executing the
 /// instruction that the program counter points to.
 #[derive(Debug, Clone, Default)]
-pub struct Row {
-    pub state: State,
-    pub aux: Aux,
+pub struct Row<F: RichField> {
+    pub state: State<F>,
+    pub aux: Aux<F>,
 }
 
 #[derive(Debug, Default)]
-pub struct ExecutionRecord {
-    pub executed: Vec<Row>,
-    pub last_state: State,
+pub struct ExecutionRecord<F: RichField> {
+    pub executed: Vec<Row<F>>,
+    pub last_state: State<F>,
 }
 
 /// Execute a program
@@ -290,7 +355,10 @@ pub struct ExecutionRecord {
 /// This is a temporary measure to catch problems with accidental infinite
 /// loops. (Matthias had some trouble debugging a problem with jumps
 /// earlier.)
-pub fn step(program: &Program, mut last_state: State) -> Result<ExecutionRecord> {
+pub fn step<F: RichField>(
+    program: &Program,
+    mut last_state: State<F>,
+) -> Result<ExecutionRecord<F>> {
     let mut executed = vec![];
     while !last_state.has_halted() {
         let (aux, new_state) = last_state.clone().execute_instruction(program)?;
@@ -309,10 +377,37 @@ pub fn step(program: &Program, mut last_state: State) -> Result<ExecutionRecord>
             );
         }
     }
-    Ok(ExecutionRecord {
+    Ok(ExecutionRecord::<F> {
         executed,
         last_state,
     })
+}
+
+// Based on hash_n_to_m_no_pad() from plonky2/src/hash/hashing.rs
+pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(inputs: &[F]) -> HashOut<F> {
+    let mut perm = P::new(repeat(F::ZERO));
+    let mut inputs = inputs.to_vec();
+    let len = inputs.len();
+    // Add padding if required
+    inputs.resize(len.next_multiple_of(P::RATE), F::ZERO);
+
+    // Absorb all input chunks.
+    for chunk in inputs.chunks(P::RATE) {
+        perm.set_from_slice(chunk, 0);
+        perm.permute();
+    }
+
+    // Squeeze untill we have the desired number of outputs.
+    let mut outputs = Vec::new();
+    loop {
+        for &item in perm.squeeze() {
+            outputs.push(item);
+            if outputs.len() == NUM_HASH_OUT_ELTS {
+                return HashOut::from_vec(outputs);
+            }
+        }
+        perm.permute();
+    }
 }
 
 #[cfg(test)]
@@ -320,6 +415,7 @@ pub fn step(program: &Program, mut last_state: State) -> Result<ExecutionRecord>
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use im::HashMap;
+    use plonky2::field::goldilocks_field::GoldilocksField;
     use proptest::prelude::ProptestConfig;
     use proptest::{prop_assume, proptest};
 
@@ -335,7 +431,7 @@ mod tests {
         code: &[Instruction],
         mem: &[(u32, u32)],
         regs: &[(u8, u32)],
-    ) -> ExecutionRecord {
+    ) -> ExecutionRecord<GoldilocksField> {
         crate::test_utils::simple_test_code(code, mem, regs).1
     }
 
@@ -370,6 +466,25 @@ mod tests {
         assert_eq!(
             state_before_final(&e).get_register_value(rd),
             rs1_value.wrapping_mul(imm),
+        );
+    }
+
+    #[test]
+    fn test_hash_n_to_m_with_pad() {
+        let data = "💥 Mozak-VM Rocks With Poseidon2";
+        let data_bytes = data.as_bytes();
+        let data_fields: Vec<GoldilocksField> = data_bytes
+            .iter()
+            .map(|x| GoldilocksField::from_canonical_u8(*x))
+            .collect();
+        let hash = super::hash_n_to_m_with_pad::<
+            GoldilocksField,
+            Poseidon2Permutation<GoldilocksField>,
+        >(&data_fields);
+        let hash_bytes = hash.to_bytes();
+        assert_eq!(
+            hash_bytes,
+            hex_literal::hex!("4afb11172461851820da91ce1b972afd87caf69abe4316097280a4784b1fe396")[..]
         );
     }
 
@@ -857,7 +972,7 @@ mod tests {
             );
             // lh will return [0, 1] as LSBs and will set MSBs to 0xFFFF
             let state = state_before_final(&e);
-            let memory_value = lh(
+            let (_, memory_value) = lh(
                 &[
                     state.load_u8(address),
                     state.load_u8(address.wrapping_add(1)),
@@ -887,7 +1002,7 @@ mod tests {
             );
 
             let state = state_before_final(&e);
-            let memory_value = lw(
+            let (_, memory_value) = lw(
                 &[
                     state.load_u8(address),
                     state.load_u8(address.wrapping_add(1)),
@@ -1345,7 +1460,11 @@ mod tests {
 
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
-    fn simple_test(exit_at: u32, mem: &[(u32, u32)], regs: &[(u8, u32)]) -> ExecutionRecord {
+    fn simple_test(
+        exit_at: u32,
+        mem: &[(u32, u32)],
+        regs: &[(u8, u32)],
+    ) -> ExecutionRecord<GoldilocksField> {
         // TODO(Matthias): stick this line into proper common setup?
         let _ = env_logger::try_init();
         let exit_inst =

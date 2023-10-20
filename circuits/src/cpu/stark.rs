@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::fmt::Display;
 use std::marker::PhantomData;
 
@@ -7,27 +6,26 @@ use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
-use starky::vars::{StarkEvaluationTargets, StarkEvaluationVars};
 
 use super::columns::{CpuColumnsExtended, CpuState, Instruction, OpSelectors};
-use super::{add, bitwise, branches, div, ecall, jalr, mul, signed_comparison, sub};
+use super::{add, bitwise, branches, div, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::NumberOfColumns;
 use crate::cpu::shift;
+use crate::display::derive_display_stark_name;
 use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::utils::is_binary;
 
+derive_display_stark_name!(CpuStark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {
     pub _f: PhantomData<F>,
-}
-
-impl<F, const D: usize> Display for CpuStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "CpuStark") }
 }
 
 impl<P: PackedField> OpSelectors<P> {
@@ -43,7 +41,7 @@ impl<P: PackedField> OpSelectors<P> {
     pub fn is_straightline(&self) -> P { P::ONES - self.is_jumping() }
 
     /// List of opcodes that work with memory.
-    pub fn is_mem_op(&self) -> P { self.sb + self.lbu }
+    pub fn is_mem_op(&self) -> P { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
 }
 
 /// Ensure that if opcode is straight line, then program counter is incremented
@@ -189,6 +187,15 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     );
 }
 
+fn ecall<P: PackedField>(
+    lv: &CpuState<P>,
+    nv: &CpuState<P>,
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    // ECALL can be used for HALT
+    yield_constr.constraint_transition(lv.inst.ops.ecall + (nv.is_running - P::ONES));
+}
+
 fn halted<P: PackedField>(
     lv: &CpuState<P>,
     nv: &CpuState<P>,
@@ -196,6 +203,19 @@ fn halted<P: PackedField>(
 ) {
     let is_halted = P::ONES - lv.is_running;
     is_binary(yield_constr, lv.is_running);
+
+    // VM can not be halted without using ECALL, this is constrained in ecall().
+    // HALT syscall is ECALL with X10 = 0
+    // Crucially, this prevents a malicious prover from just halting the program
+    // anywhere else.
+    yield_constr.constraint_transition(
+        (nv.is_running - P::ONES) * (lv.regs[10] - P::Scalar::from_canonical_u8(0)),
+    );
+
+    // We also need to make sure that the program counter is not changed by the
+    // 'halt' system call.
+    yield_constr.constraint_transition((nv.is_running - P::ONES) * (nv.inst.pc - lv.inst.pc));
+
     // TODO: change this when we support segmented proving.
     // Last row must be 'halted', ie no longer is_running.
     yield_constr.constraint_last_row(lv.is_running);
@@ -208,22 +228,30 @@ fn halted<P: PackedField>(
     }
 }
 
+const COLUMNS: usize = CpuColumnsExtended::<()>::NUMBER_OF_COLUMNS;
+// Public inputs: [PC of the first row]
+const PUBLIC_INPUTS: usize = PublicInputs::<()>::NUMBER_OF_COLUMNS;
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D> {
-    const COLUMNS: usize = CpuColumnsExtended::<F>::NUMBER_OF_COLUMNS;
-    // Public inputs: [PC of the first row]
-    const PUBLIC_INPUTS: usize = PublicInputs::<F>::NUMBER_OF_COLUMNS;
+    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
+
+    where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>;
+    type EvaluationFrameTarget =
+        StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
     #[allow(clippy::similar_names)]
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
-        vars: StarkEvaluationVars<FE, P, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        vars: &Self::EvaluationFrame<FE, P, D2>,
         yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &CpuColumnsExtended<_> = vars.local_values.borrow();
-        let nv: &CpuColumnsExtended<_> = vars.next_values.borrow();
-        let public_inputs: &PublicInputs<_> = vars.public_inputs.borrow();
+        let lv: &CpuColumnsExtended<_> = vars.get_local_values().try_into().unwrap();
+        let nv: &CpuColumnsExtended<_> = vars.get_next_values().try_into().unwrap();
+        let public_inputs: &PublicInputs<_> = vars.get_public_inputs().try_into().unwrap();
 
         // Constrain the CPU transition between previous `lv` state and next `nv`
         // state.
@@ -251,13 +279,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         bitwise::constraints(lv, yield_constr);
         branches::comparison_constraints(lv, yield_constr);
         branches::constraints(lv, nv, yield_constr);
+        memory::signed_constraints(lv, yield_constr);
         signed_comparison::signed_constraints(lv, yield_constr);
         signed_comparison::slt_constraints(lv, yield_constr);
         shift::constraints(lv, yield_constr);
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
-        ecall::constraints(lv, nv, yield_constr);
+        ecall(lv, nv, yield_constr);
         halted(lv, nv, yield_constr);
 
         // Clock starts at 1. This is to differentiate
@@ -269,11 +298,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 
     fn constraint_degree(&self) -> usize { 3 }
 
-    #[coverage(off)]
     fn eval_ext_circuit(
         &self,
         _builder: &mut CircuitBuilder<F, D>,
-        _vars: StarkEvaluationTargets<D, { Self::COLUMNS }, { Self::PUBLIC_INPUTS }>,
+        _vars: &Self::EvaluationFrameTarget,
         _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
         unimplemented!()
@@ -283,7 +311,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use starky::stark_testing::test_stark_low_degree;
 
     use crate::cpu::stark::CpuStark;
@@ -291,7 +319,7 @@ mod tests {
     #[test]
     fn test_degree() -> Result<()> {
         const D: usize = 2;
-        type C = PoseidonGoldilocksConfig;
+        type C = Poseidon2GoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
         type S = CpuStark<F, D>;
 
