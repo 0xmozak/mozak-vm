@@ -44,9 +44,8 @@ where
     out
 }
 
-// degree: SBOX_DEGREE (7)
-fn sbox_p_constraints<F: RichField + Extendable<D>, const D: usize, FE, P, const D2: usize>(
-    state: &P,
+fn sbox_p_constraints_old<F: RichField + Extendable<D>, const D: usize, FE, P, const D2: usize>(
+    x: &P,
 ) -> P
 where
     FE: FieldExtension<D2, BaseField = F>,
@@ -54,8 +53,36 @@ where
     let mut out = P::ONES;
 
     for _ in 0..SBOX_DEGREE {
-        out = out.mul(*state);
+        out = out.mul(*x);
     }
+
+    out
+}
+
+// degree: SBOX_DEGREE (7)
+fn sbox_p_constraints<F: RichField + Extendable<D>, const D: usize, FE, P, const D2: usize>(
+    x: &P,
+    x_qube: &P,
+) -> P
+where
+    FE: FieldExtension<D2, BaseField = F>,
+    P: PackedField<Scalar = FE>, {
+    log::debug!("input      x: {:?}", x);
+    log::debug!("input x_qube: {:?}", x_qube);
+    let mut out = P::ONES;
+
+    let mut out2 = out.mul(*x);
+    out2 = out2.mul(*x_qube);
+    out2 = out2.mul(*x_qube);
+    for _ in 0..SBOX_DEGREE {
+        out = out.mul(*x);
+    }
+    // if !(out - out2).is_zeros() {
+    // log::debug!("input      x: {:?}", x);
+    // log::debug!("input x_qube: {:?}", x_qube);
+    // log::debug!("expected out: {:?}", out);
+    // log::debug!("actual   out: {:?}", out2);
+    // }
 
     out
 }
@@ -219,7 +246,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
             state = add_rc_constraints(&state, r);
             #[allow(clippy::needless_range_loop)]
             for i in 0..STATE_SIZE {
-                state[i] = sbox_p_constraints(&state[i]);
+                let state_1_qube = state[i].square().mul(state[i]);
+                assert!((state_1_qube - lv.s_box_input_qube_first_full_rounds[r + i]).is_zeros());
+                state[i] =
+                    sbox_p_constraints(&state[i], &lv.s_box_input_qube_first_full_rounds[r + i]);
+                // state[i] = sbox_p_constraints(&state[i],
+                // &state[i].square().mul(state[i])); state[i] =
+                // sbox_p_constraints_old(&state[i]);
             }
             state = matmul_external12_constraints(&state);
             for (i, state_i) in state.iter_mut().enumerate().take(STATE_SIZE) {
@@ -232,7 +265,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         // partial rounds
         for i in 0..ROUNDS_P {
             state[0] += FE::from_basefield(F::from_canonical_u64(<F as Poseidon2>::RC12_MID[i]));
-            state[0] = sbox_p_constraints(&state[0]);
+            // state[0] = sbox_p_constraints_old(&state[0]);
+            // state[0] = sbox_p_constraints(&state[0],
+            // &lv.s_box_input_qube_partial_rounds[i]);
+            state[0] = sbox_p_constraints(&state[0], &state[0].square().mul(state[0]));
             state = matmul_internal12_constraints(&state);
             yield_constr.constraint(state[0] - lv.state0_after_partial_rounds[i]);
             state[0] = lv.state0_after_partial_rounds[i];
@@ -250,7 +286,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
             state = add_rc_constraints(&state, r);
             #[allow(clippy::needless_range_loop)]
             for j in 0..STATE_SIZE {
-                state[j] = sbox_p_constraints(&state[j]);
+                // state[j] = sbox_p_constraints(&state[j],
+                // &lv.s_box_input_qube_second_full_rounds[r + j]);
+                state[j] = sbox_p_constraints_old(&state[j]);
             }
             state = matmul_external12_constraints(&state);
             for (j, state_j) in state.iter_mut().enumerate().take(STATE_SIZE) {
@@ -284,6 +322,7 @@ mod tests {
     use anyhow::Result;
     use mozak_runner::state::{Aux, Poseidon2Entry};
     use mozak_runner::vm::Row;
+    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Sample;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use plonky2::util::timing::TimingTree;
@@ -334,7 +373,7 @@ mod tests {
         });
 
         let stark = S::default();
-        let trace = generate_poseidon2_trace(&step_rows);
+        let trace = generate_poseidon2_trace::<GoldilocksField, 2>(&step_rows);
         let trace_poly_values = trace_rows_to_poly_values(trace);
 
         let proof = prove::<F, C, S, D>(
