@@ -68,9 +68,6 @@ pub(crate) fn io_constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    let is_io = lv.is_io_store + lv.is_io_load;
-    is_binary(yield_constr, lv.is_io_load);
     is_binary(yield_constr, lv.is_io_store);
-    is_binary(yield_constr, is_io);
 }
 // We are already testing ecall with our coda of every `simple_test_code`.

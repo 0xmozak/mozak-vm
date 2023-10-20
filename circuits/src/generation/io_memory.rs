@@ -1,6 +1,6 @@
 use itertools::{self, Itertools};
 use mozak_runner::elf::Program;
-use mozak_runner::state::IoOpcode;
+use mozak_runner::state::{IoEntry, IoOpcode};
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
@@ -18,12 +18,15 @@ fn pad_io_mem_trace<F: RichField>(
     trace
 }
 
-/// Returns the rows with full word memory instructions.
+/// Returns the rows with io memory instructions.
 pub fn filter<F: RichField>(step_rows: &[Row<F>]) -> impl Iterator<Item = &Row<F>> {
     step_rows.iter().filter(|row| {
         matches!(
-            row.aux.io.clone().unwrap_or_default().op, // TODO: fix - copy big amount of data
-            IoOpcode::Load | IoOpcode::Store
+            row.aux.io,
+            Some(IoEntry {
+                op: IoOpcode::Store,
+                ..
+            }),
         )
     })
 }
@@ -39,11 +42,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                 let io = s.aux.io.clone().unwrap_or_default();
                 let local_op = io.op;
                 let mut extended = vec![];
-                let value = if io.data.is_empty() {
-                    0
-                } else {
-                    *io.data.first().unwrap()
-                };
+                let value = io.data.first().copied().unwrap_or_default();
                 // initial io-element
                 extended.push(InputOutputMemory {
                     clk: get_memory_inst_clk(s),
@@ -52,9 +51,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                     value: F::from_canonical_u8(value),
                     ops: Ops {
                         is_io_store: F::from_bool(matches!(local_op, IoOpcode::Store)),
-                        is_io_load: F::from_bool(matches!(local_op, IoOpcode::Load)),
                         is_memory_store: F::ZERO,
-                        is_memory_load: F::ZERO,
                     },
                 });
                 // extended memory elements
@@ -68,9 +65,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                         value: F::from_canonical_u8(*local_value),
                         ops: Ops {
                             is_io_store: F::ZERO,
-                            is_io_load: F::ZERO,
                             is_memory_store: F::from_bool(matches!(local_op, IoOpcode::Store)),
-                            is_memory_load: F::from_bool(matches!(local_op, IoOpcode::Load)),
                         },
                     });
                 }

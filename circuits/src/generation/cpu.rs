@@ -75,7 +75,6 @@ pub fn generate_cpu_trace<F: RichField>(
             io_addr: F::from_canonical_u32(io.addr),
             io_size: F::from_canonical_u32(u32::try_from(io.data.len()).unwrap()),
             is_io_store: F::from_bool(matches!((inst.op, io.op), (Op::ECALL, IoOpcode::Store))),
-            is_io_load: F::from_bool(matches!((inst.op, io.op), (Op::ECALL, IoOpcode::Load))),
             is_halt: F::from_bool(matches!(
                 (inst.op, state.registers[usize::try_from(REG_A0).unwrap()]),
                 (Op::ECALL, ecall::HALT)

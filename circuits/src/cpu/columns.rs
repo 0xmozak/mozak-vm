@@ -157,7 +157,6 @@ pub struct CpuState<T> {
     pub io_addr: T,
     pub io_size: T,
     pub is_io_store: T,
-    pub is_io_load: T,
     pub is_halt: T,
 }
 
@@ -334,13 +333,7 @@ pub fn filter_for_fullword_memory<F: Field>() -> Column<F> {
 #[must_use]
 pub fn data_for_io_memory<F: Field>() -> Vec<Column<F>> {
     let cpu = MAP.cpu.map(Column::from);
-    vec![
-        cpu.clk,
-        cpu.io_addr,
-        cpu.io_size,
-        cpu.is_io_store,
-        cpu.is_io_load,
-    ]
+    vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_store]
 }
 
 /// Column for a binary filter for memory instruction in IO Memory stark.
@@ -348,7 +341,7 @@ pub fn data_for_io_memory<F: Field>() -> Vec<Column<F>> {
 #[must_use]
 pub fn filter_for_io_memory<F: Field>() -> Column<F> {
     let cpu = MAP.cpu.map(Column::from);
-    cpu.is_io_load + cpu.is_io_store
+    cpu.is_io_store
 }
 
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {

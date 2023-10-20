@@ -106,16 +106,13 @@ impl<F: RichField> From<&FullWordMemory<F>> for Vec<Memory<F>> {
 
 impl<F: RichField> From<&InputOutputMemory<F>> for Option<Memory<F>> {
     fn from(val: &InputOutputMemory<F>) -> Self {
-        (val.ops.is_memory_load + val.ops.is_memory_store)
-            .is_one()
-            .then(|| Memory {
-                clk: val.clk,
-                addr: val.addr,
-                value: val.value,
-                is_store: val.ops.is_memory_store,
-                is_load: val.ops.is_memory_load,
-                ..Default::default()
-            })
+        (val.ops.is_memory_store).is_one().then(|| Memory {
+            clk: val.clk,
+            addr: val.addr,
+            value: val.value,
+            is_store: val.ops.is_memory_store,
+            ..Default::default()
+        })
     }
 }
 

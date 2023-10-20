@@ -49,9 +49,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
         let nv: &InputOutputMemory<P> = vars.get_next_values().try_into().unwrap();
 
         is_binary(yield_constr, lv.ops.is_memory_store);
-        is_binary(yield_constr, lv.ops.is_memory_load);
         is_binary(yield_constr, lv.ops.is_io_store);
-        is_binary(yield_constr, lv.ops.is_io_load);
         is_binary(yield_constr, lv.is_executed());
 
         // If nv.is_io() == 1: lv.size == 0, also forces the last row to be size == 0 !

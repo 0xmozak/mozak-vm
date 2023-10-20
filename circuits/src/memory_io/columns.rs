@@ -14,12 +14,8 @@ pub struct Ops<T> {
     // If none are `1`, it is a padding row
     /// Binary filter column to represent a RISC-V SH operation.
     pub is_memory_store: T,
-    /// Binary filter column to represent a RISC-V LHU operation.
-    pub is_memory_load: T,
     /// Binary filter column to represent a io-write operation.
     pub is_io_store: T,
-    /// Binary filter column to represent a io-read operation.
-    pub is_io_load: T,
 }
 
 #[repr(C)]
@@ -43,17 +39,17 @@ make_col_map!(InputOutputMemory);
 impl<T: Clone + Add<Output = T>> InputOutputMemory<T> {
     pub fn is_io(&self) -> T {
         let ops: Ops<T> = self.ops.clone();
-        ops.is_io_load + ops.is_io_store
+        ops.is_io_store
     }
 
     pub fn is_memory(&self) -> T {
         let ops: Ops<T> = self.ops.clone();
-        ops.is_memory_load + ops.is_memory_store
+        ops.is_memory_store
     }
 
     pub fn is_executed(&self) -> T {
         let ops: Ops<T> = self.ops.clone();
-        ops.is_io_load + ops.is_io_store + ops.is_memory_load + ops.is_memory_store
+        ops.is_io_store + ops.is_memory_store
     }
 }
 
@@ -65,13 +61,7 @@ pub const NUM_IO_MEM_COLS: usize = InputOutputMemory::<()>::NUMBER_OF_COLUMNS;
 #[must_use]
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
     let mem = MAP.map(Column::from);
-    vec![
-        mem.clk,
-        mem.addr,
-        mem.size,
-        mem.ops.is_io_store,
-        mem.ops.is_io_load,
-    ]
+    vec![mem.clk, mem.addr, mem.size, mem.ops.is_io_store]
 }
 
 /// Column for a binary filter to indicate a lookup
@@ -86,7 +76,7 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
     vec![
         mem.clk,
         mem.ops.is_memory_store,
-        mem.ops.is_memory_load,
+        Column::constant(F::ZERO),
         mem.value,
         mem.addr,
     ]
