@@ -418,8 +418,6 @@ fn verify_stark_proof_with_challenges_circuit<
         builder,
         challenges.stark_zeta,
         F::primitive_root_of_unity(degree_bits),
-        // degree_bits,
-        // ctl_zs_last.len(),
         inner_config,
         Some(&LookupConfig {
             degree_bits,
@@ -598,28 +596,30 @@ mod tests {
             &config,
             public_inputs,
             &mut TimingTree::default(),
-        )
-        .unwrap();
-        verify_proof(stark.clone(), all_proof.clone(), &config).unwrap();
+        )?;
+        verify_proof(stark.clone(), all_proof.clone(), &config)?;
 
         type PS = ProgramStark<F, D>;
         let mut circuit_config = CircuitConfig::standard_recursion_config();
         circuit_config.num_routed_wires = 40;
         circuit_config.fri_config.cap_height = 1;
+        let degree_bits = all_proof.stark_proofs[TableKind::Program as usize]
+            .proof
+            .recover_degree_bits(&config);
         let stark_wrapper = recursive_stark_circuit::<F, C, PS, D>(
             TableKind::Program,
             &stark.program_stark,
-            2,
+            degree_bits,
             &stark.cross_table_lookups,
             &config,
             &circuit_config,
             12,
         );
 
-        let proof = stark_wrapper.prove(
+        let recursive_proof = stark_wrapper.prove(
             &all_proof.stark_proofs[TableKind::Program as usize],
             &all_proof.ctl_challenges,
         )?;
-        stark_wrapper.circuit.verify(proof)
+        stark_wrapper.circuit.verify(recursive_proof)
     }
 }
