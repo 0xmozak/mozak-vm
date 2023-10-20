@@ -395,24 +395,11 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
 pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.permuted.inst) }
 
 #[must_use]
-pub fn data_for_register_rd<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::single(MAP.cpu.inst.rd),
-        Column::single(MAP.cpu.dst_value),
-        Column::single(MAP.cpu.clk) * F::from_canonical_u8(3) + F::TWO,
-        Column::constant(F::ZERO), // is_read
-        Column::constant(F::ONE),  // is_write
-    ]
-}
-
-#[must_use]
-pub fn filter_for_register_rd<F: Field>() -> Column<F> { Column::single(MAP.cpu.inst.rd_used) }
-
-#[must_use]
 pub fn data_for_register_rs1<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(MAP.cpu.inst.rs1),
         Column::single(MAP.cpu.op1_value),
+        // Equivalent to `augmented_clk` with offset of 0
         Column::single(MAP.cpu.clk) * F::from_canonical_u8(3),
         Column::constant(F::ONE),  // is_read
         Column::constant(F::ZERO), // is_write
@@ -427,6 +414,7 @@ pub fn data_for_register_rs2<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::single(MAP.cpu.inst.rs2),
         Column::single(MAP.cpu.rs2_value),
+        // Equivalent to `augmented_clk` with offset of 1
         Column::single(MAP.cpu.clk) * F::from_canonical_u8(3) + F::ONE,
         Column::constant(F::ONE),  // is_read
         Column::constant(F::ZERO), // is_write
@@ -435,3 +423,18 @@ pub fn data_for_register_rs2<F: Field>() -> Vec<Column<F>> {
 
 #[must_use]
 pub fn filter_for_register_rs2<F: Field>() -> Column<F> { Column::single(MAP.cpu.inst.rs2_used) }
+
+#[must_use]
+pub fn data_for_register_rd<F: Field>() -> Vec<Column<F>> {
+    vec![
+        Column::single(MAP.cpu.inst.rd),
+        Column::single(MAP.cpu.dst_value),
+        // Equivalent to `augmented_clk` with offset of 2
+        Column::single(MAP.cpu.clk) * F::from_canonical_u8(3) + F::TWO,
+        Column::constant(F::ZERO), // is_read
+        Column::constant(F::ONE),  // is_write
+    ]
+}
+
+#[must_use]
+pub fn filter_for_register_rd<F: Field>() -> Column<F> { Column::single(MAP.cpu.inst.rd_used) }
