@@ -312,10 +312,11 @@ impl<F: Field> Column<F> {
         &self,
         builder: &mut CircuitBuilder<F, D>,
         v: &[ExtensionTarget<D>],
+        next_v: &[ExtensionTarget<D>],
     ) -> ExtensionTarget<D>
     where
         F: RichField + Extendable<D>, {
-        let pairs = self
+        let mut pairs = self
             .lv_linear_combination
             .iter()
             .map(|&(c, f)| {
@@ -325,6 +326,13 @@ impl<F: Field> Column<F> {
                 )
             })
             .collect::<Vec<_>>();
+        let next_row_pairs = self.nv_linear_combination.iter().map(|&(c, f)| {
+            (
+                next_v[c],
+                builder.constant_extension(F::Extension::from_basefield(f)),
+            )
+        });
+        pairs.extend(next_row_pairs);
         let constant = builder.constant_extension(F::Extension::from_basefield(self.constant));
         builder.inner_product_extension(F::ONE, constant, pairs)
     }

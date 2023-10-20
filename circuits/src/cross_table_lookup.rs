@@ -293,6 +293,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         ctl_vars_per_table
     }
 }
+
 pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const D2: usize>(
     vars: &S::EvaluationFrame<FE, P, D2>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
@@ -411,9 +412,15 @@ pub(crate) fn eval_cross_table_lookup_checks_circuit<
             columns,
             filter_column,
         } = lookup_vars;
+        let local_values = vars.get_local_values();
+        let next_values = vars.get_next_values();
 
-        let local_filter = filter_column.eval_circuit(builder, vars.get_local_values());
-        let next_filter = filter_column.eval_circuit(builder, vars.get_next_values());
+        let evals = columns
+            .iter()
+            .map(|c| c.eval_circuit(builder, local_values, next_values))
+            .collect::<Vec<_>>();
+        let combined = challenges.combine_circuit(builder, &evals);
+
         fn select<F: RichField + Extendable<D>, const D: usize>(
             builder: &mut CircuitBuilder<F, D>,
             filter: ExtensionTarget<D>,
@@ -424,24 +431,14 @@ pub(crate) fn eval_cross_table_lookup_checks_circuit<
             builder.mul_add_extension(filter, x, tmp) // filter * x + 1 - filter
         }
 
+        let filter = filter_column.eval_circuit(builder, local_values, next_values);
+        let select = select(builder, filter, combined);
+
         // Check value of `Z(1)`
-        let local_columns_eval = columns
-            .iter()
-            .map(|c| c.eval_circuit(builder, vars.get_local_values()))
-            .collect::<Vec<_>>();
-        let combined_local = challenges.combine_circuit(builder, &local_columns_eval);
-        let selected_local = select(builder, local_filter, combined_local);
-        let first_row = builder.sub_extension(*local_z, selected_local);
-        consumer.constraint_first_row(builder, first_row);
+        let last_row = builder.sub_extension(*next_z, select);
+        consumer.constraint_last_row(builder, last_row);
         // Check `Z(gw) = combination * Z(w)`
-        let next_columns_eval = columns
-            .iter()
-            .map(|c| c.eval_circuit(builder, vars.get_next_values()))
-            .collect::<Vec<_>>();
-        let combined_next = challenges.combine_circuit(builder, &next_columns_eval);
-        let selected_next = select(builder, next_filter, combined_next);
-        let mut transition = builder.mul_extension(*local_z, selected_next);
-        transition = builder.sub_extension(*next_z, transition);
+        let transition = builder.mul_sub_extension(*next_z, select, *local_z);
         consumer.constraint_transition(builder, transition);
     }
 }
