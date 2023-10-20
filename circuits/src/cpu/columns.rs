@@ -72,16 +72,16 @@ pub struct Instruction<T> {
     // usage via 'addresses', e.g. if r6 is written to, then rd = 6.
     /// Selects the register to use as source for `rs1`
     pub rs1: T,
-    /// Filter column for register `rs1`. Is one when rs1 is being used.
-    pub rs1_not_zero: T,
+    /// Binary filter column for register `rs1`. Is one when rs1 is being used.
+    pub rs1_used: T,
     /// Selects the register to use as source for `rs2`
     pub rs2: T,
-    /// Filter column for register `rs2`. Is one when rs2 is being used.
-    pub rs2_not_zero: T,
+    /// Binary filter column for register `rs2`. Is one when rs2 is being used.
+    pub rs2_used: T,
     /// The 'address' of the register to use as destination for `rd`.
     pub rd: T,
-    /// Filter column for register `rd`. Is one when rd is being used.
-    pub rd_not_zero: T,
+    /// Binary filter column for register `rd`. Is one when rd is being used.
+    pub rd_used: T,
     /// Special immediate value used for code constants
     pub imm_value: T,
 }
@@ -406,7 +406,7 @@ pub fn data_for_register_rd<F: Field>() -> Vec<Column<F>> {
 }
 
 #[must_use]
-pub fn filter_for_register_rd<F: Field>() -> Column<F> { Column::single(MAP.cpu.inst.rd_not_zero) }
+pub fn filter_for_register_rd<F: Field>() -> Column<F> { Column::single(MAP.cpu.inst.rd_used) }
 
 #[must_use]
 pub fn data_for_register_rs1<F: Field>() -> Vec<Column<F>> {
@@ -420,9 +420,7 @@ pub fn data_for_register_rs1<F: Field>() -> Vec<Column<F>> {
 }
 
 #[must_use]
-pub fn filter_for_register_rs1<F: Field>() -> Column<F> {
-    Column::single(MAP.cpu.inst.rs1_not_zero)
-}
+pub fn filter_for_register_rs1<F: Field>() -> Column<F> { Column::single(MAP.cpu.inst.rs1_used) }
 
 #[must_use]
 pub fn data_for_register_rs2<F: Field>() -> Vec<Column<F>> {
@@ -436,6 +434,4 @@ pub fn data_for_register_rs2<F: Field>() -> Vec<Column<F>> {
 }
 
 #[must_use]
-pub fn filter_for_register_rs2<F: Field>() -> Column<F> {
-    Column::single(MAP.cpu.inst.rs2_not_zero)
-}
+pub fn filter_for_register_rs2<F: Field>() -> Column<F> { Column::single(MAP.cpu.inst.rs2_used) }

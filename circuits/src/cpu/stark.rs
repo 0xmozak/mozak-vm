@@ -155,7 +155,7 @@ fn halted<P: PackedField>(
     // Crucially, this prevents a malicious prover from just halting the program
     // anywhere else.
     yield_constr.constraint_transition(
-        (nv.is_running - P::ONES) * (lv.regs[10] - P::Scalar::from_canonical_u8(0)),
+        (nv.is_running - P::ONES) * (lv.reg_10 - P::Scalar::from_canonical_u8(0)),
     );
 
     // We also need to make sure that the program counter is not changed by the

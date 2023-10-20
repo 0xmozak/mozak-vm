@@ -23,11 +23,11 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
             // is_dst_signed is also set in `memory_sign_handling` in circuits/generation/cpu
             is_dst_signed: matches!(inst.op, Op::LB).into(),
             rs1: u32::from(inst.args.rs1),
-            rs1_not_zero: u32::from(inst.args.rs1 > 0),
+            rs1_used: u32::from(inst.args.rs1 > 0),
             rs2: u32::from(inst.args.rs2),
-            rs2_not_zero: u32::from(inst.args.rs2 > 0),
+            rs2_used: u32::from(inst.args.rs2 > 0),
             rd: u32::from(inst.args.rd),
-            rd_not_zero: u32::from(inst.args.rd > 0),
+            rd_used: u32::from(inst.args.rd > 0),
 
             ..Self::default()
         };
