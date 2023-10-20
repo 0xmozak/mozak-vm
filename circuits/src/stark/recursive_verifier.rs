@@ -272,7 +272,6 @@ where
     let challenges = proof_target.proof.get_challenges::<F, C>(
         &mut builder,
         &mut challenger,
-        num_permutation_zs > 0,
         num_permutation_batch_size,
         inner_config,
     );

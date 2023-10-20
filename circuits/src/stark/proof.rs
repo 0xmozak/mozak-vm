@@ -135,7 +135,6 @@ impl<const D: usize> StarkProofTarget<D> {
         &self,
         builder: &mut CircuitBuilder<F, D>,
         challenger: &mut RecursiveChallenger<F, C::Hasher, D>,
-        _stark_use_permutation: bool,
         stark_permutation_batch_size: usize,
         config: &StarkConfig,
     ) -> StarkProofChallengesTarget<D>

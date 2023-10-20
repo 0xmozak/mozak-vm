@@ -438,40 +438,9 @@ pub(crate) fn eval_cross_table_lookup_checks_circuit<
         let last_row = builder.sub_extension(*next_z, select);
         consumer.constraint_last_row(builder, last_row);
         // Check `Z(gw) = combination * Z(w)`
-        let transition = builder.mul_sub_extension(*next_z, select, *local_z);
+        let transition = builder.mul_sub_extension(*local_z, select, *next_z);
         consumer.constraint_transition(builder, transition);
     }
-}
-
-#[allow(unused)]
-pub(crate) fn verify_cross_table_lookups_circuit<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    cross_table_lookups: Vec<CrossTableLookup<F>>,
-    ctl_zs_lasts: [Vec<Target>; NUM_TABLES],
-    ctl_extra_looking_products: Vec<Vec<Target>>,
-    inner_config: &StarkConfig,
-) {
-    let mut ctl_zs_openings = ctl_zs_lasts.iter().map(|v| v.iter()).collect::<Vec<_>>();
-    for CrossTableLookup {
-        looking_tables,
-        looked_table,
-    } in cross_table_lookups.into_iter()
-    {
-        let extra_product_vec = &ctl_extra_looking_products[looked_table.kind as usize];
-        for c in 0..inner_config.num_challenges {
-            let mut looking_zs_prod = builder.mul_many(
-                looking_tables
-                    .iter()
-                    .map(|table| *ctl_zs_openings[table.kind as usize].next().unwrap()),
-            );
-
-            looking_zs_prod = builder.mul(looking_zs_prod, extra_product_vec[c]);
-
-            let looked_z = *ctl_zs_openings[looked_table.kind as usize].next().unwrap();
-            builder.connect(looked_z, looking_zs_prod);
-        }
-    }
-    debug_assert!(ctl_zs_openings.iter_mut().all(|iter| iter.next().is_none()));
 }
 
 pub mod ctl_utils {

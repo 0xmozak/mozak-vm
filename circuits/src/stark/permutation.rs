@@ -108,17 +108,6 @@ pub(crate) mod challenge {
         }
     }
 
-    impl GrandProductChallenge<Target> {
-        #[allow(unused)]
-        pub(crate) fn combine_base_circuit<F: RichField + Extendable<D>, const D: usize>(
-            &self,
-            builder: &mut CircuitBuilder<F, D>,
-            terms: &[Target],
-        ) -> Target {
-            let reduced = reduce_with_powers_circuit(builder, terms, self.beta);
-            builder.add(reduced, self.gamma)
-        }
-    }
 
     /// [`GrandProductChallenge`] repeated for [`num_challenges`] to boost
     /// soundness.
