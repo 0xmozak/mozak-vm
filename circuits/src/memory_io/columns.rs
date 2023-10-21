@@ -4,17 +4,14 @@ use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
-// use crate::stark::mozak_stark::{HalfWordMemoryTable, Table};
 
 /// Operations (one-hot encoded)
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Ops<T> {
-    // One of `is_store`, `is_load_u`
-    // If none are `1`, it is a padding row
-    /// Binary filter column to represent a RISC-V SH operation.
+    /// Binary filter column to represent a RISC-V SB operation.
     pub is_memory_store: T,
-    /// Binary filter column to represent a io-write operation.
+    /// Binary filter column to represent a io-read operation.
     pub is_io_store: T,
 }
 
@@ -31,6 +28,8 @@ pub struct InputOutputMemory<T> {
     pub value: T,
     /// Operation: io_store/load io_memory_store/load
     pub ops: Ops<T>,
+    /// Helper to decrease poly degree
+    pub is_lv_and_nv_are_memory_rows: T,
 }
 
 columns_view_impl!(InputOutputMemory);

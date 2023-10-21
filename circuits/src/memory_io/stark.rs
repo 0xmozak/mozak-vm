@@ -38,6 +38,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
     // Design description - https://docs.google.com/presentation/d/1J0BJd49BMQh3UR5TrOhe3k67plHxnohFtFVrMpDJ1oc/edit?usp=sharing
+    #[rustfmt::skip]
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         vars: &Self::EvaluationFrame<FE, P, D2>,
@@ -53,19 +54,41 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
         is_binary(yield_constr, lv.is_executed());
 
         // If nv.is_io() == 1: lv.size == 0, also forces the last row to be size == 0 !
+        // This constraints ensures loop unrolling was done correctly  
         yield_constr.constraint(nv.is_io() * lv.size);
-        // If nv.is_memory() == 1:
+        // If lv.is_lv_and_nv_are_memory_rows == 1:
         //    nv.address == lv.address + 1 (wrapped)
         //    nv.size == lv.size - 1 (not-wrapped)
         let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
         let added = lv.addr + P::ONES;
         let wrapped = added - wrap_at;
         // nv.address == lv.address + 1 (wrapped)
-        yield_constr.constraint_transition(
-            lv.is_memory() * nv.is_memory() * (nv.addr - added) * (nv.addr - wrapped),
-        );
+        yield_constr
+            .constraint(lv.is_lv_and_nv_are_memory_rows * (nv.addr - added) * (nv.addr - wrapped));
         // nv.size == lv.size - 1 (not-wrapped)
-        yield_constr.constraint_transition(nv.is_io() * (nv.size - (lv.size - P::ONES)));
+        yield_constr.constraint_transition(
+            nv.is_lv_and_nv_are_memory_rows * (nv.size - (lv.size - P::ONES)),
+        );
+        // Edge cases:
+        //  a) - io_store with size = 0: <-- this case is solved since CTL from CPU 
+        //        a.1) is_lv_and_nv_are_memory_rows = 0 (no memory rows inserted) 
+        //  b) - io_store with size = 1: <-- this case needs to be solved separately
+        //        b.1) is_lv_and_nv_are_memory_rows = 0 (only one memory row inserted) 
+        // To solve case-b:
+        // If lv.is_io() == 1 && lv.size != 0: 
+        //      lv.addr == nv.addr       <-- next row address must be the same !!! 
+        //      lv.size === nv.size - 1  <-- next row size is decreased  
+        yield_constr.constraint_transition(
+            lv.is_io() * lv.size * (nv.addr - lv.addr),
+        );
+        yield_constr.constraint_transition(
+            lv.is_io() * lv.size * (nv.size - (lv.size - P::ONES)),
+        );
+        // If lv.is_io() == 1 && lv.size == 0: 
+        //      nv.is_memory() == 0 <-- next op can be only io - since size == 0
+        // This one is ensured by:
+        //  1) is_binary(io or memory) 
+        //  2) if nv.is_io() == 1: lv.size == 0 
     }
 
     fn eval_ext_circuit(
@@ -77,7 +100,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
         unimplemented!()
     }
 
-    fn constraint_degree(&self) -> usize { 4 }
+    fn constraint_degree(&self) -> usize { 3 }
 }
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]

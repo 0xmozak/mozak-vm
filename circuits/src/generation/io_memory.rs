@@ -12,9 +12,10 @@ use crate::memory_io::columns::{InputOutputMemory, Ops};
 fn pad_io_mem_trace<F: RichField>(
     mut trace: Vec<InputOutputMemory<F>>,
 ) -> Vec<InputOutputMemory<F>> {
-    trace.resize(trace.len().next_power_of_two(), InputOutputMemory {
-        ..Default::default()
-    });
+    trace.resize(
+        trace.len().next_power_of_two(),
+        InputOutputMemory::default(),
+    );
     trace
 }
 
@@ -53,6 +54,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                         is_io_store: F::from_bool(matches!(local_op, IoOpcode::Store)),
                         is_memory_store: F::ZERO,
                     },
+                    is_lv_and_nv_are_memory_rows: F::from_bool(false),
                 });
                 // extended memory elements
                 for (i, local_value) in io.data.iter().enumerate() {
@@ -67,6 +69,7 @@ pub fn generate_io_memory_trace<F: RichField>(
                             is_io_store: F::ZERO,
                             is_memory_store: F::from_bool(matches!(local_op, IoOpcode::Store)),
                         },
+                        is_lv_and_nv_are_memory_rows: F::from_bool(i != io.data.len() - 1),
                     });
                 }
                 extended
