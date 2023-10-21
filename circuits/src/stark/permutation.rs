@@ -108,7 +108,6 @@ pub(crate) mod challenge {
         }
     }
 
-
     /// [`GrandProductChallenge`] repeated for [`num_challenges`] to boost
     /// soundness.
     #[derive(Clone, Eq, PartialEq, Debug, Default)]

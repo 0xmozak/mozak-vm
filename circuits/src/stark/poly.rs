@@ -178,22 +178,20 @@ pub(crate) fn eval_vanishing_poly_circuit<F, S, const D: usize>(
     stark: &S,
     config: &StarkConfig,
     vars: &S::EvaluationFrameTarget,
-    permutation_data: Option<PermutationCheckDataTarget<D>>,
+    permutation_data: PermutationCheckDataTarget<D>,
     ctl_vars: &[CtlCheckVarsTarget<F, D>],
     consumer: &mut RecursiveConstraintConsumer<F, D>,
 ) where
     F: RichField + Extendable<D>,
     S: Stark<F, D>, {
     stark.eval_ext_circuit(builder, vars, consumer);
-    if let Some(permutation_data) = permutation_data {
-        eval_permutation_checks_circuit::<F, S, D>(
-            builder,
-            stark,
-            config,
-            vars,
-            permutation_data,
-            consumer,
-        );
-    }
+    eval_permutation_checks_circuit::<F, S, D>(
+        builder,
+        stark,
+        config,
+        vars,
+        permutation_data,
+        consumer,
+    );
     eval_cross_table_lookup_checks_circuit::<S, F, D>(builder, vars, ctl_vars, consumer);
 }
