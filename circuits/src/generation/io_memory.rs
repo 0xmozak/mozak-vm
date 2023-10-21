@@ -1,5 +1,6 @@
 use itertools::{self, Itertools};
 use mozak_runner::elf::Program;
+use mozak_runner::instruction::Op;
 use mozak_runner::state::{IoEntry, IoOpcode};
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -20,7 +21,10 @@ fn pad_io_mem_trace<F: RichField>(
 }
 
 /// Returns the rows with io memory instructions.
-pub fn filter<F: RichField>(step_rows: &[Row<F>]) -> impl Iterator<Item = &Row<F>> {
+pub fn filter<'a, F: RichField>(
+    program: &'a Program,
+    step_rows: &'a [Row<F>],
+) -> impl Iterator<Item = &'a Row<F>> {
     step_rows.iter().filter(|row| {
         matches!(
             row.aux.io,
@@ -28,17 +32,17 @@ pub fn filter<F: RichField>(step_rows: &[Row<F>]) -> impl Iterator<Item = &Row<F
                 op: IoOpcode::Store,
                 ..
             }),
-        )
+        ) && matches!(row.state.current_instruction(program).op, Op::ECALL,)
     })
 }
 
 #[must_use]
 pub fn generate_io_memory_trace<F: RichField>(
-    _program: &Program,
+    program: &Program,
     step_rows: &[Row<F>],
 ) -> Vec<InputOutputMemory<F>> {
     pad_io_mem_trace(
-        filter(step_rows)
+        filter(program, step_rows)
             .map(|s| {
                 let io = s.aux.io.clone().unwrap_or_default();
                 let local_op = io.op;
