@@ -83,6 +83,7 @@ pub struct Instruction<T> {
 }
 
 columns_view_impl!(CpuState);
+/// Represents the State of the CPU, which is also a row of the trace
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct CpuState<T> {

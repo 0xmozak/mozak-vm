@@ -33,6 +33,8 @@ use crate::instruction::{Args, Instruction};
 /// usecase.
 #[derive(Clone, Debug)]
 pub struct State<F: RichField> {
+    /// Clock used to count how many execution are executed
+    /// Also used to avoid infinite loop
     pub clk: u64,
     pub halted: bool,
     pub registers: [u32; 32],

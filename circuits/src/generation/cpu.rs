@@ -31,6 +31,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     chain!(transpose_trace(cpu_trace), transpose_trace(permuted)).collect()
 }
 
+/// Generate a vector of [CpuState] used for STARK constrains
 pub fn generate_cpu_trace<F: RichField>(
     program: &Program,
     record: &ExecutionRecord<F>,
@@ -95,6 +96,8 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
     row.normalised_diff = F::from_bool(row.signed_diff().is_nonzero());
 }
 
+/// Set a link to the bitshift lookup table if the row performs a shift
+/// operation
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
 fn generate_shift_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux<F>) {
