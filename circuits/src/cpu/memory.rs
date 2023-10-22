@@ -39,6 +39,19 @@ pub(crate) fn signed_constraints<P: PackedField>(
     );
 }
 
+pub(crate) fn constraints<P: PackedField>(
+    lv: &CpuState<P>,
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    let wrap_at = P::Scalar::from_noncanonical_u64(1 << 32);
+    let added = lv.rs2_value() + lv.inst.imm_value;
+    let wrapped = added - wrap_at;
+    // memory address is equal to rs2-value + imm (wrapping)
+    yield_constr
+        .constraint(lv.inst.ops.is_mem_ops() * (lv.mem_addr - added) * (lv.mem_addr - wrapped));
+    // signed memory constraints
+    signed_constraints(lv, yield_constr);
+}
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
