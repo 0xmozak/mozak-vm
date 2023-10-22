@@ -214,16 +214,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
             state = add_rc_constraints(&state, r);
             #[allow(clippy::needless_range_loop)]
             for i in 0..STATE_SIZE {
-                // let state_1_qube = state[i].square().mul(state[i]);
-                // assert!((state_1_qube - lv.s_box_input_qube_first_full_rounds[r +
-                // i]).is_zeros());
                 state[i] = sbox_p_constraints(
                     &state[i],
                     &lv.s_box_input_qube_first_full_rounds[r * STATE_SIZE + i],
                 );
-                // state[i] = sbox_p_constraints(&state[i],
-                // &state[i].square().mul(state[i]));
-                // state[i] = sbox_p_constraints_old(&state[i]);
             }
             state = matmul_external12_constraints(&state);
             for (i, state_i) in state.iter_mut().enumerate().take(STATE_SIZE) {
@@ -236,9 +230,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         // partial rounds
         for i in 0..ROUNDS_P {
             state[0] += FE::from_basefield(F::from_canonical_u64(<F as Poseidon2>::RC12_MID[i]));
-            // state[0] = sbox_p_constraints_old(&state[0]);
             state[0] = sbox_p_constraints(&state[0], &lv.s_box_input_qube_partial_rounds[i]);
-            // state[0] = sbox_p_constraints(&state[0], &state[0].square().mul(state[0]));
             state = matmul_internal12_constraints(&state);
             yield_constr.constraint(state[0] - lv.state0_after_partial_rounds[i]);
             state[0] = lv.state0_after_partial_rounds[i];
@@ -260,7 +252,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
                     &state[j],
                     &lv.s_box_input_qube_second_full_rounds[i * STATE_SIZE + j],
                 );
-                // state[j] = sbox_p_constraints_old(&state[j]);
             }
             state = matmul_external12_constraints(&state);
             for (j, state_j) in state.iter_mut().enumerate().take(STATE_SIZE) {
