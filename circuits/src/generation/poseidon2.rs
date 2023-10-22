@@ -1,7 +1,6 @@
 use itertools::Itertools;
 use mozak_runner::state::Poseidon2Entry;
 use mozak_runner::vm::Row;
-use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::{Poseidon2, WIDTH};
 
@@ -19,9 +18,7 @@ struct PartialRoundOutput<F> {
 
 /// Pad the trace to a power of 2.
 #[must_use]
-fn pad_trace<F: RichField + Extendable<D>, const D: usize>(
-    mut trace: Vec<Poseidon2State<F>>,
-) -> Vec<Poseidon2State<F>> {
+fn pad_trace<F: RichField>(mut trace: Vec<Poseidon2State<F>>) -> Vec<Poseidon2State<F>> {
     let original_len = trace.len();
     let ext_trace_len = original_len.next_power_of_two();
 
@@ -33,13 +30,12 @@ fn pad_trace<F: RichField + Extendable<D>, const D: usize>(
     trace
 }
 
-fn x_qube<B: RichField, F: FieldExtension<D, BaseField = B>, const D: usize>(x: F) -> F {
+fn x_qube<F: RichField>(x: F) -> F {
     // x |--> x^3
-    let x2 = x.square();
-    x * x2
+    x * x * x
 }
 
-fn generate_1st_full_round_state<Field: RichField + Extendable<D>, const D: usize>(
+fn generate_1st_full_round_state<Field: RichField>(
     preimage: &[Field; STATE_SIZE],
 ) -> Vec<FullRoundOutput<Field>> {
     let mut outputs = Vec::new();
@@ -66,7 +62,7 @@ fn generate_1st_full_round_state<Field: RichField + Extendable<D>, const D: usiz
     outputs
 }
 
-fn generate_partial_round_state<Field: RichField + Extendable<D>, const D: usize>(
+fn generate_partial_round_state<Field: RichField>(
     last_rount_output: &[Field; STATE_SIZE],
 ) -> (Vec<PartialRoundOutput<Field>>, [Field; STATE_SIZE]) {
     let mut outputs = Vec::new();
@@ -87,7 +83,7 @@ fn generate_partial_round_state<Field: RichField + Extendable<D>, const D: usize
     (outputs, current_state)
 }
 
-fn generate_2st_full_round_state<Field: RichField + Extendable<D>, const D: usize>(
+fn generate_2st_full_round_state<Field: RichField>(
     last_rount_output: &[Field; STATE_SIZE],
 ) -> Vec<FullRoundOutput<Field>> {
     let mut outputs = Vec::new();
@@ -111,7 +107,7 @@ fn generate_2st_full_round_state<Field: RichField + Extendable<D>, const D: usiz
     outputs
 }
 
-pub fn generate_poseidon2_state<F: RichField + Extendable<D>, const D: usize>(
+pub fn generate_poseidon2_state<F: RichField>(
     preimage: &[F; STATE_SIZE],
     is_exe: bool,
 ) -> Poseidon2State<F> {
@@ -140,13 +136,12 @@ pub fn generate_poseidon2_state<F: RichField + Extendable<D>, const D: usize>(
         state.state0_after_partial_rounds[j] = partial_round_state.state_0;
         state.s_box_input_qube_partial_rounds[j] = partial_round_state.s_box_input_qube_0;
     }
-    for j in 0..STATE_SIZE {
-        state.state_after_partial_rounds[j] = state_after_partial_rounds[j];
-    }
+    state.state_after_partial_rounds[..STATE_SIZE]
+        .copy_from_slice(&state_after_partial_rounds[..STATE_SIZE]);
     state
 }
 
-fn generate_poseidon2_states<F: RichField + Extendable<D>, const D: usize>(
+fn generate_poseidon2_states<F: RichField>(
     poseidon_data: &Poseidon2Entry<F>,
 ) -> Vec<Poseidon2State<F>> {
     poseidon_data
@@ -157,9 +152,7 @@ fn generate_poseidon2_states<F: RichField + Extendable<D>, const D: usize>(
 }
 
 #[must_use]
-pub fn generate_poseidon2_trace<F: RichField + Extendable<D>, const D: usize>(
-    step_rows: &[Row<F>],
-) -> Vec<Poseidon2State<F>> {
+pub fn generate_poseidon2_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<Poseidon2State<F>> {
     let trace = pad_trace(
         step_rows
             .iter()
@@ -180,7 +173,6 @@ pub fn generate_poseidon2_trace<F: RichField + Extendable<D>, const D: usize>(
 #[cfg(test)]
 mod test {
     use mozak_runner::state::{Aux, Poseidon2Entry};
-    use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Sample;
     use plonky2::hash::poseidon2::Poseidon2;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
@@ -197,13 +189,12 @@ mod test {
     #[test]
     fn rounds_generation() {
         let preimage = (0..STATE_SIZE).map(|_| F::rand()).collect::<Vec<_>>();
-        let output0: Vec<FullRoundOutput<F>> = generate_1st_full_round_state::<GoldilocksField, 2>(
-            &preimage.clone().try_into().unwrap(),
-        );
+        let output0: Vec<FullRoundOutput<F>> =
+            generate_1st_full_round_state(&preimage.clone().try_into().unwrap());
         let (_partial_state, state_after_partial_rounds) =
-            generate_partial_round_state::<GoldilocksField, 2>(&output0.last().unwrap().state);
+            generate_partial_round_state(&output0.last().unwrap().state);
         let output2: Vec<FullRoundOutput<F>> =
-            generate_2st_full_round_state::<GoldilocksField, 2>(&state_after_partial_rounds);
+            generate_2st_full_round_state(&state_after_partial_rounds);
         let expected_output = <F as Poseidon2>::poseidon2(preimage.try_into().unwrap());
         assert_eq!(expected_output, output2.last().unwrap().state);
     }
@@ -234,7 +225,7 @@ mod test {
             ..Default::default()
         });
 
-        let trace = super::generate_poseidon2_trace::<GoldilocksField, 2>(&step_rows);
+        let trace = super::generate_poseidon2_trace(&step_rows);
         for step_row in step_rows.iter().take(num_rows) {
             let poseidon2 = step_row.aux.poseidon2.clone().expect("can't fail");
             for (i, (preimage, _output)) in poseidon2.sponge_data.iter().enumerate() {
@@ -253,8 +244,7 @@ mod test {
     #[test]
     fn generate_poseidon2_trace_with_dummy() {
         let step_rows = vec![];
-        let trace: Vec<Poseidon2State<F>> =
-            super::generate_poseidon2_trace::<GoldilocksField, 2>(&step_rows);
+        let trace: Vec<Poseidon2State<F>> = super::generate_poseidon2_trace(&step_rows);
         assert_eq!(trace.len(), 1);
     }
 }

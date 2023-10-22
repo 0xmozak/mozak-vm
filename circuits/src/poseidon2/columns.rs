@@ -5,7 +5,6 @@ use crate::linear_combination::Column;
 
 /// The size of the state
 pub const STATE_SIZE: usize = 12;
-pub(crate) const SBOX_DEGREE: usize = 7;
 
 /// Poseidon2 constants
 pub(crate) const ROUNDS_F: usize = 8;
