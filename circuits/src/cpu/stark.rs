@@ -188,6 +188,15 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
     );
 }
 
+fn ecall<P: PackedField>(
+    lv: &CpuState<P>,
+    nv: &CpuState<P>,
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    // ECALL can be used for HALT
+    yield_constr.constraint_transition(lv.inst.ops.ecall + (nv.is_running - P::ONES));
+}
+
 /// Constrain and check the conditions in which the program can be halted
 fn halted<P: PackedField>(
     lv: &CpuState<P>,
@@ -197,11 +206,10 @@ fn halted<P: PackedField>(
     let is_halted = P::ONES - lv.is_running;
     is_binary(yield_constr, lv.is_running);
 
-    // VM can not be halt without using ECALL
+    // VM can not be halted without using ECALL, this is constrained in ecall().
     // HALT syscall is ECALL with X10 = 0
     // Crucially, this prevents a malicious prover from just halting the program
     // anywhere else.
-    yield_constr.constraint_transition(lv.inst.ops.ecall + nv.is_running - P::ONES);
     yield_constr.constraint_transition(
         (nv.is_running - P::ONES) * (lv.regs[10] - P::Scalar::from_canonical_u8(0)),
     );
@@ -280,6 +288,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
         jalr::constraints(lv, nv, yield_constr);
+        ecall(lv, nv, yield_constr);
         halted(lv, nv, yield_constr);
 
         // Clock starts at 1. This is to differentiate

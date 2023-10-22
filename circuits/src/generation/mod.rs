@@ -8,6 +8,7 @@ pub mod halfword_memory;
 pub mod instruction;
 pub mod memory;
 pub mod memoryinit;
+pub mod poseidon2;
 pub mod program;
 pub mod rangecheck;
 pub mod rangecheck_limb;
@@ -66,7 +67,7 @@ use crate::xor::stark::XorStark;
 #[must_use]
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
-    record: &ExecutionRecord,
+    record: &ExecutionRecord<F>,
 ) -> [Vec<PolynomialValues<F>>; NUM_TABLES] {
     let cpu_rows = generate_cpu_trace::<F>(program, record);
     let xor_rows = generate_xor_trace(&cpu_rows);
