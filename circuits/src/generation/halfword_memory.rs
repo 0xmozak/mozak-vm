@@ -63,3 +63,69 @@ pub fn generate_halfword_memory_trace<F: RichField>(
             .collect_vec(),
     )
 }
+
+// TODO(Roman): don't know what mother of clippy wants from me :) - Remove
+// #allow
+#[allow(unused_imports)]
+#[allow(dead_code)]
+mod tests {
+
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
+
+    use crate::generation::fullword_memory::generate_fullword_memory_trace;
+    use crate::generation::halfword_memory::generate_halfword_memory_trace;
+    use crate::generation::memory::generate_memory_trace;
+    use crate::generation::memoryinit::generate_memory_init_trace;
+    use crate::memory_halfword::test_utils::halfword_memory_trace_test_case;
+    use crate::test_utils::{inv, prep_table};
+
+    const D: usize = 2;
+    type C = Poseidon2GoldilocksConfig;
+    type F = <C as GenericConfig<D>>::F;
+
+    // This test simulates the scenario of a set of instructions
+    // which perform store byte (SH) and load byte signed / unsigned (LH/LHU)
+    // operations to memory and then checks if the memory trace is generated
+    // correctly.
+    #[test]
+    #[rustfmt::skip]
+    fn generate_half_memory_trace() {
+        let (program, record) = halfword_memory_trace_test_case(1);
+
+        let memory_init = generate_memory_init_trace(&program);
+        let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
+        let fullword_memory = generate_fullword_memory_trace(&program, &record.executed);
+
+        let trace = generate_memory_trace::<GoldilocksField>(
+            &program,
+            &record.executed,
+            &memory_init,
+            &halfword_memory,
+            &fullword_memory,
+        );
+        let inv = inv::<F>;
+        assert_eq!(
+            trace,
+            prep_table(vec![
+                //is_writable  addr   clk  is_sb, is_lbu, is_init  value  diff_addr  diff_addr_inv  diff_clk
+                [       1,     400,   0,     0,     0,       1,        0,    400,     inv(400),            0],  // Memory Init: 400
+                [       1,     400,   1,     1,     0,       0,        2,      0,           0,             1],  // Operations:  400
+                [       1,     400,   2,     0,     1,       0,        2,      0,           0,             1],  // Operations:  400
+                [       1,     401,   0,     0,     0,       1,        0,      1,       inv(1),            0],  // Memory Init: 401
+                [       1,     401,   1,     1,     0,       0,        1,      0,           0,             1],  // Operations:  401
+                [       1,     401,   2,     0,     1,       0,        1,      0,           0,             1],  // Operations:  401
+                [       1,     402,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 402
+                [       1,     403,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 403
+                [       1,     500,   0,     0,     0,       1,        0,     97,     inv(97),             0],  // Memory Init: 500
+                [       1,     500,   3,     1,     0,       0,        4,      0,           0,             3],  // Operations:  500
+                [       1,     500,   4,     0,     1,       0,        4,      0,           0,             1],  // Operations:  500
+                [       1,     501,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 501
+                [       1,     501,   3,     1,     0,       0,        3,      0,           0,             3],  // Operations:  501
+                [       1,     501,   4,     0,     1,       0,        3,      0,           0,             1],  // Operations:  501
+                [       1,     502,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 502
+                [       1,     503,   0,     0,     0,       1,        0,      1,      inv(1),             0],  // Memory Init: 503
+            ])
+        );
+    }
+}
