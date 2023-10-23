@@ -2,7 +2,7 @@
     "benches": {
         "sample-bench":{
             "description": "Here is a sample description of the bench",
-            "parameter": "value",
+            "parameter": "iterations",
             "output": "time taken (in s)",
             "commits": {
                 "Opt level 0": "2619337641144431c94108adf389a727c18d4c2d",
