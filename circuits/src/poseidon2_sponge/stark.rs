@@ -54,11 +54,17 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         yield_constr.constraint((lv.is_exe - P::ONES) * lv.ops.is_permute * lv.ops.is_init_permute);
 
         // if current row is not dummy and next row is not is_init_permute
-        // start_index decreases by 8
-        yield_constr.constraint(
+        // len decreases by 8
+        yield_constr.constraint_transition(
             lv.is_exe
                 * (nv.ops.is_init_permute - P::ONES)
-                * (lv.start_index - (nv.start_index + P::Scalar::from_canonical_u8(8))),
+                * (lv.len - (nv.len + P::Scalar::from_canonical_u8(8))),
+        );
+        // and input_addr increases by 8
+        yield_constr.constraint_transition(
+            lv.is_exe
+                * (nv.ops.is_init_permute - P::ONES)
+                * (lv.input_addr - (nv.input_addr - P::Scalar::from_canonical_u8(8))),
         );
 
         // For each init_permute capacity bits are zero.
@@ -110,6 +116,7 @@ mod tests {
     type S = Poseidon2SpongeStark<F, D>;
 
     fn poseidon2_sponge_constraints(input_len: u32) -> Result<()> {
+        let _ = env_logger::try_init();
         let mut config = StarkConfig::standard_fast_config();
         config.fri_config.cap_height = 0;
         config.fri_config.rate_bits = 3; // to meet the constraint degree bound

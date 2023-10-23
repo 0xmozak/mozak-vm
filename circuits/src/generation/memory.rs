@@ -9,6 +9,7 @@ use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk};
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memoryinit::columns::MemoryInit;
+use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
@@ -83,6 +84,12 @@ pub fn transform_halfword<F: RichField>(
         .flat_map(Into::<Vec<Memory<F>>>::into)
 }
 
+pub fn transform_poseidon2_sponge<F: RichField>(
+    sponge_data: &[Poseidon2Sponge<F>],
+) -> impl Iterator<Item = Memory<F>> + '_ {
+    sponge_data.iter().flat_map(Into::<Vec<Memory<F>>>::into)
+}
+
 /// Generates Memory trace from a memory full-word table.
 ///
 /// These need to be further interleaved with runtime memory trace generated
@@ -114,6 +121,7 @@ pub fn generate_memory_trace<F: RichField>(
     memory_init_rows: &[MemoryInit<F>],
     halfword_memory_rows: &[HalfWordMemory<F>],
     fullword_memory_rows: &[FullWordMemory<F>],
+    poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
 ) -> Vec<Memory<F>> {
     // `merged_trace` is address sorted combination of static and
     // dynamic memory trace components of program (ELF and execution)
@@ -123,6 +131,7 @@ pub fn generate_memory_trace<F: RichField>(
         generate_memory_trace_from_execution(program, step_rows),
         transform_halfword(halfword_memory_rows),
         transform_fullword(fullword_memory_rows),
+        transform_poseidon2_sponge(poseidon2_sponge_rows),
     )
     .collect();
     merged_trace.sort_by_key(key);
@@ -162,6 +171,7 @@ mod tests {
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
+    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::test_utils::{inv, prep_table};
 
@@ -180,6 +190,7 @@ mod tests {
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(&program, &record.executed);
+        let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(
             &program,
@@ -187,6 +198,7 @@ mod tests {
             &memory_init,
             &halfword_memory,
             &fullword_memory,
+            &poseidon2_trace,
         );
         let inv = inv::<F>;
         assert_eq!(
@@ -235,12 +247,14 @@ mod tests {
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&program, &[]);
         let fullword_memory = generate_fullword_memory_trace(&program, &[]);
+        let poseidon2_trace = generate_poseidon2_sponge_trace(&[]);
         let trace = super::generate_memory_trace::<F>(
             &program,
             &[],
             &memory_init,
             &halfword_memory,
             &fullword_memory,
+            &poseidon2_trace,
         );
 
         let inv = inv::<F>;

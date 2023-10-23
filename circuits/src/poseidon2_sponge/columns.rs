@@ -17,9 +17,9 @@ pub struct Ops<T> {
 pub struct Poseidon2Sponge<T> {
     pub clk: T,
     pub ops: Ops<T>,
-    pub addr: T,
+    pub input_addr: T,
     pub out_addr: T,
-    pub start_index: T,
+    pub len: T,
     pub preimage: [T; 12],
     pub output: [T; 12],
     pub is_exe: T,
@@ -31,8 +31,8 @@ impl<F: RichField> Default for Poseidon2Sponge<F> {
         Self {
             clk: F::default(),
             ops: Ops::<F>::default(),
-            addr: F::default(),
-            start_index: F::default(),
+            input_addr: F::default(),
+            len: F::default(),
             out_addr: F::default(),
             preimage: [F::default(); 12],
             output: <F as Poseidon2>::poseidon2([F::default(); 12]),
@@ -50,7 +50,7 @@ pub const NUM_POSEIDON2_SPONGE_COLS: usize = Poseidon2Sponge::<()>::NUMBER_OF_CO
 #[must_use]
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
     let sponge = MAP.map(Column::from);
-    vec![sponge.clk, sponge.addr, sponge.start_index]
+    vec![sponge.clk, sponge.input_addr, sponge.len]
 }
 
 #[must_use]

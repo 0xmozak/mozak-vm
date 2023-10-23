@@ -8,6 +8,7 @@ use crate::cross_table_lookup::Column;
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memoryinit::columns::MemoryInit;
+use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::stark::mozak_stark::{MemoryTable, Table};
 
 #[repr(C)]
@@ -99,6 +100,44 @@ impl<F: RichField> From<&FullWordMemory<F>> for Vec<Memory<F>> {
                     ..Default::default()
                 })
                 .collect()
+        }
+    }
+}
+
+impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
+    fn from(value: &Poseidon2Sponge<F>) -> Self {
+        if (value.ops.is_permute + value.ops.is_init_permute).is_zero() {
+            vec![]
+        } else {
+            // each Field element in preimage represents a byte.
+            let mut inputs: Vec<Memory<F>> = (0..8)
+                .map(|i| Memory {
+                    clk: value.clk,
+                    addr: value.input_addr + F::from_canonical_u8(i),
+                    is_load: F::ONE,
+                    value: value.preimage[i as usize],
+                    ..Default::default()
+                })
+                .collect();
+            let mut outputs = vec![];
+            if value.gen_output.is_one() {
+                // output size if 32 bits which is just 4 GoldilocksField converted to bytes.
+                let bytes: Vec<u8> = value.output[0..4]
+                    .iter()
+                    .flat_map(|x| x.to_canonical_u64().to_le_bytes())
+                    .collect();
+                outputs = (0..=255)
+                    .map(|i| Memory {
+                        clk: value.clk,
+                        is_store: F::ONE,
+                        value: F::from_canonical_u8(bytes[i as usize]),
+                        addr: value.out_addr + F::from_canonical_u8(i),
+                        ..Default::default()
+                    })
+                    .collect();
+            }
+            inputs.extend(outputs);
+            inputs
         }
     }
 }

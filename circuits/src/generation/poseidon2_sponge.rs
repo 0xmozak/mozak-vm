@@ -7,7 +7,11 @@ use crate::poseidon2_sponge::columns::{Ops, Poseidon2Sponge};
 fn pad_poseidon2_sponge_trace<F: RichField>(
     mut trace: Vec<Poseidon2Sponge<F>>,
 ) -> Vec<Poseidon2Sponge<F>> {
+    let last = trace.last().copied().unwrap_or(Poseidon2Sponge::default());
+    // Just add 8 bytes to input_addr of dummy row so that input_addr
+    // related constraint is satisfied for last real row.
     trace.resize(trace.len().next_power_of_two(), Poseidon2Sponge {
+        input_addr: last.input_addr + F::from_canonical_u8(8),
         ..Default::default()
     });
     trace
@@ -45,9 +49,9 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
         unroll.push(Poseidon2Sponge {
             clk: F::from_canonical_u64(row.state.clk),
             ops,
-            addr: F::from_canonical_u32(poseidon2.addr),
+            input_addr: F::from_canonical_u32(poseidon2.addr + i * rate_bits),
             out_addr: F::from_canonical_u32(poseidon2.output_addr),
-            start_index: F::from_canonical_u32(poseidon2.len - (i * rate_bits)),
+            len: F::from_canonical_u32(poseidon2.len - (i * rate_bits)),
             preimage: sponge_datum.preimage,
             output: sponge_datum.output,
             is_exe: F::ONE,

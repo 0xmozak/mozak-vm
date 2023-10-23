@@ -81,6 +81,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &memory_init_rows,
         &halfword_memory_rows,
         &fullword_memory_rows,
+        &[],
     );
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
     let rangecheck_limb_rows = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows);
