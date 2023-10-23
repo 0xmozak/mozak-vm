@@ -244,6 +244,11 @@ mod tests {
         Stark::prove_and_verify(&program, &record)
     }
 
+    #[test]
+    fn prove_memory_mozak_example() {
+        memory::<MozakStark<F, D>>(0, 0).unwrap();
+    }
+
     use mozak_runner::test_utils::{u32_extra, u8_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
