@@ -45,7 +45,6 @@ pub fn generate_io_memory_trace<F: RichField>(
         filter(program, step_rows)
             .flat_map(|s| {
                 let IoEntry { op, data, addr }: IoEntry = s.aux.io.clone().unwrap_or_default();
-                // let value = data.first().copied().unwrap_or_default();
                 let len = data.len();
                 chain!(
                     // initial io-element
@@ -53,7 +52,6 @@ pub fn generate_io_memory_trace<F: RichField>(
                         clk: get_memory_inst_clk(s),
                         addr: F::from_canonical_u32(addr),
                         size: F::from_canonical_usize(len),
-                        // value: F::from_canonical_u8(value),
                         ops: Ops {
                             is_io_store: F::from_bool(matches!(op, IoOpcode::Store)),
                             is_memory_store: F::ZERO,
