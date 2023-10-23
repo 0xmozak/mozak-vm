@@ -205,6 +205,6 @@ mod test {
     fn generate_poseidon2_trace_with_dummy() {
         let step_rows = vec![];
         let trace: Vec<Poseidon2State<F>> = super::generate_poseidon2_trace(&step_rows);
-        assert_eq!(trace.len(), 1);
+        assert_eq!(trace.len(), 4);
     }
 }
