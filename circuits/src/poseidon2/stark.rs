@@ -15,7 +15,7 @@ use starky::stark::Stark;
 
 use super::columns::Poseidon2State;
 use crate::display::derive_display_stark_name;
-use crate::poseidon2::columns::{NUM_POSEIDON2_COLS, ROUNDS_F, ROUNDS_P, SBOX_DEGREE, STATE_SIZE};
+use crate::poseidon2::columns::{NUM_POSEIDON2_COLS, ROUNDS_F, ROUNDS_P, STATE_SIZE};
 use crate::stark::utils::is_binary;
 
 // degree: 1
@@ -44,20 +44,15 @@ where
     out
 }
 
-// degree: SBOX_DEGREE (7)
+// degree: 3
 fn sbox_p_constraints<F: RichField + Extendable<D>, const D: usize, FE, P, const D2: usize>(
-    state: &P,
+    x: &P,
+    x_qube: &P,
 ) -> P
 where
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
-    let mut out = P::ONES;
-
-    for _ in 0..SBOX_DEGREE {
-        out = out.mul(*state);
-    }
-
-    out
+    *x_qube * *x_qube * *x
 }
 
 fn matmul_m4_constraints<
@@ -219,7 +214,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
             state = add_rc_constraints(&state, r);
             #[allow(clippy::needless_range_loop)]
             for i in 0..STATE_SIZE {
-                state[i] = sbox_p_constraints(&state[i]);
+                state[i] = sbox_p_constraints(
+                    &state[i],
+                    &lv.s_box_input_qube_first_full_rounds[r * STATE_SIZE + i],
+                );
             }
             state = matmul_external12_constraints(&state);
             for (i, state_i) in state.iter_mut().enumerate().take(STATE_SIZE) {
@@ -232,7 +230,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         // partial rounds
         for i in 0..ROUNDS_P {
             state[0] += FE::from_basefield(F::from_canonical_u64(<F as Poseidon2>::RC12_MID[i]));
-            state[0] = sbox_p_constraints(&state[0]);
+            state[0] = sbox_p_constraints(&state[0], &lv.s_box_input_qube_partial_rounds[i]);
             state = matmul_internal12_constraints(&state);
             yield_constr.constraint(state[0] - lv.state0_after_partial_rounds[i]);
             state[0] = lv.state0_after_partial_rounds[i];
@@ -250,7 +248,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
             state = add_rc_constraints(&state, r);
             #[allow(clippy::needless_range_loop)]
             for j in 0..STATE_SIZE {
-                state[j] = sbox_p_constraints(&state[j]);
+                state[j] = sbox_p_constraints(
+                    &state[j],
+                    &lv.s_box_input_qube_second_full_rounds[i * STATE_SIZE + j],
+                );
             }
             state = matmul_external12_constraints(&state);
             for (j, state_j) in state.iter_mut().enumerate().take(STATE_SIZE) {
@@ -261,7 +262,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         }
     }
 
-    fn constraint_degree(&self) -> usize { 7 }
+    fn constraint_degree(&self) -> usize { 3 }
 
     fn eval_ext_circuit(
         &self,
