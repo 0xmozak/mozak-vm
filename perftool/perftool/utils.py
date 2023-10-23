@@ -76,7 +76,7 @@ def load_bench_function_data(bench_function: str) -> dict[str, Any]:
     config_file_path = Path.cwd() / "config.json"
     with open(config_file_path, "r") as f:
         config = json.load(f)
-        data = config["benches"][bench_function]
+        return config["benches"][bench_function]
     return data
 
 
