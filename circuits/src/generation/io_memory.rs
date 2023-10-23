@@ -14,7 +14,7 @@ fn pad_io_mem_trace<F: RichField>(
     mut trace: Vec<InputOutputMemory<F>>,
 ) -> Vec<InputOutputMemory<F>> {
     trace.resize(
-        trace.len().next_power_of_two(),
+        trace.len().max(4).next_power_of_two(),
         InputOutputMemory::default(),
     );
     trace
