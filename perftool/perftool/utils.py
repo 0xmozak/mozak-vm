@@ -83,15 +83,14 @@ def load_bench_function_data(bench_function: str) -> dict[str, Any]:
 def init_csv(csv_file_path: Path, bench_function: str):
     bench_function_data = load_bench_function_data(bench_function)
     headers = [bench_function_data["parameter"], bench_function_data["output"]]
-    if csv_file_path.exists():
+    try:
         existing_headers = pd.read_csv(csv_file_path, nrows=0).columns.tolist()
-        if set(headers) != set(existing_headers):
-            raise ValueError(
-                f"Headers do not match the existing file: {existing_headers}."
-            )
-    else:
+    except FileNotFoundError:
         df = pd.DataFrame(columns=headers)
         df.to_csv(csv_file_path, index=False)
+        return
+    if set(headers) != set(existing_headers):
+        raise ValueError(f"Headers do not match the existing file: {existing_headers}.")
 
 
 def write_into_csv(data: dict, csv_file_path: Path):
