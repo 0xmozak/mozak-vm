@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use itertools::{chain, Itertools};
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Instruction, Op};
-use mozak_runner::state::{Aux, IoOpcode, State};
+use mozak_runner::state::{Aux, IoOpcode, State, IoEntry};
 use mozak_runner::system::ecall;
 use mozak_runner::system::reg_abi::REG_A0;
 use mozak_runner::vm::{ExecutionRecord, Row};
@@ -51,7 +51,7 @@ pub fn generate_cpu_trace<F: RichField>(
         aux: executed.last().unwrap().aux.clone(),
     }];
 
-    let default_io_entry = Default::default();
+    let default_io_entry = IoEntry::default();
     for Row { state, aux } in chain![executed, last_row] {
         let inst = state.current_instruction(program);
         let io = aux.io.as_ref().unwrap_or(&default_io_entry);
