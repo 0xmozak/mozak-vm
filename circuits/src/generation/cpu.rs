@@ -73,7 +73,7 @@ pub fn generate_cpu_trace<F: RichField>(
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
             io_addr: F::from_canonical_u32(io.addr),
-            io_size: F::from_canonical_u32(u32::try_from(io.data.len()).unwrap()),
+            io_size: F::from_canonical_usize(io.data.len()),
             is_io_store: F::from_bool(matches!((inst.op, io.op), (Op::ECALL, IoOpcode::Store))),
             is_halt: F::from_bool(matches!(
                 (inst.op, state.registers[usize::try_from(REG_A0).unwrap()]),
