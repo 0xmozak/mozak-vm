@@ -5,31 +5,11 @@ from pathlib import Path
 import random
 from typing import List
 import pandas as pd
-import numpy as np
 from pyparsing import Any
 
 
-def sample(min_value: int, max_value: int, mean: int = 0) -> int:
-    def distribution_sample(use_uniform: bool = True) -> float | int:
-        if use_uniform:
-            return random.randrange(min_value, max_value)
-        else:
-            # lognormal can be chosen if we want to
-            # keep samples as uniform as possible while
-            # at the same time don't want to generate
-            # too many large values which can slow down
-            # the benches
-            sigma = 0.7
-            return np.random.lognormal(mean=np.log(mean) + sigma**2, sigma=sigma)
-
-    value = None
-    while value is None:
-        # by default, we use uniform distribution to sample
-        value = int(distribution_sample())
-        # following line can be uncommented if we want to use lognormal distribution
-        # if value >= min_value and value <= max_value:
-        #     break
-    return value
+def sample(min_value: int, max_value: int) -> int:
+    return random.randrange(min_value, max_value)
 
 
 def create_repo_from_commmit(commit: str, commit_folder: Path):
@@ -77,7 +57,6 @@ def load_bench_function_data(bench_function: str) -> dict[str, Any]:
     with open(config_file_path, "r") as f:
         config = json.load(f)
         return config["benches"][bench_function]
-    return data
 
 
 def init_csv(csv_file_path: Path, bench_function: str):
