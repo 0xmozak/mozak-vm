@@ -100,11 +100,9 @@ def write_into_csv(data: dict, csv_file_path: Path):
 
 
 def get_csv_file(commit: str, bench_function: str) -> Path:
-    csv_file_path = Path.cwd() / "data" / bench_function / f"{commit}.csv"
-    return csv_file_path
+    return Path.cwd() / "data" / bench_function / f"{commit}.csv"
 
 
 def get_cli_repo(commit: str, bench_function: str) -> Path:
     commit_symlink = Path.cwd() / "build" / bench_function / commit
-    repo = commit_symlink.resolve()
-    return repo / "cli"
+    return commit_symlink.resolve() / "cli"
