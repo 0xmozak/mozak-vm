@@ -5,7 +5,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import linregress
 import typer
-import time
 import json
 from typing import Tuple
 
@@ -99,16 +98,9 @@ def update_plot_from_csv(bench_function: str):
 def plot(bench_function: str):
     plot_folder = Path.cwd() / "plots"
     plot_folder.mkdir(exist_ok=True)
-    while True:
-        try:
-            update_plot_from_csv(bench_function)
-            plt.savefig(plot_folder / f"{bench_function}.svg")
-            plt.close()
-            time.sleep(5)
-        except KeyboardInterrupt:
-            plt.close()
-            print("Plotting stopped.")
-            break
+    update_plot_from_csv(bench_function)
+    plt.savefig(plot_folder / f"{bench_function}.svg")
+    plt.close()
 
 
 if __name__ == "__main__":

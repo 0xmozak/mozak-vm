@@ -5,6 +5,7 @@
             "parameter": "value",
             "output": "time taken (in s)",
             "commits": {
+                "Opt level 0": "2619337641144431c94108adf389a727c18d4c2d",
                 "Opt level 1": "fc98ffbbab1755b12db6365cd1e4add0c1af046e", 
                 "Opt level 2": "b785aa27ddaf1eb17d7e2ac36cea1243835fdd03",
                 "Opt level 3": "f94276e8a13e33fdf87cb08d6da048b1f465a0a1"
