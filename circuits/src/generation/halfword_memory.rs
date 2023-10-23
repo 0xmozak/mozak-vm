@@ -21,10 +21,10 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<HalfWordMemory<F>>) -> Vec<HalfWor
 
 /// Filter the memory trace to only include halfword load and store
 /// instructions.
-pub fn filter_memory_trace<'a>(
+pub fn filter_memory_trace<'a, F: RichField>(
     program: &'a Program,
-    step_rows: &'a [Row],
-) -> impl Iterator<Item = &'a Row> {
+    step_rows: &'a [Row<F>],
+) -> impl Iterator<Item = &'a Row<F>> {
     step_rows.iter().filter(|row| {
         matches!(
             row.state.current_instruction(program).op,
@@ -36,7 +36,7 @@ pub fn filter_memory_trace<'a>(
 #[must_use]
 pub fn generate_halfword_memory_trace<F: RichField>(
     program: &Program,
-    step_rows: &[Row],
+    step_rows: &[Row<F>],
 ) -> Vec<HalfWordMemory<F>> {
     pad_mem_trace(
         filter_memory_trace(program, step_rows)

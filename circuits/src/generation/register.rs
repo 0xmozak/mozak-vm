@@ -20,7 +20,7 @@ pub fn sort_into_address_blocks<F: RichField>(mut trace: Vec<Register<F>>) -> Ve
     trace
 }
 
-fn init_register_trace<F: RichField>(state: &State) -> Vec<Register<F>> {
+fn init_register_trace<F: RichField>(state: &State<F>) -> Vec<Register<F>> {
     (1..32)
         .map(|i| Register {
             addr: F::from_canonical_u8(i),
@@ -54,7 +54,7 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> 
 #[must_use]
 pub fn generate_register_trace<F: RichField>(
     program: &Program,
-    record: &ExecutionRecord,
+    record: &ExecutionRecord<F>,
 ) -> Vec<Register<F>> {
     let ExecutionRecord {
         executed,
@@ -128,7 +128,7 @@ mod tests {
 
     type F = GoldilocksField;
 
-    fn setup() -> (Program, ExecutionRecord) {
+    fn setup() -> (Program, ExecutionRecord<F>) {
         // Use same instructions as in the Notion document, see:
         // https://www.notion.so/0xmozak/Register-File-STARK-62459d68aea648a0abf4e97aa0093ea2?pvs=4#0729f89ddc724967ac991c9e299cc4fc
         let instructions = [

@@ -20,10 +20,10 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<FullWordMemory<F>>) -> Vec<FullWor
 }
 
 /// Returns the rows with full word memory instructions.
-pub fn filter_memory_trace<'a>(
+pub fn filter_memory_trace<'a, F: RichField>(
     program: &'a Program,
-    step_rows: &'a [Row],
-) -> impl Iterator<Item = &'a Row> {
+    step_rows: &'a [Row<F>],
+) -> impl Iterator<Item = &'a Row<F>> {
     step_rows
         .iter()
         .filter(|row| matches!(row.state.current_instruction(program).op, Op::LW | Op::SW))
@@ -32,7 +32,7 @@ pub fn filter_memory_trace<'a>(
 #[must_use]
 pub fn generate_fullword_memory_trace<F: RichField>(
     program: &Program,
-    step_rows: &[Row],
+    step_rows: &[Row<F>],
 ) -> Vec<FullWordMemory<F>> {
     pad_mem_trace(
         filter_memory_trace(program, step_rows)
