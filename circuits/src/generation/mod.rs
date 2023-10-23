@@ -240,6 +240,7 @@ pub fn debug_single_trace<
             let vars =
                 StarkEvaluationFrame::from_values(lv.as_slice(), nv.as_slice(), public_inputs);
             stark.eval_packed_generic(&vars, &mut consumer);
+            assert!(!consumer.debug_api_has_constraint_failed(), "Debug constraints for {stark}\nlv-row[{lv_row}] - values: {lv:?}\nnv-row[{nv_row}] - values: {nv:?}");
             if consumer.debug_api_has_constraint_failed() {
                 let lv: Columns = lv.iter().copied().collect();
                 let nv: Columns = nv.iter().copied().collect();
