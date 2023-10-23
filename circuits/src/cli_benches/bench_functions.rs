@@ -38,8 +38,6 @@ pub struct BenchArgs {
     pub function: BenchFunction,
 }
 
-/// Currently we support only the bench
-/// functions that take one argument
 #[derive(PartialEq, Debug, Subcommand, Clone)]
 pub enum BenchFunction {
     SampleBench { iterations: u32 },
