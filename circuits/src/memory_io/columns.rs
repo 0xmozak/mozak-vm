@@ -36,19 +36,12 @@ columns_view_impl!(InputOutputMemory);
 make_col_map!(InputOutputMemory);
 
 impl<T: Clone + Add<Output = T>> InputOutputMemory<T> {
-    pub fn is_io(&self) -> T {
-        let ops: Ops<T> = self.ops.clone();
-        ops.is_io_store
-    }
+    pub fn is_io(&self) -> T { self.ops.is_io_store.clone() }
 
-    pub fn is_memory(&self) -> T {
-        let ops: Ops<T> = self.ops.clone();
-        ops.is_memory_store
-    }
+    pub fn is_memory(&self) -> T { self.ops.is_memory_store.clone() }
 
     pub fn is_executed(&self) -> T {
-        let ops: Ops<T> = self.ops.clone();
-        ops.is_io_store + ops.is_memory_store
+        self.ops.is_io_store.clone() + self.ops.is_memory_store.clone()
     }
 }
 
