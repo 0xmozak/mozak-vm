@@ -64,10 +64,7 @@ pub fn generate_halfword_memory_trace<F: RichField>(
     )
 }
 
-// TODO(Roman): don't know what mother of clippy wants from me :) - Remove
-// #allow
-#[allow(unused_imports)]
-#[allow(dead_code)]
+#[cfg(test)]
 mod tests {
 
     use plonky2::field::goldilocks_field::GoldilocksField;
