@@ -4,7 +4,7 @@ from pathlib import Path
 import typer
 import shutil
 
-from utils import (
+from .utils import (
     build_release,
     create_repo_from_commmit,
     get_cli_repo,

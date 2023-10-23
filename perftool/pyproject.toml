@@ -17,3 +17,7 @@ seaborn = "^0.13.0"
 [build-system]
 build-backend = "poetry.core.masonry.api"
 requires = ["poetry-core"]
+
+[tool.poetry.scripts]
+perftool = 'perftool.main:app'
+plot = 'plotter.plot:app'
