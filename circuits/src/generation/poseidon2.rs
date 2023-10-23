@@ -147,7 +147,7 @@ fn generate_poseidon2_states<F: RichField>(
     poseidon_data
         .sponge_data
         .iter()
-        .map(|(preimage, _output)| generate_poseidon2_state(preimage, true))
+        .map(|sponge_datum| generate_poseidon2_state(&sponge_datum.preimage, true))
         .collect()
 }
 
@@ -172,7 +172,7 @@ pub fn generate_poseidon2_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<Posei
 
 #[cfg(test)]
 mod test {
-    use mozak_runner::state::{Aux, Poseidon2Entry};
+    use mozak_runner::state::{Aux, Poseidon2Entry, Poseidon2SpongeData};
     use plonky2::field::types::Sample;
     use plonky2::hash::poseidon2::Poseidon2;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
@@ -208,17 +208,16 @@ mod test {
             let preimage = (0..STATE_SIZE).map(|_| F::rand()).collect::<Vec<_>>();
             // NOTE: this stark does not use output from sponge_data so its okay to pass all
             // ZERO as output
-            sponge_data.push((
-                preimage.try_into().expect("can't fail"),
-                [F::default(); STATE_SIZE],
-            ));
+            sponge_data.push(Poseidon2SpongeData {
+                preimage: preimage.try_into().expect("can't fail"),
+                ..Default::default()
+            });
         }
         step_rows.push(Row {
             aux: Aux {
                 poseidon2: Some(Poseidon2Entry::<F> {
-                    addr: 0,
-                    len: 0, // does not matter
                     sponge_data,
+                    ..Default::default()
                 }),
                 ..Default::default()
             },
@@ -228,8 +227,8 @@ mod test {
         let trace = super::generate_poseidon2_trace(&step_rows);
         for step_row in step_rows.iter().take(num_rows) {
             let poseidon2 = step_row.aux.poseidon2.clone().expect("can't fail");
-            for (i, (preimage, _output)) in poseidon2.sponge_data.iter().enumerate() {
-                let expected_hash = <F as Poseidon2>::poseidon2(*preimage);
+            for (i, sponge_datum) in poseidon2.sponge_data.iter().enumerate() {
+                let expected_hash = <F as Poseidon2>::poseidon2(sponge_datum.preimage);
                 for (j, expected_hash) in expected_hash.iter().enumerate().take(STATE_SIZE) {
                     assert_eq!(
                         *expected_hash,

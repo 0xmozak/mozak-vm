@@ -283,7 +283,7 @@ pub fn trace_to_poly_values<F: Field, const COLUMNS: usize>(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use mozak_runner::state::{Aux, Poseidon2Entry};
+    use mozak_runner::state::{Aux, Poseidon2Entry, Poseidon2SpongeData};
     use mozak_runner::vm::Row;
     use plonky2::field::types::Sample;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
@@ -317,17 +317,16 @@ mod tests {
             let preimage = (0..STATE_SIZE).map(|_| F::rand()).collect::<Vec<_>>();
             // NOTE: this stark does not use output from sponge_data so its okay to pass all
             // ZERO as output
-            sponge_data.push((
-                preimage.try_into().expect("can't fail"),
-                [F::default(); STATE_SIZE],
-            ));
+            sponge_data.push(Poseidon2SpongeData {
+                preimage: preimage.try_into().expect("can't fail"),
+                ..Default::default()
+            });
         }
         step_rows.push(Row {
             aux: Aux {
                 poseidon2: Some(Poseidon2Entry::<F> {
-                    addr: 0,
-                    len: 0, // does not matter
                     sponge_data,
+                    ..Default::default()
                 }),
                 ..Default::default()
             },

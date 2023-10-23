@@ -18,10 +18,12 @@ pub struct Poseidon2Sponge<T> {
     pub clk: T,
     pub ops: Ops<T>,
     pub addr: T,
+    pub out_addr: T,
     pub start_index: T,
     pub preimage: [T; 12],
     pub output: [T; 12],
     pub is_exe: T,
+    pub gen_output: T,
 }
 
 impl<F: RichField> Default for Poseidon2Sponge<F> {
@@ -31,9 +33,11 @@ impl<F: RichField> Default for Poseidon2Sponge<F> {
             ops: Ops::<F>::default(),
             addr: F::default(),
             start_index: F::default(),
+            out_addr: F::default(),
             preimage: [F::default(); 12],
             output: <F as Poseidon2>::poseidon2([F::default(); 12]),
             is_exe: F::default(),
+            gen_output: F::default(),
         }
     }
 }

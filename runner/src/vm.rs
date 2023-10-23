@@ -204,6 +204,7 @@ impl<F: RichField> State<F> {
             Aux {
                 poseidon2: Some(Poseidon2Entry {
                     addr: input_ptr,
+                    output_addr: output_ptr,
                     len: padded_len(input_len),
                     sponge_data,
                 }),
@@ -402,8 +403,8 @@ pub fn step<F: RichField>(
 /// 12.
 pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
     inputs: &[F],
-) -> (HashOut<F>, Poseidon2SpongeData<F>) {
-    let permute_and_record_data = |perm: &mut P, sponge_data: &mut Poseidon2SpongeData<F>| {
+) -> (HashOut<F>, Vec<Poseidon2SpongeData<F>>) {
+    let permute_and_record_data = |perm: &mut P, sponge_data: &mut Vec<Poseidon2SpongeData<F>>| {
         let preimage: [F; 12] = perm
             .as_ref()
             .try_into()
@@ -413,7 +414,11 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
             .as_ref()
             .try_into()
             .expect("lenght must be equal to poseidon2 STATE_SIZE");
-        sponge_data.push((preimage, output));
+        sponge_data.push(Poseidon2SpongeData {
+            preimage,
+            output,
+            gen_output: F::from_bool(false),
+        });
     };
 
     let mut perm = P::new(repeat(F::ZERO));
@@ -434,6 +439,10 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
     loop {
         for &item in perm.squeeze() {
             outputs.push(item);
+            let sponge_datum = sponge_data
+                .last_mut()
+                .expect("Can't fail at least one elem must be there");
+            sponge_datum.gen_output = F::from_bool(true);
             if outputs.len() == NUM_HASH_OUT_ELTS {
                 return (HashOut::from_vec(outputs), sponge_data);
             }

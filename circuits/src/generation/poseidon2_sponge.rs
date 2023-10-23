@@ -38,7 +38,7 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
                 is_permute: F::ONE,
             }
         };
-        let (preimage, output) = poseidon2
+        let sponge_datum = poseidon2
             .sponge_data
             .get(i as usize)
             .expect("unroll_count not consistant with number of permutations");
@@ -46,10 +46,12 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             clk: F::from_canonical_u64(row.state.clk),
             ops,
             addr: F::from_canonical_u32(poseidon2.addr),
+            out_addr: F::from_canonical_u32(poseidon2.output_addr),
             start_index: F::from_canonical_u32(poseidon2.len - (i * rate_bits)),
-            preimage: *preimage,
-            output: *output,
+            preimage: sponge_datum.preimage,
+            output: sponge_datum.output,
             is_exe: F::ONE,
+            gen_output: sponge_datum.gen_output,
         });
     }
     unroll
