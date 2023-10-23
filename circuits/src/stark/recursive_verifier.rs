@@ -375,14 +375,14 @@ fn verify_stark_proof_with_challenges_circuit<
     let permutation_data = PermutationCheckDataTarget {
         local_zs: permutation_ctl_zs[..num_permutation_zs].to_vec(),
         next_zs: permutation_ctl_zs_next[..num_permutation_zs].to_vec(),
-        permutation_challenge_sets: challenges.permutation_challenge_sets.clone().unwrap(),
+        permutation_challenge_sets: challenges.permutation_challenge_sets.clone(),
     };
 
-    let tmp = builder.constant(F::from_canonical_u64(14487116762836569611));
-    builder.connect(
-        permutation_data.permutation_challenge_sets[0].challenges[0].beta,
-        tmp,
-    );
+    //let tmp = builder.constant(F::from_canonical_u64(17131122055572928897));
+    //builder.connect(
+    //    permutation_data.permutation_challenge_sets[0].challenges[0].beta,
+    //    tmp,
+    //);
 
     with_context!(
         builder,
@@ -408,8 +408,8 @@ fn verify_stark_proof_with_challenges_circuit<
     {
         let recombined_quotient = scale.reduce(chunk, builder);
         let computed_vanishing_poly = builder.mul_extension(z_h_zeta, recombined_quotient);
-        // builder.connect_extension(vanishing_polys_zeta[i],
-        // computed_vanishing_poly);
+         builder.connect_extension(vanishing_polys_zeta[i],
+         computed_vanishing_poly);
     }
 
     let merkle_caps = vec![

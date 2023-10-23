@@ -173,7 +173,7 @@ impl<const D: usize> StarkProofTarget<D> {
         challenger.observe_openings(&openings.to_fri_openings(builder.zero()));
 
         StarkProofChallengesTarget {
-            permutation_challenge_sets: Some(permutation_challenge_sets),
+            permutation_challenge_sets: permutation_challenge_sets,
             stark_alphas,
             stark_zeta,
             fri_challenges: challenger.fri_challenges(
@@ -217,7 +217,7 @@ pub(crate) struct StarkProofChallenges<F: RichField + Extendable<D>, const D: us
 }
 
 pub(crate) struct StarkProofChallengesTarget<const D: usize> {
-    pub permutation_challenge_sets: Option<Vec<GrandProductChallengeSet<Target>>>,
+    pub permutation_challenge_sets: Vec<GrandProductChallengeSet<Target>>,
     pub stark_alphas: Vec<Target>,
     pub stark_zeta: ExtensionTarget<D>,
     pub fri_challenges: FriChallengesTarget<D>,
@@ -430,3 +430,48 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         self.stark_proofs.map(|p| p.proof.openings.ctl_zs_last)
     }
 }
+
+// pub(crate) struct AllProofChallengesTarget<const D: usize> {
+//     pub stark_challenges: [StarkProofChallengesTarget<D>; NUM_TABLES],
+//     pub ctl_challenges: GrandProductChallengeSet<Target>,
+// }
+
+// impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
+//     pub(crate) fn get_challenges_target(
+//         &self,
+//         builder: &mut CircuitBuilder<F, D>,
+//         all_stark: &MozakStark<F, D>,
+//         config: &StarkConfig,
+//     ) -> AllProofChallengesTarget<D> {
+//         let mut challenger = RecursiveChallenger::<F, C::Hasher, D>::new(builder);
+
+//         for proof in &self.stark_proofs {
+//             challenger.observe_cap(&proof.proof.trace_cap);
+//         }
+
+//         // TODO: Observe public values.
+
+//         let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
+
+//         let num_permutation_batch_sizes = all_stark.permutation_batch_sizes();
+
+//         AllProofChallenges {
+//             stark_challenges: core::array::from_fn(|i| {
+//                 challenger.compact();
+//                 self.stark_proofs[i].proof.get_challenges(
+//                     &mut challenger,
+//                     num_permutation_batch_sizes[i],
+//                     config,
+//                 )
+//             }),
+//             ctl_challenges,
+//         }
+//     }
+
+//     /// Returns the ordered openings of cross-table lookups `Z` polynomials at
+//     /// `g^-1`. The order corresponds to the order declared in
+//     /// [`TableKind`](crate::cross_table_lookup::TableKind).
+//     pub(crate) fn all_ctl_zs_last(self) -> [Vec<F>; NUM_TABLES] {
+//         self.stark_proofs.map(|p| p.proof.openings.ctl_zs_last)
+//     }
+// }
