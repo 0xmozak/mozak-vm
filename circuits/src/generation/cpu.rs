@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use itertools::{chain, Itertools};
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Instruction, Op};
-use mozak_runner::state::{Aux, IoOpcode, State, IoEntry};
+use mozak_runner::state::{Aux, IoEntry, IoOpcode, State};
 use mozak_runner::system::ecall;
 use mozak_runner::system::reg_abi::REG_A0;
 use mozak_runner::vm::{ExecutionRecord, Row};

@@ -1,4 +1,4 @@
-use itertools::{self, Itertools};
+use itertools::{self, chain};
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::Op;
 use mozak_runner::state::{IoEntry, IoOpcode};
@@ -43,44 +43,41 @@ pub fn generate_io_memory_trace<F: RichField>(
 ) -> Vec<InputOutputMemory<F>> {
     pad_io_mem_trace(
         filter(program, step_rows)
-            .map(|s| {
-                let io = s.aux.io.clone().unwrap_or_default();
-                let local_op = io.op;
-                let mut extended = vec![];
-                let value = io.data.first().copied().unwrap_or_default();
-                // initial io-element
-                extended.push(InputOutputMemory {
-                    clk: get_memory_inst_clk(s),
-                    addr: F::from_canonical_u32(io.addr),
-                    size: F::from_canonical_u32(u32::try_from(io.data.len()).unwrap()),
-                    value: F::from_canonical_u8(value),
-                    ops: Ops {
-                        is_io_store: F::from_bool(matches!(local_op, IoOpcode::Store)),
-                        is_memory_store: F::ZERO,
-                    },
-                    is_lv_and_nv_are_memory_rows: F::from_bool(false),
-                });
-                // extended memory elements
-                for (i, local_value) in io.data.iter().enumerate() {
-                    let local_address = io.addr.wrapping_add(u32::try_from(i).unwrap());
-                    let local_size = u32::try_from(io.data.len() - i - 1).unwrap();
-                    extended.push(InputOutputMemory {
+            .flat_map(|s| {
+                let IoEntry { op, data, addr }: IoEntry = s.aux.io.clone().unwrap_or_default();
+                let value = data.first().copied().unwrap_or_default();
+                let len = data.len();
+                chain!(
+                    // initial io-element
+                    [InputOutputMemory {
                         clk: get_memory_inst_clk(s),
-                        addr: F::from_canonical_u32(local_address),
-                        size: F::from_canonical_u32(local_size),
-                        value: F::from_canonical_u8(*local_value),
+                        addr: F::from_canonical_u32(addr),
+                        size: F::from_canonical_usize(len),
+                        value: F::from_canonical_u8(value),
                         ops: Ops {
-                            is_io_store: F::ZERO,
-                            is_memory_store: F::from_bool(matches!(local_op, IoOpcode::Store)),
+                            is_io_store: F::from_bool(matches!(op, IoOpcode::Store)),
+                            is_memory_store: F::ZERO,
                         },
-                        is_lv_and_nv_are_memory_rows: F::from_bool(i != io.data.len() - 1),
-                    });
-                }
-                extended
+                        is_lv_and_nv_are_memory_rows: F::from_bool(false),
+                    }],
+                    // extended memory elements
+                    data.into_iter().enumerate().map(move |(i, local_value)| {
+                        let local_address = addr.wrapping_add(u32::try_from(i).unwrap());
+                        let local_size = len - i - 1;
+                        InputOutputMemory {
+                            clk: get_memory_inst_clk(s),
+                            addr: F::from_canonical_u32(local_address),
+                            size: F::from_canonical_usize(local_size),
+                            value: F::from_canonical_u8(local_value),
+                            ops: Ops {
+                                is_io_store: F::ZERO,
+                                is_memory_store: F::from_bool(matches!(op, IoOpcode::Store)),
+                            },
+                            is_lv_and_nv_are_memory_rows: F::from_bool(i + 1 != len),
+                        }
+                    })
+                )
             })
-            .collect_vec()
-            .into_iter()
-            .flatten()
             .collect::<Vec<InputOutputMemory<F>>>(),
     )
 }
