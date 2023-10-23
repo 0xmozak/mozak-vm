@@ -70,4 +70,4 @@ pub(crate) fn io_constraints<P: PackedField>(
 ) {
     is_binary(yield_constr, lv.is_io_store);
 }
-// We are already testing ecall with our coda of every `simple_test_code`.
+// We are already testing ecall halt with our coda of every `simple_test_code`.
