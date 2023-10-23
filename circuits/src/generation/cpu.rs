@@ -51,9 +51,10 @@ pub fn generate_cpu_trace<F: RichField>(
         aux: executed.last().unwrap().aux.clone(),
     }];
 
+    let default_io_entry = Default::default();
     for Row { state, aux } in chain![executed, last_row] {
         let inst = state.current_instruction(program);
-        let io = aux.io.clone().unwrap_or_default(); // TODO(Roman): avoid copy
+        let io = aux.io.as_ref().unwrap_or(&default_io_entry);
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
             inst: cpu_cols::Instruction::from((state.get_pc(), inst)).map(from_u32),
