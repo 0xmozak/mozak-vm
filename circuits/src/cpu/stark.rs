@@ -123,7 +123,7 @@ fn check_permuted_inst_cols<P: PackedField>(
     }
 }
 
-/// Only the destination register can change its value.  
+/// Only the destination register can change its value.
 /// All other registers must keep the same value as in the previous row.
 fn only_rd_changes<P: PackedField>(
     lv: &CpuState<P>,
