@@ -34,7 +34,7 @@ def sample(min_value: int, max_value: int, mean: int = 0) -> int:
 
 def create_repo_from_commmit(commit: str, commit_folder: Path):
     subprocess.run(
-        ["git", "worktree", "add", "-f", str(commit_folder), commit], check=True
+        ["git", "worktree", "add", "--force", str(commit_folder), commit], check=True
     )
 
 
