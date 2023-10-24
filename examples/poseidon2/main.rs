@@ -7,11 +7,11 @@ use guest::hash::poseidon2_hash;
 use hex_literal::hex;
 
 pub fn main() {
-    let data = "Mozak-VM Rocks";
+    let data = "Mozak-VM Rocks!!";
     let hash = poseidon2_hash(data.as_bytes());
     assert_eq!(
         hash.as_bytes()[..],
-        hex!("465f52a0c7950fb3b50ea67d5dcb37b92fdfba11a6ed00339cbaed70cae2482c")[..]
+        hex!("5c6eba0042e2892dde5da1f8902b000a5e1084a01fead64172c45fd93205f0e5")[..]
     );
     guest::env::write(hash.as_bytes());
 }
