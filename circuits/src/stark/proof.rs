@@ -33,6 +33,7 @@ use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::permutation::challenge::get_n_grand_product_challenge_sets_target;
 use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 
+#[allow(clippy::module_name_repetitions)]
 #[cfg(test)]
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
     pub fn degree_bits(&self, config: &StarkConfig) -> [usize; NUM_TABLES] {
@@ -133,6 +134,7 @@ pub struct StarkProofTarget<const D: usize> {
 
 #[cfg(test)]
 impl<const D: usize> StarkProofTarget<D> {
+    #[must_use]
     /// Recover the length of the trace from a STARK proof and a STARK config.
     pub fn recover_degree_bits(&self, config: &StarkConfig) -> usize {
         let initial_merkle_proof = &self.opening_proof.query_round_proofs[0]

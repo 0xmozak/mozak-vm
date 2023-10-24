@@ -417,6 +417,16 @@ pub(crate) fn eval_cross_table_lookup_checks_circuit<
     consumer: &mut RecursiveConstraintConsumer<F, D>,
 ) {
     for lookup_vars in ctl_vars {
+        fn select<F: RichField + Extendable<D>, const D: usize>(
+            builder: &mut CircuitBuilder<F, D>,
+            filter: ExtensionTarget<D>,
+            x: ExtensionTarget<D>,
+        ) -> ExtensionTarget<D> {
+            let one = builder.one_extension();
+            let tmp = builder.sub_extension(one, filter);
+            builder.mul_add_extension(filter, x, tmp) // filter * x + 1 - filter
+        }
+
         let CtlCheckVarsTarget {
             local_z,
             next_z,
@@ -432,16 +442,6 @@ pub(crate) fn eval_cross_table_lookup_checks_circuit<
             .map(|c| c.eval_circuit(builder, local_values, next_values))
             .collect::<Vec<_>>();
         let combined = challenges.combine_circuit(builder, &evals);
-
-        fn select<F: RichField + Extendable<D>, const D: usize>(
-            builder: &mut CircuitBuilder<F, D>,
-            filter: ExtensionTarget<D>,
-            x: ExtensionTarget<D>,
-        ) -> ExtensionTarget<D> {
-            let one = builder.one_extension();
-            let tmp = builder.sub_extension(one, filter);
-            builder.mul_add_extension(filter, x, tmp) // filter * x + 1 - filter
-        }
 
         let filter = filter_column.eval_circuit(builder, local_values, next_values);
         let select = select(builder, filter, combined);

@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use anyhow::{ensure, Result};
+use anyhow::Result;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::fri::witness_util::set_fri_proof_target;
@@ -9,13 +9,13 @@ use plonky2::gates::gate::GateRef;
 use plonky2::gates::noop::NoopGate;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
-use plonky2::iop::challenger::{Challenger, RecursiveChallenger};
+use plonky2::iop::challenger::RecursiveChallenger;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierCircuitData};
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
+use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::log2_ceil;
 use plonky2::util::reducing::ReducingFactorTarget;
@@ -25,130 +25,15 @@ use starky::constraint_consumer::RecursiveConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
-use crate::cross_table_lookup::{verify_cross_table_lookups, CrossTableLookup, CtlCheckVarsTarget};
-use crate::stark::mozak_stark::{TableKind, NUM_TABLES};
-use crate::stark::permutation::challenge::{
-    GrandProductChallenge, GrandProductChallengeSet, GrandProductChallengeTrait,
-};
+use crate::cross_table_lookup::{CrossTableLookup, CtlCheckVarsTarget};
+use crate::stark::mozak_stark::TableKind;
+use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::permutation::PermutationCheckDataTarget;
 use crate::stark::poly::eval_vanishing_poly_circuit;
 use crate::stark::proof::{
     StarkOpeningSetTarget, StarkProof, StarkProofChallengesTarget, StarkProofTarget,
     StarkProofWithMetadata, StarkProofWithPublicInputsTarget,
 };
-
-/// Table-wise recursive proofs of an `AllProof`.
-pub struct RecursiveAllProof<
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    const D: usize,
-> {
-    pub recursive_proofs: [ProofWithPublicInputs<F, C, D>; NUM_TABLES],
-}
-
-pub(crate) struct PublicInputs<T: Copy + Default + Eq + PartialEq + Debug, P: PlonkyPermutation<T>>
-{
-    pub(crate) trace_cap: Vec<Vec<T>>,
-    pub(crate) ctl_zs_last: Vec<T>,
-    pub(crate) ctl_challenges: GrandProductChallengeSet<T>,
-    pub(crate) challenger_state_before: P,
-    pub(crate) challenger_state_after: P,
-}
-
-impl<T: Copy + Debug + Default + Eq + PartialEq, P: PlonkyPermutation<T>> PublicInputs<T, P> {
-    pub(crate) fn from_vec(v: &[T], config: &StarkConfig) -> Self {
-        // TODO: Document magic number 4; probably comes from
-        // Ethereum 256 bits = 4 * Goldilocks 64 bits
-        let n = config.fri_config.num_cap_elements();
-        let mut trace_cap = Vec::with_capacity(n);
-        for i in 0..n {
-            trace_cap.push(v[4 * i..4 * (i + 1)].to_vec());
-        }
-        let mut iter = v.iter().copied().skip(4 * n);
-        let ctl_challenges = GrandProductChallengeSet {
-            challenges: (0..config.num_challenges)
-                .map(|_| GrandProductChallenge {
-                    beta: iter.next().unwrap(),
-                    gamma: iter.next().unwrap(),
-                })
-                .collect(),
-        };
-        let challenger_state_before = P::new(&mut iter);
-        let challenger_state_after = P::new(&mut iter);
-        let ctl_zs_last: Vec<_> = iter.collect();
-
-        Self {
-            trace_cap,
-            ctl_zs_last,
-            ctl_challenges,
-            challenger_state_before,
-            challenger_state_after,
-        }
-    }
-}
-
-impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>
-    RecursiveAllProof<F, C, D>
-{
-    /// Verify every recursive proof.
-    pub fn verify(
-        self,
-        verifier_data: &[VerifierCircuitData<F, C, D>; NUM_TABLES],
-        cross_table_lookups: Vec<CrossTableLookup<F>>,
-        inner_config: &StarkConfig,
-    ) -> Result<()> {
-        let pis: [_; NUM_TABLES] = core::array::from_fn(|i| {
-            PublicInputs::<F, <C::Hasher as Hasher<F>>::Permutation>::from_vec(
-                &self.recursive_proofs[i].public_inputs,
-                inner_config,
-            )
-        });
-
-        let mut challenger = Challenger::<F, C::Hasher>::new();
-        for pi in &pis {
-            for h in &pi.trace_cap {
-                challenger.observe_elements(h);
-            }
-        }
-        let ctl_challenges =
-            challenger.get_grand_product_challenge_set(inner_config.num_challenges);
-        // Check that the correct CTL challenges are used in every proof.
-        for pi in &pis {
-            ensure!(ctl_challenges == pi.ctl_challenges);
-        }
-
-        let state = challenger.compact();
-        ensure!(state == pis[0].challenger_state_before);
-        // Check that the challenger state is consistent between proofs.
-        for i in 1..NUM_TABLES {
-            ensure!(pis[i].challenger_state_before == pis[i - 1].challenger_state_after);
-        }
-
-        // Dummy values which will make the check fail.
-        // TODO: Fix this if the code isn't deprecated.
-        let mut extra_looking_products = Vec::new();
-        for i in 0..NUM_TABLES {
-            extra_looking_products.push(Vec::new());
-            for _ in 0..inner_config.num_challenges {
-                extra_looking_products[i].push(F::ONE);
-            }
-        }
-
-        // Verify the CTL checks.
-        verify_cross_table_lookups::<F, D>(
-            &cross_table_lookups,
-            &pis.map(|p| p.ctl_zs_last),
-            // extra_looking_products,
-            inner_config,
-        )?;
-
-        // Verify the proofs.
-        for (proof, verifier_data) in self.recursive_proofs.into_iter().zip(verifier_data) {
-            verifier_data.verify(proof)?;
-        }
-        Ok(())
-    }
-}
 
 /// Represents a circuit which recursively verifies a STARK proof.
 #[derive(Eq, PartialEq, Debug)]
@@ -565,6 +450,7 @@ mod tests {
     #[test]
     fn recursive_verify_program_stark() -> Result<()> {
         type S = MozakStark<F, D>;
+        type PS = ProgramStark<F, D>;
         let stark = S::default();
         let mut config = StarkConfig::standard_fast_config();
         config.fri_config.cap_height = 1;
@@ -595,7 +481,6 @@ mod tests {
         )?;
         verify_proof(stark.clone(), all_proof.clone(), &config)?;
 
-        type PS = ProgramStark<F, D>;
         let circuit_config = CircuitConfig::standard_recursion_config();
         let degree_bits = all_proof.stark_proofs[TableKind::Program as usize]
             .proof
