@@ -34,7 +34,7 @@ def build_repo(commit: str, tmpfolder: Path):
         print(f"{e}")
         print(f"Skipping build for {commit}...")
         return
-    create_repo_from_commmit(commit, commit_folder)
+    create_repo_from_commit(commit, commit_folder)
     cli_repo = commit_folder / "cli"
     build_release(cli_repo)
 
