@@ -247,7 +247,9 @@ mod tests {
         ];
         let (program, record) = simple_test_code(
             instructions,
-            &[(1_u32.wrapping_neg().wrapping_add(addr_offset), 0)],
+            // TODO(Matthias): mysteriously, initializing the rw-memory like this would work:
+            // &[(1_u32.wrapping_neg().wrapping_add(addr_offset), 0)],
+            &[],
             &[(1, iterations)],
         );
         Stark::prove_and_verify(&program, &record)
