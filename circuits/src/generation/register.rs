@@ -33,7 +33,7 @@ fn init_register_trace<F: RichField>(state: &State<F>) -> Vec<Register<F>> {
 
 #[must_use]
 pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> {
-    let len = trace.len().next_power_of_two();
+    let len = trace.len().next_power_of_two().max(4);
     trace.resize(len, Register {
         ops: dummy(),
         // ..And fill other columns with duplicate of last real trace row.
@@ -212,7 +212,7 @@ mod tests {
                 [    4,    0,             0,                 0,        1,      0,       0], // init
                 [    4,  300,             5,                 5,        0,      0,       1], // 1st inst
                 [    4,  300,             6,                 1,        0,      1,       0], // 2nd inst
-                [    4,  500,            11,                 5,        0,      0,       1], // 3rd inst 
+                [    4,  500,            11,                 5,        0,      0,       1], // 3rd inst
                 [    5,    0,             0,           neg(11),        1,      0,       0], // init
                 [    5,  400,             8,                 8,        0,      0,       1], // 2nd inst
                 [    5,  400,             9,                 1,        0,      1,       0], // 3rd inst

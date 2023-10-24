@@ -39,6 +39,15 @@ pub(crate) fn signed_constraints<P: PackedField>(
     );
 }
 
+pub(crate) fn constraints<P: PackedField>(
+    lv: &CpuState<P>,
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    // memory address is equal to rs2-value + imm (wrapping)
+    yield_constr.constraint(lv.inst.ops.is_mem_ops() * (lv.mem_addr - lv.op2_value));
+    // signed memory constraints
+    signed_constraints(lv, yield_constr);
+}
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {

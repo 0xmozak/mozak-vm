@@ -10,7 +10,7 @@ use crate::poseidon2::columns::{Poseidon2State, ROUNDS_F, ROUNDS_P, STATE_SIZE};
 #[must_use]
 fn pad_trace<F: RichField>(mut trace: Vec<Poseidon2State<F>>) -> Vec<Poseidon2State<F>> {
     let original_len = trace.len();
-    let ext_trace_len = original_len.next_power_of_two();
+    let ext_trace_len = original_len.next_power_of_two().max(4);
 
     trace.resize(
         ext_trace_len,
@@ -205,6 +205,6 @@ mod test {
     fn generate_poseidon2_trace_with_dummy() {
         let step_rows = vec![];
         let trace: Vec<Poseidon2State<F>> = super::generate_poseidon2_trace(&step_rows);
-        assert_eq!(trace.len(), 1);
+        assert_eq!(trace.len(), 4);
     }
 }
