@@ -328,12 +328,6 @@ where
         openings,
         opening_proof,
     };
-    // dbg!(init_challenger_state.clone());
-    // dbg!(proof.trace_cap.clone());
-    // dbg!(proof.permutation_ctl_zs_cap.clone());
-    // dbg!(proof.quotient_polys_cap.clone());
-    // dbg!(proof.openings.clone());
-    // dbg!(proof.opening_proof.pow_witness.clone());
     Ok(StarkProofWithMetadata {
         init_challenger_state,
         proof,
