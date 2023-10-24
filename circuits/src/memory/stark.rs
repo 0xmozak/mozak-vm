@@ -230,6 +230,7 @@ mod tests {
                 op: Op::SB,
                 args: Args {
                     rs1: 1,
+                    rs2: 1,
                     imm: addr_offset,
                     ..Args::default()
                 },
