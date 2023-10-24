@@ -6,14 +6,14 @@ use crate::utils::pad_trace_with_default;
 
 /// Generates a memory init ROM trace
 #[must_use]
-pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
+pub fn generate_memory_init_trace<F: RichField + Copy>(program: &Program) -> Vec<MemoryInit<F>> {
     let mut combined_memory: Vec<(F, u32, u8)> = Vec::new();
 
-    for (is_writable, mem) in &[(F::ZERO, &program.ro_memory), (F::ONE, &program.rw_memory)] {
-        let mut sorted_mem: Vec<(&u32, &u8)> = mem.iter().collect();
+    for (is_writable, mem) in &[(F::ZERO, &program.ro_memory.0), (F::ONE, &program.rw_memory.0)] {
+        let mut sorted_mem: Vec<(&u32, &u8)> = mem.into_iter().collect();
         sorted_mem.sort_by_key(|&(addr, _)| *addr);
-        for (&addr, &value) in sorted_mem.iter() {
-            combined_memory.push((is_writable.clone(), addr, value));
+        for (&addr, &value) in &sorted_mem {
+            combined_memory.push((*is_writable, addr, value));
         }
     }
 
