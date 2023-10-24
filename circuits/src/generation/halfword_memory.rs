@@ -10,7 +10,7 @@ use crate::memory_halfword::columns::{HalfWordMemory, Ops};
 /// Pad the memory trace to a power of 2.
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<HalfWordMemory<F>>) -> Vec<HalfWordMemory<F>> {
-    trace.resize(trace.len().next_power_of_two(), HalfWordMemory {
+    trace.resize(trace.len().next_power_of_two().max(4), HalfWordMemory {
         // Some columns need special treatment..
         ops: Ops::default(),
         // .. and all other columns just have their last value duplicated.

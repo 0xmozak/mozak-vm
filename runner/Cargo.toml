@@ -25,7 +25,7 @@ serde = { version = "1.0.189", features = ["derive"] }
 [dev-dependencies]
 criterion = { version = "0.5.1", features = ["html_reports"] }
 env_logger = { version = "0.10.0" }
-hex-literal = "0.2.2"
+hex-literal = "0.4.1"
 proptest = "1.2.0"
 serde_json = "1.0.105"
 test-case = "3.2.1"

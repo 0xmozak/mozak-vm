@@ -10,7 +10,7 @@ use crate::memory_fullword::columns::{FullWordMemory, Ops};
 /// Pad the memory trace to a power of 2.
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<FullWordMemory<F>>) -> Vec<FullWordMemory<F>> {
-    trace.resize(trace.len().next_power_of_two(), FullWordMemory {
+    trace.resize(trace.len().next_power_of_two().max(4), FullWordMemory {
         // Some columns need special treatment..
         ops: Ops::default(),
         // .. and all other columns just have their last value duplicated.

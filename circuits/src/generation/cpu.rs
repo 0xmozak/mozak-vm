@@ -23,7 +23,11 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     program_rom: &[ProgramRom<F>],
 ) -> CpuColumnsExtended<Vec<F>> {
     let mut permuted = generate_permuted_inst_trace(&cpu_trace, program_rom);
-    let len = cpu_trace.len().max(permuted.len()).next_power_of_two();
+    let len = cpu_trace
+        .len()
+        .max(permuted.len())
+        .max(4)
+        .next_power_of_two();
     let ori_len = permuted.len();
     permuted = pad_trace_with_last_to_len(permuted, len);
     for entry in permuted.iter_mut().skip(ori_len) {
