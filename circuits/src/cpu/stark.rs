@@ -238,7 +238,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         bitwise::constraints(lv, yield_constr);
         branches::comparison_constraints(lv, yield_constr);
         branches::constraints(lv, nv, yield_constr);
-        memory::signed_constraints(lv, yield_constr);
+        memory::constraints(lv, yield_constr);
         signed_comparison::signed_constraints(lv, yield_constr);
         signed_comparison::slt_constraints(lv, yield_constr);
         shift::constraints(lv, yield_constr);

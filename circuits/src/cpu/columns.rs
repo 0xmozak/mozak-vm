@@ -359,6 +359,8 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     pub fn halfword_mem_ops(self) -> T { self.sh + self.lh }
 
     pub fn fullword_mem_ops(self) -> T { self.sw + self.lw }
+
+    pub fn is_mem_ops(self) -> T { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.
