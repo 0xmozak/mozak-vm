@@ -6,7 +6,7 @@ import shutil
 
 from .utils import (
     build_release,
-    create_repo_from_commmit,
+    create_repo_from_commit,
     get_cli_repo,
     get_csv_file,
     init_csv,
