@@ -1,27 +1,39 @@
 use itertools::Itertools;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::fri::oracle::PolynomialBatch;
-use plonky2::fri::proof::{FriChallenges, FriChallengesTarget, FriProof, FriProofTarget};
-use plonky2::fri::structure::{
-    FriOpeningBatch, FriOpeningBatchTarget, FriOpenings, FriOpeningsTarget,
-};
-use plonky2::hash::hash_types::{MerkleCapTarget, RichField};
+use plonky2::fri::proof::{FriChallenges, FriProof};
+#[cfg(test)]
+use plonky2::fri::proof::{FriChallengesTarget, FriProofTarget};
+use plonky2::fri::structure::{FriOpeningBatch, FriOpenings};
+#[cfg(test)]
+use plonky2::fri::structure::{FriOpeningBatchTarget, FriOpeningsTarget};
+#[cfg(test)]
+use plonky2::hash::hash_types::MerkleCapTarget;
+use plonky2::hash::hash_types::RichField;
 use plonky2::hash::merkle_tree::MerkleCap;
-use plonky2::iop::challenger::{Challenger, RecursiveChallenger};
+use plonky2::iop::challenger::Challenger;
+#[cfg(test)]
+use plonky2::iop::challenger::RecursiveChallenger;
+#[cfg(test)]
 use plonky2::iop::ext_target::ExtensionTarget;
+#[cfg(test)]
 use plonky2::iop::target::Target;
+#[cfg(test)]
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
+#[cfg(test)]
+use plonky2::plonk::config::AlgebraicHasher;
+use plonky2::plonk::config::{GenericConfig, Hasher};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
 use crate::stark::mozak_stark::PublicInputs;
-use crate::stark::permutation::challenge::{
-    get_n_grand_product_challenge_sets_target, GrandProductChallengeSet, GrandProductChallengeTrait,
-};
+#[cfg(test)]
+use crate::stark::permutation::challenge::get_n_grand_product_challenge_sets_target;
+use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 
+#[cfg(test)]
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
     pub fn degree_bits(&self, config: &StarkConfig) -> [usize; NUM_TABLES] {
         core::array::from_fn(|i| self.stark_proofs[i].proof.recover_degree_bits(config))
@@ -109,6 +121,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
     }
 }
 
+#[cfg(test)]
 #[derive(Eq, PartialEq, Debug)]
 pub struct StarkProofTarget<const D: usize> {
     pub trace_cap: MerkleCapTarget,
@@ -118,6 +131,7 @@ pub struct StarkProofTarget<const D: usize> {
     pub opening_proof: FriProofTarget<D>,
 }
 
+#[cfg(test)]
 impl<const D: usize> StarkProofTarget<D> {
     /// Recover the length of the trace from a STARK proof and a STARK config.
     pub fn recover_degree_bits(&self, config: &StarkConfig) -> usize {
@@ -130,6 +144,7 @@ impl<const D: usize> StarkProofTarget<D> {
     }
 }
 
+#[cfg(test)]
 impl<const D: usize> StarkProofTarget<D> {
     pub(crate) fn get_challenges<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>>(
         &self,
@@ -198,6 +213,7 @@ pub struct StarkProofWithPublicInputs<
     pub public_inputs: Vec<F>,
 }
 
+#[cfg(test)]
 pub struct StarkProofWithPublicInputsTarget<const D: usize> {
     pub proof: StarkProofTarget<D>,
     pub public_inputs: Vec<Target>,
@@ -216,6 +232,7 @@ pub(crate) struct StarkProofChallenges<F: RichField + Extendable<D>, const D: us
     pub fri_challenges: FriChallenges<F, D>,
 }
 
+#[cfg(test)]
 pub(crate) struct StarkProofChallengesTarget<const D: usize> {
     pub permutation_challenge_sets: Vec<GrandProductChallengeSet<Target>>,
     pub stark_alphas: Vec<Target>,
@@ -314,6 +331,7 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
     }
 }
 
+#[cfg(test)]
 #[derive(Eq, PartialEq, Debug)]
 pub struct StarkOpeningSetTarget<const D: usize> {
     pub local_values: Vec<ExtensionTarget<D>>,
@@ -324,6 +342,7 @@ pub struct StarkOpeningSetTarget<const D: usize> {
     pub quotient_polys: Vec<ExtensionTarget<D>>,
 }
 
+#[cfg(test)]
 impl<const D: usize> StarkOpeningSetTarget<D> {
     pub(crate) fn to_fri_openings(&self, zero: Target) -> FriOpeningsTarget<D> {
         let zeta_batch = FriOpeningBatchTarget {
@@ -367,6 +386,7 @@ pub struct StarkProofWithMetadata<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    #[allow(dead_code)]
     // TODO: Support serialization of `init_challenger_state`.
     #[serde(skip)]
     pub(crate) init_challenger_state: <C::Hasher as Hasher<F>>::Permutation,
@@ -378,6 +398,7 @@ where
 #[serde(bound = "")]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     pub stark_proofs: [StarkProofWithMetadata<F, C, D>; NUM_TABLES],
+    #[allow(dead_code)]
     // TODO: Support serialization of `ctl_challenges`.
     #[serde(skip)]
     pub(crate) ctl_challenges: GrandProductChallengeSet<F>,
@@ -430,50 +451,3 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         self.stark_proofs.map(|p| p.proof.openings.ctl_zs_last)
     }
 }
-
-// pub(crate) struct AllProofChallengesTarget<const D: usize> {
-//     pub stark_challenges: [StarkProofChallengesTarget<D>; NUM_TABLES],
-//     pub ctl_challenges: GrandProductChallengeSet<Target>,
-// }
-
-// impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D:
-// usize> AllProof<F, C, D> {     pub(crate) fn get_challenges_target(
-//         &self,
-//         builder: &mut CircuitBuilder<F, D>,
-//         all_stark: &MozakStark<F, D>,
-//         config: &StarkConfig,
-//     ) -> AllProofChallengesTarget<D> { let mut challenger =
-//       RecursiveChallenger::<F, C::Hasher, D>::new(builder);
-
-//         for proof in &self.stark_proofs {
-//             challenger.observe_cap(&proof.proof.trace_cap);
-//         }
-
-//         // TODO: Observe public values.
-
-//         let ctl_challenges =
-// challenger.get_grand_product_challenge_set(config.num_challenges);
-
-//         let num_permutation_batch_sizes =
-// all_stark.permutation_batch_sizes();
-
-//         AllProofChallenges {
-//             stark_challenges: core::array::from_fn(|i| {
-//                 challenger.compact();
-//                 self.stark_proofs[i].proof.get_challenges(
-//                     &mut challenger,
-//                     num_permutation_batch_sizes[i],
-//                     config,
-//                 )
-//             }),
-//             ctl_challenges,
-//         }
-//     }
-
-//     /// Returns the ordered openings of cross-table lookups `Z` polynomials
-// at     /// `g^-1`. The order corresponds to the order declared in
-//     /// [`TableKind`](crate::cross_table_lookup::TableKind).
-//     pub(crate) fn all_ctl_zs_last(self) -> [Vec<F>; NUM_TABLES] {
-//         self.stark_proofs.map(|p| p.proof.openings.ctl_zs_last)
-//     }
-// }

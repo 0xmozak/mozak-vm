@@ -5,20 +5,29 @@ use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
+#[cfg(test)]
 use plonky2::iop::ext_target::ExtensionTarget;
+#[cfg(test)]
 use plonky2::iop::target::Target;
+#[cfg(test)]
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
 use starky::config::StarkConfig;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::constraint_consumer::ConstraintConsumer;
+#[cfg(test)]
+use starky::constraint_consumer::RecursiveConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-use crate::stark::mozak_stark::{Table, TableKind, NUM_TABLES};
+#[cfg(test)]
+use crate::stark::mozak_stark::TableKind;
+use crate::stark::mozak_stark::{Table, NUM_TABLES};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
-use crate::stark::proof::{StarkProofTarget, StarkProofWithMetadata};
+#[cfg(test)]
+use crate::stark::proof::StarkProofTarget;
+use crate::stark::proof::StarkProofWithMetadata;
 
 #[derive(Error, Debug)]
 pub enum LookupError {
@@ -330,6 +339,7 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
     }
 }
 
+#[cfg(test)]
 #[derive(Clone)]
 pub struct CtlCheckVarsTarget<'a, F: Field, const D: usize> {
     pub(crate) local_z: ExtensionTarget<D>,
@@ -339,6 +349,7 @@ pub struct CtlCheckVarsTarget<'a, F: Field, const D: usize> {
     pub(crate) filter_column: &'a Column<F>,
 }
 
+#[cfg(test)]
 impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
     pub(crate) fn from_proof(
         table: TableKind,
@@ -394,6 +405,7 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn eval_cross_table_lookup_checks_circuit<
     S: Stark<F, D>,
     F: RichField + Extendable<D>,

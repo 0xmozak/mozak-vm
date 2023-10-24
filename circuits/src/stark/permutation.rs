@@ -13,15 +13,22 @@ use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
+#[cfg(test)]
 use plonky2::iop::ext_target::ExtensionTarget;
+#[cfg(test)]
 use plonky2::iop::target::Target;
+#[cfg(test)]
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::Hasher;
 use plonky2::plonk::plonk_common::reduce_with_powers;
-use plonky2::util::reducing::{ReducingFactor, ReducingFactorTarget};
+use plonky2::util::reducing::ReducingFactor;
+#[cfg(test)]
+use plonky2::util::reducing::ReducingFactorTarget;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
+use starky::constraint_consumer::ConstraintConsumer;
+#[cfg(test)]
+use starky::constraint_consumer::RecursiveConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::permutation::PermutationPair;
 use starky::stark::Stark;
@@ -29,15 +36,20 @@ use starky::stark::Stark;
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 
 pub(crate) mod challenge {
+    #[cfg(test)]
     use plonky2::field::extension::Extendable;
+    #[cfg(test)]
     use plonky2::iop::challenger::RecursiveChallenger;
+    #[cfg(test)]
     use plonky2::iop::ext_target::ExtensionTarget;
+    #[cfg(test)]
     use plonky2::iop::target::Target;
+    #[cfg(test)]
     use plonky2::plonk::circuit_builder::CircuitBuilder;
+    #[cfg(test)]
     use plonky2::plonk::config::AlgebraicHasher;
-    use plonky2::plonk::plonk_common::{
-        reduce_with_powers_circuit, reduce_with_powers_ext_circuit,
-    };
+    #[cfg(test)]
+    use plonky2::plonk::plonk_common::reduce_with_powers_ext_circuit;
 
     use super::{
         reduce_with_powers, Challenger, Debug, Field, FieldExtension, Hasher, PackedField,
@@ -96,6 +108,7 @@ pub(crate) mod challenge {
         }
     }
 
+    #[cfg(test)]
     impl GrandProductChallenge<Target> {
         pub(crate) fn combine_circuit<F: RichField + Extendable<D>, const D: usize>(
             &self,
@@ -140,6 +153,7 @@ pub(crate) mod challenge {
         }
     }
 
+    #[cfg(test)]
     fn get_grand_product_challenge_target<
         F: RichField + Extendable<D>,
         H: AlgebraicHasher<F>,
@@ -153,6 +167,7 @@ pub(crate) mod challenge {
         GrandProductChallenge { beta, gamma }
     }
 
+    #[cfg(test)]
     #[allow(clippy::similar_names)]
     pub(crate) fn get_grand_product_challenge_set_target<
         F: RichField + Extendable<D>,
@@ -169,6 +184,7 @@ pub(crate) mod challenge {
         GrandProductChallengeSet { challenges }
     }
 
+    #[cfg(test)]
     pub(crate) fn get_n_grand_product_challenge_sets_target<
         F: RichField + Extendable<D>,
         H: AlgebraicHasher<F>,
@@ -440,12 +456,14 @@ pub(crate) fn eval_permutation_checks<F, FE, P, S, const D: usize, const D2: usi
     }
 }
 
+#[cfg(test)]
 pub struct PermutationCheckDataTarget<const D: usize> {
     pub(crate) local_zs: Vec<ExtensionTarget<D>>,
     pub(crate) next_zs: Vec<ExtensionTarget<D>>,
     pub(crate) permutation_challenge_sets: Vec<GrandProductChallengeSet<Target>>,
 }
 
+#[cfg(test)]
 #[allow(clippy::similar_names)]
 pub(crate) fn eval_permutation_checks_circuit<F, S, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
