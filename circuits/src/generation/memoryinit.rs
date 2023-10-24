@@ -6,31 +6,26 @@ use crate::utils::pad_trace_with_default;
 
 /// Generates a memory init ROM trace
 #[must_use]
-pub fn generate_memory_init_trace<F: RichField + Copy>(program: &Program) -> Vec<MemoryInit<F>> {
-    let mut combined_memory: Vec<(F, u32, u8)> = Vec::new();
+pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
+    let mut memory_inits: Vec<MemoryInit<F>> =
+        [(F::ZERO, &program.ro_memory), (F::ONE, &program.rw_memory)]
+            .iter()
+            .flat_map(|&(is_writable, mem)| {
+                mem.iter().map(move |(&addr, &value)| MemoryInit {
+                    filter: F::ONE,
+                    is_writable,
+                    element: MemElement {
+                        address: F::from_canonical_u32(addr),
+                        value: F::from_canonical_u8(value),
+                    },
+                })
+            })
+            .collect();
 
-    for (is_writable, mem) in &[
-        (F::ZERO, &program.ro_memory.0),
-        (F::ONE, &program.rw_memory.0),
-    ] {
-        let mut sorted_mem: Vec<(&u32, &u8)> = mem.into_iter().collect();
-        sorted_mem.sort_by_key(|&(addr, _)| *addr);
-        for (&addr, &value) in &sorted_mem {
-            combined_memory.push((*is_writable, addr, value));
-        }
-    }
+    memory_inits.sort_by_key(|init| {
+        let addr: u64 = init.element.address.to_canonical_u64();
+        addr
+    });
 
-    let trace: Vec<MemoryInit<F>> = combined_memory
-        .into_iter()
-        .map(|(is_writable, addr, value)| MemoryInit {
-            filter: F::ONE,
-            is_writable,
-            element: MemElement {
-                address: F::from_canonical_u32(addr),
-                value: F::from_canonical_u8(value),
-            },
-        })
-        .collect();
-
-    pad_trace_with_default(trace)
+    pad_trace_with_default(memory_inits)
 }
