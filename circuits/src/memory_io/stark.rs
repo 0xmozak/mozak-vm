@@ -88,7 +88,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
         //      nv.is_memory() == 0 <-- next op can be only io - since size == 0
         // This one is ensured by:
         //  1) is_binary(io or memory) 
-        //  2) if nv.is_io() == 1: lv.size == 0 
+        //  2) if nv.is_io() == 1: lv.size == 0
+
+        // If lv.is_io() == 1 && nv.size != 0:
+        //      nv.is_lv_and_nv_are_memory_rows == 1
+        yield_constr.constraint(lv.is_io() * nv.size * (nv.is_lv_and_nv_are_memory_rows - P::ONES));
     }
 
     fn eval_ext_circuit(
