@@ -396,6 +396,7 @@ where
     pub proof: StarkProof<F, C, D>,
 }
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(bound = "")]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
