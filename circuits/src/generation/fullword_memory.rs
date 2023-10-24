@@ -68,12 +68,12 @@ pub fn generate_fullword_memory_trace<F: RichField>(
 }
 #[cfg(test)]
 mod tests {
-
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
 
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
+    use crate::generation::io_memory::generate_io_memory_trace;
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::memory_fullword::test_utils::fullword_memory_trace_test_case;
@@ -94,6 +94,7 @@ mod tests {
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(&program, &record.executed);
+        let io_memory_rows = generate_io_memory_trace(&program, &record.executed);
 
         let trace = generate_memory_trace::<GoldilocksField>(
             &program,
@@ -101,6 +102,7 @@ mod tests {
             &memory_init,
             &halfword_memory,
             &fullword_memory,
+            &io_memory_rows,
         );
         let inv = inv::<F>;
         assert_eq!(

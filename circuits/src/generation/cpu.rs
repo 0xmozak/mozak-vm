@@ -3,7 +3,9 @@ use std::collections::HashSet;
 use itertools::{chain, Itertools};
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Instruction, Op};
-use mozak_runner::state::{Aux, State};
+use mozak_runner::state::{Aux, IoEntry, IoOpcode, State};
+use mozak_runner::system::ecall;
+use mozak_runner::system::reg_abi::REG_A0;
 use mozak_runner::vm::{ExecutionRecord, Row};
 use plonky2::hash::hash_types::RichField;
 
@@ -53,9 +55,10 @@ pub fn generate_cpu_trace<F: RichField>(
         aux: executed.last().unwrap().aux.clone(),
     }];
 
+    let default_io_entry = IoEntry::default();
     for Row { state, aux } in chain![executed, last_row] {
         let inst = state.current_instruction(program);
-
+        let io = aux.io.as_ref().unwrap_or(&default_io_entry);
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
             inst: cpu_cols::Instruction::from((state.get_pc(), inst)).map(from_u32),
@@ -74,6 +77,13 @@ pub fn generate_cpu_trace<F: RichField>(
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
+            io_addr: F::from_canonical_u32(io.addr),
+            io_size: F::from_canonical_usize(io.data.len()),
+            is_io_store: F::from_bool(matches!((inst.op, io.op), (Op::ECALL, IoOpcode::Store))),
+            is_halt: F::from_bool(matches!(
+                (inst.op, state.registers[usize::try_from(REG_A0).unwrap()]),
+                (Op::ECALL, ecall::HALT)
+            )),
             ..CpuState::default()
         };
 
