@@ -139,7 +139,11 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
         degree_bits: usize,
         num_logup_cols: usize,
     ) -> Self {
-        println!("NLC: {}", num_logup_cols);
+        println!(
+            "aux polys: {} NLC: {}",
+            aux_polys_commitment.polynomials.len(),
+            num_logup_cols
+        );
         let eval_commitment = |z: F::Extension, c: &PolynomialBatch<F, C, D>| {
             c.polynomials
                 .par_iter()

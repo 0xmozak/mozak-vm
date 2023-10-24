@@ -207,6 +207,8 @@ where
         .get_n_grand_product_challenge_sets(config.num_challenges, stark.permutation_batch_size());
     let num_logup_cols = logup_data.looking.len() + logup_data.looked.len();
 
+    println!("LUD: {}", num_logup_cols);
+
     let aux_polys = {
         // looking, looked, ctl_data
         let mut polys = logup_data.looking.clone();
@@ -324,7 +326,8 @@ where
                 Some(&LookupConfig {
                     degree_bits,
                     num_zs: ctl_data.len()
-                })
+                }),
+                num_logup_cols,
             ),
             &initial_merkle_trees,
             challenger,

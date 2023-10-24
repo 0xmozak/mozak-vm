@@ -304,7 +304,7 @@ pub(crate) fn eval_permutation_checks<F, FE, P, S, const D: usize, const D2: usi
     stark: &S,
     config: &StarkConfig,
     vars: &S::EvaluationFrame<FE, P, D2>,
-    permutation_vars: PermutationCheckVars<F, FE, P, D2>,
+    permutation_vars: &PermutationCheckVars<F, FE, P, D2>,
     consumer: &mut ConstraintConsumer<P>,
 ) where
     F: RichField + Extendable<D>,
@@ -319,7 +319,7 @@ pub(crate) fn eval_permutation_checks<F, FE, P, S, const D: usize, const D2: usi
 
     // Check that Z(1) = 1
     // This is how we should have initiated the Z(x) polynomial.
-    for &z in &local_zs {
+    for &z in local_zs {
         consumer.constraint_first_row(z - FE::ONE);
     }
 

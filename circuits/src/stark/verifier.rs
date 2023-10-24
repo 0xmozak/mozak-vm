@@ -13,7 +13,7 @@ use starky::constraint_consumer::ConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
-use super::lookup::LogupCheckVars;
+use super::lookup::{LogupCheckVars, LookupCheckVars};
 use super::mozak_stark::{MozakStark, TableKind};
 use super::permutation::challenge::GrandProductChallengeSet;
 use super::proof::AllProof;
@@ -175,15 +175,16 @@ where
         l_last,
     );
     let permutation_data = PermutationCheckVars {
-        local_zs: aux_polys[..num_logup_cols].to_vec(),
-        next_zs: aux_polys_next[..num_logup_cols].to_vec(),
+        local_zs: aux_polys[..0].to_vec(),
+        next_zs: aux_polys_next[..0].to_vec(),
         permutation_challenge_sets: challenges.permutation_challenge_sets.clone(),
     };
+
     eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
         stark,
         config,
         &vars,
-        permutation_data,
+        &permutation_data,
         ctl_vars,
         logup_check_vars,
         &ctl_challenges
@@ -231,6 +232,7 @@ where
                 degree_bits,
                 num_zs: ctl_zs_last.len(),
             }),
+            num_logup_cols,
         ),
         &proof.openings.to_fri_openings(),
         &challenges.fri_challenges,
@@ -283,8 +285,8 @@ where
 
     ensure!(local_values.len() == S::COLUMNS);
     ensure!(next_values.len() == S::COLUMNS);
-    // ensure!(aux_polys.len() == num_zs);
-    // ensure!(aux_polys_next.len() == num_zs);
+    ensure!(aux_polys.len() == num_zs);
+    ensure!(aux_polys_next.len() == num_zs);
     ensure!(ctl_zs_last.len() == num_ctl_zs);
     ensure!(quotient_polys.len() == stark.num_quotient_polys(config));
 

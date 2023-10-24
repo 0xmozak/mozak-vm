@@ -300,6 +300,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
             .zip(num_logups_per_table)
             .map(|(p, &num)| {
                 // skip looking and looked
+                println!("LUD {num}");
                 let openings = &p.openings;
                 let ctl_zs = openings.aux_polys.iter().skip(num);
                 let ctl_zs_next = openings.aux_polys_next.iter().skip(num);

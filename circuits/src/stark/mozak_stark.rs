@@ -40,7 +40,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
     pub register_init_stark: RegisterInitStark<F, D>,
     pub register_stark: RegisterStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 10],
+    pub cross_table_lookups: [CrossTableLookup<F>; 9],
     pub cross_table_logups: Vec<CrossTableLogup>,
     pub debug: bool,
 }
@@ -76,7 +76,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 ProgramCpuTable::lookups(),
                 IntoMemoryTable::lookups(),
                 MemoryInitMemoryTable::lookups(),
-                LimbTable::lookups(),
+                // LimbTable::lookups(),
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
                 RegisterRegInitTable::lookups(),
@@ -240,7 +240,7 @@ pub struct RangecheckTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for RangecheckTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         let looking: Vec<Table<F>> = chain![
-            memory::columns::rangecheck_looking(),
+            // memory::columns::rangecheck_looking(),
             cpu::columns::rangecheck_looking(),
         ]
         .collect();

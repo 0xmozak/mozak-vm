@@ -95,12 +95,16 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         let mut num_looking_per_table = [0; NUM_TABLES];
         let mut num_looked_per_table = [0; NUM_TABLES];
 
-        for logup in cross_table_logups {
-            for looking_table in &logup.looking_tables {
-                num_looking_per_table[looking_table.kind as usize] += looking_table.columns.len();
-            }
+        for _ in &ctl_challenges.challenges {
+            for logup in cross_table_logups {
+                for looking_table in &logup.looking_tables {
+                    println!("LTL: {}", looking_table.columns.len());
+                    num_looking_per_table[looking_table.kind as usize] +=
+                        looking_table.columns.len();
+                }
 
-            num_looked_per_table[logup.looked_table.kind as usize] += 2;
+                num_looked_per_table[logup.looked_table.kind as usize] += 1;
+            }
         }
 
         let challenges = ctl_challenges
@@ -110,17 +114,15 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
             .collect::<Vec<_>>();
 
         let mut logup_check_vars_per_table = Vec::with_capacity(NUM_TABLES);
-        for (i, p, num_looking, num_looked) in izip!(
-            0..NUM_TABLES,
-            proofs,
-            num_looking_per_table,
-            num_looked_per_table
-        ) {
+        for (i, p) in proofs.iter().enumerate() {
             let openings = &p.openings;
 
+            let num_looking = num_looking_per_table[i];
+            let num_looked = num_looked_per_table[i];
+
             println!(
-                "{} NLOOKING = {:?}, NLOOKED = {:?}",
-                i, num_looking_per_table, num_looked_per_table
+                "{i} NLOOKING = {:?}, NLOOKED = {:?}",
+                num_looking, num_looked
             );
             logup_check_vars_per_table.push(LogupCheckVars {
                 looking_vars: LookupCheckVars {

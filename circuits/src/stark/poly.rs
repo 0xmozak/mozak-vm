@@ -103,11 +103,8 @@ where
                 public_inputs,
             );
             let permutation_check_vars = PermutationCheckVars {
-                local_zs: aux_polys_commitment.get_lde_values_packed(i_start, step)
-                    [..num_logup_cols]
-                    .to_vec(),
-                next_zs: aux_polys_commitment.get_lde_values_packed(i_next_start, step)
-                    [..num_logup_cols]
+                local_zs: aux_polys_commitment.get_lde_values_packed(i_start, step)[..0].to_vec(),
+                next_zs: aux_polys_commitment.get_lde_values_packed(i_next_start, step)[..0]
                     .to_vec(),
                 permutation_challenge_sets: permutation_challenges.to_owned(),
             };
@@ -117,8 +114,7 @@ where
                         [..logup_data.looking.len()]
                         .to_vec(),
                     next_values: aux_polys_commitment.get_lde_values_packed(i_next_start, step)
-                        [logup_data.looking.len()
-                            ..logup_data.looking.len() + logup_data.looked.len()]
+                        [..logup_data.looking.len()]
                         .to_vec(),
                     challenges: challenges.to_vec(),
                 },
@@ -154,7 +150,7 @@ where
                 stark,
                 config,
                 &vars,
-                permutation_check_vars,
+                &permutation_check_vars,
                 &ctl_vars,
                 &logup_check_vars,
                 challenges,
@@ -188,7 +184,7 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark: &S,
     config: &StarkConfig,
     vars: &S::EvaluationFrame<FE, P, D2>,
-    permutation_vars: PermutationCheckVars<F, FE, P, D2>,
+    permutation_vars: &PermutationCheckVars<F, FE, P, D2>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
     logup_vars: &LogupCheckVars<F, FE, P, D2>,
     challenges: &[F],
@@ -200,7 +196,7 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     S: Stark<F, D>, {
     stark.eval_packed_generic(vars, consumer);
     eval_permutation_checks::<F, FE, P, S, D, D2>(stark, config, vars, permutation_vars, consumer);
-    // eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars,
-    // consumer); eval_cross_table_logup::<F, FE, P, S, D, D2>(vars,
-    // logup_vars, challenges, consumer);
+    eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
+    // eval_cross_table_logup::<F, FE, P, S, D, D2>(vars, logup_vars,
+    // challenges, consumer);
 }
