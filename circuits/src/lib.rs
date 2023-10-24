@@ -17,6 +17,7 @@ pub mod linear_combination;
 pub mod memory;
 pub mod memory_fullword;
 pub mod memory_halfword;
+pub mod memory_io;
 pub mod memoryinit;
 pub mod poseidon2;
 pub mod program;

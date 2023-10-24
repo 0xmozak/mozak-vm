@@ -114,7 +114,6 @@ pub enum IoOpcode {
     #[default]
     None,
     Store,
-    Load,
 }
 #[derive(Debug, Clone, Default)]
 pub struct IoEntry {

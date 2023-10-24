@@ -8,12 +8,13 @@ use crate::memory::columns::Memory;
 use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk};
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
+use crate::memory_io::columns::InputOutputMemory;
 use crate::memoryinit::columns::MemoryInit;
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
-    trace.resize(trace.len().next_power_of_two(), Memory {
+    trace.resize(trace.len().next_power_of_two().max(4), Memory {
         // Some columns need special treatment..
         is_store: F::ZERO,
         is_load: F::ZERO,
@@ -95,6 +96,16 @@ pub fn transform_fullword<F: RichField>(
         .flat_map(Into::<Vec<Memory<F>>>::into)
 }
 
+/// Generates Memory trace from a memory io table.
+///
+/// These need to be further interleaved with runtime memory trace generated
+/// from VM execution for final memory trace.
+pub fn transform_io<F: RichField>(
+    io_memory: &[InputOutputMemory<F>],
+) -> impl Iterator<Item = Memory<F>> + '_ {
+    io_memory.iter().filter_map(Option::<Memory<F>>::from)
+}
+
 fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64) {
     (
         memory.addr.to_canonical_u64(),
@@ -114,6 +125,7 @@ pub fn generate_memory_trace<F: RichField>(
     memory_init_rows: &[MemoryInit<F>],
     halfword_memory_rows: &[HalfWordMemory<F>],
     fullword_memory_rows: &[FullWordMemory<F>],
+    io_memory_rows: &[InputOutputMemory<F>],
 ) -> Vec<Memory<F>> {
     // `merged_trace` is address sorted combination of static and
     // dynamic memory trace components of program (ELF and execution)
@@ -123,8 +135,10 @@ pub fn generate_memory_trace<F: RichField>(
         generate_memory_trace_from_execution(program, step_rows),
         transform_halfword(halfword_memory_rows),
         transform_fullword(fullword_memory_rows),
+        transform_io(io_memory_rows),
     )
     .collect();
+
     merged_trace.sort_by_key(key);
 
     // Ensures constraints by filling remaining inter-row
@@ -161,6 +175,7 @@ mod tests {
 
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
+    use crate::generation::io_memory::generate_io_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::test_utils::{inv, prep_table};
@@ -180,6 +195,7 @@ mod tests {
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(&program, &record.executed);
+        let io_memory = generate_io_memory_trace(&program, &record.executed);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(
             &program,
@@ -187,6 +203,7 @@ mod tests {
             &memory_init,
             &halfword_memory,
             &fullword_memory,
+            &io_memory,
         );
         let inv = inv::<F>;
         assert_eq!(
@@ -235,12 +252,14 @@ mod tests {
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&program, &[]);
         let fullword_memory = generate_fullword_memory_trace(&program, &[]);
+        let io_memory = generate_io_memory_trace(&program, &[]);
         let trace = super::generate_memory_trace::<F>(
             &program,
             &[],
             &memory_init,
             &halfword_memory,
             &fullword_memory,
+            &io_memory,
         );
 
         let inv = inv::<F>;
