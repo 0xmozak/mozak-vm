@@ -11,9 +11,11 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use crate::columns_view::HasNamedColumns;
+use crate::display::derive_display_stark_name;
 use crate::memory_io::columns::{InputOutputMemory, NUM_IO_MEM_COLS};
 use crate::stark::utils::is_binary;
 
+derive_display_stark_name!(InputOuputMemoryStark);
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::module_name_repetitions)]
 pub struct InputOuputMemoryStark<F, const D: usize> {
@@ -22,12 +24,6 @@ pub struct InputOuputMemoryStark<F, const D: usize> {
 
 impl<F, const D: usize> HasNamedColumns for InputOuputMemoryStark<F, D> {
     type Columns = InputOutputMemory<F>;
-}
-
-impl<F, const D: usize> Display for InputOuputMemoryStark<F, D> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "InputOutputMemoryStark")
-    }
 }
 
 const COLUMNS: usize = NUM_IO_MEM_COLS;
