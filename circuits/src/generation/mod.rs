@@ -75,20 +75,21 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_init_rows = generate_memory_init_trace(program);
     let halfword_memory_rows = generate_halfword_memory_trace(program, &record.executed);
     let fullword_memory_rows = generate_fullword_memory_trace(program, &record.executed);
+    let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
+    let poseidon2_rows = generate_poseidon2_trace(&record.executed);
     let memory_rows = generate_memory_trace(
         program,
         &record.executed,
         &memory_init_rows,
         &halfword_memory_rows,
         &fullword_memory_rows,
-        &[],
+        // &[],
+        &poseiden2_sponge_rows,
     );
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
     let rangecheck_limb_rows = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows);
     let register_init_rows = generate_register_init_trace::<F>();
     let register_rows = generate_register_trace::<F>(program, record);
-    let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
-    let poseidon2_rows = generate_poseidon2_trace(&record.executed);
 
     let cpu_trace = trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows));
     let rangecheck_trace = trace_rows_to_poly_values(rangecheck_rows);

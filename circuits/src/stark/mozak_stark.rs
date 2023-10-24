@@ -24,7 +24,8 @@ use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::stark::XorStark;
 use crate::{
-    bitshift, cpu, memory, memory_fullword, memory_halfword, memoryinit, program, rangecheck, xor,
+    bitshift, cpu, memory, memory_fullword, memory_halfword, memoryinit, poseidon2_sponge, program,
+    rangecheck, xor,
 };
 
 #[derive(Clone)]
@@ -296,6 +297,72 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
                 FullWordMemoryTable::new(
                     memory_fullword::columns::data_for_memory_limb(3),
                     memory_fullword::columns::filter(),
+                ),
+                // poseidon2_sponge input
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(0),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(1),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(2),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(3),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(4),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(5),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(6),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(7),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                // poseidon2_sponge output
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(0),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(1),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(2),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(3),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(4),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(5),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(6),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(7),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
                 ),
             ],
             MemoryTable::new(

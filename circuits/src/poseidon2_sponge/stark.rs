@@ -48,36 +48,50 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
 
         is_binary(yield_constr, lv.ops.is_init_permute);
         is_binary(yield_constr, lv.ops.is_permute);
-        is_binary(yield_constr, lv.is_exe);
+        is_binary(yield_constr, lv.gen_output);
+        is_binary(yield_constr, lv.con_input);
 
-        // dummy row as is_permute = 0 and is_init_permute = 0
-        yield_constr.constraint((lv.is_exe - P::ONES) * lv.ops.is_permute * lv.ops.is_init_permute);
+        let is_dummy = P::ONES - (lv.ops.is_init_permute + lv.ops.is_permute);
+        is_binary(yield_constr, is_dummy);
 
-        // if current row is not dummy and next row is not is_init_permute
-        // len decreases by 8
+        // dummy row does not consume input
+        yield_constr.constraint(is_dummy * lv.con_input);
+        // dummy row does not generate output
+        yield_constr.constraint(is_dummy * lv.gen_output);
+
+        // if current row consumes input then next row must have
+        // length decreases by 8, note that only actaul execution row can consume input
         yield_constr.constraint_transition(
-            lv.is_exe
-                * (nv.ops.is_init_permute - P::ONES)
-                * (lv.len - (nv.len + P::Scalar::from_canonical_u8(8))),
+            lv.con_input * (lv.len - (nv.len + P::Scalar::from_canonical_u8(8))),
         );
         // and input_addr increases by 8
         yield_constr.constraint_transition(
-            lv.is_exe
-                * (nv.ops.is_init_permute - P::ONES)
-                * (lv.input_addr - (nv.input_addr - P::Scalar::from_canonical_u8(8))),
+            lv.con_input * (lv.input_addr - (nv.input_addr - P::Scalar::from_canonical_u8(8))),
+        );
+
+        // if current row generates output then next row mst have output_addr increased
+        // by 8
+        yield_constr.constraint_transition(
+            lv.gen_output * (lv.output_addr - (nv.output_addr - P::Scalar::from_canonical_u8(8))),
         );
 
         // For each init_permute capacity bits are zero.
-        yield_constr.constraint(lv.ops.is_init_permute * (lv.preimage[8] - P::ZEROS));
-        yield_constr.constraint(lv.ops.is_init_permute * (lv.preimage[9] - P::ZEROS));
-        yield_constr.constraint(lv.ops.is_init_permute * (lv.preimage[10] - P::ZEROS));
-        yield_constr.constraint(lv.ops.is_init_permute * (lv.preimage[11] - P::ZEROS));
+        (8..12).for_each(|i| {
+            yield_constr.constraint(lv.ops.is_init_permute * (lv.preimage[i] - P::ZEROS));
+        });
 
         // For each permute capacity bits are copied from previous output.
-        yield_constr.constraint(nv.ops.is_permute * (nv.preimage[8] - lv.output[8]));
-        yield_constr.constraint(nv.ops.is_permute * (nv.preimage[9] - lv.output[9]));
-        yield_constr.constraint(nv.ops.is_permute * (nv.preimage[10] - lv.output[10]));
-        yield_constr.constraint(nv.ops.is_permute * (nv.preimage[11] - lv.output[11]));
+        (8..12).for_each(|i| {
+            yield_constr.constraint(nv.ops.is_permute * (nv.preimage[i] - lv.output[i]));
+        });
+
+        // For each permute if input is not consumed then rate bits are copied from
+        // previous output.
+        (0..8).for_each(|i| {
+            yield_constr.constraint(
+                nv.ops.is_permute * (P::ONES - nv.con_input) * (nv.preimage[i] - lv.output[i]),
+            );
+        });
     }
 
     fn eval_ext_circuit(
@@ -123,24 +137,18 @@ mod tests {
 
         let mut step_rows = vec![];
         let mut input = vec![];
-
+        // VM expects input lenght to be multiple of RATE bits
+        let input_len = input_len.next_multiple_of(8);
         for _ in 0..input_len {
             input.push(F::rand());
         }
         let (_hash, sponge_data) =
             hash_n_to_m_with_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
-        let padded_len = |input_len: u32| {
-            if input_len % 8 == 0 {
-                input_len
-            } else {
-                input_len + (8 - input_len % 8)
-            }
-        };
         step_rows.push(Row {
             aux: Aux {
                 poseidon2: Some(Poseidon2Entry::<F> {
                     sponge_data,
-                    len: padded_len(input_len),
+                    len: input_len,
                     ..Default::default()
                 }),
                 ..Default::default()

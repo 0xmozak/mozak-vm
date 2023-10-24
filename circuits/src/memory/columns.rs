@@ -109,29 +109,28 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
         if (value.ops.is_permute + value.ops.is_init_permute).is_zero() {
             vec![]
         } else {
-            // each Field element in preimage represents a byte.
-            let mut inputs: Vec<Memory<F>> = (0..8)
-                .map(|i| Memory {
-                    clk: value.clk,
-                    addr: value.input_addr + F::from_canonical_u8(i),
-                    is_load: F::ONE,
-                    value: value.preimage[i as usize],
-                    ..Default::default()
-                })
-                .collect();
+            let mut inputs = vec![];
+            if value.con_input.is_one() {
+                // each Field element in preimage represents a byte.
+                inputs = (0..8)
+                    .map(|i| Memory {
+                        clk: value.clk,
+                        addr: value.input_addr + F::from_canonical_u8(i),
+                        is_load: F::ONE,
+                        value: value.preimage[i as usize],
+                        ..Default::default()
+                    })
+                    .collect();
+            }
             let mut outputs = vec![];
             if value.gen_output.is_one() {
-                // output size if 32 bits which is just 4 GoldilocksField converted to bytes.
-                let bytes: Vec<u8> = value.output[0..4]
-                    .iter()
-                    .flat_map(|x| x.to_canonical_u64().to_le_bytes())
-                    .collect();
-                outputs = (0..=255)
+                // each Field element in output represents a byte.
+                outputs = (0..8)
                     .map(|i| Memory {
                         clk: value.clk,
                         is_store: F::ONE,
-                        value: F::from_canonical_u8(bytes[i as usize]),
-                        addr: value.out_addr + F::from_canonical_u8(i),
+                        value: value.output[i as usize],
+                        addr: value.output_addr + F::from_canonical_u8(i),
                         ..Default::default()
                     })
                     .collect();
