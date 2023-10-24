@@ -10,6 +10,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
+use crate::columns_view::HasNamedColumns;
 use crate::memory_io::columns::{InputOutputMemory, NUM_IO_MEM_COLS};
 use crate::stark::utils::is_binary;
 
@@ -17,6 +18,10 @@ use crate::stark::utils::is_binary;
 #[allow(clippy::module_name_repetitions)]
 pub struct InputOuputMemoryStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> HasNamedColumns for InputOuputMemoryStark<F, D> {
+    type Columns = InputOutputMemory<F>;
 }
 
 impl<F, const D: usize> Display for InputOuputMemoryStark<F, D> {

@@ -44,35 +44,23 @@ use self::rangecheck_limb::generate_rangecheck_limb_trace;
 use self::register::generate_register_trace;
 use self::registerinit::generate_register_init_trace;
 use self::xor::generate_xor_trace;
-use crate::bitshift::columns::BitshiftView;
 use crate::bitshift::stark::BitshiftStark;
-use crate::cpu::columns::CpuColumnsExtended;
+use crate::columns_view::HasNamedColumns;
 use crate::cpu::stark::CpuStark;
 use crate::generation::io_memory::generate_io_memory_trace;
 use crate::generation::program::generate_program_rom_trace;
-use crate::memory::columns::Memory;
 use crate::memory::stark::MemoryStark;
-use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_fullword::stark::FullWordMemoryStark;
-use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
-use crate::memory_io::columns::InputOutputMemory;
 use crate::memory_io::stark::InputOuputMemoryStark;
-use crate::memoryinit::columns::MemoryInit;
 use crate::memoryinit::stark::MemoryInitStark;
-use crate::program::columns::ProgramRom;
 use crate::program::stark::ProgramStark;
-use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::rangecheck_limb::columns::RangeCheckLimb;
 use crate::rangecheck_limb::stark::RangeCheckLimbStark;
-use crate::register::columns::Register;
 use crate::register::stark::RegisterStark;
-use crate::registerinit::columns::RegisterInit;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::stark::mozak_stark::{MozakStark, PublicInputs, NUM_TABLES};
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
-use crate::xor::columns::XorColumnsView;
 use crate::xor::stark::XorStark;
 
 #[must_use]
@@ -157,66 +145,53 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     let [cpu, rangecheck, xor, shift_amount, program, memory, memory_init, rangecheck_limb, halfword_memory, fullword_memory, register_init, register, io_memory] =
         traces_poly_values;
     // Program ROM
-    debug_single_trace::<F, D, ProgramStark<F, D>, ProgramRom<F>>(
-        &mozak_stark.program_stark,
-        program,
-        &[],
-    );
+    debug_single_trace::<F, D, ProgramStark<F, D>>(&mozak_stark.program_stark, program, &[]);
     // CPU
-    debug_single_trace::<F, D, CpuStark<F, D>, CpuColumnsExtended<F>>(
-        &mozak_stark.cpu_stark,
-        cpu,
-        public_inputs.borrow(),
-    );
+    debug_single_trace::<F, D, CpuStark<F, D>>(&mozak_stark.cpu_stark, cpu, public_inputs.borrow());
     // Range check
-    debug_single_trace::<F, D, RangeCheckStark<F, D>, RangeCheckColumnsView<F>>(
+    debug_single_trace::<F, D, RangeCheckStark<F, D>>(
         &mozak_stark.rangecheck_stark,
         rangecheck,
         &[],
     );
     // Xor
-    debug_single_trace::<F, D, XorStark<F, D>, XorColumnsView<F>>(&mozak_stark.xor_stark, xor, &[]);
+    debug_single_trace::<F, D, XorStark<F, D>>(&mozak_stark.xor_stark, xor, &[]);
     // Bitshift
-    debug_single_trace::<F, D, BitshiftStark<F, D>, BitshiftView<F>>(
+    debug_single_trace::<F, D, BitshiftStark<F, D>>(
         &mozak_stark.shift_amount_stark,
         shift_amount,
         &[],
     );
     // Memory
-    debug_single_trace::<F, D, MemoryStark<F, D>, Memory<F>>(&mozak_stark.memory_stark, memory, &[
-    ]);
+    debug_single_trace::<F, D, MemoryStark<F, D>>(&mozak_stark.memory_stark, memory, &[]);
     // MemoryInit
-    debug_single_trace::<F, D, MemoryInitStark<F, D>, MemoryInit<F>>(
+    debug_single_trace::<F, D, MemoryInitStark<F, D>>(
         &mozak_stark.memory_init_stark,
         memory_init,
         &[],
     );
-    debug_single_trace::<F, D, RangeCheckLimbStark<F, D>, RangeCheckLimb<F>>(
+    debug_single_trace::<F, D, RangeCheckLimbStark<F, D>>(
         &mozak_stark.rangecheck_limb_stark,
         rangecheck_limb,
         &[],
     );
-    debug_single_trace::<F, D, HalfWordMemoryStark<F, D>, HalfWordMemory<F>>(
+    debug_single_trace::<F, D, HalfWordMemoryStark<F, D>>(
         &mozak_stark.halfword_memory_stark,
         halfword_memory,
         &[],
     );
-    debug_single_trace::<F, D, FullWordMemoryStark<F, D>, FullWordMemory<F>>(
+    debug_single_trace::<F, D, FullWordMemoryStark<F, D>>(
         &mozak_stark.fullword_memory_stark,
         fullword_memory,
         &[],
     );
-    debug_single_trace::<F, D, RegisterInitStark<F, D>, RegisterInit<F>>(
+    debug_single_trace::<F, D, RegisterInitStark<F, D>>(
         &mozak_stark.register_init_stark,
         register_init,
         &[],
     );
-    debug_single_trace::<F, D, RegisterStark<F, D>, Register<F>>(
-        &mozak_stark.register_stark,
-        register,
-        &[],
-    );
-    debug_single_trace::<F, D, InputOuputMemoryStark<F, D>, InputOutputMemory<F>>(
+    debug_single_trace::<F, D, RegisterStark<F, D>>(&mozak_stark.register_stark, register, &[]);
+    debug_single_trace::<F, D, InputOuputMemoryStark<F, D>>(
         &mozak_stark.io_memory_stark,
         io_memory,
         &[],
@@ -226,13 +201,13 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
 pub fn debug_single_trace<
     F: RichField + Extendable<D> + Debug,
     const D: usize,
-    S: Stark<F, D> + Display,
-    Columns: FromIterator<F> + Debug,
+    S: Stark<F, D> + Display + HasNamedColumns,
 >(
     stark: &S,
     trace_rows: &[PolynomialValues<F>],
     public_inputs: &[F],
-) {
+) where
+    S::Columns: FromIterator<F> + Debug, {
     transpose_polys::<F, D, S>(trace_rows.to_vec())
         .iter()
         .enumerate()
@@ -243,8 +218,8 @@ pub fn debug_single_trace<
                 StarkEvaluationFrame::from_values(lv.as_slice(), nv.as_slice(), public_inputs);
             stark.eval_packed_generic(&vars, &mut consumer);
             if consumer.debug_api_has_constraint_failed() {
-                let lv: Columns = lv.iter().copied().collect();
-                let nv: Columns = nv.iter().copied().collect();
+                let lv: S::Columns = lv.iter().copied().collect();
+                let nv: S::Columns = nv.iter().copied().collect();
                 println!("Debug constraints for {stark}");
                 println!("lv-row[{lv_row}] - values: {lv:?}");
                 println!("nv-row[{nv_row}] - values: {nv:?}");
