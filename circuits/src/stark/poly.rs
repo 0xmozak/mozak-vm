@@ -184,7 +184,14 @@ pub(crate) fn eval_vanishing_poly_circuit<F, S, const D: usize>(
 ) where
     F: RichField + Extendable<D>,
     S: Stark<F, D>, {
+    // let tmp = builder.constant(F::from_canonical_u64(0));
+    // builder.connect(consumer.constraint_accs[0].0[0].clone(), tmp);
+
     stark.eval_ext_circuit(builder, vars, consumer);
+
+    // let tmp = builder.constant(F::from_canonical_u64(4687448103129986669));
+    // builder.connect(consumer.constraint_accs[0].0[0].clone(), tmp);
+
     eval_permutation_checks_circuit::<F, S, D>(
         builder,
         stark,
@@ -193,5 +200,6 @@ pub(crate) fn eval_vanishing_poly_circuit<F, S, const D: usize>(
         permutation_data,
         consumer,
     );
+
     eval_cross_table_lookup_checks_circuit::<S, F, D>(builder, vars, ctl_vars, consumer);
 }

@@ -263,10 +263,10 @@ where
         num_permutation_zs,
     );
 
-    let tmp1 = builder.constant(F::from_canonical_u64(10397491182449259502));
-    let tmp2 = builder.constant(F::from_canonical_u64(1193813954400565312));
-    builder.connect(ctl_vars[0].local_z.0[0], tmp1);
-    builder.connect(ctl_vars[1].next_z.0[0], tmp2);
+    // let tmp1 = builder.constant(F::from_canonical_u64(10397491182449259502));
+    // let tmp2 = builder.constant(F::from_canonical_u64(1193813954400565312));
+    // builder.connect(ctl_vars[0].local_z.0[0], tmp1);
+    // builder.connect(ctl_vars[1].next_z.0[0], tmp2);
 
     let init_challenger_state_target =
         <C::Hasher as AlgebraicHasher<F>>::AlgebraicPermutation::new(std::iter::from_fn(|| {
@@ -283,8 +283,8 @@ where
     let challenger_state = challenger.compact(&mut builder);
     builder.register_public_inputs(challenger_state.as_ref());
 
-    let tmp = builder.constant(F::from_canonical_u64(17541469653275096282));
-    builder.connect(challenges.stark_zeta.0[0], tmp);
+    // let tmp = builder.constant(F::from_canonical_u64(17541469653275096282));
+    // builder.connect(challenges.stark_zeta.0[0], tmp);
 
     builder.register_public_inputs(&proof_target.proof.openings.ctl_zs_last);
 
@@ -365,8 +365,8 @@ fn verify_stark_proof_with_challenges_circuit<
     let degree_bits = proof.proof.recover_degree_bits(inner_config);
     let zeta_pow_deg = builder.exp_power_of_2_extension(challenges.stark_zeta, degree_bits);
 
-    let tmp = builder.constant(F::from_canonical_u64(15161349718397517190));
-    builder.connect(zeta_pow_deg.0[0], tmp);
+    // let tmp = builder.constant(F::from_canonical_u64(15161349718397517190));
+    // builder.connect(zeta_pow_deg.0[0], tmp);
 
     let z_h_zeta = builder.sub_extension(zeta_pow_deg, one);
 
@@ -376,14 +376,14 @@ fn verify_stark_proof_with_challenges_circuit<
         builder.constant_extension(F::Extension::primitive_root_of_unity(degree_bits).inverse());
     let z_last = builder.sub_extension(challenges.stark_zeta, last);
 
-    let tmp = builder.constant(F::from_canonical_u64(17541751128251806938));
-    builder.connect(z_last.0[0], tmp);
-    let tmp = builder.constant(F::from_canonical_u64(14121062157419852998));
-    builder.connect(challenges.stark_alphas[0], tmp);
-    let tmp = builder.constant(F::from_canonical_u64(4909542909988314543));
-    builder.connect(l_0.0[0], tmp);
-    let tmp = builder.constant(F::from_canonical_u64(14650308906914159446));
-    builder.connect(l_last.0[0], tmp);
+    // let tmp = builder.constant(F::from_canonical_u64(17541751128251806938));
+    // builder.connect(z_last.0[0], tmp);
+    // let tmp = builder.constant(F::from_canonical_u64(14121062157419852998));
+    // builder.connect(challenges.stark_alphas[0], tmp);
+    // let tmp = builder.constant(F::from_canonical_u64(4909542909988314543));
+    // builder.connect(l_0.0[0], tmp);
+    // let tmp = builder.constant(F::from_canonical_u64(14650308906914159446));
+    // builder.connect(l_last.0[0], tmp);
 
     let mut consumer = RecursiveConstraintConsumer::<F, D>::new(
         builder.zero_extension(),
@@ -401,15 +401,15 @@ fn verify_stark_proof_with_challenges_circuit<
     };
 
     let tmp = builder.constant(F::from_canonical_u64(5595357830670284259));
-    builder.connect(
-        permutation_data.permutation_challenge_sets[0].challenges[0].beta,
-        tmp,
-    );
-    let tmp = builder.constant(F::from_canonical_u64(10133257246095221627));
-    builder.connect(
-        permutation_data.permutation_challenge_sets[0].challenges[1].gamma,
-        tmp,
-    );
+    // builder.connect(
+    //    permutation_data.permutation_challenge_sets[0].challenges[0].beta,
+    //    tmp,
+    //);
+    // let tmp = builder.constant(F::from_canonical_u64(10133257246095221627));
+    // builder.connect(
+    //    permutation_data.permutation_challenge_sets[0].challenges[1].gamma,
+    //    tmp,
+    //);
 
     with_context!(
         builder,
@@ -426,8 +426,8 @@ fn verify_stark_proof_with_challenges_circuit<
     );
     let vanishing_polys_zeta = consumer.accumulators();
 
-    let tmp1 = builder.constant(F::from_canonical_u64(5550209861598712103));
-    builder.connect(quotient_polys[0].0[0], tmp1);
+    // let tmp1 = builder.constant(F::from_canonical_u64(5550209861598712103));
+    // builder.connect(quotient_polys[0].0[0], tmp1);
 
     // Check each polynomial identity, of the form `vanishing(x) = Z_H(x)
     // quotient(x)`, at zeta.
@@ -439,16 +439,15 @@ fn verify_stark_proof_with_challenges_circuit<
         let recombined_quotient = scale.reduce(chunk, builder);
         let computed_vanishing_poly = builder.mul_extension(z_h_zeta, recombined_quotient);
 
-        if i == 0 {
-            let tmp = builder.constant(F::from_canonical_u64(13284378337383840945));
-            builder.connect(computed_vanishing_poly.0[0], tmp);
-        } else {
-            let tmp = builder.constant(F::from_canonical_u64(13555167174170422281));
-            builder.connect(computed_vanishing_poly.0[1], tmp);
-        }
+        // if i == 0 {
+        //    let tmp = builder.constant(F::from_canonical_u64(13284378337383840945));
+        //    builder.connect(computed_vanishing_poly.0[0], tmp);
+        //} else {
+        //    let tmp = builder.constant(F::from_canonical_u64(13555167174170422281));
+        //    builder.connect(computed_vanishing_poly.0[1], tmp);
+        //}
 
-        // builder.connect_extension(vanishing_polys_zeta[i],
-        // computed_vanishing_poly);
+        builder.connect_extension(vanishing_polys_zeta[i], computed_vanishing_poly);
     }
 
     let merkle_caps = vec![
@@ -467,14 +466,14 @@ fn verify_stark_proof_with_challenges_circuit<
             num_zs: ctl_zs_last.len(),
         }),
     );
-    // builder.verify_fri_proof::<C>(
-    //     &fri_instance,
-    //     &proof.proof.openings.to_fri_openings(zero),
-    //     &challenges.fri_challenges,
-    //     &merkle_caps,
-    //     &proof.proof.opening_proof,
-    //     &inner_config.fri_params(degree_bits),
-    // );
+    builder.verify_fri_proof::<C>(
+        &fri_instance,
+        &proof.proof.openings.to_fri_openings(zero),
+        &challenges.fri_challenges,
+        &merkle_caps,
+        &proof.proof.opening_proof,
+        &inner_config.fri_params(degree_bits),
+    );
 }
 
 fn eval_l_0_and_l_last_circuit<F: RichField + Extendable<D>, const D: usize>(

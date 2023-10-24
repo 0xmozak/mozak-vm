@@ -326,7 +326,7 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
         // Check value of `Z(1)`
         consumer.constraint_last_row(*next_z - select(filter, combination));
         // Check `Z(gw) = combination * Z(w)`
-        consumer.constraint_transition(*next_z - *local_z * select(filter, combination));
+        consumer.constraint_transition(*local_z * select(filter, combination) - *next_z);
     }
 }
 

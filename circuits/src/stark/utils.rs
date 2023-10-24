@@ -23,7 +23,7 @@ pub fn is_binary_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) {
     let one = builder.one_extension();
-    let x_sub_one = builder.sub_extension(x, one);
+    let x_sub_one = builder.sub_extension(one, x);
     let x_mul_x_sub_one = builder.mul_extension(x, x_sub_one);
     yield_constr.constraint(builder, x_mul_x_sub_one);
 }
