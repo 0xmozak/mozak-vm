@@ -11,7 +11,7 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::{Bitshift, BitshiftView};
-use crate::columns_view::NumberOfColumns;
+use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::display::derive_display_stark_name;
 
 derive_display_stark_name!(BitshiftStark);
@@ -19,6 +19,10 @@ derive_display_stark_name!(BitshiftStark);
 #[allow(clippy::module_name_repetitions)]
 pub struct BitshiftStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> HasNamedColumns for BitshiftStark<F, D> {
+    type Columns = BitshiftView<F>;
 }
 
 const COLUMNS: usize = BitshiftView::<()>::NUMBER_OF_COLUMNS;

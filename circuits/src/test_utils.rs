@@ -19,6 +19,7 @@ use crate::generation::bitshift::generate_shift_amount_trace;
 use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
 use crate::generation::fullword_memory::generate_fullword_memory_trace;
 use crate::generation::halfword_memory::generate_halfword_memory_trace;
+use crate::generation::io_memory::generate_io_memory_trace;
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::memoryinit::generate_memory_init_trace;
 use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
@@ -30,6 +31,7 @@ use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
+use crate::memory_io::stark::InputOuputMemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
@@ -132,6 +134,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let memory_init = generate_memory_init_trace(program);
         let halfword_memory = generate_halfword_memory_trace(program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(program, &record.executed);
+        let io_memory = generate_io_memory_trace(program, &record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let memory_trace = generate_memory_trace::<F>(
             program,
@@ -139,6 +142,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &memory_init,
             &halfword_memory,
             &fullword_memory,
+            &io_memory,
             &poseidon2_trace,
         );
         let trace_poly_values =
@@ -185,6 +189,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let memory_init = generate_memory_init_trace(program);
         let halfword_memory = generate_halfword_memory_trace(program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(program, &record.executed);
+        let io_memory = generate_io_memory_trace(program, &record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(
             program,
@@ -192,6 +197,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
             &memory_init,
             &halfword_memory,
             &fullword_memory,
+            &io_memory,
             &poseidon2_trace,
         ));
         let proof = prove_table::<F, C, S, D>(
@@ -234,6 +240,26 @@ impl ProveAndVerify for FullWordMemoryStark<F, D> {
         let stark = S::default();
         let trace_poly_values =
             trace_rows_to_poly_values(generate_fullword_memory_trace(program, &record.executed));
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            &[],
+            &mut TimingTree::default(),
+        )?;
+
+        verify_stark_proof(stark, proof, &config)
+    }
+}
+
+impl ProveAndVerify for InputOuputMemoryStark<F, D> {
+    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
+        type S = InputOuputMemoryStark<F, D>;
+        let config = standard_faster_config();
+
+        let stark = S::default();
+        let trace_poly_values =
+            trace_rows_to_poly_values(generate_io_memory_trace(program, &record.executed));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,

@@ -13,7 +13,7 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::XorColumnsView;
-use crate::columns_view::NumberOfColumns;
+use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::display::derive_display_stark_name;
 
 derive_display_stark_name!(XorStark);
@@ -21,6 +21,10 @@ derive_display_stark_name!(XorStark);
 #[allow(clippy::module_name_repetitions)]
 pub struct XorStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> HasNamedColumns for XorStark<F, D> {
+    type Columns = XorColumnsView<F>;
 }
 
 const COLUMNS: usize = XorColumnsView::<()>::NUMBER_OF_COLUMNS;
