@@ -365,10 +365,9 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
         num_permutation_zs: usize,
     ) -> Vec<Self> {
         let mut ctl_zs = {
-            let openings = &proof.openings;
             izip!(
-                &openings.permutation_ctl_zs,
-                &openings.permutation_ctl_zs_next
+                &proof.openings.permutation_ctl_zs,
+                &proof.openings.permutation_ctl_zs_next
             )
             .skip(num_permutation_zs)
         };
