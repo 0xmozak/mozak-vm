@@ -70,6 +70,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "fibonacci-input"
+version = "0.1.0"
+dependencies = [
+ "guest",
+]
+
+[[package]]
 name = "fibonacci-mozak-guest"
 version = "0.1.0"
 dependencies = [
