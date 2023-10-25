@@ -410,8 +410,8 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
     ) -> AllProofChallenges<F, D> {
         let mut challenger = Challenger::<F, C::Hasher>::new();
 
-        for proof in &self.proofs_with_metadata {
-            challenger.observe_cap(&proof.proof.trace_cap);
+        for proof_with_metadata in &self.proofs_with_metadata {
+            challenger.observe_cap(&proof_with_metadata.proof.trace_cap);
         }
 
         // TODO: Observe public values.
