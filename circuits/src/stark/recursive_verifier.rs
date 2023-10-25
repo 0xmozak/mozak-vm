@@ -212,7 +212,7 @@ fn verify_stark_proof_with_challenges_circuit<
 >(
     builder: &mut CircuitBuilder<F, D>,
     stark: &S,
-    proof: &StarkProofWithPublicInputsTarget<D>,
+    proof_with_public_inputs: &StarkProofWithPublicInputsTarget<D>,
     challenges: &StarkProofChallengesTarget<D>,
     ctl_vars: &[CtlCheckVarsTarget<F, D>],
     inner_config: &StarkConfig,
@@ -228,9 +228,9 @@ fn verify_stark_proof_with_challenges_circuit<
         permutation_ctl_zs_next,
         ctl_zs_last,
         quotient_polys,
-    } = &proof.proof.openings;
+    } = &proof_with_public_inputs.proof.openings;
 
-    let converted_public_inputs: Vec<ExtensionTarget<D>> = proof
+    let converted_public_inputs: Vec<ExtensionTarget<D>> = proof_with_public_inputs
         .public_inputs
         .iter()
         .map(|target| builder.convert_to_ext(*target)) // replace with actual conversion function/method
@@ -239,7 +239,9 @@ fn verify_stark_proof_with_challenges_circuit<
     let vars =
         S::EvaluationFrameTarget::from_values(local_values, next_values, &converted_public_inputs);
 
-    let degree_bits = proof.proof.recover_degree_bits(inner_config);
+    let degree_bits = proof_with_public_inputs
+        .proof
+        .recover_degree_bits(inner_config);
     let zeta_pow_deg = builder.exp_power_of_2_extension(challenges.stark_zeta, degree_bits);
     let z_h_zeta = builder.sub_extension(zeta_pow_deg, one);
     let (l_0, l_last) =
@@ -291,9 +293,12 @@ fn verify_stark_proof_with_challenges_circuit<
     }
 
     let merkle_caps = vec![
-        proof.proof.trace_cap.clone(),
-        proof.proof.permutation_ctl_zs_cap.clone(),
-        proof.proof.quotient_polys_cap.clone(),
+        proof_with_public_inputs.proof.trace_cap.clone(),
+        proof_with_public_inputs
+            .proof
+            .permutation_ctl_zs_cap
+            .clone(),
+        proof_with_public_inputs.proof.quotient_polys_cap.clone(),
     ];
 
     let fri_instance = stark.fri_instance_target(
@@ -308,10 +313,13 @@ fn verify_stark_proof_with_challenges_circuit<
     );
     builder.verify_fri_proof::<C>(
         &fri_instance,
-        &proof.proof.openings.to_fri_openings(zero),
+        &proof_with_public_inputs
+            .proof
+            .openings
+            .to_fri_openings(zero),
         &challenges.fri_challenges,
         &merkle_caps,
-        &proof.proof.opening_proof,
+        &proof_with_public_inputs.proof.opening_proof,
         &inner_config.fri_params(degree_bits),
     );
 }
@@ -482,7 +490,7 @@ mod tests {
         verify_proof(stark.clone(), all_proof.clone(), &config)?;
 
         let circuit_config = CircuitConfig::standard_recursion_config();
-        let degree_bits = all_proof.stark_proofs[TableKind::Program as usize]
+        let degree_bits = all_proof.proofs_with_metadata[TableKind::Program as usize]
             .proof
             .recover_degree_bits(&config);
         let stark_wrapper = recursive_stark_circuit::<F, C, PS, D>(
@@ -496,7 +504,7 @@ mod tests {
         );
 
         let recursive_proof = stark_wrapper.prove(
-            &all_proof.stark_proofs[TableKind::Program as usize],
+            &all_proof.proofs_with_metadata[TableKind::Program as usize],
             &all_proof.ctl_challenges,
         )?;
         stark_wrapper.circuit.verify(recursive_proof)
