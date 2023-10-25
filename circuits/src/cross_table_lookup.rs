@@ -1,6 +1,8 @@
 use anyhow::{ensure, Result};
 #[cfg(test)]
 use itertools::chain;
+#[cfg(test)]
+use itertools::izip;
 use itertools::Itertools;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -364,12 +366,11 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
     ) -> Vec<Self> {
         let mut ctl_zs = {
             let openings = &proof.openings;
-            let ctl_zs = openings.permutation_ctl_zs.iter().skip(num_permutation_zs);
-            let ctl_zs_next = openings
-                .permutation_ctl_zs_next
-                .iter()
-                .skip(num_permutation_zs);
-            ctl_zs.zip(ctl_zs_next)
+            izip!(
+                &openings.permutation_ctl_zs,
+                &openings.permutation_ctl_zs_next
+            )
+            .skip(num_permutation_zs)
         };
 
         let mut ctl_vars = vec![];
