@@ -67,5 +67,7 @@ pub(crate) fn io_constraints<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     is_binary(yield_constr, lv.is_io_store);
+    // allow is_io_store only when ecall opcode took place
+    yield_constr.constraint(lv.is_io_store * (P::ONES - lv.inst.ops.ecall));
 }
 // We are already testing ecall halt with our coda of every `simple_test_code`.
