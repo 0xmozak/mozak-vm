@@ -1,4 +1,6 @@
 use anyhow::{ensure, Result};
+#[cfg(test)]
+use itertools::chain;
 use itertools::Itertools;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -229,12 +231,14 @@ impl<F: Field> CrossTableLookup<F> {
 
     #[cfg(test)]
     pub(crate) fn num_ctl_zs(ctls: &[Self], table: TableKind, num_challenges: usize) -> usize {
-        let mut num_ctls = 0;
-        for ctl in ctls {
-            let all_tables = std::iter::once(&ctl.looked_table).chain(&ctl.looking_tables);
-            num_ctls += all_tables.filter(|twc| twc.kind == table).count();
-        }
-        num_ctls * num_challenges
+        ctls.iter()
+            .map(|ctl| {
+                chain!([&ctl.looked_table], &ctl.looking_tables)
+                    .filter(|twc| twc.kind == table)
+                    .count()
+            })
+            .sum::<usize>()
+            * num_challenges
     }
 }
 
