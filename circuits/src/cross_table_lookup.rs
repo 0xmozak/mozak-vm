@@ -1,9 +1,9 @@
 use anyhow::{ensure, Result};
-#[cfg(test)]
-use itertools::chain;
-#[cfg(test)]
-use itertools::izip;
 use itertools::Itertools;
+#[cfg(test)]
+use itertools::{chain, iproduct};
+#[cfg(test)]
+use itertools::{izip, zip_eq};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -364,7 +364,7 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
         ctl_challenges: &'a GrandProductChallengeSet<Target>,
         num_permutation_zs: usize,
     ) -> Vec<Self> {
-        let mut ctl_zs = {
+        let ctl_zs = {
             izip!(
                 &proof.openings.permutation_ctl_zs,
                 &proof.openings.permutation_ctl_zs_next
@@ -372,40 +372,21 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
             .skip(num_permutation_zs)
         };
 
-        let mut ctl_vars = vec![];
-        for CrossTableLookup {
-            looking_tables,
-            looked_table,
-        } in cross_table_lookups
-        {
-            for &challenges in &ctl_challenges.challenges {
-                for looking_table in looking_tables {
-                    if looking_table.kind == table {
-                        let (looking_z, looking_z_next) = ctl_zs.next().unwrap();
-                        ctl_vars.push(Self {
-                            local_z: *looking_z,
-                            next_z: *looking_z_next,
-                            challenges,
-                            columns: &looking_table.columns,
-                            filter_column: &looking_table.filter_column,
-                        });
-                    }
-                }
-
-                if looked_table.kind == table {
-                    let (looked_z, looked_z_next) = ctl_zs.next().unwrap();
-                    ctl_vars.push(Self {
-                        local_z: *looked_z,
-                        next_z: *looked_z_next,
-                        challenges,
-                        columns: &looked_table.columns,
-                        filter_column: &looked_table.filter_column,
-                    });
-                }
-            }
-        }
-        assert!(ctl_zs.next().is_none());
-        ctl_vars
+        let ctl_chain = cross_table_lookups.iter().flat_map(
+            |CrossTableLookup {
+                 looking_tables,
+                 looked_table,
+             }| chain!(looking_tables, [looked_table]).filter(|twc| twc.kind == table),
+        );
+        zip_eq(ctl_zs, iproduct!(ctl_chain, &ctl_challenges.challenges))
+            .map(|((&local_z, &next_z), (table, &challenges))| Self {
+                local_z,
+                next_z,
+                challenges,
+                columns: &table.columns,
+                filter_column: &table.filter_column,
+            })
+            .collect()
     }
 }
 
