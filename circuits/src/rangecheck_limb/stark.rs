@@ -11,7 +11,7 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::RangeCheckLimb;
-use crate::columns_view::NumberOfColumns;
+use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::display::derive_display_stark_name;
 
 derive_display_stark_name!(RangeCheckLimbStark);
@@ -19,6 +19,10 @@ derive_display_stark_name!(RangeCheckLimbStark);
 #[allow(clippy::module_name_repetitions)]
 pub struct RangeCheckLimbStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> HasNamedColumns for RangeCheckLimbStark<F, D> {
+    type Columns = RangeCheckLimb<F>;
 }
 
 const COLUMNS: usize = RangeCheckLimb::<()>::NUMBER_OF_COLUMNS;

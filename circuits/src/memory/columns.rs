@@ -7,7 +7,9 @@ use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
+use crate::memory_io::columns::InputOutputMemory;
 use crate::memoryinit::columns::MemoryInit;
+use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::stark::mozak_stark::{MemoryTable, Table};
 
 #[repr(C)]
@@ -100,6 +102,55 @@ impl<F: RichField> From<&FullWordMemory<F>> for Vec<Memory<F>> {
                 })
                 .collect()
         }
+    }
+}
+
+impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
+    fn from(value: &Poseidon2Sponge<F>) -> Self {
+        if (value.ops.is_permute + value.ops.is_init_permute).is_zero() {
+            vec![]
+        } else {
+            let mut inputs = vec![];
+            if value.con_input.is_one() {
+                // each Field element in preimage represents a byte.
+                inputs = (0..8)
+                    .map(|i| Memory {
+                        clk: value.clk,
+                        addr: value.input_addr + F::from_canonical_u8(i),
+                        is_load: F::ONE,
+                        value: value.preimage[i as usize],
+                        ..Default::default()
+                    })
+                    .collect();
+            }
+            let mut outputs = vec![];
+            if value.gen_output.is_one() {
+                // each Field element in output represents a byte.
+                outputs = (0..8)
+                    .map(|i| Memory {
+                        clk: value.clk,
+                        is_store: F::ONE,
+                        value: value.output[i as usize],
+                        addr: value.output_addr + F::from_canonical_u8(i),
+                        ..Default::default()
+                    })
+                    .collect();
+            }
+            inputs.extend(outputs);
+            inputs
+        }
+    }
+}
+
+impl<F: RichField> From<&InputOutputMemory<F>> for Option<Memory<F>> {
+    fn from(val: &InputOutputMemory<F>) -> Self {
+        (val.ops.is_memory_store).is_one().then(|| Memory {
+            clk: val.clk,
+            addr: val.addr,
+            value: val.value,
+            is_store: val.ops.is_memory_store,
+            ..Default::default()
+        })
     }
 }
 

@@ -13,6 +13,7 @@ use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
+use crate::memory_io::stark::InputOuputMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::poseidon2::stark::Poseidon2_12Stark;
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
@@ -24,7 +25,8 @@ use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::stark::XorStark;
 use crate::{
-    bitshift, cpu, memory, memory_fullword, memory_halfword, memoryinit, program, rangecheck, xor,
+    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memoryinit,
+    poseidon2_sponge, program, rangecheck, xor,
 };
 
 #[derive(Clone)]
@@ -39,11 +41,12 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub rangecheck_limb_stark: RangeCheckLimbStark<F, D>,
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
+    pub io_memory_stark: InputOuputMemoryStark<F, D>,
     pub register_init_stark: RegisterInitStark<F, D>,
     pub register_stark: RegisterStark<F, D>,
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 13],
+    pub cross_table_lookups: [CrossTableLookup<F>; 14],
     pub debug: bool,
 }
 
@@ -71,6 +74,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             fullword_memory_stark: FullWordMemoryStark::default(),
             register_init_stark: RegisterInitStark::default(),
             register_stark: RegisterStark::default(),
+            io_memory_stark: InputOuputMemoryStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             cross_table_lookups: [
@@ -85,6 +89,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
                 RegisterRegInitTable::lookups(),
+                IoMemoryCpuTable::lookups(),
                 Poseidon2SpongeCpuTable::lookups(),
                 Poseidon2Poseidon2SpongeTable::lookups(),
             ],
@@ -108,6 +113,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.fullword_memory_stark.num_permutation_batches(config),
             self.register_init_stark.num_permutation_batches(config),
             self.register_stark.num_permutation_batches(config),
+            self.io_memory_stark.num_permutation_batches(config),
             self.poseidon2_sponge_stark.num_permutation_batches(config),
             self.poseidon2_stark.num_permutation_batches(config),
         ]
@@ -127,6 +133,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.fullword_memory_stark.permutation_batch_size(),
             self.register_init_stark.permutation_batch_size(),
             self.register_stark.permutation_batch_size(),
+            self.io_memory_stark.permutation_batch_size(),
             self.poseidon2_sponge_stark.permutation_batch_size(),
             self.poseidon2_stark.permutation_batch_size(),
         ]
@@ -141,7 +148,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 14;
+pub(crate) const NUM_TABLES: usize = 15;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum TableKind {
@@ -157,8 +164,9 @@ pub enum TableKind {
     FullWordMemory = 9,
     RegisterInit = 10,
     Register = 11,
-    Poseidon2Sponge = 12,
-    Poseidon2 = 13,
+    IoMemory = 12,
+    Poseidon2Sponge = 13,
+    Poseidon2 = 14,
 }
 
 impl TableKind {
@@ -177,6 +185,7 @@ impl TableKind {
             TableKind::FullWordMemory,
             TableKind::RegisterInit,
             TableKind::Register,
+            TableKind::IoMemory,
             TableKind::Poseidon2Sponge,
             TableKind::Poseidon2,
         ]
@@ -226,6 +235,7 @@ table_impl!(HalfWordMemoryTable, TableKind::HalfWordMemory);
 table_impl!(FullWordMemoryTable, TableKind::FullWordMemory);
 table_impl!(RegisterInitTable, TableKind::RegisterInit);
 table_impl!(RegisterTable, TableKind::Register);
+table_impl!(IoMemoryTable, TableKind::IoMemory);
 table_impl!(Poseidon2SpongeTable, TableKind::Poseidon2Sponge);
 table_impl!(Poseidon2Table, TableKind::Poseidon2);
 
@@ -266,6 +276,7 @@ impl<F: Field> Lookups<F> for XorCpuTable<F> {
 pub struct IntoMemoryTable<F: Field>(CrossTableLookup<F>);
 
 impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
+    #[allow(clippy::too_many_lines)]
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
             vec![
@@ -296,6 +307,76 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
                 FullWordMemoryTable::new(
                     memory_fullword::columns::data_for_memory_limb(3),
                     memory_fullword::columns::filter(),
+                ),
+                IoMemoryTable::new(
+                    memory_io::columns::data_for_memory(),
+                    memory_io::columns::filter_for_memory(),
+                ),
+                // poseidon2_sponge input
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(0),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(1),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(2),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(3),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(4),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(5),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(6),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_input_memory(7),
+                    poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                // poseidon2_sponge output
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(0),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(1),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(2),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(3),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(4),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(5),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(6),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
+                ),
+                Poseidon2SpongeTable::new(
+                    poseidon2_sponge::columns::data_for_output_memory(7),
+                    poseidon2_sponge::columns::filter_for_output_memory(),
                 ),
             ],
             MemoryTable::new(
@@ -432,6 +513,22 @@ impl<F: Field> Lookups<F> for RegisterRegInitTable<F> {
             RegisterInitTable::new(
                 crate::registerinit::columns::data_for_register(),
                 crate::registerinit::columns::filter_for_register(),
+            ),
+        )
+    }
+}
+pub struct IoMemoryCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for IoMemoryCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_io_memory(),
+                cpu::columns::filter_for_io_memory(),
+            )],
+            IoMemoryTable::new(
+                memory_io::columns::data_for_cpu(),
+                memory_io::columns::filter_for_cpu(),
             ),
         )
     }

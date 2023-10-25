@@ -2,14 +2,14 @@ use std::iter::repeat;
 use std::str::from_utf8;
 
 use anyhow::{anyhow, Result};
-use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
+use itertools::izip;
+use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
-use plonky2::plonk::config::GenericHashOut;
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
-use crate::state::{Aux, MemEntry, Poseidon2Entry, Poseidon2SpongeData, State};
+use crate::state::{Aux, IoEntry, IoOpcode, MemEntry, Poseidon2Entry, Poseidon2SpongeData, State};
 use crate::system::ecall;
 use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
 
@@ -135,7 +135,15 @@ impl<F: RichField> State<F> {
         let num_bytes_requsted = self.get_register_value(REG_A2);
         let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
         (
-            Aux::default(),
+            Aux {
+                dst_val: u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
+                io: Some(IoEntry {
+                    addr: buffer_start,
+                    op: IoOpcode::Store,
+                    data: data.clone(),
+                }),
+                ..Default::default()
+            },
             data.iter()
                 .enumerate()
                 .fold(updated_self, |updated_self, (i, byte)| {
@@ -195,20 +203,16 @@ impl<F: RichField> State<F> {
             Aux {
                 poseidon2: Some(Poseidon2Entry {
                     addr: input_ptr,
+                    output_addr: output_ptr,
                     len: padded_len(input_len),
                     sponge_data,
                 }),
                 ..Default::default()
             },
-            hash.iter()
-                .enumerate()
+            izip!(0.., hash)
                 .fold(self, |updated_self, (i, byte)| {
                     updated_self
-                        .store_u8(
-                            output_ptr
-                                .wrapping_add(u32::try_from(i).expect("cannot fit i into u32")),
-                            *byte,
-                        )
+                        .store_u8(output_ptr.wrapping_add(i), byte)
                         .unwrap()
                 })
                 .bump_pc(),
@@ -391,33 +395,59 @@ pub fn step<F: RichField>(
     })
 }
 
+const NUM_HASH_OUT_ELTS: usize = 32;
+/// Represents a ~256 bit hash output.
+/// Each Field represent 8 bits.
+#[derive(Copy, Clone, Debug)]
+pub struct HashOut<F: RichField> {
+    pub elements: [F; NUM_HASH_OUT_ELTS],
+}
+
+#[allow(clippy::cast_possible_truncation)]
+impl<F: RichField> HashOut<F> {
+    /// Each field element is converted to byte.
+    fn to_bytes(self) -> Vec<u8> {
+        self.elements
+            .into_iter()
+            .map(|x| x.to_canonical_u64() as u8)
+            .collect()
+    }
+}
+
+// Based on hash_n_to_m_no_pad() from plonky2/src/hash/hashing.rs
+/// This function is sponge function which uses poseidon2 permutation function.
+/// Input must be multiple of 8 bytes. It absorbs all input and the squeezes
+/// 32 Field elements to generate `HashOut`.
+///
 ///  # Panics
 ///
 /// Panics if `PlonkyPermutation` is implemneted on `STATE_SIZE` different than
 /// 12.
 pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
     inputs: &[F],
-) -> (HashOut<F>, Poseidon2SpongeData<F>) {
-    let permute_and_record_data = |perm: &mut P, sponge_data: &mut Poseidon2SpongeData<F>| {
+) -> (HashOut<F>, Vec<Poseidon2SpongeData<F>>) {
+    let permute_and_record_data = |perm: &mut P, sponge_data: &mut Vec<Poseidon2SpongeData<F>>| {
         let preimage: [F; 12] = perm
             .as_ref()
             .try_into()
-            .expect("lenght must be equal to poseidon2 STATE_SIZE");
+            .expect("length must be equal to poseidon2 STATE_SIZE");
         perm.permute();
         let output = perm
             .as_ref()
             .try_into()
-            .expect("lenght must be equal to poseidon2 STATE_SIZE");
-        sponge_data.push((preimage, output));
+            .expect("length must be equal to poseidon2 STATE_SIZE");
+        sponge_data.push(Poseidon2SpongeData {
+            preimage,
+            output,
+            gen_output: F::from_bool(false),
+            con_input: F::from_bool(true),
+        });
     };
 
     let mut perm = P::new(repeat(F::ZERO));
-    let mut inputs = inputs.to_vec();
-    let len = inputs.len();
-    // Add padding of required
-    if len % P::RATE != 0 {
-        inputs.resize(((len / P::RATE) + 1) * P::RATE, F::ZERO);
-    }
+    let inputs = inputs.to_vec();
+    // input length is expected to be multiple of P::RATE
+    assert!(inputs.len() % P::RATE == 0);
     let mut sponge_data = Vec::new();
 
     // Absorb all input chunks.
@@ -431,11 +461,24 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
     loop {
         for &item in perm.squeeze() {
             outputs.push(item);
+            sponge_data
+                .last_mut()
+                .expect("Can't fail at least one elem must be there")
+                .gen_output = F::from_bool(true);
             if outputs.len() == NUM_HASH_OUT_ELTS {
-                return (HashOut::from_vec(outputs), sponge_data);
+                return (
+                    HashOut {
+                        elements: outputs.try_into().expect("can't fail"),
+                    },
+                    sponge_data,
+                );
             }
         }
         permute_and_record_data(&mut perm, &mut sponge_data);
+        sponge_data
+            .last_mut()
+            .expect("Can't fail at least one elem must be there")
+            .con_input = F::from_bool(false);
     }
 }
 
@@ -445,6 +488,7 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
 mod tests {
     use im::HashMap;
     use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::types::Field;
     use proptest::prelude::ProptestConfig;
     use proptest::{prop_assume, proptest};
 
@@ -495,6 +539,27 @@ mod tests {
         assert_eq!(
             state_before_final(&e).get_register_value(rd),
             rs1_value.wrapping_mul(imm),
+        );
+    }
+
+    #[test]
+    fn test_hash_n_to_m_with_pad() {
+        let data = "💥 Mozak-VM Rocks With Poseidon2";
+        let mut data_bytes = data.as_bytes().to_vec();
+        // VM expects input lenght to be multiple of RATE bits
+        data_bytes.resize(data_bytes.len().next_multiple_of(8), 0);
+        let data_fields: Vec<GoldilocksField> = data_bytes
+            .iter()
+            .map(|x| GoldilocksField::from_canonical_u8(*x))
+            .collect();
+        let (hash, _sponge_data) = super::hash_n_to_m_with_pad::<
+            GoldilocksField,
+            Poseidon2Permutation<GoldilocksField>,
+        >(&data_fields);
+        let hash_bytes = hash.to_bytes();
+        assert_eq!(
+            hash_bytes,
+            hex_literal::hex!("4a2087727d3a040d98a37b00bddad96f6edb0fa47e0cefb1a0856b4e22a1cf91")[..]
         );
     }
 

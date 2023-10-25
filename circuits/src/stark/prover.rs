@@ -389,6 +389,7 @@ where
         )?,
         make_proof!(mozak_stark.register_init_stark, TableKind::RegisterInit, [])?,
         make_proof!(mozak_stark.register_stark, TableKind::Register, [])?,
+        make_proof!(mozak_stark.io_memory_stark, TableKind::IoMemory, [])?,
         make_proof!(
             mozak_stark.poseidon2_sponge_stark,
             TableKind::Poseidon2Sponge,
@@ -472,7 +473,10 @@ mod tests {
         let data = "💥 Mozak-VM Rocks With Poseidon2";
         let input_start_addr: u32 = 1024;
         let output_start_addr = 2048;
-        let memory: Vec<(u32, u8)> = izip!((input_start_addr..), data.bytes()).collect();
+        let mut data_bytes = data.as_bytes().to_vec();
+        // VM expects input len to be multiple of RATE bits
+        data_bytes.resize(data_bytes.len().next_multiple_of(8), 0_u8);
+        let memory: Vec<(u32, u8)> = izip!((input_start_addr..), data_bytes).collect();
 
         let (program, record) = simple_test_code(
             &[Instruction {
@@ -485,21 +489,17 @@ mod tests {
                 (REG_A1, input_start_addr),
                 (
                     REG_A2,
-                    u32::try_from(data.as_bytes().len()).expect("don't use very long data"),
+                    u32::try_from(data_bytes.len()).expect("don't use very long data"),
                 ),
                 (REG_A3, output_start_addr),
             ],
         );
+        let output: Vec<u8> = (0..32_u8)
+            .map(|i| record.last_state.load_u8(output_start_addr + u32::from(i)))
+            .collect();
         let expected_output =
-            hex_literal::hex!("4afb11172461851820da91ce1b972afd87caf69abe4316097280a4784b1fe396");
-        for (i, byte) in expected_output.iter().enumerate() {
-            assert_eq!(
-                *byte,
-                record
-                    .last_state
-                    .load_u8(output_start_addr + u32::try_from(i).expect("can't fail"))
-            );
-        }
+            hex_literal::hex!("4a2087727d3a040d98a37b00bddad96f6edb0fa47e0cefb1a0856b4e22a1cf91");
+        assert_eq!(output[..], expected_output[..]);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 }

@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
-use derive_more::Deref;
+use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use log::trace;
 use plonky2::hash::hash_types::RichField;
@@ -107,13 +107,35 @@ pub struct MemEntry {
     pub raw_value: u32,
 }
 
-pub type Poseidon2SpongeData<F> = Vec<([F; WIDTH], [F; WIDTH])>;
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Default)]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[repr(u8)]
+pub enum IoOpcode {
+    #[default]
+    None,
+    Store,
+}
+#[derive(Debug, Clone, Default)]
+pub struct IoEntry {
+    pub addr: u32,
+    pub op: IoOpcode,
+    pub data: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Poseidon2SpongeData<F> {
+    pub preimage: [F; WIDTH],
+    pub output: [F; WIDTH],
+    pub gen_output: F,
+    pub con_input: F,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct Poseidon2Entry<F: RichField> {
     pub addr: u32,
+    pub output_addr: u32,
     pub len: u32,
-    pub sponge_data: Poseidon2SpongeData<F>,
+    pub sponge_data: Vec<Poseidon2SpongeData<F>>,
 }
 
 /// Auxiliary information about the instruction execution
@@ -128,6 +150,7 @@ pub struct Aux<F: RichField> {
     pub op1: u32,
     pub op2: u32,
     pub poseidon2: Option<Poseidon2Entry<F>>,
+    pub io: Option<IoEntry>,
 }
 
 impl<F: RichField> State<F> {

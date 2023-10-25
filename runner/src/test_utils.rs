@@ -26,6 +26,7 @@ pub fn simple_test_code_with_ro_memory(
     ro_mem: &[(u32, u8)],
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
+    io_tape: &[u8],
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
     let _ = env_logger::try_init();
     let ro_code = Code(
@@ -63,7 +64,8 @@ pub fn simple_test_code_with_ro_memory(
         ro_code,
         ..Default::default()
     };
-    let state0 = State::from(&program);
+
+    let state0 = State::new(program.clone(), io_tape);
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
         state.set_register_value(*rs, *val)
@@ -81,7 +83,18 @@ pub fn simple_test_code(
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
-    simple_test_code_with_ro_memory(code, &[], rw_mem, regs)
+    simple_test_code_with_ro_memory(code, &[], rw_mem, regs, &[])
+}
+
+#[must_use]
+#[allow(clippy::missing_panics_doc)]
+pub fn simple_test_code_with_io_tape(
+    code: &[Instruction],
+    rw_mem: &[(u32, u32)],
+    regs: &[(u8, u32)],
+    io_tapes: &[u8],
+) -> (Program, ExecutionRecord<GoldilocksField>) {
+    simple_test_code_with_ro_memory(code, &[], rw_mem, regs, io_tapes)
 }
 
 #[cfg(any(feature = "test", test))]

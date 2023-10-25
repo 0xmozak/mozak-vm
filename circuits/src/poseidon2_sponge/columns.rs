@@ -1,3 +1,5 @@
+use core::ops::Add;
+
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::Poseidon2;
@@ -17,11 +19,13 @@ pub struct Ops<T> {
 pub struct Poseidon2Sponge<T> {
     pub clk: T,
     pub ops: Ops<T>,
-    pub addr: T,
-    pub start_index: T,
+    pub input_addr: T,
+    pub output_addr: T,
+    pub len: T,
     pub preimage: [T; 12],
     pub output: [T; 12],
-    pub is_exe: T,
+    pub gen_output: T,
+    pub con_input: T,
 }
 
 impl<F: RichField> Default for Poseidon2Sponge<F> {
@@ -29,11 +33,13 @@ impl<F: RichField> Default for Poseidon2Sponge<F> {
         Self {
             clk: F::default(),
             ops: Ops::<F>::default(),
-            addr: F::default(),
-            start_index: F::default(),
+            input_addr: F::default(),
+            len: F::default(),
+            output_addr: F::default(),
             preimage: [F::default(); 12],
             output: <F as Poseidon2>::poseidon2([F::default(); 12]),
-            is_exe: F::default(),
+            gen_output: F::default(),
+            con_input: F::default(),
         }
     }
 }
@@ -43,10 +49,25 @@ make_col_map!(Poseidon2Sponge);
 
 pub const NUM_POSEIDON2_SPONGE_COLS: usize = Poseidon2Sponge::<()>::NUMBER_OF_COLUMNS;
 
+impl<T: Clone + Add<Output = T>> Poseidon2Sponge<T> {
+    pub fn is_executed(&self) -> T {
+        self.ops.is_init_permute.clone() + self.ops.is_permute.clone()
+    }
+
+    pub fn get_outputs(&self) -> [T; 4] {
+        [
+            self.output[0].clone(),
+            self.output[1].clone(),
+            self.output[2].clone(),
+            self.output[3].clone(),
+        ]
+    }
+}
+
 #[must_use]
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
     let sponge = MAP.map(Column::from);
-    vec![sponge.clk, sponge.addr, sponge.start_index]
+    vec![sponge.clk, sponge.input_addr, sponge.len]
 }
 
 #[must_use]
@@ -64,7 +85,36 @@ pub fn data_for_poseidon2<F: Field>() -> Vec<Column<F>> {
 }
 
 #[must_use]
-pub fn filter_for_poseidon2<F: Field>() -> Column<F> {
+pub fn filter_for_poseidon2<F: Field>() -> Column<F> { MAP.map(Column::from).is_executed() }
+
+#[must_use]
+pub fn data_for_input_memory<F: Field>(limb_index: u8) -> Vec<Column<F>> {
+    assert!(limb_index < 8, "limb_index can be 0..7");
     let sponge = MAP.map(Column::from);
-    sponge.is_exe
+    vec![
+        sponge.clk,
+        Column::constant(F::ZERO),                            // is_store
+        Column::constant(F::ONE),                             // is_load
+        sponge.preimage[limb_index as usize].clone(),         // value
+        sponge.input_addr + F::from_canonical_u8(limb_index), // address
+    ]
 }
+
+#[must_use]
+pub fn filter_for_input_memory<F: Field>() -> Column<F> { MAP.map(Column::from).con_input }
+
+#[must_use]
+pub fn data_for_output_memory<F: Field>(limb_index: u8) -> Vec<Column<F>> {
+    assert!(limb_index < 8, "limb_index can be 0..7");
+    let sponge = MAP.map(Column::from);
+    vec![
+        sponge.clk,
+        Column::constant(F::ONE),                              // is_store
+        Column::constant(F::ZERO),                             // is_load
+        sponge.output[limb_index as usize].clone(),            // value
+        sponge.output_addr + F::from_canonical_u8(limb_index), // address
+    ]
+}
+
+#[must_use]
+pub fn filter_for_output_memory<F: Field>() -> Column<F> { MAP.map(Column::from).gen_output }

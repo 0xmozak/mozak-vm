@@ -10,7 +10,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
-use crate::columns_view::NumberOfColumns;
+use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::display::derive_display_stark_name;
 use crate::memory::columns::Memory;
 use crate::stark::utils::is_binary;
@@ -20,6 +20,10 @@ derive_display_stark_name!(MemoryStark);
 #[allow(clippy::module_name_repetitions)]
 pub struct MemoryStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> HasNamedColumns for MemoryStark<F, D> {
+    type Columns = Memory<F>;
 }
 
 const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;

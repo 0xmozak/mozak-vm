@@ -1,4 +1,5 @@
 pub const DIGEST_BYTES: usize = 32;
+pub const RATE_BITS: usize = 8;
 
 pub struct Digest([u8; DIGEST_BYTES]);
 
@@ -9,9 +10,13 @@ impl Digest {
 }
 
 pub fn poseidon2_hash(input: &[u8]) -> Digest {
+    // VM expects input length to be multiple of RATE_BITS
+    assert!(input.len() % RATE_BITS == 0);
     let mut output = [0; DIGEST_BYTES];
     #[cfg(target_os = "zkvm")]
     unsafe {
+        // TODO: Hide details of syscall parameters in a function.
+        // https://github.com/0xmozak/mozak-vm/issues/767
         core::arch::asm!(
             "ecall",
             in ("a0") 3,

@@ -180,7 +180,6 @@ fn partial_products<F: Field>(
     };
 
     let degree = trace[0].len();
-    // log::trace!("degree: {}", degree);
     let mut degrees = (0..degree).collect::<Vec<_>>();
     degrees.rotate_right(1);
     degrees
