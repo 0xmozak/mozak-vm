@@ -7,11 +7,7 @@ use std::io::{stdin, BufReader};
 
 pub struct MozakIo<'a> {
     pub stdin: Box<dyn Read + 'a>,
-    #[cfg(not(target_os = "zkvm"))]
-    pub io_tape_file: String,
 }
-
-use core::{assert, assert_eq};
 
 fn fibonacci(n: u32) -> (u32, u32) {
     if n < 2 {
@@ -37,19 +33,6 @@ impl<'a> Read for MozakIo<'a> {
             );
             Ok(len)
         }
-        #[cfg(not(target_os = "zkvm"))]
-        {
-            let n_bytes = self.stdin.read(buf).expect("read should not fail");
-            // open I/O log file in append mode.
-            use std::io::Write;
-            let mut io_tape = std::fs::OpenOptions::new()
-                .append(true)
-                .create(true)
-                .open(self.io_tape_file.as_str())
-                .expect("cannot open tape");
-            io_tape.write(buf).expect("write failed");
-            Ok(n_bytes)
-        }
     }
 }
 
@@ -59,15 +42,13 @@ pub fn main(){
         stdin: Box::new(BufReader::new(stdin())),
     };
     // allow only numbers with atmost 5 digits
-    let mut buffer = [0_u8; 3];
+    let mut buffer = [0_u8; 5];
     let bytes_read = mozak_io.read(buffer.as_mut()).expect("READ failed");
-    println!("{:?}", buffer);
-    let n: u32 = std::str::from_utf8(&buffer[..bytes_read-1]).unwrap().to_string().trim().parse().unwrap();
-    println!("{}", n);
-    let (high, low) = fibonacci(2);
-    assert!(low == 63245986);
-    assert_eq!(high, 0);
-    guest::env::write(&high.to_le_bytes());
+    assert!(bytes_read <= 5);
+    guest::env::write(&bytes_read.to_le_bytes());
+    let n: u32 = std::str::from_utf8(&buffer[..bytes_read]).unwrap().to_string().trim().parse().unwrap();
+    let (_high, _low) = fibonacci(n);
+    guest::env::write(&_high.to_le_bytes());
 }
 
 guest::entry!(main);

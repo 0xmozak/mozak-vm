@@ -7,9 +7,6 @@ version = "0.1.0"
 features = ["std"]
 path = "../../guest"
 
-[dependencies]
-guest = { path = "../../guest" }
-
 [[bin]]
 name = "fibonacci-input"
 path = "main.rs"
