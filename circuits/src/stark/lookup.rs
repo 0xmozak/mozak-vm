@@ -72,7 +72,7 @@ impl<
         const D2: usize,
     > LookupCheckVars<F, FE, P, D2>
 {
-    pub(crate) fn is_empty(&self) -> bool { self.challenges.len() == 0 }
+    pub(crate) fn is_empty(&self) -> bool { self.local_values.len() == 0 }
 }
 
 pub struct LogupCheckVars<F, FE, P, const D2: usize>
@@ -82,6 +82,17 @@ where
     P: PackedField<Scalar = FE>, {
     pub(crate) looking_vars: LookupCheckVars<F, FE, P, D2>,
     pub(crate) looked_vars: LookupCheckVars<F, FE, P, D2>,
+}
+impl<
+        F: Field,
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>,
+        const D2: usize,
+    > LogupCheckVars<F, FE, P, D2>
+{
+    pub(crate) fn is_checkable(&self) -> bool {
+        self.looking_vars.is_empty() | self.looked_vars.is_empty()
+    }
 }
 
 impl<'a, F: RichField + Extendable<D>, const D: usize>

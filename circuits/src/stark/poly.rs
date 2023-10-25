@@ -197,6 +197,7 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark.eval_packed_generic(vars, consumer);
     eval_permutation_checks::<F, FE, P, S, D, D2>(stark, config, vars, permutation_vars, consumer);
     eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
-    // eval_cross_table_logup::<F, FE, P, S, D, D2>(vars, logup_vars,
-    // challenges, consumer);
+    if logup_vars.is_checkable() {
+        eval_cross_table_logup::<F, FE, P, S, D, D2>(vars, logup_vars, challenges, consumer);
+    }
 }

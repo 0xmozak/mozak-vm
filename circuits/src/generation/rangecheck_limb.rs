@@ -14,7 +14,8 @@ pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
     rangecheck_limb_trace: &[Vec<F>],
 ) -> Vec<Vec<F>> {
     let mut multiplicities: HashMap<u8, u8> = HashMap::new();
-    let mut trace: Vec<RangeCheckLimb<F>> = vec![];
+    let mut trace: Vec<RangeCheckLimb<F>> =
+        [0; 255].iter().map(|_| RangeCheckLimb::default()).collect();
 
     LimbTable::lookups()
         .looking_tables

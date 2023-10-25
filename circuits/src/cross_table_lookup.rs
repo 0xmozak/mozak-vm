@@ -95,7 +95,11 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     Ok(())
 }
 
-pub(crate) fn cross_table_logup_data<F: RichField, const D: usize>(
+pub(crate) fn cross_table_logup_data<
+    F: RichField + Extendable<D>,
+    FE: FieldExtension<D>,
+    const D: usize,
+>(
     all_trace_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     lookups: &[CrossTableLogup],
     challenges: &[F],
@@ -300,7 +304,6 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
             .zip(num_logups_per_table)
             .map(|(p, &num)| {
                 // skip looking and looked
-                println!("LUD {num}");
                 let openings = &p.openings;
                 let ctl_zs = openings.aux_polys.iter().skip(num);
                 let ctl_zs_next = openings.aux_polys_next.iter().skip(num);
@@ -358,36 +361,34 @@ pub(crate) fn eval_cross_table_logup<F, FE, P, S, const D: usize, const D2: usiz
         looked_vars,
     } = logup_vars;
     for challenge in challenges {
-        let mut looking_start: usize = 0;
-        let mut looked_start: usize = 0;
-
         let challenge = FE::from_basefield(*challenge);
         if !looking_vars.is_empty() {
             let local_values = &looking_vars.local_values;
             let len = local_values.len() / challenges.len();
 
-            for lv in local_values.iter().skip(looking_start).take(len) {
-                let x = lv;
+            println!("len: {len}");
 
-                // Check that the penultimate helper column contains `1/(table+challenge)`.
-                let x = *x * (*lv + challenge);
-                yield_constr.constraint(x - P::ONES);
+            for values in &local_values.iter().chunks(len) {
+                for lv in values {
+                    let x = lv;
+
+                    let x = *x * (*lv + challenge);
+                    // yield_constr.constraint(x - P::ONES);
+                }
             }
-
-            looking_start += len;
         }
         if !looked_vars.is_empty() {
             let local_values = &looked_vars.local_values;
             let len = local_values.len() / challenges.len();
 
-            for lv in local_values.iter().skip(looked_start).take(len) {
-                let x = lv;
+            for values in &local_values.iter().chunks(len) {
+                for lv in values {
+                    let x = lv;
 
-                // Check that the penultimate helper column contains `1/(table+challenge)`.
-                let x = *x * (*lv + challenge);
-                yield_constr.constraint(x - P::ONES);
+                    let x = *x * (*lv + challenge);
+                    // yield_constr.constraint(x - P::ONES);
+                }
             }
-            looked_start += len;
         }
     }
 }

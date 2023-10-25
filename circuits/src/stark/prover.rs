@@ -130,7 +130,7 @@ where
     let ctlogup_data_per_table = timed!(
         timing,
         "Compute CTL data for each table",
-        cross_table_logup_data::<F, D>(
+        cross_table_logup_data::<F, F::Extension, D>(
             traces_poly_values,
             &mozak_stark.cross_table_logups,
             &logup_challenges
@@ -206,8 +206,6 @@ where
     let permutation_challenges: Vec<GrandProductChallengeSet<F>> = challenger
         .get_n_grand_product_challenge_sets(config.num_challenges, stark.permutation_batch_size());
     let num_logup_cols = logup_data.looking.len() + logup_data.looked.len();
-
-    println!("LUD: {}", num_logup_cols);
 
     let aux_polys = {
         // looking, looked, ctl_data
