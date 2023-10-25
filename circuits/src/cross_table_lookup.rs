@@ -1,9 +1,7 @@
 use anyhow::{ensure, Result};
 use itertools::Itertools;
 #[cfg(test)]
-use itertools::{chain, iproduct};
-#[cfg(test)]
-use itertools::{izip, zip_eq};
+use itertools::{chain, iproduct, izip, zip_eq};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -402,39 +400,34 @@ pub(crate) fn eval_cross_table_lookup_checks_circuit<
     consumer: &mut RecursiveConstraintConsumer<F, D>,
 ) {
     for lookup_vars in ctl_vars {
-        fn select<F: RichField + Extendable<D>, const D: usize>(
-            builder: &mut CircuitBuilder<F, D>,
-            filter: ExtensionTarget<D>,
-            x: ExtensionTarget<D>,
-        ) -> ExtensionTarget<D> {
-            let one = builder.one_extension();
-            let tmp = builder.sub_extension(one, filter);
-            // filter * x + 1 - filter
-            builder.mul_add_extension(filter, x, tmp)
-        }
-
         let CtlCheckVarsTarget {
             local_z,
             next_z,
             challenges,
             columns,
             filter_column,
-        } = lookup_vars;
+        }: &CtlCheckVarsTarget<F, D> = lookup_vars;
+
         let local_values = vars.get_local_values();
         let next_values = vars.get_next_values();
 
-        let evals = columns
+        let evals: Vec<_> = columns
             .iter()
             .map(|c| c.eval_circuit(builder, local_values, next_values))
-            .collect::<Vec<_>>();
+            .collect();
         let combined = challenges.combine_circuit(builder, &evals);
 
         let filter = filter_column.eval_circuit(builder, local_values, next_values);
-        let select = select(builder, filter, combined);
+
+        // select = filter * combined + 1 - filter
+        let one = builder.one_extension();
+        let tmp = builder.sub_extension(one, filter);
+        let select = builder.mul_add_extension(filter, combined, tmp);
 
         // Check value of `Z(1)`
         let last_row = builder.sub_extension(*next_z, select);
         consumer.constraint_last_row(builder, last_row);
+
         // Check `Z(gw) = combination * Z(w)`
         let transition = builder.mul_sub_extension(*local_z, select, *next_z);
         consumer.constraint_transition(builder, transition);
