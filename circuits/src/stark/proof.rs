@@ -345,19 +345,16 @@ pub struct StarkOpeningSetTarget<const D: usize> {
 impl<const D: usize> StarkOpeningSetTarget<D> {
     pub(crate) fn to_fri_openings(&self, zero: Target) -> FriOpeningsTarget<D> {
         let zeta_batch = FriOpeningBatchTarget {
-            values: self
-                .local_values
-                .iter()
-                .chain(&self.permutation_ctl_zs)
-                .chain(&self.quotient_polys)
-                .copied()
-                .collect_vec(),
+            values: chain!(
+                &self.local_values,
+                &self.permutation_ctl_zs,
+                &self.quotient_polys
+            )
+            .copied()
+            .collect_vec(),
         };
         let zeta_next_batch = FriOpeningBatchTarget {
-            values: self
-                .next_values
-                .iter()
-                .chain(&self.permutation_ctl_zs_next)
+            values: chain!(&self.next_values, &self.permutation_ctl_zs_next)
                 .copied()
                 .collect_vec(),
         };
@@ -366,7 +363,6 @@ impl<const D: usize> StarkOpeningSetTarget<D> {
             values: self
                 .ctl_zs_last
                 .iter()
-                .copied()
                 .map(|t| t.to_ext_target(zero))
                 .collect(),
         };
