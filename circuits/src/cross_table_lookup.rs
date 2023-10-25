@@ -1,5 +1,9 @@
 use anyhow::{ensure, Result};
 use itertools::Itertools;
+#[cfg(test)]
+use itertools::{chain, iproduct};
+#[cfg(test)]
+use itertools::{izip, zip_eq};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -229,12 +233,14 @@ impl<F: Field> CrossTableLookup<F> {
 
     #[cfg(test)]
     pub(crate) fn num_ctl_zs(ctls: &[Self], table: TableKind, num_challenges: usize) -> usize {
-        let mut num_ctls = 0;
-        for ctl in ctls {
-            let all_tables = std::iter::once(&ctl.looked_table).chain(&ctl.looking_tables);
-            num_ctls += all_tables.filter(|twc| twc.kind == table).count();
-        }
-        num_ctls * num_challenges
+        ctls.iter()
+            .map(|ctl| {
+                chain!([&ctl.looked_table], &ctl.looking_tables)
+                    .filter(|twc| twc.kind == table)
+                    .count()
+            })
+            .sum::<usize>()
+            * num_challenges
     }
 }
 
@@ -358,50 +364,29 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
         ctl_challenges: &'a GrandProductChallengeSet<Target>,
         num_permutation_zs: usize,
     ) -> Vec<Self> {
-        let mut ctl_zs = {
-            let openings = &proof.openings;
-            let ctl_zs = openings.permutation_ctl_zs.iter().skip(num_permutation_zs);
-            let ctl_zs_next = openings
-                .permutation_ctl_zs_next
-                .iter()
-                .skip(num_permutation_zs);
-            ctl_zs.zip(ctl_zs_next)
+        let ctl_zs = {
+            izip!(
+                &proof.openings.permutation_ctl_zs,
+                &proof.openings.permutation_ctl_zs_next
+            )
+            .skip(num_permutation_zs)
         };
 
-        let mut ctl_vars = vec![];
-        for CrossTableLookup {
-            looking_tables,
-            looked_table,
-        } in cross_table_lookups
-        {
-            for &challenges in &ctl_challenges.challenges {
-                for looking_table in looking_tables {
-                    if looking_table.kind == table {
-                        let (looking_z, looking_z_next) = ctl_zs.next().unwrap();
-                        ctl_vars.push(Self {
-                            local_z: *looking_z,
-                            next_z: *looking_z_next,
-                            challenges,
-                            columns: &looking_table.columns,
-                            filter_column: &looking_table.filter_column,
-                        });
-                    }
-                }
-
-                if looked_table.kind == table {
-                    let (looked_z, looked_z_next) = ctl_zs.next().unwrap();
-                    ctl_vars.push(Self {
-                        local_z: *looked_z,
-                        next_z: *looked_z_next,
-                        challenges,
-                        columns: &looked_table.columns,
-                        filter_column: &looked_table.filter_column,
-                    });
-                }
-            }
-        }
-        assert!(ctl_zs.next().is_none());
-        ctl_vars
+        let ctl_chain = cross_table_lookups.iter().flat_map(
+            |CrossTableLookup {
+                 looking_tables,
+                 looked_table,
+             }| chain!(looking_tables, [looked_table]).filter(|twc| twc.kind == table),
+        );
+        zip_eq(ctl_zs, iproduct!(ctl_chain, &ctl_challenges.challenges))
+            .map(|((&local_z, &next_z), (table, &challenges))| Self {
+                local_z,
+                next_z,
+                challenges,
+                columns: &table.columns,
+                filter_column: &table.filter_column,
+            })
+            .collect()
     }
 }
 
@@ -424,7 +409,8 @@ pub(crate) fn eval_cross_table_lookup_checks_circuit<
         ) -> ExtensionTarget<D> {
             let one = builder.one_extension();
             let tmp = builder.sub_extension(one, filter);
-            builder.mul_add_extension(filter, x, tmp) // filter * x + 1 - filter
+            // filter * x + 1 - filter
+            builder.mul_add_extension(filter, x, tmp)
         }
 
         let CtlCheckVarsTarget {
