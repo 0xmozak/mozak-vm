@@ -32,22 +32,14 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
     let mut input_addr = poseidon2.addr;
     let mut input_len = poseidon2.len;
     for i in 0..unroll_count {
-        let ops: Ops<F> = if i == 0 {
-            // init_permute row
-            Ops {
-                is_init_permute: F::ONE,
-                is_permute: F::ZERO,
-            }
-        } else {
-            Ops {
-                is_init_permute: F::ZERO,
-                is_permute: F::ONE,
-            }
+        let ops: Ops<F> = Ops {
+            is_init_permute: F::from_bool(i == 0),
+            is_permute: F::from_bool(i != 0),
         };
         let sponge_datum = poseidon2
             .sponge_data
             .get(i as usize)
-            .expect("unroll_count not consistant with number of permutations");
+            .expect("unroll_count not consistent with number of permutations");
         let current_output_addr = output_addr;
         let current_input_add = input_addr;
         let current_input_len = input_len;

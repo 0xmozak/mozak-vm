@@ -17,7 +17,7 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // ECALL is used for HALT, IO_READ or POSEIDON2 system call.
-    // So only one of them will be one.
+    // So when instruciton is ECALL, only one of them will be one.
     yield_constr.constraint(lv.inst.ops.ecall - (lv.is_halt + lv.is_io_store + lv.is_poseidon2));
     halt_constraints(lv, nv, yield_constr);
     io_constraints(lv, yield_constr);
