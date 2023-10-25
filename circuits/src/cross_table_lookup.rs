@@ -409,7 +409,8 @@ pub(crate) fn eval_cross_table_lookup_checks_circuit<
         ) -> ExtensionTarget<D> {
             let one = builder.one_extension();
             let tmp = builder.sub_extension(one, filter);
-            builder.mul_add_extension(filter, x, tmp) // filter * x + 1 - filter
+            // filter * x + 1 - filter
+            builder.mul_add_extension(filter, x, tmp)
         }
 
         let CtlCheckVarsTarget {
