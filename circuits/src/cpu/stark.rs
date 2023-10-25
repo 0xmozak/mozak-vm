@@ -14,7 +14,7 @@ use starky::stark::Stark;
 
 use super::columns::{CpuColumnsExtended, CpuState, Instruction, OpSelectors};
 use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
-use crate::columns_view::NumberOfColumns;
+use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
 use crate::display::derive_display_stark_name;
 use crate::program::columns::ProgramRom;
@@ -26,6 +26,10 @@ derive_display_stark_name!(CpuStark);
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> HasNamedColumns for CpuStark<F, D> {
+    type Columns = CpuColumnsExtended<F>;
 }
 
 impl<P: PackedField> OpSelectors<P> {
