@@ -23,8 +23,7 @@ pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<Memory
             .collect();
 
     memory_inits.sort_by_key(|init| {
-        let addr: u64 = init.element.address.to_canonical_u64();
-        addr
+        init.element.address.to_canonical_u64()
     });
 
     pad_trace_with_default(memory_inits)
