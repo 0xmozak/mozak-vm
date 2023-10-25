@@ -405,6 +405,7 @@ pub struct HashOut<F: RichField> {
 
 #[allow(clippy::cast_possible_truncation)]
 impl<F: RichField> HashOut<F> {
+    /// Each field element is converted to byte.
     fn to_bytes(self) -> Vec<u8> {
         self.elements
             .into_iter()
@@ -414,6 +415,10 @@ impl<F: RichField> HashOut<F> {
 }
 
 // Based on hash_n_to_m_no_pad() from plonky2/src/hash/hashing.rs
+/// This function is sponge function which uses poseidon2 permutation function.
+/// Input must be multiple of 8 bytes. It absorbs all input and the squeezes
+/// 32 Field elements to generate `HashOut`.
+///
 ///  # Panics
 ///
 /// Panics if `PlonkyPermutation` is implemneted on `STATE_SIZE` different than
@@ -425,12 +430,12 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
         let preimage: [F; 12] = perm
             .as_ref()
             .try_into()
-            .expect("lenght must be equal to poseidon2 STATE_SIZE");
+            .expect("length must be equal to poseidon2 STATE_SIZE");
         perm.permute();
         let output = perm
             .as_ref()
             .try_into()
-            .expect("lenght must be equal to poseidon2 STATE_SIZE");
+            .expect("length must be equal to poseidon2 STATE_SIZE");
         sponge_data.push(Poseidon2SpongeData {
             preimage,
             output,
@@ -443,9 +448,6 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
     let inputs = inputs.to_vec();
     // input length is expected to be multiple of P::RATE
     assert!(inputs.len() % P::RATE == 0);
-    // let len = inputs.len();
-    // Add padding if required
-    // inputs.resize(len.next_multiple_of(P::RATE), F::ZERO);
     let mut sponge_data = Vec::new();
 
     // Absorb all input chunks.
@@ -459,10 +461,10 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
     loop {
         for &item in perm.squeeze() {
             outputs.push(item);
-            let sponge_datum = sponge_data
+            sponge_data
                 .last_mut()
-                .expect("Can't fail at least one elem must be there");
-            sponge_datum.gen_output = F::from_bool(true);
+                .expect("Can't fail at least one elem must be there")
+                .gen_output = F::from_bool(true);
             if outputs.len() == NUM_HASH_OUT_ELTS {
                 return (
                     HashOut {
@@ -473,10 +475,10 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
             }
         }
         permute_and_record_data(&mut perm, &mut sponge_data);
-        let sponge_datum = sponge_data
+        sponge_data
             .last_mut()
-            .expect("Can't fail at least one elem must be there");
-        sponge_datum.con_input = F::from_bool(false);
+            .expect("Can't fail at least one elem must be there")
+            .con_input = F::from_bool(false);
     }
 }
 
