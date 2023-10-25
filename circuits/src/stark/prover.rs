@@ -476,6 +476,7 @@ mod tests {
         let mut data_bytes = data.as_bytes().to_vec();
         // VM expects input len to be multiple of RATE bits
         data_bytes.resize(data_bytes.len().next_multiple_of(8), 0_u8);
+        let data_len = data_bytes.len();
         let memory: Vec<(u32, u8)> = izip!((input_start_addr..), data_bytes).collect();
 
         let (program, record) = simple_test_code(
@@ -489,7 +490,7 @@ mod tests {
                 (REG_A1, input_start_addr),
                 (
                     REG_A2,
-                    u32::try_from(data_bytes.len()).expect("don't use very long data"),
+                    u32::try_from(data_len).expect("don't use very long data"),
                 ),
                 (REG_A3, output_start_addr),
             ],

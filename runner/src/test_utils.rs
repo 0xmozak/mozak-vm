@@ -90,7 +90,7 @@ pub fn simple_test_code(
 #[allow(clippy::missing_panics_doc)]
 pub fn simple_test_code_with_io_tape(
     code: &[Instruction],
-    rw_mem: &[(u32, u32)],
+    rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
     io_tapes: &[u8],
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
