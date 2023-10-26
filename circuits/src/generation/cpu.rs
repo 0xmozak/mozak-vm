@@ -298,7 +298,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
     // used_pcs
     let unused_instructions: Vec<_> = program_rom
         .iter()
-        .filter(|row| !used_pcs.contains(&row.inst.pc))
+        .filter(|row| !used_pcs.contains(&row.inst.pc) && row.filter.is_nonzero())
         .copied()
         .collect();
 
