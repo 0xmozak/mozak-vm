@@ -3,6 +3,7 @@
 // TODO: remove this when shadow_rs updates enough.
 #![allow(clippy::needless_raw_string_hashes)]
 use std::io::{Read, Write};
+use std::time::Duration;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -215,7 +216,7 @@ fn main() -> Result<()> {
                 println!("{trace_cap:?}");
             }
             Command::Bench (bench) => {
-                let time_taken = timeit!(bench.run()?).as_secs_f32();
+                let time_taken = timeit(&|| {let _ = bench.run();}).as_secs_f64();
                 println!("{time_taken}");
             }
             Command::BuildInfo => unreachable!(),
@@ -224,12 +225,8 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-#[macro_export]
-macro_rules! timeit {
-    ($func:expr) => {{
-        let start_time = std::time::Instant::now();
-        $func;
-        let elapsed_time = start_time.elapsed();
-        elapsed_time
-    }};
+pub fn timeit(func: &impl Fn()) -> Duration {
+    let start_time = std::time::Instant::now();
+    func();
+    start_time.elapsed()
 }
