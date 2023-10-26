@@ -15,6 +15,10 @@ pub(crate) unsafe fn transmute_without_compile_time_size_checks<T, U>(t: T) -> U
     transmute_copy(&ManuallyDrop::<T>::new(t))
 }
 
+pub trait HasNamedColumns {
+    type Columns;
+}
+
 pub trait NumberOfColumns {
     const NUMBER_OF_COLUMNS: usize;
 }
