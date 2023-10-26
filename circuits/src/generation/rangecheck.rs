@@ -79,6 +79,7 @@ mod tests {
     use crate::generation::cpu::generate_cpu_trace;
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
+    use crate::generation::io_memory::generate_io_memory_trace;
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
 
@@ -104,12 +105,14 @@ mod tests {
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(&program, &record.executed);
+        let io_memory = generate_io_memory_trace(&program, &record.executed);
         let memory_rows = generate_memory_trace::<F>(
             &program,
             &record.executed,
             &memory_init,
             &halfword_memory,
             &fullword_memory,
+            &io_memory,
         );
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
