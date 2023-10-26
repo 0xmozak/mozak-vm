@@ -6,7 +6,8 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
 use crate::memory::columns::Memory;
-use crate::rangecheck::columns::{RangeCheckColumnsView, MAP};
+use crate::rangecheck::columns::{MultiplicityView, RangeCheckColumnsView, MAP};
+use crate::stark::lookup::{rangechecks_u32, Looking};
 use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
 use crate::stark::utils::transpose_trace;
 
@@ -41,17 +42,17 @@ where
 pub(crate) fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     memory_trace: &[Memory<F>],
-) -> Vec<Vec<F>> {
+) -> Vec<RangeCheckColumnsView<F>> {
     let mut multiplicities: HashMap<u32, u32> = HashMap::new();
-    let mut trace: Vec<RangeCheckColumnsView<F>> = vec![];
+    let mut num_mults: usize = 0;
 
-    RangecheckTable::lookups()
+    rangechecks_u32()
         .looking_tables
         .into_iter()
         .for_each(|looking_table| {
             match looking_table.kind {
-                TableKind::Cpu => extract(cpu_trace, &looking_table),
-                TableKind::Memory => extract(memory_trace, &looking_table),
+                TableKind::Cpu => cpu_trace.iter().map(|s| s.dst_value).collect::<Vec<_>>(),
+                // TableKind::Memory => extract(memory_trace, &looking_table),
                 other => unimplemented!("Can't range check {other:#?} tables"),
             }
             .into_iter()
@@ -64,34 +65,26 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
                 } else {
                     multiplicities.insert(val, 1);
                 }
-
-                let row = RangeCheckColumnsView {
-                    limbs: limbs_from_u32(val),
-                    filter: 1,
-                    ..Default::default()
-                }
-                .map(F::from_canonical_u8);
-
-                trace.push(row);
+                num_mults += 1;
             });
         });
 
-    let extension_len = trace.len().next_power_of_two() - trace.len();
+    let mut trace: Vec<RangeCheckColumnsView<F>> = Vec::with_capacity(num_mults);
+
+    for (i, (value, multiplicity)) in multiplicities.iter().enumerate() {
+        trace.push(RangeCheckColumnsView {
+            limbs: limbs_from_u32(*value).map(F::from_canonical_u8),
+            filter: F::ONE,
+            logup_u32: MultiplicityView {
+                value: F::from_canonical_u32(*value),
+                multiplicity: F::from_canonical_u32(*multiplicity),
+            },
+        });
+    }
     trace.resize(
         trace.len().next_power_of_two(),
         RangeCheckColumnsView::default(),
     );
-    multiplicities.insert(
-        0,
-        multiplicities.get(&0).unwrap_or(&0) + u32::try_from(extension_len).unwrap(),
-    );
-
-    let mut trace = transpose_trace(trace);
-
-    for (i, (value, multiplicity)) in multiplicities.iter().enumerate() {
-        trace[MAP.logup_u32.value][i] = F::from_canonical_u32(*value);
-        trace[MAP.logup_u32.multiplicity][i] = F::from_canonical_u32(*multiplicity);
-    }
 
     trace
 }

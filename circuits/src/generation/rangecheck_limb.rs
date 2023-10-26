@@ -4,30 +4,34 @@ use plonky2::hash::hash_types::RichField;
 
 use super::rangecheck::extract;
 use crate::cpu::columns::CpuState;
-use crate::rangecheck_limb::columns::{RangeCheckLimb, MAP};
-use crate::stark::mozak_stark::{LimbTable, Lookups, TableKind};
+use crate::rangecheck::columns::{MultiplicityView, RangeCheckColumnsView};
+use crate::rangecheck_limb::columns::RangeCheckLimb;
+use crate::stark::lookup::rangechecks_u8;
+use crate::stark::mozak_stark::TableKind;
 use crate::stark::utils::transpose_trace;
 
 #[must_use]
 pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
-    rangecheck_limb_trace: &[Vec<F>],
+    rangecheck_limbs_trace: &[RangeCheckColumnsView<F>],
 ) -> Vec<Vec<F>> {
     let mut multiplicities: HashMap<u8, u8> = HashMap::new();
-    let mut trace: Vec<RangeCheckLimb<F>> =
-        [0; 255].iter().map(|_| RangeCheckLimb::default()).collect();
 
-    LimbTable::lookups()
+    rangechecks_u8()
         .looking_tables
         .into_iter()
         .for_each(|looking_table| {
             match looking_table.kind {
-                TableKind::RangeCheck => extract(rangecheck_limb_trace, &looking_table),
-                TableKind::Cpu => extract(cpu_trace, &looking_table),
+                TableKind::RangeCheck => rangecheck_limbs_trace
+                    .iter()
+                    .flat_map(|l| l.limbs.iter().map(|l| l).collect::<Vec<_>>())
+                    .collect::<Vec<_>>(),
+                // TableKind::Cpu => extract(cpu_trace, &looking_table),
                 other => unimplemented!("Can't range check {other:?} tables"),
             }
             .into_iter()
             .for_each(|v| {
+                println!("v: {v:?}");
                 let value = u8::try_from(v.to_canonical_u64())
                     .expect("casting value to u32 should succeed");
 
@@ -36,30 +40,24 @@ pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
                 } else {
                     multiplicities.insert(value, 1);
                 }
-
-                let row = RangeCheckLimb {
-                    value,
-                    filter: 1,
-                    ..Default::default()
-                }
-                .map(F::from_canonical_u8);
-
-                trace.push(row);
             });
         });
-    let extension_len = trace.len().next_power_of_two() - trace.len();
-    trace.resize(trace.len().next_power_of_two(), RangeCheckLimb::default());
-    multiplicities.insert(
-        0,
-        multiplicities.get(&0).unwrap_or(&0) + u8::try_from(extension_len).unwrap(),
-    );
+    let mut trace: Vec<RangeCheckLimb<F>> = Vec::with_capacity(multiplicities.len());
 
-    let mut trace = transpose_trace(trace);
-
-    for (i, (value, multiplicity)) in multiplicities.iter().enumerate() {
-        trace[MAP.logup_u8.value][i] = F::from_canonical_u8(*value);
-        trace[MAP.logup_u8.multiplicity][i] = F::from_canonical_u8(*multiplicity);
+    for (i, (value, multiplicity)) in multiplicities.into_iter().enumerate() {
+        trace.push(
+            RangeCheckLimb {
+                filter: 1,
+                logup_u8: MultiplicityView {
+                    value,
+                    multiplicity,
+                },
+            }
+            .map(F::from_canonical_u8),
+        );
     }
+    trace.resize(trace.len().next_power_of_two(), RangeCheckLimb::default());
 
+    let trace = transpose_trace(trace);
     trace
 }

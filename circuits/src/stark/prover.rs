@@ -130,7 +130,7 @@ where
     let ctlogup_data_per_table = timed!(
         timing,
         "Compute CTL data for each table",
-        cross_table_logup_data::<F, F::Extension, D>(
+        cross_table_logup_data::<F, D>(
             traces_poly_values,
             &mozak_stark.cross_table_logups,
             &logup_challenges

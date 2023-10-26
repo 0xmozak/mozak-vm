@@ -70,7 +70,8 @@ where
     let mut num_logups_per_table = [0; NUM_TABLES];
     for ctl in &cross_table_logups {
         for looking_table in &ctl.looking_tables {
-            num_logups_per_table[looking_table.kind as usize] += looking_table.columns.len();
+            num_logups_per_table[looking_table.kind as usize] +=
+                looking_table.columns.len() * ctl_challenges.challenges.len();
         }
         num_logups_per_table[ctl.looked_table.kind as usize] += 2;
     }

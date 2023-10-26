@@ -1,5 +1,5 @@
 use anyhow::{ensure, Result};
-use itertools::Itertools;
+use itertools::{izip, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -13,7 +13,7 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-use crate::stark::lookup::{CrossTableLogup, LogupCheckVars};
+use crate::stark::lookup::{CrossTableLogup, LogupCheckVars, LookupCheckVars};
 use crate::stark::mozak_stark::{Table, NUM_TABLES};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::StarkProof;
@@ -59,7 +59,9 @@ pub(crate) struct CtlZData<F: Field> {
 #[derive(Default)]
 pub(crate) struct LogupData<F: Field> {
     pub(crate) looking: Vec<PolynomialValues<F>>,
+    pub(crate) looking_columns: Vec<usize>,
     pub(crate) looked: Vec<PolynomialValues<F>>,
+    pub(crate) looked_columns: Vec<usize>,
 }
 
 pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: usize>(
@@ -95,29 +97,26 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     Ok(())
 }
 
-pub(crate) fn cross_table_logup_data<
-    F: RichField + Extendable<D>,
-    FE: FieldExtension<D>,
-    const D: usize,
->(
+pub(crate) fn cross_table_logup_data<F: RichField + Extendable<D>, const D: usize>(
     all_trace_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     lookups: &[CrossTableLogup],
     challenges: &[F],
 ) -> [LogupData<F>; NUM_TABLES] {
+    fn log_derivative<F: Field>(mut column: Vec<F>, challenge: F) -> PolynomialValues<F> {
+        for x in &mut column {
+            *x = challenge + *x;
+        }
+
+        PolynomialValues::from(F::batch_multiplicative_inverse(&column))
+    }
+
     let mut data_per_table = [0; NUM_TABLES].map(|_| LogupData::default());
+
     for CrossTableLogup {
         looking_tables,
         looked_table,
     } in lookups
     {
-        fn log_derivative<F: Field>(mut column: Vec<F>, challenge: F) -> PolynomialValues<F> {
-            for x in &mut column {
-                *x = challenge + *x;
-            }
-
-            PolynomialValues::from(F::batch_multiplicative_inverse(&column))
-        }
-
         for challenge in challenges {
             // Calculates 1 / x + f(x), which prepares the column to be constrained as per
             // Lemma 5 within the LogUp paper.
@@ -134,16 +133,24 @@ pub(crate) fn cross_table_logup_data<
                             *challenge,
                         ));
                 }
+
+                data_per_table[looking_table.kind as usize]
+                    .looking_columns
+                    .extend_from_slice(&looking_table.columns);
             }
 
             // Calculate all helper columns for looked.
             let looked_poly_values = &all_trace_poly_values[looked_table.kind as usize];
+
             data_per_table[looked_table.kind as usize]
                 .looked
                 .push(log_derivative(
                     looked_poly_values[looked_table.table_column].values.clone(),
                     *challenge,
                 ));
+            data_per_table[looked_table.kind as usize]
+                .looked_columns
+                .push(looked_table.table_column);
         }
     }
     data_per_table
@@ -299,6 +306,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         ctl_challenges: &'a GrandProductChallengeSet<F>,
         num_logups_per_table: &'a [usize; NUM_TABLES],
     ) -> [Vec<Self>; NUM_TABLES] {
+        println!("NLPT: {:?}", num_logups_per_table);
         let mut ctl_zs = proofs
             .iter()
             .zip(num_logups_per_table)
@@ -347,7 +355,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
 }
 
 pub(crate) fn eval_cross_table_logup<F, FE, P, S, const D: usize, const D2: usize>(
-    _vars: &S::EvaluationFrame<FE, P, D2>,
+    vars: &S::EvaluationFrame<FE, P, D2>,
     logup_vars: &LogupCheckVars<F, FE, P, D2>,
     challenges: &[F],
     yield_constr: &mut ConstraintConsumer<P>,
@@ -356,41 +364,39 @@ pub(crate) fn eval_cross_table_logup<F, FE, P, S, const D: usize, const D2: usiz
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
     S: Stark<F, D>, {
-    let LogupCheckVars {
-        looking_vars,
-        looked_vars,
-    } = logup_vars;
-    for challenge in challenges {
-        let challenge = FE::from_basefield(*challenge);
-        if !looking_vars.is_empty() {
-            let local_values = &looking_vars.local_values;
-            let len = local_values.len() / challenges.len();
+    fn evaluate_vars<F, FE, P, S, const D: usize, const D2: usize>(
+        vars: &S::EvaluationFrame<FE, P, D2>,
+        logup_vars: &LookupCheckVars<F, FE, P, D2>,
+        challenges: &[F],
+        yield_constr: &mut ConstraintConsumer<P>,
+    ) where
+        F: RichField + Extendable<D>,
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>,
+        S: Stark<F, D>, {
+        if logup_vars.is_empty() {
+            return;
+        };
+        let lvs: &[P] = vars.get_local_values();
+        let lvs_to_check = &logup_vars.local_values;
+        let columns = &logup_vars.columns;
 
-            println!("len: {len}");
-
-            for values in &local_values.iter().chunks(len) {
-                for lv in values {
-                    let x = lv;
-
-                    let x = *x * (*lv + challenge);
-                    // yield_constr.constraint(x - P::ONES);
-                }
-            }
-        }
-        if !looked_vars.is_empty() {
-            let local_values = &looked_vars.local_values;
-            let len = local_values.len() / challenges.len();
-
-            for values in &local_values.iter().chunks(len) {
-                for lv in values {
-                    let x = lv;
-
-                    let x = *x * (*lv + challenge);
-                    // yield_constr.constraint(x - P::ONES);
-                }
-            }
+        let chunk_len = lvs_to_check.len() / challenges.len();
+        for (i, (c, lv)) in izip!(columns, lvs_to_check).enumerate() {
+            let challenge = challenges.get(i / chunk_len).unwrap();
+            let challenge = FE::from_basefield(*challenge);
+            yield_constr.constraint(
+                (lvs[usize::try_from(c.to_canonical_u64())
+                    .expect("cast from u64 to usize should succeed")]
+                    + challenge)
+                    * *lv
+                    - P::ONES,
+            );
         }
     }
+
+    evaluate_vars::<F, FE, P, S, D, D2>(vars, &logup_vars.looking_vars, challenges, yield_constr);
+    evaluate_vars::<F, FE, P, S, D, D2>(vars, &logup_vars.looked_vars, challenges, yield_constr);
 }
 
 pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const D2: usize>(

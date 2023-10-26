@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 use starky::stark::Stark;
 
-use super::lookup::{rangechecks_u32, CrossTableLogup};
+use super::lookup::{rangechecks_u32, rangechecks_u8, CrossTableLogup};
 use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
 use crate::cpu::stark::CpuStark;
@@ -81,7 +81,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 FullWordMemoryCpuTable::lookups(),
                 RegisterRegInitTable::lookups(),
             ],
-            cross_table_logups: vec![rangechecks_u32()],
+            cross_table_logups: vec![rangechecks_u32(), rangechecks_u8()],
             debug: false,
         }
     }

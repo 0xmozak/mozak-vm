@@ -113,9 +113,11 @@ where
                     local_values: aux_polys_commitment.get_lde_values_packed(i_start, step)
                         [..logup_data.looking.len()]
                         .to_vec(),
-                    next_values: aux_polys_commitment.get_lde_values_packed(i_next_start, step)
-                        [..logup_data.looking.len()]
-                        .to_vec(),
+                    columns: logup_data
+                        .looking_columns
+                        .iter()
+                        .map(|c| F::from_canonical_usize(*c))
+                        .collect::<Vec<_>>(),
                     challenges: challenges.to_vec(),
                 },
                 looked_vars: LookupCheckVars {
@@ -123,10 +125,11 @@ where
                         [logup_data.looking.len()
                             ..logup_data.looking.len() + logup_data.looked.len()]
                         .to_vec(),
-                    next_values: aux_polys_commitment.get_lde_values_packed(i_next_start, step)
-                        [logup_data.looking.len()
-                            ..logup_data.looking.len() + logup_data.looked.len()]
-                        .to_vec(),
+                    columns: logup_data
+                        .looked_columns
+                        .iter()
+                        .map(|c| F::from_canonical_usize(*c))
+                        .collect::<Vec<_>>(),
                     challenges: challenges.to_vec(),
                 },
             };
@@ -197,7 +200,7 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark.eval_packed_generic(vars, consumer);
     eval_permutation_checks::<F, FE, P, S, D, D2>(stark, config, vars, permutation_vars, consumer);
     eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
-    if logup_vars.is_checkable() {
+    if !logup_vars.is_empty() {
         eval_cross_table_logup::<F, FE, P, S, D, D2>(vars, logup_vars, challenges, consumer);
     }
 }

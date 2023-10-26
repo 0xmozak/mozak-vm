@@ -83,7 +83,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let register_rows = generate_register_trace::<F>(program, record);
 
     let cpu_trace = trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows));
-    let rangecheck_trace = trace_to_poly_values(rangecheck_rows);
+    let rangecheck_trace = trace_rows_to_poly_values(rangecheck_rows);
     let xor_trace = trace_rows_to_poly_values(xor_rows);
     let shift_amount_trace = trace_rows_to_poly_values(shift_amount_rows);
     let program_trace = trace_rows_to_poly_values(program_rows);
