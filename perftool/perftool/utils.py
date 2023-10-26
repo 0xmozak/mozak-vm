@@ -13,8 +13,8 @@ def sample(min_value: int, max_value: int) -> int:
 
 
 def create_repo_from_commit(commit: str, commit_folder: Path):
-    subprocess.run(
-        ["git", "worktree", "add", "--force", str(commit_folder), commit], check=True
+    return (commit_folder / ".git").is_file() or subprocess.run(
+        ["git", "worktree", "add", "--force", commit_folder, commit], check=True
     )
 
 

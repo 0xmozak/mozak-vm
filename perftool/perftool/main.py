@@ -1,3 +1,4 @@
+import itertools
 import random
 import tempfile
 from pathlib import Path
@@ -21,72 +22,46 @@ app = typer.Typer()
 
 
 def load_commits_from_config(bench_function: str) -> dict[str, str]:
-    bench_function_data = load_bench_function_data(bench_function)
-    commits = bench_function_data["commits"]
-    return commits
+    return load_bench_function_data(bench_function)["commits"]
 
 
 def build_repo(commit: str, tmpfolder: Path):
     commit_folder = tmpfolder / commit
-    try:
-        commit_folder.mkdir()
-    except FileExistsError as e:
-        print(f"{e}")
-        print(f"Skipping build for {commit}...")
-        return
     create_repo_from_commit(commit, commit_folder)
     cli_repo = commit_folder / "cli"
     build_release(cli_repo)
 
 
 def create_symlink_for_repo(commit: str, tmpfolder: Path, bench_function: str):
-    commit_folder = tmpfolder / commit
-    build_folder = Path.cwd() / "build"
-    build_folder.mkdir(exist_ok=True)
-    bench_folder = build_folder / bench_function
-    bench_folder.mkdir(exist_ok=True)
-    commit_link = bench_folder / commit
+    bench_folder = Path.cwd() / "build" / bench_function
+    bench_folder.mkdir(exist_ok=True, parents=True)
     try:
-        commit_link.symlink_to(commit_folder)
+        (bench_folder / commit).symlink_to(tmpfolder / commit)
     except FileExistsError as e:
-        print(f"{e}")
-        print(f"Skipping symlink for {commit}...")
-        return
+        pass
 
 
 @app.command()
 def bench(bench_function: str, min_value: int, max_value: int):
     bench_commits = load_commits_from_config(bench_function)
     # create build folder if it doesn't exist
-    build_folder = Path.cwd() / "build"
-    build_folder.mkdir(exist_ok=True)
     # create bench folder if it doesn't exist
-    bench_folder = build_folder / bench_function
-    bench_folder.mkdir(exist_ok=True)
+    bench_folder = Path.cwd() / "build" / bench_function
+    bench_folder.mkdir(exist_ok=True, parents=True)
     # create data folder if it doesn't exist
-    data_folder = Path.cwd() / "data"
-    data_folder.mkdir(exist_ok=True)
-    data_bench_folder = data_folder / bench_function
-    data_bench_folder.mkdir(exist_ok=True)
-    commits = list(commit for (_commit_description, commit) in bench_commits.items())
-    # initialize the csv files with headers if they does not exist
-    for commit in commits:
+    data_bench_folder = Path.cwd() / "data" / bench_function
+    data_bench_folder.mkdir(exist_ok=True, parents=True)
+    # initialize the csv files with headers if they do not exist
+    for commit in bench_commits.values():
         data_csv_file = data_bench_folder / f"{commit}.csv"
         init_csv(data_csv_file, bench_function)
 
-    num_samples = 0
-    while True:
-        try:
-            commit = random.choice(commits)
-            cli_repo = get_cli_repo(commit, bench_function)
-            data = sample_and_bench(cli_repo, bench_function, min_value, max_value)
-            data_csv_file = get_csv_file(commit, bench_function)
-            write_into_csv(data, data_csv_file)
-            num_samples += 1
-        except KeyboardInterrupt:
-            print("Exiting...")
-            break
-    print(f"sampled {num_samples} number of times")
+    for num_samples in itertools.count():
+        print(f"Sampled {num_samples} number of times")
+        commit = random.choice(list(bench_commits.values()))
+        cli_repo = get_cli_repo(commit, bench_function)
+        data = sample_and_bench(cli_repo, bench_function, min_value, max_value)
+        write_into_csv(data, get_csv_file(commit, bench_function))
 
 
 @app.command()
