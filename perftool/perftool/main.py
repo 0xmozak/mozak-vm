@@ -44,7 +44,6 @@ def create_symlink_for_repo(commit: str, tmpfolder: Path, bench_function: str):
 @app.command()
 def bench(bench_function: str, min_value: int, max_value: int):
     bench_commits = load_commits_from_config(bench_function)
-    # create build folder if it doesn't exist
     # create bench folder if it doesn't exist
     bench_folder = Path.cwd() / "build" / bench_function
     bench_folder.mkdir(exist_ok=True, parents=True)
