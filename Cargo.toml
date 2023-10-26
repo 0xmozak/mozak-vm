@@ -9,8 +9,10 @@ lto = "thin"
 opt-level = 1
 
 [profile.release]
-opt-level = 0
 lto = "fat"
+
+[profile.bench]
+lto = "thin"
 
 [patch.crates-io]
 plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
