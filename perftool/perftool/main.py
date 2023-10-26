@@ -52,8 +52,7 @@ def bench(bench_function: str, min_value: int, max_value: int):
     data_bench_folder.mkdir(exist_ok=True, parents=True)
     # initialize the csv files with headers if they do not exist
     for commit in bench_commits.values():
-        data_csv_file = data_bench_folder / f"{commit}.csv"
-        init_csv(data_csv_file, bench_function)
+        init_csv(data_bench_folder / f"{commit}.csv", bench_function)
 
     for num_samples in itertools.count():
         print(f"Sampled {num_samples} number of times")
