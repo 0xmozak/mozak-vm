@@ -158,7 +158,7 @@ pub fn generate_memory_trace<F: RichField>(
             last_is_writable = mem.is_writable;
         }
         // non init memory are always writable
-        if mem.is_init.is_zero() && !mem.diff_addr.is_zero(){
+        if mem.is_init.is_zero() && !mem.diff_addr.is_zero() {
             last_is_writable = F::ONE;
         }
         mem.is_writable = last_is_writable;
