@@ -9,7 +9,6 @@ lto = "thin"
 opt-level = 1
 
 [profile.release]
-opt-level = 0
 lto = "fat"
 
 [patch.crates-io]
