@@ -53,6 +53,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
 
         is_binary(yield_constr, lv.ops.is_init_permute);
         is_binary(yield_constr, lv.ops.is_permute);
+        is_binary(yield_constr, lv.ops.is_init_permute + lv.ops.is_permute);
         is_binary(yield_constr, lv.gen_output);
         is_binary(yield_constr, lv.con_input);
 
