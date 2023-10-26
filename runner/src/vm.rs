@@ -502,7 +502,7 @@ mod tests {
 
     fn simple_test_code(
         code: &[Instruction],
-        mem: &[(u32, u32)],
+        mem: &[(u32, u8)],
         regs: &[(u8, u32)],
     ) -> ExecutionRecord<GoldilocksField> {
         crate::test_utils::simple_test_code(code, mem, regs).1
@@ -919,7 +919,7 @@ mod tests {
                 }
 
                 )],
-                &[(address, memory_value as u32)],
+                &[(address, memory_value as u8)],
                 &[(rs2, rs2_value)]
             );
 
@@ -941,7 +941,7 @@ mod tests {
                 }
 
                 )],
-                &[(address, u32::from(memory_value))],
+                &[(address, memory_value)],
                 &[(rs2, rs2_value)]
             );
             assert_eq!(state_before_final(&e).get_register_value(rd), u32::from(memory_value));
@@ -950,6 +950,7 @@ mod tests {
         #[test]
         fn lh_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in i16_extra()) {
             let address = rs2_value.wrapping_add(offset);
+            let [mem0, mem1] = memory_value.to_le_bytes();
 
             let e = simple_test_code(
                 &[Instruction::new(
@@ -961,7 +962,7 @@ mod tests {
                 }
 
                 )],
-                &[(address, u32::from(memory_value as u16))],
+                &[(address, mem0), (address.wrapping_add(1), mem1)],
                 &[(rs2, rs2_value)]
             );
             assert_eq!(state_before_final(&e).get_register_value(rd), i32::from(memory_value) as u32);
@@ -970,6 +971,7 @@ mod tests {
         #[test]
         fn lhu_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in u16_extra()) {
             let address = rs2_value.wrapping_add(offset);
+            let [mem0, mem1] = memory_value.to_le_bytes();
 
             let e = simple_test_code(
                 &[Instruction::new(
@@ -981,7 +983,7 @@ mod tests {
                 }
 
                 )],
-                &[(address, u32::from(memory_value))],
+                &[(address, mem0), (address.wrapping_add(1), mem1)],
                 &[(rs2, rs2_value)]
             );
 
@@ -991,6 +993,7 @@ mod tests {
         #[test]
         fn lw_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in u32_extra()) {
             let address = rs2_value.wrapping_add(offset);
+            let [mem0, mem1, mem2, mem3] = memory_value.to_le_bytes();
 
             let e = simple_test_code(
                 &[Instruction::new(
@@ -1001,7 +1004,7 @@ mod tests {
                     ..Args::default()
                 }
                 )],
-                &[(address, memory_value)],
+                &[(address, mem0), (address.wrapping_add(1), mem1), (address.wrapping_add(2), mem2), (address.wrapping_add(3), mem3)],
                 &[(rs2, rs2_value)]
             );
             assert_eq!(state_before_final(&e).get_register_value(rd), memory_value);
