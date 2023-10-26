@@ -17,7 +17,9 @@ use super::lookup::{LogupCheckVars, LookupCheckVars};
 use super::mozak_stark::{MozakStark, TableKind};
 use super::permutation::challenge::GrandProductChallengeSet;
 use super::proof::AllProof;
-use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
+use crate::cross_table_lookup::{
+    verify_cross_table_logups, verify_cross_table_lookups, CtlCheckVars,
+};
 use crate::stark::mozak_stark::NUM_TABLES;
 use crate::stark::permutation::PermutationCheckVars;
 use crate::stark::poly::eval_vanishing_poly;
@@ -119,6 +121,7 @@ where
     verify!(register_init_stark, TableKind::RegisterInit, &[]);
     verify!(register_stark, TableKind::Register, &[]);
     verify_cross_table_lookups::<F, D>(&cross_table_lookups, &all_proof.all_ctl_zs_last(), config)?;
+    verify_cross_table_logups::<F, D>(&cross_table_logups, config)?;
     Ok(())
 }
 

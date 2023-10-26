@@ -97,6 +97,19 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     Ok(())
 }
 
+pub(crate) fn verify_cross_table_logups<F: RichField + Extendable<D>, const D: usize>(
+    cross_table_logups: &[CrossTableLogup],
+    config: &StarkConfig,
+) -> Result<()> {
+    for CrossTableLogup {
+        looking_tables,
+        looked_table,
+    } in cross_table_logups
+    {}
+
+    Ok(())
+}
+
 pub(crate) fn cross_table_logup_data<F: RichField + Extendable<D>, const D: usize>(
     all_trace_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     lookups: &[CrossTableLogup],
