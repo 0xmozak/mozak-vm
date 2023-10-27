@@ -292,7 +292,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
         })
         .collect();
 
-    // let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
+    let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
 
     // Filter program_rom to contain only instructions with the pc that are not in
     // used_pcs
@@ -302,7 +302,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
         .copied()
         .collect();
 
-    // cpu_trace.extend(unused_instructions);
+    cpu_trace.extend(unused_instructions);
     cpu_trace
 }
 
