@@ -123,7 +123,7 @@ where
             &ctl_challenges
         )
     );
-    let stark_proofs = timed!(
+    let proofs_with_metadata = timed!(
         timing,
         "compute all proofs given commitments",
         prove_with_commitments(
@@ -144,7 +144,7 @@ where
         timing.print();
     }
     Ok(AllProof {
-        stark_proofs,
+        proofs_with_metadata,
         ctl_challenges,
         program_rom_trace_cap,
         memory_init_trace_cap,

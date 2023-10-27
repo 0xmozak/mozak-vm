@@ -37,7 +37,11 @@ use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProduc
 #[cfg(test)]
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
     pub fn degree_bits(&self, config: &StarkConfig) -> [usize; NUM_TABLES] {
-        core::array::from_fn(|i| self.stark_proofs[i].proof.recover_degree_bits(config))
+        core::array::from_fn(|i| {
+            self.proofs_with_metadata[i]
+                .proof
+                .recover_degree_bits(config)
+        })
     }
 }
 
@@ -202,17 +206,6 @@ impl<const D: usize> StarkProofTarget<D> {
             ),
         }
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct StarkProofWithPublicInputs<
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    const D: usize,
-> {
-    pub proof: StarkProof<F, C, D>,
-    // TODO: Maybe make it generic over a `S: Stark` and replace with `[F; S::PUBLIC_INPUTS]`.
-    pub public_inputs: Vec<F>,
 }
 
 #[cfg(test)]
@@ -393,7 +386,7 @@ where
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(bound = "")]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
-    pub stark_proofs: [StarkProofWithMetadata<F, C, D>; NUM_TABLES],
+    pub proofs_with_metadata: [StarkProofWithMetadata<F, C, D>; NUM_TABLES],
     #[allow(dead_code)]
     // TODO: Support serialization of `ctl_challenges`.
     #[serde(skip)]
@@ -417,8 +410,8 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
     ) -> AllProofChallenges<F, D> {
         let mut challenger = Challenger::<F, C::Hasher>::new();
 
-        for proof in &self.stark_proofs {
-            challenger.observe_cap(&proof.proof.trace_cap);
+        for proof_with_metadata in &self.proofs_with_metadata {
+            challenger.observe_cap(&proof_with_metadata.proof.trace_cap);
         }
 
         // TODO: Observe public values.
@@ -430,7 +423,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         AllProofChallenges {
             stark_challenges: core::array::from_fn(|i| {
                 challenger.compact();
-                self.stark_proofs[i].proof.get_challenges(
+                self.proofs_with_metadata[i].proof.get_challenges(
                     &mut challenger,
                     num_permutation_batch_sizes[i],
                     config,
@@ -444,6 +437,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
     /// `g^-1`. The order corresponds to the order declared in
     /// [`TableKind`](crate::cross_table_lookup::TableKind).
     pub(crate) fn all_ctl_zs_last(self) -> [Vec<F>; NUM_TABLES] {
-        self.stark_proofs.map(|p| p.proof.openings.ctl_zs_last)
+        self.proofs_with_metadata
+            .map(|p| p.proof.openings.ctl_zs_last)
     }
 }
