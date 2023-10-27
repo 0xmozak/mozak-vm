@@ -155,6 +155,7 @@ where
         .collect()
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark: &S,
     config: &StarkConfig,
