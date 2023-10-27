@@ -6,29 +6,25 @@ use plonky2::field::polynomial::{PolynomialCoeffs, PolynomialValues};
 use plonky2::field::zero_poly_coset::ZeroPolyOnCoset;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
-#[cfg(test)]
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::util::{log2_ceil, transpose};
 use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
-#[cfg(test)]
 use starky::constraint_consumer::RecursiveConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 
 use super::permutation::{eval_permutation_checks, PermutationCheckVars};
 use crate::cross_table_lookup::{eval_cross_table_lookup_checks, CtlCheckVars, CtlData};
-#[cfg(test)]
 use crate::cross_table_lookup::{eval_cross_table_lookup_checks_circuit, CtlCheckVarsTarget};
 use crate::stark::permutation::challenge::GrandProductChallengeSet;
-#[cfg(test)]
 use crate::stark::permutation::{eval_permutation_checks_circuit, PermutationCheckDataTarget};
 
 /// Computes the quotient polynomials `(sum alpha^i C_i(x)) / Z_H(x)` for
 /// `alpha` in `alphas`, where the `C_i`s are the Stark constraints.
-pub(crate) fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
+pub fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     stark: &S,
     trace_commitment: &'a PolynomialBatch<F, C, D>,
     permutation_ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
@@ -159,7 +155,7 @@ where
         .collect()
 }
 
-pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
+pub fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark: &S,
     config: &StarkConfig,
     vars: &S::EvaluationFrame<FE, P, D2>,
@@ -176,8 +172,7 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
 }
 
-#[cfg(test)]
-pub(crate) fn eval_vanishing_poly_circuit<F, S, const D: usize>(
+pub fn eval_vanishing_poly_circuit<F, S, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     stark: &S,
     config: &StarkConfig,

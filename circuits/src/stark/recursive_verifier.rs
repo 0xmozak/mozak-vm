@@ -37,17 +37,17 @@ use crate::stark::proof::{
 
 /// Represents a circuit which recursively verifies a STARK proof.
 #[derive(Eq, PartialEq, Debug)]
-pub(crate) struct StarkWrapperCircuit<F, C, const D: usize>
+pub struct StarkWrapperCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>, {
-    pub(crate) circuit: CircuitData<F, C, D>,
-    pub(crate) stark_proof_target: StarkProofTarget<D>,
-    pub(crate) ctl_challenges_target: GrandProductChallengeSet<Target>,
-    pub(crate) init_challenger_state_target:
+    pub circuit: CircuitData<F, C, D>,
+    pub stark_proof_target: StarkProofTarget<D>,
+    pub ctl_challenges_target: GrandProductChallengeSet<Target>,
+    pub init_challenger_state_target:
         <C::Hasher as AlgebraicHasher<F>>::AlgebraicPermutation,
-    pub(crate) zero_target: Target,
+    pub zero_target: Target,
 }
 
 impl<F, C, const D: usize> StarkWrapperCircuit<F, C, D>
@@ -56,7 +56,7 @@ where
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>,
 {
-    pub(crate) fn prove(
+    pub fn prove(
         &self,
         proof_with_metadata: &StarkProofWithMetadata<F, C, D>,
         ctl_challenges: &GrandProductChallengeSet<F>,
@@ -91,7 +91,7 @@ where
 
 #[allow(clippy::similar_names)]
 /// Returns the recursive Stark circuit.
-pub(crate) fn recursive_stark_circuit<
+pub fn recursive_stark_circuit<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
@@ -195,7 +195,7 @@ where
 /// actually used by this particular recursive circuit. This is done for
 /// uniformity. We sometimes want all recursion circuits to have the same gate
 /// set, so that we can do 1-of-n conditional recursion efficiently.
-pub(crate) fn add_common_recursion_gates<F: RichField + Extendable<D>, const D: usize>(
+pub fn add_common_recursion_gates<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
 ) {
     builder.add_gate_to_gate_set(GateRef::new(ExponentiationGate::new_from_config(
@@ -343,7 +343,7 @@ fn eval_l_0_and_l_last_circuit<F: RichField + Extendable<D>, const D: usize>(
     )
 }
 
-pub(crate) fn add_virtual_stark_proof_with_pis<
+pub fn add_virtual_stark_proof_with_pis<
     F: RichField + Extendable<D>,
     S: Stark<F, D>,
     const D: usize,
@@ -362,7 +362,7 @@ pub(crate) fn add_virtual_stark_proof_with_pis<
     }
 }
 
-pub(crate) fn add_virtual_stark_proof<
+pub fn add_virtual_stark_proof<
     F: RichField + Extendable<D>,
     S: Stark<F, D>,
     const D: usize,
@@ -413,7 +413,7 @@ fn add_virtual_stark_opening_set<F: RichField + Extendable<D>, S: Stark<F, D>, c
     }
 }
 
-pub(crate) fn set_stark_proof_target<F, C: GenericConfig<D, F = F>, W, const D: usize>(
+pub fn set_stark_proof_target<F, C: GenericConfig<D, F = F>, W, const D: usize>(
     witness: &mut W,
     proof_target: &StarkProofTarget<D>,
     proof: &StarkProof<F, C, D>,

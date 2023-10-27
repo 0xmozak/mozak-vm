@@ -1,33 +1,26 @@
 use anyhow::{ensure, Result};
 use itertools::Itertools;
-#[cfg(test)]
 use itertools::{chain, iproduct, izip, zip_eq};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
-#[cfg(test)]
 use plonky2::iop::ext_target::ExtensionTarget;
-#[cfg(test)]
 use plonky2::iop::target::Target;
-#[cfg(test)]
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
 use starky::config::StarkConfig;
 use starky::constraint_consumer::ConstraintConsumer;
-#[cfg(test)]
 use starky::constraint_consumer::RecursiveConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-#[cfg(test)]
 use crate::stark::mozak_stark::TableKind;
 use crate::stark::mozak_stark::{Table, NUM_TABLES};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
-#[cfg(test)]
 use crate::stark::proof::StarkProofTarget;
 use crate::stark::proof::StarkProofWithMetadata;
 
@@ -229,8 +222,7 @@ impl<F: Field> CrossTableLookup<F> {
         }
     }
 
-    #[cfg(test)]
-    pub(crate) fn num_ctl_zs(ctls: &[Self], table: TableKind, num_challenges: usize) -> usize {
+    pub fn num_ctl_zs(ctls: &[Self], table: TableKind, num_challenges: usize) -> usize {
         ctls.iter()
             .map(|ctl| {
                 chain!([&ctl.looked_table], &ctl.looking_tables)
@@ -343,19 +335,17 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
     }
 }
 
-#[cfg(test)]
 #[derive(Clone)]
 pub struct CtlCheckVarsTarget<'a, F: Field, const D: usize> {
-    pub(crate) local_z: ExtensionTarget<D>,
-    pub(crate) next_z: ExtensionTarget<D>,
-    pub(crate) challenges: GrandProductChallenge<Target>,
-    pub(crate) columns: &'a [Column<F>],
-    pub(crate) filter_column: &'a Column<F>,
+    pub local_z: ExtensionTarget<D>,
+    pub next_z: ExtensionTarget<D>,
+    pub challenges: GrandProductChallenge<Target>,
+    pub columns: &'a [Column<F>],
+    pub filter_column: &'a Column<F>,
 }
 
-#[cfg(test)]
 impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
-    pub(crate) fn from_proof(
+    pub fn from_proof(
         table: TableKind,
         proof: &StarkProofTarget<D>,
         cross_table_lookups: &'a [CrossTableLookup<F>],
@@ -388,8 +378,7 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
     }
 }
 
-#[cfg(test)]
-pub(crate) fn eval_cross_table_lookup_checks_circuit<
+pub fn eval_cross_table_lookup_checks_circuit<
     S: Stark<F, D>,
     F: RichField + Extendable<D>,
     const D: usize,

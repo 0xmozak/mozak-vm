@@ -2,25 +2,17 @@ use itertools::{chain, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::fri::proof::{FriChallenges, FriProof};
-#[cfg(test)]
 use plonky2::fri::proof::{FriChallengesTarget, FriProofTarget};
 use plonky2::fri::structure::{FriOpeningBatch, FriOpenings};
-#[cfg(test)]
 use plonky2::fri::structure::{FriOpeningBatchTarget, FriOpeningsTarget};
-#[cfg(test)]
 use plonky2::hash::hash_types::MerkleCapTarget;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::iop::challenger::Challenger;
-#[cfg(test)]
 use plonky2::iop::challenger::RecursiveChallenger;
-#[cfg(test)]
 use plonky2::iop::ext_target::ExtensionTarget;
-#[cfg(test)]
 use plonky2::iop::target::Target;
-#[cfg(test)]
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-#[cfg(test)]
 use plonky2::plonk::config::AlgebraicHasher;
 use plonky2::plonk::config::{GenericConfig, Hasher};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
@@ -29,12 +21,10 @@ use starky::config::StarkConfig;
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
 use crate::stark::mozak_stark::PublicInputs;
-#[cfg(test)]
 use crate::stark::permutation::challenge::get_n_grand_product_challenge_sets_target;
 use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 
 #[allow(clippy::module_name_repetitions)]
-#[cfg(test)]
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
     pub fn degree_bits(&self, config: &StarkConfig) -> [usize; NUM_TABLES] {
         core::array::from_fn(|i| {
@@ -126,7 +116,6 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
     }
 }
 
-#[cfg(test)]
 #[derive(Eq, PartialEq, Debug)]
 pub struct StarkProofTarget<const D: usize> {
     pub trace_cap: MerkleCapTarget,
@@ -136,7 +125,6 @@ pub struct StarkProofTarget<const D: usize> {
     pub opening_proof: FriProofTarget<D>,
 }
 
-#[cfg(test)]
 impl<const D: usize> StarkProofTarget<D> {
     #[must_use]
     /// Recover the length of the trace from a STARK proof and a STARK config.
@@ -150,9 +138,8 @@ impl<const D: usize> StarkProofTarget<D> {
     }
 }
 
-#[cfg(test)]
 impl<const D: usize> StarkProofTarget<D> {
-    pub(crate) fn get_challenges<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>>(
+    pub fn get_challenges<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>>(
         &self,
         builder: &mut CircuitBuilder<F, D>,
         challenger: &mut RecursiveChallenger<F, C::Hasher, D>,
@@ -208,13 +195,12 @@ impl<const D: usize> StarkProofTarget<D> {
     }
 }
 
-#[cfg(test)]
 pub struct StarkProofWithPublicInputsTarget<const D: usize> {
     pub proof: StarkProofTarget<D>,
     pub public_inputs: Vec<Target>,
 }
 
-pub(crate) struct StarkProofChallenges<F: RichField + Extendable<D>, const D: usize> {
+pub struct StarkProofChallenges<F: RichField + Extendable<D>, const D: usize> {
     /// Randomness used in any permutation arguments.
     pub permutation_challenge_sets: Vec<GrandProductChallengeSet<F>>,
 
@@ -227,8 +213,7 @@ pub(crate) struct StarkProofChallenges<F: RichField + Extendable<D>, const D: us
     pub fri_challenges: FriChallenges<F, D>,
 }
 
-#[cfg(test)]
-pub(crate) struct StarkProofChallengesTarget<const D: usize> {
+pub struct StarkProofChallengesTarget<const D: usize> {
     pub permutation_challenge_sets: Vec<GrandProductChallengeSet<Target>>,
     pub stark_alphas: Vec<Target>,
     pub stark_zeta: ExtensionTarget<D>,
@@ -323,7 +308,6 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
     }
 }
 
-#[cfg(test)]
 #[derive(Eq, PartialEq, Debug)]
 pub struct StarkOpeningSetTarget<const D: usize> {
     pub local_values: Vec<ExtensionTarget<D>>,
@@ -334,7 +318,6 @@ pub struct StarkOpeningSetTarget<const D: usize> {
     pub quotient_polys: Vec<ExtensionTarget<D>>,
 }
 
-#[cfg(test)]
 impl<const D: usize> StarkOpeningSetTarget<D> {
     pub(crate) fn to_fri_openings(&self, zero: Target) -> FriOpeningsTarget<D> {
         let zeta_batch = FriOpeningBatchTarget {
