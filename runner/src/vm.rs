@@ -3,6 +3,7 @@ use std::str::from_utf8;
 
 use anyhow::{anyhow, Result};
 use itertools::izip;
+use log::debug;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
@@ -377,6 +378,7 @@ pub fn step<F: RichField>(
             );
         }
     }
+    debug!("Executed {} instructions", executed.len());
     Ok(ExecutionRecord::<F> {
         executed,
         last_state,

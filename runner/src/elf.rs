@@ -10,6 +10,7 @@ use elf::segment::ProgramHeader;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
 use itertools::{iproduct, Itertools};
+use log::debug;
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
@@ -175,6 +176,8 @@ impl Program {
         // instructions will be in a R_X segment, so their data will show up in ro_code
         // and ro_memory. (RWX segments would show up in ro_code and rw_memory.)
         let ro_code = Code::from(&extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?);
+        debug!("Read {} instructions", ro_code.len());
+
 
         Ok(Program {
             entry_point,
