@@ -1,6 +1,7 @@
 // Copyright 2023 MOZAK.
 
 use std::collections::HashSet;
+use std::iter::repeat;
 
 use anyhow::{anyhow, ensure, Result};
 use derive_more::Deref;
@@ -9,7 +10,7 @@ use elf::file::Class;
 use elf::segment::ProgramHeader;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
-use itertools::{iproduct, Itertools};
+use itertools::{chain, iproduct, Itertools};
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
@@ -155,10 +156,13 @@ impl Program {
                     let mem_size: usize = segment.p_memsz.try_into()?;
                     let vaddr: u32 = segment.p_vaddr.try_into()?;
                     let offset = segment.p_offset.try_into()?;
+                    assert!(mem_size >= file_size);
                     Ok((vaddr..).zip(
-                        input[offset..offset + std::cmp::min(file_size, mem_size)]
-                            .iter()
-                            .copied(),
+                        chain!(
+                            input[offset..offset + file_size].iter(),
+                            repeat(&0u8).take(mem_size - file_size)
+                        )
+                        .copied(),
                     ))
                 })
                 .flatten_ok()
