@@ -115,8 +115,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use mozak_runner::poseidon2::hash_n_to_m_with_pad;
     use mozak_runner::state::{Aux, Poseidon2Entry};
-    use mozak_runner::vm::{hash_n_to_m_with_pad, Row};
+    use mozak_runner::vm::Row;
     use plonky2::field::types::Sample;
     use plonky2::hash::poseidon2::Poseidon2Permutation;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
