@@ -5,14 +5,12 @@ use core::arch::asm;
 
 static mut OUTPUT_BYTES: Option<Vec<u8>> = None;
 
-#[no_mangle]
 pub fn init() {
     unsafe {
         OUTPUT_BYTES = Some(Vec::new());
     }
 }
 
-#[no_mangle]
 pub fn finalize() {
     // HALT syscall
     //
@@ -23,16 +21,18 @@ pub fn finalize() {
     unsafe {
         let output_bytes_vec = OUTPUT_BYTES.as_ref().unwrap_unchecked();
         let output_0 = output_bytes_vec.first().unwrap_unchecked();
+        #[cfg(target_os = "zkvm")]
         asm!(
             "ecall",
             in ("a0") 0,
             in ("a1") output_0,
         );
+        #[cfg(not(target_os = "zkvm"))]
+        libc::exit((*output_0).into());
     }
     unreachable!();
 }
 
-#[no_mangle]
 pub fn write(output_data: &[u8]) {
     let output_bytes_vec = unsafe { OUTPUT_BYTES.as_mut().unwrap_unchecked() };
     output_bytes_vec.extend_from_slice(output_data);

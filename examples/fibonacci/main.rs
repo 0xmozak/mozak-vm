@@ -19,6 +19,8 @@ pub fn main() {
     assert!(low == 63245986);
     assert_eq!(high, 0);
     guest::env::write(&high.to_le_bytes());
+    assert!(high == 1);
+    guest::env::write(&high.to_le_bytes());
 }
 
 guest::entry!(main);

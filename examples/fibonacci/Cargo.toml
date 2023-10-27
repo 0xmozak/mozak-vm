@@ -9,3 +9,9 @@ guest = { path = "../../guest" }
 [[bin]]
 name = "fibonacci"
 path = "main.rs"
+
+[profile.release]
+panic = "abort"
+
+[profile.dev]
+panic = "abort"

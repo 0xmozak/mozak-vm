@@ -8,3 +8,6 @@ target = "./.cargo/riscv32im-mozak-zkvm-elf.json"
 
 [target.riscv32im-mozak-zkvm-elf]
 runner = "../target/release/mozak-cli -vvv run"
+
+[target.'cfg(target_os = "linux")']
+rustflags = ["-C", "link-arg=-nostartfiles"]
