@@ -156,7 +156,10 @@ impl Program {
                     let mem_size: usize = segment.p_memsz.try_into()?;
                     let vaddr: u32 = segment.p_vaddr.try_into()?;
                     let offset = segment.p_offset.try_into()?;
-                    ensure!(mem_size < file_size, "The file size can not be larger than the memory size in segment");
+                    ensure!(
+                        mem_size < file_size,
+                        "The file size can not be larger than the memory size in segment"
+                    );
                     Ok((vaddr..).zip(
                         chain!(
                             input[offset..offset + file_size].iter(),
