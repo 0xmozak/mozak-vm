@@ -159,7 +159,7 @@ impl Program {
                     // This is as defined in the elf man page, under PT_LOAD: https://www.man7.org/linux/man-pages/man5/elf.5.html
                     ensure!(
                         file_size <= mem_size,
-                        "The file size can not be larger than the memory size in segment"
+                        "The file size {file_size} can not be larger than the memory size {mem_size} in the segment."
                     );
                     Ok((vaddr..).zip(
                         // We zero out the remaining memory, according to the spec above.
