@@ -6,4 +6,3 @@ resolver = "2"
 codegen-units = 1
 lto = "fat"
 opt-level = "z"
-strip = true
