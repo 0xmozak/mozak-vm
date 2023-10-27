@@ -1,6 +1,5 @@
 use anyhow::{ensure, Result};
-use itertools::Itertools;
-use itertools::{chain, iproduct, izip, zip_eq};
+use itertools::{chain, iproduct, izip, zip_eq, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -11,18 +10,15 @@ use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
 use starky::config::StarkConfig;
-use starky::constraint_consumer::ConstraintConsumer;
-use starky::constraint_consumer::RecursiveConstraintConsumer;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-use crate::stark::mozak_stark::TableKind;
-use crate::stark::mozak_stark::{Table, NUM_TABLES};
+use crate::stark::mozak_stark::{Table, TableKind, NUM_TABLES};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
-use crate::stark::proof::StarkProofTarget;
-use crate::stark::proof::StarkProofWithMetadata;
+use crate::stark::proof::{StarkProofTarget, StarkProofWithMetadata};
 
 #[derive(Error, Debug)]
 pub enum LookupError {

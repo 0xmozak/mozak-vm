@@ -11,14 +11,15 @@ use plonky2::plonk::config::GenericConfig;
 use plonky2::util::{log2_ceil, transpose};
 use rayon::prelude::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
-use starky::constraint_consumer::ConstraintConsumer;
-use starky::constraint_consumer::RecursiveConstraintConsumer;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 
 use super::permutation::{eval_permutation_checks, PermutationCheckVars};
-use crate::cross_table_lookup::{eval_cross_table_lookup_checks, CtlCheckVars, CtlData};
-use crate::cross_table_lookup::{eval_cross_table_lookup_checks_circuit, CtlCheckVarsTarget};
+use crate::cross_table_lookup::{
+    eval_cross_table_lookup_checks, eval_cross_table_lookup_checks_circuit, CtlCheckVars,
+    CtlCheckVarsTarget, CtlData,
+};
 use crate::stark::permutation::challenge::GrandProductChallengeSet;
 use crate::stark::permutation::{eval_permutation_checks_circuit, PermutationCheckDataTarget};
 

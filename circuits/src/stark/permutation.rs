@@ -18,12 +18,10 @@ use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::Hasher;
 use plonky2::plonk::plonk_common::reduce_with_powers;
-use plonky2::util::reducing::ReducingFactor;
-use plonky2::util::reducing::ReducingFactorTarget;
+use plonky2::util::reducing::{ReducingFactor, ReducingFactorTarget};
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
-use starky::constraint_consumer::ConstraintConsumer;
-use starky::constraint_consumer::RecursiveConstraintConsumer;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::permutation::PermutationPair;
 use starky::stark::Stark;
@@ -31,14 +29,13 @@ use starky::stark::Stark;
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 
 pub mod challenge {
-    use plonky2::{
-        field::extension::Extendable,
-        iop::{challenger::RecursiveChallenger, ext_target::ExtensionTarget, target::Target},
-        plonk::{
-            circuit_builder::CircuitBuilder, config::AlgebraicHasher,
-            plonk_common::reduce_with_powers_ext_circuit,
-        },
-    };
+    use plonky2::field::extension::Extendable;
+    use plonky2::iop::challenger::RecursiveChallenger;
+    use plonky2::iop::ext_target::ExtensionTarget;
+    use plonky2::iop::target::Target;
+    use plonky2::plonk::circuit_builder::CircuitBuilder;
+    use plonky2::plonk::config::AlgebraicHasher;
+    use plonky2::plonk::plonk_common::reduce_with_powers_ext_circuit;
 
     use super::{
         reduce_with_powers, Challenger, Debug, Field, FieldExtension, Hasher, PackedField,

@@ -1,28 +1,26 @@
 use itertools::{chain, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::fri::oracle::PolynomialBatch;
-use plonky2::fri::proof::{FriChallenges, FriProof};
-use plonky2::fri::proof::{FriChallengesTarget, FriProofTarget};
-use plonky2::fri::structure::{FriOpeningBatch, FriOpenings};
-use plonky2::fri::structure::{FriOpeningBatchTarget, FriOpeningsTarget};
-use plonky2::hash::hash_types::MerkleCapTarget;
-use plonky2::hash::hash_types::RichField;
+use plonky2::fri::proof::{FriChallenges, FriChallengesTarget, FriProof, FriProofTarget};
+use plonky2::fri::structure::{
+    FriOpeningBatch, FriOpeningBatchTarget, FriOpenings, FriOpeningsTarget,
+};
+use plonky2::hash::hash_types::{MerkleCapTarget, RichField};
 use plonky2::hash::merkle_tree::MerkleCap;
-use plonky2::iop::challenger::Challenger;
-use plonky2::iop::challenger::RecursiveChallenger;
+use plonky2::iop::challenger::{Challenger, RecursiveChallenger};
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::config::AlgebraicHasher;
-use plonky2::plonk::config::{GenericConfig, Hasher};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
 use crate::stark::mozak_stark::PublicInputs;
-use crate::stark::permutation::challenge::get_n_grand_product_challenge_sets_target;
-use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
+use crate::stark::permutation::challenge::{
+    get_n_grand_product_challenge_sets_target, GrandProductChallengeSet, GrandProductChallengeTrait,
+};
 
 #[allow(clippy::module_name_repetitions)]
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {

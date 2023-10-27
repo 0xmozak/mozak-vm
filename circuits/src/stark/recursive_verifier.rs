@@ -45,8 +45,7 @@ where
     pub circuit: CircuitData<F, C, D>,
     pub stark_proof_target: StarkProofTarget<D>,
     pub ctl_challenges_target: GrandProductChallengeSet<Target>,
-    pub init_challenger_state_target:
-        <C::Hasher as AlgebraicHasher<F>>::AlgebraicPermutation,
+    pub init_challenger_state_target: <C::Hasher as AlgebraicHasher<F>>::AlgebraicPermutation,
     pub zero_target: Target,
 }
 
@@ -362,11 +361,7 @@ pub fn add_virtual_stark_proof_with_pis<
     }
 }
 
-pub fn add_virtual_stark_proof<
-    F: RichField + Extendable<D>,
-    S: Stark<F, D>,
-    const D: usize,
->(
+pub fn add_virtual_stark_proof<F: RichField + Extendable<D>, S: Stark<F, D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     stark: &S,
     config: &StarkConfig,
