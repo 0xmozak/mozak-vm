@@ -156,6 +156,7 @@ impl Program {
                     let mem_size: usize = segment.p_memsz.try_into()?;
                     let vaddr: u32 = segment.p_vaddr.try_into()?;
                     let offset = segment.p_offset.try_into()?;
+                    // This is as defined in the elf man page, under PT_LOAD: https://www.man7.org/linux/man-pages/man5/elf.5.html
                     ensure!(
                         file_size <= mem_size,
                         "The file size can not be larger than the memory size in segment"
@@ -163,6 +164,7 @@ impl Program {
                     Ok((vaddr..).zip(
                         chain!(
                             input[offset..offset + file_size].iter(),
+                            // We zero out the remaining memory, done according to the spec above.
                             repeat(&0u8).take(mem_size - file_size)
                         )
                         .copied(),
