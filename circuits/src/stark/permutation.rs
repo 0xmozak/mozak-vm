@@ -5,7 +5,7 @@
 
 use std::fmt::Debug;
 
-use itertools::Itertools;
+use itertools::{izip, Itertools};
 use plonky2::field::batch_util::batch_multiply_inplace;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -477,18 +477,18 @@ pub fn eval_permutation_checks_circuit<F, S, const D: usize>(
         stark.permutation_batch_size(),
     );
 
-    for (i, instances) in permutation_batches.iter().enumerate() {
+    for (local_z, next_z, instances) in izip!(local_zs, next_zs, permutation_batches) {
         let (reduced_lhs_all, reduced_rhs_all): (Vec<_>, Vec<_>) = instances
             .into_iter()
-            .map(|instance| process_instance::<F, S, D>(builder, vars, instance))
+            .map(|instance| process_instance::<F, S, D>(builder, vars, &instance))
             .unzip();
         // Apply constraint:
         // next_zs[i] * reduced_rhs_product - local_zs[i] * reduced_lhs_product
         let reduced_lhs_product = builder.mul_many_extension(reduced_lhs_all);
         let reduced_rhs_product = builder.mul_many_extension(reduced_rhs_all);
 
-        let tmp = builder.mul_extension(local_zs[i], reduced_lhs_product);
-        let constraint = builder.mul_sub_extension(next_zs[i], reduced_rhs_product, tmp);
+        let tmp = builder.mul_extension(local_z, reduced_lhs_product);
+        let constraint = builder.mul_sub_extension(next_z, reduced_rhs_product, tmp);
         consumer.constraint(builder, constraint);
     }
 }
