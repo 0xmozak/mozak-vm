@@ -478,20 +478,14 @@ pub fn eval_permutation_checks_circuit<F, S, const D: usize>(
     );
 
     for (i, instances) in permutation_batches.iter().enumerate() {
-        let mut reduced_lhs_all = Vec::with_capacity(instances.len());
-        let mut reduced_rhs_all = Vec::with_capacity(instances.len());
-
-        for instance in instances {
-            let (lhs, rhs) = process_instance::<F, S, D>(builder, vars, instance);
-
-            reduced_lhs_all.push(lhs);
-            reduced_rhs_all.push(rhs);
-        }
-
+        let (reduced_lhs_all, reduced_rhs_all): (Vec<_>, Vec<_>) = instances
+            .into_iter()
+            .map(|instance| process_instance::<F, S, D>(builder, vars, instance))
+            .unzip();
         // Apply constraint:
         // next_zs[i] * reduced_rhs_product - local_zs[i] * reduced_lhs_product
-        let reduced_lhs_product = builder.mul_many_extension(reduced_lhs_all.clone());
-        let reduced_rhs_product = builder.mul_many_extension(reduced_rhs_all.clone());
+        let reduced_lhs_product = builder.mul_many_extension(reduced_lhs_all);
+        let reduced_rhs_product = builder.mul_many_extension(reduced_rhs_all);
 
         let tmp = builder.mul_extension(local_zs[i], reduced_lhs_product);
         let constraint = builder.mul_sub_extension(next_zs[i], reduced_rhs_product, tmp);
