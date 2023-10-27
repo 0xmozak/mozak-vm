@@ -157,7 +157,7 @@ impl Program {
                     let vaddr: u32 = segment.p_vaddr.try_into()?;
                     let offset = segment.p_offset.try_into()?;
                     ensure!(
-                        mem_size < file_size,
+                        file_size <= mem_size,
                         "The file size can not be larger than the memory size in segment"
                     );
                     Ok((vaddr..).zip(
