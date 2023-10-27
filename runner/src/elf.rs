@@ -162,12 +162,10 @@ impl Program {
                         "The file size can not be larger than the memory size in segment"
                     );
                     Ok((vaddr..).zip(
-                        chain!(
-                            input[offset..offset + file_size].iter(),
-                            // We zero out the remaining memory, done according to the spec above.
-                            repeat(&0u8).take(mem_size - file_size)
-                        )
-                        .copied(),
+                        // We zero out the remaining memory, according to the spec above.
+                        chain!(&input[offset..][..file_size], repeat(&0u8))
+                            .take(mem_size)
+                            .copied(),
                     ))
                 })
                 .flatten_ok()
