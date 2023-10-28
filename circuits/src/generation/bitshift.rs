@@ -12,7 +12,7 @@ fn filter_shift_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> impl Iterator<
 }
 
 pub fn pad_trace<Row: Copy>(mut trace: Vec<Row>, default: Row) -> Vec<Row> {
-    trace.resize(trace.len().next_power_of_two(), default);
+    trace.resize(trace.len().next_power_of_two().max(4), default);
     trace
 }
 

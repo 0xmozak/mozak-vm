@@ -7,10 +7,10 @@ use crate::utils::pad_trace_with_default;
 /// Generates a memory init ROM trace
 #[must_use]
 pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
-    pad_trace_with_default(
+    let mut memory_inits: Vec<MemoryInit<F>> =
         [(F::ZERO, &program.ro_memory), (F::ONE, &program.rw_memory)]
-            .into_iter()
-            .flat_map(|(is_writable, mem)| {
+            .iter()
+            .flat_map(|&(is_writable, mem)| {
                 mem.iter().map(move |(&addr, &value)| MemoryInit {
                     filter: F::ONE,
                     is_writable,
@@ -20,6 +20,9 @@ pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<Memory
                     },
                 })
             })
-            .collect(),
-    )
+            .collect();
+
+    memory_inits.sort_by_key(|init| init.element.address.to_canonical_u64());
+
+    pad_trace_with_default(memory_inits)
 }

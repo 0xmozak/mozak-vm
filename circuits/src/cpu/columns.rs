@@ -154,6 +154,10 @@ pub struct CpuState<T> {
     /// product_sign is 1
     pub product_high_limb_inv_helper: T,
     pub mem_addr: T,
+    pub io_addr: T,
+    pub io_size: T,
+    pub is_io_store: T,
+    pub is_halt: T,
 }
 
 make_col_map!(CpuColumnsExtended);
@@ -324,6 +328,22 @@ pub fn filter_for_fullword_memory<F: Field>() -> Column<F> {
     MAP.cpu.map(Column::from).inst.ops.fullword_mem_ops()
 }
 
+/// Column containing the data to be matched against IO Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn data_for_io_memory<F: Field>() -> Vec<Column<F>> {
+    let cpu = MAP.cpu.map(Column::from);
+    vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_store]
+}
+
+/// Column for a binary filter for memory instruction in IO Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_io_memory<F: Field>() -> Column<F> {
+    let cpu = MAP.cpu.map(Column::from);
+    cpu.is_io_store
+}
+
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(self) -> T {
@@ -339,6 +359,8 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     pub fn halfword_mem_ops(self) -> T { self.sh + self.lh }
 
     pub fn fullword_mem_ops(self) -> T { self.sw + self.lw }
+
+    pub fn is_mem_ops(self) -> T { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.

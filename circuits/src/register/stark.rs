@@ -11,7 +11,7 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::Register;
-use crate::columns_view::NumberOfColumns;
+use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::display::derive_display_stark_name;
 use crate::stark::utils::is_binary;
 
@@ -20,6 +20,10 @@ derive_display_stark_name!(RegisterStark);
 #[allow(clippy::module_name_repetitions)]
 pub struct RegisterStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> HasNamedColumns for RegisterStark<F, D> {
+    type Columns = Register<F>;
 }
 
 const COLUMNS: usize = Register::<()>::NUMBER_OF_COLUMNS;
