@@ -13,7 +13,8 @@ pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
         .tuple_windows()
         .all(|(a, b)| a.len() == b.len()));
     for col in &mut trace {
-        if let (Some(padded_len), Some(&last)) = (col.len().checked_next_power_of_two(), col.last())
+        if let (Some(padded_len), Some(&last)) =
+            (col.len().max(4).checked_next_power_of_two(), col.last())
         {
             col.extend(vec![last; padded_len - col.len()]);
         }
@@ -42,7 +43,7 @@ pub fn pad_trace_with_default_to_len<Row: Default + Clone>(
 /// Pad each row to the nearsest power of two
 #[must_use]
 pub fn pad_trace_with_default<Row: Default + Clone>(trace: Vec<Row>) -> Vec<Row> {
-    let len = trace.len().next_power_of_two();
+    let len = trace.len().next_power_of_two().max(4);
     pad_trace_with_default_to_len(trace, len)
 }
 

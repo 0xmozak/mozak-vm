@@ -10,7 +10,8 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::StarkFrame;
 use starky::stark::Stark;
 
-use super::columns;
+use super::columns::{self, RangeCheckColumnsView};
+use crate::columns_view::HasNamedColumns;
 use crate::display::derive_display_stark_name;
 
 derive_display_stark_name!(RangeCheckStark);
@@ -18,6 +19,10 @@ derive_display_stark_name!(RangeCheckStark);
 #[allow(clippy::module_name_repetitions)]
 pub struct RangeCheckStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> HasNamedColumns for RangeCheckStark<F, D> {
+    type Columns = RangeCheckColumnsView<F>;
 }
 
 const COLUMNS: usize = columns::NUM_RC_COLS;

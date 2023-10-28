@@ -7,6 +7,7 @@ use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
+use crate::memory_io::columns::InputOutputMemory;
 use crate::memoryinit::columns::MemoryInit;
 use crate::stark::mozak_stark::{MemoryTable, Table};
 
@@ -102,6 +103,18 @@ impl<F: RichField> From<&FullWordMemory<F>> for Vec<Memory<F>> {
                 })
                 .collect()
         }
+    }
+}
+
+impl<F: RichField> From<&InputOutputMemory<F>> for Option<Memory<F>> {
+    fn from(val: &InputOutputMemory<F>) -> Self {
+        (val.ops.is_memory_store).is_one().then(|| Memory {
+            clk: val.clk,
+            addr: val.addr,
+            value: val.value,
+            is_store: val.ops.is_memory_store,
+            ..Default::default()
+        })
     }
 }
 

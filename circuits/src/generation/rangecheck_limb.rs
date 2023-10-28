@@ -9,7 +9,7 @@ use crate::stark::mozak_stark::{LimbTable, Lookups, TableKind};
 
 #[must_use]
 pub fn pad_trace<F: RichField>(mut trace: Vec<RangeCheckLimb<F>>) -> Vec<RangeCheckLimb<F>> {
-    let len = trace.len().next_power_of_two();
+    let len = trace.len().next_power_of_two().max(4);
     trace.resize(len, RangeCheckLimb {
         filter: F::ZERO,
         element: F::from_canonical_u8(u8::MAX),
