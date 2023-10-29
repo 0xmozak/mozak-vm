@@ -54,7 +54,7 @@ jobs:
         # The formatting here is borrowed from OpenEthereum: https://github.com/openethereum/openethereum/blob/main/.github/workflows/build.yml
         run: |
           body=$(cat <<- "ENDBODY"
-          <Release Name>
+          <Release Name, Version and Time>
 
           ## Summary
 
