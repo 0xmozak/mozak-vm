@@ -1,0 +1,65 @@
+# Adapted from Lighthouse: https://github.com/sigp/lighthouse/blob/stable/.github/workflows/release.yml
+name: Release
+
+on:
+  push:
+    tags:
+      - v*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  extract-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract version
+        run: echo "VERSION=$(echo ${GITHUB_REF#refs/tags/})" >> $GITHUB_OUTPUT
+        id: extract_version
+    outputs:
+      VERSION: ${{ steps.extract_version.outputs.VERSION }}
+
+  draft-release:
+    name: draft release
+    needs: extract-version
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.extract-version.outputs.VERSION }}
+    permissions:
+      # Required to post the release
+      contents: write
+    steps:
+      # This is necessary for generating the changelog. It has to come before "Download Artifacts" or else it deletes the artifacts.
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # ==============================
+      #       Create release draft
+      # ==============================
+      - name: Generate full changelog
+        id: changelog
+        run: |
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "$(git log --pretty=format:"- %s" $(git describe --tags --abbrev=0 ${{ env.VERSION }}^)..${{ env.VERSION }})" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release Draft
+        env:
+          GITHUB_USER: ${{ github.repository_owner }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+        # The formatting here is borrowed from OpenEthereum: https://github.com/openethereum/openethereum/blob/main/.github/workflows/build.yml
+        run: |
+          body=$(cat <<- "ENDBODY"
+          <Release Name>
+
+          ## Summary
+
+          Add a summary.
+
+          ## All Changes
+
+          ${{ steps.changelog.outputs.CHANGELOG }}
