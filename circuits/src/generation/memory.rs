@@ -143,6 +143,12 @@ pub fn generate_memory_trace<F: RichField>(
 
     // Ensures constraints by filling remaining inter-row
     // relation values: clock difference and addr difference and is_writable
+    // a) If there is init = 1 for some-address - is_writable needs to be taken for
+    // all rows of this address
+    // b) If there is no init = 0 for some-address -
+    // is_writable needs to be default = 1 for all rows of this address
+    // c) Since rows sorted by address and than clk - diff.clk for first row with
+    // say: addr = 0, clk = 23 , should be 0
     let mut last_clk = None;
     let mut last_addr = None;
     let mut last_is_writable = F::ONE;
