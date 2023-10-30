@@ -154,16 +154,14 @@ pub fn generate_memory_trace<F: RichField>(
     let mut is_first_seen = false;
     let mut last_is_writable = F::ONE;
     for mem in &mut merged_trace {
-        if !is_first_seen{
-            mem.diff_addr = mem.addr; 
-            last_clk = mem.clk;   
-            is_first_seen = true;      
+        if !is_first_seen {
+            mem.diff_addr = mem.addr;
+            last_clk = mem.clk;
+            is_first_seen = true;
         }
-        else{
-            mem.diff_addr = mem.addr - last_addr;
-        }
+        mem.diff_addr = mem.addr - last_addr;
         mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
-        if mem.addr == last_addr{
+        if mem.addr == last_addr {
             mem.diff_clk = mem.clk - last_clk;
         }
         (last_clk, last_addr) = (mem.clk, mem.addr);
