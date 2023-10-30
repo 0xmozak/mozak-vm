@@ -60,7 +60,6 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
     };
 
     let mut perm = P::new(repeat(F::ZERO));
-    let inputs = inputs.to_vec();
     // input length is expected to be multiple of P::RATE
     assert!(inputs.len() % P::RATE == 0);
     let mut sponge_data = Vec::new();

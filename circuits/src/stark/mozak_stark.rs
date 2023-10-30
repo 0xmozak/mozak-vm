@@ -543,7 +543,7 @@ impl<F: Field> Lookups<F> for Poseidon2SpongeCpuTable<F> {
                 crate::poseidon2_sponge::columns::filter_for_cpu(),
             )],
             CpuTable::new(
-                crate::cpu::columns::data_for_poseidone2_sponge(),
+                crate::cpu::columns::data_for_poseidon2_sponge(),
                 crate::cpu::columns::filter_for_poseidon2_sponge(),
             ),
         )

@@ -65,7 +65,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
 
         let is_dummy =
             |vars: &Poseidon2Sponge<P>| P::ONES - (vars.ops.is_init_permute + vars.ops.is_permute);
-        is_binary(yield_constr, is_dummy(lv));
 
         // dummy row does not consume input
         yield_constr.constraint(is_dummy(lv) * lv.con_input);

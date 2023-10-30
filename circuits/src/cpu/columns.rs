@@ -414,7 +414,7 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
 pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.permuted.inst) }
 
 #[must_use]
-pub fn data_for_poseidone2_sponge<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_poseidon2_sponge<F: Field>() -> Vec<Column<F>> {
     let cpu = MAP.cpu.map(Column::from);
     vec![cpu.clk, cpu.poseidon2_input_addr, cpu.poseidon2_input_len]
 }
