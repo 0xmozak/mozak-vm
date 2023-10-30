@@ -1,8 +1,8 @@
 # Guest Programs
 
-Examples contains cargo projects which generate ELF compatible with MozakVM. The target ISA is Risc-V with I and M extensions, described best in `.cargo/riscv32im-mozak-zkvm-elf.json`.
+Examples contains cargo projects which generate ELF compatible with MozakVM. The target ISA is RISC-V with I and M extensions, described best in `.cargo/riscv32im-mozak-zkvm-elf.json`.
 
-Building the programs require Rust nightly toolchain. Exploring the generated ELF requires Risc-V toolkit, especially `objdump` or equivalent.
+Building the programs require Rust nightly toolchain. Exploring the generated ELF requires RISC-V toolkit, especially `objdump` or equivalent.
 
 ## Building ELFs
 
@@ -64,3 +64,5 @@ riscv64-unknown-elf-objdump -h target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
 ```bash
 riscv64-unknown-elf-objdump -d -j .sdata target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
 ```
+
+NOTE: The build config tries to optimize binary size, and location information is removed. Kindly update config if you want location info.
