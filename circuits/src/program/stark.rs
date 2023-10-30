@@ -61,3 +61,24 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ProgramStark<
 
     fn constraint_degree(&self) -> usize { 3 }
 }
+
+#[cfg(test)]
+mod tests {
+    use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
+    use starky::stark_testing::test_stark_circuit_constraints;
+
+    use super::*;
+
+    const D: usize = 2;
+    type C = Poseidon2GoldilocksConfig;
+    type F = <C as GenericConfig<D>>::F;
+    type S = ProgramStark<F, D>;
+
+    #[test]
+    fn test_circuit() -> anyhow::Result<()> {
+        let stark = S::default();
+        test_stark_circuit_constraints::<F, C, S, D>(stark)?;
+
+        Ok(())
+    }
+}
