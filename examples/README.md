@@ -64,3 +64,5 @@ riscv64-unknown-elf-objdump -h target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
 ```bash
 riscv64-unknown-elf-objdump -d -j .sdata target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
 ```
+
+NOTE: The build config tries to optimize binary size, and location information is removed. Kindly update config if you want location info.
