@@ -1,6 +1,7 @@
 use std::fmt::Display;
 use std::marker::PhantomData;
 
+use mozak_runner::poseidon2::NUM_HASH_OUT_ELTS;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -52,6 +53,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
 
         let rate = u8::try_from(Poseidon2Permutation::<F>::RATE).expect("rate > 255");
         let state_size = u8::try_from(Poseidon2Permutation::<F>::WIDTH).expect("state_size > 255");
+        let rate_scalar = P::Scalar::from_canonical_u8(rate);
         let lv: &Poseidon2Sponge<P> = vars.get_local_values().try_into().unwrap();
         let nv: &Poseidon2Sponge<P> = vars.get_next_values().try_into().unwrap();
 
@@ -61,31 +63,64 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         is_binary(yield_constr, lv.gen_output);
         is_binary(yield_constr, lv.con_input);
 
-        let is_dummy = P::ONES - (lv.ops.is_init_permute + lv.ops.is_permute);
-        is_binary(yield_constr, is_dummy);
+        let is_dummy =
+            |vars: &Poseidon2Sponge<P>| P::ONES - (vars.ops.is_init_permute + vars.ops.is_permute);
+        is_binary(yield_constr, is_dummy(lv));
 
         // dummy row does not consume input
-        yield_constr.constraint(is_dummy * lv.con_input);
+        yield_constr.constraint(is_dummy(lv) * lv.con_input);
         // dummy row does not generate output
-        yield_constr.constraint(is_dummy * lv.gen_output);
+        yield_constr.constraint(is_dummy(lv) * lv.gen_output);
+
+        // Two consequtive rows can not be is_init_permute. As even for smallest input
+        // size (RATE) it needs more than one squeeze rounds so next row can not
+        // be init permute.
+        yield_constr.constraint(lv.ops.is_init_permute * nv.ops.is_init_permute);
+
+        // if row generates output and consumes input then it must be last rate sized
+        // chunk of input.
+        yield_constr.constraint(lv.gen_output * lv.con_input * (lv.input_len - rate_scalar));
+
+        // if row generates output and does not consume input then input_len must be
+        // zero.
+        yield_constr.constraint(lv.gen_output * (P::ONES - lv.con_input) * lv.input_len);
+
+        let num_hash_out_elements_scalar = P::Scalar::from_canonical_u8(
+            u8::try_from(NUM_HASH_OUT_ELTS).expect("num hash output > 255"),
+        );
+        // if row generates output and next row is dummy then it must be last RATE size
+        // chunk of output.
+        yield_constr.constraint(
+            lv.gen_output
+                * is_dummy(nv)
+                * (lv.output_len - (num_hash_out_elements_scalar - rate_scalar)),
+        );
+
+        // if row generates output and next row is init_permute then it must be last
+        // RATE size chunk of output
+        yield_constr.constraint(
+            lv.gen_output
+                * nv.ops.is_init_permute
+                * (lv.output_len - (num_hash_out_elements_scalar - rate_scalar)),
+        );
 
         // if current row consumes input then next row must have
         // length decreases by RATE, note that only actaul execution row can consume
         // input
-        yield_constr.constraint_transition(
-            lv.con_input * (lv.len - (nv.len + P::Scalar::from_canonical_u8(rate))),
-        );
+        yield_constr
+            .constraint_transition(lv.con_input * (lv.input_len - (nv.input_len + rate_scalar)));
         // and input_addr increases by RATE
-        yield_constr.constraint_transition(
-            lv.con_input * (lv.input_addr - (nv.input_addr - P::Scalar::from_canonical_u8(rate))),
-        );
+        yield_constr
+            .constraint_transition(lv.con_input * (lv.input_addr - (nv.input_addr - rate_scalar)));
 
         // if current row generates output then next row mst have output_addr increased
         // by RATE
         yield_constr.constraint_transition(
-            lv.gen_output
-                * (lv.output_addr - (nv.output_addr - P::Scalar::from_canonical_u8(rate))),
+            lv.gen_output * (lv.output_addr - (nv.output_addr - rate_scalar)),
         );
+        // and output lenght is increased by RATE in next row.
+        yield_constr
+            .constraint_transition(lv.gen_output * (nv.output_len - (lv.output_len + rate_scalar)));
 
         // For each init_permute capacity bits are zero.
         (rate..state_size).for_each(|i| {

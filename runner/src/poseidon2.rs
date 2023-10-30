@@ -8,7 +8,7 @@ use plonky2::hash::poseidon2::Poseidon2Permutation;
 use crate::state::{Aux, Poseidon2Entry, Poseidon2SpongeData, State};
 use crate::system::reg_abi::{REG_A1, REG_A2, REG_A3};
 
-const NUM_HASH_OUT_ELTS: usize = 32;
+pub const NUM_HASH_OUT_ELTS: usize = 32;
 /// Represents a ~256 bit hash output.
 /// Each Field represent 8 bits.
 #[derive(Copy, Clone, Debug)]
