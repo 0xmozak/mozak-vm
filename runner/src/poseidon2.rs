@@ -106,20 +106,19 @@ impl<F: RichField> State<F> {
         // lengths are in bytes
         let input_len = self.get_register_value(REG_A2);
         let output_ptr = self.get_register_value(REG_A3);
-        let output_len = 32;
         let input: Vec<F> = (0..input_len)
             .map(|i| F::from_canonical_u8(self.load_u8(input_ptr + i)))
             .collect();
         let (hash, sponge_data) =
             hash_n_to_m_with_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
         let hash = hash.to_bytes();
-        assert!(output_len == hash.len());
+        assert!(NUM_HASH_OUT_ELTS == hash.len());
         (
             Aux {
                 poseidon2: Some(Poseidon2Entry {
                     addr: input_ptr,
                     output_addr: output_ptr,
-                    len: input_len.next_multiple_of(8),
+                    len: input_len.next_multiple_of(Poseidon2Permutation::RATE as u32),
                     sponge_data,
                 }),
                 ..Default::default()

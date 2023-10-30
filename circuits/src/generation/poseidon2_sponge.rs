@@ -41,11 +41,17 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             .get(i as usize)
             .expect("unroll_count not consistent with number of permutations");
         let current_output_addr = output_addr;
-        let current_input_add = input_addr;
+        let current_input_addr = input_addr;
         let current_input_len = input_len;
+        // Output address tracks memory location to where next unroll row's output
+        // should be written. Hence every time a row generates output, output
+        // address is increased by RATE.
         if sponge_datum.gen_output.is_one() {
             output_addr += rate_bits;
         }
+        // Input address tracks memory location from where next unroll row's input
+        // should be read. Hence every time a row consumes input, input address
+        // is increased by RATE and input lenght is decreased accordingly.
         if sponge_datum.con_input.is_one() {
             input_addr += rate_bits;
             input_len -= rate_bits;
@@ -53,7 +59,7 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
         unroll.push(Poseidon2Sponge {
             clk: F::from_canonical_u64(row.state.clk),
             ops,
-            input_addr: F::from_canonical_u32(current_input_add),
+            input_addr: F::from_canonical_u32(current_input_addr),
             output_addr: F::from_canonical_u32(current_output_addr),
             len: F::from_canonical_u32(current_input_len),
             preimage: sponge_datum.preimage,
