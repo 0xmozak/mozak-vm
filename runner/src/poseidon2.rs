@@ -74,6 +74,7 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
     let mut outputs = Vec::new();
     loop {
         for &item in perm.squeeze() {
+            // Each squeeze() call add RATE field elements to output.
             outputs.push(item);
             sponge_data
                 .last_mut()
