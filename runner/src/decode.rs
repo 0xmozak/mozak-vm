@@ -12,7 +12,7 @@ use crate::instruction::{Args, Instruction, Op, NOP};
 /// ```ignore
 /// // Extract the immediate of a B-type instruction
 /// let imm = extract_immediate(0b1000_0000_1001_0100_0000_0000_0110_0011, &[(31, 31), (7, 7), (30, 25), (11, 8)], 1);
-/// assert!(imm == 0b11111111111111111111000000000000);
+/// assert!(imm == 0b1111_1111_1111_1111_1111_0000_0000_0000);
 /// ```
 ///
 /// [RISC-V Unprivileged ISA Specification]: https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf
