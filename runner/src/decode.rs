@@ -11,7 +11,7 @@ use crate::instruction::{Args, Instruction, Op, NOP};
 /// # Example:
 /// ```ignore
 /// // Extract the immediate of a B-type instruction
-/// let imm = extract_immediate(0b10000000100101000000000001100011, &[(31, 31), (7, 7), (30, 25), (11, 8)], 1);
+/// let imm = extract_immediate(0b1000_0000_1001_0100_0000_0000_0110_0011, &[(31, 31), (7, 7), (30, 25), (11, 8)], 1);
 /// assert!(imm == 0b11111111111111111111000000000000);
 /// ```
 ///
