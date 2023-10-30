@@ -40,7 +40,9 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
     inputs: &[F],
 ) -> (HashOut<F>, Vec<Poseidon2SpongeData<F>>) {
     let permute_and_record_data = |perm: &mut P, sponge_data: &mut Vec<Poseidon2SpongeData<F>>| {
-        let preimage: [F; 12] = perm
+        const STATE_SIZE: usize = 12;
+        assert_eq!(STATE_SIZE, P::WIDTH);
+        let preimage: [F; STATE_SIZE] = perm
             .as_ref()
             .try_into()
             .expect("length must be equal to poseidon2 STATE_SIZE");

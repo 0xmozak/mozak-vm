@@ -2,7 +2,7 @@ use core::ops::Add;
 
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
-use plonky2::hash::poseidon2::Poseidon2;
+use plonky2::hash::poseidon2::{Poseidon2, WIDTH};
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::linear_combination::Column;
@@ -22,8 +22,8 @@ pub struct Poseidon2Sponge<T> {
     pub input_addr: T,
     pub output_addr: T,
     pub len: T,
-    pub preimage: [T; 12],
-    pub output: [T; 12],
+    pub preimage: [T; WIDTH],
+    pub output: [T; WIDTH],
     pub gen_output: T,
     pub con_input: T,
 }
@@ -36,8 +36,8 @@ impl<F: RichField> Default for Poseidon2Sponge<F> {
             input_addr: F::default(),
             len: F::default(),
             output_addr: F::default(),
-            preimage: [F::default(); 12],
-            output: <F as Poseidon2>::poseidon2([F::default(); 12]),
+            preimage: [F::default(); WIDTH],
+            output: <F as Poseidon2>::poseidon2([F::default(); WIDTH]),
             gen_output: F::default(),
             con_input: F::default(),
         }
@@ -52,15 +52,6 @@ pub const NUM_POSEIDON2_SPONGE_COLS: usize = Poseidon2Sponge::<()>::NUMBER_OF_CO
 impl<T: Clone + Add<Output = T>> Poseidon2Sponge<T> {
     pub fn is_executed(&self) -> T {
         self.ops.is_init_permute.clone() + self.ops.is_permute.clone()
-    }
-
-    pub fn get_outputs(&self) -> [T; 4] {
-        [
-            self.output[0].clone(),
-            self.output[1].clone(),
-            self.output[2].clone(),
-            self.output[3].clone(),
-        ]
     }
 }
 
