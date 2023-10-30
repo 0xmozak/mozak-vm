@@ -149,16 +149,24 @@ pub fn generate_memory_trace<F: RichField>(
     // is_writable needs to be default = 1 for all rows of this address
     // c) Since rows sorted by address and than clk - diff.clk for first row with
     // say: addr = 0, clk = 23 , should be 0
-    let mut last_clk = None;
-    let mut last_addr = None;
+    let mut last_addr = F::ZERO;
+    let mut last_clk = F::ZERO;
+    let mut is_first_seen = false;
     let mut last_is_writable = F::ONE;
     for mem in &mut merged_trace {
-        mem.diff_addr = mem.addr - last_addr.unwrap_or_default();
-        mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
-        if mem.addr == last_addr.unwrap_or(-F::ONE) {
-            mem.diff_clk = mem.clk - last_clk.unwrap();
+        if !is_first_seen{
+            mem.diff_addr = mem.addr; 
+            last_clk = mem.clk;   
+            is_first_seen = true;      
         }
-        (last_clk, last_addr) = (Some(mem.clk), Some(mem.addr));
+        else{
+            mem.diff_addr = mem.addr - last_addr;
+        }
+        mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
+        if mem.addr == last_addr{
+            mem.diff_clk = mem.clk - last_clk;
+        }
+        (last_clk, last_addr) = (mem.clk, mem.addr);
         // rows with is_init set are the source of truth about is_writable
         if mem.is_init.is_one() {
             last_is_writable = mem.is_writable;
