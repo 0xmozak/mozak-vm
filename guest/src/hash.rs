@@ -1,5 +1,5 @@
 pub const DIGEST_BYTES: usize = 32;
-pub const RATE_BITS: usize = 8;
+pub const RATE: usize = 8;
 
 pub struct Digest([u8; DIGEST_BYTES]);
 
@@ -10,8 +10,8 @@ impl Digest {
 }
 
 pub fn poseidon2_hash(input: &[u8]) -> Digest {
-    // VM expects input length to be multiple of RATE_BITS
-    assert!(input.len() % RATE_BITS == 0);
+    // VM expects input length to be multiple of RATE
+    assert!(input.len() % RATE == 0);
     let mut output = [0; DIGEST_BYTES];
     #[cfg(target_os = "zkvm")]
     unsafe {

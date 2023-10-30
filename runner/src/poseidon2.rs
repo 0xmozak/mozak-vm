@@ -118,7 +118,9 @@ impl<F: RichField> State<F> {
                 poseidon2: Some(Poseidon2Entry {
                     addr: input_ptr,
                     output_addr: output_ptr,
-                    len: input_len.next_multiple_of(Poseidon2Permutation::RATE as u32),
+                    len: input_len.next_multiple_of(
+                        u32::try_from(Poseidon2Permutation::<F>::RATE).expect("RATE > 2^32"),
+                    ),
                     sponge_data,
                 }),
                 ..Default::default()

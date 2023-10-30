@@ -4,6 +4,8 @@ use std::marker::PhantomData;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
+use plonky2::hash::hashing::PlonkyPermutation;
+use plonky2::hash::poseidon2::Poseidon2Permutation;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
@@ -48,6 +50,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         // Questions: clk and address will be used for CTL for is_init_permut rows only,
         // and not be used for permute rows. Should we add constraints for them here?
 
+        let rate = u8::try_from(Poseidon2Permutation::<F>::RATE).expect("rate > 255");
+        let state_size = u8::try_from(Poseidon2Permutation::<F>::WIDTH).expect("state_size > 255");
         let lv: &Poseidon2Sponge<P> = vars.get_local_values().try_into().unwrap();
         let nv: &Poseidon2Sponge<P> = vars.get_next_values().try_into().unwrap();
 
@@ -66,36 +70,41 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         yield_constr.constraint(is_dummy * lv.gen_output);
 
         // if current row consumes input then next row must have
-        // length decreases by 8, note that only actaul execution row can consume input
+        // length decreases by RATE, note that only actaul execution row can consume
+        // input
         yield_constr.constraint_transition(
-            lv.con_input * (lv.len - (nv.len + P::Scalar::from_canonical_u8(8))),
+            lv.con_input * (lv.len - (nv.len + P::Scalar::from_canonical_u8(rate))),
         );
-        // and input_addr increases by 8
+        // and input_addr increases by RATE
         yield_constr.constraint_transition(
-            lv.con_input * (lv.input_addr - (nv.input_addr - P::Scalar::from_canonical_u8(8))),
+            lv.con_input * (lv.input_addr - (nv.input_addr - P::Scalar::from_canonical_u8(rate))),
         );
 
         // if current row generates output then next row mst have output_addr increased
-        // by 8
+        // by RATE
         yield_constr.constraint_transition(
-            lv.gen_output * (lv.output_addr - (nv.output_addr - P::Scalar::from_canonical_u8(8))),
+            lv.gen_output
+                * (lv.output_addr - (nv.output_addr - P::Scalar::from_canonical_u8(rate))),
         );
 
         // For each init_permute capacity bits are zero.
-        (8..12).for_each(|i| {
-            yield_constr.constraint(lv.ops.is_init_permute * (lv.preimage[i] - P::ZEROS));
+        (rate..state_size).for_each(|i| {
+            yield_constr.constraint(lv.ops.is_init_permute * (lv.preimage[i as usize] - P::ZEROS));
         });
 
         // For each permute capacity bits are copied from previous output.
-        (8..12).for_each(|i| {
-            yield_constr.constraint(nv.ops.is_permute * (nv.preimage[i] - lv.output[i]));
+        (rate..state_size).for_each(|i| {
+            yield_constr
+                .constraint(nv.ops.is_permute * (nv.preimage[i as usize] - lv.output[i as usize]));
         });
 
         // For each permute if input is not consumed then rate bits are copied from
         // previous output.
-        (0..8).for_each(|i| {
+        (0..rate).for_each(|i| {
             yield_constr.constraint(
-                nv.ops.is_permute * (P::ONES - nv.con_input) * (nv.preimage[i] - lv.output[i]),
+                nv.ops.is_permute
+                    * (P::ONES - nv.con_input)
+                    * (nv.preimage[i as usize] - lv.output[i as usize]),
             );
         });
     }
@@ -119,6 +128,7 @@ mod tests {
     use mozak_runner::state::{Aux, Poseidon2Entry};
     use mozak_runner::vm::Row;
     use plonky2::field::types::Sample;
+    use plonky2::hash::hashing::PlonkyPermutation;
     use plonky2::hash::poseidon2::Poseidon2Permutation;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use plonky2::util::timing::TimingTree;
@@ -145,7 +155,8 @@ mod tests {
         let mut step_rows = vec![];
         let mut input = vec![];
         // VM expects input lenght to be multiple of RATE bits
-        let input_len = input_len.next_multiple_of(8);
+        let input_len = input_len
+            .next_multiple_of(u32::try_from(Poseidon2Permutation::<F>::RATE).expect("RATE > 2^32"));
         for _ in 0..input_len {
             input.push(F::rand());
         }

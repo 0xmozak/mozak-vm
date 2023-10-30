@@ -2,6 +2,8 @@ use core::ops::Add;
 
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
+use plonky2::hash::hashing::PlonkyPermutation;
+use plonky2::hash::poseidon2::Poseidon2Permutation;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
@@ -110,15 +112,17 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
         if (value.ops.is_permute + value.ops.is_init_permute).is_zero() {
             vec![]
         } else {
+            let rate = Poseidon2Permutation::<F>::RATE;
             let mut inputs = vec![];
             if value.con_input.is_one() {
                 // each Field element in preimage represents a byte.
-                inputs = (0..8)
+                inputs = (0..rate)
                     .map(|i| Memory {
                         clk: value.clk,
-                        addr: value.input_addr + F::from_canonical_u8(i),
+                        addr: value.input_addr
+                            + F::from_canonical_u8(u8::try_from(i).expect("i > 255")),
                         is_load: F::ONE,
-                        value: value.preimage[i as usize],
+                        value: value.preimage[i],
                         ..Default::default()
                     })
                     .collect();
@@ -126,12 +130,13 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
             let mut outputs = vec![];
             if value.gen_output.is_one() {
                 // each Field element in output represents a byte.
-                outputs = (0..8)
+                outputs = (0..rate)
                     .map(|i| Memory {
                         clk: value.clk,
                         is_store: F::ONE,
-                        value: value.output[i as usize],
-                        addr: value.output_addr + F::from_canonical_u8(i),
+                        value: value.output[i],
+                        addr: value.output_addr
+                            + F::from_canonical_u8(u8::try_from(i).expect("i > 255")),
                         ..Default::default()
                     })
                     .collect();
