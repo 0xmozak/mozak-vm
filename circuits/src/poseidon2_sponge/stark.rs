@@ -104,7 +104,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         );
 
         // if current row consumes input then next row must have
-        // length decreases by RATE, note that only actaul execution row can consume
+        // length decreases by RATE, note that only actual execution row can consume
         // input
         yield_constr
             .constraint_transition(lv.con_input * (lv.input_len - (nv.input_len + rate_scalar)));

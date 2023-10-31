@@ -30,7 +30,7 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
     let poseidon2 = row.aux.poseidon2.clone().expect("please pass filtered row");
     let mut unroll = vec![];
     let rate_size = u32::try_from(Poseidon2Permutation::<F>::RATE).expect("RATE > 2^32");
-    assert!(poseidon2.len % rate_size == 0);
+    assert_eq!(poseidon2.len % rate_size, 0);
     let unroll_count = u32::try_from(poseidon2.sponge_data.len()).expect("too many rows");
 
     let mut output_addr = poseidon2.output_addr;
@@ -46,10 +46,18 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             .sponge_data
             .get(i as usize)
             .expect("unroll_count not consistent with number of permutations");
-        let current_output_addr = output_addr;
-        let current_input_addr = input_addr;
-        let current_input_len = input_len;
-        let current_output_len = output_len;
+        unroll.push(Poseidon2Sponge {
+            clk: F::from_canonical_u64(row.state.clk),
+            ops,
+            input_addr: F::from_canonical_u32(input_addr),
+            output_addr: F::from_canonical_u32(output_addr),
+            input_len: F::from_canonical_u32(input_len),
+            output_len: F::from_canonical_u32(output_len),
+            preimage: sponge_datum.preimage,
+            output: sponge_datum.output,
+            gen_output: sponge_datum.gen_output,
+            con_input: sponge_datum.con_input,
+        });
         // Output address tracks memory location to where next unroll row's output
         // should be written. Hence every time a row generates output, output
         // address is increased by RATE and output length is increased accordingly.
@@ -64,18 +72,6 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             input_addr += rate_size;
             input_len -= rate_size;
         }
-        unroll.push(Poseidon2Sponge {
-            clk: F::from_canonical_u64(row.state.clk),
-            ops,
-            input_addr: F::from_canonical_u32(current_input_addr),
-            output_addr: F::from_canonical_u32(current_output_addr),
-            input_len: F::from_canonical_u32(current_input_len),
-            output_len: F::from_canonical_u32(current_output_len),
-            preimage: sponge_datum.preimage,
-            output: sponge_datum.output,
-            gen_output: sponge_datum.gen_output,
-            con_input: sponge_datum.con_input,
-        });
     }
     unroll
 }

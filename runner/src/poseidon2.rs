@@ -114,7 +114,7 @@ impl<F: RichField> State<F> {
         let (hash, sponge_data) =
             hash_n_to_m_with_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
         let hash = hash.to_bytes();
-        assert!(NUM_HASH_OUT_ELTS == hash.len());
+        assert_eq!(NUM_HASH_OUT_ELTS, hash.len());
         (
             Aux {
                 poseidon2: Some(Poseidon2Entry {
