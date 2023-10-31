@@ -1,4 +1,3 @@
-import itertools
 import random
 from path import (
     create_folders_if_not_exist,
@@ -34,10 +33,8 @@ def load_commits_from_config(bench_function: str) -> dict[str, str]:
 def build_repo(commit: str):
     try:
         get_actual_commit_folder(commit).mkdir()
-    except FileExistsError as e:
-        print(f"{e}")
-        print(f"Skipping build for {commit}...")
-        return
+    except FileExistsError:
+        pass
     create_repo_from_commit(commit)
     cli_repo = get_actual_cli_repo(commit)
     build_release(cli_repo)
