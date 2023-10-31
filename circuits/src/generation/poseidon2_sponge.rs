@@ -64,13 +64,6 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             input_len -= rate_size;
         }
     }
-    // For every poseidon2 call, add dummy row to satisfy constraints related to
-    // output_addr and output_len for last row with gen_output.
-    unroll.push(Poseidon2Sponge {
-        output_addr: F::from_canonical_u32(output_addr),
-        output_len: F::from_canonical_u32(output_len),
-        ..Default::default()
-    });
 
     unroll
 }
@@ -87,6 +80,6 @@ pub fn generate_poseidon2_sponge_trace<F: RichField>(
             .flatten()
             .collect::<Vec<Poseidon2Sponge<F>>>(),
     );
-    log::trace!("Poseidon2 Sponge trace {:?}", trace);
+    log::trace!("Poseidon2 Sponge trace {:#?}", trace);
     trace
 }
