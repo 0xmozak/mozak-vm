@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from path import get_config_json, get_data_csv_file, get_plot_svg_file
 from scipy.stats import linregress
 import typer
 import json
@@ -13,7 +14,7 @@ plt.style.use("seaborn-v0_8-colorblind")
 
 
 def load_plot_data_from_config(bench_function: str) -> Tuple[dict, str, str, str]:
-    config_file = Path.cwd() / "config.json"
+    config_file = get_config_json()
     with open(config_file) as f:
         config = json.load(f)
     bench_data = config["benches"][bench_function]
@@ -24,11 +25,6 @@ def load_plot_data_from_config(bench_function: str) -> Tuple[dict, str, str, str
     y_label = bench_data["output"]
 
     return commits, description, x_label, y_label
-
-
-def get_csv_file(commit: str, bench_function: str) -> Path:
-    csv_file_path = Path.cwd() / "data" / bench_function / f"{commit}.csv"
-    return csv_file_path
 
 
 def get_data_from_csv(csv_file_path: Path, x_label: str, y_label: str) -> Tuple:
@@ -68,9 +64,11 @@ def plot_all(bench_function: str):
     plt.figure(figsize=(8, 6))
 
     for commit_description in commits:
-        csv_data_file = get_csv_file(commits[commit_description], bench_function)
+        data_csv_data_file = get_data_csv_file(
+            bench_function, commits[commit_description]
+        )
         x_data, y_data, slope, intercept, predicted_y = get_data_from_csv(
-            csv_data_file, x_label, y_label
+            data_csv_data_file, x_label, y_label
         )
         color = next(colorscycler)
         marker = next(markerscycler)
@@ -96,10 +94,8 @@ def update_plot_from_csv(bench_function: str):
 
 @app.command()
 def plot(bench_function: str):
-    plot_folder = Path.cwd() / "plots"
-    plot_folder.mkdir(exist_ok=True)
     update_plot_from_csv(bench_function)
-    plt.savefig(plot_folder / f"{bench_function}.svg")
+    plt.savefig(get_plot_svg_file(bench_function))
     plt.close()
 
 

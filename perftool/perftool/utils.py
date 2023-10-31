@@ -5,6 +5,7 @@ from pathlib import Path
 import random
 from typing import List
 import pandas as pd
+from path import get_actual_commit_folder
 from pyparsing import Any
 
 
@@ -12,7 +13,8 @@ def sample(min_value: int, max_value: int) -> int:
     return random.randrange(min_value, max_value)
 
 
-def create_repo_from_commit(commit: str, commit_folder: Path):
+def create_repo_from_commit(commit: str):
+    commit_folder = get_actual_commit_folder(commit)
     subprocess.run(
         ["git", "worktree", "add", "--force", str(commit_folder), commit], check=True
     )
@@ -76,12 +78,3 @@ def write_into_csv(data: dict, csv_file_path: Path):
     df = pd.DataFrame(data)
     with open(csv_file_path, "a") as f:
         df.to_csv(f, header=False, index=False)
-
-
-def get_csv_file(commit: str, bench_function: str) -> Path:
-    return Path.cwd() / "data" / bench_function / f"{commit}.csv"
-
-
-def get_cli_repo(commit: str, bench_function: str) -> Path:
-    commit_symlink = Path.cwd() / "build" / bench_function / commit
-    return commit_symlink.resolve() / "cli"

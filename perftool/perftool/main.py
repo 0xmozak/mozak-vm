@@ -1,14 +1,20 @@
 import random
-import tempfile
-from pathlib import Path
+from path import (
+    create_folders_if_not_exist,
+    create_symlink_for_repo,
+    delete_folder_if_no_symlink,
+    get_actual_cli_repo,
+    get_actual_commit_folder,
+    get_bench_folder,
+    get_cli_repo,
+    get_data_csv_file,
+    get_data_folder,
+)
 import typer
-import shutil
 
 from .utils import (
     build_release,
     create_repo_from_commit,
-    get_cli_repo,
-    get_csv_file,
     init_csv,
     load_bench_function_data,
     sample_and_bench,
@@ -26,61 +32,35 @@ def load_commits_from_config(bench_function: str) -> dict[str, str]:
     return commits
 
 
-def build_repo(commit: str, tmpfolder: Path):
-    commit_folder = tmpfolder / commit
+def build_repo(commit: str):
     try:
-        commit_folder.mkdir()
+        get_actual_commit_folder(commit).mkdir()
     except FileExistsError as e:
         print(f"{e}")
         print(f"Skipping build for {commit}...")
         return
-    create_repo_from_commit(commit, commit_folder)
-    cli_repo = commit_folder / "cli"
+    create_repo_from_commit(commit)
+    cli_repo = get_actual_cli_repo(commit)
     build_release(cli_repo)
-
-
-def create_symlink_for_repo(commit: str, tmpfolder: Path, bench_function: str):
-    commit_folder = tmpfolder / commit
-    build_folder = Path.cwd() / "build"
-    build_folder.mkdir(exist_ok=True)
-    bench_folder = build_folder / bench_function
-    bench_folder.mkdir(exist_ok=True)
-    commit_link = bench_folder / commit
-    try:
-        commit_link.symlink_to(commit_folder)
-    except FileExistsError as e:
-        print(f"{e}")
-        print(f"Skipping symlink for {commit}...")
-        return
 
 
 @app.command()
 def bench(bench_function: str, min_value: int, max_value: int):
     bench_commits = load_commits_from_config(bench_function)
-    # create build folder if it doesn't exist
-    build_folder = Path.cwd() / "build"
-    build_folder.mkdir(exist_ok=True)
-    # create bench folder if it doesn't exist
-    bench_folder = build_folder / bench_function
-    bench_folder.mkdir(exist_ok=True)
-    # create data folder if it doesn't exist
-    data_folder = Path.cwd() / "data"
-    data_folder.mkdir(exist_ok=True)
-    data_bench_folder = data_folder / bench_function
-    data_bench_folder.mkdir(exist_ok=True)
     commits = list(commit for (_commit_description, commit) in bench_commits.items())
+
     # initialize the csv files with headers if they does not exist
     for commit in commits:
-        data_csv_file = data_bench_folder / f"{commit}.csv"
+        data_csv_file = get_data_csv_file(bench_function, commit)
         init_csv(data_csv_file, bench_function)
 
     num_samples = 0
     while True:
         try:
             commit = random.choice(commits)
-            cli_repo = get_cli_repo(commit, bench_function)
+            cli_repo = get_cli_repo(bench_function, commit)
             data = sample_and_bench(cli_repo, bench_function, min_value, max_value)
-            data_csv_file = get_csv_file(commit, bench_function)
+            data_csv_file = get_data_csv_file(bench_function, commit)
             write_into_csv(data, data_csv_file)
             num_samples += 1
         except KeyboardInterrupt:
@@ -92,39 +72,38 @@ def bench(bench_function: str, min_value: int, max_value: int):
 @app.command()
 def build(bench_function: str):
     bench_commits = load_commits_from_config(bench_function)
-    tmpfolder = Path(tempfile.gettempdir()) / TEMPFOLDERNAME
-    tmpfolder.mkdir(exist_ok=True)
-    for commit_description, commit in bench_commits.items():
-        build_repo(commit, tmpfolder)
-        create_symlink_for_repo(commit, tmpfolder, bench_function)
+    create_folders_if_not_exist(bench_function)
+    for _commit_description, commit in bench_commits.items():
+        build_repo(commit)
+        create_symlink_for_repo(bench_function, commit)
     print(f"Bench {bench_function} built succesfully.")
 
 
 @app.command()
 def clean(bench_function: str):
-    bench_commits_folder = Path.cwd() / "build" / bench_function
-    if not bench_commits_folder.exists():
+    bench_commits_folder = get_bench_folder(bench_function)
+    try:
+        for commit_symlink in bench_commits_folder.iterdir():
+            commit_folder = commit_symlink.resolve()
+            commit_symlink.unlink()
+            # Delete the actual commit folder if it has no more symlinks into it
+            delete_folder_if_no_symlink(commit_folder)
+        bench_commits_folder.rmdir()
+        print("Repos cleaned successfully")
+    except NotADirectoryError:
         print("No bench commits found")
-        return
-    for commit_symlink in bench_commits_folder.iterdir():
-        commit_folder = commit_symlink.resolve()
-        if commit_folder.is_dir():
-            shutil.rmtree(commit_folder)
-        commit_symlink.unlink()
-    bench_commits_folder.rmdir()
-    print("Repos cleaned successfully")
 
 
 @app.command()
 def cleancsv(bench_function: str):
-    bench_commits_folder = Path.cwd() / "data" / bench_function
-    if not bench_commits_folder.exists():
+    bench_data_folder = get_data_folder(bench_function)
+    try:
+        for commit_csv_file in bench_data_folder.iterdir():
+            commit_csv_file.unlink()
+        bench_data_folder.rmdir()
+        print("Csv files cleaned successfully")
+    except NotADirectoryError:
         print("No bench csv files found")
-        return
-    for commit_csv_file in bench_commits_folder.iterdir():
-        commit_csv_file.unlink()
-    bench_commits_folder.rmdir()
-    print("Csv files cleaned successfully")
 
 
 if __name__ == "__main__":
