@@ -1,15 +1,21 @@
 use bitfield::{bitfield, BitRange};
 
-use crate::instruction::{Args, Instruction, Op, NOOP};
+use crate::instruction::{Args, Instruction, Op, NOP};
 
-/// Builds a i32 from segments, and right pads with zeroes
+/// Extract a u32 that represents the immediate from segments with zeros right
+/// pads of specified length
 ///
 /// This function takes segment specifications in the same format as the table
-/// in figure 2.4 of page 12 of <https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf>
+/// in figure 2.4 of page 17 of [RISC-V Unprivileged ISA Specification]
 ///
-/// So for example, a B-immediate takes:
-///   segments: &[(31, 31), (7, 7), (30, 25), (11, 8)]
-///   pad: 1
+/// # Example:
+/// ```ignore
+/// // Extract the immediate of a B-type instruction
+/// let imm = extract_immediate(0b1000_0000_1001_0100_0000_0000_0110_0011, &[(31, 31), (7, 7), (30, 25), (11, 8)], 1);
+/// assert!(imm == 0b1111_1111_1111_1111_1111_0000_0000_0000);
+/// ```
+///
+/// [RISC-V Unprivileged ISA Specification]: https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
@@ -25,26 +31,57 @@ fn extract_immediate(word: u32, segments: &[(usize, usize)], pad: usize) -> u32 
 }
 
 bitfield! {
+    /// Bits of an [Instruction]
     pub struct InstructionBits(u32);
     impl Debug;
     u8;
+    /// Get opcode of an [Instruction]
     pub opcode, _: 6, 0;
+    /// Get Destination Register of an [Instruction]
     pub rd, _: 11, 7;
-    pub func3, _: 14, 12;
+    /// Get `funct3` of an [Instruction]
+    pub funct3, _: 14, 12;
+    /// Get first Source Register of an [Instruction]
     pub rs1, _: 19, 15;
+    /// Get second Source Register of an [Instruction]
     pub rs2, _: 24, 20;
+    /// Get `shamt` of an [Instruction]
     pub shamt, _: 24, 20;
-    pub func7, _: 31, 25;
+    /// Get `funct7` of an [Instruction]
+    pub funct7, _: 31, 25;
     u16;
-    pub func12, _: 31, 20;
+    /// Get `funct12` of an [Instruction]
+    pub funct12, _: 31, 20;
 }
 
+// NOTE(Matthias): If we ever split this into an extra compilation step, then
+// the base version of `decode_instruction` doesn't need the extra pc parameter.
+/// Decode to an [Instruction] given `pc` and `word`
+///
+/// Example:
+/// ```rust
+/// use mozak_runner::decode::decode_instruction;
+/// use mozak_runner::instruction::{Args, Instruction, Op};
+///
+/// let instruction = decode_instruction(0, 0x018B_80B3);
+///
+/// assert!(
+///     instruction
+///         == Instruction {
+///             op: Op::ADD,
+///             args: Args {
+///                 rd: 1,
+///                 rs1: 23,
+///                 rs2: 24,
+///                 imm: 0,
+///             }
+///         }
+/// );
+/// ```
 #[allow(clippy::too_many_lines)]
 #[allow(clippy::module_name_repetitions)]
 #[allow(clippy::similar_names)]
 #[must_use]
-// NOTE(Matthias): If we ever split this into an extra compilation step, then
-// the base version of `decode_instruction` doesn't need the extra pc parameter.
 pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
     let bf = InstructionBits(word);
     let rs1 = bf.rs1();
@@ -105,10 +142,10 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         imm: extract_immediate(word, &[(31, 12)], 12).wrapping_add(pc),
         ..Default::default()
     };
-    let noop = (NOOP.op, NOOP.args);
+    let nop = (NOP.op, NOP.args);
 
     let (op, args) = match bf.opcode() {
-        0b011_0011 => match (bf.func3(), bf.func7()) {
+        0b011_0011 => match (bf.funct3(), bf.funct7()) {
             (0x0, 0x00) => (Op::ADD, rtype),
             (0x0, 0x20) => (Op::SUB, rtype),
             (0x1, 0x00) => (Op::SLL, rtype),
@@ -129,7 +166,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             (0x3, 0x01) => (Op::MULHU, rtype),
             _ => Default::default(),
         },
-        0b000_0011 => match bf.func3() {
+        0b000_0011 => match bf.funct3() {
             0x0 => (Op::LB, itype_load),
             0x1 => (Op::LH, itype_load),
             0x2 => (Op::LW, itype_load),
@@ -137,25 +174,25 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
             0x5 => (Op::LHU, itype_load),
             _ => Default::default(),
         },
-        0b010_0011 => match bf.func3() {
+        0b010_0011 => match bf.funct3() {
             0x0 => (Op::SB, stype),
             0x1 => (Op::SH, stype),
             0x2 => (Op::SW, stype),
             _ => Default::default(),
         },
-        0b001_0011 => match bf.func3() {
-            // For Risc-V it's ADDI, but we handle it as ADD.
+        0b001_0011 => match bf.funct3() {
+            // For RISC-V it's ADDI, but we handle it as ADD.
             0x0 => (Op::ADD, itype),
-            // For Risc-V it's SLLI, but we handle it as MUL.
+            // For RISC-V it's SLLI, but we handle it as MUL.
             0x1 if 0 == itype.imm & !0b1_1111 => (Op::MUL, Args {
                 imm: 1 << itype.imm,
                 ..itype
             }),
-            // For Risc-V it's SLTI, but we handle it as SLT.
+            // For RISC-V it's SLTI, but we handle it as SLT.
             0x2 => (Op::SLT, itype),
-            // For Risc-V it's SLTIU, but we handle it as SLTU.
+            // For RISC-V it's SLTIU, but we handle it as SLTU.
             0x3 => (Op::SLTU, itype),
-            // For Risc-V it's XORI, but we handle it as XOR.
+            // For RISC-V it's XORI, but we handle it as XOR.
             0x4 => (Op::XOR, itype),
             0x5 => {
                 let imm = itype.imm;
@@ -168,9 +205,9 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
                 // SRAI/SRLI instruction. They have the same funct3 value and are
                 // differentiated by their 30th bit, for which SRAI = 1 and SRLI = 0.
                 match imm.bit_range(11, 5) {
-                    // For Risc-V it's SRAI, but we handle it as SRA.
+                    // For RISC-V it's SRAI, but we handle it as SRA.
                     0b010_0000 => (Op::SRA, itype),
-                    // For Risc-V it's SRLI, but we handle it as DIVU.
+                    // For RISC-V it's SRLI, but we handle it as DIVU.
                     0 => (Op::DIVU, Args {
                         imm: 1 << itype.imm,
                         ..itype
@@ -178,39 +215,39 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
                     _ => Default::default(),
                 }
             }
-            // For Risc-V it's ORI, but we handle it as OR.
+            // For RISC-V it's ORI, but we handle it as OR.
             0x6 => (Op::OR, itype),
-            // For Risc-V it's ANDI, but we handle it as AND.
+            // For RISC-V it's ANDI, but we handle it as AND.
             0x7 => (Op::AND, itype),
             _ => Default::default(),
         },
         #[allow(clippy::match_same_arms)]
-        0b111_0011 => match (bf.func3(), bf.func12()) {
+        0b111_0011 => match (bf.funct3(), bf.funct12()) {
             (0x0, 0x0) => (Op::ECALL, Args::default()),
             // For RISC-V this would be MRET,
             // but so far we implemented it as a no-op.
-            (0x0, 0x302) => noop,
+            (0x0, 0x302) => nop,
             // For RISC-V this would be EBREAK,
             // but so far we implemented it as a no-op.
-            (0x0, 0x1) => noop,
+            (0x0, 0x1) => nop,
             // For RISC-V this would be (Op::CSRRW, itype),
             // but so far we implemented it as a no-op.
-            (0x1, _) => noop,
+            (0x1, _) => nop,
             // For RISC-V this would be (Op::CSRRS, itype),
             // but so far we implemented it as a no-op.
-            (0x2, _) => noop,
+            (0x2, _) => nop,
             // For RISC-V this would be (Op::CSRRWI, itype),
             // but so far we implemented it as a no-op.
-            (0x5, _) => noop,
+            (0x5, _) => nop,
             _ => Default::default(),
         },
-        // For Risc-V its JAL, but we handle it as JALR.
+        // For RISC-V its JAL, but we handle it as JALR.
         0b110_1111 => (Op::JALR, jtype),
-        0b110_0111 => match bf.func3() {
+        0b110_0111 => match bf.funct3() {
             0x0 => (Op::JALR, itype),
             _ => Default::default(),
         },
-        0b110_0011 => match bf.func3() {
+        0b110_0011 => match bf.funct3() {
             0x0 => (Op::BEQ, btype),
             0x1 => (Op::BNE, btype),
             0x4 => (Op::BLT, btype),
@@ -227,7 +264,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Instruction {
         0b001_0111 => (Op::ADD, utype_absolute),
         // For RISC-V this would be (Op::FENCE, itype)
         // but so far we implemented it as a no-op.
-        0b000_1111 => noop,
+        0b000_1111 => nop,
         _ => Default::default(),
     };
 
@@ -242,7 +279,7 @@ mod tests {
     use test_case::test_case;
 
     use super::{decode_instruction, extract_immediate};
-    use crate::instruction::{Args, Instruction, Op, NOOP};
+    use crate::instruction::{Args, Instruction, Op, NOP};
     use crate::test_utils::u32_extra;
 
     proptest! {
@@ -979,30 +1016,30 @@ mod tests {
     #[test_case(0x0ff0_000f, 0, 0, 255; "fence, iorw, iorw")]
     fn fence(word: u32, _rd: u8, _rs1: u8, _imm: i32) {
         let ins: Instruction = decode_instruction(0, word);
-        assert_eq!(ins, NOOP);
+        assert_eq!(ins, NOP);
     }
 
     #[test_case(0x3020_0073; "mret")]
     fn mret(word: u32) {
         let ins: Instruction = decode_instruction(0, word);
-        assert_eq!(ins, NOOP);
+        assert_eq!(ins, NOP);
     }
 
     #[test_case(0x3420_2f73, 30, 0, 834; "csrrs, t5, mcause")]
     fn csrrs(word: u32, _rd: u8, _rs1: u8, _imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
-        assert_eq!(ins, NOOP);
+        assert_eq!(ins, NOP);
     }
 
     #[test_case(0x3052_9073, 0, 5, 773; "csrrw, mtvec, t0")]
     fn csrrw(word: u32, _rd: u8, _rs1: u8, _imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
-        assert_eq!(ins, NOOP);
+        assert_eq!(ins, NOP);
     }
 
     #[test_case(0x7444_5073, 0, 8, 0x744; "csrrwi, 0x744, 8")]
     fn csrrwi(word: u32, _rd: u8, _rs1: u8, _imm: u32) {
         let ins: Instruction = decode_instruction(0, word);
-        assert_eq!(ins, NOOP);
+        assert_eq!(ins, NOP);
     }
 }

@@ -3,7 +3,7 @@ use core::ops::{Add, Mul, Neg, Sub};
 use std::borrow::Borrow;
 use std::ops::Index;
 
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -312,19 +312,25 @@ impl<F: Field> Column<F> {
         &self,
         builder: &mut CircuitBuilder<F, D>,
         v: &[ExtensionTarget<D>],
+        next_v: &[ExtensionTarget<D>],
     ) -> ExtensionTarget<D>
     where
         F: RichField + Extendable<D>, {
-        let pairs = self
-            .lv_linear_combination
-            .iter()
-            .map(|&(c, f)| {
-                (
-                    v[c],
-                    builder.constant_extension(F::Extension::from_basefield(f)),
-                )
-            })
-            .collect::<Vec<_>>();
+        let pairs = chain!(
+            self.lv_linear_combination
+                .iter()
+                .map(|&(c, f)| { (v[c], f) }),
+            self.nv_linear_combination
+                .iter()
+                .map(|&(c, f)| { (next_v[c], f) })
+        )
+        .map(|(v, f)| {
+            (
+                v,
+                builder.constant_extension(F::Extension::from_basefield(f)),
+            )
+        })
+        .collect_vec();
         let constant = builder.constant_extension(F::Extension::from_basefield(self.constant));
         builder.inner_product_extension(F::ONE, constant, pairs)
     }
