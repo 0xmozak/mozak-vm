@@ -155,7 +155,6 @@ pub fn generate_memory_trace<F: RichField>(
     let mut last_is_writable = F::ONE;
     for mem in &mut merged_trace {
         if !is_first_seen {
-            mem.diff_addr = mem.addr;
             last_clk = mem.clk;
             is_first_seen = true;
         }
