@@ -1,3 +1,8 @@
 [workspace]
-members = ["fibonacci", "min-max", "memory-access", "panic", "static-mem-access", "sha2", "rkyv-serialization", "stdin"]
+members = ["fibonacci", "min-max", "memory-access", "panic", "poseidon2", "static-mem-access", "sha2", "rkyv-serialization", "stdin"]
 resolver = "2"
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = "z"

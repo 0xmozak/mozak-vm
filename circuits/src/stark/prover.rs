@@ -32,6 +32,7 @@ use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 use crate::stark::permutation::compute_permutation_z_polys;
 use crate::stark::poly::compute_quotient_polys;
+use crate::stark::proof::StarkProofWithMetadata;
 
 pub fn prove<F, C, const D: usize>(
     program: &Program,
@@ -122,7 +123,7 @@ where
             &ctl_challenges
         )
     );
-    let stark_proofs = timed!(
+    let proofs_with_metadata = timed!(
         timing,
         "compute all proofs given commitments",
         prove_with_commitments(
@@ -143,7 +144,8 @@ where
         timing.print();
     }
     Ok(AllProof {
-        stark_proofs,
+        proofs_with_metadata,
+        ctl_challenges,
         program_rom_trace_cap,
         memory_init_trace_cap,
         public_inputs,
@@ -166,7 +168,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     ctl_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<StarkProof<F, C, D>>
+) -> Result<StarkProofWithMetadata<F, C, D>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -181,7 +183,7 @@ where
         "FRI total reduction arity is too large.",
     );
 
-    challenger.compact();
+    let init_challenger_state = challenger.compact();
 
     // Permutation arguments.
     let permutation_challenges: Vec<GrandProductChallengeSet<F>> = challenger
@@ -319,12 +321,16 @@ where
         )
     );
 
-    Ok(StarkProof {
+    let proof = StarkProof {
         trace_cap: trace_commitment.merkle_tree.cap.clone(),
         permutation_ctl_zs_cap,
         quotient_polys_cap,
         openings,
         opening_proof,
+    };
+    Ok(StarkProofWithMetadata {
+        init_challenger_state,
+        proof,
     })
 }
 
@@ -343,7 +349,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     ctl_data_per_table: &[CtlData<F>; NUM_TABLES],
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<[StarkProof<F, C, D>; NUM_TABLES]>
+) -> Result<[StarkProofWithMetadata<F, C, D>; NUM_TABLES]>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
@@ -389,6 +395,7 @@ where
         )?,
         make_proof!(mozak_stark.register_init_stark, TableKind::RegisterInit, [])?,
         make_proof!(mozak_stark.register_stark, TableKind::Register, [])?,
+        make_proof!(mozak_stark.io_memory_stark, TableKind::IoMemory, [])?,
     ])
 }
 

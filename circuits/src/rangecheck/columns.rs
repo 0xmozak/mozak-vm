@@ -6,14 +6,14 @@ use crate::stark::mozak_stark::{RangeCheckTable, Table};
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub(crate) struct RangeCheckColumnsView<T> {
+pub struct RangeCheckColumnsView<T> {
     /// The limbs (u8) of the u32 value to be range
     /// checked.
-    pub(crate) limbs: [T; 4],
+    pub limbs: [T; 4],
 
     /// Column to indicate that a value to be range checked is not a dummy
     /// value.
-    pub(crate) filter: T,
+    pub filter: T,
 }
 columns_view_impl!(RangeCheckColumnsView);
 make_col_map!(RangeCheckColumnsView);

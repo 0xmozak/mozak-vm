@@ -1,4 +1,4 @@
-# Risc-V tests are out of date
+# RISC-V tests are out of date
 
 Please make sure you have docker installed and run:
 

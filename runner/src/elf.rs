@@ -1,6 +1,5 @@
-// Copyright 2023 MOZAK.
-
 use std::collections::HashSet;
+use std::iter::repeat;
 
 use anyhow::{anyhow, ensure, Result};
 use derive_more::Deref;
@@ -9,14 +8,14 @@ use elf::file::Class;
 use elf::segment::ProgramHeader;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
-use itertools::{iproduct, Itertools};
+use itertools::{chain, iproduct, Itertools};
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
 use crate::instruction::Instruction;
 use crate::util::load_u32;
 
-/// A RISC program
+/// A RISC-V program
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Program {
     /// The entrypoint of the program
@@ -34,13 +33,20 @@ pub struct Program {
     pub ro_code: Code,
 }
 
+/// Executable code of the ELF
+///
+/// A wrapper of a map from pc to [Instruction]
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct Code(pub HashMap<u32, Instruction>);
 
+/// Memory of RISC-V Program
+///
+/// A wrapper around a map from a 32-bit address to a byte of memory
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct Data(pub HashMap<u32, u8>);
 
 impl Code {
+    /// Get [Instruction] given `pc`
     #[must_use]
     pub fn get_instruction(&self, pc: u32) -> Instruction {
         let Code(code) = self;
@@ -155,9 +161,15 @@ impl Program {
                     let mem_size: usize = segment.p_memsz.try_into()?;
                     let vaddr: u32 = segment.p_vaddr.try_into()?;
                     let offset = segment.p_offset.try_into()?;
+                    // This is as defined in the elf man page, under PT_LOAD: https://www.man7.org/linux/man-pages/man5/elf.5.html
+                    ensure!(
+                        file_size <= mem_size,
+                        "The file size {file_size} can not be larger than the memory size {mem_size} in the segment."
+                    );
                     Ok((vaddr..).zip(
-                        input[offset..offset + std::cmp::min(file_size, mem_size)]
-                            .iter()
+                        // We zero out the remaining memory, according to the spec above.
+                        chain!(&input[offset..][..file_size], repeat(&0u8))
+                            .take(mem_size)
                             .copied(),
                     ))
                 })

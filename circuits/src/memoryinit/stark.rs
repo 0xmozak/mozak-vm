@@ -11,7 +11,7 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::MemoryInit;
-use crate::columns_view::NumberOfColumns;
+use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::display::derive_display_stark_name;
 use crate::stark::utils::is_binary;
 
@@ -20,6 +20,10 @@ derive_display_stark_name!(MemoryInitStark);
 #[allow(clippy::module_name_repetitions)]
 pub struct MemoryInitStark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> HasNamedColumns for MemoryInitStark<F, D> {
+    type Columns = MemoryInit<F>;
 }
 
 const COLUMNS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;

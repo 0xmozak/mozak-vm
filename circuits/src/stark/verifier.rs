@@ -49,23 +49,28 @@ where
         cross_table_lookups,
         halfword_memory_stark,
         fullword_memory_stark,
+        io_memory_stark,
         ..
     } = mozak_stark;
 
     ensure!(
-        all_proof.stark_proofs[TableKind::Program as usize].trace_cap
+        all_proof.proofs_with_metadata[TableKind::Program as usize]
+            .proof
+            .trace_cap
             == all_proof.program_rom_trace_cap,
         "Mismatch between Program ROM trace caps"
     );
 
     ensure!(
-        all_proof.stark_proofs[TableKind::MemoryInit as usize].trace_cap
+        all_proof.proofs_with_metadata[TableKind::MemoryInit as usize]
+            .proof
+            .trace_cap
             == all_proof.memory_init_trace_cap,
         "Mismatch between MemoryInit trace caps"
     );
 
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
-        &all_proof.stark_proofs,
+        &all_proof.proofs_with_metadata,
         &cross_table_lookups,
         &ctl_challenges,
         &nums_permutation_zs,
@@ -75,7 +80,7 @@ where
         ($stark: expr, $kind: expr, $public_inputs: expr) => {
             verify_stark_proof_with_challenges(
                 &$stark,
-                &all_proof.stark_proofs[$kind as usize],
+                &all_proof.proofs_with_metadata[$kind as usize].proof,
                 &stark_challenges[$kind as usize],
                 $public_inputs,
                 &ctl_vars_per_table[$kind as usize],
@@ -97,6 +102,7 @@ where
 
     verify!(register_init_stark, TableKind::RegisterInit, &[]);
     verify!(register_stark, TableKind::Register, &[]);
+    verify!(io_memory_stark, TableKind::IoMemory, &[]);
     verify_cross_table_lookups::<F, D>(&cross_table_lookups, &all_proof.all_ctl_zs_last(), config)?;
     Ok(())
 }

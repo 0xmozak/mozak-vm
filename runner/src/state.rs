@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
-use derive_more::Deref;
+use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
 use log::trace;
 use plonky2::hash::hash_types::RichField;
@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction};
 
-/// State of our VM
+/// State of RISC-V VM
 ///
 /// Note: In general clone is not necessarily what you want, but in our case we
 /// carefully picked the type of `memory` to be clonable in about O(1)
@@ -27,7 +27,7 @@ use crate::instruction::{Args, Instruction};
 /// You can think of this as instructions being cached at the start of the
 /// program and that cache never updating afterwards.
 ///
-/// This is very similar to what many real world CPUs, including Risc-V ones, do
+/// This is very similar to what many real world CPUs, including RISC-V ones, do
 /// by default. The FENCE instruction can be used to make the CPU update the
 /// instruction cache on many CPUs.  But we deliberately don't support that
 /// usecase.
@@ -107,6 +107,21 @@ pub struct MemEntry {
     pub raw_value: u32,
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Default)]
+#[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
+#[repr(u8)]
+pub enum IoOpcode {
+    #[default]
+    None,
+    Store,
+}
+#[derive(Debug, Clone, Default)]
+pub struct IoEntry {
+    pub addr: u32,
+    pub op: IoOpcode,
+    pub data: Vec<u8>,
+}
+
 // First part in pair is preimage and second is output.
 pub type Poseidon2SpongeData<F> = Vec<([F; WIDTH], [F; WIDTH])>;
 
@@ -120,7 +135,7 @@ pub struct Poseidon2Entry<F: RichField> {
 /// Auxiliary information about the instruction execution
 #[derive(Debug, Clone, Default)]
 pub struct Aux<F: RichField> {
-    // This could be an Option<u32>, but given how Risc-V instruction are specified,
+    // This could be an Option<u32>, but given how RISC-V instruction are specified,
     // 0 serves as a default value just fine.
     pub dst_val: u32,
     pub new_pc: u32,
@@ -129,6 +144,7 @@ pub struct Aux<F: RichField> {
     pub op1: u32,
     pub op2: u32,
     pub poseidon2: Option<Poseidon2Entry<F>>,
+    pub io: Option<IoEntry>,
 }
 
 impl<F: RichField> State<F> {
