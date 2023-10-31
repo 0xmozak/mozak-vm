@@ -161,7 +161,7 @@ mod tests {
     use mozak_runner::poseidon2::hash_n_to_m_with_pad;
     use mozak_runner::state::{Aux, Poseidon2Entry};
     use mozak_runner::vm::Row;
-    use plonky2::field::types::Sample;
+    use plonky2::hash::hash_types::RichField;
     use plonky2::hash::hashing::PlonkyPermutation;
     use plonky2::hash::poseidon2::Poseidon2Permutation;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
@@ -180,33 +180,42 @@ mod tests {
     type F = <C as GenericConfig<D>>::F;
     type S = Poseidon2SpongeStark<F, D>;
 
-    fn poseidon2_sponge_constraints(input_len: u32) -> Result<()> {
+    fn generate_poseidon2_entry<F: RichField>(input_lens: &[u32]) -> Vec<Row<F>> {
+        let mut step_rows = vec![];
+        // For every entry in input_lens, a new poseidon2 call is tested
+        for &input_len in input_lens {
+            // VM expects input lenght to be multiple of RATE
+            let input_len = input_len.next_multiple_of(
+                u32::try_from(Poseidon2Permutation::<F>::RATE).expect("RATE > 2^32"),
+            );
+            let mut input = vec![];
+            for _ in 0..input_len {
+                input.push(F::rand());
+            }
+            let (_hash, sponge_data) =
+                hash_n_to_m_with_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
+            step_rows.push(Row {
+                aux: Aux {
+                    poseidon2: Some(Poseidon2Entry::<F> {
+                        sponge_data,
+                        len: input_len,
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+        }
+        step_rows
+    }
+
+    fn poseidon2_sponge_constraints(input_lens: &[u32]) -> Result<()> {
         let _ = env_logger::try_init();
         let mut config = StarkConfig::standard_fast_config();
         config.fri_config.cap_height = 0;
         config.fri_config.rate_bits = 3; // to meet the constraint degree bound
 
-        let mut step_rows = vec![];
-        let mut input = vec![];
-        // VM expects input lenght to be multiple of RATE bits
-        let input_len = input_len
-            .next_multiple_of(u32::try_from(Poseidon2Permutation::<F>::RATE).expect("RATE > 2^32"));
-        for _ in 0..input_len {
-            input.push(F::rand());
-        }
-        let (_hash, sponge_data) =
-            hash_n_to_m_with_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
-        step_rows.push(Row {
-            aux: Aux {
-                poseidon2: Some(Poseidon2Entry::<F> {
-                    sponge_data,
-                    len: input_len,
-                    ..Default::default()
-                }),
-                ..Default::default()
-            },
-            ..Default::default()
-        });
+        let step_rows = generate_poseidon2_entry(input_lens);
 
         let stark = S::default();
         let trace = generate_poseidon2_sponge_trace(&step_rows);
@@ -223,11 +232,15 @@ mod tests {
     }
 
     #[test]
-    fn test_with_input_len_multiple_of_8() -> Result<()> { poseidon2_sponge_constraints(96) }
+    fn test_with_input_len_multiple_of_8() -> Result<()> { poseidon2_sponge_constraints(&[96]) }
     #[test]
-    fn test_with_input_len_not_multiple_of_8() -> Result<()> { poseidon2_sponge_constraints(100) }
+    fn test_with_input_len_not_multiple_of_8() -> Result<()> {
+        poseidon2_sponge_constraints(&[100])
+    }
     #[test]
-    fn test_with_input_len_less_than_8() -> Result<()> { poseidon2_sponge_constraints(5) }
+    fn test_with_input_len_less_than_8() -> Result<()> { poseidon2_sponge_constraints(&[5]) }
+    #[test]
+    fn test_with_various_input_len() -> Result<()> { poseidon2_sponge_constraints(&[96, 5, 100]) }
 
     #[test]
     fn poseidon2_stark_degree() -> Result<()> {

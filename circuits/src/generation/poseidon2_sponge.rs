@@ -9,16 +9,7 @@ use crate::poseidon2_sponge::columns::{Ops, Poseidon2Sponge};
 fn pad_poseidon2_sponge_trace<F: RichField>(
     mut trace: Vec<Poseidon2Sponge<F>>,
 ) -> Vec<Poseidon2Sponge<F>> {
-    let last = trace.last().copied().unwrap_or(Poseidon2Sponge::default());
-    let rate =
-        F::from_canonical_u8(u8::try_from(Poseidon2Permutation::<F>::RATE).expect("RATE > 256"));
-    // Just add RATE to output_addr and output_len of dummy row so that
-    // related constraint is satisfied for last real row.
-    trace.resize(trace.len().next_power_of_two(), Poseidon2Sponge {
-        output_addr: last.output_addr + rate,
-        output_len: last.output_len + rate,
-        ..Default::default()
-    });
+    trace.resize(trace.len().next_power_of_two(), Poseidon2Sponge::default());
     trace
 }
 
@@ -73,6 +64,14 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             input_len -= rate_size;
         }
     }
+    // For every poseidon2 call, add dummy row to satisfy constraints related to
+    // output_addr and output_len for last row with gen_output.
+    unroll.push(Poseidon2Sponge {
+        output_addr: F::from_canonical_u32(output_addr),
+        output_len: F::from_canonical_u32(output_len),
+        ..Default::default()
+    });
+
     unroll
 }
 
