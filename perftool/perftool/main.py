@@ -55,7 +55,6 @@ def bench(bench_function: str, min_value: int, max_value: int):
         init_csv(data_bench_folder / f"{commit}.csv", bench_function)
 
     for num_samples in itertools.count():
-        print(f"Sampled {num_samples} number of times")
         commit = random.choice(list(bench_commits.values()))
         cli_repo = get_cli_repo(commit, bench_function)
         data = sample_and_bench(cli_repo, bench_function, min_value, max_value)
