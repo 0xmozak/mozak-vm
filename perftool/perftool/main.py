@@ -1,3 +1,4 @@
+import itertools
 import random
 from path import (
     create_folders_if_not_exist,
@@ -27,9 +28,7 @@ app = typer.Typer()
 
 
 def load_commits_from_config(bench_function: str) -> dict[str, str]:
-    bench_function_data = load_bench_function_data(bench_function)
-    commits = bench_function_data["commits"]
-    return commits
+    return load_bench_function_data(bench_function)["commits"]
 
 
 def build_repo(commit: str):
