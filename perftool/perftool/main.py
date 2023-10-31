@@ -70,7 +70,8 @@ def bench(bench_function: str, min_value: int, max_value: int):
 @app.command()
 def build(bench_function: str):
     """
-    Build all the commits specified in `config.json` for given `bench_function` in `--realease` mode.
+    Build all the commits specified in `config.json` for given `bench_function`,
+      in `--realease` mode.
     """
     bench_commits = load_commits_from_config(bench_function)
     create_folders_if_not_exist(bench_function)
