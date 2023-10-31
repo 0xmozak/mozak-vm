@@ -91,4 +91,3 @@ def delete_folder_if_no_symlink(folder: Path):
             if commit_symlink.resolve() == folder:
                 return
     shutil.rmtree(folder)
-                  
