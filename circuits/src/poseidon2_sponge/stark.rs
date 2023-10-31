@@ -48,8 +48,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        // Questions: clk and address will be used for CTL for is_init_permut rows only,
-        // and not be used for permute rows. Should we add constraints for them here?
+        // NOTE: clk and address will be used for CTL for is_init_permut rows only,
+        // and not be used for permute rows.
 
         let rate = u8::try_from(Poseidon2Permutation::<F>::RATE).expect("rate > 255");
         let state_size = u8::try_from(Poseidon2Permutation::<F>::WIDTH).expect("state_size > 255");
