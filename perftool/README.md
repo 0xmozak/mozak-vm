@@ -9,7 +9,7 @@
 
 ## Building and cleaning
 
-- Build the commits with `poetry run perftool build {bench_name}`, for example `poetry run perftool clean sample-bench`.  This is necessary before calling benches.
+- Build the commits with `poetry run perftool build {bench_name}`, for example `poetry run perftool build sample-bench`.  This is necessary before calling benches.
   - This builds the repo inside `Perftools_Repos_tmp` within system temp folder, and creates their symlinks in `build/{bench_name}` folder.
 - When we no longer need the repos, clean with `poetry run perftool clean {bench_name}`
   - This will remove the symlinks as well as the repos inside temp folder.
