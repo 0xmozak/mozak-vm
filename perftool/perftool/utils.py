@@ -13,7 +13,8 @@ def sample(min_value: int, max_value: int) -> int:
     return random.randrange(min_value, max_value)
 
 
-def create_repo_from_commit(commit: str, commit_folder: Path):
+def create_repo_from_commit(commit: str):
+    commit_folder = get_actual_commit_folder(commit)
     return (commit_folder / ".git").is_file() or subprocess.run(
         ["git", "worktree", "add", "--force", commit_folder, commit], check=True
     )
