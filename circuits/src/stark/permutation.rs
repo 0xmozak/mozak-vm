@@ -5,7 +5,7 @@
 
 use std::fmt::Debug;
 
-use itertools::Itertools;
+use itertools::{izip, Itertools};
 use plonky2::field::batch_util::batch_multiply_inplace;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -13,19 +13,30 @@ use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::iop::target::Target;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::Hasher;
 use plonky2::plonk::plonk_common::reduce_with_powers;
-use plonky2::util::reducing::ReducingFactor;
+use plonky2::util::reducing::{ReducingFactor, ReducingFactorTarget};
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
-use starky::constraint_consumer::ConstraintConsumer;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::permutation::PermutationPair;
 use starky::stark::Stark;
 
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 
-pub(crate) mod challenge {
+pub mod challenge {
+    use plonky2::field::extension::Extendable;
+    use plonky2::iop::challenger::RecursiveChallenger;
+    use plonky2::iop::ext_target::ExtensionTarget;
+    use plonky2::iop::target::Target;
+    use plonky2::plonk::circuit_builder::CircuitBuilder;
+    use plonky2::plonk::config::AlgebraicHasher;
+    use plonky2::plonk::plonk_common::reduce_with_powers_ext_circuit;
+
     use super::{
         reduce_with_powers, Challenger, Debug, Field, FieldExtension, Hasher, PackedField,
         RichField,
@@ -44,11 +55,11 @@ pub(crate) mod challenge {
     /// In the permutation check protocol instance we use this challenge to make
     /// sure that rows of two sets of columns are the same, up to permutation.
     #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-    pub(crate) struct GrandProductChallenge<T: Copy + Eq + PartialEq + Debug> {
+    pub struct GrandProductChallenge<T: Copy + Eq + PartialEq + Debug> {
         /// Randomness used to combine multiple columns into one.
-        pub(crate) beta: T,
+        pub beta: T,
         /// Random offset that's added to the beta-reduced column values.
-        pub(crate) gamma: T,
+        pub gamma: T,
     }
 
     impl<F: Field> GrandProductChallenge<F> {
@@ -70,7 +81,7 @@ pub(crate) mod challenge {
         /// random value. We still need to use `gamma` to make sure that the
         /// prover can  not manipulate the last list value in a way that would
         /// make the two lists equal.
-        pub(crate) fn combine<'a, FE, P, T: IntoIterator<Item = &'a P>, const D2: usize>(
+        pub fn combine<'a, FE, P, T: IntoIterator<Item = &'a P>, const D2: usize>(
             &self,
             terms: T,
         ) -> P
@@ -83,14 +94,26 @@ pub(crate) mod challenge {
         }
     }
 
-    /// [`GrandProductChallenge`] repeated for [`num_challenges`] to boost
-    /// soundness.
-    #[derive(Clone, Eq, PartialEq, Debug)]
-    pub(crate) struct GrandProductChallengeSet<T: Copy + Eq + PartialEq + Debug> {
-        pub(crate) challenges: Vec<GrandProductChallenge<T>>,
+    impl GrandProductChallenge<Target> {
+        pub fn combine_circuit<F: RichField + Extendable<D>, const D: usize>(
+            &self,
+            builder: &mut CircuitBuilder<F, D>,
+            terms: &[ExtensionTarget<D>],
+        ) -> ExtensionTarget<D> {
+            let reduced = reduce_with_powers_ext_circuit(builder, terms, self.beta);
+            let gamma = builder.convert_to_ext(self.gamma);
+            builder.add_extension(reduced, gamma)
+        }
     }
 
-    pub(crate) trait GrandProductChallengeTrait<F: RichField, H: Hasher<F>> {
+    /// [`GrandProductChallenge`] repeated for [`num_challenges`] to boost
+    /// soundness.
+    #[derive(Clone, Eq, PartialEq, Debug, Default)]
+    pub struct GrandProductChallengeSet<T: Copy + Eq + PartialEq + Debug> {
+        pub challenges: Vec<GrandProductChallenge<T>>,
+    }
+
+    pub trait GrandProductChallengeTrait<F: RichField, H: Hasher<F>> {
         fn get_grand_product_challenge(&mut self) -> GrandProductChallenge<F>;
 
         fn get_grand_product_challenge_set(
@@ -115,6 +138,50 @@ pub(crate) mod challenge {
         }
     }
 
+    fn get_grand_product_challenge_target<
+        F: RichField + Extendable<D>,
+        H: AlgebraicHasher<F>,
+        const D: usize,
+    >(
+        builder: &mut CircuitBuilder<F, D>,
+        challenger: &mut RecursiveChallenger<F, H, D>,
+    ) -> GrandProductChallenge<Target> {
+        let beta = challenger.get_challenge(builder);
+        let gamma = challenger.get_challenge(builder);
+        GrandProductChallenge { beta, gamma }
+    }
+
+    #[allow(clippy::similar_names)]
+    pub fn get_grand_product_challenge_set_target<
+        F: RichField + Extendable<D>,
+        H: AlgebraicHasher<F>,
+        const D: usize,
+    >(
+        builder: &mut CircuitBuilder<F, D>,
+        challenger: &mut RecursiveChallenger<F, H, D>,
+        num_challenges: usize,
+    ) -> GrandProductChallengeSet<Target> {
+        let challenges = (0..num_challenges)
+            .map(|_| get_grand_product_challenge_target(builder, challenger))
+            .collect();
+        GrandProductChallengeSet { challenges }
+    }
+
+    pub fn get_n_grand_product_challenge_sets_target<
+        F: RichField + Extendable<D>,
+        H: AlgebraicHasher<F>,
+        const D: usize,
+    >(
+        builder: &mut CircuitBuilder<F, D>,
+        challenger: &mut RecursiveChallenger<F, H, D>,
+        num_challenges: usize,
+        num_sets: usize,
+    ) -> Vec<GrandProductChallengeSet<Target>> {
+        (0..num_sets)
+            .map(|_| get_grand_product_challenge_set_target(builder, challenger, num_challenges))
+            .collect()
+    }
+
     impl<F: RichField, H: Hasher<F>> GrandProductChallengeTrait<F, H> for Challenger<F, H> {
         fn get_grand_product_challenge(&mut self) -> GrandProductChallenge<F> {
             let beta = self.get_challenge();
@@ -125,9 +192,9 @@ pub(crate) mod challenge {
 }
 
 /// A single instance of a permutation check protocol.
-pub(crate) struct PermutationInstance<'a, T: Copy + Eq + PartialEq + Debug> {
-    pub(crate) pair: &'a PermutationPair,
-    pub(crate) challenge: GrandProductChallenge<T>,
+pub struct PermutationInstance<'a, T: Copy + Eq + PartialEq + Debug> {
+    pub pair: &'a PermutationPair,
+    pub challenge: GrandProductChallenge<T>,
 }
 
 /// Get a list of instances of our batch-permutation argument. These are
@@ -369,4 +436,90 @@ pub(crate) fn eval_permutation_checks<F, FE, P, S, const D: usize, const D2: usi
             - local_zs[i] * reduced_lhs.into_iter().product::<P>();
         consumer.constraint(constraint);
     }
+}
+
+pub struct PermutationCheckDataTarget<const D: usize> {
+    pub local_zs: Vec<ExtensionTarget<D>>,
+    pub next_zs: Vec<ExtensionTarget<D>>,
+    pub permutation_challenge_sets: Vec<GrandProductChallengeSet<Target>>,
+}
+
+#[allow(clippy::similar_names)]
+pub fn eval_permutation_checks_circuit<F, S, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    stark: &S,
+    config: &StarkConfig,
+    vars: &S::EvaluationFrameTarget,
+    permutation_data: PermutationCheckDataTarget<D>,
+    consumer: &mut RecursiveConstraintConsumer<F, D>,
+) where
+    F: RichField + Extendable<D>,
+    S: Stark<F, D>, {
+    let PermutationCheckDataTarget {
+        local_zs,
+        next_zs,
+        permutation_challenge_sets,
+    } = permutation_data;
+
+    let one = builder.one_extension();
+
+    // Check that Z(1) = 1;
+    for &z in &local_zs {
+        let z_1 = builder.sub_extension(z, one);
+        consumer.constraint_first_row(builder, z_1);
+    }
+
+    let permutation_pairs = stark.permutation_pairs();
+    let permutation_batches = get_permutation_batches(
+        &permutation_pairs,
+        &permutation_challenge_sets,
+        config.num_challenges,
+        stark.permutation_batch_size(),
+    );
+
+    for (local_z, next_z, instances) in izip!(local_zs, next_zs, permutation_batches) {
+        let (reduced_lhs_all, reduced_rhs_all): (Vec<_>, Vec<_>) = instances
+            .into_iter()
+            .map(|instance| process_instance::<F, S, D>(builder, vars, &instance))
+            .unzip();
+        // Apply constraint:
+        // next_zs[i] * reduced_rhs_product - local_zs[i] * reduced_lhs_product
+        let reduced_lhs_product = builder.mul_many_extension(reduced_lhs_all);
+        let reduced_rhs_product = builder.mul_many_extension(reduced_rhs_all);
+
+        let tmp = builder.mul_extension(local_z, reduced_lhs_product);
+        let constraint = builder.mul_sub_extension(next_z, reduced_rhs_product, tmp);
+        consumer.constraint(builder, constraint);
+    }
+}
+
+fn process_instance<F, S, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    vars: &<S as Stark<F, D>>::EvaluationFrameTarget,
+    instance: &PermutationInstance<Target>,
+) -> (ExtensionTarget<D>, ExtensionTarget<D>)
+where
+    F: RichField + Extendable<D>,
+    S: Stark<F, D>, {
+    let PermutationInstance {
+        pair: PermutationPair { column_pairs },
+        challenge: GrandProductChallenge { beta, gamma },
+    } = instance;
+
+    let beta_ext = builder.convert_to_ext(*beta);
+    let gamma_ext = builder.convert_to_ext(*gamma);
+    let mut factor = ReducingFactorTarget::new(beta_ext);
+
+    let (lhs_vals, rhs_vals): (Vec<_>, Vec<_>) = column_pairs
+        .iter()
+        .map(|&(i, j)| (vars.get_local_values()[i], vars.get_local_values()[j]))
+        .unzip();
+
+    let reduced_lhs = factor.reduce(&lhs_vals, builder);
+    let reduced_rhs = factor.reduce(&rhs_vals, builder);
+
+    (
+        builder.add_extension(reduced_lhs, gamma_ext),
+        builder.add_extension(reduced_rhs, gamma_ext),
+    )
 }
