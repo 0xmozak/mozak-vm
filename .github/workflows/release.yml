@@ -63,3 +63,5 @@ jobs:
           ## All Changes
 
           ${{ steps.changelog.outputs.CHANGELOG }}
+          ENDBODY
+          )
