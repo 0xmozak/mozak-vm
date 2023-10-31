@@ -42,6 +42,11 @@ def build_repo(commit: str):
 
 @app.command()
 def bench(bench_function: str, min_value: int, max_value: int):
+    """
+    Bench  `bench_function` with paramter sampled in range `(min_value, max_value)`
+    It keeps sampling parameter, benches the function and updates the data csv file,
+      till terminated by Ctrl+C
+    """
     bench_commits = load_commits_from_config(bench_function)
     commits = list(commit for (_commit_description, commit) in bench_commits.items())
 
@@ -50,7 +55,6 @@ def bench(bench_function: str, min_value: int, max_value: int):
         data_csv_file = get_data_csv_file(bench_function, commit)
         init_csv(data_csv_file, bench_function)
 
-    num_samples = 0
     while True:
         try:
             commit = random.choice(commits)
@@ -58,15 +62,16 @@ def bench(bench_function: str, min_value: int, max_value: int):
             data = sample_and_bench(cli_repo, bench_function, min_value, max_value)
             data_csv_file = get_data_csv_file(bench_function, commit)
             write_into_csv(data, data_csv_file)
-            num_samples += 1
         except KeyboardInterrupt:
             print("Exiting...")
             break
-    print(f"sampled {num_samples} number of times")
 
 
 @app.command()
 def build(bench_function: str):
+    """
+    Build all the commits specified in `config.json` for given `bench_function` in `--realease` mode.
+    """
     bench_commits = load_commits_from_config(bench_function)
     create_folders_if_not_exist(bench_function)
     for _commit_description, commit in bench_commits.items():
@@ -77,6 +82,10 @@ def build(bench_function: str):
 
 @app.command()
 def clean(bench_function: str):
+    """
+    Clean all the built commits specified in `config.json` for given `bench_function`
+    NOTE: This does not clean the csv data files, so that it can still be plotted
+    """
     bench_commits_folder = get_bench_folder(bench_function)
     try:
         for commit_symlink in bench_commits_folder.iterdir():
@@ -92,6 +101,9 @@ def clean(bench_function: str):
 
 @app.command()
 def cleancsv(bench_function: str):
+    """
+    Clean all the data csv files corresponding to given `bench_function`
+    """
     bench_data_folder = get_data_folder(bench_function)
     try:
         for commit_csv_file in bench_data_folder.iterdir():

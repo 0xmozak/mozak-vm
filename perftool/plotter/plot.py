@@ -63,6 +63,7 @@ def plot_all(bench_function: str):
     commits, description, x_label, y_label = load_plot_data_from_config(bench_function)
     plt.figure(figsize=(8, 6))
 
+    num_samples = 0
     for commit_description in commits:
         data_csv_data_file = get_data_csv_file(
             bench_function, commits[commit_description]
@@ -82,9 +83,10 @@ def plot_all(bench_function: str):
             marker=marker,
             linestyle=linestyle,
         )
+        num_samples += len(x_data)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
-    plt.title(description)
+    plt.title(description + f"\n num_samples={num_samples}")
     plt.legend()
 
 
@@ -94,6 +96,9 @@ def update_plot_from_csv(bench_function: str):
 
 @app.command()
 def plot(bench_function: str):
+    """
+    Plot the data from the csv files corresponding to given `bench_function`
+    """
     update_plot_from_csv(bench_function)
     plt.savefig(get_plot_svg_file(bench_function))
     plt.close()
