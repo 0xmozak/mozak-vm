@@ -404,6 +404,7 @@ where
 mod tests {
     use itertools::izip;
     use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::system::ecall;
     use mozak_runner::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
     use mozak_runner::test_utils::simple_test_code;
 
@@ -468,39 +469,113 @@ mod tests {
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
+    struct Poseidon2Test {
+        pub data: String,
+        pub input_start_addr: u32,
+        pub output_start_addr: u32,
+        pub expected_output: String,
+    }
+
+    fn test_poseidon2(test_data: &[Poseidon2Test]) {
+        let mut instructions = vec![];
+        let mut memory: Vec<(u32, u8)> = vec![];
+
+        for test_datum in test_data {
+            let mut data_bytes = test_datum.data.as_bytes().to_vec();
+            // VM expects input len to be multiple of RATE bits
+            data_bytes.resize(data_bytes.len().next_multiple_of(8), 0_u8);
+            let data_len = data_bytes.len();
+            let input_memory: Vec<(u32, u8)> =
+                izip!((test_datum.input_start_addr..), data_bytes).collect();
+            memory.extend(input_memory);
+            instructions.extend(&[
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A0,
+                        imm: ecall::POSEIDON2,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A1,
+                        imm: test_datum.input_start_addr,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A2,
+                        imm: u32::try_from(data_len).expect("don't use very long data"),
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A3,
+                        imm: test_datum.output_start_addr,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ECALL,
+                    ..Default::default()
+                },
+            ]);
+        }
+
+        let (program, record) = simple_test_code(&instructions, memory.as_slice(), &[]);
+        for test_datum in test_data {
+            let output: Vec<u8> = (0..32_u8)
+                .map(|i| {
+                    record
+                        .last_state
+                        .load_u8(test_datum.output_start_addr + u32::from(i))
+                })
+                .collect();
+            let expected_output =
+                hex::decode(&test_datum.expected_output).expect("decoding failed");
+            assert_eq!(output[..], expected_output[..]);
+        }
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+
     #[test]
     fn prove_poseidon2() {
-        let data = "💥 Mozak-VM Rocks With Poseidon2";
-        let input_start_addr: u32 = 1024;
-        let output_start_addr = 2048;
-        let mut data_bytes = data.as_bytes().to_vec();
-        // VM expects input len to be multiple of RATE bits
-        data_bytes.resize(data_bytes.len().next_multiple_of(8), 0_u8);
-        let data_len = data_bytes.len();
-        let memory: Vec<(u32, u8)> = izip!((input_start_addr..), data_bytes).collect();
-
-        let (program, record) = simple_test_code(
-            &[Instruction {
-                op: Op::ECALL,
-                ..Default::default()
-            }],
-            memory.as_slice(),
-            &[
-                (REG_A0, 3),
-                (REG_A1, input_start_addr),
-                (
-                    REG_A2,
-                    u32::try_from(data_len).expect("don't use very long data"),
-                ),
-                (REG_A3, output_start_addr),
-            ],
-        );
-        let output: Vec<u8> = (0..32_u8)
-            .map(|i| record.last_state.load_u8(output_start_addr + u32::from(i)))
-            .collect();
-        let expected_output =
-            hex_literal::hex!("4a2087727d3a040d98a37b00bddad96f6edb0fa47e0cefb1a0856b4e22a1cf91");
-        assert_eq!(output[..], expected_output[..]);
-        MozakStark::prove_and_verify(&program, &record).unwrap();
+        test_poseidon2(&[Poseidon2Test {
+            data: "💥 Mozak-VM Rocks With Poseidon2".to_string(),
+            input_start_addr: 1024,
+            output_start_addr: 2048,
+            expected_output: "4a2087727d3a040d98a37b00bddad96f6edb0fa47e0cefb1a0856b4e22a1cf91"
+                .to_string(),
+        }]);
+        test_poseidon2(&[Poseidon2Test {
+            data: "😇 Mozak is knowledge arguments based technology".to_string(),
+            input_start_addr: 1024,
+            output_start_addr: 2048,
+            expected_output: "11c04b7e46d0eba142a0a73a3af6c8cb791b48e2e12a3d5c007bfc4961a94531"
+                .to_string(),
+        }]);
+        test_poseidon2(&[
+            Poseidon2Test {
+                data: "💥 Mozak-VM Rocks With Poseidon2".to_string(),
+                input_start_addr: 512,
+                output_start_addr: 1024,
+                expected_output: "4a2087727d3a040d98a37b00bddad96f6edb0fa47e0cefb1a0856b4e22a1cf91"
+                    .to_string(),
+            },
+            Poseidon2Test {
+                data: "😇 Mozak is knowledge arguments based technology".to_string(),
+                input_start_addr: 1024 + 32, /* make sure input and output do not overlap with
+                                              * earlier call */
+                output_start_addr: 2048,
+                expected_output: "11c04b7e46d0eba142a0a73a3af6c8cb791b48e2e12a3d5c007bfc4961a94531"
+                    .to_string(),
+            },
+        ]);
     }
 }

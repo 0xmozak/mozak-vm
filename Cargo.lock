@@ -653,28 +653,9 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hex-literal"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d70693199b3cf4552f3fa720b54163927a3ebed2aef240efaf556033ab336a11"
-dependencies = [
- "hex-literal-impl",
- "proc-macro-hack",
-]
-
-[[package]]
-name = "hex-literal"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6fe2267d4ed49bc07b63801559be28c718ea06c4738b7a03c94df7386d2cde46"
-
-[[package]]
-name = "hex-literal-impl"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59448fc2f82a5fb6907f78c3d69d843e82ff5b051923313cc4438cb0c7b745a8"
-dependencies = [
- "proc-macro-hack",
-]
 
 [[package]]
 name = "humantime"
@@ -896,7 +877,7 @@ dependencies = [
  "criterion",
  "env_logger",
  "flexbuffers",
- "hex-literal 0.2.2",
+ "hex",
  "im",
  "itertools 0.11.0",
  "lazy_static",
@@ -941,7 +922,7 @@ dependencies = [
  "derive_more",
  "elf",
  "env_logger",
- "hex-literal 0.4.1",
+ "hex-literal",
  "im",
  "itertools 0.11.0",
  "log",
