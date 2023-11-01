@@ -2,9 +2,9 @@
 ![Unused dependencies status](https://github.com/0xmozak/mozak-vm/actions/workflows/unused-deps.yml/badge.svg)
 ![MacOS CI status](https://github.com/0xmozak/mozak-vm/actions/workflows/macos-ci.yml/badge.svg)
 
-# Mozak Risc-V Virtual Machine
+# Mozak RISC-V Virtual Machine
 
-If you are unfamiliar with the Risc-V instruction set, please have a look at the [Risc-V instruction set reference](https://github.com/jameslzhu/riscv-card/blob/master/riscv-card.pdf).
+If you are unfamiliar with the RISC-V instruction set, please have a look at the [RISC-V instruction set reference](https://github.com/jameslzhu/riscv-card/blob/master/riscv-card.pdf).
 
 # Setting up your build environment
 
@@ -45,11 +45,11 @@ We have a rudimentary CLI.  You can run it via eg `cargo run -- -vvv run vm/test
 
 Use `cargo run -- --help` to see what sub-commands are implemented.
 
-# Update official Risc-V tests
+# Update official RISC-V tests
 
 - [Docker](https://www.docker.com/)
 
-Updating the official Risc-V tests relies on Docker to install the RISC-V toolchain and build the ELF files necessary for our tests to run.
+Updating the official RISC-V tests relies on Docker to install the RISC-V toolchain and build the ELF files necessary for our tests to run.
 
 The Mozak VM implements the base RV32I instruction set with the M-extension,
 so we are using rv32ui and rv32um ELF files from the [riscv-software-src/riscv-tests](https://github.com/riscv-software-src/riscv-tests) repo.

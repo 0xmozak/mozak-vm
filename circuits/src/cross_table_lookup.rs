@@ -1,21 +1,24 @@
 use anyhow::{ensure, Result};
-use itertools::Itertools;
+use itertools::{chain, iproduct, izip, zip_eq, Itertools};
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::iop::target::Target;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::GenericConfig;
 use starky::config::StarkConfig;
-use starky::constraint_consumer::ConstraintConsumer;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-use crate::stark::mozak_stark::{Table, NUM_TABLES};
+use crate::stark::mozak_stark::{Table, TableKind, NUM_TABLES};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
-use crate::stark::proof::StarkProof;
+use crate::stark::proof::{StarkProofTarget, StarkProofWithMetadata};
 
 #[derive(Error, Debug)]
 pub enum LookupError {
@@ -214,6 +217,14 @@ impl<F: Field> CrossTableLookup<F> {
             looked_table,
         }
     }
+
+    pub fn num_ctl_zs(ctls: &[Self], table: TableKind, num_challenges: usize) -> usize {
+        ctls.iter()
+            .flat_map(|ctl| chain!([&ctl.looked_table], &ctl.looking_tables))
+            .filter(|twc| twc.kind == table)
+            .count()
+            * num_challenges
+    }
 }
 
 #[derive(Clone)]
@@ -233,7 +244,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
     CtlCheckVars<'a, F, F::Extension, F::Extension, D>
 {
     pub(crate) fn from_proofs<C: GenericConfig<D, F = F>>(
-        proofs: &[StarkProof<F, C, D>; NUM_TABLES],
+        proofs: &[StarkProofWithMetadata<F, C, D>; NUM_TABLES],
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
         num_permutation_zs: &[usize; NUM_TABLES],
@@ -242,7 +253,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
             .iter()
             .zip(num_permutation_zs)
             .map(|(p, &num_perms)| {
-                let openings = &p.openings;
+                let openings = &p.proof.openings;
                 let ctl_zs = openings.permutation_ctl_zs.iter().skip(num_perms);
                 let ctl_zs_next = openings.permutation_ctl_zs_next.iter().skip(num_perms);
                 ctl_zs.zip(ctl_zs_next)
@@ -280,6 +291,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         ctl_vars_per_table
     }
 }
+
 pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const D2: usize>(
     vars: &S::EvaluationFrame<FE, P, D2>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
@@ -312,7 +324,95 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
         // Check value of `Z(1)`
         consumer.constraint_last_row(*next_z - select(filter, combination));
         // Check `Z(gw) = combination * Z(w)`
-        consumer.constraint_transition(*next_z - *local_z * select(filter, combination));
+        consumer.constraint_transition(*local_z * select(filter, combination) - *next_z);
+    }
+}
+
+#[derive(Clone)]
+pub struct CtlCheckVarsTarget<'a, F: Field, const D: usize> {
+    pub local_z: ExtensionTarget<D>,
+    pub next_z: ExtensionTarget<D>,
+    pub challenges: GrandProductChallenge<Target>,
+    pub columns: &'a [Column<F>],
+    pub filter_column: &'a Column<F>,
+}
+
+impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
+    pub fn from_proof(
+        table: TableKind,
+        proof: &StarkProofTarget<D>,
+        cross_table_lookups: &'a [CrossTableLookup<F>],
+        ctl_challenges: &'a GrandProductChallengeSet<Target>,
+        num_permutation_zs: usize,
+    ) -> Vec<Self> {
+        let ctl_zs = {
+            izip!(
+                &proof.openings.permutation_ctl_zs,
+                &proof.openings.permutation_ctl_zs_next
+            )
+            .skip(num_permutation_zs)
+        };
+
+        let ctl_chain = cross_table_lookups.iter().flat_map(
+            |CrossTableLookup {
+                 looking_tables,
+                 looked_table,
+             }| chain!(looking_tables, [looked_table]).filter(|twc| twc.kind == table),
+        );
+        zip_eq(ctl_zs, iproduct!(ctl_chain, &ctl_challenges.challenges))
+            .map(|((&local_z, &next_z), (table, &challenges))| Self {
+                local_z,
+                next_z,
+                challenges,
+                columns: &table.columns,
+                filter_column: &table.filter_column,
+            })
+            .collect()
+    }
+}
+
+pub fn eval_cross_table_lookup_checks_circuit<
+    S: Stark<F, D>,
+    F: RichField + Extendable<D>,
+    const D: usize,
+>(
+    builder: &mut CircuitBuilder<F, D>,
+    vars: &S::EvaluationFrameTarget,
+    ctl_vars: &[CtlCheckVarsTarget<F, D>],
+    consumer: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    for lookup_vars in ctl_vars {
+        let CtlCheckVarsTarget {
+            local_z,
+            next_z,
+            challenges,
+            columns,
+            filter_column,
+        }: &CtlCheckVarsTarget<F, D> = lookup_vars;
+
+        let local_values = vars.get_local_values();
+        let next_values = vars.get_next_values();
+
+        let evals: Vec<_> = columns
+            .iter()
+            .map(|c| c.eval_circuit(builder, local_values, next_values))
+            .collect();
+        let combined = challenges.combine_circuit(builder, &evals);
+
+        let filter = filter_column.eval_circuit(builder, local_values, next_values);
+
+        // select = filter * combined + 1 - filter
+        let one = builder.one_extension();
+        let tmp = builder.sub_extension(one, filter);
+        let select = builder.mul_add_extension(filter, combined, tmp);
+
+        // Check value of `Z(1)`
+        let last_row = builder.sub_extension(*next_z, select);
+        consumer.constraint_last_row(builder, last_row);
+
+        // Check `Z(gw) = combination * Z(w)`
+        let transition = builder.mul_sub_extension(*local_z, select, *next_z);
+        consumer.constraint_transition(builder, transition);
     }
 }
 

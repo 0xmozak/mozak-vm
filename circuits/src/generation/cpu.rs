@@ -367,10 +367,10 @@ mod tests {
             CpuState {
                 inst: Instruction {
                     pc: 1,
-                    ops: selection(4),
-                    rs1_select: selection(4),
-                    rs2_select: selection(4),
-                    rd_select: selection(4),
+                    ops: selection(3),
+                    rs1_select: selection(2),
+                    rs2_select: selection(1),
+                    rd_select: selection(1),
                     imm_value: 4,
                     ..Default::default()
                 },
@@ -425,8 +425,8 @@ mod tests {
             },
             ProgramRom {
                 inst: InstructionRow {
-                    pc: 1,
-                    inst_data: reduce_with_powers(vec![3, 0, 0, 3, 3, 3, 3]),
+                    pc: 3,
+                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
                 },
                 filter: 0,
             },
