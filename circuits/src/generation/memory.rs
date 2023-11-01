@@ -152,18 +152,14 @@ pub fn generate_memory_trace<F: RichField>(
         if Some(mem.addr) == last_addr {
             // the check doesn't pass for the first row, so this is ok.
             mem.diff_clk = mem.clk - last_clk;
+        } else {
+            // rows with is_init set are the source of truth about is_writable
+            // non init memory are always writable
+            last_is_writable = F::from_bool(mem.is_init.is_zero() | mem.is_writable.is_one());
         }
         (last_clk, last_addr) = (mem.clk, Some(mem.addr));
-        // rows with is_init set are the source of truth about is_writable
-        if mem.is_init.is_one() {
-            last_is_writable = mem.is_writable;
-        }
-        // non init memory are always writable
-        if mem.is_init.is_zero() && !mem.diff_addr.is_zero() {
-            last_is_writable = F::ONE;
-        }
         mem.is_writable = last_is_writable;
-    }
+    };
 
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
