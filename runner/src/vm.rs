@@ -133,10 +133,27 @@ impl<F: RichField> State<F> {
     ///
     /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
     /// bytes.
-    fn ecall_io_read(self) -> (Aux<F>, Self) {
+    fn ecall_io_read(self) -> (Aux<F>, Self) { self.io_read(false) }
+
+    /// # Panics
+    ///
+    /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
+    /// bytes.
+    #[allow(dead_code)]
+    fn ecall_public_io_read(self) -> (Aux<F>, Self) { self.io_read(true) }
+
+    /// # Panics
+    ///
+    /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
+    /// bytes.
+    fn io_read(self, is_public: bool) -> (Aux<F>, Self) {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requsted = self.get_register_value(REG_A2);
-        let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
+        let (data, updated_self) = if is_public {
+            self.read_public_iobytes(num_bytes_requsted as usize)
+        } else {
+            self.read_iobytes(num_bytes_requsted as usize)
+        };
         (
             Aux {
                 dst_val: u32::try_from(data.len()).expect("cannot fit data.len() into u32"),

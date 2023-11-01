@@ -65,8 +65,8 @@ pub fn simple_test_code_with_ro_memory(
         ro_code,
         ..Default::default()
     };
-
-    let state0 = State::new(program.clone(), io_tape);
+    // TODO(Roman): fixme - extend function API to support public-io
+    let state0 = State::new(program.clone(), io_tape, &[]);
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
         state.set_register_value(*rs, *val)
