@@ -104,8 +104,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         // Clk should not change within a sponge
         yield_constr.constraint_transition(nv.ops.is_permute * (lv.clk - nv.clk));
 
-        // First row must be init permute.
-        yield_constr.constraint_first_row(P::ONES - lv.ops.is_init_permute);
+        // First row must be init permute or dummy row.
+        yield_constr.constraint_first_row(
+            (lv.ops.is_init_permute + lv.ops.is_permute) * (P::ONES - lv.ops.is_init_permute),
+        );
         // is_init_permute should be 0 for all other rows.
         yield_constr.constraint(not_last_output_row * nv.ops.is_init_permute * is_dummy(nv));
         // Consume input should be 1 if input is not fully consumed.
