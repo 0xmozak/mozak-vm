@@ -133,7 +133,7 @@ impl<F: RichField> State<F> {
     ///
     /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
     /// bytes.
-    fn ecall_io_read(self) -> (Aux<F>, Self) { self.io_read(false) }
+    fn ecall_private_io_read(self) -> (Aux<F>, Self) { self.io_read(false) }
 
     /// # Panics
     ///
@@ -152,7 +152,7 @@ impl<F: RichField> State<F> {
         let (data, updated_self) = if is_public {
             self.read_public_iobytes(num_bytes_requsted as usize)
         } else {
-            self.read_iobytes(num_bytes_requsted as usize)
+            self.read_private_iobytes(num_bytes_requsted as usize)
         };
         (
             Aux {
@@ -228,7 +228,7 @@ impl<F: RichField> State<F> {
     pub fn ecall(self) -> (Aux<F>, Self) {
         match self.get_register_value(REG_A0) {
             ecall::HALT => self.ecall_halt(),
-            ecall::IO_READ => self.ecall_io_read(),
+            ecall::IO_READ => self.ecall_private_io_read(),
             ecall::PANIC => self.ecall_panic(),
             ecall::POSEIDON2 => self.ecall_poseidon2(),
             _ => (Aux::default(), self.bump_pc()),

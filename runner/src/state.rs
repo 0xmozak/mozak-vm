@@ -46,8 +46,8 @@ pub struct State<F: RichField> {
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct IoTape {
     #[deref]
-    pub data: Rc<Vec<u8>>,
-    pub read_index: usize,
+    pub private_data: Rc<Vec<u8>>,
+    pub private_read_index: usize,
     pub public_data: Rc<Vec<u8>>,
     pub public_read_index: usize,
 }
@@ -55,8 +55,8 @@ pub struct IoTape {
 impl From<(&[u8], &[u8])> for IoTape {
     fn from(data: (&[u8], &[u8])) -> Self {
         Self {
-            data: Rc::new(data.0.to_vec()),
-            read_index: 0,
+            private_data: Rc::new(data.0.to_vec()),
+            private_read_index: 0,
             public_data: Rc::new(data.1.to_vec()),
             public_read_index: 0,
         }
@@ -331,13 +331,13 @@ impl<F: RichField> State<F> {
     }
 
     #[must_use]
-    pub fn read_iobytes(mut self, num_bytes: usize) -> (Vec<u8>, Self) {
-        let read_index = self.io_tape.read_index;
-        let remaining_len = self.io_tape.data.len() - read_index;
+    pub fn read_private_iobytes(mut self, num_bytes: usize) -> (Vec<u8>, Self) {
+        let read_index = self.io_tape.private_read_index;
+        let remaining_len = self.io_tape.private_data.len() - read_index;
         let limit = num_bytes.min(remaining_len);
-        self.io_tape.read_index += limit;
+        self.io_tape.private_read_index += limit;
         (
-            self.io_tape.data[read_index..(read_index + limit)].to_vec(),
+            self.io_tape.private_data[read_index..(read_index + limit)].to_vec(),
             self,
         )
     }
@@ -367,8 +367,8 @@ mod test {
         ));
         let serialized = serde_json::to_string(&io_tape).unwrap();
         let deserialized: IoTape = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(io_tape.read_index, deserialized.read_index);
-        assert_eq!(io_tape.data, deserialized.data);
+        assert_eq!(io_tape.private_read_index, deserialized.private_read_index);
+        assert_eq!(io_tape.private_data, deserialized.private_data);
         assert_eq!(io_tape.public_read_index, deserialized.public_read_index);
         assert_eq!(io_tape.public_data, deserialized.public_data);
     }
