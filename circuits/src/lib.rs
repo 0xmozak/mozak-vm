@@ -31,3 +31,6 @@ pub mod stark;
 pub mod test_utils;
 pub mod utils;
 pub mod xor;
+
+#[cfg(any(feature = "test", test))]
+pub mod test_examples;
