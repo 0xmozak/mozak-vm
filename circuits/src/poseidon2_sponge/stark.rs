@@ -1,7 +1,6 @@
 use std::fmt::Display;
 use std::marker::PhantomData;
 
-use mozak_runner::poseidon2::NUM_HASH_OUT_ELTS;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -74,32 +73,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         // dummy row does not generate output
         yield_constr.constraint(is_dummy(lv) * lv.gen_output);
 
-        // Two consecutive rows can not be is_init_permute. As even for smallest input
-        // size (RATE) it needs more than one squeeze rounds so next row can not
-        // be init permute.
-        yield_constr.constraint(lv.ops.is_init_permute * nv.ops.is_init_permute);
-
-        // if row generates output and consumes input then it must be last rate sized
+        // if row generates output then it must be last rate sized
         // chunk of input.
-        yield_constr.constraint(lv.gen_output * lv.con_input * (lv.input_len - rate_scalar));
+        yield_constr.constraint(lv.gen_output * (lv.input_len - rate_scalar));
 
-        // if row generates output and does not consume input then input_len must be
-        // zero.
-        yield_constr.constraint(lv.gen_output * (P::ONES - lv.con_input) * lv.input_len);
-
-        let num_hash_out_elements_scalar = P::Scalar::from_canonical_u8(
-            u8::try_from(NUM_HASH_OUT_ELTS).expect("num hash output > 255"),
-        );
-
-        let end_of_sponge = P::ONES - nv.ops.is_permute;
-        let not_last_output_row = lv.output_len - (num_hash_out_elements_scalar - rate_scalar);
-        // if row generates output and next row is dummy or start of next hashing then
-        // it must be last RATE size chunk of output.
-        yield_constr.constraint(
-            lv.gen_output
-                * end_of_sponge
-                * (lv.output_len - (num_hash_out_elements_scalar - rate_scalar)),
-        );
+        // if row generates output then next row can be dummy or start of next hashing
+        yield_constr.constraint(lv.gen_output * nv.ops.is_init_permute * is_dummy(nv));
 
         // Clk should not change within a sponge
         yield_constr.constraint_transition(nv.ops.is_permute * (lv.clk - nv.clk));
@@ -108,30 +87,20 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         yield_constr.constraint_first_row(
             (lv.ops.is_init_permute + lv.ops.is_permute) * (P::ONES - lv.ops.is_init_permute),
         );
-        // is_init_permute should be 0 for all other rows.
-        yield_constr.constraint(not_last_output_row * nv.ops.is_init_permute * is_dummy(nv));
         // Consume input should be 1 if input is not fully consumed.
         yield_constr.constraint(lv.input_len * (P::ONES - lv.con_input));
-        // Output length must be 0 when con_input is 1.
-        yield_constr.constraint(lv.con_input * lv.output_len);
 
-        // if current row consumes input then next row must have
+        let not_last_sponge = P::ONES - lv.gen_output;
+
+        // if current row consumes input and its not last spoge then next row must have
         // length decreases by RATE, note that only actual execution row can consume
         // input
-        yield_constr
-            .constraint_transition(lv.con_input * (lv.input_len - (nv.input_len + rate_scalar)));
-        // and input_addr increases by RATE
-        yield_constr
-            .constraint_transition(lv.con_input * (lv.input_addr - (nv.input_addr - rate_scalar)));
-
-        // if current row generates output and is not the last output row then next row
-        // must have output_addr increased by RATE
         yield_constr.constraint_transition(
-            lv.gen_output * not_last_output_row * (lv.output_addr - (nv.output_addr - rate_scalar)),
+            lv.con_input * not_last_sponge * (lv.input_len - (nv.input_len + rate_scalar)),
         );
-        // and output length is increased by RATE in next row.
+        // and input_addr increases by RATE
         yield_constr.constraint_transition(
-            lv.gen_output * not_last_output_row * (nv.output_len - (lv.output_len + rate_scalar)),
+            lv.con_input * not_last_sponge * (lv.input_addr - (nv.input_addr - rate_scalar)),
         );
 
         // For each init_permute capacity bits are zero.

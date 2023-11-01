@@ -24,10 +24,9 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
     assert_eq!(poseidon2.len % rate_size, 0);
     let unroll_count = u32::try_from(poseidon2.sponge_data.len()).expect("too many rows");
 
-    let mut output_addr = poseidon2.output_addr;
+    let output_addr = poseidon2.output_addr;
     let mut input_addr = poseidon2.addr;
     let mut input_len = poseidon2.len;
-    let mut output_len = 0;
     for i in 0..unroll_count {
         let ops: Ops<F> = Ops {
             is_init_permute: F::from_bool(i == 0),
@@ -43,19 +42,11 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             input_addr: F::from_canonical_u32(input_addr),
             output_addr: F::from_canonical_u32(output_addr),
             input_len: F::from_canonical_u32(input_len),
-            output_len: F::from_canonical_u32(output_len),
             preimage: sponge_datum.preimage,
             output: sponge_datum.output,
             gen_output: sponge_datum.gen_output,
             con_input: sponge_datum.con_input,
         });
-        // Output address tracks memory location to where next unroll row's output
-        // should be written. Hence every time a row generates output, output
-        // address is increased by RATE and output length is increased accordingly.
-        if sponge_datum.gen_output.is_one() {
-            output_addr += rate_size;
-            output_len += rate_size;
-        }
         // Input address tracks memory location from where next unroll row's input
         // should be read. Hence every time a row consumes input, input address
         // is increased by RATE and input lenght is decreased accordingly.

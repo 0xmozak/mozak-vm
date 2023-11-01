@@ -22,7 +22,6 @@ pub struct Poseidon2Sponge<T> {
     pub input_addr: T,
     pub output_addr: T,
     pub input_len: T,
-    pub output_len: T,
     pub preimage: [T; WIDTH],
     pub output: [T; WIDTH],
     pub gen_output: T,
@@ -36,7 +35,6 @@ impl<F: RichField> Default for Poseidon2Sponge<F> {
             ops: Ops::<F>::default(),
             input_addr: F::default(),
             input_len: F::default(),
-            output_len: F::default(),
             output_addr: F::default(),
             preimage: [F::default(); WIDTH],
             output: <F as Poseidon2>::poseidon2([F::default(); WIDTH]),
@@ -95,19 +93,3 @@ pub fn data_for_input_memory<F: Field>(limb_index: u8) -> Vec<Column<F>> {
 
 #[must_use]
 pub fn filter_for_input_memory<F: Field>() -> Column<F> { MAP.map(Column::from).con_input }
-
-#[must_use]
-pub fn data_for_output_memory<F: Field>(limb_index: u8) -> Vec<Column<F>> {
-    assert!(limb_index < 8, "limb_index can be 0..7");
-    let sponge = MAP.map(Column::from);
-    vec![
-        sponge.clk,
-        Column::constant(F::ONE),                              // is_store
-        Column::constant(F::ZERO),                             // is_load
-        sponge.output[limb_index as usize].clone(),            // value
-        sponge.output_addr + F::from_canonical_u8(limb_index), // address
-    ]
-}
-
-#[must_use]
-pub fn filter_for_output_memory<F: Field>() -> Column<F> { MAP.map(Column::from).gen_output }

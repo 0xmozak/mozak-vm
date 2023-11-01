@@ -556,14 +556,14 @@ mod tests {
             data: "💥 Mozak-VM Rocks With Poseidon2".to_string(),
             input_start_addr: 1024,
             output_start_addr: 2048,
-            expected_output: "4a2087727d3a040d98a37b00bddad96f6edb0fa47e0cefb1a0856b4e22a1cf91"
+            expected_output: "4afb11172461851820da91ce1b972afd87caf69abe4316097280a4784b1fe396"
                 .to_string(),
         }]);
         test_poseidon2(&[Poseidon2Test {
             data: "😇 Mozak is knowledge arguments based technology".to_string(),
             input_start_addr: 1024,
             output_start_addr: 2048,
-            expected_output: "11c04b7e46d0eba142a0a73a3af6c8cb791b48e2e12a3d5c007bfc4961a94531"
+            expected_output: "11280ff9c249780ac0ddfd34d9d7ec654b0eeb88fa37f24c7e34db9832831e3b"
                 .to_string(),
         }]);
         test_poseidon2(&[
@@ -571,7 +571,7 @@ mod tests {
                 data: "💥 Mozak-VM Rocks With Poseidon2".to_string(),
                 input_start_addr: 512,
                 output_start_addr: 1024,
-                expected_output: "4a2087727d3a040d98a37b00bddad96f6edb0fa47e0cefb1a0856b4e22a1cf91"
+                expected_output: "4afb11172461851820da91ce1b972afd87caf69abe4316097280a4784b1fe396"
                     .to_string(),
             },
             Poseidon2Test {
@@ -579,7 +579,7 @@ mod tests {
                 input_start_addr: 1024 + 32, /* make sure input and output do not overlap with
                                               * earlier call */
                 output_start_addr: 2048,
-                expected_output: "11c04b7e46d0eba142a0a73a3af6c8cb791b48e2e12a3d5c007bfc4961a94531"
+                expected_output: "11280ff9c249780ac0ddfd34d9d7ec654b0eeb88fa37f24c7e34db9832831e3b"
                     .to_string(),
             },
         ]);

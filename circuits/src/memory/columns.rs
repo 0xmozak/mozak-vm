@@ -127,21 +127,7 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
                     })
                     .collect();
             }
-            let mut outputs = vec![];
-            if value.gen_output.is_one() {
-                // each Field element in output represents a byte.
-                outputs = (0..rate)
-                    .map(|i| Memory {
-                        clk: value.clk,
-                        is_store: F::ONE,
-                        value: value.output[i],
-                        addr: value.output_addr
-                            + F::from_canonical_u8(u8::try_from(i).expect("i > 255")),
-                        ..Default::default()
-                    })
-                    .collect();
-            }
-            inputs.extend(outputs);
+            // TODO: Handle OUTPUT Bytes
             inputs
         }
     }

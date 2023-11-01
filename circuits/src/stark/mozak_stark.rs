@@ -345,39 +345,6 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
                     poseidon2_sponge::columns::data_for_input_memory(7),
                     poseidon2_sponge::columns::filter_for_input_memory(),
                 ),
-                // poseidon2_sponge output
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_output_memory(0),
-                    poseidon2_sponge::columns::filter_for_output_memory(),
-                ),
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_output_memory(1),
-                    poseidon2_sponge::columns::filter_for_output_memory(),
-                ),
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_output_memory(2),
-                    poseidon2_sponge::columns::filter_for_output_memory(),
-                ),
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_output_memory(3),
-                    poseidon2_sponge::columns::filter_for_output_memory(),
-                ),
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_output_memory(4),
-                    poseidon2_sponge::columns::filter_for_output_memory(),
-                ),
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_output_memory(5),
-                    poseidon2_sponge::columns::filter_for_output_memory(),
-                ),
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_output_memory(6),
-                    poseidon2_sponge::columns::filter_for_output_memory(),
-                ),
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_output_memory(7),
-                    poseidon2_sponge::columns::filter_for_output_memory(),
-                ),
             ],
             MemoryTable::new(
                 memory::columns::data_for_cpu(),

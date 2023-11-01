@@ -1,31 +1,13 @@
 use std::iter::repeat;
 
 use itertools::izip;
-use plonky2::hash::hash_types::RichField;
+use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
+use plonky2::plonk::config::GenericHashOut;
 
 use crate::state::{Aux, Poseidon2Entry, Poseidon2SpongeData, State};
 use crate::system::reg_abi::{REG_A1, REG_A2, REG_A3};
-
-pub const NUM_HASH_OUT_ELTS: usize = 32;
-/// Represents a ~256 bit hash output.
-/// Each Field represent 8 bits.
-#[derive(Copy, Clone, Debug)]
-pub struct HashOut<F: RichField> {
-    pub elements: [F; NUM_HASH_OUT_ELTS],
-}
-
-#[allow(clippy::cast_possible_truncation)]
-impl<F: RichField> HashOut<F> {
-    /// Each field element is converted to byte.
-    pub fn to_bytes(self) -> Vec<u8> {
-        self.elements
-            .into_iter()
-            .map(|x| x.to_canonical_u64() as u8)
-            .collect()
-    }
-}
 
 // Based on hash_n_to_m_no_pad() from plonky2/src/hash/hashing.rs
 /// This function is sponge function which uses poseidon2 permutation function.
@@ -74,19 +56,14 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
     let mut outputs = Vec::new();
     loop {
         for &item in perm.squeeze() {
-            // Each squeeze() call add RATE field elements to output.
+            // Each squeeze() call can add upto RATE field elements to output.
             outputs.push(item);
             sponge_data
                 .last_mut()
                 .expect("Can't fail at least one elem must be there")
                 .gen_output = F::from_bool(true);
             if outputs.len() == NUM_HASH_OUT_ELTS {
-                return (
-                    HashOut {
-                        elements: outputs.try_into().expect("can't fail"),
-                    },
-                    sponge_data,
-                );
+                return (HashOut::from_vec(outputs), sponge_data);
             }
         }
         permute_and_record_data(&mut perm, &mut sponge_data);
@@ -114,7 +91,7 @@ impl<F: RichField> State<F> {
         let (hash, sponge_data) =
             hash_n_to_m_with_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
         let hash = hash.to_bytes();
-        assert_eq!(NUM_HASH_OUT_ELTS, hash.len());
+        assert_eq!(32, hash.len());
         (
             Aux {
                 poseidon2: Some(Poseidon2Entry {
@@ -142,6 +119,7 @@ mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::hash::poseidon2::Poseidon2Permutation;
+    use plonky2::plonk::config::GenericHashOut;
 
     #[test]
     fn test_hash_n_to_m_with_pad() {
@@ -160,7 +138,7 @@ mod tests {
         let hash_bytes = hash.to_bytes();
         assert_eq!(
             hash_bytes,
-            hex_literal::hex!("4a2087727d3a040d98a37b00bddad96f6edb0fa47e0cefb1a0856b4e22a1cf91")[..]
+            hex_literal::hex!("4afb11172461851820da91ce1b972afd87caf69abe4316097280a4784b1fe396")[..]
         );
     }
 }
