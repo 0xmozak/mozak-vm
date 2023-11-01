@@ -159,7 +159,7 @@ pub fn generate_memory_trace<F: RichField>(
         }
         (last_clk, last_addr) = (mem.clk, Some(mem.addr));
         mem.is_writable = last_is_writable;
-    };
+    }
 
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
