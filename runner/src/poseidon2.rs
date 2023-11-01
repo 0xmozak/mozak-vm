@@ -12,7 +12,7 @@ use crate::system::reg_abi::{REG_A1, REG_A2, REG_A3};
 // Based on hash_n_to_m_no_pad() from plonky2/src/hash/hashing.rs
 /// This function is sponge function which uses poseidon2 permutation function.
 /// Input must be multiple of 8 bytes. It absorbs all input and the squeezes
-/// 32 Field elements to generate `HashOut`.
+/// `NUM_HASH_OUT_ELTS` Field elements to generate `HashOut`.
 ///
 ///  # Panics
 ///
@@ -118,6 +118,7 @@ impl<F: RichField> State<F> {
 mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
+    use plonky2::hash::hashing::PlonkyPermutation;
     use plonky2::hash::poseidon2::Poseidon2Permutation;
     use plonky2::plonk::config::GenericHashOut;
 
@@ -125,8 +126,13 @@ mod tests {
     fn test_hash_n_to_m_with_pad() {
         let data = "💥 Mozak-VM Rocks With Poseidon2";
         let mut data_bytes = data.as_bytes().to_vec();
-        // VM expects input lenght to be multiple of RATE bits
-        data_bytes.resize(data_bytes.len().next_multiple_of(8), 0);
+        // VM expects input lenght to be multiple of RATE
+        data_bytes.resize(
+            data_bytes
+                .len()
+                .next_multiple_of(Poseidon2Permutation::<GoldilocksField>::RATE),
+            0,
+        );
         let data_fields: Vec<GoldilocksField> = data_bytes
             .iter()
             .map(|x| GoldilocksField::from_canonical_u8(*x))
