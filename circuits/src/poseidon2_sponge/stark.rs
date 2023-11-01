@@ -110,6 +110,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         yield_constr.constraint(not_last_output_row * nv.ops.is_init_permute * is_dummy(nv));
         // Consume input should be 1 if input is not fully consumed.
         yield_constr.constraint(lv.input_len * (P::ONES - lv.con_input));
+        // Output length must be 0 when input_len is not 0.
+        yield_constr.constraint(lv.output_len * lv.input_len);
         // Output length must be 0 when con_input is 1.
         yield_constr.constraint(lv.con_input * lv.output_len);
 
