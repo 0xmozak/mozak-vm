@@ -108,10 +108,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         yield_constr.constraint_first_row(P::ONES - lv.ops.is_init_permute);
         // is_init_permute should be 0 for all other rows.
         yield_constr.constraint(not_last_output_row * nv.ops.is_init_permute * is_dummy(nv));
-        // Output length must be 0 for first row in a sponge.
-        yield_constr.constraint(lv.ops.is_init_permute * lv.output_len);
-        // Output length must be 0 when gen_output is 0.
-        yield_constr.constraint((P::ONES - lv.gen_output) * lv.output_len);
+        // Consume input should be 1 if input is not fully consumed.
+        yield_constr.constraint(lv.input_len * (P::ONES - lv.con_input));
+        // Output length must be 0 when con_input is 1.
+        yield_constr.constraint(lv.con_input * lv.output_len);
 
         // if current row consumes input then next row must have
         // length decreases by RATE, note that only actual execution row can consume
@@ -122,7 +122,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         yield_constr
             .constraint_transition(lv.con_input * (lv.input_addr - (nv.input_addr - rate_scalar)));
 
-        // if current row generates output ans is not the last output row then next row
+        // if current row generates output and is not the last output row then next row
         // must have output_addr increased by RATE
         yield_constr.constraint_transition(
             lv.gen_output * not_last_output_row * (lv.output_addr - (nv.output_addr - rate_scalar)),
