@@ -63,13 +63,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         is_binary(yield_constr, lv.ops.is_permute);
         is_binary(yield_constr, lv.ops.is_init_permute + lv.ops.is_permute);
         is_binary(yield_constr, lv.gen_output);
-        is_binary(yield_constr, lv.con_input);
 
         let is_dummy =
             |vars: &Poseidon2Sponge<P>| P::ONES - (vars.ops.is_init_permute + vars.ops.is_permute);
 
-        // dummy row does not consume input
-        yield_constr.constraint(is_dummy(lv) * lv.con_input);
         // dummy row does not generate output
         yield_constr.constraint(is_dummy(lv) * lv.gen_output);
 
@@ -77,30 +74,28 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         // chunk of input.
         yield_constr.constraint(lv.gen_output * (lv.input_len - rate_scalar));
 
+        let is_init_or_dummy = |vars: &Poseidon2Sponge<P>| {
+            (P::ONES - vars.ops.is_init_permute) * (vars.ops.is_init_permute + vars.ops.is_permute)
+        };
+
+        // First row must be init permute or dummy row.
+        yield_constr.constraint_first_row(is_init_or_dummy(lv));
         // if row generates output then next row can be dummy or start of next hashing
-        yield_constr.constraint(lv.gen_output * nv.ops.is_init_permute * is_dummy(nv));
+        yield_constr.constraint(lv.gen_output * is_init_or_dummy(nv));
 
         // Clk should not change within a sponge
         yield_constr.constraint_transition(nv.ops.is_permute * (lv.clk - nv.clk));
 
-        // First row must be init permute or dummy row.
-        yield_constr.constraint_first_row(
-            (lv.ops.is_init_permute + lv.ops.is_permute) * (P::ONES - lv.ops.is_init_permute),
-        );
-        // Consume input should be 1 if input is not fully consumed.
-        yield_constr.constraint(lv.input_len * (P::ONES - lv.con_input));
-
-        let not_last_sponge = P::ONES - lv.gen_output;
-
-        // if current row consumes input and its not last spoge then next row must have
+        let not_last_sponge =
+            (P::ONES - lv.gen_output) * (lv.ops.is_permute + lv.ops.is_init_permute);
+        // if current row consumes input and its not last sponge then next row must have
         // length decreases by RATE, note that only actual execution row can consume
         // input
-        yield_constr.constraint_transition(
-            lv.con_input * not_last_sponge * (lv.input_len - (nv.input_len + rate_scalar)),
-        );
+        yield_constr
+            .constraint_transition(not_last_sponge * (lv.input_len - (nv.input_len + rate_scalar)));
         // and input_addr increases by RATE
         yield_constr.constraint_transition(
-            lv.con_input * not_last_sponge * (lv.input_addr - (nv.input_addr - rate_scalar)),
+            not_last_sponge * (lv.input_addr - (nv.input_addr - rate_scalar)),
         );
 
         // For each init_permute capacity bits are zero.
@@ -110,16 +105,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
 
         // For each permute capacity bits are copied from previous output.
         (rate..state_size).for_each(|i| {
-            yield_constr
-                .constraint(nv.ops.is_permute * (nv.preimage[i as usize] - lv.output[i as usize]));
-        });
-
-        // For each permute if input is not consumed then rate bits are copied from
-        // previous output.
-        (0..rate).for_each(|i| {
             yield_constr.constraint(
-                nv.ops.is_permute
-                    * (P::ONES - nv.con_input)
+                (P::ONES - nv.ops.is_init_permute)
+                    * nv.ops.is_permute
                     * (nv.preimage[i as usize] - lv.output[i as usize]),
             );
         });

@@ -37,7 +37,6 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
             preimage,
             output,
             gen_output: F::from_bool(false),
-            con_input: F::from_bool(true),
         });
     };
 
@@ -67,10 +66,6 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
             }
         }
         permute_and_record_data(&mut perm, &mut sponge_data);
-        sponge_data
-            .last_mut()
-            .expect("Can't fail at least one elem must be there")
-            .con_input = F::from_bool(false);
     }
 }
 

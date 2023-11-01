@@ -113,22 +113,18 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
             vec![]
         } else {
             let rate = Poseidon2Permutation::<F>::RATE;
-            let mut inputs = vec![];
-            if value.con_input.is_one() {
-                // each Field element in preimage represents a byte.
-                inputs = (0..rate)
-                    .map(|i| Memory {
-                        clk: value.clk,
-                        addr: value.input_addr
-                            + F::from_canonical_u8(u8::try_from(i).expect("i > 255")),
-                        is_load: F::ONE,
-                        value: value.preimage[i],
-                        ..Default::default()
-                    })
-                    .collect();
-            }
+            // each Field element in preimage represents a byte.
+            (0..rate)
+                .map(|i| Memory {
+                    clk: value.clk,
+                    addr: value.input_addr
+                        + F::from_canonical_u8(u8::try_from(i).expect("i > 255")),
+                    is_load: F::ONE,
+                    value: value.preimage[i],
+                    ..Default::default()
+                })
+                .collect()
             // TODO: Handle OUTPUT Bytes
-            inputs
         }
     }
 }

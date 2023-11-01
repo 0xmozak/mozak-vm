@@ -45,15 +45,9 @@ fn unroll_sponge_data<F: RichField>(row: &Row<F>) -> Vec<Poseidon2Sponge<F>> {
             preimage: sponge_datum.preimage,
             output: sponge_datum.output,
             gen_output: sponge_datum.gen_output,
-            con_input: sponge_datum.con_input,
         });
-        // Input address tracks memory location from where next unroll row's input
-        // should be read. Hence every time a row consumes input, input address
-        // is increased by RATE and input lenght is decreased accordingly.
-        if sponge_datum.con_input.is_one() {
-            input_addr += rate_size;
-            input_len -= rate_size;
-        }
+        input_addr += rate_size;
+        input_len -= rate_size;
     }
 
     unroll
