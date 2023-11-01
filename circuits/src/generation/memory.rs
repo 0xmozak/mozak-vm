@@ -149,8 +149,8 @@ pub fn generate_memory_trace<F: RichField>(
     for mem in &mut merged_trace {
         mem.diff_addr = mem.addr - last_addr.unwrap_or_default();
         mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
-        if mem.addr == last_addr.unwrap_or(-F::ONE) {
-            // the check shouldn't pass for the first row, so this is ok
+        if Some(mem.addr) == last_addr {
+            // the check doesn't pass for the first row, so this is ok.
             mem.diff_clk = mem.clk - last_clk;
         }
         (last_clk, last_addr) = (mem.clk, Some(mem.addr));
