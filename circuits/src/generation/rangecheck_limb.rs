@@ -24,14 +24,13 @@ pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
             match looking_table.kind {
                 TableKind::RangeCheck => rangecheck_limbs_trace
                     .iter()
-                    .flat_map(|l| l.limbs.iter().map(|l| l).collect::<Vec<_>>())
+                    .flat_map(|l| l.limbs.iter().collect::<Vec<_>>())
                     .collect::<Vec<_>>(),
                 // TableKind::Cpu => extract(cpu_trace, &looking_table),
                 other => unimplemented!("Can't range check {other:?} tables"),
             }
             .into_iter()
             .for_each(|v| {
-                println!("v: {v:?}");
                 let value = u8::try_from(v.to_canonical_u64())
                     .expect("casting value to u32 should succeed");
 

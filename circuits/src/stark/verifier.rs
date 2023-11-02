@@ -121,7 +121,12 @@ where
     verify!(register_init_stark, TableKind::RegisterInit, &[]);
     verify!(register_stark, TableKind::Register, &[]);
     verify_cross_table_lookups::<F, D>(&cross_table_lookups, &all_proof.all_ctl_zs_last(), config)?;
-    verify_cross_table_logups::<F, D>(&cross_table_logups, config)?;
+    // verify_cross_table_logups::<F, F::Extension, F::Extension, D, D2>(
+    //     &cross_table_logups,
+    //     config,
+    //     &all_proof.stark_proofs,
+    //     &logup_check_vars_per_table,
+    // )?;
     Ok(())
 }
 
@@ -153,6 +158,7 @@ where
         aux_polys_next,
         ctl_zs_last,
         quotient_polys,
+        ..
     } = &proof.openings;
 
     let vars = S::EvaluationFrame::from_values(
@@ -276,6 +282,7 @@ where
         aux_polys_next,
         ctl_zs_last,
         quotient_polys,
+        ..
     } = openings;
 
     let degree_bits = proof.recover_degree_bits(config);

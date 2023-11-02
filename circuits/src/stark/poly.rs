@@ -16,7 +16,7 @@ use starky::stark::Stark;
 
 use super::permutation::{eval_permutation_checks, PermutationCheckVars};
 use crate::cross_table_lookup::{
-    eval_cross_table_logup, eval_cross_table_lookup_checks, CtlCheckVars, CtlData, LogupData,
+    eval_cross_table_logup, eval_cross_table_lookup_checks, CtlCheckVars, CtlData, LogupHelpers,
 };
 use crate::stark::lookup::{LogupCheckVars, LookupCheckVars};
 use crate::stark::permutation::challenge::GrandProductChallengeSet;
@@ -32,7 +32,7 @@ pub(crate) fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     challenges: &'a [F],
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
-    logup_data: &LogupData<F>,
+    logup_helpers: &LogupHelpers<F>,
     alphas: &[F],
     degree_bits: usize,
     num_logup_cols: usize,
@@ -125,11 +125,11 @@ where
                         [logup_data.looking.len()
                             ..logup_data.looking.len() + logup_data.looked.len()]
                         .to_vec(),
-                    columns: logup_data
-                        .looked_columns
-                        .iter()
-                        .map(|c| F::from_canonical_usize(*c))
-                        .collect::<Vec<_>>(),
+                    columns: vec![
+                        F::from_canonical_usize(logup_data.looked_column),
+                        F::from_canonical_usize(logup_data.multiplicity_column),
+                    ],
+
                     challenges: challenges.to_vec(),
                 },
             };

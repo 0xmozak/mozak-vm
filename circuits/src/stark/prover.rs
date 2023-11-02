@@ -3,7 +3,7 @@
 use std::fmt::Display;
 
 use anyhow::{ensure, Result};
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use log::log_enabled;
 use log::Level::Debug;
 use mozak_runner::elf::Program;
@@ -27,7 +27,7 @@ use super::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{
-    cross_table_logup_data, cross_table_lookup_data, CtlData, LogupData,
+    cross_table_helper_columns, cross_table_lookup_data, CtlData, LogupHelpers,
 };
 use crate::generation::{debug_traces, generate_traces};
 use crate::stark::mozak_stark::PublicInputs;
@@ -126,11 +126,12 @@ where
         )
     );
 
+    // Reuse the CTL challenges
     let logup_challenges: Vec<F> = ctl_challenges.challenges.iter().map(|c| c.beta).collect();
-    let ctlogup_data_per_table = timed!(
+    let helper_columns_per_table = timed!(
         timing,
         "Compute CTL data for each table",
-        cross_table_logup_data::<F, D>(
+        cross_table_helper_columns::<F, D>(
             traces_poly_values,
             &mozak_stark.cross_table_logups,
             &logup_challenges
@@ -147,7 +148,7 @@ where
             traces_poly_values,
             &trace_commitments,
             &ctl_data_per_table,
-            &ctlogup_data_per_table,
+            &helper_columns_per_table,
             &logup_challenges,
             &mut challenger,
             timing
@@ -181,7 +182,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     trace_commitment: &PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
-    logup_data: &LogupData<F>,
+    logup_helpers: LogupHelpers<F>,
     logup_challenges: &[F],
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
@@ -190,6 +191,7 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D> + Display, {
+    println!("prove single table: {}", stark);
     let degree = trace_poly_values[0].len();
     let degree_bits = log2_strict(degree);
     let fri_params = config.fri_params(degree_bits);
@@ -205,13 +207,23 @@ where
     // Permutation arguments.
     let permutation_challenges: Vec<GrandProductChallengeSet<F>> = challenger
         .get_n_grand_product_challenge_sets(config.num_challenges, stark.permutation_batch_size());
-    let num_logup_cols = logup_data.looking.len() + logup_data.looked.len();
+    // + 1 + 1 for looked and multiplicity
+
+    let num_logup_columns = logup_helpers.total_num_columns();
 
     let aux_polys = {
-        // looking, looked, ctl_data
-        let mut polys = logup_data.looking.clone();
-        polys.extend(logup_data.looked.clone());
-        polys.extend(ctl_data.z_polys());
+        let ctl_z_polys = ctl_data.z_polys();
+        let mut polys = Vec::with_capacity(num_logup_columns + ctl_data.z_polys().len());
+
+        for helpers in logup_helpers.looking_helpers {
+            polys.extend(helpers.looking);
+        }
+
+        for helpers in logup_helpers.looked_helpers {
+            polys.push(helpers.looked);
+        }
+
+        polys.extend(ctl_z_polys);
         polys
     };
     // TODO(Matthias): make the code work with empty z_polys, too.
@@ -302,7 +314,7 @@ where
         &aux_polys_commitment,
         &quotient_commitment,
         degree_bits,
-        num_logup_cols,
+        logup_data,
     );
 
     challenger.observe_openings(&openings.to_fri_openings());
@@ -356,7 +368,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     trace_commitments: &[PolynomialBatch<F, C, D>],
     ctl_data_per_table: &[CtlData<F>; NUM_TABLES],
-    logup_data_per_table: &[LogupData<F>; NUM_TABLES],
+    helpers_per_table: &[LogupHelpers<F>; NUM_TABLES],
     logup_challenges: &[F],
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
@@ -373,7 +385,7 @@ where
                 &trace_commitments[$kind as usize],
                 &$public_inputs,
                 &ctl_data_per_table[$kind as usize],
-                &logup_data_per_table[$kind as usize],
+                helpers_per_table[$kind as usize],
                 logup_challenges,
                 challenger,
                 timing,

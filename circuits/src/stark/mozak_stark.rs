@@ -81,7 +81,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 FullWordMemoryCpuTable::lookups(),
                 RegisterRegInitTable::lookups(),
             ],
-            cross_table_logups: vec![rangechecks_u32(), rangechecks_u8()],
+            cross_table_logups: vec![rangechecks_u32()],
+            // cross_table_logups: vec![rangechecks_u32(), rangechecks_u8()],
             debug: false,
         }
     }
@@ -138,8 +139,6 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.register_stark.num_permutation_batches(config),
         ]
     }
-
-    pub(crate) fn num_logup_columns() {}
 
     #[must_use]
     pub fn default_debug() -> Self {

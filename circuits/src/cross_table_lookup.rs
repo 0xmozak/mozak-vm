@@ -1,5 +1,8 @@
+use std::collections::VecDeque;
+
 use anyhow::{ensure, Result};
 use itertools::{izip, Itertools};
+use plonky2::field::batch_util::batch_add_inplace;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -13,8 +16,8 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-use crate::stark::lookup::{CrossTableLogup, LogupCheckVars, LookupCheckVars};
-use crate::stark::mozak_stark::{Table, NUM_TABLES};
+use crate::stark::lookup::{CrossTableLogup, LogupCheckVars};
+use crate::stark::mozak_stark::{Table, TableKind, NUM_TABLES};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::StarkProof;
 
@@ -56,12 +59,63 @@ pub(crate) struct CtlZData<F: Field> {
     pub(crate) filter_column: Column<F>,
 }
 
-#[derive(Default)]
-pub(crate) struct LogupData<F: Field> {
+/// Has a vector of columns, and a z_looking.
+pub(crate) struct LookingHelpers<F: Field> {
     pub(crate) looking: Vec<PolynomialValues<F>>,
     pub(crate) looking_columns: Vec<usize>,
-    pub(crate) looked: Vec<PolynomialValues<F>>,
-    pub(crate) looked_columns: Vec<usize>,
+    pub(crate) z_looking: PolynomialValues<F>,
+    /// The table kind that this set of helpers is looking into.
+    pub(crate) to: TableKind,
+}
+
+/// Will always have 3 columns:
+/// looked, multiplicity, z_looked.
+pub(crate) struct LookedHelpers<F: Field> {
+    pub(crate) looked: PolynomialValues<F>,
+    pub(crate) looked_column: usize,
+    /// m(x)
+    pub(crate) multiplicities: PolynomialValues<F>,
+    pub(crate) multiplicity_column: usize,
+    /// A z column in a LogupHelper either contains:
+    ///
+    /// 1 / (X + f(x)), or
+    /// m(x) / X + t(x)),
+    ///
+    /// depending on if they are a looking or a looked set of
+    /// helper columns.
+    pub(crate) z_looked: PolynomialValues<F>,
+    /// The table kind that this set of helpers is looked from.
+    pub(crate) from: Vec<TableKind>,
+}
+
+/// Cross-table logup data associated with one table.
+///
+/// A struct of `LogupHelpers` can either have only 1 of looking or looked
+/// helpers, or both.
+///
+/// Note that this struct is cross-table in nature, i.e. the looking
+/// and looked can refer to values from different tables.
+/// Eventually we want to constrain the running sum using this,
+/// i.e.
+/// Z(i+1) = Z(i) + f_i / (challenge + a_i) (looking),
+/// Z(i+1) = Z(i) + m_i / (challenge + b_i) (looked).
+pub(crate) struct LogupHelpers<F: Field> {
+    pub(crate) looking_helpers: Vec<LookingHelpers<F>>,
+    pub(crate) looked_helpers: Vec<LookedHelpers<F>>,
+}
+
+impl<F: Field> LogupHelpers<F> {
+    /// Get total number of helper columns in a table.
+    ///
+    /// For looking tables:
+    ///   (a variable number of looking columns, + z_looking) * num_tables
+    /// For looked tables:
+    ///   looked column, multiplicity column, z_looking, i.e. 3 * num_tables
+    pub(crate) fn total_num_columns(&self) -> usize {
+        self.looking_helpers
+            .map_or(0, |lhs| lhs.iter().map(|h| h.looking.len() + 1).sum())
+            + self.looked_helpers.map_or(0, |lhs| lhs.len() * 3)
+    }
 }
 
 pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: usize>(
@@ -97,24 +151,94 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     Ok(())
 }
 
-pub(crate) fn verify_cross_table_logups<F: RichField + Extendable<D>, const D: usize>(
+pub(crate) fn verify_cross_table_logups<F, C, FE, P, const D: usize, const D2: usize>(
     cross_table_logups: &[CrossTableLogup],
     config: &StarkConfig,
-) -> Result<()> {
+    proofs: &[StarkProof<F, C, D>],
+    logup_vars: &[LogupCheckVars<F, FE, P, D2>],
+) -> Result<()>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    FE: FieldExtension<D2, BaseField = F>,
+    P: PackedField<Scalar = FE>, {
+    let aux_polys_per_table = proofs
+        .iter()
+        .map(|p| p.openings.aux_polys.into_iter())
+        .collect::<Vec<_>>();
+    let aux_polys_next_per_table = proofs
+        .iter()
+        .map(|p| p.openings.aux_polys_next)
+        .collect::<Vec<_>>();
+
+    let mut chunks_per_table = [0; NUM_TABLES].map(|_| VecDeque::new());
+    // First find out how much to advance by for each aux poly and
+    // aux poly next per table.
     for CrossTableLogup {
         looking_tables,
         looked_table,
     } in cross_table_logups
-    {}
+    {
+        for looking_table in looking_tables {
+            chunks_per_table[looking_table.kind as usize]
+                .push_back(looking_table.columns.len() + 1);
+        }
+
+        // Always 3 - table, multiplicity, z_looked.
+        chunks_per_table[looked_table.kind as usize].push_back(3);
+    }
+
+    for CrossTableLogup {
+        looking_tables,
+        looked_table,
+    } in cross_table_logups
+    {
+        let mut looking_sums: F::Extension = F::ZERO.into();
+
+        for looking_table in looking_tables {
+            let chunk_len = chunks_per_table[looking_table.kind as usize]
+                .pop_front()
+                .unwrap();
+            let aux_polys = aux_polys_per_table[looking_table.kind as usize];
+
+            let z_looking = aux_polys.take(chunk_len).next().unwrap();
+
+            looking_sums += z_looking;
+        }
+        // Assert that looking
+
+        let chunk_len = chunks_per_table[looked_table.kind as usize]
+            .pop_front()
+            .unwrap();
+        let looked_sum = aux_polys_per_table[looked_table.kind as usize]
+            .take(chunk_len)
+            .into_iter()
+            .sum::<F::Extension>();
+
+        ensure!(
+            looking_sums == looked_sum,
+            "Sumcheck failed between {:?} tables",
+            looked_table.kind,
+        );
+    }
+    assert!(
+        chunks_per_table.into_iter().all(|c| c.is_empty()),
+        "Some chunks weren't taken"
+    );
 
     Ok(())
 }
 
-pub(crate) fn cross_table_logup_data<F: RichField + Extendable<D>, const D: usize>(
+/// Builds the helper columns per table for all declared [`CrossTableLogup`]s.
+///
+/// Since this is cross table, some tables will have one of either looking or
+/// looked columns, and some will have both.
+pub(crate) fn cross_table_helper_columns<F: RichField + Extendable<D>, const D: usize>(
     all_trace_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
     lookups: &[CrossTableLogup],
     challenges: &[F],
-) -> [LogupData<F>; NUM_TABLES] {
+) -> [LogupHelpers<F>; NUM_TABLES] {
+    /// Adds challenge to each entry in the column.
     fn log_derivative<F: Field>(mut column: Vec<F>, challenge: F) -> PolynomialValues<F> {
         for x in &mut column {
             *x = challenge + *x;
@@ -123,50 +247,88 @@ pub(crate) fn cross_table_logup_data<F: RichField + Extendable<D>, const D: usiz
         PolynomialValues::from(F::batch_multiplicative_inverse(&column))
     }
 
-    let mut data_per_table = [0; NUM_TABLES].map(|_| LogupData::default());
+    let mut helpers_per_table: [LogupHelpers<F>; NUM_TABLES] =
+        [0; NUM_TABLES].map(|_| LogupHelpers {
+            looking_helpers: vec![],
+            looked_helpers: vec![],
+        });
 
     for CrossTableLogup {
         looking_tables,
         looked_table,
     } in lookups
     {
+        let mut looking_columns = Vec::with_capacity(looking_tables.len());
         for challenge in challenges {
-            // Calculates 1 / x + f(x), which prepares the column to be constrained as per
-            // Lemma 5 within the LogUp paper.
-
-            // Calculate all helper columns for looking.
-            for looking_table in looking_tables {
-                let looking_poly_values = &all_trace_poly_values[looking_table.kind as usize];
-
-                for col in &looking_table.columns {
-                    data_per_table[looking_table.kind as usize]
-                        .looking
-                        .push(log_derivative(
-                            looking_poly_values[*col].values.clone(),
-                            *challenge,
-                        ));
-                }
-
-                data_per_table[looking_table.kind as usize]
-                    .looking_columns
-                    .extend_from_slice(&looking_table.columns);
-            }
-
             // Calculate all helper columns for looked.
             let looked_poly_values = &all_trace_poly_values[looked_table.kind as usize];
+            let multiplicities = looked_poly_values[looked_table.multiplicity_column].clone();
+            let table_column = looked_poly_values[looked_table.table_column].values.clone();
 
-            data_per_table[looked_table.kind as usize]
-                .looked
-                .push(log_derivative(
-                    looked_poly_values[looked_table.table_column].values.clone(),
-                    *challenge,
-                ));
-            data_per_table[looked_table.kind as usize]
-                .looked_columns
-                .push(looked_table.table_column);
+            let mut z_looked = Vec::with_capacity(multiplicities.len());
+            z_looked.push(F::ZERO);
+
+            for looking_table in looking_tables {
+                let mut z_looking = Vec::with_capacity(multiplicities.len());
+                z_looking.push(F::ZERO);
+                let mut looking = Vec::new();
+                let mut looking_indices = Vec::new();
+
+                let looking_poly_values = &all_trace_poly_values[looking_table.kind as usize];
+
+                // Calculates 1 / x + f(x), which prepares the column to be constrained as per
+                // Lemma 5 within the LogUp paper.
+
+                // Calculate all helper columns for looking.
+                for col in &looking_table.columns {
+                    let column_inverse =
+                        log_derivative(looking_poly_values[*col].values.clone(), *challenge);
+                    looking.push(column_inverse);
+                    looking_indices.push(*col);
+                }
+
+                // sum(1 / (x + f(x)) for all looking columns.
+                for i in 0..multiplicities.len() - 1 {
+                    let looking_x = looking.iter().map(|c| c.values[i]).sum::<F>();
+                    z_looking.push(z_looking[i] + looking_x);
+                }
+
+                let looking_helpers = LookingHelpers {
+                    looking,
+                    looking_columns,
+                    z_looking: z_looking.into(),
+                    to: looked_table.kind,
+                };
+                helpers_per_table[looking_table.kind as usize]
+                    .looking_helpers
+                    .push(looking_helpers);
+            }
+
+            // Calculates 1 / x + t(x), leaving out the m(x) to be multiplied in later.
+            let table_inverse = log_derivative(table_column, *challenge);
+
+            for i in 0..multiplicities.len() - 1 {
+                table_inverse
+                    .values
+                    .iter()
+                    .for_each(|c| z_looked.push(z_looked[i] + *c * multiplicities.values[i]));
+            }
+
+            let looked_helpers = LookedHelpers {
+                looked: table_column.into(),
+                looked_column: looked_table.table_column,
+                multiplicities,
+                multiplicity_column: looked_table.multiplicity_column,
+                z_looked: z_looked.into(),
+                from: looking_tables.iter().map(|t| t.kind).collect::<Vec<_>>(),
+            };
+            helpers_per_table[looked_table.kind as usize]
+                .looked_helpers
+                .push(looked_helpers);
         }
     }
-    data_per_table
+
+    helpers_per_table
 }
 
 pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
@@ -377,22 +539,19 @@ pub(crate) fn eval_cross_table_logup<F, FE, P, S, const D: usize, const D2: usiz
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>,
     S: Stark<F, D>, {
-    fn evaluate_vars<F, FE, P, S, const D: usize, const D2: usize>(
-        vars: &S::EvaluationFrame<FE, P, D2>,
-        logup_vars: &LookupCheckVars<F, FE, P, D2>,
-        challenges: &[F],
-        yield_constr: &mut ConstraintConsumer<P>,
-    ) where
-        F: RichField + Extendable<D>,
-        FE: FieldExtension<D2, BaseField = F>,
-        P: PackedField<Scalar = FE>,
-        S: Stark<F, D>, {
-        if logup_vars.is_empty() {
-            return;
-        };
-        let lvs: &[P] = vars.get_local_values();
-        let lvs_to_check = &logup_vars.local_values;
-        let columns = &logup_vars.columns;
+    if logup_vars.is_empty() {
+        return;
+    };
+
+    let lvs: &[P] = vars.get_local_values();
+
+    // For looking vars, we need to ensure:
+    //
+    // 1) All inverse columns are well-formed,
+    // 2) z_looking_i+1 = z_looking_i + 1 / (X + f_i)
+    if !logup_vars.looking_vars.is_empty() {
+        let lvs_to_check = &logup_vars.looking_vars.local_values;
+        let columns = &logup_vars.looking_vars.columns;
 
         let chunk_len = lvs_to_check.len() / challenges.len();
         for (i, (c, lv)) in izip!(columns, lvs_to_check).enumerate() {
@@ -408,8 +567,27 @@ pub(crate) fn eval_cross_table_logup<F, FE, P, S, const D: usize, const D2: usiz
         }
     }
 
-    evaluate_vars::<F, FE, P, S, D, D2>(vars, &logup_vars.looking_vars, challenges, yield_constr);
-    evaluate_vars::<F, FE, P, S, D, D2>(vars, &logup_vars.looked_vars, challenges, yield_constr);
+    // For looked vars, we need to ensure:
+    //
+    // 1) All inverse columns are well-formed,
+    // 2) z_looked_i+1 = z_looked_i + m_i / (X + f_i)
+    if !logup_vars.looked_vars.is_empty() {
+        let lvs_to_check = &logup_vars.looked_vars.local_values;
+        let columns = &logup_vars.looked_vars.columns;
+
+        let chunk_len = lvs_to_check.len() / challenges.len();
+        for (i, (c, lv)) in izip!(columns, lvs_to_check).enumerate() {
+            let challenge = challenges.get(i / chunk_len).unwrap();
+            let challenge = FE::from_basefield(*challenge);
+            yield_constr.constraint(
+                (lvs[usize::try_from(c.to_canonical_u64())
+                    .expect("cast from u64 to usize should succeed")]
+                    + challenge)
+                    * *lv
+                    - P::ONES,
+            );
+        }
+    }
 }
 
 pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const D2: usize>(

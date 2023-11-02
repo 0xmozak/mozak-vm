@@ -69,6 +69,7 @@ where
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
     pub(crate) local_values: Vec<P>,
+    pub(crate) next_values: Vec<P>,
     pub(crate) challenges: Vec<F>,
     pub(crate) columns: Vec<F>,
 }

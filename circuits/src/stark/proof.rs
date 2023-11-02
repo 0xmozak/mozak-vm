@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
 use super::mozak_stark::{MozakStark, NUM_TABLES};
+use crate::cross_table_lookup::LogupHelpers;
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 
@@ -137,7 +138,7 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
         aux_polys_commitment: &PolynomialBatch<F, C, D>,
         quotient_commitment: &PolynomialBatch<F, C, D>,
         degree_bits: usize,
-        num_logup_cols: usize,
+        logup_data: &LogupHelpers<F>,
     ) -> Self {
         let eval_commitment = |z: F::Extension, c: &PolynomialBatch<F, C, D>| {
             c.polynomials
@@ -151,17 +152,19 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
                 .map(|p| p.eval(z))
                 .collect::<Vec<_>>()
         };
+
+        let ctl_zs_last = eval_commitment_base(
+            F::primitive_root_of_unity(degree_bits).inverse(),
+            aux_polys_commitment[..num_logup_columns],
+        );
+
         let zeta_next = zeta.scalar_mul(g);
         Self {
             local_values: eval_commitment(zeta, trace_commitment),
             next_values: eval_commitment(zeta_next, trace_commitment),
             aux_polys: eval_commitment(zeta, aux_polys_commitment),
             aux_polys_next: eval_commitment(zeta_next, aux_polys_commitment),
-            ctl_zs_last: eval_commitment_base(
-                F::primitive_root_of_unity(degree_bits).inverse(),
-                aux_polys_commitment,
-            )[num_logup_cols..]
-                .to_vec(),
+            ctl_zs_last,
             quotient_polys: eval_commitment(zeta, quotient_commitment),
         }
     }
