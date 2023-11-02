@@ -451,7 +451,7 @@ mod tests {
     use crate::utils::from_u32;
 
     #[test]
-    fn recursive_verify_program_stark() -> Result<()> {
+    fn recursive_verify_starks() -> Result<()> {
         type S = MozakStark<F, D>;
         type PS = ProgramStark<F, D>;
         let stark = S::default();
