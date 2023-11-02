@@ -35,7 +35,6 @@ pub(crate) fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     logup_helpers: &LogupHelpers<F>,
     alphas: &[F],
     degree_bits: usize,
-    num_logup_cols: usize,
     config: &StarkConfig,
 ) -> Vec<PolynomialCoeffs<F>>
 where
@@ -108,30 +107,54 @@ where
                     .to_vec(),
                 permutation_challenge_sets: permutation_challenges.to_owned(),
             };
-            let logup_check_vars = LogupCheckVars {
-                looking_vars: LookupCheckVars {
+
+            let mut all_looking_check_vars = vec![];
+            let mut all_looked_check_vars = vec![];
+
+            let mut looking_start: usize = 0;
+            let mut looking_end: usize = 0;
+            for looking_helpers in &logup_helpers.looking_helpers {
+                // All looking + z_looking
+                looking_end += looking_helpers.looking.len() + 1;
+                all_looking_check_vars.push(LookupCheckVars {
                     local_values: aux_polys_commitment.get_lde_values_packed(i_start, step)
-                        [..logup_data.looking.len()]
+                        [looking_start..looking_end]
                         .to_vec(),
-                    columns: logup_data
+                    next_values: aux_polys_commitment.get_lde_values_packed(i_next_start, step)
+                        [looking_start..looking_end]
+                        .to_vec(),
+                    columns: looking_helpers
                         .looking_columns
                         .iter()
                         .map(|c| F::from_canonical_usize(*c))
                         .collect::<Vec<_>>(),
                     challenges: challenges.to_vec(),
-                },
-                looked_vars: LookupCheckVars {
-                    local_values: aux_polys_commitment.get_lde_values_packed(i_start, step)
-                        [logup_data.looking.len()
-                            ..logup_data.looking.len() + logup_data.looked.len()]
-                        .to_vec(),
-                    columns: vec![
-                        F::from_canonical_usize(logup_data.looked_column),
-                        F::from_canonical_usize(logup_data.multiplicity_column),
-                    ],
+                });
 
+                looking_start = looking_end;
+            }
+
+            let mut looked_start: usize = looking_end;
+            let mut looked_end: usize = looking_end + 3;
+            for looked_helpers in &logup_helpers.looked_helpers {
+                // 3
+                looked_end += 3;
+                all_looked_check_vars.push(LookupCheckVars {
+                    local_values: aux_polys_commitment.get_lde_values_packed(i_start, step)
+                        [looked_start..looked_end]
+                        .to_vec(),
+                    next_values: aux_polys_commitment.get_lde_values_packed(i_next_start, step)
+                        [looked_start..looked_end]
+                        .to_vec(),
+                    columns: vec![F::from_canonical_usize(looked_helpers.looked_column)],
                     challenges: challenges.to_vec(),
-                },
+                });
+
+                looked_start = looking_end;
+            }
+            let logup_check_vars = LogupCheckVars {
+                looking_vars: all_looking_check_vars,
+                looked_vars: all_looked_check_vars,
             };
 
             let ctl_vars = ctl_data
@@ -140,9 +163,9 @@ where
                 .enumerate()
                 .map(|(i, zs_columns)| CtlCheckVars::<F, F, P, 1> {
                     local_z: aux_polys_commitment.get_lde_values_packed(i_start, step)
-                        [num_logup_cols + i],
+                        [logup_helpers.total_num_columns() + i],
                     next_z: aux_polys_commitment.get_lde_values_packed(i_next_start, step)
-                        [num_logup_cols + i],
+                        [logup_helpers.total_num_columns() + i],
                     challenges: zs_columns.challenge,
                     columns: &zs_columns.columns,
                     filter_column: &zs_columns.filter_column,
@@ -200,7 +223,5 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark.eval_packed_generic(vars, consumer);
     eval_permutation_checks::<F, FE, P, S, D, D2>(stark, config, vars, permutation_vars, consumer);
     eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
-    if !logup_vars.is_empty() {
-        eval_cross_table_logup::<F, FE, P, S, D, D2>(vars, logup_vars, challenges, consumer);
-    }
+    eval_cross_table_logup::<F, FE, P, S, D, D2>(vars, logup_vars, challenges, consumer);
 }

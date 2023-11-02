@@ -182,7 +182,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     trace_commitment: &PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
-    logup_helpers: LogupHelpers<F>,
+    logup_helpers: &LogupHelpers<F>,
     logup_challenges: &[F],
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
@@ -215,12 +215,12 @@ where
         let ctl_z_polys = ctl_data.z_polys();
         let mut polys = Vec::with_capacity(num_logup_columns + ctl_data.z_polys().len());
 
-        for helpers in logup_helpers.looking_helpers {
-            polys.extend(helpers.looking);
+        for helpers in &logup_helpers.looking_helpers {
+            polys.extend(helpers.looking.clone());
         }
 
-        for helpers in logup_helpers.looked_helpers {
-            polys.push(helpers.looked);
+        for helpers in &logup_helpers.looked_helpers {
+            polys.push(helpers.looked.clone());
         }
 
         polys.extend(ctl_z_polys);
@@ -257,10 +257,9 @@ where
             logup_challenges,
             public_inputs,
             ctl_data,
-            logup_data,
+            &logup_helpers,
             &alphas,
             degree_bits,
-            num_logup_cols,
             config,
         )
     );
@@ -314,7 +313,7 @@ where
         &aux_polys_commitment,
         &quotient_commitment,
         degree_bits,
-        logup_data,
+        &logup_helpers,
     );
 
     challenger.observe_openings(&openings.to_fri_openings());
@@ -337,7 +336,7 @@ where
                     degree_bits,
                     num_zs: ctl_data.len()
                 }),
-                num_logup_cols,
+                logup_helpers.total_num_columns()
             ),
             &initial_merkle_trees,
             challenger,
@@ -385,7 +384,7 @@ where
                 &trace_commitments[$kind as usize],
                 &$public_inputs,
                 &ctl_data_per_table[$kind as usize],
-                helpers_per_table[$kind as usize],
+                &helpers_per_table[$kind as usize],
                 logup_challenges,
                 challenger,
                 timing,

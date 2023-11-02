@@ -89,8 +89,8 @@ where
     F: Field,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
-    pub(crate) looking_vars: LookupCheckVars<F, FE, P, D2>,
-    pub(crate) looked_vars: LookupCheckVars<F, FE, P, D2>,
+    pub(crate) looking_vars: Vec<LookupCheckVars<F, FE, P, D2>>,
+    pub(crate) looked_vars: Vec<LookupCheckVars<F, FE, P, D2>>,
 }
 impl<
         F: Field,
@@ -112,27 +112,21 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         cross_table_logups: &'a [CrossTableLogup],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
     ) -> Vec<Self> {
-        let mut num_looking_per_table = [0; NUM_TABLES];
-        let mut num_looked_per_table = [0; NUM_TABLES];
         let mut looking_column_indices_per_table = [0; NUM_TABLES].map(|_| vec![]);
         let mut looked_column_indices_per_table = [0; NUM_TABLES].map(|_| vec![]);
 
         for _ in &ctl_challenges.challenges {
             for logup in cross_table_logups {
                 for looking_table in &logup.looking_tables {
-                    num_looking_per_table[looking_table.kind as usize] +=
-                        looking_table.columns.len();
-                    looking_column_indices_per_table[looking_table.kind as usize]
-                        .extend_from_slice(
-                            &looking_table
-                                .columns
-                                .iter()
-                                .map(|c| F::from_canonical_usize(*c))
-                                .collect::<Vec<_>>(),
-                        );
+                    looking_column_indices_per_table[looking_table.kind as usize].push(
+                        looking_table
+                            .columns
+                            .iter()
+                            .map(|c| F::from_canonical_usize(*c))
+                            .collect::<Vec<_>>(),
+                    );
                 }
 
-                num_looked_per_table[logup.looked_table.kind as usize] += 1;
                 looked_column_indices_per_table[logup.looked_table.kind as usize]
                     .push(F::from_canonical_usize(logup.looked_table.table_column));
             }
@@ -144,30 +138,54 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
             .map(|c| c.beta)
             .collect::<Vec<_>>();
 
-        let mut logup_check_vars_per_table = Vec::with_capacity(NUM_TABLES);
-        for (i, p) in proofs.iter().enumerate() {
+        let mut logup_check_vars_per_table: Vec<LogupCheckVars<F, _, _, D>> =
+            Vec::with_capacity(NUM_TABLES);
+        for (i, (p, looking, looked)) in izip!(
+            proofs,
+            looking_column_indices_per_table,
+            looked_column_indices_per_table
+        )
+        .enumerate()
+        {
             let openings = &p.openings;
 
-            let num_looking = num_looking_per_table[i];
-            let num_looked = num_looked_per_table[i];
+            let aux_polys = &openings.aux_polys;
+            let aux_polys_next = &openings.aux_polys_next;
 
-            println!(
-                "{i} NLOOKING = {:?}, NLOOKED = {:?}",
-                num_looking, num_looked
-            );
-            logup_check_vars_per_table.push(LogupCheckVars {
-                looking_vars: LookupCheckVars {
-                    local_values: openings.aux_polys[..num_looking].to_vec(),
-                    columns: looking_column_indices_per_table[i].clone(),
+            let mut looking_start: usize = 0;
+            let mut looking_end: usize = 0;
+            for looking_indices in &looking {
+                looking_end += looking.len() + 1;
+                let lookup_check_vars = LookupCheckVars {
+                    local_values: aux_polys[looking_start..looking_end].to_vec(),
+                    next_values: aux_polys_next[looking_start..looking_end].to_vec(),
+                    columns: looking_indices.to_vec(),
                     challenges: challenges.clone(),
-                },
-                looked_vars: LookupCheckVars {
-                    local_values: openings.aux_polys[num_looking..num_looking + num_looked]
-                        .to_vec(),
-                    columns: looked_column_indices_per_table[i].clone(),
+                };
+
+                logup_check_vars_per_table[i]
+                    .looking_vars
+                    .push(lookup_check_vars);
+
+                looking_start = looking_end;
+            }
+            let mut looked_start: usize = looking_end;
+            let mut looked_end: usize = looking_end + 3;
+            for looked_column in &looked {
+                // 3
+                looked_end += 3;
+                let lookup_check_vars = LookupCheckVars {
+                    local_values: aux_polys[looked_start..looked_end].to_vec(),
+                    next_values: aux_polys_next[looked_start..looked_end].to_vec(),
+                    columns: vec![looked_column.clone()],
                     challenges: challenges.clone(),
-                },
-            });
+                };
+                logup_check_vars_per_table[i]
+                    .looked_vars
+                    .push(lookup_check_vars);
+
+                looked_start = looking_end;
+            }
         }
 
         logup_check_vars_per_table

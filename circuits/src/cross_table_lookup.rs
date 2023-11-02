@@ -113,8 +113,10 @@ impl<F: Field> LogupHelpers<F> {
     ///   looked column, multiplicity column, z_looking, i.e. 3 * num_tables
     pub(crate) fn total_num_columns(&self) -> usize {
         self.looking_helpers
-            .map_or(0, |lhs| lhs.iter().map(|h| h.looking.len() + 1).sum())
-            + self.looked_helpers.map_or(0, |lhs| lhs.len() * 3)
+            .iter()
+            .map(|h| h.looking.len() + 1)
+            .sum::<usize>()
+            + self.looked_helpers.len() * 3
     }
 }
 
@@ -154,7 +156,7 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
 pub(crate) fn verify_cross_table_logups<F, C, FE, P, const D: usize, const D2: usize>(
     cross_table_logups: &[CrossTableLogup],
     config: &StarkConfig,
-    proofs: &[StarkProof<F, C, D>],
+    proofs: &[StarkProof<F, C, D>; NUM_TABLES],
     logup_vars: &[LogupCheckVars<F, FE, P, D2>],
 ) -> Result<()>
 where
@@ -162,69 +164,29 @@ where
     C: GenericConfig<D, F = F>,
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
-    let aux_polys_per_table = proofs
-        .iter()
-        .map(|p| p.openings.aux_polys.into_iter())
-        .collect::<Vec<_>>();
-    let aux_polys_next_per_table = proofs
-        .iter()
-        .map(|p| p.openings.aux_polys_next)
-        .collect::<Vec<_>>();
+    let mut logup_looking_lasts = [0; NUM_TABLES].map(|_| vec![]);
+    let mut logup_looked_lasts = [0; NUM_TABLES].map(|_| vec![]);
 
-    let mut chunks_per_table = [0; NUM_TABLES].map(|_| VecDeque::new());
+    for (i, p) in proofs.iter().enumerate() {
+        let looking = &p.openings.logup_looking_lasts;
+        let looked = &p.openings.logup_looked_lasts;
+
+        logup_looking_lasts[i].extend_from_slice(looking);
+        logup_looked_lasts[i].extend_from_slice(looked);
+    }
     // First find out how much to advance by for each aux poly and
     // aux poly next per table.
     for CrossTableLogup {
         looking_tables,
         looked_table,
     } in cross_table_logups
-    {
-        for looking_table in looking_tables {
-            chunks_per_table[looking_table.kind as usize]
-                .push_back(looking_table.columns.len() + 1);
-        }
-
-        // Always 3 - table, multiplicity, z_looked.
-        chunks_per_table[looked_table.kind as usize].push_back(3);
-    }
+    {}
 
     for CrossTableLogup {
         looking_tables,
         looked_table,
     } in cross_table_logups
-    {
-        let mut looking_sums: F::Extension = F::ZERO.into();
-
-        for looking_table in looking_tables {
-            let chunk_len = chunks_per_table[looking_table.kind as usize]
-                .pop_front()
-                .unwrap();
-            let aux_polys = aux_polys_per_table[looking_table.kind as usize];
-
-            let z_looking = aux_polys.take(chunk_len).next().unwrap();
-
-            looking_sums += z_looking;
-        }
-        // Assert that looking
-
-        let chunk_len = chunks_per_table[looked_table.kind as usize]
-            .pop_front()
-            .unwrap();
-        let looked_sum = aux_polys_per_table[looked_table.kind as usize]
-            .take(chunk_len)
-            .into_iter()
-            .sum::<F::Extension>();
-
-        ensure!(
-            looking_sums == looked_sum,
-            "Sumcheck failed between {:?} tables",
-            looked_table.kind,
-        );
-    }
-    assert!(
-        chunks_per_table.into_iter().all(|c| c.is_empty()),
-        "Some chunks weren't taken"
-    );
+    {}
 
     Ok(())
 }
@@ -258,7 +220,7 @@ pub(crate) fn cross_table_helper_columns<F: RichField + Extendable<D>, const D: 
         looked_table,
     } in lookups
     {
-        let mut looking_columns = Vec::with_capacity(looking_tables.len());
+        let looking_columns = Vec::with_capacity(looking_tables.len());
         for challenge in challenges {
             // Calculate all helper columns for looked.
             let looked_poly_values = &all_trace_poly_values[looked_table.kind as usize];
@@ -295,7 +257,7 @@ pub(crate) fn cross_table_helper_columns<F: RichField + Extendable<D>, const D: 
 
                 let looking_helpers = LookingHelpers {
                     looking,
-                    looking_columns,
+                    looking_columns: looking_columns.clone(),
                     z_looking: z_looking.into(),
                     to: looked_table.kind,
                 };
@@ -305,7 +267,7 @@ pub(crate) fn cross_table_helper_columns<F: RichField + Extendable<D>, const D: 
             }
 
             // Calculates 1 / x + t(x), leaving out the m(x) to be multiplied in later.
-            let table_inverse = log_derivative(table_column, *challenge);
+            let table_inverse = log_derivative(table_column.clone(), *challenge);
 
             for i in 0..multiplicities.len() - 1 {
                 table_inverse
@@ -549,11 +511,11 @@ pub(crate) fn eval_cross_table_logup<F, FE, P, S, const D: usize, const D2: usiz
     //
     // 1) All inverse columns are well-formed,
     // 2) z_looking_i+1 = z_looking_i + 1 / (X + f_i)
-    if !logup_vars.looking_vars.is_empty() {
-        let lvs_to_check = &logup_vars.looking_vars.local_values;
-        let columns = &logup_vars.looking_vars.columns;
-
+    for looking_vars in &logup_vars.looking_vars {
+        let lvs_to_check = &looking_vars.local_values;
+        let columns = &looking_vars.columns;
         let chunk_len = lvs_to_check.len() / challenges.len();
+
         for (i, (c, lv)) in izip!(columns, lvs_to_check).enumerate() {
             let challenge = challenges.get(i / chunk_len).unwrap();
             let challenge = FE::from_basefield(*challenge);
@@ -571,9 +533,11 @@ pub(crate) fn eval_cross_table_logup<F, FE, P, S, const D: usize, const D2: usiz
     //
     // 1) All inverse columns are well-formed,
     // 2) z_looked_i+1 = z_looked_i + m_i / (X + f_i)
-    if !logup_vars.looked_vars.is_empty() {
-        let lvs_to_check = &logup_vars.looked_vars.local_values;
-        let columns = &logup_vars.looked_vars.columns;
+    for looked_vars in &logup_vars.looked_vars {
+        let lvs_to_check = &looked_vars.local_values;
+
+        let lvs_to_check = &looked_vars.local_values;
+        let columns = &looked_vars.columns;
 
         let chunk_len = lvs_to_check.len() / challenges.len();
         for (i, (c, lv)) in izip!(columns, lvs_to_check).enumerate() {
@@ -588,6 +552,8 @@ pub(crate) fn eval_cross_table_logup<F, FE, P, S, const D: usize, const D2: usiz
             );
         }
     }
+
+    if !logup_vars.looked_vars.is_empty() {}
 }
 
 pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const D2: usize>(

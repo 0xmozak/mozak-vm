@@ -148,8 +148,16 @@ pub(crate) fn verify_stark_proof_with_challenges<
 ) -> Result<()>
 where
 {
-    let num_logup_cols = logup_check_vars.looking_vars.local_values.len()
-        + logup_check_vars.looked_vars.local_values.len();
+    let num_logup_cols = logup_check_vars
+        .looking_vars
+        .iter()
+        .map(|v| v.local_values.len())
+        .sum::<usize>()
+        + logup_check_vars
+            .looked_vars
+            .iter()
+            .map(|v| v.local_values.len())
+            .sum::<usize>();
     validate_proof_shape(stark, proof, config, ctl_vars.len(), num_logup_cols)?;
     let StarkOpeningSet {
         local_values,

@@ -6,7 +6,7 @@ use plonky2::fri::structure::{FriOpeningBatch, FriOpenings};
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::iop::challenger::Challenger;
-use plonky2::plonk::config::GenericConfig;
+use plonky2::plonk::config::{GenericConfig, GenericHashOut};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
@@ -125,6 +125,10 @@ pub struct StarkOpeningSet<F: RichField + Extendable<D>, const D: usize> {
     /// zeta`.
     pub aux_polys_next: Vec<F::Extension>,
     /// Openings of cross-table lookups `Z` polynomials at `g^-1`.
+    pub logup_looking_lasts: Vec<F>,
+    /// Openings of cross-table lookups `Z` polynomials at `g^-1`.
+    pub logup_looked_lasts: Vec<F>,
+    /// Openings of cross-table lookups `Z` polynomials at `g^-1`.
     pub ctl_zs_last: Vec<F>,
     /// Openings of quotient polynomials at `zeta`.
     pub quotient_polys: Vec<F::Extension>,
@@ -138,7 +142,7 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
         aux_polys_commitment: &PolynomialBatch<F, C, D>,
         quotient_commitment: &PolynomialBatch<F, C, D>,
         degree_bits: usize,
-        logup_data: &LogupHelpers<F>,
+        logup_helpers: &LogupHelpers<F>,
     ) -> Self {
         let eval_commitment = |z: F::Extension, c: &PolynomialBatch<F, C, D>| {
             c.polynomials
@@ -153,10 +157,35 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
                 .collect::<Vec<_>>()
         };
 
+        let logup_lasts = eval_commitment_base(
+            F::primitive_root_of_unity(degree_bits).inverse(),
+            aux_polys_commitment,
+        )[..logup_helpers.total_num_columns()]
+            .to_vec();
+
+        let mut looking_lasts = vec![];
+        let mut looked_lasts = vec![];
+
+        let mut z_index = 0;
+        for looking_helpers in &logup_helpers.looking_helpers {
+            z_index += looking_helpers.looking_columns.len();
+            let z_looking = logup_lasts[z_index];
+            looking_lasts.push(z_looking);
+            z_index += 1;
+        }
+
+        for _ in &logup_helpers.looked_helpers {
+            z_index += 2;
+            let z_looked = logup_lasts[z_index];
+            looked_lasts.push(z_looked);
+            z_index += 1;
+        }
+
         let ctl_zs_last = eval_commitment_base(
             F::primitive_root_of_unity(degree_bits).inverse(),
-            aux_polys_commitment[..num_logup_columns],
-        );
+            aux_polys_commitment,
+        )[logup_helpers.total_num_columns()..]
+            .to_vec();
 
         let zeta_next = zeta.scalar_mul(g);
         Self {
@@ -164,6 +193,8 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
             next_values: eval_commitment(zeta_next, trace_commitment),
             aux_polys: eval_commitment(zeta, aux_polys_commitment),
             aux_polys_next: eval_commitment(zeta_next, aux_polys_commitment),
+            logup_looking_lasts: looking_lasts,
+            logup_looked_lasts: looked_lasts,
             ctl_zs_last,
             quotient_polys: eval_commitment(zeta, quotient_commitment),
         }
