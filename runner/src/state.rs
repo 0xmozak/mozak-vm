@@ -127,7 +127,6 @@ pub struct Poseidon2SpongeData<F> {
     pub preimage: [F; WIDTH],
     pub output: [F; WIDTH],
     pub gen_output: F,
-    pub con_input: F,
 }
 
 #[derive(Debug, Clone, Default)]
