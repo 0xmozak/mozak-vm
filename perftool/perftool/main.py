@@ -43,12 +43,12 @@ def build_repo(commit: str):
 @app.command()
 def bench(bench_function: str, min_value: int, max_value: int):
     """
-    Bench  `bench_function` with paramter sampled in range `(min_value, max_value)`
+    Bench  `bench_function` with parameter sampled in range `(min_value, max_value)`
     It keeps sampling parameter, benches the function and updates the data csv file,
       till terminated by Ctrl+C
     """
     bench_commits = load_commits_from_config(bench_function)
-    commits = list(commit for (_commit_description, commit) in bench_commits.items())
+    commits = list(commit for commit in bench_commits.values())
 
     # initialize the csv files with headers if they does not exist
     for commit in commits:
@@ -71,14 +71,14 @@ def bench(bench_function: str, min_value: int, max_value: int):
 def build(bench_function: str):
     """
     Build all the commits specified in `config.json` for given `bench_function`,
-      in `--realease` mode.
+      in `--release` mode.
     """
     bench_commits = load_commits_from_config(bench_function)
     create_folders_if_not_exist(bench_function)
-    for _commit_description, commit in bench_commits.items():
+    for commit in bench_commits.values():
         build_repo(commit)
         create_symlink_for_repo(bench_function, commit)
-    print(f"Bench {bench_function} built succesfully.")
+    print(f"Bench {bench_function} built successfully.")
 
 
 @app.command()
