@@ -161,14 +161,14 @@ impl<F: RichField> State<F> {
             entry_point: pc,
             ..
         }: Program,
-        io_tape: &[u8],
+        io_tape_private: &[u8],
         io_tape_public: &[u8],
     ) -> Self {
         Self {
             pc,
             rw_memory,
             ro_memory,
-            io_tape: (io_tape, io_tape_public).into(),
+            io_tape: (io_tape_private, io_tape_public).into(),
             ..Default::default()
         }
     }
