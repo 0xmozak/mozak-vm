@@ -2,7 +2,7 @@
 
 use std::fmt::Display;
 
-use anyhow::{ensure, Result};
+use anyhow::{ ensure, Result };
 use itertools::Itertools;
 use log::log_enabled;
 use log::Level::Debug;
@@ -19,17 +19,17 @@ use plonky2::plonk::config::GenericConfig;
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
-use rayon::prelude::{IntoParallelIterator, ParallelIterator};
+use rayon::prelude::{ IntoParallelIterator, ParallelIterator };
 use starky::config::StarkConfig;
-use starky::stark::{LookupConfig, Stark};
+use starky::stark::{ LookupConfig, Stark };
 
-use super::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
-use super::proof::{AllProof, StarkOpeningSet, StarkProof};
+use super::mozak_stark::{ MozakStark, TableKind, NUM_TABLES };
+use super::proof::{ AllProof, StarkOpeningSet, StarkProof };
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
-use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
-use crate::generation::{debug_traces, generate_traces};
+use crate::cross_table_lookup::{ cross_table_lookup_data, CtlData };
+use crate::generation::{ debug_traces, generate_traces };
 use crate::stark::mozak_stark::PublicInputs;
-use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
+use crate::stark::permutation::challenge::{ GrandProductChallengeSet, GrandProductChallengeTrait };
 use crate::stark::permutation::compute_permutation_z_polys;
 use crate::stark::poly::compute_quotient_polys;
 use crate::stark::proof::StarkProofWithMetadata;
@@ -40,23 +40,17 @@ pub fn prove<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     public_inputs: PublicInputs<F>,
-    timing: &mut TimingTree,
-) -> Result<AllProof<F, C, D>>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
+    timing: &mut TimingTree
+)
+    -> Result<AllProof<F, C, D>>
+    where F: RichField + Extendable<D>, C: GenericConfig<D, F = F>
+{
     let traces_poly_values = generate_traces(program, record);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
         debug_ctl(&traces_poly_values, mozak_stark);
     }
-    prove_with_traces(
-        mozak_stark,
-        config,
-        public_inputs,
-        &traces_poly_values,
-        timing,
-    )
+    prove_with_traces(mozak_stark, config, public_inputs, &traces_poly_values, timing)
 }
 
 /// Given the traces generated from [`generate_traces`], prove a [`MozakStark`].
@@ -68,14 +62,15 @@ pub fn prove_with_traces<F, C, const D: usize>(
     config: &StarkConfig,
     public_inputs: PublicInputs<F>,
     traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
-    timing: &mut TimingTree,
-) -> Result<AllProof<F, C, D>>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
+    timing: &mut TimingTree
+)
+    -> Result<AllProof<F, C, D>>
+    where F: RichField + Extendable<D>, C: GenericConfig<D, F = F>
+{
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
 
+    // commiting to trace polynomials and storing the merkle tree
     let trace_commitments = timed!(
         timing,
         "Compute trace commitments for each table",
@@ -96,13 +91,14 @@ where
                         false,
                         cap_height,
                         timing,
-                        None,
+                        None
                     )
                 )
             })
             .collect::<Vec<_>>()
     );
 
+    // get the merkle roots
     let trace_caps = trace_commitments
         .iter()
         .map(|c| c.merkle_tree.cap.clone())
@@ -114,6 +110,91 @@ where
     }
 
     let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
+
+    // compute the CTL data from all trace polynomials
+    // This includes Vec<CTLZData> per table.
+    // For reference,
+    // pub(crate) struct CtlZData<F: Field> {
+    //          z: PolynomialValues<F>,
+    //          challenge: GrandProductChallenge<F>,
+    //          columns: Vec<Column<F>>,
+    //          filter_column: Column<F>
+    // }
+    // The columns here refer to the looking or looked columns, and are not cloned and committed.
+    // - The process of creating the looking columns, for example, is as follows
+    //
+    // pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
+    //     let mem = MAP.map(Column::from);
+    //     vec![
+    //         MemoryTable::new(Column::singles([MAP.addr]), mem.is_executed()),
+    //         MemoryTable::new(Column::singles([MAP.diff_addr]), mem.is_executed()),
+    //         MemoryTable::new(Column::singles([MAP.diff_clk]), mem.is_executed()),
+    //     ]
+    // }
+    //
+    // each entry in vec here refers to to a looking table instance, with looking columns and filter columns.
+    // The "new" looking table instance does not create more columns, 
+    // but just serves as a dummy table of same kind, which refers to columns
+    // from original table
+    //
+    // - Process of creating looked columns is similar. 
+    //   RangeCheckTable::new(rangecheck::columns::data(), rangecheck::columns::filter())
+    // Finally, Lookup instance looks like
+    // CrossTableLookup::new(
+    //     looking,
+    //     RangeCheckTable::new(rangecheck::columns::data(), rangecheck::columns::filter()),
+    // )
+    // which essentially imposes that the concatenation of all filtered looking columns is the filtered looked column
+    // When we have more than one looked column per table instance, like 
+    // 
+    // CrossTableLookup::new(
+    //     vec![MemoryTable::new(
+    //         memory::columns::data_for_memoryinit(),
+    //         memory::columns::filter_for_memoryinit(),
+    //     )],
+    //     MemoryInitTable::new(
+    //         memoryinit::columns::data_for_memory(),
+    //         memoryinit::columns::filter_for_memory(),
+    //     ),
+    // )
+    // that is, `memory::columns::data_for_memoryinit()`, `memoryinit::columns::data_for_memory()` refer to more than one columns
+    // as follows,
+    //
+    // pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
+    //     vec![
+    //         Column::single(MAP.addr),
+    //         Column::single(MAP.is_writable)
+    //         Column::single(MAP.clk),
+    //         Column::single(MAP.value),
+    //         Column::single(MAP.is_init),
+    //     ]
+    // }
+    //
+    //
+    // pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
+    //     vec![
+    //         Column::single(MAP.element.address),
+    //         Column::single(MAP.is_writable),
+    //         Column::constant(F::ZERO),
+    //         Column::single(MAP.element.value),
+    //         Column::constant(F::ONE),
+    //     ]
+    // }
+    //
+    // Then we essentially assert the lookup for each index in a batch. Like here we assert 
+    // `Column::single(MAP.addr)` is some (fixed throughout this instance) permutation of 
+    // `Column::single(MAP.element.address)` upto filters
+    // and so on
+    // Internally, we reduce this to one lookup instance through combining the columns into single one
+    // through random challenge.
+    // Basically using something like (for some permutation sigma)
+    //
+    // sigma(a_1, a_2, a_3) = (a_1', a_2', a_3') and sigma(b_1, b_2, b_3) = (b_1', b_2', b_3')
+    // if and only if 
+    // sigma(a_1 + alpha* b_1, a_2 + alpha* b_2, a_3 + alpha* b_3) 
+    //   =  (a_1' + alpha* b_1', a_2' + alpha* b_2', a_3' + alpha* b_3') 
+    //
+
     let ctl_data_per_table = timed!(
         timing,
         "Compute CTL data for each table",
@@ -167,12 +248,11 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
-    timing: &mut TimingTree,
-) -> Result<StarkProofWithMetadata<F, C, D>>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-    S: Stark<F, D> + Display, {
+    timing: &mut TimingTree
+)
+    -> Result<StarkProofWithMetadata<F, C, D>>
+    where F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, S: Stark<F, D> + Display
+{
     let degree = trace_poly_values[0].len();
     let degree_bits = log2_strict(degree);
     let fri_params = config.fri_params(degree_bits);
@@ -180,14 +260,18 @@ where
     let cap_height = config.fri_config.cap_height;
     assert!(
         fri_params.total_arities() <= degree_bits + rate_bits - cap_height,
-        "FRI total reduction arity is too large.",
+        "FRI total reduction arity is too large."
     );
 
     let init_challenger_state = challenger.compact();
 
     // Permutation arguments.
-    let permutation_challenges: Vec<GrandProductChallengeSet<F>> = challenger
-        .get_n_grand_product_challenge_sets(config.num_challenges, stark.permutation_batch_size());
+    // NOTE: We aren't using these, so can be skipped
+    let permutation_challenges: Vec<GrandProductChallengeSet<F>> =
+        challenger.get_n_grand_product_challenge_sets(
+            config.num_challenges,
+            stark.permutation_batch_size()
+        );
     let mut permutation_zs = timed!(
         timing,
         format!("{stark}: compute permutation Z(x) polys").as_str(),
@@ -200,6 +284,7 @@ where
     );
     let num_permutation_zs = permutation_zs.len();
 
+    // we take the z_polynomials from all CTLZData for a given table.
     let z_polys = {
         permutation_zs.extend(ctl_data.z_polys());
         permutation_zs
@@ -207,6 +292,9 @@ where
     // TODO(Matthias): make the code work with empty z_polys, too.
     assert!(!z_polys.is_empty(), "No CTL?");
 
+    // ignore permutation polynomials
+    // relevant thing here is that we are commiting to z_polys for our CTL
+    // From now on, its usual STARK prover
     let permutation_ctl_zs_commitment = timed!(
         timing,
         format!("{stark}: compute Zs commitment").as_str(),
@@ -216,7 +304,7 @@ where
             false,
             config.fri_config.cap_height,
             timing,
-            None,
+            None
         )
     );
 
@@ -237,7 +325,7 @@ where
             &alphas,
             degree_bits,
             num_permutation_zs,
-            config,
+            config
         )
     );
 
@@ -250,7 +338,7 @@ where
                 quotient_poly
                     .trim_to_len(degree * stark.quotient_degree_factor())
                     .expect(
-                        "Quotient has failed, the vanishing polynomial is not divisible by Z_H",
+                        "Quotient has failed, the vanishing polynomial is not divisible by Z_H"
                     );
                 // Split quotient into degree-n chunks.
                 quotient_poly.chunks(degree)
@@ -266,7 +354,7 @@ where
             false,
             config.fri_config.cap_height,
             timing,
-            None,
+            None
         )
     );
     let quotient_polys_cap = quotient_commitment.merkle_tree.cap.clone();
@@ -290,7 +378,7 @@ where
         &permutation_ctl_zs_commitment,
         &quotient_commitment,
         degree_bits,
-        stark.num_permutation_batches(config),
+        stark.num_permutation_batches(config)
     );
 
     challenger.observe_openings(&openings.to_fri_openings());
@@ -298,7 +386,7 @@ where
     let initial_merkle_trees = vec![
         trace_commitment,
         &permutation_ctl_zs_commitment,
-        &quotient_commitment,
+        &quotient_commitment
     ];
 
     let opening_proof = timed!(
@@ -309,15 +397,17 @@ where
                 zeta,
                 g,
                 config,
-                Some(&LookupConfig {
-                    degree_bits,
-                    num_zs: ctl_data.len()
-                })
+                Some(
+                    &(LookupConfig {
+                        degree_bits,
+                        num_zs: ctl_data.len(),
+                    })
+                )
             ),
             &initial_merkle_trees,
             challenger,
             &fri_params,
-            timing,
+            timing
         )
     );
 
@@ -348,13 +438,13 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     trace_commitments: &[PolynomialBatch<F, C, D>],
     ctl_data_per_table: &[CtlData<F>; NUM_TABLES],
     challenger: &mut Challenger<F, C::Hasher>,
-    timing: &mut TimingTree,
-) -> Result<[StarkProofWithMetadata<F, C, D>; NUM_TABLES]>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
+    timing: &mut TimingTree
+)
+    -> Result<[StarkProofWithMetadata<F, C, D>; NUM_TABLES]>
+    where F: RichField + Extendable<D>, C: GenericConfig<D, F = F>
+{
     macro_rules! make_proof {
-        ($stark: expr, $kind: expr, $public_inputs: expr) => {
+        ($stark:expr, $kind:expr, $public_inputs:expr) => {
             prove_single_table(
                 &$stark,
                 config,
@@ -369,30 +459,16 @@ where
     }
 
     Ok([
-        make_proof!(mozak_stark.cpu_stark, TableKind::Cpu, [
-            public_inputs.entry_point
-        ])?,
+        make_proof!(mozak_stark.cpu_stark, TableKind::Cpu, [public_inputs.entry_point])?,
         make_proof!(mozak_stark.rangecheck_stark, TableKind::RangeCheck, [])?,
         make_proof!(mozak_stark.xor_stark, TableKind::Xor, [])?,
         make_proof!(mozak_stark.shift_amount_stark, TableKind::Bitshift, [])?,
         make_proof!(mozak_stark.program_stark, TableKind::Program, [])?,
         make_proof!(mozak_stark.memory_stark, TableKind::Memory, [])?,
         make_proof!(mozak_stark.memory_init_stark, TableKind::MemoryInit, [])?,
-        make_proof!(
-            mozak_stark.rangecheck_limb_stark,
-            TableKind::RangeCheckLimb,
-            []
-        )?,
-        make_proof!(
-            mozak_stark.halfword_memory_stark,
-            TableKind::HalfWordMemory,
-            []
-        )?,
-        make_proof!(
-            mozak_stark.fullword_memory_stark,
-            TableKind::FullWordMemory,
-            []
-        )?,
+        make_proof!(mozak_stark.rangecheck_limb_stark, TableKind::RangeCheckLimb, [])?,
+        make_proof!(mozak_stark.halfword_memory_stark, TableKind::HalfWordMemory, [])?,
+        make_proof!(mozak_stark.fullword_memory_stark, TableKind::FullWordMemory, [])?,
         make_proof!(mozak_stark.register_init_stark, TableKind::RegisterInit, [])?,
         make_proof!(mozak_stark.register_stark, TableKind::Register, [])?,
         make_proof!(mozak_stark.io_memory_stark, TableKind::IoMemory, [])?,
@@ -402,7 +478,7 @@ where
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::instruction::{ Args, Instruction, Op };
     use mozak_runner::test_utils::simple_test_code;
 
     use crate::stark::mozak_stark::MozakStark;
@@ -432,35 +508,39 @@ mod tests {
     #[test]
     fn prove_lui_2() {
         let (program, record) = simple_test_code(
-            &[Instruction {
-                op: Op::ADD,
-                args: Args {
-                    rd: 1,
-                    imm: 0xDEAD_BEEF,
-                    ..Args::default()
+            &[
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: 1,
+                        imm: 0xdead_beef,
+                        ..Args::default()
+                    },
                 },
-            }],
+            ],
             &[],
-            &[],
+            &[]
         );
-        assert_eq!(record.last_state.get_register_value(1), 0xDEAD_BEEF,);
+        assert_eq!(record.last_state.get_register_value(1), 0xdead_beef);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
     fn prove_beq() {
         let (program, record) = simple_test_code(
-            &[Instruction {
-                op: Op::BEQ,
-                args: Args {
-                    rs1: 0,
-                    rs2: 1,
-                    imm: 42, // branch target
-                    ..Args::default()
+            &[
+                Instruction {
+                    op: Op::BEQ,
+                    args: Args {
+                        rs1: 0,
+                        rs2: 1,
+                        imm: 42, // branch target
+                        ..Args::default()
+                    },
                 },
-            }],
+            ],
             &[],
-            &[(1, 2)],
+            &[(1, 2)]
         );
         assert_eq!(record.last_state.get_pc(), 8);
         MozakStark::prove_and_verify(&program, &record).unwrap();
