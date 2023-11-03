@@ -54,7 +54,7 @@ jobs:
         # The formatting here is borrowed from OpenEthereum: https://github.com/openethereum/openethereum/blob/main/.github/workflows/build.yml
         run: |
           body=$(cat <<- "ENDBODY"
-          <Release Name, Version and Time>
+          <Release Name, Version and Date>
 
           ## Summary
 
@@ -65,3 +65,5 @@ jobs:
           ${{ steps.changelog.outputs.CHANGELOG }}
           ENDBODY
           )
+          tag_name="${{ env.VERSION }}"
+          echo "$body" | gh release create --draft -F "-" "$tag_name"
