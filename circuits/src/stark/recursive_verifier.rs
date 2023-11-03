@@ -491,10 +491,9 @@ mod tests {
     use plonky2::util::timing::TimingTree;
     use starky::config::StarkConfig;
 
-    use crate::program::stark::ProgramStark;
     use crate::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
     use crate::stark::prover::prove;
-    use crate::stark::recursive_verifier::{recursive_all_stark_circuit, recursive_stark_circuit};
+    use crate::stark::recursive_verifier::recursive_all_stark_circuit;
     use crate::stark::verifier::verify_proof;
     use crate::test_utils::{C, D, F};
     use crate::utils::from_u32;
