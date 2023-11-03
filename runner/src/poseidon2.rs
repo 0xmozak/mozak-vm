@@ -51,22 +51,14 @@ pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
         permute_and_record_data(&mut perm, &mut sponge_data);
     }
 
-    // Squeeze untill we have the desired number of outputs.
-    let mut outputs = Vec::new();
-    loop {
-        for &item in perm.squeeze() {
-            // Each squeeze() call can add upto RATE field elements to output.
-            outputs.push(item);
-            sponge_data
-                .last_mut()
-                .expect("Can't fail at least one elem must be there")
-                .gen_output = F::from_bool(true);
-            if outputs.len() == NUM_HASH_OUT_ELTS {
-                return (HashOut::from_vec(outputs), sponge_data);
-            }
-        }
-        permute_and_record_data(&mut perm, &mut sponge_data);
-    }
+    let outputs: [F; NUM_HASH_OUT_ELTS] = perm.squeeze()[..NUM_HASH_OUT_ELTS]
+        .try_into()
+        .expect("squeeze must have minimum NUM_HASH_OUT_ELTS length");
+    sponge_data
+        .last_mut()
+        .expect("Can't fail at least one elem must be there")
+        .gen_output = F::from_bool(true);
+    (HashOut::from(outputs), sponge_data)
 }
 
 impl<F: RichField> State<F> {
