@@ -105,6 +105,7 @@ where
     pub fn prove(&self, all_proof: &AllProof<F, C, D>) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
 
+        // TODO: use Macro for different tables
         let program_target = &self.targets[TableKind::Program as usize];
         program_target.as_ref().unwrap().set_targets(
             &mut inputs,
@@ -138,6 +139,7 @@ where
     C::Hasher: AlgebraicHasher<F>, {
     let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
+    // TODO: use Macro for different tables
     let program_targets = recursive_stark_circuit::<F, C, ProgramStark<F, D>, D>(
         &mut builder,
         TableKind::Program,
@@ -517,7 +519,7 @@ mod tests {
     use crate::utils::from_u32;
 
     #[test]
-    fn recursive_verify_starks() -> Result<()> {
+    fn recursive_verify_all_starks() -> Result<()> {
         type S = MozakStark<F, D>;
         let stark = S::default();
         let mut config = StarkConfig::standard_fast_config();
