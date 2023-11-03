@@ -220,7 +220,6 @@ pub(crate) fn cross_table_helper_columns<F: RichField + Extendable<D>, const D: 
         looked_table,
     } in lookups
     {
-        let looking_columns = Vec::with_capacity(looking_tables.len());
         for challenge in challenges {
             // Calculate all helper columns for looked.
             let looked_poly_values = &all_trace_poly_values[looked_table.kind as usize];
@@ -231,7 +230,7 @@ pub(crate) fn cross_table_helper_columns<F: RichField + Extendable<D>, const D: 
             z_looked.push(F::ZERO);
 
             for looking_table in looking_tables {
-                let mut z_looking = Vec::with_capacity(multiplicities.len());
+                let mut z_looking = Vec::new();
                 z_looking.push(F::ZERO);
                 let mut looking = Vec::new();
                 let mut looking_indices = Vec::new();
@@ -245,19 +244,29 @@ pub(crate) fn cross_table_helper_columns<F: RichField + Extendable<D>, const D: 
                 for col in &looking_table.columns {
                     let column_inverse =
                         log_derivative(looking_poly_values[*col].values.clone(), *challenge);
+                    println!("inv len: {}", column_inverse.len());
                     looking.push(column_inverse);
                     looking_indices.push(*col);
                 }
 
                 // sum(1 / (x + f(x)) for all looking columns.
-                for i in 0..multiplicities.len() - 1 {
+                for i in 0..looking[0].len() - 1 {
                     let looking_x = looking.iter().map(|c| c.values[i]).sum::<F>();
                     z_looking.push(z_looking[i] + looking_x);
                 }
 
+                for l in &looking {
+                    println!("l {}", l.len());
+                }
+                println!(
+                    "lens: {} {} {}",
+                    looking.len(),
+                    looking_indices.len(),
+                    z_looking.len()
+                );
                 let looking_helpers = LookingHelpers {
                     looking,
-                    looking_columns: looking_columns.clone(),
+                    looking_columns: looking_indices,
                     z_looking: z_looking.into(),
                     to: looked_table.kind,
                 };
@@ -270,10 +279,7 @@ pub(crate) fn cross_table_helper_columns<F: RichField + Extendable<D>, const D: 
             let table_inverse = log_derivative(table_column.clone(), *challenge);
 
             for i in 0..multiplicities.len() - 1 {
-                table_inverse
-                    .values
-                    .iter()
-                    .for_each(|c| z_looked.push(z_looked[i] + *c * multiplicities.values[i]));
+                z_looked.push(z_looked[i] + table_inverse.values[i] * multiplicities.values[i]);
             }
 
             let looked_helpers = LookedHelpers {
@@ -284,6 +290,7 @@ pub(crate) fn cross_table_helper_columns<F: RichField + Extendable<D>, const D: 
                 z_looked: z_looked.into(),
                 from: looking_tables.iter().map(|t| t.kind).collect::<Vec<_>>(),
             };
+
             helpers_per_table[looked_table.kind as usize]
                 .looked_helpers
                 .push(looked_helpers);

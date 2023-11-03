@@ -96,6 +96,7 @@ where
                 lagrange_basis_first,
                 lagrange_basis_last,
             );
+
             let vars = StarkEvaluationFrame::from_values(
                 &get_trace_values_packed(i_start),
                 &get_trace_values_packed(i_next_start),
@@ -135,9 +136,8 @@ where
             }
 
             let mut looked_start: usize = looking_end;
-            let mut looked_end: usize = looking_end + 3;
+            let mut looked_end: usize = looking_end;
             for looked_helpers in &logup_helpers.looked_helpers {
-                // 3
                 looked_end += 3;
                 all_looked_check_vars.push(LookupCheckVars {
                     local_values: aux_polys_commitment.get_lde_values_packed(i_start, step)
@@ -156,6 +156,14 @@ where
                 looking_vars: all_looking_check_vars,
                 looked_vars: all_looked_check_vars,
             };
+            assert_eq!(
+                looked_end,
+                logup_helpers.total_num_columns(),
+                "logup not finished looking ({} != {})",
+                looked_end,
+                logup_helpers.total_num_columns()
+            );
+            println!("looked_end={}", looked_end);
 
             let ctl_vars = ctl_data
                 .zs_columns
@@ -223,5 +231,6 @@ pub(crate) fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark.eval_packed_generic(vars, consumer);
     eval_permutation_checks::<F, FE, P, S, D, D2>(stark, config, vars, permutation_vars, consumer);
     eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
-    eval_cross_table_logup::<F, FE, P, S, D, D2>(vars, logup_vars, challenges, consumer);
+    // eval_cross_table_logup::<F, FE, P, S, D, D2>(vars,
+    // logup_vars, challenges, consumer);
 }

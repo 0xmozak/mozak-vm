@@ -81,8 +81,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 FullWordMemoryCpuTable::lookups(),
                 RegisterRegInitTable::lookups(),
             ],
-            cross_table_logups: vec![rangechecks_u32()],
-            // cross_table_logups: vec![rangechecks_u32(), rangechecks_u8()],
+            // cross_table_logups: vec![rangechecks_u32()],
+            cross_table_logups: vec![rangechecks_u32(), rangechecks_u8()],
             debug: false,
         }
     }

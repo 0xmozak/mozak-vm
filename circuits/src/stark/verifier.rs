@@ -73,9 +73,9 @@ where
     for ctl in &cross_table_logups {
         for looking_table in &ctl.looking_tables {
             num_logups_per_table[looking_table.kind as usize] +=
-                looking_table.columns.len() * ctl_challenges.challenges.len();
+                (looking_table.columns.len() + 1) * ctl_challenges.challenges.len();
         }
-        num_logups_per_table[ctl.looked_table.kind as usize] += 2;
+        num_logups_per_table[ctl.looked_table.kind as usize] += 3;
     }
 
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
@@ -151,12 +151,12 @@ where
     let num_logup_cols = logup_check_vars
         .looking_vars
         .iter()
-        .map(|v| v.local_values.len())
+        .map(|v| v.columns.len() + 1)
         .sum::<usize>()
         + logup_check_vars
             .looked_vars
             .iter()
-            .map(|v| v.local_values.len())
+            .map(|v| v.columns.len() + 2)
             .sum::<usize>();
     validate_proof_shape(stark, proof, config, ctl_vars.len(), num_logup_cols)?;
     let StarkOpeningSet {
@@ -273,6 +273,10 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>, {
+    println!(
+        "VPS: num_logup_cols={} num_ctl={}",
+        num_logup_cols, num_ctl_zs
+    );
     let StarkProof {
         trace_cap,
         aux_polys_caps,

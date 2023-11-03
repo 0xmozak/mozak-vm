@@ -10,7 +10,7 @@ use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packable::Packable;
-use plonky2::field::polynomial::PolynomialValues;
+use plonky2::field::polynomial::{PolynomialCoeffs, PolynomialValues};
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::hash::hash_types::RichField;
@@ -191,7 +191,11 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D> + Display, {
-    println!("prove single table: {}", stark);
+    println!(
+        "prove single table: {} {}",
+        stark,
+        trace_poly_values[0].len()
+    );
     let degree = trace_poly_values[0].len();
     let degree_bits = log2_strict(degree);
     let fri_params = config.fri_params(degree_bits);
@@ -217,17 +221,26 @@ where
 
         for helpers in &logup_helpers.looking_helpers {
             polys.extend(helpers.looking.clone());
+            polys.push(helpers.z_looking.clone());
         }
 
         for helpers in &logup_helpers.looked_helpers {
             polys.push(helpers.looked.clone());
+            polys.push(helpers.multiplicities.clone());
+            polys.push(helpers.z_looked.clone());
         }
+
+        println!("logups: {}", polys.len());
 
         polys.extend(ctl_z_polys);
         polys
     };
     // TODO(Matthias): make the code work with empty z_polys, too.
     assert!(!aux_polys.is_empty(), "No CTL?");
+
+    for aux_poly in &aux_polys {
+        println!("aux len; {}", aux_poly.len());
+    }
 
     let aux_polys_commitment = timed!(
         timing,
@@ -257,14 +270,14 @@ where
             logup_challenges,
             public_inputs,
             ctl_data,
-            &logup_helpers,
+            logup_helpers,
             &alphas,
             degree_bits,
             config,
         )
     );
 
-    let all_quotient_chunks = timed!(
+    let all_quotient_chunks: Vec<PolynomialCoeffs<_>> = timed!(
         timing,
         format!("{stark}: split quotient polynomial").as_str(),
         quotient_polys
@@ -280,6 +293,7 @@ where
             })
             .collect()
     );
+
     let quotient_commitment = timed!(
         timing,
         format!("{stark}: compute quotient commitment").as_str(),

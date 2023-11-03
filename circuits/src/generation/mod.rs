@@ -89,11 +89,12 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let program_trace = trace_rows_to_poly_values(program_rows);
     let memory_trace = trace_rows_to_poly_values(memory_rows);
     let memory_init_trace = trace_rows_to_poly_values(memory_init_rows);
-    let rangecheck_limb_trace = trace_to_poly_values(rangecheck_limb_rows);
+    let rangecheck_limb_trace = trace_rows_to_poly_values(rangecheck_limb_rows);
     let halfword_memory_trace = trace_rows_to_poly_values(halfword_memory_rows);
     let fullword_memory_trace = trace_rows_to_poly_values(fullword_memory_rows);
     let register_init_trace = trace_rows_to_poly_values(register_init_rows);
     let register_trace = trace_rows_to_poly_values(register_rows);
+
     [
         cpu_trace,
         rangecheck_trace,

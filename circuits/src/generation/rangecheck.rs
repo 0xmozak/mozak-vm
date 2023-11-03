@@ -86,6 +86,7 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
         RangeCheckColumnsView::default(),
     );
 
+    println!("rc: {} {}", multiplicities.len(), trace.len());
     trace
 }
 

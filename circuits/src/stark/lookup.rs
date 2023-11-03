@@ -111,7 +111,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         proofs: &[StarkProof<F, C, D>; NUM_TABLES],
         cross_table_logups: &'a [CrossTableLogup],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
-    ) -> Vec<Self> {
+    ) -> [Self; NUM_TABLES] {
         let mut looking_column_indices_per_table = [0; NUM_TABLES].map(|_| vec![]);
         let mut looked_column_indices_per_table = [0; NUM_TABLES].map(|_| vec![]);
 
@@ -138,8 +138,12 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
             .map(|c| c.beta)
             .collect::<Vec<_>>();
 
-        let mut logup_check_vars_per_table: Vec<LogupCheckVars<F, _, _, D>> =
-            Vec::with_capacity(NUM_TABLES);
+        let mut logup_check_vars_per_table: [LogupCheckVars<F, _, _, D>; NUM_TABLES] =
+            [0; NUM_TABLES].map(|_| LogupCheckVars {
+                looking_vars: vec![],
+                looked_vars: vec![],
+            });
+
         for (i, (p, looking, looked)) in izip!(
             proofs,
             looking_column_indices_per_table,
@@ -147,6 +151,8 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         )
         .enumerate()
         {
+            println!("from_proofs, looking.len={}", looking.len());
+            println!("from_proofs, looked.len={}", looked.len());
             let openings = &p.openings;
 
             let aux_polys = &openings.aux_polys;
@@ -159,7 +165,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                 let lookup_check_vars = LookupCheckVars {
                     local_values: aux_polys[looking_start..looking_end].to_vec(),
                     next_values: aux_polys_next[looking_start..looking_end].to_vec(),
-                    columns: looking_indices.to_vec(),
+                    columns: looking_indices.clone(),
                     challenges: challenges.clone(),
                 };
 
@@ -169,10 +175,11 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
 
                 looking_start = looking_end;
             }
+
             let mut looked_start: usize = looking_end;
-            let mut looked_end: usize = looking_end + 3;
+            let mut looked_end: usize = looking_end;
             for looked_column in &looked {
-                // 3
+                // looked, mult, z_looked
                 looked_end += 3;
                 let lookup_check_vars = LookupCheckVars {
                     local_values: aux_polys[looked_start..looked_end].to_vec(),

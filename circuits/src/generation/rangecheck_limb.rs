@@ -14,7 +14,7 @@ use crate::stark::utils::transpose_trace;
 pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     rangecheck_limbs_trace: &[RangeCheckColumnsView<F>],
-) -> Vec<Vec<F>> {
+) -> Vec<RangeCheckLimb<F>> {
     let mut multiplicities: HashMap<u8, u8> = HashMap::new();
 
     rangechecks_u8()
@@ -56,7 +56,5 @@ pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
         );
     }
     trace.resize(trace.len().next_power_of_two(), RangeCheckLimb::default());
-
-    let trace = transpose_trace(trace);
     trace
 }
