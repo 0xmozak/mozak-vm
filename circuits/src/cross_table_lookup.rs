@@ -244,7 +244,6 @@ pub(crate) fn cross_table_helper_columns<F: RichField + Extendable<D>, const D: 
                 for col in &looking_table.columns {
                     let column_inverse =
                         log_derivative(looking_poly_values[*col].values.clone(), *challenge);
-                    println!("inv len: {}", column_inverse.len());
                     looking.push(column_inverse);
                     looking_indices.push(*col);
                 }
@@ -254,16 +253,6 @@ pub(crate) fn cross_table_helper_columns<F: RichField + Extendable<D>, const D: 
                     let looking_x = looking.iter().map(|c| c.values[i]).sum::<F>();
                     z_looking.push(z_looking[i] + looking_x);
                 }
-
-                for l in &looking {
-                    println!("l {}", l.len());
-                }
-                println!(
-                    "lens: {} {} {}",
-                    looking.len(),
-                    looking_indices.len(),
-                    z_looking.len()
-                );
                 let looking_helpers = LookingHelpers {
                     looking,
                     looking_columns: looking_indices,
@@ -491,8 +480,9 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                 });
             }
         }
+        print!("ctl vars per table ");
         for var in &ctl_vars_per_table {
-            println!("ctl vars per table {:?}", var.len());
+            print!("{:?} ", var.len());
         }
         ctl_vars_per_table
     }
@@ -513,26 +503,41 @@ pub(crate) fn eval_cross_table_logup<F, FE, P, S, const D: usize, const D2: usiz
     };
 
     let lvs: &[P] = vars.get_local_values();
+    let nvs: &[P] = vars.get_next_values();
 
     // For looking vars, we need to ensure:
     //
     // 1) All inverse columns are well-formed,
     // 2) z_looking_i+1 = z_looking_i + 1 / (X + f_i)
-    for looking_vars in &logup_vars.looking_vars {
-        let lvs_to_check = &looking_vars.local_values;
+    println!(
+        "logupvars looking.len={}, chal len={}",
+        logup_vars.looking_vars.len(),
+        challenges.len()
+    );
+    for (looking_vars, challenge) in izip!(&logup_vars.looking_vars, challenges) {
+        let challenge = FE::from_basefield(*challenge);
+        let inverses = &looking_vars.local_values;
+        let inverses_next = &looking_vars.next_values;
         let columns = &looking_vars.columns;
-        let chunk_len = lvs_to_check.len() / challenges.len();
+        println!("lvs check len={} {:?}", inverses.len(), columns);
 
-        for (i, (c, lv)) in izip!(columns, lvs_to_check).enumerate() {
-            let challenge = challenges.get(i / chunk_len).unwrap();
-            let challenge = FE::from_basefield(*challenge);
-            yield_constr.constraint(
-                (lvs[usize::try_from(c.to_canonical_u64())
-                    .expect("cast from u64 to usize should succeed")]
-                    + challenge)
-                    * *lv
-                    - P::ONES,
-            );
+        for (i, (c, inverse, inverse_next)) in izip!(columns, inverses, inverses_next).enumerate() {
+            // If last, check z_looking.
+            if i == columns.len() - 1 {
+                //  let y = lvs[usize::try_from(c.to_canonical_u64())
+                //      .expect("cast from u64 to usize should succeed")]
+                //      + challenge;
+                //  yield_constr.constraint((*inverse_next - *inverse) - y);
+                // Otherwise, check inverses are well formed.
+            } else {
+                yield_constr.constraint(
+                    (lvs[usize::try_from(c.to_canonical_u64())
+                        .expect("cast from u64 to usize should succeed")]
+                        + challenge)
+                        * *inverse
+                        - P::ONES,
+                );
+            }
         }
     }
 
@@ -540,25 +545,7 @@ pub(crate) fn eval_cross_table_logup<F, FE, P, S, const D: usize, const D2: usiz
     //
     // 1) All inverse columns are well-formed,
     // 2) z_looked_i+1 = z_looked_i + m_i / (X + f_i)
-    for looked_vars in &logup_vars.looked_vars {
-        let lvs_to_check = &looked_vars.local_values;
-
-        let lvs_to_check = &looked_vars.local_values;
-        let columns = &looked_vars.columns;
-
-        let chunk_len = lvs_to_check.len() / challenges.len();
-        for (i, (c, lv)) in izip!(columns, lvs_to_check).enumerate() {
-            let challenge = challenges.get(i / chunk_len).unwrap();
-            let challenge = FE::from_basefield(*challenge);
-            yield_constr.constraint(
-                (lvs[usize::try_from(c.to_canonical_u64())
-                    .expect("cast from u64 to usize should succeed")]
-                    + challenge)
-                    * *lv
-                    - P::ONES,
-            );
-        }
-    }
+    for looked_vars in &logup_vars.looked_vars {}
 
     if !logup_vars.looked_vars.is_empty() {}
 }

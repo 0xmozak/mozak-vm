@@ -115,9 +115,13 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         let mut looking_column_indices_per_table = [0; NUM_TABLES].map(|_| vec![]);
         let mut looked_column_indices_per_table = [0; NUM_TABLES].map(|_| vec![]);
 
-        for _ in &ctl_challenges.challenges {
-            for logup in cross_table_logups {
-                for looking_table in &logup.looking_tables {
+        for CrossTableLogup {
+            looking_tables,
+            looked_table,
+        } in cross_table_logups
+        {
+            for _ in &ctl_challenges.challenges {
+                for looking_table in looking_tables {
                     looking_column_indices_per_table[looking_table.kind as usize].push(
                         looking_table
                             .columns
@@ -127,11 +131,10 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                     );
                 }
 
-                looked_column_indices_per_table[logup.looked_table.kind as usize]
-                    .push(F::from_canonical_usize(logup.looked_table.table_column));
+                looked_column_indices_per_table[looked_table.kind as usize]
+                    .push(F::from_canonical_usize(looked_table.table_column));
             }
         }
-
         let challenges = ctl_challenges
             .challenges
             .iter()
@@ -151,8 +154,6 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         )
         .enumerate()
         {
-            println!("from_proofs, looking.len={}", looking.len());
-            println!("from_proofs, looked.len={}", looked.len());
             let openings = &p.openings;
 
             let aux_polys = &openings.aux_polys;
@@ -160,14 +161,18 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
 
             let mut looking_start: usize = 0;
             let mut looking_end: usize = 0;
+            println!("checkvars {}", looking.len());
             for looking_indices in &looking {
-                looking_end += looking.len() + 1;
+                println!("looking_indices {}", looking_indices.len());
+                looking_end += looking_indices.len() + 1;
                 let lookup_check_vars = LookupCheckVars {
                     local_values: aux_polys[looking_start..looking_end].to_vec(),
                     next_values: aux_polys_next[looking_start..looking_end].to_vec(),
                     columns: looking_indices.clone(),
                     challenges: challenges.clone(),
                 };
+
+                println!("looking {}", looking.len());
 
                 logup_check_vars_per_table[i]
                     .looking_vars
@@ -184,7 +189,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                 let lookup_check_vars = LookupCheckVars {
                     local_values: aux_polys[looked_start..looked_end].to_vec(),
                     next_values: aux_polys_next[looked_start..looked_end].to_vec(),
-                    columns: vec![looked_column.clone()],
+                    columns: vec![*looked_column],
                     challenges: challenges.clone(),
                 };
                 logup_check_vars_per_table[i]
