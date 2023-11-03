@@ -1,3 +1,17 @@
+# Project structuring
+# ---------------------------
+# The workspace deals with crates for different compilation
+# targets, two in particular: `mozak` for zk-platform mozak and `native`.
+# `native` targets are supposed to be built for dev machines'
+# specifications e.g. `x86_64-unknown-linux-gnu` or `aarch64-apple-darwin`.
+# `mozak` targets are supposed to be built with
+# https://github.com/0xmozak/mozak-vm/blob/main/examples/.cargo/riscv32im-mozak-zkvm-elf.json
+#
+# The `members` described below list only crates with `native` target
+#
+# Crates that target `mozak` while live in the same repository, do not form
+# the part of this workspace
+
 [workspace]
-members = ["cli", "node", "sdk", "rpc", "state"]
+members = ["cli", "node", "rpc", "state"]
 resolver = "2"
