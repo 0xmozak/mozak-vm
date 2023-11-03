@@ -26,6 +26,7 @@ use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
 use crate::cross_table_lookup::{CrossTableLookup, CtlCheckVarsTarget};
+use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::stark::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
@@ -111,6 +112,13 @@ where
             &all_proof.ctl_challenges,
         );
 
+        let memory_init_target = &self.targets[TableKind::MemoryInit as usize];
+        memory_init_target.as_ref().unwrap().set_targets(
+            &mut inputs,
+            &all_proof.proofs_with_metadata[TableKind::MemoryInit as usize],
+            &all_proof.ctl_challenges,
+        );
+
         self.circuit.prove(inputs)
     }
 }
@@ -139,6 +147,15 @@ where
         inner_config,
     );
 
+    let memory_init_targets = recursive_stark_circuit::<F, C, MemoryInitStark<F, D>, D>(
+        &mut builder,
+        TableKind::MemoryInit,
+        &all_stark.memory_init_stark,
+        degree_bits,
+        &all_stark.cross_table_lookups,
+        inner_config,
+    );
+
     add_common_recursion_gates(&mut builder);
 
     // Pad to the minimum degree.
@@ -148,6 +165,7 @@ where
 
     let mut targets: [Option<StarkVerifierTargets<F, C, D>>; NUM_TABLES] = Default::default();
     targets[TableKind::Program as usize] = Some(program_targets);
+    targets[TableKind::MemoryInit as usize] = Some(memory_init_targets);
 
     let circuit = builder.build();
     AllStarkVerifierCircuit { circuit, targets }
