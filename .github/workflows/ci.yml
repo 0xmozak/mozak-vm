@@ -52,6 +52,24 @@ jobs:
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
 
+  cargo-clippy-sdk:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install rust toolkit
+        uses: ./.github/actions/rust
+
+      - name: Give GitHub Actions access to mozak-vm
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.MOZAK_VM_DEPLOY_KEY }}
+
+      - name: Run Clippy linter
+        working-directory: sdk
+        run: cargo clippy --all-features -- -D warnings
+
   cargo-fmt:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
