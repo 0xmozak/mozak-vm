@@ -413,6 +413,10 @@ mod tests {
     use mozak_runner::system::ecall;
     use mozak_runner::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
     use mozak_runner::test_utils::simple_test_code;
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::types::Field;
+    use plonky2::hash::poseidon2::Poseidon2Hash;
+    use plonky2::plonk::config::{GenericHashOut, Hasher};
 
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
@@ -479,7 +483,6 @@ mod tests {
         pub data: String,
         pub input_start_addr: u32,
         pub output_start_addr: u32,
-        pub expected_output: String,
     }
 
     fn test_poseidon2(test_data: &[Poseidon2Test]) {
@@ -543,9 +546,14 @@ mod tests {
                         .load_u8(test_datum.output_start_addr + u32::from(i))
                 })
                 .collect();
-            let expected_output =
-                hex::decode(&test_datum.expected_output).expect("decoding failed");
-            assert_eq!(output[..], expected_output[..]);
+            let mut data_bytes = test_datum.data.as_bytes().to_vec();
+            // VM expects input len to be multiple of RATE bits
+            data_bytes.resize(data_bytes.len().next_multiple_of(8), 0_u8);
+            let data_fields: Vec<GoldilocksField> = data_bytes
+                .iter()
+                .map(|x| GoldilocksField::from_canonical_u8(*x))
+                .collect();
+            assert_eq!(output, Poseidon2Hash::hash_no_pad(&data_fields).to_bytes());
         }
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
@@ -556,31 +564,23 @@ mod tests {
             data: "💥 Mozak-VM Rocks With Poseidon2".to_string(),
             input_start_addr: 1024,
             output_start_addr: 2048,
-            expected_output: "4afb11172461851820da91ce1b972afd87caf69abe4316097280a4784b1fe396"
-                .to_string(),
         }]);
         test_poseidon2(&[Poseidon2Test {
             data: "😇 Mozak is knowledge arguments based technology".to_string(),
             input_start_addr: 1024,
             output_start_addr: 2048,
-            expected_output: "11280ff9c249780ac0ddfd34d9d7ec654b0eeb88fa37f24c7e34db9832831e3b"
-                .to_string(),
         }]);
         test_poseidon2(&[
             Poseidon2Test {
                 data: "💥 Mozak-VM Rocks With Poseidon2".to_string(),
                 input_start_addr: 512,
                 output_start_addr: 1024,
-                expected_output: "4afb11172461851820da91ce1b972afd87caf69abe4316097280a4784b1fe396"
-                    .to_string(),
             },
             Poseidon2Test {
                 data: "😇 Mozak is knowledge arguments based technology".to_string(),
                 input_start_addr: 1024 + 32, /* make sure input and output do not overlap with
                                               * earlier call */
                 output_start_addr: 2048,
-                expected_output: "11280ff9c249780ac0ddfd34d9d7ec654b0eeb88fa37f24c7e34db9832831e3b"
-                    .to_string(),
             },
         ]);
     }

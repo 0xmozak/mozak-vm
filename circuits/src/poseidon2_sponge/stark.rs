@@ -128,7 +128,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use mozak_runner::poseidon2::hash_n_to_m_with_pad;
+    use mozak_runner::poseidon2::hash_n_to_m_no_pad;
     use mozak_runner::state::{Aux, Poseidon2Entry};
     use mozak_runner::vm::Row;
     use plonky2::hash::hash_types::RichField;
@@ -163,7 +163,7 @@ mod tests {
                 input.push(F::rand());
             }
             let (_hash, sponge_data) =
-                hash_n_to_m_with_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
+                hash_n_to_m_no_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
             step_rows.push(Row {
                 aux: Aux {
                     poseidon2: Some(Poseidon2Entry::<F> {

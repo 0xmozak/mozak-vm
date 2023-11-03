@@ -18,7 +18,7 @@ use crate::system::reg_abi::{REG_A1, REG_A2, REG_A3};
 ///
 /// Panics if `PlonkyPermutation` is implemneted on `STATE_SIZE` different than
 /// 12.
-pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(
+pub fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(
     inputs: &[F],
 ) -> (HashOut<F>, Vec<Poseidon2SpongeData<F>>) {
     let permute_and_record_data = |perm: &mut P, sponge_data: &mut Vec<Poseidon2SpongeData<F>>| {
@@ -65,7 +65,7 @@ impl<F: RichField> State<F> {
     #[must_use]
     /// # Panics
     ///
-    /// Panics if hash output of `hash_n_to_m_with_pad` has length different
+    /// Panics if hash output of `hash_n_to_m_no_pad` has length different
     /// then expected value.
     pub fn ecall_poseidon2(self) -> (Aux<F>, Self) {
         let input_ptr = self.get_register_value(REG_A1);
@@ -76,7 +76,7 @@ impl<F: RichField> State<F> {
             .map(|i| F::from_canonical_u8(self.load_u8(input_ptr + i)))
             .collect();
         let (hash, sponge_data) =
-            hash_n_to_m_with_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
+            hash_n_to_m_no_pad::<F, Poseidon2Permutation<F>>(input.as_slice());
         let hash = hash.to_bytes();
         assert_eq!(32, hash.len());
         (
@@ -106,11 +106,11 @@ mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::hash::hashing::PlonkyPermutation;
-    use plonky2::hash::poseidon2::Poseidon2Permutation;
-    use plonky2::plonk::config::GenericHashOut;
+    use plonky2::hash::poseidon2::{Poseidon2Hash, Poseidon2Permutation};
+    use plonky2::plonk::config::{GenericHashOut, Hasher};
 
     #[test]
-    fn test_hash_n_to_m_with_pad() {
+    fn test_hash_n_to_m_no_pad() {
         let data = "💥 Mozak-VM Rocks With Poseidon2";
         let mut data_bytes = data.as_bytes().to_vec();
         // VM expects input lenght to be multiple of RATE
@@ -124,14 +124,14 @@ mod tests {
             .iter()
             .map(|x| GoldilocksField::from_canonical_u8(*x))
             .collect();
-        let (hash, _sponge_data) = super::hash_n_to_m_with_pad::<
+        let (hash, _sponge_data) = super::hash_n_to_m_no_pad::<
             GoldilocksField,
             Poseidon2Permutation<GoldilocksField>,
         >(&data_fields);
         let hash_bytes = hash.to_bytes();
         assert_eq!(
             hash_bytes,
-            hex_literal::hex!("4afb11172461851820da91ce1b972afd87caf69abe4316097280a4784b1fe396")[..]
+            Poseidon2Hash::hash_no_pad(&data_fields).to_bytes()
         );
     }
 }
