@@ -11,14 +11,13 @@ impl<'a> Read for MozakIo<'a> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         #[cfg(target_os = "zkvm")]
         unsafe {
-            let mut len: usize;
             core::arch::asm!(
                "ecall",
-               inout ("a0") 2_usize => len,
+               in ("a0") 2_usize,
                in ("a1") buf.as_ptr(),
                in ("a2") buf.len(),
             );
-            Ok(len)
+            Ok(buf.len())
         }
         #[cfg(not(target_os = "zkvm"))]
         {
