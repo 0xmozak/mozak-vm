@@ -11,7 +11,7 @@ pub fn main() {
     let hash = poseidon2_hash(data.as_bytes());
     assert_eq!(
         hash.as_bytes()[..],
-        hex!("5c6eba0042e2892dde5da1f8902b000a5e1084a01fead64172c45fd93205f0e5")[..]
+        hex!("5c2699dfd609d4566ee6656d2edb8298bacaccde758ec4f3005ff59a83347cd7")[..]
     );
     guest::env::write(hash.as_bytes());
 }
