@@ -126,6 +126,7 @@ fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64) {
 /// are supposed to abide by read-only and read-write address
 /// constraints.
 #[must_use]
+#[allow(clippy::too_many_arguments)]
 pub fn generate_memory_trace<F: RichField>(
     program: &Program,
     step_rows: &[Row<F>],
@@ -221,7 +222,7 @@ mod tests {
             &halfword_memory,
             &fullword_memory,
             &io_memory_private_rows,
-            &io_memory_public_rows
+            &io_memory_public_rows,
             &poseidon2_trace,
         );
         let inv = inv::<F>;

@@ -15,6 +15,8 @@ use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_io::stark::InputOuputMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
+use crate::poseidon2::stark::Poseidon2_12Stark;
+use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::rangecheck_looking;
 use crate::rangecheck::stark::RangeCheckStark;
@@ -45,7 +47,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub register_stark: RegisterStark<F, D>,
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 14],
+    pub cross_table_lookups: [CrossTableLookup<F>; 15],
     pub debug: bool,
 }
 
@@ -170,7 +172,7 @@ pub enum TableKind {
     IoMemoryPrivate = 12,
     IoMemoryPublic = 13,
     Poseidon2Sponge = 14,
-    Poseidon2 = 16,
+    Poseidon2 = 15,
 }
 
 impl TableKind {
@@ -282,6 +284,7 @@ impl<F: Field> Lookups<F> for XorCpuTable<F> {
 pub struct IntoMemoryTable<F: Field>(CrossTableLookup<F>);
 
 impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
+    #[allow(clippy::too_many_lines)]
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
             vec![

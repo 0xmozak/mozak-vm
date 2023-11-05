@@ -52,6 +52,7 @@ use crate::cpu::stark::CpuStark;
 use crate::generation::io_memory::{
     generate_io_memory_private_trace, generate_io_memory_public_trace,
 };
+use crate::generation::poseidon2::generate_poseidon2_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
