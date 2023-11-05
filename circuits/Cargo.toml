@@ -16,6 +16,7 @@ flexbuffers = "2.0.0"
 itertools = "0.11.0"
 lazy_static = "1.4.0"
 log = "0.4.20"
+mozak-circuits-derive = { path = "./derive" }
 mozak-runner = { path = "../runner" }
 plonky2 = "0.1.3"
 rayon = "1.8.0"
