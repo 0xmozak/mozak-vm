@@ -136,6 +136,7 @@ mod tests {
                 (REG_A2, 0),                        // A2 - size
             ],
             &[],
+            &[],
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -155,6 +156,7 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 0),                        // A2 - size
             ],
+            &[],
             &[],
         );
         Stark::prove_and_verify(&program, &record).unwrap();
@@ -176,6 +178,7 @@ mod tests {
                 (REG_A2, 1),                        // A2 - size
             ],
             &[content],
+            &[],
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -195,6 +198,56 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 1),                        // A2 - size
             ],
+            &[],
+            &[content],
+        );
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    pub fn prove_io_read<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
+        let (program, record) = simple_test_code_with_io_tape(
+            &[
+                // set sys-call IO_READ in x10(or a0)
+                Instruction {
+                    op: Op::ECALL,
+                    ..Default::default()
+                },
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A1,
+                        imm: imm.wrapping_add(offset),
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A2,
+                        imm: 1,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A0,
+                        imm: ecall::IO_READ_PRIVATE,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ECALL,
+                    ..Default::default()
+                },
+            ],
+            &[(imm.wrapping_add(offset), 0)],
+            &[
+                (REG_A0, ecall::IO_READ_PRIVATE),
+                (REG_A1, imm.wrapping_add(offset)), // A1 - address
+                (REG_A2, 1),                        // A2 - size
+            ],
+            &[content],
             &[content],
         );
         Stark::prove_and_verify(&program, &record).unwrap();
@@ -266,6 +319,7 @@ mod tests {
             ],
             &[],
             &[content, content, content, content],
+            &[],
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -287,6 +341,10 @@ mod tests {
         #[test]
         fn prove_io_read_public_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
             prove_io_read_public::<MozakStark<F, D>>(offset, imm, content);
+        }
+        #[test]
+        fn prove_io_read_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_io_read::<MozakStark<F, D>>(offset, imm, content);
         }
         #[test]
         fn prove_io_read_mozak_explicit(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
