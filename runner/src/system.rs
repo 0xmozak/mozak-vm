@@ -1,8 +1,9 @@
 pub mod ecall {
     pub const HALT: u32 = 0;
     pub const PANIC: u32 = 1;
-    pub const IO_READ: u32 = 2;
+    pub const IO_READ_PRIVATE: u32 = 2;
     pub const POSEIDON2: u32 = 3;
+    pub const IO_READ_PUBLIC: u32 = 4;
 }
 
 pub mod reg_abi {

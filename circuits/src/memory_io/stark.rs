@@ -134,7 +134,7 @@ mod tests {
             ],
             &[(imm.wrapping_add(offset), 0)],
             &[
-                (REG_A0, ecall::IO_READ),
+                (REG_A0, ecall::IO_READ_PRIVATE),
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 0),                        // A2 - size
             ],
@@ -157,7 +157,7 @@ mod tests {
             ],
             &[(imm.wrapping_add(offset), 0)],
             &[
-                (REG_A0, ecall::IO_READ),
+                (REG_A0, ecall::IO_READ_PRIVATE),
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 1),                        // A2 - size
             ],
@@ -190,7 +190,7 @@ mod tests {
                     op: Op::ADD,
                     args: Args {
                         rd: REG_A0,
-                        imm: ecall::IO_READ,
+                        imm: ecall::IO_READ_PRIVATE,
                         ..Args::default()
                     },
                 },

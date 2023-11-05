@@ -228,7 +228,8 @@ impl<F: RichField> State<F> {
     pub fn ecall(self) -> (Aux<F>, Self) {
         match self.get_register_value(REG_A0) {
             ecall::HALT => self.ecall_halt(),
-            ecall::IO_READ => self.ecall_private_io_read(),
+            ecall::IO_READ_PRIVATE => self.ecall_private_io_read(),
+            ecall::IO_READ_PUBLIC => self.ecall_public_io_read(),
             ecall::PANIC => self.ecall_panic(),
             ecall::POSEIDON2 => self.ecall_poseidon2(),
             _ => (Aux::default(), self.bump_pc()),

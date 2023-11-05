@@ -23,7 +23,7 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(
         lv.inst.ops.ecall
             * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::HALT))
-            * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::IO_READ)),
+            * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::IO_READ_PRIVATE)),
     );
     halt_constraints(lv, nv, yield_constr);
     io_constraints(lv, yield_constr);
