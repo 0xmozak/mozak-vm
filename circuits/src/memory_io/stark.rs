@@ -232,7 +232,7 @@ mod tests {
                     op: Op::ADD,
                     args: Args {
                         rd: REG_A0,
-                        imm: ecall::IO_READ_PRIVATE,
+                        imm: ecall::IO_READ_PUBLIC,
                         ..Args::default()
                     },
                 },
