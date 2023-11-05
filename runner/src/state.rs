@@ -135,14 +135,19 @@ pub struct IoEntry {
     pub data: Vec<u8>,
 }
 
-// First part in pair is preimage and second is output.
-pub type Poseidon2SpongeData<F> = Vec<([F; WIDTH], [F; WIDTH])>;
+#[derive(Debug, Clone, Default)]
+pub struct Poseidon2SpongeData<F> {
+    pub preimage: [F; WIDTH],
+    pub output: [F; WIDTH],
+    pub gen_output: F,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct Poseidon2Entry<F: RichField> {
     pub addr: u32,
+    pub output_addr: u32,
     pub len: u32,
-    pub sponge_data: Poseidon2SpongeData<F>,
+    pub sponge_data: Vec<Poseidon2SpongeData<F>>,
 }
 
 /// Auxiliary information about the instruction execution

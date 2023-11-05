@@ -14,8 +14,9 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::Poseidon2State;
+use crate::columns_view::HasNamedColumns;
 use crate::display::derive_display_stark_name;
-use crate::poseidon2::columns::{NUM_POSEIDON2_COLS, ROUNDS_F, ROUNDS_P, SBOX_DEGREE, STATE_SIZE};
+use crate::poseidon2::columns::{NUM_POSEIDON2_COLS, ROUNDS_F, ROUNDS_P, STATE_SIZE};
 use crate::stark::utils::is_binary;
 
 // degree: 1
@@ -44,20 +45,15 @@ where
     out
 }
 
-// degree: SBOX_DEGREE (7)
+// degree: 3
 fn sbox_p_constraints<F: RichField + Extendable<D>, const D: usize, FE, P, const D2: usize>(
-    state: &P,
+    x: &P,
+    x_qube: &P,
 ) -> P
 where
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
-    let mut out = P::ONES;
-
-    for _ in 0..SBOX_DEGREE {
-        out = out.mul(*state);
-    }
-
-    out
+    *x_qube * *x_qube * *x
 }
 
 fn matmul_m4_constraints<
@@ -189,6 +185,10 @@ pub struct Poseidon2_12Stark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
+impl<F, const D: usize> HasNamedColumns for Poseidon2_12Stark<F, D> {
+    type Columns = Poseidon2State<F>;
+}
+
 const COLUMNS: usize = NUM_POSEIDON2_COLS;
 const PUBLIC_INPUTS: usize = 0;
 
@@ -219,7 +219,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
             state = add_rc_constraints(&state, r);
             #[allow(clippy::needless_range_loop)]
             for i in 0..STATE_SIZE {
-                state[i] = sbox_p_constraints(&state[i]);
+                state[i] = sbox_p_constraints(
+                    &state[i],
+                    &lv.s_box_input_qube_first_full_rounds[r * STATE_SIZE + i],
+                );
             }
             state = matmul_external12_constraints(&state);
             for (i, state_i) in state.iter_mut().enumerate().take(STATE_SIZE) {
@@ -232,7 +235,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         // partial rounds
         for i in 0..ROUNDS_P {
             state[0] += FE::from_basefield(F::from_canonical_u64(<F as Poseidon2>::RC12_MID[i]));
-            state[0] = sbox_p_constraints(&state[0]);
+            state[0] = sbox_p_constraints(&state[0], &lv.s_box_input_qube_partial_rounds[i]);
             state = matmul_internal12_constraints(&state);
             yield_constr.constraint(state[0] - lv.state0_after_partial_rounds[i]);
             state[0] = lv.state0_after_partial_rounds[i];
@@ -250,7 +253,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
             state = add_rc_constraints(&state, r);
             #[allow(clippy::needless_range_loop)]
             for j in 0..STATE_SIZE {
-                state[j] = sbox_p_constraints(&state[j]);
+                state[j] = sbox_p_constraints(
+                    &state[j],
+                    &lv.s_box_input_qube_second_full_rounds[i * STATE_SIZE + j],
+                );
             }
             state = matmul_external12_constraints(&state);
             for (j, state_j) in state.iter_mut().enumerate().take(STATE_SIZE) {
@@ -261,7 +267,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         }
     }
 
-    fn constraint_degree(&self) -> usize { 7 }
+    fn constraint_degree(&self) -> usize { 3 }
 
     fn eval_ext_circuit(
         &self,
@@ -282,7 +288,7 @@ pub fn trace_to_poly_values<F: Field, const COLUMNS: usize>(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use mozak_runner::state::{Aux, Poseidon2Entry};
+    use mozak_runner::state::{Aux, Poseidon2Entry, Poseidon2SpongeData};
     use mozak_runner::vm::Row;
     use plonky2::field::types::Sample;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
@@ -316,17 +322,16 @@ mod tests {
             let preimage = (0..STATE_SIZE).map(|_| F::rand()).collect::<Vec<_>>();
             // NOTE: this stark does not use output from sponge_data so its okay to pass all
             // ZERO as output
-            sponge_data.push((
-                preimage.try_into().expect("can't fail"),
-                [F::default(); STATE_SIZE],
-            ));
+            sponge_data.push(Poseidon2SpongeData {
+                preimage: preimage.try_into().expect("can't fail"),
+                ..Default::default()
+            });
         }
         step_rows.push(Row {
             aux: Aux {
                 poseidon2: Some(Poseidon2Entry::<F> {
-                    addr: 0,
-                    len: 0, // does not matter
                     sponge_data,
+                    ..Default::default()
                 }),
                 ..Default::default()
             },

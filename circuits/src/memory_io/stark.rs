@@ -126,10 +126,7 @@ mod tests {
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    args: Args {
-                        rd: REG_A0,
-                        ..Args::default()
-                    },
+                    ..Default::default()
                 },
             ],
             &[(imm.wrapping_add(offset), 0)],
@@ -149,10 +146,7 @@ mod tests {
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    args: Args {
-                        rd: REG_A0,
-                        ..Args::default()
-                    },
+                    ..Default::default()
                 },
             ],
             &[(imm.wrapping_add(offset), 0)],
@@ -197,10 +191,7 @@ mod tests {
                 // add ecall to io_read
                 Instruction {
                     op: Op::ECALL,
-                    args: Args {
-                        rd: REG_A0, // return size
-                        ..Args::default()
-                    },
+                    ..Default::default()
                 },
                 Instruction {
                     op: Op::ADD,
@@ -227,7 +218,12 @@ mod tests {
                     },
                 },
             ],
-            &[(imm.wrapping_add(offset), 0)],
+            &[
+                (imm.wrapping_add(offset), 0),
+                (imm.wrapping_add(offset).wrapping_add(1), 0),
+                (imm.wrapping_add(offset).wrapping_add(2), 0),
+                (imm.wrapping_add(offset).wrapping_add(3), 0),
+            ],
             &[],
             &[content, content, content, content],
         );

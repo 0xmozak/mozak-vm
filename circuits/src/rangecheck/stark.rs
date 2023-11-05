@@ -73,13 +73,13 @@ mod tests {
 
     #[test]
     fn test_rangecheck_stark_big_trace() {
-        let inst = 0x0073_02b3 /* add r5, r6, r7 */;
+        let inst = 1;
 
-        let mut mem = vec![];
         let u16max = u32::from(u16::MAX);
-        for i in (0..=u16max).step_by(23) {
-            mem.push((i * 4, inst));
-        }
+        let mem = (0..=u16max)
+            .step_by(23)
+            .map(|i| (i, inst))
+            .collect::<Vec<_>>();
         let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::ADD,
