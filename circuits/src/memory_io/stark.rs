@@ -120,7 +120,7 @@ mod tests {
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::{ProveAndVerify, D, F};
 
-    pub fn prove_io_read_zero_size<Stark: ProveAndVerify>(offset: u32, imm: u32) {
+    pub fn prove_io_read_private_zero_size<Stark: ProveAndVerify>(offset: u32, imm: u32) {
         let (program, record) = simple_test_code_with_io_tape(
             &[
                 // set sys-call IO_READ in x10(or a0)
@@ -140,7 +140,27 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    pub fn prove_io_read<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
+    pub fn prove_io_read_public_zero_size<Stark: ProveAndVerify>(offset: u32, imm: u32) {
+        let (program, record) = simple_test_code_with_io_tape(
+            &[
+                // set sys-call IO_READ in x10(or a0)
+                Instruction {
+                    op: Op::ECALL,
+                    ..Default::default()
+                },
+            ],
+            &[(imm.wrapping_add(offset), 0)],
+            &[
+                (REG_A0, ecall::IO_READ_PUBLIC),
+                (REG_A1, imm.wrapping_add(offset)), // A1 - address
+                (REG_A2, 0),                        // A2 - size
+            ],
+            &[],
+        );
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    pub fn prove_io_read_private<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
         let (program, record) = simple_test_code_with_io_tape(
             &[
                 // set sys-call IO_READ in x10(or a0)
@@ -152,6 +172,26 @@ mod tests {
             &[(imm.wrapping_add(offset), 0)],
             &[
                 (REG_A0, ecall::IO_READ_PRIVATE),
+                (REG_A1, imm.wrapping_add(offset)), // A1 - address
+                (REG_A2, 1),                        // A2 - size
+            ],
+            &[content],
+        );
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    pub fn prove_io_read_public<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
+        let (program, record) = simple_test_code_with_io_tape(
+            &[
+                // set sys-call IO_READ in x10(or a0)
+                Instruction {
+                    op: Op::ECALL,
+                    ..Default::default()
+                },
+            ],
+            &[(imm.wrapping_add(offset), 0)],
+            &[
+                (REG_A0, ecall::IO_READ_PUBLIC),
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 1),                        // A2 - size
             ],
@@ -233,12 +273,20 @@ mod tests {
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(1))]
         #[test]
-        fn prove_io_read_zero_size_mozak(offset in u32_extra(), imm in u32_extra()) {
-            prove_io_read_zero_size::<MozakStark<F, D>>(offset, imm);
+        fn prove_io_read_private_zero_size_mozak(offset in u32_extra(), imm in u32_extra()) {
+            prove_io_read_private_zero_size::<MozakStark<F, D>>(offset, imm);
         }
         #[test]
-        fn prove_io_read_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
-            prove_io_read::<MozakStark<F, D>>(offset, imm, content);
+        fn prove_io_read_private_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_io_read_private::<MozakStark<F, D>>(offset, imm, content);
+        }
+        #[test]
+        fn prove_io_read_public_zero_size_mozak(offset in u32_extra(), imm in u32_extra()) {
+            prove_io_read_public_zero_size::<MozakStark<F, D>>(offset, imm);
+        }
+        #[test]
+        fn prove_io_read_public_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_io_read_public::<MozakStark<F, D>>(offset, imm, content);
         }
         #[test]
         fn prove_io_read_mozak_explicit(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
