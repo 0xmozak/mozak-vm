@@ -126,7 +126,8 @@ pub struct MemEntry {
 pub enum IoOpcode {
     #[default]
     None,
-    Store,
+    StorePrivate,
+    StorePublic,
 }
 #[derive(Debug, Clone, Default)]
 pub struct IoEntry {

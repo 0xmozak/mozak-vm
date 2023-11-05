@@ -156,7 +156,7 @@ pub struct CpuState<T> {
     pub mem_addr: T,
     pub io_addr: T,
     pub io_size: T,
-    pub is_io_store: T,
+    pub is_io_store_private: T,
     pub is_halt: T,
 }
 
@@ -331,17 +331,17 @@ pub fn filter_for_fullword_memory<F: Field>() -> Column<F> {
 /// Column containing the data to be matched against IO Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_io_memory<F: Field>() -> Vec<Column<F>> {
+pub fn data_for_io_memory_private<F: Field>() -> Vec<Column<F>> {
     let cpu = MAP.cpu.map(Column::from);
-    vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_store]
+    vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_store_private]
 }
 
 /// Column for a binary filter for memory instruction in IO Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn filter_for_io_memory<F: Field>() -> Column<F> {
+pub fn filter_for_io_memory_private<F: Field>() -> Column<F> {
     let cpu = MAP.cpu.map(Column::from);
-    cpu.is_io_store
+    cpu.is_io_store_private
 }
 
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {

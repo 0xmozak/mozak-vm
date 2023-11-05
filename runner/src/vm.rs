@@ -159,7 +159,7 @@ impl<F: RichField> State<F> {
                 dst_val: u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
                 io: Some(IoEntry {
                     addr: buffer_start,
-                    op: IoOpcode::Store,
+                    op: IoOpcode::StorePrivate,
                     data: data.clone(),
                 }),
                 ..Default::default()

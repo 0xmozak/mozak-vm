@@ -47,7 +47,7 @@ use self::xor::generate_xor_trace;
 use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::HasNamedColumns;
 use crate::cpu::stark::CpuStark;
-use crate::generation::io_memory::generate_io_memory_trace;
+use crate::generation::io_memory::generate_io_memory_private_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
@@ -75,7 +75,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_init_rows = generate_memory_init_trace(program);
     let halfword_memory_rows = generate_halfword_memory_trace(program, &record.executed);
     let fullword_memory_rows = generate_fullword_memory_trace(program, &record.executed);
-    let io_memory_rows = generate_io_memory_trace(program, &record.executed);
+    let io_memory_rows = generate_io_memory_private_trace(program, &record.executed);
     let memory_rows = generate_memory_trace(
         program,
         &record.executed,
@@ -192,7 +192,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     );
     debug_single_trace::<F, D, RegisterStark<F, D>>(&mozak_stark.register_stark, register, &[]);
     debug_single_trace::<F, D, InputOuputMemoryStark<F, D>>(
-        &mozak_stark.io_memory_stark,
+        &mozak_stark.io_memory_private_stark,
         io_memory,
         &[],
     );

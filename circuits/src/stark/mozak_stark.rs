@@ -39,7 +39,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub rangecheck_limb_stark: RangeCheckLimbStark<F, D>,
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
-    pub io_memory_stark: InputOuputMemoryStark<F, D>,
+    pub io_memory_private_stark: InputOuputMemoryStark<F, D>,
     pub register_init_stark: RegisterInitStark<F, D>,
     pub register_stark: RegisterStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 12],
@@ -70,7 +70,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             fullword_memory_stark: FullWordMemoryStark::default(),
             register_init_stark: RegisterInitStark::default(),
             register_stark: RegisterStark::default(),
-            io_memory_stark: InputOuputMemoryStark::default(),
+            io_memory_private_stark: InputOuputMemoryStark::default(),
             cross_table_lookups: [
                 RangecheckTable::lookups(),
                 XorCpuTable::lookups(),
@@ -105,7 +105,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.fullword_memory_stark.num_permutation_batches(config),
             self.register_init_stark.num_permutation_batches(config),
             self.register_stark.num_permutation_batches(config),
-            self.io_memory_stark.num_permutation_batches(config),
+            self.io_memory_private_stark.num_permutation_batches(config),
         ]
     }
 
@@ -123,7 +123,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
             self.fullword_memory_stark.permutation_batch_size(),
             self.register_init_stark.permutation_batch_size(),
             self.register_stark.permutation_batch_size(),
-            self.io_memory_stark.permutation_batch_size(),
+            self.io_memory_private_stark.permutation_batch_size(),
         ]
     }
 
@@ -438,8 +438,8 @@ impl<F: Field> Lookups<F> for IoMemoryCpuTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
-                cpu::columns::data_for_io_memory(),
-                cpu::columns::filter_for_io_memory(),
+                cpu::columns::data_for_io_memory_private(),
+                cpu::columns::filter_for_io_memory_private(),
             )],
             IoMemoryTable::new(
                 memory_io::columns::data_for_cpu(),

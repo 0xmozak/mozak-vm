@@ -176,7 +176,7 @@ mod tests {
 
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
-    use crate::generation::io_memory::generate_io_memory_trace;
+    use crate::generation::io_memory::generate_io_memory_private_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::test_utils::{inv, prep_table};
@@ -196,7 +196,7 @@ mod tests {
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(&program, &record.executed);
-        let io_memory = generate_io_memory_trace(&program, &record.executed);
+        let io_memory = generate_io_memory_private_trace(&program, &record.executed);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(
             &program,
@@ -253,7 +253,7 @@ mod tests {
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&program, &[]);
         let fullword_memory = generate_fullword_memory_trace(&program, &[]);
-        let io_memory = generate_io_memory_trace(&program, &[]);
+        let io_memory = generate_io_memory_private_trace(&program, &[]);
         let trace = super::generate_memory_trace::<F>(
             &program,
             &[],

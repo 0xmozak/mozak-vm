@@ -49,7 +49,7 @@ where
         cross_table_lookups,
         halfword_memory_stark,
         fullword_memory_stark,
-        io_memory_stark,
+        io_memory_private_stark: io_memory_stark,
         ..
     } = mozak_stark;
 
