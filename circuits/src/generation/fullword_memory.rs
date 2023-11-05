@@ -78,6 +78,7 @@ mod tests {
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
+    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory_fullword::test_utils::fullword_memory_trace_test_case;
     use crate::test_utils::{inv, prep_table};
 
@@ -96,6 +97,7 @@ mod tests {
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(&program, &record.executed);
+        let poseidon2_rows = generate_poseidon2_sponge_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&program, &record.executed);
         let io_memory_public_rows= generate_io_memory_public_trace(&program, &record.executed);
 

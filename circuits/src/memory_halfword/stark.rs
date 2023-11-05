@@ -110,7 +110,12 @@ mod tests {
                     },
                 },
             ],
-            &[(imm.wrapping_add(offset), 0)],
+            &[
+                (imm.wrapping_add(offset), 0),
+                (imm.wrapping_add(offset).wrapping_add(1), 0),
+                (imm.wrapping_add(offset).wrapping_add(2), 0),
+                (imm.wrapping_add(offset).wrapping_add(3), 0),
+            ],
             &[(1, content.into()), (2, offset)],
         );
 

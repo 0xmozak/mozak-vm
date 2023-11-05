@@ -11,6 +11,7 @@ pub mod io_memory;
 pub mod memory;
 pub mod memoryinit;
 pub mod poseidon2;
+pub mod poseidon2_sponge;
 pub mod program;
 pub mod rangecheck;
 pub mod rangecheck_limb;
@@ -39,6 +40,7 @@ use self::fullword_memory::generate_fullword_memory_trace;
 use self::halfword_memory::generate_halfword_memory_trace;
 use self::memory::generate_memory_trace;
 use self::memoryinit::generate_memory_init_trace;
+use self::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use self::rangecheck::generate_rangecheck_trace;
 use self::rangecheck_limb::generate_rangecheck_limb_trace;
 use self::register::generate_register_trace;
@@ -56,6 +58,8 @@ use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_io::stark::InputOuputMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
+use crate::poseidon2::stark::Poseidon2_12Stark;
+use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_limb::stark::RangeCheckLimbStark;
@@ -79,6 +83,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let fullword_memory_rows = generate_fullword_memory_trace(program, &record.executed);
     let io_memory_private_rows = generate_io_memory_private_trace(program, &record.executed);
     let io_memory_public_rows = generate_io_memory_public_trace(program, &record.executed);
+    let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
+    let poseidon2_rows = generate_poseidon2_trace(&record.executed);
     let memory_rows = generate_memory_trace(
         program,
         &record.executed,
@@ -87,6 +93,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &fullword_memory_rows,
         &io_memory_private_rows,
         &io_memory_public_rows,
+        &poseiden2_sponge_rows,
     );
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
     let rangecheck_limb_rows = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows);
@@ -107,6 +114,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let io_memory_public_trace = trace_rows_to_poly_values(io_memory_public_rows);
     let register_init_trace = trace_rows_to_poly_values(register_init_rows);
     let register_trace = trace_rows_to_poly_values(register_rows);
+    let poseidon2_trace = trace_rows_to_poly_values(poseidon2_rows);
+    let poseidon2_sponge_trace = trace_rows_to_poly_values(poseiden2_sponge_rows);
     [
         cpu_trace,
         rangecheck_trace,
@@ -122,6 +131,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         register_trace,
         io_memory_private_trace,
         io_memory_public_trace,
+        poseidon2_sponge_trace,
+        poseidon2_trace,
     ]
 }
 
@@ -148,7 +159,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     public_inputs: &PublicInputs<F>,
 ) {
-    let [cpu, rangecheck, xor, shift_amount, program, memory, memory_init, rangecheck_limb, halfword_memory, fullword_memory, register_init, register, io_memory_private, io_memory_public] =
+    let [cpu, rangecheck, xor, shift_amount, program, memory, memory_init, rangecheck_limb, halfword_memory, fullword_memory, register_init, register, io_memory_private, io_memory_public, poseidon2_sponge, poseidon2] =
         traces_poly_values;
     // Program ROM
     debug_single_trace::<F, D, ProgramStark<F, D>>(&mozak_stark.program_stark, program, &[]);
@@ -205,6 +216,16 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     debug_single_trace::<F, D, InputOuputMemoryStark<F, D>>(
         &mozak_stark.io_memory_public_stark,
         io_memory_public,
+        &[],
+    );
+    debug_single_trace::<F, D, Poseidon2SpongeStark<F, D>>(
+        &mozak_stark.poseidon2_sponge_stark,
+        poseidon2_sponge,
+        &[],
+    );
+    debug_single_trace::<F, D, Poseidon2_12Stark<F, D>>(
+        &mozak_stark.poseidon2_stark,
+        poseidon2,
         &[],
     );
 }

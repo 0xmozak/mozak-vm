@@ -16,17 +16,19 @@ pub(crate) fn constraints<P: PackedField>(
     nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // TODO: this needs to change, when we add support for more system calls.
-    // At the moment, the only system call we support is 'halt' or io_read, ie ecall
-    // with x10 = ecall::HALT or x10 = ecall::IO_READ . Everything else is
-    // invalid.
+    // ECALL is used for HALT, IO_READ or POSEIDON2 system call.
+    // So when instruciton is ECALL, only one of them will be one.
+    is_binary(yield_constr, lv.is_poseidon2);
+    is_binary(yield_constr, lv.is_halt);
+    is_binary(yield_constr, lv.is_io_store_private);
+    is_binary(yield_constr, lv.is_io_store_public);
     yield_constr.constraint(
         lv.inst.ops.ecall
-            * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::HALT))
-            * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::IO_READ_PRIVATE)),
+            - (lv.is_halt + lv.is_io_store_private + lv.is_io_store_public + lv.is_poseidon2),
     );
     halt_constraints(lv, nv, yield_constr);
     io_constraints(lv, yield_constr);
+    poseidon2_constraints(lv, yield_constr);
 }
 
 pub(crate) fn halt_constraints<P: PackedField>(
@@ -34,12 +36,14 @@ pub(crate) fn halt_constraints<P: PackedField>(
     nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    is_binary(yield_constr, lv.is_halt);
     // Thus we can equate ecall with halt in the next row.
     // Crucially, this prevents a malicious prover from just halting the program
     // anywhere else.
     // Enable only for halt !!!
     yield_constr.constraint_transition(lv.is_halt * (lv.inst.ops.ecall + nv.is_running - P::ONES));
+    yield_constr.constraint(
+        lv.is_halt * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::HALT)),
+    );
 
     // We also need to make sure that the program counter is not changed by the
     // 'halt' system call.
@@ -69,9 +73,23 @@ pub(crate) fn io_constraints<P: PackedField>(
     is_binary(yield_constr, lv.is_io_store_private);
     is_binary(yield_constr, lv.is_io_store_public);
     is_binary(yield_constr, lv.is_io_store_private + lv.is_io_store_public);
-    // allow is_io_store only when ecall opcode took place
     yield_constr.constraint(
-        (lv.is_io_store_private + lv.is_io_store_public) * (P::ONES - lv.inst.ops.ecall),
+        lv.is_io_store_private
+            * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::IO_READ_PRIVATE)),
+    );
+    yield_constr.constraint(
+        lv.is_io_store_public
+            * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::IO_READ_PUBLIC)),
+    );
+}
+
+pub(crate) fn poseidon2_constraints<P: PackedField>(
+    lv: &CpuState<P>,
+    yield_constr: &mut ConstraintConsumer<P>,
+) {
+    yield_constr.constraint(
+        lv.is_poseidon2
+            * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::POSEIDON2)),
     );
 }
 // We are already testing ecall halt with our coda of every `simple_test_code`.
