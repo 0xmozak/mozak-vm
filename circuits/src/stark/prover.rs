@@ -395,7 +395,16 @@ where
         )?,
         make_proof!(mozak_stark.register_init_stark, TableKind::RegisterInit, [])?,
         make_proof!(mozak_stark.register_stark, TableKind::Register, [])?,
-        make_proof!(mozak_stark.io_memory_private_stark, TableKind::IoMemory, [])?,
+        make_proof!(
+            mozak_stark.io_memory_private_stark,
+            TableKind::IoMemoryPrivate,
+            []
+        )?,
+        make_proof!(
+            mozak_stark.io_memory_public_stark,
+            TableKind::IoMemoryPublic,
+            []
+        )?,
     ])
 }
 

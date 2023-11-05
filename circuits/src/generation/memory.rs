@@ -125,7 +125,8 @@ pub fn generate_memory_trace<F: RichField>(
     memory_init_rows: &[MemoryInit<F>],
     halfword_memory_rows: &[HalfWordMemory<F>],
     fullword_memory_rows: &[FullWordMemory<F>],
-    io_memory_rows: &[InputOutputMemory<F>],
+    io_memory_private_rows: &[InputOutputMemory<F>],
+    io_memory_public_rows: &[InputOutputMemory<F>],
 ) -> Vec<Memory<F>> {
     // `merged_trace` is address sorted combination of static and
     // dynamic memory trace components of program (ELF and execution)
@@ -135,7 +136,8 @@ pub fn generate_memory_trace<F: RichField>(
         generate_memory_trace_from_execution(program, step_rows),
         transform_halfword(halfword_memory_rows),
         transform_fullword(fullword_memory_rows),
-        transform_io(io_memory_rows),
+        transform_io(io_memory_private_rows),
+        transform_io(io_memory_public_rows),
     )
     .collect();
 
@@ -176,7 +178,9 @@ mod tests {
 
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
-    use crate::generation::io_memory::generate_io_memory_private_trace;
+    use crate::generation::io_memory::{
+        generate_io_memory_private_trace, generate_io_memory_public_trace,
+    };
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::test_utils::{inv, prep_table};
@@ -196,7 +200,8 @@ mod tests {
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(&program, &record.executed);
-        let io_memory = generate_io_memory_private_trace(&program, &record.executed);
+        let io_memory_private_rows = generate_io_memory_private_trace(&program, &record.executed);
+        let io_memory_public_rows = generate_io_memory_public_trace(&program, &record.executed);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(
             &program,
@@ -204,8 +209,10 @@ mod tests {
             &memory_init,
             &halfword_memory,
             &fullword_memory,
-            &io_memory,
+            &io_memory_private_rows,
+            &io_memory_public_rows
         );
+        
         let inv = inv::<F>;
         assert_eq!(
             trace,
@@ -253,14 +260,16 @@ mod tests {
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&program, &[]);
         let fullword_memory = generate_fullword_memory_trace(&program, &[]);
-        let io_memory = generate_io_memory_private_trace(&program, &[]);
+        let io_memory_private_rows = generate_io_memory_private_trace(&program, &[]);
+        let io_memory_public_rows = generate_io_memory_public_trace(&program, &[]);
         let trace = super::generate_memory_trace::<F>(
             &program,
             &[],
             &memory_init,
             &halfword_memory,
             &fullword_memory,
-            &io_memory,
+            &io_memory_private_rows,
+            &io_memory_public_rows,
         );
 
         let inv = inv::<F>;

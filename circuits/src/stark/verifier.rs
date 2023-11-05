@@ -102,7 +102,7 @@ where
 
     verify!(register_init_stark, TableKind::RegisterInit, &[]);
     verify!(register_stark, TableKind::Register, &[]);
-    verify!(io_memory_stark, TableKind::IoMemory, &[]);
+    verify!(io_memory_stark, TableKind::IoMemoryPrivate, &[]);
     verify_cross_table_lookups::<F, D>(&cross_table_lookups, &all_proof.all_ctl_zs_last(), config)?;
     Ok(())
 }

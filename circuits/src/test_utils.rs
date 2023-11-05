@@ -19,7 +19,9 @@ use crate::generation::bitshift::generate_shift_amount_trace;
 use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
 use crate::generation::fullword_memory::generate_fullword_memory_trace;
 use crate::generation::halfword_memory::generate_halfword_memory_trace;
-use crate::generation::io_memory::generate_io_memory_private_trace;
+use crate::generation::io_memory::{
+    generate_io_memory_private_trace, generate_io_memory_public_trace,
+};
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::memoryinit::generate_memory_init_trace;
 use crate::generation::program::generate_program_rom_trace;
@@ -128,14 +130,16 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let memory_init = generate_memory_init_trace(program);
         let halfword_memory = generate_halfword_memory_trace(program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(program, &record.executed);
-        let io_memory = generate_io_memory_private_trace(program, &record.executed);
+        let io_memory_private = generate_io_memory_private_trace(program, &record.executed);
+        let io_memory_public = generate_io_memory_public_trace(program, &record.executed);
         let memory_trace = generate_memory_trace::<F>(
             program,
             &record.executed,
             &memory_init,
             &halfword_memory,
             &fullword_memory,
-            &io_memory,
+            &io_memory_private,
+            &io_memory_public,
         );
         let trace_poly_values =
             trace_rows_to_poly_values(generate_rangecheck_trace(&cpu_trace, &memory_trace));
@@ -181,14 +185,16 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let memory_init = generate_memory_init_trace(program);
         let halfword_memory = generate_halfword_memory_trace(program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(program, &record.executed);
-        let io_memory = generate_io_memory_private_trace(program, &record.executed);
+        let io_memory_private = generate_io_memory_private_trace(program, &record.executed);
+        let io_memory_public = generate_io_memory_public_trace(program, &record.executed);
         let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(
             program,
             &record.executed,
             &memory_init,
             &halfword_memory,
             &fullword_memory,
-            &io_memory,
+            &io_memory_private,
+            &io_memory_public,
         ));
         let proof = prove_table::<F, C, S, D>(
             stark,

@@ -47,7 +47,9 @@ use self::xor::generate_xor_trace;
 use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::HasNamedColumns;
 use crate::cpu::stark::CpuStark;
-use crate::generation::io_memory::generate_io_memory_private_trace;
+use crate::generation::io_memory::{
+    generate_io_memory_private_trace, generate_io_memory_public_trace,
+};
 use crate::generation::program::generate_program_rom_trace;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
@@ -75,14 +77,16 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_init_rows = generate_memory_init_trace(program);
     let halfword_memory_rows = generate_halfword_memory_trace(program, &record.executed);
     let fullword_memory_rows = generate_fullword_memory_trace(program, &record.executed);
-    let io_memory_rows = generate_io_memory_private_trace(program, &record.executed);
+    let io_memory_private_rows = generate_io_memory_private_trace(program, &record.executed);
+    let io_memory_public_rows = generate_io_memory_public_trace(program, &record.executed);
     let memory_rows = generate_memory_trace(
         program,
         &record.executed,
         &memory_init_rows,
         &halfword_memory_rows,
         &fullword_memory_rows,
-        &io_memory_rows,
+        &io_memory_private_rows,
+        &io_memory_public_rows,
     );
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
     let rangecheck_limb_rows = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows);
@@ -99,7 +103,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let rangecheck_limb_trace = trace_rows_to_poly_values(rangecheck_limb_rows);
     let halfword_memory_trace = trace_rows_to_poly_values(halfword_memory_rows);
     let fullword_memory_trace = trace_rows_to_poly_values(fullword_memory_rows);
-    let io_memory_trace = trace_rows_to_poly_values(io_memory_rows);
+    let io_memory_private_trace = trace_rows_to_poly_values(io_memory_private_rows);
+    let io_memory_public_trace = trace_rows_to_poly_values(io_memory_public_rows);
     let register_init_trace = trace_rows_to_poly_values(register_init_rows);
     let register_trace = trace_rows_to_poly_values(register_rows);
     [
@@ -115,7 +120,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         fullword_memory_trace,
         register_init_trace,
         register_trace,
-        io_memory_trace,
+        io_memory_private_trace,
+        io_memory_public_trace,
     ]
 }
 
@@ -142,7 +148,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     public_inputs: &PublicInputs<F>,
 ) {
-    let [cpu, rangecheck, xor, shift_amount, program, memory, memory_init, rangecheck_limb, halfword_memory, fullword_memory, register_init, register, io_memory] =
+    let [cpu, rangecheck, xor, shift_amount, program, memory, memory_init, rangecheck_limb, halfword_memory, fullword_memory, register_init, register, io_memory_private, io_memory_public] =
         traces_poly_values;
     // Program ROM
     debug_single_trace::<F, D, ProgramStark<F, D>>(&mozak_stark.program_stark, program, &[]);
@@ -193,7 +199,12 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     debug_single_trace::<F, D, RegisterStark<F, D>>(&mozak_stark.register_stark, register, &[]);
     debug_single_trace::<F, D, InputOuputMemoryStark<F, D>>(
         &mozak_stark.io_memory_private_stark,
-        io_memory,
+        io_memory_private,
+        &[],
+    );
+    debug_single_trace::<F, D, InputOuputMemoryStark<F, D>>(
+        &mozak_stark.io_memory_public_stark,
+        io_memory_public,
         &[],
     );
 }

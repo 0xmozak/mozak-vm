@@ -83,6 +83,10 @@ pub fn generate_cpu_trace<F: RichField>(
                 (inst.op, io.op),
                 (Op::ECALL, IoOpcode::StorePrivate)
             )),
+            is_io_store_public: F::from_bool(matches!(
+                (inst.op, io.op),
+                (Op::ECALL, IoOpcode::StorePublic)
+            )),
             is_halt: F::from_bool(matches!(
                 (inst.op, state.registers[usize::try_from(REG_A0).unwrap()]),
                 (Op::ECALL, ecall::HALT)
