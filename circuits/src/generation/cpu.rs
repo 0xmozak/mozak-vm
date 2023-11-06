@@ -79,6 +79,13 @@ pub fn generate_cpu_trace<F: RichField>(
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
+            is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
+            poseidon2_input_addr: F::from_canonical_u32(
+                aux.poseidon2.clone().unwrap_or_default().addr,
+            ),
+            poseidon2_input_len: F::from_canonical_u32(
+                aux.poseidon2.clone().unwrap_or_default().len,
+            ),
             io_addr: F::from_canonical_u32(io.addr),
             io_size: F::from_canonical_usize(io.data.len()),
             is_io_store: F::from_bool(matches!((inst.op, io.op), (Op::ECALL, IoOpcode::Store))),

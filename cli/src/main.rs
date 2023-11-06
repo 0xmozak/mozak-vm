@@ -23,10 +23,7 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::util::timing::TimingTree;
-use shadow_rs::shadow;
 use tikv_jemallocator::Jemalloc;
-
-shadow!(build);
 
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
@@ -45,8 +42,6 @@ struct Cli {
 
 #[derive(Clone, Debug, Subcommand)]
 enum Command {
-    /// Show build info available to shadow_rs
-    BuildInfo,
     /// Decode a given ELF and prints the program
     Decode { elf: Input },
     /// Decode and execute a given ELF. Prints the final state of
@@ -68,36 +63,6 @@ enum Command {
     MemoryInitHash { elf: Input },
 }
 
-fn build_info() {
-    println!("debug:{}", shadow_rs::is_debug()); // check if this is a debug build. e.g 'true/false'
-    println!("branch:{}", shadow_rs::branch()); // get current project branch. e.g 'master/develop'
-    println!("tag:{}", shadow_rs::tag()); // get current project tag. e.g 'v1.3.5'
-    println!("git_clean:{}", shadow_rs::git_clean()); // get current project clean. e.g 'true/false'
-    println!("git_status_file:{}", shadow_rs::git_status_file()); // get current project statue file. e.g '  * examples/builtin_fn.rs (dirty)'
-
-    println!("{}", build::VERSION);
-    println!("{}", build::CLAP_LONG_VERSION);
-    println!("{}", build::BRANCH);
-    println!("{}", build::COMMIT_HASH);
-    println!("{}", build::COMMIT_DATE);
-    println!("{}", build::COMMIT_AUTHOR);
-    println!("{}", build::COMMIT_EMAIL);
-
-    println!("{}", build::BUILD_OS);
-    println!("{}", build::RUST_VERSION);
-    println!("{}", build::RUST_CHANNEL);
-    println!("{}", build::CARGO_VERSION);
-    println!("{}", build::PKG_VERSION);
-    println!("{}", build::CARGO_TREE);
-    println!("{}", build::CARGO_MANIFEST_DIR);
-
-    println!("{}", build::PROJECT_NAME);
-    println!("{}", build::BUILD_TIME);
-    println!("{}", build::BUILD_RUST_CHANNEL);
-    println!("{}", build::GIT_CLEAN);
-    println!("{}", build::GIT_STATUS_FILE);
-}
-
 /// Read a sequence of bytes from IO
 fn load_tape(mut io_tape: impl Read) -> Result<Vec<u8>> {
     let mut io_tape_bytes = Vec::new();
@@ -113,105 +78,100 @@ fn load_program(mut elf: Input) -> Result<Program> {
     Program::load_elf(&elf_bytes)
 }
 
-#[rustfmt::skip]
-/// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi iotape.txt`
+/// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
+/// iotape.txt`
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let config = standard_faster_config();
     env_logger::Builder::new()
         .filter_level(cli.verbose.log_level_filter())
         .init();
-    if let Command::BuildInfo = cli.command {
-        build_info();
-    } else {
-        match cli.command {
-            Command::Decode { elf } => {
-                let program = load_program(elf)?;
-                debug!("{program:?}");
-            }
-            Command::Run { elf, io_tape } => {
-                let program = load_program(elf)?;
-                let state = State::<GoldilocksField>::new(program.clone(), &load_tape(io_tape)?);
-                let state = step(&program, state)?.last_state;
-                debug!("{:?}", state.registers);
-            }
-            Command::ProveAndVerify { elf, io_tape } => {
-                let program = load_program(elf)?;
-                let state = State::<GoldilocksField>::new(program.clone(), &load_tape(io_tape)?);
-                let record = step(&program, state)?;
-                MozakStark::prove_and_verify(&program, &record)?;
-            }
-            Command::Prove {
-                elf,
-                io_tape,
-                mut proof,
-            } => {
-                let program = load_program(elf)?;
-                let state = State::<GoldilocksField>::new(program.clone(), &load_tape(io_tape)?);
-                let record = step(&program, state)?;
-                let stark = if cli.debug {
-                    MozakStark::default_debug()
-                } else {
-                    MozakStark::default()
-                };
-                let public_inputs = PublicInputs {
-                    entry_point: F::from_canonical_u32(program.entry_point),
-                };
-                let all_proof = prove::<F, C, D>(
-                    &program,
-                    &record,
-                    &stark,
-                    &config,
-                    public_inputs,
-                    &mut TimingTree::default(),
-                )?;
-                let s = all_proof.serialize_proof_to_flexbuffer()?;
-                proof.write_all(s.view())?;
-                debug!("proof generated successfully!");
-            }
-            Command::Verify { mut proof } => {
-                let stark = S::default();
-                let mut buffer: Vec<u8> = vec![];
-                proof.read_to_end(&mut buffer)?;
-                let all_proof = AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(&buffer)?;
-                verify_proof(stark, all_proof, &config)?;
-                debug!("proof verified successfully!");
-            }
-            Command::ProgramRomHash { elf } => {
-                let program = load_program(elf)?;
-                let trace = generate_program_rom_trace(&program);
-                let trace_poly_values = trace_rows_to_poly_values(trace);
-                let rate_bits = config.fri_config.rate_bits;
-                let cap_height = config.fri_config.cap_height;
-                let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
-                    trace_poly_values,
-                    rate_bits,
-                    false, // blinding
-                    cap_height,
-                    &mut TimingTree::default(),
-                    None, // fft_root_table
-                );
-                let trace_cap = trace_commitment.merkle_tree.cap;
-                println!("{trace_cap:?}");
-            }
-            Command::MemoryInitHash { elf } => {
-                let program = load_program(elf)?;
-                let trace = generate_memory_init_trace(&program);
-                let trace_poly_values = trace_rows_to_poly_values(trace);
-                let rate_bits = config.fri_config.rate_bits;
-                let cap_height = config.fri_config.cap_height;
-                let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
-                    trace_poly_values,
-                    rate_bits,
-                    false, // blinding
-                    cap_height,
-                    &mut TimingTree::default(),
-                    None, // fft_root_table
-                );
-                let trace_cap = trace_commitment.merkle_tree.cap;
-                println!("{trace_cap:?}");
-            }
-            Command::BuildInfo => unreachable!(),
+    match cli.command {
+        Command::Decode { elf } => {
+            let program = load_program(elf)?;
+            debug!("{program:?}");
+        }
+        Command::Run { elf, io_tape } => {
+            let program = load_program(elf)?;
+            let state = State::<GoldilocksField>::new(program.clone(), &load_tape(io_tape)?);
+            let state = step(&program, state)?.last_state;
+            debug!("{:?}", state.registers);
+        }
+        Command::ProveAndVerify { elf, io_tape } => {
+            let program = load_program(elf)?;
+            let state = State::<GoldilocksField>::new(program.clone(), &load_tape(io_tape)?);
+            let record = step(&program, state)?;
+            MozakStark::prove_and_verify(&program, &record)?;
+        }
+        Command::Prove {
+            elf,
+            io_tape,
+            mut proof,
+        } => {
+            let program = load_program(elf)?;
+            let state = State::<GoldilocksField>::new(program.clone(), &load_tape(io_tape)?);
+            let record = step(&program, state)?;
+            let stark = if cli.debug {
+                MozakStark::default_debug()
+            } else {
+                MozakStark::default()
+            };
+            let public_inputs = PublicInputs {
+                entry_point: F::from_canonical_u32(program.entry_point),
+            };
+            let all_proof = prove::<F, C, D>(
+                &program,
+                &record,
+                &stark,
+                &config,
+                public_inputs,
+                &mut TimingTree::default(),
+            )?;
+            let s = all_proof.serialize_proof_to_flexbuffer()?;
+            proof.write_all(s.view())?;
+            debug!("proof generated successfully!");
+        }
+        Command::Verify { mut proof } => {
+            let stark = S::default();
+            let mut buffer: Vec<u8> = vec![];
+            proof.read_to_end(&mut buffer)?;
+            let all_proof = AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(&buffer)?;
+            verify_proof(stark, all_proof, &config)?;
+            debug!("proof verified successfully!");
+        }
+        Command::ProgramRomHash { elf } => {
+            let program = load_program(elf)?;
+            let trace = generate_program_rom_trace(&program);
+            let trace_poly_values = trace_rows_to_poly_values(trace);
+            let rate_bits = config.fri_config.rate_bits;
+            let cap_height = config.fri_config.cap_height;
+            let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
+                trace_poly_values,
+                rate_bits,
+                false, // blinding
+                cap_height,
+                &mut TimingTree::default(),
+                None, // fft_root_table
+            );
+            let trace_cap = trace_commitment.merkle_tree.cap;
+            println!("{trace_cap:?}");
+        }
+        Command::MemoryInitHash { elf } => {
+            let program = load_program(elf)?;
+            let trace = generate_memory_init_trace(&program);
+            let trace_poly_values = trace_rows_to_poly_values(trace);
+            let rate_bits = config.fri_config.rate_bits;
+            let cap_height = config.fri_config.cap_height;
+            let trace_commitment = PolynomialBatch::<F, C, D>::from_values(
+                trace_poly_values,
+                rate_bits,
+                false, // blinding
+                cap_height,
+                &mut TimingTree::default(),
+                None, // fft_root_table
+            );
+            let trace_cap = trace_commitment.merkle_tree.cap;
+            println!("{trace_cap:?}");
         }
     }
     Ok(())

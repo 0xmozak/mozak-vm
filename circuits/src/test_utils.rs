@@ -22,6 +22,7 @@ use crate::generation::halfword_memory::generate_halfword_memory_trace;
 use crate::generation::io_memory::generate_io_memory_trace;
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::memoryinit::generate_memory_init_trace;
+use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
 use crate::generation::register::generate_register_trace;
@@ -130,6 +131,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let halfword_memory = generate_halfword_memory_trace(program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(program, &record.executed);
         let io_memory = generate_io_memory_trace(program, &record.executed);
+        let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let memory_trace = generate_memory_trace::<F>(
             program,
             &record.executed,
@@ -137,6 +139,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &halfword_memory,
             &fullword_memory,
             &io_memory,
+            &poseidon2_trace,
         );
         let trace_poly_values =
             trace_rows_to_poly_values(generate_rangecheck_trace(&cpu_trace, &memory_trace));
@@ -183,6 +186,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let halfword_memory = generate_halfword_memory_trace(program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(program, &record.executed);
         let io_memory = generate_io_memory_trace(program, &record.executed);
+        let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(
             program,
             &record.executed,
@@ -190,6 +194,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
             &halfword_memory,
             &fullword_memory,
             &io_memory,
+            &poseidon2_trace,
         ));
         let proof = prove_table::<F, C, S, D>(
             stark,
