@@ -330,14 +330,19 @@ impl<F: RichField> State<F> {
         inst
     }
 
+    ///  Read bytes from `io_tape`.
+    ///
+    ///  # Panics
+    ///  Panics if number of requested bytes are more than remaining bytes on
+    /// `io_tape`.
     #[must_use]
     pub fn read_iobytes(mut self, num_bytes: usize) -> (Vec<u8>, Self) {
         let read_index = self.io_tape.read_index;
         let remaining_len = self.io_tape.len() - read_index;
-        let limit = num_bytes.min(remaining_len);
-        self.io_tape.read_index += limit;
+        assert!(num_bytes <= remaining_len);
+        self.io_tape.read_index += num_bytes;
         (
-            self.io_tape.data[read_index..(read_index + limit)].to_vec(),
+            self.io_tape.data[read_index..(read_index + num_bytes)].to_vec(),
             self,
         )
     }

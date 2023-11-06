@@ -122,10 +122,6 @@ impl<F: RichField> State<F> {
         )
     }
 
-    /// # Panics
-    ///
-    /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
-    /// bytes.
     fn ecall_io_read(self) -> (Aux<F>, Self) {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requsted = self.get_register_value(REG_A2);
