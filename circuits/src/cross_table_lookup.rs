@@ -322,9 +322,10 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
         let filter = |lv: &[P], nv: &[P]| -> P { filter_column.eval(lv, nv) };
         let filter = filter(local_values, next_values);
 
-        // Check value of `Z(1)`
+        // Check value of `Z(1) = filter(w^(n-1))/combined(w^(n-1))`
         consumer.constraint_last_row(*next_z * combination - filter);
-        // Check `Z(gw) = combination * Z(w)`
+
+        // Check `Z(gw) - Z(w) = filter(w)/combined(w)`
         consumer.constraint_transition((*next_z - *local_z) * combination - filter);
     }
 }
@@ -402,7 +403,7 @@ pub fn eval_cross_table_lookup_checks_circuit<
 
         let filter = filter_column.eval_circuit(builder, local_values, next_values);
 
-        // Check value of `Z(1) = filter(w^(n-1)/combined(w^(n-1))`
+        // Check value of `Z(1) = filter(w^(n-1))/combined(w^(n-1))`
         let last_row = builder.mul_sub_extension(*next_z, combined, filter);
         consumer.constraint_last_row(builder, last_row);
 
