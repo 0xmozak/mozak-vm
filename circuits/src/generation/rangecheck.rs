@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ops::Index;
 
 use itertools::Itertools;
@@ -5,6 +6,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
 use crate::memory::columns::Memory;
+use crate::multiplicity_view::MultiplicityView;
 use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
 use crate::utils::pad_trace_with_default;
@@ -42,30 +44,50 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     memory_trace: &[Memory<F>],
 ) -> Vec<RangeCheckColumnsView<F>> {
-    pad_trace_with_default(
-        RangecheckTable::lookups()
-            .looking_tables
+    let mut trace: Vec<RangeCheckColumnsView<F>> = vec![];
+    let mut multiplicities: HashMap<u32, u64> = HashMap::new();
+
+    RangecheckTable::lookups()
+        .looking_tables
+        .into_iter()
+        .for_each(|looking_table| {
+            match looking_table.kind {
+                TableKind::Cpu => extract(cpu_trace, &looking_table),
+                TableKind::Memory => extract(memory_trace, &looking_table),
+                other => unimplemented!("Can't range check {other:#?} tables"),
+            }
             .into_iter()
-            .flat_map(|looking_table| {
-                match looking_table.kind {
-                    TableKind::Cpu => extract(cpu_trace, &looking_table),
-                    TableKind::Memory => extract(memory_trace, &looking_table),
-                    other => unimplemented!("Can't range check {other:#?} tables"),
+            .for_each(|v| {
+                let val = u32::try_from(v.to_canonical_u64())
+                    .expect("casting value to u32 should succeed");
+
+                if let Some(x) = multiplicities.get_mut(&val) {
+                    *x += 1;
+                } else {
+                    multiplicities.insert(val, 1);
                 }
-                .into_iter()
-                .map(move |val| {
+
+                // TODO(bing): remove this push once we completely switch to logUp.
+                // trace gen should only involve non-duplicate values and its
+                // multiplicity, and we will enforce a cross-table logup from the
+                // CPU and Memory tables.
+                trace.push(
                     RangeCheckColumnsView {
-                        limbs: limbs_from_u32(
-                            u32::try_from(val.to_canonical_u64())
-                                .expect("casting value to u32 should succeed"),
-                        ),
+                        limbs: limbs_from_u32(val),
                         filter: 1,
+                        multiplicity_view: MultiplicityView::default(),
                     }
-                    .map(F::from_canonical_u8)
-                })
-            })
-            .collect(),
-    )
+                    .map(F::from_canonical_u8),
+                );
+            });
+        });
+
+    for (i, (value, multiplicity)) in multiplicities.into_iter().enumerate() {
+        trace[i].multiplicity_view.value = F::from_canonical_u32(value);
+        trace[i].multiplicity_view.multiplicity = F::from_canonical_u64(multiplicity);
+    }
+
+    pad_trace_with_default(trace)
 }
 
 #[cfg(test)]
@@ -85,7 +107,7 @@ mod tests {
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
 
     #[test]
-    fn test_add_instruction_inserts_rangecheck() {
+    fn test_generate_trace() {
         type F = GoldilocksField;
         let (program, record) = simple_test_code(
             &[Instruction {
