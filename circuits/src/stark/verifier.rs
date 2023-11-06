@@ -50,6 +50,8 @@ where
         halfword_memory_stark,
         fullword_memory_stark,
         io_memory_stark,
+        poseidon2_sponge_stark,
+        poseidon2_stark,
         ..
     } = mozak_stark;
 
@@ -103,6 +105,8 @@ where
     verify!(register_init_stark, TableKind::RegisterInit, &[]);
     verify!(register_stark, TableKind::Register, &[]);
     verify!(io_memory_stark, TableKind::IoMemory, &[]);
+    verify!(poseidon2_sponge_stark, TableKind::Poseidon2Sponge, &[]);
+    verify!(poseidon2_stark, TableKind::Poseidon2, &[]);
     verify_cross_table_lookups::<F, D>(&cross_table_lookups, &all_proof.all_ctl_zs_last(), config)?;
     Ok(())
 }

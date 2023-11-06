@@ -1,6 +1,6 @@
-use std::fmt::Display;
 use std::marker::PhantomData;
 
+use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -11,12 +11,10 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use crate::columns_view::HasNamedColumns;
-use crate::display::derive_display_stark_name;
 use crate::memory_fullword::columns::{FullWordMemory, NUM_HW_MEM_COLS};
 use crate::stark::utils::is_binary;
 
-derive_display_stark_name!(FullWordMemoryStark);
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct FullWordMemoryStark<F, const D: usize> {
     pub _f: PhantomData<F>,
@@ -106,7 +104,12 @@ mod tests {
                     },
                 },
             ],
-            &[(imm.wrapping_add(offset), 0)],
+            &[
+                (imm.wrapping_add(offset), 0),
+                (imm.wrapping_add(offset).wrapping_add(1), 0),
+                (imm.wrapping_add(offset).wrapping_add(2), 0),
+                (imm.wrapping_add(offset).wrapping_add(3), 0),
+            ],
             &[(1, content.into()), (2, offset)],
         );
 

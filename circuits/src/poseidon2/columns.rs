@@ -5,7 +5,6 @@ use crate::linear_combination::Column;
 
 /// The size of the state
 pub const STATE_SIZE: usize = 12;
-pub(crate) const SBOX_DEGREE: usize = 7;
 
 /// Poseidon2 constants
 pub(crate) const ROUNDS_F: usize = 8;
@@ -20,6 +19,10 @@ pub struct Poseidon2State<F> {
     pub state0_after_partial_rounds: [F; ROUNDS_P],
     pub state_after_partial_rounds: [F; STATE_SIZE],
     pub state_after_second_full_rounds: [F; STATE_SIZE * (ROUNDS_F / 2)],
+    // following columns are used to reduce s_box computation degree
+    pub s_box_input_qube_first_full_rounds: [F; STATE_SIZE * (ROUNDS_F / 2)],
+    pub s_box_input_qube_second_full_rounds: [F; STATE_SIZE * (ROUNDS_F / 2)],
+    pub s_box_input_qube_partial_rounds: [F; ROUNDS_P],
 }
 
 impl<F: Default + Copy> Default for Poseidon2State<F> {
@@ -31,6 +34,9 @@ impl<F: Default + Copy> Default for Poseidon2State<F> {
             state0_after_partial_rounds: [F::default(); ROUNDS_P],
             state_after_partial_rounds: [F::default(); STATE_SIZE],
             state_after_second_full_rounds: [F::default(); STATE_SIZE * (ROUNDS_F / 2)],
+            s_box_input_qube_first_full_rounds: [F::default(); STATE_SIZE * (ROUNDS_F / 2)],
+            s_box_input_qube_second_full_rounds: [F::default(); STATE_SIZE * (ROUNDS_F / 2)],
+            s_box_input_qube_partial_rounds: [F::default(); ROUNDS_P],
         }
     }
 }
