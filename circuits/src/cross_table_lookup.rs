@@ -158,9 +158,10 @@ fn partial_sums<F: Field>(
 ) -> PolynomialValues<F> {
     // design of table looks like  this
     //       |  filter  |   value   |  partial_sum                       |
-    //       |    1     |    x_1    |  1/(beta + x_3)                    |
-    //       |    0     |    x_2    |  1/(beta + x_3) + 1/(beta + x_1)   |
-    //       |    1     |    x_3    |  1/(beta + x_3) + 1/(beta + x_1)   |
+    //       |    1     |    x_1    |  1/combine(x_3)                    |
+    //       |    0     |    x_2    |  1/combine(x_3)  + 1/combine(x_1)  |
+    //       |    1     |    x_3    |  1/combine(x_1)  + 1/combine(x_1)  |
+    // (where combine(vals) = gamma + reduced_sum(vals))
     // this is done so that now transition constraint looks like
     //       z_next = z_local * select(value_local, filter_local)
     // That is, there is no need for reconstruction of value_next.
