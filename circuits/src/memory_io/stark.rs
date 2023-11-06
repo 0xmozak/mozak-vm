@@ -1,6 +1,6 @@
-use std::fmt::Display;
 use std::marker::PhantomData;
 
+use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -11,12 +11,10 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use crate::columns_view::HasNamedColumns;
-use crate::display::derive_display_stark_name;
 use crate::memory_io::columns::{InputOutputMemory, NUM_IO_MEM_COLS};
 use crate::stark::utils::is_binary;
 
-derive_display_stark_name!(InputOuputMemoryStark);
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct InputOuputMemoryStark<F, const D: usize> {
     pub _f: PhantomData<F>,

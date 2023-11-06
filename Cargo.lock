@@ -882,6 +882,7 @@ dependencies = [
  "itertools 0.11.0",
  "lazy_static",
  "log",
+ "mozak-circuits-derive",
  "mozak-runner",
  "plonky2",
  "proptest",
@@ -890,6 +891,14 @@ dependencies = [
  "starky",
  "thiserror",
  "tikv-jemallocator",
+]
+
+[[package]]
+name = "mozak-circuits-derive"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn 2.0.38",
 ]
 
 [[package]]
