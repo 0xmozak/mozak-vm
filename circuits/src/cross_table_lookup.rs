@@ -163,7 +163,7 @@ fn partial_sums<F: Field>(
     //       |    1     |    x_3    |  1/combine(x_1)  + 1/combine(x_1)  |
     // (where combine(vals) = gamma + reduced_sum(vals))
     // this is done so that now transition constraint looks like
-    //       z_next = z_local * select(value_local, filter_local)
+    //       z_next = z_local + filter_local/combine_local
     // That is, there is no need for reconstruction of value_next.
     // In current design which uses lv and nv values from columns to construct the
     // final value_local, its impossible to construct value_next from lv and nv
