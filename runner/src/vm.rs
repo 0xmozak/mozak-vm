@@ -158,10 +158,6 @@ impl<F: RichField> State<F> {
                         )
                         .unwrap()
                 })
-                .set_register_value(
-                    REG_A0,
-                    u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
-                )
                 .bump_pc(),
         )
     }

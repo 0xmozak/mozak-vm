@@ -175,6 +175,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::simple_test_code;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use starky::stark_testing::test_stark_low_degree;
 
@@ -208,5 +210,56 @@ mod tests {
             MemoryStark::prove_and_verify(&program, &executed)?;
         }
         Ok(())
+    }
+
+    pub fn memory<Stark: ProveAndVerify>(
+        iterations: u32,
+        addr_offset: u32,
+    ) -> Result<(), anyhow::Error> {
+        let instructions = &[
+            Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: 1,
+                    rs1: 1,
+                    imm: 1_u32.wrapping_neg(),
+                    ..Args::default()
+                },
+            },
+            Instruction {
+                op: Op::SB,
+                args: Args {
+                    rs1: 1,
+                    rs2: 1,
+                    imm: addr_offset,
+                    ..Args::default()
+                },
+            },
+            Instruction {
+                op: Op::BLT,
+                args: Args {
+                    rs1: 0,
+                    rs2: 1,
+                    imm: 0,
+                    ..Args::default()
+                },
+            },
+        ];
+        let (program, record) = simple_test_code(instructions, &[], &[(1, iterations)]);
+        Stark::prove_and_verify(&program, &record)
+    }
+
+    #[test]
+    fn prove_memory_mozak_example() { memory::<MozakStark<F, D>>(150, 0).unwrap(); }
+
+    use mozak_runner::test_utils::{u32_extra, u8_extra};
+    use proptest::prelude::ProptestConfig;
+    use proptest::proptest;
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(4))]
+        #[test]
+        fn prove_memory_mozak(iterations in u8_extra(), addr_offset in u32_extra()) {
+            memory::<MozakStark<F, D>>(iterations.into(), addr_offset).unwrap();
+        }
     }
 }

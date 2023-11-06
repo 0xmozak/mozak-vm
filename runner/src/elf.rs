@@ -1,5 +1,3 @@
-// Copyright 2023 MOZAK.
-
 use std::collections::HashSet;
 use std::iter::repeat;
 
@@ -17,7 +15,7 @@ use crate::decode::decode_instruction;
 use crate::instruction::Instruction;
 use crate::util::load_u32;
 
-/// A RISC program
+/// A RISC-V program
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Program {
     /// The entrypoint of the program
@@ -35,13 +33,20 @@ pub struct Program {
     pub ro_code: Code,
 }
 
+/// Executable code of the ELF
+///
+/// A wrapper of a map from pc to [Instruction]
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct Code(pub HashMap<u32, Instruction>);
 
+/// Memory of RISC-V Program
+///
+/// A wrapper around a map from a 32-bit address to a byte of memory
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct Data(pub HashMap<u32, u8>);
 
 impl Code {
+    /// Get [Instruction] given `pc`
     #[must_use]
     pub fn get_instruction(&self, pc: u32) -> Instruction {
         let Code(code) = self;

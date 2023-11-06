@@ -111,7 +111,7 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr
         .constraint(divisor_abs * (remainder_abs + P::ONES + remainder_slack - divisor_abs));
 
-    // Constraints for divisor == 0.  On Risc-V:
+    // Constraints for divisor == 0.  On RISC-V:
     // p / 0 == 0xFFFF_FFFF
     // p % 0 == p
     yield_constr.constraint(
