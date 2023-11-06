@@ -33,7 +33,7 @@ use crate::{
 ///
 /// ## Generics
 /// `F`: The [Field] STARK is defined over
-/// `D`: Degree of the extension field of `F``
+/// `D`: Degree of the extension field of `F`
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cpu_stark: CpuStark<F, D>,
