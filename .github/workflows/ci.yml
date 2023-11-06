@@ -31,7 +31,10 @@ jobs:
       - name: Build ELF(s) for benchmarking
         run: cd examples/fibonacci && cargo build --release
 
-      - name: Run tests
+      - name: Compile 
+        run: cargo nextest run --no-run --locked --all-targets
+
+      - name: Test
         run: cargo nextest run --locked --all-targets
 
   cargo-clippy:
