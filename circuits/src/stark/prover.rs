@@ -396,14 +396,27 @@ where
         make_proof!(mozak_stark.register_init_stark, TableKind::RegisterInit, [])?,
         make_proof!(mozak_stark.register_stark, TableKind::Register, [])?,
         make_proof!(mozak_stark.io_memory_stark, TableKind::IoMemory, [])?,
+        make_proof!(
+            mozak_stark.poseidon2_sponge_stark,
+            TableKind::Poseidon2Sponge,
+            []
+        )?,
+        make_proof!(mozak_stark.poseidon2_stark, TableKind::Poseidon2, [])?,
     ])
 }
 
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
+    use itertools::izip;
     use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::system::ecall;
+    use mozak_runner::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
     use mozak_runner::test_utils::simple_test_code;
+    use plonky2::field::goldilocks_field::GoldilocksField;
+    use plonky2::field::types::Field;
+    use plonky2::hash::poseidon2::Poseidon2Hash;
+    use plonky2::plonk::config::{GenericHashOut, Hasher};
 
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
@@ -464,5 +477,111 @@ mod tests {
         );
         assert_eq!(record.last_state.get_pc(), 8);
         MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    struct Poseidon2Test {
+        pub data: String,
+        pub input_start_addr: u32,
+        pub output_start_addr: u32,
+    }
+
+    fn test_poseidon2(test_data: &[Poseidon2Test]) {
+        let mut instructions = vec![];
+        let mut memory: Vec<(u32, u8)> = vec![];
+
+        for test_datum in test_data {
+            let mut data_bytes = test_datum.data.as_bytes().to_vec();
+            // VM expects input len to be multiple of RATE bits
+            data_bytes.resize(data_bytes.len().next_multiple_of(8), 0_u8);
+            let data_len = data_bytes.len();
+            let input_memory: Vec<(u32, u8)> =
+                izip!((test_datum.input_start_addr..), data_bytes).collect();
+            memory.extend(input_memory);
+            instructions.extend(&[
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A0,
+                        imm: ecall::POSEIDON2,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A1,
+                        imm: test_datum.input_start_addr,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A2,
+                        imm: u32::try_from(data_len).expect("don't use very long data"),
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: REG_A3,
+                        imm: test_datum.output_start_addr,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::ECALL,
+                    ..Default::default()
+                },
+            ]);
+        }
+
+        let (program, record) = simple_test_code(&instructions, memory.as_slice(), &[]);
+        for test_datum in test_data {
+            let output: Vec<u8> = (0..32_u8)
+                .map(|i| {
+                    record
+                        .last_state
+                        .load_u8(test_datum.output_start_addr + u32::from(i))
+                })
+                .collect();
+            let mut data_bytes = test_datum.data.as_bytes().to_vec();
+            // VM expects input len to be multiple of RATE bits
+            data_bytes.resize(data_bytes.len().next_multiple_of(8), 0_u8);
+            let data_fields: Vec<GoldilocksField> = data_bytes
+                .iter()
+                .map(|x| GoldilocksField::from_canonical_u8(*x))
+                .collect();
+            assert_eq!(output, Poseidon2Hash::hash_no_pad(&data_fields).to_bytes());
+        }
+        MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    #[test]
+    fn prove_poseidon2() {
+        test_poseidon2(&[Poseidon2Test {
+            data: "💥 Mozak-VM Rocks With Poseidon2".to_string(),
+            input_start_addr: 1024,
+            output_start_addr: 2048,
+        }]);
+        test_poseidon2(&[Poseidon2Test {
+            data: "😇 Mozak is knowledge arguments based technology".to_string(),
+            input_start_addr: 1024,
+            output_start_addr: 2048,
+        }]);
+        test_poseidon2(&[
+            Poseidon2Test {
+                data: "💥 Mozak-VM Rocks With Poseidon2".to_string(),
+                input_start_addr: 512,
+                output_start_addr: 1024,
+            },
+            Poseidon2Test {
+                data: "😇 Mozak is knowledge arguments based technology".to_string(),
+                input_start_addr: 1024 + 32, /* make sure input and output do not overlap with
+                                              * earlier call */
+                output_start_addr: 2048,
+            },
+        ]);
     }
 }

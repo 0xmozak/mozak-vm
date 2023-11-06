@@ -2,6 +2,8 @@ use core::ops::Add;
 
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
+use plonky2::hash::hashing::PlonkyPermutation;
+use plonky2::hash::poseidon2::Poseidon2Permutation;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
@@ -9,6 +11,7 @@ use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
 use crate::memoryinit::columns::MemoryInit;
+use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::stark::mozak_stark::{MemoryTable, Table};
 
 #[repr(C)]
@@ -100,6 +103,28 @@ impl<F: RichField> From<&FullWordMemory<F>> for Vec<Memory<F>> {
                     ..Default::default()
                 })
                 .collect()
+        }
+    }
+}
+
+impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
+    fn from(value: &Poseidon2Sponge<F>) -> Self {
+        if (value.ops.is_permute + value.ops.is_init_permute).is_zero() {
+            vec![]
+        } else {
+            let rate = Poseidon2Permutation::<F>::RATE;
+            // each Field element in preimage represents a byte.
+            (0..rate)
+                .map(|i| Memory {
+                    clk: value.clk,
+                    addr: value.input_addr
+                        + F::from_canonical_u8(u8::try_from(i).expect("i > 255")),
+                    is_load: F::ONE,
+                    value: value.preimage[i],
+                    ..Default::default()
+                })
+                .collect()
+            // TODO: Handle OUTPUT Bytes
         }
     }
 }
