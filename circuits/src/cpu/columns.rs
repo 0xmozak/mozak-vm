@@ -46,7 +46,7 @@ pub struct OpSelectors<T> {
     /// Load Byte Unsigned and places it in the least significant byte position
     /// of the target register.
     pub lb: T,
-    /// Load Half
+    /// Load Half Word
     pub lh: T,
     /// Load Word
     pub lw: T,
