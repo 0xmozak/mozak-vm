@@ -10,13 +10,8 @@ pub struct MozakIo<'a> {
 impl<'a> Read for MozakIo<'a> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         #[cfg(target_os = "zkvm")]
-        unsafe {
-            core::arch::asm!(
-               "ecall",
-               in ("a0") 2_usize,
-               in ("a1") buf.as_ptr(),
-               in ("a2") buf.len(),
-            );
+        {
+            mozak_system::system::syscall_ioread(buf.as_mut_ptr(), buf.len());
             Ok(buf.len())
         }
         #[cfg(not(target_os = "zkvm"))]

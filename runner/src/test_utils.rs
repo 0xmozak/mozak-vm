@@ -1,3 +1,4 @@
+use mozak_system::system::ecall;
 use plonky2::field::goldilocks_field::GoldilocksField;
 #[cfg(any(feature = "test", test))]
 use proptest::prelude::any;
@@ -9,7 +10,6 @@ use proptest::strategy::{Just, Strategy};
 use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
-use crate::system::ecall;
 use crate::vm::{step, ExecutionRecord};
 
 /// Returns the state just before the final state
@@ -64,8 +64,8 @@ pub fn simple_test_code_with_ro_memory(
         ro_code,
         ..Default::default()
     };
-
-    let state0 = State::new(program.clone(), io_tape);
+    // TODO(Roman): fixme - extend function API to support public-io
+    let state0 = State::new(program.clone(), io_tape, &[]);
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
         state.set_register_value(*rs, *val)
