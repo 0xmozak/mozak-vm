@@ -28,35 +28,38 @@ pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
 ) -> Vec<RangeCheckLimb<F>> {
     let mut multiplicities: HashMap<u8, u64> = HashMap::new();
 
-    let mut trace = pad_trace(
-        LimbTable::lookups()
-            .looking_tables
-            .into_iter()
-            .flat_map(|looking_table| match looking_table.kind {
-                TableKind::RangeCheck => extract(rangecheck_trace, &looking_table),
-                TableKind::Cpu => extract(cpu_trace, &looking_table),
-                other => unimplemented!("Can't range check {other:?} tables"),
-            })
-            .map(|limb| F::to_canonical_u64(&limb))
-            .sorted()
-            .merge_join_by(0..=u64::from(u8::MAX), u64::cmp)
-            .map(|value_or_dummy| {
-                let filter = u64::from(value_or_dummy.has_left());
-                let val = value_or_dummy.into_left();
-                multiplicities
-                    .entry(u8::try_from(val).unwrap())
-                    .and_modify(|e| *e += 1)
-                    .or_default();
+    let mut trace =
+        pad_trace(
+            LimbTable::lookups()
+                .looking_tables
+                .into_iter()
+                .flat_map(|looking_table| match looking_table.kind {
+                    TableKind::RangeCheck => extract(rangecheck_trace, &looking_table),
+                    TableKind::Cpu => extract(cpu_trace, &looking_table),
+                    other => unimplemented!("Can't range check {other:?} tables"),
+                })
+                .map(|limb| F::to_canonical_u64(&limb))
+                .sorted()
+                .merge_join_by(0..=u64::from(u8::MAX), u64::cmp)
+                .map(|value_or_dummy| {
+                    let filter = u64::from(value_or_dummy.has_left());
+                    let val = value_or_dummy.into_left();
+                    multiplicities
+                        .entry(u8::try_from(val).expect(
+                            "values should be valid u8 values in the 64-bit GoldilocksField",
+                        ))
+                        .and_modify(|e| *e += 1)
+                        .or_default();
 
-                RangeCheckLimb {
-                    filter,
-                    element: val,
-                    multiplicity_view: MultiplicityView::default(),
-                }
-                .map(F::from_noncanonical_u64)
-            })
-            .collect::<Vec<_>>(),
-    );
+                    RangeCheckLimb {
+                        filter,
+                        element: val,
+                        multiplicity_view: MultiplicityView::default(),
+                    }
+                    .map(F::from_noncanonical_u64)
+                })
+                .collect::<Vec<_>>(),
+        );
 
     for (i, (value, multiplicity)) in multiplicities.into_iter().enumerate() {
         trace[i].multiplicity_view.value = F::from_canonical_u8(value);
