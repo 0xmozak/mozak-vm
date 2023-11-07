@@ -27,7 +27,7 @@ pub struct Memory<T> {
     pub clk: T,
 
     // Operations (one-hot encoded)
-    // One of `is_sb`, `is_lb` or `is_init`(static meminit from ELF) == 1.
+    // One of `is_store`, `is_load` or `is_init`(static meminit from ELF) == 1.
     // If none are `1`, it is a padding row
     /// Binary filter column to represent a RISC-V SB operation.
     pub is_store: T,
