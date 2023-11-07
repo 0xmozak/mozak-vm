@@ -88,6 +88,7 @@ fn load_program(mut elf: Input) -> Result<Program> {
 
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
 /// iotape.txt`
+#[allow(clippy::too_many_lines)]
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let config = standard_faster_config();
