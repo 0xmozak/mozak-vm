@@ -16,5 +16,5 @@
 
 [workspace]
 exclude = ["sdk"]
-members = ["cli", "node", "rpc", "state"]
+members = ["node-cli", "node", "rpc", "state"]
 resolver = "2"
