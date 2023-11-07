@@ -352,27 +352,26 @@ impl<F: RichField> State<F> {
     /// `io_tape`.
     /// TODO(Matthias): remove that limitation (again).
     #[must_use]
-    pub fn read_private_iobytes(mut self, num_bytes: usize) -> (Vec<u8>, Self) {
-        let read_index = self.io_tape.private.read_index;
-        let remaining_len = self.io_tape.private.data.len() - read_index;
-        let limit = num_bytes.min(remaining_len);
-        self.io_tape.private.read_index += limit;
-        (
-            self.io_tape.private.data[read_index..(read_index + limit)].to_vec(),
-            self,
-        )
-    }
-
-    #[must_use]
-    pub fn read_public_iobytes(mut self, num_bytes: usize) -> (Vec<u8>, Self) {
-        let read_index = self.io_tape.public.read_index;
-        let remaining_len = self.io_tape.public.data.len() - read_index;
-        let limit = num_bytes.min(remaining_len);
-        self.io_tape.public.read_index += limit;
-        (
-            self.io_tape.public.data[read_index..(read_index + limit)].to_vec(),
-            self,
-        )
+    pub fn read_iobytes(mut self, num_bytes: usize, is_public: bool) -> (Vec<u8>, Self) {
+        if is_public {
+            let read_index = self.io_tape.public.read_index;
+            let remaining_len = self.io_tape.public.data.len() - read_index;
+            let limit = num_bytes.min(remaining_len);
+            self.io_tape.public.read_index += limit;
+            (
+                self.io_tape.public.data[read_index..(read_index + limit)].to_vec(),
+                self,
+            )
+        } else {
+            let read_index = self.io_tape.private.read_index;
+            let remaining_len = self.io_tape.private.data.len() - read_index;
+            let limit = num_bytes.min(remaining_len);
+            self.io_tape.private.read_index += limit;
+            (
+                self.io_tape.private.data[read_index..(read_index + limit)].to_vec(),
+                self,
+            )
+        }
     }
 }
 

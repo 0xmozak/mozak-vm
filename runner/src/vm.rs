@@ -142,11 +142,7 @@ impl<F: RichField> State<F> {
     fn io_read(self, is_public: bool) -> (Aux<F>, Self) {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requsted = self.get_register_value(REG_A2);
-        let (data, updated_self) = if is_public {
-            self.read_public_iobytes(num_bytes_requsted as usize)
-        } else {
-            self.read_private_iobytes(num_bytes_requsted as usize)
-        };
+        let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize, is_public);
         let op = if is_public {
             IoOpcode::StorePublic
         } else {
