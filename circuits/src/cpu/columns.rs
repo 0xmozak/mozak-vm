@@ -39,7 +39,7 @@ pub struct OpSelectors<T> {
     pub bne: T,
     /// Store Byte
     pub sb: T,
-    /// Store Half
+    /// Store Half Word
     pub sh: T,
     /// Store Word
     pub sw: T,
