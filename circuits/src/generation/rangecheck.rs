@@ -13,8 +13,13 @@ use crate::utils::pad_trace_with_default;
 
 /// Converts a u32 into 4 u8 limbs represented in [`RichField`].
 #[must_use]
-pub fn limbs_from_u32(value: u32) -> [u8; 4] { value.to_le_bytes() }
+pub fn limbs_from_u32<F: RichField>(value: u32) -> [F; 4] {
+    value.to_le_bytes().map(|v| F::from_canonical_u8(v))
+}
 
+/// extract the values to be rangechecked.
+/// multiplicity is assumed to be 0 or 1 since we apply this only for cpu and
+/// memory traces, hence ignored
 pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<F>
 where
     V: Index<usize, Output = F> + 'a, {
@@ -65,25 +70,17 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
                     .entry(val)
                     .and_modify(|e| *e += 1)
                     .or_insert(1);
-
-                // TODO(bing): remove this push once we completely switch to logUp.
-                // trace gen should only involve non-duplicate values and its
-                // multiplicity, and we will enforce a cross-table logup from the
-                // CPU and Memory tables.
-                trace.push(
-                    RangeCheckColumnsView {
-                        limbs: limbs_from_u32(val),
-                        filter: 1,
-                        multiplicity_view: MultiplicityView::default(),
-                    }
-                    .map(F::from_canonical_u8),
-                );
             });
         });
 
-    for (i, (value, multiplicity)) in multiplicities.into_iter().enumerate() {
-        trace[i].multiplicity_view.value = F::from_canonical_u32(value);
-        trace[i].multiplicity_view.multiplicity = F::from_canonical_u64(multiplicity);
+    for (value, multiplicity) in multiplicities {
+        trace.push(RangeCheckColumnsView {
+            multiplicity_view: MultiplicityView {
+                value: F::from_canonical_u32(value),
+                multiplicity: F::from_canonical_u64(multiplicity),
+            },
+            limbs: limbs_from_u32(value),
+        });
     }
 
     pad_trace_with_default(trace)
