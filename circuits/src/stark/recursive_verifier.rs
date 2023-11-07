@@ -39,7 +39,7 @@ use crate::stark::proof::{
 
 /// Represents a circuit which recursively verifies STARK proofs.
 #[derive(Eq, PartialEq, Debug)]
-pub struct AllStarkVerifierCircuit<F, C, const D: usize>
+pub struct MozakStarkVerifierCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -96,7 +96,7 @@ where
     }
 }
 
-impl<F, C, const D: usize> AllStarkVerifierCircuit<F, C, D>
+impl<F, C, const D: usize> MozakStarkVerifierCircuit<F, C, D>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
@@ -134,7 +134,7 @@ pub fn recursive_all_stark_circuit<
     circuit_config: &CircuitConfig,
     inner_config: &StarkConfig,
     min_degree_bits: usize,
-) -> AllStarkVerifierCircuit<F, C, D>
+) -> MozakStarkVerifierCircuit<F, C, D>
 where
     C::Hasher: AlgebraicHasher<F>, {
     let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
@@ -170,7 +170,7 @@ where
     targets[TableKind::MemoryInit as usize] = Some(memory_init_targets);
 
     let circuit = builder.build();
-    AllStarkVerifierCircuit { circuit, targets }
+    MozakStarkVerifierCircuit { circuit, targets }
 }
 
 #[allow(clippy::similar_names)]
