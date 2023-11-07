@@ -70,18 +70,18 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     } in cross_table_lookups
     {
         for _ in 0..config.num_challenges {
-            let looking_zs_prod = looking_tables
+            let looking_zs_sum = looking_tables
                 .iter()
                 .map(|table| *ctl_zs_openings[table.kind as usize].next().unwrap())
-                .product::<F>();
+                .sum::<F>();
             let looked_z = *ctl_zs_openings[looked_table.kind as usize].next().unwrap();
 
             ensure!(
-                looking_zs_prod == looked_z,
+                looking_zs_sum == looked_z,
                 "Cross-table lookup verification failed for {:?}->{:?} ({} != {})",
                 looking_tables[0].kind,
                 looked_table.kind,
-                looking_zs_prod,
+                looking_zs_sum,
                 looked_z
             );
         }
@@ -105,14 +105,14 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
         log::debug!("Processing CTL for {:?}", looked_table.kind);
         for &challenge in &ctl_challenges.challenges {
             let zs_looking = looking_tables.iter().map(|looking_table| {
-                partial_products(
+                partial_sums(
                     &trace_poly_values[looking_table.kind as usize],
                     &looking_table.columns,
                     &looking_table.filter_column,
                     challenge,
                 )
             });
-            let z_looked = partial_products(
+            let z_looked = partial_sums(
                 &trace_poly_values[looked_table.kind as usize],
                 &looked_table.columns,
                 &looked_table.filter_column,
@@ -123,7 +123,7 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                 zs_looking
                     .clone()
                     .map(|z| *z.values.last().unwrap())
-                    .product::<F>(),
+                    .sum::<F>(),
                 *z_looked.values.last().unwrap()
             );
 
@@ -150,47 +150,50 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     ctl_data_per_table
 }
 
-fn partial_products<F: Field>(
+fn partial_sums<F: Field>(
     trace: &[PolynomialValues<F>],
     columns: &[Column<F>],
     filter_column: &Column<F>,
     challenge: GrandProductChallenge<F>,
 ) -> PolynomialValues<F> {
-    // design of table looks like this
-    //       |  filter  |   value   |  partial_prod |
-    //       |    1     |    x_1    |  x_3          |
-    //       |    0     |    x_2    |  x_3 * x_1    |
-    //       |    1     |    x_3    |  x_3 * x_1    |
+    // design of table looks like  this
+    //       |  filter  |   value   |  partial_sum                       |
+    //       |    1     |    x_1    |  1/combine(x_3)                    |
+    //       |    0     |    x_2    |  1/combine(x_3)  + 1/combine(x_1)  |
+    //       |    1     |    x_3    |  1/combine(x_1)  + 1/combine(x_1)  |
+    // (where combine(vals) = gamma + reduced_sum(vals))
     // this is done so that now transition constraint looks like
-    //       z_next = z_local * select(value_local, filter_local)
+    //       z_next = z_local + filter_local/combine_local
     // That is, there is no need for reconstruction of value_next.
     // In current design which uses lv and nv values from columns to construct the
     // final value_local, its impossible to construct value_next from lv and nv
     // values of current row
 
-    let combine_if_filter_at_i = |i| -> F {
+    let combine_and_inv_if_filter_at_i = |i| -> F {
         let filter = filter_column.eval_table(trace, i);
         if filter.is_one() {
             let evals = columns
                 .iter()
                 .map(|c| c.eval_table(trace, i))
                 .collect::<Vec<_>>();
-            challenge.combine(evals.iter())
+            challenge.combine(evals.iter()).inverse()
         } else {
             assert_eq!(filter, F::ZERO, "Non-binary filter?");
-            F::ONE
+            F::ZERO
         }
     };
+
+    // TODO: inverse for all rows is expensive. Use batched division idea.
 
     let degree = trace[0].len();
     let mut degrees = (0..degree).collect::<Vec<_>>();
     degrees.rotate_right(1);
     degrees
         .into_iter()
-        .map(combine_if_filter_at_i)
-        .scan(F::ONE, |partial_prod: &mut F, combined| {
-            *partial_prod *= combined;
-            Some(*partial_prod)
+        .map(combine_and_inv_if_filter_at_i)
+        .scan(F::ZERO, |partial_sum: &mut F, combined| {
+            *partial_sum += combined;
+            Some(*partial_sum)
         })
         .collect_vec()
         .into()
@@ -319,12 +322,12 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
         let combination = combine(local_values, next_values);
         let filter = |lv: &[P], nv: &[P]| -> P { filter_column.eval(lv, nv) };
         let filter = filter(local_values, next_values);
-        let select = |filter, x| filter * x + P::ONES - filter;
 
-        // Check value of `Z(1)`
-        consumer.constraint_last_row(*next_z - select(filter, combination));
-        // Check `Z(gw) = combination * Z(w)`
-        consumer.constraint_transition(*local_z * select(filter, combination) - *next_z);
+        // Check value of `Z(1) = filter(w^(n-1))/combined(w^(n-1))`
+        consumer.constraint_last_row(*next_z * combination - filter);
+
+        // Check `Z(gw) - Z(w) = filter(w)/combined(w)`
+        consumer.constraint_transition((*next_z - *local_z) * combination - filter);
     }
 }
 
@@ -401,17 +404,13 @@ pub fn eval_cross_table_lookup_checks_circuit<
 
         let filter = filter_column.eval_circuit(builder, local_values, next_values);
 
-        // select = filter * combined + 1 - filter
-        let one = builder.one_extension();
-        let tmp = builder.sub_extension(one, filter);
-        let select = builder.mul_add_extension(filter, combined, tmp);
-
-        // Check value of `Z(1)`
-        let last_row = builder.sub_extension(*next_z, select);
+        // Check value of `Z(1) = filter(w^(n-1))/combined(w^(n-1))`
+        let last_row = builder.mul_sub_extension(*next_z, combined, filter);
         consumer.constraint_last_row(builder, last_row);
 
-        // Check `Z(gw) = combination * Z(w)`
-        let transition = builder.mul_sub_extension(*local_z, select, *next_z);
+        // Check `Z(gw) - Z(w) = filter(w)/combined(w)`
+        let diff = builder.sub_extension(*next_z, *local_z);
+        let transition = builder.mul_sub_extension(diff, combined, filter);
         consumer.constraint_transition(builder, transition);
     }
 }

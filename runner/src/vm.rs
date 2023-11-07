@@ -1,13 +1,13 @@
 use std::str::from_utf8;
 
 use anyhow::{anyhow, Result};
+use mozak_system::system::ecall;
+use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2};
 use plonky2::hash::hash_types::RichField;
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
 use crate::state::{Aux, IoEntry, IoOpcode, MemEntry, State};
-use crate::system::ecall;
-use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2};
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
@@ -122,10 +122,6 @@ impl<F: RichField> State<F> {
         )
     }
 
-    /// # Panics
-    ///
-    /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
-    /// bytes.
     fn ecall_io_read(self) -> (Aux<F>, Self) {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requsted = self.get_register_value(REG_A2);

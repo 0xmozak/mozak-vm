@@ -1,3 +1,5 @@
+use mozak_system::system::syscall_poseidon2;
+
 pub const DIGEST_BYTES: usize = 32;
 pub const RATE: usize = 8;
 
@@ -13,17 +15,6 @@ pub fn poseidon2_hash(input: &[u8]) -> Digest {
     // VM expects input length to be multiple of RATE
     assert!(input.len() % RATE == 0);
     let mut output = [0; DIGEST_BYTES];
-    #[cfg(target_os = "zkvm")]
-    unsafe {
-        // TODO: Hide details of syscall parameters in a function.
-        // https://github.com/0xmozak/mozak-vm/issues/767
-        core::arch::asm!(
-            "ecall",
-            in ("a0") 3,
-            in ("a1") input.as_ptr(),
-            in ("a2") input.len(),
-            in ("a3") output.as_mut_ptr(),
-        );
-    }
+    syscall_poseidon2(input.as_ptr(), input.len(), output.as_mut_ptr());
     Digest::new(output)
 }
