@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -12,6 +13,7 @@ use starky::stark::Stark;
 
 use super::columns::{Bitshift, BitshiftView};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::stark::utils::is_binary_ext_circuit;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -83,11 +85,43 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
 
     fn eval_ext_circuit(
         &self,
-        _builder: &mut CircuitBuilder<F, D>,
-        _vars: &Self::EvaluationFrameTarget,
-        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        unimplemented!()
+        let lv: &BitshiftView<ExtensionTarget<D>> = vars.get_local_values().try_into().unwrap();
+        let nv: &BitshiftView<ExtensionTarget<D>> = vars.get_next_values().try_into().unwrap();
+        let lv: &Bitshift<ExtensionTarget<D>> = &lv.executed;
+        let nv: &Bitshift<ExtensionTarget<D>> = &nv.executed;
+
+        let diff = builder.sub_extension(nv.amount, lv.amount);
+        is_binary_ext_circuit(builder, diff, yield_constr);
+
+        // Constraint for the initial amount to be 0
+        yield_constr.constraint_first_row(builder, lv.amount);
+
+        // Constraint for the last amount to be 31
+        let thirty_one_extension = builder.constant_extension(F::Extension::from_canonical_u8(31));
+        let amount_sub_thirty_one = builder.sub_extension(lv.amount, thirty_one_extension);
+        yield_constr.constraint_last_row(builder, amount_sub_thirty_one);
+
+        // Constraints for the multiplier
+        // Initial multiplier value set to 1
+        let multiplier_minus_one = builder.sub_extension(lv.multiplier, builder.one_extension());
+        yield_constr.constraint_first_row(builder, multiplier_minus_one);
+
+        // Multiplier doubled only if amount is increased
+        let one_plus_diff = builder.add_extension(builder.one_extension(), diff);
+        let either_multiplier = builder.mul_extension(one_plus_diff, lv.multiplier);
+        let multiplier_difference = builder.sub_extension(nv.multiplier, either_multiplier);
+        yield_constr.constraint_transition(builder, multiplier_difference);
+
+        let two_to_thirty_one_extension =
+            builder.constant_extension(F::Extension::from_canonical_u8(1 << 31));
+        yield_constr.constraint_last_row(
+            builder,
+            builder.sub_extension(lv.multiplier, two_to_thirty_one_extension),
+        );
     }
 }
 
@@ -99,7 +133,7 @@ mod tests {
     use mozak_runner::test_utils::{simple_test_code, u32_extra};
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use proptest::{prop_assert_eq, proptest};
-    use starky::stark_testing::test_stark_low_degree;
+    use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
 
     use super::BitshiftStark;
     use crate::stark::mozak_stark::MozakStark;
@@ -187,5 +221,13 @@ mod tests {
             prop_assert_eq!(record.executed[1].aux.dst_val, p >> (q & 0x1F));
             BitshiftStark::prove_and_verify(&program, &record).unwrap();
         }
+    }
+
+    #[test]
+    fn test_circuit() -> anyhow::Result<()> {
+        let stark = S::default();
+        test_stark_circuit_constraints::<F, C, S, D>(stark)?;
+
+        Ok(())
     }
 }
