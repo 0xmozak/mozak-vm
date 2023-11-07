@@ -22,7 +22,7 @@ pub struct MemoryInit<T> {
     /// Filters out instructions that are duplicates, i.e., appear more than
     /// once in the trace.
     pub filter: T,
-    /// One if this row is a read-write Zero if this row is read-only
+    /// 1 if this row is a read-write, 0 if this row is read-only
     pub is_writable: T,
 }
 
