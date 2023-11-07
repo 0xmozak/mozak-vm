@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::ops::Index;
 
 use itertools::Itertools;
@@ -45,7 +45,7 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
     memory_trace: &[Memory<F>],
 ) -> Vec<RangeCheckColumnsView<F>> {
     let mut trace: Vec<RangeCheckColumnsView<F>> = vec![];
-    let mut multiplicities: HashMap<u32, u64> = HashMap::new();
+    let mut multiplicities: BTreeMap<u32, u64> = BTreeMap::new();
 
     RangecheckTable::lookups()
         .looking_tables
@@ -111,17 +111,16 @@ mod tests {
         type F = GoldilocksField;
         let (program, record) = simple_test_code(
             &[Instruction {
-                op: Op::ADD,
+                op: Op::SB,
                 args: Args {
-                    rd: 5,
-                    rs1: 6,
-                    rs2: 7,
+                    rs1: 1,
+                    imm: u32::MAX,
                     ..Args::default()
                 },
             }],
             // Use values that would become limbs later
             &[],
-            &[(6, 0xffff), (7, 0xffff)],
+            &[(1, u32::MAX)],
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&program, &record);
@@ -140,14 +139,19 @@ mod tests {
             &poseidon2_trace,
         );
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
-
-        // Check values that we are interested in
-        assert_eq!(trace[0].filter, F::ONE);
-        assert_eq!(trace[1].filter, F::ONE);
-        assert_eq!(trace[0].limbs[0], GoldilocksField(0xfe));
-        assert_eq!(trace[0].limbs[1], GoldilocksField(0xff));
-        assert_eq!(trace[0].limbs[2], GoldilocksField(0x01));
-        assert_eq!(trace[0].limbs[3], GoldilocksField(0x00));
-        assert_eq!(trace[1].limbs[0], GoldilocksField(0));
+        assert_eq!(trace.len(), 4, "Unexpected trace len {}", trace.len());
+        for (i, row) in trace.iter().enumerate() {
+            match i {
+                0 => {
+                    assert_eq!(row.multiplicity_view.value, F::ZERO);
+                    assert_eq!(row.multiplicity_view.multiplicity, F::TWO);
+                }
+                1 => {
+                    assert_eq!(row.multiplicity_view.value, F::from_canonical_u32(u32::MAX));
+                    assert_eq!(row.multiplicity_view.multiplicity, F::TWO);
+                }
+                _ => {}
+            }
+        }
     }
 }
