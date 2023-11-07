@@ -50,10 +50,10 @@ pub fn generate_io_memory_trace<F: RichField>(
                         addr: F::from_canonical_u32(addr),
                         size: F::from_canonical_usize(len),
                         ops: Ops {
-                            is_io_store: F::from_bool(
-                                matches!(op, IoOpcode::StorePrivate)
-                                    || matches!(op, IoOpcode::StorePublic),
-                            ),
+                            is_io_store: F::from_bool(matches!(
+                                op,
+                                IoOpcode::StorePrivate | IoOpcode::StorePublic
+                            )),
                             is_memory_store: F::ZERO,
                         },
                         is_lv_and_nv_are_memory_rows: F::from_bool(false),
@@ -70,10 +70,10 @@ pub fn generate_io_memory_trace<F: RichField>(
                             value: F::from_canonical_u8(local_value),
                             ops: Ops {
                                 is_io_store: F::ZERO,
-                                is_memory_store: F::from_bool(
-                                    matches!(op, IoOpcode::StorePrivate)
-                                        || matches!(op, IoOpcode::StorePublic),
-                                ),
+                                is_memory_store: F::from_bool(matches!(
+                                    op,
+                                    IoOpcode::StorePrivate | IoOpcode::StorePublic
+                                )),
                             },
                             is_lv_and_nv_are_memory_rows: F::from_bool(i + 1 != len),
                         }
