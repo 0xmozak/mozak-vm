@@ -102,26 +102,41 @@ where
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>,
 {
+    fn prove_targets(
+        &self,
+        kind: TableKind,
+        inputs: &mut PartialWitness<F>,
+        all_proof: &AllProof<F, C, D>,
+    ) {
+        let target = &self.targets[kind as usize];
+        target.as_ref().unwrap().set_targets(
+            inputs,
+            &all_proof.proofs_with_metadata[kind as usize],
+            &all_proof.ctl_challenges,
+        );
+    }
+
     pub fn prove(&self, all_proof: &AllProof<F, C, D>) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
-
-        // TODO: use Macro for different tables
-        let program_target = &self.targets[TableKind::Program as usize];
-        program_target.as_ref().unwrap().set_targets(
-            &mut inputs,
-            &all_proof.proofs_with_metadata[TableKind::Program as usize],
-            &all_proof.ctl_challenges,
-        );
-
-        let memory_init_target = &self.targets[TableKind::MemoryInit as usize];
-        memory_init_target.as_ref().unwrap().set_targets(
-            &mut inputs,
-            &all_proof.proofs_with_metadata[TableKind::MemoryInit as usize],
-            &all_proof.ctl_challenges,
-        );
-
+        self.prove_targets(TableKind::Program, &mut inputs, all_proof);
+        self.prove_targets(TableKind::MemoryInit, &mut inputs, all_proof);
         self.circuit.prove(inputs)
     }
+}
+
+pub trait GetStark<F: RichField + Extendable<D>, const D: usize>: Stark<F, D> {
+    const KIND: TableKind;
+    fn get(all_stark: &MozakStark<F, D>) -> &Self;
+}
+impl<F: RichField + Extendable<D>, const D: usize> GetStark<F, D> for ProgramStark<F, D> {
+    const KIND: TableKind = TableKind::Program;
+
+    fn get(all_stark: &MozakStark<F, D>) -> &Self { &all_stark.program_stark }
+}
+impl<F: RichField + Extendable<D>, const D: usize> GetStark<F, D> for MemoryInitStark<F, D> {
+    const KIND: TableKind = TableKind::MemoryInit;
+
+    fn get(all_stark: &MozakStark<F, D>) -> &Self { &all_stark.memory_init_stark }
 }
 
 pub fn recursive_all_stark_circuit<
@@ -138,25 +153,24 @@ pub fn recursive_all_stark_circuit<
 where
     C::Hasher: AlgebraicHasher<F>, {
     let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
+    let mut targets: [Option<StarkVerifierTargets<F, C, D>>; NUM_TABLES] = Default::default();
 
-    // TODO: use Macro for different tables
-    let program_targets = recursive_stark_circuit::<F, C, ProgramStark<F, D>, D>(
-        &mut builder,
-        TableKind::Program,
-        &all_stark.program_stark,
-        degree_bits,
-        &all_stark.cross_table_lookups,
-        inner_config,
-    );
+    macro_rules! add_recursive_stark_circuit {
+        ($stark:ty) => {
+            let kind = <$stark as GetStark<F, D>>::KIND;
+            targets[kind as usize] = Some(recursive_stark_circuit::<_, _, $stark, D>(
+                &mut builder,
+                kind,
+                <$stark as GetStark<F, D>>::get(all_stark),
+                degree_bits,
+                &all_stark.cross_table_lookups,
+                inner_config,
+            ));
+        };
+    }
 
-    let memory_init_targets = recursive_stark_circuit::<F, C, MemoryInitStark<F, D>, D>(
-        &mut builder,
-        TableKind::MemoryInit,
-        &all_stark.memory_init_stark,
-        degree_bits,
-        &all_stark.cross_table_lookups,
-        inner_config,
-    );
+    add_recursive_stark_circuit!(ProgramStark<F, D>);
+    add_recursive_stark_circuit!(MemoryInitStark<F, D>);
 
     add_common_recursion_gates(&mut builder);
 
@@ -165,17 +179,13 @@ where
         builder.add_gate(NoopGate, vec![]);
     }
 
-    let mut targets: [Option<StarkVerifierTargets<F, C, D>>; NUM_TABLES] = Default::default();
-    targets[TableKind::Program as usize] = Some(program_targets);
-    targets[TableKind::MemoryInit as usize] = Some(memory_init_targets);
-
     let circuit = builder.build();
     AllStarkVerifierCircuit { circuit, targets }
 }
 
 #[allow(clippy::similar_names)]
 /// Returns the recursive Stark circuit.
-pub fn recursive_stark_circuit<
+fn recursive_stark_circuit<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
