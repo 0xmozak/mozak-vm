@@ -40,7 +40,8 @@ pub fn pad_trace_with_default_to_len<Row: Default + Clone>(
     trace
 }
 
-/// Pad each row to the nearest power of two with the `Row`'s `Default` implementation.
+/// Pad each row to the nearest power of two with the `Row`'s `Default`
+/// implementation.
 #[must_use]
 pub fn pad_trace_with_default<Row: Default + Clone>(trace: Vec<Row>) -> Vec<Row> {
     let len = trace.len().next_power_of_two().max(4);
