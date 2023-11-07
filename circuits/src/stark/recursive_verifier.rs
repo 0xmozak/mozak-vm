@@ -25,6 +25,7 @@ use starky::constraint_consumer::RecursiveConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
+use crate::bitshift::stark::BitshiftStark;
 use crate::cross_table_lookup::{CrossTableLookup, CtlCheckVarsTarget};
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
@@ -106,6 +107,13 @@ where
         let mut inputs = PartialWitness::new();
 
         // TODO: use Macro for different tables
+        let shift_amount_target = &self.targets[TableKind::Bitshift as usize];
+        shift_amount_target.as_ref().unwrap().set_targets(
+            &mut inputs,
+            &all_proof.proofs_with_metadata[TableKind::Bitshift as usize],
+            &all_proof.ctl_challenges,
+        );
+
         let program_target = &self.targets[TableKind::Program as usize];
         program_target.as_ref().unwrap().set_targets(
             &mut inputs,
@@ -124,13 +132,13 @@ where
     }
 }
 
-pub fn recursive_all_stark_circuit<
+pub fn recursive_mozak_stark_circuit<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     const D: usize,
 >(
-    all_stark: &MozakStark<F, D>,
-    degree_bits: usize,
+    mozak_stark: &MozakStark<F, D>,
+    degree_bits: [usize; NUM_TABLES],
     circuit_config: &CircuitConfig,
     inner_config: &StarkConfig,
     min_degree_bits: usize,
@@ -140,21 +148,30 @@ where
     let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
     // TODO: use Macro for different tables
+    let shift_amount_targets = recursive_stark_circuit::<F, C, BitshiftStark<F, D>, D>(
+        &mut builder,
+        TableKind::Bitshift,
+        &mozak_stark.shift_amount_stark,
+        degree_bits[TableKind::Bitshift as usize],
+        &mozak_stark.cross_table_lookups,
+        inner_config,
+    );
+
     let program_targets = recursive_stark_circuit::<F, C, ProgramStark<F, D>, D>(
         &mut builder,
         TableKind::Program,
-        &all_stark.program_stark,
-        degree_bits,
-        &all_stark.cross_table_lookups,
+        &mozak_stark.program_stark,
+        degree_bits[TableKind::Program as usize],
+        &mozak_stark.cross_table_lookups,
         inner_config,
     );
 
     let memory_init_targets = recursive_stark_circuit::<F, C, MemoryInitStark<F, D>, D>(
         &mut builder,
         TableKind::MemoryInit,
-        &all_stark.memory_init_stark,
-        degree_bits,
-        &all_stark.cross_table_lookups,
+        &mozak_stark.memory_init_stark,
+        degree_bits[TableKind::MemoryInit as usize],
+        &mozak_stark.cross_table_lookups,
         inner_config,
     );
 
@@ -166,6 +183,7 @@ where
     }
 
     let mut targets: [Option<StarkVerifierTargets<F, C, D>>; NUM_TABLES] = Default::default();
+    targets[TableKind::Bitshift as usize] = Some(shift_amount_targets);
     targets[TableKind::Program as usize] = Some(program_targets);
     targets[TableKind::MemoryInit as usize] = Some(memory_init_targets);
 
@@ -511,15 +529,15 @@ mod tests {
     use plonky2::util::timing::TimingTree;
     use starky::config::StarkConfig;
 
-    use crate::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
+    use crate::stark::mozak_stark::{MozakStark, PublicInputs};
     use crate::stark::prover::prove;
-    use crate::stark::recursive_verifier::recursive_all_stark_circuit;
+    use crate::stark::recursive_verifier::recursive_mozak_stark_circuit;
     use crate::stark::verifier::verify_proof;
     use crate::test_utils::{C, D, F};
     use crate::utils::from_u32;
 
     #[test]
-    fn recursive_verify_all_starks() -> Result<()> {
+    fn recursive_verify_mozak_starks() -> Result<()> {
         type S = MozakStark<F, D>;
         let stark = S::default();
         let mut config = StarkConfig::standard_fast_config();
@@ -552,19 +570,16 @@ mod tests {
         verify_proof(stark.clone(), all_proof.clone(), &config)?;
 
         let circuit_config = CircuitConfig::standard_recursion_config();
-        let degree_bits = all_proof.proofs_with_metadata[TableKind::Program as usize]
-            .proof
-            .recover_degree_bits(&config);
 
-        let all_stark_circuit = recursive_all_stark_circuit::<F, C, D>(
+        let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
             &stark,
-            degree_bits,
+            all_proof.degree_bits(&config),
             &circuit_config,
             &config,
             12,
         );
 
-        let recursive_proof = all_stark_circuit.prove(&all_proof)?;
-        all_stark_circuit.circuit.verify(recursive_proof)
+        let recursive_proof = mozak_stark_circuit.prove(&all_proof)?;
+        mozak_stark_circuit.circuit.verify(recursive_proof)
     }
 }
