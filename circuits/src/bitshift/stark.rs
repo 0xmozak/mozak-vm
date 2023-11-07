@@ -1,6 +1,6 @@
-use std::fmt::Display;
 use std::marker::PhantomData;
 
+use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -12,10 +12,8 @@ use starky::stark::Stark;
 
 use super::columns::{Bitshift, BitshiftView};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::display::derive_display_stark_name;
 
-derive_display_stark_name!(BitshiftStark);
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct BitshiftStark<F, const D: usize> {
     pub _f: PhantomData<F>,

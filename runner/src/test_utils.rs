@@ -1,3 +1,4 @@
+use mozak_system::system::ecall;
 use plonky2::field::goldilocks_field::GoldilocksField;
 #[cfg(any(feature = "test", test))]
 use proptest::prelude::any;
@@ -9,7 +10,6 @@ use proptest::strategy::{Just, Strategy};
 use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
-use crate::system::ecall;
 use crate::vm::{step, ExecutionRecord};
 
 /// Returns the state just before the final state

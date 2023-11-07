@@ -30,7 +30,10 @@ jobs:
       - name: Build ELF(s) for benchmarking
         run: cd examples/fibonacci && cargo build --release
 
-      - name: Run tests
+      - name: Compile 
+        run: cargo nextest run --no-run --locked --all-targets
+
+      - name: Test
         run: cargo nextest run --locked --all-targets
 
   cargo-clippy:
@@ -44,6 +47,10 @@ jobs:
 
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
+
+      - name: Run Clippy linter for sdk
+        working-directory: sdk
+        run: cargo clippy --all-features -- -D warnings
 
   cargo-build-examples:
     if: github.event.pull_request.draft == false

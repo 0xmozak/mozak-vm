@@ -2,6 +2,7 @@ use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
+use crate::multiplicity_view::MultiplicityView;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
@@ -10,6 +11,9 @@ pub struct RangeCheckLimb<T> {
     pub element: T,
     // Filter to indicate a value to be range checked is not a dummy value.
     pub filter: T,
+
+    /// The u8 value to be range checked and its multiplicity.
+    pub multiplicity_view: MultiplicityView<T>,
 }
 columns_view_impl!(RangeCheckLimb);
 make_col_map!(RangeCheckLimb);

@@ -1,0 +1,3 @@
+# Contributing
+
+## License information
