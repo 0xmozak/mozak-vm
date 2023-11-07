@@ -559,7 +559,7 @@ mod tests {
             entry_point: from_u32(program.entry_point),
         };
 
-        let all_proof = prove::<F, C, D>(
+        let mozak_proof = prove::<F, C, D>(
             &program,
             &record,
             &stark,
@@ -567,19 +567,18 @@ mod tests {
             public_inputs,
             &mut TimingTree::default(),
         )?;
-        verify_proof(stark.clone(), all_proof.clone(), &config)?;
+        verify_proof(stark.clone(), mozak_proof.clone(), &config)?;
 
         let circuit_config = CircuitConfig::standard_recursion_config();
-
         let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
             &stark,
-            all_proof.degree_bits(&config),
+            mozak_proof.degree_bits(&config),
             &circuit_config,
             &config,
             12,
         );
 
-        let recursive_proof = mozak_stark_circuit.prove(&all_proof)?;
+        let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
         mozak_stark_circuit.circuit.verify(recursive_proof)
     }
 }
