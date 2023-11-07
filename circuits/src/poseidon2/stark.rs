@@ -1,6 +1,6 @@
-use std::fmt::Display;
 use std::marker::PhantomData;
 
+use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
@@ -15,7 +15,6 @@ use starky::stark::Stark;
 
 use super::columns::Poseidon2State;
 use crate::columns_view::HasNamedColumns;
-use crate::display::derive_display_stark_name;
 use crate::poseidon2::columns::{NUM_POSEIDON2_COLS, ROUNDS_F, ROUNDS_P, STATE_SIZE};
 use crate::stark::utils::is_binary;
 
@@ -178,8 +177,7 @@ where
     out
 }
 
-derive_display_stark_name!(Poseidon2_12Stark);
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct Poseidon2_12Stark<F, const D: usize> {
     pub _f: PhantomData<F>,

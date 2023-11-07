@@ -4,9 +4,9 @@ use itertools::{chain, Itertools};
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Instruction, Op};
 use mozak_runner::state::{Aux, IoEntry, IoOpcode, State};
-use mozak_runner::system::ecall;
-use mozak_runner::system::reg_abi::REG_A0;
 use mozak_runner::vm::{ExecutionRecord, Row};
+use mozak_system::system::ecall;
+use mozak_system::system::reg_abi::REG_A0;
 use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;

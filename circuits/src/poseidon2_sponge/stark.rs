@@ -1,6 +1,6 @@
-use std::fmt::Display;
 use std::marker::PhantomData;
 
+use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -14,12 +14,10 @@ use starky::stark::Stark;
 
 use super::columns::NUM_POSEIDON2_SPONGE_COLS;
 use crate::columns_view::HasNamedColumns;
-use crate::display::derive_display_stark_name;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::stark::utils::is_binary;
 
-derive_display_stark_name!(Poseidon2SpongeStark);
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct Poseidon2SpongeStark<F, const D: usize> {
     pub _f: PhantomData<F>,
