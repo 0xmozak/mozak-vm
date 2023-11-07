@@ -752,6 +752,7 @@ dependencies = [
  "log",
  "mozak-circuits-derive",
  "mozak-runner",
+ "mozak-system",
  "plonky2",
  "proptest",
  "rayon",
@@ -801,12 +802,17 @@ dependencies = [
  "im",
  "itertools 0.11.0",
  "log",
+ "mozak-system",
  "plonky2",
  "proptest",
  "serde",
  "serde_json",
  "test-case",
 ]
+
+[[package]]
+name = "mozak-system"
+version = "0.1.0"
 
 [[package]]
 name = "num"
