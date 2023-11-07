@@ -43,11 +43,10 @@ pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
             .map(|value_or_dummy| {
                 let filter = u64::from(value_or_dummy.has_left());
                 let val = value_or_dummy.into_left();
-                if let Some(x) = multiplicities.get_mut(&u8::try_from(val).unwrap()) {
-                    *x += 1;
-                } else {
-                    multiplicities.insert(val.try_into().unwrap(), 1);
-                };
+                multiplicities
+                    .entry(u8::try_from(val).unwrap())
+                    .and_modify(|e| *e += 1)
+                    .or_default();
 
                 RangeCheckLimb {
                     filter,

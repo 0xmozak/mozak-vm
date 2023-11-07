@@ -61,11 +61,10 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
                 let val = u32::try_from(v.to_canonical_u64())
                     .expect("casting value to u32 should succeed");
 
-                if let Some(x) = multiplicities.get_mut(&val) {
-                    *x += 1;
-                } else {
-                    multiplicities.insert(val, 1);
-                }
+                multiplicities
+                    .entry(val)
+                    .and_modify(|e| *e += 1)
+                    .or_insert(1);
 
                 // TODO(bing): remove this push once we completely switch to logUp.
                 // trace gen should only involve non-duplicate values and its
