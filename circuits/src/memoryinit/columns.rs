@@ -14,7 +14,7 @@ pub struct MemElement<T> {
 
 columns_view_impl!(MemoryInit);
 make_col_map!(MemoryInit);
-/// A Row of Memomry generated from both read-only and read-write memory
+/// A Row of Memory generated from both read-only and read-write memory
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct MemoryInit<T> {
