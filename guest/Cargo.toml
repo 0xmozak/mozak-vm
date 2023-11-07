@@ -1,0 +1,11 @@
+[workspace]
+
+[package]
+edition = "2021"
+name = "guest"
+version = "0.1.0"
+
+[dependencies]
+
+[features]
+std = []

@@ -23,11 +23,6 @@ jobs:
       - name: Install rust toolkit
         uses: ./.github/actions/rust
 
-      - name: Give GitHub Actions access to mozak-vm 
-        uses: webfactory/ssh-agent@v0.8.0
-        with:
-          ssh-private-key: ${{ secrets.MOZAK_VM_DEPLOY_KEY }}
-
       - name: Install cargo-udeps
         run: cargo install --locked cargo-udeps
 

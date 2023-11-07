@@ -1,0 +1,49 @@
+name: Run tests on MacOS
+
+on:
+  push:
+    branches:
+      - release/*
+    tags:
+      - "*"
+
+  # Triggers the workflow every sunday
+  schedule:
+    - cron: "0 18 * * 0"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  cargo-test:
+    runs-on: macos-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install rust toolkit
+        uses: ./.github/actions/rust
+
+      - name: Build ELF(s) for benchmarking
+        run: cd examples/fibonacci && cargo build --release
+
+      - name: Compile
+        run: cargo test --no-run --locked --all-targets
+
+      - name: Test 
+        run: cargo test --locked --all-targets
+
+      - name: Create github issue for failed action
+        uses: imjohnbo/issue-bot@v3
+        if: ${{ failure() }}
+        with:
+          assignees: "jdkanani, matthiasgoergens"
+          labels: "bug, devtools"
+          title: "Tests on MacOS failed"
+          body: |
+            Failed reference github action job: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            The reference ${{ github.ref_type }} ${{ github.ref }} was at commit ${{ github.sha }} when its run failed.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

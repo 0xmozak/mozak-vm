@@ -1,0 +1,5 @@
+#!/bin/sh
+docker buildx build \
+    --file "$(git rev-parse --show-toplevel)/runner/tests/create_testdata/Dockerfile" \
+    --output "$(git rev-parse --show-toplevel)/runner/tests/testdata" \
+    .

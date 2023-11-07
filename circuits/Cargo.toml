@@ -1,0 +1,41 @@
+[package]
+categories = ["cryptography"]
+description = "MozakVM circuits"
+edition = "2021"
+keywords = ["crypto", "zero-knowledge", "vm"]
+license = "All rights reserved"
+name = "mozak-circuits"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-vm"
+version = "0.1.0"
+
+[dependencies]
+anyhow = { version = "1.0", default-features = false }
+bitfield = "0.14.0"
+flexbuffers = "2.0.0"
+itertools = "0.11.0"
+lazy_static = "1.4.0"
+log = "0.4.20"
+mozak-circuits-derive = { path = "./derive" }
+mozak-runner = { path = "../runner" }
+plonky2 = "0.1.3"
+rayon = "1.8.0"
+serde = { version = "1.0", features = ["derive"] }
+starky = "0.1.1"
+thiserror = "1.0.50"
+
+[dev-dependencies]
+criterion = { version = "0.5.1", features = ["html_reports"] }
+env_logger = { version = "0.10.0" }
+hex = "0.4.3"
+im = "15.1.0"
+mozak-runner = { path = "../runner", features = ["test"] }
+proptest = "1.2.0"
+tikv-jemallocator = "0.5"
+
+[features]
+test = []
+
+[[bench]]
+harness = false
+name = "simple_prover"

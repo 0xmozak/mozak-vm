@@ -1,0 +1,19 @@
+[package]
+edition = "2021"
+name = "min-max-mozak-guest"
+version = "0.1.0"
+
+[target.'cfg(target_os="zkvm")'.dependencies.guest]
+path = "../../guest"
+
+[features]
+native = []
+
+[[bin]]
+name = "min-max"
+path = "main.rs"
+
+[[bin]]
+name = "min-max-native"
+path = "main_native.rs"
+required-features = ["native"]
