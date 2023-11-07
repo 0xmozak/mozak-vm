@@ -335,6 +335,7 @@ impl<F: RichField> State<F> {
     ///  # Panics
     ///  Panics if number of requested bytes are more than remaining bytes on
     /// `io_tape`.
+    /// TODO(Matthias): remove that limitation (again).
     #[must_use]
     pub fn read_iobytes(mut self, num_bytes: usize) -> (Vec<u8>, Self) {
         let read_index = self.io_tape.read_index;
