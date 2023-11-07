@@ -185,7 +185,7 @@ where
 
 #[allow(clippy::similar_names)]
 /// Returns the recursive Stark circuit.
-fn recursive_stark_circuit<
+pub fn recursive_stark_circuit<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     S: Stark<F, D>,
