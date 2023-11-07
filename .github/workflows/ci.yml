@@ -48,7 +48,7 @@ jobs:
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
 
-      - name: Run Clippy linter
+      - name: Run Clippy linter for sdk
         working-directory: sdk
         run: cargo clippy --all-features -- -D warnings
 
