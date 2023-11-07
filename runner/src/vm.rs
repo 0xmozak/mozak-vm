@@ -143,17 +143,16 @@ impl<F: RichField> State<F> {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requsted = self.get_register_value(REG_A2);
         let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize, is_public);
-        let op = if is_public {
-            IoOpcode::StorePublic
-        } else {
-            IoOpcode::StorePrivate
-        };
         (
             Aux {
                 dst_val: u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
                 io: Some(IoEntry {
                     addr: buffer_start,
-                    op,
+                    op: if is_public {
+                        IoOpcode::StorePublic
+                    } else {
+                        IoOpcode::StorePrivate
+                    },
                     data: data.clone(),
                 }),
                 ..Default::default()
