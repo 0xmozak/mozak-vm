@@ -13,7 +13,6 @@ use starky::stark::Stark;
 
 use super::columns::{Bitshift, BitshiftView};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::stark::utils::is_binary_ext_circuit;
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -94,34 +93,31 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         let lv: &Bitshift<ExtensionTarget<D>> = &lv.executed;
         let nv: &Bitshift<ExtensionTarget<D>> = &nv.executed;
 
-        let diff = builder.sub_extension(nv.amount, lv.amount);
-        is_binary_ext_circuit(builder, diff, yield_constr);
-
-        // Constraint for the initial amount to be 0
         yield_constr.constraint_first_row(builder, lv.amount);
 
-        // Constraint for the last amount to be 31
+        let diff = builder.sub_extension(nv.amount, lv.amount);
+        let one_extension = builder.one_extension();
+        let diff_sub_one = builder.sub_extension(diff, one_extension);
+        let diff_mul_diff_sub_one = builder.mul_extension(diff, diff_sub_one);
+        yield_constr.constraint_transition(builder, diff_mul_diff_sub_one);
+
         let thirty_one_extension = builder.constant_extension(F::Extension::from_canonical_u8(31));
         let amount_sub_thirty_one = builder.sub_extension(lv.amount, thirty_one_extension);
         yield_constr.constraint_last_row(builder, amount_sub_thirty_one);
 
-        // Constraints for the multiplier
-        // Initial multiplier value set to 1
-        let multiplier_minus_one = builder.sub_extension(lv.multiplier, builder.one_extension());
+        let multiplier_minus_one = builder.sub_extension(lv.multiplier, one_extension);
         yield_constr.constraint_first_row(builder, multiplier_minus_one);
 
-        // Multiplier doubled only if amount is increased
-        let one_plus_diff = builder.add_extension(builder.one_extension(), diff);
+        let one_plus_diff = builder.add_extension(one_extension, diff);
         let either_multiplier = builder.mul_extension(one_plus_diff, lv.multiplier);
         let multiplier_difference = builder.sub_extension(nv.multiplier, either_multiplier);
         yield_constr.constraint_transition(builder, multiplier_difference);
 
         let two_to_thirty_one_extension =
-            builder.constant_extension(F::Extension::from_canonical_u8(1 << 31));
-        yield_constr.constraint_last_row(
-            builder,
-            builder.sub_extension(lv.multiplier, two_to_thirty_one_extension),
-        );
+            builder.constant_extension(F::Extension::from_canonical_u32(1 << 31));
+        let multiplier_sub_two_to_thirty_one =
+            builder.sub_extension(lv.multiplier, two_to_thirty_one_extension);
+        yield_constr.constraint_last_row(builder, multiplier_sub_two_to_thirty_one);
     }
 }
 
