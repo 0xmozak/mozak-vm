@@ -1,5 +1,5 @@
 [workspace]
-members = ["cli", "runner", "circuits"]
+members = ["cli", "runner", "circuits", "system"]
 resolver = "2"
 
 [profile.dev]
