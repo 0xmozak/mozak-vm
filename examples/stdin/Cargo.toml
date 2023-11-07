@@ -7,6 +7,10 @@ version = "0.1.0"
 features = ["std"]
 path = "../../guest"
 
+[target.'cfg(target_os="zkvm")'.dependencies.mozak-system]
+features = []
+path = "../../system"
+
 [features]
 native = []
 

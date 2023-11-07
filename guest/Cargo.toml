@@ -6,6 +6,7 @@ name = "guest"
 version = "0.1.0"
 
 [dependencies]
+mozak-system = { path = "../system" }
 
 [features]
 std = []

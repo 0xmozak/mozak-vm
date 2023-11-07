@@ -109,9 +109,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::system::ecall;
-    use mozak_runner::system::reg_abi::{REG_A0, REG_A1, REG_A2};
     use mozak_runner::test_utils::{simple_test_code_with_io_tape, u32_extra, u8_extra};
+    use mozak_system::system::ecall;
+    use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2};
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
