@@ -66,14 +66,32 @@ pub fn syscall_poseidon2(input_ptr: *const u8, input_len: usize, output_ptr: *mu
     }
 }
 
-pub fn syscall_ioread(buf_ptr: *mut u8, buf_len: usize) {
+pub fn syscall_ioread_private(buf_ptr: *mut u8, buf_len: usize) {
     #[cfg(target_os = "zkvm")]
     unsafe {
         core::arch::asm!(
             "ecall",
-            in ("a0") ecall::IO_READ,
+            in ("a0") ecall::IO_READ_PRIVATE,
             in ("a1") buf_ptr,
             in ("a2") buf_len,
+        );
+    }
+    #[cfg(not(target_os = "zkvm"))]
+    {
+        let _ = buf_ptr;
+        let _ = buf_len;
+        unimplemented!()
+    }
+}
+
+pub fn syscall_ioread_public(buf_ptr: *mut u8, buf_len: usize) {
+    #[cfg(target_os = "zkvm")]
+    unsafe {
+        core::arch::asm!(
+        "ecall",
+        in ("a0") ecall::IO_READ_PUBLIC,
+        in ("a1") buf_ptr,
+        in ("a2") buf_len,
         );
     }
     #[cfg(not(target_os = "zkvm"))]
