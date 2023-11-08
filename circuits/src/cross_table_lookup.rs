@@ -254,10 +254,9 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         let mut ctl_zs = proofs
             .iter()
             .map(|p| {
-                let openings = &p.proof.openings;
                 izip!(
-                    &openings.permutation_ctl_zs,
-                    &openings.permutation_ctl_zs_next
+                    &p.proof.openings.permutation_ctl_zs,
+                    &p.proof.openings.permutation_ctl_zs_next
                 )
             })
             .collect::<Vec<_>>();
@@ -346,12 +345,10 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<Target>,
     ) -> Vec<Self> {
-        let ctl_zs = {
-            izip!(
-                &proof.openings.permutation_ctl_zs,
-                &proof.openings.permutation_ctl_zs_next
-            )
-        };
+        let ctl_zs = izip!(
+            &proof.openings.permutation_ctl_zs,
+            &proof.openings.permutation_ctl_zs_next
+        );
 
         let ctl_chain = cross_table_lookups.iter().flat_map(
             |CrossTableLookup {
