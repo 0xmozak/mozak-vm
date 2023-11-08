@@ -36,6 +36,7 @@ use crate::stark::proof::{
     AllProof, StarkOpeningSetTarget, StarkProof, StarkProofChallengesTarget, StarkProofTarget,
     StarkProofWithMetadata, StarkProofWithPublicInputsTarget,
 };
+use crate::xor::stark::XorStark;
 
 /// Represents a circuit which recursively verifies STARK proofs.
 #[derive(Eq, PartialEq, Debug)]
@@ -106,6 +107,13 @@ where
         let mut inputs = PartialWitness::new();
 
         // TODO: use Macro for different tables
+        let xor_target = &self.targets[TableKind::Xor as usize];
+        xor_target.as_ref().unwrap().set_targets(
+            &mut inputs,
+            &all_proof.proofs_with_metadata[TableKind::Xor as usize],
+            &all_proof.ctl_challenges,
+        );
+
         let shift_amount_target = &self.targets[TableKind::Bitshift as usize];
         shift_amount_target.as_ref().unwrap().set_targets(
             &mut inputs,
@@ -147,6 +155,15 @@ where
     let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
     // TODO: use Macro for different tables
+    let xor_targets = recursive_stark_circuit::<F, C, XorStark<F, D>, D>(
+        &mut builder,
+        TableKind::Xor,
+        &mozak_stark.xor_stark,
+        degree_bits[TableKind::Xor as usize],
+        &mozak_stark.cross_table_lookups,
+        inner_config,
+    );
+
     let shift_amount_targets = recursive_stark_circuit::<F, C, BitshiftStark<F, D>, D>(
         &mut builder,
         TableKind::Bitshift,
@@ -182,6 +199,7 @@ where
     }
 
     let mut targets: [Option<StarkVerifierTargets<F, C, D>>; NUM_TABLES] = Default::default();
+    targets[TableKind::Xor as usize] = Some(xor_targets);
     targets[TableKind::Bitshift as usize] = Some(shift_amount_targets);
     targets[TableKind::Program as usize] = Some(program_targets);
     targets[TableKind::MemoryInit as usize] = Some(memory_init_targets);
