@@ -24,7 +24,7 @@ pub fn generate_shift_amount_trace<F: RichField>(
                 executed: amount.into(),
                 multiplicity: multiplicities[usize::from(amount)],
             }
-            .map(F::from_canonical_u64)
+            .map(F::from_canonical_u32)
         })
         .collect()
 }
