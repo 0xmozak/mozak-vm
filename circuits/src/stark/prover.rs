@@ -30,7 +30,6 @@ use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
-use crate::stark::permutation::compute_permutation_z_polys;
 use crate::stark::poly::compute_quotient_polys;
 use crate::stark::proof::StarkProofWithMetadata;
 
@@ -186,32 +185,14 @@ where
     let init_challenger_state = challenger.compact();
 
     // Permutation arguments.
-    let permutation_challenges: Vec<GrandProductChallengeSet<F>> = challenger
+    let _permutation_challenges: Vec<GrandProductChallengeSet<F>> = challenger
         .get_n_grand_product_challenge_sets(config.num_challenges, stark.permutation_batch_size());
-    let mut permutation_zs = timed!(
-        timing,
-        format!("{stark}: compute permutation Z(x) polys").as_str(),
-        compute_permutation_z_polys::<F, S, D>(
-            stark,
-            config,
-            trace_poly_values,
-            &permutation_challenges
-        )
-    );
-    let num_permutation_zs = permutation_zs.len();
-
-    let z_polys = {
-        permutation_zs.extend(ctl_data.z_polys());
-        permutation_zs
-    };
-    // TODO(Matthias): make the code work with empty z_polys, too.
-    assert!(!z_polys.is_empty(), "No CTL?");
 
     let permutation_ctl_zs_commitment = timed!(
         timing,
         format!("{stark}: compute Zs commitment").as_str(),
         PolynomialBatch::from_values(
-            z_polys,
+            vec![],
             rate_bits,
             false,
             config.fri_config.cap_height,
@@ -235,7 +216,6 @@ where
             ctl_data,
             &alphas,
             degree_bits,
-            num_permutation_zs,
             config,
         )
     );

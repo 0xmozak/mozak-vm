@@ -30,7 +30,6 @@ pub fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     ctl_data: &CtlData<F>,
     alphas: &[F],
     degree_bits: usize,
-    num_permutation_zs: usize,
     config: &StarkConfig,
 ) -> Vec<PolynomialCoeffs<F>>
 where
@@ -102,10 +101,9 @@ where
                 .iter()
                 .enumerate()
                 .map(|(i, zs_columns)| CtlCheckVars::<F, F, P, 1> {
-                    local_z: permutation_ctl_zs_commitment.get_lde_values_packed(i_start, step)
-                        [num_permutation_zs + i],
+                    local_z: permutation_ctl_zs_commitment.get_lde_values_packed(i_start, step)[i],
                     next_z: permutation_ctl_zs_commitment.get_lde_values_packed(i_next_start, step)
-                        [num_permutation_zs + i],
+                        [i],
                     challenges: zs_columns.challenge,
                     columns: &zs_columns.columns,
                     filter_column: &zs_columns.filter_column,
