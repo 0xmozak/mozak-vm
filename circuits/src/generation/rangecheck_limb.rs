@@ -21,6 +21,9 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<RangeCheckLimb<F>>) -> Vec<RangeCh
     trace
 }
 
+/// Generate a limb lookup trace from `rangecheck_trace`
+///
+/// This is used by cpu trace to do direct u8 lookups
 #[must_use]
 pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],

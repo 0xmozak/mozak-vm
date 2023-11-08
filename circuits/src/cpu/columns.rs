@@ -21,6 +21,7 @@ pub struct OpSelectors<T> {
     pub div: T,
     pub rem: T,
     pub mul: T,
+    // MUL High: Multiply two values, and return most significant 'overflow' bits
     pub mulh: T,
     /// Shift Left Logical by amount
     pub sll: T,
@@ -38,12 +39,16 @@ pub struct OpSelectors<T> {
     pub bne: T,
     /// Store Byte
     pub sb: T,
+    /// Store Half Word
     pub sh: T,
+    /// Store Word
     pub sw: T,
     /// Load Byte Unsigned and places it in the least significant byte position
     /// of the target register.
     pub lb: T,
+    /// Load Half Word
     pub lh: T,
+    /// Load Word
     pub lw: T,
     /// Branch Less Than
     pub blt: T,
@@ -54,6 +59,7 @@ pub struct OpSelectors<T> {
 }
 
 columns_view_impl!(Instruction);
+/// Internal [Instruction] of Stark used for transition constrains
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Instruction<T> {
@@ -77,6 +83,7 @@ pub struct Instruction<T> {
 }
 
 columns_view_impl!(CpuState);
+/// Represents the State of the CPU, which is also a row of the trace
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct CpuState<T> {
