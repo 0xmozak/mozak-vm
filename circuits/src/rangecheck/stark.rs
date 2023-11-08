@@ -1,6 +1,6 @@
-use std::fmt::Display;
 use std::marker::PhantomData;
 
+use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -12,10 +12,8 @@ use starky::stark::Stark;
 
 use super::columns::{self, RangeCheckColumnsView};
 use crate::columns_view::HasNamedColumns;
-use crate::display::derive_display_stark_name;
 
-derive_display_stark_name!(RangeCheckStark);
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RangeCheckStark<F, const D: usize> {
     pub _f: PhantomData<F>,
@@ -73,13 +71,13 @@ mod tests {
 
     #[test]
     fn test_rangecheck_stark_big_trace() {
-        let inst = 0x0073_02b3 /* add r5, r6, r7 */;
+        let inst = 1;
 
-        let mut mem = vec![];
         let u16max = u32::from(u16::MAX);
-        for i in (0..=u16max).step_by(23) {
-            mem.push((i * 4, inst));
-        }
+        let mem = (0..=u16max)
+            .step_by(23)
+            .map(|i| (i, inst))
+            .collect::<Vec<_>>();
         let (program, record) = simple_test_code(
             &[Instruction {
                 op: Op::ADD,

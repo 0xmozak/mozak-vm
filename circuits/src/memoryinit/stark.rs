@@ -1,6 +1,6 @@
-use std::fmt::Display;
 use std::marker::PhantomData;
 
+use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -12,11 +12,9 @@ use starky::stark::Stark;
 
 use super::columns::MemoryInit;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::display::derive_display_stark_name;
-use crate::stark::utils::is_binary;
+use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
-derive_display_stark_name!(MemoryInitStark);
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct MemoryInitStark<F, const D: usize> {
     pub _f: PhantomData<F>,
@@ -51,12 +49,34 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryInitSta
 
     fn eval_ext_circuit(
         &self,
-        _builder: &mut CircuitBuilder<F, D>,
-        _vars: &Self::EvaluationFrameTarget,
-        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        unimplemented!()
+        let lv: &MemoryInit<ExtensionTarget<D>> = vars.get_local_values().try_into().unwrap();
+        is_binary_ext_circuit(builder, lv.filter, yield_constr);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
+}
+
+#[cfg(test)]
+mod tests {
+    use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
+    use starky::stark_testing::test_stark_circuit_constraints;
+
+    use super::*;
+
+    const D: usize = 2;
+    type C = Poseidon2GoldilocksConfig;
+    type F = <C as GenericConfig<D>>::F;
+    type S = MemoryInitStark<F, D>;
+
+    #[test]
+    fn test_circuit() -> anyhow::Result<()> {
+        let stark = S::default();
+        test_stark_circuit_constraints::<F, C, S, D>(stark)?;
+
+        Ok(())
+    }
 }

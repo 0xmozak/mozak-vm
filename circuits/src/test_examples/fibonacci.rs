@@ -21,7 +21,7 @@ fn test_fibonacci() {
             eg. `cd examples/fibonacci && cargo build --release`",
     );
     let program = Program::load_elf(&elf).unwrap();
-    let state = State::<GoldilocksField>::new(program.clone(), &[]);
+    let state = State::<GoldilocksField>::new(program.clone(), &[], &[]);
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record).unwrap();
 }

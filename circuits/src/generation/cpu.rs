@@ -4,9 +4,9 @@ use itertools::{chain, Itertools};
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Instruction, Op};
 use mozak_runner::state::{Aux, IoEntry, IoOpcode, State};
-use mozak_runner::system::ecall;
-use mozak_runner::system::reg_abi::REG_A0;
 use mozak_runner::vm::{ExecutionRecord, Row};
+use mozak_system::system::ecall;
+use mozak_system::system::reg_abi::REG_A0;
 use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;
@@ -77,6 +77,13 @@ pub fn generate_cpu_trace<F: RichField>(
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
+            is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
+            poseidon2_input_addr: F::from_canonical_u32(
+                aux.poseidon2.clone().unwrap_or_default().addr,
+            ),
+            poseidon2_input_len: F::from_canonical_u32(
+                aux.poseidon2.clone().unwrap_or_default().len,
+            ),
             io_addr: F::from_canonical_u32(io.addr),
             io_size: F::from_canonical_usize(io.data.len()),
             is_io_store: F::from_bool(matches!((inst.op, io.op), (Op::ECALL, IoOpcode::Store))),

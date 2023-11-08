@@ -6,8 +6,8 @@
 pub mod decode;
 pub mod elf;
 pub mod instruction;
+pub mod poseidon2;
 pub mod state;
-pub mod system;
 #[cfg(any(feature = "test", test))]
 pub mod test_utils;
 pub mod util;

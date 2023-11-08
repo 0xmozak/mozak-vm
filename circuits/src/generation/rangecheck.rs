@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::ops::Index;
 
 use itertools::Itertools;
@@ -5,6 +6,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
 use crate::memory::columns::Memory;
+use crate::multiplicity_view::MultiplicityView;
 use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
 use crate::utils::pad_trace_with_default;
@@ -42,30 +44,49 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     memory_trace: &[Memory<F>],
 ) -> Vec<RangeCheckColumnsView<F>> {
-    pad_trace_with_default(
-        RangecheckTable::lookups()
-            .looking_tables
+    let mut trace: Vec<RangeCheckColumnsView<F>> = vec![];
+    let mut multiplicities: BTreeMap<u32, u64> = BTreeMap::new();
+
+    RangecheckTable::lookups()
+        .looking_tables
+        .into_iter()
+        .for_each(|looking_table| {
+            match looking_table.kind {
+                TableKind::Cpu => extract(cpu_trace, &looking_table),
+                TableKind::Memory => extract(memory_trace, &looking_table),
+                other => unimplemented!("Can't range check {other:#?} tables"),
+            }
             .into_iter()
-            .flat_map(|looking_table| {
-                match looking_table.kind {
-                    TableKind::Cpu => extract(cpu_trace, &looking_table),
-                    TableKind::Memory => extract(memory_trace, &looking_table),
-                    other => unimplemented!("Can't range check {other:#?} tables"),
-                }
-                .into_iter()
-                .map(move |val| {
+            .for_each(|v| {
+                let val = u32::try_from(v.to_canonical_u64())
+                    .expect("casting value to u32 should succeed");
+
+                multiplicities
+                    .entry(val)
+                    .and_modify(|e| *e += 1)
+                    .or_insert(1);
+
+                // TODO(bing): remove this push once we completely switch to logUp.
+                // trace gen should only involve non-duplicate values and its
+                // multiplicity, and we will enforce a cross-table logup from the
+                // CPU and Memory tables.
+                trace.push(
                     RangeCheckColumnsView {
-                        limbs: limbs_from_u32(
-                            u32::try_from(val.to_canonical_u64())
-                                .expect("casting value to u32 should succeed"),
-                        ),
+                        limbs: limbs_from_u32(val),
                         filter: 1,
+                        multiplicity_view: MultiplicityView::default(),
                     }
-                    .map(F::from_canonical_u8)
-                })
-            })
-            .collect(),
-    )
+                    .map(F::from_canonical_u8),
+                );
+            });
+        });
+
+    for (i, (value, multiplicity)) in multiplicities.into_iter().enumerate() {
+        trace[i].multiplicity_view.value = F::from_canonical_u32(value);
+        trace[i].multiplicity_view.multiplicity = F::from_canonical_u64(multiplicity);
+    }
+
+    pad_trace_with_default(trace)
 }
 
 #[cfg(test)]
@@ -82,23 +103,23 @@ mod tests {
     use crate::generation::io_memory::generate_io_memory_trace;
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
+    use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
 
     #[test]
-    fn test_add_instruction_inserts_rangecheck() {
+    fn test_generate_trace() {
         type F = GoldilocksField;
         let (program, record) = simple_test_code(
             &[Instruction {
-                op: Op::ADD,
+                op: Op::SB,
                 args: Args {
-                    rd: 5,
-                    rs1: 6,
-                    rs2: 7,
+                    rs1: 1,
+                    imm: u32::MAX,
                     ..Args::default()
                 },
             }],
             // Use values that would become limbs later
             &[],
-            &[(6, 0xffff), (7, 0xffff)],
+            &[(1, u32::MAX)],
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&program, &record);
@@ -106,6 +127,7 @@ mod tests {
         let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(&program, &record.executed);
         let io_memory = generate_io_memory_trace(&program, &record.executed);
+        let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let memory_rows = generate_memory_trace::<F>(
             &program,
             &record.executed,
@@ -113,16 +135,22 @@ mod tests {
             &halfword_memory,
             &fullword_memory,
             &io_memory,
+            &poseidon2_trace,
         );
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
-
-        // Check values that we are interested in
-        assert_eq!(trace[0].filter, F::ONE);
-        assert_eq!(trace[1].filter, F::ONE);
-        assert_eq!(trace[0].limbs[0], GoldilocksField(0xfe));
-        assert_eq!(trace[0].limbs[1], GoldilocksField(0xff));
-        assert_eq!(trace[0].limbs[2], GoldilocksField(0x01));
-        assert_eq!(trace[0].limbs[3], GoldilocksField(0x00));
-        assert_eq!(trace[1].limbs[0], GoldilocksField(0));
+        assert_eq!(trace.len(), 4, "Unexpected trace len {}", trace.len());
+        for (i, row) in trace.iter().enumerate() {
+            match i {
+                0 => {
+                    assert_eq!(row.multiplicity_view.value, F::ZERO);
+                    assert_eq!(row.multiplicity_view.multiplicity, F::TWO);
+                }
+                1 => {
+                    assert_eq!(row.multiplicity_view.value, F::from_canonical_u32(u32::MAX));
+                    assert_eq!(row.multiplicity_view.multiplicity, F::TWO);
+                }
+                _ => {}
+            }
+        }
     }
 }

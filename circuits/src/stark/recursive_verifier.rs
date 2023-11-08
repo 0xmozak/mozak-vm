@@ -26,44 +26,54 @@ use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
 use crate::cross_table_lookup::{CrossTableLookup, CtlCheckVarsTarget};
-use crate::stark::mozak_stark::TableKind;
+use crate::memoryinit::stark::MemoryInitStark;
+use crate::program::stark::ProgramStark;
+use crate::stark::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::permutation::PermutationCheckDataTarget;
 use crate::stark::poly::eval_vanishing_poly_circuit;
 use crate::stark::proof::{
-    StarkOpeningSetTarget, StarkProof, StarkProofChallengesTarget, StarkProofTarget,
+    AllProof, StarkOpeningSetTarget, StarkProof, StarkProofChallengesTarget, StarkProofTarget,
     StarkProofWithMetadata, StarkProofWithPublicInputsTarget,
 };
 
-/// Represents a circuit which recursively verifies a STARK proof.
+/// Represents a circuit which recursively verifies STARK proofs.
 #[derive(Eq, PartialEq, Debug)]
-pub struct StarkWrapperCircuit<F, C, const D: usize>
+pub struct MozakStarkVerifierCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>, {
     pub circuit: CircuitData<F, C, D>,
+    pub targets: [Option<StarkVerifierTargets<F, C, D>>; NUM_TABLES],
+}
+
+#[derive(Eq, PartialEq, Debug)]
+pub struct StarkVerifierTargets<F, C, const D: usize>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    C::Hasher: AlgebraicHasher<F>, {
     pub stark_proof_target: StarkProofTarget<D>,
     pub ctl_challenges_target: GrandProductChallengeSet<Target>,
     pub init_challenger_state_target: <C::Hasher as AlgebraicHasher<F>>::AlgebraicPermutation,
     pub zero_target: Target,
 }
 
-impl<F, C, const D: usize> StarkWrapperCircuit<F, C, D>
+impl<F, C, const D: usize> StarkVerifierTargets<F, C, D>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>,
 {
-    pub fn prove(
+    pub fn set_targets(
         &self,
+        witness: &mut PartialWitness<F>,
         proof_with_metadata: &StarkProofWithMetadata<F, C, D>,
         ctl_challenges: &GrandProductChallengeSet<F>,
-    ) -> Result<ProofWithPublicInputs<F, C, D>> {
-        let mut inputs = PartialWitness::new();
-
+    ) {
         set_stark_proof_target(
-            &mut inputs,
+            witness,
             &self.stark_proof_target,
             &proof_with_metadata.proof,
             self.zero_target,
@@ -75,17 +85,92 @@ where
             .iter()
             .zip(&ctl_challenges.challenges)
         {
-            inputs.set_target(challenge_target.beta, challenge.beta);
-            inputs.set_target(challenge_target.gamma, challenge.gamma);
+            witness.set_target(challenge_target.beta, challenge.beta);
+            witness.set_target(challenge_target.gamma, challenge.gamma);
         }
 
-        inputs.set_target_arr(
+        witness.set_target_arr(
             self.init_challenger_state_target.as_ref(),
             proof_with_metadata.init_challenger_state.as_ref(),
+        );
+    }
+}
+
+impl<F, C, const D: usize> MozakStarkVerifierCircuit<F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    C::Hasher: AlgebraicHasher<F>,
+{
+    pub fn prove(&self, all_proof: &AllProof<F, C, D>) -> Result<ProofWithPublicInputs<F, C, D>> {
+        let mut inputs = PartialWitness::new();
+
+        // TODO: use Macro for different tables
+        let program_target = &self.targets[TableKind::Program as usize];
+        program_target.as_ref().unwrap().set_targets(
+            &mut inputs,
+            &all_proof.proofs_with_metadata[TableKind::Program as usize],
+            &all_proof.ctl_challenges,
+        );
+
+        let memory_init_target = &self.targets[TableKind::MemoryInit as usize];
+        memory_init_target.as_ref().unwrap().set_targets(
+            &mut inputs,
+            &all_proof.proofs_with_metadata[TableKind::MemoryInit as usize],
+            &all_proof.ctl_challenges,
         );
 
         self.circuit.prove(inputs)
     }
+}
+
+pub fn recursive_all_stark_circuit<
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    const D: usize,
+>(
+    all_stark: &MozakStark<F, D>,
+    degree_bits: usize,
+    circuit_config: &CircuitConfig,
+    inner_config: &StarkConfig,
+    min_degree_bits: usize,
+) -> MozakStarkVerifierCircuit<F, C, D>
+where
+    C::Hasher: AlgebraicHasher<F>, {
+    let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
+
+    // TODO: use Macro for different tables
+    let program_targets = recursive_stark_circuit::<F, C, ProgramStark<F, D>, D>(
+        &mut builder,
+        TableKind::Program,
+        &all_stark.program_stark,
+        degree_bits,
+        &all_stark.cross_table_lookups,
+        inner_config,
+    );
+
+    let memory_init_targets = recursive_stark_circuit::<F, C, MemoryInitStark<F, D>, D>(
+        &mut builder,
+        TableKind::MemoryInit,
+        &all_stark.memory_init_stark,
+        degree_bits,
+        &all_stark.cross_table_lookups,
+        inner_config,
+    );
+
+    add_common_recursion_gates(&mut builder);
+
+    // Pad to the minimum degree.
+    while log2_ceil(builder.num_gates()) < min_degree_bits {
+        builder.add_gate(NoopGate, vec![]);
+    }
+
+    let mut targets: [Option<StarkVerifierTargets<F, C, D>>; NUM_TABLES] = Default::default();
+    targets[TableKind::Program as usize] = Some(program_targets);
+    targets[TableKind::MemoryInit as usize] = Some(memory_init_targets);
+
+    let circuit = builder.build();
+    MozakStarkVerifierCircuit { circuit, targets }
 }
 
 #[allow(clippy::similar_names)]
@@ -96,30 +181,23 @@ pub fn recursive_stark_circuit<
     S: Stark<F, D>,
     const D: usize,
 >(
+    builder: &mut CircuitBuilder<F, D>,
     table: TableKind,
     stark: &S,
     degree_bits: usize,
     cross_table_lookups: &[CrossTableLookup<F>],
     inner_config: &StarkConfig,
-    circuit_config: &CircuitConfig,
-    min_degree_bits: usize,
-) -> StarkWrapperCircuit<F, C, D>
+) -> StarkVerifierTargets<F, C, D>
 where
     C::Hasher: AlgebraicHasher<F>, {
-    let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
     let zero_target = builder.zero();
 
     let num_permutation_zs = stark.num_permutation_batches(inner_config);
     let num_permutation_batch_size = stark.permutation_batch_size();
     let num_ctl_zs =
         CrossTableLookup::num_ctl_zs(cross_table_lookups, table, inner_config.num_challenges);
-    let proof_target = add_virtual_stark_proof_with_pis(
-        &mut builder,
-        stark,
-        inner_config,
-        degree_bits,
-        num_ctl_zs,
-    );
+    let proof_target =
+        add_virtual_stark_proof_with_pis(builder, stark, inner_config, degree_bits, num_ctl_zs);
     builder.register_public_inputs(
         &proof_target
             .proof
@@ -154,18 +232,18 @@ where
     let mut challenger =
         RecursiveChallenger::<F, C::Hasher, D>::from_state(init_challenger_state_target);
     let challenges = proof_target.proof.get_challenges::<F, C>(
-        &mut builder,
+        builder,
         &mut challenger,
         num_permutation_batch_size,
         inner_config,
     );
-    let challenger_state = challenger.compact(&mut builder);
+    let challenger_state = challenger.compact(builder);
     builder.register_public_inputs(challenger_state.as_ref());
 
     builder.register_public_inputs(&proof_target.proof.openings.ctl_zs_last);
 
     verify_stark_proof_with_challenges_circuit::<F, C, _, D>(
-        &mut builder,
+        builder,
         stark,
         &proof_target,
         &challenges,
@@ -173,16 +251,7 @@ where
         inner_config,
     );
 
-    add_common_recursion_gates(&mut builder);
-
-    // Pad to the minimum degree.
-    while log2_ceil(builder.num_gates()) < min_degree_bits {
-        builder.add_gate(NoopGate, vec![]);
-    }
-
-    let circuit = builder.build::<C>();
-    StarkWrapperCircuit {
-        circuit,
+    StarkVerifierTargets {
         stark_proof_target: proof_target.proof,
         ctl_challenges_target,
         init_challenger_state_target,
@@ -442,18 +511,16 @@ mod tests {
     use plonky2::util::timing::TimingTree;
     use starky::config::StarkConfig;
 
-    use crate::program::stark::ProgramStark;
     use crate::stark::mozak_stark::{MozakStark, PublicInputs, TableKind};
     use crate::stark::prover::prove;
-    use crate::stark::recursive_verifier::recursive_stark_circuit;
+    use crate::stark::recursive_verifier::recursive_all_stark_circuit;
     use crate::stark::verifier::verify_proof;
     use crate::test_utils::{C, D, F};
     use crate::utils::from_u32;
 
     #[test]
-    fn recursive_verify_program_stark() -> Result<()> {
+    fn recursive_verify_all_starks() -> Result<()> {
         type S = MozakStark<F, D>;
-        type PS = ProgramStark<F, D>;
         let stark = S::default();
         let mut config = StarkConfig::standard_fast_config();
         config.fri_config.cap_height = 1;
@@ -488,20 +555,16 @@ mod tests {
         let degree_bits = all_proof.proofs_with_metadata[TableKind::Program as usize]
             .proof
             .recover_degree_bits(&config);
-        let stark_wrapper = recursive_stark_circuit::<F, C, PS, D>(
-            TableKind::Program,
-            &stark.program_stark,
+
+        let all_stark_circuit = recursive_all_stark_circuit::<F, C, D>(
+            &stark,
             degree_bits,
-            &stark.cross_table_lookups,
-            &config,
             &circuit_config,
+            &config,
             12,
         );
 
-        let recursive_proof = stark_wrapper.prove(
-            &all_proof.proofs_with_metadata[TableKind::Program as usize],
-            &all_proof.ctl_challenges,
-        )?;
-        stark_wrapper.circuit.verify(recursive_proof)
+        let recursive_proof = all_stark_circuit.prove(&all_proof)?;
+        all_stark_circuit.circuit.verify(recursive_proof)
     }
 }

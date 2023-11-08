@@ -1,4 +1,4 @@
-use im::hashmap::HashMap;
+use mozak_system::system::ecall;
 use plonky2::field::goldilocks_field::GoldilocksField;
 #[cfg(any(feature = "test", test))]
 use proptest::prelude::any;
@@ -10,7 +10,6 @@ use proptest::strategy::{Just, Strategy};
 use crate::elf::{Code, Data, Program};
 use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
-use crate::system::ecall;
 use crate::vm::{step, ExecutionRecord};
 
 /// Returns the state just before the final state
@@ -24,8 +23,8 @@ pub fn state_before_final(e: &ExecutionRecord<GoldilocksField>) -> &State<Goldil
 #[allow(clippy::similar_names)]
 pub fn simple_test_code_with_ro_memory(
     code: &[Instruction],
-    ro_mem: &[(u32, u32)],
-    rw_mem: &[(u32, u32)],
+    ro_mem: &[(u32, u8)],
+    rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
     io_tape: &[u8],
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
@@ -60,13 +59,13 @@ pub fn simple_test_code_with_ro_memory(
     );
 
     let program = Program {
-        ro_memory: Data::from(ro_mem.iter().copied().collect::<HashMap<u32, u32>>()),
-        rw_memory: Data::from(rw_mem.iter().copied().collect::<HashMap<u32, u32>>()),
+        ro_memory: Data(ro_mem.iter().copied().collect()),
+        rw_memory: Data(rw_mem.iter().copied().collect()),
         ro_code,
         ..Default::default()
     };
-
-    let state0 = State::new(program.clone(), io_tape);
+    // TODO(Roman): fixme - extend function API to support public-io
+    let state0 = State::new(program.clone(), io_tape, &[]);
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
         state.set_register_value(*rs, *val)
@@ -81,7 +80,7 @@ pub fn simple_test_code_with_ro_memory(
 #[allow(clippy::missing_panics_doc)]
 pub fn simple_test_code(
     code: &[Instruction],
-    rw_mem: &[(u32, u32)],
+    rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
     simple_test_code_with_ro_memory(code, &[], rw_mem, regs, &[])
@@ -91,7 +90,7 @@ pub fn simple_test_code(
 #[allow(clippy::missing_panics_doc)]
 pub fn simple_test_code_with_io_tape(
     code: &[Instruction],
-    rw_mem: &[(u32, u32)],
+    rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
     io_tapes: &[u8],
 ) -> (Program, ExecutionRecord<GoldilocksField>) {

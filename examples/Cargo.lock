@@ -106,6 +106,9 @@ dependencies = [
 [[package]]
 name = "guest"
 version = "0.1.0"
+dependencies = [
+ "mozak-system",
+]
 
 [[package]]
 name = "hashbrown"
@@ -154,6 +157,10 @@ version = "0.1.0"
 dependencies = [
  "guest",
 ]
+
+[[package]]
+name = "mozak-system"
+version = "0.1.0"
 
 [[package]]
 name = "once_cell"
@@ -297,6 +304,7 @@ name = "stdin-mozak-guest"
 version = "0.1.0"
 dependencies = [
  "guest",
+ "mozak-system",
 ]
 
 [[package]]
