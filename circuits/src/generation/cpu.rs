@@ -37,8 +37,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     chain!(transpose_trace(cpu_trace), transpose_trace(permuted)).collect()
 }
 
-/// Generate a vector of [`CpuState`] used for STARK constraints, where each
-/// [`CpuState`] represent a row of the trace
+/// Converting each row of the `record` to a row represented by [`CpuState`]
 pub fn generate_cpu_trace<F: RichField>(
     program: &Program,
     record: &ExecutionRecord<F>,
