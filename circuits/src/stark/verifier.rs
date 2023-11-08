@@ -16,7 +16,6 @@ use starky::stark::{LookupConfig, Stark};
 use super::mozak_stark::{MozakStark, TableKind};
 use super::proof::AllProof;
 use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
-use crate::stark::permutation::PermutationCheckVars;
 use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
 
@@ -130,8 +129,8 @@ where
     let StarkOpeningSet {
         local_values,
         next_values,
-        permutation_ctl_zs,
-        permutation_ctl_zs_next,
+        permutation_ctl_zs: _,
+        permutation_ctl_zs_next: _,
         ctl_zs_last,
         quotient_polys,
     } = &proof.openings;
@@ -159,17 +158,11 @@ where
         l_0,
         l_last,
     );
-    let num_permutation_zs = stark.num_permutation_batches(config);
-    let permutation_data = PermutationCheckVars {
-        local_zs: permutation_ctl_zs[..num_permutation_zs].to_vec(),
-        next_zs: permutation_ctl_zs_next[..num_permutation_zs].to_vec(),
-        permutation_challenge_sets: challenges.permutation_challenge_sets.clone(),
-    };
+    let _num_permutation_zs = stark.num_permutation_batches(config);
     eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
         stark,
         config,
         &vars,
-        permutation_data,
         ctl_vars,
         &mut consumer,
     );

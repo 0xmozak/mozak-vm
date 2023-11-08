@@ -5,7 +5,7 @@
 
 use std::fmt::Debug;
 
-use itertools::{izip, Itertools};
+use itertools::Itertools;
 use plonky2::field::batch_util::batch_multiply_inplace;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -13,16 +13,10 @@ use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
-use plonky2::iop::ext_target::ExtensionTarget;
-use plonky2::iop::target::Target;
-use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::Hasher;
 use plonky2::plonk::plonk_common::reduce_with_powers;
-use plonky2::util::reducing::{ReducingFactor, ReducingFactorTarget};
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
-use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::permutation::PermutationPair;
 use starky::stark::Stark;
 
@@ -355,171 +349,4 @@ fn poly_product_elementwise<F: Field>(
         batch_multiply_inplace(&mut product.values, &poly.values);
     }
     product
-}
-
-pub struct PermutationCheckVars<F, FE, P, const D2: usize>
-where
-    F: Field,
-    FE: FieldExtension<D2, BaseField = F>,
-    P: PackedField<Scalar = FE>, {
-    pub(crate) local_zs: Vec<P>,
-    pub(crate) next_zs: Vec<P>,
-    pub(crate) permutation_challenge_sets: Vec<GrandProductChallengeSet<F>>,
-}
-
-pub(crate) fn eval_permutation_checks<F, FE, P, S, const D: usize, const D2: usize>(
-    stark: &S,
-    config: &StarkConfig,
-    vars: &S::EvaluationFrame<FE, P, D2>,
-    permutation_vars: PermutationCheckVars<F, FE, P, D2>,
-    consumer: &mut ConstraintConsumer<P>,
-) where
-    F: RichField + Extendable<D>,
-    FE: FieldExtension<D2, BaseField = F>,
-    P: PackedField<Scalar = FE>,
-    S: Stark<F, D>, {
-    let PermutationCheckVars {
-        local_zs,
-        next_zs,
-        permutation_challenge_sets,
-    } = permutation_vars;
-
-    // Check that Z(1) = 1
-    // This is how we should have initiated the Z(x) polynomial.
-    for &z in &local_zs {
-        consumer.constraint_first_row(z - FE::ONE);
-    }
-
-    let permutation_pairs = stark.permutation_pairs();
-
-    // Split the permutation pairs into batches to reduce the number of
-    // constraints.
-    let permutation_batches = get_permutation_batches(
-        &permutation_pairs,
-        &permutation_challenge_sets,
-        config.num_challenges,
-        stark.permutation_batch_size(),
-    );
-
-    // For each batch we check that the permutation constraints indeed hold.
-    for (i, instances) in permutation_batches.iter().enumerate() {
-        // Calculate the reduced polynomials evaluation. The reduced polynomial securely
-        // combines polynomials of all pairs of `(column, permuted column)` that are on
-        // the same permutation into one polynomial pair.
-        //
-        // This differs from the [`permutation_reduced_polys`] function as instead of
-        // working on polynomials, we are now operating on their evaluation at a
-        // challenge point.
-        let (reduced_lhs, reduced_rhs): (Vec<P>, Vec<P>) = instances
-            .iter()
-            .map(|instance| {
-                let PermutationInstance {
-                    pair: PermutationPair { column_pairs },
-                    challenge: GrandProductChallenge { beta, gamma },
-                } = instance;
-                let mut factor = ReducingFactor::new(*beta);
-                let (lhs, rhs): (Vec<_>, Vec<_>) = column_pairs
-                    .iter()
-                    .map(|&(i, j)| (vars.get_local_values()[i], vars.get_local_values()[j]))
-                    .unzip();
-                (
-                    factor.reduce_ext(lhs.into_iter()) + FE::from_basefield(*gamma),
-                    factor.reduce_ext(rhs.into_iter()) + FE::from_basefield(*gamma),
-                )
-            })
-            .unzip();
-        // Check that Z(x) has been calculated correctly, that is:
-        //  Z(gx) = Z(x) * \prod ( reduced_lhs_i(x) / reduced_rhs_i(x) )
-        // For convenience, we have rearranged the equation to:
-        //  Z(gx) * \prod ( reduced_rhs_i(x) ) - Z(x) *  \prod ( reduced_lhs_i(x) ) = 0
-        let constraint = next_zs[i] * reduced_rhs.into_iter().product::<P>()
-            - local_zs[i] * reduced_lhs.into_iter().product::<P>();
-        consumer.constraint(constraint);
-    }
-}
-
-pub struct PermutationCheckDataTarget<const D: usize> {
-    pub local_zs: Vec<ExtensionTarget<D>>,
-    pub next_zs: Vec<ExtensionTarget<D>>,
-    pub permutation_challenge_sets: Vec<GrandProductChallengeSet<Target>>,
-}
-
-#[allow(clippy::similar_names)]
-pub fn eval_permutation_checks_circuit<F, S, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    stark: &S,
-    config: &StarkConfig,
-    vars: &S::EvaluationFrameTarget,
-    permutation_data: PermutationCheckDataTarget<D>,
-    consumer: &mut RecursiveConstraintConsumer<F, D>,
-) where
-    F: RichField + Extendable<D>,
-    S: Stark<F, D>, {
-    let PermutationCheckDataTarget {
-        local_zs,
-        next_zs,
-        permutation_challenge_sets,
-    } = permutation_data;
-
-    let one = builder.one_extension();
-
-    // Check that Z(1) = 1;
-    for &z in &local_zs {
-        let z_1 = builder.sub_extension(z, one);
-        consumer.constraint_first_row(builder, z_1);
-    }
-
-    let permutation_pairs = stark.permutation_pairs();
-    let permutation_batches = get_permutation_batches(
-        &permutation_pairs,
-        &permutation_challenge_sets,
-        config.num_challenges,
-        stark.permutation_batch_size(),
-    );
-
-    for (local_z, next_z, instances) in izip!(local_zs, next_zs, permutation_batches) {
-        let (reduced_lhs_all, reduced_rhs_all): (Vec<_>, Vec<_>) = instances
-            .into_iter()
-            .map(|instance| process_instance::<F, S, D>(builder, vars, &instance))
-            .unzip();
-        // Apply constraint:
-        // next_zs[i] * reduced_rhs_product - local_zs[i] * reduced_lhs_product
-        let reduced_lhs_product = builder.mul_many_extension(reduced_lhs_all);
-        let reduced_rhs_product = builder.mul_many_extension(reduced_rhs_all);
-
-        let tmp = builder.mul_extension(local_z, reduced_lhs_product);
-        let constraint = builder.mul_sub_extension(next_z, reduced_rhs_product, tmp);
-        consumer.constraint(builder, constraint);
-    }
-}
-
-fn process_instance<F, S, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    vars: &<S as Stark<F, D>>::EvaluationFrameTarget,
-    instance: &PermutationInstance<Target>,
-) -> (ExtensionTarget<D>, ExtensionTarget<D>)
-where
-    F: RichField + Extendable<D>,
-    S: Stark<F, D>, {
-    let PermutationInstance {
-        pair: PermutationPair { column_pairs },
-        challenge: GrandProductChallenge { beta, gamma },
-    } = instance;
-
-    let beta_ext = builder.convert_to_ext(*beta);
-    let gamma_ext = builder.convert_to_ext(*gamma);
-    let mut factor = ReducingFactorTarget::new(beta_ext);
-
-    let (lhs_vals, rhs_vals): (Vec<_>, Vec<_>) = column_pairs
-        .iter()
-        .map(|&(i, j)| (vars.get_local_values()[i], vars.get_local_values()[j]))
-        .unzip();
-
-    let reduced_lhs = factor.reduce(&lhs_vals, builder);
-    let reduced_rhs = factor.reduce(&rhs_vals, builder);
-
-    (
-        builder.add_extension(reduced_lhs, gamma_ext),
-        builder.add_extension(reduced_rhs, gamma_ext),
-    )
 }

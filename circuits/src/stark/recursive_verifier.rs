@@ -30,7 +30,6 @@ use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::stark::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
-use crate::stark::permutation::PermutationCheckDataTarget;
 use crate::stark::poly::eval_vanishing_poly_circuit;
 use crate::stark::proof::{
     AllProof, StarkOpeningSetTarget, StarkProof, StarkProofChallengesTarget, StarkProofTarget,
@@ -292,8 +291,8 @@ fn verify_stark_proof_with_challenges_circuit<
     let StarkOpeningSetTarget {
         local_values,
         next_values,
-        permutation_ctl_zs,
-        permutation_ctl_zs_next,
+        permutation_ctl_zs: _,
+        permutation_ctl_zs_next: _,
         ctl_zs_last,
         quotient_polys,
     } = &proof_with_public_inputs.proof.openings;
@@ -326,12 +325,7 @@ fn verify_stark_proof_with_challenges_circuit<
         l_last,
     );
 
-    let num_permutation_zs = stark.num_permutation_batches(inner_config);
-    let permutation_data = PermutationCheckDataTarget {
-        local_zs: permutation_ctl_zs[..num_permutation_zs].to_vec(),
-        next_zs: permutation_ctl_zs_next[..num_permutation_zs].to_vec(),
-        permutation_challenge_sets: challenges.permutation_challenge_sets.clone(),
-    };
+    let _num_permutation_zs = stark.num_permutation_batches(inner_config);
 
     with_context!(
         builder,
@@ -341,7 +335,6 @@ fn verify_stark_proof_with_challenges_circuit<
             stark,
             inner_config,
             &vars,
-            permutation_data,
             ctl_vars,
             &mut consumer,
         )
