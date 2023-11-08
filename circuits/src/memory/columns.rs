@@ -14,6 +14,8 @@ use crate::memoryinit::columns::MemoryInit;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::stark::mozak_stark::{MemoryTable, Table};
 
+/// Represents a row of the memory trace that is transformed from read-only,
+/// read-write, halfword and fullword memories
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct Memory<T> {
