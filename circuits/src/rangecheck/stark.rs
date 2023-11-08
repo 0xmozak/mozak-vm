@@ -48,7 +48,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &RangeCheckColumnsView<P> = vars.get_local_values().try_into().unwrap();
+        let lv: &RangeCheckColumnsView<P> = vars.get_local_values().into();
 
         let reduced_limb: P = (0..4)
             .map(|limb| lv.limbs[limb] * FE::from_canonical_u32(1 << (8 * limb)))
