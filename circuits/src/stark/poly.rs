@@ -19,7 +19,6 @@ use crate::cross_table_lookup::{
     eval_cross_table_lookup_checks, eval_cross_table_lookup_checks_circuit, CtlCheckVars,
     CtlCheckVarsTarget, CtlData,
 };
-use crate::stark::permutation::challenge::GrandProductChallengeSet;
 
 /// Computes the quotient polynomials `(sum alpha^i C_i(x)) / Z_H(x)` for
 /// `alpha` in `alphas`, where the `C_i`s are the Stark constraints.
@@ -27,7 +26,6 @@ pub fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     stark: &S,
     trace_commitment: &'a PolynomialBatch<F, C, D>,
     permutation_ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
-    _permutation_challenges: &'a [GrandProductChallengeSet<F>],
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
     alphas: &[F],

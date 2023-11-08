@@ -231,7 +231,6 @@ where
             stark,
             trace_commitment,
             &permutation_ctl_zs_commitment,
-            &permutation_challenges,
             public_inputs,
             ctl_data,
             &alphas,
