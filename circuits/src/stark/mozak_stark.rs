@@ -427,7 +427,6 @@ pub struct LimbTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for LimbTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
-            // chain!(rangecheck_looking(), cpu::columns::rangecheck_looking_u8(),).collect_vec(),
             rangecheck_looking(),
             RangeCheckLimbTable::new(
                 crate::rangecheck_limb::columns::data(),
