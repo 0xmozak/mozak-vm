@@ -29,8 +29,7 @@ use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
 use crate::stark::mozak_stark::PublicInputs;
-use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
-use crate::stark::permutation::compute_permutation_z_polys;
+use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
 use crate::stark::proof::StarkProofWithMetadata;
 
@@ -96,10 +95,6 @@ where
                     timing,
                     &format!("compute trace commitment for {table:?}"),
                     PolynomialBatch::<F, C, D>::from_values(
-                        // TODO: Cloning this isn't great; consider having `from_values` accept a
-                        // reference,
-                        // or having `compute_permutation_z_polys` read trace values from the
-                        // `PolynomialBatch`.
                         trace.clone(),
                         rate_bits,
                         false,
@@ -194,29 +189,11 @@ where
 
     let init_challenger_state = challenger.compact();
 
-    // Permutation arguments.
-    let permutation_challenges: Vec<GrandProductChallengeSet<F>> = challenger
-        .get_n_grand_product_challenge_sets(config.num_challenges, stark.permutation_batch_size());
-    let mut permutation_zs = timed!(
-        timing,
-        format!("{stark}: compute permutation Z(x) polys").as_str(),
-        compute_permutation_z_polys::<F, S, D>(
-            stark,
-            config,
-            trace_poly_values,
-            &permutation_challenges
-        )
-    );
-    let num_permutation_zs = permutation_zs.len();
-
-    let z_polys = {
-        permutation_zs.extend(ctl_data.z_polys());
-        permutation_zs
-    };
+    let z_polys = ctl_data.z_polys();
     // TODO(Matthias): make the code work with empty z_polys, too.
     assert!(!z_polys.is_empty(), "No CTL?");
 
-    let permutation_ctl_zs_commitment = timed!(
+    let ctl_zs_commitment = timed!(
         timing,
         format!("{stark}: compute Zs commitment").as_str(),
         PolynomialBatch::from_values(
@@ -229,8 +206,8 @@ where
         )
     );
 
-    let permutation_ctl_zs_cap = permutation_ctl_zs_commitment.merkle_tree.cap.clone();
-    challenger.observe_cap(&permutation_ctl_zs_cap);
+    let ctl_zs_cap = ctl_zs_commitment.merkle_tree.cap.clone();
+    challenger.observe_cap(&ctl_zs_cap);
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
     let quotient_polys = timed!(
@@ -239,13 +216,11 @@ where
         compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
             stark,
             trace_commitment,
-            &permutation_ctl_zs_commitment,
-            &permutation_challenges,
+            &ctl_zs_commitment,
             public_inputs,
             ctl_data,
             &alphas,
             degree_bits,
-            num_permutation_zs,
             config,
         )
     );
@@ -296,19 +271,14 @@ where
         zeta,
         g,
         trace_commitment,
-        &permutation_ctl_zs_commitment,
+        &ctl_zs_commitment,
         &quotient_commitment,
         degree_bits,
-        stark.num_permutation_batches(config),
     );
 
     challenger.observe_openings(&openings.to_fri_openings());
 
-    let initial_merkle_trees = vec![
-        trace_commitment,
-        &permutation_ctl_zs_commitment,
-        &quotient_commitment,
-    ];
+    let initial_merkle_trees = vec![trace_commitment, &ctl_zs_commitment, &quotient_commitment];
 
     let opening_proof = timed!(
         timing,
@@ -332,7 +302,7 @@ where
 
     let proof = StarkProof {
         trace_cap: trace_commitment.merkle_tree.cap.clone(),
-        permutation_ctl_zs_cap,
+        ctl_zs_cap,
         quotient_polys_cap,
         openings,
         opening_proof,

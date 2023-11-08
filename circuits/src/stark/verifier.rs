@@ -16,7 +16,6 @@ use starky::stark::{LookupConfig, Stark};
 use super::mozak_stark::{MozakStark, TableKind};
 use super::proof::AllProof;
 use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
-use crate::stark::permutation::PermutationCheckVars;
 use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
 
@@ -32,8 +31,7 @@ where
     let AllProofChallenges {
         stark_challenges,
         ctl_challenges,
-    } = all_proof.get_challenges(&mozak_stark, config);
-    let nums_permutation_zs = mozak_stark.nums_permutation_zs(config);
+    } = all_proof.get_challenges(config);
 
     let MozakStark {
         cpu_stark,
@@ -75,7 +73,6 @@ where
         &all_proof.proofs_with_metadata,
         &cross_table_lookups,
         &ctl_challenges,
-        &nums_permutation_zs,
     );
 
     macro_rules! verify {
@@ -130,8 +127,8 @@ where
     let StarkOpeningSet {
         local_values,
         next_values,
-        permutation_ctl_zs,
-        permutation_ctl_zs_next,
+        ctl_zs: _,
+        ctl_zs_next: _,
         ctl_zs_last,
         quotient_polys,
     } = &proof.openings;
@@ -159,17 +156,9 @@ where
         l_0,
         l_last,
     );
-    let num_permutation_zs = stark.num_permutation_batches(config);
-    let permutation_data = PermutationCheckVars {
-        local_zs: permutation_ctl_zs[..num_permutation_zs].to_vec(),
-        next_zs: permutation_ctl_zs_next[..num_permutation_zs].to_vec(),
-        permutation_challenge_sets: challenges.permutation_challenge_sets.clone(),
-    };
     eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
         stark,
-        config,
         &vars,
-        permutation_data,
         ctl_vars,
         &mut consumer,
     );
@@ -198,7 +187,7 @@ where
 
     let merkle_caps = vec![
         proof.trace_cap.clone(),
-        proof.permutation_ctl_zs_cap.clone(),
+        proof.ctl_zs_cap.clone(),
         proof.quotient_polys_cap.clone(),
     ];
 
@@ -234,7 +223,7 @@ where
     S: Stark<F, D>, {
     let StarkProof {
         trace_cap,
-        permutation_ctl_zs_cap,
+        ctl_zs_cap,
         quotient_polys_cap,
         openings,
         // The shape of the opening proof will be checked in the FRI verifier (see
@@ -245,8 +234,8 @@ where
     let StarkOpeningSet {
         local_values,
         next_values,
-        permutation_ctl_zs,
-        permutation_ctl_zs_next,
+        ctl_zs,
+        ctl_zs_next,
         ctl_zs_last,
         quotient_polys,
     } = openings;
@@ -254,16 +243,15 @@ where
     let degree_bits = proof.recover_degree_bits(config);
     let fri_params = config.fri_params(degree_bits);
     let cap_height = fri_params.config.cap_height;
-    let num_zs = num_ctl_zs + stark.num_permutation_batches(config);
 
     ensure!(trace_cap.height() == cap_height);
-    ensure!(permutation_ctl_zs_cap.height() == cap_height);
+    ensure!(ctl_zs_cap.height() == cap_height);
     ensure!(quotient_polys_cap.height() == cap_height);
 
     ensure!(local_values.len() == S::COLUMNS);
     ensure!(next_values.len() == S::COLUMNS);
-    ensure!(permutation_ctl_zs.len() == num_zs);
-    ensure!(permutation_ctl_zs_next.len() == num_zs);
+    ensure!(ctl_zs.len() == num_ctl_zs);
+    ensure!(ctl_zs_next.len() == num_ctl_zs);
     ensure!(ctl_zs_last.len() == num_ctl_zs);
     ensure!(quotient_polys.len() == stark.num_quotient_polys(config));
 
