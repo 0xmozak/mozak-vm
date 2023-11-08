@@ -13,6 +13,7 @@ use starky::stark::Stark;
 use super::columns::{Bitshift, BitshiftView};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 
+/// Bitshift Trace Constraints
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct BitshiftStark<F, const D: usize> {

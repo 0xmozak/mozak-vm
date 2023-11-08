@@ -20,6 +20,9 @@ use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::utils::is_binary;
 
+/// A Gadget for CPU Instructions
+///
+/// Instructions are either handled directly or through cross table lookup
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {
