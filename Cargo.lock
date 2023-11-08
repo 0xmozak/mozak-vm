@@ -794,6 +794,7 @@ dependencies = [
  "mozak-runner",
  "plonky2",
  "proptest",
+ "starky",
  "tikv-jemallocator",
 ]
 

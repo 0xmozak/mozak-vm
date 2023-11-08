@@ -5,6 +5,7 @@ use mozak_runner::state::{IoEntry, IoOpcode};
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
+use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory::trace::get_memory_inst_clk;
 use crate::memory_io::columns::{InputOutputMemory, Ops};
 
@@ -14,7 +15,7 @@ fn pad_io_mem_trace<F: RichField>(
     mut trace: Vec<InputOutputMemory<F>>,
 ) -> Vec<InputOutputMemory<F>> {
     trace.resize(
-        trace.len().max(4).next_power_of_two(),
+        trace.len().max(MIN_TRACE_LENGTH).next_power_of_two(),
         InputOutputMemory::default(),
     );
     trace

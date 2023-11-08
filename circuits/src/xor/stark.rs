@@ -97,7 +97,7 @@ mod tests {
     use crate::generation::cpu::generate_cpu_trace;
     use crate::generation::xor::generate_xor_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
-    use crate::test_utils::{standard_faster_config, C, D, F};
+    use crate::test_utils::{fast_test_config, C, D, F};
     use crate::xor::stark::XorStark;
 
     type S = XorStark<F, D>;
@@ -108,7 +108,7 @@ mod tests {
     }
 
     fn test_xor_stark(a: u32, b: u32, imm: u32) {
-        let config = standard_faster_config();
+        let config = fast_test_config();
 
         let (program, record) = simple_test_code(
             &[

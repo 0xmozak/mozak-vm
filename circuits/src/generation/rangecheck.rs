@@ -100,6 +100,7 @@ mod tests {
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
+    use crate::generation::MIN_TRACE_LENGTH;
 
     #[test]
     fn test_generate_trace() {
@@ -134,7 +135,12 @@ mod tests {
             &poseidon2_trace,
         );
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
-        assert_eq!(trace.len(), 4, "Unexpected trace len {}", trace.len());
+        assert_eq!(
+            trace.len(),
+            MIN_TRACE_LENGTH,
+            "Unexpected trace len {}",
+            trace.len()
+        );
         for (i, row) in trace.iter().enumerate() {
             match i {
                 0 => {

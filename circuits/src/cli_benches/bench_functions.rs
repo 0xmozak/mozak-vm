@@ -2,9 +2,9 @@ use anyhow::Result;
 use clap::{Args as Args_, Subcommand};
 use mozak_runner::instruction::{Args, Instruction, Op};
 use mozak_runner::test_utils::simple_test_code;
+use starky::config::StarkConfig;
 
-use crate::stark::mozak_stark::MozakStark;
-use crate::test_utils::ProveAndVerify;
+use crate::test_utils::prove_and_verify_mozak_stark;
 
 pub fn sample_bench(reg_value: u32) -> Result<(), anyhow::Error> {
     let instructions = &[
@@ -28,7 +28,7 @@ pub fn sample_bench(reg_value: u32) -> Result<(), anyhow::Error> {
         },
     ];
     let (program, record) = simple_test_code(instructions, &[], &[(1, reg_value)]);
-    MozakStark::prove_and_verify(&program, &record)
+    prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
 }
 
 #[derive(Debug, Args_, Clone)]
