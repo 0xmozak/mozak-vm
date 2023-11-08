@@ -35,7 +35,8 @@ pub fn trace_to_poly_values<F: Field, Grid: IntoIterator<Item = Vec<F>>>(
     trace.into_iter().map(PolynomialValues::new).collect()
 }
 
-/// Transform a given row-major trace to a column-major trace by flipping it over its diagonal.
+/// Transform a given row-major trace to a column-major trace by flipping it
+/// over its diagonal.
 #[must_use]
 pub fn transpose_trace<F: Field, Row: IntoIterator<Item = F>>(trace_rows: Vec<Row>) -> Vec<Vec<F>> {
     transpose(
