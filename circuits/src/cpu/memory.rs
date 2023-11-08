@@ -9,16 +9,16 @@ use starky::constraint_consumer::ConstraintConsumer;
 use super::columns::CpuState;
 use crate::stark::utils::is_binary;
 
-/// Ensure that `dst_value` and `mem_access_raw` only differ
-/// in case of `LB` and only by `0xFFFF_FF00`. The correctness
-/// of value presented in `dst_sign_bit` is ensured via range-check
+/// Ensure that `dst_value` and `mem_value_raw` only differ
+/// in case of `LB` by `0xFFFF_FF00` and for `LH` by `0xFFFF_0000`. The
+/// correctness of value presented in `dst_sign_bit` is ensured via range-check
 pub(crate) fn signed_constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     is_binary(yield_constr, lv.dst_sign_bit);
     // When dst is not signed as per instruction semantics, dst_sign_bit must be 0.
-    yield_constr.constraint((P::ONES - lv.inst.is_dst_signed) * lv.dst_sign_bit);
+    yield_constr.constraint((P::ONES - (lv.inst.ops.lb + lv.inst.ops.lh)) * lv.dst_sign_bit);
 
     // Ensure `dst_value` is `0xFFFF_FF00` greater than
     // `mem_access_raw` in case `dst_sign_bit` is set
@@ -52,7 +52,7 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{simple_test_code, u32_extra, u8_extra};
+    use mozak_runner::test_utils::{simple_test_code, u16_extra, u32_extra, u8_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
@@ -108,7 +108,7 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    fn prove_mem_read_write<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
+    fn prove_sb_lbu<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
         let (program, record) = simple_test_code(
             &[
                 Instruction {
@@ -122,6 +122,62 @@ mod tests {
                 },
                 Instruction {
                     op: Op::LBU,
+                    args: Args {
+                        rs2: 2,
+                        imm,
+                        ..Args::default()
+                    },
+                },
+            ],
+            &[(imm.wrapping_add(offset), 0)],
+            &[(1, content.into()), (2, offset)],
+        );
+
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    fn prove_sb_lb<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::SB,
+                    args: Args {
+                        rs1: 1,
+                        rs2: 2,
+                        imm,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::LB,
+                    args: Args {
+                        rs2: 2,
+                        imm,
+                        ..Args::default()
+                    },
+                },
+            ],
+            &[(imm.wrapping_add(offset), 0)],
+            &[(1, content.into()), (2, offset)],
+        );
+
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    fn prove_sh_lh<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u16) {
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::SH,
+                    args: Args {
+                        rs1: 1,
+                        rs2: 2,
+                        imm,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::LH,
                     args: Args {
                         rs2: 2,
                         imm,
@@ -154,8 +210,18 @@ mod tests {
         }
 
         #[test]
-        fn prove_mem_read_write_cpu(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
-            prove_mem_read_write::<CpuStark<F, D>>(offset, imm, content);
+        fn prove_sb_lbu_cpu(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_sb_lbu::<CpuStark<F, D>>(offset, imm, content);
+        }
+
+        #[test]
+        fn prove_sb_lb_cpu(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_sb_lb::<CpuStark<F, D>>(offset, imm, content);
+        }
+
+        #[test]
+        fn prove_sh_lh_cpu(offset in u32_extra(), imm in u32_extra(), content in u16_extra()) {
+            prove_sh_lh::<CpuStark<F, D>>(offset, imm, content);
         }
     }
 
@@ -167,8 +233,18 @@ mod tests {
         }
 
         #[test]
-        fn prove_mem_read_write_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
-            prove_mem_read_write::<MozakStark<F, D>>(offset, imm, content);
+        fn prove_sb_lbu_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_sb_lbu::<MozakStark<F, D>>(offset, imm, content);
+        }
+
+        #[test]
+        fn prove_sb_lb_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_sb_lb::<MozakStark<F, D>>(offset, imm, content);
+        }
+
+        #[test]
+        fn prove_sh_lh_mozak(offset in u32_extra(), imm in u32_extra(), content in u16_extra()) {
+            prove_sh_lh::<MozakStark<F, D>>(offset, imm, content);
         }
     }
 }

@@ -5,7 +5,7 @@ use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
 use crate::memory::columns::Memory;
-use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk};
+use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk, get_memory_raw_value};
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
@@ -55,7 +55,8 @@ pub fn generate_memory_trace_from_execution<'a, F: RichField>(
                 is_store: F::from_bool(matches!(op, Op::SB)),
                 is_load: F::from_bool(matches!(op, Op::LB | Op::LBU)),
                 is_init: F::ZERO,
-                value: F::from_canonical_u32(row.aux.dst_val),
+                value: get_memory_raw_value(row),
+
                 ..Default::default()
             }
         })
@@ -173,7 +174,9 @@ pub fn generate_memory_trace<F: RichField>(
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
     // of the trace.
-    pad_mem_trace(merged_trace)
+    let trace = pad_mem_trace(merged_trace);
+    log::trace!("trace {:?}", trace);
+    trace
 }
 
 #[cfg(test)]
