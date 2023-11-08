@@ -37,6 +37,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     chain!(transpose_trace(cpu_trace), transpose_trace(permuted)).collect()
 }
 
+/// Converting each row of the `record` to a row represented by [`CpuState`]
 pub fn generate_cpu_trace<F: RichField>(
     program: &Program,
     record: &ExecutionRecord<F>,
@@ -116,6 +117,8 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
     row.normalised_diff = F::from_bool(row.signed_diff().is_nonzero());
 }
 
+/// Generates a bitshift row on a shift operation. This is used in the bitshift
+/// lookup table.
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
 fn generate_shift_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux<F>) {
