@@ -86,10 +86,6 @@ where
                     timing,
                     &format!("compute trace commitment for {table:?}"),
                     PolynomialBatch::<F, C, D>::from_values(
-                        // TODO: Cloning this isn't great; consider having `from_values` accept a
-                        // reference,
-                        // or having `compute_permutation_z_polys` read trace values from the
-                        // `PolynomialBatch`.
                         trace.clone(),
                         rate_bits,
                         false,
@@ -188,7 +184,7 @@ where
     // TODO(Matthias): make the code work with empty z_polys, too.
     assert!(!z_polys.is_empty(), "No CTL?");
 
-    let permutation_ctl_zs_commitment = timed!(
+    let ctl_zs_commitment = timed!(
         timing,
         format!("{stark}: compute Zs commitment").as_str(),
         PolynomialBatch::from_values(
@@ -201,8 +197,8 @@ where
         )
     );
 
-    let permutation_ctl_zs_cap = permutation_ctl_zs_commitment.merkle_tree.cap.clone();
-    challenger.observe_cap(&permutation_ctl_zs_cap);
+    let ctl_zs_cap = ctl_zs_commitment.merkle_tree.cap.clone();
+    challenger.observe_cap(&ctl_zs_cap);
 
     let alphas = challenger.get_n_challenges(config.num_challenges);
     let quotient_polys = timed!(
@@ -211,7 +207,7 @@ where
         compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
             stark,
             trace_commitment,
-            &permutation_ctl_zs_commitment,
+            &ctl_zs_commitment,
             public_inputs,
             ctl_data,
             &alphas,
@@ -266,18 +262,14 @@ where
         zeta,
         g,
         trace_commitment,
-        &permutation_ctl_zs_commitment,
+        &ctl_zs_commitment,
         &quotient_commitment,
         degree_bits,
     );
 
     challenger.observe_openings(&openings.to_fri_openings());
 
-    let initial_merkle_trees = vec![
-        trace_commitment,
-        &permutation_ctl_zs_commitment,
-        &quotient_commitment,
-    ];
+    let initial_merkle_trees = vec![trace_commitment, &ctl_zs_commitment, &quotient_commitment];
 
     let opening_proof = timed!(
         timing,
@@ -301,7 +293,7 @@ where
 
     let proof = StarkProof {
         trace_cap: trace_commitment.merkle_tree.cap.clone(),
-        permutation_ctl_zs_cap,
+        ctl_zs_cap,
         quotient_polys_cap,
         openings,
         opening_proof,

@@ -38,7 +38,7 @@ pub struct StarkProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, 
     /// Merkle cap of LDEs of trace values.
     pub trace_cap: MerkleCap<F, C::Hasher>,
     /// Merkle cap of LDEs of permutation Z values.
-    pub permutation_ctl_zs_cap: MerkleCap<F, C::Hasher>,
+    pub ctl_zs_cap: MerkleCap<F, C::Hasher>,
     /// Merkle cap of LDEs of trace values.
     pub quotient_polys_cap: MerkleCap<F, C::Hasher>,
     /// Purported values of each polynomial at the challenge point.
@@ -69,7 +69,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
         let degree_bits = self.recover_degree_bits(config);
 
         let StarkProof {
-            permutation_ctl_zs_cap,
+            ctl_zs_cap,
             quotient_polys_cap,
             openings,
             opening_proof:
@@ -84,7 +84,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
 
         let num_challenges = config.num_challenges;
 
-        challenger.observe_cap(permutation_ctl_zs_cap);
+        challenger.observe_cap(ctl_zs_cap);
 
         let stark_alphas = challenger.get_n_challenges(num_challenges);
 
@@ -110,7 +110,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
 #[derive(Eq, PartialEq, Debug)]
 pub struct StarkProofTarget<const D: usize> {
     pub trace_cap: MerkleCapTarget,
-    pub permutation_ctl_zs_cap: MerkleCapTarget,
+    pub ctl_zs_cap: MerkleCapTarget,
     pub quotient_polys_cap: MerkleCapTarget,
     pub openings: StarkOpeningSetTarget<D>,
     pub opening_proof: FriProofTarget<D>,
@@ -139,7 +139,7 @@ impl<const D: usize> StarkProofTarget<D> {
     where
         C::Hasher: AlgebraicHasher<F>, {
         let StarkProofTarget {
-            permutation_ctl_zs_cap,
+            ctl_zs_cap,
             quotient_polys_cap,
             openings,
             opening_proof:
@@ -154,7 +154,7 @@ impl<const D: usize> StarkProofTarget<D> {
 
         let num_challenges = config.num_challenges;
 
-        challenger.observe_cap(permutation_ctl_zs_cap);
+        challenger.observe_cap(ctl_zs_cap);
 
         let stark_alphas = challenger.get_n_challenges(builder, num_challenges);
 
@@ -255,13 +255,9 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
 
     pub(crate) fn to_fri_openings(&self) -> FriOpenings<F, D> {
         let zeta_batch = FriOpeningBatch {
-            values: chain!(
-                &self.local_values,
-                &self.ctl_zs,
-                &self.quotient_polys
-            )
-            .copied()
-            .collect_vec(),
+            values: chain!(&self.local_values, &self.ctl_zs, &self.quotient_polys)
+                .copied()
+                .collect_vec(),
         };
         let zeta_next_batch = FriOpeningBatch {
             values: chain!(&self.next_values, &self.ctl_zs_next,)
@@ -288,8 +284,8 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
 pub struct StarkOpeningSetTarget<const D: usize> {
     pub local_values: Vec<ExtensionTarget<D>>,
     pub next_values: Vec<ExtensionTarget<D>>,
-    pub permutation_ctl_zs: Vec<ExtensionTarget<D>>,
-    pub permutation_ctl_zs_next: Vec<ExtensionTarget<D>>,
+    pub ctl_zs: Vec<ExtensionTarget<D>>,
+    pub ctl_zs_next: Vec<ExtensionTarget<D>>,
     pub ctl_zs_last: Vec<Target>,
     pub quotient_polys: Vec<ExtensionTarget<D>>,
 }
@@ -297,16 +293,12 @@ pub struct StarkOpeningSetTarget<const D: usize> {
 impl<const D: usize> StarkOpeningSetTarget<D> {
     pub(crate) fn to_fri_openings(&self, zero: Target) -> FriOpeningsTarget<D> {
         let zeta_batch = FriOpeningBatchTarget {
-            values: chain!(
-                &self.local_values,
-                &self.permutation_ctl_zs,
-                &self.quotient_polys
-            )
-            .copied()
-            .collect_vec(),
+            values: chain!(&self.local_values, &self.ctl_zs, &self.quotient_polys)
+                .copied()
+                .collect_vec(),
         };
         let zeta_next_batch = FriOpeningBatchTarget {
-            values: chain!(&self.next_values, &self.permutation_ctl_zs_next)
+            values: chain!(&self.next_values, &self.ctl_zs_next)
                 .copied()
                 .collect_vec(),
         };

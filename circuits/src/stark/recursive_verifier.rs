@@ -286,8 +286,8 @@ fn verify_stark_proof_with_challenges_circuit<
     let StarkOpeningSetTarget {
         local_values,
         next_values,
-        permutation_ctl_zs: _,
-        permutation_ctl_zs_next: _,
+        ctl_zs: _,
+        ctl_zs_next: _,
         ctl_zs_last,
         quotient_polys,
     } = &proof_with_public_inputs.proof.openings;
@@ -341,10 +341,7 @@ fn verify_stark_proof_with_challenges_circuit<
 
     let merkle_caps = vec![
         proof_with_public_inputs.proof.trace_cap.clone(),
-        proof_with_public_inputs
-            .proof
-            .permutation_ctl_zs_cap
-            .clone(),
+        proof_with_public_inputs.proof.ctl_zs_cap.clone(),
         proof_with_public_inputs.proof.quotient_polys_cap.clone(),
     ];
 
@@ -425,11 +422,11 @@ pub fn add_virtual_stark_proof<F: RichField + Extendable<D>, S: Stark<F, D>, con
         stark.quotient_degree_factor() * config.num_challenges,
     ];
 
-    let permutation_zs_cap = builder.add_virtual_cap(cap_height);
+    let ctl_zs_cap = builder.add_virtual_cap(cap_height);
 
     StarkProofTarget {
         trace_cap: builder.add_virtual_cap(cap_height),
-        permutation_ctl_zs_cap: permutation_zs_cap,
+        ctl_zs_cap,
         quotient_polys_cap: builder.add_virtual_cap(cap_height),
         openings: add_virtual_stark_opening_set::<F, S, D>(builder, stark, num_ctl_zs, config),
         opening_proof: builder.add_virtual_fri_proof(&num_leaves_per_oracle, &fri_params),
@@ -446,8 +443,8 @@ fn add_virtual_stark_opening_set<F: RichField + Extendable<D>, S: Stark<F, D>, c
     StarkOpeningSetTarget {
         local_values: builder.add_virtual_extension_targets(S::COLUMNS),
         next_values: builder.add_virtual_extension_targets(S::COLUMNS),
-        permutation_ctl_zs: builder.add_virtual_extension_targets(num_ctl_zs),
-        permutation_ctl_zs_next: builder.add_virtual_extension_targets(num_ctl_zs),
+        ctl_zs: builder.add_virtual_extension_targets(num_ctl_zs),
+        ctl_zs_next: builder.add_virtual_extension_targets(num_ctl_zs),
         ctl_zs_last: builder.add_virtual_targets(num_ctl_zs),
         quotient_polys: builder
             .add_virtual_extension_targets(stark.quotient_degree_factor() * num_challenges),
@@ -471,10 +468,7 @@ pub fn set_stark_proof_target<F, C: GenericConfig<D, F = F>, W, const D: usize>(
         &proof.openings.to_fri_openings(),
     );
 
-    witness.set_cap_target(
-        &proof_target.permutation_ctl_zs_cap,
-        &proof.permutation_ctl_zs_cap,
-    );
+    witness.set_cap_target(&proof_target.ctl_zs_cap, &proof.ctl_zs_cap);
 
     set_fri_proof_target(witness, &proof_target.opening_proof, &proof.opening_proof);
 }
