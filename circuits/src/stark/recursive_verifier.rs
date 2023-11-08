@@ -320,8 +320,6 @@ fn verify_stark_proof_with_challenges_circuit<
         l_last,
     );
 
-    let _num_permutation_zs = stark.num_permutation_batches(inner_config);
-
     with_context!(
         builder,
         "evaluate vanishing polynomial",
