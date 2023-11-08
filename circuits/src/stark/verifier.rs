@@ -158,7 +158,6 @@ where
         l_0,
         l_last,
     );
-    let _num_permutation_zs = stark.num_permutation_batches(config);
     eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
         stark,
         config,
