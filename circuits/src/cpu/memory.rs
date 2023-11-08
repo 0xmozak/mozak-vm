@@ -81,6 +81,8 @@ mod tests {
     /// is part of static ELF (read-write memory address space)
     /// TODO: Further testing needs to be done for non-init
     /// memory locations.
+    /// TODO: In future we should test any combination of load and store
+    /// in any order to work.
     fn prove_lb_and_lbu<Stark: ProveAndVerify>(a: u32, b: u32) {
         let (program, record) = simple_test_code(
             &[
@@ -108,7 +110,7 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    fn prove_mem_read_write<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
+    fn prove_sb_lbu<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
         let (program, record) = simple_test_code(
             &[
                 Instruction {
@@ -136,6 +138,86 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
+    fn prove_sb_lb<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::SB,
+                    args: Args {
+                        rs1: 1,
+                        rs2: 2,
+                        imm,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::LB,
+                    args: Args {
+                        rs2: 2,
+                        imm,
+                        ..Args::default()
+                    },
+                },
+            ],
+            &[(imm.wrapping_add(offset), 0)],
+            &[(1, content.into()), (2, offset)],
+        );
+
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    fn prove_sh_lh<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u16) {
+        let (program, record) = simple_test_code(
+            &[
+                Instruction {
+                    op: Op::SH,
+                    args: Args {
+                        rs1: 1,
+                        rs2: 2,
+                        imm,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::LH,
+                    args: Args {
+                        rs2: 2,
+                        imm,
+                        ..Args::default()
+                    },
+                },
+            ],
+            &[(imm.wrapping_add(offset), 0)],
+            &[(1, content.into()), (2, offset)],
+        );
+
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    #[allow(clippy::should_panic_without_expect)]
+    fn prove_sh_lh_cpu() {
+        // TODO: After fixing test failure, please convert this to proptest.
+        prove_sh_lh::<CpuStark<F, D>>(0, 0, 65535);
+    }
+
+    #[test]
+    #[should_panic]
+    #[allow(clippy::should_panic_without_expect)]
+    fn prove_sb_lb_mozak() {
+        // TODO: After fixing test failure, please convert this to proptest.
+        prove_sb_lb::<MozakStark<F, D>>(0, 0, 255);
+    }
+
+    #[test]
+    #[should_panic]
+    #[allow(clippy::should_panic_without_expect)]
+    fn prove_sh_lh_mozak() {
+        // TODO: After fixing test failure, please convert this to proptest.
+        prove_sh_lh::<MozakStark<F, D>>(0, 0, 65535);
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -154,8 +236,13 @@ mod tests {
         }
 
         #[test]
-        fn prove_mem_read_write_cpu(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
-            prove_mem_read_write::<CpuStark<F, D>>(offset, imm, content);
+        fn prove_sb_lbu_cpu(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_sb_lbu::<CpuStark<F, D>>(offset, imm, content);
+        }
+
+        #[test]
+        fn prove_sb_lb_cpu(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_sb_lb::<CpuStark<F, D>>(offset, imm, content);
         }
     }
 
@@ -167,8 +254,8 @@ mod tests {
         }
 
         #[test]
-        fn prove_mem_read_write_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
-            prove_mem_read_write::<MozakStark<F, D>>(offset, imm, content);
+        fn prove_sb_lbu_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_sb_lbu::<MozakStark<F, D>>(offset, imm, content);
         }
     }
 }
