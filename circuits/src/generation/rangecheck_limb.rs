@@ -10,9 +10,9 @@ use crate::rangecheck_limb::columns::RangeCheckLimb;
 use crate::stark::mozak_stark::{LimbTable, Lookups, Table, TableKind};
 
 /// extract the values with multiplicity nonzero
-pub fn extract_with_mul<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> impl Iterator<Item = (F, F)>
+pub fn extract_with_mul<F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<(F, F)>
 where
-    V: Index<usize, Output = F> + 'a, {
+    V: Index<usize, Output = F>, {
     if let [column] = &looking_table.columns[..] {
         trace
             .iter()

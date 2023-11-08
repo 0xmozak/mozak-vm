@@ -49,7 +49,6 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     memory_trace: &[Memory<F>],
 ) -> Vec<RangeCheckColumnsView<F>> {
-    let mut trace: Vec<RangeCheckColumnsView<F>> = vec![];
     let mut multiplicities: BTreeMap<u32, u64> = BTreeMap::new();
 
     RangecheckTable::lookups()
@@ -72,7 +71,6 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
                     .or_insert(1);
             });
         });
-
     let mut trace = Vec::with_capacity(multiplicities.len());
     for (value, multiplicity) in multiplicities {
         trace.push(RangeCheckColumnsView {
