@@ -89,7 +89,7 @@ pub fn generate_cpu_trace<F: RichField>(
             io_size: F::from_canonical_usize(io.data.len()),
             is_io_store: F::from_bool(matches!((inst.op, io.op), (Op::ECALL, IoOpcode::Store))),
             is_halt: F::from_bool(matches!(
-                (inst.op, state.registers[usize::try_from(REG_A0).unwrap()]),
+                (inst.op, state.registers[usize::from(REG_A0)]),
                 (Op::ECALL, ecall::HALT)
             )),
             ..CpuState::default()

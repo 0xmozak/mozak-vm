@@ -42,8 +42,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckLim
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &RangeCheckLimb<P> = vars.get_local_values().try_into().unwrap();
-        let nv: &RangeCheckLimb<P> = vars.get_next_values().try_into().unwrap();
+        let lv: &RangeCheckLimb<P> = vars.get_local_values().into();
+        let nv: &RangeCheckLimb<P> = vars.get_next_values().into();
         // Check: the `element`s form a sequence from 0 to 255
         yield_constr.constraint_first_row(lv.multiplicity_view.value);
         yield_constr.constraint_transition(
