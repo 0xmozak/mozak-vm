@@ -18,11 +18,11 @@ pub fn generate_shift_amount_trace<F: RichField>(
     filter_shift_trace(cpu_trace).for_each(|amount| {
         multiplicities[usize::try_from(amount).expect("cast should succeed")] += 1;
     });
-    (0..32u64)
+    (0..32u8)
         .map(|amount| {
             BitshiftView {
-                executed: amount.into(),
-                multiplicity: multiplicities[usize::try_from(amount).expect("cast should succeed")],
+                executed: u64::from(amount).into(),
+                multiplicity: multiplicities[usize::from(amount)],
             }
             .map(F::from_canonical_u64)
         })
