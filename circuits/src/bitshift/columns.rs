@@ -11,10 +11,10 @@ pub struct Bitshift<T> {
     pub multiplier: T,
 }
 
-impl From<u64> for Bitshift<u64> {
-    fn from(amount: u64) -> Self {
+impl From<u8> for Bitshift<u64> {
+    fn from(amount: u8) -> Self {
         Self {
-            amount,
+            amount: amount.into(),
             multiplier: 1 << amount,
         }
     }

@@ -21,7 +21,7 @@ pub fn generate_shift_amount_trace<F: RichField>(
     (0..32u8)
         .map(|amount| {
             BitshiftView {
-                executed: u64::from(amount).into(),
+                executed: amount.into(),
                 multiplicity: multiplicities[usize::from(amount)],
             }
             .map(F::from_canonical_u64)
