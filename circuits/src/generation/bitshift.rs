@@ -1,6 +1,6 @@
 use plonky2::hash::hash_types::RichField;
 
-use crate::bitshift::columns::{BitshiftView, MultiplicityView};
+use crate::bitshift::columns::BitshiftView;
 use crate::cpu::columns::CpuState;
 
 fn filter_shift_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> impl Iterator<Item = u64> + '_ {
@@ -21,11 +21,8 @@ pub fn generate_shift_amount_trace<F: RichField>(
     (0..32u64)
         .map(|amount| {
             BitshiftView {
-                bitshift: MultiplicityView {
-                    executed: amount.into(),
-                    multiplicity: multiplicity
-                        [usize::try_from(amount).expect("cast should succeed")],
-                },
+                executed: amount.into(),
+                multiplicity: multiplicity[usize::try_from(amount).expect("cast should succeed")],
             }
             .map(F::from_canonical_u64)
         })
