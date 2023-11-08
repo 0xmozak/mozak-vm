@@ -43,8 +43,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &BitshiftView<P> = vars.get_local_values().try_into().unwrap();
-        let nv: &BitshiftView<P> = vars.get_next_values().try_into().unwrap();
+        let lv: &BitshiftView<P> = vars.get_local_values().into();
+        let nv: &BitshiftView<P> = vars.get_next_values().into();
         let lv: &Bitshift<P> = &lv.executed;
         let nv: &Bitshift<P> = &nv.executed;
 
