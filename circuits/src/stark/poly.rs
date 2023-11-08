@@ -111,7 +111,7 @@ where
                     filter_column: &zs_columns.filter_column,
                 })
                 .collect::<Vec<_>>();
-            eval_vanishing_poly::<F, F, P, S, D, 1>(stark, config, &vars, &ctl_vars, &mut consumer);
+            eval_vanishing_poly::<F, F, P, S, D, 1>(stark, &vars, &ctl_vars, &mut consumer);
             let mut constraints_evals = consumer.accumulators();
             // We divide the constraints evaluations by `Z_H(x)`.
             let denominator_inv: P = z_h_on_coset.eval_inverse_packed(i_start);
@@ -139,7 +139,6 @@ where
 #[allow(clippy::module_name_repetitions)]
 pub fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark: &S,
-    _config: &StarkConfig,
     vars: &S::EvaluationFrame<FE, P, D2>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
     consumer: &mut ConstraintConsumer<P>,
@@ -155,7 +154,6 @@ pub fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
 pub fn eval_vanishing_poly_circuit<F, S, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     stark: &S,
-    _config: &StarkConfig,
     vars: &S::EvaluationFrameTarget,
     ctl_vars: &[CtlCheckVarsTarget<F, D>],
     consumer: &mut RecursiveConstraintConsumer<F, D>,

@@ -330,14 +330,7 @@ fn verify_stark_proof_with_challenges_circuit<
     with_context!(
         builder,
         "evaluate vanishing polynomial",
-        eval_vanishing_poly_circuit::<F, S, D>(
-            builder,
-            stark,
-            inner_config,
-            &vars,
-            ctl_vars,
-            &mut consumer,
-        )
+        eval_vanishing_poly_circuit::<F, S, D>(builder, stark, &vars, ctl_vars, &mut consumer,)
     );
     let vanishing_polys_zeta = consumer.accumulators();
 

@@ -160,7 +160,6 @@ where
     );
     eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
         stark,
-        config,
         &vars,
         ctl_vars,
         &mut consumer,
