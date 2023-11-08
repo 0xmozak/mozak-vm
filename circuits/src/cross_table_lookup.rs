@@ -102,22 +102,19 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
         looked_table,
     } in cross_table_lookups
     {
-        log::debug!("Processing CTL for {:?}", looked_table.kind);
         for &challenge in &ctl_challenges.challenges {
-            let zs_looking = looking_tables.iter().map(|looking_table| {
+            log::debug!("Processing CTL for {:?}", looked_table.kind);
+
+            let make_z = |table: &Table<F>| {
                 partial_sums(
-                    &trace_poly_values[looking_table.kind as usize],
-                    &looking_table.columns,
-                    &looking_table.filter_column,
+                    &trace_poly_values[table.kind as usize],
+                    &table.columns,
+                    &table.filter_column,
                     challenge,
                 )
-            });
-            let z_looked = partial_sums(
-                &trace_poly_values[looked_table.kind as usize],
-                &looked_table.columns,
-                &looked_table.filter_column,
-                challenge,
-            );
+            };
+            let zs_looking = looking_tables.iter().map(make_z);
+            let z_looked = make_z(looked_table);
 
             debug_assert_eq!(
                 zs_looking
@@ -127,24 +124,19 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                 *z_looked.values.last().unwrap()
             );
 
-            for (looking_table, z) in looking_tables.iter().zip(zs_looking) {
-                ctl_data_per_table[looking_table.kind as usize]
+            for (table, z) in chain!(izip!(looking_tables, zs_looking), [(
+                looked_table,
+                z_looked
+            )]) {
+                ctl_data_per_table[table.kind as usize]
                     .zs_columns
                     .push(CtlZData {
                         z,
                         challenge,
-                        columns: looking_table.columns.clone(),
-                        filter_column: looking_table.filter_column.clone(),
+                        columns: table.columns.clone(),
+                        filter_column: table.filter_column.clone(),
                     });
             }
-            ctl_data_per_table[looked_table.kind as usize]
-                .zs_columns
-                .push(CtlZData {
-                    z: z_looked,
-                    challenge,
-                    columns: looked_table.columns.clone(),
-                    filter_column: looked_table.filter_column.clone(),
-                });
         }
     }
     ctl_data_per_table
