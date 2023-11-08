@@ -247,8 +247,8 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
             .iter()
             .map(|p| {
                 izip!(
-                    &p.proof.openings.permutation_ctl_zs,
-                    &p.proof.openings.permutation_ctl_zs_next
+                    &p.proof.openings.ctl_zs,
+                    &p.proof.openings.ctl_zs_next
                 )
             })
             .collect::<Vec<_>>();

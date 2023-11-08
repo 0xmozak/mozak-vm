@@ -208,10 +208,10 @@ pub struct StarkOpeningSet<F: RichField + Extendable<D>, const D: usize> {
     pub next_values: Vec<F::Extension>,
     /// Openings of permutations and cross-table lookups `Z` polynomials at
     /// `zeta`.
-    pub permutation_ctl_zs: Vec<F::Extension>,
+    pub ctl_zs: Vec<F::Extension>,
     /// Openings of permutations and cross-table lookups `Z` polynomials at `g *
     /// zeta`.
-    pub permutation_ctl_zs_next: Vec<F::Extension>,
+    pub ctl_zs_next: Vec<F::Extension>,
     /// Openings of cross-table lookups `Z` polynomials at `g^-1`.
     pub ctl_zs_last: Vec<F>,
     /// Openings of quotient polynomials at `zeta`.
@@ -223,7 +223,7 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
         zeta: F::Extension,
         g: F,
         trace_commitment: &PolynomialBatch<F, C, D>,
-        permutation_ctl_zs_commitment: &PolynomialBatch<F, C, D>,
+        ctl_zs_commitment: &PolynomialBatch<F, C, D>,
         quotient_commitment: &PolynomialBatch<F, C, D>,
         degree_bits: usize,
     ) -> Self {
@@ -243,11 +243,11 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
         Self {
             local_values: eval_commitment(zeta, trace_commitment),
             next_values: eval_commitment(zeta_next, trace_commitment),
-            permutation_ctl_zs: eval_commitment(zeta, permutation_ctl_zs_commitment),
-            permutation_ctl_zs_next: eval_commitment(zeta_next, permutation_ctl_zs_commitment),
+            ctl_zs: eval_commitment(zeta, ctl_zs_commitment),
+            ctl_zs_next: eval_commitment(zeta_next, ctl_zs_commitment),
             ctl_zs_last: eval_commitment_base(
                 F::primitive_root_of_unity(degree_bits).inverse(),
-                permutation_ctl_zs_commitment,
+                ctl_zs_commitment,
             ),
             quotient_polys: eval_commitment(zeta, quotient_commitment),
         }
@@ -257,14 +257,14 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
         let zeta_batch = FriOpeningBatch {
             values: chain!(
                 &self.local_values,
-                &self.permutation_ctl_zs,
+                &self.ctl_zs,
                 &self.quotient_polys
             )
             .copied()
             .collect_vec(),
         };
         let zeta_next_batch = FriOpeningBatch {
-            values: chain!(&self.next_values, &self.permutation_ctl_zs_next,)
+            values: chain!(&self.next_values, &self.ctl_zs_next,)
                 .copied()
                 .collect_vec(),
         };

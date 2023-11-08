@@ -127,8 +127,8 @@ where
     let StarkOpeningSet {
         local_values,
         next_values,
-        permutation_ctl_zs: _,
-        permutation_ctl_zs_next: _,
+        ctl_zs: _,
+        ctl_zs_next: _,
         ctl_zs_last,
         quotient_polys,
     } = &proof.openings;
@@ -234,8 +234,8 @@ where
     let StarkOpeningSet {
         local_values,
         next_values,
-        permutation_ctl_zs,
-        permutation_ctl_zs_next,
+        ctl_zs: permutation_ctl_zs,
+        ctl_zs_next: permutation_ctl_zs_next,
         ctl_zs_last,
         quotient_polys,
     } = openings;
