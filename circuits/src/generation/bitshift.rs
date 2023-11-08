@@ -14,15 +14,15 @@ fn filter_shift_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> impl Iterator<
 pub fn generate_shift_amount_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
 ) -> Vec<BitshiftView<F>> {
-    let mut multiplicity = [0; 32];
+    let mut multiplicities = [0; 32];
     filter_shift_trace(cpu_trace).for_each(|amount| {
-        multiplicity[usize::try_from(amount).expect("cast should succeed")] += 1;
+        multiplicities[usize::try_from(amount).expect("cast should succeed")] += 1;
     });
     (0..32u64)
         .map(|amount| {
             BitshiftView {
                 executed: amount.into(),
-                multiplicity: multiplicity[usize::try_from(amount).expect("cast should succeed")],
+                multiplicity: multiplicities[usize::try_from(amount).expect("cast should succeed")],
             }
             .map(F::from_canonical_u64)
         })
