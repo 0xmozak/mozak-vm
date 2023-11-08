@@ -23,10 +23,13 @@ resolver = "2"
 # We are running our tests with optimizations turned on to make them faster.
 # Plase turn optimizations off, when you want accurate stack traces for debugging.
 lto = "thin"
-opt-level = 1
+opt-level = 3
 
 [profile.release]
 lto = "fat"
+
+[profile.bench]
+lto = "thin"
 
 [patch.crates-io]
 plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
