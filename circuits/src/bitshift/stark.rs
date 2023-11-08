@@ -89,8 +89,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         vars: &Self::EvaluationFrameTarget,
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &BitshiftView<ExtensionTarget<D>> = vars.get_local_values().try_into().unwrap();
-        let nv: &BitshiftView<ExtensionTarget<D>> = vars.get_next_values().try_into().unwrap();
+        let lv: &BitshiftView<ExtensionTarget<D>> = vars.get_local_values().into();
+        let nv: &BitshiftView<ExtensionTarget<D>> = vars.get_next_values().into();
         let lv: &Bitshift<ExtensionTarget<D>> = &lv.executed;
         let nv: &Bitshift<ExtensionTarget<D>> = &nv.executed;
 
