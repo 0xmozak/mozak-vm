@@ -243,7 +243,7 @@ where
     let degree_bits = proof.recover_degree_bits(config);
     let fri_params = config.fri_params(degree_bits);
     let cap_height = fri_params.config.cap_height;
-    let num_zs = num_ctl_zs + stark.num_permutation_batches(config);
+    let num_zs = num_ctl_zs;
 
     ensure!(trace_cap.height() == cap_height);
     ensure!(permutation_ctl_zs_cap.height() == cap_height);

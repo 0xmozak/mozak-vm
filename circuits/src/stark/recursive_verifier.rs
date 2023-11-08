@@ -421,7 +421,7 @@ pub fn add_virtual_stark_proof<F: RichField + Extendable<D>, S: Stark<F, D>, con
 
     let num_leaves_per_oracle = vec![
         S::COLUMNS,
-        stark.num_permutation_batches(config) + num_ctl_zs,
+        num_ctl_zs,
         stark.quotient_degree_factor() * config.num_challenges,
     ];
 
@@ -446,10 +446,8 @@ fn add_virtual_stark_opening_set<F: RichField + Extendable<D>, S: Stark<F, D>, c
     StarkOpeningSetTarget {
         local_values: builder.add_virtual_extension_targets(S::COLUMNS),
         next_values: builder.add_virtual_extension_targets(S::COLUMNS),
-        permutation_ctl_zs: builder
-            .add_virtual_extension_targets(num_ctl_zs),
-        permutation_ctl_zs_next: builder
-            .add_virtual_extension_targets(num_ctl_zs),
+        permutation_ctl_zs: builder.add_virtual_extension_targets(num_ctl_zs),
+        permutation_ctl_zs_next: builder.add_virtual_extension_targets(num_ctl_zs),
         ctl_zs_last: builder.add_virtual_targets(num_ctl_zs),
         quotient_polys: builder
             .add_virtual_extension_targets(stark.quotient_degree_factor() * num_challenges),
