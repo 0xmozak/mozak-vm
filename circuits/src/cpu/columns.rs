@@ -21,7 +21,7 @@ pub struct OpSelectors<T> {
     pub div: T,
     pub rem: T,
     pub mul: T,
-    // MUL High Multiply most significant bits of two values
+    // MUL High: Multiply most significant bits of two values
     pub mulh: T,
     /// Shift Left Logical by amount
     pub sll: T,
