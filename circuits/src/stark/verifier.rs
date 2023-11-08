@@ -243,7 +243,6 @@ where
     let degree_bits = proof.recover_degree_bits(config);
     let fri_params = config.fri_params(degree_bits);
     let cap_height = fri_params.config.cap_height;
-    let num_zs = num_ctl_zs;
 
     ensure!(trace_cap.height() == cap_height);
     ensure!(ctl_zs_cap.height() == cap_height);
@@ -251,8 +250,8 @@ where
 
     ensure!(local_values.len() == S::COLUMNS);
     ensure!(next_values.len() == S::COLUMNS);
-    ensure!(ctl_zs.len() == num_zs);
-    ensure!(ctl_zs_next.len() == num_zs);
+    ensure!(ctl_zs.len() == num_ctl_zs);
+    ensure!(ctl_zs_next.len() == num_ctl_zs);
     ensure!(ctl_zs_last.len() == num_ctl_zs);
     ensure!(quotient_polys.len() == stark.num_quotient_polys(config));
 
