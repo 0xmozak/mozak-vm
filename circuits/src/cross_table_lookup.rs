@@ -346,14 +346,12 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
         proof: &StarkProofTarget<D>,
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<Target>,
-        num_permutation_zs: usize,
     ) -> Vec<Self> {
         let ctl_zs = {
             izip!(
                 &proof.openings.permutation_ctl_zs,
                 &proof.openings.permutation_ctl_zs_next
             )
-            .skip(num_permutation_zs)
         };
 
         let ctl_chain = cross_table_lookups.iter().flat_map(

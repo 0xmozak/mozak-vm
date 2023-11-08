@@ -191,8 +191,6 @@ where
     C::Hasher: AlgebraicHasher<F>, {
     let zero_target = builder.zero();
 
-    let num_permutation_zs = stark.num_permutation_batches(inner_config);
-    let num_permutation_batch_size = stark.permutation_batch_size();
     let num_ctl_zs =
         CrossTableLookup::num_ctl_zs(cross_table_lookups, table, inner_config.num_challenges);
     let proof_target =
@@ -221,7 +219,6 @@ where
         &proof_target.proof,
         cross_table_lookups,
         &ctl_challenges_target,
-        num_permutation_zs,
     );
 
     let init_challenger_state_target =
@@ -230,12 +227,10 @@ where
         }));
     let mut challenger =
         RecursiveChallenger::<F, C::Hasher, D>::from_state(init_challenger_state_target);
-    let challenges = proof_target.proof.get_challenges::<F, C>(
-        builder,
-        &mut challenger,
-        num_permutation_batch_size,
-        inner_config,
-    );
+    let challenges =
+        proof_target
+            .proof
+            .get_challenges::<F, C>(builder, &mut challenger, inner_config);
     let challenger_state = challenger.compact(builder);
     builder.register_public_inputs(challenger_state.as_ref());
 

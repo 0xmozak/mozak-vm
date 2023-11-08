@@ -18,9 +18,7 @@ use starky::config::StarkConfig;
 
 use super::mozak_stark::NUM_TABLES;
 use crate::stark::mozak_stark::PublicInputs;
-use crate::stark::permutation::challenge::{
-    get_n_grand_product_challenge_sets_target, GrandProductChallengeSet, GrandProductChallengeTrait,
-};
+use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 
 #[allow(clippy::module_name_repetitions)]
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
@@ -136,7 +134,6 @@ impl<const D: usize> StarkProofTarget<D> {
         &self,
         builder: &mut CircuitBuilder<F, D>,
         challenger: &mut RecursiveChallenger<F, C::Hasher, D>,
-        stark_permutation_batch_size: usize,
         config: &StarkConfig,
     ) -> StarkProofChallengesTarget<D>
     where
@@ -157,13 +154,6 @@ impl<const D: usize> StarkProofTarget<D> {
 
         let num_challenges = config.num_challenges;
 
-        let permutation_challenge_sets = get_n_grand_product_challenge_sets_target(
-            builder,
-            challenger,
-            num_challenges,
-            stark_permutation_batch_size,
-        );
-
         challenger.observe_cap(permutation_ctl_zs_cap);
 
         let stark_alphas = challenger.get_n_challenges(builder, num_challenges);
@@ -174,7 +164,6 @@ impl<const D: usize> StarkProofTarget<D> {
         challenger.observe_openings(&openings.to_fri_openings(builder.zero()));
 
         StarkProofChallengesTarget {
-            permutation_challenge_sets,
             stark_alphas,
             stark_zeta,
             fri_challenges: challenger.fri_challenges(
@@ -204,7 +193,6 @@ pub struct StarkProofChallenges<F: RichField + Extendable<D>, const D: usize> {
 }
 
 pub struct StarkProofChallengesTarget<const D: usize> {
-    pub permutation_challenge_sets: Vec<GrandProductChallengeSet<Target>>,
     pub stark_alphas: Vec<Target>,
     pub stark_zeta: ExtensionTarget<D>,
     pub fri_challenges: FriChallengesTarget<D>,
