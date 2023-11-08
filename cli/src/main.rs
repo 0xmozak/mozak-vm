@@ -3,11 +3,13 @@
 // TODO: remove this when shadow_rs updates enough.
 #![allow(clippy::needless_raw_string_hashes)]
 use std::io::{Read, Write};
+use std::time::Duration;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clio::{Input, Output};
 use log::debug;
+use mozak_circuits::cli_benches::bench_functions::BenchArgs;
 use mozak_circuits::generation::memoryinit::generate_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
@@ -70,6 +72,8 @@ enum Command {
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
+    /// Bench the function with given parameters
+    Bench(BenchArgs),
 }
 
 /// Read a sequence of bytes from IO
@@ -204,6 +208,22 @@ fn main() -> Result<()> {
             let trace_cap = trace_commitment.merkle_tree.cap;
             println!("{trace_cap:?}");
         }
+
+        Command::Bench(bench) => {
+            let time_taken = timeit(&|| bench.run())?.as_secs_f64();
+            println!("{time_taken}");
+        }
     }
     Ok(())
+}
+
+/// Times a function and returns the `Duration`.
+///
+/// # Errors
+///
+/// This errors if the given function returns an `Err`.
+pub fn timeit(func: &impl Fn() -> Result<()>) -> Result<Duration> {
+    let start_time = std::time::Instant::now();
+    func()?;
+    Ok(start_time.elapsed())
 }
