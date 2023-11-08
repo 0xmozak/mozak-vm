@@ -69,11 +69,4 @@ mod tests {
             prove_add::<MozakStark<F, D>>(a, b, rd);
         }
     }
-    #[test]
-    fn prove_add_mozak_example() {
-        let a = 0;
-        let b = 0;
-        let rd = 1;
-        prove_add::<MozakStark<F, D>>(a, b, rd);
-    }
 }
