@@ -27,11 +27,11 @@ pub const NUM_MEMORYINIT_COLS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;
 #[must_use]
 pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
     vec![
-        Column::single(MAP.is_writable),
-        Column::single(MAP.element.address),
+        Column::single(col_map().is_writable),
+        Column::single(col_map().element.address),
         // clk:
         Column::constant(F::ZERO),
-        Column::single(MAP.element.value),
+        Column::single(col_map().element.value),
         // is_init:
         Column::constant(F::ONE),
     ]
@@ -39,4 +39,4 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
 
 /// Column for a binary filter to indicate a lookup from the Memory Table
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> { Column::single(MAP.filter) }
+pub fn filter_for_memory<F: Field>() -> Column<F> { Column::single(col_map().filter) }

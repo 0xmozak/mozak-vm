@@ -55,31 +55,31 @@ impl<T: Clone + Add<Output = T>> Poseidon2Sponge<T> {
 
 #[must_use]
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
-    let sponge = MAP.map(Column::from);
+    let sponge = col_map().map(Column::from);
     vec![sponge.clk, sponge.input_addr, sponge.input_len]
 }
 
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> {
-    let sponge = MAP.map(Column::from);
+    let sponge = col_map().map(Column::from);
     sponge.ops.is_init_permute
 }
 
 #[must_use]
 pub fn data_for_poseidon2<F: Field>() -> Vec<Column<F>> {
-    let sponge = MAP.map(Column::from);
+    let sponge = col_map().map(Column::from);
     let mut data = sponge.preimage.to_vec();
     data.extend(sponge.output.to_vec());
     data
 }
 
 #[must_use]
-pub fn filter_for_poseidon2<F: Field>() -> Column<F> { MAP.map(Column::from).is_executed() }
+pub fn filter_for_poseidon2<F: Field>() -> Column<F> { col_map().map(Column::from).is_executed() }
 
 #[must_use]
 pub fn data_for_input_memory<F: Field>(limb_index: u8) -> Vec<Column<F>> {
     assert!(limb_index < 8, "limb_index can be 0..7");
-    let sponge = MAP.map(Column::from);
+    let sponge = col_map().map(Column::from);
     vec![
         sponge.clk,
         Column::constant(F::ZERO),                            // is_store
@@ -91,6 +91,6 @@ pub fn data_for_input_memory<F: Field>(limb_index: u8) -> Vec<Column<F>> {
 
 #[must_use]
 pub fn filter_for_input_memory<F: Field>() -> Column<F> {
-    let row = MAP.map(Column::from);
+    let row = col_map().map(Column::from);
     row.ops.is_init_permute + row.ops.is_permute
 }

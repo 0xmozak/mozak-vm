@@ -37,8 +37,8 @@ pub struct BitshiftView<T> {
 
 /// Columns containing data from CPU table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.executed) }
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(col_map().executed) }
 
 /// Column containing filter from CPU table.
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { MAP.is_executed.into() }
+pub fn filter_for_cpu<F: Field>() -> Column<F> { col_map().is_executed.into() }
