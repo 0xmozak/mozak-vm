@@ -269,7 +269,6 @@ where
         &permutation_ctl_zs_commitment,
         &quotient_commitment,
         degree_bits,
-        stark.num_permutation_batches(config),
     );
 
     challenger.observe_openings(&openings.to_fri_openings());

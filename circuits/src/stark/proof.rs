@@ -226,7 +226,6 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
         permutation_ctl_zs_commitment: &PolynomialBatch<F, C, D>,
         quotient_commitment: &PolynomialBatch<F, C, D>,
         degree_bits: usize,
-        num_permutation_zs: usize,
     ) -> Self {
         let eval_commitment = |z: F::Extension, c: &PolynomialBatch<F, C, D>| {
             c.polynomials
@@ -249,8 +248,7 @@ impl<F: RichField + Extendable<D>, const D: usize> StarkOpeningSet<F, D> {
             ctl_zs_last: eval_commitment_base(
                 F::primitive_root_of_unity(degree_bits).inverse(),
                 permutation_ctl_zs_commitment,
-            )[num_permutation_zs..]
-                .to_vec(),
+            ),
             quotient_polys: eval_commitment(zeta, quotient_commitment),
         }
     }
