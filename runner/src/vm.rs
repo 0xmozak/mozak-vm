@@ -126,33 +126,16 @@ impl<F: RichField> State<F> {
     ///
     /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
     /// bytes.
-    fn ecall_private_io_read(self) -> (Aux<F>, Self) { self.io_read(false) }
-
-    /// # Panics
-    ///
-    /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
-    /// bytes.
-    #[allow(dead_code)]
-    fn ecall_public_io_read(self) -> (Aux<F>, Self) { self.io_read(true) }
-
-    /// # Panics
-    ///
-    /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
-    /// bytes.
-    fn io_read(self, is_public: bool) -> (Aux<F>, Self) {
+    fn ecall_io_read(self, op: IoOpcode) -> (Aux<F>, Self) {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requsted = self.get_register_value(REG_A2);
-        let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize, is_public);
+        let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize, op);
         (
             Aux {
                 dst_val: u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
                 io: Some(IoEntry {
                     addr: buffer_start,
-                    op: if is_public {
-                        IoOpcode::StorePublic
-                    } else {
-                        IoOpcode::StorePrivate
-                    },
+                    op,
                     data: data.clone(),
                 }),
                 ..Default::default()
@@ -192,8 +175,8 @@ impl<F: RichField> State<F> {
     pub fn ecall(self) -> (Aux<F>, Self) {
         match self.get_register_value(REG_A0) {
             ecall::HALT => self.ecall_halt(),
-            ecall::IO_READ_PRIVATE => self.ecall_private_io_read(),
-            ecall::IO_READ_PUBLIC => self.ecall_public_io_read(),
+            ecall::IO_READ_PRIVATE => self.ecall_io_read(IoOpcode::StorePrivate),
+            ecall::IO_READ_PUBLIC => self.ecall_io_read(IoOpcode::StorePublic),
             ecall::PANIC => self.ecall_panic(),
             ecall::POSEIDON2 => self.ecall_poseidon2(),
             _ => (Aux::default(), self.bump_pc()),

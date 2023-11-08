@@ -354,8 +354,9 @@ impl<F: RichField> State<F> {
     /// `io_tape`.
     /// TODO(Matthias): remove that limitation (again).
     #[must_use]
-    pub fn read_iobytes(mut self, num_bytes: usize, is_public: bool) -> (Vec<u8>, Self) {
-        if is_public {
+    pub fn read_iobytes(mut self, num_bytes: usize, op: IoOpcode) -> (Vec<u8>, Self) {
+        assert!(op == IoOpcode::StorePublic || op == IoOpcode::StorePrivate);
+        if op == IoOpcode::StorePublic {
             let read_index = self.io_tape.public.read_index;
             let remaining_len = self.io_tape.public.data.len() - read_index;
             let limit = num_bytes.min(remaining_len);
