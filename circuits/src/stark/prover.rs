@@ -184,15 +184,15 @@ where
 
     let init_challenger_state = challenger.compact();
 
-    // Permutation arguments.
-    let _permutation_challenges: Vec<GrandProductChallengeSet<F>> = challenger
-        .get_n_grand_product_challenge_sets(config.num_challenges, stark.permutation_batch_size());
+    let z_polys = ctl_data.z_polys();
+    // TODO(Matthias): make the code work with empty z_polys, too.
+    assert!(!z_polys.is_empty(), "No CTL?");
 
     let permutation_ctl_zs_commitment = timed!(
         timing,
         format!("{stark}: compute Zs commitment").as_str(),
         PolynomialBatch::from_values(
-            vec![],
+            z_polys,
             rate_bits,
             false,
             config.fri_config.cap_height,
