@@ -37,7 +37,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 pub struct StarkProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
     /// Merkle cap of LDEs of trace values.
     pub trace_cap: MerkleCap<F, C::Hasher>,
-    /// Merkle cap of LDEs of permutation Z values.
+    /// Merkle cap of LDEs of cross-table lookup Z values.
     pub ctl_zs_cap: MerkleCap<F, C::Hasher>,
     /// Merkle cap of LDEs of trace values.
     pub quotient_polys_cap: MerkleCap<F, C::Hasher>,
@@ -206,10 +206,10 @@ pub struct StarkOpeningSet<F: RichField + Extendable<D>, const D: usize> {
     pub local_values: Vec<F::Extension>,
     /// Openings of trace polynomials at `g * zeta`.
     pub next_values: Vec<F::Extension>,
-    /// Openings of permutations and cross-table lookups `Z` polynomials at
+    /// Openings of cross-table lookups `Z` polynomials at
     /// `zeta`.
     pub ctl_zs: Vec<F::Extension>,
-    /// Openings of permutations and cross-table lookups `Z` polynomials at `g *
+    /// Openings of cross-table lookups `Z` polynomials at `g *
     /// zeta`.
     pub ctl_zs_next: Vec<F::Extension>,
     /// Openings of cross-table lookups `Z` polynomials at `g^-1`.
