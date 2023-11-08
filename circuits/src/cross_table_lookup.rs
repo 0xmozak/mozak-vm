@@ -62,12 +62,12 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     config: &StarkConfig,
 ) -> Result<()> {
     let mut ctl_zs_openings = ctl_zs_lasts.iter().map(|v| v.iter()).collect::<Vec<_>>();
-    for CrossTableLookup {
-        looking_tables,
-        looked_table,
-    } in cross_table_lookups
-    {
-        for _ in 0..config.num_challenges {
+    for _ in 0..config.num_challenges {
+        for CrossTableLookup {
+            looking_tables,
+            looked_table,
+        } in cross_table_lookups
+        {
             let looking_zs_sum = looking_tables
                 .iter()
                 .map(|table| *ctl_zs_openings[table.kind as usize].next().unwrap())
@@ -95,27 +95,24 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     ctl_challenges: &GrandProductChallengeSet<F>,
 ) -> [CtlData<F>; NUM_TABLES] {
     let mut ctl_data_per_table = [0; NUM_TABLES].map(|_| CtlData::default());
-    for CrossTableLookup {
-        looking_tables,
-        looked_table,
-    } in cross_table_lookups
-    {
-        log::debug!("Processing CTL for {:?}", looked_table.kind);
-        for &challenge in &ctl_challenges.challenges {
-            let zs_looking = looking_tables.iter().map(|looking_table| {
+    for &challenge in &ctl_challenges.challenges {
+        for CrossTableLookup {
+            looking_tables,
+            looked_table,
+        } in cross_table_lookups
+        {
+            log::debug!("Processing CTL for {:?}", looked_table.kind);
+
+            let make_z = |table: &Table<F>| {
                 partial_sums(
-                    &trace_poly_values[looking_table.kind as usize],
-                    &looking_table.columns,
-                    &looking_table.filter_column,
+                    &trace_poly_values[table.kind as usize],
+                    &table.columns,
+                    &table.filter_column,
                     challenge,
                 )
-            });
-            let z_looked = partial_sums(
-                &trace_poly_values[looked_table.kind as usize],
-                &looked_table.columns,
-                &looked_table.filter_column,
-                challenge,
-            );
+            };
+            let zs_looking = looking_tables.iter().map(make_z);
+            let z_looked = make_z(looked_table);
 
             debug_assert_eq!(
                 zs_looking
@@ -125,24 +122,19 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                 *z_looked.values.last().unwrap()
             );
 
-            for (looking_table, z) in looking_tables.iter().zip(zs_looking) {
-                ctl_data_per_table[looking_table.kind as usize]
+            for (table, z) in chain!(izip!(looking_tables, zs_looking), [(
+                looked_table,
+                z_looked
+            )]) {
+                ctl_data_per_table[table.kind as usize]
                     .zs_columns
                     .push(CtlZData {
                         z,
                         challenge,
-                        columns: looking_table.columns.clone(),
-                        filter_column: looking_table.filter_column.clone(),
+                        columns: table.columns.clone(),
+                        filter_column: table.filter_column.clone(),
                     });
             }
-            ctl_data_per_table[looked_table.kind as usize]
-                .zs_columns
-                .push(CtlZData {
-                    z: z_looked,
-                    challenge,
-                    columns: looked_table.columns.clone(),
-                    filter_column: looked_table.filter_column.clone(),
-                });
         }
     }
     ctl_data_per_table
@@ -243,46 +235,28 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         proofs: &[StarkProofWithMetadata<F, C, D>; NUM_TABLES],
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
-        num_permutation_zs: &[usize; NUM_TABLES],
     ) -> [Vec<Self>; NUM_TABLES] {
         let mut ctl_zs = proofs
             .iter()
-            .zip(num_permutation_zs)
-            .map(|(p, &num_perms)| {
-                let openings = &p.proof.openings;
-                let ctl_zs = openings.permutation_ctl_zs.iter().skip(num_perms);
-                let ctl_zs_next = openings.permutation_ctl_zs_next.iter().skip(num_perms);
-                ctl_zs.zip(ctl_zs_next)
-            })
+            .map(|p| izip!(&p.proof.openings.ctl_zs, &p.proof.openings.ctl_zs_next))
             .collect::<Vec<_>>();
 
         let mut ctl_vars_per_table = [0; NUM_TABLES].map(|_| vec![]);
-        for CrossTableLookup {
-            looking_tables,
-            looked_table,
-        } in cross_table_lookups
-        {
-            for &challenges in &ctl_challenges.challenges {
-                for table in looking_tables {
-                    let (looking_z, looking_z_next) = ctl_zs[table.kind as usize].next().unwrap();
-                    ctl_vars_per_table[table.kind as usize].push(Self {
-                        local_z: *looking_z,
-                        next_z: *looking_z_next,
-                        challenges,
-                        columns: &table.columns,
-                        filter_column: &table.filter_column,
-                    });
-                }
-
-                let (looked_z, looked_z_next) = ctl_zs[looked_table.kind as usize].next().unwrap();
-                ctl_vars_per_table[looked_table.kind as usize].push(Self {
-                    local_z: *looked_z,
-                    next_z: *looked_z_next,
-                    challenges,
-                    columns: &looked_table.columns,
-                    filter_column: &looked_table.filter_column,
-                });
-            }
+        let ctl_chain = cross_table_lookups.iter().flat_map(
+            |CrossTableLookup {
+                 looking_tables,
+                 looked_table,
+             }| chain!(looking_tables, [looked_table]),
+        );
+        for (&challenges, table) in iproduct!(&ctl_challenges.challenges, ctl_chain) {
+            let (&local_z, &next_z) = ctl_zs[table.kind as usize].next().unwrap();
+            ctl_vars_per_table[table.kind as usize].push(Self {
+                local_z,
+                next_z,
+                challenges,
+                columns: &table.columns,
+                filter_column: &table.filter_column,
+            });
         }
         ctl_vars_per_table
     }
@@ -339,15 +313,8 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
         proof: &StarkProofTarget<D>,
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<Target>,
-        num_permutation_zs: usize,
     ) -> Vec<Self> {
-        let ctl_zs = {
-            izip!(
-                &proof.openings.permutation_ctl_zs,
-                &proof.openings.permutation_ctl_zs_next
-            )
-            .skip(num_permutation_zs)
-        };
+        let ctl_zs = izip!(&proof.openings.ctl_zs, &proof.openings.ctl_zs_next);
 
         let ctl_chain = cross_table_lookups.iter().flat_map(
             |CrossTableLookup {
@@ -355,8 +322,8 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
                  looked_table,
              }| chain!(looking_tables, [looked_table]).filter(|twc| twc.kind == table),
         );
-        zip_eq(ctl_zs, iproduct!(ctl_chain, &ctl_challenges.challenges))
-            .map(|((&local_z, &next_z), (table, &challenges))| Self {
+        zip_eq(ctl_zs, iproduct!(&ctl_challenges.challenges, ctl_chain))
+            .map(|((&local_z, &next_z), (&challenges, table))| Self {
                 local_z,
                 next_z,
                 challenges,

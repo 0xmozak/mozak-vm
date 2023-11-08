@@ -147,6 +147,12 @@ macro_rules! columns_view_impl {
             }
         }
 
+        impl<'a, T> $s<T> {
+            pub fn iter(&'a self) -> std::slice::Iter<'a, T> {
+                <&'a Self as IntoIterator>::into_iter(self)
+            }
+        }
+
         impl<T: std::fmt::Debug> std::iter::FromIterator<T> for $s<T> {
             fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
                 let vec: Vec<T> = iter.into_iter().collect();

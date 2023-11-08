@@ -205,7 +205,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &Poseidon2State<P> = vars.get_local_values().try_into().unwrap();
+        let lv: &Poseidon2State<P> = vars.get_local_values().into();
 
         // row can be execution or padding.
         is_binary(yield_constr, lv.is_exe);

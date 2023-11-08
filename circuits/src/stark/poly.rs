@@ -15,26 +15,21 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::Stark;
 
-use super::permutation::{eval_permutation_checks, PermutationCheckVars};
 use crate::cross_table_lookup::{
     eval_cross_table_lookup_checks, eval_cross_table_lookup_checks_circuit, CtlCheckVars,
     CtlCheckVarsTarget, CtlData,
 };
-use crate::stark::permutation::challenge::GrandProductChallengeSet;
-use crate::stark::permutation::{eval_permutation_checks_circuit, PermutationCheckDataTarget};
 
 /// Computes the quotient polynomials `(sum alpha^i C_i(x)) / Z_H(x)` for
 /// `alpha` in `alphas`, where the `C_i`s are the Stark constraints.
 pub fn compute_quotient_polys<'a, F, P, C, S, const D: usize>(
     stark: &S,
     trace_commitment: &'a PolynomialBatch<F, C, D>,
-    permutation_ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
-    permutation_challenges: &'a [GrandProductChallengeSet<F>],
+    ctl_zs_commitment: &'a PolynomialBatch<F, C, D>,
     public_inputs: &[F],
     ctl_data: &CtlData<F>,
     alphas: &[F],
     degree_bits: usize,
-    num_permutation_zs: usize,
     config: &StarkConfig,
 ) -> Vec<PolynomialCoeffs<F>>
 where
@@ -101,37 +96,19 @@ where
                 &get_trace_values_packed(i_next_start),
                 public_inputs,
             );
-            let permutation_check_vars = PermutationCheckVars {
-                local_zs: permutation_ctl_zs_commitment.get_lde_values_packed(i_start, step)
-                    [..num_permutation_zs]
-                    .to_vec(),
-                next_zs: permutation_ctl_zs_commitment.get_lde_values_packed(i_next_start, step)
-                    [..num_permutation_zs]
-                    .to_vec(),
-                permutation_challenge_sets: permutation_challenges.to_owned(),
-            };
             let ctl_vars = ctl_data
                 .zs_columns
                 .iter()
                 .enumerate()
                 .map(|(i, zs_columns)| CtlCheckVars::<F, F, P, 1> {
-                    local_z: permutation_ctl_zs_commitment.get_lde_values_packed(i_start, step)
-                        [num_permutation_zs + i],
-                    next_z: permutation_ctl_zs_commitment.get_lde_values_packed(i_next_start, step)
-                        [num_permutation_zs + i],
+                    local_z: ctl_zs_commitment.get_lde_values_packed(i_start, step)[i],
+                    next_z: ctl_zs_commitment.get_lde_values_packed(i_next_start, step)[i],
                     challenges: zs_columns.challenge,
                     columns: &zs_columns.columns,
                     filter_column: &zs_columns.filter_column,
                 })
                 .collect::<Vec<_>>();
-            eval_vanishing_poly::<F, F, P, S, D, 1>(
-                stark,
-                config,
-                &vars,
-                permutation_check_vars,
-                &ctl_vars,
-                &mut consumer,
-            );
+            eval_vanishing_poly::<F, F, P, S, D, 1>(stark, &vars, &ctl_vars, &mut consumer);
             let mut constraints_evals = consumer.accumulators();
             // We divide the constraints evaluations by `Z_H(x)`.
             let denominator_inv: P = z_h_on_coset.eval_inverse_packed(i_start);
@@ -159,9 +136,7 @@ where
 #[allow(clippy::module_name_repetitions)]
 pub fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     stark: &S,
-    config: &StarkConfig,
     vars: &S::EvaluationFrame<FE, P, D2>,
-    permutation_vars: PermutationCheckVars<F, FE, P, D2>,
     ctl_vars: &[CtlCheckVars<F, FE, P, D2>],
     consumer: &mut ConstraintConsumer<P>,
 ) where
@@ -170,30 +145,18 @@ pub fn eval_vanishing_poly<F, FE, P, S, const D: usize, const D2: usize>(
     P: PackedField<Scalar = FE>,
     S: Stark<F, D>, {
     stark.eval_packed_generic(vars, consumer);
-    eval_permutation_checks::<F, FE, P, S, D, D2>(stark, config, vars, permutation_vars, consumer);
     eval_cross_table_lookup_checks::<F, FE, P, S, D, D2>(vars, ctl_vars, consumer);
 }
 
 pub fn eval_vanishing_poly_circuit<F, S, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     stark: &S,
-    config: &StarkConfig,
     vars: &S::EvaluationFrameTarget,
-    permutation_data: PermutationCheckDataTarget<D>,
     ctl_vars: &[CtlCheckVarsTarget<F, D>],
     consumer: &mut RecursiveConstraintConsumer<F, D>,
 ) where
     F: RichField + Extendable<D>,
     S: Stark<F, D>, {
     stark.eval_ext_circuit(builder, vars, consumer);
-    eval_permutation_checks_circuit::<F, S, D>(
-        builder,
-        stark,
-        config,
-        vars,
-        permutation_data,
-        consumer,
-    );
-
     eval_cross_table_lookup_checks_circuit::<S, F, D>(builder, vars, ctl_vars, consumer);
 }
