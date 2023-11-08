@@ -260,7 +260,7 @@ This summarises the types of arguments used in the codebase.
 After we have defined the constraints, we need to fill in the tables with values that actually fulfill the constraints.
 This is done in the `generation` module based on the trace of the program and the code of the program.
 
-## Stark Cryptography
+## STARK Cryptography
 
 As the **Plonky2** API is quite limiting, especially when it comes to the CTL, we had to actually use all the primitives
 directly and not their abstractions. This is why in the `stark` module you will find the STARK protocol implementation.
