@@ -262,30 +262,21 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
             .collect::<Vec<_>>();
 
         let mut ctl_vars_per_table = [0; NUM_TABLES].map(|_| vec![]);
-        for CrossTableLookup {
-            looking_tables,
-            looked_table,
-        } in cross_table_lookups
-        {
-            for &challenges in &ctl_challenges.challenges {
-                for table in looking_tables {
-                    let (looking_z, looking_z_next) = ctl_zs[table.kind as usize].next().unwrap();
-                    ctl_vars_per_table[table.kind as usize].push(Self {
-                        local_z: *looking_z,
-                        next_z: *looking_z_next,
-                        challenges,
-                        columns: &table.columns,
-                        filter_column: &table.filter_column,
-                    });
-                }
-
-                let (looked_z, looked_z_next) = ctl_zs[looked_table.kind as usize].next().unwrap();
-                ctl_vars_per_table[looked_table.kind as usize].push(Self {
-                    local_z: *looked_z,
-                    next_z: *looked_z_next,
+        let ctl_chain = cross_table_lookups.iter().map(
+            |CrossTableLookup {
+                 looking_tables,
+                 looked_table,
+             }| chain!(looking_tables, [looked_table]),
+        );
+        for (tables, &challenges) in iproduct!(ctl_chain, &ctl_challenges.challenges) {
+            for table in tables {
+                let (&local_z, &next_z) = ctl_zs[table.kind as usize].next().unwrap();
+                ctl_vars_per_table[table.kind as usize].push(Self {
+                    local_z,
+                    next_z,
                     challenges,
-                    columns: &looked_table.columns,
-                    filter_column: &looked_table.filter_column,
+                    columns: &table.columns,
+                    filter_column: &table.filter_column,
                 });
             }
         }
