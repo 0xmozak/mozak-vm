@@ -31,7 +31,6 @@ use crate::memoryinit::stark::MemoryInitStark;
 use crate::program::stark::ProgramStark;
 use crate::stark::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
-use crate::stark::permutation::PermutationCheckDataTarget;
 use crate::stark::poly::eval_vanishing_poly_circuit;
 use crate::stark::proof::{
     AllProof, StarkOpeningSetTarget, StarkProof, StarkProofChallengesTarget, StarkProofTarget,
@@ -210,8 +209,6 @@ where
     C::Hasher: AlgebraicHasher<F>, {
     let zero_target = builder.zero();
 
-    let num_permutation_zs = stark.num_permutation_batches(inner_config);
-    let num_permutation_batch_size = stark.permutation_batch_size();
     let num_ctl_zs =
         CrossTableLookup::num_ctl_zs(cross_table_lookups, table, inner_config.num_challenges);
     let proof_target =
@@ -240,7 +237,6 @@ where
         &proof_target.proof,
         cross_table_lookups,
         &ctl_challenges_target,
-        num_permutation_zs,
     );
 
     let init_challenger_state_target =
@@ -249,12 +245,10 @@ where
         }));
     let mut challenger =
         RecursiveChallenger::<F, C::Hasher, D>::from_state(init_challenger_state_target);
-    let challenges = proof_target.proof.get_challenges::<F, C>(
-        builder,
-        &mut challenger,
-        num_permutation_batch_size,
-        inner_config,
-    );
+    let challenges =
+        proof_target
+            .proof
+            .get_challenges::<F, C>(builder, &mut challenger, inner_config);
     let challenger_state = challenger.compact(builder);
     builder.register_public_inputs(challenger_state.as_ref());
 
@@ -310,8 +304,8 @@ fn verify_stark_proof_with_challenges_circuit<
     let StarkOpeningSetTarget {
         local_values,
         next_values,
-        permutation_ctl_zs,
-        permutation_ctl_zs_next,
+        ctl_zs: _,
+        ctl_zs_next: _,
         ctl_zs_last,
         quotient_polys,
     } = &proof_with_public_inputs.proof.openings;
@@ -344,25 +338,10 @@ fn verify_stark_proof_with_challenges_circuit<
         l_last,
     );
 
-    let num_permutation_zs = stark.num_permutation_batches(inner_config);
-    let permutation_data = PermutationCheckDataTarget {
-        local_zs: permutation_ctl_zs[..num_permutation_zs].to_vec(),
-        next_zs: permutation_ctl_zs_next[..num_permutation_zs].to_vec(),
-        permutation_challenge_sets: challenges.permutation_challenge_sets.clone(),
-    };
-
     with_context!(
         builder,
         "evaluate vanishing polynomial",
-        eval_vanishing_poly_circuit::<F, S, D>(
-            builder,
-            stark,
-            inner_config,
-            &vars,
-            permutation_data,
-            ctl_vars,
-            &mut consumer,
-        )
+        eval_vanishing_poly_circuit::<F, S, D>(builder, stark, &vars, ctl_vars, &mut consumer,)
     );
     let vanishing_polys_zeta = consumer.accumulators();
 
@@ -380,10 +359,7 @@ fn verify_stark_proof_with_challenges_circuit<
 
     let merkle_caps = vec![
         proof_with_public_inputs.proof.trace_cap.clone(),
-        proof_with_public_inputs
-            .proof
-            .permutation_ctl_zs_cap
-            .clone(),
+        proof_with_public_inputs.proof.ctl_zs_cap.clone(),
         proof_with_public_inputs.proof.quotient_polys_cap.clone(),
     ];
 
@@ -460,15 +436,15 @@ pub fn add_virtual_stark_proof<F: RichField + Extendable<D>, S: Stark<F, D>, con
 
     let num_leaves_per_oracle = vec![
         S::COLUMNS,
-        stark.num_permutation_batches(config) + num_ctl_zs,
+        num_ctl_zs,
         stark.quotient_degree_factor() * config.num_challenges,
     ];
 
-    let permutation_zs_cap = builder.add_virtual_cap(cap_height);
+    let ctl_zs_cap = builder.add_virtual_cap(cap_height);
 
     StarkProofTarget {
         trace_cap: builder.add_virtual_cap(cap_height),
-        permutation_ctl_zs_cap: permutation_zs_cap,
+        ctl_zs_cap,
         quotient_polys_cap: builder.add_virtual_cap(cap_height),
         openings: add_virtual_stark_opening_set::<F, S, D>(builder, stark, num_ctl_zs, config),
         opening_proof: builder.add_virtual_fri_proof(&num_leaves_per_oracle, &fri_params),
@@ -485,10 +461,8 @@ fn add_virtual_stark_opening_set<F: RichField + Extendable<D>, S: Stark<F, D>, c
     StarkOpeningSetTarget {
         local_values: builder.add_virtual_extension_targets(S::COLUMNS),
         next_values: builder.add_virtual_extension_targets(S::COLUMNS),
-        permutation_ctl_zs: builder
-            .add_virtual_extension_targets(stark.num_permutation_batches(config) + num_ctl_zs),
-        permutation_ctl_zs_next: builder
-            .add_virtual_extension_targets(stark.num_permutation_batches(config) + num_ctl_zs),
+        ctl_zs: builder.add_virtual_extension_targets(num_ctl_zs),
+        ctl_zs_next: builder.add_virtual_extension_targets(num_ctl_zs),
         ctl_zs_last: builder.add_virtual_targets(num_ctl_zs),
         quotient_polys: builder
             .add_virtual_extension_targets(stark.quotient_degree_factor() * num_challenges),
@@ -512,10 +486,7 @@ pub fn set_stark_proof_target<F, C: GenericConfig<D, F = F>, W, const D: usize>(
         &proof.openings.to_fri_openings(),
     );
 
-    witness.set_cap_target(
-        &proof_target.permutation_ctl_zs_cap,
-        &proof.permutation_ctl_zs_cap,
-    );
+    witness.set_cap_target(&proof_target.ctl_zs_cap, &proof.ctl_zs_cap);
 
     set_fri_proof_target(witness, &proof_target.opening_proof, &proof.opening_proof);
 }

@@ -43,7 +43,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ProgramStark<
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &ProgramRom<P> = vars.get_local_values().try_into().unwrap();
+        let lv: &ProgramRom<P> = vars.get_local_values().into();
         is_binary(yield_constr, lv.filter);
     }
 
@@ -53,7 +53,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ProgramStark<
         vars: &Self::EvaluationFrameTarget,
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &ProgramRom<ExtensionTarget<D>> = vars.get_local_values().try_into().unwrap();
+        let lv: &ProgramRom<ExtensionTarget<D>> = vars.get_local_values().into();
         is_binary_ext_circuit(builder, lv.filter, yield_constr);
     }
 

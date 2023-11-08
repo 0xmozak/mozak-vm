@@ -54,8 +54,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         let rate = u8::try_from(Poseidon2Permutation::<F>::RATE).expect("rate > 255");
         let state_size = u8::try_from(Poseidon2Permutation::<F>::WIDTH).expect("state_size > 255");
         let rate_scalar = P::Scalar::from_canonical_u8(rate);
-        let lv: &Poseidon2Sponge<P> = vars.get_local_values().try_into().unwrap();
-        let nv: &Poseidon2Sponge<P> = vars.get_next_values().try_into().unwrap();
+        let lv: &Poseidon2Sponge<P> = vars.get_local_values().into();
+        let nv: &Poseidon2Sponge<P> = vars.get_next_values().into();
 
         is_binary(yield_constr, lv.ops.is_init_permute);
         is_binary(yield_constr, lv.ops.is_permute);

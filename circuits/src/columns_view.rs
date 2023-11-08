@@ -147,6 +147,12 @@ macro_rules! columns_view_impl {
             }
         }
 
+        impl<'a, T> $s<T> {
+            pub fn iter(&'a self) -> std::slice::Iter<'a, T> {
+                <&'a Self as IntoIterator>::into_iter(self)
+            }
+        }
+
         impl<T: std::fmt::Debug> std::iter::FromIterator<T> for $s<T> {
             fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
                 let vec: Vec<T> = iter.into_iter().collect();
@@ -158,6 +164,9 @@ macro_rules! columns_view_impl {
 }
 pub(crate) use columns_view_impl;
 
+/// Implement a static `MAP` of the `ColumnsView` from an array with length
+/// [`NumberOfColumns`] of the `ColumnsView` that allows for indexing into an
+/// array with the column name rather than the column index.
 macro_rules! make_col_map {
     ($s: ident) => {
         lazy_static::lazy_static! {
@@ -173,6 +182,7 @@ macro_rules! make_col_map {
 }
 pub(crate) use make_col_map;
 
+/// Return a selector that is only active at index `which`
 #[must_use]
 pub fn selection<T: IndexMut<usize, Output = u32> + Default>(which: usize) -> T {
     let mut selectors = T::default();
