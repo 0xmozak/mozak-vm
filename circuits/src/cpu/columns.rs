@@ -249,10 +249,7 @@ pub fn rangecheck_looking_u8<F: Field>() -> Vec<Table<F>> {
     let cpu = MAP.cpu.map(Column::from);
 
     vec![CpuTable::new(
-        vec![
-            cpu.dst_value - cpu.dst_sign_bit * F::from_canonical_u64(1 << 8)
-                + &cpu.inst.is_dst_signed * F::from_canonical_u64(1 << 7),
-        ],
+        vec![cpu.dst_value - cpu.dst_sign_bit * F::from_canonical_u32(0xFFFF_FF00)],
         cpu.inst.is_dst_signed,
     )]
 }
@@ -297,7 +294,7 @@ pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
     vec![
         cpu.clk,
         cpu.mem_addr,
-        cpu.dst_value,
+        cpu.mem_value_raw,
         cpu.inst.ops.sh,
         cpu.inst.ops.lh,
     ]

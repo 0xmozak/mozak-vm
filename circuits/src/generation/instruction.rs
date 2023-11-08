@@ -20,8 +20,8 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
                 Op::SLT | Op::DIV | Op::REM | Op::MULH | Op::BLT | Op::BGE
             )
             .into(),
-            // is_dst_signed is also set in `memory_sign_handling` in circuits/generation/cpu
-            is_dst_signed: matches!(inst.op, Op::LB).into(),
+            // dst_sign_bit is set in `memory_sign_handling` in circuits/generation/cpu
+            is_dst_signed: matches!(inst.op, Op::LB | Op::LH).into(),
             ..Self::default()
         };
         *match inst.op {
