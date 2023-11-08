@@ -261,14 +261,14 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
              }| chain!(looking_tables, [looked_table]),
         );
         for (&challenges, table) in iproduct!(&ctl_challenges.challenges, ctl_chain) {
-                let (&local_z, &next_z) = ctl_zs[table.kind as usize].next().unwrap();
-                ctl_vars_per_table[table.kind as usize].push(Self {
-                    local_z,
-                    next_z,
-                    challenges,
-                    columns: &table.columns,
-                    filter_column: &table.filter_column,
-                });
+            let (&local_z, &next_z) = ctl_zs[table.kind as usize].next().unwrap();
+            ctl_vars_per_table[table.kind as usize].push(Self {
+                local_z,
+                next_z,
+                challenges,
+                columns: &table.columns,
+                filter_column: &table.filter_column,
+            });
         }
         ctl_vars_per_table
     }
