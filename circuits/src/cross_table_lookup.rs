@@ -64,12 +64,12 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     config: &StarkConfig,
 ) -> Result<()> {
     let mut ctl_zs_openings = ctl_zs_lasts.iter().map(|v| v.iter()).collect::<Vec<_>>();
-    for CrossTableLookup {
-        looking_tables,
-        looked_table,
-    } in cross_table_lookups
-    {
-        for _ in 0..config.num_challenges {
+    for _ in 0..config.num_challenges {
+        for CrossTableLookup {
+            looking_tables,
+            looked_table,
+        } in cross_table_lookups
+        {
             let looking_zs_sum = looking_tables
                 .iter()
                 .map(|table| *ctl_zs_openings[table.kind as usize].next().unwrap())
@@ -97,12 +97,12 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     ctl_challenges: &GrandProductChallengeSet<F>,
 ) -> [CtlData<F>; NUM_TABLES] {
     let mut ctl_data_per_table = [0; NUM_TABLES].map(|_| CtlData::default());
-    for CrossTableLookup {
-        looking_tables,
-        looked_table,
-    } in cross_table_lookups
-    {
-        for &challenge in &ctl_challenges.challenges {
+    for &challenge in &ctl_challenges.challenges {
+        for CrossTableLookup {
+            looking_tables,
+            looked_table,
+        } in cross_table_lookups
+        {
             log::debug!("Processing CTL for {:?}", looked_table.kind);
 
             let make_z = |table: &Table<F>| {
@@ -260,7 +260,7 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                  looked_table,
              }| chain!(looking_tables, [looked_table]),
         );
-        for (tables, &challenges) in iproduct!(ctl_chain, &ctl_challenges.challenges) {
+        for (&challenges, tables) in iproduct!(&ctl_challenges.challenges, ctl_chain) {
             for table in tables {
                 let (&local_z, &next_z) = ctl_zs[table.kind as usize].next().unwrap();
                 ctl_vars_per_table[table.kind as usize].push(Self {
@@ -339,8 +339,8 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
                  looked_table,
              }| chain!(looking_tables, [looked_table]).filter(|twc| twc.kind == table),
         );
-        zip_eq(ctl_zs, iproduct!(ctl_chain, &ctl_challenges.challenges))
-            .map(|((&local_z, &next_z), (table, &challenges))| Self {
+        zip_eq(ctl_zs, iproduct!(&ctl_challenges.challenges, ctl_chain))
+            .map(|((&local_z, &next_z), (&challenges, table))| Self {
                 local_z,
                 next_z,
                 challenges,
