@@ -248,10 +248,19 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 pub fn rangecheck_looking_u8<F: Field>() -> Vec<Table<F>> {
     let cpu = MAP.cpu.map(Column::from);
 
-    vec![CpuTable::new(
-        vec![cpu.dst_value - cpu.dst_sign_bit * F::from_canonical_u32(0xFFFF_FF00)],
-        cpu.inst.is_dst_signed,
-    )]
+    vec![
+        CpuTable::new(
+            vec![
+                cpu.dst_value.clone()
+                    - cpu.dst_sign_bit.clone() * F::from_canonical_u32(0xFFFF_FF00),
+            ],
+            cpu.inst.ops.lb,
+        ),
+        CpuTable::new(
+            vec![cpu.dst_value - cpu.dst_sign_bit * F::from_canonical_u32(0xFFFF_0000)],
+            cpu.inst.ops.lh,
+        ),
+    ]
 }
 
 /// Columns containing the data to be matched against Xor stark.
