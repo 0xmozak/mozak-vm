@@ -254,14 +254,13 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
             .collect::<Vec<_>>();
 
         let mut ctl_vars_per_table = [0; NUM_TABLES].map(|_| vec![]);
-        let ctl_chain = cross_table_lookups.iter().map(
+        let ctl_chain = cross_table_lookups.iter().flat_map(
             |CrossTableLookup {
                  looking_tables,
                  looked_table,
              }| chain!(looking_tables, [looked_table]),
         );
-        for (&challenges, tables) in iproduct!(&ctl_challenges.challenges, ctl_chain) {
-            for table in tables {
+        for (&challenges, table) in iproduct!(&ctl_challenges.challenges, ctl_chain) {
                 let (&local_z, &next_z) = ctl_zs[table.kind as usize].next().unwrap();
                 ctl_vars_per_table[table.kind as usize].push(Self {
                     local_z,
@@ -270,7 +269,6 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
                     columns: &table.columns,
                     filter_column: &table.filter_column,
                 });
-            }
         }
         ctl_vars_per_table
     }
