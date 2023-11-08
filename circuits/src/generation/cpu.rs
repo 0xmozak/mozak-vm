@@ -37,6 +37,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     chain!(transpose_trace(cpu_trace), transpose_trace(permuted)).collect()
 }
 
+/// Converting each row of the `record` to a row represented by [`CpuState`]
 pub fn generate_cpu_trace<F: RichField>(
     program: &Program,
     record: &ExecutionRecord<F>,
@@ -73,7 +74,7 @@ pub fn generate_cpu_trace<F: RichField>(
             // To be overridden by users of the gadget.
             // TODO(Matthias): find a way to make either compiler or runtime complain
             // if we have two (conflicting) users in the same row.
-            bitshift: Bitshift::from(0).map(F::from_canonical_u64),
+            bitshift: Bitshift::from(0).map(F::from_canonical_u32),
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
@@ -95,7 +96,7 @@ pub fn generate_cpu_trace<F: RichField>(
                 (Op::ECALL, IoOpcode::StorePublic)
             )),
             is_halt: F::from_bool(matches!(
-                (inst.op, state.registers[usize::try_from(REG_A0).unwrap()]),
+                (inst.op, state.registers[usize::from(REG_A0)]),
                 (Op::ECALL, ecall::HALT)
             )),
             ..CpuState::default()
@@ -123,6 +124,8 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
     row.normalised_diff = F::from_bool(row.signed_diff().is_nonzero());
 }
 
+/// Generates a bitshift row on a shift operation. This is used in the bitshift
+/// lookup table.
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
 fn generate_shift_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux<F>) {

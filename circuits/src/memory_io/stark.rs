@@ -45,8 +45,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &InputOutputMemory<P> = vars.get_local_values().try_into().unwrap();
-        let nv: &InputOutputMemory<P> = vars.get_next_values().try_into().unwrap();
+        let lv: &InputOutputMemory<P> = vars.get_local_values().into();
+        let nv: &InputOutputMemory<P> = vars.get_next_values().into();
 
         is_binary(yield_constr, lv.ops.is_memory_store);
         is_binary(yield_constr, lv.ops.is_io_store);

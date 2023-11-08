@@ -16,4 +16,9 @@ cobertura.xml
 .DS_Store
 .idea/
 .vscode/
-**/__pycache__/
+**/__pycache__
+tmp
+*.csv
+.env
+/perftool/build
+*.svg

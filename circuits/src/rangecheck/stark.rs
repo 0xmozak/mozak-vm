@@ -7,7 +7,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
-use starky::evaluation_frame::StarkFrame;
+use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::{self, RangeCheckColumnsView};
@@ -40,13 +40,22 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     // that both have same value. A CrossTableLookup between RangeCheckStark and
     // RangeCheckLimbStark ensures that each limb from this stark are covered
     // in RangeCheckLimbStark.
+    // Here we check if limbs are formed properly
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
-        _vars: &Self::EvaluationFrame<FE, P, D2>,
-        _yield_constr: &mut ConstraintConsumer<P>,
+        vars: &Self::EvaluationFrame<FE, P, D2>,
+        yield_constr: &mut ConstraintConsumer<P>,
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
+        let lv: &RangeCheckColumnsView<P> = vars.get_local_values().into();
+
+        let reduced_limb: P = (0..4)
+            .map(|limb| lv.limbs[limb] * FE::from_canonical_u32(1 << (8 * limb)))
+            .sum();
+
+        let value = lv.multiplicity_view.value;
+        yield_constr.constraint(reduced_limb - value);
     }
 
     fn eval_ext_circuit(
