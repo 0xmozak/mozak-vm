@@ -8,6 +8,7 @@
 #![allow(clippy::ignored_unit_patterns)]
 
 pub mod bitshift;
+pub mod cli_benches;
 pub mod columns_view;
 pub mod cpu;
 pub mod cross_table_lookup;
@@ -18,6 +19,7 @@ pub mod memory_fullword;
 pub mod memory_halfword;
 pub mod memory_io;
 pub mod memoryinit;
+pub mod multiplicity_view;
 pub mod poseidon2;
 pub mod poseidon2_sponge;
 pub mod program;

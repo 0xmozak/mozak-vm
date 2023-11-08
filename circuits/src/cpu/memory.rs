@@ -81,6 +81,8 @@ mod tests {
     /// is part of static ELF (read-write memory address space)
     /// TODO: Further testing needs to be done for non-init
     /// memory locations.
+    /// TODO: In future we should test any combination of load and store
+    /// in any order to work.
     fn prove_lb_and_lbu<Stark: ProveAndVerify>(a: u32, b: u32) {
         let (program, record) = simple_test_code(
             &[
@@ -191,6 +193,7 @@ mod tests {
 
         Stark::prove_and_verify(&program, &record).unwrap();
     }
+
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
