@@ -216,7 +216,7 @@ fn main() -> Result<()> {
                 println!("{trace_cap:?}");
             }
             Command::Bench (bench) => {
-                let time_taken = timeit(&|| {let _ = bench.run();}).as_secs_f64();
+                let time_taken = timeit(&|| bench.run())?.as_secs_f64();
                 println!("{time_taken}");
             }
             Command::BuildInfo => unreachable!(),
@@ -225,8 +225,13 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-pub fn timeit(func: &impl Fn()) -> Duration {
+/// Times a function and returns the `Duration`.
+///
+/// # Errors
+///
+/// This errors if the given function returns an `Err`.
+pub fn timeit(func: &impl Fn() -> Result<()>) -> Result<Duration> {
     let start_time = std::time::Instant::now();
-    func();
-    start_time.elapsed()
+    func()?;
+    Ok(start_time.elapsed())
 }
