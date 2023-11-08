@@ -73,6 +73,7 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
             });
         });
 
+    let mut trace = Vec::with_capacity(multiplicities.len());
     for (value, multiplicity) in multiplicities {
         trace.push(RangeCheckColumnsView {
             multiplicity_view: MultiplicityView {
