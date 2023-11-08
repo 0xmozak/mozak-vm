@@ -44,17 +44,30 @@ pub struct State<F: RichField> {
 }
 
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
-pub struct IoTape {
+pub struct IoTapeData {
     #[deref]
     pub data: Rc<Vec<u8>>,
     pub read_index: usize,
 }
 
-impl From<&[u8]> for IoTape {
-    fn from(data: &[u8]) -> Self {
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
+pub struct IoTape {
+    #[deref]
+    private: IoTapeData,
+    public: IoTapeData,
+}
+
+impl From<(&[u8], &[u8])> for IoTape {
+    fn from(data: (&[u8], &[u8])) -> Self {
         Self {
-            data: Rc::new(data.to_vec()),
-            read_index: 0,
+            private: IoTapeData {
+                data: Rc::new(data.0.to_vec()),
+                read_index: 0,
+            },
+            public: IoTapeData {
+                data: Rc::new(data.1.to_vec()),
+                read_index: 0,
+            },
         }
     }
 }
@@ -162,13 +175,14 @@ impl<F: RichField> State<F> {
             entry_point: pc,
             ..
         }: Program,
-        io_tape: &[u8],
+        io_tape_private: &[u8],
+        io_tape_public: &[u8],
     ) -> Self {
         Self {
             pc,
             rw_memory,
             ro_memory,
-            io_tape: io_tape.into(),
+            io_tape: (io_tape_private, io_tape_public).into(),
             ..Default::default()
         }
     }
@@ -337,15 +351,26 @@ impl<F: RichField> State<F> {
     /// `io_tape`.
     /// TODO(Matthias): remove that limitation (again).
     #[must_use]
-    pub fn read_iobytes(mut self, num_bytes: usize) -> (Vec<u8>, Self) {
-        let read_index = self.io_tape.read_index;
-        let remaining_len = self.io_tape.len() - read_index;
-        assert!(num_bytes <= remaining_len);
-        self.io_tape.read_index += num_bytes;
-        (
-            self.io_tape.data[read_index..(read_index + num_bytes)].to_vec(),
-            self,
-        )
+    pub fn read_iobytes(mut self, num_bytes: usize, is_public: bool) -> (Vec<u8>, Self) {
+        if is_public {
+            let read_index = self.io_tape.public.read_index;
+            let remaining_len = self.io_tape.public.data.len() - read_index;
+            let limit = num_bytes.min(remaining_len);
+            self.io_tape.public.read_index += limit;
+            (
+                self.io_tape.public.data[read_index..(read_index + limit)].to_vec(),
+                self,
+            )
+        } else {
+            let read_index = self.io_tape.private.read_index;
+            let remaining_len = self.io_tape.private.data.len() - read_index;
+            let limit = num_bytes.min(remaining_len);
+            self.io_tape.private.read_index += limit;
+            (
+                self.io_tape.private.data[read_index..(read_index + limit)].to_vec(),
+                self,
+            )
+        }
     }
 }
 
@@ -355,10 +380,15 @@ mod test {
 
     #[test]
     fn test_io_tape_serialization() {
-        let io_tape = IoTape::from(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..]);
+        let io_tape = IoTape::from((
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..],
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..],
+        ));
         let serialized = serde_json::to_string(&io_tape).unwrap();
         let deserialized: IoTape = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(io_tape.read_index, deserialized.read_index);
-        assert_eq!(io_tape.data, deserialized.data);
+        assert_eq!(io_tape.private.read_index, deserialized.private.read_index);
+        assert_eq!(io_tape.private.data, deserialized.private.data);
+        assert_eq!(io_tape.public.read_index, deserialized.public.read_index);
+        assert_eq!(io_tape.public.data, deserialized.public.data);
     }
 }
