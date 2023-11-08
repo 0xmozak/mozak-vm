@@ -22,8 +22,6 @@ use crate::stark::proof::{StarkProofTarget, StarkProofWithMetadata};
 
 #[derive(Error, Debug)]
 pub enum LookupError {
-    #[error("Non-binary filter at row {0}")]
-    NonBinaryFilter(usize),
     #[error("Inconsistency found between looking and looked tables")]
     InconsistentTableRows,
 }
@@ -161,21 +159,16 @@ fn partial_sums<F: Field>(
     // final value_local, its impossible to construct value_next from lv and nv
     // values of current row
 
-    let combine_and_inv_if_filter_at_i = |i| -> F {
-        let filter = filter_column.eval_table(trace, i);
-        if filter.is_one() {
-            let evals = columns
-                .iter()
-                .map(|c| c.eval_table(trace, i))
-                .collect::<Vec<_>>();
-            challenge.combine(evals.iter()).inverse()
-        } else {
-            assert_eq!(filter, F::ZERO, "Non-binary filter?");
-            F::ZERO
-        }
-    };
+    // TODO(Kapil): inverse for all rows is expensive. Use batched division idea.
 
-    // TODO: inverse for all rows is expensive. Use batched division idea.
+    let combine_and_inv_if_filter_at_i = |i| -> F {
+        let multiplicity = filter_column.eval_table(trace, i);
+        let evals = columns
+            .iter()
+            .map(|c| c.eval_table(trace, i))
+            .collect::<Vec<_>>();
+        multiplicity * challenge.combine(evals.iter()).inverse()
+    };
 
     let degree = trace[0].len();
     let mut degrees = (0..degree).collect::<Vec<_>>();
@@ -294,14 +287,14 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
             challenges.combine(evals.iter())
         };
         let combination = combine(local_values, next_values);
-        let filter = |lv: &[P], nv: &[P]| -> P { filter_column.eval(lv, nv) };
-        let filter = filter(local_values, next_values);
+        let multiplicity = |lv: &[P], nv: &[P]| -> P { filter_column.eval(lv, nv) };
+        let multiplicity = multiplicity(local_values, next_values);
 
         // Check value of `Z(1) = filter(w^(n-1))/combined(w^(n-1))`
-        consumer.constraint_last_row(*next_z * combination - filter);
+        consumer.constraint_last_row(*next_z * combination - multiplicity);
 
         // Check `Z(gw) - Z(w) = filter(w)/combined(w)`
-        consumer.constraint_transition((*next_z - *local_z) * combination - filter);
+        consumer.constraint_transition((*next_z - *local_z) * combination - multiplicity);
     }
 }
 
@@ -369,15 +362,15 @@ pub fn eval_cross_table_lookup_checks_circuit<
             .collect();
         let combined = challenges.combine_circuit(builder, &evals);
 
-        let filter = filter_column.eval_circuit(builder, local_values, next_values);
+        let multiplicity = filter_column.eval_circuit(builder, local_values, next_values);
 
         // Check value of `Z(1) = filter(w^(n-1))/combined(w^(n-1))`
-        let last_row = builder.mul_sub_extension(*next_z, combined, filter);
+        let last_row = builder.mul_sub_extension(*next_z, combined, multiplicity);
         consumer.constraint_last_row(builder, last_row);
 
         // Check `Z(gw) - Z(w) = filter(w)/combined(w)`
         let diff = builder.sub_extension(*next_z, *local_z);
-        let transition = builder.mul_sub_extension(diff, combined, filter);
+        let transition = builder.mul_sub_extension(diff, combined, multiplicity);
         consumer.constraint_transition(builder, transition);
     }
 }
@@ -411,23 +404,19 @@ pub mod ctl_utils {
             &mut self,
             trace_poly_values: &[Vec<PolynomialValues<F>>],
             table: &Table<F>,
-        ) -> Result<(), LookupError> {
+        ) {
             let trace = &trace_poly_values[table.kind as usize];
             for i in 0..trace[0].len() {
                 let filter = table.filter_column.eval_table(trace, i);
-                if filter.is_one() {
+                if filter.is_nonzero() {
                     let row = table
                         .columns
                         .iter()
                         .map(|c| c.eval_table(trace, i))
                         .collect::<Vec<_>>();
                     self.entry(row).or_default().push((table.kind, i));
-                } else if !filter.is_zero() {
-                    return Err(LookupError::NonBinaryFilter(i));
                 }
             }
-
-            Ok(())
         }
     }
 
@@ -443,10 +432,10 @@ pub mod ctl_utils {
         let mut looked_multiset = MultiSet::<F>::new();
 
         for looking_table in &ctl.looking_tables {
-            looking_multiset.process_row(trace_poly_values, looking_table)?;
+            looking_multiset.process_row(trace_poly_values, looking_table);
         }
 
-        looked_multiset.process_row(trace_poly_values, &ctl.looked_table)?;
+        looked_multiset.process_row(trace_poly_values, &ctl.looked_table);
         let empty = &vec![];
 
         // Check that every row in the looking tables appears in the looked table the
@@ -620,39 +609,6 @@ mod tests {
         }
 
         pub fn build(self) -> Vec<PolynomialValues<F>> { self.trace }
-    }
-    /// A generic cross lookup table.
-    struct NonBinaryFilterTable<F: Field>(CrossTableLookup<F>);
-
-    impl<F: Field> Lookups<F> for NonBinaryFilterTable<F> {
-        /// We use the [`CpuTable`] and the [`RangeCheckTable`] to build a
-        /// [`CrossTableLookup`] here, but in principle this is meant to
-        /// be used generically for tests.
-        fn lookups() -> CrossTableLookup<F> {
-            CrossTableLookup {
-                looking_tables: vec![CpuTable::new(lookup_data(&[1], &[2]), lookup_filter(0))],
-                looked_table: RangeCheckTable::new(lookup_data(&[1], &[]), lookup_filter(0)),
-            }
-        }
-    }
-
-    /// Create a table with a filter column that's non-binary, which should
-    /// cause our manual checks to fail.
-    #[test]
-    fn test_ctl_non_binary_filters() {
-        type F = GoldilocksField;
-
-        let dummy_cross_table_lookup: CrossTableLookup<F> = NonBinaryFilterTable::lookups();
-
-        let foo_trace: Vec<PolynomialValues<F>> =
-            TraceBuilder::new(3, 4).one(1).set_values(1, 5).build(); // filter column is random
-        let bar_trace: Vec<PolynomialValues<F>> =
-            TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
-        let traces = vec![foo_trace, bar_trace];
-        assert!(matches!(
-            check_single_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
-            LookupError::NonBinaryFilter(0)
-        ));
     }
 
     /// Create a trace with inconsistent values, which should

@@ -27,6 +27,11 @@ use crate::{
     poseidon2_sponge, program, rangecheck, xor,
 };
 
+/// STARK Gadgets of Mozak-VM
+///
+/// ## Generics
+/// `F`: The [Field] that the STARK is defined over
+/// `D`: Degree of the extension field of `F`
 #[derive(Clone)]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cpu_stark: CpuStark<F, D>,

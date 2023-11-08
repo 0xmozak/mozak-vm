@@ -12,10 +12,6 @@ pub struct RangeCheckColumnsView<T> {
     /// checked.
     pub limbs: [T; 4],
 
-    /// Column to indicate that a value to be range checked is not a dummy
-    /// value.
-    pub filter: T,
-
     /// The u32 value to be range checked and its multiplicity.
     pub multiplicity_view: MultiplicityView<T>,
 }
@@ -40,14 +36,11 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
         .map(|limb| {
             RangeCheckTable::new(
                 Column::singles([MAP.limbs[limb]]),
-                Column::single(MAP.filter),
+                Column::single(MAP.multiplicity_view.multiplicity),
             )
         })
         .collect()
 }
 
-/// Column for a binary filter to indicate whether a row in the
-/// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
-/// contains a non-dummy value to be range checked.
 #[must_use]
-pub fn filter<F: Field>() -> Column<F> { Column::single(MAP.filter) }
+pub fn filter<F: Field>() -> Column<F> { Column::single(MAP.multiplicity_view.multiplicity) }
