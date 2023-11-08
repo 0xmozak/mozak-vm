@@ -152,21 +152,6 @@ pub mod challenge {
         GrandProductChallengeSet { challenges }
     }
 
-    pub fn get_n_grand_product_challenge_sets_target<
-        F: RichField + Extendable<D>,
-        H: AlgebraicHasher<F>,
-        const D: usize,
-    >(
-        builder: &mut CircuitBuilder<F, D>,
-        challenger: &mut RecursiveChallenger<F, H, D>,
-        num_challenges: usize,
-        num_sets: usize,
-    ) -> Vec<GrandProductChallengeSet<Target>> {
-        (0..num_sets)
-            .map(|_| get_grand_product_challenge_set_target(builder, challenger, num_challenges))
-            .collect()
-    }
-
     impl<F: RichField, H: Hasher<F>> GrandProductChallengeTrait<F, H> for Challenger<F, H> {
         fn get_grand_product_challenge(&mut self) -> GrandProductChallenge<F> {
             let beta = self.get_challenge();
