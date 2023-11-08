@@ -119,26 +119,6 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
         ]
     }
 
-    pub(crate) fn permutation_batch_sizes(&self) -> [usize; NUM_TABLES] {
-        [
-            self.cpu_stark.permutation_batch_size(),
-            self.rangecheck_stark.permutation_batch_size(),
-            self.xor_stark.permutation_batch_size(),
-            self.shift_amount_stark.permutation_batch_size(),
-            self.program_stark.permutation_batch_size(),
-            self.memory_stark.permutation_batch_size(),
-            self.memory_init_stark.permutation_batch_size(),
-            self.rangecheck_limb_stark.permutation_batch_size(),
-            self.halfword_memory_stark.permutation_batch_size(),
-            self.fullword_memory_stark.permutation_batch_size(),
-            self.register_init_stark.permutation_batch_size(),
-            self.register_stark.permutation_batch_size(),
-            self.io_memory_stark.permutation_batch_size(),
-            self.poseidon2_sponge_stark.permutation_batch_size(),
-            self.poseidon2_stark.permutation_batch_size(),
-        ]
-    }
-
     #[must_use]
     pub fn default_debug() -> Self {
         Self {

@@ -31,7 +31,7 @@ where
     let AllProofChallenges {
         stark_challenges,
         ctl_challenges,
-    } = all_proof.get_challenges(&mozak_stark, config);
+    } = all_proof.get_challenges(config);
     let nums_permutation_zs = mozak_stark.nums_permutation_zs(config);
 
     let MozakStark {

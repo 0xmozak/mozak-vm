@@ -16,7 +16,7 @@ use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
-use super::mozak_stark::{MozakStark, NUM_TABLES};
+use super::mozak_stark::NUM_TABLES;
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::permutation::challenge::{
     get_n_grand_product_challenge_sets_target, GrandProductChallengeSet, GrandProductChallengeTrait,
@@ -66,7 +66,6 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
     pub(crate) fn get_challenges(
         &self,
         challenger: &mut Challenger<F, C::Hasher>,
-        stark_permutation_batch_size: usize,
         config: &StarkConfig,
     ) -> StarkProofChallenges<F, D> {
         let degree_bits = self.recover_degree_bits(config);
@@ -87,9 +86,6 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
 
         let num_challenges = config.num_challenges;
 
-        let permutation_challenge_sets = challenger
-            .get_n_grand_product_challenge_sets(num_challenges, stark_permutation_batch_size);
-
         challenger.observe_cap(permutation_ctl_zs_cap);
 
         let stark_alphas = challenger.get_n_challenges(num_challenges);
@@ -100,7 +96,6 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
         challenger.observe_openings(&openings.to_fri_openings());
 
         StarkProofChallenges {
-            permutation_challenge_sets,
             stark_alphas,
             stark_zeta,
             fri_challenges: challenger.fri_challenges::<C, D>(
@@ -199,9 +194,6 @@ pub struct StarkProofWithPublicInputsTarget<const D: usize> {
 }
 
 pub struct StarkProofChallenges<F: RichField + Extendable<D>, const D: usize> {
-    /// Randomness used in any permutation arguments.
-    pub permutation_challenge_sets: Vec<GrandProductChallengeSet<F>>,
-
     /// Random values used to combine STARK constraints.
     pub stark_alphas: Vec<F>,
 
@@ -384,11 +376,7 @@ pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usiz
 
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
     /// Computes all Fiat-Shamir challenges used in the STARK proof.
-    pub(crate) fn get_challenges(
-        &self,
-        all_stark: &MozakStark<F, D>,
-        config: &StarkConfig,
-    ) -> AllProofChallenges<F, D> {
+    pub(crate) fn get_challenges(&self, config: &StarkConfig) -> AllProofChallenges<F, D> {
         let mut challenger = Challenger::<F, C::Hasher>::new();
 
         for proof_with_metadata in &self.proofs_with_metadata {
@@ -399,16 +387,12 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 
         let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
 
-        let num_permutation_batch_sizes = all_stark.permutation_batch_sizes();
-
         AllProofChallenges {
             stark_challenges: core::array::from_fn(|i| {
                 challenger.compact();
-                self.proofs_with_metadata[i].proof.get_challenges(
-                    &mut challenger,
-                    num_permutation_batch_sizes[i],
-                    config,
-                )
+                self.proofs_with_metadata[i]
+                    .proof
+                    .get_challenges(&mut challenger, config)
             }),
             ctl_challenges,
         }
