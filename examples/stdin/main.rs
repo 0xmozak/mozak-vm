@@ -5,10 +5,10 @@ mod core_logic;
 
 use std::io::{stdin, BufReader, Read};
 
-use crate::core_logic::MozakIo;
+use crate::core_logic::MozakIoPrivate;
 
 pub fn main() {
-    let mut mozak_io = MozakIo {
+    let mut mozak_io = MozakIoPrivate {
         stdin: Box::new(BufReader::new(stdin())),
     };
     let mut buffer = [0_u8; 1];

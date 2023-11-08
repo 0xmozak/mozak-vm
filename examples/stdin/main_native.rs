@@ -4,11 +4,11 @@ mod core_logic;
 use std::env;
 use std::io::{stdin, BufReader, Read};
 
-use crate::core_logic::MozakIo;
+use crate::core_logic::MozakIoPrivate;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let mut mozak_io = MozakIo {
+    let mut mozak_io = MozakIoPrivate {
         stdin: Box::new(BufReader::new(stdin())),
         io_tape_file: args[1].clone(),
     };
