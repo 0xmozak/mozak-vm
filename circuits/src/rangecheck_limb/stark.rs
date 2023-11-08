@@ -44,12 +44,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckLim
         P: PackedField<Scalar = FE>, {
         let lv: &RangeCheckLimb<P> = vars.get_local_values().try_into().unwrap();
         let nv: &RangeCheckLimb<P> = vars.get_next_values().try_into().unwrap();
-        // Check: the `element`s form a sequence from 0 to 255, with possible
-        // duplicates.
-        yield_constr.constraint_first_row(lv.element);
+        // Check: the `element`s form a sequence from 0 to 255
+        yield_constr.constraint_first_row(lv.multiplicity_view.value);
+        yield_constr.constraint_transition(
+            nv.multiplicity_view.value - lv.multiplicity_view.value - FE::ONE,
+        );
         yield_constr
-            .constraint_transition((nv.element - lv.element - FE::ONE) * (nv.element - lv.element));
-        yield_constr.constraint_last_row(lv.element - FE::from_canonical_u8(u8::MAX));
+            .constraint_last_row(lv.multiplicity_view.value - FE::from_canonical_u8(u8::MAX));
     }
 
     fn eval_ext_circuit(

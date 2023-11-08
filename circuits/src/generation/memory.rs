@@ -120,11 +120,12 @@ fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64) {
     )
 }
 
-/// Generates memory trace using static component `program` for
-/// memory initialization and dynamic component `step_rows` for
-/// access (load and store) of memory elements. Trace constraints
-/// are supposed to abide by read-only and read-write address
+/// Generates memory trace using static component `program` for memory
+/// initialization and dynamic component `step_rows` for access (load and store)
+/// of memory elements.
+/// Trace constraints are supposed to abide by read-only and read-write address
 /// constraints.
+/// Merge different types of memory traces in to one [Memory] trace
 #[must_use]
 pub fn generate_memory_trace<F: RichField>(
     program: &Program,

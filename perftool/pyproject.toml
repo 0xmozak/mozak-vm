@@ -1,0 +1,23 @@
+[tool.poetry]
+authors = ["codeblooded1729 <kapilpause007@gmail.com>"]
+description = ""
+name = "perftool"
+readme = "README.md"
+version = "0.1.0"
+
+[tool.poetry.dependencies]
+matplotlib = "^3.8.0"
+pandas = "^2.1.1"
+python = ">=3.11,<3.13"
+scipy = "^1.11.3"
+seaborn = "^0.13.0"
+typer = "^0.9.0"
+
+
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core"]
+
+[tool.poetry.scripts]
+perftool = 'perftool.main:app'
+plot = 'plotter.plot:app'

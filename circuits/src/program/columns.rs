@@ -20,6 +20,7 @@ pub struct InstructionRow<T> {
 
 columns_view_impl!(ProgramRom);
 make_col_map!(ProgramRom);
+/// A Row of ROM generated from read-only memory
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct ProgramRom<T> {

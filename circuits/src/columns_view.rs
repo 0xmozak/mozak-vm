@@ -159,6 +159,9 @@ macro_rules! columns_view_impl {
 
 pub(crate) use columns_view_impl;
 
+/// Implement a static `MAP` of the `ColumnsView` from an array with length
+/// [`NumberOfColumns`] of the `ColumnsView` that allows for indexing into an
+/// array with the column name rather than the column index.
 macro_rules! make_col_map {
     ($s: ident) => {
         use std::sync::OnceLock;
@@ -177,6 +180,7 @@ macro_rules! make_col_map {
 }
 pub(crate) use make_col_map;
 
+/// Return a selector that is only active at index `which`
 #[must_use]
 pub fn selection<T: IndexMut<usize, Output = u32> + Default>(which: usize) -> T {
     let mut selectors = T::default();

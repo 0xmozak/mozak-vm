@@ -313,9 +313,13 @@ pub struct Row<F: RichField> {
     pub aux: Aux<F>,
 }
 
+/// Unconstrained Trace produced by running the code
 #[derive(Debug, Default)]
 pub struct ExecutionRecord<F: RichField> {
+    /// Each row holds the state of the vm and auxiliary
+    /// information associated
     pub executed: Vec<Row<F>>,
+    /// The last state of the vm before the program halts
     pub last_state: State<F>,
 }
 

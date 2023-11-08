@@ -1,0 +1,15 @@
+{
+    "benches": {
+        "sample-bench":{
+            "description": "Here is a sample description of the bench",
+            "parameter": "iterations",
+            "output": "time taken (in s)",
+            "commits": {
+                "Opt level 0": "acd96313500baa9c6b9cdca09749ad69f6805304",
+                "Opt level 1": "207afb821ba4ca049cc1f711d7739db8d41c70eb",
+                "Opt level 2": "2d47469c7a1d94dc0fc1cb56123e571c0c73929c",
+                "Opt level 3": "afa5e662bc7914b2b039f18c814b30cb8ca217b0"
+            }
+        }
+    }
+}
