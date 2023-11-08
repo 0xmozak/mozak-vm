@@ -2,6 +2,7 @@ use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
+use crate::multiplicity_view::MultiplicityView;
 use crate::stark::mozak_stark::{RangeCheckTable, Table};
 
 #[repr(C)]
@@ -14,6 +15,9 @@ pub struct RangeCheckColumnsView<T> {
     /// Column to indicate that a value to be range checked is not a dummy
     /// value.
     pub filter: T,
+
+    /// The u32 value to be range checked and its multiplicity.
+    pub multiplicity_view: MultiplicityView<T>,
 }
 columns_view_impl!(RangeCheckColumnsView);
 make_col_map!(RangeCheckColumnsView);

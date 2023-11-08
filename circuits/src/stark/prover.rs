@@ -419,9 +419,9 @@ where
 mod tests {
     use itertools::izip;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::system::ecall;
-    use mozak_runner::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
     use mozak_runner::test_utils::simple_test_code;
+    use mozak_system::system::ecall;
+    use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::hash::poseidon2::Poseidon2Hash;

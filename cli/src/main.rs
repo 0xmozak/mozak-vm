@@ -46,13 +46,22 @@ enum Command {
     Decode { elf: Input },
     /// Decode and execute a given ELF. Prints the final state of
     /// the registers
-    Run { elf: Input, io_tape: Input },
+    Run {
+        elf: Input,
+        io_tape_private: Input,
+        io_tape_public: Input,
+    },
     /// Prove and verify the execution of a given ELF
-    ProveAndVerify { elf: Input, io_tape: Input },
+    ProveAndVerify {
+        elf: Input,
+        io_tape_private: Input,
+        io_tape_public: Input,
+    },
     /// Prove the execution of given ELF and write proof to file.
     Prove {
         elf: Input,
-        io_tape: Input,
+        io_tape_private: Input,
+        io_tape_public: Input,
         proof: Output,
     },
     /// Verify the given proof from file.
@@ -80,6 +89,7 @@ fn load_program(mut elf: Input) -> Result<Program> {
 
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
 /// iotape.txt`
+#[allow(clippy::too_many_lines)]
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let config = standard_faster_config();
@@ -91,25 +101,46 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             debug!("{program:?}");
         }
-        Command::Run { elf, io_tape } => {
+        Command::Run {
+            elf,
+            io_tape_private,
+            io_tape_public,
+        } => {
             let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(program.clone(), &load_tape(io_tape)?);
+            let state = State::<GoldilocksField>::new(
+                program.clone(),
+                &load_tape(io_tape_private)?,
+                &load_tape(io_tape_public)?,
+            );
             let state = step(&program, state)?.last_state;
             debug!("{:?}", state.registers);
         }
-        Command::ProveAndVerify { elf, io_tape } => {
+        Command::ProveAndVerify {
+            elf,
+            io_tape_private,
+            io_tape_public,
+        } => {
             let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(program.clone(), &load_tape(io_tape)?);
+            let state = State::<GoldilocksField>::new(
+                program.clone(),
+                &load_tape(io_tape_private)?,
+                &load_tape(io_tape_public)?,
+            );
             let record = step(&program, state)?;
             MozakStark::prove_and_verify(&program, &record)?;
         }
         Command::Prove {
             elf,
-            io_tape,
+            io_tape_private,
+            io_tape_public,
             mut proof,
         } => {
             let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(program.clone(), &load_tape(io_tape)?);
+            let state = State::<GoldilocksField>::new(
+                program.clone(),
+                &load_tape(io_tape_private)?,
+                &load_tape(io_tape_public)?,
+            );
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
