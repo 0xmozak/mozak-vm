@@ -1,7 +1,6 @@
-use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
-use crate::bitshift::columns::BitshiftView;
+use crate::bitshift::columns::{BitshiftView, MultiplicityView};
 use crate::cpu::columns::CpuState;
 
 fn filter_shift_trace<F: RichField>(cpu_trace: &[CpuState<F>]) -> impl Iterator<Item = u64> + '_ {
@@ -20,22 +19,20 @@ pub fn pad_trace<Row: Copy>(mut trace: Vec<Row>, default: Row) -> Vec<Row> {
 pub fn generate_shift_amount_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
 ) -> Vec<BitshiftView<F>> {
-    pad_trace(
-        filter_shift_trace(cpu_trace)
-            .sorted()
-            .merge_join_by(0..32, u64::cmp)
-            .map(|executed_or_dummy| {
-                BitshiftView {
-                    is_executed: executed_or_dummy.has_left().into(),
-                    executed: executed_or_dummy.into_left().into(),
-                }
-                .map(F::from_canonical_u64)
-            })
-            .collect(),
-        BitshiftView {
-            is_executed: false.into(),
-            executed: 31_u64.into(),
-        }
-        .map(F::from_canonical_u64),
-    )
+    let mut multiplicity = [0; 32];
+    filter_shift_trace(cpu_trace).for_each(|amount| {
+        multiplicity[usize::try_from(amount).expect("cast should succeed")] += 1;
+    });
+    (0..32u64)
+        .map(|amount| {
+            BitshiftView {
+                bitshift: MultiplicityView {
+                    executed: amount.into(),
+                    multiplicity: multiplicity
+                        [usize::try_from(amount).expect("cast should succeed")],
+                },
+            }
+            .map(F::from_canonical_u64)
+        })
+        .collect()
 }

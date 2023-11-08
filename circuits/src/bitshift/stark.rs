@@ -44,8 +44,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
         P: PackedField<Scalar = FE>, {
         let lv: &BitshiftView<P> = vars.get_local_values().try_into().unwrap();
         let nv: &BitshiftView<P> = vars.get_next_values().try_into().unwrap();
-        let lv: &Bitshift<P> = &lv.executed;
-        let nv: &Bitshift<P> = &nv.executed;
+        let lv: &Bitshift<P> = &lv.bitshift.executed;
+        let nv: &Bitshift<P> = &nv.bitshift.executed;
 
         // Constraints on shift amount
         // They ensure:
