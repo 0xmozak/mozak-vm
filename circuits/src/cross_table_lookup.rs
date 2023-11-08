@@ -250,16 +250,15 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         proofs: &[StarkProofWithMetadata<F, C, D>; NUM_TABLES],
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
-        num_permutation_zs: &[usize; NUM_TABLES],
     ) -> [Vec<Self>; NUM_TABLES] {
         let mut ctl_zs = proofs
             .iter()
-            .zip(num_permutation_zs)
-            .map(|(p, &num_perms)| {
+            .map(|p| {
                 let openings = &p.proof.openings;
-                let ctl_zs = openings.permutation_ctl_zs.iter().skip(num_perms);
-                let ctl_zs_next = openings.permutation_ctl_zs_next.iter().skip(num_perms);
-                ctl_zs.zip(ctl_zs_next)
+                izip!(
+                    &openings.permutation_ctl_zs,
+                    &openings.permutation_ctl_zs_next
+                )
             })
             .collect::<Vec<_>>();
 

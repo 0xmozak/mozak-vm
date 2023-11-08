@@ -3,8 +3,6 @@ use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
-use starky::config::StarkConfig;
-use starky::stark::Stark;
 
 use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
@@ -99,26 +97,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
-    pub(crate) fn nums_permutation_zs(&self, config: &StarkConfig) -> [usize; NUM_TABLES] {
-        [
-            self.cpu_stark.num_permutation_batches(config),
-            self.rangecheck_stark.num_permutation_batches(config),
-            self.xor_stark.num_permutation_batches(config),
-            self.shift_amount_stark.num_permutation_batches(config),
-            self.program_stark.num_permutation_batches(config),
-            self.memory_stark.num_permutation_batches(config),
-            self.memory_init_stark.num_permutation_batches(config),
-            self.rangecheck_limb_stark.num_permutation_batches(config),
-            self.halfword_memory_stark.num_permutation_batches(config),
-            self.fullword_memory_stark.num_permutation_batches(config),
-            self.register_init_stark.num_permutation_batches(config),
-            self.register_stark.num_permutation_batches(config),
-            self.io_memory_stark.num_permutation_batches(config),
-            self.poseidon2_sponge_stark.num_permutation_batches(config),
-            self.poseidon2_stark.num_permutation_batches(config),
-        ]
-    }
-
     #[must_use]
     pub fn default_debug() -> Self {
         Self {

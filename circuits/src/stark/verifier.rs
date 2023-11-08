@@ -32,7 +32,6 @@ where
         stark_challenges,
         ctl_challenges,
     } = all_proof.get_challenges(config);
-    let nums_permutation_zs = mozak_stark.nums_permutation_zs(config);
 
     let MozakStark {
         cpu_stark,
@@ -74,7 +73,6 @@ where
         &all_proof.proofs_with_metadata,
         &cross_table_lookups,
         &ctl_challenges,
-        &nums_permutation_zs,
     );
 
     macro_rules! verify {
