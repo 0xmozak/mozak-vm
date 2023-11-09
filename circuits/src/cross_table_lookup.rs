@@ -389,26 +389,10 @@ pub mod ctl_utils {
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, NUM_TABLES};
 
     #[derive(Debug)]
-    struct RowCount<F>(TableKind, F);
-    struct MultiSet<F>(HashMap<Vec<F>, RowCount<F>>);
-
-    impl<F: Field> RowCount<F> {
-        fn table_kind(&self) -> TableKind { self.0 }
-
-        fn multiplicity(&self) -> F { self.1 }
-    }
-
-    impl<F: Field> Deref for RowCount<F> {
-        type Target = F;
-
-        fn deref(&self) -> &Self::Target { &self.1 }
-    }
-    impl<F: Field> DerefMut for RowCount<F> {
-        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.1 }
-    }
+    struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
 
     impl<F: Field> Deref for MultiSet<F> {
-        type Target = HashMap<Vec<F>, RowCount<F>>;
+        type Target = HashMap<Vec<F>, Vec<(TableKind, F)>>;
 
         fn deref(&self) -> &Self::Target { &self.0 }
     }
@@ -432,9 +416,7 @@ pub mod ctl_utils {
                         .iter()
                         .map(|c| c.eval_table(trace, i))
                         .collect::<Vec<_>>();
-                    self.entry(row)
-                        .and_modify(|e| *e = RowCount(e.table_kind(), e.multiplicity() + filter))
-                        .or_insert(RowCount(table.kind, filter));
+                    self.entry(row).or_default().push((table.kind, filter));
                 };
             }
         }
@@ -446,17 +428,17 @@ pub mod ctl_utils {
     ) -> Result<(), LookupError> {
         fn check_multiplicities<F: Field>(
             row: &[F],
-            looking_locations: &RowCount<F>,
-            looked_locations: &RowCount<F>,
+            looking_locations: &[(TableKind, F)],
+            looked_locations: &[(TableKind, F)],
         ) -> Result<(), LookupError> {
-            if looking_locations.multiplicity() != looked_locations.multiplicity() {
+            let looking_multiplicity = looking_locations.iter().map(|l| l.1).sum::<F>();
+            let looked_multiplicity = looked_locations.iter().map(|l| l.1).sum::<F>();
+            if looking_multiplicity != looked_multiplicity {
                 println!(
-                    "Row {row:?} is present {l0} times in the looking tables, but
-                    {l1} in the looked table.\n\
+                    "Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
+                    {looked_multiplicity} in the looked table.\n\
                     Looking locations: {looking_locations:?}.\n\
                     Looked locations: {looked_locations:?}.",
-                    l0 = looking_locations.multiplicity(),
-                    l1 = looked_locations.multiplicity(),
                 );
                 return Err(LookupError::InconsistentTableRows);
             }
