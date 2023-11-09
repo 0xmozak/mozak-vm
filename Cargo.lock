@@ -756,7 +756,6 @@ dependencies = [
  "hex",
  "im",
  "itertools 0.11.0",
- "lazy_static",
  "log",
  "mozak-circuits-derive",
  "mozak-runner",
@@ -794,6 +793,7 @@ dependencies = [
  "mozak-runner",
  "plonky2",
  "proptest",
+ "starky",
  "tikv-jemallocator",
 ]
 

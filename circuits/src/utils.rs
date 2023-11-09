@@ -1,6 +1,8 @@
 use itertools::Itertools;
 use plonky2::field::types::Field;
 
+use crate::generation::MIN_TRACE_LENGTH;
+
 /// Pad the trace to a power of 2.
 ///
 /// # Panics
@@ -13,9 +15,10 @@ pub fn pad_trace<F: Field>(mut trace: Vec<Vec<F>>) -> Vec<Vec<F>> {
         .tuple_windows()
         .all(|(a, b)| a.len() == b.len()));
     for col in &mut trace {
-        if let (Some(padded_len), Some(&last)) =
-            (col.len().max(4).checked_next_power_of_two(), col.last())
-        {
+        if let (Some(padded_len), Some(&last)) = (
+            col.len().max(MIN_TRACE_LENGTH).checked_next_power_of_two(),
+            col.last(),
+        ) {
             col.extend(vec![last; padded_len - col.len()]);
         }
     }
@@ -44,7 +47,7 @@ pub fn pad_trace_with_default_to_len<Row: Default + Clone>(
 /// implementation.
 #[must_use]
 pub fn pad_trace_with_default<Row: Default + Clone>(trace: Vec<Row>) -> Vec<Row> {
-    let len = trace.len().next_power_of_two().max(4);
+    let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
     pad_trace_with_default_to_len(trace, len)
 }
 

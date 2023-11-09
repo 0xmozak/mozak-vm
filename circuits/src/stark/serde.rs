@@ -40,14 +40,14 @@ mod tests {
     use crate::stark::proof::AllProof;
     use crate::stark::prover::prove;
     use crate::stark::verifier::verify_proof;
-    use crate::test_utils::{standard_faster_config, C, D, F, S};
+    use crate::test_utils::{fast_test_config, C, D, F, S};
     use crate::utils::from_u32;
 
     #[test]
     fn test_serialization_deserialization() {
         let (program, record) = simple_test_code(&[], &[], &[]);
         let stark = S::default();
-        let config = standard_faster_config();
+        let config = fast_test_config();
         let public_inputs = PublicInputs {
             entry_point: from_u32(program.entry_point),
         };

@@ -4,8 +4,9 @@ use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
+use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory::columns::Memory;
-use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk};
+use crate::memory::trace::{get_memory_inst_addr, get_memory_inst_clk, get_memory_raw_value};
 use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
@@ -15,17 +16,20 @@ use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 /// Pad the memory trace to a power of 2.
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
-    trace.resize(trace.len().next_power_of_two().max(4), Memory {
-        // Some columns need special treatment..
-        is_store: F::ZERO,
-        is_load: F::ZERO,
-        is_init: F::ZERO,
-        diff_addr: F::ZERO,
-        diff_addr_inv: F::ZERO,
-        diff_clk: F::ZERO,
-        // .. and all other columns just have their last value duplicated.
-        ..trace.last().copied().unwrap_or_default()
-    });
+    trace.resize(
+        trace.len().next_power_of_two().max(MIN_TRACE_LENGTH),
+        Memory {
+            // Some columns need special treatment..
+            is_store: F::ZERO,
+            is_load: F::ZERO,
+            is_init: F::ZERO,
+            diff_addr: F::ZERO,
+            diff_addr_inv: F::ZERO,
+            diff_clk: F::ZERO,
+            // .. and all other columns just have their last value duplicated.
+            ..trace.last().copied().unwrap_or_default()
+        },
+    );
     trace
 }
 
@@ -55,7 +59,8 @@ pub fn generate_memory_trace_from_execution<'a, F: RichField>(
                 is_store: F::from_bool(matches!(op, Op::SB)),
                 is_load: F::from_bool(matches!(op, Op::LB | Op::LBU)),
                 is_init: F::ZERO,
-                value: F::from_canonical_u32(row.aux.dst_val),
+                value: get_memory_raw_value(row),
+
                 ..Default::default()
             }
         })
@@ -174,7 +179,9 @@ pub fn generate_memory_trace<F: RichField>(
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
     // of the trace.
-    pad_mem_trace(merged_trace)
+    let trace = pad_mem_trace(merged_trace);
+    log::trace!("trace {:?}", trace);
+    trace
 }
 
 #[cfg(test)]
@@ -285,6 +292,10 @@ mod tests {
             [        0,      101,   0,      0,        0,      1,       6,      1,           1,             0],
             [        1,      200,   0,      0,        0,      1,       7,     99,     inv(99),             0],
             [        1,      201,   0,      0,        0,      1,       8,      1,           1,             0],
+            [        1,      201,   0,      0,        0,      0,       8,      0,           0,             0],
+            [        1,      201,   0,      0,        0,      0,       8,      0,           0,             0],
+            [        1,      201,   0,      0,        0,      0,       8,      0,           0,             0],
+            [        1,      201,   0,      0,        0,      0,       8,      0,           0,             0],
         ]));
     }
 }
