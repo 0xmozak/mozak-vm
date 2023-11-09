@@ -74,7 +74,7 @@ pub fn generate_cpu_trace<F: RichField>(
             // To be overridden by users of the gadget.
             // TODO(Matthias): find a way to make either compiler or runtime complain
             // if we have two (conflicting) users in the same row.
-            bitshift: Bitshift::from(0).map(F::from_canonical_u64),
+            bitshift: Bitshift::from(0).map(F::from_canonical_u32),
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
