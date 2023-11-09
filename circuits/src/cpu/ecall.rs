@@ -16,12 +16,16 @@ pub(crate) fn constraints<P: PackedField>(
     nv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
-    // ECALL is used for HALT, IO_READ or POSEIDON2 system call.
-    // So when instruciton is ECALL, only one of them will be one.
+    // ECALL is used for HALT, IO_READ_PRIVATE/IO_READ_PUBLIC or POSEIDON2 system
+    // call. So when instruction is ECALL, only one of them will be one.
     is_binary(yield_constr, lv.is_poseidon2);
     is_binary(yield_constr, lv.is_halt);
-    is_binary(yield_constr, lv.is_io_store);
-    yield_constr.constraint(lv.inst.ops.ecall - (lv.is_halt + lv.is_io_store + lv.is_poseidon2));
+    is_binary(yield_constr, lv.is_io_store_private);
+    is_binary(yield_constr, lv.is_io_store_public);
+    yield_constr.constraint(
+        lv.inst.ops.ecall
+            - (lv.is_halt + lv.is_io_store_private + lv.is_io_store_public + lv.is_poseidon2),
+    );
     halt_constraints(lv, nv, yield_constr);
     io_constraints(lv, yield_constr);
     poseidon2_constraints(lv, yield_constr);
@@ -67,7 +71,12 @@ pub(crate) fn io_constraints<P: PackedField>(
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     yield_constr.constraint(
-        lv.is_io_store * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::IO_READ)),
+        lv.is_io_store_private
+            * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::IO_READ_PRIVATE)),
+    );
+    yield_constr.constraint(
+        lv.is_io_store_public
+            * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::IO_READ_PUBLIC)),
     );
 }
 
