@@ -1,10 +1,9 @@
-use itertools::{chain, Itertools};
-use mozak_circuits_derive::{StarkSet, stark_lambda};
+use itertools::chain;
+use mozak_circuits_derive::StarkSet;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
-use starky::config::StarkConfig;
 
 use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
@@ -65,10 +64,10 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub register_init_stark: RegisterInitStark<F, D>,
     #[StarkSet(stark_kind = "Register")]
     pub register_stark: RegisterStark<F, D>,
-    #[StarkSet(stark_kind = "Poseidon2Sponge")]
-    pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
     #[StarkSet(stark_kind = "Poseidon2")]
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
+    #[StarkSet(stark_kind = "Poseidon2Sponge")]
+    pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 15],
     pub debug: bool,
 }
@@ -124,31 +123,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
-    pub(crate) fn nums_permutation_zs(&self, config: &StarkConfig) -> [usize; TableKind::COUNT] {
-        self.all_starks(stark_lambda!(
-            // F and D for `Stark<F, D>`
-            F, D,
-            // Any generics that need to be propagated
-            // e.g. `<T> where T: Copy {},`
-            <'a>,
-            // Captures
-            (config): (&'a StarkConfig),
-            // The "lambda"
-            |config, stark, _kind: TableKind| -> usize {
-                stark.num_permutation_batches(config)
-            }
-        ))
-    }
-    pub(crate) fn permutation_batch_sizes(&self) -> [usize; TableKind::COUNT] {
-        self.all_starks(stark_lambda!(
-            // F and D for `Stark<F, D>`
-            F, D,
-            // The "lambda"
-            |stark, _kind: TableKind| -> usize {
-                stark.permutation_batch_size()
-            }
-        ))
-    }
     #[must_use]
     pub fn default_debug() -> Self {
         Self {
@@ -192,8 +166,8 @@ macro_rules! table_impl {
     };
 }
 
-table_impl!(CpuTable, TableKind::Cpu);
 table_impl!(RangeCheckTable, TableKind::RangeCheck);
+table_impl!(CpuTable, TableKind::Cpu);
 table_impl!(XorTable, TableKind::Xor);
 table_impl!(BitshiftTable, TableKind::Bitshift);
 table_impl!(ProgramTable, TableKind::Program);

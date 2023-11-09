@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use anyhow::Result;
-use mozak_circuits_derive::stark_kind_lambda;
+use mozak_circuits_derive::{stark_kind_lambda, stark_lambda};
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::fri::witness_util::set_fri_proof_target;
@@ -26,10 +26,7 @@ use starky::constraint_consumer::RecursiveConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
-use crate::bitshift::stark::BitshiftStark;
 use crate::cross_table_lookup::{CrossTableLookup, CtlCheckVarsTarget};
-use crate::memoryinit::stark::MemoryInitStark;
-use crate::program::stark::ProgramStark;
 use crate::stark::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::poly::eval_vanishing_poly_circuit;
@@ -37,7 +34,6 @@ use crate::stark::proof::{
     AllProof, StarkOpeningSetTarget, StarkProof, StarkProofChallengesTarget, StarkProofTarget,
     StarkProofWithMetadata, StarkProofWithPublicInputsTarget,
 };
-use crate::xor::stark::XorStark;
 
 /// Represents a circuit which recursively verifies STARK proofs.
 #[derive(Eq, PartialEq, Debug)]
@@ -147,42 +143,30 @@ where
     C::Hasher: AlgebraicHasher<F>, {
     let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-    // TODO: use Macro for different tables
-    let xor_targets = recursive_stark_circuit::<F, C, XorStark<F, D>, D>(
-        &mut builder,
-        TableKind::Xor,
-        &mozak_stark.xor_stark,
-        degree_bits[TableKind::Xor as usize],
-        &mozak_stark.cross_table_lookups,
-        inner_config,
-    );
+    let targets: [Option<StarkVerifierTargets<F, C, D>>; NUM_TABLES] = mozak_stark.all_starks(stark_lambda!(
+        // F and D for `Stark<F, D>`
+        F, D,
+        // Any generics that need to be propagated
+        // e.g. `<T> where T: Copy {},`
+        <'a, C: GenericConfig<D, F = F>> where C::Hasher: AlgebraicHasher<F> {},
+        // Captures
+        (&mut builder, &degree_bits, &mozak_stark.cross_table_lookups, inner_config): (&'a mut CircuitBuilder<F, D>, &'a [usize; NUM_TABLES], &'a [CrossTableLookup<F>], &'a StarkConfig),
+        // The "lambda"
+        |(builder, degree_bits, cross_table_lookups, inner_config), stark, kind: TableKind| -> Option<StarkVerifierTargets<F, C, D>> {
+            if !matches!(kind, TableKind::Xor | TableKind::Bitshift | TableKind::Program | TableKind::MemoryInit) {
+                return None
+            }
 
-    let shift_amount_targets = recursive_stark_circuit::<F, C, BitshiftStark<F, D>, D>(
-        &mut builder,
-        TableKind::Bitshift,
-        &mozak_stark.shift_amount_stark,
-        degree_bits[TableKind::Bitshift as usize],
-        &mozak_stark.cross_table_lookups,
-        inner_config,
-    );
-
-    let program_targets = recursive_stark_circuit::<F, C, ProgramStark<F, D>, D>(
-        &mut builder,
-        TableKind::Program,
-        &mozak_stark.program_stark,
-        degree_bits[TableKind::Program as usize],
-        &mozak_stark.cross_table_lookups,
-        inner_config,
-    );
-
-    let memory_init_targets = recursive_stark_circuit::<F, C, MemoryInitStark<F, D>, D>(
-        &mut builder,
-        TableKind::MemoryInit,
-        &mozak_stark.memory_init_stark,
-        degree_bits[TableKind::MemoryInit as usize],
-        &mozak_stark.cross_table_lookups,
-        inner_config,
-    );
+            Some(recursive_stark_circuit::<F, C, _, D>(
+                builder,
+                kind,
+                stark,
+                degree_bits[kind as usize],
+                cross_table_lookups,
+                inner_config,
+            ))
+        }
+    ));
 
     add_common_recursion_gates(&mut builder);
 
@@ -190,12 +174,6 @@ where
     while log2_ceil(builder.num_gates()) < min_degree_bits {
         builder.add_gate(NoopGate, vec![]);
     }
-
-    let mut targets: [Option<StarkVerifierTargets<F, C, D>>; NUM_TABLES] = Default::default();
-    targets[TableKind::Xor as usize] = Some(xor_targets);
-    targets[TableKind::Bitshift as usize] = Some(shift_amount_targets);
-    targets[TableKind::Program as usize] = Some(program_targets);
-    targets[TableKind::MemoryInit as usize] = Some(memory_init_targets);
 
     let circuit = builder.build();
     MozakStarkVerifierCircuit { circuit, targets }

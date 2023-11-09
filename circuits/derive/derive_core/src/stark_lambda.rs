@@ -263,6 +263,11 @@ pub fn stark_lambda(input: TokenStream, mutable: bool) -> TokenStream {
         .cloned()
         .collect();
     let non_lifetimes_no_attr = remove_gen_attr(&non_lifetimes);
+    let types_no_attr = remove_gen_attr(&generic_params
+        .into_iter()
+        .filter(|x| matches!(x, GenericParam::Type(_)))
+        .cloned()
+        .collect());
 
     let captures = &ast.captures;
     let capture_tys = &ast.capture_tys;
@@ -287,6 +292,7 @@ pub fn stark_lambda(input: TokenStream, mutable: bool) -> TokenStream {
         struct #trait_name<#lifetimes #bounded_field #bounded_d #non_lifetimes>
         #where_clause {
             _marker: core::marker::PhantomData<#bare_field>,
+            _marker2: core::marker::PhantomData<(#types_no_attr)>,
             captures: (#capture_tys),
         };
         impl<#lifetimes #bounded_field #bounded_d #non_lifetimes> #crate_name::#trait_name<#d_bare> for #trait_name<#lifetimes_no_attr #unbounded_field #unbounded_d #non_lifetimes_no_attr>
@@ -302,6 +308,7 @@ pub fn stark_lambda(input: TokenStream, mutable: bool) -> TokenStream {
         }
         #trait_name{
             _marker: core::marker::PhantomData::<#field_invoke>,
+            _marker2: core::marker::PhantomData,
             captures: (#captures),
         }
     }).into()
