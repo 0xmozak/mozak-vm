@@ -426,6 +426,11 @@ pub mod ctl_utils {
         trace_poly_values: &[Vec<PolynomialValues<F>>],
         ctl: &CrossTableLookup<F>,
     ) -> Result<(), LookupError> {
+        /// Sums and compares the multiplicities of the given looking and looked
+        /// locations previously processed.
+        ///
+        /// The CTL check holds iff `looking_multiplicity ==
+        /// looked_multiplicity`.
         fn check_multiplicities<F: Field>(
             row: &[F],
             looking_locations: &[(TableKind, F)],
@@ -447,8 +452,6 @@ pub mod ctl_utils {
         }
 
         // Maps `m` with `(table.kind, multiplicity) in m[row]`
-        //
-        // the CTL check holds iff `looking_multiset == looked_multiset`.
         let mut looking_multiset = MultiSet::<F>::new();
         let mut looked_multiset = MultiSet::<F>::new();
 
@@ -457,8 +460,8 @@ pub mod ctl_utils {
         }
 
         looked_multiset.process_row(trace_poly_values, &ctl.looked_table);
-        let empty = &vec![];
 
+        let empty = &vec![];
         // Check that every row in the looking tables appears in the looked table the
         // same number of times.
         for (row, looking_locations) in &looking_multiset.0 {
