@@ -11,5 +11,5 @@ readme = "README.md"
 repository = "https://github.com/0xmozak/mozak-node"
 
 [dependencies]
-clap = { version = "4.4.6", features = ["derive"] }
+clap = { version = "4.4", features = ["derive"] }
 mozak-node = { path = "../node" }
