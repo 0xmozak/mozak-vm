@@ -7,7 +7,7 @@ use proc_macro_error::{abort, emit_error, proc_macro_error};
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::token::{self, Comma};
+use syn::{token, braced};
 use syn::{
     parenthesized, parse_macro_input, parse_quote, Data, DeriveInput, Expr, ExprLit, GenericParam,
     Generics, Ident, Index, Lit, Member, Meta, Path, ReturnType, Token, Type, TypeParam, TypeParamBound,
@@ -16,8 +16,8 @@ use syn::{
 /// Converts `<'a, F, const D: usize>` (sans `<` and `>`) to
 ///          `<'a, F, D>` (sans `<` and `>`)
 fn remove_gen_attr(
-    generic_params: &Punctuated<GenericParam, Comma>,
-) -> Punctuated<GenericParam, Comma> {
+    generic_params: &Punctuated<GenericParam, Token![,]>,
+) -> Punctuated<GenericParam, Token![,]> {
     generic_params
         .iter()
         .map(|gen| match gen {
@@ -281,6 +281,8 @@ impl Parse for LambdaInput {
             if input.peek(Token![where]) {
                 generics.where_clause = Some(input.parse()?);
             }
+            let _inner;
+            let _: token::Brace = braced!(_inner in input);
             Some(input.parse()?)
         } else {
             None
@@ -415,7 +417,23 @@ pub fn stark_kind_lambda(input: TokenStream) -> TokenStream {
 
     let generic_params = &ast.generics.params;
     let where_clause = &ast.generics.where_clause;
-    let generic_params_no_attr = remove_gen_attr(&generic_params);
+
+    let mut lifetimes: Punctuated<GenericParam, Token![,]> = generic_params.into_iter()
+        .filter(|x| matches!(x, GenericParam::Lifetime(_)))
+        .cloned()
+        .collect();
+    if !lifetimes.empty_or_trailing() {
+        lifetimes.push_punct(Default::default());
+    }
+    let mut lifetimes_no_attr = remove_gen_attr(&lifetimes);
+    if !lifetimes_no_attr.empty_or_trailing() {
+        lifetimes_no_attr.push_punct(Default::default());
+    }
+    let non_lifetimes: Punctuated<GenericParam, Token![,]> = generic_params.into_iter()
+        .filter(|x| !matches!(x, GenericParam::Lifetime(_)))
+        .cloned()
+        .collect();
+    let non_lifetimes_no_attr = remove_gen_attr(&non_lifetimes);
 
     let captures = &ast.captures;
     let capture_tys = &ast.capture_tys;
@@ -436,12 +454,12 @@ pub fn stark_kind_lambda(input: TokenStream) -> TokenStream {
     let body = &ast.body;
 
     quote!({
-        struct StarkKindFnMut<#bounded_field #bounded_d #generic_params>
+        struct StarkKindFnMut<#lifetimes #bounded_field #bounded_d #non_lifetimes>
         #where_clause {
             _marker: core::marker::PhantomData<#bare_field>,
             captures: (#capture_tys),
         };
-        impl<#bounded_field #bounded_d #generic_params> #crate_name::StarkKindFnMut<#d_bare> for StarkKindFnMut<#unbounded_field #unbounded_d #generic_params_no_attr>
+        impl<#lifetimes #bounded_field #bounded_d #non_lifetimes> #crate_name::StarkKindFnMut<#d_bare> for StarkKindFnMut<#lifetimes_no_attr #unbounded_field #unbounded_d #non_lifetimes_no_attr>
         #where_clause {
             type F = #bare_field;
             type Kind = #kind_ty;

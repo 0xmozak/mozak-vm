@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use anyhow::Result;
+use mozak_circuits_derive::stark_kind_lambda;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::fri::witness_util::set_fri_proof_target;
@@ -102,24 +103,31 @@ where
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>,
 {
-    fn prove_targets(
-        &self,
-        kind: TableKind,
-        inputs: &mut PartialWitness<F>,
-        all_proof: &AllProof<F, C, D>,
-    ) {
-        let target = &self.targets[kind as usize];
-        target.as_ref().unwrap().set_targets(
-            inputs,
-            &all_proof.proofs_with_metadata[kind as usize],
-            &all_proof.ctl_challenges,
-        );
-    }
-
     pub fn prove(&self, all_proof: &AllProof<F, C, D>) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
-        self.prove_targets(TableKind::Program, &mut inputs, all_proof);
-        self.prove_targets(TableKind::MemoryInit, &mut inputs, all_proof);
+
+        TableKind::all_types(stark_kind_lambda!(
+            // F and D for `Stark<F, D>`
+            F, D,
+            // Any generics that need to be propagated
+            <'a, C> where C: GenericConfig<D, F = F>, C::Hasher: AlgebraicHasher<F> {},
+            // Captures
+            (&self.targets, &mut inputs, &all_proof): (&'a [Option<StarkVerifierTargets<F, C, D>>; TableKind::COUNT], &'a mut PartialWitness<F>, &'a AllProof<F, C, D>),
+            // The "lambda"
+            |captures, kind: TableKind| {
+                if !matches!(kind, TableKind::Program | TableKind::MemoryInit) {
+                    return
+                }
+                let (targets, inputs, all_proof) = captures;
+                let target = &targets[kind as usize];
+                target.as_ref().unwrap().set_targets(
+                    inputs,
+                    &all_proof.proofs_with_metadata[kind as usize],
+                    &all_proof.ctl_challenges,
+                );
+            }
+        ));
+
         self.circuit.prove(inputs)
     }
 }
