@@ -162,6 +162,7 @@ macro_rules! columns_view_impl {
         }
     };
 }
+
 pub(crate) use columns_view_impl;
 
 /// Implement a static `MAP` of the `ColumnsView` from an array with length
@@ -169,14 +170,17 @@ pub(crate) use columns_view_impl;
 /// array with the column name rather than the column index.
 macro_rules! make_col_map {
     ($s: ident) => {
-        lazy_static::lazy_static! {
-            // TODO(Matthias): sort out const'ness of from_fn, and declare as a const instead of static:
-            pub(crate) static ref MAP: $s<usize> = {
+        use std::sync::OnceLock;
+        // TODO(Matthias): sort out const'ness of from_fn, and declare as a const
+        // instead of static:
+        pub(crate) fn col_map() -> &'static $s<usize> {
+            static MAP: OnceLock<$s<usize>> = OnceLock::new();
+            MAP.get_or_init(|| {
                 use crate::columns_view::NumberOfColumns;
                 const COLUMNS: usize = $s::<()>::NUMBER_OF_COLUMNS;
                 let indices_arr: [usize; COLUMNS] = core::array::from_fn(|i| i);
                 unsafe { std::mem::transmute::<[usize; COLUMNS], $s<usize>>(indices_arr) }
-            };
+            })
         }
     };
 }

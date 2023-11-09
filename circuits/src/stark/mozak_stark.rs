@@ -358,11 +358,11 @@ impl<F: Field> Lookups<F> for InnerCpuTable<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_inst(),
-                Column::single(cpu::columns::MAP.cpu.is_running),
+                Column::single(cpu::columns::col_map().cpu.is_running),
             )],
             CpuTable::new(
                 cpu::columns::data_for_permuted_inst(),
-                Column::single(cpu::columns::MAP.cpu.is_running),
+                Column::single(cpu::columns::col_map().cpu.is_running),
             ),
         )
     }
@@ -375,11 +375,11 @@ impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_permuted_inst(),
-                Column::single(cpu::columns::MAP.permuted.filter),
+                Column::single(cpu::columns::col_map().permuted.filter),
             )],
             ProgramTable::new(
                 program::columns::data_for_ctl(),
-                Column::single(program::columns::MAP.filter),
+                Column::single(program::columns::col_map().filter),
             ),
         )
     }

@@ -39,9 +39,9 @@ pub struct BitshiftView<T> {
 /// Columns containing the data which are looked from the CPU table into
 /// Bitshift stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.executed) }
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(col_map().executed) }
 
 /// Columns containing the filter which indicates whether this row is a dummy
 /// padding.
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { Column::single(MAP.multiplicity) }
+pub fn filter_for_cpu<F: Field>() -> Column<F> { col_map().multiplicity.into() }

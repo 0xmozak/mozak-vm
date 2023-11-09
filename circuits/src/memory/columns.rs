@@ -152,11 +152,11 @@ impl<T: Clone + Add<Output = T>> Memory<T> {
 
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
-    let mem = MAP.map(Column::from);
+    let mem = col_map().map(Column::from);
     vec![
-        MemoryTable::new(Column::singles([MAP.addr]), mem.is_executed()),
-        MemoryTable::new(Column::singles([MAP.diff_addr]), mem.is_executed()),
-        MemoryTable::new(Column::singles([MAP.diff_clk]), mem.is_executed()),
+        MemoryTable::new(Column::singles([col_map().addr]), mem.is_executed()),
+        MemoryTable::new(Column::singles([col_map().diff_addr]), mem.is_executed()),
+        MemoryTable::new(Column::singles([col_map().diff_clk]), mem.is_executed()),
     ]
 }
 
@@ -164,7 +164,7 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 /// stark table.
 #[must_use]
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
-    let map = MAP.map(Column::from);
+    let map = col_map().map(Column::from);
     vec![map.clk, map.is_store, map.is_load, map.value, map.addr]
 }
 
@@ -172,7 +172,7 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 /// Memory stark table.
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> {
-    let mem = MAP.map(Column::from);
+    let mem = col_map().map(Column::from);
     mem.is_store + mem.is_load
 }
 
@@ -180,28 +180,28 @@ pub fn filter_for_cpu<F: Field>() -> Column<F> {
 #[must_use]
 pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
     vec![
-        Column::single(MAP.is_writable),
-        Column::single(MAP.addr),
-        Column::single(MAP.clk),
-        Column::single(MAP.value),
-        Column::single(MAP.is_init),
+        Column::single(col_map().is_writable),
+        Column::single(col_map().addr),
+        Column::single(col_map().clk),
+        Column::single(col_map().value),
+        Column::single(col_map().is_init),
     ]
 }
 
 /// Column for a binary filter to indicate a lookup to the `MemoryInit` Table
 #[must_use]
-pub fn filter_for_memoryinit<F: Field>() -> Column<F> { Column::single(MAP.is_init) }
+pub fn filter_for_memoryinit<F: Field>() -> Column<F> { Column::single(col_map().is_init) }
 
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]
 pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
     vec![
-        Column::single(MAP.clk),
-        Column::single(MAP.addr),
-        Column::single(MAP.value),
-        Column::single(MAP.is_store),
-        Column::single(MAP.is_load),
+        Column::single(col_map().clk),
+        Column::single(col_map().addr),
+        Column::single(col_map().value),
+        Column::single(col_map().is_store),
+        Column::single(col_map().is_load),
     ]
 }
 
@@ -209,6 +209,6 @@ pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
 /// Memory stark table.
 #[must_use]
 pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
-    let mem = MAP.map(Column::from);
+    let mem = col_map().map(Column::from);
     mem.is_store + mem.is_load
 }

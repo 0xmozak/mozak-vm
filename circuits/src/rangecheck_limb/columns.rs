@@ -14,10 +14,12 @@ columns_view_impl!(RangeCheckLimb);
 make_col_map!(RangeCheckLimb);
 
 #[must_use]
-pub fn data<F: Field>() -> Vec<Column<F>> { vec![Column::single(MAP.multiplicity_view.value)] }
+pub fn data<F: Field>() -> Vec<Column<F>> {
+    vec![Column::single(col_map().multiplicity_view.value)]
+}
 
 /// Column for a binary filter to indicate whether a row in the
 /// [`RangeCheckTable`](crate::cross_table_lookup::RangeCheckTable).
 /// contains a non-dummy value to be range checked.
 #[must_use]
-pub fn filter<F: Field>() -> Column<F> { Column::single(MAP.multiplicity_view.multiplicity) }
+pub fn filter<F: Field>() -> Column<F> { Column::single(col_map().multiplicity_view.multiplicity) }
