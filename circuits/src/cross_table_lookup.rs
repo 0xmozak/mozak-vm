@@ -443,6 +443,9 @@ pub mod ctl_utils {
             looking_locations: &RowCount<F>,
             looked_locations: &RowCount<F>,
         ) -> Result<(), LookupError> {
+            // NOTE(Matthias): Not sure if this is a good idea,
+            // or whether we should explicitly use .multiplicity()
+            // (Though if this is not a good idea, we do we implement Deref at all?)
             if **looking_locations != **looked_locations {
                 println!(
                     "Row {row:?} is present {l0} times in the looking tables, but
