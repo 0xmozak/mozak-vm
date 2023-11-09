@@ -17,7 +17,7 @@ use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
-use mozak_circuits::test_utils::{standard_faster_config, ProveAndVerify, C, D, F, S};
+use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
@@ -25,6 +25,7 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::util::timing::TimingTree;
+use starky::config::StarkConfig;
 use tikv_jemallocator::Jemalloc;
 
 #[global_allocator]
@@ -96,7 +97,7 @@ fn load_program(mut elf: Input) -> Result<Program> {
 #[allow(clippy::too_many_lines)]
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    let config = standard_faster_config();
+    let config = StarkConfig::standard_fast_config();
     env_logger::Builder::new()
         .filter_level(cli.verbose.log_level_filter())
         .init();
@@ -131,7 +132,7 @@ fn main() -> Result<()> {
                 &load_tape(io_tape_public)?,
             );
             let record = step(&program, state)?;
-            MozakStark::prove_and_verify(&program, &record)?;
+            prove_and_verify_mozak_stark(&program, &record, &config)?;
         }
         Command::Prove {
             elf,

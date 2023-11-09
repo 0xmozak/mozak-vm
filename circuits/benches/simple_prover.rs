@@ -1,10 +1,10 @@
 use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use mozak_circuits::stark::mozak_stark::MozakStark;
-use mozak_circuits::test_utils::ProveAndVerify;
+use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
 use mozak_runner::instruction::{Args, Instruction, Op};
 use mozak_runner::test_utils::simple_test_code;
+use starky::config::StarkConfig;
 use tikv_jemallocator::Jemalloc;
 
 #[global_allocator]
@@ -37,7 +37,7 @@ fn bench_prove_verify_all(c: &mut Criterion) {
                 },
             ];
             let (program, record) = simple_test_code(instructions, &[], &[(1, 1 << 16)]);
-            MozakStark::prove_and_verify(&program, &record)
+            prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
         })
     });
     group.finish();

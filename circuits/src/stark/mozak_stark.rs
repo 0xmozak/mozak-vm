@@ -1,4 +1,4 @@
-use itertools::{chain, Itertools};
+use itertools::chain;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
@@ -368,11 +368,11 @@ impl<F: Field> Lookups<F> for InnerCpuTable<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_inst(),
-                Column::single(cpu::columns::MAP.cpu.is_running),
+                Column::single(cpu::columns::col_map().cpu.is_running),
             )],
             CpuTable::new(
                 cpu::columns::data_for_permuted_inst(),
-                Column::single(cpu::columns::MAP.cpu.is_running),
+                Column::single(cpu::columns::col_map().cpu.is_running),
             ),
         )
     }
@@ -385,11 +385,11 @@ impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_permuted_inst(),
-                Column::single(cpu::columns::MAP.permuted.filter),
+                Column::single(cpu::columns::col_map().permuted.filter),
             )],
             ProgramTable::new(
                 program::columns::data_for_ctl(),
-                Column::single(program::columns::MAP.filter),
+                Column::single(program::columns::col_map().filter),
             ),
         )
     }
@@ -399,7 +399,7 @@ pub struct LimbTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for LimbTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
-            chain!(rangecheck_looking(), cpu::columns::rangecheck_looking_u8(),).collect_vec(),
+            rangecheck_looking(),
             RangeCheckLimbTable::new(
                 crate::rangecheck_limb::columns::data(),
                 crate::rangecheck_limb::columns::filter(),

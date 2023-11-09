@@ -45,12 +45,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckLim
         let lv: &RangeCheckLimb<P> = vars.get_local_values().into();
         let nv: &RangeCheckLimb<P> = vars.get_next_values().into();
         // Check: the `element`s form a sequence from 0 to 255
-        yield_constr.constraint_first_row(lv.multiplicity_view.value);
-        yield_constr.constraint_transition(
-            nv.multiplicity_view.value - lv.multiplicity_view.value - FE::ONE,
-        );
-        yield_constr
-            .constraint_last_row(lv.multiplicity_view.value - FE::from_canonical_u8(u8::MAX));
+        yield_constr.constraint_first_row(lv.value);
+        yield_constr.constraint_transition(nv.value - lv.value - FE::ONE);
+        yield_constr.constraint_last_row(lv.value - FE::from_canonical_u8(u8::MAX));
     }
 
     fn eval_ext_circuit(

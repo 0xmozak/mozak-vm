@@ -4,18 +4,22 @@ use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
+use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory::trace::get_memory_inst_clk;
 use crate::memory_halfword::columns::{HalfWordMemory, Ops};
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<HalfWordMemory<F>>) -> Vec<HalfWordMemory<F>> {
-    trace.resize(trace.len().next_power_of_two().max(4), HalfWordMemory {
-        // Some columns need special treatment..
-        ops: Ops::default(),
-        // .. and all other columns just have their last value duplicated.
-        ..trace.last().copied().unwrap_or_default()
-    });
+    trace.resize(
+        trace.len().next_power_of_two().max(MIN_TRACE_LENGTH),
+        HalfWordMemory {
+            // Some columns need special treatment..
+            ops: Ops::default(),
+            // .. and all other columns just have their last value duplicated.
+            ..trace.last().copied().unwrap_or_default()
+        },
+    );
     trace
 }
 

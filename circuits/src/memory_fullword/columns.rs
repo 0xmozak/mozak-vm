@@ -48,7 +48,7 @@ pub const NUM_HW_MEM_COLS: usize = FullWordMemory::<()>::NUMBER_OF_COLUMNS;
 /// stark table.
 #[must_use]
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
-    let mem = MAP.map(Column::from);
+    let mem = col_map().map(Column::from);
     vec![
         mem.clk,
         mem.addrs[0].clone(),
@@ -63,7 +63,7 @@ pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
 #[must_use]
 pub fn data_for_memory_limb<F: Field>(limb_index: usize) -> Vec<Column<F>> {
     assert!(limb_index < 4, "limb-index can be 0..4");
-    let mem = MAP.map(Column::from);
+    let mem = col_map().map(Column::from);
     vec![
         mem.clk,
         mem.ops.is_store,
@@ -74,4 +74,4 @@ pub fn data_for_memory_limb<F: Field>(limb_index: usize) -> Vec<Column<F>> {
 }
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter<F: Field>() -> Column<F> { MAP.map(Column::from).is_executed() }
+pub fn filter<F: Field>() -> Column<F> { col_map().map(Column::from).is_executed() }

@@ -4,7 +4,6 @@ use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
-use crate::multiplicity_view::MultiplicityView;
 use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::rangecheck_limb::columns::RangeCheckLimb;
 use crate::stark::mozak_stark::{LimbTable, Lookups, Table, TableKind};
@@ -53,10 +52,8 @@ pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
         });
     (0..=u8::MAX)
         .map(|limb| RangeCheckLimb {
-            multiplicity_view: MultiplicityView {
-                value: F::from_canonical_u8(limb),
-                multiplicity: F::from_canonical_u64(multiplicities[limb as usize]),
-            },
+            value: F::from_canonical_u8(limb),
+            multiplicity: F::from_canonical_u64(multiplicities[limb as usize]),
         })
         .collect()
 }
@@ -121,24 +118,12 @@ mod tests {
         for row in &trace {
             // TODO(bing): more comprehensive test once we rip out the old trace gen logic.
             // For now, just assert that all values are capped by u8::MAX.
-            assert!(u8::try_from(
-                u16::try_from(row.multiplicity_view.value.to_canonical_u64()).unwrap()
-            )
-            .is_ok());
+            assert!(u8::try_from(u16::try_from(row.value.to_canonical_u64()).unwrap()).is_ok());
         }
 
-        assert_eq!(trace[0].multiplicity_view.value, F::from_canonical_u8(0));
-        assert_eq!(
-            trace[0].multiplicity_view.multiplicity,
-            F::from_canonical_u64(8)
-        );
-        assert_eq!(
-            trace[255].multiplicity_view.value,
-            F::from_canonical_u8(u8::MAX)
-        );
-        assert_eq!(
-            trace[255].multiplicity_view.multiplicity,
-            F::from_canonical_u64(8)
-        );
+        assert_eq!(trace[0].value, F::from_canonical_u8(0));
+        assert_eq!(trace[0].multiplicity, F::from_canonical_u64(8));
+        assert_eq!(trace[255].value, F::from_canonical_u8(u8::MAX));
+        assert_eq!(trace[255].multiplicity, F::from_canonical_u64(8));
     }
 }

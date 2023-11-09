@@ -12,6 +12,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
+use crate::generation::MIN_TRACE_LENGTH;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::stark::utils::transpose_trace;
 use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend};
@@ -26,7 +27,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     let len = cpu_trace
         .len()
         .max(permuted.len())
-        .max(4)
+        .max(MIN_TRACE_LENGTH)
         .next_power_of_two();
     let ori_len = permuted.len();
     permuted = pad_trace_with_last_to_len(permuted, len);

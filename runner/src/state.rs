@@ -343,7 +343,8 @@ impl<F: RichField> State<F> {
     pub fn current_instruction(&self, program: &Program) -> Instruction {
         let pc = self.get_pc();
         let inst = program.ro_code.get_instruction(pc);
-        trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}");
+        let clk = self.clk;
+        trace!("CLK: {clk:#?}, PC: {pc:#x?}, Decoded Inst: {inst:?}");
         inst
     }
 

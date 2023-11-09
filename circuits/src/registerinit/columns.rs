@@ -26,7 +26,7 @@ pub struct RegisterInit<T> {
 }
 
 #[must_use]
-pub fn data_for_register<F: Field>() -> Vec<Column<F>> { Column::singles([MAP.reg_addr]) }
+pub fn data_for_register<F: Field>() -> Vec<Column<F>> { Column::singles([col_map().reg_addr]) }
 
 #[must_use]
-pub fn filter_for_register<F: Field>() -> Column<F> { Column::from(MAP.is_looked_up) }
+pub fn filter_for_register<F: Field>() -> Column<F> { Column::from(col_map().is_looked_up) }

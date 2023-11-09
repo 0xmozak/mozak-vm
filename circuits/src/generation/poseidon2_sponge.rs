@@ -4,12 +4,16 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
 
+use crate::generation::MIN_TRACE_LENGTH;
 use crate::poseidon2_sponge::columns::{Ops, Poseidon2Sponge};
 
 fn pad_poseidon2_sponge_trace<F: RichField>(
     mut trace: Vec<Poseidon2Sponge<F>>,
 ) -> Vec<Poseidon2Sponge<F>> {
-    trace.resize(trace.len().next_power_of_two(), Poseidon2Sponge::default());
+    trace.resize(
+        trace.len().next_power_of_two().max(MIN_TRACE_LENGTH),
+        Poseidon2Sponge::default(),
+    );
     trace
 }
 

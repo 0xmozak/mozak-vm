@@ -4,6 +4,7 @@ use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::{Poseidon2, WIDTH};
 
+use crate::generation::MIN_TRACE_LENGTH;
 use crate::poseidon2::columns::{Poseidon2State, ROUNDS_F, ROUNDS_P, STATE_SIZE};
 
 struct FullRoundOutput<F> {
@@ -20,7 +21,7 @@ struct PartialRoundOutput<F> {
 #[must_use]
 fn pad_trace<F: RichField>(mut trace: Vec<Poseidon2State<F>>) -> Vec<Poseidon2State<F>> {
     let original_len = trace.len();
-    let ext_trace_len = original_len.next_power_of_two().max(4);
+    let ext_trace_len = original_len.next_power_of_two().max(MIN_TRACE_LENGTH);
 
     trace.resize(
         ext_trace_len,
@@ -181,6 +182,7 @@ mod test {
         generate_1st_full_round_state, generate_2st_full_round_state, generate_partial_round_state,
         FullRoundOutput, Row,
     };
+    use crate::generation::MIN_TRACE_LENGTH;
     use crate::poseidon2::columns::{Poseidon2State, ROUNDS_F, STATE_SIZE};
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
@@ -244,6 +246,6 @@ mod test {
     fn generate_poseidon2_trace_with_dummy() {
         let step_rows = vec![];
         let trace: Vec<Poseidon2State<F>> = super::generate_poseidon2_trace(&step_rows);
-        assert_eq!(trace.len(), 4);
+        assert_eq!(trace.len(), MIN_TRACE_LENGTH);
     }
 }
