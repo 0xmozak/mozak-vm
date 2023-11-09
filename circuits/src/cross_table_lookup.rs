@@ -455,8 +455,8 @@ pub mod ctl_utils {
                     {l1} in the looked table.\n\
                     Looking locations: {looking_locations:?}.\n\
                     Looked locations: {looked_locations:?}.",
-                    l0 = looking_locations.1,
-                    l1 = looked_locations.1,
+                    l0 = looking_locations.multiplicity(),
+                    l1 = looked_locations.multiplicity(),
                 );
                 return Err(LookupError::InconsistentTableRows);
             }
