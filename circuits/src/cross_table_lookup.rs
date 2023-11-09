@@ -392,12 +392,6 @@ pub mod ctl_utils {
     struct RowCount<F>(TableKind, F);
     struct MultiSet<F>(HashMap<Vec<F>, RowCount<F>>);
 
-    impl<F: Field> RowCount<F> {
-        fn table_kind(&self) -> TableKind { self.0 }
-
-        fn multiplicity(&self) -> F { self.1 }
-    }
-
     impl<F: Field> Deref for RowCount<F> {
         type Target = F;
 
@@ -432,9 +426,9 @@ pub mod ctl_utils {
                         .iter()
                         .map(|c| c.eval_table(trace, i))
                         .collect::<Vec<_>>();
-                    self.entry(row)
-                        .or_insert(RowCount::<F>(table.kind, F::ZERO))
-                        .1 += filter;
+                    **self
+                        .entry(row)
+                        .or_insert(RowCount::<F>(table.kind, F::ZERO)) += filter;
                 };
             }
         }
@@ -449,7 +443,7 @@ pub mod ctl_utils {
             looking_locations: &RowCount<F>,
             looked_locations: &RowCount<F>,
         ) -> Result<(), LookupError> {
-            if looking_locations.multiplicity() != looked_locations.multiplicity() {
+            if **looking_locations != **looked_locations {
                 println!(
                     "Row {row:?} is present {l0} times in the looking tables, but
                     {l1} in the looked table.\n\
