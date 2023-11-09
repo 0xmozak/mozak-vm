@@ -52,19 +52,19 @@ pub const NUM_IO_MEM_COLS: usize = InputOutputMemory::<()>::NUMBER_OF_COLUMNS;
 /// stark table.
 #[must_use]
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
-    let mem = MAP.map(Column::from);
+    let mem = col_map().map(Column::from);
     vec![mem.clk, mem.addr, mem.size, mem.ops.is_io_store]
 }
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { MAP.map(Column::from).is_io() }
+pub fn filter_for_cpu<F: Field>() -> Column<F> { col_map().map(Column::from).is_io() }
 
 /// Columns containing the data which are looked from the halfword memory table
 /// into Memory stark table.
 #[must_use]
 pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
-    let mem = MAP.map(Column::from);
+    let mem = col_map().map(Column::from);
     vec![
         mem.clk,
         mem.ops.is_memory_store,
@@ -76,4 +76,4 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
 
 /// Column for a binary filter to indicate a lookup
 #[must_use]
-pub fn filter_for_memory<F: Field>() -> Column<F> { MAP.map(Column::from).is_memory() }
+pub fn filter_for_memory<F: Field>() -> Column<F> { col_map().map(Column::from).is_memory() }

@@ -26,7 +26,7 @@ pub(crate) const NUM_RC_COLS: usize = RangeCheckColumnsView::<()>::NUMBER_OF_COL
 #[must_use]
 pub fn data<F: Field>() -> Vec<Column<F>> {
     vec![(0..4)
-        .map(|limb| Column::single(MAP.limbs[limb]) * F::from_canonical_u32(1 << (8 * limb)))
+        .map(|limb| Column::single(col_map().limbs[limb]) * F::from_canonical_u32(1 << (8 * limb)))
         .sum()]
 }
 
@@ -35,12 +35,12 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     (0..4)
         .map(|limb| {
             RangeCheckTable::new(
-                Column::singles([MAP.limbs[limb]]),
-                Column::single(MAP.multiplicity_view.multiplicity),
+                Column::singles([col_map().limbs[limb]]),
+                Column::single(col_map().multiplicity_view.multiplicity),
             )
         })
         .collect()
 }
 
 #[must_use]
-pub fn filter<F: Field>() -> Column<F> { Column::single(MAP.multiplicity_view.multiplicity) }
+pub fn filter<F: Field>() -> Column<F> { Column::single(col_map().multiplicity_view.multiplicity) }
