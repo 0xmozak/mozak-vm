@@ -114,11 +114,10 @@ where
             // Captures
             (&self.targets, &mut inputs, &all_proof): (&'a [Option<StarkVerifierTargets<F, C, D>>; TableKind::COUNT], &'a mut PartialWitness<F>, &'a AllProof<F, C, D>),
             // The "lambda"
-            |captures, kind: TableKind| {
+            |(targets, inputs, all_proof), kind: TableKind| {
                 if !matches!(kind, TableKind::Program | TableKind::MemoryInit) {
                     return
                 }
-                let (targets, inputs, all_proof) = captures;
                 let target = &targets[kind as usize];
                 target.as_ref().unwrap().set_targets(
                     inputs,

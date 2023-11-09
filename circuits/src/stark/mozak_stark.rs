@@ -1,11 +1,10 @@
 use itertools::{chain, Itertools};
-use mozak_circuits_derive::StarkSet;
+use mozak_circuits_derive::{StarkSet, stark_lambda};
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
-use starky::stark::Stark;
 
 use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::columns_view_impl;
@@ -31,37 +30,37 @@ use crate::{
 };
 
 #[derive(Clone, StarkSet)]
-#[stark_enum = "TableKind"]
+#[StarkSet(enum_name = "TableKind", field = "F", degree = "D")]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
-    #[stark_kind = "Cpu"]
+    #[StarkSet(stark_kind = "Cpu")]
     pub cpu_stark: CpuStark<F, D>,
-    #[stark_kind = "RangeCheck"]
+    #[StarkSet(stark_kind = "RangeCheck")]
     pub rangecheck_stark: RangeCheckStark<F, D>,
-    #[stark_kind = "Xor"]
+    #[StarkSet(stark_kind = "Xor")]
     pub xor_stark: XorStark<F, D>,
-    #[stark_kind = "Bitshift"]
+    #[StarkSet(stark_kind = "Bitshift")]
     pub shift_amount_stark: BitshiftStark<F, D>,
-    #[stark_kind = "Program"]
+    #[StarkSet(stark_kind = "Program")]
     pub program_stark: ProgramStark<F, D>,
-    #[stark_kind = "Memory"]
+    #[StarkSet(stark_kind = "Memory")]
     pub memory_stark: MemoryStark<F, D>,
-    #[stark_kind = "MemoryInit"]
+    #[StarkSet(stark_kind = "MemoryInit")]
     pub memory_init_stark: MemoryInitStark<F, D>,
-    #[stark_kind = "RangeCheckLimb"]
+    #[StarkSet(stark_kind = "RangeCheckLimb")]
     pub rangecheck_limb_stark: RangeCheckLimbStark<F, D>,
-    #[stark_kind = "HalfWordMemory"]
+    #[StarkSet(stark_kind = "HalfWordMemory")]
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
-    #[stark_kind = "FullWordMemory"]
+    #[StarkSet(stark_kind = "FullWordMemory")]
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
-    #[stark_kind = "RegisterInit"]
+    #[StarkSet(stark_kind = "RegisterInit")]
     pub register_init_stark: RegisterInitStark<F, D>,
-    #[stark_kind = "Register"]
+    #[StarkSet(stark_kind = "Register")]
     pub register_stark: RegisterStark<F, D>,
-    #[stark_kind = "IoMemory"]
+    #[StarkSet(stark_kind = "IoMemory")]
     pub io_memory_stark: InputOuputMemoryStark<F, D>,
-    #[stark_kind = "Poseidon2Sponge"]
+    #[StarkSet(stark_kind = "Poseidon2Sponge")]
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
-    #[stark_kind = "Poseidon2"]
+    #[StarkSet(stark_kind = "Poseidon2")]
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 14],
     pub debug: bool,
@@ -116,6 +115,31 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
+    pub(crate) fn nums_permutation_zs(&self, config: &StarkConfig) -> [usize; TableKind::COUNT] {
+        self.all_starks(stark_lambda!(
+            // F and D for `Stark<F, D>`
+            F, D,
+            // Any generics that need to be propagated
+            // e.g. `<T> where T: Copy {},`
+            <'a>,
+            // Captures
+            (config): (&'a StarkConfig),
+            // The "lambda"
+            |config, stark, _kind: TableKind| -> usize {
+                stark.num_permutation_batches(config)
+            }
+        ))
+    }
+    pub(crate) fn permutation_batch_sizes(&self) -> [usize; TableKind::COUNT] {
+        self.all_starks(stark_lambda!(
+            // F and D for `Stark<F, D>`
+            F, D,
+            // The "lambda"
+            |stark, _kind: TableKind| -> usize {
+                stark.permutation_batch_size()
+            }
+        ))
+    }
     #[must_use]
     pub fn default_debug() -> Self {
         Self {
@@ -127,7 +151,6 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
 
 // TODO: Remove
 pub(crate) const NUM_TABLES: usize = TableKind::COUNT;
-
 
 #[derive(Debug, Clone)]
 pub struct Table<F: Field> {
