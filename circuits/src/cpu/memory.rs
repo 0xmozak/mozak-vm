@@ -18,7 +18,7 @@ pub(crate) fn signed_constraints<P: PackedField>(
 ) {
     is_binary(yield_constr, lv.dst_sign_bit);
     // When dst is not signed as per instruction semantics, dst_sign_bit must be 0.
-    yield_constr.constraint((P::ONES - (lv.inst.ops.lb + lv.inst.ops.lh)) * lv.dst_sign_bit);
+    yield_constr.constraint((P::ONES - lv.inst.is_dst_signed) * lv.dst_sign_bit);
 
     // Ensure `dst_value` is `0xFFFF_FF00` greater than
     // `mem_access_raw` in case `dst_sign_bit` is set
@@ -193,7 +193,6 @@ mod tests {
 
         Stark::prove_and_verify(&program, &record).unwrap();
     }
-
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]

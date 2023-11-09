@@ -20,6 +20,7 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
                 Op::SLT | Op::DIV | Op::REM | Op::MULH | Op::BLT | Op::BGE
             )
             .into(),
+            is_dst_signed: matches!(inst.op, Op::LB | Op::LH).into(),
             ..Self::default()
         };
         *match inst.op {

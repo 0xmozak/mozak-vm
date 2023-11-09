@@ -71,6 +71,7 @@ pub struct Instruction<T> {
     pub ops: OpSelectors<T>,
     pub is_op1_signed: T,
     pub is_op2_signed: T,
+    pub is_dst_signed: T,
     /// Selects the register to use as source for `rs1`
     pub rs1_select: [T; 32],
     /// Selects the register to use as source for `rs2`
