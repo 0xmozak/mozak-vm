@@ -457,22 +457,19 @@ pub mod ctl_utils {
         }
 
         looked_multiset.process_row(trace_poly_values, &ctl.looked_table);
+        let empty = &vec![];
 
         // Check that every row in the looking tables appears in the looked table the
         // same number of times.
         for (row, looking_locations) in &looking_multiset.0 {
-            let looked_locations = looked_multiset
-                .get(row)
-                .ok_or(LookupError::InconsistentTableRows)?;
+            let looked_locations = looked_multiset.get(row).unwrap_or(empty);
             check_multiplicities(row, looking_locations, looked_locations)?;
         }
 
         // Check that every row in the looked tables appears in the looking table the
         // same number of times.
         for (row, looked_locations) in &looked_multiset.0 {
-            let looking_locations = looking_multiset
-                .get(row)
-                .ok_or(LookupError::InconsistentTableRows)?;
+            let looking_locations = looking_multiset.get(row).unwrap_or(empty);
             check_multiplicities(row, looking_locations, looked_locations)?;
         }
 
