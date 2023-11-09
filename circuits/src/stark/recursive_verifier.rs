@@ -27,7 +27,7 @@ use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
 use crate::cross_table_lookup::{CrossTableLookup, CtlCheckVarsTarget};
-use crate::stark::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
+use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::poly::eval_vanishing_poly_circuit;
 use crate::stark::proof::{
@@ -43,7 +43,7 @@ where
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>, {
     pub circuit: CircuitData<F, C, D>,
-    pub targets: [Option<StarkVerifierTargets<F, C, D>>; NUM_TABLES],
+    pub targets: [Option<StarkVerifierTargets<F, C, D>>; TableKind::COUNT],
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -134,7 +134,7 @@ pub fn recursive_mozak_stark_circuit<
     const D: usize,
 >(
     mozak_stark: &MozakStark<F, D>,
-    degree_bits: [usize; NUM_TABLES],
+    degree_bits: [usize; TableKind::COUNT],
     circuit_config: &CircuitConfig,
     inner_config: &StarkConfig,
     min_degree_bits: usize,
@@ -143,14 +143,14 @@ where
     C::Hasher: AlgebraicHasher<F>, {
     let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-    let targets: [Option<StarkVerifierTargets<F, C, D>>; NUM_TABLES] = mozak_stark.all_starks(stark_lambda!(
+    let targets: [Option<StarkVerifierTargets<F, C, D>>; TableKind::COUNT] = mozak_stark.all_starks(stark_lambda!(
         // F and D for `Stark<F, D>`
         F, D,
         // Any generics that need to be propagated
         // e.g. `<T> where T: Copy {},`
         <'a, C: GenericConfig<D, F = F>> where C::Hasher: AlgebraicHasher<F> {},
         // Captures
-        (&mut builder, &degree_bits, &mozak_stark.cross_table_lookups, inner_config): (&'a mut CircuitBuilder<F, D>, &'a [usize; NUM_TABLES], &'a [CrossTableLookup<F>], &'a StarkConfig),
+        (&mut builder, &degree_bits, &mozak_stark.cross_table_lookups, inner_config): (&'a mut CircuitBuilder<F, D>, &'a [usize; TableKind::COUNT], &'a [CrossTableLookup<F>], &'a StarkConfig),
         // The "lambda"
         |(builder, degree_bits, cross_table_lookups, inner_config), stark, kind: TableKind| -> Option<StarkVerifierTargets<F, C, D>> {
             if !matches!(kind, TableKind::Xor | TableKind::Bitshift | TableKind::Program | TableKind::MemoryInit) {

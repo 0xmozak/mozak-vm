@@ -34,7 +34,7 @@ use crate::{
 /// `F`: The [Field] that the STARK is defined over
 /// `D`: Degree of the extension field of `F`
 #[derive(Clone, StarkSet)]
-#[StarkSet(enum_name = "TableKind", field = "F", degree = "D")]
+#[StarkSet(mod_name = "mozak_stark_set", field = "F", degree = "D")]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     #[StarkSet(stark_kind = "Cpu")]
     pub cpu_stark: CpuStark<F, D>,
@@ -71,6 +71,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub cross_table_lookups: [CrossTableLookup<F>; 15],
     pub debug: bool,
 }
+
+pub use mozak_stark_set::{Builder as TableKindSetBuilder, Kind as TableKind};
 
 columns_view_impl!(PublicInputs);
 

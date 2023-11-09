@@ -23,6 +23,7 @@ use std::borrow::Borrow;
 use std::fmt::Display;
 
 use itertools::Itertools;
+use mozak_circuits_derive::stark_lambda;
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -46,29 +47,14 @@ use self::rangecheck_limb::generate_rangecheck_limb_trace;
 use self::register::generate_register_trace;
 use self::registerinit::generate_register_init_trace;
 use self::xor::generate_xor_trace;
-use crate::bitshift::stark::BitshiftStark;
 use crate::columns_view::HasNamedColumns;
-use crate::cpu::stark::CpuStark;
 use crate::generation::io_memory::{
     generate_io_memory_private_trace, generate_io_memory_public_trace,
 };
 use crate::generation::poseidon2::generate_poseidon2_trace;
 use crate::generation::program::generate_program_rom_trace;
-use crate::memory::stark::MemoryStark;
-use crate::memory_fullword::stark::FullWordMemoryStark;
-use crate::memory_halfword::stark::HalfWordMemoryStark;
-use crate::memory_io::stark::InputOuputMemoryStark;
-use crate::memoryinit::stark::MemoryInitStark;
-use crate::poseidon2::stark::Poseidon2_12Stark;
-use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
-use crate::program::stark::ProgramStark;
-use crate::rangecheck::stark::RangeCheckStark;
-use crate::rangecheck_limb::stark::RangeCheckLimbStark;
-use crate::register::stark::RegisterStark;
-use crate::registerinit::stark::RegisterInitStark;
-use crate::stark::mozak_stark::{MozakStark, PublicInputs, NUM_TABLES};
+use crate::stark::mozak_stark::{MozakStark, PublicInputs, TableKind, TableKindSetBuilder};
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
-use crate::xor::stark::XorStark;
 
 pub const MIN_TRACE_LENGTH: usize = 8;
 
@@ -82,7 +68,7 @@ pub const MIN_TRACE_LENGTH: usize = 8;
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
     record: &ExecutionRecord<F>,
-) -> [Vec<PolynomialValues<F>>; NUM_TABLES] {
+) -> [Vec<PolynomialValues<F>>; TableKind::COUNT] {
     let cpu_rows = generate_cpu_trace::<F>(program, record);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
@@ -109,40 +95,25 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let register_init_rows = generate_register_init_trace::<F>();
     let register_rows = generate_register_trace::<F>(program, record);
 
-    let cpu_trace = trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows));
-    let rangecheck_trace = trace_rows_to_poly_values(rangecheck_rows);
-    let xor_trace = trace_rows_to_poly_values(xor_rows);
-    let shift_amount_trace = trace_rows_to_poly_values(shift_amount_rows);
-    let program_trace = trace_rows_to_poly_values(program_rows);
-    let memory_trace = trace_rows_to_poly_values(memory_rows);
-    let memory_init_trace = trace_rows_to_poly_values(memory_init_rows);
-    let rangecheck_limb_trace = trace_rows_to_poly_values(rangecheck_limb_rows);
-    let halfword_memory_trace = trace_rows_to_poly_values(halfword_memory_rows);
-    let fullword_memory_trace = trace_rows_to_poly_values(fullword_memory_rows);
-    let io_memory_private_trace = trace_rows_to_poly_values(io_memory_private_rows);
-    let io_memory_public_trace = trace_rows_to_poly_values(io_memory_public_rows);
-    let register_init_trace = trace_rows_to_poly_values(register_init_rows);
-    let register_trace = trace_rows_to_poly_values(register_rows);
-    let poseidon2_trace = trace_rows_to_poly_values(poseidon2_rows);
-    let poseidon2_sponge_trace = trace_rows_to_poly_values(poseiden2_sponge_rows);
-    [
-        cpu_trace,
-        rangecheck_trace,
-        xor_trace,
-        shift_amount_trace,
-        program_trace,
-        memory_trace,
-        memory_init_trace,
-        rangecheck_limb_trace,
-        halfword_memory_trace,
-        fullword_memory_trace,
-        register_init_trace,
-        register_trace,
-        io_memory_private_trace,
-        io_memory_public_trace,
-        poseidon2_sponge_trace,
-        poseidon2_trace,
-    ]
+    TableKindSetBuilder {
+        cpu_stark: trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows)),
+        rangecheck_stark: trace_rows_to_poly_values(rangecheck_rows),
+        xor_stark: trace_rows_to_poly_values(xor_rows),
+        shift_amount_stark: trace_rows_to_poly_values(shift_amount_rows),
+        program_stark: trace_rows_to_poly_values(program_rows),
+        memory_stark: trace_rows_to_poly_values(memory_rows),
+        memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
+        rangecheck_limb_stark: trace_rows_to_poly_values(rangecheck_limb_rows),
+        halfword_memory_stark: trace_rows_to_poly_values(halfword_memory_rows),
+        fullword_memory_stark: trace_rows_to_poly_values(fullword_memory_rows),
+        io_memory_private_stark: trace_rows_to_poly_values(io_memory_private_rows),
+        io_memory_public_stark: trace_rows_to_poly_values(io_memory_public_rows),
+        register_init_stark: trace_rows_to_poly_values(register_init_rows),
+        register_stark: trace_rows_to_poly_values(register_rows),
+        poseidon2_stark: trace_rows_to_poly_values(poseidon2_rows),
+        poseidon2_sponge_stark: trace_rows_to_poly_values(poseiden2_sponge_rows),
+    }
+    .build()
 }
 
 #[must_use]
@@ -164,79 +135,42 @@ pub fn transpose_polys<
 }
 
 pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
-    traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+    traces_poly_values: &[Vec<PolynomialValues<F>>; TableKind::COUNT],
     mozak_stark: &MozakStark<F, D>,
     public_inputs: &PublicInputs<F>,
 ) {
-    let [cpu, rangecheck, xor, shift_amount, program, memory, memory_init, rangecheck_limb, halfword_memory, fullword_memory, register_init, register, io_memory_private, io_memory_public, poseidon2_sponge, poseidon2] =
-        traces_poly_values;
-    // Program ROM
-    debug_single_trace::<F, D, ProgramStark<F, D>>(&mozak_stark.program_stark, program, &[]);
-    // CPU
-    debug_single_trace::<F, D, CpuStark<F, D>>(&mozak_stark.cpu_stark, cpu, public_inputs.borrow());
-    // Range check
-    debug_single_trace::<F, D, RangeCheckStark<F, D>>(
-        &mozak_stark.rangecheck_stark,
-        rangecheck,
-        &[],
-    );
-    // Xor
-    debug_single_trace::<F, D, XorStark<F, D>>(&mozak_stark.xor_stark, xor, &[]);
-    // Bitshift
-    debug_single_trace::<F, D, BitshiftStark<F, D>>(
-        &mozak_stark.shift_amount_stark,
-        shift_amount,
-        &[],
-    );
-    // Memory
-    debug_single_trace::<F, D, MemoryStark<F, D>>(&mozak_stark.memory_stark, memory, &[]);
-    // MemoryInit
-    debug_single_trace::<F, D, MemoryInitStark<F, D>>(
-        &mozak_stark.memory_init_stark,
-        memory_init,
-        &[],
-    );
-    debug_single_trace::<F, D, RangeCheckLimbStark<F, D>>(
-        &mozak_stark.rangecheck_limb_stark,
-        rangecheck_limb,
-        &[],
-    );
-    debug_single_trace::<F, D, HalfWordMemoryStark<F, D>>(
-        &mozak_stark.halfword_memory_stark,
-        halfword_memory,
-        &[],
-    );
-    debug_single_trace::<F, D, FullWordMemoryStark<F, D>>(
-        &mozak_stark.fullword_memory_stark,
-        fullword_memory,
-        &[],
-    );
-    debug_single_trace::<F, D, RegisterInitStark<F, D>>(
-        &mozak_stark.register_init_stark,
-        register_init,
-        &[],
-    );
-    debug_single_trace::<F, D, RegisterStark<F, D>>(&mozak_stark.register_stark, register, &[]);
-    debug_single_trace::<F, D, InputOuputMemoryStark<F, D>>(
-        &mozak_stark.io_memory_private_stark,
-        io_memory_private,
-        &[],
-    );
-    debug_single_trace::<F, D, InputOuputMemoryStark<F, D>>(
-        &mozak_stark.io_memory_public_stark,
-        io_memory_public,
-        &[],
-    );
-    debug_single_trace::<F, D, Poseidon2SpongeStark<F, D>>(
-        &mozak_stark.poseidon2_sponge_stark,
-        poseidon2_sponge,
-        &[],
-    );
-    debug_single_trace::<F, D, Poseidon2_12Stark<F, D>>(
-        &mozak_stark.poseidon2_stark,
-        poseidon2,
-        &[],
-    );
+    let public_inputs = TableKindSetBuilder::<&[_]> {
+        cpu_stark: public_inputs.borrow(),
+        rangecheck_stark: &[],
+        xor_stark: &[],
+        shift_amount_stark: &[],
+        program_stark: &[],
+        memory_stark: &[],
+        memory_init_stark: &[],
+        rangecheck_limb_stark: &[],
+        halfword_memory_stark: &[],
+        fullword_memory_stark: &[],
+        register_init_stark: &[],
+        register_stark: &[],
+        io_memory_private_stark: &[],
+        io_memory_public_stark: &[],
+        poseidon2_sponge_stark: &[],
+        poseidon2_stark: &[],
+    }
+    .build();
+
+    mozak_stark.all_starks(stark_lambda!(
+        // F and D for `Stark<F, D>`
+        F, D,
+        // Any generics that need to be propagated
+        <'a>,
+        // Captures
+        (traces_poly_values, &public_inputs): (&'a [Vec<PolynomialValues<F>>; TableKind::COUNT], &'a [&'a [F]; TableKind::COUNT]),
+        // The "lambda"
+        |(traces_poly_values, public_inputs), stark, kind: TableKind| -> () {
+            debug_single_trace::<F, D, _>(stark, &traces_poly_values[kind as usize], &public_inputs[kind as usize]);
+        }
+    ));
 }
 
 pub fn debug_single_trace<

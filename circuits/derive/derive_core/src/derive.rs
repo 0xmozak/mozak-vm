@@ -65,28 +65,28 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
         .flatten()
         .collect::<Vec<MetaNameValue>>();
 
-    let enum_name = outer_attr
+    let mod_name = outer_attr
         .iter()
         .filter_map(|meta| {
-            if meta.path.is_ident("enum_name") {
+            if meta.path.is_ident("mod_name") {
                 Some(&meta.value)
             } else {
                 None
             }
         })
         .at_most_one();
-    let enum_name = match enum_name {
+    let mod_name = match mod_name {
         Err(e) => {
-            for enum_name in e {
+            for mod_name in e {
                 emit_error!(
-                    enum_name,
-                    "multiple 'enum_name' attributes for struct {:?}",
+                    mod_name,
+                    "multiple 'mod_name' attributes for struct {:?}",
                     ast.ident
                 );
             }
             None
         }
-        Ok(enum_name) => enum_name,
+        Ok(mod_name) => mod_name,
     };
     let field = outer_attr
         .iter()
@@ -195,12 +195,12 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
             })
             .filter_map(|(field_id, field_ty, kind)| match kind {
                 Expr::Lit(ExprLit {
-                    lit: Lit::Str(enum_name),
+                    lit: Lit::Str(mod_name),
                     ..
                 }) => Some((
                     field_id,
                     field_ty,
-                    Ident::new(&enum_name.value(), Span::mixed_site()),
+                    Ident::new(&mod_name.value(), Span::mixed_site()),
                 )),
                 kind => {
                     emit_error!(kind, "'stark_kind' should be a string literal");
@@ -209,13 +209,13 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
             }),
     );
 
-    let enum_name = match enum_name {
-        None => abort!(ast_span, "unique 'enum_name' is required"),
+    let mod_name = match mod_name {
+        None => abort!(ast_span, "unique 'mod_name' is required"),
         Some(Expr::Lit(ExprLit {
-            lit: Lit::Str(enum_name),
+            lit: Lit::Str(mod_name),
             ..
-        })) => Ident::new(&enum_name.value(), Span::mixed_site()),
-        Some(enum_name) => abort!(enum_name, "'enum_name' should be a string literal"),
+        })) => Ident::new(&mod_name.value(), Span::mixed_site()),
+        Some(mod_name) => abort!(mod_name, "'mod_name' should be a string literal"),
     };
     let field = match field {
         None => abort!(ast_span, "unique 'field' is required"),
@@ -244,47 +244,68 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
     let generic_params_no_attr = remove_gen_attr(&generic_params);
 
     quote!(
-        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-        pub enum #enum_name {
-            #(#kinds_decl)*
-        }
-
-        /// Code generated via proc_macro `StarkSet`
-        impl #enum_name {
-            pub(crate) const COUNT: usize = #kind_count;
-
-            #[must_use]
-            pub fn all() -> [Self; Self::COUNT] {
-                use #enum_name::*;
-                [#(#kinds,)*]
+        mod #mod_name{
+            use super::*;
+            #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+            pub enum Kind {
+                #(#kinds_decl)*
             }
-            pub fn all_types<const D: usize, L>(l: L) -> [L::Output; Self::COUNT]
-            where L: #crate_name::StarkKindLambda<D, Kind=Self>,
-            L::F: #crate_name::RichField + #crate_name::Extendable<D>,
-            {
-                fn helper<F, const D: usize, L>(mut l: L) -> [L::Output; #enum_name::COUNT]
-                where L: #crate_name::StarkKindLambda<D, F=F, Kind=#enum_name>,
-                L::F: #crate_name::RichField + #crate_name::Extendable<D>,{
-                    use #enum_name::*;
-                    [#(l.call::<#field_tys>(#kinds),)*]
+
+            pub struct Builder<T> {
+                #(pub #field_ids: T,)*
+            }
+
+            impl<T> Builder<T> {
+                pub fn build(self) -> [T; Kind::COUNT] {
+                    [#(self.#field_ids,)*]
                 }
-                helper::<L::F, D, L>(l)
+            }
+
+            /// Code generated via proc_macro `StarkSet`
+            impl Kind {
+                pub const COUNT: usize = #kind_count;
+
+                #[must_use]
+                pub fn all() -> [Self; Self::COUNT] {
+                    use Kind::*;
+                    [#(#kinds,)*]
+                }
+                pub fn all_types<const D: usize, L>(l: L) -> [L::Output; Self::COUNT]
+                where L: #crate_name::StarkKindLambda<D, Kind=Self>,
+                L::F: #crate_name::RichField + #crate_name::Extendable<D>,
+                {
+                    fn helper<F, const D: usize, L>(mut l: L) -> [L::Output; Kind::COUNT]
+                    where L: #crate_name::StarkKindLambda<D, F=F, Kind=Kind>,
+                    L::F: #crate_name::RichField + #crate_name::Extendable<D>,{
+                        use Kind::*;
+                        [#(l.call::<#field_tys>(#kinds),)*]
+                    }
+                    helper::<L::F, D, L>(l)
+                }
+            }
+
+            /// Code generated via proc_macro `StarkSet`s
+            impl<#generic_params> #ident<#generic_params_no_attr> {
+                pub fn all_starks<L>(&self, mut l: L) -> [L::Output; Kind::COUNT]
+                where L: #crate_name::StarkLambda<#degree, F=#field, Kind=Kind> {
+                    use Kind::*;
+                    [#(l.call::<#field_tys>(&self.#field_ids, #kinds),)*]
+                }
+
+                pub fn try_all_starks<L, R, E>(&self, mut l: L) -> Result<[R; Kind::COUNT], E>
+                where L: #crate_name::StarkLambda<#degree, F=#field, Kind=Kind, Output=core::result::Result<R, E>> {
+                    use Kind::*;
+                    Ok([#(l.call::<#field_tys>(&self.#field_ids, #kinds)?,)*])
+                }
+
+                pub fn all_starks_mut<L>(&mut self, mut l: L) -> [L::Output; Kind::COUNT]
+                where L: #crate_name::StarkLambdaMut<#degree, F=#field, Kind=Kind> {
+                    use Kind::*;
+                    [#(l.call::<#field_tys>(&mut self.#field_ids, #kinds),)*]
+                }
             }
         }
 
-        /// Code generated via proc_macro `StarkSet`s
-        impl<#generic_params> #ident<#generic_params_no_attr> {
-            pub fn all_starks<L>(&self, mut l: L) -> [L::Output; #enum_name::COUNT]
-            where L: #crate_name::StarkLambda<#degree, F=#field, Kind=#enum_name> {
-                use #enum_name::*;
-                [#(l.call::<#field_tys>(&self.#field_ids, #kinds),)*]
-            }
-            pub fn all_starks_mut<L>(&mut self, mut l: L) -> [L::Output; #enum_name::COUNT]
-            where L: #crate_name::StarkLambdaMut<#degree, F=#field, Kind=#enum_name> {
-                use #enum_name::*;
-                [#(l.call::<#field_tys>(&mut self.#field_ids, #kinds),)*]
-            }
-        }
     )
     .into()
 }

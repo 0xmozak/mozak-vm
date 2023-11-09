@@ -327,7 +327,8 @@ pub fn stark_lambda(input: TokenStream, mutable: bool) -> TokenStream {
             type Kind = #kind_ty;
             type Output = #output;
             fn call<S>(&mut self, #stark_id: &#mut_token S, #kind_id: Self::Kind) -> Self::Output
-            where S: #crate_name::Stark<Self::F, #d_bare> {
+            where S: #crate_name::ExtendedStark<Self::F, #d_bare>,
+                S::Columns: FromIterator<Self::F> + core::fmt::Debug {
                 #capture_pat
                 #body
             }

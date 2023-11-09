@@ -6,6 +6,7 @@ use anyhow::{ensure, Result};
 use itertools::Itertools;
 use log::log_enabled;
 use log::Level::Debug;
+use mozak_circuits_derive::stark_lambda;
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::extension::Extendable;
@@ -23,7 +24,7 @@ use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
+use super::mozak_stark::{MozakStark, TableKind, TableKindSetBuilder, NUM_TABLES};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
@@ -323,74 +324,58 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     public_inputs: &PublicInputs<F>,
-    traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+    traces_poly_values: &[Vec<PolynomialValues<F>>; TableKind::COUNT],
     trace_commitments: &[PolynomialBatch<F, C, D>],
-    ctl_data_per_table: &[CtlData<F>; NUM_TABLES],
+    ctl_data_per_table: &[CtlData<F>; TableKind::COUNT],
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<[StarkProofWithMetadata<F, C, D>; NUM_TABLES]>
+) -> Result<[StarkProofWithMetadata<F, C, D>; TableKind::COUNT]>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
-    macro_rules! make_proof {
-        ($stark: expr, $kind: expr, $public_inputs: expr) => {
+    let cpu_stark = [public_inputs.entry_point];
+    let public_inputs = TableKindSetBuilder::<&[_]> {
+        cpu_stark: &cpu_stark,
+        rangecheck_stark: &[],
+        xor_stark: &[],
+        shift_amount_stark: &[],
+        program_stark: &[],
+        memory_stark: &[],
+        memory_init_stark: &[],
+        rangecheck_limb_stark: &[],
+        halfword_memory_stark: &[],
+        fullword_memory_stark: &[],
+        register_init_stark: &[],
+        register_stark: &[],
+        io_memory_private_stark: &[],
+        io_memory_public_stark: &[],
+        poseidon2_sponge_stark: &[],
+        poseidon2_stark: &[],
+    }
+    .build();
+
+    mozak_stark.try_all_starks(stark_lambda!(
+        // F and D for `Stark<F, D>`
+        F, D,
+        // Any generics that need to be propagated
+        // e.g. `<T> where T: Copy {},`
+        <'a, C: GenericConfig<D, F = F>>,
+        // Captures
+        (config, traces_poly_values, trace_commitments, &public_inputs, ctl_data_per_table, challenger, timing): (&'a StarkConfig, &'a [Vec<PolynomialValues<F>>; TableKind::COUNT], &'a [PolynomialBatch<F, C, D>], &'a [&'a [F]; TableKind::COUNT], &'a [CtlData<F>; TableKind::COUNT], &'a mut Challenger<F, C::Hasher>, &'a mut TimingTree),
+        // The "lambda"
+        |(config, traces_poly_values, trace_commitments, public_inputs, ctl_data_per_table, challenger, timing), stark, kind: TableKind| -> Result<StarkProofWithMetadata<F, C, D>> {
             prove_single_table(
-                &$stark,
+                stark,
                 config,
-                &traces_poly_values[$kind as usize],
-                &trace_commitments[$kind as usize],
-                &$public_inputs,
-                &ctl_data_per_table[$kind as usize],
+                &traces_poly_values[kind as usize],
+                &trace_commitments[kind as usize],
+                &public_inputs[kind as usize],
+                &ctl_data_per_table[kind as usize],
                 challenger,
                 timing,
             )
-        };
-    }
-
-    Ok([
-        make_proof!(mozak_stark.cpu_stark, TableKind::Cpu, [
-            public_inputs.entry_point
-        ])?,
-        make_proof!(mozak_stark.rangecheck_stark, TableKind::RangeCheck, [])?,
-        make_proof!(mozak_stark.xor_stark, TableKind::Xor, [])?,
-        make_proof!(mozak_stark.shift_amount_stark, TableKind::Bitshift, [])?,
-        make_proof!(mozak_stark.program_stark, TableKind::Program, [])?,
-        make_proof!(mozak_stark.memory_stark, TableKind::Memory, [])?,
-        make_proof!(mozak_stark.memory_init_stark, TableKind::MemoryInit, [])?,
-        make_proof!(
-            mozak_stark.rangecheck_limb_stark,
-            TableKind::RangeCheckLimb,
-            []
-        )?,
-        make_proof!(
-            mozak_stark.halfword_memory_stark,
-            TableKind::HalfWordMemory,
-            []
-        )?,
-        make_proof!(
-            mozak_stark.fullword_memory_stark,
-            TableKind::FullWordMemory,
-            []
-        )?,
-        make_proof!(mozak_stark.register_init_stark, TableKind::RegisterInit, [])?,
-        make_proof!(mozak_stark.register_stark, TableKind::Register, [])?,
-        make_proof!(
-            mozak_stark.io_memory_private_stark,
-            TableKind::IoMemoryPrivate,
-            []
-        )?,
-        make_proof!(
-            mozak_stark.io_memory_public_stark,
-            TableKind::IoMemoryPublic,
-            []
-        )?,
-        make_proof!(
-            mozak_stark.poseidon2_sponge_stark,
-            TableKind::Poseidon2Sponge,
-            []
-        )?,
-        make_proof!(mozak_stark.poseidon2_stark, TableKind::Poseidon2, [])?,
-    ])
+        }
+    ))
 }
 
 #[cfg(test)]
