@@ -6,15 +6,19 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
 use crate::memory::columns::Memory;
-use crate::multiplicity_view::MultiplicityView;
 use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
 use crate::utils::pad_trace_with_default;
 
 /// Converts a u32 into 4 u8 limbs represented in [`RichField`].
 #[must_use]
-pub fn limbs_from_u32(value: u32) -> [u8; 4] { value.to_le_bytes() }
+pub fn limbs_from_u32<F: RichField>(value: u32) -> [F; 4] {
+    value.to_le_bytes().map(|v| F::from_canonical_u8(v))
+}
 
+/// extract the values to be rangechecked.
+/// multiplicity is assumed to be 0 or 1 since we apply this only for cpu and
+/// memory traces, hence ignored
 pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<F>
 where
     V: Index<usize, Output = F> + 'a, {
@@ -44,7 +48,6 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     memory_trace: &[Memory<F>],
 ) -> Vec<RangeCheckColumnsView<F>> {
-    let mut trace: Vec<RangeCheckColumnsView<F>> = vec![];
     let mut multiplicities: BTreeMap<u32, u64> = BTreeMap::new();
 
     RangecheckTable::lookups()
@@ -65,25 +68,14 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
                     .entry(val)
                     .and_modify(|e| *e += 1)
                     .or_insert(1);
-
-                // TODO(bing): remove this push once we completely switch to logUp.
-                // trace gen should only involve non-duplicate values and its
-                // multiplicity, and we will enforce a cross-table logup from the
-                // CPU and Memory tables.
-                trace.push(
-                    RangeCheckColumnsView {
-                        limbs: limbs_from_u32(val),
-                        filter: 1,
-                        multiplicity_view: MultiplicityView::default(),
-                    }
-                    .map(F::from_canonical_u8),
-                );
             });
         });
-
-    for (i, (value, multiplicity)) in multiplicities.into_iter().enumerate() {
-        trace[i].multiplicity_view.value = F::from_canonical_u32(value);
-        trace[i].multiplicity_view.multiplicity = F::from_canonical_u64(multiplicity);
+    let mut trace = Vec::with_capacity(multiplicities.len());
+    for (value, multiplicity) in multiplicities {
+        trace.push(RangeCheckColumnsView {
+            multiplicity: F::from_canonical_u64(multiplicity),
+            limbs: limbs_from_u32(value),
+        });
     }
 
     pad_trace_with_default(trace)
@@ -104,6 +96,7 @@ mod tests {
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
+    use crate::generation::MIN_TRACE_LENGTH;
 
     #[test]
     fn test_generate_trace() {
@@ -138,16 +131,16 @@ mod tests {
             &poseidon2_trace,
         );
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
-        assert_eq!(trace.len(), 4, "Unexpected trace len {}", trace.len());
+        assert_eq!(
+            trace.len(),
+            MIN_TRACE_LENGTH,
+            "Unexpected trace len {}",
+            trace.len()
+        );
         for (i, row) in trace.iter().enumerate() {
             match i {
-                0 => {
-                    assert_eq!(row.multiplicity_view.value, F::ZERO);
-                    assert_eq!(row.multiplicity_view.multiplicity, F::TWO);
-                }
-                1 => {
-                    assert_eq!(row.multiplicity_view.value, F::from_canonical_u32(u32::MAX));
-                    assert_eq!(row.multiplicity_view.multiplicity, F::TWO);
+                0 | 1 => {
+                    assert_eq!(row.multiplicity, F::TWO);
                 }
                 _ => {}
             }

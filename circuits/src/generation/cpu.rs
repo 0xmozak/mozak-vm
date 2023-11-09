@@ -12,6 +12,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
+use crate::generation::MIN_TRACE_LENGTH;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::stark::utils::transpose_trace;
 use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend};
@@ -26,7 +27,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     let len = cpu_trace
         .len()
         .max(permuted.len())
-        .max(4)
+        .max(MIN_TRACE_LENGTH)
         .next_power_of_two();
     let ori_len = permuted.len();
     permuted = pad_trace_with_last_to_len(permuted, len);
@@ -74,7 +75,7 @@ pub fn generate_cpu_trace<F: RichField>(
             // To be overridden by users of the gadget.
             // TODO(Matthias): find a way to make either compiler or runtime complain
             // if we have two (conflicting) users in the same row.
-            bitshift: Bitshift::from(0).map(F::from_canonical_u64),
+            bitshift: Bitshift::from(0).map(F::from_canonical_u32),
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
@@ -89,7 +90,7 @@ pub fn generate_cpu_trace<F: RichField>(
             io_size: F::from_canonical_usize(io.data.len()),
             is_io_store: F::from_bool(matches!((inst.op, io.op), (Op::ECALL, IoOpcode::Store))),
             is_halt: F::from_bool(matches!(
-                (inst.op, state.registers[usize::try_from(REG_A0).unwrap()]),
+                (inst.op, state.registers[usize::from(REG_A0)]),
                 (Op::ECALL, ecall::HALT)
             )),
             ..CpuState::default()

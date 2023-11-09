@@ -40,6 +40,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     // that both have same value. A CrossTableLookup between RangeCheckStark and
     // RangeCheckLimbStark ensures that each limb from this stark are covered
     // in RangeCheckLimbStark.
+    // Here we check if limbs are formed properly
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,
         _vars: &Self::EvaluationFrame<FE, P, D2>,

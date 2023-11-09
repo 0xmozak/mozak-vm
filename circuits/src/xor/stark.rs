@@ -7,13 +7,14 @@ use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::plonk_common::reduce_with_powers;
+use plonky2::plonk::plonk_common::{reduce_with_powers, reduce_with_powers_ext_circuit};
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::XorColumnsView;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -44,14 +45,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &XorColumnsView<_> = vars.get_local_values().try_into().unwrap();
+        let lv: &XorColumnsView<_> = vars.get_local_values().into();
 
         // We first convert both input and output to bit representation
         // We then work with the bit representations to check the Xor result.
 
         // Check: bit representation of inputs and output contains either 0 or 1.
         for bit_value in chain!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
-            yield_constr.constraint(bit_value * (bit_value - P::ONES));
+            is_binary(yield_constr, bit_value);
         }
 
         // Check: bit representation of inputs and output were generated correctly.
@@ -75,11 +76,28 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
 
     fn eval_ext_circuit(
         &self,
-        _builder: &mut CircuitBuilder<F, D>,
-        _vars: &Self::EvaluationFrameTarget,
-        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        unimplemented!()
+        let lv: &XorColumnsView<ExtensionTarget<D>> = vars.get_local_values().into();
+        for bit_value in chain!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
+            is_binary_ext_circuit(builder, bit_value, yield_constr);
+        }
+        let two = builder.constant(F::TWO);
+        for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
+            let x = reduce_with_powers_ext_circuit(builder, &opx_limbs, two);
+            let x_sub_opx = builder.sub_extension(x, opx);
+            yield_constr.constraint(builder, x_sub_opx);
+        }
+        for (a, b, res) in izip!(lv.limbs.a, lv.limbs.b, lv.limbs.out) {
+            let a_add_b = builder.add_extension(a, b);
+            let a_mul_b = builder.mul_extension(a, b);
+            let a_mul_b_doubles = builder.add_extension(a_mul_b, a_mul_b);
+            let a_add_b_sub_a_mul_b_doubles = builder.sub_extension(a_add_b, a_mul_b_doubles);
+            let xor = builder.sub_extension(res, a_add_b_sub_a_mul_b_doubles);
+            yield_constr.constraint(builder, xor);
+        }
     }
 }
 
@@ -91,13 +109,13 @@ mod tests {
     use plonky2::timed;
     use plonky2::util::timing::TimingTree;
     use starky::prover::prove as prove_table;
-    use starky::stark_testing::test_stark_low_degree;
+    use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
     use starky::verifier::verify_stark_proof;
 
     use crate::generation::cpu::generate_cpu_trace;
     use crate::generation::xor::generate_xor_trace;
     use crate::stark::utils::trace_rows_to_poly_values;
-    use crate::test_utils::{standard_faster_config, C, D, F};
+    use crate::test_utils::{fast_test_config, C, D, F};
     use crate::xor::stark::XorStark;
 
     type S = XorStark<F, D>;
@@ -108,7 +126,7 @@ mod tests {
     }
 
     fn test_xor_stark(a: u32, b: u32, imm: u32) {
-        let config = standard_faster_config();
+        let config = fast_test_config();
 
         let (program, record) = simple_test_code(
             &[
@@ -176,5 +194,13 @@ mod tests {
             fn prove_xor_proptest(a in any::<u32>(), b in any::<u32>()) {
                 test_xor_stark(a, b, 0);
             }
+    }
+
+    #[test]
+    fn test_circuit() -> anyhow::Result<()> {
+        let stark = S::default();
+        test_stark_circuit_constraints::<F, C, S, D>(stark)?;
+
+        Ok(())
     }
 }

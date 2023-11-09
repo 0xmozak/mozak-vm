@@ -11,10 +11,10 @@ pub struct Bitshift<T> {
     pub multiplier: T,
 }
 
-impl From<u64> for Bitshift<u64> {
-    fn from(amount: u64) -> Self {
+impl From<u8> for Bitshift<u32> {
+    fn from(amount: u8) -> Self {
         Self {
-            amount,
+            amount: amount.into(),
             multiplier: 1 << amount,
         }
     }
@@ -25,22 +25,23 @@ columns_view_impl!(BitshiftView);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct BitshiftView<T> {
+    /// Contains the `Bitshift` columns with the shift amount and the
+    /// multiplier.
+    pub executed: Bitshift<T>,
     /// This column tells if the row has a corresponding value row
     /// in the CPU table. If not, then this is a padding row, used to
     /// pad the table to a power of 2 size or a dummy row
     /// to bridge a gap in the shift amounts.
-    pub is_executed: T,
-    /// Contains the `Bitshift` columns with the shift amount and the
-    /// multiplier.
-    pub executed: Bitshift<T>,
+    /// For logup, this can be used to track multiplicity
+    pub multiplicity: T,
 }
 
 /// Columns containing the data which are looked from the CPU table into
 /// Bitshift stark table.
 #[must_use]
-pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.executed) }
+pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> { Column::singles(col_map().executed) }
 
 /// Columns containing the filter which indicates whether this row is a dummy
 /// padding.
 #[must_use]
-pub fn filter_for_cpu<F: Field>() -> Column<F> { MAP.is_executed.into() }
+pub fn filter_for_cpu<F: Field>() -> Column<F> { col_map().multiplicity.into() }

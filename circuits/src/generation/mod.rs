@@ -68,6 +68,8 @@ use crate::stark::mozak_stark::{MozakStark, PublicInputs, NUM_TABLES};
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 use crate::xor::stark::XorStark;
 
+pub const MIN_TRACE_LENGTH: usize = 8;
+
 /// Generate Constrained traces for each type of gadgets
 /// Returns the polynomial encoding of each row
 ///

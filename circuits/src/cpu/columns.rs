@@ -218,7 +218,7 @@ impl<T: PackedField> CpuState<T> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
-    let cpu = MAP.cpu.map(Column::from);
+    let cpu = col_map().cpu.map(Column::from);
     let ops = &cpu.inst.ops;
     let divs = &ops.div + &ops.rem + &ops.srl + &ops.sra;
     let muls = &ops.mul + &ops.mulh + &ops.sll;
@@ -264,13 +264,13 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 /// Columns containing the data to be matched against Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_xor<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.xor) }
+pub fn data_for_xor<F: Field>() -> Vec<Column<F>> { Column::singles(col_map().cpu.xor) }
 
 /// Column for a binary filter for bitwise instruction in Xor stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_xor<F: Field>() -> Column<F> {
-    MAP.cpu.map(Column::from).inst.ops.ops_that_use_xor()
+    col_map().cpu.map(Column::from).inst.ops.ops_that_use_xor()
 }
 
 /// Column containing the data to be matched against Memory stark.
@@ -278,11 +278,11 @@ pub fn filter_for_xor<F: Field>() -> Column<F> {
 #[must_use]
 pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
     vec![
-        Column::single(MAP.cpu.clk),
-        Column::single(MAP.cpu.inst.ops.sb),
-        Column::single(MAP.cpu.inst.ops.lb), // For both `LB` and `LBU`
-        Column::single(MAP.cpu.mem_value_raw),
-        Column::single(MAP.cpu.mem_addr),
+        Column::single(col_map().cpu.clk),
+        Column::single(col_map().cpu.inst.ops.sb),
+        Column::single(col_map().cpu.inst.ops.lb), // For both `LB` and `LBU`
+        Column::single(col_map().cpu.mem_value_raw),
+        Column::single(col_map().cpu.mem_addr),
     ]
 }
 
@@ -290,14 +290,14 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_byte_memory<F: Field>() -> Column<F> {
-    MAP.cpu.map(Column::from).inst.ops.byte_mem_ops()
+    col_map().cpu.map(Column::from).inst.ops.byte_mem_ops()
 }
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
-    let cpu = MAP.cpu.map(Column::from);
+    let cpu = col_map().cpu.map(Column::from);
     vec![
         cpu.clk,
         cpu.mem_addr,
@@ -311,14 +311,14 @@ pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
-    MAP.cpu.map(Column::from).inst.ops.halfword_mem_ops()
+    col_map().cpu.map(Column::from).inst.ops.halfword_mem_ops()
 }
 
 /// Column containing the data to be matched against Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_fullword_memory<F: Field>() -> Vec<Column<F>> {
-    let cpu = MAP.cpu.map(Column::from);
+    let cpu = col_map().cpu.map(Column::from);
     vec![
         cpu.clk,
         cpu.mem_addr,
@@ -332,14 +332,14 @@ pub fn data_for_fullword_memory<F: Field>() -> Vec<Column<F>> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_fullword_memory<F: Field>() -> Column<F> {
-    MAP.cpu.map(Column::from).inst.ops.fullword_mem_ops()
+    col_map().cpu.map(Column::from).inst.ops.fullword_mem_ops()
 }
 
 /// Column containing the data to be matched against IO Memory stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn data_for_io_memory<F: Field>() -> Vec<Column<F>> {
-    let cpu = MAP.cpu.map(Column::from);
+    let cpu = col_map().cpu.map(Column::from);
     vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_store]
 }
 
@@ -347,7 +347,7 @@ pub fn data_for_io_memory<F: Field>() -> Vec<Column<F>> {
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_io_memory<F: Field>() -> Column<F> {
-    let cpu = MAP.cpu.map(Column::from);
+    let cpu = col_map().cpu.map(Column::from);
     cpu.is_io_store
 }
 
@@ -373,19 +373,21 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
 /// Columns containing the data to be matched against `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
-pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.cpu.bitshift) }
+pub fn data_for_shift_amount<F: Field>() -> Vec<Column<F>> {
+    Column::singles(col_map().cpu.bitshift)
+}
 
 /// Column for a binary filter for shft instruction in `Bitshift` stark.
 /// [`CpuTable`](crate::cross_table_lookup::CpuTable).
 #[must_use]
 pub fn filter_for_shift_amount<F: Field>() -> Column<F> {
-    MAP.cpu.map(Column::from).inst.ops.ops_that_shift()
+    col_map().cpu.map(Column::from).inst.ops.ops_that_shift()
 }
 
 /// Columns containing the data of original instructions.
 #[must_use]
 pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
-    let inst = MAP.cpu.inst;
+    let inst = col_map().cpu.inst;
     vec![
         Column::single(inst.pc),
         // Combine columns into a single column.
@@ -415,16 +417,18 @@ pub fn data_for_inst<F: Field>() -> Vec<Column<F>> {
 
 /// Columns containing the data of permuted instructions.
 #[must_use]
-pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.permuted.inst) }
+pub fn data_for_permuted_inst<F: Field>() -> Vec<Column<F>> {
+    Column::singles(col_map().permuted.inst)
+}
 
 #[must_use]
 pub fn data_for_poseidon2_sponge<F: Field>() -> Vec<Column<F>> {
-    let cpu = MAP.cpu.map(Column::from);
+    let cpu = col_map().cpu.map(Column::from);
     vec![cpu.clk, cpu.poseidon2_input_addr, cpu.poseidon2_input_len]
 }
 
 #[must_use]
 pub fn filter_for_poseidon2_sponge<F: Field>() -> Column<F> {
-    let cpu = MAP.cpu.map(Column::from);
+    let cpu = col_map().cpu.map(Column::from);
     cpu.is_poseidon2
 }
