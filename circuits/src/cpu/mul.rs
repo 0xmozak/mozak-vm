@@ -124,14 +124,14 @@ mod tests {
     use crate::generation::program::generate_program_rom_trace;
     use crate::stark::mozak_stark::{MozakStark, PublicInputs};
     use crate::stark::utils::trace_to_poly_values;
-    use crate::test_utils::{standard_faster_config, ProveAndVerify, C, D, F};
+    use crate::test_utils::{fast_test_config, ProveAndVerify, C, D, F};
     use crate::utils::from_u32;
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_lossless)]
     #[test]
     fn prove_mulhsu_example() {
         type S = CpuStark<F, D>;
-        let config = standard_faster_config();
+        let config = fast_test_config();
         let a = -2_147_451_028_i32;
         let b = 2_147_483_648_u32;
         let (program, record) = simple_test_code(
