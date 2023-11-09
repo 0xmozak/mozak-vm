@@ -2,7 +2,6 @@ use plonky2::field::types::Field;
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
-use crate::multiplicity_view::MultiplicityView;
 use crate::stark::mozak_stark::{RangeCheckTable, Table};
 
 #[repr(C)]
@@ -11,9 +10,7 @@ pub struct RangeCheckColumnsView<T> {
     /// The limbs (u8) of the u32 value to be range
     /// checked.
     pub limbs: [T; 4],
-
-    /// The u32 value to be range checked and its multiplicity.
-    pub multiplicity_view: MultiplicityView<T>,
+    pub multiplicity: T,
 }
 columns_view_impl!(RangeCheckColumnsView);
 make_col_map!(RangeCheckColumnsView);
@@ -36,11 +33,11 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
         .map(|limb| {
             RangeCheckTable::new(
                 Column::singles([col_map().limbs[limb]]),
-                Column::single(col_map().multiplicity_view.multiplicity),
+                Column::single(col_map().multiplicity),
             )
         })
         .collect()
 }
 
 #[must_use]
-pub fn filter<F: Field>() -> Column<F> { Column::single(col_map().multiplicity_view.multiplicity) }
+pub fn filter<F: Field>() -> Column<F> { Column::single(col_map().multiplicity) }
