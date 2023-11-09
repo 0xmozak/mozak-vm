@@ -33,6 +33,8 @@ use crate::instruction::{Args, Instruction};
 /// usecase.
 #[derive(Clone, Debug)]
 pub struct State<F: RichField> {
+    /// Clock used to count how many execution are executed
+    /// Also used to avoid infinite loop
     pub clk: u64,
     pub halted: bool,
     pub registers: [u32; 32],
@@ -126,7 +128,8 @@ pub struct MemEntry {
 pub enum IoOpcode {
     #[default]
     None,
-    Store,
+    StorePrivate,
+    StorePublic,
 }
 #[derive(Debug, Clone, Default)]
 pub struct IoEntry {
@@ -340,7 +343,8 @@ impl<F: RichField> State<F> {
     pub fn current_instruction(&self, program: &Program) -> Instruction {
         let pc = self.get_pc();
         let inst = program.ro_code.get_instruction(pc);
-        trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}");
+        let clk = self.clk;
+        trace!("CLK: {clk:#?}, PC: {pc:#x?}, Decoded Inst: {inst:?}");
         inst
     }
 
@@ -351,8 +355,9 @@ impl<F: RichField> State<F> {
     /// `io_tape`.
     /// TODO(Matthias): remove that limitation (again).
     #[must_use]
-    pub fn read_iobytes(mut self, num_bytes: usize, is_public: bool) -> (Vec<u8>, Self) {
-        if is_public {
+    pub fn read_iobytes(mut self, num_bytes: usize, op: IoOpcode) -> (Vec<u8>, Self) {
+        assert!(op == IoOpcode::StorePublic || op == IoOpcode::StorePrivate);
+        if op == IoOpcode::StorePublic {
             let read_index = self.io_tape.public.read_index;
             let remaining_len = self.io_tape.public.data.len() - read_index;
             let limit = num_bytes.min(remaining_len);

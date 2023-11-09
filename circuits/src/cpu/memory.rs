@@ -9,9 +9,9 @@ use starky::constraint_consumer::ConstraintConsumer;
 use super::columns::CpuState;
 use crate::stark::utils::is_binary;
 
-/// Ensure that `dst_value` and `mem_access_raw` only differ
-/// in case of `LB` and only by `0xFFFF_FF00`. The correctness
-/// of value presented in `dst_sign_bit` is ensured via range-check
+/// Ensure that `dst_value` and `mem_value_raw` only differ
+/// in case of `LB` by `0xFFFF_FF00` and for `LH` by `0xFFFF_0000`. The
+/// correctness of value presented in `dst_sign_bit` is ensured via range-check
 pub(crate) fn signed_constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
@@ -52,7 +52,7 @@ pub(crate) fn constraints<P: PackedField>(
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{simple_test_code, u32_extra, u8_extra};
+    use mozak_runner::test_utils::{simple_test_code, u16_extra, u32_extra, u8_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
@@ -194,30 +194,6 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
-    #[test]
-    #[should_panic]
-    #[allow(clippy::should_panic_without_expect)]
-    fn prove_sh_lh_cpu() {
-        // TODO: After fixing test failure, please convert this to proptest.
-        prove_sh_lh::<CpuStark<F, D>>(0, 0, 65535);
-    }
-
-    #[test]
-    #[should_panic]
-    #[allow(clippy::should_panic_without_expect)]
-    fn prove_sb_lb_mozak() {
-        // TODO: After fixing test failure, please convert this to proptest.
-        prove_sb_lb::<MozakStark<F, D>>(0, 0, 255);
-    }
-
-    #[test]
-    #[should_panic]
-    #[allow(clippy::should_panic_without_expect)]
-    fn prove_sh_lh_mozak() {
-        // TODO: After fixing test failure, please convert this to proptest.
-        prove_sh_lh::<MozakStark<F, D>>(0, 0, 65535);
-    }
-
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(4))]
         #[test]
@@ -244,6 +220,11 @@ mod tests {
         fn prove_sb_lb_cpu(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
             prove_sb_lb::<CpuStark<F, D>>(offset, imm, content);
         }
+
+        #[test]
+        fn prove_sh_lh_cpu(offset in u32_extra(), imm in u32_extra(), content in u16_extra()) {
+            prove_sh_lh::<CpuStark<F, D>>(offset, imm, content);
+        }
     }
 
     proptest! {
@@ -256,6 +237,16 @@ mod tests {
         #[test]
         fn prove_sb_lbu_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
             prove_sb_lbu::<MozakStark<F, D>>(offset, imm, content);
+        }
+
+        #[test]
+        fn prove_sb_lb_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_sb_lb::<MozakStark<F, D>>(offset, imm, content);
+        }
+
+        #[test]
+        fn prove_sh_lh_mozak(offset in u32_extra(), imm in u32_extra(), content in u16_extra()) {
+            prove_sh_lh::<MozakStark<F, D>>(offset, imm, content);
         }
     }
 }

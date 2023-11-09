@@ -57,8 +57,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &Register<P> = vars.get_local_values().try_into().unwrap();
-        let nv: &Register<P> = vars.get_next_values().try_into().unwrap();
+        let lv: &Register<P> = vars.get_local_values().into();
+        let nv: &Register<P> = vars.get_next_values().into();
 
         // Constraint 1: filter columns take 0 or 1 values only.
         is_binary(yield_constr, lv.ops.is_init);

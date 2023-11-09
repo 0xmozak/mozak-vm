@@ -4,18 +4,22 @@ use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
+use crate::generation::MIN_TRACE_LENGTH;
 use crate::memory::trace::get_memory_inst_clk;
 use crate::memory_fullword::columns::{FullWordMemory, Ops};
 
 /// Pad the memory trace to a power of 2.
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<FullWordMemory<F>>) -> Vec<FullWordMemory<F>> {
-    trace.resize(trace.len().next_power_of_two().max(4), FullWordMemory {
-        // Some columns need special treatment..
-        ops: Ops::default(),
-        // .. and all other columns just have their last value duplicated.
-        ..trace.last().copied().unwrap_or_default()
-    });
+    trace.resize(
+        trace.len().next_power_of_two().max(MIN_TRACE_LENGTH),
+        FullWordMemory {
+            // Some columns need special treatment..
+            ops: Ops::default(),
+            // .. and all other columns just have their last value duplicated.
+            ..trace.last().copied().unwrap_or_default()
+        },
+    );
     trace
 }
 
@@ -73,7 +77,9 @@ mod tests {
 
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
-    use crate::generation::io_memory::generate_io_memory_trace;
+    use crate::generation::io_memory::{
+        generate_io_memory_private_trace, generate_io_memory_public_trace,
+    };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
@@ -95,16 +101,17 @@ mod tests {
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(&program, &record.executed);
-        let io_memory_rows = generate_io_memory_trace(&program, &record.executed);
+        let io_memory_private_rows = generate_io_memory_private_trace(&program, &record.executed);
+        let io_memory_public_rows= generate_io_memory_public_trace(&program, &record.executed);
         let poseidon2_rows = generate_poseidon2_sponge_trace(&record.executed);
-
         let trace = generate_memory_trace::<GoldilocksField>(
             &program,
             &record.executed,
             &memory_init,
             &halfword_memory,
             &fullword_memory,
-            &io_memory_rows,
+            &io_memory_private_rows,
+            &io_memory_public_rows,
             &poseidon2_rows,
         );
         let inv = inv::<F>;

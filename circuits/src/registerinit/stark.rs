@@ -48,7 +48,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterInitS
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &RegisterInit<P> = vars.get_local_values().try_into().unwrap();
+        let lv: &RegisterInit<P> = vars.get_local_values().into();
         // Check: `is_looked_up` is a binary filter column.
         is_binary(yield_constr, lv.is_looked_up);
     }
