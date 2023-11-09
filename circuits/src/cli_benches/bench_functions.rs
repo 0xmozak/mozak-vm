@@ -100,7 +100,10 @@ mod tests {
         for _i in 0..(n - 2) {
             (curr, last) = (curr + last, curr);
         }
-        ((curr >> 32) as u32, curr as u32)
+        (
+            (curr >> 32) as u32,
+            u32::try_from(curr).expect("please try <= 40 input only for now"),
+        )
     }
 
     #[test]
