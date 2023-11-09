@@ -128,12 +128,12 @@ pub enum TableKind {
     RangeCheckLimb = 7,
     HalfWordMemory = 8,
     FullWordMemory = 9,
-    RegisterInit = 10,
-    Register = 11,
-    IoMemoryPrivate = 12,
-    IoMemoryPublic = 13,
-    Poseidon2Sponge = 14,
-    Poseidon2 = 15,
+    IoMemoryPrivate = 10,
+    IoMemoryPublic = 11,
+    RegisterInit = 12,
+    Register = 13,
+    Poseidon2 = 14,
+    Poseidon2Sponge = 15,
 }
 
 impl TableKind {
