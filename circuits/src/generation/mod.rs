@@ -154,7 +154,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
         (traces_poly_values, &public_inputs): (&'a [Vec<PolynomialValues<F>>; TableKind::COUNT], &'a [&'a [F]; TableKind::COUNT]),
         // The "lambda"
         |(traces_poly_values, public_inputs), stark, kind: TableKind| -> () {
-            debug_single_trace::<F, D, _>(stark, &traces_poly_values[kind as usize], &public_inputs[kind as usize]);
+            debug_single_trace::<F, D, _>(stark, &traces_poly_values[kind as usize], public_inputs[kind as usize]);
         }
     ));
 }

@@ -355,7 +355,7 @@ where
                 config,
                 &traces_poly_values[kind as usize],
                 &trace_commitments[kind as usize],
-                &public_inputs[kind as usize],
+                public_inputs[kind as usize],
                 &ctl_data_per_table[kind as usize],
                 challenger,
                 timing,
