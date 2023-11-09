@@ -392,8 +392,10 @@ pub mod ctl_utils {
     struct RowCount<F>(TableKind, F);
     struct MultiSet<F>(HashMap<Vec<F>, RowCount<F>>);
 
-    impl<F: Field> PartialEq for RowCount<F> {
-        fn eq(&self, other: &Self) -> bool { self.1 == other.1 }
+    impl<F: Field> RowCount<F> {
+        fn table_kind(&self) -> TableKind { self.0 }
+
+        fn multiplicity(&self) -> F { self.1 }
     }
 
     impl<F: Field> Deref for RowCount<F> {
@@ -431,7 +433,7 @@ pub mod ctl_utils {
                         .map(|c| c.eval_table(trace, i))
                         .collect::<Vec<_>>();
                     self.entry(row)
-                        .and_modify(|e| *e = RowCount(e.0, e.1 + filter))
+                        .and_modify(|e| *e = RowCount(e.table_kind(), e.multiplicity() + filter))
                         .or_insert(RowCount(table.kind, filter));
                 };
             }
@@ -442,12 +444,12 @@ pub mod ctl_utils {
         trace_poly_values: &[Vec<PolynomialValues<F>>],
         ctl: &CrossTableLookup<F>,
     ) -> Result<(), LookupError> {
-        fn check_row_found_at_least_once<F: Field>(
+        fn check_multiplicities<F: Field>(
             row: &[F],
             looking_locations: &RowCount<F>,
             looked_locations: &RowCount<F>,
         ) -> Result<(), LookupError> {
-            if looking_locations != looked_locations {
+            if looking_locations.multiplicity() != looked_locations.multiplicity() {
                 println!(
                     "Row {row:?} is present {l0} times in the looking tables, but
                     {l1} in the looked table.\n\
@@ -462,8 +464,7 @@ pub mod ctl_utils {
             Ok(())
         }
 
-        // Maps `m` with `(table.kind, i) in m[row]` iff the `i`-th row of the table
-        // is equal to `row` and the filter is 1.
+        // Maps `m` with `(table.kind, multiplicity) in m[row]`
         //
         // the CTL check holds iff `looking_multiset == looked_multiset`.
         let mut looking_multiset = MultiSet::<F>::new();
@@ -481,7 +482,7 @@ pub mod ctl_utils {
             let looked_locations = looked_multiset
                 .get(row)
                 .ok_or(LookupError::InconsistentTableRows)?;
-            check_row_found_at_least_once(row, looking_locations, looked_locations)?;
+            check_multiplicities(row, looking_locations, looked_locations)?;
         }
 
         // Check that every row in the looked tables appears in the looking table the
@@ -490,7 +491,7 @@ pub mod ctl_utils {
             let looking_locations = looking_multiset
                 .get(row)
                 .ok_or(LookupError::InconsistentTableRows)?;
-            check_row_found_at_least_once(row, looking_locations, looked_locations)?;
+            check_multiplicities(row, looking_locations, looked_locations)?;
         }
 
         Ok(())
