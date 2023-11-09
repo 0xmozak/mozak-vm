@@ -20,6 +20,9 @@ use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::PublicInputs;
 use crate::stark::utils::is_binary;
 
+/// A Gadget for CPU Instructions
+///
+/// Instructions are either handled directly or through cross table lookup
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct CpuStark<F, const D: usize> {
@@ -210,9 +213,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &CpuColumnsExtended<_> = vars.get_local_values().try_into().unwrap();
-        let nv: &CpuColumnsExtended<_> = vars.get_next_values().try_into().unwrap();
-        let public_inputs: &PublicInputs<_> = vars.get_public_inputs().try_into().unwrap();
+        let lv: &CpuColumnsExtended<_> = vars.get_local_values().into();
+        let nv: &CpuColumnsExtended<_> = vars.get_next_values().into();
+        let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
 
         // Constrain the CPU transition between previous `lv` state and next `nv`
         // state.

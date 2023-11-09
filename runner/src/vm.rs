@@ -1,13 +1,13 @@
 use std::str::from_utf8;
 
 use anyhow::{anyhow, Result};
+use mozak_system::system::ecall;
+use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2};
 use plonky2::hash::hash_types::RichField;
 
 use crate::elf::Program;
 use crate::instruction::{Args, Op};
 use crate::state::{Aux, IoEntry, IoOpcode, MemEntry, State};
-use crate::system::ecall;
-use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2};
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
@@ -126,16 +126,16 @@ impl<F: RichField> State<F> {
     ///
     /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
     /// bytes.
-    fn ecall_io_read(self) -> (Aux<F>, Self) {
+    fn ecall_io_read(self, op: IoOpcode) -> (Aux<F>, Self) {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requsted = self.get_register_value(REG_A2);
-        let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
+        let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize, op);
         (
             Aux {
                 dst_val: u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
                 io: Some(IoEntry {
                     addr: buffer_start,
-                    op: IoOpcode::Store,
+                    op,
                     data: data.clone(),
                 }),
                 ..Default::default()
@@ -175,7 +175,8 @@ impl<F: RichField> State<F> {
     pub fn ecall(self) -> (Aux<F>, Self) {
         match self.get_register_value(REG_A0) {
             ecall::HALT => self.ecall_halt(),
-            ecall::IO_READ => self.ecall_io_read(),
+            ecall::IO_READ_PRIVATE => self.ecall_io_read(IoOpcode::StorePrivate),
+            ecall::IO_READ_PUBLIC => self.ecall_io_read(IoOpcode::StorePublic),
             ecall::PANIC => self.ecall_panic(),
             ecall::POSEIDON2 => self.ecall_poseidon2(),
             _ => (Aux::default(), self.bump_pc()),
@@ -300,9 +301,13 @@ pub struct Row<F: RichField> {
     pub aux: Aux<F>,
 }
 
+/// Unconstrained Trace produced by running the code
 #[derive(Debug, Default)]
 pub struct ExecutionRecord<F: RichField> {
+    /// Each row holds the state of the vm and auxiliary
+    /// information associated
     pub executed: Vec<Row<F>>,
+    /// The last state of the vm before the program halts
     pub last_state: State<F>,
 }
 

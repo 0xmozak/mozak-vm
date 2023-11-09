@@ -29,6 +29,11 @@ use crate::{
     poseidon2_sponge, program, rangecheck, xor,
 };
 
+/// STARK Gadgets of Mozak-VM
+///
+/// ## Generics
+/// `F`: The [Field] that the STARK is defined over
+/// `D`: Degree of the extension field of `F`
 #[derive(Clone, StarkSet)]
 #[StarkSet(enum_name = "TableKind", field = "F", degree = "D")]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
@@ -52,17 +57,19 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
     #[StarkSet(stark_kind = "FullWordMemory")]
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
+    #[StarkSet(stark_kind = "IoMemoryPrivate")]
+    pub io_memory_private_stark: InputOuputMemoryStark<F, D>,
+    #[StarkSet(stark_kind = "IoMemoryPublic")]
+    pub io_memory_public_stark: InputOuputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "RegisterInit")]
     pub register_init_stark: RegisterInitStark<F, D>,
     #[StarkSet(stark_kind = "Register")]
     pub register_stark: RegisterStark<F, D>,
-    #[StarkSet(stark_kind = "IoMemory")]
-    pub io_memory_stark: InputOuputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "Poseidon2Sponge")]
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
     #[StarkSet(stark_kind = "Poseidon2")]
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 14],
+    pub cross_table_lookups: [CrossTableLookup<F>; 15],
     pub debug: bool,
 }
 
@@ -90,7 +97,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             fullword_memory_stark: FullWordMemoryStark::default(),
             register_init_stark: RegisterInitStark::default(),
             register_stark: RegisterStark::default(),
-            io_memory_stark: InputOuputMemoryStark::default(),
+            io_memory_private_stark: InputOuputMemoryStark::default(),
+            io_memory_public_stark: InputOuputMemoryStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             cross_table_lookups: [
@@ -105,7 +113,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
                 RegisterRegInitTable::lookups(),
-                IoMemoryCpuTable::lookups(),
+                IoMemoryPrivateCpuTable::lookups(),
+                IoMemoryPublicCpuTable::lookups(),
                 Poseidon2SpongeCpuTable::lookups(),
                 Poseidon2Poseidon2SpongeTable::lookups(),
             ],
@@ -149,7 +158,7 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
     }
 }
 
-// TODO: Remove
+// TODO: Remove in favor of `TableKind::COUNT`
 pub(crate) const NUM_TABLES: usize = TableKind::COUNT;
 
 #[derive(Debug, Clone)]
@@ -195,7 +204,8 @@ table_impl!(HalfWordMemoryTable, TableKind::HalfWordMemory);
 table_impl!(FullWordMemoryTable, TableKind::FullWordMemory);
 table_impl!(RegisterInitTable, TableKind::RegisterInit);
 table_impl!(RegisterTable, TableKind::Register);
-table_impl!(IoMemoryTable, TableKind::IoMemory);
+table_impl!(IoMemoryPrivateTable, TableKind::IoMemoryPrivate);
+table_impl!(IoMemoryPublicTable, TableKind::IoMemoryPublic);
 table_impl!(Poseidon2SpongeTable, TableKind::Poseidon2Sponge);
 table_impl!(Poseidon2Table, TableKind::Poseidon2);
 
@@ -268,7 +278,11 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
                     memory_fullword::columns::data_for_memory_limb(3),
                     memory_fullword::columns::filter(),
                 ),
-                IoMemoryTable::new(
+                IoMemoryPrivateTable::new(
+                    memory_io::columns::data_for_memory(),
+                    memory_io::columns::filter_for_memory(),
+                ),
+                IoMemoryPublicTable::new(
                     memory_io::columns::data_for_memory(),
                     memory_io::columns::filter_for_memory(),
                 ),
@@ -355,11 +369,11 @@ impl<F: Field> Lookups<F> for InnerCpuTable<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_inst(),
-                Column::single(cpu::columns::MAP.cpu.is_running),
+                Column::single(cpu::columns::col_map().cpu.is_running),
             )],
             CpuTable::new(
                 cpu::columns::data_for_permuted_inst(),
-                Column::single(cpu::columns::MAP.cpu.is_running),
+                Column::single(cpu::columns::col_map().cpu.is_running),
             ),
         )
     }
@@ -372,11 +386,11 @@ impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
                 cpu::columns::data_for_permuted_inst(),
-                Column::single(cpu::columns::MAP.permuted.filter),
+                Column::single(cpu::columns::col_map().permuted.filter),
             )],
             ProgramTable::new(
                 program::columns::data_for_ctl(),
-                Column::single(program::columns::MAP.filter),
+                Column::single(program::columns::col_map().filter),
             ),
         )
     }
@@ -386,7 +400,7 @@ pub struct LimbTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for LimbTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
-            chain!(rangecheck_looking(), cpu::columns::rangecheck_looking_u8(),).collect_vec(),
+            rangecheck_looking(),
             RangeCheckLimbTable::new(
                 crate::rangecheck_limb::columns::data(),
                 crate::rangecheck_limb::columns::filter(),
@@ -444,16 +458,33 @@ impl<F: Field> Lookups<F> for RegisterRegInitTable<F> {
         )
     }
 }
-pub struct IoMemoryCpuTable<F: Field>(CrossTableLookup<F>);
+pub struct IoMemoryPrivateCpuTable<F: Field>(CrossTableLookup<F>);
 
-impl<F: Field> Lookups<F> for IoMemoryCpuTable<F> {
+impl<F: Field> Lookups<F> for IoMemoryPrivateCpuTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
             vec![CpuTable::new(
-                cpu::columns::data_for_io_memory(),
-                cpu::columns::filter_for_io_memory(),
+                cpu::columns::data_for_io_memory_private(),
+                cpu::columns::filter_for_io_memory_private(),
             )],
-            IoMemoryTable::new(
+            IoMemoryPrivateTable::new(
+                memory_io::columns::data_for_cpu(),
+                memory_io::columns::filter_for_cpu(),
+            ),
+        )
+    }
+}
+
+pub struct IoMemoryPublicCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for IoMemoryPublicCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_io_memory_public(),
+                cpu::columns::filter_for_io_memory_public(),
+            )],
+            IoMemoryPublicTable::new(
                 memory_io::columns::data_for_cpu(),
                 memory_io::columns::filter_for_cpu(),
             ),

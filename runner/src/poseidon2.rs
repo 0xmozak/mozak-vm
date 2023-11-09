@@ -1,13 +1,13 @@
 use std::iter::repeat;
 
 use itertools::izip;
+use mozak_system::system::reg_abi::{REG_A1, REG_A2, REG_A3};
 use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
 use plonky2::plonk::config::GenericHashOut;
 
 use crate::state::{Aux, Poseidon2Entry, Poseidon2SpongeData, State};
-use crate::system::reg_abi::{REG_A1, REG_A2, REG_A3};
 
 // Based on hash_n_to_m_no_pad() from plonky2/src/hash/hashing.rs
 /// This function is sponge function which uses poseidon2 permutation function.

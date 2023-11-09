@@ -48,6 +48,10 @@ jobs:
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
 
+      - name: Run Clippy linter for sdk
+        working-directory: sdk
+        run: cargo clippy --all-features -- -D warnings
+
   cargo-build-examples:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest

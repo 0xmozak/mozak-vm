@@ -22,8 +22,6 @@ use crate::stark::proof::{StarkProofTarget, StarkProofWithMetadata};
 
 #[derive(Error, Debug)]
 pub enum LookupError {
-    #[error("Non-binary filter at row {0}")]
-    NonBinaryFilter(usize),
     #[error("Inconsistency found between looking and looked tables")]
     InconsistentTableRows,
 }
@@ -64,24 +62,24 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
     config: &StarkConfig,
 ) -> Result<()> {
     let mut ctl_zs_openings = ctl_zs_lasts.iter().map(|v| v.iter()).collect::<Vec<_>>();
-    for CrossTableLookup {
-        looking_tables,
-        looked_table,
-    } in cross_table_lookups
-    {
-        for _ in 0..config.num_challenges {
-            let looking_zs_prod = looking_tables
+    for _ in 0..config.num_challenges {
+        for CrossTableLookup {
+            looking_tables,
+            looked_table,
+        } in cross_table_lookups
+        {
+            let looking_zs_sum = looking_tables
                 .iter()
                 .map(|table| *ctl_zs_openings[table.kind as usize].next().unwrap())
-                .product::<F>();
+                .sum::<F>();
             let looked_z = *ctl_zs_openings[looked_table.kind as usize].next().unwrap();
 
             ensure!(
-                looking_zs_prod == looked_z,
+                looking_zs_sum == looked_z,
                 "Cross-table lookup verification failed for {:?}->{:?} ({} != {})",
                 looking_tables[0].kind,
                 looked_table.kind,
-                looking_zs_prod,
+                looking_zs_sum,
                 looked_z
             );
         }
@@ -97,89 +95,79 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
     ctl_challenges: &GrandProductChallengeSet<F>,
 ) -> [CtlData<F>; NUM_TABLES] {
     let mut ctl_data_per_table = [0; NUM_TABLES].map(|_| CtlData::default());
-    for CrossTableLookup {
-        looking_tables,
-        looked_table,
-    } in cross_table_lookups
-    {
-        log::debug!("Processing CTL for {:?}", looked_table.kind);
-        for &challenge in &ctl_challenges.challenges {
-            let zs_looking = looking_tables.iter().map(|looking_table| {
-                partial_products(
-                    &trace_poly_values[looking_table.kind as usize],
-                    &looking_table.columns,
-                    &looking_table.filter_column,
+    for &challenge in &ctl_challenges.challenges {
+        for CrossTableLookup {
+            looking_tables,
+            looked_table,
+        } in cross_table_lookups
+        {
+            log::debug!("Processing CTL for {:?}", looked_table.kind);
+
+            let make_z = |table: &Table<F>| {
+                partial_sums(
+                    &trace_poly_values[table.kind as usize],
+                    &table.columns,
+                    &table.filter_column,
                     challenge,
                 )
-            });
-            let z_looked = partial_products(
-                &trace_poly_values[looked_table.kind as usize],
-                &looked_table.columns,
-                &looked_table.filter_column,
-                challenge,
-            );
+            };
+            let zs_looking = looking_tables.iter().map(make_z);
+            let z_looked = make_z(looked_table);
 
             debug_assert_eq!(
                 zs_looking
                     .clone()
                     .map(|z| *z.values.last().unwrap())
-                    .product::<F>(),
+                    .sum::<F>(),
                 *z_looked.values.last().unwrap()
             );
 
-            for (looking_table, z) in looking_tables.iter().zip(zs_looking) {
-                ctl_data_per_table[looking_table.kind as usize]
+            for (table, z) in chain!(izip!(looking_tables, zs_looking), [(
+                looked_table,
+                z_looked
+            )]) {
+                ctl_data_per_table[table.kind as usize]
                     .zs_columns
                     .push(CtlZData {
                         z,
                         challenge,
-                        columns: looking_table.columns.clone(),
-                        filter_column: looking_table.filter_column.clone(),
+                        columns: table.columns.clone(),
+                        filter_column: table.filter_column.clone(),
                     });
             }
-            ctl_data_per_table[looked_table.kind as usize]
-                .zs_columns
-                .push(CtlZData {
-                    z: z_looked,
-                    challenge,
-                    columns: looked_table.columns.clone(),
-                    filter_column: looked_table.filter_column.clone(),
-                });
         }
     }
     ctl_data_per_table
 }
 
-fn partial_products<F: Field>(
+fn partial_sums<F: Field>(
     trace: &[PolynomialValues<F>],
     columns: &[Column<F>],
     filter_column: &Column<F>,
     challenge: GrandProductChallenge<F>,
 ) -> PolynomialValues<F> {
-    // design of table looks like this
-    //       |  filter  |   value   |  partial_prod |
-    //       |    1     |    x_1    |  x_3          |
-    //       |    0     |    x_2    |  x_3 * x_1    |
-    //       |    1     |    x_3    |  x_3 * x_1    |
+    // design of table looks like  this
+    //       |  filter  |   value   |  partial_sum                       |
+    //       |    1     |    x_1    |  1/combine(x_3)                    |
+    //       |    0     |    x_2    |  1/combine(x_3)  + 1/combine(x_1)  |
+    //       |    1     |    x_3    |  1/combine(x_1)  + 1/combine(x_1)  |
+    // (where combine(vals) = gamma + reduced_sum(vals))
     // this is done so that now transition constraint looks like
-    //       z_next = z_local * select(value_local, filter_local)
+    //       z_next = z_local + filter_local/combine_local
     // That is, there is no need for reconstruction of value_next.
     // In current design which uses lv and nv values from columns to construct the
     // final value_local, its impossible to construct value_next from lv and nv
     // values of current row
 
-    let combine_if_filter_at_i = |i| -> F {
-        let filter = filter_column.eval_table(trace, i);
-        if filter.is_one() {
-            let evals = columns
-                .iter()
-                .map(|c| c.eval_table(trace, i))
-                .collect::<Vec<_>>();
-            challenge.combine(evals.iter())
-        } else {
-            assert_eq!(filter, F::ZERO, "Non-binary filter?");
-            F::ONE
-        }
+    // TODO(Kapil): inverse for all rows is expensive. Use batched division idea.
+
+    let combine_and_inv_if_filter_at_i = |i| -> F {
+        let multiplicity = filter_column.eval_table(trace, i);
+        let evals = columns
+            .iter()
+            .map(|c| c.eval_table(trace, i))
+            .collect::<Vec<_>>();
+        multiplicity * challenge.combine(evals.iter()).inverse()
     };
 
     let degree = trace[0].len();
@@ -187,10 +175,10 @@ fn partial_products<F: Field>(
     degrees.rotate_right(1);
     degrees
         .into_iter()
-        .map(combine_if_filter_at_i)
-        .scan(F::ONE, |partial_prod: &mut F, combined| {
-            *partial_prod *= combined;
-            Some(*partial_prod)
+        .map(combine_and_inv_if_filter_at_i)
+        .scan(F::ZERO, |partial_sum: &mut F, combined| {
+            *partial_sum += combined;
+            Some(*partial_sum)
         })
         .collect_vec()
         .into()
@@ -247,46 +235,28 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         proofs: &[StarkProofWithMetadata<F, C, D>; NUM_TABLES],
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
-        num_permutation_zs: &[usize; NUM_TABLES],
     ) -> [Vec<Self>; NUM_TABLES] {
         let mut ctl_zs = proofs
             .iter()
-            .zip(num_permutation_zs)
-            .map(|(p, &num_perms)| {
-                let openings = &p.proof.openings;
-                let ctl_zs = openings.permutation_ctl_zs.iter().skip(num_perms);
-                let ctl_zs_next = openings.permutation_ctl_zs_next.iter().skip(num_perms);
-                ctl_zs.zip(ctl_zs_next)
-            })
+            .map(|p| izip!(&p.proof.openings.ctl_zs, &p.proof.openings.ctl_zs_next))
             .collect::<Vec<_>>();
 
         let mut ctl_vars_per_table = [0; NUM_TABLES].map(|_| vec![]);
-        for CrossTableLookup {
-            looking_tables,
-            looked_table,
-        } in cross_table_lookups
-        {
-            for &challenges in &ctl_challenges.challenges {
-                for table in looking_tables {
-                    let (looking_z, looking_z_next) = ctl_zs[table.kind as usize].next().unwrap();
-                    ctl_vars_per_table[table.kind as usize].push(Self {
-                        local_z: *looking_z,
-                        next_z: *looking_z_next,
-                        challenges,
-                        columns: &table.columns,
-                        filter_column: &table.filter_column,
-                    });
-                }
-
-                let (looked_z, looked_z_next) = ctl_zs[looked_table.kind as usize].next().unwrap();
-                ctl_vars_per_table[looked_table.kind as usize].push(Self {
-                    local_z: *looked_z,
-                    next_z: *looked_z_next,
-                    challenges,
-                    columns: &looked_table.columns,
-                    filter_column: &looked_table.filter_column,
-                });
-            }
+        let ctl_chain = cross_table_lookups.iter().flat_map(
+            |CrossTableLookup {
+                 looking_tables,
+                 looked_table,
+             }| chain!(looking_tables, [looked_table]),
+        );
+        for (&challenges, table) in iproduct!(&ctl_challenges.challenges, ctl_chain) {
+            let (&local_z, &next_z) = ctl_zs[table.kind as usize].next().unwrap();
+            ctl_vars_per_table[table.kind as usize].push(Self {
+                local_z,
+                next_z,
+                challenges,
+                columns: &table.columns,
+                filter_column: &table.filter_column,
+            });
         }
         ctl_vars_per_table
     }
@@ -317,14 +287,14 @@ pub(crate) fn eval_cross_table_lookup_checks<F, FE, P, S, const D: usize, const 
             challenges.combine(evals.iter())
         };
         let combination = combine(local_values, next_values);
-        let filter = |lv: &[P], nv: &[P]| -> P { filter_column.eval(lv, nv) };
-        let filter = filter(local_values, next_values);
-        let select = |filter, x| filter * x + P::ONES - filter;
+        let multiplicity = |lv: &[P], nv: &[P]| -> P { filter_column.eval(lv, nv) };
+        let multiplicity = multiplicity(local_values, next_values);
 
-        // Check value of `Z(1)`
-        consumer.constraint_last_row(*next_z - select(filter, combination));
-        // Check `Z(gw) = combination * Z(w)`
-        consumer.constraint_transition(*local_z * select(filter, combination) - *next_z);
+        // Check value of `Z(1) = filter(w^(n-1))/combined(w^(n-1))`
+        consumer.constraint_last_row(*next_z * combination - multiplicity);
+
+        // Check `Z(gw) - Z(w) = filter(w)/combined(w)`
+        consumer.constraint_transition((*next_z - *local_z) * combination - multiplicity);
     }
 }
 
@@ -343,15 +313,8 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
         proof: &StarkProofTarget<D>,
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<Target>,
-        num_permutation_zs: usize,
     ) -> Vec<Self> {
-        let ctl_zs = {
-            izip!(
-                &proof.openings.permutation_ctl_zs,
-                &proof.openings.permutation_ctl_zs_next
-            )
-            .skip(num_permutation_zs)
-        };
+        let ctl_zs = izip!(&proof.openings.ctl_zs, &proof.openings.ctl_zs_next);
 
         let ctl_chain = cross_table_lookups.iter().flat_map(
             |CrossTableLookup {
@@ -359,8 +322,8 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
                  looked_table,
              }| chain!(looking_tables, [looked_table]).filter(|twc| twc.kind == table),
         );
-        zip_eq(ctl_zs, iproduct!(ctl_chain, &ctl_challenges.challenges))
-            .map(|((&local_z, &next_z), (table, &challenges))| Self {
+        zip_eq(ctl_zs, iproduct!(&ctl_challenges.challenges, ctl_chain))
+            .map(|((&local_z, &next_z), (&challenges, table))| Self {
                 local_z,
                 next_z,
                 challenges,
@@ -399,19 +362,15 @@ pub fn eval_cross_table_lookup_checks_circuit<
             .collect();
         let combined = challenges.combine_circuit(builder, &evals);
 
-        let filter = filter_column.eval_circuit(builder, local_values, next_values);
+        let multiplicity = filter_column.eval_circuit(builder, local_values, next_values);
 
-        // select = filter * combined + 1 - filter
-        let one = builder.one_extension();
-        let tmp = builder.sub_extension(one, filter);
-        let select = builder.mul_add_extension(filter, combined, tmp);
-
-        // Check value of `Z(1)`
-        let last_row = builder.sub_extension(*next_z, select);
+        // Check value of `Z(1) = filter(w^(n-1))/combined(w^(n-1))`
+        let last_row = builder.mul_sub_extension(*next_z, combined, multiplicity);
         consumer.constraint_last_row(builder, last_row);
 
-        // Check `Z(gw) = combination * Z(w)`
-        let transition = builder.mul_sub_extension(*local_z, select, *next_z);
+        // Check `Z(gw) - Z(w) = filter(w)/combined(w)`
+        let diff = builder.sub_extension(*next_z, *local_z);
+        let transition = builder.mul_sub_extension(diff, combined, multiplicity);
         consumer.constraint_transition(builder, transition);
     }
 }
@@ -445,23 +404,19 @@ pub mod ctl_utils {
             &mut self,
             trace_poly_values: &[Vec<PolynomialValues<F>>],
             table: &Table<F>,
-        ) -> Result<(), LookupError> {
+        ) {
             let trace = &trace_poly_values[table.kind as usize];
             for i in 0..trace[0].len() {
                 let filter = table.filter_column.eval_table(trace, i);
-                if filter.is_one() {
+                if filter.is_nonzero() {
                     let row = table
                         .columns
                         .iter()
                         .map(|c| c.eval_table(trace, i))
                         .collect::<Vec<_>>();
                     self.entry(row).or_default().push((table.kind, i));
-                } else if !filter.is_zero() {
-                    return Err(LookupError::NonBinaryFilter(i));
                 }
             }
-
-            Ok(())
         }
     }
 
@@ -477,10 +432,10 @@ pub mod ctl_utils {
         let mut looked_multiset = MultiSet::<F>::new();
 
         for looking_table in &ctl.looking_tables {
-            looking_multiset.process_row(trace_poly_values, looking_table)?;
+            looking_multiset.process_row(trace_poly_values, looking_table);
         }
 
-        looked_multiset.process_row(trace_poly_values, &ctl.looked_table)?;
+        looked_multiset.process_row(trace_poly_values, &ctl.looked_table);
         let empty = &vec![];
 
         // Check that every row in the looking tables appears in the looked table the
@@ -654,39 +609,6 @@ mod tests {
         }
 
         pub fn build(self) -> Vec<PolynomialValues<F>> { self.trace }
-    }
-    /// A generic cross lookup table.
-    struct NonBinaryFilterTable<F: Field>(CrossTableLookup<F>);
-
-    impl<F: Field> Lookups<F> for NonBinaryFilterTable<F> {
-        /// We use the [`CpuTable`] and the [`RangeCheckTable`] to build a
-        /// [`CrossTableLookup`] here, but in principle this is meant to
-        /// be used generically for tests.
-        fn lookups() -> CrossTableLookup<F> {
-            CrossTableLookup {
-                looking_tables: vec![CpuTable::new(lookup_data(&[1], &[2]), lookup_filter(0))],
-                looked_table: RangeCheckTable::new(lookup_data(&[1], &[]), lookup_filter(0)),
-            }
-        }
-    }
-
-    /// Create a table with a filter column that's non-binary, which should
-    /// cause our manual checks to fail.
-    #[test]
-    fn test_ctl_non_binary_filters() {
-        type F = GoldilocksField;
-
-        let dummy_cross_table_lookup: CrossTableLookup<F> = NonBinaryFilterTable::lookups();
-
-        let foo_trace: Vec<PolynomialValues<F>> =
-            TraceBuilder::new(3, 4).one(1).set_values(1, 5).build(); // filter column is random
-        let bar_trace: Vec<PolynomialValues<F>> =
-            TraceBuilder::new(3, 4).one(0).set_values(1, 5).build();
-        let traces = vec![foo_trace, bar_trace];
-        assert!(matches!(
-            check_single_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
-            LookupError::NonBinaryFilter(0)
-        ));
     }
 
     /// Create a trace with inconsistent values, which should

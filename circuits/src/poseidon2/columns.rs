@@ -47,7 +47,7 @@ make_col_map!(Poseidon2State);
 pub const NUM_POSEIDON2_COLS: usize = Poseidon2State::<()>::NUMBER_OF_COLUMNS;
 
 pub fn data_for_sponge<F: Field>() -> Vec<Column<F>> {
-    let poseidon2 = MAP.map(Column::from);
+    let poseidon2 = col_map().map(Column::from);
     let mut data = poseidon2.input.to_vec();
     // Extend data with outputs which is basically state after last full round.
     data.extend(
@@ -59,6 +59,6 @@ pub fn data_for_sponge<F: Field>() -> Vec<Column<F>> {
 }
 
 pub fn filter_for_sponge<F: Field>() -> Column<F> {
-    let poseidon2 = MAP.map(Column::from);
+    let poseidon2 = col_map().map(Column::from);
     poseidon2.is_exe
 }

@@ -33,6 +33,8 @@ use crate::instruction::{Args, Instruction};
 /// usecase.
 #[derive(Clone, Debug)]
 pub struct State<F: RichField> {
+    /// Clock used to count how many execution are executed
+    /// Also used to avoid infinite loop
     pub clk: u64,
     pub halted: bool,
     pub registers: [u32; 32],
@@ -44,17 +46,30 @@ pub struct State<F: RichField> {
 }
 
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
-pub struct IoTape {
+pub struct IoTapeData {
     #[deref]
     pub data: Rc<Vec<u8>>,
     pub read_index: usize,
 }
 
-impl From<&[u8]> for IoTape {
-    fn from(data: &[u8]) -> Self {
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
+pub struct IoTape {
+    #[deref]
+    private: IoTapeData,
+    public: IoTapeData,
+}
+
+impl From<(&[u8], &[u8])> for IoTape {
+    fn from(data: (&[u8], &[u8])) -> Self {
         Self {
-            data: Rc::new(data.to_vec()),
-            read_index: 0,
+            private: IoTapeData {
+                data: Rc::new(data.0.to_vec()),
+                read_index: 0,
+            },
+            public: IoTapeData {
+                data: Rc::new(data.1.to_vec()),
+                read_index: 0,
+            },
         }
     }
 }
@@ -113,7 +128,8 @@ pub struct MemEntry {
 pub enum IoOpcode {
     #[default]
     None,
-    Store,
+    StorePrivate,
+    StorePublic,
 }
 #[derive(Debug, Clone, Default)]
 pub struct IoEntry {
@@ -162,13 +178,14 @@ impl<F: RichField> State<F> {
             entry_point: pc,
             ..
         }: Program,
-        io_tape: &[u8],
+        io_tape_private: &[u8],
+        io_tape_public: &[u8],
     ) -> Self {
         Self {
             pc,
             rw_memory,
             ro_memory,
-            io_tape: io_tape.into(),
+            io_tape: (io_tape_private, io_tape_public).into(),
             ..Default::default()
         }
     }
@@ -326,20 +343,39 @@ impl<F: RichField> State<F> {
     pub fn current_instruction(&self, program: &Program) -> Instruction {
         let pc = self.get_pc();
         let inst = program.ro_code.get_instruction(pc);
-        trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}");
+        let clk = self.clk;
+        trace!("CLK: {clk:#?}, PC: {pc:#x?}, Decoded Inst: {inst:?}");
         inst
     }
 
+    ///  Read bytes from `io_tape`.
+    ///
+    ///  # Panics
+    ///  Panics if number of requested bytes are more than remaining bytes on
+    /// `io_tape`.
+    /// TODO(Matthias): remove that limitation (again).
     #[must_use]
-    pub fn read_iobytes(mut self, num_bytes: usize) -> (Vec<u8>, Self) {
-        let read_index = self.io_tape.read_index;
-        let remaining_len = self.io_tape.len() - read_index;
-        let limit = num_bytes.min(remaining_len);
-        self.io_tape.read_index += limit;
-        (
-            self.io_tape.data[read_index..(read_index + limit)].to_vec(),
-            self,
-        )
+    pub fn read_iobytes(mut self, num_bytes: usize, op: IoOpcode) -> (Vec<u8>, Self) {
+        assert!(op == IoOpcode::StorePublic || op == IoOpcode::StorePrivate);
+        if op == IoOpcode::StorePublic {
+            let read_index = self.io_tape.public.read_index;
+            let remaining_len = self.io_tape.public.data.len() - read_index;
+            let limit = num_bytes.min(remaining_len);
+            self.io_tape.public.read_index += limit;
+            (
+                self.io_tape.public.data[read_index..(read_index + limit)].to_vec(),
+                self,
+            )
+        } else {
+            let read_index = self.io_tape.private.read_index;
+            let remaining_len = self.io_tape.private.data.len() - read_index;
+            let limit = num_bytes.min(remaining_len);
+            self.io_tape.private.read_index += limit;
+            (
+                self.io_tape.private.data[read_index..(read_index + limit)].to_vec(),
+                self,
+            )
+        }
     }
 }
 
@@ -349,10 +385,15 @@ mod test {
 
     #[test]
     fn test_io_tape_serialization() {
-        let io_tape = IoTape::from(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..]);
+        let io_tape = IoTape::from((
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..],
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..],
+        ));
         let serialized = serde_json::to_string(&io_tape).unwrap();
         let deserialized: IoTape = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(io_tape.read_index, deserialized.read_index);
-        assert_eq!(io_tape.data, deserialized.data);
+        assert_eq!(io_tape.private.read_index, deserialized.private.read_index);
+        assert_eq!(io_tape.private.data, deserialized.private.data);
+        assert_eq!(io_tape.public.read_index, deserialized.public.read_index);
+        assert_eq!(io_tape.public.data, deserialized.public.data);
     }
 }
