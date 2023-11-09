@@ -88,7 +88,14 @@ pub fn generate_cpu_trace<F: RichField>(
             ),
             io_addr: F::from_canonical_u32(io.addr),
             io_size: F::from_canonical_usize(io.data.len()),
-            is_io_store: F::from_bool(matches!((inst.op, io.op), (Op::ECALL, IoOpcode::Store))),
+            is_io_store_private: F::from_bool(matches!(
+                (inst.op, io.op),
+                (Op::ECALL, IoOpcode::StorePrivate)
+            )),
+            is_io_store_public: F::from_bool(matches!(
+                (inst.op, io.op),
+                (Op::ECALL, IoOpcode::StorePublic)
+            )),
             is_halt: F::from_bool(matches!(
                 (inst.op, state.registers[usize::from(REG_A0)]),
                 (Op::ECALL, ecall::HALT)

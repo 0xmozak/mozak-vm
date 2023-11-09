@@ -69,7 +69,9 @@ mod tests {
     use crate::generation::cpu::generate_cpu_trace;
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
-    use crate::generation::io_memory::generate_io_memory_trace;
+    use crate::generation::io_memory::{
+        generate_io_memory_private_trace, generate_io_memory_public_trace,
+    };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
@@ -96,7 +98,8 @@ mod tests {
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
         let fullword_memory = generate_fullword_memory_trace(&program, &record.executed);
-        let io_memory = generate_io_memory_trace(&program, &record.executed);
+        let io_memory_private = generate_io_memory_private_trace(&program, &record.executed);
+        let io_memory_public = generate_io_memory_public_trace(&program, &record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let memory_rows = generate_memory_trace::<F>(
             &program,
@@ -104,7 +107,8 @@ mod tests {
             &memory_init,
             &halfword_memory,
             &fullword_memory,
-            &io_memory,
+            &io_memory_private,
+            &io_memory_public,
             &poseidon2_trace,
         );
         let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
