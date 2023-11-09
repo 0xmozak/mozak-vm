@@ -48,10 +48,13 @@ pub fn main() {
     let mut mozak_io = MozakIo {
         stdin: Box::new(BufReader::new(stdin())),
     };
-    let mut buffer = [0_u8; 1];
+    // read from private iotape, the input
+    let mut buffer = [0_u8; 4];
     let n = mozak_io.read(buffer.as_mut()).expect("READ failed");
-    assert!(n == 1);
-    let input = u32::from(buffer[0] as char);
+    assert!(n <= 4);
+    let bytes: [u8; 4] = buffer[..4].try_into().unwrap();
+    let input = u32::from_le_bytes(bytes);
+
     let (high, _low) = fibonacci(input);
     guest::env::write(&high.to_le_bytes());
 }
