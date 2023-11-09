@@ -10,11 +10,32 @@ pub struct MozakIo<'a> {
     pub io_tape_file: String,
 }
 
-impl<'a> Read for MozakIo<'a> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+impl<'a> MozakIo<'a> {
+    fn read_private(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         #[cfg(target_os = "zkvm")]
         {
-            mozak_system::system::syscall_ioread(buf.as_mut_ptr(), buf.len());
+            mozak_system::system::syscall_ioread_private(buf.as_mut_ptr(), buf.len());
+            Ok(buf.len())
+        }
+        #[cfg(not(target_os = "zkvm"))]
+        {
+            let n_bytes = self.stdin.read(buf).expect("read should not fail");
+            // open I/O log file in append mode.
+            use std::io::Write;
+            let mut io_tape = std::fs::OpenOptions::new()
+                .append(true)
+                .create(true)
+                .open(self.io_tape_file.as_str())
+                .expect("cannot open tape");
+            io_tape.write(buf).expect("write failed");
+            Ok(n_bytes)
+        }
+    }
+
+    fn read_public(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        #[cfg(target_os = "zkvm")]
+        {
+            mozak_system::system::syscall_ioread_public(buf.as_mut_ptr(), buf.len());
             Ok(buf.len())
         }
         #[cfg(not(target_os = "zkvm"))]
@@ -50,12 +71,20 @@ pub fn main() {
     };
     // read from private iotape, the input
     let mut buffer = [0_u8; 4];
-    let n = mozak_io.read(buffer.as_mut()).expect("READ failed");
+    let n = mozak_io.read_private(buffer.as_mut()).expect("READ failed");
     assert!(n <= 4);
     let bytes: [u8; 4] = buffer[..4].try_into().unwrap();
     let input = u32::from_le_bytes(bytes);
 
-    let (high, _low) = fibonacci(input);
+    // read from public iotape, the output
+    let mut buffer = [0_u8; 4];
+    let n = mozak_io.read_public(buffer.as_mut()).expect("READ failed");
+    assert!(n <= 4);
+    let bytes: [u8; 4] = buffer[..4].try_into().unwrap();
+    let out = u32::from_le_bytes(bytes);
+
+    let (high, low) = fibonacci(input);
+    assert!(low == out);
     guest::env::write(&high.to_le_bytes());
 }
 
