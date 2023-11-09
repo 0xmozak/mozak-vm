@@ -1,4 +1,5 @@
 use itertools::{chain, Itertools};
+use mozak_circuits_derive::StarkSet;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
@@ -29,23 +30,39 @@ use crate::{
     poseidon2_sponge, program, rangecheck, xor,
 };
 
-#[derive(Clone)]
+#[derive(Clone, StarkSet)]
+#[stark_enum = "TableKind"]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
+    #[stark_kind = "Cpu"]
     pub cpu_stark: CpuStark<F, D>,
+    #[stark_kind = "RangeCheck"]
     pub rangecheck_stark: RangeCheckStark<F, D>,
+    #[stark_kind = "Xor"]
     pub xor_stark: XorStark<F, D>,
+    #[stark_kind = "Bitshift"]
     pub shift_amount_stark: BitshiftStark<F, D>,
+    #[stark_kind = "Program"]
     pub program_stark: ProgramStark<F, D>,
+    #[stark_kind = "Memory"]
     pub memory_stark: MemoryStark<F, D>,
+    #[stark_kind = "MemoryInit"]
     pub memory_init_stark: MemoryInitStark<F, D>,
+    #[stark_kind = "RangeCheckLimb"]
     pub rangecheck_limb_stark: RangeCheckLimbStark<F, D>,
+    #[stark_kind = "HalfWordMemory"]
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
+    #[stark_kind = "FullWordMemory"]
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
-    pub io_memory_stark: InputOuputMemoryStark<F, D>,
+    #[stark_kind = "RegisterInit"]
     pub register_init_stark: RegisterInitStark<F, D>,
+    #[stark_kind = "Register"]
     pub register_stark: RegisterStark<F, D>,
-    pub poseidon2_stark: Poseidon2_12Stark<F, D>,
+    #[stark_kind = "IoMemory"]
+    pub io_memory_stark: InputOuputMemoryStark<F, D>,
+    #[stark_kind = "Poseidon2Sponge"]
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
+    #[stark_kind = "Poseidon2"]
+    pub poseidon2_stark: Poseidon2_12Stark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 14],
     pub debug: bool,
 }
@@ -99,46 +116,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
-    pub(crate) fn nums_permutation_zs(&self, config: &StarkConfig) -> [usize; NUM_TABLES] {
-        [
-            self.cpu_stark.num_permutation_batches(config),
-            self.rangecheck_stark.num_permutation_batches(config),
-            self.xor_stark.num_permutation_batches(config),
-            self.shift_amount_stark.num_permutation_batches(config),
-            self.program_stark.num_permutation_batches(config),
-            self.memory_stark.num_permutation_batches(config),
-            self.memory_init_stark.num_permutation_batches(config),
-            self.rangecheck_limb_stark.num_permutation_batches(config),
-            self.halfword_memory_stark.num_permutation_batches(config),
-            self.fullword_memory_stark.num_permutation_batches(config),
-            self.register_init_stark.num_permutation_batches(config),
-            self.register_stark.num_permutation_batches(config),
-            self.io_memory_stark.num_permutation_batches(config),
-            self.poseidon2_sponge_stark.num_permutation_batches(config),
-            self.poseidon2_stark.num_permutation_batches(config),
-        ]
-    }
-
-    pub(crate) fn permutation_batch_sizes(&self) -> [usize; NUM_TABLES] {
-        [
-            self.cpu_stark.permutation_batch_size(),
-            self.rangecheck_stark.permutation_batch_size(),
-            self.xor_stark.permutation_batch_size(),
-            self.shift_amount_stark.permutation_batch_size(),
-            self.program_stark.permutation_batch_size(),
-            self.memory_stark.permutation_batch_size(),
-            self.memory_init_stark.permutation_batch_size(),
-            self.rangecheck_limb_stark.permutation_batch_size(),
-            self.halfword_memory_stark.permutation_batch_size(),
-            self.fullword_memory_stark.permutation_batch_size(),
-            self.register_init_stark.permutation_batch_size(),
-            self.register_stark.permutation_batch_size(),
-            self.io_memory_stark.permutation_batch_size(),
-            self.poseidon2_sponge_stark.permutation_batch_size(),
-            self.poseidon2_stark.permutation_batch_size(),
-        ]
-    }
-
     #[must_use]
     pub fn default_debug() -> Self {
         Self {
@@ -148,49 +125,9 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 15;
+// TODO: Remove
+pub(crate) const NUM_TABLES: usize = TableKind::COUNT;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum TableKind {
-    Cpu = 0,
-    RangeCheck = 1,
-    Xor = 2,
-    Bitshift = 3,
-    Program = 4,
-    Memory = 5,
-    MemoryInit = 6,
-    RangeCheckLimb = 7,
-    HalfWordMemory = 8,
-    FullWordMemory = 9,
-    RegisterInit = 10,
-    Register = 11,
-    IoMemory = 12,
-    Poseidon2Sponge = 13,
-    Poseidon2 = 14,
-}
-
-impl TableKind {
-    #[must_use]
-    pub fn all() -> [TableKind; NUM_TABLES] {
-        [
-            TableKind::Cpu,
-            TableKind::RangeCheck,
-            TableKind::Xor,
-            TableKind::Bitshift,
-            TableKind::Program,
-            TableKind::Memory,
-            TableKind::MemoryInit,
-            TableKind::RangeCheckLimb,
-            TableKind::HalfWordMemory,
-            TableKind::FullWordMemory,
-            TableKind::RegisterInit,
-            TableKind::Register,
-            TableKind::IoMemory,
-            TableKind::Poseidon2Sponge,
-            TableKind::Poseidon2,
-        ]
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct Table<F: Field> {
@@ -223,8 +160,8 @@ macro_rules! table_impl {
     };
 }
 
-table_impl!(RangeCheckTable, TableKind::RangeCheck);
 table_impl!(CpuTable, TableKind::Cpu);
+table_impl!(RangeCheckTable, TableKind::RangeCheck);
 table_impl!(XorTable, TableKind::Xor);
 table_impl!(BitshiftTable, TableKind::Bitshift);
 table_impl!(ProgramTable, TableKind::Program);

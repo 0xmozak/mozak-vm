@@ -765,6 +765,18 @@ dependencies = [
 name = "mozak-circuits-derive"
 version = "0.1.0"
 dependencies = [
+ "mozak-circuits-derive-core",
+ "plonky2",
+ "starky",
+]
+
+[[package]]
+name = "mozak-circuits-derive-core"
+version = "0.1.0"
+dependencies = [
+ "itertools 0.11.0",
+ "proc-macro-error",
+ "proc-macro2",
  "quote",
  "syn 2.0.38",
 ]

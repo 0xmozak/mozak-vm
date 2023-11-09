@@ -1,41 +1,48 @@
-extern crate proc_macro;
-use proc_macro::TokenStream;
-use quote::quote;
-use syn::punctuated::Punctuated;
-use syn::token::Comma;
-use syn::{parse_macro_input, DeriveInput, GenericParam, TypeParam};
+pub use mozak_circuits_derive_core::{stark_kind_lambda, StarkNameDisplay, StarkSet};
+pub use plonky2::field::extension::Extendable;
+pub use plonky2::hash::hash_types::RichField;
+pub use starky::stark::Stark;
 
-#[proc_macro_derive(StarkNameDisplay)]
-pub fn derive(input: TokenStream) -> TokenStream {
-    let ast = parse_macro_input!(input as DeriveInput);
-
-    let (ident, generic_params) = (ast.ident, ast.generics.params);
-
-    // Converts `<F, const D: usize>` (sans `<` and `>`) to
-    //          `<F, D>` (sans `<` and `>`)
-    let generic_params_no_attr: Punctuated<GenericParam, Comma> = generic_params
-        .iter()
-        .map(|gen| match gen {
-            GenericParam::Type(x) => GenericParam::Type(x.clone()),
-            GenericParam::Const(x) => GenericParam::Type(TypeParam {
-                ident: x.ident.clone(),
-                attrs: vec![],
-                colon_token: None,
-                bounds: Punctuated::new(),
-                eq_token: None,
-                default: None,
-            }),
-            _ => unimplemented!(), // we don't expect lifetime annotations
-        })
-        .collect();
-
-    quote!(
-        /// Code generated via proc_macro `StarkNameDisplay`
-        impl<#generic_params> std::fmt::Display for #ident<#generic_params_no_attr> {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", std::stringify!(#ident))
-            }
-        }
-    )
-    .into()
+pub trait StarkKindFnMut<const D: usize> {
+    type F: RichField + Extendable<D>;
+    type Kind;
+    type Output;
+    fn call<S>(&mut self, kind: Self::Kind) -> Self::Output
+    where
+        S: Stark<Self::F, D>;
 }
+
+/*
+
+pub trait Extendable<const D: usize>{}
+pub trait RichField {}
+pub trait Stark<F: RichField + Extendable<D>, const D: usize>{}
+
+struct FakeField;
+impl<const D: usize> Extendable<D> for FakeField {}
+impl RichField for FakeField {}
+
+struct FakeStark;
+impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for FakeStark {}
+struct FakeStark2;
+impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for FakeStark2 {}
+
+#[test]
+fn test_stark_kind_lambda() {
+    fn foo<F: RichField + Extendable<D>, const D: usize, T>(t: T) {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        enum TableKind {
+            Foo,
+        }
+        let foo = 10;
+        let mut lambda = stark_kind_lambda!(F, D, <T>, (foo, t): (u32, T), |captures, kind: TableKind| {
+            assert_eq!(captures.0, 10);
+            assert_eq!(kind, TableKind::Foo);
+        });
+        lambda.call::<FakeStark>(TableKind::Foo);
+        lambda.call::<FakeStark2>(TableKind::Foo);
+    }
+    foo::<FakeField, 10, _>(56f32);
+}
+*/
+
