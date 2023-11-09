@@ -251,6 +251,7 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
                 #(#kinds_decl)*
             }
 
+            #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
             pub struct Builder<T> {
                 #(pub #field_ids: T,)*
             }

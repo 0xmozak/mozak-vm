@@ -336,21 +336,7 @@ where
     let cpu_stark = [public_inputs.entry_point];
     let public_inputs = TableKindSetBuilder::<&[_]> {
         cpu_stark: &cpu_stark,
-        rangecheck_stark: &[],
-        xor_stark: &[],
-        shift_amount_stark: &[],
-        program_stark: &[],
-        memory_stark: &[],
-        memory_init_stark: &[],
-        rangecheck_limb_stark: &[],
-        halfword_memory_stark: &[],
-        fullword_memory_stark: &[],
-        register_init_stark: &[],
-        register_stark: &[],
-        io_memory_private_stark: &[],
-        io_memory_public_stark: &[],
-        poseidon2_sponge_stark: &[],
-        poseidon2_stark: &[],
+        ..Default::default()
     }
     .build();
 
