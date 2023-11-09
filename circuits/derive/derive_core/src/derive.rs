@@ -1,11 +1,14 @@
-use itertools::{Itertools, multiunzip};
+use itertools::{multiunzip, Itertools};
 use proc_macro::TokenStream;
 use proc_macro2::{Literal, Span};
 use proc_macro_error::{abort, emit_error};
 use quote::{quote, ToTokens};
+use syn::parse::Parser;
+use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, parse_quote, Data, DeriveInput, Expr, ExprLit, Ident, Index, Lit, Member,
-    Meta, Path, MetaNameValue, punctuated::Punctuated, Token, parse::Parser, spanned::Spanned,
+    Meta, MetaNameValue, Path, Token,
 };
 
 use crate::remove_gen_attr;
@@ -54,20 +57,23 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
             match parser.parse2(tokens) {
                 Ok(v) => Some(v),
                 Err(e) => {
-                    emit_error!(
-                        span,
-                        "failed to parse {}",
-                        e
-                    );
+                    emit_error!(span, "failed to parse {}", e);
                     None
-                },
+                }
             }
         })
         .flatten()
         .collect::<Vec<MetaNameValue>>();
 
-    let enum_name = outer_attr.iter()
-        .filter_map(|meta| if meta.path.is_ident("enum_name") { Some(&meta.value) } else { None })
+    let enum_name = outer_attr
+        .iter()
+        .filter_map(|meta| {
+            if meta.path.is_ident("enum_name") {
+                Some(&meta.value)
+            } else {
+                None
+            }
+        })
         .at_most_one();
     let enum_name = match enum_name {
         Err(e) => {
@@ -82,8 +88,15 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
         }
         Ok(enum_name) => enum_name,
     };
-    let field = outer_attr.iter()
-        .filter_map(|meta| if meta.path.is_ident("field") { Some(&meta.value) } else { None })
+    let field = outer_attr
+        .iter()
+        .filter_map(|meta| {
+            if meta.path.is_ident("field") {
+                Some(&meta.value)
+            } else {
+                None
+            }
+        })
         .at_most_one();
     let field = match field {
         Err(e) => {
@@ -98,8 +111,15 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
         }
         Ok(field) => field,
     };
-    let degree = outer_attr.iter()
-        .filter_map(|meta| if meta.path.is_ident("degree") { Some(&meta.value) } else { None })
+    let degree = outer_attr
+        .iter()
+        .filter_map(|meta| {
+            if meta.path.is_ident("degree") {
+                Some(&meta.value)
+            } else {
+                None
+            }
+        })
         .at_most_one();
     let degree = match degree {
         Err(e) => {
@@ -115,72 +135,79 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
         Ok(degree) => degree,
     };
 
+    let (field_ids, field_tys, kinds): (Vec<_>, Vec<_>, Vec<_>) = multiunzip(
+        data.fields
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, field)| {
+                let ident = match field.ident {
+                    Some(ident) => Member::Named(ident.clone()),
+                    None => Member::Unnamed(Index {
+                        index: index as u32,
+                        span: Span::mixed_site(),
+                    }),
+                };
+                let attr = field
+                    .attrs
+                    .into_iter()
+                    .filter_map(|attr| match attr.meta {
+                        Meta::List(meta) if meta.path.is_ident("StarkSet") => Some(meta.tokens),
+                        _ => None,
+                    })
+                    .filter_map(|tokens| {
+                        let span = tokens.span();
+                        let parser = Punctuated::<MetaNameValue, Token![,]>::parse_terminated;
+                        match parser.parse2(tokens) {
+                            Ok(v) => Some(v),
+                            Err(e) => {
+                                emit_error!(span, "failed to parse {}", e);
+                                None
+                            }
+                        }
+                    })
+                    .flatten()
+                    .collect::<Vec<MetaNameValue>>();
 
-    let (field_ids, field_tys, kinds): (Vec<_>, Vec<_>, Vec<_>) = multiunzip(data
-        .fields
-        .into_iter()
-        .enumerate()
-        .filter_map(|(index, field)| {
-            let ident = match field.ident {
-                Some(ident) => Member::Named(ident.clone()),
-                None => Member::Unnamed(Index {
-                    index: index as u32,
-                    span: Span::mixed_site(),
-                }),
-            };
-            let attr = field
-                .attrs
-                .into_iter()
-                .filter_map(|attr| match attr.meta {
-                    Meta::List(meta) if meta.path.is_ident("StarkSet") => Some(meta.tokens),
-                    _ => None,
-                })
-                .filter_map(|tokens| {
-                    let span = tokens.span();
-                    let parser = Punctuated::<MetaNameValue, Token![,]>::parse_terminated;
-                    match parser.parse2(tokens) {
-                        Ok(v) => Some(v),
-                        Err(e) => {
-                            emit_error!(
-                                span,
-                                "failed to parse {}",
-                                e
-                            );
+                let kind = attr
+                    .into_iter()
+                    .filter_map(|meta| {
+                        if meta.path.is_ident("stark_kind") {
+                            Some(meta.value)
+                        } else {
                             None
-                        },
-                    }
-                })
-                .flatten()
-                .collect::<Vec<MetaNameValue>>();
-        
-            let kind = attr.into_iter()
-                .filter_map(|meta| if meta.path.is_ident("stark_kind") { Some(meta.value) } else { None })
-                .at_most_one();
+                        }
+                    })
+                    .at_most_one();
 
-            match kind {
-                Err(e) => {
-                    for kind in e {
-                        emit_error!(
-                            kind,
-                            "multiple definitions of 'stark_kind' for field {}",
-                            ident.to_token_stream()
-                        );
+                match kind {
+                    Err(e) => {
+                        for kind in e {
+                            emit_error!(
+                                kind,
+                                "multiple definitions of 'stark_kind' for field {}",
+                                ident.to_token_stream()
+                            );
+                        }
+                        None
                     }
+                    Ok(kind) => kind.map(|kind| (ident, field.ty, kind)),
+                }
+            })
+            .filter_map(|(field_id, field_ty, kind)| match kind {
+                Expr::Lit(ExprLit {
+                    lit: Lit::Str(enum_name),
+                    ..
+                }) => Some((
+                    field_id,
+                    field_ty,
+                    Ident::new(&enum_name.value(), Span::mixed_site()),
+                )),
+                kind => {
+                    emit_error!(kind, "'stark_kind' should be a string literal");
                     None
                 }
-                Ok(kind) => kind.map(|kind| (ident, field.ty, kind)),
-            }
-        })
-        .filter_map(|(field_id, field_ty, kind)| match kind {
-            Expr::Lit(ExprLit {
-                lit: Lit::Str(enum_name),
-                ..
-            }) => Some((field_id, field_ty, Ident::new(&enum_name.value(), Span::mixed_site()))),
-            kind => {
-                emit_error!(kind, "'stark_kind' should be a string literal");
-                None
-            }
-        }));
+            }),
+    );
 
     let enum_name = match enum_name {
         None => abort!(ast_span, "unique 'enum_name' is required"),
@@ -258,5 +285,6 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
                 [#(l.call::<#field_tys>(&mut self.#field_ids, #kinds),)*]
             }
         }
-    ).into()
+    )
+    .into()
 }

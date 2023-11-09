@@ -5,7 +5,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{
     braced, parenthesized, parse_macro_input, parse_quote, token, Expr, GenericParam, Generics,
-    Ident, Path, ReturnType, Token, Type, TypeParamBound, Pat, PatIdent,
+    Ident, Pat, PatIdent, Path, ReturnType, Token, Type, TypeParamBound,
 };
 
 use crate::remove_gen_attr;
@@ -97,7 +97,14 @@ impl Parse for StarkLambdaInput {
         };
 
         // Optionally parse captures
-        let (captures_paren_token, captures, captures_colon_token, capture_tys_paren_token, capture_tys, captures_comma_token);
+        let (
+            captures_paren_token,
+            captures,
+            captures_colon_token,
+            capture_tys_paren_token,
+            capture_tys,
+            captures_comma_token,
+        );
         if input.peek(token::Paren) {
             let paren_input;
             captures_paren_token = Some(parenthesized!(paren_input in input));
@@ -125,18 +132,35 @@ impl Parse for StarkLambdaInput {
 
         let or1_token = input.parse()?;
         // Optionally parse capture id
-        let (capture_pat, capture_pat_comma_token, stark_id, stark_comma_token) = if input.peek(Ident) && input.peek2(Token![,]) {
-            let ident = input.parse()?;
-            let comma_token = input.parse()?;
-            if input.peek2(Token![:]) {
-                (None, None, ident, comma_token)
+        let (capture_pat, capture_pat_comma_token, stark_id, stark_comma_token) =
+            if input.peek(Ident) && input.peek2(Token![,]) {
+                let ident = input.parse()?;
+                let comma_token = input.parse()?;
+                if input.peek2(Token![:]) {
+                    (None, None, ident, comma_token)
+                } else {
+                    let capture_pat = Pat::Ident(PatIdent {
+                        ident,
+                        attrs: vec![],
+                        by_ref: None,
+                        mutability: None,
+                        subpat: None,
+                    });
+                    (
+                        Some(capture_pat),
+                        Some(comma_token),
+                        input.parse()?,
+                        input.parse()?,
+                    )
+                }
             } else {
-                let capture_pat = Pat::Ident(PatIdent{ident, attrs: vec![], by_ref: None, mutability: None, subpat: None});
-                (Some(capture_pat), Some(comma_token), input.parse()?, input.parse()?)
-            }
-        } else {
-            (Some(Pat::parse_single(input)?), Some(input.parse()?), input.parse()?, input.parse()?)
-        };
+                (
+                    Some(Pat::parse_single(input)?),
+                    Some(input.parse()?),
+                    input.parse()?,
+                    input.parse()?,
+                )
+            };
         let kind_id = input.parse()?;
         let kind_colon_token = input.parse()?;
         let kind_ty = input.parse()?;
@@ -192,7 +216,7 @@ pub fn stark_lambda(input: TokenStream, mutable: bool) -> TokenStream {
     } else {
         Ident::new("StarkLambda", Span::mixed_site())
     };
-    
+
     let mut_token = if mutable {
         Some(Token![mut](Span::mixed_site()))
     } else {
@@ -263,11 +287,13 @@ pub fn stark_lambda(input: TokenStream, mutable: bool) -> TokenStream {
         .cloned()
         .collect();
     let non_lifetimes_no_attr = remove_gen_attr(&non_lifetimes);
-    let types_no_attr = remove_gen_attr(&generic_params
-        .into_iter()
-        .filter(|x| matches!(x, GenericParam::Type(_)))
-        .cloned()
-        .collect());
+    let types_no_attr = remove_gen_attr(
+        &generic_params
+            .into_iter()
+            .filter(|x| matches!(x, GenericParam::Type(_)))
+            .cloned()
+            .collect(),
+    );
 
     let captures = &ast.captures;
     let capture_tys = &ast.capture_tys;

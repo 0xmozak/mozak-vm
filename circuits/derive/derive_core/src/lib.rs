@@ -51,9 +51,7 @@ pub fn stark_kind_lambda(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-pub fn stark_lambda(input: TokenStream) -> TokenStream {
-    stark_lambda::stark_lambda(input, false)
-}
+pub fn stark_lambda(input: TokenStream) -> TokenStream { stark_lambda::stark_lambda(input, false) }
 
 #[proc_macro]
 pub fn stark_lambda_mut(input: TokenStream) -> TokenStream {

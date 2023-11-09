@@ -5,7 +5,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{
     braced, parenthesized, parse_macro_input, parse_quote, token, Expr, GenericParam, Generics,
-    Ident, Path, ReturnType, Token, Type, TypeParamBound, Pat, PatType, PatIdent,
+    Ident, Pat, PatIdent, PatType, Path, ReturnType, Token, Type, TypeParamBound,
 };
 
 use crate::remove_gen_attr;
@@ -95,7 +95,14 @@ impl Parse for StarkKindLambdaInput {
         };
 
         // Optionally parse captures
-        let (captures_paren_token, captures, captures_colon_token, capture_tys_paren_token, capture_tys, captures_comma_token);
+        let (
+            captures_paren_token,
+            captures,
+            captures_colon_token,
+            capture_tys_paren_token,
+            capture_tys,
+            captures_comma_token,
+        );
         if input.peek(token::Paren) {
             let paren_input;
             captures_paren_token = Some(parenthesized!(paren_input in input));
@@ -123,24 +130,45 @@ impl Parse for StarkKindLambdaInput {
 
         let or1_token = input.parse()?;
         // Optionally parse capture id
-        let (capture_pat, capture_pat_comma_token, kind_id, kind_colon_token, kind_ty) = if input.peek(Ident) && input.peek2(Token![:]) {
-            let ident = input.parse()?;
-            let colon_token = input.parse()?;
-            let ty = input.parse()?;
-            if input.peek(Token![|]) {
-                (None, None, ident, colon_token, ty)
+        let (capture_pat, capture_pat_comma_token, kind_id, kind_colon_token, kind_ty) =
+            if input.peek(Ident) && input.peek2(Token![:]) {
+                let ident = input.parse()?;
+                let colon_token = input.parse()?;
+                let ty = input.parse()?;
+                if input.peek(Token![|]) {
+                    (None, None, ident, colon_token, ty)
+                } else {
+                    let pat = Box::new(Pat::Ident(PatIdent {
+                        ident,
+                        attrs: vec![],
+                        by_ref: None,
+                        mutability: None,
+                        subpat: None,
+                    }));
+                    let ty = Box::new(ty);
+                    let capture_pat = Pat::Type(PatType {
+                        attrs: vec![],
+                        pat,
+                        colon_token,
+                        ty,
+                    });
+                    (
+                        Some(capture_pat),
+                        Some(input.parse()?),
+                        input.parse()?,
+                        input.parse()?,
+                        input.parse()?,
+                    )
+                }
             } else {
-                let pat = Box::new(Pat::Ident(PatIdent{ident, attrs: vec![], by_ref: None, mutability: None, subpat: None}));
-                let ty = Box::new(ty);
-                let capture_pat = Pat::Type(PatType {
-                    attrs: vec![],
-                    pat, colon_token, ty
-                });
-                (Some(capture_pat), Some(input.parse()?), input.parse()?, input.parse()?, input.parse()?)
-            }
-        } else {
-            (Some(Pat::parse_single(input)?), Some(input.parse()?), input.parse()?, input.parse()?, input.parse()?)
-        };
+                (
+                    Some(Pat::parse_single(input)?),
+                    Some(input.parse()?),
+                    input.parse()?,
+                    input.parse()?,
+                    input.parse()?,
+                )
+            };
         let or2_token = input.parse()?;
 
         let output = input.parse()?;
@@ -251,6 +279,13 @@ pub fn stark_kind_lambda(input: TokenStream) -> TokenStream {
         .cloned()
         .collect();
     let non_lifetimes_no_attr = remove_gen_attr(&non_lifetimes);
+    let types_no_attr = remove_gen_attr(
+        &generic_params
+            .into_iter()
+            .filter(|x| matches!(x, GenericParam::Type(_)))
+            .cloned()
+            .collect(),
+    );
 
     let captures = &ast.captures;
     let capture_tys = &ast.capture_tys;
@@ -274,6 +309,7 @@ pub fn stark_kind_lambda(input: TokenStream) -> TokenStream {
         struct StarkKindLambda<#lifetimes #bounded_field #bounded_d #non_lifetimes>
         #where_clause {
             _marker: core::marker::PhantomData<#bare_field>,
+            _marker2: core::marker::PhantomData<(#types_no_attr)>,
             captures: (#capture_tys),
         };
         impl<#lifetimes #bounded_field #bounded_d #non_lifetimes> #crate_name::StarkKindLambda<#d_bare> for StarkKindLambda<#lifetimes_no_attr #unbounded_field #unbounded_d #non_lifetimes_no_attr>
@@ -289,6 +325,7 @@ pub fn stark_kind_lambda(input: TokenStream) -> TokenStream {
         }
         StarkKindLambda{
             _marker: core::marker::PhantomData::<#field_invoke>,
+            _marker2: core::marker::PhantomData,
             captures: (#captures),
         }
     }).into()

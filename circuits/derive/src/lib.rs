@@ -1,4 +1,6 @@
-pub use mozak_circuits_derive_core::{stark_kind_lambda, stark_lambda, stark_lambda_mut, StarkNameDisplay, StarkSet};
+pub use mozak_circuits_derive_core::{
+    stark_kind_lambda, stark_lambda, stark_lambda_mut, StarkNameDisplay, StarkSet,
+};
 pub use plonky2::field::extension::Extendable;
 pub use plonky2::hash::hash_types::RichField;
 pub use starky::stark::Stark;
@@ -29,4 +31,3 @@ pub trait StarkLambdaMut<const D: usize> {
     where
         S: Stark<Self::F, D>;
 }
-
