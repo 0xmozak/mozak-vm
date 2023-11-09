@@ -433,8 +433,8 @@ pub mod ctl_utils {
                         .map(|c| c.eval_table(trace, i))
                         .collect::<Vec<_>>();
                     self.entry(row)
-                        .and_modify(|e| *e = RowCount(e.table_kind(), e.multiplicity() + filter))
-                        .or_insert(RowCount(table.kind, filter));
+                        .or_insert(RowCount::<F>(table.kind, F::ZERO))
+                        .1 += filter;
                 };
             }
         }
