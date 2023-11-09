@@ -25,15 +25,11 @@ fn pad_io_mem_trace<F: RichField>(
 pub fn filter<'a, F: RichField>(
     program: &'a Program,
     step_rows: &'a [Row<F>],
+    which_tape: IoOpcode,
 ) -> impl Iterator<Item = &'a Row<F>> {
-    step_rows.iter().filter(|row| {
-        matches!(
-            row.aux.io,
-            Some(IoEntry {
-                op: IoOpcode::Store,
-                ..
-            }),
-        ) && matches!(row.state.current_instruction(program).op, Op::ECALL,)
+    step_rows.iter().filter(move |row| {
+        (Some(which_tape) == row.aux.io.as_ref().map(|io| io.op))
+            && matches!(row.state.current_instruction(program).op, Op::ECALL,)
     })
 }
 
@@ -41,9 +37,10 @@ pub fn filter<'a, F: RichField>(
 pub fn generate_io_memory_trace<F: RichField>(
     program: &Program,
     step_rows: &[Row<F>],
+    which_tape: IoOpcode,
 ) -> Vec<InputOutputMemory<F>> {
     pad_io_mem_trace(
-        filter(program, step_rows)
+        filter(program, step_rows, which_tape)
             .flat_map(|s| {
                 let IoEntry { op, data, addr }: IoEntry = s.aux.io.clone().unwrap_or_default();
                 let len = data.len();
@@ -54,7 +51,10 @@ pub fn generate_io_memory_trace<F: RichField>(
                         addr: F::from_canonical_u32(addr),
                         size: F::from_canonical_usize(len),
                         ops: Ops {
-                            is_io_store: F::from_bool(matches!(op, IoOpcode::Store)),
+                            is_io_store: F::from_bool(matches!(
+                                op,
+                                IoOpcode::StorePrivate | IoOpcode::StorePublic
+                            )),
                             is_memory_store: F::ZERO,
                         },
                         is_lv_and_nv_are_memory_rows: F::from_bool(false),
@@ -71,7 +71,10 @@ pub fn generate_io_memory_trace<F: RichField>(
                             value: F::from_canonical_u8(local_value),
                             ops: Ops {
                                 is_io_store: F::ZERO,
-                                is_memory_store: F::from_bool(matches!(op, IoOpcode::Store)),
+                                is_memory_store: F::from_bool(matches!(
+                                    op,
+                                    IoOpcode::StorePrivate | IoOpcode::StorePublic
+                                )),
                             },
                             is_lv_and_nv_are_memory_rows: F::from_bool(i + 1 != len),
                         }
@@ -80,4 +83,20 @@ pub fn generate_io_memory_trace<F: RichField>(
             })
             .collect::<Vec<InputOutputMemory<F>>>(),
     )
+}
+
+#[must_use]
+pub fn generate_io_memory_private_trace<F: RichField>(
+    program: &Program,
+    step_rows: &[Row<F>],
+) -> Vec<InputOutputMemory<F>> {
+    generate_io_memory_trace(program, step_rows, IoOpcode::StorePrivate)
+}
+
+#[must_use]
+pub fn generate_io_memory_public_trace<F: RichField>(
+    program: &Program,
+    step_rows: &[Row<F>],
+) -> Vec<InputOutputMemory<F>> {
+    generate_io_memory_trace(program, step_rows, IoOpcode::StorePublic)
 }
