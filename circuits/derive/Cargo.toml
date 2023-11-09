@@ -11,5 +11,5 @@ version = "0.1.0"
 
 [dependencies]
 mozak-circuits-derive-core = { path = "./derive_core" }
-starky = "0.1.2"
 plonky2 = "0.1.3"
+starky = "0.1.2"
