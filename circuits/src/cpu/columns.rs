@@ -227,7 +227,7 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
         CpuTable::new(vec![cpu.quotient_value.clone()], divs.clone()),
         CpuTable::new(vec![cpu.remainder_value.clone()], divs.clone()),
         CpuTable::new(vec![cpu.remainder_slack], divs),
-        CpuTable::new(vec![cpu.dst_value], &ops.add + &ops.sub + &ops.jalr),
+        CpuTable::new(vec![cpu.dst_value.clone()], &ops.add + &ops.sub + &ops.jalr),
         CpuTable::new(vec![cpu.inst.pc], ops.jalr.clone()),
         CpuTable::new(vec![cpu.abs_diff], &ops.bge + &ops.blt),
         CpuTable::new(vec![cpu.product_high_limb], muls.clone()),
@@ -247,21 +247,18 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
             ],
             cpu.inst.is_op2_signed,
         ),
+        CpuTable::new(
+            vec![
+                cpu.dst_value.clone()
+                    - cpu.dst_sign_bit.clone() * F::from_canonical_u32(0xFFFF_FF00),
+            ],
+            cpu.inst.ops.lb.clone(),
+        ),
+        CpuTable::new(
+            vec![cpu.dst_value - cpu.dst_sign_bit.clone() * F::from_canonical_u32(0xFFFF_0000)],
+            cpu.inst.ops.lh.clone(),
+        ),
     ]
-}
-
-/// Expressions we need to range check for u8 values
-#[must_use]
-pub fn rangecheck_looking_u8<F: Field>() -> Vec<Table<F>> {
-    let cpu = col_map().cpu.map(Column::from);
-
-    vec![CpuTable::new(
-        vec![
-            cpu.dst_value - cpu.dst_sign_bit * F::from_canonical_u64(1 << 8)
-                + &cpu.inst.is_dst_signed * F::from_canonical_u64(1 << 7),
-        ],
-        cpu.inst.is_dst_signed,
-    )]
 }
 
 /// Columns containing the data to be matched against Xor stark.
@@ -304,7 +301,7 @@ pub fn data_for_halfword_memory<F: Field>() -> Vec<Column<F>> {
     vec![
         cpu.clk,
         cpu.mem_addr,
-        cpu.dst_value,
+        cpu.mem_value_raw,
         cpu.inst.ops.sh,
         cpu.inst.ops.lh,
     ]
