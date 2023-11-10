@@ -1,14 +1,12 @@
 use std::collections::HashSet;
-use std::iter::repeat;
 
 use anyhow::{anyhow, ensure, Result};
 use derive_more::Deref;
 use elf::endian::LittleEndian;
 use elf::file::Class;
-use elf::segment::ProgramHeader;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
-use itertools::{chain, iproduct, Itertools};
+use itertools::{iproduct, Itertools};
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
@@ -147,46 +145,48 @@ impl Program {
         let entry_point: u32 = elf.ehdr.e_entry.try_into()?;
         ensure!(entry_point % 4 == 0, "Misaligned entrypoint");
         let segments = elf
-            .segments()
+            .section_headers()
             .ok_or_else(|| anyhow!("Missing segment table"))?;
         ensure!(segments.len() <= 256, "Too many program headers");
 
         let extract = |check_flags: fn(u32) -> bool| {
             segments
                 .iter()
-                .filter(|s: &ProgramHeader| s.p_type == elf::abi::PT_LOAD)
-                .filter(|s| check_flags(s.p_flags))
+                // It is OK to cast this as u32 because we already check that we're reading a
+                // 32-bit ELF. The elf parsing crate simply does an `as u64`
+                // after parsing `sh_flags` as a u32: https://docs.rs/elf/latest/src/elf/section.rs.html#82
+                .filter_map(|s: elf::section::SectionHeader| {
+                    let flags = u32::try_from(s.sh_flags).ok()?;
+                    if check_flags(flags) {
+                        Some(s)
+                    } else {
+                        None
+                    }
+                })
                 .map(|segment| -> Result<_> {
-                    let file_size: usize = segment.p_filesz.try_into()?;
-                    let mem_size: usize = segment.p_memsz.try_into()?;
-                    let vaddr: u32 = segment.p_vaddr.try_into()?;
-                    let offset = segment.p_offset.try_into()?;
-                    // This is as defined in the elf man page, under PT_LOAD: https://www.man7.org/linux/man-pages/man5/elf.5.html
-                    ensure!(
-                        file_size <= mem_size,
-                        "The file size {file_size} can not be larger than the memory size {mem_size} in the segment."
-                    );
-                    Ok((vaddr..).zip(
-                        // We zero out the remaining memory, according to the spec above.
-                        chain!(&input[offset..][..file_size], repeat(&0u8))
-                            .take(mem_size)
-                            .copied(),
-                    ))
+                    let file_size: usize = segment.sh_size.try_into()?;
+                    let vaddr: u32 = segment.sh_addr.try_into()?;
+                    let offset = segment.sh_offset.try_into()?;
+                    Ok((vaddr..).zip(input[offset..].iter().take(file_size).copied()))
                 })
                 .flatten_ok()
                 .try_collect()
         };
 
         let ro_memory = Data(extract(|flags| {
-            (flags & elf::abi::PF_R == elf::abi::PF_R)
-                && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
+            flags & elf::abi::SHF_WRITE == elf::abi::SHF_NONE
         })?);
-        let rw_memory = Data(extract(|flags| flags == elf::abi::PF_R | elf::abi::PF_W)?);
+        let rw_memory = Data(extract(|flags| {
+            (flags & elf::abi::SHF_ALLOC == elf::abi::SHF_ALLOC)
+                && (flags & elf::abi::SHF_WRITE == elf::abi::SHF_WRITE)
+        })?);
         // Because we are implementing a modified Harvard Architecture, we make an
         // independent copy of the executable segments. In practice,
         // instructions will be in a R_X segment, so their data will show up in ro_code
         // and ro_memory. (RWX segments would show up in ro_code and rw_memory.)
-        let ro_code = Code::from(&extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?);
+        let ro_code = Code::from(&extract(|flags| {
+            flags & elf::abi::SHF_EXECINSTR == elf::abi::SHF_EXECINSTR
+        })?);
 
         Ok(Program {
             entry_point,
