@@ -89,22 +89,19 @@ mod tests {
     #[test]
     fn test_fibonacci_with_input() {
         let n = 10;
-        let out = fibonacci(n).1;
+        let out = fibonacci(n);
         super::fibonacci_with_input(n, out).unwrap();
     }
 
-    fn fibonacci(n: u32) -> (u32, u32) {
+    fn fibonacci(n: u32) -> u32 {
         if n < 2 {
-            return (0, n);
+            return n;
         }
-        let (mut curr, mut last) = (1_u64, 0_u64);
+        let (mut curr, mut last) = (1_u32, 0_u32);
         for _i in 0..(n - 2) {
-            (curr, last) = (curr + last, curr);
+            (curr, last) = (curr.overflowing_add(last).0, curr);
         }
-        (
-            (curr >> 32) as u32,
-            u32::try_from(curr).expect("please try <= 40 input only for now"),
-        )
+        curr
     }
 
     #[test]
@@ -118,7 +115,7 @@ mod tests {
     #[test]
     fn test_fibonacci_with_input_run() {
         let n = 10;
-        let out = fibonacci(n).1;
+        let out = fibonacci(n);
         let bench = super::BenchArgs {
             function: super::BenchFunction::FiboInputBench { n, out },
         };

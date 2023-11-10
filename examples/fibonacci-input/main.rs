@@ -54,15 +54,15 @@ impl<'a> MozakIo<'a> {
     }
 }
 
-fn fibonacci(n: u32) -> (u32, u32) {
+fn fibonacci(n: u32) -> u32 {
     if n < 2 {
-        return (0, n);
+        return n;
     }
-    let (mut curr, mut last) = (1_u64, 0_u64);
+    let (mut curr, mut last) = (1_u32, 0_u32);
     for _i in 0..(n - 2) {
-        (curr, last) = (curr + last, curr);
+        (curr, last) = (curr.overflowing_add(last).0, curr);
     }
-    ((curr >> 32) as u32, curr as u32)
+    curr
 }
 
 pub fn main() {
@@ -73,19 +73,16 @@ pub fn main() {
     let mut buffer = [0_u8; 4];
     let n = mozak_io.read_private(buffer.as_mut()).expect("READ failed");
     assert!(n <= 4);
-    let bytes: [u8; 4] = buffer[..4].try_into().unwrap();
-    let input = u32::from_le_bytes(bytes);
+    let input = u32::from_le_bytes(buffer);
 
     // read from public iotape, the output
     let mut buffer = [0_u8; 4];
     let n = mozak_io.read_public(buffer.as_mut()).expect("READ failed");
     assert!(n <= 4);
-    let bytes: [u8; 4] = buffer[..4].try_into().unwrap();
-    let out = u32::from_le_bytes(bytes);
+    let out = u32::from_le_bytes(buffer);
 
-    let (high, low) = fibonacci(input);
-    assert!(low == out);
-    guest::env::write(&high.to_le_bytes());
+    let ans = fibonacci(input);
+    assert!(ans == out);
 }
 
 guest::entry!(main);
