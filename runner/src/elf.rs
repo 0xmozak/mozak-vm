@@ -156,12 +156,7 @@ impl Program {
                 // 32-bit ELF. The elf parsing crate simply does an `as u64`
                 // after parsing `sh_flags` as a u32: https://docs.rs/elf/latest/src/elf/section.rs.html#82
                 .filter_map(|s: elf::section::SectionHeader| {
-                    let flags = u32::try_from(s.sh_flags).ok()?;
-                    if check_flags(flags) {
-                        Some(s)
-                    } else {
-                        None
-                    }
+                    check_flags(u32::try_from(s.sh_flags).ok()?).then_some(s)
                 })
                 .map(|segment| -> Result<_> {
                     let file_size: usize = segment.sh_size.try_into()?;
