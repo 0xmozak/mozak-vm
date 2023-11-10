@@ -172,7 +172,7 @@ fn main() -> Result<()> {
             let mut buffer: Vec<u8> = vec![];
             proof.read_to_end(&mut buffer)?;
             let all_proof = AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(&buffer)?;
-            verify_proof(stark, all_proof, &config)?;
+            verify_proof(&stark, all_proof, &config)?;
             debug!("proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
