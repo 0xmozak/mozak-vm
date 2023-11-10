@@ -38,7 +38,18 @@ pub fn sample_bench(reg_value: u32) -> Result<(), anyhow::Error> {
     MozakStark::prove_and_verify(&program, &record)
 }
 
-pub fn fibonacci_with_input(n: u32, out: u32) -> Result<(), anyhow::Error> {
+fn fibonacci(n: u32) -> u32 {
+    if n < 2 {
+        return n;
+    }
+    let (mut curr, mut last) = (1_u32, 0_u32);
+    for _i in 0..(n - 2) {
+        (curr, last) = (curr.overflowing_add(last).0, curr);
+    }
+    curr
+}
+
+pub fn fibonacci_with_input(n: u32) -> Result<(), anyhow::Error> {
     let elf_path = std::env::current_dir()
         .unwrap()
         .parent()
@@ -50,6 +61,7 @@ pub fn fibonacci_with_input(n: u32, out: u32) -> Result<(), anyhow::Error> {
             eg. `cd examples/fibonacci-input && cargo build --release`",
     );
     let program = Program::load_elf(&elf).unwrap();
+    let out = fibonacci(n);
     let state =
         State::<GoldilocksField>::new(program.clone(), &n.to_le_bytes(), &out.to_le_bytes());
     let record = step(&program, state).unwrap();
@@ -66,14 +78,14 @@ pub struct BenchArgs {
 #[derive(PartialEq, Debug, Subcommand, Clone)]
 pub enum BenchFunction {
     SampleBench { iterations: u32 },
-    FiboInputBench { n: u32, out: u32 },
+    FiboInputBench { n: u32 },
 }
 
 impl BenchArgs {
     pub fn run(&self) -> Result<(), anyhow::Error> {
         match self.function {
             BenchFunction::SampleBench { iterations } => sample_bench(iterations),
-            BenchFunction::FiboInputBench { n, out } => fibonacci_with_input(n, out),
+            BenchFunction::FiboInputBench { n } => fibonacci_with_input(n),
         }
     }
 }
@@ -89,20 +101,9 @@ mod tests {
     #[test]
     fn test_fibonacci_with_input() {
         let n = 10;
-        let out = fibonacci(n);
-        super::fibonacci_with_input(n, out).unwrap();
+        super::fibonacci_with_input(n).unwrap();
     }
 
-    fn fibonacci(n: u32) -> u32 {
-        if n < 2 {
-            return n;
-        }
-        let (mut curr, mut last) = (1_u32, 0_u32);
-        for _i in 0..(n - 2) {
-            (curr, last) = (curr.overflowing_add(last).0, curr);
-        }
-        curr
-    }
     #[test]
     fn test_sample_bench_run() {
         let bench = super::BenchArgs {
@@ -114,9 +115,8 @@ mod tests {
     #[test]
     fn test_fibonacci_with_input_run() {
         let n = 10;
-        let out = fibonacci(n);
         let bench = super::BenchArgs {
-            function: super::BenchFunction::FiboInputBench { n, out },
+            function: super::BenchFunction::FiboInputBench { n },
         };
         bench.run().unwrap();
     }
