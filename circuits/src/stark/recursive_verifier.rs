@@ -153,6 +153,7 @@ where
         (&mut builder, &degree_bits, &mozak_stark.cross_table_lookups, inner_config): (&'a mut CircuitBuilder<F, D>, &'a [usize; TableKind::COUNT], &'a [CrossTableLookup<F>], &'a StarkConfig),
         // The "lambda"
         |(builder, degree_bits, cross_table_lookups, inner_config), stark, kind: TableKind| -> Option<StarkVerifierTargets<F, C, D>> {
+            // TODO(Daniel): remove as we implement more.
             if !matches!(kind, TableKind::Xor | TableKind::Bitshift | TableKind::Program | TableKind::MemoryInit) {
                 return None
             }
