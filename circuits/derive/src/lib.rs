@@ -143,8 +143,8 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
     let macro_name = parse_single_attr(ast.attrs, "StarkSet", "macro_name")
         .unwrap_or_else(|| Ident::new("stark_set", Span::mixed_site()));
 
-    let field_info = 
-    data.fields
+    let field_info = data
+        .fields
         .into_iter()
         .enumerate()
         .filter_map(|(index, field)| {
