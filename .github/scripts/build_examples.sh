@@ -1,4 +1,4 @@
 #!/bin/sh
 
-cd examples/fibonacci && cargo build --release && 
-cd examples/fibonacci-input && cargo build --release
+cd examples && cargo build --release --manifest-path fibonacci/Cargo.toml
+&& cargo build --release --manifest-path fibonacci-input/Cargo.toml
