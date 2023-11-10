@@ -152,7 +152,10 @@ impl Program {
         let extract = |check_flags: fn(u64) -> bool| {
             segments
                 .iter()
-                .filter(|s| check_flags(s.sh_flags))
+                // It is OK to cast this as u32 because we already check that we're reading a 32-bit ELF.
+                // The elf parsing crate simply does an `as u64` after parsing `sh_flags` as a u32:
+                // https://docs.rs/elf/latest/src/elf/section.rs.html#82
+                .filter(|s| check_flags(u32::try_from(s.sh_flags).expect("cast from u64 sh_flags should succeed if reading a 32-bit ELF")))
                 .map(|segment| -> Result<_> {
                     let file_size: usize = segment.sh_size.try_into()?;
                     let vaddr: u32 = segment.sh_addr.try_into()?;
