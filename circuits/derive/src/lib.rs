@@ -1,7 +1,7 @@
 use itertools::{multiunzip, Itertools};
 use proc_macro::TokenStream;
 use proc_macro2::{Literal, Span};
-use proc_macro_error::{abort, abort_if_dirty, emit_error, proc_macro_error};
+use proc_macro_error::{abort, abort_if_dirty, emit_error, emit_warning, proc_macro_error};
 use quote::quote;
 use syn::parse::Parser;
 use syn::punctuated::Punctuated;
@@ -118,144 +118,77 @@ fn parse_attr(attr: Option<Expr>, ident: &str) -> Option<Ident> {
     }
 }
 
+fn parse_single_attr(attrs: Vec<Attribute>, attr_name: &str, key: &str) -> Option<Ident> {
+    let attr = parse_attrs(attrs, attr_name);
+    let val = get_attr(attr, key);
+    parse_attr(val, key)
+}
+
+/// A derive macro which extracts metadata about a `struct` and embeds it in a
+/// `macro`.
+///
+/// The resulting macro can be used with `tt_call` to easily generate custom
+/// code with `macro_rules`.
 #[proc_macro_error]
 #[proc_macro_derive(StarkSet, attributes(StarkSet))]
 pub fn derive_stark_set(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
+    let ast_span = ast.span();
 
     let data = match ast.data {
         Data::Struct(data) => data,
         _ => abort!(ast, "only structs are supported"),
     };
 
-    let outer_attr = parse_attrs(ast.attrs, "StarkSet");
-    let mod_name = get_attr(outer_attr, "mod_name");
-    let mod_name = parse_attr(mod_name, "mod_name");
+    let macro_name = parse_single_attr(ast.attrs, "StarkSet", "macro_name")
+        .unwrap_or_else(|| Ident::new("stark_set", Span::mixed_site()));
 
-    let (field_ids, field_tys, kinds): (Vec<_>, Vec<_>, Vec<_>) = multiunzip(
-        data.fields
-            .into_iter()
-            .enumerate()
-            .filter_map(|(index, field)| {
-                let ident = match field.ident {
-                    Some(ident) => Member::Named(ident.clone()),
-                    None => Member::Unnamed(Index {
-                        index: index as u32,
-                        span: Span::mixed_site(),
-                    }),
-                };
-                let field_attr = parse_attrs(field.attrs, "StarkSet");
-                let kind = get_attr(field_attr, "stark_kind");
-                let kind = parse_attr(kind, "stark_kind");
-                kind.map(|kind| (ident, field.ty, kind))
-            }),
-    );
+    let field_info = 
+    data.fields
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, field)| {
+            let ident = match field.ident {
+                Some(ident) => Member::Named(ident.clone()),
+                None => Member::Unnamed(Index {
+                    index: index as u32,
+                    span: Span::mixed_site(),
+                }),
+            };
+            let kind = parse_single_attr(field.attrs, "StarkSet", "stark_kind");
+            kind.map(|kind| (ident, field.ty, kind))
+        });
+    let (field_ids, field_tys, kinds): (Vec<_>, Vec<_>, Vec<_>) = multiunzip(field_info);
 
+    if kinds.is_empty() {
+        emit_warning!(
+            ast_span,
+            r#"No starks found, did you forget to tag fields with `#[StarkSet(stark_kind = "...")]`?"#
+        );
+    }
     let kind_count = Literal::usize_unsuffixed(kinds.len());
-    let kinds_decl = kinds.iter().enumerate().map(|(i, kind)| {
-        let i = Literal::usize_unsuffixed(i);
-        quote!(#kind = #i,)
-    });
-
-    let ident = &ast.ident;
-    let generic_params = &ast.generics.params;
-    let generic_params_no_attr = remove_gen_attr(generic_params);
+    let kind_vals = kinds
+        .iter()
+        .enumerate()
+        .map(|(i, _)| Literal::usize_unsuffixed(i));
 
     abort_if_dirty();
 
+    // Generate the macro
     let result = quote!(
-        mod #mod_name{
-            use super::*;
-
-            pub trait StarkKinds<#generic_params> {
-                #(type #kinds;)*
-            }
-            impl<#generic_params> StarkKinds<#generic_params_no_attr> for #ident<#generic_params_no_attr> {
-                #(type #kinds = #field_tys;)*
-            }
-
-            #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-            pub enum Kind {
-                #(#kinds_decl)*
-            }
-
-            #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
-            pub struct Builder<T> {
-                #(pub #field_ids: T,)*
-            }
-
-            impl<T> Builder<T> {
-                pub fn build(self) -> [T; Kind::COUNT] {
-                    [#(self.#field_ids,)*]
+        /// Code generated via proc_macro `StarkSet`
+        macro_rules! #macro_name {
+            {$caller:tt} => {
+                tt_call::tt_return! {
+                    $caller
+                    kind_names = [{ #(#kinds)* }]
+                    kind_vals = [{ #(#kind_vals)* }]
+                    count = [{ #kind_count }]
+                    tys = [{ #(#field_tys)* }]
+                    fields = [{ #(#field_ids)* }]
                 }
-            }
-
-            /// Code generated via proc_macro `StarkSet`
-            impl Kind {
-                pub const COUNT: usize = #kind_count;
-
-                #[must_use]
-                pub fn all() -> [Self; Self::COUNT] {
-                    use Kind::*;
-                    [#(#kinds,)*]
-                }
-            }
-
-            macro_rules! all_kind {
-                ($stark_ty:ty, $kind_ty:ty, $sk_ty:ty, |$stark:ident, $kind:ident| $val:expr) => {{
-                    use $kind_ty::*;
-                    [#(
-                        {
-                            macro_rules! $stark {
-                                () => {<$stark_ty as $sk_ty>::#kinds}
-                            }
-                            let $kind = #kinds;
-                            $val
-                        },)*
-                    ]
-                }};
-                ($kind_ty:ty, |$kind:ident| $val:expr) => {{
-                    use $kind_ty::*;
-                    [#(
-                        {
-                            let $kind = #kinds;
-                            $val
-                        },)*
-                    ]
-                }};
-            }
-            pub(crate) use all_kind;
-
-            macro_rules! all_starks {
-                () => {};
-                ($all_stark:expr, $kind_ty:ty, |$stark:ident, $kind:ident| $val:expr) => {{
-                    use core::borrow::Borrow;
-                    use $kind_ty::*;
-                    let all_stark = $all_stark.borrow();
-                    [#(
-                        {
-                            let $stark = &all_stark.#field_ids;
-                            let $kind = #kinds;
-                            $val
-                        },)*
-                    ]
-                }};
-                ($all_stark:expr, $kind_ty:ty, |mut $stark:ident, $kind:ident| $val:expr) => {{
-                    use core::borrow::BorrowMut;
-                    use $kind_ty::*;
-                    let all_stark = $all_stark.borrow_mut();
-                    [#(
-                        {
-                            let $stark = &mut all_stark.#field_ids;
-                            let $kind = #kinds;
-                            $val
-                        },)*
-                    ]
-                }};
-            }
-            pub(crate) use all_starks;
+            };
         }
-
     );
 
     result.into()

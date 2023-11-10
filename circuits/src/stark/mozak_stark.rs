@@ -34,7 +34,7 @@ use crate::{
 /// `F`: The [Field] that the STARK is defined over
 /// `D`: Degree of the extension field of `F`
 #[derive(Clone, StarkSet)]
-#[StarkSet(mod_name = "mozak_stark_set")]
+#[StarkSet(macro_name = "mozak_stark_set")]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     #[StarkSet(stark_kind = "Cpu")]
     pub cpu_stark: CpuStark<F, D>,
@@ -72,8 +72,118 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub debug: bool,
 }
 
-pub(crate) use mozak_stark_set::{all_kind, all_starks};
-pub use mozak_stark_set::{Builder as TableKindSetBuilder, Kind as TableKind, StarkKinds};
+// A macro which takes metadata about `MozakStark`
+// and defines
+macro_rules! mozak_stark_helpers {
+    {
+        kind_names = [{ $($kind_names:ident)* }]
+        kind_vals = [{ $($kind_vals:literal)* }]
+        count = [{ $kind_count:literal }]
+        tys = [{ $($tys:ty)* }]
+        fields = [{ $($fields:ident)* }]
+    } => {
+        // Generate all the `TableKind`s and their associated values
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+        pub enum TableKind {
+            $($kind_names = $kind_vals,)*
+        }
+
+        impl TableKind {
+            pub const COUNT: usize = $kind_count;
+
+            #[must_use]
+            pub fn all() -> [Self; Self::COUNT] {
+                use TableKind::*;
+                [$($kind_names,)*]
+            }
+        }
+
+        // Generate the set builder
+        #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+        pub struct TableKindSetBuilder<T> {
+            $(pub $fields: T,)*
+        }
+
+        impl<T> TableKindSetBuilder<T> {
+            pub fn build(self) -> [T; TableKind::COUNT] {
+                [$(self.$fields,)*]
+            }
+        }
+
+        /// A helper trait needed by `all_kind` in certain situations
+        pub trait StarkKinds {
+            $(type $kind_names;)*
+        }
+        impl<F: RichField + Extendable<D>, const D: usize> StarkKinds for MozakStark<F, D> {
+            $(type $kind_names = $tys;)*
+        }
+
+        // Generate the helper macros
+        macro_rules! all_kind {
+            ($stark_ty:ty, $kind_ty:ty, |$stark:ident, $kind:ident| $val:expr) => {{
+                use $kind_ty::*;
+                [#(
+                    {
+                        // This enables callers to get the type using `$stark!()`
+                        macro_rules! $stark {
+                            () => {<$stark_ty as StarkKinds>::#kinds}
+                        }
+                        let $kind = #kinds;
+                        $val
+                    },)*
+                ]
+            }};
+            ($kind_ty:ty, |$kind:ident| $val:expr) => {{
+                use $kind_ty::*;
+                [$(
+                    {
+                        let $kind = $kind_names;
+                        $val
+                    },)*
+                ]
+            }};
+        }
+        pub(crate) use all_kind;
+
+
+        macro_rules! all_starks {
+            () => {};
+            ($all_stark:expr, $kind_ty:ty, |$stark:ident, $kind:ident| $val:expr) => {{
+                use core::borrow::Borrow;
+                use $kind_ty::*;
+                let all_stark = $all_stark.borrow();
+                [$(
+                    {
+                        let $stark = &all_stark.$fields;
+                        let $kind = $kind_names;
+                        $val
+                    },)*
+                ]
+            }};
+            ($all_stark:expr, $kind_ty:ty, |mut $stark:ident, $kind:ident| $val:expr) => {{
+                use core::borrow::BorrowMut;
+                use $kind_ty::*;
+                let all_stark = $all_stark.borrow_mut();
+                [$(
+                    {
+                        let $stark = &mut all_stark.$fields;
+                        let $kind = $kind_names;
+                        $val
+                    },)*
+                ]
+            }};
+        }
+        pub(crate) use all_starks;
+
+    };
+}
+
+// Invoke `mozak_stark_set` and pass the result to `mozak_stark_helpers`
+// Generating all the helpers we need
+tt_call::tt_call! {
+    macro = [{ mozak_stark_set }]
+    ~~> mozak_stark_helpers
+}
 
 columns_view_impl!(PublicInputs);
 
