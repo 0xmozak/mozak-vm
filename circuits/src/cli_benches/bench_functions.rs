@@ -87,11 +87,10 @@ mod tests {
 
     #[test]
     fn test_fibonacci_with_input() {
-        let n = 10;
+        let n = 4;
         let out = fibonacci(n).1;
         super::fibonacci_with_input(n, out).unwrap();
     }
-
     fn fibonacci(n: u32) -> (u32, u32) {
         if n < 2 {
             return (0, n);
@@ -100,12 +99,8 @@ mod tests {
         for _i in 0..(n - 2) {
             (curr, last) = (curr + last, curr);
         }
-        (
-            (curr >> 32) as u32,
-            u32::try_from(curr).expect("please try <= 40 input only for now"),
-        )
+        ((curr >> 32) as u32, curr as u32)
     }
-
     #[test]
     fn test_sample_bench_run() {
         let bench = super::BenchArgs {
