@@ -164,18 +164,18 @@ impl Program {
         };
 
         let ro_memory = Data(extract(|flags| {
-            flags & elf::abi::SHF_WRITE as u64 == elf::abi::SHF_NONE as u64
+            flags & u64::from(elf::abi::SHF_WRITE) == u64::from(elf::abi::SHF_NONE)
         })?);
         let rw_memory = Data(extract(|flags| {
-            (flags & elf::abi::SHF_ALLOC as u64 == elf::abi::SHF_ALLOC as u64)
-                && (flags & elf::abi::SHF_WRITE as u64 == elf::abi::SHF_WRITE as u64)
+            (flags & u64::from(elf::abi::SHF_ALLOC) == u64::from(elf::abi::SHF_ALLOC))
+                && (flags & u64::from(elf::abi::SHF_WRITE) == u64::from(elf::abi::SHF_WRITE))
         })?);
         // Because we are implementing a modified Harvard Architecture, we make an
         // independent copy of the executable segments. In practice,
         // instructions will be in a R_X segment, so their data will show up in ro_code
         // and ro_memory. (RWX segments would show up in ro_code and rw_memory.)
         let ro_code = Code::from(&extract(|flags| {
-            flags & elf::abi::SHF_EXECINSTR as u64 == elf::abi::SHF_EXECINSTR as u64
+            flags & u64::from(elf::abi::SHF_EXECINSTR) == u64::from(elf::abi::SHF_EXECINSTR)
         })?);
 
         Ok(Program {
