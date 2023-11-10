@@ -358,6 +358,7 @@ impl<F: RichField> State<F> {
     pub fn read_iobytes(mut self, num_bytes: usize, op: IoOpcode) -> (Vec<u8>, Self) {
         assert!(op == IoOpcode::StorePublic || op == IoOpcode::StorePrivate);
         if op == IoOpcode::StorePublic {
+            log::trace!("ECALL Public IO_READ at CLK: {:?}", self.clk);
             let read_index = self.io_tape.public.read_index;
             let remaining_len = self.io_tape.public.data.len() - read_index;
             let limit = num_bytes.min(remaining_len);
@@ -367,6 +368,7 @@ impl<F: RichField> State<F> {
                 self,
             )
         } else {
+            log::trace!("ECALL Private IO_READ at CLK: {:?}", self.clk);
             let read_index = self.io_tape.private.read_index;
             let remaining_len = self.io_tape.private.data.len() - read_index;
             let limit = num_bytes.min(remaining_len);
