@@ -1,14 +1,14 @@
 use itertools::{multiunzip, Itertools};
 use proc_macro::TokenStream;
 use proc_macro2::{Literal, Span};
-use proc_macro_error::{abort, emit_error, proc_macro_error};
-use quote::{quote, ToTokens};
+use proc_macro_error::{abort, emit_error, proc_macro_error, abort_if_dirty};
+use quote::{quote};
 use syn::parse::Parser;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, Data, DeriveInput, Expr, ExprLit, GenericParam, Ident, Index, Lit, Member,
-    Meta, MetaNameValue, Token, TypeParam,
+    Meta, MetaNameValue, Token, TypeParam, Attribute,
 };
 
 /// Converts `<'a, F, const D: usize>` (sans `<` and `>`) to
@@ -61,61 +61,80 @@ pub fn derive_stark_display_name(input: TokenStream) -> TokenStream {
     .into()
 }
 
+fn parse_attrs(attrs: Vec<Attribute>, ident: &str) -> impl Iterator<Item = MetaNameValue> + '_ {
+    attrs
+    .into_iter()
+    .filter_map(|attr| match attr.meta {
+        Meta::List(meta) if meta.path.is_ident(ident) => Some(meta.tokens),
+        _ => None,
+    })
+    .filter_map(|tokens| {
+        let span = tokens.span();
+        let parser = Punctuated::<MetaNameValue, Token![,]>::parse_terminated;
+        match parser.parse2(tokens) {
+            Ok(v) => Some(v),
+            Err(e) => {
+                emit_error!(span, "failed to parse {}", e);
+                None
+            }
+        }
+    })
+    .flatten()
+}
+
+fn get_attr(attrs: impl Iterator<Item = MetaNameValue>, ident: &str) -> Option<Expr> {
+    let value = attrs
+        .into_iter()
+        .filter_map(|meta| {
+            if meta.path.is_ident(ident) {
+                Some(meta.value)
+            } else {
+                None
+            }
+        })
+        .at_most_one();
+    match value {
+        Err(e) => {
+            for value in e {
+                emit_error!(
+                    value,
+                    "multiple '{}' attributes",
+                    ident
+                );
+            }
+            None
+        }
+        Ok(value) => value,
+    }
+}
+
+fn parse_attr(attr: Option<Expr>, ident: &str) -> Option<Ident> {
+    match attr {
+        None => None,
+        Some(Expr::Lit(ExprLit {
+            lit: Lit::Str(attr),
+            ..
+        })) => Some(Ident::new(&attr.value(), Span::mixed_site())),
+        Some(kind) => {
+            emit_error!(kind, "'{}' should be a string literal", ident);
+            None
+        }
+    }
+}
+
 #[proc_macro_error]
 #[proc_macro_derive(StarkSet, attributes(StarkSet))]
 pub fn derive_stark_set(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
-    let ast_span = ast.span();
 
     let data = match ast.data {
         Data::Struct(data) => data,
         _ => abort!(ast, "only structs are supported"),
     };
 
-    let outer_attr = ast
-        .attrs
-        .into_iter()
-        .filter_map(|attr| match attr.meta {
-            Meta::List(meta) if meta.path.is_ident("StarkSet") => Some(meta.tokens),
-            _ => None,
-        })
-        .filter_map(|tokens| {
-            let span = tokens.span();
-            let parser = Punctuated::<MetaNameValue, Token![,]>::parse_terminated;
-            match parser.parse2(tokens) {
-                Ok(v) => Some(v),
-                Err(e) => {
-                    emit_error!(span, "failed to parse {}", e);
-                    None
-                }
-            }
-        })
-        .flatten()
-        .collect::<Vec<MetaNameValue>>();
-
-    let mod_name = outer_attr
-        .iter()
-        .filter_map(|meta| {
-            if meta.path.is_ident("mod_name") {
-                Some(&meta.value)
-            } else {
-                None
-            }
-        })
-        .at_most_one();
-    let mod_name = match mod_name {
-        Err(e) => {
-            for mod_name in e {
-                emit_error!(
-                    mod_name,
-                    "multiple 'mod_name' attributes for struct {:?}",
-                    ast.ident
-                );
-            }
-            None
-        }
-        Ok(mod_name) => mod_name,
-    };
+    let outer_attr = parse_attrs(ast.attrs, "StarkSet");
+    let mod_name = get_attr(outer_attr, "mod_name");
+    let mod_name = parse_attr(mod_name, "mod_name");
 
     let (field_ids, field_tys, kinds): (Vec<_>, Vec<_>, Vec<_>) = multiunzip(
         data.fields
@@ -129,76 +148,16 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
                         span: Span::mixed_site(),
                     }),
                 };
-                let attr = field
-                    .attrs
-                    .into_iter()
-                    .filter_map(|attr| match attr.meta {
-                        Meta::List(meta) if meta.path.is_ident("StarkSet") => Some(meta.tokens),
-                        _ => None,
-                    })
-                    .filter_map(|tokens| {
-                        let span = tokens.span();
-                        let parser = Punctuated::<MetaNameValue, Token![,]>::parse_terminated;
-                        match parser.parse2(tokens) {
-                            Ok(v) => Some(v),
-                            Err(e) => {
-                                emit_error!(span, "failed to parse {}", e);
-                                None
-                            }
-                        }
-                    })
-                    .flatten()
-                    .collect::<Vec<MetaNameValue>>();
-
-                let kind = attr
-                    .into_iter()
-                    .filter_map(|meta| {
-                        if meta.path.is_ident("stark_kind") {
-                            Some(meta.value)
-                        } else {
-                            None
-                        }
-                    })
-                    .at_most_one();
-
-                match kind {
-                    Err(e) => {
-                        for kind in e {
-                            emit_error!(
-                                kind,
-                                "multiple definitions of 'stark_kind' for field {}",
-                                ident.to_token_stream()
-                            );
-                        }
-                        None
-                    }
-                    Ok(kind) => kind.map(|kind| (ident, field.ty, kind)),
-                }
+                let field_attr = parse_attrs(field.attrs, "StarkSet");
+                let kind = get_attr(field_attr, "stark_kind");
+                let kind = parse_attr(kind, "stark_kind");
+                kind.map(|kind| (
+                    ident,
+                    field.ty,
+                    kind,
+                ))
             })
-            .filter_map(|(field_id, field_ty, kind)| match kind {
-                Expr::Lit(ExprLit {
-                    lit: Lit::Str(mod_name),
-                    ..
-                }) => Some((
-                    field_id,
-                    field_ty,
-                    Ident::new(&mod_name.value(), Span::mixed_site()),
-                )),
-                kind => {
-                    emit_error!(kind, "'stark_kind' should be a string literal");
-                    None
-                }
-            }),
     );
-
-    let mod_name = match mod_name {
-        None => abort!(ast_span, "unique 'mod_name' is required"),
-        Some(Expr::Lit(ExprLit {
-            lit: Lit::Str(mod_name),
-            ..
-        })) => Ident::new(&mod_name.value(), Span::mixed_site()),
-        Some(mod_name) => abort!(mod_name, "'mod_name' should be a string literal"),
-    };
 
     let kind_count = Literal::usize_unsuffixed(kinds.len());
     let kinds_decl = kinds.iter().enumerate().map(|(i, kind)| {
@@ -209,6 +168,8 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
     let ident = &ast.ident;
     let generic_params = &ast.generics.params;
     let generic_params_no_attr = remove_gen_attr(generic_params);
+    
+    abort_if_dirty();
 
     let result = quote!(
         mod #mod_name{
