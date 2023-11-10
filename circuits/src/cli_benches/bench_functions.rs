@@ -45,9 +45,9 @@ pub fn fibonacci_with_input(n: u32, out: u32) -> Result<(), anyhow::Error> {
         .unwrap()
         .join(FIBO_INP_ELF_EXAMPLE_PATH);
     let elf = std::fs::read(elf_path).expect(
-        "Reading the fibonacci elf should not fail.
+        "Reading the fibonacci-input elf should not fail.
             You may need to build the fibonacci program within the examples directory
-            eg. `cd examples/fibonacci && cargo build --release`",
+            eg. `cd examples/fibonacci-input && cargo build --release`",
     );
     let program = Program::load_elf(&elf).unwrap();
     let state =
