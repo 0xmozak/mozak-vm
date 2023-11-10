@@ -1,3 +1,4 @@
+#![no_main]
 #![feature(restricted_std)]
 
 use std::io;
