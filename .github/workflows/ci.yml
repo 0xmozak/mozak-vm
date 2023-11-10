@@ -28,7 +28,7 @@ jobs:
         uses: ./.github/actions/rust
 
       - name: Build ELF(s) for benchmarking
-        run: .github/scripts/build_examples.sh
+        run: ./.github/scripts/build_examples.sh
 
       - name: Compile 
         run: cargo nextest run --no-run --locked --all-targets
