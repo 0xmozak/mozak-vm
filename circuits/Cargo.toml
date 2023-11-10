@@ -46,3 +46,4 @@ test = []
 [[bench]]
 harness = false
 name = "simple_prover"
+required-features = ["test"]
