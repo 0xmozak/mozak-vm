@@ -1,14 +1,14 @@
 use itertools::{multiunzip, Itertools};
 use proc_macro::TokenStream;
 use proc_macro2::{Literal, Span};
-use proc_macro_error::{abort, emit_error, proc_macro_error, abort_if_dirty};
-use quote::{quote};
+use proc_macro_error::{abort, abort_if_dirty, emit_error, proc_macro_error};
+use quote::quote;
 use syn::parse::Parser;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::{
-    parse_macro_input, Data, DeriveInput, Expr, ExprLit, GenericParam, Ident, Index, Lit, Member,
-    Meta, MetaNameValue, Token, TypeParam, Attribute,
+    parse_macro_input, Attribute, Data, DeriveInput, Expr, ExprLit, GenericParam, Ident, Index,
+    Lit, Member, Meta, MetaNameValue, Token, TypeParam,
 };
 
 /// Converts `<'a, F, const D: usize>` (sans `<` and `>`) to
@@ -63,23 +63,23 @@ pub fn derive_stark_display_name(input: TokenStream) -> TokenStream {
 
 fn parse_attrs(attrs: Vec<Attribute>, ident: &str) -> impl Iterator<Item = MetaNameValue> + '_ {
     attrs
-    .into_iter()
-    .filter_map(|attr| match attr.meta {
-        Meta::List(meta) if meta.path.is_ident(ident) => Some(meta.tokens),
-        _ => None,
-    })
-    .filter_map(|tokens| {
-        let span = tokens.span();
-        let parser = Punctuated::<MetaNameValue, Token![,]>::parse_terminated;
-        match parser.parse2(tokens) {
-            Ok(v) => Some(v),
-            Err(e) => {
-                emit_error!(span, "failed to parse {}", e);
-                None
+        .into_iter()
+        .filter_map(|attr| match attr.meta {
+            Meta::List(meta) if meta.path.is_ident(ident) => Some(meta.tokens),
+            _ => None,
+        })
+        .filter_map(|tokens| {
+            let span = tokens.span();
+            let parser = Punctuated::<MetaNameValue, Token![,]>::parse_terminated;
+            match parser.parse2(tokens) {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    emit_error!(span, "failed to parse {}", e);
+                    None
+                }
             }
-        }
-    })
-    .flatten()
+        })
+        .flatten()
 }
 
 fn get_attr(attrs: impl Iterator<Item = MetaNameValue>, ident: &str) -> Option<Expr> {
@@ -96,11 +96,7 @@ fn get_attr(attrs: impl Iterator<Item = MetaNameValue>, ident: &str) -> Option<E
     match value {
         Err(e) => {
             for value in e {
-                emit_error!(
-                    value,
-                    "multiple '{}' attributes",
-                    ident
-                );
+                emit_error!(value, "multiple '{}' attributes", ident);
             }
             None
         }
@@ -151,12 +147,8 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
                 let field_attr = parse_attrs(field.attrs, "StarkSet");
                 let kind = get_attr(field_attr, "stark_kind");
                 let kind = parse_attr(kind, "stark_kind");
-                kind.map(|kind| (
-                    ident,
-                    field.ty,
-                    kind,
-                ))
-            })
+                kind.map(|kind| (ident, field.ty, kind))
+            }),
     );
 
     let kind_count = Literal::usize_unsuffixed(kinds.len());
@@ -168,7 +160,7 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
     let ident = &ast.ident;
     let generic_params = &ast.generics.params;
     let generic_params_no_attr = remove_gen_attr(generic_params);
-    
+
     abort_if_dirty();
 
     let result = quote!(
