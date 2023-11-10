@@ -149,7 +149,7 @@ impl Program {
             .ok_or_else(|| anyhow!("Missing segment table"))?;
         ensure!(segments.len() <= 256, "Too many program headers");
 
-        let extract = |check_flags: fn(u64) -> bool| {
+        let extract = |check_flags: fn(u32) -> bool| {
             segments
                 .iter()
                 // It is OK to cast this as u32 because we already check that we're reading a
