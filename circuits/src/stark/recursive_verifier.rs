@@ -528,7 +528,7 @@ mod tests {
             public_inputs,
             &mut TimingTree::default(),
         )?;
-        verify_proof(stark.clone(), mozak_proof.clone(), &config)?;
+        verify_proof(&stark, mozak_proof.clone(), &config)?;
 
         let circuit_config = CircuitConfig::standard_recursion_config();
         let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
