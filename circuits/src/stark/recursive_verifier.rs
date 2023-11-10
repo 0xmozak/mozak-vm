@@ -112,6 +112,7 @@ where
             (&self.targets, &mut inputs, &all_proof): (&'a [Option<StarkVerifierTargets<F, C, D>>; TableKind::COUNT], &'a mut PartialWitness<F>, &'a AllProof<F, C, D>),
             // The "lambda"
             |(targets, inputs, all_proof), kind: TableKind| {
+                // TODO(Daniel): remove as we implement more.
                 if !matches!(kind, TableKind::Xor | TableKind::Bitshift | TableKind::Program | TableKind::MemoryInit) {
                     return
                 }
