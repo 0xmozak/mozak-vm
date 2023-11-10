@@ -370,7 +370,7 @@ pub fn prove_and_verify_mozak_stark(
         public_inputs,
         &mut TimingTree::default(),
     )?;
-    verify_proof(stark, all_proof, config)
+    verify_proof(&stark, all_proof, config)
 }
 
 /// Interpret a u64 as a field element and try to invert it.

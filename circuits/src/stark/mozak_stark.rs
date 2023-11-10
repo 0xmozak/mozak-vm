@@ -1,4 +1,5 @@
 use itertools::chain;
+use mozak_circuits_derive::StarkSet;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
@@ -32,27 +33,47 @@ use crate::{
 /// ## Generics
 /// `F`: The [Field] that the STARK is defined over
 /// `D`: Degree of the extension field of `F`
-#[derive(Clone)]
+#[derive(Clone, StarkSet)]
+#[StarkSet(mod_name = "mozak_stark_set")]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
+    #[StarkSet(stark_kind = "Cpu")]
     pub cpu_stark: CpuStark<F, D>,
+    #[StarkSet(stark_kind = "RangeCheck")]
     pub rangecheck_stark: RangeCheckStark<F, D>,
+    #[StarkSet(stark_kind = "Xor")]
     pub xor_stark: XorStark<F, D>,
+    #[StarkSet(stark_kind = "Bitshift")]
     pub shift_amount_stark: BitshiftStark<F, D>,
+    #[StarkSet(stark_kind = "Program")]
     pub program_stark: ProgramStark<F, D>,
+    #[StarkSet(stark_kind = "Memory")]
     pub memory_stark: MemoryStark<F, D>,
+    #[StarkSet(stark_kind = "MemoryInit")]
     pub memory_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "RangeCheckLimb")]
     pub rangecheck_limb_stark: RangeCheckLimbStark<F, D>,
+    #[StarkSet(stark_kind = "HalfWordMemory")]
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
+    #[StarkSet(stark_kind = "FullWordMemory")]
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
+    #[StarkSet(stark_kind = "IoMemoryPrivate")]
     pub io_memory_private_stark: InputOuputMemoryStark<F, D>,
+    #[StarkSet(stark_kind = "IoMemoryPublic")]
     pub io_memory_public_stark: InputOuputMemoryStark<F, D>,
+    #[StarkSet(stark_kind = "RegisterInit")]
     pub register_init_stark: RegisterInitStark<F, D>,
+    #[StarkSet(stark_kind = "Register")]
     pub register_stark: RegisterStark<F, D>,
+    #[StarkSet(stark_kind = "Poseidon2")]
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
+    #[StarkSet(stark_kind = "Poseidon2Sponge")]
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 15],
     pub debug: bool,
 }
+
+pub(crate) use mozak_stark_set::{all_kind, all_starks};
+pub use mozak_stark_set::{Builder as TableKindSetBuilder, Kind as TableKind, StarkKinds};
 
 columns_view_impl!(PublicInputs);
 
@@ -114,51 +135,8 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 16;
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum TableKind {
-    Cpu = 0,
-    RangeCheck = 1,
-    Xor = 2,
-    Bitshift = 3,
-    Program = 4,
-    Memory = 5,
-    MemoryInit = 6,
-    RangeCheckLimb = 7,
-    HalfWordMemory = 8,
-    FullWordMemory = 9,
-    RegisterInit = 10,
-    Register = 11,
-    IoMemoryPrivate = 12,
-    IoMemoryPublic = 13,
-    Poseidon2Sponge = 14,
-    Poseidon2 = 15,
-}
-
-impl TableKind {
-    #[must_use]
-    pub fn all() -> [TableKind; NUM_TABLES] {
-        [
-            TableKind::Cpu,
-            TableKind::RangeCheck,
-            TableKind::Xor,
-            TableKind::Bitshift,
-            TableKind::Program,
-            TableKind::Memory,
-            TableKind::MemoryInit,
-            TableKind::RangeCheckLimb,
-            TableKind::HalfWordMemory,
-            TableKind::FullWordMemory,
-            TableKind::RegisterInit,
-            TableKind::Register,
-            TableKind::IoMemoryPrivate,
-            TableKind::IoMemoryPublic,
-            TableKind::Poseidon2Sponge,
-            TableKind::Poseidon2,
-        ]
-    }
-}
+// TODO: Remove in favor of `TableKind::COUNT`
+pub(crate) const NUM_TABLES: usize = TableKind::COUNT;
 
 #[derive(Debug, Clone)]
 pub struct Table<F: Field> {

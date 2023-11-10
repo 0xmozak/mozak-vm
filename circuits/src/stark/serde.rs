@@ -67,6 +67,6 @@ mod tests {
         let all_proof_deserialized =
             AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(s.view())
                 .expect("deserialization failed");
-        verify_proof(stark, all_proof_deserialized, &config).unwrap();
+        verify_proof(&stark, all_proof_deserialized, &config).unwrap();
     }
 }

@@ -23,12 +23,12 @@ use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
+use super::mozak_stark::{MozakStark, TableKind, TableKindSetBuilder, NUM_TABLES};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
 use crate::generation::{debug_traces, generate_traces};
-use crate::stark::mozak_stark::PublicInputs;
+use crate::stark::mozak_stark::{all_starks, PublicInputs};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
 use crate::stark::proof::StarkProofWithMetadata;
@@ -323,74 +323,34 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     public_inputs: &PublicInputs<F>,
-    traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+    traces_poly_values: &[Vec<PolynomialValues<F>>; TableKind::COUNT],
     trace_commitments: &[PolynomialBatch<F, C, D>],
-    ctl_data_per_table: &[CtlData<F>; NUM_TABLES],
+    ctl_data_per_table: &[CtlData<F>; TableKind::COUNT],
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<[StarkProofWithMetadata<F, C, D>; NUM_TABLES]>
+) -> Result<[StarkProofWithMetadata<F, C, D>; TableKind::COUNT]>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
-    macro_rules! make_proof {
-        ($stark: expr, $kind: expr, $public_inputs: expr) => {
-            prove_single_table(
-                &$stark,
-                config,
-                &traces_poly_values[$kind as usize],
-                &trace_commitments[$kind as usize],
-                &$public_inputs,
-                &ctl_data_per_table[$kind as usize],
-                challenger,
-                timing,
-            )
-        };
+    let cpu_stark = [public_inputs.entry_point];
+    let public_inputs = TableKindSetBuilder::<&[_]> {
+        cpu_stark: &cpu_stark,
+        ..Default::default()
     }
+    .build();
 
-    Ok([
-        make_proof!(mozak_stark.cpu_stark, TableKind::Cpu, [
-            public_inputs.entry_point
-        ])?,
-        make_proof!(mozak_stark.rangecheck_stark, TableKind::RangeCheck, [])?,
-        make_proof!(mozak_stark.xor_stark, TableKind::Xor, [])?,
-        make_proof!(mozak_stark.shift_amount_stark, TableKind::Bitshift, [])?,
-        make_proof!(mozak_stark.program_stark, TableKind::Program, [])?,
-        make_proof!(mozak_stark.memory_stark, TableKind::Memory, [])?,
-        make_proof!(mozak_stark.memory_init_stark, TableKind::MemoryInit, [])?,
-        make_proof!(
-            mozak_stark.rangecheck_limb_stark,
-            TableKind::RangeCheckLimb,
-            []
-        )?,
-        make_proof!(
-            mozak_stark.halfword_memory_stark,
-            TableKind::HalfWordMemory,
-            []
-        )?,
-        make_proof!(
-            mozak_stark.fullword_memory_stark,
-            TableKind::FullWordMemory,
-            []
-        )?,
-        make_proof!(mozak_stark.register_init_stark, TableKind::RegisterInit, [])?,
-        make_proof!(mozak_stark.register_stark, TableKind::Register, [])?,
-        make_proof!(
-            mozak_stark.io_memory_private_stark,
-            TableKind::IoMemoryPrivate,
-            []
-        )?,
-        make_proof!(
-            mozak_stark.io_memory_public_stark,
-            TableKind::IoMemoryPublic,
-            []
-        )?,
-        make_proof!(
-            mozak_stark.poseidon2_sponge_stark,
-            TableKind::Poseidon2Sponge,
-            []
-        )?,
-        make_proof!(mozak_stark.poseidon2_stark, TableKind::Poseidon2, [])?,
-    ])
+    Ok(all_starks!(mozak_stark, TableKind, |stark, kind| {
+        prove_single_table(
+            stark,
+            config,
+            &traces_poly_values[kind as usize],
+            &trace_commitments[kind as usize],
+            public_inputs[kind as usize],
+            &ctl_data_per_table[kind as usize],
+            challenger,
+            timing,
+        )?
+    }))
 }
 
 #[cfg(test)]
