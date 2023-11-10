@@ -379,6 +379,7 @@ pub mod ctl_utils {
     use std::collections::HashMap;
     use std::ops::{Deref, DerefMut};
 
+    use anyhow::Result;
     use plonky2::field::extension::Extendable;
     use plonky2::field::polynomial::PolynomialValues;
     use plonky2::field::types::Field;
@@ -387,10 +388,11 @@ pub mod ctl_utils {
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
     use crate::stark::mozak_stark::{MozakStark, Table, TableKind, NUM_TABLES};
 
-    struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, usize)>>);
+    #[derive(Debug)]
+    struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
 
     impl<F: Field> Deref for MultiSet<F> {
-        type Target = HashMap<Vec<F>, Vec<(TableKind, usize)>>;
+        type Target = HashMap<Vec<F>, Vec<(TableKind, F)>>;
 
         fn deref(&self) -> &Self::Target { &self.0 }
     }
@@ -414,8 +416,8 @@ pub mod ctl_utils {
                         .iter()
                         .map(|c| c.eval_table(trace, i))
                         .collect::<Vec<_>>();
-                    self.entry(row).or_default().push((table.kind, i));
-                }
+                    self.entry(row).or_default().push((table.kind, filter));
+                };
             }
         }
     }
@@ -424,10 +426,32 @@ pub mod ctl_utils {
         trace_poly_values: &[Vec<PolynomialValues<F>>],
         ctl: &CrossTableLookup<F>,
     ) -> Result<(), LookupError> {
-        // Maps `m` with `(table.kind, i) in m[row]` iff the `i`-th row of the table
-        // is equal to `row` and the filter is 1.
-        //
-        // the CTL check holds iff `looking_multiset == looked_multiset`.
+        /// Sums and compares the multiplicities of the given looking and looked
+        /// locations previously processed.
+        ///
+        /// The CTL check holds iff `looking_multiplicity ==
+        /// looked_multiplicity`.
+        fn check_multiplicities<F: Field>(
+            row: &[F],
+            looking_locations: &[(TableKind, F)],
+            looked_locations: &[(TableKind, F)],
+        ) -> Result<(), LookupError> {
+            let looking_multiplicity = looking_locations.iter().map(|l| l.1).sum::<F>();
+            let looked_multiplicity = looked_locations.iter().map(|l| l.1).sum::<F>();
+            if looking_multiplicity != looked_multiplicity {
+                println!(
+                    "Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
+                    {looked_multiplicity} in the looked table.\n\
+                    Looking locations: {looking_locations:?}.\n\
+                    Looked locations: {looked_locations:?}.",
+                );
+                return Err(LookupError::InconsistentTableRows);
+            }
+
+            Ok(())
+        }
+
+        // Maps `m` with `(table.kind, multiplicity) in m[row]`
         let mut looking_multiset = MultiSet::<F>::new();
         let mut looked_multiset = MultiSet::<F>::new();
 
@@ -436,40 +460,20 @@ pub mod ctl_utils {
         }
 
         looked_multiset.process_row(trace_poly_values, &ctl.looked_table);
-        let empty = &vec![];
 
+        let empty = &vec![];
         // Check that every row in the looking tables appears in the looked table the
         // same number of times.
         for (row, looking_locations) in &looking_multiset.0 {
             let looked_locations = looked_multiset.get(row).unwrap_or(empty);
-            if looking_locations.len() != looked_locations.len() {
-                println!(
-                    "Row {row:?} is present {l0} times in the looking tables, but
-                    {l1} times in the looked table.\n\
-                    Looking locations: {looking_locations:?}.\n\
-                    Looked locations: {looked_locations:?}.",
-                    l0 = looking_locations.len(),
-                    l1 = looked_locations.len()
-                );
-                return Err(LookupError::InconsistentTableRows);
-            }
+            check_multiplicities(row, looking_locations, looked_locations)?;
         }
 
         // Check that every row in the looked tables appears in the looking table the
         // same number of times.
         for (row, looked_locations) in &looked_multiset.0 {
             let looking_locations = looking_multiset.get(row).unwrap_or(empty);
-            if looking_locations.len() != looked_locations.len() {
-                println!(
-                    "Row {row:?} is present {l0} times in the looking tables, but
-                    {l1} times in the looked table.\n\
-                    Looking locations: {looking_locations:?}.\n\
-                    Looked locations: {looked_locations:?}.",
-                    l0 = looking_locations.len(),
-                    l1 = looked_locations.len()
-                );
-                return Err(LookupError::InconsistentTableRows);
-            }
+            check_multiplicities(row, looking_locations, looked_locations)?;
         }
 
         Ok(())
