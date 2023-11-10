@@ -28,8 +28,7 @@ jobs:
         uses: ./.github/actions/rust
 
       - name: Build ELF(s) for benchmarking
-        run: cd examples/fibonacci && cargo build --release && 
-             cd examples/fibonacci-input && cargo build --release && 
+        run: .github/scripts/build_examples.sh
 
       - name: Compile 
         run: cargo nextest run --no-run --locked --all-targets
