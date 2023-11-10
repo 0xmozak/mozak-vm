@@ -152,7 +152,17 @@ impl Program {
         let extract = |check_flags: fn(u64) -> bool| {
             segments
                 .iter()
-                .filter(|s| check_flags(s.sh_flags))
+                // It is OK to cast this as u32 because we already check that we're reading a
+                // 32-bit ELF. The elf parsing crate simply does an `as u64`
+                // after parsing `sh_flags` as a u32: https://docs.rs/elf/latest/src/elf/section.rs.html#82
+                .filter_map(|s: elf::section::SectionHeader| {
+                    let flags = u32::try_from(s.sh_flags).ok()?;
+                    if check_flags(flags) {
+                        Some(s)
+                    } else {
+                        None
+                    }
+                })
                 .map(|segment| -> Result<_> {
                     let file_size: usize = segment.sh_size.try_into()?;
                     let vaddr: u32 = segment.sh_addr.try_into()?;
@@ -164,18 +174,18 @@ impl Program {
         };
 
         let ro_memory = Data(extract(|flags| {
-            flags & u64::from(elf::abi::SHF_WRITE) == u64::from(elf::abi::SHF_NONE)
+            flags & elf::abi::SHF_WRITE == elf::abi::SHF_NONE
         })?);
         let rw_memory = Data(extract(|flags| {
-            (flags & u64::from(elf::abi::SHF_ALLOC) == u64::from(elf::abi::SHF_ALLOC))
-                && (flags & u64::from(elf::abi::SHF_WRITE) == u64::from(elf::abi::SHF_WRITE))
+            (flags & elf::abi::SHF_ALLOC == elf::abi::SHF_ALLOC)
+                && (flags & elf::abi::SHF_WRITE == elf::abi::SHF_WRITE)
         })?);
         // Because we are implementing a modified Harvard Architecture, we make an
         // independent copy of the executable segments. In practice,
         // instructions will be in a R_X segment, so their data will show up in ro_code
         // and ro_memory. (RWX segments would show up in ro_code and rw_memory.)
         let ro_code = Code::from(&extract(|flags| {
-            flags & u64::from(elf::abi::SHF_EXECINSTR) == u64::from(elf::abi::SHF_EXECINSTR)
+            flags & elf::abi::SHF_EXECINSTR == elf::abi::SHF_EXECINSTR
         })?);
 
         Ok(Program {
