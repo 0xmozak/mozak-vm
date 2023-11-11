@@ -1,14 +1,14 @@
 use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, Criterion};
+use mimalloc::MiMalloc;
 use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
 use mozak_runner::instruction::{Args, Instruction, Op};
 use mozak_runner::test_utils::simple_test_code;
 use starky::config::StarkConfig;
-use tikv_jemallocator::Jemalloc;
 
 #[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
+static GLOBAL: MiMalloc = MiMalloc;
 
 fn bench_prove_verify_all(c: &mut Criterion) {
     let _ = env_logger::builder().try_init();
