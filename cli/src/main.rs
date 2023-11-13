@@ -9,7 +9,6 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clio::{Input, Output};
 use log::debug;
-use mimalloc::MiMalloc;
 use mozak_circuits::cli_benches::bench_functions::BenchArgs;
 use mozak_circuits::generation::memoryinit::generate_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
@@ -27,9 +26,6 @@ use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
-
-#[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
