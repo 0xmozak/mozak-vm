@@ -44,7 +44,7 @@ fn fibonacci(n: u32) -> u32 {
     }
     let (mut curr, mut last) = (1_u32, 0_u32);
     for _i in 0..(n - 2) {
-        (curr, last) = (curr.overflowing_add(last).0, curr);
+        (curr, last) = (curr.wrapping_add(last), curr);
     }
     curr
 }
