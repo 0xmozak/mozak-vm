@@ -10,6 +10,7 @@ repository = "https://github.com/0xmozak/mozak-vm"
 version = "0.1.0"
 
 [dependencies]
+mimalloc = "0.1.39"
 anyhow = { version = "1.0", default-features = false }
 bitfield = "0.14.0"
 derive_more = "0.99.17"
