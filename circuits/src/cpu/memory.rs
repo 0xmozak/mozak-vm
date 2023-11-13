@@ -40,6 +40,7 @@ pub(crate) fn signed_constraints<P: PackedField>(
     );
 
     let and_gadget = and_gadget(&lv.xor);
+    // SB/SH uses only least significant 8/16 bit from RS1 register.
     yield_constr
         .constraint((lv.inst.ops.sb + lv.inst.ops.sh) * (and_gadget.input_a - lv.op1_value));
     yield_constr.constraint(
