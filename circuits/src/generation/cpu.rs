@@ -277,7 +277,7 @@ fn operands_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux<F>) {
 
 fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State<F>) -> XorView<F> {
     let a = match inst.op {
-        Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
+        Op::AND | Op::OR | Op::XOR | Op::SB | Op::SH => state.get_register_value(inst.args.rs1),
         Op::SRL | Op::SLL | Op::SRA => 0b1_1111,
         _ => 0,
     };
@@ -285,6 +285,8 @@ fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State<F>) -> XorVi
         Op::AND | Op::OR | Op::XOR | Op::SRL | Op::SLL | Op::SRA => state
             .get_register_value(inst.args.rs2)
             .wrapping_add(inst.args.imm),
+        Op::SB => 0x0000_00FF,
+        Op::SH => 0x0000_FFFF,
         _ => 0,
     };
     XorView { a, b, out: a ^ b }.map(from_u32)
