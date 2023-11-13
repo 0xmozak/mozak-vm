@@ -27,7 +27,6 @@ use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
-
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
