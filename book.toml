@@ -1,0 +1,16 @@
+[book]
+authors = ["Mozak Team"]
+description = "A book Mozak-VM"
+language = "en"
+multilingual = false
+src = "book"
+title = "Mozak-VM"
+
+[output.html]
+default-theme = "rust"
+git-repository-url = "https://github.com/0xmozak/mozak-vm"
+mathjax-support = true
+no-section-label = true
+
+[build]
+build-dir = "target/book"
