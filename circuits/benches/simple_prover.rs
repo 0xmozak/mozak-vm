@@ -36,7 +36,42 @@ fn bench_prove_verify_all(c: &mut Criterion) {
                     },
                 },
             ];
-            let (program, record) = simple_test_code(instructions, &[], &[(1, 1 << 16)]);
+            let (program, record) = simple_test_code(instructions, &[], &[(1, 1 << 14)]);
+            prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
+        })
+    });
+    group.bench_function("xor_loop", |b| {
+        b.iter(|| {
+            let instructions = &[
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: 1,
+                        rs1: 1,
+                        imm: 1_u32.wrapping_neg(),
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::XOR,
+                    args: Args {
+                        rd: 2,
+                        rs1: 1,
+                        imm: 0xDEAD_BEEF,
+                        ..Args::default()
+                    },
+                },
+                Instruction {
+                    op: Op::BLT,
+                    args: Args {
+                        rs1: 0,
+                        rs2: 1,
+                        imm: 0,
+                        ..Args::default()
+                    },
+                },
+            ];
+            let (program, record) = simple_test_code(instructions, &[], &[(1, 1 << 14)]);
             prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
         })
     });
