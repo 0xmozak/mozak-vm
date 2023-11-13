@@ -192,14 +192,8 @@ impl<F: RichField> State<F> {
     /// TODO: Review the decision to panic.  We might also switch to using a
     /// Result, so that the caller can handle this.
     pub fn store(self, inst: &Args, bytes: u32) -> (Aux<F>, Self) {
-        let raw_value: u32 = self.get_register_value(inst.rs1);
-        let raw_value = if bytes == 1 {
-            raw_value & 0x00FF
-        } else if bytes == 2 {
-            raw_value & 0x00_FFFF
-        } else {
-            raw_value
-        };
+        let mask = u32::MAX >> (32 - 8 * bytes);
+        let raw_value: u32 = self.get_register_value(inst.rs1) & mask;
         let addr = self.get_register_value(inst.rs2).wrapping_add(inst.imm);
         (
             Aux {
