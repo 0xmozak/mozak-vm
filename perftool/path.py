@@ -91,3 +91,7 @@ def delete_folder_if_no_symlink(folder: Path):
             if commit_symlink.resolve() == folder:
                 return
     shutil.rmtree(folder)
+
+
+def get_elf_path(elf: str, commit: str) -> Path:
+    return get_actual_commit_folder(commit) / elf
