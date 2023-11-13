@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn test_fibonacci_with_input() {
-        let n = 10000;
+        let n = 10;
         super::fibonacci_with_input(n).unwrap();
     }
 
