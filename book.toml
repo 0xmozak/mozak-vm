@@ -1,6 +1,6 @@
 [book]
 authors = ["Mozak Team"]
-description = "A book Mozak-VM"
+description = "A book about Mozak Zero-Knowledge RISC-V Virtual Machine"
 language = "en"
 multilingual = false
 src = "book"
