@@ -339,7 +339,7 @@ where
     }
     .build();
 
-    Ok(all_starks!(mozak_stark, TableKind, |stark, kind| {
+    Ok(all_starks!(mozak_stark, |stark, kind| {
         prove_single_table(
             stark,
             config,

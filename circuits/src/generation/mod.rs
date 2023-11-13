@@ -146,7 +146,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     }
     .build();
 
-    all_starks!(mozak_stark, TableKind, |stark, kind| {
+    all_starks!(mozak_stark, |stark, kind| {
         debug_single_trace::<F, D, _>(
             stark,
             &traces_poly_values[kind as usize],

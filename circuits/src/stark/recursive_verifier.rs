@@ -103,7 +103,7 @@ where
     pub fn prove(&self, all_proof: &AllProof<F, C, D>) -> Result<ProofWithPublicInputs<F, C, D>> {
         let mut inputs = PartialWitness::new();
 
-        all_kind!(TableKind, |kind| {
+        all_kind!(|kind| {
             // TODO(Daniel): remove as we implement more.
             if matches!(
                 kind,
@@ -137,7 +137,7 @@ where
     C::Hasher: AlgebraicHasher<F>, {
     let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-    let targets = all_starks!(mozak_stark, TableKind, |stark, kind| {
+    let targets = all_starks!(mozak_stark, |stark, kind| {
         // TODO(Daniel): remove as we implement more.
         if matches!(
             kind,

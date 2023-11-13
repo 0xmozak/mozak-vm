@@ -120,8 +120,8 @@ macro_rules! mozak_stark_helpers {
 
         // Generate the helper macros
         macro_rules! all_kind {
-            ($stark_ty:ty, $kind_ty:ty, |$stark:ident, $kind:ident| $val:expr) => {{
-                use $kind_ty::*;
+            ($stark_ty:ty, |$stark:ident, $kind:ident| $val:expr) => {{
+                use $crate::stark::mozak_stark::TableKind::*;
                 [#(
                     {
                         // This enables callers to get the type using `$stark!()`
@@ -133,8 +133,8 @@ macro_rules! mozak_stark_helpers {
                     },)*
                 ]
             }};
-            ($kind_ty:ty, |$kind:ident| $val:expr) => {{
-                use $kind_ty::*;
+            (|$kind:ident| $val:expr) => {{
+                use $crate::stark::mozak_stark::TableKind::*;
                 [$(
                     {
                         let $kind = $kind_names;
@@ -148,9 +148,9 @@ macro_rules! mozak_stark_helpers {
 
         macro_rules! all_starks {
             () => {};
-            ($all_stark:expr, $kind_ty:ty, |$stark:ident, $kind:ident| $val:expr) => {{
+            ($all_stark:expr, |$stark:ident, $kind:ident| $val:expr) => {{
                 use core::borrow::Borrow;
-                use $kind_ty::*;
+                use $crate::stark::mozak_stark::TableKind::*;
                 let all_stark = $all_stark.borrow();
                 [$(
                     {
@@ -160,9 +160,9 @@ macro_rules! mozak_stark_helpers {
                     },)*
                 ]
             }};
-            ($all_stark:expr, $kind_ty:ty, |mut $stark:ident, $kind:ident| $val:expr) => {{
+            ($all_stark:expr, |mut $stark:ident, $kind:ident| $val:expr) => {{
                 use core::borrow::BorrowMut;
-                use $kind_ty::*;
+                use $crate::stark::mozak_stark::TableKind::*;
                 let all_stark = $all_stark.borrow_mut();
                 [$(
                     {

@@ -60,7 +60,7 @@ where
         ..Default::default()
     }
     .build();
-    all_starks!(mozak_stark, TableKind, |stark, kind| {
+    all_starks!(mozak_stark, |stark, kind| {
         verify_stark_proof_with_challenges(
             stark,
             &all_proof.proofs_with_metadata[kind as usize].proof,
