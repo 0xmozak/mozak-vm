@@ -820,6 +820,7 @@ dependencies = [
 name = "mozak-node"
 version = "0.1.0"
 dependencies = [
+ "mimalloc",
  "serde",
 ]
 
@@ -840,6 +841,7 @@ dependencies = [
  "im",
  "itertools 0.11.0",
  "log",
+ "mimalloc",
  "mozak-system",
  "plonky2",
  "proptest",
