@@ -1,0 +1,16 @@
+[package]
+edition = "2021"
+name = "fibonacci-input"
+version = "0.1.0"
+
+[target.'cfg(target_os="zkvm")'.dependencies.guest]
+features = ["std"]
+path = "../../guest"
+
+[target.'cfg(target_os="zkvm")'.dependencies.mozak-system]
+features = []
+path = "../../system"
+
+[[bin]]
+name = "fibonacci-input"
+path = "main.rs"
