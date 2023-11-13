@@ -36,7 +36,7 @@ fn bench_prove_verify_all(c: &mut Criterion) {
                     },
                 },
             ];
-            let (program, record) = simple_test_code(instructions, &[], &[(1, 1 << 16)]);
+            let (program, record) = simple_test_code(instructions, &[], &[(1, 1 << 10)]);
             prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
         })
     });
