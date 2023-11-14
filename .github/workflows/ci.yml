@@ -98,12 +98,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-binstall
-
       - name: Install taplo-cli
-        run: cargo binstall taplo-cli
+        run: |
+          curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
+            gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
 
       - name: taplo fmt
         run: taplo fmt --check
