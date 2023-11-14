@@ -1,5 +1,5 @@
 [workspace]
-members = ["fibonacci", "min-max", "memory-access", "panic", "poseidon2", "static-mem-access", "sha2", "rkyv-serialization", "stdin"]
+members = ["fibonacci", "min-max", "memory-access", "panic", "poseidon2", "static-mem-access", "sha2", "rkyv-serialization", "stdin", "fibonacci-input"]
 resolver = "2"
 
 [profile.release]

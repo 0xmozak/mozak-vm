@@ -111,6 +111,7 @@ impl<F: RichField> State<F> {
     }
 
     fn ecall_halt(self) -> (Aux<F>, Self) {
+        log::trace!("ECALL HALT at CLK: {:?}", self.clk);
         // Note: we don't advance the program counter for 'halt'.
         // That is we treat 'halt' like an endless loop.
         (
@@ -159,6 +160,7 @@ impl<F: RichField> State<F> {
     ///
     /// Panics if Vec<u8> to string conversion fails.
     fn ecall_panic(self) -> (Aux<F>, Self) {
+        log::trace!("ECALL PANIC at CLK: {:?}", self.clk);
         let msg_len = self.get_register_value(REG_A1);
         let msg_ptr = self.get_register_value(REG_A2);
         let mut msg_vec = vec![];
@@ -190,7 +192,8 @@ impl<F: RichField> State<F> {
     /// TODO: Review the decision to panic.  We might also switch to using a
     /// Result, so that the caller can handle this.
     pub fn store(self, inst: &Args, bytes: u32) -> (Aux<F>, Self) {
-        let raw_value: u32 = self.get_register_value(inst.rs1);
+        let mask = u32::MAX >> (32 - 8 * bytes);
+        let raw_value: u32 = self.get_register_value(inst.rs1) & mask;
         let addr = self.get_register_value(inst.rs2).wrapping_add(inst.imm);
         (
             Aux {
