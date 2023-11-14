@@ -97,17 +97,12 @@ jobs:
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v3
-
-      - name: Install taplo (binary)
-        id: install-taplo-bin
-        continue-on-error: true
-        uses: dtolnay/install@master
+      
+      - uses: taiki-e/install-action@v2
         with:
-          crate: taplo-cli
-          bin: taplo
+          tool: cargo-binstall
 
       - uses: taiki-e/install-action@v2
-        if: steps.install-taplo-bin.outcome == 'failure'
         with:
           tool: taplo-cli
 
