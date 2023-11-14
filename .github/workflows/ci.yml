@@ -18,9 +18,42 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  check-runner:
+    runs-on: ubuntu-latest
+    outputs:
+      runner-label: ${{ steps.set-runner.outputs.runner-label }}
+
+    steps:
+      - name: Set runner
+        id: set-runner
+        run: |
+          runners=$((curl \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.READ_RUNNERS_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -sL https://api.github.com/repos/${{ github.repository }}/actions/runners || echo "") | \
+          jq '(.runners // [])[] | select(.status == "online" and .busy == false and .labels[] .name == "self-hosted")'
+          if [ -n "$available" ]; then
+            echo "runner-label=self-hosted" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          runners=$((curl \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.READ_RUNNERS_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -sL https://api.github.com/orgs/${{ github.repository_owner }}/actions/runners || echo "") | \
+          jq '(.runners // [])[] | select(.status == "online" and .busy == false and .labels[] .name == "self-hosted")'
+          if [ -n "$available" ]; then
+            echo "runner-label=self-hosted" >> $GITHUB_OUTPUT
+          else
+            echo "runner-label=ubuntu-latest" >> $GITHUB_OUTPUT
+          fi
+
   cargo-test:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v3
 
@@ -43,7 +76,8 @@ jobs:
 
   cargo-clippy:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v3
 
@@ -59,7 +93,8 @@ jobs:
 
   cargo-build-examples:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v3
 
@@ -73,7 +108,8 @@ jobs:
 
   cargo-fmt:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v3
 
@@ -85,7 +121,8 @@ jobs:
 
   taplo-fmt:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v3
 
