@@ -4,7 +4,7 @@ on:
       READ_RUNNERS_TOKEN:
         required: true
     outputs:
-      runner-label: ${{ steps.set-runner.outputs.runner-label }}
+      runner-label:
         description: "The runner label to use"
         value: ${{ jobs.check-runner.outputs.runner-label }}
 
