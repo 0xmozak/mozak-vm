@@ -68,20 +68,17 @@ fn parse_attrs(attrs: Vec<Attribute>, ident: &str) -> impl Iterator<Item = MetaN
 }
 
 fn get_attr(attrs: impl Iterator<Item = MetaNameValue>, ident: &str) -> Option<Expr> {
-    let value = attrs
+    attrs
         .into_iter()
         .filter(|meta| meta.path.is_ident(ident))
         .map(|meta| meta.value)
-        .at_most_one();
-    match value {
-        Err(e) => {
+        .at_most_one()
+        .unwrap_or_else(|e| {
             for value in e {
                 emit_error!(value, "multiple '{}' attributes", ident);
             }
             None
-        }
-        Ok(value) => value,
-    }
+        })
 }
 
 fn parse_attr(attr: Option<Expr>, ident: &str) -> Option<Ident> {
