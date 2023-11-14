@@ -46,6 +46,18 @@ pub fn derive(input: TokenStream) -> TokenStream {
     .into()
 }
 
+fn consume_err<T, F, ErrFn>(result: Result<T, F>, err_fn: ErrFn) -> Option<T>
+where
+    ErrFn: FnOnce(F), {
+    match result {
+        Ok(v) => Some(v),
+        Err(e) => {
+            err_fn(e);
+            None
+        }
+    }
+}
+
 fn parse_attrs(attrs: Vec<Attribute>, ident: &str) -> impl Iterator<Item = MetaNameValue> + '_ {
     attrs
         .into_iter()
@@ -56,13 +68,9 @@ fn parse_attrs(attrs: Vec<Attribute>, ident: &str) -> impl Iterator<Item = MetaN
         .filter_map(|tokens| {
             let span = tokens.span();
             let parser = Punctuated::<MetaNameValue, Token![,]>::parse_terminated;
-            match parser.parse2(tokens) {
-                Ok(v) => Some(v),
-                Err(e) => {
-                    emit_error!(span, "failed to parse {}", e);
-                    None
-                }
-            }
+            consume_err(parser.parse2(tokens), |e| {
+                emit_error!(span, "failed to parse {}", e)
+            })
         })
         .flatten()
 }
@@ -81,8 +89,8 @@ fn get_attr(attrs: impl Iterator<Item = MetaNameValue>, ident: &str) -> Option<E
         })
 }
 
-fn parse_attr(attr: Option<Expr>, ident: &str) -> Option<Ident> {
-    attr.and_then(|attr| match attr {
+fn parse_attr(attr: Expr, ident: &str) -> Option<Ident> {
+    match attr {
         Expr::Lit(ExprLit {
             lit: Lit::Str(attr),
             ..
@@ -91,12 +99,12 @@ fn parse_attr(attr: Option<Expr>, ident: &str) -> Option<Ident> {
             emit_error!(kind, "'{}' should be a string literal", ident);
             None
         }
-    })
+    }
 }
 
 fn parse_single_attr(attrs: Vec<Attribute>, attr_name: &str, key: &str) -> Option<Ident> {
     let attr = parse_attrs(attrs, attr_name);
-    let val = get_attr(attr, key);
+    let val = get_attr(attr, key)?;
     parse_attr(val, key)
 }
 
@@ -151,7 +159,7 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
     abort_if_dirty();
 
     // Generate the macro
-    let result = quote!(
+    quote!(
         /// Code generated via proc_macro `StarkSet`
         macro_rules! #macro_name {
             {$caller:tt} => {
@@ -165,7 +173,6 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
                 }
             };
         }
-    );
-
-    result.into()
+    )
+    .into()
 }
