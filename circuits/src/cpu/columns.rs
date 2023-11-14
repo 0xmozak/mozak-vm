@@ -1,5 +1,9 @@
+use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
@@ -211,6 +215,18 @@ impl<T: PackedField> CpuState<T> {
     /// Difference between first and second operands, which works for both pairs
     /// of signed or pairs of unsigned values.
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
+}
+
+pub fn rs2_extension_value<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    cpu: &CpuState<ExtensionTarget<D>>,
+) -> ExtensionTarget<D> {
+    let mut rs2_value = builder.zero_extension();
+    for reg in 0..32 {
+        let rs2_select = builder.mul_extension(cpu.inst.rs2_select[reg], cpu.regs[reg]);
+        rs2_value = builder.add_extension(rs2_value, rs2_select);
+    }
+    rs2_value
 }
 
 /// Expressions we need to range check

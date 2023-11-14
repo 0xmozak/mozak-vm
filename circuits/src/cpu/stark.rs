@@ -12,7 +12,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
-use super::columns::{CpuColumnsExtended, CpuState, Instruction, OpSelectors};
+use super::columns::{rs2_extension_value, CpuColumnsExtended, CpuState, Instruction, OpSelectors};
 use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
@@ -278,6 +278,20 @@ fn rd_assigned_correctly<P: PackedField>(
     });
 }
 
+fn rd_assigned_correctly_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    nv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    for reg in 1..32 {
+        let lv_inst_rd_select = lv.inst.rd_select[reg];
+        let lv_dst_value_sub_nv_regs = builder.sub_extension(lv.dst_value, nv.regs[reg]);
+        let constr = builder.mul_extension(lv_inst_rd_select, lv_dst_value_sub_nv_regs);
+        yield_constr.constraint_transition(builder, constr);
+    }
+}
+
 /// First operand should be assigned with the value of the designated register.
 fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
     yield_constr.constraint(
@@ -288,6 +302,22 @@ fn populate_op1_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
             .map(|reg| lv.inst.rs1_select[reg] * lv.regs[reg])
             .sum::<P>(),
     );
+}
+
+fn populate_op1_value_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    let mut op1_value = builder.zero_extension();
+    for reg in 0..32 {
+        let lv_inst_rs1_select = lv.inst.rs1_select[reg];
+        let lv_regs = lv.regs[reg];
+        let lv_inst_rs1_select_mul_lv_regs = builder.mul_extension(lv_inst_rs1_select, lv_regs);
+        op1_value = builder.add_extension(op1_value, lv_inst_rs1_select_mul_lv_regs);
+    }
+    let lv_op1_value_sub_op1_value = builder.sub_extension(lv.op1_value, op1_value);
+    yield_constr.constraint(builder, lv_op1_value_sub_op1_value);
 }
 
 /// Constraints for values in op2, which is the sum of the value of the second
@@ -310,6 +340,57 @@ fn populate_op2_value<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut Const
             * (lv.op2_value_overflowing - lv.op2_value)
             * (lv.op2_value_overflowing - lv.op2_value - wrap_at * ops.is_mem_op()),
     );
+}
+
+fn populate_op2_value_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    let wrap_at = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
+    let ops = &lv.inst.ops;
+    let is_branch_operation = add_extension_vec(builder, vec![ops.beq, ops.bne, ops.blt, ops.bge]);
+    let is_shift_operation = add_extension_vec(builder, vec![ops.sll, ops.srl, ops.sra]);
+
+    let rs2_value = rs2_extension_value(builder, lv);
+    let lv_op2_value_sub_rs2_value = builder.sub_extension(lv.op2_value, rs2_value);
+    let is_branch_op_mul_lv_op2_value_sub_rs2_value =
+        builder.mul_extension(is_branch_operation, lv_op2_value_sub_rs2_value);
+    yield_constr.constraint(builder, is_branch_op_mul_lv_op2_value_sub_rs2_value);
+
+    let op2_sub_bitshift_multiplier = builder.sub_extension(lv.op2_value, lv.bitshift.multiplier);
+    let is_shift_op_mul_op2_sub_bitshift_multiplier =
+        builder.mul_extension(is_shift_operation, op2_sub_bitshift_multiplier);
+    yield_constr.constraint(builder, is_shift_op_mul_op2_sub_bitshift_multiplier);
+
+    let one = builder.one_extension();
+    let one_sub_is_branch_operation = builder.sub_extension(one, is_branch_operation);
+    let one_sub_is_branch_operation_sub_is_shift_operation =
+        builder.sub_extension(one_sub_is_branch_operation, is_shift_operation);
+    let op2_value_overflowing_sub_inst_imm_value =
+        builder.sub_extension(lv.op2_value_overflowing, lv.inst.imm_value);
+    let op2_value_overflowing_sub_inst_imm_value_sub_rs2_value =
+        builder.sub_extension(op2_value_overflowing_sub_inst_imm_value, rs2_value);
+    let constr = builder.mul_extension(
+        one_sub_is_branch_operation_sub_is_shift_operation,
+        op2_value_overflowing_sub_inst_imm_value_sub_rs2_value,
+    );
+    yield_constr.constraint(builder, constr);
+
+    let op2_value_overflowing_sub_op2_value =
+        builder.sub_extension(lv.op2_value_overflowing, lv.op2_value);
+    let is_mem_op = add_extension_vec(builder, vec![
+        ops.sb, ops.lb, ops.sh, ops.lh, ops.sw, ops.lw,
+    ]);
+    let wrap_at_mul_is_mem_op = builder.mul_extension(wrap_at, is_mem_op);
+    let lv_op2_value_overflowing_sub_op2_value_mul_wrap_at_mul_is_mem_op =
+        builder.sub_extension(op2_value_overflowing_sub_op2_value, wrap_at_mul_is_mem_op);
+    let constr = builder.mul_extension(
+        op2_value_overflowing_sub_op2_value,
+        lv_op2_value_overflowing_sub_op2_value_mul_wrap_at_mul_is_mem_op,
+    );
+    let constr = builder.mul_extension(one_sub_is_branch_operation_sub_is_shift_operation, constr);
+    yield_constr.constraint(builder, constr);
 }
 
 const COLUMNS: usize = CpuColumnsExtended::<()>::NUMBER_OF_COLUMNS;
@@ -353,10 +434,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         // Registers
         r0_always_0(lv, yield_constr);
         only_rd_changes(lv, nv, yield_constr);
-        return;
         rd_assigned_correctly(lv, nv, yield_constr);
         populate_op1_value(lv, yield_constr);
         populate_op2_value(lv, yield_constr);
+        return;
 
         // add constraint
         add::constraints(lv, yield_constr);
@@ -406,6 +487,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         one_hots_circuit(builder, &lv.inst, yield_constr);
         r0_always_0_circuit(builder, lv, yield_constr);
         only_rd_changes_circuit(builder, lv, nv, yield_constr);
+        rd_assigned_correctly_circuit(builder, lv, nv, yield_constr);
+
+        populate_op1_value_circuit(builder, lv, yield_constr);
+        populate_op2_value_circuit(builder, lv, yield_constr);
     }
 }
 
