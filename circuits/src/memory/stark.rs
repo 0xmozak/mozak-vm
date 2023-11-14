@@ -11,8 +11,8 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::memory::columns::Memory;
-use crate::stark::utils::is_binary;
+use crate::memory::columns::{is_executed_ext_circuit, Memory};
+use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -162,11 +162,71 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
     fn eval_ext_circuit(
         &self,
-        _builder: &mut CircuitBuilder<F, D>,
-        _vars: &Self::EvaluationFrameTarget,
-        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        unimplemented!()
+        let lv: &Memory<ExtensionTarget<D>> = vars.get_local_values().into();
+        let nv: &Memory<ExtensionTarget<D>> = vars.get_next_values().into();
+        let (is_local_a_new_addr, is_next_a_new_addr) = (
+            builder.mul_extension(lv.diff_addr, lv.diff_addr_inv),
+            builder.mul_extension(nv.diff_addr, nv.diff_addr_inv),
+        );
+        is_binary_ext_circuit(builder, lv.is_writable, yield_constr);
+        is_binary_ext_circuit(builder, lv.is_store, yield_constr);
+        is_binary_ext_circuit(builder, lv.is_load, yield_constr);
+        is_binary_ext_circuit(builder, lv.is_init, yield_constr);
+        let lv_is_executed = is_executed_ext_circuit(builder, lv);
+        is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
+
+        let one = builder.one_extension();
+        let one_sub_is_local_a_new_addr = builder.sub_extension(one, is_local_a_new_addr);
+        let constr = builder.mul_extension(lv.diff_addr, one_sub_is_local_a_new_addr);
+        yield_constr.constraint(builder, constr);
+
+        let diff_addr_sub_addr = builder.sub_extension(nv.diff_addr, nv.addr);
+        yield_constr.constraint_first_row(builder, diff_addr_sub_addr);
+
+        yield_constr.constraint_first_row(builder, lv.diff_clk);
+
+        let is_init_mul_clk = builder.mul_extension(lv.is_init, lv.clk);
+        yield_constr.constraint(builder, is_init_mul_clk);
+
+        let one_sub_is_store = builder.sub_extension(one, lv.is_store);
+        let diff_addr_mul_clk = builder.mul_extension(lv.diff_addr, lv.clk);
+        let constr = builder.mul_extension(diff_addr_mul_clk, one_sub_is_store);
+        yield_constr.constraint(builder, constr);
+
+        let one_sub_is_writable = builder.sub_extension(one, lv.is_writable);
+        let is_store_mul_one_sub_is_writable =
+            builder.mul_extension(lv.is_store, one_sub_is_writable);
+        yield_constr.constraint(builder, is_store_mul_one_sub_is_writable);
+
+        let nv_value_sub_lv_value = builder.sub_extension(nv.value, lv.value);
+        let is_load_mul_nv_value_sub_lv_value =
+            builder.mul_extension(nv.is_load, nv_value_sub_lv_value);
+        yield_constr.constraint(builder, is_load_mul_nv_value_sub_lv_value);
+
+        let one_sub_is_next_a_new_addr = builder.sub_extension(one, is_next_a_new_addr);
+        let nv_clk_sub_lv_clk = builder.sub_extension(nv.clk, lv.clk);
+        let nv_diff_clk_sub_nv_clk_sub_lv_clk =
+            builder.sub_extension(nv.diff_clk, nv_clk_sub_lv_clk);
+        let constr = builder.mul_extension(
+            nv_diff_clk_sub_nv_clk_sub_lv_clk,
+            one_sub_is_next_a_new_addr,
+        );
+        yield_constr.constraint(builder, constr);
+
+        let nv_addr_sub_lv_addr = builder.sub_extension(nv.addr, lv.addr);
+        let nv_diff_addr_sub_nv_addr_sub_lv_addr =
+            builder.sub_extension(nv.diff_addr, nv_addr_sub_lv_addr);
+        yield_constr.constraint(builder, nv_diff_addr_sub_nv_addr_sub_lv_addr);
+
+        let nv_is_executed = is_executed_ext_circuit(builder, nv);
+        let lv_is_executed_sub_nv_is_executed =
+            builder.sub_extension(lv_is_executed, nv_is_executed);
+        let constr = builder.mul_extension(nv_is_executed, lv_is_executed_sub_nv_is_executed);
+        yield_constr.constraint(builder, constr);
     }
 }
 
