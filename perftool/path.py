@@ -15,6 +15,7 @@ def get_config_json() -> Path:
 
 
 def get_plot_svg_file(bench_function: str) -> Path:
+    PLOT_FOLDER.mkdir(exist_ok=True)
     return PLOT_FOLDER / f"{bench_function}.svg"
 
 
