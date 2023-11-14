@@ -97,14 +97,13 @@ jobs:
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v3
-      
+
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-binstall
 
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: taplo-cli
+      - name: Install taplo-cli
+        run: cargo binstall taplo-cli
 
       - name: taplo fmt
         run: taplo fmt --check
