@@ -1,6 +1,6 @@
 # Installation
 
-There are many ways to install the CLI tool that helps interacting with the VM. Choose one below that best suit you needs.
+There are many ways to install the CLI tool that helps interacting with the VM. Choose one below that best suit your needs.
 
 <!---
 # Precompiled Binary
