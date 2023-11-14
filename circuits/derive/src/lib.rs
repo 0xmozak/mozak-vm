@@ -46,6 +46,18 @@ pub fn derive(input: TokenStream) -> TokenStream {
     .into()
 }
 
+fn consume_err<T, F, ErrFn>(result: Result<T, F>, err_fn: ErrFn) -> Option<T>
+where
+    ErrFn: FnOnce(F), {
+    match result {
+        Ok(v) => Some(v),
+        Err(e) => {
+            err_fn(e);
+            None
+        }
+    }
+}
+
 fn parse_attrs(attrs: Vec<Attribute>, ident: &str) -> impl Iterator<Item = MetaNameValue> + '_ {
     attrs
         .into_iter()
@@ -56,47 +68,34 @@ fn parse_attrs(attrs: Vec<Attribute>, ident: &str) -> impl Iterator<Item = MetaN
         .filter_map(|tokens| {
             let span = tokens.span();
             let parser = Punctuated::<MetaNameValue, Token![,]>::parse_terminated;
-            match parser.parse2(tokens) {
-                Ok(v) => Some(v),
-                Err(e) => {
-                    emit_error!(span, "failed to parse {}", e);
-                    None
-                }
-            }
+            consume_err(parser.parse2(tokens), |e| {
+                emit_error!(span, "failed to parse {}", e)
+            })
         })
         .flatten()
 }
 
 fn get_attr(attrs: impl Iterator<Item = MetaNameValue>, ident: &str) -> Option<Expr> {
-    let value = attrs
+    attrs
         .into_iter()
-        .filter_map(|meta| {
-            if meta.path.is_ident(ident) {
-                Some(meta.value)
-            } else {
-                None
-            }
-        })
-        .at_most_one();
-    match value {
-        Err(e) => {
+        .filter(|meta| meta.path.is_ident(ident))
+        .map(|meta| meta.value)
+        .at_most_one()
+        .unwrap_or_else(|e| {
             for value in e {
                 emit_error!(value, "multiple '{}' attributes", ident);
             }
             None
-        }
-        Ok(value) => value,
-    }
+        })
 }
 
-fn parse_attr(attr: Option<Expr>, ident: &str) -> Option<Ident> {
+fn parse_attr(attr: Expr, ident: &str) -> Option<Ident> {
     match attr {
-        None => None,
-        Some(Expr::Lit(ExprLit {
+        Expr::Lit(ExprLit {
             lit: Lit::Str(attr),
             ..
-        })) => Some(Ident::new(&attr.value(), Span::mixed_site())),
-        Some(kind) => {
+        }) => Some(Ident::new(&attr.value(), Span::mixed_site())),
+        kind => {
             emit_error!(kind, "'{}' should be a string literal", ident);
             None
         }
@@ -105,7 +104,7 @@ fn parse_attr(attr: Option<Expr>, ident: &str) -> Option<Ident> {
 
 fn parse_single_attr(attrs: Vec<Attribute>, attr_name: &str, key: &str) -> Option<Ident> {
     let attr = parse_attrs(attrs, attr_name);
-    let val = get_attr(attr, key);
+    let val = get_attr(attr, key)?;
     parse_attr(val, key)
 }
 
@@ -160,7 +159,7 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
     abort_if_dirty();
 
     // Generate the macro
-    let result = quote!(
+    quote!(
         /// Code generated via proc_macro `StarkSet`
         macro_rules! #macro_name {
             {$caller:tt} => {
@@ -174,7 +173,6 @@ pub fn derive_stark_set(input: TokenStream) -> TokenStream {
                 }
             };
         }
-    );
-
-    result.into()
+    )
+    .into()
 }
