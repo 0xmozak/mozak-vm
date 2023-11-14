@@ -70,13 +70,8 @@ fn parse_attrs(attrs: Vec<Attribute>, ident: &str) -> impl Iterator<Item = MetaN
 fn get_attr(attrs: impl Iterator<Item = MetaNameValue>, ident: &str) -> Option<Expr> {
     let value = attrs
         .into_iter()
-        .filter_map(|meta| {
-            if meta.path.is_ident(ident) {
-                Some(meta.value)
-            } else {
-                None
-            }
-        })
+        .filter(|meta| meta.path.is_ident(ident))
+        .map(|meta| meta.value)
         .at_most_one();
     match value {
         Err(e) => {
@@ -90,17 +85,16 @@ fn get_attr(attrs: impl Iterator<Item = MetaNameValue>, ident: &str) -> Option<E
 }
 
 fn parse_attr(attr: Option<Expr>, ident: &str) -> Option<Ident> {
-    match attr {
-        None => None,
-        Some(Expr::Lit(ExprLit {
+    attr.and_then(|attr| match attr {
+        Expr::Lit(ExprLit {
             lit: Lit::Str(attr),
             ..
-        })) => Some(Ident::new(&attr.value(), Span::mixed_site())),
-        Some(kind) => {
+        }) => Some(Ident::new(&attr.value(), Span::mixed_site())),
+        kind => {
             emit_error!(kind, "'{}' should be a string literal", ident);
             None
         }
-    }
+    })
 }
 
 fn parse_single_attr(attrs: Vec<Attribute>, attr_name: &str, key: &str) -> Option<Ident> {
