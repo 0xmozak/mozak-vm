@@ -97,7 +97,6 @@ mod tests {
     #[test]
     fn test_sample_bench() { super::sample_bench(123).unwrap(); }
 
-    // this fails
     #[test]
     fn test_fibonacci_with_input() {
         let n = 10;
