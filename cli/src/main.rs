@@ -26,10 +26,6 @@ use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
-use tikv_jemallocator::Jemalloc;
-
-#[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
