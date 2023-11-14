@@ -128,6 +128,27 @@ fn check_permuted_inst_cols<P: PackedField>(
     }
 }
 
+pub fn check_permuted_inst_cols_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &ProgramRom<ExtensionTarget<D>>,
+    nv: &ProgramRom<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    let one = builder.one_extension();
+    let lv_filter_sub_one = builder.sub_extension(lv.filter, one);
+    let lv_filter_mul_lv_filter_sub_one = builder.mul_extension(lv.filter, lv_filter_sub_one);
+    yield_constr.constraint(builder, lv_filter_mul_lv_filter_sub_one);
+    yield_constr.constraint_first_row(builder, lv_filter_sub_one);
+
+    for (lv_col, nv_col) in izip![lv.inst, nv.inst] {
+        let nv_filter_sub_one = builder.sub_extension(nv.filter, one);
+        let lv_col_sub_nv_col = builder.sub_extension(lv_col, nv_col);
+        let nv_filter_sub_one_mul_lv_col_sub_nv_col =
+            builder.mul_extension(nv_filter_sub_one, lv_col_sub_nv_col);
+        yield_constr.constraint(builder, nv_filter_sub_one_mul_lv_col_sub_nv_col);
+    }
+}
+
 /// Only the destination register can change its value.
 /// All other registers must keep the same value as in the previous row.
 fn only_rd_changes<P: PackedField>(
@@ -263,11 +284,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 
     fn eval_ext_circuit(
         &self,
-        _builder: &mut CircuitBuilder<F, D>,
-        _vars: &Self::EvaluationFrameTarget,
-        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        unimplemented!()
+        let lv: &CpuColumnsExtended<_> = vars.get_local_values().into();
+        let nv: &CpuColumnsExtended<_> = vars.get_next_values().into();
+        let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
+
+        check_permuted_inst_cols_circuit(builder, &lv.permuted, &nv.permuted, yield_constr);
     }
 }
 
@@ -275,7 +300,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 mod tests {
     use anyhow::Result;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
-    use starky::stark_testing::test_stark_low_degree;
+    use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
 
     use crate::cpu::stark::CpuStark;
 
@@ -288,5 +313,18 @@ mod tests {
 
         let stark = S::default();
         test_stark_low_degree(stark)
+    }
+
+    #[test]
+    fn test_circuit() -> Result<()> {
+        const D: usize = 2;
+        type C = Poseidon2GoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        type S = CpuStark<F, D>;
+
+        let stark = S::default();
+        test_stark_circuit_constraints::<F, C, S, D>(stark)?;
+
+        Ok(())
     }
 }
