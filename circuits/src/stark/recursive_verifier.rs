@@ -104,7 +104,7 @@ where
         let mut inputs = PartialWitness::new();
 
         all_kind!(|kind| {
-            // TODO(Daniel): remove as we implement more.
+            // TODO(Daniel): remove the check when we implement recursive verification for all starks.
             if matches!(
                 kind,
                 TableKind::Xor | TableKind::Bitshift | TableKind::Program | TableKind::MemoryInit
@@ -138,22 +138,21 @@ where
     let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
     let targets = all_starks!(mozak_stark, |stark, kind| {
-        // TODO(Daniel): remove as we implement more.
-        if matches!(
+        // TODO(Daniel): remove the check when we implement recursive verification for all starks.
+        matches!(
             kind,
             TableKind::Xor | TableKind::Bitshift | TableKind::Program | TableKind::MemoryInit
-        ) {
-            Some(recursive_stark_circuit::<F, C, _, D>(
+        )
+        .then(|| {
+            recursive_stark_circuit::<F, C, _, D>(
                 &mut builder,
                 kind,
                 stark,
                 degree_bits[kind as usize],
                 &mozak_stark.cross_table_lookups,
                 inner_config,
-            ))
-        } else {
-            None
-        }
+            )
+        })
     });
 
     add_common_recursion_gates(&mut builder);
