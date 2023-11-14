@@ -29,10 +29,9 @@ jobs:
             echo "$runners"
             if [ -n "$available" ]; then
               echo "runner-label=self-hosted"
-              echo "runner-label=ubuntu-latest" >> $GITHUB_OUTPUT
+              echo "runner-label=self-hosted" >> $GITHUB_OUTPUT
               exit 0
             fi
-
           }
 
           curl_runners "https://api.github.com/repos/${{ github.repository }}/actions/runners"
