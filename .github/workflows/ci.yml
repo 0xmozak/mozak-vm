@@ -98,7 +98,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Install taplo (binary)
+        id: install-taplo-bin
+        continue-on-error: true
+        uses: dtolnay/install@master
+        with:
+          crate: taplo-cli
+
       - uses: taiki-e/install-action@v2
+        if: steps.install-taplo-bin.outcome == 'failure'
         with:
           tool: taplo-cli
 
