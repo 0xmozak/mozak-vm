@@ -104,6 +104,7 @@ jobs:
         uses: dtolnay/install@master
         with:
           crate: taplo-cli
+          bin: taplo
 
       - uses: taiki-e/install-action@v2
         if: steps.install-taplo-bin.outcome == 'failure'
