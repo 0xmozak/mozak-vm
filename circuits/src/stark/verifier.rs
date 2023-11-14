@@ -13,7 +13,7 @@ use starky::constraint_consumer::ConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{MozakStark, TableKind};
+use super::mozak_stark::{all_starks, MozakStark, TableKind, TableKindSetBuilder};
 use super::proof::AllProof;
 use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
 use crate::stark::poly::eval_vanishing_poly;
@@ -21,7 +21,7 @@ use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, Stark
 
 #[allow(clippy::too_many_lines)]
 pub fn verify_proof<F, C, const D: usize>(
-    mozak_stark: MozakStark<F, D>,
+    mozak_stark: &MozakStark<F, D>,
     all_proof: AllProof<F, C, D>,
     config: &StarkConfig,
 ) -> Result<()>
@@ -32,27 +32,6 @@ where
         stark_challenges,
         ctl_challenges,
     } = all_proof.get_challenges(config);
-
-    let MozakStark {
-        cpu_stark,
-        rangecheck_stark,
-        xor_stark,
-        shift_amount_stark,
-        program_stark,
-        memory_stark,
-        memory_init_stark,
-        rangecheck_limb_stark,
-        register_init_stark,
-        register_stark,
-        cross_table_lookups,
-        halfword_memory_stark,
-        fullword_memory_stark,
-        io_memory_private_stark,
-        io_memory_public_stark,
-        poseidon2_sponge_stark,
-        poseidon2_stark,
-        ..
-    } = mozak_stark;
 
     ensure!(
         all_proof.proofs_with_metadata[TableKind::Program as usize]
@@ -72,41 +51,30 @@ where
 
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
         &all_proof.proofs_with_metadata,
-        &cross_table_lookups,
+        &mozak_stark.cross_table_lookups,
         &ctl_challenges,
     );
 
-    macro_rules! verify {
-        ($stark: expr, $kind: expr, $public_inputs: expr) => {
-            verify_stark_proof_with_challenges(
-                &$stark,
-                &all_proof.proofs_with_metadata[$kind as usize].proof,
-                &stark_challenges[$kind as usize],
-                $public_inputs,
-                &ctl_vars_per_table[$kind as usize],
-                config,
-            )?;
-        };
+    let public_inputs = TableKindSetBuilder::<&[_]> {
+        cpu_stark: all_proof.public_inputs.borrow(),
+        ..Default::default()
     }
-
-    verify!(cpu_stark, TableKind::Cpu, all_proof.public_inputs.borrow());
-    verify!(rangecheck_stark, TableKind::RangeCheck, &[]);
-    verify!(xor_stark, TableKind::Xor, &[]);
-    verify!(shift_amount_stark, TableKind::Bitshift, &[]);
-    verify!(program_stark, TableKind::Program, &[]);
-    verify!(memory_stark, TableKind::Memory, &[]);
-    verify!(memory_init_stark, TableKind::MemoryInit, &[]);
-    verify!(rangecheck_limb_stark, TableKind::RangeCheckLimb, &[]);
-    verify!(halfword_memory_stark, TableKind::HalfWordMemory, &[]);
-    verify!(fullword_memory_stark, TableKind::FullWordMemory, &[]);
-
-    verify!(register_init_stark, TableKind::RegisterInit, &[]);
-    verify!(register_stark, TableKind::Register, &[]);
-    verify!(io_memory_private_stark, TableKind::IoMemoryPrivate, &[]);
-    verify!(io_memory_public_stark, TableKind::IoMemoryPublic, &[]);
-    verify!(poseidon2_sponge_stark, TableKind::Poseidon2Sponge, &[]);
-    verify!(poseidon2_stark, TableKind::Poseidon2, &[]);
-    verify_cross_table_lookups::<F, D>(&cross_table_lookups, &all_proof.all_ctl_zs_last(), config)?;
+    .build();
+    all_starks!(mozak_stark, |stark, kind| {
+        verify_stark_proof_with_challenges(
+            stark,
+            &all_proof.proofs_with_metadata[kind as usize].proof,
+            &stark_challenges[kind as usize],
+            public_inputs[kind as usize],
+            &ctl_vars_per_table[kind as usize],
+            config,
+        )?;
+    });
+    verify_cross_table_lookups::<F, D>(
+        &mozak_stark.cross_table_lookups,
+        &all_proof.all_ctl_zs_last(),
+        config,
+    )?;
     Ok(())
 }
 
