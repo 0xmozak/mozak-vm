@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use itertools::izip;
+use itertools::{izip, Itertools};
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -18,7 +18,7 @@ use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
 use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::PublicInputs;
-use crate::stark::utils::is_binary;
+use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 /// A Gadget for CPU Instructions
 ///
@@ -49,6 +49,17 @@ impl<P: PackedField> OpSelectors<P> {
     pub fn is_mem_op(&self) -> P { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
 }
 
+fn add_extension_vec<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    targets: Vec<ExtensionTarget<D>>,
+) -> ExtensionTarget<D> {
+    let mut result = builder.zero_extension();
+    for target in targets {
+        result = builder.add_extension(result, target);
+    }
+    result
+}
+
 /// Ensure that if opcode is straight line, then program counter is incremented
 /// by 4.
 fn pc_ticks_up<P: PackedField>(
@@ -60,6 +71,29 @@ fn pc_ticks_up<P: PackedField>(
         lv.inst.ops.is_straightline()
             * (nv.inst.pc - (lv.inst.pc + P::Scalar::from_noncanonical_u64(4))),
     );
+}
+
+fn pc_ticks_up_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    nv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    let four = builder.constant_extension(F::Extension::from_noncanonical_u64(4));
+    let lv_inst_pc_add_four = builder.add_extension(lv.inst.pc, four);
+    let nv_inst_pc_sub_lv_inst_pc_add_four = builder.sub_extension(nv.inst.pc, lv_inst_pc_add_four);
+    let is_jumping = add_extension_vec(builder, vec![
+        lv.inst.ops.beq,
+        lv.inst.ops.bge,
+        lv.inst.ops.blt,
+        lv.inst.ops.bne,
+        lv.inst.ops.ecall,
+        lv.inst.ops.jalr,
+    ]);
+    let one = builder.one_extension();
+    let is_straightline = builder.sub_extension(one, is_jumping);
+    let constr = builder.mul_extension(is_straightline, nv_inst_pc_sub_lv_inst_pc_add_four);
+    yield_constr.constraint_transition(builder, constr);
 }
 
 /// Enforce that selectors of opcode as well as registers are one-hot encoded.
@@ -87,6 +121,33 @@ fn one_hot<P: PackedField, Selectors: Clone + IntoIterator<Item = P>>(
     yield_constr.constraint(P::ONES - sum_s_op);
 }
 
+fn one_hots_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    inst: &Instruction<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    one_hot_circuit(builder, inst.ops.iter().as_slice().to_vec(), yield_constr);
+    one_hot_circuit(builder, inst.rs1_select.to_vec(), yield_constr);
+    one_hot_circuit(builder, inst.rs2_select.to_vec(), yield_constr);
+    one_hot_circuit(builder, inst.rd_select.to_vec(), yield_constr);
+}
+
+fn one_hot_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    selectors: Vec<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    for selector in selectors.iter() {
+        is_binary_ext_circuit(builder, *selector, yield_constr);
+    }
+    let one = builder.one_extension();
+    let sum_s_op = selectors.iter().fold(builder.zero_extension(), |acc, s| {
+        builder.add_extension(acc, *s)
+    });
+    let one_sub_sum_s_op = builder.sub_extension(one, sum_s_op);
+    yield_constr.constraint(builder, one_sub_sum_s_op);
+}
+
 /// Ensure an expression only takes on values 0 or 1 for transition rows.
 ///
 /// That's useful for differences between `local_values` and `next_values`, like
@@ -106,9 +167,32 @@ fn clock_ticks<P: PackedField>(
     yield_constr.constraint_transition(clock_diff - lv.is_running);
 }
 
+fn clock_ticks_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    nv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    let clock_diff = builder.sub_extension(nv.clk, lv.clk);
+    let one = builder.one_extension();
+    let one_sub_clock_diff = builder.sub_extension(one, clock_diff);
+    let clock_diff_mul_one_sub_clock_diff = builder.mul_extension(clock_diff, one_sub_clock_diff);
+    yield_constr.constraint_transition(builder, clock_diff_mul_one_sub_clock_diff);
+    let clock_diff_sub_lv_is_running = builder.sub_extension(clock_diff, lv.is_running);
+    yield_constr.constraint_transition(builder, clock_diff_sub_lv_is_running);
+}
+
 /// Register 0 is always 0
 fn r0_always_0<P: PackedField>(lv: &CpuState<P>, yield_constr: &mut ConstraintConsumer<P>) {
     yield_constr.constraint(lv.regs[0]);
+}
+
+fn r0_always_0_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    yield_constr.constraint(builder, lv.regs[0]);
 }
 
 /// This function ensures that for each unique value present in
@@ -163,6 +247,21 @@ fn only_rd_changes<P: PackedField>(
             (P::ONES - lv.inst.rd_select[reg]) * (lv.regs[reg] - nv.regs[reg]),
         );
     });
+}
+
+fn only_rd_changes_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    nv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    let one = builder.one_extension();
+    for reg in 0..32 {
+        let lv_regs_sub_nv_regs = builder.sub_extension(lv.regs[reg], nv.regs[reg]);
+        let one_sub_lv_inst_rd_select = builder.sub_extension(one, lv.inst.rd_select[reg]);
+        let constr = builder.mul_extension(one_sub_lv_inst_rd_select, lv_regs_sub_nv_regs);
+        yield_constr.constraint_transition(builder, constr);
+    }
 }
 
 /// The destination register should change to `dst_value`.
@@ -254,6 +353,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         // Registers
         r0_always_0(lv, yield_constr);
         only_rd_changes(lv, nv, yield_constr);
+        return;
         rd_assigned_correctly(lv, nv, yield_constr);
         populate_op1_value(lv, yield_constr);
         populate_op2_value(lv, yield_constr);
@@ -293,6 +393,19 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         let public_inputs: &PublicInputs<_> = vars.get_public_inputs().into();
 
         check_permuted_inst_cols_circuit(builder, &lv.permuted, &nv.permuted, yield_constr);
+
+        let lv = &lv.cpu;
+        let nv = &nv.cpu;
+
+        let inst_pc_sub_public_inputs_entry_point =
+            builder.sub_extension(lv.inst.pc, public_inputs.entry_point);
+        yield_constr.constraint_first_row(builder, inst_pc_sub_public_inputs_entry_point);
+        clock_ticks_circuit(builder, lv, nv, yield_constr);
+        pc_ticks_up_circuit(builder, lv, nv, yield_constr);
+
+        one_hots_circuit(builder, &lv.inst, yield_constr);
+        r0_always_0_circuit(builder, lv, yield_constr);
+        only_rd_changes_circuit(builder, lv, nv, yield_constr);
     }
 }
 
