@@ -437,11 +437,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         rd_assigned_correctly(lv, nv, yield_constr);
         populate_op1_value(lv, yield_constr);
         populate_op2_value(lv, yield_constr);
-        return;
 
-        // add constraint
+        // op constraint
         add::constraints(lv, yield_constr);
         sub::constraints(lv, yield_constr);
+        return;
         bitwise::constraints(lv, yield_constr);
         branches::comparison_constraints(lv, yield_constr);
         branches::constraints(lv, nv, yield_constr);
@@ -491,6 +491,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 
         populate_op1_value_circuit(builder, lv, yield_constr);
         populate_op2_value_circuit(builder, lv, yield_constr);
+
+        add::constraints_circuit(builder, lv, yield_constr);
+        sub::constraints_circuit(builder, lv, yield_constr);
     }
 }
 
