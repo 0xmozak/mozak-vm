@@ -18,23 +18,27 @@ jobs:
       - name: Set runner
         id: set-runner
         run: |
-          available=$((curl \
+          runners=$(curl \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.READ_RUNNERS_TOKEN }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            -sv https://api.github.com/repos/${{ github.repository }}/actions/runners || echo "") | \
-          jq '(.runners // [])[] | select(.status == "online" and .busy == false and .labels[] .name == "self-hosted")')
+            -L https://api.github.com/repos/${{ github.repository }}/actions/runners || echo "")
+          available=$(echo "$runners" | jq '(.runners // [])[] | select(.status == "online" and .busy == false and .labels[] .name == "self-hosted")')
+            echo "$runners"
+
           if [ -n "$available" ]; then
+            echo "available1"
             echo "runner-label=self-hosted" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          available=$((curl \
+          runners=$(curl \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.READ_RUNNERS_TOKEN }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            -sv https://api.github.com/orgs/${{ github.repository_owner }}/actions/runners || echo "") | \
-          jq '(.runners // [])[] | select(.status == "online" and .busy == false and .labels[] .name == "self-hosted")')
+            -L https://api.github.com/orgs/${{ github.repository_owner }}/actions/runners || echo "")
+          echo "$runners"
+          available=$(echo "$runners" | jq '(.runners // [])[] | select(.status == "online" and .busy == false and .labels[] .name == "self-hosted")')
           if [ -n "$available" ]; then
             echo "runner-label=self-hosted" >> $GITHUB_OUTPUT
           else
