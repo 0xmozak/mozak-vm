@@ -37,7 +37,7 @@ env_logger = { version = "0.10.0" }
 hex = "0.4.3"
 im = "15.1.0"
 mozak-runner = { path = "../runner", features = ["test"] }
-proptest = "1.2.0"
+proptest = "1.4.0"
 tikv-jemallocator = "0.5"
 
 [features]
