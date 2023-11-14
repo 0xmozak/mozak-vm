@@ -10,7 +10,7 @@ repository = "https://github.com/0xmozak/mozak-vm"
 version = "0.1.0"
 
 [dependencies]
-clap = { version = "4.4.8", features = [
+clap = { version = "4.4", features = [
   "derive",
   "cargo",
   "env",
@@ -20,19 +20,18 @@ clap = { version = "4.4.8", features = [
 mozak-circuits = { path = "../circuits", features = ["test"] }
 mozak-runner = { path = "../runner", features = ["test"] }
 # TODO(Matthias): implement shell completion for CLI via clap_complete
-# clap_complete = "4.3.2"
-anyhow = "1.0.72"
-clap-verbosity-flag = "2.1.0"
-clap_derive = "4.3.2"
-clio = { version = "0.3.4", features = ["http-ureq", "clap-parse"] }
-env_logger = "0.10.1"
-itertools = "0.11.0"
-log = "0.4.20"
-plonky2 = "0.1.3"
-starky = "0.1.1"
-tikv-jemallocator = "0.5"
+# clap_complete = "4.3"
+anyhow = "1.0"
+clap-verbosity-flag = "2.1"
+clap_derive = "4.3"
+clio = { version = "0.3", features = ["http-ureq", "clap-parse"] }
+env_logger = "0.10"
+itertools = "0.11"
+log = "0.4"
+plonky2 = "0.1"
+starky = "0.1"
 
 [dev-dependencies]
 mozak-circuits = { path = "../circuits", features = ["test"] }
 mozak-runner = { path = "../runner", features = ["test"] }
-proptest = "1.4.0"
+proptest = "1.4"
