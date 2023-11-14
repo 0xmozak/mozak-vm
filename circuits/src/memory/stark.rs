@@ -184,9 +184,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let constr = builder.mul_extension(lv.diff_addr, one_sub_is_local_a_new_addr);
         yield_constr.constraint(builder, constr);
 
-        let diff_addr_sub_addr = builder.sub_extension(nv.diff_addr, nv.addr);
+        let diff_addr_sub_addr = builder.sub_extension(lv.diff_addr, lv.addr);
         yield_constr.constraint_first_row(builder, diff_addr_sub_addr);
-
         yield_constr.constraint_first_row(builder, lv.diff_clk);
 
         let is_init_mul_clk = builder.mul_extension(lv.is_init, lv.clk);
@@ -215,18 +214,20 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
             nv_diff_clk_sub_nv_clk_sub_lv_clk,
             one_sub_is_next_a_new_addr,
         );
-        yield_constr.constraint(builder, constr);
+        yield_constr.constraint_transition(builder, constr);
+
+        let constr = builder.mul_extension(is_local_a_new_addr, lv.diff_clk);
+        yield_constr.constraint_transition(builder, constr);
 
         let nv_addr_sub_lv_addr = builder.sub_extension(nv.addr, lv.addr);
-        let nv_diff_addr_sub_nv_addr_sub_lv_addr =
-            builder.sub_extension(nv.diff_addr, nv_addr_sub_lv_addr);
-        yield_constr.constraint(builder, nv_diff_addr_sub_nv_addr_sub_lv_addr);
+        let constr = builder.sub_extension(nv.diff_addr, nv_addr_sub_lv_addr);
+        yield_constr.constraint_transition(builder, constr);
 
         let nv_is_executed = is_executed_ext_circuit(builder, nv);
         let lv_is_executed_sub_nv_is_executed =
             builder.sub_extension(lv_is_executed, nv_is_executed);
         let constr = builder.mul_extension(nv_is_executed, lv_is_executed_sub_nv_is_executed);
-        yield_constr.constraint(builder, constr);
+        yield_constr.constraint_transition(builder, constr);
     }
 }
 
@@ -236,7 +237,7 @@ mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::simple_test_code;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
-    use starky::stark_testing::test_stark_low_degree;
+    use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
 
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
@@ -319,5 +320,13 @@ mod tests {
         fn prove_memory_mozak(iterations in u8_extra(), addr_offset in u32_extra()) {
             memory::<MozakStark<F, D>>(iterations.into(), addr_offset).unwrap();
         }
+    }
+
+    #[test]
+    fn test_circuit() -> anyhow::Result<()> {
+        let stark = S::default();
+        test_stark_circuit_constraints::<F, C, S, D>(stark)?;
+
+        Ok(())
     }
 }
