@@ -15,6 +15,7 @@ def get_config_json() -> Path:
 
 
 def get_plot_svg_file(bench_function: str) -> Path:
+    PLOT_FOLDER.mkdir(exist_ok=True)
     return PLOT_FOLDER / f"{bench_function}.svg"
 
 
@@ -91,3 +92,7 @@ def delete_folder_if_no_symlink(folder: Path):
             if commit_symlink.resolve() == folder:
                 return
     shutil.rmtree(folder)
+
+
+def get_elf_path(elf: str, commit: str) -> Path:
+    return get_actual_commit_folder(commit) / elf
