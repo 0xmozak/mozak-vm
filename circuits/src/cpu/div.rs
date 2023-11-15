@@ -132,6 +132,7 @@ pub(crate) fn constraints<P: PackedField>(
     yield_constr.constraint(ops.rem * (dst - remainder_value));
 }
 
+#[allow(clippy::too_many_lines)]
 pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     lv: &CpuState<ExtensionTarget<D>>,

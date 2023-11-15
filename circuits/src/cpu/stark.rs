@@ -129,18 +129,18 @@ fn one_hots_circuit<F: RichField + Extendable<D>, const D: usize>(
     inst: &Instruction<ExtensionTarget<D>>,
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) {
-    one_hot_circuit(builder, inst.ops.iter().as_slice().to_vec(), yield_constr);
-    one_hot_circuit(builder, inst.rs1_select.to_vec(), yield_constr);
-    one_hot_circuit(builder, inst.rs2_select.to_vec(), yield_constr);
-    one_hot_circuit(builder, inst.rd_select.to_vec(), yield_constr);
+    one_hot_circuit(builder, &inst.ops.iter().as_slice().to_vec(), yield_constr);
+    one_hot_circuit(builder, &inst.rs1_select.to_vec(), yield_constr);
+    one_hot_circuit(builder, &inst.rs2_select.to_vec(), yield_constr);
+    one_hot_circuit(builder, &inst.rd_select.to_vec(), yield_constr);
 }
 
 fn one_hot_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
-    selectors: Vec<ExtensionTarget<D>>,
+    selectors: &Vec<ExtensionTarget<D>>,
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) {
-    for selector in selectors.iter() {
+    for selector in selectors {
         is_binary_ext_circuit(builder, *selector, yield_constr);
     }
     let one = builder.one_extension();
@@ -215,6 +215,7 @@ fn check_permuted_inst_cols<P: PackedField>(
     }
 }
 
+#[allow(clippy::similar_names)]
 pub fn check_permuted_inst_cols_circuit<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     lv: &ProgramRom<ExtensionTarget<D>>,
