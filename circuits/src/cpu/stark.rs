@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use itertools::{izip, Itertools};
+use itertools::izip;
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -451,7 +451,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         shift::constraints(lv, yield_constr);
         div::constraints(lv, yield_constr);
         mul::constraints(lv, yield_constr);
-        return;
         jalr::constraints(lv, nv, yield_constr);
         ecall::constraints(lv, nv, yield_constr);
 
@@ -504,6 +503,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         shift::constraints_circuit(builder, lv, yield_constr);
         div::constraints_circuit(builder, lv, yield_constr);
         mul::constraints_circuit(builder, lv, yield_constr);
+        jalr::constraints_circuit(builder, lv, nv, yield_constr);
+        ecall::constraints_circuit(builder, lv, nv, yield_constr);
+
+        let one = builder.one_extension();
+        let one_sub_lv_clk = builder.sub_extension(one, lv.clk);
+        yield_constr.constraint_first_row(builder, one_sub_lv_clk);
     }
 }
 

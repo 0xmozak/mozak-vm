@@ -12,7 +12,6 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 
 use super::bitwise::{and_gadget, and_gadget_extension_targets};
 use super::columns::{is_mem_op_extention_target, CpuState};
-use crate::cpu::stark::add_extension_vec;
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 /// Ensure that `dst_value` and `mem_value_raw` only differ
@@ -129,7 +128,6 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
     lv: &CpuState<ExtensionTarget<D>>,
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) {
-    let ops = lv.inst.ops;
     let is_mem_ops = is_mem_op_extention_target(builder, &lv.inst.ops);
     let mem_addr_sub_op2_value = builder.sub_extension(lv.mem_addr, lv.op2_value);
     let constr = builder.mul_extension(is_mem_ops, mem_addr_sub_op2_value);
