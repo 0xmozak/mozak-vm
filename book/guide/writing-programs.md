@@ -7,7 +7,7 @@ was written in Rust, C++, or another language.
 For now, we support the RV32I Base Integer Instructions and RV32M Multiply Extension Instructions of RISC-V and writing
 programs in Rust.
 
-If you are not sure what these instructions mentioned above means, checkout [a succinct reference of the RISC-V instructions].
+If you are not sure what these instructions mentioned above includes, checkout [a succinct reference of the RISC-V instructions].
 
 # Writing a simple fibonacci program
 
