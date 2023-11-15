@@ -7,7 +7,8 @@ pub extern "C" fn alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
         //
         // This is generated automatically by the linker; see
         // https://lld.llvm.org/ELF/linker_script.html#sections-command
-        static _end: u8;
+        #[link_name = "_mozak_heap_start"]
+        static _mozak_heap_start: u8;
     }
 
     // Pointer to next heap address to use, or 0 if the heap has not yet been
@@ -18,7 +19,7 @@ pub extern "C" fn alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
     let mut heap_pos = unsafe { HEAP_POS };
 
     if heap_pos == 0 {
-        heap_pos = unsafe { (&_end) as *const u8 as usize };
+        heap_pos = unsafe { (&_mozak_heap_start) as *const u8 as usize };
     }
 
     let offset = heap_pos & (align - 1);

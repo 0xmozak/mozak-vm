@@ -1,5 +1,6 @@
 #![no_std]
-
+#![feature(raw_ref_op)]
+#![feature(decl_macro)]
 extern crate alloc as rust_alloc;
 
 mod alloc;
@@ -17,6 +18,11 @@ macro_rules! entry {
             fn main() { super::MOZAK_ENTRY() }
         }
     };
+}
+
+#[allow(unused_macros)]
+macro addr_of($place:expr) {
+    &raw const $place
 }
 
 #[no_mangle]
@@ -39,7 +45,18 @@ unsafe extern "C" fn __start() {
 //
 // For more details:
 // https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc
-static STACK_TOP: u32 = 0xFFFF_FFFF;
+extern "C" {
+    #[link_name = "_mozak_stack_top"]
+    static _mozak_stack_top: u32;
+    #[link_name = "_mozak_merkle_state_root"]
+    static _mozak_merkle_state_root: u32;
+    #[link_name = "_mozak_timestamp"]
+    static _mozak_timestamp: u32;
+    #[link_name = "_mozak_public_io_tape"]
+    static _mozak_public_io_tape: u32;
+    #[link_name = "_mozak_private_io_tape"]
+    static _mozak_private_io_tape: u32;
+}
 
 // Entry point; sets up stack pointer and passes to __start.
 core::arch::global_asm!(
@@ -51,7 +68,7 @@ _start:
     lw sp, 0(sp)
     jal ra, __start;
 "#,
-    sym STACK_TOP
+    sym _mozak_stack_top
 );
 
 #[cfg(all(not(feature = "std"), target_os = "zkvm"))]

@@ -1,6 +1,5 @@
 #![no_main]
 #![no_std]
-
 use core::{assert, assert_eq};
 
 fn fibonacci(n: u32) -> (u32, u32) {
@@ -20,5 +19,4 @@ pub fn main() {
     assert_eq!(high, 0);
     guest::env::write(&high.to_le_bytes());
 }
-
 guest::entry!(main);
