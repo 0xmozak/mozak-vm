@@ -12,8 +12,9 @@ repos:
     rev: v1.0
     hooks:
     -   id: fmt
-    -   id: cargo-check
+        args: ['--all', '--']
     -   id: clippy
+        args: ['--all-features', '--all-targets', '--', '-D', 'warnings']
 -   repo: https://gitlab.com/bmares/check-json5 # json5 allows comments
     rev: v1.0.0
     hooks:
