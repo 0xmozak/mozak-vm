@@ -7,7 +7,7 @@ was written in Rust, C++, or another language.
 For now, we support the RV32I Base Integer Instructions and RV32M Multiply Extension Instructions of RISC-V and writing
 programs in Rust.
 
-If you are not sure what these instructions mentioned above includes, checkout [a succinct reference of the RISC-V instructions].
+If you are not sure what these instructions mentioned above include, checkout [a succinct reference of the RISC-V instructions].
 
 # Writing a simple fibonacci program
 
@@ -80,16 +80,16 @@ pub fn main() {
 guest::entry!(main);
 ```
 
-Building the programs require Rust nightly toolchain. Exploring the generated ELF requires RISC-V toolkit, especially `objdump` or equivalent.
-
-## Building ELFs
+Building the programs require Rust nightly toolchain. To Build the program, run
 
 ```bash
 cargo build
 ```
+
 This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/debug/`.
 
 use `mozak-cli`'s run command to execute generated ELF.
+
 ```bash
 mozak-cli run target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
 
