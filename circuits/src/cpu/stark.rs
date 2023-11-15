@@ -12,7 +12,9 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
-use super::columns::{rs2_extension_value, CpuColumnsExtended, CpuState, Instruction, OpSelectors};
+use super::columns::{
+    rs2_value_extension_target, CpuColumnsExtended, CpuState, Instruction, OpSelectors,
+};
 use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::cpu::shift;
@@ -352,7 +354,7 @@ fn populate_op2_value_circuit<F: RichField + Extendable<D>, const D: usize>(
     let is_branch_operation = add_extension_vec(builder, vec![ops.beq, ops.bne, ops.blt, ops.bge]);
     let is_shift_operation = add_extension_vec(builder, vec![ops.sll, ops.srl, ops.sra]);
 
-    let rs2_value = rs2_extension_value(builder, lv);
+    let rs2_value = rs2_value_extension_target(builder, lv);
     let lv_op2_value_sub_rs2_value = builder.sub_extension(lv.op2_value, rs2_value);
     let is_branch_op_mul_lv_op2_value_sub_rs2_value =
         builder.mul_extension(is_branch_operation, lv_op2_value_sub_rs2_value);
@@ -442,8 +444,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         add::constraints(lv, yield_constr);
         sub::constraints(lv, yield_constr);
         bitwise::constraints(lv, yield_constr);
-        return;
         branches::comparison_constraints(lv, yield_constr);
+        return;
         branches::constraints(lv, nv, yield_constr);
         memory::constraints(lv, yield_constr);
         signed_comparison::signed_constraints(lv, yield_constr);
@@ -495,6 +497,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         add::constraints_circuit(builder, lv, yield_constr);
         sub::constraints_circuit(builder, lv, yield_constr);
         bitwise::constraints_circuit(builder, lv, yield_constr);
+        branches::comparison_constraints_circuit(builder, lv, yield_constr);
     }
 }
 

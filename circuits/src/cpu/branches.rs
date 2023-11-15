@@ -1,11 +1,15 @@
 //! This module implements constraints for the branch operations.
 
+use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
-use starky::constraint_consumer::ConstraintConsumer;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 
-use super::columns::CpuState;
-use crate::stark::utils::is_binary;
+use super::columns::{signed_diff_extension_target, CpuState};
+use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 /// Constraints for `less_than` and `normalised_diff`
 /// For `less_than`:
@@ -44,6 +48,38 @@ pub(crate) fn comparison_constraints<P: PackedField>(
     // can equal 1 at once. There for, if `op1 == op2`, then `normalised_diff == 1`,
     // thus `lt` can only be 0. Which means we are no longer under constrained.
     yield_constr.constraint(lt * (P::ONES - lv.normalised_diff));
+}
+
+pub(crate) fn comparison_constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    let lt = lv.less_than;
+    is_binary_ext_circuit(builder, lt, yield_constr);
+
+    let one = builder.constant_extension(F::Extension::ONE);
+    let one_sub_lt = builder.sub_extension(one, lt);
+    let signed_diff = signed_diff_extension_target(builder, lv);
+    let abs_diff_sub_signed_diff = builder.sub_extension(lv.abs_diff, signed_diff);
+    let constr = builder.mul_extension(one_sub_lt, abs_diff_sub_signed_diff);
+    yield_constr.constraint(builder, constr);
+
+    let abs_diff_add_signed_diff = builder.add_extension(lv.abs_diff, signed_diff);
+    let constr = builder.mul_extension(lt, abs_diff_add_signed_diff);
+    yield_constr.constraint(builder, constr);
+
+    is_binary_ext_circuit(builder, lv.normalised_diff, yield_constr);
+    let one_sub_normalised_diff = builder.sub_extension(one, lv.normalised_diff);
+    let constr = builder.mul_extension(signed_diff, one_sub_normalised_diff);
+    yield_constr.constraint(builder, constr);
+
+    let signed_diff_mul_cmp_diff_inv = builder.mul_extension(signed_diff, lv.cmp_diff_inv);
+    let constr = builder.sub_extension(signed_diff_mul_cmp_diff_inv, lv.normalised_diff);
+    yield_constr.constraint(builder, constr);
+
+    let lt_mul_one_sub_normalised_diff = builder.mul_extension(lt, one_sub_normalised_diff);
+    yield_constr.constraint(builder, lt_mul_one_sub_normalised_diff);
 }
 
 /// Constraints for conditional branch operations

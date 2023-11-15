@@ -217,7 +217,7 @@ impl<T: PackedField> CpuState<T> {
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
 
-pub fn rs2_extension_value<F: RichField + Extendable<D>, const D: usize>(
+pub fn rs2_value_extension_target<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     cpu: &CpuState<ExtensionTarget<D>>,
 ) -> ExtensionTarget<D> {
@@ -227,6 +227,33 @@ pub fn rs2_extension_value<F: RichField + Extendable<D>, const D: usize>(
         rs2_value = builder.add_extension(rs2_value, rs2_select);
     }
     rs2_value
+}
+
+pub fn op1_full_range_extension_target<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    cpu: &CpuState<ExtensionTarget<D>>,
+) -> ExtensionTarget<D> {
+    let shifted_32 = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
+    let op1_sign_bit = builder.mul_extension(cpu.op1_sign_bit, shifted_32);
+    builder.sub_extension(cpu.op1_value, op1_sign_bit)
+}
+
+pub fn op2_full_range_extension_target<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    cpu: &CpuState<ExtensionTarget<D>>,
+) -> ExtensionTarget<D> {
+    let shifted_32 = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
+    let op2_sign_bit = builder.mul_extension(cpu.op2_sign_bit, shifted_32);
+    builder.sub_extension(cpu.op2_value, op2_sign_bit)
+}
+
+pub fn signed_diff_extension_target<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    cpu: &CpuState<ExtensionTarget<D>>,
+) -> ExtensionTarget<D> {
+    let op1_full_range = op1_full_range_extension_target(builder, cpu);
+    let op2_full_range = op2_full_range_extension_target(builder, cpu);
+    builder.sub_extension(op1_full_range, op2_full_range)
 }
 
 /// Expressions we need to range check
