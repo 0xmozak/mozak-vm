@@ -445,9 +445,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         sub::constraints(lv, yield_constr);
         bitwise::constraints(lv, yield_constr);
         branches::comparison_constraints(lv, yield_constr);
-        return;
         branches::constraints(lv, nv, yield_constr);
         memory::constraints(lv, yield_constr);
+        return;
         signed_comparison::signed_constraints(lv, yield_constr);
         signed_comparison::slt_constraints(lv, yield_constr);
         shift::constraints(lv, yield_constr);
@@ -498,6 +498,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         sub::constraints_circuit(builder, lv, yield_constr);
         bitwise::constraints_circuit(builder, lv, yield_constr);
         branches::comparison_constraints_circuit(builder, lv, yield_constr);
+        branches::constraints_circuit(builder, lv, nv, yield_constr);
     }
 }
 
