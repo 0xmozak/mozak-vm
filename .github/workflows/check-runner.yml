@@ -28,8 +28,7 @@ jobs:
             available=$(echo "$runners" | jq '(.runners // [])[] | select(.status == "online" and .busy == false and .labels[] .name == "self-hosted")')
             echo "$runners"
             if [ -n "$available" ]; then
-              echo "runner-label=self-hosted"
-              echo "runner-label=self-hosted" >> $GITHUB_OUTPUT
+              echo "runner-label=self-hosted" | tee -a "${GITHUB_OUTPUT}"
               exit 0
             fi
           }
@@ -37,5 +36,4 @@ jobs:
           curl_runners "https://api.github.com/repos/${{ github.repository }}/actions/runners"
           curl_runners "https://api.github.com/orgs/${{ github.repository_owner }}/actions/runners"
 
-          echo "runner-label=ubuntu-latest"
-          echo "runner-label=ubuntu-latest" >> $GITHUB_OUTPUT
+          echo "runner-label=ubuntu-latest" | tee -a "${GITHUB_OUTPUT}"
