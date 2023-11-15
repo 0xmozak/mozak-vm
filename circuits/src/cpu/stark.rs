@@ -441,8 +441,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         // op constraint
         add::constraints(lv, yield_constr);
         sub::constraints(lv, yield_constr);
-        return;
         bitwise::constraints(lv, yield_constr);
+        return;
         branches::comparison_constraints(lv, yield_constr);
         branches::constraints(lv, nv, yield_constr);
         memory::constraints(lv, yield_constr);
@@ -494,6 +494,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
 
         add::constraints_circuit(builder, lv, yield_constr);
         sub::constraints_circuit(builder, lv, yield_constr);
+        bitwise::constraints_circuit(builder, lv, yield_constr);
     }
 }
 

@@ -19,9 +19,13 @@
 //!  x | y := (x + y + (x ^ y)) / 2
 //! `
 
+use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
-use starky::constraint_consumer::ConstraintConsumer;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 
 use super::columns::CpuState;
 use crate::xor::columns::XorView;
@@ -36,6 +40,12 @@ pub struct BinaryOp<P: PackedField> {
     pub output: P,
 }
 
+pub struct BinaryOpExtensionTarget<const D: usize> {
+    pub input_a: ExtensionTarget<D>,
+    pub input_b: ExtensionTarget<D>,
+    pub output: ExtensionTarget<D>,
+}
+
 /// Re-usable gadget for AND constraints.
 /// It has access to already constrained XOR evaluation and based on that
 /// constrains the AND evaluation: `x & y := (x + y - xor(x,y)) / 2`
@@ -46,6 +56,21 @@ pub(crate) fn and_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
         input_a: xor.a,
         input_b: xor.b,
         output: (xor.a + xor.b - xor.out) / two,
+    }
+}
+
+pub(crate) fn and_gadget_extension_targets<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    xor: &XorView<ExtensionTarget<D>>,
+) -> BinaryOpExtensionTarget<D> {
+    let two = F::Extension::from_canonical_u64(2);
+    let two_inv = builder.constant_extension(two.inverse());
+    let a_add_b = builder.add_extension(xor.a, xor.b);
+    let a_add_b_sub_xor = builder.sub_extension(a_add_b, xor.out);
+    BinaryOpExtensionTarget {
+        input_a: xor.a,
+        input_b: xor.b,
+        output: builder.mul_extension(a_add_b_sub_xor, two_inv),
     }
 }
 
@@ -62,12 +87,37 @@ pub(crate) fn or_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     }
 }
 
+pub(crate) fn or_gadget_extension_targets<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    xor: &XorView<ExtensionTarget<D>>,
+) -> BinaryOpExtensionTarget<D> {
+    let two = F::Extension::from_canonical_u64(2);
+    let two_inv = builder.constant_extension(two.inverse());
+    let a_add_b = builder.add_extension(xor.a, xor.b);
+    let a_add_b_add_xor = builder.add_extension(a_add_b, xor.out);
+    BinaryOpExtensionTarget {
+        input_a: xor.a,
+        input_b: xor.b,
+        output: builder.mul_extension(a_add_b_add_xor, two_inv),
+    }
+}
+
 /// Re-usable gadget for XOR constraints
 /// Constrains that the already constrained underlying XOR evaluation has been
 /// done on the same inputs and produced the same output as this gadget.
 /// This gadget can be used to anywhere in the constraint system.
 pub(crate) fn xor_gadget<P: PackedField>(xor: &XorView<P>) -> BinaryOp<P> {
     BinaryOp {
+        input_a: xor.a,
+        input_b: xor.b,
+        output: xor.out,
+    }
+}
+
+pub(crate) fn xor_gadget_extension_targets<const D: usize>(
+    xor: &XorView<ExtensionTarget<D>>,
+) -> BinaryOpExtensionTarget<D> {
+    BinaryOpExtensionTarget {
         input_a: xor.a,
         input_b: xor.b,
         output: xor.out,
@@ -97,6 +147,38 @@ pub(crate) fn constraints<P: PackedField>(
         yield_constr.constraint(selector * (gadget.input_a - op1));
         yield_constr.constraint(selector * (gadget.input_b - op2));
         yield_constr.constraint(selector * (gadget.output - dst));
+    }
+}
+
+pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    let op1 = lv.op1_value;
+    let op2 = lv.op2_value;
+    let dst = lv.dst_value;
+
+    for (selector, gadget) in [
+        (
+            lv.inst.ops.and,
+            and_gadget_extension_targets(builder, &lv.xor),
+        ),
+        (
+            lv.inst.ops.or,
+            or_gadget_extension_targets(builder, &lv.xor),
+        ),
+        (lv.inst.ops.xor, xor_gadget_extension_targets(&lv.xor)),
+    ] {
+        let input_a = builder.sub_extension(gadget.input_a, op1);
+        let input_b = builder.sub_extension(gadget.input_b, op2);
+        let output = builder.sub_extension(gadget.output, dst);
+        let constr = builder.mul_extension(selector, input_a);
+        yield_constr.constraint(builder, constr);
+        let constr = builder.mul_extension(selector, input_b);
+        yield_constr.constraint(builder, constr);
+        let constr = builder.mul_extension(selector, output);
+        yield_constr.constraint(builder, constr);
     }
 }
 
