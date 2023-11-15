@@ -53,7 +53,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
         is_binary(yield_constr, lv.is_executed());
 
         // If nv.is_io() == 1: lv.size == 0, also forces the last row to be size == 0 !
-        // This constraints ensures loop unrolling was done correctly  
+        // This constraints ensures loop unrolling was done correctly
         yield_constr.constraint(nv.is_io() * lv.size);
         // If lv.is_lv_and_nv_are_memory_rows == 1:
         //    nv.address == lv.address + 1 (wrapped)
@@ -69,24 +69,24 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
             nv.is_lv_and_nv_are_memory_rows * (nv.size - (lv.size - P::ONES)),
         );
         // Edge cases:
-        //  a) - io_store with size = 0: <-- this case is solved since CTL from CPU 
-        //        a.1) is_lv_and_nv_are_memory_rows = 0 (no memory rows inserted) 
+        //  a) - io_store with size = 0: <-- this case is solved since CTL from CPU
+        //        a.1) is_lv_and_nv_are_memory_rows = 0 (no memory rows inserted)
         //  b) - io_store with size = 1: <-- this case needs to be solved separately
-        //        b.1) is_lv_and_nv_are_memory_rows = 0 (only one memory row inserted) 
+        //        b.1) is_lv_and_nv_are_memory_rows = 0 (only one memory row inserted)
         // To solve case-b:
-        // If lv.is_io() == 1 && lv.size != 0: 
-        //      lv.addr == nv.addr       <-- next row address must be the same !!! 
-        //      lv.size === nv.size - 1  <-- next row size is decreased  
+        // If lv.is_io() == 1 && lv.size != 0:
+        //      lv.addr == nv.addr       <-- next row address must be the same !!!
+        //      lv.size === nv.size - 1  <-- next row size is decreased
         yield_constr.constraint_transition(
             lv.is_io() * lv.size * (nv.addr - lv.addr),
         );
         yield_constr.constraint_transition(
             lv.is_io() * lv.size * (nv.size - (lv.size - P::ONES)),
         );
-        // If lv.is_io() == 1 && lv.size == 0: 
+        // If lv.is_io() == 1 && lv.size == 0:
         //      nv.is_memory() == 0 <-- next op can be only io - since size == 0
         // This one is ensured by:
-        //  1) is_binary(io or memory) 
+        //  1) is_binary(io or memory)
         //  2) if nv.is_io() == 1: lv.size == 0
 
         // If lv.is_io() == 1 && nv.size != 0:

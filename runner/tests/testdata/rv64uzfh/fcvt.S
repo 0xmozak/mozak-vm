@@ -30,13 +30,13 @@ RVTEST_CODE_BEGIN
   TEST_INT_FP_OP_H( 8, fcvt.h.lu,                   2.0,  2);
   TEST_INT_FP_OP_H( 9, fcvt.h.lu,               0h:7c00, -2);
 #endif
-  
+
   TEST_FCVT_H_S( 10, -1.5, -1.5)
 
 #if __riscv_xlen >= 64
   TEST_FCVT_H_D( 11, -1.5, -1.5)
 #endif
-  
+
   TEST_PASSFAIL
 
 RVTEST_CODE_END
