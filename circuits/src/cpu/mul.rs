@@ -12,7 +12,7 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 
-use super::columns::CpuState;
+use super::columns::{op1_full_range_extension_target, op2_full_range_extension_target, CpuState};
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 /// Converts from a sign-bit to a multiplicative sign.
@@ -131,7 +131,8 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 
     let one = builder.one_extension();
     let high_limb_mul_two_to_32 = builder.mul_extension(high_limb, two_to_32);
-    let high_limb_mul_two_to_32_add_low_limb = builder.add_extension(high_limb_mul_two_to_32, low_limb);
+    let high_limb_mul_two_to_32_add_low_limb =
+        builder.add_extension(high_limb_mul_two_to_32, low_limb);
     let op1_abs_mul_op2_abs = builder.mul_extension(op1_abs, op2_abs);
     let one_sub_product_sign = builder.sub_extension(one, product_sign);
     let temp1 = builder.sub_extension(high_limb_mul_two_to_32_add_low_limb, op1_abs_mul_op2_abs);
@@ -139,13 +140,80 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
     yield_constr.constraint(builder, first_constraint);
 
     let two_to_32_sub_high_limb = builder.sub_extension(two_to_32, high_limb);
-    let two_to_32_mul_two_to_32_sub_high_limb = builder.mul_extension(two_to_32, two_to_32_sub_high_limb);
+    let two_to_32_mul_two_to_32_sub_high_limb =
+        builder.mul_extension(two_to_32, two_to_32_sub_high_limb);
     let temp2 = builder.sub_extension(two_to_32_mul_two_to_32_sub_high_limb, low_limb);
     let temp3 = builder.sub_extension(temp2, op1_abs_mul_op2_abs);
     let second_constraint = builder.mul_extension(product_sign, temp3);
     yield_constr.constraint(builder, second_constraint);
 
+    let one_sub_product_sign = builder.sub_extension(one, product_sign);
+    let max_u32 = builder.constant_extension(F::Extension::from_canonical_u32(u32::MAX));
+    let max_u32_sub_high_limb = builder.sub_extension(max_u32, high_limb);
+    let max_u32_sub_high_limb_mul_product_high_limb_inv_helper =
+        builder.mul_extension(max_u32_sub_high_limb, lv.product_high_limb_inv_helper);
+    let one_sub_max_u32_sub_high_limb_mul_product_high_limb_inv_helper =
+        builder.sub_extension(one, max_u32_sub_high_limb_mul_product_high_limb_inv_helper);
+    let third_constraint = builder.mul_extension(
+        one_sub_product_sign,
+        one_sub_max_u32_sub_high_limb_mul_product_high_limb_inv_helper,
+    );
+    yield_constr.constraint(builder, third_constraint);
 
+    let high_limb_mul_product_high_limb_inv_helper =
+        builder.mul_extension(high_limb, lv.product_high_limb_inv_helper);
+    let one_sub_high_limb_mul_product_high_limb_inv_helper =
+        builder.sub_extension(one, high_limb_mul_product_high_limb_inv_helper);
+    let fourth_constraint = builder.mul_extension(
+        product_sign,
+        one_sub_high_limb_mul_product_high_limb_inv_helper,
+    );
+    yield_constr.constraint(builder, fourth_constraint);
+
+    let op1_full_range = op1_full_range_extension_target(builder, lv);
+    let bit_to_sign_op1_sign_bit = bit_to_sign_extension(builder, lv.op1_sign_bit);
+    let op1_full_range_mul_bit_to_sign_op1_sign_bit =
+        builder.mul_extension(op1_full_range, bit_to_sign_op1_sign_bit);
+    let fifth_constraint =
+        builder.sub_extension(op1_abs, op1_full_range_mul_bit_to_sign_op1_sign_bit);
+    yield_constr.constraint(builder, fifth_constraint);
+
+    let op2_full_range = op2_full_range_extension_target(builder, lv);
+    let bit_to_sign_op2_sign_bit = bit_to_sign_extension(builder, lv.op2_sign_bit);
+    let op2_full_range_mul_bit_to_sign_op2_sign_bit =
+        builder.mul_extension(op2_full_range, bit_to_sign_op2_sign_bit);
+    let sixth_constraint =
+        builder.sub_extension(op2_abs, op2_full_range_mul_bit_to_sign_op2_sign_bit);
+    yield_constr.constraint(builder, sixth_constraint);
+
+    let one_sub_is_op1_signed = builder.sub_extension(one, lv.inst.is_op1_signed);
+    let seventh_constraint = builder.mul_extension(one_sub_is_op1_signed, product_sign);
+    yield_constr.constraint(builder, seventh_constraint);
+
+    let skip_check_product_sign_mul_op1_abs =
+        builder.mul_extension(lv.skip_check_product_sign, op1_abs);
+    let eighth_constraint = builder.mul_extension(skip_check_product_sign_mul_op1_abs, op2_abs);
+    yield_constr.constraint(builder, eighth_constraint);
+
+    let one_sub_skip_check_product_sign = builder.sub_extension(one, lv.skip_check_product_sign);
+    let bit_to_sign_product_sign = bit_to_sign_extension(builder, product_sign);
+    let bit_to_sign_op1_sign_bit_mul_bit_to_sign_op2_sign_bit =
+        builder.mul_extension(bit_to_sign_op1_sign_bit, bit_to_sign_op2_sign_bit);
+    let ninth_constraint = builder.sub_extension(
+        bit_to_sign_product_sign,
+        bit_to_sign_op1_sign_bit_mul_bit_to_sign_op2_sign_bit,
+    );
+    let ninth_constraint = builder.mul_extension(one_sub_skip_check_product_sign, ninth_constraint);
+    yield_constr.constraint(builder, ninth_constraint);
+
+    let destination = lv.dst_value;
+    let mul_add_sll = builder.add_extension(lv.inst.ops.mul, lv.inst.ops.sll);
+    let destination_sub_low_limb = builder.sub_extension(destination, low_limb);
+    let tenth_constraint = builder.mul_extension(mul_add_sll, destination_sub_low_limb);
+    yield_constr.constraint(builder, tenth_constraint);
+    let destination_sub_high_limb = builder.sub_extension(destination, high_limb);
+    let eleventh_constraint = builder.mul_extension(lv.inst.ops.mulh, destination_sub_high_limb);
+    yield_constr.constraint(builder, eleventh_constraint);
 }
 
 #[cfg(test)]
