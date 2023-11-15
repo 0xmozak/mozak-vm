@@ -13,7 +13,8 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::{
-    rs2_value_extension_target, CpuColumnsExtended, CpuState, Instruction, OpSelectors,
+    is_mem_op_extention_target, rs2_value_extension_target, CpuColumnsExtended, CpuState,
+    Instruction, OpSelectors,
 };
 use super::{add, bitwise, branches, div, ecall, jalr, memory, mul, signed_comparison, sub};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
@@ -51,7 +52,7 @@ impl<P: PackedField> OpSelectors<P> {
     pub fn is_mem_op(&self) -> P { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
 }
 
-fn add_extension_vec<F: RichField + Extendable<D>, const D: usize>(
+pub fn add_extension_vec<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     targets: Vec<ExtensionTarget<D>>,
 ) -> ExtensionTarget<D> {
@@ -381,9 +382,7 @@ fn populate_op2_value_circuit<F: RichField + Extendable<D>, const D: usize>(
 
     let op2_value_overflowing_sub_op2_value =
         builder.sub_extension(lv.op2_value_overflowing, lv.op2_value);
-    let is_mem_op = add_extension_vec(builder, vec![
-        ops.sb, ops.lb, ops.sh, ops.lh, ops.sw, ops.lw,
-    ]);
+    let is_mem_op = is_mem_op_extention_target(builder, ops);
     let wrap_at_mul_is_mem_op = builder.mul_extension(wrap_at, is_mem_op);
     let lv_op2_value_overflowing_sub_op2_value_mul_wrap_at_mul_is_mem_op =
         builder.sub_extension(op2_value_overflowing_sub_op2_value, wrap_at_mul_is_mem_op);
@@ -499,6 +498,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         bitwise::constraints_circuit(builder, lv, yield_constr);
         branches::comparison_constraints_circuit(builder, lv, yield_constr);
         branches::constraints_circuit(builder, lv, nv, yield_constr);
+        memory::constraints_circuit(builder, lv, yield_constr);
     }
 }
 

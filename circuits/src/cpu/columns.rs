@@ -7,6 +7,7 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::cpu::stark::add_extension_vec;
 use crate::cross_table_lookup::Column;
 use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::{CpuTable, Table};
@@ -426,6 +427,15 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     pub fn fullword_mem_ops(self) -> T { self.sw + self.lw }
 
     pub fn is_mem_ops(self) -> T { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
+}
+
+pub fn is_mem_op_extention_target<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    ops: &OpSelectors<ExtensionTarget<D>>,
+) -> ExtensionTarget<D> {
+    add_extension_vec(builder, vec![
+        ops.sb, ops.lb, ops.sh, ops.lh, ops.sw, ops.lw,
+    ])
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.

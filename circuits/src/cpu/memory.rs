@@ -11,7 +11,8 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 
 use super::bitwise::{and_gadget, and_gadget_extension_targets};
-use super::columns::CpuState;
+use super::columns::{is_mem_op_extention_target, CpuState};
+use crate::cpu::stark::add_extension_vec;
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 /// Ensure that `dst_value` and `mem_value_raw` only differ
@@ -70,16 +71,26 @@ pub(crate) fn signed_constraints_circuit<F: RichField + Extendable<D>, const D: 
 
     let ffff_ff00 = builder.constant_extension(F::Extension::from_canonical_u64(0xFFFF_FF00));
     let dst_sign_bit_mul_ffff_ff00 = builder.mul_extension(lv.dst_sign_bit, ffff_ff00);
-    let mem_value_raw_add_dst_sign_bit_mul_ffff_ff00 = builder.add_extension(lv.mem_value_raw, dst_sign_bit_mul_ffff_ff00);
-    let dst_value_sub_mem_value_raw_add_dst_sign_bit_mul_ffff_ff00 = builder.sub_extension(lv.dst_value, mem_value_raw_add_dst_sign_bit_mul_ffff_ff00);
-    let constr = builder.mul_extension(lv.inst.ops.lb, dst_value_sub_mem_value_raw_add_dst_sign_bit_mul_ffff_ff00);
+    let mem_value_raw_add_dst_sign_bit_mul_ffff_ff00 =
+        builder.add_extension(lv.mem_value_raw, dst_sign_bit_mul_ffff_ff00);
+    let dst_value_sub_mem_value_raw_add_dst_sign_bit_mul_ffff_ff00 =
+        builder.sub_extension(lv.dst_value, mem_value_raw_add_dst_sign_bit_mul_ffff_ff00);
+    let constr = builder.mul_extension(
+        lv.inst.ops.lb,
+        dst_value_sub_mem_value_raw_add_dst_sign_bit_mul_ffff_ff00,
+    );
     yield_constr.constraint(builder, constr);
 
     let ffff_0000 = builder.constant_extension(F::Extension::from_canonical_u64(0xFFFF_0000));
     let dst_sign_bit_mul_ffff_0000 = builder.mul_extension(lv.dst_sign_bit, ffff_0000);
-    let mem_value_raw_add_dst_sign_bit_mul_ffff_0000 = builder.add_extension(lv.mem_value_raw, dst_sign_bit_mul_ffff_0000);
-    let dst_value_sub_mem_value_raw_add_dst_sign_bit_mul_ffff_0000 = builder.sub_extension(lv.dst_value, mem_value_raw_add_dst_sign_bit_mul_ffff_0000);
-    let constr = builder.mul_extension(lv.inst.ops.lh, dst_value_sub_mem_value_raw_add_dst_sign_bit_mul_ffff_0000);
+    let mem_value_raw_add_dst_sign_bit_mul_ffff_0000 =
+        builder.add_extension(lv.mem_value_raw, dst_sign_bit_mul_ffff_0000);
+    let dst_value_sub_mem_value_raw_add_dst_sign_bit_mul_ffff_0000 =
+        builder.sub_extension(lv.dst_value, mem_value_raw_add_dst_sign_bit_mul_ffff_0000);
+    let constr = builder.mul_extension(
+        lv.inst.ops.lh,
+        dst_value_sub_mem_value_raw_add_dst_sign_bit_mul_ffff_0000,
+    );
     yield_constr.constraint(builder, constr);
 
     let and_gadget = and_gadget_extension_targets(builder, &lv.xor);
@@ -118,7 +129,8 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
     lv: &CpuState<ExtensionTarget<D>>,
     yield_constr: &mut RecursiveConstraintConsumer<F, D>,
 ) {
-    let is_mem_ops = builder.is_mem_ops(lv.inst.ops);
+    let ops = lv.inst.ops;
+    let is_mem_ops = is_mem_op_extention_target(builder, &lv.inst.ops);
     let mem_addr_sub_op2_value = builder.sub_extension(lv.mem_addr, lv.op2_value);
     let constr = builder.mul_extension(is_mem_ops, mem_addr_sub_op2_value);
     yield_constr.constraint(builder, constr);
