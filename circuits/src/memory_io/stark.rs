@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -12,7 +13,7 @@ use starky::stark::Stark;
 
 use crate::columns_view::HasNamedColumns;
 use crate::memory_io::columns::{InputOutputMemory, NUM_IO_MEM_COLS};
-use crate::stark::utils::is_binary;
+use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -96,15 +97,62 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
 
     fn eval_ext_circuit(
         &self,
-        _builder: &mut CircuitBuilder<F, D>,
-        _vars: &Self::EvaluationFrameTarget,
-        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        unimplemented!()
+        let lv: &InputOutputMemory<ExtensionTarget<D>> = vars.get_local_values().into();
+        let nv: &InputOutputMemory<ExtensionTarget<D>> = vars.get_next_values().into();
+
+        let is_executed = builder.add_extension(lv.ops.is_memory_store, lv.ops.is_io_store);
+
+        is_binary_ext_circuit(builder, lv.ops.is_memory_store, yield_constr);
+        is_binary_ext_circuit(builder, lv.ops.is_io_store, yield_constr);
+        is_binary_ext_circuit(builder, is_executed, yield_constr);
+
+        let is_io_mul_lv_size = builder.mul_extension(nv.ops.is_io_store, lv.size);
+        yield_constr.constraint(builder, is_io_mul_lv_size);
+
+        let wrap_at = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
+        let one = builder.one_extension();
+        let added = builder.add_extension(lv.addr, one);
+        let wrapped = builder.sub_extension(added, wrap_at);
+
+        let nv_addr_sub_added = builder.sub_extension(nv.addr, added);
+        let is_lv_and_nv_are_memory_rows_mul_nv_addr_sub_added =
+            builder.mul_extension(lv.is_lv_and_nv_are_memory_rows, nv_addr_sub_added);
+        let nv_addr_sub_wrapped = builder.sub_extension(nv.addr, wrapped);
+        let constraint = builder.mul_extension(
+            is_lv_and_nv_are_memory_rows_mul_nv_addr_sub_added,
+            nv_addr_sub_wrapped,
+        );
+        yield_constr.constraint(builder, constraint);
+
+        let lv_size_sub_one = builder.sub_extension(lv.size, one);
+        let nv_size_sub_lv_size_sub_one = builder.sub_extension(nv.size, lv_size_sub_one);
+        let constraint =
+            builder.mul_extension(nv.is_lv_and_nv_are_memory_rows, nv_size_sub_lv_size_sub_one);
+        yield_constr.constraint_transition(builder, constraint);
+
+        let nv_addr_sub_lv_addr = builder.sub_extension(nv.addr, lv.addr);
+        let is_io_mul_lv_size = builder.mul_extension(lv.ops.is_io_store, lv.size);
+        let constraint = builder.mul_extension(is_io_mul_lv_size, nv_addr_sub_lv_addr);
+        yield_constr.constraint_transition(builder, constraint);
+
+        let constraint = builder.mul_extension(is_io_mul_lv_size, nv_size_sub_lv_size_sub_one);
+        yield_constr.constraint_transition(builder, constraint);
+
+        let lv_is_io_mul_nv_size = builder.mul_extension(lv.ops.is_io_store, nv.size);
+        let is_lv_and_nv_are_memory_rows_sub_one =
+            builder.sub_extension(nv.is_lv_and_nv_are_memory_rows, one);
+        let constraint =
+            builder.mul_extension(lv_is_io_mul_nv_size, is_lv_and_nv_are_memory_rows_sub_one);
+        yield_constr.constraint(builder, constraint);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
 }
+
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
@@ -112,9 +160,12 @@ mod tests {
     use mozak_runner::test_utils::{simple_test_code_with_io_tape, u32_extra, u8_extra};
     use mozak_system::system::ecall;
     use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2};
+    use plonky2::plonk::config::Poseidon2GoldilocksConfig;
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
+    use starky::stark_testing::test_stark_circuit_constraints;
 
+    use crate::memory_io::stark::InputOuputMemoryStark;
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::{ProveAndVerify, D, F};
 
@@ -348,5 +399,16 @@ mod tests {
         fn prove_io_read_mozak_explicit(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
             prove_io_read_explicit::<MozakStark<F, D>>(offset, imm, content);
         }
+    }
+
+    #[test]
+    fn test_circuit() -> anyhow::Result<()> {
+        type C = Poseidon2GoldilocksConfig;
+        type S = InputOuputMemoryStark<F, D>;
+
+        let stark = S::default();
+        test_stark_circuit_constraints::<F, C, S, D>(stark)?;
+
+        Ok(())
     }
 }
