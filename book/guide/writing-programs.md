@@ -18,6 +18,14 @@ You can write what we term "guest programs" by adding the `guest` crate to your 
 guest = { git = "https://github.com/0xmozak/mozak-vm", package = "guest", tag = "v0.1" }
 ```
 
+<!---
+Add cargo add command once `guest` is published to crate.io
+
+```
+cargo add guest
+```
+-->
+
 We do not support the Rust standard library at the moment. Add the following to your `main.rs` or `lib.rs` file.
 
 ```rust
@@ -96,15 +104,6 @@ mozak-cli run target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
 ```
 
 If you want to see more examples, check out the examples in the [examples folder of our repository].
-
-
-<!---
-Add cargo add command once `guest` is published to crate.io
-
-```
-cargo add guest
-```
--->
 
 
 
