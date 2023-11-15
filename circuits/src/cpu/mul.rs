@@ -10,10 +10,10 @@ use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use starky::constraint_consumer::ConstraintConsumer;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 
 use super::columns::CpuState;
-use crate::stark::utils::is_binary;
+use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 /// Converts from a sign-bit to a multiplicative sign.
 ///
@@ -113,6 +113,39 @@ pub(crate) fn constraints<P: PackedField>(
     let destination = lv.dst_value;
     yield_constr.constraint((lv.inst.ops.mul + lv.inst.ops.sll) * (destination - low_limb));
     yield_constr.constraint((lv.inst.ops.mulh) * (destination - high_limb));
+}
+
+pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    let two_to_32 = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
+    let op1_abs = lv.op1_abs;
+    let op2_abs = lv.op2_abs;
+    let low_limb = lv.product_low_limb;
+    let high_limb = lv.product_high_limb;
+    let product_sign = lv.product_sign;
+
+    is_binary_ext_circuit(builder, product_sign, yield_constr);
+
+    let one = builder.one_extension();
+    let high_limb_mul_two_to_32 = builder.mul_extension(high_limb, two_to_32);
+    let high_limb_mul_two_to_32_add_low_limb = builder.add_extension(high_limb_mul_two_to_32, low_limb);
+    let op1_abs_mul_op2_abs = builder.mul_extension(op1_abs, op2_abs);
+    let one_sub_product_sign = builder.sub_extension(one, product_sign);
+    let temp1 = builder.sub_extension(high_limb_mul_two_to_32_add_low_limb, op1_abs_mul_op2_abs);
+    let first_constraint = builder.mul_extension(one_sub_product_sign, temp1);
+    yield_constr.constraint(builder, first_constraint);
+
+    let two_to_32_sub_high_limb = builder.sub_extension(two_to_32, high_limb);
+    let two_to_32_mul_two_to_32_sub_high_limb = builder.mul_extension(two_to_32, two_to_32_sub_high_limb);
+    let temp2 = builder.sub_extension(two_to_32_mul_two_to_32_sub_high_limb, low_limb);
+    let temp3 = builder.sub_extension(temp2, op1_abs_mul_op2_abs);
+    let second_constraint = builder.mul_extension(product_sign, temp3);
+    yield_constr.constraint(builder, second_constraint);
+
+
 }
 
 #[cfg(test)]
