@@ -4,8 +4,12 @@
 //! Here, SLL stands for 'shift left logical'.  We can treat it as a variant of
 //! unsigned multiplication.
 
+use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::ConstraintConsumer;
 
 use super::columns::CpuState;
@@ -17,6 +21,15 @@ use crate::stark::utils::is_binary;
 /// And if `sign_bit` is 1, returns -1.
 /// Undefined for any other input.
 pub fn bit_to_sign<P: PackedField>(sign_bit: P) -> P { P::ONES - sign_bit.doubles() }
+
+pub(crate) fn bit_to_sign_extension<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    sign_bit: ExtensionTarget<D>,
+) -> ExtensionTarget<D> {
+    let ones = builder.one_extension();
+    let sign_bit_doubled = builder.add_extension(sign_bit, sign_bit);
+    builder.sub_extension(ones, sign_bit_doubled)
+}
 
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,

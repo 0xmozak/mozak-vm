@@ -4,13 +4,17 @@
 //! Here, SRL stands for 'shift right logical'.  We can treat it as a variant of
 //! unsigned division. Same for SRA.
 
+use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
-use starky::constraint_consumer::ConstraintConsumer;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 
-use super::columns::CpuState;
-use crate::cpu::mul::bit_to_sign;
-use crate::stark::utils::is_binary;
+use super::columns::{op1_full_range_extension_target, op2_full_range_extension_target, CpuState};
+use crate::cpu::mul::{bit_to_sign, bit_to_sign_extension};
+use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 /// Constraints for DIV / REM / DIVU / REMU / SRL / SRA instructions
 #[allow(clippy::similar_names)]
@@ -126,6 +130,143 @@ pub(crate) fn constraints<P: PackedField>(
     let dst = lv.dst_value;
     yield_constr.constraint((ops.div + ops.srl + ops.sra) * (dst - quotient_value));
     yield_constr.constraint(ops.rem * (dst - remainder_value));
+}
+
+pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    let ops = lv.inst.ops;
+    let two_to_32 = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
+    let dividend_value = lv.op1_value;
+    let dividend_sign = lv.op1_sign_bit;
+    let dividend_abs = lv.op1_abs;
+    let dividend_full_range = op1_full_range_extension_target(builder, lv);
+    let divisor_value = lv.op2_value;
+    let divisor_sign = lv.op2_sign_bit;
+    let divisor_abs = lv.op2_abs;
+    let divisor_full_range = op2_full_range_extension_target(builder, lv);
+
+    let divisor_value_inv = lv.op2_value_inv;
+    let quotient_value = lv.quotient_value;
+    let quotient_sign = lv.quotient_sign;
+    let remainder_value = lv.remainder_value;
+    let remainder_sign = lv.remainder_sign;
+    let remainder_slack = lv.remainder_slack;
+
+    let quotient_sign_mul_two_to_32 = builder.mul_extension(quotient_sign, two_to_32);
+    let quotient_full_range = builder.sub_extension(quotient_value, quotient_sign_mul_two_to_32);
+    let remainder_sign_mul_two_to_32 = builder.mul_extension(remainder_sign, two_to_32);
+    let remainder_full_range = builder.sub_extension(remainder_value, remainder_sign_mul_two_to_32);
+    let bit_to_sign_quotient_sign = bit_to_sign_extension(builder, quotient_sign);
+    let quotient_abs = builder.mul_extension(bit_to_sign_quotient_sign, quotient_full_range);
+    let bit_to_sign_remainder_sign = bit_to_sign_extension(builder, remainder_sign);
+    let remainder_abs = builder.mul_extension(bit_to_sign_remainder_sign, remainder_full_range);
+
+    let one = builder.one_extension();
+    let divisor_abs_mul_quotient_abs = builder.mul_extension(divisor_abs, quotient_abs);
+    let one_sub_ops_sra = builder.sub_extension(one, ops.sra);
+    let one_sub_ops_sra_mul_remainder_abs = builder.mul_extension(one_sub_ops_sra, remainder_abs);
+    let bit_to_sign_dividend_sign = bit_to_sign_extension(builder, dividend_sign);
+    let sra_mul_bit_to_sign_dividend_sign =
+        builder.mul_extension(ops.sra, bit_to_sign_dividend_sign);
+    let sra_mul_bit_to_sign_dividend_sign_mul_remainder_full_range =
+        builder.mul_extension(sra_mul_bit_to_sign_dividend_sign, remainder_full_range);
+    let constr = builder.add_extension(
+        divisor_abs_mul_quotient_abs,
+        one_sub_ops_sra_mul_remainder_abs,
+    );
+    let constr = builder.add_extension(
+        constr,
+        sra_mul_bit_to_sign_dividend_sign_mul_remainder_full_range,
+    );
+    let constr = builder.sub_extension(constr, dividend_abs);
+    yield_constr.constraint(builder, constr);
+
+    is_binary_ext_circuit(builder, remainder_sign, yield_constr);
+    is_binary_ext_circuit(builder, dividend_sign, yield_constr);
+
+    let dividend_sign_sub_remainder_sign = builder.sub_extension(dividend_sign, remainder_sign);
+    let one_sub_ops_sra_mul_remainder_value =
+        builder.mul_extension(one_sub_ops_sra, remainder_value);
+    let constr = builder.mul_extension(
+        one_sub_ops_sra_mul_remainder_value,
+        dividend_sign_sub_remainder_sign,
+    );
+    yield_constr.constraint(builder, constr);
+    let ops_sra_mul_remainder_sign = builder.mul_extension(ops.sra, remainder_sign);
+    yield_constr.constraint(builder, ops_sra_mul_remainder_sign);
+
+    let bit_to_sign_divisor_sign = bit_to_sign_extension(builder, divisor_sign);
+    let bit_to_sign_dividend_sign_mul_bit_to_sign_divisor_sign =
+        builder.mul_extension(bit_to_sign_dividend_sign, bit_to_sign_divisor_sign);
+    let bit_to_sign_quotient_sign_sub = builder.sub_extension(
+        bit_to_sign_quotient_sign,
+        bit_to_sign_dividend_sign_mul_bit_to_sign_divisor_sign,
+    );
+    let one_sub_skip_check_quotient_sign = builder.sub_extension(one, lv.skip_check_quotient_sign);
+    let constr = builder.mul_extension(
+        one_sub_skip_check_quotient_sign,
+        bit_to_sign_quotient_sign_sub,
+    );
+    yield_constr.constraint(builder, constr);
+
+    let skip_check_quotient_sign_mul_divisor_full_range =
+        builder.mul_extension(lv.skip_check_quotient_sign, divisor_full_range);
+    let quotient_value_add_quotient_full_range =
+        builder.add_extension(quotient_value, quotient_full_range);
+    let constr = builder.mul_extension(
+        skip_check_quotient_sign_mul_divisor_full_range,
+        quotient_value_add_quotient_full_range,
+    );
+    yield_constr.constraint(builder, constr);
+
+    let divisor_full_range_mul_quotient_full_range =
+        builder.mul_extension(divisor_full_range, quotient_full_range);
+    let constr = builder.add_extension(
+        divisor_full_range_mul_quotient_full_range,
+        remainder_full_range,
+    );
+    let constr = builder.sub_extension(constr, dividend_full_range);
+    let constr = builder.mul_extension(one_sub_skip_check_quotient_sign, constr);
+    yield_constr.constraint(builder, constr);
+
+    let remainder_abs_add_one = builder.add_extension(remainder_abs, one);
+    let remainder_abs_add_one_add_remainder_slack =
+        builder.add_extension(remainder_abs_add_one, remainder_slack);
+    let constr = builder.sub_extension(remainder_abs_add_one_add_remainder_slack, divisor_abs);
+    let constr = builder.mul_extension(divisor_abs, constr);
+    yield_constr.constraint(builder, constr);
+
+    let divisor_value_mul_divisor_value_inv =
+        builder.mul_extension(divisor_value, divisor_value_inv);
+    let one_sub_divisor_value_mul_divisor_value_inv =
+        builder.sub_extension(one, divisor_value_mul_divisor_value_inv);
+    let u32_max = builder.constant_extension(F::Extension::from_canonical_u32(u32::MAX));
+    let quotient_value_sub_max = builder.sub_extension(quotient_value, u32_max);
+    let constr = builder.mul_extension(
+        one_sub_divisor_value_mul_divisor_value_inv,
+        quotient_value_sub_max,
+    );
+    yield_constr.constraint(builder, constr);
+    let remainder_value_sub_dividend_value = builder.sub_extension(remainder_value, dividend_value);
+    let constr = builder.mul_extension(
+        one_sub_divisor_value_mul_divisor_value_inv,
+        remainder_value_sub_dividend_value,
+    );
+    yield_constr.constraint(builder, constr);
+
+    let dst = lv.dst_value;
+    let div_add_srl = builder.add_extension(ops.div, ops.srl);
+    let ops_div_srl_sra = builder.add_extension(div_add_srl, ops.sra);
+    let dst_sub_quotient_value = builder.sub_extension(dst, quotient_value);
+    let constr = builder.mul_extension(ops_div_srl_sra, dst_sub_quotient_value);
+    yield_constr.constraint(builder, constr);
+    let dst_sub_remainder_value = builder.sub_extension(dst, remainder_value);
+    let ops_rem_mul_dst_sub_remainder_value =
+        builder.mul_extension(ops.rem, dst_sub_remainder_value);
+    yield_constr.constraint(builder, ops_rem_mul_dst_sub_remainder_value);
 }
 
 #[cfg(test)]
