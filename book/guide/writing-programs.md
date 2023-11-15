@@ -1,0 +1,115 @@
+# Writing Programs
+
+[RISC-V] is a general purpose instruction set architecture. As a RISC-V Zero-Knowledge Virtual Machine, 
+Mozak-VM can prove and verify arbitrary programs that are compiled to RISC-V regardless of whether the program
+was written in Rust, C++, or another language.
+
+For now, we support the RV32I Base Integer Instructions and RV32M Multiply Extension Instructions of RISC-V and writing
+programs in Rust.
+
+If you are not sure what these instructions mentioned above means, checkout [a succinct reference of the RISC-V instructions].
+
+# Writing a simple fibonacci program
+
+You can write what we term "guest programs" by adding the `guest` crate to your dependency.
+
+```rust
+[dependencies]
+guest = { git = "https://github.com/0xmozak/mozak-vm", package = "guest", tag = "v0.1" }
+```
+
+We do not support the Rust standard library at the moment. Add the following to your `main.rs` or `lib.rs` file.
+
+```rust
+#![no_std]
+```
+
+If you are not familiar with how to write Rust programs in an environment without the standard library, check out the [Rust Embedded Book].
+
+If you are writing a binary program, add name of the program and path to the executable to your `Cargo.toml` file.
+
+```rust
+[[bin]]
+name = "fibonacci"
+path = "main.rs"
+```
+
+and the following to your binary file
+
+```
+#![no_main]
+```
+
+use the guest crate as the entry of the `main()` function.
+
+```rust
+pub fn main() {
+    ...
+}
+
+guest::entry!(main);
+
+```
+
+Here is the entire code of the fibonnaci program.
+
+```rust
+#![no_main]
+#![no_std]
+
+use core::{assert, assert_eq};
+
+fn fibonacci(n: u32) -> (u32, u32) {
+    if n < 2 {
+        return (0, n);
+    }
+    let (mut curr, mut last) = (1_u64, 0_u64);
+    for _i in 0..(n - 2) {
+        (curr, last) = (curr + last, curr);
+    }
+    ((curr >> 32) as u32, curr as u32)
+}
+
+pub fn main() {
+    let (high, low) = fibonacci(40);
+    assert!(low == 63245986);
+    assert_eq!(high, 0);
+    guest::env::write(&high.to_le_bytes());
+}
+
+guest::entry!(main);
+```
+
+Building the programs require Rust nightly toolchain. Exploring the generated ELF requires RISC-V toolkit, especially `objdump` or equivalent.
+
+## Building ELFs
+
+```bash
+cargo build
+```
+This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/debug/`.
+
+use `mozak-cli`'s run command to execute generated ELF.
+```bash
+mozak-cli run target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
+
+```
+
+If you want to see more examples, check out the examples in the [examples folder of our repository].
+
+
+<!---
+Add cargo add command once `guest` is published to crate.io
+
+```
+cargo add guest
+```
+-->
+
+
+
+
+[RISC-V]: https://github.com/riscv/riscv-isa-manual/releases/tag/Ratified-IMAFDQC
+[a succinct reference of the RISC-V instructions]: https://github.com/jameslzhu/riscv-card/blob/master/riscv-card.pdf
+[Rust Embedded Book]: https://docs.rust-embedded.org/book/intro/no-std.html
+[examples folder of our repository]: https://github.com/0xmozak/mozak-vm/tree/main/examples

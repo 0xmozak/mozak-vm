@@ -10,7 +10,6 @@ title = "Mozak-VM"
 default-theme = "rust"
 git-repository-url = "https://github.com/0xmozak/mozak-vm"
 mathjax-support = true
-no-section-label = true
 
 [build]
 build-dir = "target/book"
