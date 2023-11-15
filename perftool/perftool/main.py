@@ -13,6 +13,7 @@ from path import (
 import typer
 
 from .utils import (
+    build_ELF,
     build_release,
     create_repo_from_commit,
     init_csv,
@@ -78,6 +79,7 @@ def build(bench_function: str):
     for commit in bench_commits.values():
         build_repo(commit)
         create_symlink_for_repo(bench_function, commit)
+        build_ELF(bench_function, commit)
     print(f"Bench {bench_function} built successfully.")
 
 

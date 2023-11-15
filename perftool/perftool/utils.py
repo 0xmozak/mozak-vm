@@ -5,7 +5,7 @@ from pathlib import Path
 import random
 from typing import List
 import pandas as pd
-from path import get_actual_commit_folder
+from path import get_actual_commit_folder, get_elf_path
 from pyparsing import Any
 
 
@@ -25,6 +25,15 @@ def create_repo_from_commit(commit: str):
 
 def build_release(cli_repo: Path):
     subprocess.run(["cargo", "build", "--release"], cwd=cli_repo, check=True)
+
+
+def build_ELF(bench_function: str, commit: str):
+    data = load_bench_function_data(bench_function)
+    elf = data["elf"]
+    if elf == "":
+        return
+    elf_path = get_elf_path(data["elf"], commit)
+    subprocess.run(["cargo", "build", "--release"], cwd=elf_path, check=True)
 
 
 def bench(bench_function: str, parameter: int, cli_repo: Path) -> float:

@@ -5,10 +5,6 @@ use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
 use mozak_runner::instruction::{Args, Instruction, Op};
 use mozak_runner::test_utils::simple_test_code;
 use starky::config::StarkConfig;
-use tikv_jemallocator::Jemalloc;
-
-#[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
 
 fn bench_prove_verify_all(c: &mut Criterion) {
     let _ = env_logger::builder().try_init();
@@ -36,7 +32,7 @@ fn bench_prove_verify_all(c: &mut Criterion) {
                     },
                 },
             ];
-            let (program, record) = simple_test_code(instructions, &[], &[(1, 1 << 16)]);
+            let (program, record) = simple_test_code(instructions, &[], &[(1, 1 << 10)]);
             prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
         })
     });

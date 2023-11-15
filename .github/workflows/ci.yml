@@ -18,18 +18,28 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  check-runner:
+    uses: ./.github/workflows/check-runner.yml
+    secrets: inherit
+
   cargo-test:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v3
 
       - name: Install rust toolkit
         uses: ./.github/actions/rust
 
-      - name: Build ELF(s) for benchmarking
-        run: cd examples/fibonacci && cargo build --release
+      - name: Build fibonacci ELF for benchmarking 
+        working-directory: examples/fibonacci 
+        run: cargo build --release
 
+      - name: Build fibonacci-input ELF for benchmarking 
+        working-directory: examples/fibonacci-input 
+        run: cargo build --release
+        
       - name: Compile 
         run: cargo nextest run --no-run --locked --all-targets
 
@@ -38,7 +48,8 @@ jobs:
 
   cargo-clippy:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v3
 
@@ -54,7 +65,8 @@ jobs:
 
   cargo-build-examples:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v3
 
@@ -68,7 +80,8 @@ jobs:
 
   cargo-fmt:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v3
 
@@ -80,13 +93,15 @@ jobs:
 
   taplo-fmt:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v3
 
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: taplo-cli
+      - name: Install taplo-cli
+        run: |
+          curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
+            gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
 
       - name: taplo fmt
         run: taplo fmt --check

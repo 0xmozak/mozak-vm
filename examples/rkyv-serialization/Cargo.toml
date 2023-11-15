@@ -10,7 +10,7 @@ path = "../../guest"
 native = []
 
 [dependencies]
-rkyv = { version = "0.7.42", default-features = false, features = ["size_32", "alloc"] }
+rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
 
 [[bin]]
 name = "rkyv-serialization"
