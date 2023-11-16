@@ -62,7 +62,7 @@ impl From<&HashMap<u32, u8>> for Code {
                 .map(|addr| addr & !3)
                 .collect::<HashSet<_>>()
                 .into_iter()
-                .map(|key| (key, decode_instruction(key, load_u32(image, key))))
+                .filter_map(|key| Some((key, decode_instruction(key, load_u32(image, key)).ok()?)))
                 .collect(),
         )
     }
