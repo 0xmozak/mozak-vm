@@ -297,7 +297,7 @@ mod tests {
         /// This just tests that we don't panic during decoding.
         #[test]
         fn fuzz_decode(pc in u32_extra(), word in u32_extra()) {
-            let _ = decode_instruction(pc, word);
+            let _ = super::decode_instruction(pc, word);
         }
     }
 
