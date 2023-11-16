@@ -21,7 +21,7 @@ pub fn state_before_final(e: &ExecutionRecord<GoldilocksField>) -> &State<Goldil
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
 #[allow(clippy::similar_names)]
-pub fn simple_test_code_with_ro_memory<'a>(
+pub fn simple_test_code_with_ro_memory(
     code: &[Instruction],
     ro_mem: &[(u32, u8)],
     rw_mem: &[(u32, u8)],
@@ -49,7 +49,7 @@ pub fn simple_test_code_with_ro_memory<'a>(
                             // add ECALL to halt the program
                             Instruction {
                                 op: Op::ECALL,
-                                args: Default::default()
+                                args: Args::default(),
                             },
                         ]
                         .iter(),

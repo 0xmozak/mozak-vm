@@ -128,7 +128,7 @@ mod tests {
     fn test_xor_stark(a: u32, b: u32, imm: u32) {
         let config = fast_test_config();
 
-        let (program, record) = simple_test_code(
+        let (_program, record) = simple_test_code(
             &[
                 Instruction {
                     op: Op::XOR,
@@ -163,7 +163,7 @@ mod tests {
         );
         // assert_eq!(record.last_state.get_register_value(7), a ^ (b + imm));
         let mut timing = TimingTree::new("xor", log::Level::Debug);
-        let cpu_trace = generate_cpu_trace(&program, &record);
+        let cpu_trace = generate_cpu_trace(&record);
         let trace = timed!(timing, "generate_xor_trace", generate_xor_trace(&cpu_trace));
         let trace_poly_values = timed!(timing, "trace to poly", trace_rows_to_poly_values(trace));
         let stark = S::default();

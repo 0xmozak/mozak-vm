@@ -6,7 +6,7 @@ use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2};
 use plonky2::hash::hash_types::RichField;
 
 use crate::elf::Program;
-use crate::instruction::{Args, Op, Instruction};
+use crate::instruction::{Args, Instruction, Op};
 use crate::state::{Aux, IoEntry, IoOpcode, MemEntry, State};
 
 #[must_use]
@@ -217,7 +217,9 @@ impl<F: RichField> State<F> {
     /// Errors if the program contains an instruction with an unsupported
     /// opcode.
     pub fn execute_instruction(self, program: &Program) -> Result<(Aux<F>, &Instruction, Self)> {
-        let inst = self.current_instruction(program).ok_or(anyhow!("Can't find instruction."))?;
+        let inst = self
+            .current_instruction(program)
+            .ok_or(anyhow!("Can't find instruction."))?;
         macro_rules! rop {
             ($op: expr) => {
                 self.register_op(&inst.args, $op)
@@ -303,6 +305,17 @@ pub struct Row<F: RichField> {
     pub state: State<F>,
     pub aux: Aux<F>,
     pub instruction: Instruction,
+}
+
+impl<F: RichField> Row<F> {
+    #[must_use]
+    pub fn new(op: Op) -> Self {
+        Row {
+            state: State::default(),
+            aux: Aux::default(),
+            instruction: Instruction::new(op, Args::default()),
+        }
+    }
 }
 
 /// Unconstrained Trace produced by running the code

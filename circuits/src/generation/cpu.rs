@@ -48,7 +48,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
         state: last_state.clone(),
         // `Aux` has auxiliary information about an executed CPU cycle.
         // The last state is the final state after the last execution.  Thus naturally it has no
-        // associated auxiliarye execution information. We use a dummy aux to make the row
+        // associated auxiliary execution information. We use a dummy aux to make the row
         // generation work, but we could refactor to make this unnecessary.
         ..executed.last().unwrap().clone()
     }];
@@ -60,15 +60,15 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
         aux,
     } in chain![executed, last_row]
     {
-        let inst = *instruction;
+        let instruction = *instruction;
         let io = aux.io.as_ref().unwrap_or(&default_io_entry);
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
-            inst: cpu_cols::Instruction::from((state.get_pc(), inst)).map(from_u32),
+            inst: cpu_cols::Instruction::from((state.get_pc(), instruction)).map(from_u32),
             op1_value: from_u32(aux.op1),
             op2_value: from_u32(aux.op2),
-            op2_value_overflowing: from_u32::<F>(state.get_register_value(inst.args.rs2))
-                + from_u32(inst.args.imm),
+            op2_value_overflowing: from_u32::<F>(state.get_register_value(instruction.args.rs2))
+                + from_u32(instruction.args.imm),
             // NOTE: Updated value of DST register is next step.
             dst_value: from_u32(aux.dst_val),
             is_running: F::from_bool(!state.halted),
@@ -77,7 +77,7 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             // TODO(Matthias): find a way to make either compiler or runtime complain
             // if we have two (conflicting) users in the same row.
             bitshift: Bitshift::from(0).map(F::from_canonical_u32),
-            xor: generate_xor_row(&inst, state),
+            xor: generate_xor_row(&instruction, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
             is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
@@ -90,15 +90,15 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
             io_addr: F::from_canonical_u32(io.addr),
             io_size: F::from_canonical_usize(io.data.len()),
             is_io_store_private: F::from_bool(matches!(
-                (inst.op, io.op),
+                (instruction.op, io.op),
                 (Op::ECALL, IoOpcode::StorePrivate)
             )),
             is_io_store_public: F::from_bool(matches!(
-                (inst.op, io.op),
+                (instruction.op, io.op),
                 (Op::ECALL, IoOpcode::StorePublic)
             )),
             is_halt: F::from_bool(matches!(
-                (inst.op, state.registers[usize::from(REG_A0)]),
+                (instruction.op, state.registers[usize::from(REG_A0)]),
                 (Op::ECALL, ecall::HALT)
             )),
             ..CpuState::default()
@@ -110,9 +110,9 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
 
         generate_shift_row(&mut row, aux);
         generate_mul_row(&mut row, aux);
-        generate_div_row(&mut row, &inst, aux);
+        generate_div_row(&mut row, &instruction, aux);
         operands_sign_handling(&mut row, aux);
-        memory_sign_handling(&mut row, &inst, aux);
+        memory_sign_handling(&mut row, &instruction, aux);
         generate_conditional_branch_row(&mut row);
         trace.push(row);
     }
