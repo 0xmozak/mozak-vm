@@ -1,3 +1,4 @@
+use itertools::{chain, izip};
 use mozak_system::system::ecall;
 use plonky2::field::goldilocks_field::GoldilocksField;
 #[cfg(any(feature = "test", test))]
@@ -31,32 +32,27 @@ pub fn simple_test_code_with_ro_memory(
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
     let _ = env_logger::try_init();
     let ro_code = Code(
-        (0..)
-            .step_by(4)
-            .zip(
-                code.iter()
-                    .chain(
-                        [
-                            // set sys-call HALT in x10(or a0)
-                            Instruction {
-                                op: Op::ADD,
-                                args: Args {
-                                    rd: 10,
-                                    imm: ecall::HALT,
-                                    ..Args::default()
-                                },
-                            },
-                            // add ECALL to halt the program
-                            Instruction {
-                                op: Op::ECALL,
-                                args: Args::default(),
-                            },
-                        ]
-                        .iter(),
-                    )
-                    .copied(),
-            )
-            .collect(),
+        izip!(
+            (0..).step_by(4),
+            chain!(code.to_owned(), [
+                // set sys-call HALT in x10(or a0)
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: 10,
+                        imm: ecall::HALT,
+                        ..Args::default()
+                    },
+                },
+                // add ECALL to halt the program
+                Instruction {
+                    op: Op::ECALL,
+                    args: Args::default(),
+                },
+            ])
+            .map(Ok),
+        )
+        .collect(),
     );
 
     let program = Program {

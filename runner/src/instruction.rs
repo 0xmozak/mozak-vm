@@ -123,3 +123,9 @@ impl Instruction {
     #[must_use]
     pub fn new(op: Op, args: Args) -> Self { Instruction { op, args } }
 }
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+pub struct DecodingError {
+    pub pc: u32,
+    pub instruction: u32,
+}

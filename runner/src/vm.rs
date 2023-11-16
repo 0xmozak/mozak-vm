@@ -216,10 +216,11 @@ impl<F: RichField> State<F> {
     ///
     /// Errors if the program contains an instruction with an unsupported
     /// opcode.
-    pub fn execute_instruction(self, program: &Program) -> Result<(Aux<F>, &Instruction, Self)> {
+    pub fn execute_instruction(self, program: &Program) -> Result<(Aux<F>, Instruction, Self)> {
         let inst = self
             .current_instruction(program)
-            .ok_or(anyhow!("Can't find instruction."))?;
+            .ok_or(anyhow!("Can't find instruction."))?
+            .map_err(|e| anyhow!("Uknownn instruction {} at {}", e.instruction, e.pc))?;
         macro_rules! rop {
             ($op: expr) => {
                 self.register_op(&inst.args, $op)
@@ -347,7 +348,7 @@ pub fn step<F: RichField>(
 ) -> Result<ExecutionRecord<F>> {
     let mut executed = vec![];
     while !last_state.has_halted() {
-        let (aux, &instruction, new_state) = last_state.clone().execute_instruction(program)?;
+        let (aux, instruction, new_state) = last_state.clone().execute_instruction(program)?;
         executed.push(Row {
             state: last_state,
             instruction,

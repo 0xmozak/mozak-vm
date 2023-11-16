@@ -2,7 +2,7 @@ use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::iter::repeat;
 
-use anyhow::{anyhow, ensure, Result};
+use anyhow::{anyhow, ensure};
 use derive_more::Deref;
 use elf::endian::LittleEndian;
 use elf::file::Class;
@@ -12,7 +12,7 @@ use itertools::{chain, iproduct, Itertools};
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
-use crate::instruction::Instruction;
+use crate::instruction::{Instruction, DecodingError};
 use crate::util::load_u32;
 
 /// A RISC-V program
@@ -37,7 +37,7 @@ pub struct Program {
 ///
 /// A wrapper of a map from pc to [Instruction]
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
-pub struct Code(pub HashMap<u32, Instruction>);
+pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
 
 /// Memory of RISC-V Program
 ///
@@ -48,7 +48,10 @@ pub struct Data(pub HashMap<u32, u8>);
 impl Code {
     /// Get [Instruction] given `pc`
     #[must_use]
-    pub fn get_instruction(&self, pc: u32) -> Option<&Instruction> {
+    pub fn get_instruction(
+        &self,
+        pc: u32,
+    ) -> Option<&Result<Instruction, DecodingError>> {
         let Code(code) = self;
         code.get(&pc)
     }
@@ -62,7 +65,7 @@ impl From<&HashMap<u32, u8>> for Code {
                 .map(|addr| addr & !3)
                 .collect::<HashSet<_>>()
                 .into_iter()
-                .filter_map(|key| Some((key, decode_instruction(key, load_u32(image, key)).ok()?)))
+                .map(|key| (key, decode_instruction(key, load_u32(image, key))))
                 .collect(),
         )
     }
@@ -133,7 +136,7 @@ impl Program {
     // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
     // exercise the error handling?
     #[allow(clippy::similar_names)]
-    pub fn load_elf(input: &[u8]) -> Result<Program> {
+    pub fn load_elf(input: &[u8]) -> anyhow::Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
         ensure!(elf.ehdr.class == Class::ELF32, "Not a 32-bit ELF");
         ensure!(
@@ -155,7 +158,7 @@ impl Program {
             segments
                 .iter()
                 .filter(|s| check_flags(s.p_flags))
-                .map(|segment| -> Result<_> {
+                .map(|segment| -> anyhow::Result<_> {
                     let file_size: usize = segment.p_filesz.try_into()?;
                     let mem_size: usize = segment.p_memsz.try_into()?;
                     let vaddr: u32 = segment.p_vaddr.try_into()?;

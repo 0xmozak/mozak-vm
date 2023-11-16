@@ -1,8 +1,7 @@
-use anyhow::{anyhow, Result};
 use bitfield::{bitfield, BitRange};
 use log::warn;
 
-use crate::instruction::{Args, Instruction, Op, NOP};
+use crate::instruction::{Args, Instruction, DecodingError, Op, NOP};
 
 /// Extract a u32 that represents the immediate from segments with zeros right
 /// pads of specified length
@@ -84,7 +83,7 @@ bitfield! {
 #[allow(clippy::module_name_repetitions)]
 #[allow(clippy::similar_names)]
 #[allow(clippy::missing_errors_doc)]
-pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction> {
+pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction, DecodingError> {
     let bf = InstructionBits(word);
     let rs1 = bf.rs1();
     let rs2 = bf.rs2();
@@ -148,7 +147,10 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction> {
 
     let default = || {
         warn!("UNKNOWN Op {bf:?} at pc {pc:?}");
-        Err(anyhow!("UNKNOWN Op {bf:?} at pc {pc:?}"))
+        Err(DecodingError {
+            pc,
+            instruction: word,
+        })
     };
 
     let (op, args) = match bf.opcode() {

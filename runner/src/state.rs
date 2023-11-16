@@ -10,7 +10,7 @@ use plonky2::hash::poseidon2::WIDTH;
 use serde::{Deserialize, Serialize};
 
 use crate::elf::{Code, Data, Program};
-use crate::instruction::{Args, Instruction};
+use crate::instruction::{Args, Instruction, DecodingError};
 
 /// State of RISC-V VM
 ///
@@ -340,7 +340,10 @@ impl<F: RichField> State<F> {
     }
 
     #[must_use]
-    pub fn current_instruction<'a>(&self, program: &'a Program) -> Option<&'a Instruction> {
+    pub fn current_instruction<'a>(
+        &self,
+        program: &'a Program,
+    ) -> Option<&'a Result<Instruction, DecodingError>> {
         let pc = self.get_pc();
         let inst = program.ro_code.get_instruction(pc);
         let clk = self.clk;
