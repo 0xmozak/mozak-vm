@@ -41,8 +41,8 @@ mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.4"
 
 [features]
-test = []
 enable_poseidon_starks = []
+test = []
 
 [[bench]]
 harness = false
