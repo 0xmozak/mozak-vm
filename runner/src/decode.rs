@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use bitfield::{bitfield, BitRange};
+use log::warn;
 
 use crate::instruction::{Args, Instruction, Op, NOP};
 
@@ -145,7 +146,10 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction> {
     };
     let nop = (NOP.op, NOP.args);
 
-    let default = Err(anyhow!("UNKNOWN Op at pc {pc:?}"));
+    let default = || {
+        warn!("UNKNOWN Op {bf:?} at pc {pc:?}");
+        Err(anyhow!("UNKNOWN Op {bf:?} at pc {pc:?}"))
+    };
 
     let (op, args) = match bf.opcode() {
         0b011_0011 => match (bf.funct3(), bf.funct7()) {
@@ -167,7 +171,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction> {
             (0x1, 0x01) => (Op::MULH, rtype),
             (0x2, 0x01) => (Op::MULHSU, rtype),
             (0x3, 0x01) => (Op::MULHU, rtype),
-            _ => return default,
+            _ => return default(),
         },
         0b000_0011 => match bf.funct3() {
             0x0 => (Op::LB, itype_load),
@@ -175,13 +179,13 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction> {
             0x2 => (Op::LW, itype_load),
             0x4 => (Op::LBU, itype_load),
             0x5 => (Op::LHU, itype_load),
-            _ => return default,
+            _ => return default(),
         },
         0b010_0011 => match bf.funct3() {
             0x0 => (Op::SB, stype),
             0x1 => (Op::SH, stype),
             0x2 => (Op::SW, stype),
-            _ => return default,
+            _ => return default(),
         },
         0b001_0011 => match bf.funct3() {
             // For RISC-V it's ADDI, but we handle it as ADD.
@@ -215,14 +219,14 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction> {
                         imm: 1 << itype.imm,
                         ..itype
                     }),
-                    _ => return default,
+                    _ => return default(),
                 }
             }
             // For RISC-V it's ORI, but we handle it as OR.
             0x6 => (Op::OR, itype),
             // For RISC-V it's ANDI, but we handle it as AND.
             0x7 => (Op::AND, itype),
-            _ => return default,
+            _ => return default(),
         },
         #[allow(clippy::match_same_arms)]
         0b111_0011 => match (bf.funct3(), bf.funct12()) {
@@ -242,13 +246,13 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction> {
             // For RISC-V this would be (Op::CSRRWI, itype),
             // but so far we implemented it as a no-op.
             (0x5, _) => nop,
-            _ => return default,
+            _ => return default(),
         },
         // For RISC-V its JAL, but we handle it as JALR.
         0b110_1111 => (Op::JALR, jtype),
         0b110_0111 => match bf.funct3() {
             0x0 => (Op::JALR, itype),
-            _ => return default,
+            _ => return default(),
         },
         0b110_0011 => match bf.funct3() {
             0x0 => (Op::BEQ, btype),
@@ -257,7 +261,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction> {
             0x5 => (Op::BGE, btype),
             0x6 => (Op::BLTU, btype),
             0x7 => (Op::BGEU, btype),
-            _ => return default,
+            _ => return default(),
         },
         // LUI in RISC-V; but our ADD instruction is general enough to express the same semantics
         // without a new op-code.
@@ -268,7 +272,7 @@ pub fn decode_instruction(pc: u32, word: u32) -> Result<Instruction> {
         // For RISC-V this would be (Op::FENCE, itype)
         // but so far we implemented it as a no-op.
         0b000_1111 => nop,
-        _ => return default,
+        _ => return default(),
     };
 
     Ok(Instruction::new(op, args))
