@@ -154,7 +154,7 @@ pub struct Poseidon2Entry<F: RichField> {
 }
 
 /// Auxiliary information about the instruction execution
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Aux<F: RichField> {
     // This could be an Option<u32>, but given how RISC-V instruction are specified,
     // 0 serves as a default value just fine.
