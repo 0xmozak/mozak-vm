@@ -1,5 +1,4 @@
 use itertools::{chain, izip, Itertools};
-use mozak_runner::elf::Program;
 use mozak_runner::instruction::Args;
 use mozak_runner::state::State;
 use mozak_runner::vm::ExecutionRecord;
@@ -54,7 +53,6 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> 
 ///    2.
 #[must_use]
 pub fn generate_register_trace<F: RichField>(
-    program: &Program,
     record: &ExecutionRecord<F>,
 ) -> Vec<Register<F>> {
     let ExecutionRecord {
@@ -66,9 +64,9 @@ pub fn generate_register_trace<F: RichField>(
         |reg: fn(&Args) -> u8, ops: Ops<F>, clk_offset: u64| -> _ {
             executed
                 .iter()
-                .filter(move |row| reg(&row.state.current_instruction(program).args) != 0)
+                .filter(move |row| reg(&row.instruction.args) != 0)
                 .map(move |row| {
-                    let reg = reg(&row.state.current_instruction(program).args);
+                    let reg = reg(&row.instruction.args);
 
                     // Ignore r0 because r0 should always be 0.
                     // TODO: assert r0 = 0 constraint in CPU trace.

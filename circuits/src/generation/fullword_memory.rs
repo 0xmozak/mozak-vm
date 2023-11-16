@@ -1,6 +1,6 @@
 use itertools::{self, Itertools};
 use mozak_runner::elf::Program;
-use mozak_runner::instruction::Op;
+use mozak_runner::instruction::{Op, Instruction};
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
 
@@ -30,7 +30,7 @@ pub fn filter_memory_trace<'a, F: RichField>(
 ) -> impl Iterator<Item = &'a Row<F>> {
     step_rows
         .iter()
-        .filter(|row| matches!(row.state.current_instruction(program).op, Op::LW | Op::SW))
+        .filter(|row| matches!(row.state.current_instruction(program), Some(Instruction{op: Op::LW | Op::SW, ..})))
 }
 
 #[must_use]
@@ -41,7 +41,7 @@ pub fn generate_fullword_memory_trace<F: RichField>(
     pad_mem_trace(
         filter_memory_trace(program, step_rows)
             .map(|s| {
-                let op = s.state.current_instruction(program).op;
+                let op = s.instruction.op;
                 let base_addr = s.aux.mem.unwrap_or_default().addr;
                 let addrs = (0..4)
                     .map(|i| F::from_canonical_u32(base_addr.wrapping_add(i)))

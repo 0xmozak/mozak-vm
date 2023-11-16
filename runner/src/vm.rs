@@ -6,7 +6,7 @@ use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2};
 use plonky2::hash::hash_types::RichField;
 
 use crate::elf::Program;
-use crate::instruction::{Args, Op};
+use crate::instruction::{Args, Op, Instruction};
 use crate::state::{Aux, IoEntry, IoOpcode, MemEntry, State};
 
 #[must_use]
@@ -216,8 +216,8 @@ impl<F: RichField> State<F> {
     ///
     /// Errors if the program contains an instruction with an unsupported
     /// opcode.
-    pub fn execute_instruction(self, program: &Program) -> Result<(Aux<F>, Self)> {
-        let inst = self.current_instruction(program);
+    pub fn execute_instruction(self, program: &Program) -> Result<(Aux<F>, &Instruction, Self)> {
+        let inst = self.current_instruction(program).ok_or(anyhow!("Can't find instruction."))?;
         macro_rules! rop {
             ($op: expr) => {
                 self.register_op(&inst.args, $op)
@@ -282,7 +282,6 @@ impl<F: RichField> State<F> {
             Op::DIVU => rop!(divu),
             Op::REM => rop!(rem),
             Op::REMU => rop!(remu),
-            Op::UNKNOWN => return Err(anyhow!("Unsupported opcode: {}", inst.op)),
         };
         Ok((
             Aux {
@@ -291,6 +290,7 @@ impl<F: RichField> State<F> {
                 op2,
                 ..aux
             },
+            inst,
             state.bump_clock(),
         ))
     }
@@ -298,10 +298,11 @@ impl<F: RichField> State<F> {
 
 /// Each row corresponds to the state of the VM _just before_ executing the
 /// instruction that the program counter points to.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Row<F: RichField> {
     pub state: State<F>,
     pub aux: Aux<F>,
+    pub instruction: Instruction,
 }
 
 /// Unconstrained Trace produced by running the code
@@ -333,9 +334,10 @@ pub fn step<F: RichField>(
 ) -> Result<ExecutionRecord<F>> {
     let mut executed = vec![];
     while !last_state.has_halted() {
-        let (aux, new_state) = last_state.clone().execute_instruction(program)?;
+        let (aux, &instruction, new_state) = last_state.clone().execute_instruction(program)?;
         executed.push(Row {
             state: last_state,
+            instruction,
             aux,
         });
         last_state = new_state;

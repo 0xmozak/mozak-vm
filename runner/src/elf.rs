@@ -48,9 +48,9 @@ pub struct Data(pub HashMap<u32, u8>);
 impl Code {
     /// Get [Instruction] given `pc`
     #[must_use]
-    pub fn get_instruction(&self, pc: u32) -> Instruction {
+    pub fn get_instruction(&self, pc: u32) -> Option<&Instruction> {
         let Code(code) = self;
-        code.get(&pc).copied().unwrap_or_default()
+        code.get(&pc)
     }
 }
 
@@ -62,7 +62,7 @@ impl From<&HashMap<u32, u8>> for Code {
                 .map(|addr| addr & !3)
                 .collect::<HashSet<_>>()
                 .into_iter()
-                .map(|key| (key, decode_instruction(key, load_u32(image, key))))
+                .filter_map(|key| Some((key, decode_instruction(key, load_u32(image, key)).ok()?)))
                 .collect(),
         )
     }

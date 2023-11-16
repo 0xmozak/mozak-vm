@@ -154,7 +154,7 @@ pub struct Poseidon2Entry<F: RichField> {
 }
 
 /// Auxiliary information about the instruction execution
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Aux<F: RichField> {
     // This could be an Option<u32>, but given how RISC-V instruction are specified,
     // 0 serves as a default value just fine.
@@ -340,7 +340,7 @@ impl<F: RichField> State<F> {
     }
 
     #[must_use]
-    pub fn current_instruction(&self, program: &Program) -> Instruction {
+    pub fn current_instruction<'a>(&self, program: &'a Program) -> Option<&'a Instruction> {
         let pc = self.get_pc();
         let inst = program.ro_code.get_instruction(pc);
         let clk = self.clk;
