@@ -61,7 +61,6 @@ pub fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(
     (HashOut::from(outputs), sponge_data)
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 impl<F: RichField> State<F> {
     #[must_use]
     /// # Panics
@@ -105,7 +104,6 @@ impl<F: RichField> State<F> {
 }
 
 #[cfg(test)]
-#[cfg(feature = "enable_poseidon_starks")]
 mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
