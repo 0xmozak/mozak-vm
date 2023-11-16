@@ -54,7 +54,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
         is_binary(yield_constr, lv.is_executed());
 
         // If nv.is_io() == 1: lv.size == 0, also forces the last row to be size == 0 !
-        // This constraints ensures loop unrolling was done correctly  
+        // This constraints ensures loop unrolling was done correctly
         yield_constr.constraint(nv.is_io() * lv.size);
         // If lv.is_lv_and_nv_are_memory_rows == 1:
         //    nv.address == lv.address + 1 (wrapped)

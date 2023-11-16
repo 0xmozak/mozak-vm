@@ -112,7 +112,7 @@ mod tests {
             &halfword_memory,
             &fullword_memory,
             &io_memory_private_rows,
-            &io_memory_public_rows, 
+            &io_memory_public_rows,
             &poseidon2_rows,
         );
         let inv = inv::<F>;

@@ -47,11 +47,11 @@ mozak-cli -vvv run target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
 ```bash
 RUSTFLAGS="--emit asm" cargo +nightly build
 ```
-After this, `target/riscv32im-risc0-zkvm-elf/debug/deps/` would contain assembly files with `.s` extension 
+After this, `target/riscv32im-risc0-zkvm-elf/debug/deps/` would contain assembly files with `.s` extension
 
 ### Exploring via `objdump`
-`objdump` utility (differently built for riscV) can be fetched via 
-- MacOS: https://github.com/riscv-software-src/homebrew-riscv 
+`objdump` utility (differently built for riscV) can be fetched via
+- MacOS: https://github.com/riscv-software-src/homebrew-riscv
 - Others: https://github.com/riscv-software-src/riscv-tools
 
 Once done, this should feature as `riscv64-unknown-elf-objdump` in your `$PATH`. Use the following to explore ELFs:
