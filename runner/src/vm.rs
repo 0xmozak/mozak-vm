@@ -220,7 +220,13 @@ impl<F: RichField> State<F> {
         let inst = self
             .current_instruction(program)
             .ok_or(anyhow!("Can't find instruction."))?
-            .map_err(|e| anyhow!("Uknownn instruction {} at {}", e.instruction, e.pc))?;
+            .map_err(|e| {
+                anyhow!(
+                    "Unknown instruction {:x} at address {:x}",
+                    e.instruction,
+                    e.pc
+                )
+            })?;
         macro_rules! rop {
             ($op: expr) => {
                 self.register_op(&inst.args, $op)
