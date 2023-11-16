@@ -48,7 +48,7 @@ and the following to your binary file
 #![no_main]
 ```
 
-use the guest crate as the entry of the `main()` function.
+use the `entry!()` macro of the guest crate as the entry of the `main()` function.
 
 ```rust
 pub fn main() {
@@ -90,17 +90,32 @@ guest::entry!(main);
 
 Building the programs require Rust nightly toolchain. To Build the program, run
 
-```bash
-cargo build
+```rust
+cargo build --release
 ```
 
 This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/debug/`.
 
 use `mozak-cli`'s run command to execute generated ELF.
 
-```bash
-mozak-cli run target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
+```rust
+mozak-cli run target/riscv32im-mozak-zkvm-elf/release/<ELF_NAME> <IO_TAPE_PRIVATE> <IO_TAPE_PUBLIC>
+```
 
+For this fibonnachi example, both `<IO_TAPE_PRIVATE>` and `<IO_TAPE_PUBLIC>`, the pivate and public inputs respectively, are empty files.
+
+To prove the execution of the program, run:
+
+```rust
+mozak-cli prove target/riscv32im-mozak-zkvm-elf/release/<ELF_NAME> <IO_TAPE_PRIVATE> <IO_TAPE_PUBLIC> <PROOF>
+```
+
+where `<PROOF>` is the path to the proof file
+
+To prove the execution of the program, run:
+
+```rust
+mozak-cli prove target/riscv32im-mozak-zkvm-elf/release/<ELF_NAME> <IO_TAPE_PRIVATE> <IO_TAPE_PUBLIC> <PROOF>
 ```
 
 If you want to see more examples, check out the examples in the [examples folder of our repository].
