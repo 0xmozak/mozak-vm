@@ -78,7 +78,7 @@ RVTEST_CODE_BEGIN
   TEST_CASE( 68, x1,                  0, la x1, tdat  ; flw f1,  8(x1); fcvt.lu.h x1, f1)
   TEST_CASE( 69, x1, 0xffffffffffffffff, la x1, tdat  ; flw f1, 12(x1); fcvt.lu.h x1, f1)
 #endif
-   
+
   TEST_PASSFAIL
 
 RVTEST_CODE_END

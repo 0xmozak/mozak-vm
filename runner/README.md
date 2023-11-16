@@ -6,4 +6,4 @@ This sub-crate contains the logic necessary to:
   _RISC32I+M_](https://github.com/jameslzhu/riscv-card/blob/master/riscv-card.pdf) specification.
 
 The purpose of the sub-crate is to emulate the VM and provide its execution trace, which can be then used inside ZK
-prover to prove code execution. 
+prover to prove code execution.
