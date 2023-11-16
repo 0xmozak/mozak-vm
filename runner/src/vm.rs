@@ -389,7 +389,7 @@ mod tests {
     use crate::vm::step;
 
     fn simple_test_code(
-        code: &[Instruction],
+        code: impl IntoIterator<Item = Instruction>,
         mem: &[(u32, u8)],
         regs: &[(u8, u32)],
     ) -> ExecutionRecord<GoldilocksField> {
@@ -398,7 +398,7 @@ mod tests {
 
     fn divu_with_imm(rd: u8, rs1: u8, rs1_value: u32, imm: u32) {
         let e = simple_test_code(
-            &[Instruction::new(Op::DIVU, Args {
+            [Instruction::new(Op::DIVU, Args {
                 rd,
                 rs1,
                 imm,
@@ -415,7 +415,7 @@ mod tests {
 
     fn mul_with_imm(rd: u8, rs1: u8, rs1_value: u32, imm: u32) {
         let e = simple_test_code(
-            &[Instruction::new(Op::MUL, Args {
+            [Instruction::new(Op::MUL, Args {
                 rd,
                 rs1,
                 imm,
@@ -437,7 +437,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let sum = rs1_value.wrapping_add(rs2_value);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::ADD,
                     Args {
                         rd,
@@ -455,7 +455,7 @@ mod tests {
         #[test]
         fn addi_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::ADD,
                     Args {
                         rd,
@@ -474,7 +474,7 @@ mod tests {
         fn sll_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SLL,
                     Args {
                         rd,
@@ -496,7 +496,7 @@ mod tests {
         fn and_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::AND,
                     Args { rd,
                     rs1,
@@ -516,7 +516,7 @@ mod tests {
         #[test]
         fn andi_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::AND,
                     Args { rd,
                     rs1,
@@ -539,7 +539,7 @@ mod tests {
         fn srl_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SRL,
                     Args { rd,
                     rs1,
@@ -566,7 +566,7 @@ mod tests {
         fn or_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::OR,
                     Args { rd,
                     rs1,
@@ -586,7 +586,7 @@ mod tests {
         #[test]
         fn ori_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::OR,
                     Args { rd,
                     rs1,
@@ -608,7 +608,7 @@ mod tests {
         fn xor_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::XOR,
                     Args { rd,
                     rs1,
@@ -628,7 +628,7 @@ mod tests {
         #[test]
         fn xori_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::XOR,
                     Args { rd,
                     rs1,
@@ -650,7 +650,7 @@ mod tests {
         fn sra_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SRA,
                     Args { rd,
                     rs1,
@@ -670,7 +670,7 @@ mod tests {
         #[test]
         fn srai_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SRA,
                     Args { rd,
                     rs1,
@@ -692,7 +692,7 @@ mod tests {
         fn slt_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SLT,
                     Args { rd,
                     rs1,
@@ -715,7 +715,7 @@ mod tests {
         fn sltu_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SLTU,
                     Args { rd,
                     rs1,
@@ -735,7 +735,7 @@ mod tests {
         #[test]
         fn slti_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SLT,
                     Args { rd,
                     rs1,
@@ -752,7 +752,7 @@ mod tests {
         #[test]
         fn sltiu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SLTU,
                     Args { rd,
                     rs1,
@@ -777,7 +777,7 @@ mod tests {
             let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::LB,
                     Args { rd,
                     rs2,
@@ -799,7 +799,7 @@ mod tests {
             let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::LBU,
                     Args { rd,
                     rs2,
@@ -820,7 +820,7 @@ mod tests {
             let [mem0, mem1] = memory_value.to_le_bytes();
 
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::LH,
                     Args { rd,
                     rs2,
@@ -841,7 +841,7 @@ mod tests {
             let [mem0, mem1] = memory_value.to_le_bytes();
 
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::LHU,
                     Args { rd,
                     rs2,
@@ -863,7 +863,7 @@ mod tests {
             let [mem0, mem1, mem2, mem3] = memory_value.to_le_bytes();
 
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::LW,
                     Args { rd,
                     rs2,
@@ -882,7 +882,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let address = rs2_val.wrapping_add(offset);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SB,
                     Args {rs1,
                     rs2,
@@ -902,7 +902,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let address = rs2_val.wrapping_add(offset);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SH,
                     Args {
                     rs1,
@@ -933,7 +933,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let address = rs2_val.wrapping_add(offset);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SW,
                 Args {
                     rs1,
@@ -964,7 +964,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let prod = rs1_value.wrapping_mul(rs2_value);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::MUL,
                     Args { rd,
                     rs1,
@@ -990,7 +990,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let prod: i64 = i64::from(rs1_value) * i64::from(rs2_value);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::MULH,
                     Args { rd,
                     rs1,
@@ -1010,7 +1010,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let prod: u64 = u64::from(rs1_value) * u64::from(rs2_value);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::MULHU,
                     Args { rd,
                     rs1,
@@ -1030,7 +1030,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let prod: i64 = i64::from(rs1_value) * i64::from(rs2_value);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::MULHSU,
                     Args { rd,
                     rs1,
@@ -1050,7 +1050,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             prop_assume!(rs2_value != 0);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::DIV,
                     Args { rd,
                     rs1,
@@ -1069,7 +1069,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             prop_assume!(rs2_value != 0);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::DIVU,
                     Args { rd,
                     rs1,
@@ -1096,7 +1096,7 @@ mod tests {
             prop_assume!(rs1_value != i32::min_value() && rs2_value != -1);
             let rem = rs1_value % rs2_value;
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::REM,
                     Args { rd,
                     rs1,
@@ -1116,7 +1116,7 @@ mod tests {
             prop_assume!(rs2_value != 0);
             let rem = rs1_value % rs2_value;
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::REMU,
                     Args { rd,
                     rs1,
@@ -1136,7 +1136,7 @@ mod tests {
             prop_assume!(rd != rs1);
             prop_assume!(rd != rs2);
             let e = simple_test_code(
-                &[  // rs1 == rs1: take imm-path (8)
+                [  // rs1 == rs1: take imm-path (8)
                     Instruction::new(
                         Op::BEQ,
                         Args { rd,
@@ -1175,7 +1175,7 @@ mod tests {
             prop_assume!(rs1_value != rs2_value);
 
             let e = simple_test_code(
-                &[  // rs1 != rs2: take imm-path (8)
+                [  // rs1 != rs2: take imm-path (8)
                     Instruction::new(
                         Op::BNE,
                         Args { rd,
@@ -1215,7 +1215,7 @@ mod tests {
             prop_assume!(rs1_value < rs2_value);
 
             let e = simple_test_code(
-                &[
+                [
                     Instruction::new(
                         Op::BLT,
                         Args { rd,
@@ -1255,7 +1255,7 @@ mod tests {
             prop_assume!(rs1_value < rs2_value);
 
             let e = simple_test_code(
-                &[
+                [
                     Instruction::new(
                         Op::BLTU,
                         Args { rd,
@@ -1295,7 +1295,7 @@ mod tests {
             prop_assume!(rs1_value >= rs2_value);
 
             let e = simple_test_code(
-                &[
+                [
                     Instruction::new(
                         Op::BGE,
                         Args { rd,
@@ -1335,7 +1335,7 @@ mod tests {
             prop_assume!(rs1_value >= rs2_value);
 
             let e = simple_test_code(
-                &[
+                [
                     Instruction::new(
                         Op::BGEU,
                         Args {
@@ -1383,7 +1383,7 @@ mod tests {
             }
                     );
             let e = simple_test_code(
-                &[
+                [
                     Instruction::new(
                         Op::JALR,
                         Args {
@@ -1436,7 +1436,7 @@ mod tests {
 
     #[test]
     fn ecall() {
-        let _ = simple_test_code(&[Instruction::new(Op::ECALL, Args::default())], &[], &[]);
+        let _ = simple_test_code([Instruction::new(Op::ECALL, Args::default())], &[], &[]);
     }
 
     #[test]

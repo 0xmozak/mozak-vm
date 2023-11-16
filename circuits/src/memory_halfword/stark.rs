@@ -111,7 +111,7 @@ mod tests {
         is_unsigned: bool,
     ) {
         let (program, record) = simple_test_code(
-            &[
+            [
                 Instruction {
                     op: Op::SH,
                     args: Args {

@@ -22,8 +22,9 @@ pub fn state_before_final(e: &ExecutionRecord<GoldilocksField>) -> &State<Goldil
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
 #[allow(clippy::similar_names)]
+#[allow(clippy::unnecessary_to_owned)]
 pub fn simple_test_code_with_ro_memory(
-    code: &[Instruction],
+    code: impl IntoIterator<Item = Instruction>,
     ro_mem: &[(u32, u8)],
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
@@ -34,7 +35,9 @@ pub fn simple_test_code_with_ro_memory(
     let ro_code = Code(
         izip!(
             (0..).step_by(4),
-            chain!(code.to_owned(), [
+            // Clippy thinks this `.to_owned()` is unnecessary, but as far as Matthias can tell,
+            // it's necessary.  Please feel free to suggest imporovents.
+            chain!(code, [
                 // set sys-call HALT in x10(or a0)
                 Instruction {
                     op: Op::ADD,
@@ -76,7 +79,7 @@ pub fn simple_test_code_with_ro_memory(
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
 pub fn simple_test_code(
-    code: &[Instruction],
+    code: impl IntoIterator<Item = Instruction>,
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
@@ -86,7 +89,7 @@ pub fn simple_test_code(
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
 pub fn simple_test_code_with_io_tape(
-    code: &[Instruction],
+    code: impl IntoIterator<Item = Instruction>,
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
     io_tape_private: &[u8],

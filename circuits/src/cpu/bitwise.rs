@@ -127,7 +127,7 @@ mod tests {
             })
             .collect();
 
-        let (program, record) = simple_test_code(&code, &[], &[(6, a), (7, b)]);
+        let (program, record) = simple_test_code(code, &[], &[(6, a), (7, b)]);
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 

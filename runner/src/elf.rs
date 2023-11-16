@@ -12,7 +12,7 @@ use itertools::{chain, iproduct, Itertools};
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
-use crate::instruction::{Instruction, DecodingError};
+use crate::instruction::{DecodingError, Instruction};
 use crate::util::load_u32;
 
 /// A RISC-V program
@@ -48,10 +48,7 @@ pub struct Data(pub HashMap<u32, u8>);
 impl Code {
     /// Get [Instruction] given `pc`
     #[must_use]
-    pub fn get_instruction(
-        &self,
-        pc: u32,
-    ) -> Option<&Result<Instruction, DecodingError>> {
+    pub fn get_instruction(&self, pc: u32) -> Option<&Result<Instruction, DecodingError>> {
         let Code(code) = self;
         code.get(&pc)
     }

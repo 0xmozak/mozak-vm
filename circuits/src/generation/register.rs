@@ -150,7 +150,7 @@ mod tests {
             }),
         ];
 
-        simple_test_code(&instructions, &[], &[(6, 100), (7, 200)])
+        simple_test_code(instructions, &[], &[(6, 100), (7, 200)])
     }
 
     #[rustfmt::skip]

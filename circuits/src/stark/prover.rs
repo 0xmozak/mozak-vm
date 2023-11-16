@@ -371,7 +371,7 @@ mod tests {
 
     #[test]
     fn prove_halt() {
-        let (program, record) = simple_test_code(&[], &[], &[]);
+        let (program, record) = simple_test_code([], &[], &[]);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
@@ -385,7 +385,7 @@ mod tests {
                 ..Args::default()
             },
         };
-        let (program, record) = simple_test_code(&[lui], &[], &[]);
+        let (program, record) = simple_test_code([lui], &[], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
@@ -393,7 +393,7 @@ mod tests {
     #[test]
     fn prove_lui_2() {
         let (program, record) = simple_test_code(
-            &[Instruction {
+            [Instruction {
                 op: Op::ADD,
                 args: Args {
                     rd: 1,
@@ -411,7 +411,7 @@ mod tests {
     #[test]
     fn prove_beq() {
         let (program, record) = simple_test_code(
-            &[Instruction {
+            [Instruction {
                 op: Op::BEQ,
                 args: Args {
                     rs1: 0,
@@ -485,7 +485,7 @@ mod tests {
             ]);
         }
 
-        let (program, record) = simple_test_code(&instructions, memory.as_slice(), &[]);
+        let (program, record) = simple_test_code(instructions, memory.as_slice(), &[]);
         for test_datum in test_data {
             let output: Vec<u8> = (0..32_u8)
                 .map(|i| {

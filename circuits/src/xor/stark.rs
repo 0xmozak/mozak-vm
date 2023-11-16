@@ -129,7 +129,7 @@ mod tests {
         let config = fast_test_config();
 
         let (_program, record) = simple_test_code(
-            &[
+            [
                 Instruction {
                     op: Op::XOR,
                     args: Args {

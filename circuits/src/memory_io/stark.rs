@@ -171,7 +171,7 @@ mod tests {
 
     pub fn prove_io_read_private_zero_size<Stark: ProveAndVerify>(offset: u32, imm: u32) {
         let (program, record) = simple_test_code_with_io_tape(
-            &[
+            [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
@@ -192,7 +192,7 @@ mod tests {
 
     pub fn prove_io_read_public_zero_size<Stark: ProveAndVerify>(offset: u32, imm: u32) {
         let (program, record) = simple_test_code_with_io_tape(
-            &[
+            [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
@@ -213,7 +213,7 @@ mod tests {
 
     pub fn prove_io_read_private<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
         let (program, record) = simple_test_code_with_io_tape(
-            &[
+            [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
@@ -234,7 +234,7 @@ mod tests {
 
     pub fn prove_io_read_public<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
         let (program, record) = simple_test_code_with_io_tape(
-            &[
+            [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
@@ -255,7 +255,7 @@ mod tests {
 
     pub fn prove_io_read<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
         let (program, record) = simple_test_code_with_io_tape(
-            &[
+            [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
@@ -304,7 +304,7 @@ mod tests {
 
     pub fn prove_io_read_explicit<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
         let (program, record) = simple_test_code_with_io_tape(
-            &[
+            [
                 Instruction {
                     op: Op::ADD,
                     args: Args {

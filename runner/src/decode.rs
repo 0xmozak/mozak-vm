@@ -1,7 +1,7 @@
 use bitfield::{bitfield, BitRange};
 use log::warn;
 
-use crate::instruction::{Args, Instruction, DecodingError, Op, NOP};
+use crate::instruction::{Args, DecodingError, Instruction, Op, NOP};
 
 /// Extract a u32 that represents the immediate from segments with zeros right
 /// pads of specified length

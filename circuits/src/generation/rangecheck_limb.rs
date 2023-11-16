@@ -81,7 +81,7 @@ mod tests {
     fn test_generate_trace() {
         type F = GoldilocksField;
         let (program, record) = simple_test_code(
-            &[Instruction {
+            [Instruction {
                 op: Op::SB,
                 args: Args {
                     rs1: 1,
