@@ -46,3 +46,4 @@ RVTEST_DATA_END
   .align 3
 amo_operand:
   .dword 0
+  

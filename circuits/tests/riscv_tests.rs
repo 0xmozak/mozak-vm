@@ -3,6 +3,8 @@ use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
+use starky::config::StarkConfig;
+use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
 
 /// This macro takes in an identifier as the test name and the file name of a
 /// compiled ELF and runs it through the Mozak VM to ensure correctness of the
@@ -26,13 +28,16 @@ macro_rules! test_elf {
             let elf = std::fs::read(elf_name)?;
             let program = Program::load_elf(&elf)?;
             let state = State::<GoldilocksField>::from(&program);
-            let state = step(&program, state)?.last_state;
+            let record = step(&program, state)?;
+            let state = record.last_state.clone();
             // At the end of every test,
             // register a0(x10) is set to 0 before an ECALL if it passes
             assert_eq!(state.get_register_value(10), 0);
             assert_eq!(state.get_register_value(17), 93);
             assert!(state.has_halted());
 
+            let config = StarkConfig::standard_fast_config();
+            prove_and_verify_mozak_stark(&program, &record, &config)?;
             Ok(())
         }
     };
