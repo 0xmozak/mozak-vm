@@ -126,9 +126,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use mozak_runner::instruction::{Args, Op};
+    use mozak_runner::instruction::Op;
     use mozak_runner::poseidon2::hash_n_to_m_no_pad;
-    use mozak_runner::state::{Aux, Poseidon2Entry, State};
+    use mozak_runner::state::{Aux, Poseidon2Entry};
     use mozak_runner::vm::Row;
     use plonky2::hash::hash_types::RichField;
     use plonky2::hash::hashing::PlonkyPermutation;
@@ -172,11 +172,7 @@ mod tests {
                     }),
                     ..Default::default()
                 },
-                instruction: mozak_runner::instruction::Instruction {
-                    op: Op::ECALL,
-                    args: Args::default(),
-                },
-                state: State::default(),
+                ..Row::new(Op::ECALL)
             });
         }
         step_rows
