@@ -94,15 +94,14 @@ mod tests {
             &[(1, u32::MAX)],
         );
 
-        let cpu_rows = generate_cpu_trace::<F>(&program, &record);
+        let cpu_rows = generate_cpu_trace::<F>(&record);
         let memory_init = generate_memory_init_trace(&program);
-        let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
-        let fullword_memory = generate_fullword_memory_trace(&program, &record.executed);
-        let io_memory_private = generate_io_memory_private_trace(&program, &record.executed);
-        let io_memory_public = generate_io_memory_public_trace(&program, &record.executed);
+        let halfword_memory = generate_halfword_memory_trace(&record.executed);
+        let fullword_memory = generate_fullword_memory_trace(&record.executed);
+        let io_memory_private = generate_io_memory_private_trace(&record.executed);
+        let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let memory_rows = generate_memory_trace::<F>(
-            &program,
             &record.executed,
             &memory_init,
             &halfword_memory,

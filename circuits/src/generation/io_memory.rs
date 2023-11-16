@@ -21,10 +21,10 @@ fn pad_io_mem_trace<F: RichField>(
 }
 
 /// Returns the rows with io memory instructions.
-pub fn filter<'a, F: RichField>(
-    step_rows: &'a [Row<F>],
+pub fn filter<F: RichField>(
+    step_rows: &[Row<F>],
     which_tape: IoOpcode,
-) -> impl Iterator<Item = &'a Row<F>> {
+) -> impl Iterator<Item = &'_ Row<F>> {
     step_rows.iter().filter(move |row| {
         (Some(which_tape) == row.aux.io.as_ref().map(|io| io.op))
             && matches!(row.instruction.op, Op::ECALL,)

@@ -38,9 +38,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
 }
 
 /// Converting each row of the `record` to a row represented by [`CpuState`]
-pub fn generate_cpu_trace<F: RichField>(
-    record: &ExecutionRecord<F>,
-) -> Vec<CpuState<F>> {
+pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuState<F>> {
     let mut trace: Vec<CpuState<F>> = vec![];
     let ExecutionRecord {
         executed,
@@ -56,7 +54,12 @@ pub fn generate_cpu_trace<F: RichField>(
     }];
 
     let default_io_entry = IoEntry::default();
-    for Row { state, instruction,aux } in chain![executed, last_row] {
+    for Row {
+        state,
+        instruction,
+        aux,
+    } in chain![executed, last_row]
+    {
         let inst = *instruction;
         let io = aux.io.as_ref().unwrap_or(&default_io_entry);
         let mut row = CpuState {

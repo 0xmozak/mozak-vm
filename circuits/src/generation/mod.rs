@@ -75,8 +75,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
     let memory_init_rows = generate_memory_init_trace(program);
-    let halfword_memory_rows = generate_halfword_memory_trace(program, &record.executed);
-    let fullword_memory_rows = generate_fullword_memory_trace(program, &record.executed);
+    let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
+    let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
     let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
     let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
     let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);

@@ -480,7 +480,7 @@ mod tests {
                 },
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
             ]);
         }

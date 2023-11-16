@@ -175,7 +175,7 @@ mod tests {
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
             ],
             &[(imm.wrapping_add(offset), 0)],
@@ -196,7 +196,7 @@ mod tests {
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
             ],
             &[(imm.wrapping_add(offset), 0)],
@@ -217,7 +217,7 @@ mod tests {
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
             ],
             &[(imm.wrapping_add(offset), 0)],
@@ -238,7 +238,7 @@ mod tests {
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
             ],
             &[(imm.wrapping_add(offset), 0)],
@@ -259,7 +259,7 @@ mod tests {
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
                 Instruction {
                     op: Op::ADD,
@@ -287,7 +287,7 @@ mod tests {
                 },
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
             ],
             &[(imm.wrapping_add(offset), 0)],
@@ -333,7 +333,7 @@ mod tests {
                 // add ecall to io_read
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
                 Instruction {
                     op: Op::ADD,

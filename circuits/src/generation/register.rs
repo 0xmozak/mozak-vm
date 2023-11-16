@@ -52,9 +52,7 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> 
 /// 3) pad with dummy rows (`is_used` == 0) to ensure that trace is a power of
 ///    2.
 #[must_use]
-pub fn generate_register_trace<F: RichField>(
-    record: &ExecutionRecord<F>,
-) -> Vec<Register<F>> {
+pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<Register<F>> {
     let ExecutionRecord {
         executed,
         last_state,
@@ -117,6 +115,7 @@ pub fn generate_register_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
+    use mozak_runner::elf::Program;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::simple_test_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
@@ -190,12 +189,12 @@ mod tests {
     #[test]
     #[rustfmt::skip]
     fn generate_reg_trace() {
-        let (program, record) = setup();
+        let (_program, record) = setup();
 
         // TODO: generate this from cpu rows?
         // For now, use program and record directly to avoid changing the CPU columns
         // yet.
-        let trace = generate_register_trace::<F>(&program, &record);
+        let trace = generate_register_trace::<F>(&record);
 
         // This is the actual trace of the instructions.
         let mut expected_trace = prep_table(
