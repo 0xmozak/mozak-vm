@@ -34,11 +34,11 @@ runs:
         components: rustfmt, clippy
 
     - name: Debug 1
-      run: which rustc
+      run: echo ${PATH}
       shell: bash
 
     - name: Debug 2
-      run: echo ${PATH}
+      run: which rustc || echo "failed"
       shell: bash
 
     - name: Debug 3
