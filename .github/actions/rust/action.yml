@@ -3,23 +3,39 @@ name: Install rust toolchain
 inputs:
   cache-key:
     required: false
-    type: string
 
 runs:
   using: "composite"
   steps:
-    - name: Get rust version
-      run: echo "RUST_VERSION=$(cat rust-toolchain.toml| grep '^channel\s*=' | cut -d '=' -f2 | sed 's/"//g' | sed -e 's/^[ \t]*//')" >> $GITHUB_ENV
+    - id: rust-version
+      name: Get rust version
+      run: echo "RUST_VERSION=$(cat rust-toolchain.toml| grep '^channel\s*=' | cut -d '=' -f2 | sed 's/"//g' | sed -e 's/^[ \t]*//')" >> "$GITHUB_OUTPUT"
       shell: bash
 
+    - id: cache-rustup-restore
+      name: Cache Rust toolchain (Restore)
+      uses: actions/cache/restore@v3
+      with:
+        path: ~/.rustup
+        key: toolchain-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-version.outputs.RUST_VERSION }}
+
     - name: Install toolchain
+      if: ${{ steps.cache-rustup-restore.outputs.cache-hit != 'true' }}
       uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: ${{ env.RUST_VERSION }}
-        components: rustfmt, clippy
+        toolchain: ${{ steps.rust-version.outputs.RUST_VERSION }}
+        components: ${{ inputs.components }}
 
     - name: Install nextest
+      if: ${{ inputs.nextest }}
       uses: taiki-e/install-action@nextest
+
+    - id: cache-rustup-save
+      name: Cache Rust toolchain (Save)
+      uses: actions/cache/restore@v3
+      with:
+        path: ~/.rustup
+        key: ${{ steps.cache-rustup-restore.outputs.cache-primary-key }}
 
     - uses: Swatinem/rust-cache@v2
       if: ${{ inputs.cache-key != '' }}
