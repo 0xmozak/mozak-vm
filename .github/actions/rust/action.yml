@@ -33,6 +33,13 @@ runs:
         toolchain: ${{ steps.rust-version.outputs.RUST_VERSION }}
         components: rustfmt, clippy
 
+    - name: check rust
+      run: |
+        which rustc
+        echo ${PATH}
+        rustc -vV
+      shell: bash
+
     - name: Install nextest
       uses: taiki-e/install-action@nextest
 
