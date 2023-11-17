@@ -19,7 +19,7 @@ runs:
         PRIMARY_KEY="toolchain-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-version.outputs.RUST_VERSION }}"
         echo "cache-primary-key=${PRIMARY_KEY}" >> "$GITHUB_OUTPUT"
         if [ -f "${{ runner.tool_cache }}/${PRIMARY_KEY}.tar.gz" ]; then
-          tar -xzvf "${{ runner.tool_cache }}/${PRIMARY_KEY}.tar.gz" --directory ~/
+          tar --extract --uncompress --file="${{ runner.tool_cache }}/${PRIMARY_KEY}.tar.gz" --directory=~/ --strip-components=1
         [ -d " ~/.rustup" ] || exit 1
         [ -d " ~/.cargo" ] || exit 1
           echo "cache-hit=true" >> "$GITHUB_OUTPUT"
@@ -67,7 +67,7 @@ runs:
       run: |
         OUTFILE="${{ runner.tool_cache }}/${{ steps.local-cache-restore.outputs.cache-primary-key }}.tar.gz"
         TMPFILE="$(mktemp ${OUTFILE}.XXXXXXXXX)"
-        tar -czf "${OUTFILE}" ~/.rustup ~/.cargo
+        tar --create --compress --file="${OUTFILE}" ~/.rustup ~/.cargo
         if ! mv -i ${OUTFILE} ${TMPFILE} < <(yes n); then
           rm -rf "${OUTFILE}"
         fi
