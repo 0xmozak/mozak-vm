@@ -173,6 +173,7 @@ pub fn generate_poseidon2_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<Posei
 
 #[cfg(test)]
 mod test {
+    use mozak_runner::instruction::Op;
     use mozak_runner::state::{Aux, Poseidon2Entry, Poseidon2SpongeData};
     use plonky2::field::types::Sample;
     use plonky2::hash::poseidon2::Poseidon2;
@@ -223,7 +224,7 @@ mod test {
                 }),
                 ..Default::default()
             },
-            ..Default::default()
+            ..Row::new(Op::ECALL)
         });
 
         let trace = super::generate_poseidon2_trace(&step_rows);
