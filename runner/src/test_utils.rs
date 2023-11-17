@@ -1,3 +1,4 @@
+use itertools::{chain, izip};
 use mozak_system::system::ecall;
 use plonky2::field::goldilocks_field::GoldilocksField;
 #[cfg(any(feature = "test", test))]
@@ -22,7 +23,7 @@ pub fn state_before_final(e: &ExecutionRecord<GoldilocksField>) -> &State<Goldil
 #[allow(clippy::missing_panics_doc)]
 #[allow(clippy::similar_names)]
 pub fn simple_test_code_with_ro_memory(
-    code: &[Instruction],
+    code: impl IntoIterator<Item = Instruction>,
     ro_mem: &[(u32, u8)],
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
@@ -31,32 +32,27 @@ pub fn simple_test_code_with_ro_memory(
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
     let _ = env_logger::try_init();
     let ro_code = Code(
-        (0..)
-            .step_by(4)
-            .zip(
-                code.iter()
-                    .chain(
-                        [
-                            // set sys-call HALT in x10(or a0)
-                            Instruction {
-                                op: Op::ADD,
-                                args: Args {
-                                    rd: 10,
-                                    imm: ecall::HALT,
-                                    ..Args::default()
-                                },
-                            },
-                            // add ECALL to halt the program
-                            Instruction {
-                                op: Op::ECALL,
-                                ..Default::default()
-                            },
-                        ]
-                        .iter(),
-                    )
-                    .copied(),
-            )
-            .collect(),
+        izip!(
+            (0..).step_by(4),
+            chain!(code, [
+                // set sys-call HALT in x10(or a0)
+                Instruction {
+                    op: Op::ADD,
+                    args: Args {
+                        rd: 10,
+                        imm: ecall::HALT,
+                        ..Args::default()
+                    },
+                },
+                // add ECALL to halt the program
+                Instruction {
+                    op: Op::ECALL,
+                    args: Args::default(),
+                },
+            ])
+            .map(Ok),
+        )
+        .collect(),
     );
 
     let program = Program {
@@ -80,7 +76,7 @@ pub fn simple_test_code_with_ro_memory(
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
 pub fn simple_test_code(
-    code: &[Instruction],
+    code: impl IntoIterator<Item = Instruction>,
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
@@ -90,7 +86,7 @@ pub fn simple_test_code(
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
 pub fn simple_test_code_with_io_tape(
-    code: &[Instruction],
+    code: impl IntoIterator<Item = Instruction>,
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
     io_tape_private: &[u8],

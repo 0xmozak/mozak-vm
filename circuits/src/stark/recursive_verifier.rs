@@ -492,7 +492,7 @@ mod tests {
         let mut config = StarkConfig::standard_fast_config();
         config.fri_config.cap_height = 1;
         let (program, record) = simple_test_code(
-            &[Instruction {
+            [Instruction {
                 op: Op::ADD,
                 args: Args {
                     rd: 5,
