@@ -9,11 +9,12 @@ runs:
   steps:
     - id: rust-version
       name: Get rust version
-      run: echo "RUST_VERSION=$(cat rust-toolchain.toml| grep '^channel\s*=' | cut -d '=' -f2 | sed 's/"//g' | sed -e 's/^[ \t]*//')" >> "$GITHUB_OUTPUT"
       shell: bash
+      run: echo "RUST_VERSION=$(cat rust-toolchain.toml| grep '^channel\s*=' | cut -d '=' -f2 | sed 's/"//g' | sed -e 's/^[ \t]*//')" >> "$GITHUB_OUTPUT"
 
     - id: local-cache-restore
       name: Cache Rust toolchain (Local Restore)
+      shell: bash
       run: |
         PRIMARY_KEY="toolchain-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-version.outputs.RUST_VERSION }}"
         echo "primary-key=${PRIMARY_KEY}" >> "$GITHUB_OUTPUT"
@@ -35,8 +36,8 @@ runs:
 
     - name: Restore Path
       if: ${{ steps.local-cache-restore.outputs.cache-hit || steps.remote-cache-restore.outputs.cache-hit }}
-      run: echo "~/.cargo/bin" >> $GITHUB_PATH
       shell: bash
+      run: echo "~/.cargo/bin" >> $GITHUB_PATH
 
     - name: Install toolchain
       if: ${{ steps.local-cache-restore.outputs.cache-hit != 'true' && steps.remote-cache-restore.outputs.cache-hit != 'true' }}
@@ -46,18 +47,20 @@ runs:
         components: rustfmt, clippy
 
     - name: Debug 1
-      run: echo ${PATH}
       shell: bash
+      run: echo ${PATH}
 
     - name: Debug 2
-      run: rustc -vV
       shell: bash
+      run: rustc -vV
 
     - name: Install nextest
+      if: ${{ steps.local-cache-restore.outputs.cache-hit != 'true' && steps.remote-cache-restore.outputs.cache-hit != 'true' }}
       uses: taiki-e/install-action@nextest
 
     - id: local-cache-save
       name: Cache Rust toolchain (Local Save)
+      shell: bash
       run: |
         tar -czf "${{ runner.tool_cache }}/${{ steps.local-cache-restore.outputs.cache-primary-key }}.tar.gz" ~/.rustup ~/.cargo
 
