@@ -16,7 +16,7 @@ use crate::state::{Aux, Poseidon2Entry, Poseidon2SpongeData, State};
 ///
 ///  # Panics
 ///
-/// Panics if `PlonkyPermutation` is implemneted on `STATE_SIZE` different than
+/// Panics if `PlonkyPermutation` is implemented on `STATE_SIZE` different than
 /// 12.
 pub fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(
     inputs: &[F],
@@ -42,7 +42,7 @@ pub fn hash_n_to_m_no_pad<F: RichField, P: PlonkyPermutation<F>>(
 
     let mut perm = P::new(repeat(F::ZERO));
     // input length is expected to be multiple of P::RATE
-    assert!(inputs.len() % P::RATE == 0);
+    assert_eq!(inputs.len() % P::RATE, 0);
     let mut sponge_data = Vec::new();
 
     // Absorb all input chunks.
@@ -115,7 +115,7 @@ mod tests {
     fn test_hash_n_to_m_no_pad() {
         let data = "💥 Mozak-VM Rocks With Poseidon2";
         let mut data_bytes = data.as_bytes().to_vec();
-        // VM expects input lenght to be multiple of RATE
+        // VM expects input length to be multiple of RATE
         data_bytes.resize(
             data_bytes
                 .len()
