@@ -10,7 +10,7 @@ runs:
     - id: rust-version
       name: Get rust version
       shell: bash
-      run: echo "RUST_VERSION=$(cat rust-toolchain.toml| grep '^channel\s*=' | cut -d '=' -f2 | sed 's/"//g' | sed -e 's/^[ \t]*//')" >> "$GITHUB_OUTPUT"
+      run: echo "RUST_VERSION=$(cat rust-toolchain.toml | grep '^channel\s*=' | cut -d '=' -f2 | sed 's/"//g' | sed -e 's/^[ \t]*//')" >> "$GITHUB_OUTPUT"
 
     - id: local-cache-restore
       name: Cache Rust toolchain (Local Restore)
