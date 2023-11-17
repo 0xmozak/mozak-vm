@@ -1,10 +1,10 @@
 use anyhow::Result;
+use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
 use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use starky::config::StarkConfig;
-use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
 
 /// This macro takes in an identifier as the test name and the file name of a
 /// compiled ELF and runs it through the Mozak VM to ensure correctness of the
