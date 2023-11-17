@@ -17,7 +17,7 @@ runs:
 
     - id: local-cache-restore
       name: Cache Rust toolchain (Local Restore)
-      uses: maxnowack/local-cache/restore@038cc09
+      uses: maxnowack/local-cache/restore@038cc090b52e4f205fbc468bf5b0756df6f68775
       with:
         key: ${{ steps.get-info.outputs.cache-primary-key }}
         path: |
@@ -52,7 +52,7 @@ runs:
 
     - id: local-cache-save
       name: Cache Rust toolchain (Local Save)
-      uses: maxnowack/local-cache/save@038cc09
+      uses: maxnowack/local-cache/save@038cc090b52e4f205fbc468bf5b0756df6f68775
       with:
         key: ${{ steps.get-info.outputs.cache-primary-key }}
         path: |
@@ -71,13 +71,13 @@ runs:
 
     - id: local-cache
       name: Cache Rust artifacts (Local)
-      uses: Daniel-Aaron-Bloom/rust-cache@9074d9c
+      uses: Daniel-Aaron-Bloom/rust-cache@9074d9cffa0bcf012272bb7ae17be886c4a3b935
       with:
         prefix-key: ${{ inputs.cache-key == '' && inputs.cache-key || null }}
         cache-provider: "local"
 
     - name: Cache Rust artifacts (Remote)
-      uses: Daniel-Aaron-Bloom/rust-cache@9074d9c
+      uses: Daniel-Aaron-Bloom/rust-cache@9074d9cffa0bcf012272bb7ae17be886c4a3b935
       if: ${{ steps.local-cache.outputs.cache-hit != 'true'}}
       with:
         prefix-key: ${{ inputs.cache-key == '' && inputs.cache-key || null }}
