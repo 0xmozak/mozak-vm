@@ -38,10 +38,6 @@ runs:
       shell: bash
 
     - name: Debug 2
-      run: which rustc || echo "failed"
-      shell: bash
-
-    - name: Debug 3
       run: rustc -vV
       shell: bash
 
@@ -59,9 +55,13 @@ runs:
         key: ${{ steps.cache-rustup-restore.outputs.cache-primary-key }}
 
     - uses: Swatinem/rust-cache@v2
+      env:
+        PATH: ~/.cargo/bin
       if: ${{ inputs.cache-key != '' }}
       with:
         prefix-key: ${{ inputs.cache-key }}
 
     - uses: Swatinem/rust-cache@v2
+      env:
+        PATH: ~/.cargo/bin
       if: ${{ inputs.cache-key == '' }}
