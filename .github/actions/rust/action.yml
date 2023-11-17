@@ -24,9 +24,12 @@ runs:
         else
           echo "cache-hit=false" >> "$GITHUB_OUTPUT"
         fi
+        [ -d " ~/.rustup" ] || exit 1
+        [ -d " ~/.cargo" ] || exit 1
 
     - id: remote-cache-restore
       name: Cache Rust toolchain (Remote Restore)
+      if: ${{ steps.local-cache-restore.outputs.cache-hit != 'true' }}
       uses: actions/cache/restore@v3
       with:
         path: |
