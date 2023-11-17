@@ -16,13 +16,16 @@ runs:
       name: Cache Rust toolchain (Local Restore)
       shell: bash
       run: |
+        rm -rf ~/.rustup
+        rm -rf ~/.cargo
+
         PRIMARY_KEY="toolchain-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-version.outputs.RUST_VERSION }}"
         echo "cache-primary-key=${PRIMARY_KEY}" >> "$GITHUB_OUTPUT"
-        FILE="${{ runner.tool_cache }}/${PRIMARY_KEY}.tar.lzma"
+        FILE="${{ runner.tool_cache }}/${PRIMARY_KEY}.tar.xz"
         if [ -f "${FILE}" ]; then
-          tar --extract --lzma --file="${FILE}" --directory=~/ --strip-components=1
-        [ -d " ~/.rustup" ] || exit 1
-        [ -d " ~/.cargo" ] || exit 1
+          tar --extract --xz --file="${FILE}" --directory=~/ --strip-components=1
+          [ -d " ~/.rustup" ] || exit 1
+          [ -d " ~/.cargo" ] || exit 1
           echo "cache-hit=true" >> "$GITHUB_OUTPUT"
         else
           echo "cache-hit=false" >> "$GITHUB_OUTPUT"
@@ -66,10 +69,10 @@ runs:
       name: Cache Rust toolchain (Local Save)
       shell: bash
       run: |
-        OUTFILE="${{ runner.tool_cache }}/${{ steps.local-cache-restore.outputs.cache-primary-key }}.tar.lzma"
+        OUTFILE="${{ runner.tool_cache }}/${{ steps.local-cache-restore.outputs.cache-primary-key }}.tar.xz"
         TMPFILE="$(mktemp ${OUTFILE}.XXXXXXXXX)"
-        tar --create --lzma --file="${OUTFILE}" ~/.rustup ~/.cargo
-        if ! mv -i ${OUTFILE} ${TMPFILE} < <(yes n); then
+        tar --create --xz --file="${TMPFILE}" ~/.rustup ~/.cargo
+        if ! mv -i ${TMPFILE} ${OUTFILE} < <(yes n); then
           rm -rf "${OUTFILE}"
         fi
 
