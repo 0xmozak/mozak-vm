@@ -20,12 +20,12 @@ runs:
         echo "cache-primary-key=${PRIMARY_KEY}" >> "$GITHUB_OUTPUT"
         if [ -f "${{ runner.tool_cache }}/${PRIMARY_KEY}.tar.gz" ]; then
           tar -xzvf "${{ runner.tool_cache }}/${PRIMARY_KEY}.tar.gz" --directory ~/
+        [ -d " ~/.rustup" ] || exit 1
+        [ -d " ~/.cargo" ] || exit 1
           echo "cache-hit=true" >> "$GITHUB_OUTPUT"
         else
           echo "cache-hit=false" >> "$GITHUB_OUTPUT"
         fi
-        [ -d " ~/.rustup" ] || exit 1
-        [ -d " ~/.cargo" ] || exit 1
 
     - id: remote-cache-restore
       name: Cache Rust toolchain (Remote Restore)
