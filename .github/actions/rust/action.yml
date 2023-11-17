@@ -22,6 +22,7 @@ runs:
     - name: Restore Path
       if: ${{ steps.cache-rustup-restore.outputs.cache-hit }}
       run: echo "${HOME}/.cargo/bin" >> $GITHUB_PATH
+      shell: bash
 
     - name: Install toolchain
       if: ${{ steps.cache-rustup-restore.outputs.cache-hit != 'true' }}
