@@ -14,7 +14,7 @@ const FIBO_INP_ELF_EXAMPLE_PATH: &str =
     "examples/target/riscv32im-mozak-zkvm-elf/release/fibonacci-input";
 
 pub fn sample_bench(reg_value: u32) -> Result<(), anyhow::Error> {
-    let instructions = &[
+    let instructions = [
         Instruction {
             op: Op::ADD,
             args: Args {

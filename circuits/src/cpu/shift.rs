@@ -85,7 +85,7 @@ mod tests {
         prop_assume!(rs1 != rd);
         prop_assume!(rs2 != rd);
         let (program, record) = simple_test_code(
-            &[
+            [
                 Instruction {
                     op: Op::SRL,
                     args: Args {
@@ -124,7 +124,7 @@ mod tests {
         prop_assume!(rs1 != rd);
         prop_assume!(rs2 != rd);
         let (program, record) = simple_test_code(
-            &[
+            [
                 Instruction {
                     op: Op::SLL,
                     args: Args {
@@ -163,7 +163,7 @@ mod tests {
         prop_assume!(rs1 != rd);
         prop_assume!(rs2 != rd);
         let (program, record) = simple_test_code(
-            &[
+            [
                 Instruction {
                     op: Op::SRA,
                     args: Args {

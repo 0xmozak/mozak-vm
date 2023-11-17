@@ -12,7 +12,7 @@ fn bench_prove_verify_all(c: &mut Criterion) {
     group.measurement_time(Duration::new(10, 0));
     group.bench_function("prove_verify_all", |b| {
         b.iter(|| {
-            let instructions = &[
+            let instructions = [
                 Instruction {
                     op: Op::ADD,
                     args: Args {

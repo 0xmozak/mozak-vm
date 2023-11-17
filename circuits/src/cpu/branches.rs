@@ -189,7 +189,7 @@ mod tests {
 
     fn prove_cond_branch<Stark: ProveAndVerify>(a: u32, b: u32, op: Op) {
         let (program, record) = simple_test_code(
-            &[
+            [
                 Instruction {
                     op,
                     args: Args {

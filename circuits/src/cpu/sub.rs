@@ -55,7 +55,7 @@ mod tests {
 
     fn prove_sub<Stark: ProveAndVerify>(a: u32, b: u32) {
         let (program, record) = simple_test_code(
-            &[Instruction {
+            [Instruction {
                 op: Op::SUB,
                 args: Args {
                     rd: 5,
