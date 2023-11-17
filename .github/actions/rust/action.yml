@@ -71,13 +71,13 @@ runs:
 
     - id: local-cache
       name: Cache Rust artifacts (Local)
-      uses: Daniel-Aaron-Bloom/rust-cache@v2
+      uses: Daniel-Aaron-Bloom/rust-cache@master
       with:
         prefix-key: ${{ inputs.cache-key == '' && inputs.cache-key || null }}
         cache-provider: "local"
 
     - name: Cache Rust artifacts (Remote)
-      uses: Daniel-Aaron-Bloom/rust-cache@v2
+      uses: Daniel-Aaron-Bloom/rust-cache@master
       if: ${{ steps.local-cache.outputs.cache-hit != 'true'}}
       with:
         prefix-key: ${{ inputs.cache-key == '' && inputs.cache-key || null }}
