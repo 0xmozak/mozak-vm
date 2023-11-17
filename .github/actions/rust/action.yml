@@ -62,7 +62,8 @@ runs:
       name: Cache Rust toolchain (Local Save)
       shell: bash
       run: |
-        tar -czf "${{ runner.tool_cache }}/${{ steps.local-cache-restore.outputs.cache-primary-key }}.tar.gz" ~/.rustup ~/.cargo
+        tar -czvf "${{ runner.tool_cache }}/${{ steps.local-cache-restore.outputs.cache-primary-key }}.tar.gz" ~/.rustup ~/.cargo
+        ls -la "${{ runner.tool_cache }}/${{ steps.local-cache-restore.outputs.cache-primary-key }}.tar.gz"
 
     - id: remote-cache-save
       name: Cache Rust toolchain (Save)
