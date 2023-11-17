@@ -72,6 +72,7 @@ jobs:
 
       - name: Install rust toolkit
         uses: ./.github/actions/rust
+
       - name: Build all examples
         run: |
           cd examples
