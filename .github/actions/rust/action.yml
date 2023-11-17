@@ -52,14 +52,6 @@ runs:
         toolchain: ${{ steps.rust-version.outputs.RUST_VERSION }}
         components: rustfmt, clippy
 
-    - name: Debug 1
-      shell: bash
-      run: echo ${PATH}
-
-    - name: Debug 2
-      shell: bash
-      run: rustc -vV
-
     - name: Install nextest
       if: ${{ steps.local-cache-restore.outputs.cache-hit != 'true' && steps.remote-cache-restore.outputs.cache-hit != 'true' }}
       uses: taiki-e/install-action@nextest
