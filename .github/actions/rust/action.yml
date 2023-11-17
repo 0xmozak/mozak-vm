@@ -17,7 +17,7 @@ runs:
 
     - id: local-cache-restore
       name: Cache Rust toolchain (Local Restore)
-      uses: maxnowack/local-cache/restore@master
+      uses: maxnowack/local-cache/restore@main
       with:
         key: ${{ steps.get-info.outputs.cache-primary-key }}
         path: |
@@ -52,7 +52,7 @@ runs:
 
     - id: local-cache-save
       name: Cache Rust toolchain (Local Save)
-      uses: maxnowack/local-cache/save@master
+      uses: maxnowack/local-cache/save@main
       with:
         key: ${{ steps.get-info.outputs.cache-primary-key }}
         path: |
