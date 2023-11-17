@@ -34,7 +34,6 @@ runs:
         components: rustfmt, clippy
 
     - name: Install nextest
-      if: ${{ inputs.nextest }}
       uses: taiki-e/install-action@nextest
 
     - id: cache-rustup-save
