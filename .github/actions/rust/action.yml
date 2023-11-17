@@ -19,7 +19,7 @@ runs:
         PRIMARY_KEY="toolchain-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-version.outputs.RUST_VERSION }}"
         echo "cache-primary-key=${PRIMARY_KEY}" >> "$GITHUB_OUTPUT"
         if [ -f "${{ runner.tool_cache }}/${PRIMARY_KEY}.tar.gz" ]; then
-          tar -xzf "${{ runner.tool_cache }}/${PRIMARY_KEY}.tar.gz"
+          tar -xzvf "${{ runner.tool_cache }}/${PRIMARY_KEY}.tar.gz" --directory ~/
           echo "cache-hit=true" >> "$GITHUB_OUTPUT"
         else
           echo "cache-hit=false" >> "$GITHUB_OUTPUT"
