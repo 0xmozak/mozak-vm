@@ -17,7 +17,7 @@ runs:
       shell: bash
       run: |
         PRIMARY_KEY="toolchain-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-version.outputs.RUST_VERSION }}"
-        echo "primary-key=${PRIMARY_KEY}" >> "$GITHUB_OUTPUT"
+        echo "cache-primary-key=${PRIMARY_KEY}" >> "$GITHUB_OUTPUT"
         if [ -f "${{ runner.tool_cache }}/${PRIMARY_KEY}.tar.gz" ]; then
           tar -xzvf "${{ runner.tool_cache }}/${PRIMARY_KEY}.tar.gz"
           echo "cache-hit=true" >> "$GITHUB_OUTPUT"
@@ -62,8 +62,12 @@ runs:
       name: Cache Rust toolchain (Local Save)
       shell: bash
       run: |
-        tar -czvf "${{ runner.tool_cache }}/${{ steps.local-cache-restore.outputs.cache-primary-key }}.tar.gz" ~/.rustup ~/.cargo
-        ls -la "${{ runner.tool_cache }}/${{ steps.local-cache-restore.outputs.cache-primary-key }}.tar.gz"
+        OUTFILE="${{ runner.tool_cache }}/${{ steps.local-cache-restore.outputs.cache-primary-key }}.tar.gz"
+        TMPFILE="$(mktemp ${OUTFILE}.XXXXXXXXX)"
+        tar -czvf "${OUTFILE}" ~/.rustup ~/.cargo
+        if ! mv -i ${OUTFILE} ${TMPFILE} < <(yes n) {
+          rm -rf "${OUTFILE}"
+        }
 
     - id: remote-cache-save
       name: Cache Rust toolchain (Save)
