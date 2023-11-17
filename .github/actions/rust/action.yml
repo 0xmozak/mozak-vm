@@ -16,12 +16,14 @@ runs:
       name: Cache Rust toolchain (Restore)
       uses: actions/cache/restore@v3
       with:
-        path: ~/.rustup
+        path: |
+          ~/.rustup
+          ~/.cargo
         key: toolchain-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-version.outputs.RUST_VERSION }}
 
     - name: Restore Path
       if: ${{ steps.cache-rustup-restore.outputs.cache-hit }}
-      run: echo "${HOME}/.cargo/bin" >> $GITHUB_PATH
+      run: echo "~/.cargo/bin" >> $GITHUB_PATH
       shell: bash
 
     - name: Install toolchain
@@ -36,10 +38,13 @@ runs:
       uses: taiki-e/install-action@nextest
 
     - id: cache-rustup-save
+      if: ${{ steps.cache-rustup-restore.outputs.cache-hit != 'true' }}
       name: Cache Rust toolchain (Save)
       uses: actions/cache/save@v3
       with:
-        path: ~/.rustup
+        path: |
+          ~/.rustup
+          ~/.cargo
         key: ${{ steps.cache-rustup-restore.outputs.cache-primary-key }}
 
     - uses: Swatinem/rust-cache@v2
