@@ -20,7 +20,7 @@ jobs:
       contents: read
       issues: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         # Main branch is default branch
         # with:
         #   ref: main

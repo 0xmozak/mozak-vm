@@ -1,5 +1,4 @@
 use itertools::{self, Itertools};
-use mozak_runner::elf::Program;
 use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -25,27 +24,20 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<HalfWordMemory<F>>) -> Vec<HalfWor
 
 /// Filter the memory trace to only include halfword load and store
 /// instructions.
-pub fn filter_memory_trace<'a, F: RichField>(
-    program: &'a Program,
-    step_rows: &'a [Row<F>],
-) -> impl Iterator<Item = &'a Row<F>> {
-    step_rows.iter().filter(|row| {
-        matches!(
-            row.state.current_instruction(program).op,
-            Op::LH | Op::LHU | Op::SH
-        )
-    })
+pub fn filter_memory_trace<F: RichField>(step_rows: &[Row<F>]) -> impl Iterator<Item = &Row<F>> {
+    step_rows
+        .iter()
+        .filter(|row| matches!(row.instruction.op, Op::LH | Op::LHU | Op::SH))
 }
 
 #[must_use]
 pub fn generate_halfword_memory_trace<F: RichField>(
-    program: &Program,
     step_rows: &[Row<F>],
 ) -> Vec<HalfWordMemory<F>> {
     pad_mem_trace(
-        filter_memory_trace(program, step_rows)
+        filter_memory_trace(step_rows)
             .map(|s| {
-                let op = s.state.current_instruction(program).op;
+                let op = s.instruction.op;
                 let mem_addr0 = s.aux.mem.unwrap_or_default().addr;
                 let mem_addr1 = mem_addr0.wrapping_add(1);
                 HalfWordMemory {
@@ -99,14 +91,13 @@ mod tests {
         let (program, record) = halfword_memory_trace_test_case(1);
 
         let memory_init = generate_memory_init_trace(&program);
-        let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
-        let fullword_memory = generate_fullword_memory_trace(&program, &record.executed);
-        let io_memory_private_rows = generate_io_memory_private_trace(&program, &record.executed);
-        let io_memory_public_rows = generate_io_memory_public_trace(&program, &record.executed);
+        let halfword_memory = generate_halfword_memory_trace(&record.executed);
+        let fullword_memory = generate_fullword_memory_trace(&record.executed);
+        let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
+        let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
         let poseidon2_rows = generate_poseidon2_sponge_trace(&record.executed);
 
         let trace = generate_memory_trace::<GoldilocksField>(
-            &program,
             &record.executed,
             &memory_init,
             &halfword_memory,

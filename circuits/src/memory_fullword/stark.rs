@@ -111,7 +111,7 @@ mod tests {
 
     pub fn prove_mem_read_write<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
         let (program, record) = simple_test_code(
-            &[
+            [
                 Instruction {
                     op: Op::SW,
                     args: Args {
