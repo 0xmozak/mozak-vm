@@ -7,38 +7,32 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - id: rust-version
-      name: Get rust version
+    - id: get-info
+      name: Get info
       shell: bash
-      run: echo "RUST_VERSION=$(cat rust-toolchain.toml | grep '^channel\s*=' | cut -d '=' -f2 | sed 's/"//g' | sed -e 's/^[ \t]*//')" >> "$GITHUB_OUTPUT"
+      run: |
+        RUST_VERSION="$(cat rust-toolchain.toml | grep '^channel\s*=' | cut -d '=' -f2 | sed 's/"//g' | sed -e 's/^[ \t]*//')"
+        echo "rust-version=${RUST_VERSION}" >> "$GITHUB_OUTPUT"
+        echo "cache-primary-key=toolchain-${{ runner.os }}-${{ runner.arch }}-${RUST_VERSION}" >> "$GITHUB_OUTPUT"
 
     - id: local-cache-restore
       name: Cache Rust toolchain (Local Restore)
-      shell: bash
-      run: |
-        rm -rf ~/.rustup
-        rm -rf ~/.cargo
-
-        PRIMARY_KEY="toolchain-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-version.outputs.RUST_VERSION }}"
-        echo "cache-primary-key=${PRIMARY_KEY}" >> "$GITHUB_OUTPUT"
-        FILE="${{ runner.tool_cache }}/${PRIMARY_KEY}.tar.zstd"
-        if [ -f "${FILE}" ]; then
-          cd ~/
-          tar --extract --zstd --file="${FILE}" --strip-components=1
-          echo "cache-hit=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "cache-hit=false" >> "$GITHUB_OUTPUT"
-        fi
+      uses: maxnowack/local-cache/restore@v1
+      with:
+        key: ${{ steps.get-info.outputs.cache-primary-key }}
+        path: |
+          ~/.rustup
+          ~/.cargo
 
     - id: remote-cache-restore
       name: Cache Rust toolchain (Remote Restore)
       if: ${{ steps.local-cache-restore.outputs.cache-hit != 'true' }}
       uses: actions/cache/restore@v3
       with:
+        key: toolchain-${{ runner.os }}-${{ runner.arch }}-${{ steps.get-info.outputs.rust-version }}
         path: |
           ~/.rustup
           ~/.cargo
-        key: toolchain-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust-version.outputs.RUST_VERSION }}
 
     - name: Restore Path
       if: ${{ steps.local-cache-restore.outputs.cache-hit || steps.remote-cache-restore.outputs.cache-hit }}
@@ -49,7 +43,7 @@ runs:
       if: ${{ steps.local-cache-restore.outputs.cache-hit != 'true' && steps.remote-cache-restore.outputs.cache-hit != 'true' }}
       uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: ${{ steps.rust-version.outputs.RUST_VERSION }}
+        toolchain: ${{ steps.get-info.outputs.rust-version }}
         components: rustfmt, clippy
 
     - name: Install nextest
@@ -58,29 +52,32 @@ runs:
 
     - id: local-cache-save
       name: Cache Rust toolchain (Local Save)
-      shell: bash
-      run: |
-        OUTFILE="${{ runner.tool_cache }}/${{ steps.local-cache-restore.outputs.cache-primary-key }}.tar.zstd"
-        TMPFILE="$(mktemp ${OUTFILE}.XXXXXXXXX)"
-        tar --create --zstd --file="${TMPFILE}" ~/.rustup ~/.cargo
-        if ! mv -i ${TMPFILE} ${OUTFILE} < <(yes n); then
-          rm -rf "${OUTFILE}"
-        fi
+      uses: maxnowack/local-cache/save@v1
+      with:
+        key: ${{ steps.get-info.outputs.cache-primary-key }}
+        path: |
+          ~/.rustup
+          ~/.cargo
 
     - id: remote-cache-save
       name: Cache Rust toolchain (Save)
       if: ${{ steps.remote-cache-restore.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v3
       with:
+        key: ${{ steps.get-info.outputs.cache-primary-key }}
         path: |
           ~/.rustup
           ~/.cargo
-        key: ${{ steps.remote-cache-restore.outputs.cache-primary-key }}
 
-    - uses: Swatinem/rust-cache@v2
-      if: ${{ inputs.cache-key != '' }}
+    - id: local-cache
+      name: Cache Rust artifacts (Local)
+      uses: Daniel-Aaron-Bloom/rust-cache@v2
       with:
-        prefix-key: ${{ inputs.cache-key }}
+        prefix-key: ${{ inputs.cache-key == '' && inputs.cache-key || null }}
+        cache-provider: "local"
 
-    - uses: Swatinem/rust-cache@v2
-      if: ${{ inputs.cache-key == '' }}
+    - name: Cache Rust artifacts (Remote)
+      uses: Daniel-Aaron-Bloom/rust-cache@v2
+      if: ${{ steps.local-cache.outputs.cache-hit != 'true'}}
+      with:
+        prefix-key: ${{ inputs.cache-key == '' && inputs.cache-key || null }}
