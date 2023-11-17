@@ -276,7 +276,7 @@ mod tests {
         iterations: u32,
         addr_offset: u32,
     ) -> Result<(), anyhow::Error> {
-        let instructions = &[
+        let instructions = [
             Instruction {
                 op: Op::ADD,
                 args: Args {

@@ -103,7 +103,7 @@ impl ProveAndVerify for CpuStark<F, D> {
 
         let stark = S::default();
         let trace_poly_values = trace_to_poly_values(generate_cpu_trace_extended(
-            generate_cpu_trace(program, record),
+            generate_cpu_trace(record),
             &generate_program_rom_trace(program),
         ));
         let public_inputs: PublicInputs<F> = PublicInputs {
@@ -128,15 +128,14 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let config = fast_test_config();
 
         let stark = S::default();
-        let cpu_trace = generate_cpu_trace(program, record);
+        let cpu_trace = generate_cpu_trace(record);
         let memory_init = generate_memory_init_trace(program);
-        let halfword_memory = generate_halfword_memory_trace(program, &record.executed);
-        let fullword_memory = generate_fullword_memory_trace(program, &record.executed);
-        let io_memory_private = generate_io_memory_private_trace(program, &record.executed);
-        let io_memory_public = generate_io_memory_public_trace(program, &record.executed);
+        let halfword_memory = generate_halfword_memory_trace(&record.executed);
+        let fullword_memory = generate_fullword_memory_trace(&record.executed);
+        let io_memory_private = generate_io_memory_private_trace(&record.executed);
+        let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let memory_trace = generate_memory_trace::<F>(
-            program,
             &record.executed,
             &memory_init,
             &halfword_memory,
@@ -160,13 +159,13 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
 }
 
 impl ProveAndVerify for XorStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
+    fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = XorStark<F, D>;
 
         let config = fast_test_config();
 
         let stark = S::default();
-        let cpu_trace = generate_cpu_trace(program, record);
+        let cpu_trace = generate_cpu_trace(record);
         let trace_poly_values = trace_rows_to_poly_values(generate_xor_trace(&cpu_trace));
         let proof = prove_table::<F, C, S, D>(
             stark,
@@ -187,13 +186,12 @@ impl ProveAndVerify for MemoryStark<F, D> {
 
         let stark = S::default();
         let memory_init = generate_memory_init_trace(program);
-        let halfword_memory = generate_halfword_memory_trace(program, &record.executed);
-        let fullword_memory = generate_fullword_memory_trace(program, &record.executed);
-        let io_memory_private = generate_io_memory_private_trace(program, &record.executed);
-        let io_memory_public = generate_io_memory_public_trace(program, &record.executed);
+        let halfword_memory = generate_halfword_memory_trace(&record.executed);
+        let fullword_memory = generate_fullword_memory_trace(&record.executed);
+        let io_memory_private = generate_io_memory_private_trace(&record.executed);
+        let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(
-            program,
             &record.executed,
             &memory_init,
             &halfword_memory,
@@ -215,13 +213,13 @@ impl ProveAndVerify for MemoryStark<F, D> {
 }
 
 impl ProveAndVerify for HalfWordMemoryStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
+    fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = HalfWordMemoryStark<F, D>;
         let config = fast_test_config();
 
         let stark = S::default();
         let trace_poly_values =
-            trace_rows_to_poly_values(generate_halfword_memory_trace(program, &record.executed));
+            trace_rows_to_poly_values(generate_halfword_memory_trace(&record.executed));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -235,13 +233,13 @@ impl ProveAndVerify for HalfWordMemoryStark<F, D> {
 }
 
 impl ProveAndVerify for FullWordMemoryStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
+    fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = FullWordMemoryStark<F, D>;
         let config = fast_test_config();
 
         let stark = S::default();
         let trace_poly_values =
-            trace_rows_to_poly_values(generate_fullword_memory_trace(program, &record.executed));
+            trace_rows_to_poly_values(generate_fullword_memory_trace(&record.executed));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -255,13 +253,13 @@ impl ProveAndVerify for FullWordMemoryStark<F, D> {
 }
 
 impl ProveAndVerify for InputOuputMemoryStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
+    fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = InputOuputMemoryStark<F, D>;
         let config = fast_test_config();
 
         let stark = S::default();
         let trace_poly_values =
-            trace_rows_to_poly_values(generate_io_memory_private_trace(program, &record.executed));
+            trace_rows_to_poly_values(generate_io_memory_private_trace(&record.executed));
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
@@ -275,12 +273,12 @@ impl ProveAndVerify for InputOuputMemoryStark<F, D> {
 }
 
 impl ProveAndVerify for BitshiftStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
+    fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = BitshiftStark<F, D>;
         let config = fast_test_config();
 
         let stark = S::default();
-        let cpu_rows = generate_cpu_trace::<F>(program, record);
+        let cpu_rows = generate_cpu_trace::<F>(record);
         let trace = generate_shift_amount_trace(&cpu_rows);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
@@ -316,12 +314,12 @@ impl ProveAndVerify for RegisterInitStark<F, D> {
 }
 
 impl ProveAndVerify for RegisterStark<F, D> {
-    fn prove_and_verify(program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
+    fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = RegisterStark<F, D>;
         let config = fast_test_config();
 
         let stark = S::default();
-        let trace = generate_register_trace::<F>(program, record);
+        let trace = generate_register_trace::<F>(record);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let proof = prove_table::<F, C, S, D>(
             stark,

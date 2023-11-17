@@ -47,7 +47,7 @@ pub fn fullword_memory_trace_test_case(
         .copied()
         .collect::<Vec<_>>();
     let (program, record) = simple_test_code(
-        &code,
+        code,
         &[
             (600, 0),
             (601, 0),

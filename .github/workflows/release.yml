@@ -11,14 +11,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check-runner:
+    uses: ./.github/workflows/check-runner.yml
+    secrets: inherit
+
   draft-release:
     name: draft release
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
     permissions:
       # Required to post the release
       contents: write
     steps:
-      # This is necessary for generating the changelog. 
+      # This is necessary for generating the changelog.
       - name: Checkout sources
         uses: actions/checkout@v3
         with:

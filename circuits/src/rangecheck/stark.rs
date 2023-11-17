@@ -86,7 +86,7 @@ mod tests {
             .map(|i| (i, inst))
             .collect::<Vec<_>>();
         let (program, record) = simple_test_code(
-            &[Instruction {
+            [Instruction {
                 op: Op::ADD,
                 args: Args {
                     rd: 5,

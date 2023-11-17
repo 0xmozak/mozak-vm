@@ -1,0 +1,21 @@
+exclude: '\.dump'
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+    -   id: check-toml
+    -   id: check-yaml
+    -   id: end-of-file-fixer
+    -   id: mixed-line-ending
+    -   id: trailing-whitespace
+-   repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+    -   id: fmt
+        args: ['--all', '--']
+    -   id: clippy
+        args: ['--all-features', '--all-targets', '--', '-D', 'warnings']
+-   repo: https://gitlab.com/bmares/check-json5 # json5 allows comments
+    rev: v1.0.0
+    hooks:
+    -   id: check-json5

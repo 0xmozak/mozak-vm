@@ -12,7 +12,7 @@
 
 #if (DRAM_BASE >> 30 << 30) != DRAM_BASE
 # error This test requires DRAM_BASE be SV39 superpage-aligned
-#endif 
+#endif
 
 RVTEST_RV64M
 RVTEST_CODE_BEGIN
@@ -72,7 +72,7 @@ RVTEST_CODE_BEGIN
   sfence.vma
   sw a0, page_table_1 - DRAM_BASE, t0
   j die
-  
+
   RVTEST_PASS
 
   TEST_PASSFAIL
