@@ -359,7 +359,7 @@ impl<F: RichField> State<F> {
     /// TODO(Matthias): remove that limitation (again).
     #[must_use]
     pub fn read_iobytes(mut self, num_bytes: usize, op: IoOpcode) -> (Vec<u8>, Self) {
-        assert!(op == IoOpcode::StorePublic || op == IoOpcode::StorePrivate);
+        assert!(matches!(op, IoOpcode::StorePublic | IoOpcode::StorePrivate));
         if op == IoOpcode::StorePublic {
             log::trace!("ECALL Public IO_READ at CLK: {:?}", self.clk);
             let read_index = self.io_tape.public.read_index;
