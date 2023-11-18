@@ -9,7 +9,14 @@ programs in Rust.
 
 If you are not sure what these instructions mentioned above include, checkout [a succinct reference of the RISC-V instructions].
 
-# Writing a simple fibonacci program
+## Executable and Linkable Format
+
+At a high level, programs are compiled to RISC-V [ELFs], that are executed and proven independently. The execution generates a computation trace
+and then proven with the Zero-Knowledge Proof System. 
+
+<!-- If you are interested in learning more about this check out architecture section (not written yet) -->
+
+## Writing a simple fibonacci program
 
 You can write what we term "guest programs" by adding the `guest` crate to your dependency.
 
@@ -131,3 +138,4 @@ If you want to see more examples, check out the examples in the [examples folder
 [a succinct reference of the RISC-V instructions]: https://github.com/jameslzhu/riscv-card/blob/master/riscv-card.pdf
 [Rust Embedded Book]: https://docs.rust-embedded.org/book/intro/no-std.html
 [examples folder of our repository]: https://github.com/0xmozak/mozak-vm/tree/main/examples
+[ELFs]: https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
