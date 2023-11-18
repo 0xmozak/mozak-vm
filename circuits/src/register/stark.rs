@@ -129,7 +129,7 @@ mod tests {
 
     fn prove_stark<Stark: ProveAndVerify>(a: u32, b: u32, imm: u32, rd: u8) {
         let (program, record) = simple_test_code(
-            &[
+            [
                 Instruction {
                     op: Op::ADD,
                     args: Args {

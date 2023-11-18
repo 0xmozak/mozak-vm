@@ -21,7 +21,7 @@ jobs:
       contents: read
       issues: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install rust toolkit
         uses: ./.github/actions/rust
@@ -32,7 +32,7 @@ jobs:
       - name: Compile
         run: cargo test --no-run --locked --all-targets
 
-      - name: Test 
+      - name: Test
         run: cargo test --locked --all-targets
 
       - name: Create github issue for failed action

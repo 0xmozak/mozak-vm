@@ -54,7 +54,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
         is_binary(yield_constr, lv.is_executed());
 
         // If nv.is_io() == 1: lv.size == 0, also forces the last row to be size == 0 !
-        // This constraints ensures loop unrolling was done correctly  
+        // This constraints ensures loop unrolling was done correctly
         yield_constr.constraint(nv.is_io() * lv.size);
         // If lv.is_lv_and_nv_are_memory_rows == 1:
         //    nv.address == lv.address + 1 (wrapped)
@@ -171,11 +171,11 @@ mod tests {
 
     pub fn prove_io_read_private_zero_size<Stark: ProveAndVerify>(offset: u32, imm: u32) {
         let (program, record) = simple_test_code_with_io_tape(
-            &[
+            [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
             ],
             &[(imm.wrapping_add(offset), 0)],
@@ -192,11 +192,11 @@ mod tests {
 
     pub fn prove_io_read_public_zero_size<Stark: ProveAndVerify>(offset: u32, imm: u32) {
         let (program, record) = simple_test_code_with_io_tape(
-            &[
+            [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
             ],
             &[(imm.wrapping_add(offset), 0)],
@@ -213,11 +213,11 @@ mod tests {
 
     pub fn prove_io_read_private<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
         let (program, record) = simple_test_code_with_io_tape(
-            &[
+            [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
             ],
             &[(imm.wrapping_add(offset), 0)],
@@ -234,11 +234,11 @@ mod tests {
 
     pub fn prove_io_read_public<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
         let (program, record) = simple_test_code_with_io_tape(
-            &[
+            [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
             ],
             &[(imm.wrapping_add(offset), 0)],
@@ -255,11 +255,11 @@ mod tests {
 
     pub fn prove_io_read<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
         let (program, record) = simple_test_code_with_io_tape(
-            &[
+            [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
                 Instruction {
                     op: Op::ADD,
@@ -287,7 +287,7 @@ mod tests {
                 },
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
             ],
             &[(imm.wrapping_add(offset), 0)],
@@ -304,7 +304,7 @@ mod tests {
 
     pub fn prove_io_read_explicit<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
         let (program, record) = simple_test_code_with_io_tape(
-            &[
+            [
                 Instruction {
                     op: Op::ADD,
                     args: Args {
@@ -333,7 +333,7 @@ mod tests {
                 // add ecall to io_read
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
                 Instruction {
                     op: Op::ADD,

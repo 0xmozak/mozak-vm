@@ -189,7 +189,7 @@ mod tests {
 
     fn prove_divu<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8) -> Result<(), TestCaseError> {
         let (program, record) =
-            simple_test_code(&divu_remu_instructions(rd), &[], &[(1, p), (2, q)]);
+            simple_test_code(divu_remu_instructions(rd), &[], &[(1, p), (2, q)]);
         prop_assert_eq!(
             record.executed[0].aux.dst_val,
             if let 0 = q { 0xffff_ffff } else { p / q }
@@ -203,7 +203,7 @@ mod tests {
     }
 
     fn prove_div<Stark: ProveAndVerify>(p: u32, q: u32, rd: u8) {
-        let (program, record) = simple_test_code(&div_rem_instructions(rd), &[], &[(1, p), (2, q)]);
+        let (program, record) = simple_test_code(div_rem_instructions(rd), &[], &[(1, p), (2, q)]);
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 

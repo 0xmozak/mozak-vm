@@ -1,7 +1,7 @@
 use std::io;
 use std::io::Read;
 
-/// TODO(Roman): maybe avoid code dup later  
+/// TODO(Roman): maybe avoid code dup later
 pub struct MozakIoPrivate<'a> {
     pub stdin: Box<dyn Read + 'a>,
     #[cfg(not(target_os = "zkvm"))]
