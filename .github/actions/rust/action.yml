@@ -27,46 +27,26 @@ runs:
           ~/.rustup
           ~/.cargo
 
-    - id: remote-cache-restore
-      name: Cache Rust toolchain (Remote Restore)
-      if: ${{ steps.local-cache-restore.outputs.cache-hit != 'true' }}
-      uses: actions/cache/restore@v3
-      with:
-        key: toolchain-${{ runner.os }}-${{ runner.arch }}-${{ steps.get-info.outputs.rust-version }}
-        path: |
-          ~/.rustup
-          ~/.cargo
-
     - name: Restore Path
-      if: ${{ steps.local-cache-restore.outputs.cache-hit || steps.remote-cache-restore.outputs.cache-hit }}
+      if: ${{ steps.local-cache-restore.outputs.cache-hit }}
       shell: bash
       run: echo "${HOME}/.cargo/bin" >> $GITHUB_PATH
 
     - name: Install toolchain
-      if: ${{ steps.local-cache-restore.outputs.cache-hit != 'true' && steps.remote-cache-restore.outputs.cache-hit != 'true' }}
+      if: ${{ steps.local-cache-restore.outputs.cache-hit != 'true' }}
       uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ steps.get-info.outputs.rust-version }}
         components: rustfmt, clippy
 
     - name: Install nextest
-      if: ${{ steps.local-cache-restore.outputs.cache-hit != 'true' && steps.remote-cache-restore.outputs.cache-hit != 'true' }}
+      if: ${{ steps.local-cache-restore.outputs.cache-hit != 'true' }}
       uses: taiki-e/install-action@nextest
 
     - id: local-cache-save
       name: Cache Rust toolchain (Local Save)
       if: ${{ steps.local-cache-restore.outputs.cache-hit != 'true' }}
       uses: Daniel-Aaron-Bloom/local-cache/save@ff33c7264117faa1bbd99aa0ddb467a9ccc3919e
-      with:
-        key: ${{ steps.get-info.outputs.cache-primary-key }}
-        path: |
-          ~/.rustup
-          ~/.cargo
-
-    - id: remote-cache-save
-      name: Cache Rust toolchain (Save)
-      if: ${{ steps.remote-cache-restore.outputs.cache-hit != 'true' }}
-      uses: actions/cache/save@v3
       with:
         key: ${{ steps.get-info.outputs.cache-primary-key }}
         path: |
