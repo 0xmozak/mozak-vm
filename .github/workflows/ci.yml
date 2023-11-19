@@ -32,7 +32,7 @@ jobs:
       - name: Install rust toolkit
         uses: ./.github/actions/rust
         with:
-          local-cache: ${{ needs.check-runner.outputs.runner-label == "self-hosted" }}
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
 
 
       - name: Build fibonacci ELF for benchmarking
@@ -59,7 +59,7 @@ jobs:
       - name: Install rust toolkit
         uses: ./.github/actions/rust
         with:
-          local-cache: ${{ needs.check-runner.outputs.runner-label == "self-hosted" }}
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
 
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
@@ -78,7 +78,7 @@ jobs:
       - name: Install rust toolkit
         uses: ./.github/actions/rust
         with:
-          local-cache: ${{ needs.check-runner.outputs.runner-label == "self-hosted" }}
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
 
 
       - name: Build all examples
@@ -96,7 +96,7 @@ jobs:
       - name: Install rust toolkit
         uses: ./.github/actions/rust
         with:
-          local-cache: ${{ needs.check-runner.outputs.runner-label == "self-hosted" }}
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
 
 
       - name: Run fmt
