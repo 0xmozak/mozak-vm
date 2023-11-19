@@ -17,7 +17,7 @@ runs:
 
     - id: local-cache-restore
       name: Cache Rust toolchain (Local Restore)
-      uses: Daniel-Aaron-Bloom/local-cache/restore@a4835e8b388e505fa02bc01c57ba83eec7ee16e7
+      uses: Daniel-Aaron-Bloom/local-cache/restore@69234888096eaa118df6f35afce104fe559a3932
       with:
         key: ${{ steps.get-info.outputs.cache-primary-key }}
         path: |
@@ -53,7 +53,7 @@ runs:
     - id: local-cache-save
       name: Cache Rust toolchain (Local Save)
       if: ${{ steps.local-cache-restore.outputs.cache-hit != 'true' }}
-      uses: Daniel-Aaron-Bloom/local-cache/save@a4835e8b388e505fa02bc01c57ba83eec7ee16e7
+      uses: Daniel-Aaron-Bloom/local-cache/save@69234888096eaa118df6f35afce104fe559a3932
       with:
         key: ${{ steps.get-info.outputs.cache-primary-key }}
         path: |
