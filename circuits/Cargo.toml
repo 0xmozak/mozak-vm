@@ -20,7 +20,7 @@ clap = { version = "4.4", features = [
   "wrap_help",
 ] }
 flexbuffers = "2.0"
-itertools = "0.11"
+itertools = "0.12"
 log = "0.4"
 mozak-circuits-derive = { path = "./derive" }
 mozak-runner = { path = "../runner" }
