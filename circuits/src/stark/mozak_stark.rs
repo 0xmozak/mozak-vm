@@ -34,6 +34,11 @@ use crate::{
     rangecheck, xor,
 };
 
+const NUM_CROSS_TABLE_LOOKUP: usize = {
+    12 + cfg!(feature = "enable_register_starks") as usize * 2
+        + cfg!(feature = "enable_poseidon_starks") as usize
+};
+
 /// STARK Gadgets of Mozak-VM
 ///
 /// ## Generics
@@ -78,24 +83,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     #[cfg(feature = "enable_poseidon_starks")]
     #[StarkSet(stark_kind = "Poseidon2Sponge")]
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
-    // Both features enabled
-    #[cfg(all(feature = "enable_register_starks", feature = "enable_poseidon_starks"))]
-    pub cross_table_lookups: [CrossTableLookup<F>; 15],
-    // Only poseidon enabled
-    #[cfg(all(
-        feature = "enable_poseidon_starks",
-        not(feature = "enable_register_starks")
-    ))]
-    pub cross_table_lookups: [CrossTableLookup<F>; 14],
-    // Only register enabled
-    #[cfg(all(
-        feature = "enable_register_starks",
-        not(feature = "enable_poseidon_starks")
-    ))]
-    pub cross_table_lookups: [CrossTableLookup<F>; 13],
-    // Neither feature enabled
-    #[cfg(not(any(feature = "enable_register_starks", feature = "enable_poseidon_starks")))]
-    pub cross_table_lookups: [CrossTableLookup<F>; 12],
+    pub cross_table_lookups: [CrossTableLookup<F>; NUM_CROSS_TABLE_LOOKUP],
+
     pub debug: bool,
 }
 
