@@ -20,7 +20,7 @@ runs:
     - id: local-cache-restore
       name: Cache Rust toolchain (Local Restore)
       if: ${{ inputs.local-cache }}
-      uses: Daniel-Aaron-Bloom/local-cache/restore@ff33c7264117faa1bbd99aa0ddb467a9ccc3919e
+      uses: 0xmozak/local-cache/restore@ff33c7264117faa1bbd99aa0ddb467a9ccc3919e
       with:
         key: ${{ steps.get-info.outputs.cache-primary-key }}
         path: |
@@ -46,7 +46,7 @@ runs:
     - id: local-cache-save
       name: Cache Rust toolchain (Local Save)
       if: ${{ steps.local-cache-restore.outputs.cache-hit != 'true' }}
-      uses: Daniel-Aaron-Bloom/local-cache/save@ff33c7264117faa1bbd99aa0ddb467a9ccc3919e
+      uses: 0xmozak/local-cache/save@ff33c7264117faa1bbd99aa0ddb467a9ccc3919e
       with:
         key: ${{ steps.get-info.outputs.cache-primary-key }}
         path: |
@@ -55,13 +55,13 @@ runs:
 
     - id: local-cache
       name: Cache Rust artifacts (Local)
-      uses: Daniel-Aaron-Bloom/rust-cache@c9b47d20f239e19b58698b438f2343e944c7f404
+      uses: 0xmozak/rust-cache@c9b47d20f239e19b58698b438f2343e944c7f404
       with:
         prefix-key: ${{ inputs.cache-key != '' && inputs.cache-key || null }}
         cache-provider: "local"
 
     - name: Cache Rust artifacts (Remote)
-      uses: Daniel-Aaron-Bloom/rust-cache@c9b47d20f239e19b58698b438f2343e944c7f404
+      uses: 0xmozak/rust-cache@c9b47d20f239e19b58698b438f2343e944c7f404
       if: ${{ steps.local-cache.outputs.cache-hit != 'true'}}
       with:
         prefix-key: ${{ inputs.cache-key != '' && inputs.cache-key || null }}
