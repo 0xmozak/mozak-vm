@@ -1,4 +1,4 @@
-use mozak_runner::instruction::{Args, Instruction, Op};
+use mozak_runner::instruction::{Args, Instruction, Op, NOP};
 use mozak_runner::test_utils::simple_test_code;
 use starky::config::StarkConfig;
 
@@ -15,15 +15,7 @@ pub fn xor_bench(n: u32) -> Result<(), anyhow::Error> {
                 ..Args::default()
             },
         },
-        Instruction {
-            op: Op::XOR,
-            args: Args {
-                rd: 2,
-                rs1: 1,
-                imm: 0xDEAD_BEEF,
-                ..Args::default()
-            },
-        },
+        NOP,
         Instruction {
             op: Op::BLT,
             args: Args {
