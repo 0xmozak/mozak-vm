@@ -8,6 +8,8 @@ If you are unfamiliar with the RISC-V instruction set, please have a look at the
 
 ## Setting up your build environment
 
+Below are instructions for setting up development environment. For instructions on enrolling CI machines, see the [notion page](https://www.notion.so/0xmozak/Enroll-Self-Hosted-CI-Runner-af6ddd3897594970b6ec4106ebde228f)
+
 ### Quickstart in GitHub codespaces
 
 You can [open this repository in GitHub Codespaces](https://codespaces.new/0xmozak/mozak-vm?quickstart=1), click on `Create new codespace` and start developing straight away in your browser.  All build requirements will be taken care of. You can stop or resume the instance anytime.  (You can also find the '<> Code' button on the top right of the main page of the repository on GitHub to access the codespaces you created.  See the [Codespaces documentation](https://github.com/features/codespaces) for background information.)
@@ -16,7 +18,7 @@ You can [open this repository in GitHub Codespaces](https://codespaces.new/0xmoz
 
 Mozak VM is built in Rust, so [installing the Rust toolchain](https://www.rust-lang.org/tools/install) is a pre-requisite, if you want to develop on your local machine.
 
-## Bulding
+## Building
 
 ```bash
 cargo build
