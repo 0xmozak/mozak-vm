@@ -16,7 +16,7 @@ derive_more = "0.99"
 elf = { version = "0.7" }
 env_logger = { version = "0.10", optional = true }
 im = "15.1"
-itertools = "0.11"
+itertools = "0.12"
 log = "0.4"
 mimalloc = "0.1"
 mozak-system = { path = "../system" }
