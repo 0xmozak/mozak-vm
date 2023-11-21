@@ -21,7 +21,7 @@
             "elf": "examples/fibonacci-input"
         },
         "xor-bench": {
-            "description": "Benching XOR repeated for given number of iterations against doing same with NOP in its place",
+            "description": "Benching XOR repeated for given number of iterations, \n against doing same with NOP in its place",
             "parameter": "iterations",
             "output": "time taken (in s)",
             "commits": {
