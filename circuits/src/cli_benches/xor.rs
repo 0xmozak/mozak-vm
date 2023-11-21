@@ -4,7 +4,7 @@ use starky::config::StarkConfig;
 
 use crate::test_utils::prove_and_verify_mozak_stark;
 
-pub fn xor_bench(n: u32) -> Result<(), anyhow::Error> {
+pub fn xor_bench(iterations: u32) -> Result<(), anyhow::Error> {
     let instructions = [
         Instruction {
             op: Op::ADD,
@@ -34,7 +34,7 @@ pub fn xor_bench(n: u32) -> Result<(), anyhow::Error> {
             },
         },
     ];
-    let (program, record) = simple_test_code(instructions, &[], &[(1, n)]);
+    let (program, record) = simple_test_code(instructions, &[], &[(1, iterations)]);
     prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
 }
 
@@ -45,8 +45,8 @@ mod tests {
 
     #[test]
     fn test_xor_bench() {
-        let n = 10;
-        super::xor_bench(n).unwrap();
+        let iterations = 10;
+        super::xor_bench(iterations).unwrap();
     }
 
     #[test]
