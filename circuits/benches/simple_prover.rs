@@ -38,7 +38,7 @@ fn bench_prove_verify_all(c: &mut Criterion) {
     });
     group.bench_function("xor_loop", |b| {
         b.iter(|| {
-            let instructions = &[
+            let instructions = [
                 Instruction {
                     op: Op::ADD,
                     args: Args {
