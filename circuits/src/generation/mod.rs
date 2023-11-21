@@ -40,7 +40,6 @@ use self::fullword_memory::generate_fullword_memory_trace;
 use self::halfword_memory::generate_halfword_memory_trace;
 use self::memory::generate_memory_trace;
 use self::memoryinit::generate_memory_init_trace;
-#[cfg(feature = "enable_poseidon_starks")]
 use self::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use self::rangecheck::generate_rangecheck_trace;
 use self::rangecheck_limb::generate_rangecheck_limb_trace;
@@ -83,7 +82,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
     let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
     let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-    #[cfg(feature = "enable_poseidon_starks")]
     let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
     #[cfg(feature = "enable_poseidon_starks")]
     let poseidon2_rows = generate_poseidon2_trace(&record.executed);
@@ -94,7 +92,6 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &fullword_memory_rows,
         &io_memory_private_rows,
         &io_memory_public_rows,
-        #[cfg(feature = "enable_poseidon_starks")]
         &poseiden2_sponge_rows,
     );
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);

@@ -24,7 +24,6 @@ use crate::generation::io_memory::{
 };
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::memoryinit::generate_memory_init_trace;
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
@@ -135,7 +134,6 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
-        #[cfg(feature = "enable_poseidon_starks")]
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let memory_trace = generate_memory_trace::<F>(
             &record.executed,
@@ -144,7 +142,6 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &fullword_memory,
             &io_memory_private,
             &io_memory_public,
-            #[cfg(feature = "enable_poseidon_starks")]
             &poseidon2_trace,
         );
         let trace_poly_values =
@@ -193,7 +190,6 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
-        #[cfg(feature = "enable_poseidon_starks")]
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(
             &record.executed,
@@ -202,7 +198,6 @@ impl ProveAndVerify for MemoryStark<F, D> {
             &fullword_memory,
             &io_memory_private,
             &io_memory_public,
-            #[cfg(feature = "enable_poseidon_starks")]
             &poseidon2_trace,
         ));
         let proof = prove_table::<F, C, S, D>(
