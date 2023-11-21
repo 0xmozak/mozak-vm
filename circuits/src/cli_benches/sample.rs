@@ -4,6 +4,7 @@ use mozak_runner::test_utils::simple_test_code;
 use crate::stark::mozak_stark::MozakStark;
 use crate::test_utils::ProveAndVerify;
 
+#[allow(clippy::pedantic)]
 pub fn sample_bench(reg_value: u32) -> Result<(), anyhow::Error> {
     let instructions = [
         Instruction {
