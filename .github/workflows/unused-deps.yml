@@ -29,7 +29,7 @@ jobs:
         uses: ./.github/actions/rust
 
       - name: Install cargo-udeps
-        run: cargo install --locked cargo-udeps
+        run: cargo install --features vendored-openssl --locked cargo-udeps
 
       - name: Check for unused dependencies
         run: cargo udeps --workspace --all-targets --all-features
