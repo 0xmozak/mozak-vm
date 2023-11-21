@@ -4,12 +4,16 @@ use clap::{Args as Args_, Subcommand};
 
 use self::fibo_with_inp::fibonacci_with_input;
 use self::sample::sample_bench;
+use self::xor::xor_bench;
 
 #[cfg(any(feature = "test", test))]
 pub mod sample;
 
 #[cfg(any(feature = "test", test))]
 pub mod fibo_with_inp;
+
+#[cfg(any(feature = "test", test))]
+pub mod xor;
 
 #[derive(Debug, Args_, Clone)]
 #[command(args_conflicts_with_subcommands = true)]
@@ -22,6 +26,7 @@ pub struct BenchArgs {
 pub enum BenchFunction {
     SampleBench { iterations: u32 },
     FiboInputBench { n: u32 },
+    XorBench { iterations: u32 },
 }
 
 impl BenchArgs {
@@ -29,6 +34,7 @@ impl BenchArgs {
         match self.function {
             BenchFunction::SampleBench { iterations } => sample_bench(iterations),
             BenchFunction::FiboInputBench { n } => fibonacci_with_input(n),
+            BenchFunction::XorBench { iterations } => xor_bench(iterations),
         }
     }
 }
