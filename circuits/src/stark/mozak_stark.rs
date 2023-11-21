@@ -24,9 +24,7 @@ use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::rangecheck_looking;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_limb::stark::RangeCheckLimbStark;
-#[cfg(feature = "enable_register_starks")]
 use crate::register::stark::RegisterStark;
-#[cfg(feature = "enable_register_starks")]
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::stark::XorStark;
 use crate::{
@@ -71,11 +69,15 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub io_memory_private_stark: InputOuputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "IoMemoryPublic")]
     pub io_memory_public_stark: InputOuputMemoryStark<F, D>,
-    #[cfg(feature = "enable_register_starks")]
-    #[StarkSet(stark_kind = "RegisterInit")]
+    #[cfg_attr(
+        feature = "enable_register_starks",
+        StarkSet(stark_kind = "RegisterInit")
+    )]
     pub register_init_stark: RegisterInitStark<F, D>,
-    #[cfg(feature = "enable_register_starks")]
-    #[StarkSet(stark_kind = "Register")]
+    #[cfg_attr(
+        feature = "enable_register_starks",
+        StarkSet(stark_kind = "Register")
+    )]
     pub register_stark: RegisterStark<F, D>,
     #[cfg(feature = "enable_poseidon_starks")]
     #[StarkSet(stark_kind = "Poseidon2")]
@@ -223,9 +225,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             rangecheck_limb_stark: RangeCheckLimbStark::default(),
             halfword_memory_stark: HalfWordMemoryStark::default(),
             fullword_memory_stark: FullWordMemoryStark::default(),
-            #[cfg(feature = "enable_register_starks")]
             register_init_stark: RegisterInitStark::default(),
-            #[cfg(feature = "enable_register_starks")]
             register_stark: RegisterStark::default(),
             io_memory_private_stark: InputOuputMemoryStark::default(),
             io_memory_public_stark: InputOuputMemoryStark::default(),
@@ -244,7 +244,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 LimbTable::lookups(),
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
-                #[cfg(feature = "enable_register_starks")]
                 RegisterRegInitTable::lookups(),
                 IoMemoryPrivateCpuTable::lookups(),
                 IoMemoryPublicCpuTable::lookups(),
@@ -312,9 +311,7 @@ table_impl!(MemoryInitTable, TableKind::MemoryInit);
 table_impl!(RangeCheckLimbTable, TableKind::RangeCheckLimb);
 table_impl!(HalfWordMemoryTable, TableKind::HalfWordMemory);
 table_impl!(FullWordMemoryTable, TableKind::FullWordMemory);
-#[cfg(feature = "enable_register_starks")]
 table_impl!(RegisterInitTable, TableKind::RegisterInit);
-#[cfg(feature = "enable_register_starks")]
 table_impl!(RegisterTable, TableKind::Register);
 table_impl!(IoMemoryPrivateTable, TableKind::IoMemoryPrivate);
 table_impl!(IoMemoryPublicTable, TableKind::IoMemoryPublic);
@@ -564,9 +561,7 @@ impl<F: Field> Lookups<F> for FullWordMemoryCpuTable<F> {
     }
 }
 
-#[cfg(feature = "enable_register_starks")]
 pub struct RegisterRegInitTable<F: Field>(CrossTableLookup<F>);
-#[cfg(feature = "enable_register_starks")]
 impl<F: Field> Lookups<F> for RegisterRegInitTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
