@@ -135,7 +135,7 @@ pub fn generate_memory_trace<F: RichField>(
     fullword_memory_rows: &[FullWordMemory<F>],
     io_memory_private_rows: &[InputOutputMemory<F>],
     io_memory_public_rows: &[InputOutputMemory<F>],
-    #[allow(unused)]
+    #[allow(unused)] //
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
 ) -> Vec<Memory<F>> {
     // `merged_trace` is address sorted combination of static and
