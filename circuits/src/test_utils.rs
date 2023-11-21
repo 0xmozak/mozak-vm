@@ -28,7 +28,9 @@ use crate::generation::memoryinit::generate_memory_init_trace;
 use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
+#[cfg(feature = "enable_register_starks")]
 use crate::generation::register::generate_register_trace;
+#[cfg(feature = "enable_register_starks")]
 use crate::generation::registerinit::generate_register_init_trace;
 use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
@@ -36,7 +38,9 @@ use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_io::stark::InputOuputMemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
+#[cfg(feature = "enable_register_starks")]
 use crate::register::stark::RegisterStark;
+#[cfg(feature = "enable_register_starks")]
 use crate::registerinit::stark::RegisterInitStark;
 use crate::stark::mozak_stark::{MozakStark, PublicInputs};
 use crate::stark::prover::prove;
@@ -298,6 +302,7 @@ impl ProveAndVerify for BitshiftStark<F, D> {
     }
 }
 
+#[cfg(feature = "enable_register_starks")]
 impl ProveAndVerify for RegisterInitStark<F, D> {
     fn prove_and_verify(_program: &Program, _record: &ExecutionRecord<F>) -> Result<()> {
         type S = RegisterInitStark<F, D>;
@@ -318,6 +323,7 @@ impl ProveAndVerify for RegisterInitStark<F, D> {
     }
 }
 
+#[cfg(feature = "enable_register_starks")]
 impl ProveAndVerify for RegisterStark<F, D> {
     fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
         type S = RegisterStark<F, D>;

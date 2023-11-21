@@ -42,6 +42,7 @@ proptest = "1.4"
 
 [features]
 enable_poseidon_starks = []
+enable_register_starks = []
 test = []
 
 [[bench]]

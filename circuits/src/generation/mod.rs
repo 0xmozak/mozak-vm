@@ -17,7 +17,9 @@ pub mod poseidon2_sponge;
 pub mod program;
 pub mod rangecheck;
 pub mod rangecheck_limb;
+#[cfg(feature = "enable_register_starks")]
 pub mod register;
+#[cfg(feature = "enable_register_starks")]
 pub mod registerinit;
 pub mod xor;
 
@@ -46,7 +48,9 @@ use self::memoryinit::generate_memory_init_trace;
 use self::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use self::rangecheck::generate_rangecheck_trace;
 use self::rangecheck_limb::generate_rangecheck_limb_trace;
+#[cfg(feature = "enable_register_starks")]
 use self::register::generate_register_trace;
+#[cfg(feature = "enable_register_starks")]
 use self::registerinit::generate_register_init_trace;
 use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
@@ -99,7 +103,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     );
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
     let rangecheck_limb_rows = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows);
+    #[cfg(feature = "enable_register_starks")]
     let register_init_rows = generate_register_init_trace::<F>();
+    #[cfg(feature = "enable_register_starks")]
     let register_rows = generate_register_trace::<F>(record);
 
     TableKindSetBuilder {
@@ -115,7 +121,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         fullword_memory_stark: trace_rows_to_poly_values(fullword_memory_rows),
         io_memory_private_stark: trace_rows_to_poly_values(io_memory_private_rows),
         io_memory_public_stark: trace_rows_to_poly_values(io_memory_public_rows),
+        #[cfg(feature = "enable_register_starks")]
         register_init_stark: trace_rows_to_poly_values(register_init_rows),
+        #[cfg(feature = "enable_register_starks")]
         register_stark: trace_rows_to_poly_values(register_rows),
         #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_stark: trace_rows_to_poly_values(poseidon2_rows),
