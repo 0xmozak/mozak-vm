@@ -135,7 +135,8 @@ pub fn generate_memory_trace<F: RichField>(
     fullword_memory_rows: &[FullWordMemory<F>],
     io_memory_private_rows: &[InputOutputMemory<F>],
     io_memory_public_rows: &[InputOutputMemory<F>],
-    _poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
+    #[allow(unused)]
+    poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
 ) -> Vec<Memory<F>> {
     // `merged_trace` is address sorted combination of static and
     // dynamic memory trace components of program (ELF and execution)
@@ -152,7 +153,7 @@ pub fn generate_memory_trace<F: RichField>(
 
     #[cfg(feature = "enable_poseidon_starks")]
     {
-        merged_trace.extend(transform_poseidon2_sponge(_poseidon2_sponge_rows));
+        merged_trace.extend(transform_poseidon2_sponge(poseidon2_sponge_rows));
     }
 
     merged_trace.sort_by_key(key);
