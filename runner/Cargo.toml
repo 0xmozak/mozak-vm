@@ -39,3 +39,4 @@ name = "fibonacci"
 default = ["std", "im/serde"]
 std = ["anyhow/std"]
 test = ["env_logger", "proptest"]
+enable_poseidon_starks = []

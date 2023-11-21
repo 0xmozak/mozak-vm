@@ -10,7 +10,9 @@ pub mod instruction;
 pub mod io_memory;
 pub mod memory;
 pub mod memoryinit;
+#[cfg(feature = "enable_poseidon_starks")]
 pub mod poseidon2;
+#[cfg(feature = "enable_poseidon_starks")]
 pub mod poseidon2_sponge;
 pub mod program;
 pub mod rangecheck;
@@ -40,6 +42,7 @@ use self::fullword_memory::generate_fullword_memory_trace;
 use self::halfword_memory::generate_halfword_memory_trace;
 use self::memory::generate_memory_trace;
 use self::memoryinit::generate_memory_init_trace;
+#[cfg(feature = "enable_poseidon_starks")]
 use self::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use self::rangecheck::generate_rangecheck_trace;
 use self::rangecheck_limb::generate_rangecheck_limb_trace;
@@ -50,6 +53,7 @@ use crate::columns_view::HasNamedColumns;
 use crate::generation::io_memory::{
     generate_io_memory_private_trace, generate_io_memory_public_trace,
 };
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::generation::poseidon2::generate_poseidon2_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::stark::mozak_stark::{
@@ -79,7 +83,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
     let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
     let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
+    #[cfg(feature = "enable_poseidon_starks")]
     let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
+    #[cfg(feature = "enable_poseidon_starks")]
     let poseidon2_rows = generate_poseidon2_trace(&record.executed);
     let memory_rows = generate_memory_trace(
         &record.executed,
@@ -88,6 +94,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &fullword_memory_rows,
         &io_memory_private_rows,
         &io_memory_public_rows,
+        #[cfg(feature = "enable_poseidon_starks")]
         &poseiden2_sponge_rows,
     );
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
@@ -110,7 +117,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         io_memory_public_stark: trace_rows_to_poly_values(io_memory_public_rows),
         register_init_stark: trace_rows_to_poly_values(register_init_rows),
         register_stark: trace_rows_to_poly_values(register_rows),
+        #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_stark: trace_rows_to_poly_values(poseidon2_rows),
+        #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_sponge_stark: trace_rows_to_poly_values(poseiden2_sponge_rows),
     }
     .build()

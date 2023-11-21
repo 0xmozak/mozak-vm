@@ -218,6 +218,7 @@ mod test {
         }
         step_rows.push(Row {
             aux: Aux {
+                #[cfg(feature = "enable_poseidon_starks")]
                 poseidon2: Some(Poseidon2Entry::<F> {
                     sponge_data,
                     ..Default::default()

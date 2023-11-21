@@ -42,6 +42,7 @@ proptest = "1.4"
 
 [features]
 test = []
+enable_poseidon_starks = []
 
 [[bench]]
 harness = false

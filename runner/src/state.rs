@@ -164,8 +164,10 @@ pub struct Aux<F: RichField> {
     pub will_halt: bool,
     pub op1: u32,
     pub op2: u32,
+    #[cfg(feature = "enable_poseidon_starks")]
     pub poseidon2: Option<Poseidon2Entry<F>>,
     pub io: Option<IoEntry>,
+    pub _marker: PhantomData<F>,
 }
 
 impl<F: RichField> State<F> {

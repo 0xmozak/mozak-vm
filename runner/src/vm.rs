@@ -180,6 +180,7 @@ impl<F: RichField> State<F> {
             ecall::IO_READ_PRIVATE => self.ecall_io_read(IoOpcode::StorePrivate),
             ecall::IO_READ_PUBLIC => self.ecall_io_read(IoOpcode::StorePublic),
             ecall::PANIC => self.ecall_panic(),
+            #[cfg(feature = "enable_poseidon_starks")]
             ecall::POSEIDON2 => self.ecall_poseidon2(),
             _ => (Aux::default(), self.bump_pc()),
         }

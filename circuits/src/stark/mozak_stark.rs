@@ -14,7 +14,11 @@ use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_io::stark::InputOuputMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2::stark::Poseidon2_12Stark;
+#[cfg(feature = "enable_poseidon_starks")]
+use crate::poseidon2_sponge;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::rangecheck_looking;
@@ -24,8 +28,8 @@ use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::stark::XorStark;
 use crate::{
-    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memoryinit,
-    poseidon2_sponge, program, rangecheck, xor,
+    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memoryinit, program,
+    rangecheck, xor,
 };
 
 /// STARK Gadgets of Mozak-VM
@@ -64,11 +68,16 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub register_init_stark: RegisterInitStark<F, D>,
     #[StarkSet(stark_kind = "Register")]
     pub register_stark: RegisterStark<F, D>,
+    #[cfg(feature = "enable_poseidon_starks")]
     #[StarkSet(stark_kind = "Poseidon2")]
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
+    #[cfg(feature = "enable_poseidon_starks")]
     #[StarkSet(stark_kind = "Poseidon2Sponge")]
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
+    #[cfg(feature = "enable_poseidon_starks")]
     pub cross_table_lookups: [CrossTableLookup<F>; 15],
+    #[cfg(not(feature = "enable_poseidon_starks"))]
+    pub cross_table_lookups: [CrossTableLookup<F>; 13],
     pub debug: bool,
 }
 
@@ -211,7 +220,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             register_stark: RegisterStark::default(),
             io_memory_private_stark: InputOuputMemoryStark::default(),
             io_memory_public_stark: InputOuputMemoryStark::default(),
+            #[cfg(feature = "enable_poseidon_starks")]
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
+            #[cfg(feature = "enable_poseidon_starks")]
             poseidon2_stark: Poseidon2_12Stark::default(),
             cross_table_lookups: [
                 RangecheckTable::lookups(),
@@ -227,7 +238,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 RegisterRegInitTable::lookups(),
                 IoMemoryPrivateCpuTable::lookups(),
                 IoMemoryPublicCpuTable::lookups(),
+                #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2SpongeCpuTable::lookups(),
+                #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2Poseidon2SpongeTable::lookups(),
             ],
             debug: false,
@@ -293,7 +306,9 @@ table_impl!(RegisterInitTable, TableKind::RegisterInit);
 table_impl!(RegisterTable, TableKind::Register);
 table_impl!(IoMemoryPrivateTable, TableKind::IoMemoryPrivate);
 table_impl!(IoMemoryPublicTable, TableKind::IoMemoryPublic);
+#[cfg(feature = "enable_poseidon_starks")]
 table_impl!(Poseidon2SpongeTable, TableKind::Poseidon2Sponge);
+#[cfg(feature = "enable_poseidon_starks")]
 table_impl!(Poseidon2Table, TableKind::Poseidon2);
 
 pub trait Lookups<F: Field> {
@@ -335,44 +350,48 @@ pub struct IntoMemoryTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
     #[allow(clippy::too_many_lines)]
     fn lookups() -> CrossTableLookup<F> {
-        CrossTableLookup::new(
-            vec![
-                CpuTable::new(
-                    cpu::columns::data_for_memory(),
-                    cpu::columns::filter_for_byte_memory(),
-                ),
-                HalfWordMemoryTable::new(
-                    memory_halfword::columns::data_for_memory_limb(0),
-                    memory_halfword::columns::filter(),
-                ),
-                HalfWordMemoryTable::new(
-                    memory_halfword::columns::data_for_memory_limb(1),
-                    memory_halfword::columns::filter(),
-                ),
-                FullWordMemoryTable::new(
-                    memory_fullword::columns::data_for_memory_limb(0),
-                    memory_fullword::columns::filter(),
-                ),
-                FullWordMemoryTable::new(
-                    memory_fullword::columns::data_for_memory_limb(1),
-                    memory_fullword::columns::filter(),
-                ),
-                FullWordMemoryTable::new(
-                    memory_fullword::columns::data_for_memory_limb(2),
-                    memory_fullword::columns::filter(),
-                ),
-                FullWordMemoryTable::new(
-                    memory_fullword::columns::data_for_memory_limb(3),
-                    memory_fullword::columns::filter(),
-                ),
-                IoMemoryPrivateTable::new(
-                    memory_io::columns::data_for_memory(),
-                    memory_io::columns::filter_for_memory(),
-                ),
-                IoMemoryPublicTable::new(
-                    memory_io::columns::data_for_memory(),
-                    memory_io::columns::filter_for_memory(),
-                ),
+        let mut tables = vec![];
+        tables.extend([
+            CpuTable::new(
+                cpu::columns::data_for_memory(),
+                cpu::columns::filter_for_byte_memory(),
+            ),
+            HalfWordMemoryTable::new(
+                memory_halfword::columns::data_for_memory_limb(0),
+                memory_halfword::columns::filter(),
+            ),
+            HalfWordMemoryTable::new(
+                memory_halfword::columns::data_for_memory_limb(1),
+                memory_halfword::columns::filter(),
+            ),
+            FullWordMemoryTable::new(
+                memory_fullword::columns::data_for_memory_limb(0),
+                memory_fullword::columns::filter(),
+            ),
+            FullWordMemoryTable::new(
+                memory_fullword::columns::data_for_memory_limb(1),
+                memory_fullword::columns::filter(),
+            ),
+            FullWordMemoryTable::new(
+                memory_fullword::columns::data_for_memory_limb(2),
+                memory_fullword::columns::filter(),
+            ),
+            FullWordMemoryTable::new(
+                memory_fullword::columns::data_for_memory_limb(3),
+                memory_fullword::columns::filter(),
+            ),
+            IoMemoryPrivateTable::new(
+                memory_io::columns::data_for_memory(),
+                memory_io::columns::filter_for_memory(),
+            ),
+            IoMemoryPublicTable::new(
+                memory_io::columns::data_for_memory(),
+                memory_io::columns::filter_for_memory(),
+            ),
+        ]);
+        #[cfg(feature = "enable_poseidon_starks")]
+        {
+            tables.extend(vec![
                 // poseidon2_sponge input
                 Poseidon2SpongeTable::new(
                     poseidon2_sponge::columns::data_for_input_memory(0),
@@ -406,7 +425,10 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
                     poseidon2_sponge::columns::data_for_input_memory(7),
                     poseidon2_sponge::columns::filter_for_input_memory(),
                 ),
-            ],
+            ]);
+        }
+        CrossTableLookup::new(
+            tables,
             MemoryTable::new(
                 memory::columns::data_for_cpu(),
                 memory::columns::filter_for_cpu(),
@@ -579,7 +601,9 @@ impl<F: Field> Lookups<F> for IoMemoryPublicCpuTable<F> {
     }
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 pub struct Poseidon2SpongeCpuTable<F: Field>(CrossTableLookup<F>);
+#[cfg(feature = "enable_poseidon_starks")]
 impl<F: Field> Lookups<F> for Poseidon2SpongeCpuTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
@@ -595,7 +619,9 @@ impl<F: Field> Lookups<F> for Poseidon2SpongeCpuTable<F> {
     }
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 pub struct Poseidon2Poseidon2SpongeTable<F: Field>(CrossTableLookup<F>);
+#[cfg(feature = "enable_poseidon_starks")]
 impl<F: Field> Lookups<F> for Poseidon2Poseidon2SpongeTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
