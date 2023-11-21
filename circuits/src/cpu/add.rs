@@ -32,7 +32,7 @@ mod tests {
 
     fn prove_add<Stark: ProveAndVerify>(a: u32, b: u32, rd: u8) {
         let (program, record) = simple_test_code(
-            &[Instruction {
+            [Instruction {
                 op: Op::ADD,
                 args: Args {
                     rd,

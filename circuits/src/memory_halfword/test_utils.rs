@@ -47,7 +47,7 @@ pub fn halfword_memory_trace_test_case(
         .copied()
         .collect::<Vec<_>>();
     let (program, record) = simple_test_code(
-        &code,
+        code,
         &[
             (400, 0),
             (401, 0),

@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use itertools::{chain, Itertools};
-use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Instruction, Op};
 use mozak_runner::state::{Aux, IoEntry, IoOpcode, State};
 use mozak_runner::vm::{ExecutionRecord, Row};
@@ -39,10 +38,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
 }
 
 /// Converting each row of the `record` to a row represented by [`CpuState`]
-pub fn generate_cpu_trace<F: RichField>(
-    program: &Program,
-    record: &ExecutionRecord<F>,
-) -> Vec<CpuState<F>> {
+pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuState<F>> {
     let mut trace: Vec<CpuState<F>> = vec![];
     let ExecutionRecord {
         executed,
@@ -52,14 +48,19 @@ pub fn generate_cpu_trace<F: RichField>(
         state: last_state.clone(),
         // `Aux` has auxiliary information about an executed CPU cycle.
         // The last state is the final state after the last execution.  Thus naturally it has no
-        // associated auxiliarye execution information. We use a dummy aux to make the row
+        // associated auxiliary execution information. We use a dummy aux to make the row
         // generation work, but we could refactor to make this unnecessary.
-        aux: executed.last().unwrap().aux.clone(),
+        ..executed.last().unwrap().clone()
     }];
 
     let default_io_entry = IoEntry::default();
-    for Row { state, aux } in chain![executed, last_row] {
-        let inst = state.current_instruction(program);
+    for Row {
+        state,
+        instruction,
+        aux,
+    } in chain![executed, last_row]
+    {
+        let inst = *instruction;
         let io = aux.io.as_ref().unwrap_or(&default_io_entry);
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
@@ -277,7 +278,7 @@ fn operands_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux<F>) {
 
 fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State<F>) -> XorView<F> {
     let a = match inst.op {
-        Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
+        Op::AND | Op::OR | Op::XOR | Op::SB | Op::SH => state.get_register_value(inst.args.rs1),
         Op::SRL | Op::SLL | Op::SRA => 0b1_1111,
         _ => 0,
     };
@@ -285,6 +286,8 @@ fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State<F>) -> XorVi
         Op::AND | Op::OR | Op::XOR | Op::SRL | Op::SLL | Op::SRA => state
             .get_register_value(inst.args.rs2)
             .wrapping_add(inst.args.imm),
+        Op::SB => 0x0000_00FF,
+        Op::SH => 0x0000_FFFF,
         _ => 0,
     };
     XorView { a, b, out: a ^ b }.map(from_u32)

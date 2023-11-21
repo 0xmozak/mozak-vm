@@ -45,7 +45,7 @@ mod tests {
 
     #[test]
     fn test_serialization_deserialization() {
-        let (program, record) = simple_test_code(&[], &[], &[]);
+        let (program, record) = simple_test_code([], &[], &[]);
         let stark = S::default();
         let config = fast_test_config();
         let public_inputs = PublicInputs {
@@ -67,6 +67,6 @@ mod tests {
         let all_proof_deserialized =
             AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(s.view())
                 .expect("deserialization failed");
-        verify_proof(stark, all_proof_deserialized, &config).unwrap();
+        verify_proof(&stark, all_proof_deserialized, &config).unwrap();
     }
 }

@@ -1,4 +1,5 @@
 use itertools::chain;
+use mozak_circuits_derive::StarkSet;
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
@@ -32,26 +33,156 @@ use crate::{
 /// ## Generics
 /// `F`: The [Field] that the STARK is defined over
 /// `D`: Degree of the extension field of `F`
-#[derive(Clone)]
+#[derive(Clone, StarkSet)]
+#[StarkSet(macro_name = "mozak_stark_set")]
 pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
+    #[StarkSet(stark_kind = "Cpu")]
     pub cpu_stark: CpuStark<F, D>,
+    #[StarkSet(stark_kind = "RangeCheck")]
     pub rangecheck_stark: RangeCheckStark<F, D>,
+    #[StarkSet(stark_kind = "Xor")]
     pub xor_stark: XorStark<F, D>,
+    #[StarkSet(stark_kind = "Bitshift")]
     pub shift_amount_stark: BitshiftStark<F, D>,
+    #[StarkSet(stark_kind = "Program")]
     pub program_stark: ProgramStark<F, D>,
+    #[StarkSet(stark_kind = "Memory")]
     pub memory_stark: MemoryStark<F, D>,
+    #[StarkSet(stark_kind = "MemoryInit")]
     pub memory_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "RangeCheckLimb")]
     pub rangecheck_limb_stark: RangeCheckLimbStark<F, D>,
+    #[StarkSet(stark_kind = "HalfWordMemory")]
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
+    #[StarkSet(stark_kind = "FullWordMemory")]
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
+    #[StarkSet(stark_kind = "IoMemoryPrivate")]
     pub io_memory_private_stark: InputOuputMemoryStark<F, D>,
+    #[StarkSet(stark_kind = "IoMemoryPublic")]
     pub io_memory_public_stark: InputOuputMemoryStark<F, D>,
+    #[StarkSet(stark_kind = "RegisterInit")]
     pub register_init_stark: RegisterInitStark<F, D>,
+    #[StarkSet(stark_kind = "Register")]
     pub register_stark: RegisterStark<F, D>,
+    #[StarkSet(stark_kind = "Poseidon2")]
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
+    #[StarkSet(stark_kind = "Poseidon2Sponge")]
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; 15],
     pub debug: bool,
+}
+
+// A macro which takes metadata about `MozakStark`
+// and defines
+macro_rules! mozak_stark_helpers {
+    {
+        kind_names = [{ $($kind_names:ident)* }]
+        kind_vals = [{ $($kind_vals:literal)* }]
+        count = [{ $kind_count:literal }]
+        tys = [{ $($tys:ty)* }]
+        fields = [{ $($fields:ident)* }]
+    } => {
+        // Generate all the `TableKind`s and their associated values
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+        pub enum TableKind {
+            $($kind_names = $kind_vals,)*
+        }
+
+        impl TableKind {
+            pub const COUNT: usize = $kind_count;
+
+            #[must_use]
+            pub fn all() -> [Self; Self::COUNT] {
+                use TableKind::*;
+                [$($kind_names,)*]
+            }
+        }
+
+        // Generate the set builder
+        #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash)]
+        pub struct TableKindSetBuilder<T> {
+            $(pub $fields: T,)*
+        }
+
+        impl<T> TableKindSetBuilder<T> {
+            pub fn build(self) -> [T; TableKind::COUNT] {
+                [$(self.$fields,)*]
+            }
+        }
+
+        /// A helper trait needed by `all_kind` in certain situations
+        pub trait StarkKinds {
+            $(type $kind_names;)*
+        }
+        impl<F: RichField + Extendable<D>, const D: usize> StarkKinds for MozakStark<F, D> {
+            $(type $kind_names = $tys;)*
+        }
+
+        // Generate the helper macros
+        macro_rules! all_kind {
+            ($stark_ty:ty, |$stark:ident, $kind:ident| $val:expr) => {{
+                use $crate::stark::mozak_stark::TableKind::*;
+                [#(
+                    {
+                        // This enables callers to get the type using `$stark!()`
+                        macro_rules! $stark {
+                            () => {<$stark_ty as StarkKinds>::#kinds}
+                        }
+                        let $kind = #kinds;
+                        $val
+                    },)*
+                ]
+            }};
+            (|$kind:ident| $val:expr) => {{
+                use $crate::stark::mozak_stark::TableKind::*;
+                [$(
+                    {
+                        let $kind = $kind_names;
+                        $val
+                    },)*
+                ]
+            }};
+        }
+        pub(crate) use all_kind;
+
+
+        macro_rules! all_starks {
+            () => {};
+            ($all_stark:expr, |$stark:ident, $kind:ident| $val:expr) => {{
+                use core::borrow::Borrow;
+                use $crate::stark::mozak_stark::TableKind::*;
+                let all_stark = $all_stark.borrow();
+                [$(
+                    {
+                        let $stark = &all_stark.$fields;
+                        let $kind = $kind_names;
+                        $val
+                    },)*
+                ]
+            }};
+            ($all_stark:expr, |mut $stark:ident, $kind:ident| $val:expr) => {{
+                use core::borrow::BorrowMut;
+                use $crate::stark::mozak_stark::TableKind::*;
+                let all_stark = $all_stark.borrow_mut();
+                [$(
+                    {
+                        let $stark = &mut all_stark.$fields;
+                        let $kind = $kind_names;
+                        $val
+                    },)*
+                ]
+            }};
+        }
+        pub(crate) use all_starks;
+
+    };
+}
+
+// Invoke `mozak_stark_set` and pass the result to `mozak_stark_helpers`
+// Generating all the helpers we need
+tt_call::tt_call! {
+    macro = [{ mozak_stark_set }]
+    ~~> mozak_stark_helpers
 }
 
 columns_view_impl!(PublicInputs);
@@ -114,51 +245,8 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
     }
 }
 
-pub(crate) const NUM_TABLES: usize = 16;
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum TableKind {
-    Cpu = 0,
-    RangeCheck = 1,
-    Xor = 2,
-    Bitshift = 3,
-    Program = 4,
-    Memory = 5,
-    MemoryInit = 6,
-    RangeCheckLimb = 7,
-    HalfWordMemory = 8,
-    FullWordMemory = 9,
-    RegisterInit = 10,
-    Register = 11,
-    IoMemoryPrivate = 12,
-    IoMemoryPublic = 13,
-    Poseidon2Sponge = 14,
-    Poseidon2 = 15,
-}
-
-impl TableKind {
-    #[must_use]
-    pub fn all() -> [TableKind; NUM_TABLES] {
-        [
-            TableKind::Cpu,
-            TableKind::RangeCheck,
-            TableKind::Xor,
-            TableKind::Bitshift,
-            TableKind::Program,
-            TableKind::Memory,
-            TableKind::MemoryInit,
-            TableKind::RangeCheckLimb,
-            TableKind::HalfWordMemory,
-            TableKind::FullWordMemory,
-            TableKind::RegisterInit,
-            TableKind::Register,
-            TableKind::IoMemoryPrivate,
-            TableKind::IoMemoryPublic,
-            TableKind::Poseidon2Sponge,
-            TableKind::Poseidon2,
-        ]
-    }
-}
+// TODO: Remove in favor of `TableKind::COUNT`
+pub(crate) const NUM_TABLES: usize = TableKind::COUNT;
 
 #[derive(Debug, Clone)]
 pub struct Table<F: Field> {

@@ -38,7 +38,7 @@ impl<'a> Read for MozakPublicInput<'a> {
     ///
     /// Return of value here is merely for closer future compatibility with
     /// `std`.
-    /// 
+    ///
     /// TODO: reuse impl from `mozak-vm/guest`
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         #[cfg(target_os = "zkvm")]
@@ -92,7 +92,7 @@ pub struct MozakPrivateInput<'a> {
     ///
     /// Return of value here is merely for closer future compatibility with
     /// `std`.
-    /// 
+    ///
     /// TODO: reuse impl from `mozak-vm/guest`
     pub stdin: Box<dyn Read + 'a>,
 }

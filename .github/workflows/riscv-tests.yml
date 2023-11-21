@@ -15,14 +15,19 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  check-runner:
+    uses: ./.github/workflows/check-runner.yml
+    secrets: inherit
+
   check-riscv-tests:
     name: "Check RISC-V Tests are up to date"
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
     permissions:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Check if RISC-V tests are up to date
         run: |
           git ls-remote --quiet --heads https://github.com/riscv/riscv-tests.git master |

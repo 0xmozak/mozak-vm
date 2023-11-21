@@ -1,16 +1,18 @@
+use std::cmp::{max, min};
 use std::collections::HashSet;
+use std::iter::repeat;
 
-use anyhow::{anyhow, ensure, Result};
+use anyhow::{anyhow, ensure};
 use derive_more::Deref;
 use elf::endian::LittleEndian;
 use elf::file::Class;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
-use itertools::{iproduct, Itertools};
+use itertools::{chain, iproduct, Itertools};
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
-use crate::instruction::Instruction;
+use crate::instruction::{DecodingError, Instruction};
 use crate::util::load_u32;
 
 /// A RISC-V program
@@ -35,7 +37,7 @@ pub struct Program {
 ///
 /// A wrapper of a map from pc to [Instruction]
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
-pub struct Code(pub HashMap<u32, Instruction>);
+pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
 
 /// Memory of RISC-V Program
 ///
@@ -46,9 +48,9 @@ pub struct Data(pub HashMap<u32, u8>);
 impl Code {
     /// Get [Instruction] given `pc`
     #[must_use]
-    pub fn get_instruction(&self, pc: u32) -> Instruction {
+    pub fn get_instruction(&self, pc: u32) -> Option<&Result<Instruction, DecodingError>> {
         let Code(code) = self;
-        code.get(&pc).copied().unwrap_or_default()
+        code.get(&pc)
     }
 }
 
@@ -131,7 +133,7 @@ impl Program {
     // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
     // exercise the error handling?
     #[allow(clippy::similar_names)]
-    pub fn load_elf(input: &[u8]) -> Result<Program> {
+    pub fn load_elf(input: &[u8]) -> anyhow::Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
         ensure!(elf.ehdr.class == Class::ELF32, "Not a 32-bit ELF");
         ensure!(
@@ -145,45 +147,42 @@ impl Program {
         let entry_point: u32 = elf.ehdr.e_entry.try_into()?;
         ensure!(entry_point % 4 == 0, "Misaligned entrypoint");
         let segments = elf
-            .section_headers()
+            .segments()
             .ok_or_else(|| anyhow!("Missing segment table"))?;
         ensure!(segments.len() <= 256, "Too many program headers");
 
         let extract = |check_flags: fn(u32) -> bool| {
             segments
                 .iter()
-                // It is OK to cast this as u32 because we already check that we're reading a
-                // 32-bit ELF. The elf parsing crate simply does an `as u64`
-                // after parsing `sh_flags` as a u32: https://docs.rs/elf/latest/src/elf/section.rs.html#82
-                .filter(|s: &elf::section::SectionHeader| {
-                    u32::try_from(s.sh_flags)
-                        .map(check_flags)
-                        .unwrap_or_default()
-                })
-                .map(|segment| -> Result<_> {
-                    let file_size: usize = segment.sh_size.try_into()?;
-                    let vaddr: u32 = segment.sh_addr.try_into()?;
-                    let offset = segment.sh_offset.try_into()?;
-                    Ok((vaddr..).zip(input[offset..].iter().take(file_size).copied()))
+                .filter(|s| check_flags(s.p_flags))
+                .map(|segment| -> anyhow::Result<_> {
+                    let file_size: usize = segment.p_filesz.try_into()?;
+                    let mem_size: usize = segment.p_memsz.try_into()?;
+                    let vaddr: u32 = segment.p_vaddr.try_into()?;
+                    let offset = segment.p_offset.try_into()?;
+
+                    let min_size = min(file_size, mem_size);
+                    let max_size = max(file_size, mem_size);
+                    Ok((vaddr..).zip(
+                        chain!(&input[offset..][..min_size], repeat(&0u8))
+                            .take(max_size)
+                            .copied(),
+                    ))
                 })
                 .flatten_ok()
                 .try_collect()
         };
 
         let ro_memory = Data(extract(|flags| {
-            flags & elf::abi::SHF_WRITE == elf::abi::SHF_NONE
+            (flags & elf::abi::PF_R == elf::abi::PF_R)
+                && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
         })?);
-        let rw_memory = Data(extract(|flags| {
-            (flags & elf::abi::SHF_ALLOC == elf::abi::SHF_ALLOC)
-                && (flags & elf::abi::SHF_WRITE == elf::abi::SHF_WRITE)
-        })?);
+        let rw_memory = Data(extract(|flags| flags == elf::abi::PF_R | elf::abi::PF_W)?);
         // Because we are implementing a modified Harvard Architecture, we make an
         // independent copy of the executable segments. In practice,
         // instructions will be in a R_X segment, so their data will show up in ro_code
         // and ro_memory. (RWX segments would show up in ro_code and rw_memory.)
-        let ro_code = Code::from(&extract(|flags| {
-            flags & elf::abi::SHF_EXECINSTR == elf::abi::SHF_EXECINSTR
-        })?);
+        let ro_code = Code::from(&extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?);
 
         Ok(Program {
             entry_point,
