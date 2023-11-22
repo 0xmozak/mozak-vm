@@ -66,7 +66,7 @@ pub fn simple_test_code_with_ro_memory(
         ..Default::default()
     };
 
-    let state0 = State::new(program.clone(), io_tape_private, io_tape_public);
+    let state0 = State::new(program.clone());
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
         state.set_register_value(*rs, *val)

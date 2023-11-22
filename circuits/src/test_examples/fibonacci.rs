@@ -20,8 +20,8 @@ fn test_fibonacci() {
             You may need to build the fibonacci program within the examples directory
             eg. `cd examples/fibonacci && cargo build --release`",
     );
-    let program = Program::load_elf(&elf).unwrap();
-    let state = State::<GoldilocksField>::new(program.clone(), &[], &[]);
+    let program = Program::load_program(&elf, &[], &[]).unwrap();
+    let state = State::<GoldilocksField>::new(program.clone());
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record).unwrap();
 }

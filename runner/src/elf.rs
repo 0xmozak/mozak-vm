@@ -339,6 +339,31 @@ impl Program {
             mozak_ro_memory,
         })
     }
+
+    pub fn load_program(
+        elf_bytes: &Vec<u8>,
+        io_tape_private: &[u8],
+        io_tape_public: &[u8],
+    ) -> Result<Program> {
+        let program = Program::load_elf(&elf_bytes).unwrap();
+        let io_priv_start_addr = program.mozak_ro_memory.io_tape_private.starting_address;
+        for (i, e) in io_tape_private.iter().enumerate() {
+            program
+                .mozak_ro_memory
+                .io_tape_private
+                .data
+                .insert(io_priv_start_addr + i as u32, *e);
+        }
+        let io_pub_start_addr = program.mozak_ro_memory.io_tape_public.starting_address;
+        for (i, e) in io_tape_public.iter().enumerate() {
+            program
+                .mozak_ro_memory
+                .io_tape_public
+                .data
+                .insert(io_pub_start_addr + i as u32, *e);
+        }
+        Ok(program)
+    }
 }
 #[cfg(test)]
 mod test {

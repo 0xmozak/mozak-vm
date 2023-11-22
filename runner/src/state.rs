@@ -207,8 +207,6 @@ impl<F: RichField> State<F> {
             mozak_ro_memory,
             ..
         }: Program,
-        io_tape_private: &[u8],
-        io_tape_public: &[u8],
     ) -> Self {
         Self {
             pc,
