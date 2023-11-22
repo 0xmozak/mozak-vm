@@ -81,13 +81,6 @@ fn load_tape(mut io_tape: impl Read) -> Result<Vec<u8>> {
     Ok(io_tape_bytes)
 }
 
-pub struct MozakRunTimeArguments {
-    state_root: [u8; 32],
-    timestamp: [u8; 4],
-    io_tape_private: [u8],
-    io_tape_public: [u8],
-}
-
 fn load_program(mut elf: Input, io_tape_private: &[u8], io_tape_public: &[u8]) -> Result<Program> {
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
@@ -179,7 +172,7 @@ fn main() -> Result<()> {
             debug!("proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
-            let program = load_program(elf)?;
+            let program = load_program(elf, &[], &[])?;
             let trace = generate_program_rom_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -196,7 +189,7 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::MemoryInitHash { elf } => {
-            let program = load_program(elf)?;
+            let program = load_program(elf, &[], &[])?;
             let trace = generate_memory_init_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
