@@ -449,6 +449,8 @@ pub mod ctl_utils {
         /// The CTL check holds iff `looking_multiplicity ==
         /// looked_multiplicity`.
         fn check_multiplicities<F: Field>(
+            what: &str,
+            ctl: &CrossTableLookup<F>,
             row: &[F],
             looking_locations: &[(TableKind, F)],
             looked_locations: &[(TableKind, F)],
@@ -457,7 +459,7 @@ pub mod ctl_utils {
             let looked_multiplicity = looked_locations.iter().map(|l| l.1).sum::<F>();
             if looking_multiplicity != looked_multiplicity {
                 error!(
-                    "Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
+                    "{what} {ctl:#?}: Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
                     {looked_multiplicity} in the looked table.\n\
                     Looking locations: {looking_locations:?}.\n\
                     Looked locations: {looked_locations:?}.",
@@ -483,14 +485,19 @@ pub mod ctl_utils {
         // same number of times.
         for (row, looking_locations) in &looking_multiset.0 {
             let looked_locations = looked_multiset.get(row).unwrap_or(empty);
-            check_multiplicities(row, looking_locations, looked_locations)?;
+            let x = check_multiplicities("0", ctl, row, looking_locations, looked_locations);
+            if x.is_err() {
+                error!("looking_multiset: {looking_multiset:#?}");
+                error!("looked_multiset: {looked_multiset:#?}");
+            }
+            x?;
         }
 
         // Check that every row in the looked tables appears in the looking table the
         // same number of times.
         for (row, looked_locations) in &looked_multiset.0 {
             let looking_locations = looking_multiset.get(row).unwrap_or(empty);
-            check_multiplicities(row, looking_locations, looked_locations)?;
+            check_multiplicities("1", ctl, row, looking_locations, looked_locations)?;
         }
 
         Ok(())

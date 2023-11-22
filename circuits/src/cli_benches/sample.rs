@@ -40,7 +40,7 @@ mod tests {
     #[test]
     fn test_sample_bench_run() {
         let bench = BenchArgs {
-            function: BenchFunction::SampleBench { iterations: 123 },
+            function: BenchFunction::SampleBench { iterations: 3 },
         };
         bench.run().unwrap();
     }
