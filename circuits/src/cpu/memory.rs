@@ -76,7 +76,7 @@ mod tests {
 
     fn prove_sb<Stark: ProveAndVerify>(a: u32, b: u32) {
         let (program, record) = simple_test_code(
-            &[Instruction {
+            [Instruction {
                 op: Op::SB,
                 args: Args {
                     rs1: 6,
@@ -99,7 +99,7 @@ mod tests {
     /// in any order to work.
     fn prove_lb_and_lbu<Stark: ProveAndVerify>(a: u32, b: u32) {
         let (program, record) = simple_test_code(
-            &[
+            [
                 Instruction {
                     op: Op::LB,
                     args: Args {
@@ -126,7 +126,7 @@ mod tests {
 
     fn prove_sb_lbu<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u32) {
         let (program, record) = simple_test_code(
-            &[
+            [
                 Instruction {
                     op: Op::SB,
                     args: Args {
@@ -154,7 +154,7 @@ mod tests {
 
     fn prove_sb_lb<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u32) {
         let (program, record) = simple_test_code(
-            &[
+            [
                 Instruction {
                     op: Op::SB,
                     args: Args {
@@ -182,7 +182,7 @@ mod tests {
 
     fn prove_sh_lh<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u32) {
         let (program, record) = simple_test_code(
-            &[
+            [
                 Instruction {
                     op: Op::SH,
                     args: Args {

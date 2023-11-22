@@ -27,20 +27,23 @@ jobs:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install rust toolkit
         uses: ./.github/actions/rust
+        with:
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
 
-      - name: Build fibonacci ELF for benchmarking 
-        working-directory: examples/fibonacci 
+
+      - name: Build fibonacci ELF for benchmarking
+        working-directory: examples/fibonacci
         run: cargo build --release
 
-      - name: Build fibonacci-input ELF for benchmarking 
-        working-directory: examples/fibonacci-input 
+      - name: Build fibonacci-input ELF for benchmarking
+        working-directory: examples/fibonacci-input
         run: cargo build --release
-        
-      - name: Compile 
+
+      - name: Compile
         run: cargo nextest run --no-run --locked --all-targets
 
       - name: Test
@@ -51,10 +54,12 @@ jobs:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install rust toolkit
         uses: ./.github/actions/rust
+        with:
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
 
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
@@ -68,10 +73,13 @@ jobs:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install rust toolkit
         uses: ./.github/actions/rust
+        with:
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
+
 
       - name: Build all examples
         run: |
@@ -83,10 +91,13 @@ jobs:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install rust toolkit
         uses: ./.github/actions/rust
+        with:
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
+
 
       - name: Run fmt
         run: cargo fmt --all --check
@@ -96,7 +107,7 @@ jobs:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install taplo-cli
         run: |

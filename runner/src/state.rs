@@ -4,14 +4,13 @@ use std::rc::Rc;
 use anyhow::{anyhow, Result};
 use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
-use itertools::Itertools;
 use log::trace;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::WIDTH;
 use serde::{Deserialize, Serialize};
 
 use crate::elf::{Code, Data, MozakMemory, Program};
-use crate::instruction::{Args, Instruction};
+use crate::instruction::{Args, DecodingError, Instruction};
 
 /// State of RISC-V VM
 ///
@@ -369,7 +368,10 @@ impl<F: RichField> State<F> {
     }
 
     #[must_use]
-    pub fn current_instruction(&self, program: &Program) -> Instruction {
+    pub fn current_instruction<'a>(
+        &self,
+        program: &'a Program,
+    ) -> Option<&'a Result<Instruction, DecodingError>> {
         let pc = self.get_pc();
         let inst = program.ro_code.get_instruction(pc);
         let clk = self.clk;
@@ -385,7 +387,7 @@ impl<F: RichField> State<F> {
     /// TODO(Matthias): remove that limitation (again).
     #[must_use]
     pub fn read_iobytes(mut self, num_bytes: usize, op: IoOpcode) -> (Vec<u8>, Self) {
-        assert!(op == IoOpcode::StorePublic || op == IoOpcode::StorePrivate);
+        assert!(matches!(op, IoOpcode::StorePublic | IoOpcode::StorePrivate));
         if op == IoOpcode::StorePublic {
             log::trace!("ECALL Public IO_READ at CLK: {:?}", self.clk);
             let read_index = self.io_tape.public.read_index;

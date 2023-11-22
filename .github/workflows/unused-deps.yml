@@ -20,7 +20,7 @@ jobs:
       contents: read
       issues: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         # Main branch is default branch
         # with:
         #   ref: main
@@ -29,7 +29,7 @@ jobs:
         uses: ./.github/actions/rust
 
       - name: Install cargo-udeps
-        run: cargo install --locked cargo-udeps
+        run: cargo install --features vendored-openssl --locked cargo-udeps
 
       - name: Check for unused dependencies
         run: cargo udeps --workspace --all-targets --all-features

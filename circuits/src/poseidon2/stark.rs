@@ -286,6 +286,7 @@ pub fn trace_to_poly_values<F: Field, const COLUMNS: usize>(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use mozak_runner::instruction::Op;
     use mozak_runner::state::{Aux, Poseidon2Entry, Poseidon2SpongeData};
     use mozak_runner::vm::Row;
     use plonky2::field::types::Sample;
@@ -333,7 +334,7 @@ mod tests {
                 }),
                 ..Default::default()
             },
-            ..Default::default()
+            ..Row::new(Op::ECALL)
         });
 
         let stark = S::default();

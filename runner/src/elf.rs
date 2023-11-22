@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use std::iter::repeat;
 
 use anyhow::{anyhow, ensure, Result};
-use derive_more::{Deref, DerefMut};
+use derive_more::Deref;
 use elf::endian::LittleEndian;
 use elf::file::Class;
 use elf::segment::ProgramHeader;
@@ -15,7 +15,7 @@ use itertools::{chain, iproduct, Itertools};
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
-use crate::instruction::Instruction;
+use crate::instruction::{DecodingError, Instruction};
 use crate::util::load_u32;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -156,7 +156,7 @@ pub struct Program {
 ///
 /// A wrapper of a map from pc to [Instruction]
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
-pub struct Code(pub HashMap<u32, Instruction>);
+pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
 
 /// Memory of RISC-V Program
 ///
@@ -167,9 +167,9 @@ pub struct Data(pub HashMap<u32, u8>);
 impl Code {
     /// Get [Instruction] given `pc`
     #[must_use]
-    pub fn get_instruction(&self, pc: u32) -> Instruction {
+    pub fn get_instruction(&self, pc: u32) -> Option<&Result<Instruction, DecodingError>> {
         let Code(code) = self;
-        code.get(&pc).copied().unwrap_or_default()
+        code.get(&pc)
     }
 }
 
@@ -276,7 +276,7 @@ impl Program {
             segments
                 .iter()
                 .filter(|s| check_flags(s.p_flags, s, m))
-                .map(|segment| -> Result<_> {
+                .map(|segment| -> anyhow::Result<_> {
                     let file_size: usize = segment.p_filesz.try_into()?;
                     let mem_size: usize = segment.p_memsz.try_into()?;
                     let vaddr: u32 = segment.p_vaddr.try_into()?;
@@ -390,6 +390,7 @@ impl Program {
         Ok(program)
     }
 }
+
 #[cfg(test)]
 mod test {
     use crate::elf::Program;
