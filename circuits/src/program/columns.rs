@@ -3,6 +3,13 @@ use plonky2::field::types::Field;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
 use crate::cross_table_lookup::Column;
 
+columns_view_impl!(RomMultiplicity);
+#[repr(C)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
+pub struct RomMultiplicity<T> {
+    pub multiplicity: T,
+}
+
 columns_view_impl!(InstructionRow);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
