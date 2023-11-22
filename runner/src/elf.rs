@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use std::iter::repeat;
 
 use anyhow::{anyhow, ensure, Result};
-use derive_more::Deref;
+use derive_more::{Deref, DerefMut};
 use elf::endian::LittleEndian;
 use elf::file::Class;
 use elf::segment::ProgramHeader;
@@ -142,7 +142,7 @@ pub struct Code(pub HashMap<u32, Instruction>);
 /// Memory of RISC-V Program
 ///
 /// A wrapper around a map from a 32-bit address to a byte of memory
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut)]
 pub struct Data(pub HashMap<u32, u8>);
 
 impl Code {
@@ -340,19 +340,25 @@ impl Program {
         })
     }
 
+    /// # Errors
+    /// Will return `Err` if the ELF file is invalid or if the entrypoint is
+    /// invalid.
+    ///
+    /// # Panics
+    /// TODO: Roman
     pub fn load_program(
-        elf_bytes: &Vec<u8>,
+        elf_bytes: &[u8],
         io_tape_private: &[u8],
         io_tape_public: &[u8],
     ) -> Result<Program> {
-        let program = Program::load_elf(&elf_bytes).unwrap();
+        let mut program = Program::load_elf(elf_bytes).unwrap();
         let io_priv_start_addr = program.mozak_ro_memory.io_tape_private.starting_address;
         for (i, e) in io_tape_private.iter().enumerate() {
             program
                 .mozak_ro_memory
                 .io_tape_private
                 .data
-                .insert(io_priv_start_addr + i as u32, *e);
+                .insert(io_priv_start_addr + u32::try_from(i).unwrap(), *e);
         }
         let io_pub_start_addr = program.mozak_ro_memory.io_tape_public.starting_address;
         for (i, e) in io_tape_public.iter().enumerate() {
@@ -360,7 +366,7 @@ impl Program {
                 .mozak_ro_memory
                 .io_tape_public
                 .data
-                .insert(io_pub_start_addr + i as u32, *e);
+                .insert(io_pub_start_addr + u32::try_from(i).unwrap(), *e);
         }
         Ok(program)
     }
