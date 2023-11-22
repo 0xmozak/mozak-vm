@@ -36,6 +36,25 @@ pub struct MozakMemory {
     pub io_tape_public: MozakMemoryRegion,
 }
 
+impl From<(&[u8], &[u8])> for MozakMemory {
+    // data: private, public
+    fn from(data: (&[u8], &[u8])) -> Self {
+        let mut mm = MozakMemory::default();
+        mm.io_tape_public.starting_address = 0x1000_0000_u32;
+        let mut index = mm.io_tape_public.starting_address;
+        data.1.iter().for_each(|e| {
+            mm.io_tape_public.data.insert(index, *e);
+            index += 1;
+        });
+        mm.io_tape_private.starting_address = 0x2000_0000_u32;
+        index = mm.io_tape_private.starting_address;
+        data.0.iter().for_each(|e| {
+            mm.io_tape_private.data.insert(index, *e);
+            index += 1;
+        });
+        mm
+    }
+}
 impl MozakMemory {
     fn is_mozak_ro_memory_address(&self, ph: &ProgramHeader) -> bool {
         let address: u32 =

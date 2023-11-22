@@ -7,7 +7,7 @@ use proptest::prop_oneof;
 #[cfg(any(feature = "test", test))]
 use proptest::strategy::{Just, Strategy};
 
-use crate::elf::{Code, Data, Program};
+use crate::elf::{Code, Data, MozakMemory, Program};
 use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
@@ -63,6 +63,7 @@ pub fn simple_test_code_with_ro_memory(
         ro_memory: Data(ro_mem.iter().copied().collect()),
         rw_memory: Data(rw_mem.iter().copied().collect()),
         ro_code,
+        mozak_ro_memory: MozakMemory::from((io_tape_private, io_tape_public)),
         ..Default::default()
     };
 
