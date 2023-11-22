@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use std::iter::repeat;
 
 use anyhow::{anyhow, ensure, Result};
-use derive_more::Deref;
+use derive_more::{Deref, DerefMut};
 use elf::endian::LittleEndian;
 use elf::file::Class;
 use elf::segment::ProgramHeader;

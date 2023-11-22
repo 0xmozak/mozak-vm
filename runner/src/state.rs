@@ -4,6 +4,7 @@ use std::rc::Rc;
 use anyhow::{anyhow, Result};
 use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
+use itertools::Itertools;
 use log::trace;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::WIDTH;

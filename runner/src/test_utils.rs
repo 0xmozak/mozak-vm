@@ -54,7 +54,6 @@ pub fn simple_test_code_with_ro_memory(
         )
         .collect(),
     );
-    // TODO(Roman): FIXME - io-tape to mozak_memory is needed here
     let program = Program {
         ro_memory: Data(ro_mem.iter().copied().collect()),
         rw_memory: Data(rw_mem.iter().copied().collect()),

@@ -31,10 +31,9 @@ pub fn fibonacci_with_input(n: u32) -> Result<(), anyhow::Error> {
             You may need to build the fibonacci program within the examples directory
             eg. `cd examples/fibonacci-input && cargo build --release`",
     );
-    let program = Program::load_elf(&elf).unwrap();
     let out = fibonacci(n);
-    let state =
-        State::<GoldilocksField>::new(program.clone(), &n.to_le_bytes(), &out.to_le_bytes());
+    let program = Program::load_program(&elf, &n.to_le_bytes(), &out.to_le_bytes()).unwrap();
+    let state = State::<GoldilocksField>::new(program.clone());
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record)
 }
