@@ -250,16 +250,23 @@ pub(crate) const NUM_TABLES: usize = TableKind::COUNT;
 
 #[derive(Debug, Clone)]
 pub struct Table<F: Field> {
-    pub(crate) kind: TableKind,
+    pub(crate) columns_kind: TableKind,
     pub(crate) columns: Vec<Column<F>>,
+    pub(crate) filter_kind: TableKind,
     pub(crate) filter_column: Column<F>,
 }
 
 impl<F: Field> Table<F> {
-    pub fn new(kind: TableKind, columns: Vec<Column<F>>, filter_column: Column<F>) -> Self {
+    pub fn new(
+        columns_kind: TableKind,
+        columns: Vec<Column<F>>,
+        filter_kind: TableKind,
+        filter_column: Column<F>,
+    ) -> Self {
         Self {
-            kind,
+            columns_kind,
             columns,
+            filter_kind,
             filter_column,
         }
     }
@@ -273,7 +280,7 @@ macro_rules! table_impl {
         impl<F: Field> $t<F> {
             #[allow(clippy::new_ret_no_self)]
             pub fn new(columns: Vec<Column<F>>, filter_column: Column<F>) -> Table<F> {
-                Table::new($tk, columns, filter_column)
+                Table::new($tk, columns, $tk, filter_column)
             }
         }
     };

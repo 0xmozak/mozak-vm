@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 use std::ops::Index;
 
-use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
+use super::rangecheck_limb::extract_with_mul;
 use crate::cpu::columns::CpuState;
 use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
@@ -19,19 +19,13 @@ pub fn limbs_from_u32<F: RichField>(value: u32) -> [F; 4] {
 /// extract the values to be rangechecked.
 /// multiplicity is assumed to be 0 or 1 since we apply this only for cpu and
 /// memory traces, hence ignored
-pub fn extract<'a, F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<F>
+pub fn extract<F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<F>
 where
-    V: Index<usize, Output = F> + 'a, {
-    if let [column] = &looking_table.columns[..] {
-        trace
-            .iter()
-            .circular_tuple_windows()
-            .filter(|&(prev_row, row)| looking_table.filter_column.eval(prev_row, row).is_one())
-            .map(|(prev_row, row)| column.eval(prev_row, row))
-            .collect()
-    } else {
-        panic!("Can only range check single values, not tuples.")
-    }
+    V: Index<usize, Output = F>, {
+    extract_with_mul(trace, looking_table)
+        .into_iter()
+        .map(|(_multiplicity, value)| value)
+        .collect()
 }
 
 /// Generates a trace table for range checks, used in building a
@@ -54,7 +48,8 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
         .looking_tables
         .into_iter()
         .for_each(|looking_table| {
-            match looking_table.kind {
+            assert_eq!(looking_table.columns_kind, looking_table.filter_kind);
+            match looking_table.columns_kind {
                 TableKind::Cpu => extract(cpu_trace, &looking_table),
                 TableKind::Memory => extract(memory_trace, &looking_table),
                 other => unimplemented!("Can't range check {other:#?} tables"),

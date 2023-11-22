@@ -70,15 +70,17 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
         {
             let looking_zs_sum = looking_tables
                 .iter()
-                .map(|table| *ctl_zs_openings[table.kind as usize].next().unwrap())
+                .map(|table| *ctl_zs_openings[table.columns_kind as usize].next().unwrap())
                 .sum::<F>();
-            let looked_z = *ctl_zs_openings[looked_table.kind as usize].next().unwrap();
+            let looked_z = *ctl_zs_openings[looked_table.columns_kind as usize]
+                .next()
+                .unwrap();
 
             ensure!(
                 looking_zs_sum == looked_z,
                 "Cross-table lookup verification failed for {:?}->{:?} ({} != {})",
-                looking_tables[0].kind,
-                looked_table.kind,
+                looking_tables[0].columns_kind,
+                looked_table.columns_kind,
                 looking_zs_sum,
                 looked_z
             );
@@ -101,11 +103,16 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
             looked_table,
         } in cross_table_lookups
         {
-            log::debug!("Processing CTL for {:?}", looked_table.kind);
+            log::debug!(
+                "Processing CTL for {:?} {:?}",
+                looked_table.columns_kind,
+                looked_table.filter_kind
+            );
 
             let make_z = |table: &Table<F>| {
                 partial_sums(
-                    &trace_poly_values[table.kind as usize],
+                    &trace_poly_values[table.columns_kind as usize],
+                    &trace_poly_values[table.filter_kind as usize],
                     &table.columns,
                     &table.filter_column,
                     challenge,
@@ -126,7 +133,7 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                 looked_table,
                 z_looked
             )]) {
-                ctl_data_per_table[table.kind as usize]
+                ctl_data_per_table[table.columns_kind as usize]
                     .zs_columns
                     .push(CtlZData {
                         z,
@@ -141,7 +148,8 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
 }
 
 fn partial_sums<F: Field>(
-    trace: &[PolynomialValues<F>],
+    columns_trace: &[PolynomialValues<F>],
+    filter_trace: &[PolynomialValues<F>],
     columns: &[Column<F>],
     filter_column: &Column<F>,
     challenge: GrandProductChallenge<F>,
@@ -162,15 +170,16 @@ fn partial_sums<F: Field>(
     // TODO(Kapil): inverse for all rows is expensive. Use batched division idea.
 
     let combine_and_inv_if_filter_at_i = |i| -> F {
-        let multiplicity = filter_column.eval_table(trace, i);
+        let multiplicity = filter_column.eval_table(filter_trace, i);
         let evals = columns
             .iter()
-            .map(|c| c.eval_table(trace, i))
+            .map(|c| c.eval_table(columns_trace, i))
             .collect::<Vec<_>>();
         multiplicity * challenge.combine(evals.iter()).inverse()
     };
 
-    let degree = trace[0].len();
+    let degree = columns_trace[0].len();
+    assert_eq!(degree, filter_trace[0].len());
     let mut degrees = (0..degree).collect::<Vec<_>>();
     degrees.rotate_right(1);
     degrees
@@ -209,7 +218,7 @@ impl<F: Field> CrossTableLookup<F> {
     pub fn num_ctl_zs(ctls: &[Self], table: TableKind, num_challenges: usize) -> usize {
         ctls.iter()
             .flat_map(|ctl| chain!([&ctl.looked_table], &ctl.looking_tables))
-            .filter(|twc| twc.kind == table)
+            .filter(|twc| twc.columns_kind == table)
             .count()
             * num_challenges
     }
@@ -249,8 +258,8 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
              }| chain!(looking_tables, [looked_table]),
         );
         for (&challenges, table) in iproduct!(&ctl_challenges.challenges, ctl_chain) {
-            let (&local_z, &next_z) = ctl_zs[table.kind as usize].next().unwrap();
-            ctl_vars_per_table[table.kind as usize].push(Self {
+            let (&local_z, &next_z) = ctl_zs[table.columns_kind as usize].next().unwrap();
+            ctl_vars_per_table[table.columns_kind as usize].push(Self {
                 local_z,
                 next_z,
                 challenges,
@@ -320,7 +329,9 @@ impl<'a, F: Field, const D: usize> CtlCheckVarsTarget<'a, F, D> {
             |CrossTableLookup {
                  looking_tables,
                  looked_table,
-             }| chain!(looking_tables, [looked_table]).filter(|twc| twc.kind == table),
+             }| {
+                chain!(looking_tables, [looked_table]).filter(|twc| twc.columns_kind == table)
+            },
         );
         zip_eq(ctl_zs, iproduct!(&ctl_challenges.challenges, ctl_chain))
             .map(|((&local_z, &next_z), (&challenges, table))| Self {
@@ -407,16 +418,21 @@ pub mod ctl_utils {
             trace_poly_values: &[Vec<PolynomialValues<F>>],
             table: &Table<F>,
         ) {
-            let trace = &trace_poly_values[table.kind as usize];
-            for i in 0..trace[0].len() {
-                let filter = table.filter_column.eval_table(trace, i);
+            let columns_trace = &trace_poly_values[table.columns_kind as usize];
+            let filter_trace = &trace_poly_values[table.filter_kind as usize];
+            let len = columns_trace[0].len();
+            assert_eq!(len, filter_trace[0].len());
+            for i in 0..len {
+                let filter = table.filter_column.eval_table(filter_trace, i);
                 if filter.is_nonzero() {
                     let row = table
                         .columns
                         .iter()
-                        .map(|c| c.eval_table(trace, i))
+                        .map(|c| c.eval_table(columns_trace, i))
                         .collect::<Vec<_>>();
-                    self.entry(row).or_default().push((table.kind, filter));
+                    self.entry(row)
+                        .or_default()
+                        .push((table.columns_kind, filter));
                 };
             }
         }

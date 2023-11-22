@@ -41,10 +41,13 @@ pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
     LimbTable::lookups()
         .looking_tables
         .into_iter()
-        .flat_map(|looking_table| match looking_table.kind {
-            TableKind::RangeCheck => extract_with_mul(rangecheck_trace, &looking_table),
-            TableKind::Cpu => extract_with_mul(cpu_trace, &looking_table),
-            other => unimplemented!("Can't range check {other:?} tables"),
+        .flat_map(|looking_table| {
+            assert_eq!(looking_table.columns_kind, looking_table.filter_kind);
+            match looking_table.columns_kind {
+                TableKind::RangeCheck => extract_with_mul(rangecheck_trace, &looking_table),
+                TableKind::Cpu => extract_with_mul(cpu_trace, &looking_table),
+                other => unimplemented!("Can't range check {other:?} tables"),
+            }
         })
         .for_each(|(multiplicity, limb)| {
             let limb: u8 = F::to_canonical_u64(&limb).try_into().unwrap();
