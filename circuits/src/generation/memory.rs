@@ -10,7 +10,6 @@ use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
 use crate::memoryinit::columns::MemoryInit;
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 
 /// Pad the memory trace to a power of 2.
@@ -136,7 +135,8 @@ pub fn generate_memory_trace<F: RichField>(
     fullword_memory_rows: &[FullWordMemory<F>],
     io_memory_private_rows: &[InputOutputMemory<F>],
     io_memory_public_rows: &[InputOutputMemory<F>],
-    #[cfg(feature = "enable_poseidon_starks")] poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
+    #[allow(unused)] //
+    poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
 ) -> Vec<Memory<F>> {
     // `merged_trace` is address sorted combination of static and
     // dynamic memory trace components of program (ELF and execution)
@@ -199,7 +199,6 @@ mod tests {
         generate_io_memory_private_trace, generate_io_memory_public_trace,
     };
     use crate::generation::memoryinit::generate_memory_init_trace;
-    #[cfg(feature = "enable_poseidon_starks")]
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::test_utils::{inv, prep_table};
@@ -221,7 +220,6 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-        #[cfg(feature = "enable_poseidon_starks")]
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(
@@ -231,7 +229,6 @@ mod tests {
             &fullword_memory,
             &io_memory_private_rows,
             &io_memory_public_rows,
-            #[cfg(feature = "enable_poseidon_starks")]
             &poseidon2_trace,
         );
         let inv = inv::<F>;
@@ -283,7 +280,6 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&[]);
         let io_memory_private_rows = generate_io_memory_private_trace(&[]);
         let io_memory_public_rows = generate_io_memory_public_trace(&[]);
-        #[cfg(feature = "enable_poseidon_starks")]
         let poseidon2_trace = generate_poseidon2_sponge_trace(&[]);
         let trace = super::generate_memory_trace::<F>(
             &[],
@@ -292,7 +288,6 @@ mod tests {
             &fullword_memory,
             &io_memory_private_rows,
             &io_memory_public_rows,
-            #[cfg(feature = "enable_poseidon_starks")]
             &poseidon2_trace,
         );
 

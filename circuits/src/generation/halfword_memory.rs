@@ -73,7 +73,6 @@ mod tests {
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
-    #[cfg(feature = "enable_poseidon_starks")]
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory_halfword::test_utils::halfword_memory_trace_test_case;
     use crate::test_utils::{inv, prep_table};
@@ -96,7 +95,6 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-        #[cfg(feature = "enable_poseidon_starks")]
         let poseidon2_rows = generate_poseidon2_sponge_trace(&record.executed);
 
         let trace = generate_memory_trace::<GoldilocksField>(
@@ -106,7 +104,6 @@ mod tests {
             &fullword_memory,
             &io_memory_private_rows,
             &io_memory_public_rows,
-            #[cfg(feature = "enable_poseidon_starks")]
             &poseidon2_rows,
         );
         let inv = inv::<F>;

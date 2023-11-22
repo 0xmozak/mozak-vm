@@ -11,7 +11,6 @@ static GLOBAL: MiMalloc = MiMalloc;
 pub mod decode;
 pub mod elf;
 pub mod instruction;
-#[cfg(feature = "enable_poseidon_starks")]
 pub mod poseidon2;
 pub mod state;
 #[cfg(any(feature = "test", test))]

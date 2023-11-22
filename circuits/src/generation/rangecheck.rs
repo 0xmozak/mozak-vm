@@ -97,7 +97,6 @@ mod tests {
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
-    #[cfg(feature = "enable_poseidon_starks")]
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::generation::MIN_TRACE_LENGTH;
 
@@ -124,7 +123,6 @@ mod tests {
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
-        #[cfg(feature = "enable_poseidon_starks")]
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
         let memory_rows = generate_memory_trace::<F>(
             &record.executed,
@@ -133,7 +131,6 @@ mod tests {
             &fullword_memory,
             &io_memory_private_rows,
             &io_memory_public_rows,
-            #[cfg(feature = "enable_poseidon_starks")]
             &poseidon2_trace,
         );
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
