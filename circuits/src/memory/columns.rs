@@ -2,9 +2,7 @@ use core::ops::Add;
 
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
-#[cfg(feature = "enable_poseidon_starks")]
 use plonky2::hash::hashing::PlonkyPermutation;
-#[cfg(feature = "enable_poseidon_starks")]
 use plonky2::hash::poseidon2::Poseidon2Permutation;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
@@ -13,7 +11,6 @@ use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
 use crate::memoryinit::columns::MemoryInit;
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 use crate::stark::mozak_stark::{MemoryTable, Table};
 
@@ -112,7 +109,6 @@ impl<F: RichField> From<&FullWordMemory<F>> for Vec<Memory<F>> {
     }
 }
 
-#[cfg(feature = "enable_poseidon_starks")]
 impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
     fn from(value: &Poseidon2Sponge<F>) -> Self {
         if (value.ops.is_permute + value.ops.is_init_permute).is_zero() {

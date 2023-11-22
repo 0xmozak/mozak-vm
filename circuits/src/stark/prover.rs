@@ -356,21 +356,14 @@ where
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-    #[cfg(feature = "enable_poseidon_starks")]
     use itertools::izip;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::simple_test_code;
-    #[cfg(feature = "enable_poseidon_starks")]
     use mozak_system::system::ecall;
-    #[cfg(feature = "enable_poseidon_starks")]
     use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
-    #[cfg(feature = "enable_poseidon_starks")]
     use plonky2::field::goldilocks_field::GoldilocksField;
-    #[cfg(feature = "enable_poseidon_starks")]
     use plonky2::field::types::Field;
-    #[cfg(feature = "enable_poseidon_starks")]
     use plonky2::hash::poseidon2::Poseidon2Hash;
-    #[cfg(feature = "enable_poseidon_starks")]
     use plonky2::plonk::config::{GenericHashOut, Hasher};
 
     use crate::stark::mozak_stark::MozakStark;
@@ -434,14 +427,12 @@ mod tests {
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
-    #[cfg(feature = "enable_poseidon_starks")]
     struct Poseidon2Test {
         pub data: String,
         pub input_start_addr: u32,
         pub output_start_addr: u32,
     }
 
-    #[cfg(feature = "enable_poseidon_starks")]
     fn test_poseidon2(test_data: &[Poseidon2Test]) {
         let mut instructions = vec![];
         let mut memory: Vec<(u32, u8)> = vec![];
@@ -516,7 +507,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "enable_poseidon_starks")]
     fn prove_poseidon2() {
         test_poseidon2(&[Poseidon2Test {
             data: "💥 Mozak-VM Rocks With Poseidon2".to_string(),
