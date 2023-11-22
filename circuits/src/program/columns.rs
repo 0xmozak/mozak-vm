@@ -10,6 +10,9 @@ pub struct RomMultiplicity<T> {
     pub multiplicity: T,
 }
 
+#[must_use]
+pub fn multiplicity_for_ctl<F: Field>() -> Column<F> { Column::single(0) }
+
 columns_view_impl!(InstructionRow);
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]

@@ -41,6 +41,7 @@ use self::halfword_memory::generate_halfword_memory_trace;
 use self::memory::generate_memory_trace;
 use self::memoryinit::generate_memory_init_trace;
 use self::poseidon2_sponge::generate_poseidon2_sponge_trace;
+use self::program::generate_multiplicities;
 use self::rangecheck::generate_rangecheck_trace;
 use self::rangecheck_limb::generate_rangecheck_limb_trace;
 use self::register::generate_register_trace;
@@ -74,6 +75,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
+    let rom_multiplicity_rows = generate_multiplicities(record, &program_rows);
     let memory_init_rows = generate_memory_init_trace(program);
     let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
     let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
@@ -101,6 +103,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         xor_stark: trace_rows_to_poly_values(xor_rows),
         shift_amount_stark: trace_rows_to_poly_values(shift_amount_rows),
         program_stark: trace_rows_to_poly_values(program_rows),
+        rom_multiplicity_stark: trace_rows_to_poly_values(rom_multiplicity_rows),
         memory_stark: trace_rows_to_poly_values(memory_rows),
         memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
         rangecheck_limb_stark: trace_rows_to_poly_values(rangecheck_limb_rows),

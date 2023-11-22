@@ -16,7 +16,7 @@ use crate::memory_io::stark::InputOuputMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::poseidon2::stark::Poseidon2_12Stark;
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
-use crate::program::stark::ProgramStark;
+use crate::program::stark::{ProgramStark, RomMultiplicityStark};
 use crate::rangecheck::columns::rangecheck_looking;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_limb::stark::RangeCheckLimbStark;
@@ -46,6 +46,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub shift_amount_stark: BitshiftStark<F, D>,
     #[StarkSet(stark_kind = "Program")]
     pub program_stark: ProgramStark<F, D>,
+    #[StarkSet(stark_kind = "RomMultiplicity")]
+    pub rom_multiplicity_stark: RomMultiplicityStark<F, D>,
     #[StarkSet(stark_kind = "Memory")]
     pub memory_stark: MemoryStark<F, D>,
     #[StarkSet(stark_kind = "MemoryInit")]
@@ -68,7 +70,7 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub poseidon2_stark: Poseidon2_12Stark<F, D>,
     #[StarkSet(stark_kind = "Poseidon2Sponge")]
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
-    pub cross_table_lookups: [CrossTableLookup<F>; 15],
+    pub cross_table_lookups: [CrossTableLookup<F>; 16],
     pub debug: bool,
 }
 
@@ -202,6 +204,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             xor_stark: XorStark::default(),
             shift_amount_stark: BitshiftStark::default(),
             program_stark: ProgramStark::default(),
+            rom_multiplicity_stark: RomMultiplicityStark::default(),
             memory_stark: MemoryStark::default(),
             memory_init_stark: MemoryInitStark::default(),
             rangecheck_limb_stark: RangeCheckLimbStark::default(),
@@ -219,6 +222,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 BitshiftCpuTable::lookups(),
                 InnerCpuTable::lookups(),
                 ProgramCpuTable::lookups(),
+                ProgramCpuMultiplicitiesTable::lookups(),
                 IntoMemoryTable::lookups(),
                 MemoryInitMemoryTable::lookups(),
                 LimbTable::lookups(),
@@ -291,6 +295,7 @@ table_impl!(CpuTable, TableKind::Cpu);
 table_impl!(XorTable, TableKind::Xor);
 table_impl!(BitshiftTable, TableKind::Bitshift);
 table_impl!(ProgramTable, TableKind::Program);
+table_impl!(RomMultiplicityTable, TableKind::RomMultiplicity);
 table_impl!(MemoryTable, TableKind::Memory);
 table_impl!(MemoryInitTable, TableKind::MemoryInit);
 table_impl!(RangeCheckLimbTable, TableKind::RangeCheckLimb);
@@ -486,6 +491,25 @@ impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
                 program::columns::data_for_ctl(),
                 Column::single(program::columns::col_map().filter),
             ),
+        )
+    }
+}
+
+pub struct ProgramCpuMultiplicitiesTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for ProgramCpuMultiplicitiesTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_inst(),
+                Column::single(cpu::columns::col_map().cpu.is_running),
+            )],
+            Table {
+                columns_kind: TableKind::Program,
+                columns: program::columns::data_for_ctl(),
+                filter_kind: TableKind::RomMultiplicity,
+                filter_column: program::columns::multiplicity_for_ctl(),
+            },
         )
     }
 }

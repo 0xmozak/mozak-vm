@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::hash::hash_types::RichField;
@@ -34,8 +36,16 @@ pub fn generate_multiplicities<F: RichField>(
 ) -> Vec<RomMultiplicity<F>> {
     let mut multiplicities = vec![0; program_rom.len()];
 
+    let pc_s = {
+        let mut pc_s: HashMap<u32, usize> = HashMap::new();
+        for (i, rom) in program_rom.iter().enumerate() {
+            pc_s.insert(rom.inst.pc.to_canonical_u64() as u32, i);
+        }
+        pc_s
+    };
     for row in &record.executed {
-        multiplicities[row.state.pc as usize] += 1;
+        let place = *pc_s.get(&row.state.pc).unwrap();
+        multiplicities[place] += 1;
     }
     multiplicities
         .into_iter()

@@ -10,7 +10,7 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
-use super::columns::ProgramRom;
+use super::columns::{ProgramRom, RomMultiplicity};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
@@ -55,6 +55,44 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for ProgramStark<
     ) {
         let lv: &ProgramRom<ExtensionTarget<D>> = vars.get_local_values().into();
         is_binary_ext_circuit(builder, lv.filter, yield_constr);
+    }
+
+    fn constraint_degree(&self) -> usize { 3 }
+}
+
+#[derive(Clone, Copy, Default, StarkNameDisplay)]
+#[allow(clippy::module_name_repetitions)]
+pub struct RomMultiplicityStark<F, const D: usize> {
+    pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> HasNamedColumns for RomMultiplicityStark<F, D> {
+    type Columns = RomMultiplicity<F>;
+}
+
+impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RomMultiplicityStark<F, D> {
+    type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, 1, 0>
+
+    where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>;
+    type EvaluationFrameTarget = StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, 1, 0>;
+
+    fn eval_packed_generic<FE, P, const D2: usize>(
+        &self,
+        _vars: &Self::EvaluationFrame<FE, P, D2>,
+        _yield_constr: &mut ConstraintConsumer<P>,
+    ) where
+        FE: FieldExtension<D2, BaseField = F>,
+        P: PackedField<Scalar = FE>, {
+    }
+
+    fn eval_ext_circuit(
+        &self,
+        _builder: &mut CircuitBuilder<F, D>,
+        _vars: &Self::EvaluationFrameTarget,
+        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+    ) {
     }
 
     fn constraint_degree(&self) -> usize { 3 }

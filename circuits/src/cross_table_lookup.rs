@@ -391,6 +391,7 @@ pub mod ctl_utils {
     use std::ops::{Deref, DerefMut};
 
     use anyhow::Result;
+    use log::error;
     use plonky2::field::extension::Extendable;
     use plonky2::field::polynomial::PolynomialValues;
     use plonky2::field::types::Field;
@@ -432,7 +433,7 @@ pub mod ctl_utils {
                         .collect::<Vec<_>>();
                     self.entry(row)
                         .or_default()
-                        .push((table.columns_kind, filter));
+                        .push((table.filter_kind, filter));
                 };
             }
         }
@@ -455,7 +456,7 @@ pub mod ctl_utils {
             let looking_multiplicity = looking_locations.iter().map(|l| l.1).sum::<F>();
             let looked_multiplicity = looked_locations.iter().map(|l| l.1).sum::<F>();
             if looking_multiplicity != looked_multiplicity {
-                println!(
+                error!(
                     "Row {row:?} has multiplicity {looking_multiplicity} in the looking tables, but
                     {looked_multiplicity} in the looked table.\n\
                     Looking locations: {looking_locations:?}.\n\
