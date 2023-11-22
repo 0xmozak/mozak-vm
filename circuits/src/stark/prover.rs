@@ -427,12 +427,14 @@ mod tests {
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
+    #[allow(unused)]
     struct Poseidon2Test {
         pub data: String,
         pub input_start_addr: u32,
         pub output_start_addr: u32,
     }
 
+    #[allow(unused)]
     fn test_poseidon2(test_data: &[Poseidon2Test]) {
         let mut instructions = vec![];
         let mut memory: Vec<(u32, u8)> = vec![];
@@ -507,6 +509,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "enable_poseidon_starks")]
     fn prove_poseidon2() {
         test_poseidon2(&[Poseidon2Test {
             data: "💥 Mozak-VM Rocks With Poseidon2".to_string(),
