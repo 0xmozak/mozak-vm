@@ -4,12 +4,13 @@ use std::rc::Rc;
 use anyhow::{anyhow, Result};
 use derive_more::{Deref, Display};
 use im::hashmap::HashMap;
+use itertools::Itertools;
 use log::trace;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::WIDTH;
 use serde::{Deserialize, Serialize};
 
-use crate::elf::{Code, Data, Program};
+use crate::elf::{Code, Data, MozakMemory, Program};
 use crate::instruction::{Args, Instruction};
 
 /// State of RISC-V VM
@@ -74,6 +75,31 @@ impl From<(&[u8], &[u8])> for IoTape {
     }
 }
 
+impl From<MozakMemory> for IoTape {
+    // TODO(Roman): Refactor this ugly function
+    fn from(mozak_memory: MozakMemory) -> Self {
+        let mut io_tape: IoTape = IoTape::default();
+        // private
+        let io_tape_priv = mozak_memory.io_tape_private;
+        io_tape.private.read_index = io_tape_priv.starting_address as usize;
+        let mut v = vec![];
+        for e in io_tape_priv.data.iter().sorted() {
+            v.push(*e.1);
+        }
+        io_tape.private.data = Rc::new(v);
+
+        // public
+        let io_tape_pub = mozak_memory.io_tape_public;
+        io_tape.public.read_index = io_tape_pub.starting_address as usize;
+        let mut v = vec![];
+        for e in io_tape_pub.data.iter().sorted() {
+            v.push(*e.1);
+        }
+        io_tape.public.data = Rc::new(v);
+        io_tape
+    }
+}
+
 /// By default, all `State` start with `clk` 1. This is to differentiate
 /// execution clocks (1 and above) from `clk` value of 0 which is
 /// reserved for any initialisation concerns. e.g. memory initialization
@@ -101,12 +127,14 @@ impl<F: RichField> From<Program> for State<F> {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
+            mozak_ro_memory,
         }: Program,
     ) -> Self {
         Self {
             pc,
             rw_memory,
             ro_memory,
+            io_tape: IoTape::from(mozak_ro_memory),
             ..Default::default()
         }
     }
@@ -176,6 +204,7 @@ impl<F: RichField> State<F> {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
+            mozak_ro_memory,
             ..
         }: Program,
         io_tape_private: &[u8],
@@ -185,7 +214,7 @@ impl<F: RichField> State<F> {
             pc,
             rw_memory,
             ro_memory,
-            io_tape: (io_tape_private, io_tape_public).into(),
+            io_tape: IoTape::from(mozak_ro_memory),
             ..Default::default()
         }
     }
@@ -329,7 +358,9 @@ impl<F: RichField> State<F> {
     pub fn store_u8(mut self, addr: u32, value: u8) -> Result<Self> {
         match self.ro_memory.entry(addr) {
             im::hashmap::Entry::Occupied(entry) => Err(anyhow!(
-                "cannot write to ro_memory entry {:?}",
+                "cannot write to ro_memory: address,value and entry {:#0x}, {:#0x}, {:?}",
+                addr,
+                value,
                 (entry.key(), entry.get())
             )),
             im::hashmap::Entry::Vacant(_) => {

@@ -21,10 +21,16 @@ ENTRY( _start )
 
 SECTIONS {
     /* [0] - mozak globals */
-    _mozak_merkle_state_root = 0x00000000; /* assumed size is 32 bytes */
-    _mozak_timestamp         = 0x00000100; /* assumed size of timestamp is 4 bytes, the rest can be used */
-    _mozak_public_io_tape    = 0x10000000; /* assumed size is 256 MB */
-    _mozak_private_io_tape   = 0x20000000; /* assumed size is 796 MB */
+    _mozak_merkle_state_root          = 0x00000000; /* assumed size is 32 bytes */
+    _mozak_merkle_state_root_capacity = 0x00000100; /* 32 bytes */
+    _mozak_timestamp                  = 0x00000100; /* assumed size of timestamp is 4 bytes, the rest can be used */
+    _mozak_timestamp_capacity         = 0x00000004; /* 4 bytes */
+    _mozak_empty_space                = 0x00000104; /* empty space - reserved for future use */
+    _mozak_empty_space_capacity       = 0x0FFFFEFC; /* empty space capacity - 0x10000000 - 0x00000104 */
+    _mozak_public_io_tape             = 0x10000000; /* assumed size is 256 MB */
+    _mozak_public_io_tape_capacity    = 0x10000000; /* 256 MB in bytes */
+    _mozak_private_io_tape            = 0x20000000; /* assumed size is 512 MB */
+    _mozak_private_io_tape_capacity   = 0x20000000; /* 512 MB in bytes */
 
     /* [1] - BSS ram */
     .bss : { *(.bss) } > ram

@@ -6,6 +6,9 @@ use anyhow::{anyhow, ensure, Result};
 use derive_more::Deref;
 use elf::endian::LittleEndian;
 use elf::file::Class;
+use elf::segment::ProgramHeader;
+use elf::string_table::StringTable;
+use elf::symbol::SymbolTable;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
 use itertools::{chain, iproduct, Itertools};
@@ -14,6 +17,100 @@ use serde::{Deserialize, Serialize};
 use crate::decode::decode_instruction;
 use crate::instruction::Instruction;
 use crate::util::load_u32;
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct MozakMemoryRegion {
+    pub data: Data,
+    pub starting_address: u32,
+    pub capacity: u32,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct MozakMemory {
+    // merkle state root
+    pub state_root: MozakMemoryRegion,
+    // timestamp
+    pub timestamp: MozakMemoryRegion,
+    // io private
+    pub io_tape_private: MozakMemoryRegion,
+    // io public
+    pub io_tape_public: MozakMemoryRegion,
+}
+
+impl MozakMemory {
+    fn is_mozak_ro_memory_address(&self, ph: &ProgramHeader) -> bool {
+        let address: u32 =
+            u32::try_from(ph.p_vaddr).expect("p_vaddr for zk-vm expected to be cast-able to u32");
+        let a1 = [
+            (
+                self.state_root.starting_address,
+                self.state_root.starting_address + self.state_root.capacity,
+            ),
+            (
+                self.timestamp.starting_address,
+                self.timestamp.starting_address + self.timestamp.capacity,
+            ),
+            (
+                self.io_tape_public.starting_address,
+                self.io_tape_public.starting_address + self.io_tape_public.capacity,
+            ),
+            (
+                self.io_tape_private.starting_address,
+                self.io_tape_private.starting_address + self.io_tape_private.capacity,
+            ),
+        ];
+        for i in 0..4 {
+            if a1[i].0 <= address && address < a1[i].1 {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn fill(&mut self, st: (SymbolTable<LittleEndian>, StringTable)) {
+        for s in st.0.iter() {
+            let sym_name = st.1.get(s.st_name as usize).unwrap().to_string();
+            let sym_value = s.st_value;
+            log::debug!("sym_name: {:?}", sym_name);
+            log::debug!("sym_value: {:0x}", sym_value);
+
+            match sym_name.as_str() {
+                "_mozak_merkle_state_root" => {
+                    self.state_root.starting_address = u32::try_from(sym_value)
+                        .expect("state_root address should be u32 cast-able");
+                }
+                "_mozak_merkle_state_root_capacity" => {
+                    self.state_root.capacity = u32::try_from(sym_value)
+                        .expect("state_root_max_capacity should be u32 cast-able");
+                }
+                "_mozak_timestamp" => {
+                    self.timestamp.starting_address = u32::try_from(sym_value)
+                        .expect("timestamp address should be u32 cast-able");
+                }
+                "_mozak_timestamp_capacity" => {
+                    self.timestamp.capacity = u32::try_from(sym_value)
+                        .expect("timestamp_max_capacity should be u32 cast-able");
+                }
+                "_mozak_public_io_tape" => {
+                    self.io_tape_public.starting_address = u32::try_from(sym_value)
+                        .expect("io_tape_public address should be u32 cast-able");
+                }
+                "_mozak_public_io_tape_capacity" => {
+                    self.io_tape_public.capacity = u32::try_from(sym_value)
+                        .expect("io_tape_public_max_capacity should be u32 cast-able");
+                }
+                "_mozak_private_io_tape" => {
+                    self.io_tape_private.starting_address = u32::try_from(sym_value)
+                        .expect("io_tape_private address should be u32 cast-able");
+                }
+                "_mozak_private_io_tape_capacity" => {
+                    self.io_tape_private.capacity = u32::try_from(sym_value)
+                        .expect("io_tape_private_max_capacity should be u32 cast-able");
+                }
+                _ => {}
+            }
+        }
+    }
+}
 
 /// A RISC-V program
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -31,6 +128,9 @@ pub struct Program {
 
     /// Executable code of the ELF, read only
     pub ro_code: Code,
+
+    /// Mozak run-time memory
+    pub mozak_ro_memory: MozakMemory,
 }
 
 /// Executable code of the ELF
@@ -78,6 +178,7 @@ impl From<HashMap<u32, u8>> for Program {
             ro_code: Code::from(&image),
             ro_memory: Data::default(),
             rw_memory: Data(image),
+            mozak_ro_memory: MozakMemory::default(),
         }
     }
 }
@@ -151,10 +252,11 @@ impl Program {
             .ok_or_else(|| anyhow!("Missing segment table"))?;
         ensure!(segments.len() <= 256, "Too many program headers");
 
-        let extract = |check_flags: fn(u32) -> bool| {
+        let extract = |check_flags: fn(u32, s: &ProgramHeader, m: &MozakMemory) -> bool,
+                       m: &MozakMemory| {
             segments
                 .iter()
-                .filter(|s| check_flags(s.p_flags))
+                .filter(|s| check_flags(s.p_flags, s, m))
                 .map(|segment| -> Result<_> {
                     let file_size: usize = segment.p_filesz.try_into()?;
                     let mem_size: usize = segment.p_memsz.try_into()?;
@@ -163,6 +265,21 @@ impl Program {
 
                     let min_size = min(file_size, mem_size);
                     let max_size = max(file_size, mem_size);
+
+                    log::trace!(
+                        "file_size: {:?}, \
+                        mem_size: {:?}, \
+                        vaddr: {:0x}, \
+                        offset: {:?}, \
+                        min_size: {:?}, \
+                        max_size: {:?}",
+                        file_size,
+                        mem_size,
+                        vaddr,
+                        offset,
+                        min_size,
+                        max_size
+                    );
                     Ok((vaddr..).zip(
                         chain!(&input[offset..][..min_size], repeat(&0u8))
                             .take(max_size)
@@ -172,27 +289,57 @@ impl Program {
                 .flatten_ok()
                 .try_collect()
         };
+        let mut mozak_ro_memory: MozakMemory = MozakMemory::default();
+        mozak_ro_memory.fill(elf.symbol_table().unwrap().unwrap());
 
-        let ro_memory = Data(extract(|flags| {
-            (flags & elf::abi::PF_R == elf::abi::PF_R)
-                && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
-        })?);
-        let rw_memory = Data(extract(|flags| flags == elf::abi::PF_R | elf::abi::PF_W)?);
+        let ro_memory = Data(extract(
+            |flags, ph, mozak_memory: &MozakMemory| {
+                (flags & elf::abi::PF_R == elf::abi::PF_R)
+                    && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
+                    && (mozak_memory.is_mozak_ro_memory_address(ph) == false)
+            },
+            &mozak_ro_memory,
+        )?);
+
+        let ro_memory_addresses = ro_memory.keys().sorted().collect_vec();
+        log::debug!(
+            "ro_memory_addresses_start:{:#0x}, ro_memory_addresses_end: {:#0x}",
+            ro_memory_addresses.first().unwrap(),
+            ro_memory_addresses.last().unwrap()
+        );
+        let rw_memory = Data(extract(
+            |flags, _, _| flags == elf::abi::PF_R | elf::abi::PF_W,
+            &mozak_ro_memory,
+        )?);
+        let rw_memory_addresses = rw_memory.keys().sorted().collect_vec();
+        log::debug!(
+            "rw_memory_addresses_start:{:#0x}, rw_memory_addresses_end: {:#0x}",
+            rw_memory_addresses.first().unwrap(),
+            rw_memory_addresses.last().unwrap()
+        );
         // Because we are implementing a modified Harvard Architecture, we make an
         // independent copy of the executable segments. In practice,
         // instructions will be in a R_X segment, so their data will show up in ro_code
         // and ro_memory. (RWX segments would show up in ro_code and rw_memory.)
-        let ro_code = Code::from(&extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?);
-
+        let ro_code = Code::from(&extract(
+            |flags, _, _| flags & elf::abi::PF_X == elf::abi::PF_X,
+            &mozak_ro_memory,
+        )?);
+        let ro_code_addresses = ro_code.keys().sorted().collect_vec();
+        log::debug!(
+            "ro_code_start:{:#0x}, ro_code_end: {:#0x}",
+            ro_code_addresses.first().unwrap(),
+            ro_code_addresses.last().unwrap()
+        );
         Ok(Program {
             entry_point,
             ro_memory,
             rw_memory,
             ro_code,
+            mozak_ro_memory,
         })
     }
 }
-
 #[cfg(test)]
 mod test {
     use crate::elf::Program;

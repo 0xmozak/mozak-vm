@@ -12,6 +12,7 @@ use log::debug;
 use mozak_circuits::cli_benches::bench_functions::BenchArgs;
 use mozak_circuits::generation::memoryinit::generate_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
+use mozak_circuits::program;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
@@ -81,11 +82,45 @@ fn load_tape(mut io_tape: impl Read) -> Result<Vec<u8>> {
     Ok(io_tape_bytes)
 }
 
-fn load_program(mut elf: Input) -> Result<Program> {
+pub struct MozakRunTimeArguments {
+    state_root: [u8; 32],
+    timestamp: [u8; 4],
+    io_tape_private: [u8],
+    io_tape_public: [u8],
+}
+
+fn load_program(mut elf: Input, io_tape_private: &[u8], io_tape_public: &[u8]) -> Result<Program> {
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
-    Program::load_elf(&elf_bytes)
+    let mut program = Program::load_elf(&elf_bytes);
+    let io_priv_start_addr = program
+        .unwrap()
+        .mozak_ro_memory
+        .io_tape_private
+        .starting_address;
+    for (i, e) in io_tape_private.iter().enumerate() {
+        program
+            .unwrap()
+            .mozak_ro_memory
+            .io_tape_private
+            .data
+            .insert(io_priv_start_addr + i as u32, *e);
+    }
+    let io_pub_start_addr = program
+        .unwrap()
+        .mozak_ro_memory
+        .io_tape_public
+        .starting_address;
+    for (i, e) in io_tape_public.iter().enumerate() {
+        program
+            .unwrap()
+            .mozak_ro_memory
+            .io_tape_public
+            .data
+            .insert(io_pub_start_addr + i as u32, *e);
+    }
+    program
 }
 
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
@@ -99,7 +134,7 @@ fn main() -> Result<()> {
         .init();
     match cli.command {
         Command::Decode { elf } => {
-            let program = load_program(elf)?;
+            let program = load_program(elf, &[], &[])?;
             debug!("{program:?}");
         }
         Command::Run {
