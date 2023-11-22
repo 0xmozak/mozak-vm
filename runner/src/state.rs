@@ -166,7 +166,6 @@ pub struct Aux<F: RichField> {
     pub op2: u32,
     pub poseidon2: Option<Poseidon2Entry<F>>,
     pub io: Option<IoEntry>,
-    pub _marker: PhantomData<F>,
 }
 
 impl<F: RichField> State<F> {

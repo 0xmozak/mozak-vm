@@ -43,16 +43,13 @@ use self::memoryinit::generate_memory_init_trace;
 use self::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use self::rangecheck::generate_rangecheck_trace;
 use self::rangecheck_limb::generate_rangecheck_limb_trace;
-#[cfg(feature = "enable_register_starks")]
 use self::register::generate_register_trace;
-#[cfg(feature = "enable_register_starks")]
 use self::registerinit::generate_register_init_trace;
 use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
 use crate::generation::io_memory::{
     generate_io_memory_private_trace, generate_io_memory_public_trace,
 };
-#[cfg(feature = "enable_poseidon_starks")]
 use crate::generation::poseidon2::generate_poseidon2_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::stark::mozak_stark::{
@@ -83,7 +80,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
     let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
     let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
-    #[cfg(feature = "enable_poseidon_starks")]
+    #[allow(unused)]
     let poseidon2_rows = generate_poseidon2_trace(&record.executed);
     let memory_rows = generate_memory_trace(
         &record.executed,
@@ -96,9 +93,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     );
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
     let rangecheck_limb_rows = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows);
-    #[cfg(feature = "enable_register_starks")]
+    #[allow(unused)]
     let register_init_rows = generate_register_init_trace::<F>();
-    #[cfg(feature = "enable_register_starks")]
+    #[allow(unused)]
     let register_rows = generate_register_trace::<F>(record);
 
     TableKindSetBuilder {

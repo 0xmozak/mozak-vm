@@ -152,9 +152,7 @@ pub fn generate_memory_trace<F: RichField>(
     .collect();
 
     #[cfg(feature = "enable_poseidon_starks")]
-    {
-        merged_trace.extend(transform_poseidon2_sponge(poseidon2_sponge_rows));
-    }
+    merged_trace.extend(transform_poseidon2_sponge(poseidon2_sponge_rows));
 
     merged_trace.sort_by_key(key);
 
