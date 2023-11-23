@@ -277,12 +277,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
     }
 }
 
-pub fn trace_to_poly_values<F: Field, const COLUMNS: usize>(
-    trace: [Vec<F>; COLUMNS],
-) -> Vec<PolynomialValues<F>> {
-    trace.into_iter().map(PolynomialValues::new).collect()
-}
-
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
