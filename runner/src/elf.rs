@@ -40,12 +40,14 @@ impl From<(&[u8], &[u8])> for MozakMemory {
     // data: private, public
     fn from(data: (&[u8], &[u8])) -> Self {
         let mut mm = MozakMemory::default();
+        // This magic number taken from mozak-linker-scripts
         mm.io_tape_public.starting_address = 0x1000_0000_u32;
         let mut index = mm.io_tape_public.starting_address;
         data.1.iter().for_each(|e| {
             mm.io_tape_public.data.insert(index, *e);
             index += 1;
         });
+        // This magic number taken from mozak-linker-scripts
         mm.io_tape_private.starting_address = 0x2000_0000_u32;
         index = mm.io_tape_private.starting_address;
         data.0.iter().for_each(|e| {
@@ -77,53 +79,83 @@ impl MozakMemory {
                 self.io_tape_private.starting_address + self.io_tape_private.capacity,
             ),
         ];
+        log::trace!("mozak-memory-addresses: {:?}, address: {:?}", a1, address);
         for i in 0..4 {
-            if a1[i].0 <= address && address < a1[i].1 {
+            if (a1[i].0 <= address) && (address < a1[i].1) {
                 return true;
             }
         }
         false
     }
 
-    fn fill(&mut self, st: (SymbolTable<LittleEndian>, StringTable)) {
+    fn fill(&mut self, st: &(SymbolTable<LittleEndian>, StringTable)) {
         for s in st.0.iter() {
             let sym_name = st.1.get(s.st_name as usize).unwrap().to_string();
             let sym_value = s.st_value;
-            log::debug!("sym_name: {:?}", sym_name);
-            log::debug!("sym_value: {:0x}", sym_value);
+            log::trace!("sym_name: {:?}", sym_name);
+            log::trace!("sym_value: {:0x}", sym_value);
 
             match sym_name.as_str() {
                 "_mozak_merkle_state_root" => {
                     self.state_root.starting_address = u32::try_from(sym_value)
                         .expect("state_root address should be u32 cast-able");
+                    log::debug!(
+                        "_mozak_merkle_state_root: 0x{:0x}",
+                        self.state_root.starting_address
+                    );
                 }
                 "_mozak_merkle_state_root_capacity" => {
                     self.state_root.capacity = u32::try_from(sym_value)
                         .expect("state_root_max_capacity should be u32 cast-able");
+                    log::debug!(
+                        "_mozak_merkle_state_root_capacity: 0x{:0x}",
+                        self.state_root.capacity
+                    );
                 }
                 "_mozak_timestamp" => {
                     self.timestamp.starting_address = u32::try_from(sym_value)
                         .expect("timestamp address should be u32 cast-able");
+                    log::debug!("_mozak_timestamp: 0x{:0x}", self.timestamp.starting_address);
                 }
                 "_mozak_timestamp_capacity" => {
                     self.timestamp.capacity = u32::try_from(sym_value)
                         .expect("timestamp_max_capacity should be u32 cast-able");
+                    log::debug!(
+                        "_mozak_timestamp_capacity: 0x{:0x}",
+                        self.timestamp.capacity
+                    );
                 }
                 "_mozak_public_io_tape" => {
                     self.io_tape_public.starting_address = u32::try_from(sym_value)
                         .expect("io_tape_public address should be u32 cast-able");
+                    log::debug!(
+                        "_mozak_public_io_tape: 0x{:0x}",
+                        self.io_tape_public.starting_address
+                    );
                 }
                 "_mozak_public_io_tape_capacity" => {
                     self.io_tape_public.capacity = u32::try_from(sym_value)
                         .expect("io_tape_public_max_capacity should be u32 cast-able");
+                    log::debug!(
+                        "_mozak_public_io_tape_capacity: 0x{:0x}",
+                        self.io_tape_public.capacity
+                    );
                 }
                 "_mozak_private_io_tape" => {
                     self.io_tape_private.starting_address = u32::try_from(sym_value)
                         .expect("io_tape_private address should be u32 cast-able");
+                    log::debug!(
+                        "_mozak_private_io_tape: 0x{:0x}",
+                        self.io_tape_private.starting_address
+                    );
                 }
                 "_mozak_private_io_tape_capacity" => {
                     self.io_tape_private.capacity = u32::try_from(sym_value)
                         .expect("io_tape_private_max_capacity should be u32 cast-able");
+                    log::debug!(
+                        "_mozak_private_io_tape_capacity: 0x{:0x}",
+                        self.io_tape_private.capacity
+                    );
                 }
                 _ => {}
             }
@@ -249,6 +281,8 @@ impl Program {
     /// # Errors
     /// Will return `Err` if the ELF file is invalid or if the entrypoint is
     /// invalid.
+    ///
+    /// # Panics
     // This function is actually mostly covered by tests, but it's too annoying to work out how to
     // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
     // exercise the error handling?
@@ -309,13 +343,13 @@ impl Program {
                 .try_collect()
         };
         let mut mozak_ro_memory: MozakMemory = MozakMemory::default();
-        mozak_ro_memory.fill(elf.symbol_table().unwrap().unwrap());
+        mozak_ro_memory.fill(&elf.symbol_table().unwrap().unwrap());
 
         let ro_memory = Data(extract(
             |flags, ph, mozak_memory: &MozakMemory| {
                 (flags & elf::abi::PF_R == elf::abi::PF_R)
                     && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
-                    && (mozak_memory.is_mozak_ro_memory_address(ph) == false)
+                    && (!mozak_memory.is_mozak_ro_memory_address(ph))
             },
             &mozak_ro_memory,
         )?);

@@ -51,6 +51,7 @@ pub struct IoTapeData {
     #[deref]
     pub data: Rc<Vec<u8>>,
     pub read_index: usize,
+    pub mozak_offset: u32,
 }
 
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
@@ -66,10 +67,12 @@ impl From<(&[u8], &[u8])> for IoTape {
             private: IoTapeData {
                 data: Rc::new(data.0.to_vec()),
                 read_index: 0,
+                mozak_offset: 0,
             },
             public: IoTapeData {
                 data: Rc::new(data.1.to_vec()),
                 read_index: 0,
+                mozak_offset: 0,
             },
         }
     }
@@ -81,7 +84,8 @@ impl From<MozakMemory> for IoTape {
         let mut io_tape: IoTape = IoTape::default();
         // private
         let io_tape_priv = mozak_memory.io_tape_private;
-        io_tape.private.read_index = io_tape_priv.starting_address as usize;
+        io_tape.private.mozak_offset = io_tape_priv.starting_address;
+        io_tape.private.read_index = 0;
         let mut v = vec![];
         for e in io_tape_priv.data.iter().sorted() {
             v.push(*e.1);
@@ -90,7 +94,8 @@ impl From<MozakMemory> for IoTape {
 
         // public
         let io_tape_pub = mozak_memory.io_tape_public;
-        io_tape.public.read_index = io_tape_pub.starting_address as usize;
+        io_tape.public.mozak_offset = io_tape_pub.starting_address;
+        io_tape.public.read_index = 0;
         let mut v = vec![];
         for e in io_tape_pub.data.iter().sorted() {
             v.push(*e.1);
@@ -394,6 +399,11 @@ impl<F: RichField> State<F> {
             let read_index = self.io_tape.public.read_index;
             let remaining_len = self.io_tape.public.data.len() - read_index;
             let limit = num_bytes.min(remaining_len);
+            log::trace!(
+                "ECALL Public IO_READ {:0x}, {:?}",
+                read_index,
+                remaining_len
+            );
             self.io_tape.public.read_index += limit;
             (
                 self.io_tape.public.data[read_index..(read_index + limit)].to_vec(),
@@ -404,6 +414,12 @@ impl<F: RichField> State<F> {
             let read_index = self.io_tape.private.read_index;
             let remaining_len = self.io_tape.private.data.len() - read_index;
             let limit = num_bytes.min(remaining_len);
+            log::trace!(
+                "ECALL Private IO_READ 0x{:0x}, {:?}, data.len: {:?}",
+                read_index,
+                remaining_len,
+                self.io_tape.private.data.len(),
+            );
             self.io_tape.private.read_index += limit;
             (
                 self.io_tape.private.data[read_index..(read_index + limit)].to_vec(),
