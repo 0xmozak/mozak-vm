@@ -23,7 +23,7 @@ use starky::config::StarkConfig;
 /// Custom tests may be added as long as the assertion is respected.
 fn run_test(elf: &[u8]) -> Result<()> {
     let _ = env_logger::try_init();
-    let program = Program::load_program(&elf, &[], &[])?;
+    let program = Program::load_program(elf, &[], &[])?;
     let state = State::<GoldilocksField>::from(&program);
     let record = step(&program, state)?;
     let state = record.last_state.clone();

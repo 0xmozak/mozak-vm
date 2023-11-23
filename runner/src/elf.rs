@@ -61,7 +61,7 @@ impl MozakMemory {
     fn is_mozak_ro_memory_address(&self, ph: &ProgramHeader) -> bool {
         let address: u32 =
             u32::try_from(ph.p_vaddr).expect("p_vaddr for zk-vm expected to be cast-able to u32");
-        let a1 = [
+        let mem_addresses = [
             (
                 self.state_root.starting_address,
                 self.state_root.starting_address + self.state_root.capacity,
@@ -79,9 +79,13 @@ impl MozakMemory {
                 self.io_tape_private.starting_address + self.io_tape_private.capacity,
             ),
         ];
-        log::trace!("mozak-memory-addresses: {:?}, address: {:?}", a1, address);
-        for i in 0..4 {
-            if (a1[i].0 <= address) && (address < a1[i].1) {
+        log::trace!(
+            "mozak-memory-addresses: {:?}, address: {:?}",
+            mem_addresses,
+            address
+        );
+        for ell in &mem_addresses {
+            if (ell.0 <= address) && (address < ell.1) {
                 return true;
             }
         }
