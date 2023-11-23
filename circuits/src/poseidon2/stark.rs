@@ -3,8 +3,6 @@ use std::marker::PhantomData;
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
-use plonky2::field::polynomial::PolynomialValues;
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::Poseidon2;
 use plonky2::iop::ext_target::ExtensionTarget;
@@ -275,12 +273,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
     ) {
         unimplemented!()
     }
-}
-
-pub fn trace_to_poly_values<F: Field, const COLUMNS: usize>(
-    trace: [Vec<F>; COLUMNS],
-) -> Vec<PolynomialValues<F>> {
-    trace.into_iter().map(PolynomialValues::new).collect()
 }
 
 #[cfg(test)]
