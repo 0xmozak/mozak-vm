@@ -160,6 +160,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "merkleproof-trustedroot-mozak-guest"
+version = "0.1.0"
+dependencies = [
+ "guest",
+ "mozak_sdk",
+ "rkyv",
+ "rs_merkle",
+]
+
+[[package]]
 name = "min-max-mozak-guest"
 version = "0.1.0"
 dependencies = [
@@ -168,6 +178,10 @@ dependencies = [
 
 [[package]]
 name = "mozak-system"
+version = "0.1.0"
+
+[[package]]
+name = "mozak_sdk"
 version = "0.1.0"
 
 [[package]]
@@ -272,6 +286,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "rs_merkle"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05225752ca6ede4cb1b73aa37ce3904affd042e98f28246f56f438ebfd47a810"
+dependencies = [
+ "sha2",
 ]
 
 [[package]]
