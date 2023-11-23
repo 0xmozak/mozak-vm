@@ -84,6 +84,7 @@ pub fn transform_halfword<F: RichField>(
         .flat_map(Into::<Vec<Memory<F>>>::into)
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 pub fn transform_poseidon2_sponge<F: RichField>(
     sponge_data: &[Poseidon2Sponge<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
@@ -134,6 +135,7 @@ pub fn generate_memory_trace<F: RichField>(
     fullword_memory_rows: &[FullWordMemory<F>],
     io_memory_private_rows: &[InputOutputMemory<F>],
     io_memory_public_rows: &[InputOutputMemory<F>],
+    #[allow(unused)] //
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
 ) -> Vec<Memory<F>> {
     // `merged_trace` is address sorted combination of static and
@@ -146,9 +148,11 @@ pub fn generate_memory_trace<F: RichField>(
         transform_fullword(fullword_memory_rows),
         transform_io(io_memory_private_rows),
         transform_io(io_memory_public_rows),
-        transform_poseidon2_sponge(poseidon2_sponge_rows),
     )
     .collect();
+
+    #[cfg(feature = "enable_poseidon_starks")]
+    merged_trace.extend(transform_poseidon2_sponge(poseidon2_sponge_rows));
 
     merged_trace.sort_by_key(key);
 
