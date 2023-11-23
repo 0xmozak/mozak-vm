@@ -27,10 +27,13 @@ jobs:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install rust toolkit
         uses: ./.github/actions/rust
+        with:
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
+
 
       - name: Build fibonacci ELF for benchmarking
         working-directory: examples/fibonacci
@@ -51,10 +54,12 @@ jobs:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install rust toolkit
         uses: ./.github/actions/rust
+        with:
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
 
       - name: Run Clippy linter
         run: cargo clippy --all-features --all-targets -- -D warnings
@@ -68,10 +73,13 @@ jobs:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install rust toolkit
         uses: ./.github/actions/rust
+        with:
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
+
 
       - name: Build all examples
         run: |
@@ -83,10 +91,13 @@ jobs:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install rust toolkit
         uses: ./.github/actions/rust
+        with:
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
+
 
       - name: Run fmt
         run: cargo fmt --all --check
@@ -96,7 +107,7 @@ jobs:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install taplo-cli
         run: |

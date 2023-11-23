@@ -46,7 +46,7 @@ pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord<Goldi
         .copied()
         .collect::<Vec<_>>();
     let (program, record) = simple_test_code(
-        &code,
+        code,
         &[
             (100, 0),
             (101, 0),

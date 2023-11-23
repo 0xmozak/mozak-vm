@@ -371,7 +371,7 @@ mod tests {
 
     #[test]
     fn prove_halt() {
-        let (program, record) = simple_test_code(&[], &[], &[]);
+        let (program, record) = simple_test_code([], &[], &[]);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
@@ -385,7 +385,7 @@ mod tests {
                 ..Args::default()
             },
         };
-        let (program, record) = simple_test_code(&[lui], &[], &[]);
+        let (program, record) = simple_test_code([lui], &[], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
@@ -393,7 +393,7 @@ mod tests {
     #[test]
     fn prove_lui_2() {
         let (program, record) = simple_test_code(
-            &[Instruction {
+            [Instruction {
                 op: Op::ADD,
                 args: Args {
                     rd: 1,
@@ -411,7 +411,7 @@ mod tests {
     #[test]
     fn prove_beq() {
         let (program, record) = simple_test_code(
-            &[Instruction {
+            [Instruction {
                 op: Op::BEQ,
                 args: Args {
                     rs1: 0,
@@ -427,12 +427,14 @@ mod tests {
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
+    #[allow(unused)]
     struct Poseidon2Test {
         pub data: String,
         pub input_start_addr: u32,
         pub output_start_addr: u32,
     }
 
+    #[allow(unused)]
     fn test_poseidon2(test_data: &[Poseidon2Test]) {
         let mut instructions = vec![];
         let mut memory: Vec<(u32, u8)> = vec![];
@@ -480,12 +482,12 @@ mod tests {
                 },
                 Instruction {
                     op: Op::ECALL,
-                    ..Default::default()
+                    args: Args::default(),
                 },
             ]);
         }
 
-        let (program, record) = simple_test_code(&instructions, memory.as_slice(), &[]);
+        let (program, record) = simple_test_code(instructions, memory.as_slice(), &[]);
         for test_datum in test_data {
             let output: Vec<u8> = (0..32_u8)
                 .map(|i| {
@@ -507,6 +509,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "enable_poseidon_starks")]
     fn prove_poseidon2() {
         test_poseidon2(&[Poseidon2Test {
             data: "💥 Mozak-VM Rocks With Poseidon2".to_string(),

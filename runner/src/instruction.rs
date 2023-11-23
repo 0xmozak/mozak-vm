@@ -16,7 +16,7 @@ pub struct Args {
 }
 
 /// Operands of RV32I + RV32M
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Display, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum Op {
     // RV32I Base Integer Instructions
@@ -96,9 +96,6 @@ pub enum Op {
     REM,
     /// Remainder (U): rd = unsigned rs1 % unsigned rs2
     REMU,
-
-    #[default]
-    UNKNOWN,
 }
 
 /// NOP Instruction in RISC-V is encoded as ADDI x0, x0, 0.
@@ -113,7 +110,7 @@ pub const NOP: Instruction = Instruction {
 };
 
 /// Internal representation of a decoded RV32 [Instruction]
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Instruction {
     /// Operand of Instruction
     pub op: Op,
@@ -125,4 +122,10 @@ impl Instruction {
     /// Creates a new [Instruction] given [Op] and [Args]
     #[must_use]
     pub fn new(op: Op, args: Args) -> Self { Instruction { op, args } }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+pub struct DecodingError {
+    pub pc: u32,
+    pub instruction: u32,
 }

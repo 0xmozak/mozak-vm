@@ -49,7 +49,6 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
             Op::XOR => &mut cols.ops.xor,
             Op::OR => &mut cols.ops.or,
             Op::AND => &mut cols.ops.and,
-            other @ Op::UNKNOWN => unimplemented!("Opcode {other:?} not supported, yet."),
         } = 1;
         cols.rs1_select[inst.args.rs1 as usize] = 1;
         cols.rs2_select[inst.args.rs2 as usize] = 1;

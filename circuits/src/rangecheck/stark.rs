@@ -56,7 +56,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
         _vars: &Self::EvaluationFrameTarget,
         _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        unimplemented!()
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -66,9 +65,16 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::simple_test_code;
+    use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
+    use starky::stark_testing::test_stark_circuit_constraints;
 
+    use super::*;
     use crate::stark::mozak_stark::MozakStark;
     use crate::test_utils::ProveAndVerify;
+    const D: usize = 2;
+    type C = Poseidon2GoldilocksConfig;
+    type F = <C as GenericConfig<D>>::F;
+    type S = RangeCheckStark<F, D>;
 
     #[test]
     fn test_rangecheck_stark_big_trace() {
@@ -80,7 +86,7 @@ mod tests {
             .map(|i| (i, inst))
             .collect::<Vec<_>>();
         let (program, record) = simple_test_code(
-            &[Instruction {
+            [Instruction {
                 op: Op::ADD,
                 args: Args {
                     rd: 5,
@@ -93,5 +99,13 @@ mod tests {
             &[(6, 100), (7, 100)],
         );
         MozakStark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    #[test]
+    fn test_circuit() -> anyhow::Result<()> {
+        let stark = S::default();
+        test_stark_circuit_constraints::<F, C, S, D>(stark)?;
+
+        Ok(())
     }
 }

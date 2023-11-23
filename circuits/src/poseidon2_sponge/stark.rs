@@ -46,7 +46,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        // NOTE: clk and address will be used for CTL to CPU for is_init_permut rows
+        // NOTE: clk and address will be used for CTL to CPU for is_init_permute rows
         // only, and not be used for permute rows.
         // For all non dummy rows we have CTL to Poseidon2 permute stark, with preimage
         // and output columns.
@@ -126,6 +126,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use mozak_runner::instruction::Op;
     use mozak_runner::poseidon2::hash_n_to_m_no_pad;
     use mozak_runner::state::{Aux, Poseidon2Entry};
     use mozak_runner::vm::Row;
@@ -152,7 +153,7 @@ mod tests {
         let mut step_rows = vec![];
         // For every entry in input_lens, a new poseidon2 call is tested
         for &input_len in input_lens {
-            // VM expects input lenght to be multiple of RATE
+            // VM expects input length to be multiple of RATE
             let input_len = input_len.next_multiple_of(
                 u32::try_from(Poseidon2Permutation::<F>::RATE).expect("RATE > 2^32"),
             );
@@ -171,7 +172,7 @@ mod tests {
                     }),
                     ..Default::default()
                 },
-                ..Default::default()
+                ..Row::new(Op::ECALL)
             });
         }
         step_rows

@@ -1,5 +1,4 @@
 use itertools::{self, chain};
-use mozak_runner::elf::Program;
 use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -37,22 +36,17 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
 /// `Program`. These need to be further interleaved with
 /// static memory trace generated from `Program` for final
 /// execution for final memory trace.
-pub fn generate_memory_trace_from_execution<'a, F: RichField>(
-    program: &'a Program,
-    step_rows: &'a [Row<F>],
-) -> impl Iterator<Item = Memory<F>> + 'a {
+pub fn generate_memory_trace_from_execution<F: RichField>(
+    step_rows: &[Row<F>],
+) -> impl Iterator<Item = Memory<F>> + '_ {
     step_rows
         .iter()
         .filter(|row| {
-            row.aux.mem.is_some()
-                && matches!(
-                    row.state.current_instruction(program).op,
-                    Op::LB | Op::LBU | Op::SB
-                )
+            row.aux.mem.is_some() && matches!(row.instruction.op, Op::LB | Op::LBU | Op::SB)
         })
         .map(|row| {
             let addr: F = get_memory_inst_addr(row);
-            let op = &(row.state).current_instruction(program).op;
+            let op = row.instruction.op;
             Memory {
                 addr,
                 clk: get_memory_inst_clk(row),
@@ -90,6 +84,7 @@ pub fn transform_halfword<F: RichField>(
         .flat_map(Into::<Vec<Memory<F>>>::into)
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
 pub fn transform_poseidon2_sponge<F: RichField>(
     sponge_data: &[Poseidon2Sponge<F>],
 ) -> impl Iterator<Item = Memory<F>> + '_ {
@@ -134,13 +129,13 @@ fn key<F: RichField>(memory: &Memory<F>) -> (u64, u64) {
 #[must_use]
 #[allow(clippy::too_many_arguments)]
 pub fn generate_memory_trace<F: RichField>(
-    program: &Program,
     step_rows: &[Row<F>],
     memory_init_rows: &[MemoryInit<F>],
     halfword_memory_rows: &[HalfWordMemory<F>],
     fullword_memory_rows: &[FullWordMemory<F>],
     io_memory_private_rows: &[InputOutputMemory<F>],
     io_memory_public_rows: &[InputOutputMemory<F>],
+    #[allow(unused)] //
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
 ) -> Vec<Memory<F>> {
     // `merged_trace` is address sorted combination of static and
@@ -148,14 +143,16 @@ pub fn generate_memory_trace<F: RichField>(
     // `merge` operation is expected to be stable
     let mut merged_trace: Vec<Memory<F>> = chain!(
         transform_memory_init::<F>(memory_init_rows),
-        generate_memory_trace_from_execution(program, step_rows),
+        generate_memory_trace_from_execution(step_rows),
         transform_halfword(halfword_memory_rows),
         transform_fullword(fullword_memory_rows),
         transform_io(io_memory_private_rows),
         transform_io(io_memory_public_rows),
-        transform_poseidon2_sponge(poseidon2_sponge_rows),
     )
     .collect();
+
+    #[cfg(feature = "enable_poseidon_starks")]
+    merged_trace.extend(transform_poseidon2_sponge(poseidon2_sponge_rows));
 
     merged_trace.sort_by_key(key);
 
@@ -217,14 +214,13 @@ mod tests {
         let (program, record) = memory_trace_test_case(1);
 
         let memory_init = generate_memory_init_trace(&program);
-        let halfword_memory = generate_halfword_memory_trace(&program, &record.executed);
-        let fullword_memory = generate_fullword_memory_trace(&program, &record.executed);
-        let io_memory_private_rows = generate_io_memory_private_trace(&program, &record.executed);
-        let io_memory_public_rows = generate_io_memory_public_trace(&program, &record.executed);
+        let halfword_memory = generate_halfword_memory_trace(&record.executed);
+        let fullword_memory = generate_fullword_memory_trace(&record.executed);
+        let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
+        let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(
-            &program,
             &record.executed,
             &memory_init,
             &halfword_memory,
@@ -278,13 +274,12 @@ mod tests {
         };
 
         let memory_init = generate_memory_init_trace(&program);
-        let halfword_memory = generate_halfword_memory_trace(&program, &[]);
-        let fullword_memory = generate_fullword_memory_trace(&program, &[]);
-        let io_memory_private_rows = generate_io_memory_private_trace(&program, &[]);
-        let io_memory_public_rows = generate_io_memory_public_trace(&program, &[]);
+        let halfword_memory = generate_halfword_memory_trace(&[]);
+        let fullword_memory = generate_fullword_memory_trace(&[]);
+        let io_memory_private_rows = generate_io_memory_private_trace(&[]);
+        let io_memory_public_rows = generate_io_memory_public_trace(&[]);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&[]);
         let trace = super::generate_memory_trace::<F>(
-            &program,
             &[],
             &memory_init,
             &halfword_memory,

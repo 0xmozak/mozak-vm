@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use itertools::{chain, Itertools};
-use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Instruction, Op};
 use mozak_runner::state::{Aux, IoEntry, IoOpcode, State};
 use mozak_runner::vm::{ExecutionRecord, Row};
@@ -39,10 +38,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
 }
 
 /// Converting each row of the `record` to a row represented by [`CpuState`]
-pub fn generate_cpu_trace<F: RichField>(
-    program: &Program,
-    record: &ExecutionRecord<F>,
-) -> Vec<CpuState<F>> {
+pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuState<F>> {
     let mut trace: Vec<CpuState<F>> = vec![];
     let ExecutionRecord {
         executed,
@@ -52,14 +48,19 @@ pub fn generate_cpu_trace<F: RichField>(
         state: last_state.clone(),
         // `Aux` has auxiliary information about an executed CPU cycle.
         // The last state is the final state after the last execution.  Thus naturally it has no
-        // associated auxiliarye execution information. We use a dummy aux to make the row
+        // associated auxiliary execution information. We use a dummy aux to make the row
         // generation work, but we could refactor to make this unnecessary.
-        aux: executed.last().unwrap().aux.clone(),
+        ..executed.last().unwrap().clone()
     }];
 
     let default_io_entry = IoEntry::default();
-    for Row { state, aux } in chain![executed, last_row] {
-        let inst = state.current_instruction(program);
+    for Row {
+        state,
+        instruction,
+        aux,
+    } in chain![executed, last_row]
+    {
+        let inst = *instruction;
         let io = aux.io.as_ref().unwrap_or(&default_io_entry);
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
@@ -79,10 +80,13 @@ pub fn generate_cpu_trace<F: RichField>(
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
+            #[cfg(feature = "enable_poseidon_starks")]
             is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
+            #[cfg(feature = "enable_poseidon_starks")]
             poseidon2_input_addr: F::from_canonical_u32(
                 aux.poseidon2.clone().unwrap_or_default().addr,
             ),
+            #[cfg(feature = "enable_poseidon_starks")]
             poseidon2_input_len: F::from_canonical_u32(
                 aux.poseidon2.clone().unwrap_or_default().len,
             ),

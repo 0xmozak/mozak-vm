@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - release/*
+      - main
     tags:
       - "*"
 
@@ -27,15 +28,15 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Check if RISC-V tests are up to date
         run: |
           git ls-remote --quiet --heads https://github.com/riscv/riscv-tests.git master |
               grep --only '^[^[:space:]]*' |
-              tee vm/tests/testdata/.testdata_generated_from_this_commit
+              tee riscv-testdata/testdata/.testdata_generated_from_this_commit
           git diff --exit-code || {
               echo "::error RISCV tests are out of date";
-              cat vm/tests/create_testdata/error_message.markdown >> ${GITHUB_STEP_SUMMARY};
+              tee riscv-testdata/create_testdata/error_message.markdown >> ${GITHUB_STEP_SUMMARY};
               false
           }
 
@@ -58,7 +59,7 @@ jobs:
           delete-branch: true
           title: "Update RISC-V tests"
           add-paths: |
-            vm/
+            riscv-testdata/
           body: |
             This PR is automatically generated as part of Github actions.
             Here is the action job: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
