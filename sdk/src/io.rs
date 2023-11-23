@@ -3,6 +3,9 @@ use std::io::{self, stdin, BufReader, Read};
 pub trait Extractor {
     /// Extract one byte from the tape
     fn get_u8(&mut self) -> u8;
+
+    /// Extract multiple bytes from the tape
+    fn get_buf(&mut self, buf: &mut [u8], count: usize);
 }
 
 /// `MozakPublicInput` is the "public" (visible to both the zk prover and the
@@ -55,6 +58,11 @@ impl<'a> Read for MozakPublicInput<'a> {
 }
 
 impl<'a> Extractor for MozakPublicInput<'a> {
+    fn get_buf(&mut self, buf: &mut [u8], count: usize) {
+        let bytes_read = self.read(buf[0..count].as_mut()).expect("READ failed");
+        assert!(bytes_read == 1);
+    }
+
     fn get_u8(&mut self) -> u8 {
         let mut buf = [0_u8; 1];
         let bytes_read = self.read(buf.as_mut()).expect("READ failed");
