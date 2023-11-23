@@ -1,0 +1,28 @@
+[package]
+name = "circuits3"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mozak-circuits = { version = "0.1.0", path = "../circuits" }
+p3-challenger = { path = "../../Plonky3/challenger" }
+p3-commit = { path = "../../Plonky3/commit" }
+p3-dft = { path = "../../Plonky3/dft" }
+p3-field = { path = "../../Plonky3/field" }
+p3-fri = { path = "../../Plonky3/fri" }
+p3-keccak = { path = "../../Plonky3/keccak" }
+p3-ldt = { path = "../../Plonky3/ldt" }
+p3-mds = { path = "../../Plonky3/mds" }
+p3-merkle-tree = { path = "../../Plonky3/merkle-tree" }
+p3-poseidon = { path = "../../Plonky3/poseidon" }
+p3-symmetric = { path = "../../Plonky3/symmetric" }
+p3-uni-stark = { path = "../../Plonky3/uni-stark" }
+p3-air = { path = "../../Plonky3/air" }
+p3-matrix = { path = "../../Plonky3/matrix" }
+p3-baby-bear = { path = "../../Plonky3/baby-bear" }
+
+
+[dev-dependencies]
+rand = "0.8.5"

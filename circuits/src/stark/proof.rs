@@ -45,6 +45,8 @@ pub struct StarkProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, 
     pub openings: StarkOpeningSet<F, D>,
     /// A batch FRI argument for all openings.
     pub opening_proof: FriProof<F, C::Hasher, D>,
+    /// aux polys used for stark proof
+    pub aux_polys_cap: Vec<F::Extension>,
 }
 
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> StarkProof<F, C, D> {

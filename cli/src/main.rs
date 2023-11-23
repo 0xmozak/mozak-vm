@@ -9,7 +9,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clio::{Input, Output};
 use log::debug;
-use mozak_circuits::cli_benches::BenchArgs;
+use mozak_circuits::cli_benches::benches::BenchArgs;
 use mozak_circuits::generation::memoryinit::generate_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};

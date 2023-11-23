@@ -32,7 +32,7 @@ pub fn sample_bench(reg_value: u32) -> Result<(), anyhow::Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::cli_benches::{BenchArgs, BenchFunction};
+    use crate::cli_benches::benches::{BenchArgs, BenchFunction};
 
     #[test]
     fn test_sample_bench() { super::sample_bench(123).unwrap(); }
