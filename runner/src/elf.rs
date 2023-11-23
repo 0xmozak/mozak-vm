@@ -167,6 +167,15 @@ impl MozakMemory {
     }
 }
 
+/// A Mozak program runtime arguments
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct MozakRunTimeArguments {
+    state_root: [u8; 32],
+    timestamp: [u8; 4],
+    io_tape_private: Vec<u8>,
+    io_tape_public: Vec<u8>,
+}
+
 /// A RISC-V program
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Program {
