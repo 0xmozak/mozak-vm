@@ -13,11 +13,11 @@ from path import (
 import typer
 
 from .utils import (
-    build_ELF,
     build_release,
     create_repo_from_commit,
     init_csv,
     load_bench_function_data,
+    maybe_build_ELF,
     sample_and_bench,
     write_into_csv,
 )
@@ -66,7 +66,7 @@ def bench(bench_function: str, min_value: int, max_value: int):
             data = sample_and_bench(cli_repo, bench_function, min_value, max_value)
             data_csv_file = get_data_csv_file(bench_function, commit)
             write_into_csv(data, data_csv_file)
-            print("...")
+            print(".", end="", flush=True)
         except KeyboardInterrupt:
             print("Exiting...")
             break
@@ -86,7 +86,7 @@ def build(bench_function: str):
     for commit in bench_commits.values():
         build_repo(commit)
         create_symlink_for_repo(bench_function, commit)
-        build_ELF(bench_function, commit)
+        maybe_build_ELF(bench_function, commit)
     print(f"Bench {bench_function} built successfully.")
 
 
