@@ -131,6 +131,12 @@ impl<F: RichField> State<F> {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requsted = self.get_register_value(REG_A2);
         let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize, op);
+        log::debug!(
+            "ecall_io_read: 0x{:0x}, {:?}, {:?} ",
+            buffer_start,
+            num_bytes_requsted,
+            data
+        );
         (
             Aux {
                 dst_val: u32::try_from(data.len()).expect("cannot fit data.len() into u32"),

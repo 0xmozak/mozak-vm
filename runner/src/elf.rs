@@ -20,11 +20,11 @@ use crate::util::load_u32;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MozakMemoryRegion {
-    pub data: Data,
     pub starting_address: u32,
     pub capacity: u32,
+    pub data: Data,
 }
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MozakMemory {
     // merkle state root
     pub state_root: MozakMemoryRegion,
@@ -36,22 +36,46 @@ pub struct MozakMemory {
     pub io_tape_public: MozakMemoryRegion,
 }
 
+impl Default for MozakMemory {
+    fn default() -> Self {
+        // These magic numbers taken from mozak-linker-script
+        MozakMemory {
+            state_root: MozakMemoryRegion {
+                starting_address: 0x0000_0000_u32,
+                capacity: 0x0000_0100_u32,
+                ..Default::default()
+            },
+            timestamp: MozakMemoryRegion {
+                starting_address: 0x0000_0100_u32,
+                capacity: 0x0000_0008_u32,
+                ..Default::default()
+            },
+            io_tape_private: MozakMemoryRegion {
+                starting_address: 0x2000_0000_u32,
+                capacity: 0x2000_0000_u32,
+                ..Default::default()
+            },
+            io_tape_public: MozakMemoryRegion {
+                starting_address: 0x1000_0000_u32,
+                capacity: 0x1000_0000_u32,
+                ..Default::default()
+            },
+        }
+    }
+}
+
 impl From<(&[u8], &[u8])> for MozakMemory {
     // data: private, public
     fn from(data: (&[u8], &[u8])) -> Self {
         let mut mm = MozakMemory::default();
-        // This magic number taken from mozak-linker-scripts
-        mm.io_tape_public.starting_address = 0x1000_0000_u32;
+        let mut index = mm.io_tape_private.starting_address;
+        data.0.iter().for_each(|e| {
+            mm.io_tape_private.data.insert(index, *e);
+            index += 1;
+        });
         let mut index = mm.io_tape_public.starting_address;
         data.1.iter().for_each(|e| {
             mm.io_tape_public.data.insert(index, *e);
-            index += 1;
-        });
-        // This magic number taken from mozak-linker-scripts
-        mm.io_tape_private.starting_address = 0x2000_0000_u32;
-        index = mm.io_tape_private.starting_address;
-        data.0.iter().for_each(|e| {
-            mm.io_tape_private.data.insert(index, *e);
             index += 1;
         });
         mm
