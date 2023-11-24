@@ -1,8 +1,14 @@
 use std::borrow::Borrow;
 
 use anyhow::Result;
+use itertools::izip;
 use mozak_runner::elf::Program;
+use mozak_runner::instruction::{Args, Instruction, Op};
+use mozak_runner::test_utils::simple_test_code;
 use mozak_runner::vm::ExecutionRecord;
+use mozak_system::system::ecall;
+use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
+use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::fri::FriConfig;
 use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
@@ -382,4 +388,69 @@ pub fn inv<F: RichField>(x: u64) -> u64 {
         .try_inverse()
         .unwrap_or_default()
         .to_canonical_u64()
+}
+
+#[allow(unused)]
+pub struct Poseidon2Test {
+    pub data: String,
+    pub input_start_addr: u32,
+    pub output_start_addr: u32,
+}
+
+#[must_use]
+pub fn create_poseidon2_test(
+    test_data: &[Poseidon2Test],
+) -> (Program, ExecutionRecord<GoldilocksField>) {
+    let mut instructions = vec![];
+    let mut memory: Vec<(u32, u8)> = vec![];
+
+    for test_datum in test_data {
+        let mut data_bytes = test_datum.data.as_bytes().to_vec();
+        // VM expects input len to be multiple of RATE bits
+        data_bytes.resize(data_bytes.len().next_multiple_of(8), 0_u8);
+        let data_len = data_bytes.len();
+        let input_memory: Vec<(u32, u8)> =
+            izip!((test_datum.input_start_addr..), data_bytes).collect();
+        memory.extend(input_memory);
+        instructions.extend(&[
+            Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: REG_A0,
+                    imm: ecall::POSEIDON2,
+                    ..Args::default()
+                },
+            },
+            Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: REG_A1,
+                    imm: test_datum.input_start_addr,
+                    ..Args::default()
+                },
+            },
+            Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: REG_A2,
+                    imm: u32::try_from(data_len).expect("don't use very long data"),
+                    ..Args::default()
+                },
+            },
+            Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: REG_A3,
+                    imm: test_datum.output_start_addr,
+                    ..Args::default()
+                },
+            },
+            Instruction {
+                op: Op::ECALL,
+                args: Args::default(),
+            },
+        ]);
+    }
+
+    simple_test_code(instructions, memory.as_slice(), &[])
 }

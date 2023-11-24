@@ -80,6 +80,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
     let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
     let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
+    #[allow(unused)]
     let poseidon2_rows = generate_poseidon2_trace(&record.executed);
     let memory_rows = generate_memory_trace(
         &record.executed,
@@ -92,7 +93,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     );
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
     let rangecheck_limb_rows = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows);
+    #[allow(unused)]
     let register_init_rows = generate_register_init_trace::<F>();
+    #[allow(unused)]
     let register_rows = generate_register_trace::<F>(record);
 
     TableKindSetBuilder {
@@ -108,9 +111,13 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         fullword_memory_stark: trace_rows_to_poly_values(fullword_memory_rows),
         io_memory_private_stark: trace_rows_to_poly_values(io_memory_private_rows),
         io_memory_public_stark: trace_rows_to_poly_values(io_memory_public_rows),
+        #[cfg(feature = "enable_register_starks")]
         register_init_stark: trace_rows_to_poly_values(register_init_rows),
+        #[cfg(feature = "enable_register_starks")]
         register_stark: trace_rows_to_poly_values(register_rows),
+        #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_stark: trace_rows_to_poly_values(poseidon2_rows),
+        #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_sponge_stark: trace_rows_to_poly_values(poseiden2_sponge_rows),
     }
     .build()

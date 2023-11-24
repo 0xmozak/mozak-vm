@@ -356,18 +356,16 @@ where
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
-    use itertools::izip;
+
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::simple_test_code;
-    use mozak_system::system::ecall;
-    use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::hash::poseidon2::Poseidon2Hash;
     use plonky2::plonk::config::{GenericHashOut, Hasher};
 
     use crate::stark::mozak_stark::MozakStark;
-    use crate::test_utils::ProveAndVerify;
+    use crate::test_utils::{create_poseidon2_test, Poseidon2Test, ProveAndVerify};
 
     #[test]
     fn prove_halt() {
@@ -427,65 +425,9 @@ mod tests {
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
-    struct Poseidon2Test {
-        pub data: String,
-        pub input_start_addr: u32,
-        pub output_start_addr: u32,
-    }
-
+    #[allow(unused)]
     fn test_poseidon2(test_data: &[Poseidon2Test]) {
-        let mut instructions = vec![];
-        let mut memory: Vec<(u32, u8)> = vec![];
-
-        for test_datum in test_data {
-            let mut data_bytes = test_datum.data.as_bytes().to_vec();
-            // VM expects input len to be multiple of RATE bits
-            data_bytes.resize(data_bytes.len().next_multiple_of(8), 0_u8);
-            let data_len = data_bytes.len();
-            let input_memory: Vec<(u32, u8)> =
-                izip!((test_datum.input_start_addr..), data_bytes).collect();
-            memory.extend(input_memory);
-            instructions.extend(&[
-                Instruction {
-                    op: Op::ADD,
-                    args: Args {
-                        rd: REG_A0,
-                        imm: ecall::POSEIDON2,
-                        ..Args::default()
-                    },
-                },
-                Instruction {
-                    op: Op::ADD,
-                    args: Args {
-                        rd: REG_A1,
-                        imm: test_datum.input_start_addr,
-                        ..Args::default()
-                    },
-                },
-                Instruction {
-                    op: Op::ADD,
-                    args: Args {
-                        rd: REG_A2,
-                        imm: u32::try_from(data_len).expect("don't use very long data"),
-                        ..Args::default()
-                    },
-                },
-                Instruction {
-                    op: Op::ADD,
-                    args: Args {
-                        rd: REG_A3,
-                        imm: test_datum.output_start_addr,
-                        ..Args::default()
-                    },
-                },
-                Instruction {
-                    op: Op::ECALL,
-                    args: Args::default(),
-                },
-            ]);
-        }
-
-        let (program, record) = simple_test_code(instructions, memory.as_slice(), &[]);
+        let (program, record) = create_poseidon2_test(test_data);
         for test_datum in test_data {
             let output: Vec<u8> = (0..32_u8)
                 .map(|i| {
@@ -507,6 +449,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "enable_poseidon_starks")]
     fn prove_poseidon2() {
         test_poseidon2(&[Poseidon2Test {
             data: "💥 Mozak-VM Rocks With Poseidon2".to_string(),
