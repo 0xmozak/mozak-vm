@@ -48,7 +48,7 @@ impl<'a> Read for MozakPublicInput<'a> {
         unsafe {
             core::arch::asm!(
                "ecall",
-               in ("a0") 2_usize,
+               in ("a0") 4_usize,
                in ("a1") buf.as_ptr(),
                in ("a2") buf.len(),
             );
@@ -107,8 +107,16 @@ pub struct MozakPrivateInput<'a> {
 
 impl<'a> Read for MozakPrivateInput<'a> {
     fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
-        // TODO: implement
-        Ok(0)
+        #[cfg(target_os = "zkvm")]
+        unsafe {
+            core::arch::asm!(
+               "ecall",
+               in ("a0") 2_usize,
+               in ("a1") buf.as_ptr(),
+               in ("a2") buf.len(),
+            );
+            Ok(buf.len())
+        }
     }
 }
 
