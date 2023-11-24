@@ -72,3 +72,56 @@ pub fn generate_poseidon2_sponge_trace<F: RichField>(
     log::trace!("Poseidon2 Sponge trace {:#?}", trace);
     trace
 }
+
+#[cfg(test)]
+mod test {
+
+    use plonky2::field::types::Field;
+    use plonky2::hash::hashing::PlonkyPermutation;
+    use plonky2::hash::poseidon2::Poseidon2Permutation;
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+
+    use crate::generation::MIN_TRACE_LENGTH;
+    use crate::poseidon2_sponge::columns::Poseidon2Sponge;
+    use crate::test_utils::{create_poseidon2_test, Poseidon2Test};
+    const D: usize = 2;
+    type C = PoseidonGoldilocksConfig;
+    type F = <C as GenericConfig<D>>::F;
+
+    #[test]
+    fn generate_poseidon2_sponge_trace() {
+        let data = "😇 Mozak is knowledge arguments based technology".to_string();
+        let data_len_in_bytes = data.as_bytes().len();
+        let input_start_addr = 1024;
+        let output_start_addr = 2048;
+        let (_program, record) = create_poseidon2_test(&[Poseidon2Test {
+            data,
+            input_start_addr,
+            output_start_addr,
+        }]);
+
+        let step_rows = record.executed;
+        let trace = super::generate_poseidon2_sponge_trace(&step_rows);
+
+        let rate_size = Poseidon2Permutation::<F>::RATE;
+        let sponge_count = data_len_in_bytes / rate_size;
+        for (i, value) in trace.iter().enumerate().take(sponge_count) {
+            assert_eq!(
+                value.input_addr,
+                F::from_canonical_usize(
+                    usize::try_from(input_start_addr).expect("can't fail") + i * rate_size
+                )
+            );
+        }
+        assert_eq!(
+            trace.len(),
+            sponge_count.next_power_of_two().max(MIN_TRACE_LENGTH)
+        );
+    }
+    #[test]
+    fn generate_poseidon2_sponge_trace_with_dummy() {
+        let step_rows = vec![];
+        let trace: Vec<Poseidon2Sponge<F>> = super::generate_poseidon2_sponge_trace(&step_rows);
+        assert_eq!(trace.len(), MIN_TRACE_LENGTH);
+    }
+}
