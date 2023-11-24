@@ -212,8 +212,7 @@ mod test {
         let step_rows = record.executed;
         let trace = super::generate_poseidon2_trace(&step_rows);
         for step_row in &step_rows {
-            if step_row.aux.poseidon2.is_some() {
-                let poseidon2 = step_row.aux.poseidon2.clone().expect("can't fail");
+            if let Some(poseidon2) = step_row.aux.poseidon2.as_ref() {
                 for (i, sponge_datum) in poseidon2.sponge_data.iter().enumerate() {
                     let expected_hash = <F as Poseidon2>::poseidon2(sponge_datum.preimage);
                     for (j, expected_hash) in expected_hash.iter().enumerate().take(STATE_SIZE) {
