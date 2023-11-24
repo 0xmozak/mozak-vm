@@ -11,3 +11,6 @@ pub mod xor;
 
 #[cfg(any(feature = "test", test))]
 pub mod benches;
+
+#[cfg(any(feature = "test", test))]
+pub mod nop;

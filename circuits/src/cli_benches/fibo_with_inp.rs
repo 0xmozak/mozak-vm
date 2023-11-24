@@ -2,9 +2,9 @@ use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
+use starky::config::StarkConfig;
 
-use crate::stark::mozak_stark::MozakStark;
-use crate::test_utils::ProveAndVerify;
+use crate::test_utils::prove_and_verify_mozak_stark;
 
 const FIBO_INP_ELF_EXAMPLE_PATH: &str =
     "examples/target/riscv32im-mozak-zkvm-elf/release/fibonacci-input";
@@ -36,7 +36,7 @@ pub fn fibonacci_with_input(n: u32) -> Result<(), anyhow::Error> {
     let state =
         State::<GoldilocksField>::new(program.clone(), &n.to_le_bytes(), &out.to_le_bytes());
     let record = step(&program, state).unwrap();
-    MozakStark::prove_and_verify(&program, &record)
+    prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
 }
 
 #[cfg(test)]

@@ -1,10 +1,10 @@
-use mozak_runner::instruction::{Args, Instruction, Op};
+use mozak_runner::instruction::{Args, Instruction, Op, NOP};
 use mozak_runner::test_utils::simple_test_code;
 use starky::config::StarkConfig;
 
 use crate::test_utils::prove_and_verify_mozak_stark;
 
-pub fn xor_bench(iterations: u32) -> Result<(), anyhow::Error> {
+pub fn nop_bench(iterations: u32) -> Result<(), anyhow::Error> {
     let instructions = [
         Instruction {
             op: Op::ADD,
@@ -15,15 +15,7 @@ pub fn xor_bench(iterations: u32) -> Result<(), anyhow::Error> {
                 ..Args::default()
             },
         },
-        Instruction {
-            op: Op::XOR,
-            args: Args {
-                rd: 2,
-                rs1: 1,
-                imm: 0xDEAD_BEEF,
-                ..Args::default()
-            },
-        },
+        NOP,
         Instruction {
             op: Op::BLT,
             args: Args {
@@ -43,16 +35,17 @@ mod tests {
     use crate::cli_benches::benches::{BenchArgs, BenchFunction};
 
     #[test]
-    fn test_xor_bench() {
+    fn test_nop_bench() {
         let iterations = 10;
-        super::xor_bench(iterations).unwrap();
+        super::nop_bench(iterations).unwrap();
     }
 
     #[test]
-    fn test_xor_bench_with_run() {
+    fn test_nop_bench_with_run() {
         let iterations = 10;
-        let function = BenchFunction::XorBench { iterations };
-        let bench = BenchArgs { function };
+        let bench = BenchArgs {
+            function: BenchFunction::NopBench { iterations },
+        };
         bench.run().unwrap();
     }
 }
