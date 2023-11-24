@@ -12,6 +12,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 // // Derives can be passed through to the generated type:
 #[archive_attr(derive(Debug))]
 pub struct TestData {
-    pub trustedroot: [u8; 32],
-    pub merkleproof: Vec<u8>,
+    pub indices_to_prove: Vec<u32>,
+    pub leaves_hashes: Vec<[u8; 32]>
+    pub proof_bytes: Vec<u8>
 }

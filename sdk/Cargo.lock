@@ -3,5 +3,12 @@
 version = 3
 
 [[package]]
+name = "mozak-system"
+version = "0.1.0"
+
+[[package]]
 name = "mozak_sdk"
 version = "0.1.0"
+dependencies = [
+ "mozak-system",
+]

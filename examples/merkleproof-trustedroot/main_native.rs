@@ -20,9 +20,18 @@ fn main() {
 
     let merkle_tree = MerkleTree::<Sha256>::from_leaves(&leaves);
     let indices_to_prove = vec![3, 4];
+    let leaves_hashes = leaves.get(3..5).ok_or("can't get leaves to prove").unwrap();
     let merkle_proof = merkle_tree.proof(&indices_to_prove);
     let merkle_root = merkle_tree.root().unwrap();
     let proof_bytes = merkle_proof.to_bytes();
+
+    let data = TestData {
+        indices_to_prove.iter().map(|x| u32::from(x)).collect(),
+        leaves_hashes,
+        proof_bytes
+    }
+
+    let bytes = rkyv::to_bytes::<_, 256>(&value).unwrap();
 
     let files = ["public_input_tape", "private_input_tape"];
 

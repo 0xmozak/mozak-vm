@@ -4,6 +4,7 @@
 use core::assert_eq;
 
 use mozak_sdk::io::{get_tapes, Extractor};
+use rs_merkle::{MerkleProof, algorithms::Sha256};
 
 /// ## Function ID 0
 /// This function verifies
@@ -14,8 +15,8 @@ fn merkleproof_trustedroot_verify(
     // Private inputs
     proof: Vec<u8>,
 ) {
-    assert_eq!(proof.len(), merkleroot.len())
-    // assert_eq!(pub_num_1 + pub_num_2, pub_claimed_sum);
+    let proof = MerkleProof::<Sha256>::try_from(proof).unwrap();
+    assert!(proof.verify(merkleroot, vec![3,4], leaf_hashes, leaves.len()))
 }
 
 // In general, we try to envision `main()` not be a
@@ -36,13 +37,14 @@ pub fn main() {
             const MERKLEPROOF_MAX: usize = 255;
             let mut proofbuf: [u8; MERKLEPROOF_MAX] = [0; MERKLEPROOF_MAX];
 
+            // TODO: make this 32-bit
             let proof_len = private_tape.get_u8();
             public_tape.get_buf(&mut merkleroot, 32);
-            private_tape.get_buf(proofbuf, proof_len);
+            private_tape.get_buf(&mut proofbuf, proof_len.into());
 
             merkleproof_trustedroot_verify(
                 merkleroot,
-                Vec::from(proofbuf)[0..proof_len].into()
+                proofbuf[0..(proof_len as usize)].to_vec()
             );
         }
         _ => (),

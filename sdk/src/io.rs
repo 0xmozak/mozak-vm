@@ -1,5 +1,7 @@
 use std::io::{self, stdin, BufReader, Read};
 
+use mozak_system::system::{syscall_ioread_public, syscall_ioread_private};
+
 pub trait Extractor {
     /// Extract one byte from the tape
     fn get_u8(&mut self) -> u8;
@@ -44,16 +46,8 @@ impl<'a> Read for MozakPublicInput<'a> {
     ///
     /// TODO: reuse impl from `mozak-vm/guest`
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        #[cfg(target_os = "zkvm")]
-        unsafe {
-            core::arch::asm!(
-               "ecall",
-               in ("a0") 4_usize,
-               in ("a1") buf.as_ptr(),
-               in ("a2") buf.len(),
-            );
-            Ok(buf.len())
-        }
+        syscall_ioread_public(buf.as_mut_ptr(), buf.len());
+        Ok(buf.len())
     }
 }
 
@@ -106,17 +100,23 @@ pub struct MozakPrivateInput<'a> {
 }
 
 impl<'a> Read for MozakPrivateInput<'a> {
-    fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
-        #[cfg(target_os = "zkvm")]
-        unsafe {
-            core::arch::asm!(
-               "ecall",
-               in ("a0") 2_usize,
-               in ("a1") buf.as_ptr(),
-               in ("a2") buf.len(),
-            );
-            Ok(buf.len())
-        }
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        syscall_ioread_private(buf.as_mut_ptr(), buf.len());
+        Ok(buf.len())
+    }
+}
+
+impl<'a> Extractor for MozakPrivateInput<'a> {
+    fn get_buf(&mut self, buf: &mut [u8], count: usize) {
+        let bytes_read = self.read(buf[0..count].as_mut()).expect("READ failed");
+        assert!(bytes_read == 1);
+    }
+
+    fn get_u8(&mut self) -> u8 {
+        let mut buf = [0_u8; 1];
+        let bytes_read = self.read(buf.as_mut()).expect("READ failed");
+        assert!(bytes_read == 1);
+        buf[0]
     }
 }
 
