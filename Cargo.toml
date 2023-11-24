@@ -16,7 +16,7 @@
 
 [workspace]
 exclude = ["sdk"]
-members = ["cli", "runner", "circuits", "node-cli", "node", "rpc", "state", "circuits3"]
+members = ["cli", "runner", "circuits", "node-cli", "node", "rpc", "state"]
 resolver = "2"
 
 [profile.dev]
