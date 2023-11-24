@@ -33,6 +33,7 @@ def maybe_build_ELF(bench_function: str, commit: str):
     if elf is None:
         print(f"Skipping build ELF for {bench_function}...")
         return
+    print(f"Building ELF for {bench_function}")
     elf_path = get_elf_path(elf, commit)
     subprocess.run(["cargo", "build", "--release"], cwd=elf_path, check=True)
 
