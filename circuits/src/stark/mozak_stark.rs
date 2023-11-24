@@ -16,6 +16,9 @@ use crate::memory_io::stark::InputOuputMemoryStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::poseidon2::stark::Poseidon2_12Stark;
 #[cfg(feature = "enable_poseidon_starks")]
+use crate::poseidon2_output_bytes;
+use crate::poseidon2_output_bytes::stark::Poseidon2OutputBytesStark;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_sponge;
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::stark::ProgramStark;
@@ -32,7 +35,7 @@ use crate::{
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
     12 + cfg!(feature = "enable_register_starks") as usize
-        + cfg!(feature = "enable_poseidon_starks") as usize * 2
+        + cfg!(feature = "enable_poseidon_starks") as usize * 3
 };
 
 /// STARK Gadgets of Mozak-VM
@@ -81,6 +84,11 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
         StarkSet(stark_kind = "Poseidon2Sponge")
     )]
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
+    #[cfg_attr(
+        feature = "enable_poseidon_starks",
+        StarkSet(stark_kind = "Poseidon2OutputBytes")
+    )]
+    pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; NUM_CROSS_TABLE_LOOKUP],
 
     pub debug: bool,
@@ -227,6 +235,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             io_memory_public_stark: InputOuputMemoryStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
+            poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
             cross_table_lookups: [
                 RangecheckTable::lookups(),
                 XorCpuTable::lookups(),
@@ -246,6 +255,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 Poseidon2SpongeCpuTable::lookups(),
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2Poseidon2SpongeTable::lookups(),
+                #[cfg(feature = "enable_poseidon_starks")]
+                Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
             ],
             debug: false,
         }
@@ -316,6 +327,8 @@ table_impl!(IoMemoryPublicTable, TableKind::IoMemoryPublic);
 table_impl!(Poseidon2SpongeTable, TableKind::Poseidon2Sponge);
 #[cfg(feature = "enable_poseidon_starks")]
 table_impl!(Poseidon2Table, TableKind::Poseidon2);
+#[cfg(feature = "enable_poseidon_starks")]
+table_impl!(Poseidon2OutputBytesTable, TableKind::Poseidon2OutputBytes);
 
 pub trait Lookups<F: Field> {
     fn lookups() -> CrossTableLookup<F>;
@@ -430,6 +443,135 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
                 Poseidon2SpongeTable::new(
                     poseidon2_sponge::columns::data_for_input_memory(7),
                     poseidon2_sponge::columns::filter_for_input_memory(),
+                ),
+                // poseidon2_output_bytes output
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(0),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(1),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(2),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(3),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(4),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(5),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(6),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(7),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(8),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(9),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(10),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(11),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(12),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(13),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(14),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(15),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(16),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(17),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(18),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(19),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(20),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(21),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(22),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(23),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(24),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(25),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(26),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(27),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(28),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(29),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(30),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                ),
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(31),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
                 ),
             ]);
         }
@@ -642,6 +784,24 @@ impl<F: Field> Lookups<F> for Poseidon2Poseidon2SpongeTable<F> {
             Poseidon2SpongeTable::new(
                 crate::poseidon2_sponge::columns::data_for_poseidon2(),
                 crate::poseidon2_sponge::columns::filter_for_poseidon2(),
+            ),
+        )
+    }
+}
+
+#[cfg(feature = "enable_poseidon_starks")]
+pub struct Poseidon2OutputBytesPoseidon2SpongeTable<F: Field>(CrossTableLookup<F>);
+#[cfg(feature = "enable_poseidon_starks")]
+impl<F: Field> Lookups<F> for Poseidon2OutputBytesPoseidon2SpongeTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![Poseidon2OutputBytesTable::new(
+                crate::poseidon2_output_bytes::columns::data_for_poseidon2_sponge(),
+                crate::poseidon2_output_bytes::columns::filter_for_poseidon2_sponge(),
+            )],
+            Poseidon2SpongeTable::new(
+                crate::poseidon2_sponge::columns::data_for_poseidon2_output_bytes(),
+                crate::poseidon2_sponge::columns::filter_for_poseidon2_output_bytes(),
             ),
         )
     }

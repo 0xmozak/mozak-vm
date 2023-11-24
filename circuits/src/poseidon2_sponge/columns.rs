@@ -1,7 +1,7 @@
 use core::ops::Add;
 
 use plonky2::field::types::Field;
-use plonky2::hash::hash_types::RichField;
+use plonky2::hash::hash_types::{RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::poseidon2::{Poseidon2, WIDTH};
 
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
@@ -75,6 +75,23 @@ pub fn data_for_poseidon2<F: Field>() -> Vec<Column<F>> {
 
 #[must_use]
 pub fn filter_for_poseidon2<F: Field>() -> Column<F> { col_map().map(Column::from).is_executed() }
+
+#[must_use]
+pub fn data_for_poseidon2_output_bytes<F: Field>() -> Vec<Column<F>> {
+    let sponge = col_map().map(Column::from);
+    let mut data = vec![];
+    data.push(sponge.clk);
+    data.push(sponge.output_addr);
+    let mut outputs = sponge.output.to_vec();
+    outputs.truncate(NUM_HASH_OUT_ELTS);
+    data.extend(outputs);
+    data
+}
+
+#[must_use]
+pub fn filter_for_poseidon2_output_bytes<F: Field>() -> Column<F> {
+    col_map().map(Column::from).gen_output
+}
 
 #[must_use]
 pub fn data_for_input_memory<F: Field>(limb_index: u8) -> Vec<Column<F>> {

@@ -110,6 +110,19 @@ pub fn u32_extra() -> impl Strategy<Value = u32> {
 
 #[cfg(any(feature = "test", test))]
 #[allow(clippy::cast_sign_loss)]
+pub fn u64_extra() -> impl Strategy<Value = u64> {
+    prop_oneof![
+        Just(0_u64),
+        Just(1_u64),
+        Just(u64::MAX),
+        any::<u64>(),
+        Just(i64::MIN as u64),
+        Just(i64::MAX as u64),
+    ]
+}
+
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_possible_wrap)]
 pub fn i32_extra() -> impl Strategy<Value = i32> { u32_extra().prop_map(|x| x as i32) }
 
