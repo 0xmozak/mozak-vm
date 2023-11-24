@@ -16,12 +16,12 @@ p3-keccak = { path = "../../Plonky3/keccak" }
 p3-ldt = { path = "../../Plonky3/ldt" }
 p3-mds = { path = "../../Plonky3/mds" }
 p3-merkle-tree = { path = "../../Plonky3/merkle-tree" }
-p3-poseidon = { path = "../../Plonky3/poseidon" }
+p3-poseidon2 = { path = "../../Plonky3/poseidon2" }
 p3-symmetric = { path = "../../Plonky3/symmetric" }
 p3-uni-stark = { path = "../../Plonky3/uni-stark" }
 p3-air = { path = "../../Plonky3/air" }
 p3-matrix = { path = "../../Plonky3/matrix" }
-p3-baby-bear = { path = "../../Plonky3/baby-bear" }
+p3-goldilocks = { path = "../../Plonky3/goldilocks" }
 
 
 [dev-dependencies]

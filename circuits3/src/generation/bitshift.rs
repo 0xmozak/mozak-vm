@@ -17,5 +17,6 @@ pub fn generate_bitshift_trace<F: Field>() -> RowMajorMatrix<F> {
         .into();
         trace_values.extend(slice);
     }
+    println!("{:?}", trace_values);
     RowMajorMatrix::new(trace_values, NUM_COLS)
 }
