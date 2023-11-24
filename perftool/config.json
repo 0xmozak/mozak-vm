@@ -17,7 +17,7 @@
             "parameter": "n",
             "output": "time taken (in s)",
             "commits": {
-                "latest": "de3f684b15421d6c9e65a8f2f0116b864e6c1a67"
+                "latest": "latest"
             },
             "elf": "examples/fibonacci-input"
         }
