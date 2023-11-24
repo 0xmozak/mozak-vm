@@ -7,11 +7,3 @@ pub struct BitShift<T> {
     pub amount: T,
     pub multiplier: T,
 }
-
-#[cfg(test)]
-mod tests {
-    use super::BitShift;
-
-    #[test]
-    fn test() { let _blah: BitShift<usize> = BitShift::default(); }
-}

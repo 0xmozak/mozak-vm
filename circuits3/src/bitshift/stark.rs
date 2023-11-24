@@ -64,6 +64,7 @@ mod tests {
 
     #[test]
     fn test_stark() -> Result<(), VerificationError> {
+        // TODO: figure out what each of these hardcoded values mean
         type Val = Goldilocks;
         type Domain = Val;
         type Challenge = BinomialExtensionField<Val, 2>;
