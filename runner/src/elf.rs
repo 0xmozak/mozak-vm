@@ -41,12 +41,12 @@ impl Default for MozakMemory {
         // These magic numbers taken from mozak-linker-script
         MozakMemory {
             state_root: MozakMemoryRegion {
-                starting_address: 0x0000_0000_u32,
+                starting_address: 0x0100_0000_u32,
                 capacity: 0x0000_0100_u32,
                 ..Default::default()
             },
             timestamp: MozakMemoryRegion {
-                starting_address: 0x0000_0100_u32,
+                starting_address: 0x0100_0100_u32,
                 capacity: 0x0000_0008_u32,
                 ..Default::default()
             },

@@ -40,7 +40,7 @@ pub fn fibonacci_with_input(n: u32) -> Result<(), anyhow::Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::cli_benches::{BenchArgs, BenchFunction};
+    use crate::cli_benches::benches::{BenchArgs, BenchFunction};
 
     #[test]
     fn test_fibonacci_with_input() {
