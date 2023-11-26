@@ -173,18 +173,18 @@ pub fn generate_poseidon2_trace<F: RichField>(step_rows: &[Row<F>]) -> Vec<Posei
 
 #[cfg(test)]
 mod test {
-    use mozak_runner::instruction::Op;
-    use mozak_runner::state::{Aux, Poseidon2Entry, Poseidon2SpongeData};
+
     use plonky2::field::types::Sample;
     use plonky2::hash::poseidon2::Poseidon2;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use crate::generation::poseidon2::{
         generate_1st_full_round_state, generate_2st_full_round_state, generate_partial_round_state,
-        FullRoundOutput, Row,
+        FullRoundOutput,
     };
     use crate::generation::MIN_TRACE_LENGTH;
     use crate::poseidon2::columns::{Poseidon2State, ROUNDS_F, STATE_SIZE};
+    use crate::test_utils::{create_poseidon2_test, Poseidon2Test};
     const D: usize = 2;
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
@@ -203,42 +203,26 @@ mod test {
     }
     #[test]
     fn generate_poseidon2_trace() {
-        let num_rows = 12;
-        let mut step_rows = vec![];
-        let mut sponge_data = vec![];
+        let (_program, record) = create_poseidon2_test(&[Poseidon2Test {
+            data: "😇 Mozak is knowledge arguments based technology".to_string(),
+            input_start_addr: 1024,
+            output_start_addr: 2048,
+        }]);
 
-        for _ in 0..num_rows {
-            let preimage = (0..STATE_SIZE).map(|_| F::rand()).collect::<Vec<_>>();
-            // NOTE: this stark does not use output from sponge_data so its okay to pass all
-            // ZERO as output
-            sponge_data.push(Poseidon2SpongeData {
-                preimage: preimage.try_into().expect("can't fail"),
-                ..Default::default()
-            });
-        }
-        step_rows.push(Row {
-            aux: Aux {
-                poseidon2: Some(Poseidon2Entry::<F> {
-                    sponge_data,
-                    ..Default::default()
-                }),
-                ..Default::default()
-            },
-            ..Row::new(Op::ECALL)
-        });
-
+        let step_rows = record.executed;
         let trace = super::generate_poseidon2_trace(&step_rows);
-        for step_row in step_rows.iter().take(num_rows) {
-            let poseidon2 = step_row.aux.poseidon2.clone().expect("can't fail");
-            for (i, sponge_datum) in poseidon2.sponge_data.iter().enumerate() {
-                let expected_hash = <F as Poseidon2>::poseidon2(sponge_datum.preimage);
-                for (j, expected_hash) in expected_hash.iter().enumerate().take(STATE_SIZE) {
-                    assert_eq!(
-                        *expected_hash,
-                        trace[i].state_after_second_full_rounds
-                            [STATE_SIZE * (ROUNDS_F / 2 - 1) + j],
-                        "Mismatch at row {i}, position {j}"
-                    );
+        for step_row in &step_rows {
+            if let Some(poseidon2) = step_row.aux.poseidon2.as_ref() {
+                for (i, sponge_datum) in poseidon2.sponge_data.iter().enumerate() {
+                    let expected_hash = <F as Poseidon2>::poseidon2(sponge_datum.preimage);
+                    for (j, expected_hash) in expected_hash.iter().enumerate().take(STATE_SIZE) {
+                        assert_eq!(
+                            *expected_hash,
+                            trace[i].state_after_second_full_rounds
+                                [STATE_SIZE * (ROUNDS_F / 2 - 1) + j],
+                            "Mismatch at row {i}, position {j}"
+                        );
+                    }
                 }
             }
         }
