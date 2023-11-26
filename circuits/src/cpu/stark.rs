@@ -440,7 +440,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         populate_op1_value(lv, yield_constr);
         populate_op2_value(lv, yield_constr);
 
-        // op constraint
         add::constraints(lv, yield_constr);
         sub::constraints(lv, yield_constr);
         bitwise::constraints(lv, yield_constr);
