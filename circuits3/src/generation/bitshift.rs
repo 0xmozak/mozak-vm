@@ -7,11 +7,9 @@ use crate::columns_view::NumberOfColumns;
 
 pub fn generate_bitshift_trace<F: Field>() -> RowMajorMatrix<F> {
     let trace_values: Vec<F> = (0..32)
-        .flat_map(|i| {
-            BitShift {
-                amount: i,
-                multiplier: 1 << i,
-            }
+        .flat_map(|i| BitShift {
+            amount: i,
+            multiplier: 1 << i,
         })
         .map(F::from_canonical_u32)
         .collect();
