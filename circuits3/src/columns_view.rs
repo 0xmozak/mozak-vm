@@ -14,10 +14,6 @@ pub(crate) unsafe fn transmute_without_compile_time_size_checks<T, U>(t: T) -> U
     transmute_copy(&ManuallyDrop::<T>::new(t))
 }
 
-pub trait HasNamedColumns {
-    type Columns;
-}
-
 pub trait NumberOfColumns {
     const NUMBER_OF_COLUMNS: usize;
 }
@@ -101,30 +97,6 @@ macro_rules! columns_view_impl {
             }
         }
 
-        impl<T, I> std::ops::Index<I> for $s<T>
-        where
-            [T]: std::ops::Index<I>,
-        {
-            type Output = <[T] as std::ops::Index<I>>::Output;
-
-            fn index(&self, index: I) -> &Self::Output {
-                use std::borrow::Borrow;
-                let arr: &[T; std::mem::size_of::<$s<u8>>()] = self.borrow();
-                <[T] as std::ops::Index<I>>::index(arr, index)
-            }
-        }
-
-        impl<T, I> std::ops::IndexMut<I> for $s<T>
-        where
-            [T]: std::ops::IndexMut<I>,
-        {
-            fn index_mut(&mut self, index: I) -> &mut Self::Output {
-                use std::borrow::BorrowMut;
-                let arr: &mut [T; std::mem::size_of::<$s<u8>>()] = self.borrow_mut();
-                <[T] as std::ops::IndexMut<I>>::index_mut(arr, index)
-            }
-        }
-
         impl<T> std::iter::IntoIterator for $s<T> {
             type IntoIter = std::array::IntoIter<T, { std::mem::size_of::<$s<u8>>() }>;
             type Item = T;
@@ -162,32 +134,3 @@ macro_rules! columns_view_impl {
     };
 }
 pub(crate) use columns_view_impl;
-
-// /// Implement a static `MAP` of the `ColumnsView` from an array with length
-// /// [`NumberOfColumns`] of the `ColumnsView` that allows for indexing into an
-// /// array with the column name rather than the column index.
-// macro_rules! make_col_map {
-//     ($s: ident) => {
-//         use std::sync::OnceLock;
-//         // TODO(Matthias): sort out const'ness of from_fn, and declare as a
-// const         // instead of static:
-//         pub(crate) fn col_map() -> &'static $s<usize> {
-//             static MAP: OnceLock<$s<usize>> = OnceLock::new();
-//             MAP.get_or_init(|| {
-//                 use crate::columns_view::NumberOfColumns;
-//                 const COLUMNS: usize = $s::<()>::NUMBER_OF_COLUMNS;
-//                 let indices_arr: [usize; COLUMNS] = core::array::from_fn(|i|
-// i);                 unsafe { std::mem::transmute::<[usize; COLUMNS],
-// $s<usize>>(indices_arr) }             })
-//         }
-//     };
-// }
-// pub(crate) use make_col_map;
-
-// /// Return a selector that is only active at index `which`
-// #[must_use]
-// pub fn selection<T: IndexMut<usize, Output = u32> + Default>(which: usize) ->
-// T {     let mut selectors = T::default();
-//     selectors[which] = 1;
-//     selectors
-// }

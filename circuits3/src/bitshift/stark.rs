@@ -14,6 +14,10 @@ impl<AB: AirBuilder> Air<AB> for BitShiftStark {
         let local: &BitShift<AB::Var> = main.row_slice(0).into();
         let next: &BitShift<AB::Var> = main.row_slice(1).into();
 
+        // NOTE: currently, plonky3 doesn't have API to calculate
+        // degree of constraint. Till it is fixed in upstream, it
+        // can be assumed to have been hardcoded to 3 for now.
+
         // first amount value is 0
         builder.when_first_row().assert_zero(local.amount);
 
