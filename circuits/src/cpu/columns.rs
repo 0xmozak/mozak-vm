@@ -1,8 +1,13 @@
+use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
 
 use crate::bitshift::columns::Bitshift;
 use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::cpu::stark::add_extension_vec;
 use crate::cross_table_lookup::Column;
 use crate::program::columns::ProgramRom;
 use crate::stark::mozak_stark::{CpuTable, Table};
@@ -213,6 +218,45 @@ impl<T: PackedField> CpuState<T> {
     pub fn signed_diff(&self) -> T { self.op1_full_range() - self.op2_full_range() }
 }
 
+pub fn rs2_value_extension_target<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    cpu: &CpuState<ExtensionTarget<D>>,
+) -> ExtensionTarget<D> {
+    let mut rs2_value = builder.zero_extension();
+    for reg in 0..32 {
+        let rs2_select = builder.mul_extension(cpu.inst.rs2_select[reg], cpu.regs[reg]);
+        rs2_value = builder.add_extension(rs2_value, rs2_select);
+    }
+    rs2_value
+}
+
+pub fn op1_full_range_extension_target<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    cpu: &CpuState<ExtensionTarget<D>>,
+) -> ExtensionTarget<D> {
+    let shifted_32 = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
+    let op1_sign_bit = builder.mul_extension(cpu.op1_sign_bit, shifted_32);
+    builder.sub_extension(cpu.op1_value, op1_sign_bit)
+}
+
+pub fn op2_full_range_extension_target<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    cpu: &CpuState<ExtensionTarget<D>>,
+) -> ExtensionTarget<D> {
+    let shifted_32 = builder.constant_extension(F::Extension::from_canonical_u64(1 << 32));
+    let op2_sign_bit = builder.mul_extension(cpu.op2_sign_bit, shifted_32);
+    builder.sub_extension(cpu.op2_value, op2_sign_bit)
+}
+
+pub fn signed_diff_extension_target<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    cpu: &CpuState<ExtensionTarget<D>>,
+) -> ExtensionTarget<D> {
+    let op1_full_range = op1_full_range_extension_target(builder, cpu);
+    let op2_full_range = op2_full_range_extension_target(builder, cpu);
+    builder.sub_extension(op1_full_range, op2_full_range)
+}
+
 /// Expressions we need to range check
 ///
 /// Currently, we only support expressions over the
@@ -383,6 +427,15 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     pub fn fullword_mem_ops(self) -> T { self.sw + self.lw }
 
     pub fn is_mem_ops(self) -> T { self.sb + self.lb + self.sh + self.lh + self.sw + self.lw }
+}
+
+pub fn is_mem_op_extention_target<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    ops: &OpSelectors<ExtensionTarget<D>>,
+) -> ExtensionTarget<D> {
+    add_extension_vec(builder, vec![
+        ops.sb, ops.lb, ops.sh, ops.lh, ops.sw, ops.lw,
+    ])
 }
 
 /// Columns containing the data to be matched against `Bitshift` stark.
