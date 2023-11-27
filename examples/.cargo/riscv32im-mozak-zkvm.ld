@@ -23,10 +23,12 @@ OUTPUT_ARCH( "riscv32" )
 ENTRY( _start )
 
 SECTIONS {
-    /* [0] - RISCV rom */
-    .riscv : { *(.riscv); *(.riscv.attributes); *(.riscv.attributes.*); } > riscv_rom
-    _riscv_start = ADDR(.riscv);
-    _riscv_end = _riscv_start + SIZEOF(.riscv);
+    /* [0] - RISCV rom (NOT IN USE) */
+    /*
+        .riscv : { *(.riscv); *(.riscv.attributes); *(.riscv.attributes.*); } > riscv_rom
+        _riscv_start = ADDR(.riscv);
+        _riscv_end = _riscv_start + SIZEOF(.riscv);
+    */
 
     /* [1] - mozak globals */
     _mozak_merkle_state_root          = 0x01000000; /* assumed size is 32 bytes */
@@ -52,31 +54,32 @@ SECTIONS {
     _data_load_start = LOADADDR(.data);
     _data_end = _data_start + SIZEOF(.data);
 
-    /* End of uninitialized data segment (used for heap) - mozak heap grows up */
+    /* [4] - End of uninitialized data segment (used for heap) - mozak heap grows up */
     _mozak_heap_start = _data_end;
-    /* mozak stack - grows down */
+
+    /* [5] - mozak stack - grows down */
     _mozak_stack_top = 0xFFFFFFFF;
 
     /* .text and .rodata just go straight into the ROM. We don't need to mutate them ever. */
-    /* [4] - TEXT rom */
+    /* [6] - TEXT rom */
     .text : { *(.text) } > rom
     _text_start = ADDR(.text);
     _text_end = _text_start + SIZEOF(.text);
 
-    /* [5] - RODATA rom */
+    /* [7] - RODATA rom */
     .rodata : { *(.rodata); *(.rodata.*); } > rom
     _rodata_start = ADDR(.rodata);
     _rodata_end = _rodata_start + SIZEOF(.rodata);
 
-    /* [6] - Init mozak_stack (NOT IN USE) */
+    /* [8] - Init mozak_stack (NOT IN USE) */
     /*
         . = 0xF0000000;
         .mozak_stack : { FILL(0x00) . += 256M; }
     */
 
-    /* [7] - don't insert these sections */
+    /* [9] - don't insert these sections */
     /DISCARD/ : {
-        *(.note .comment);
+        *(.note .comment .riscv .riscv.*);
     }
 }
 
