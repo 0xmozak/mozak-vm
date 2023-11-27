@@ -15,4 +15,5 @@ pub struct TestData {
     pub indices_to_prove: Vec<u32>,
     pub leaves_hashes: Vec<[u8; 32]>,
     pub proof_bytes: Vec<u8>,
+    pub leaves_len: u32,
 }

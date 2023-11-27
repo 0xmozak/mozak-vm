@@ -3,8 +3,9 @@ mod core_logic;
 
 use std::io::{Read, Write};
 
+use rkyv::Deserialize;
 use rs_merkle::algorithms::Sha256;
-use rs_merkle::{Hasher, MerkleTree};
+use rs_merkle::{Hasher, MerkleProof, MerkleTree};
 
 use crate::core_logic::TestData;
 
@@ -33,6 +34,7 @@ fn generate_merkle(leaf_values: Vec<u32>, indices_to_prove: Vec<u32>) -> ([u8; 3
                     .as_ref(),
             )
             .to_bytes(),
+        leaves_len: leaf_values.len() as u32,
     });
 }
 
@@ -40,7 +42,6 @@ fn serialize_to_disk(files: [&str; 2], merkle_root: [u8; 32], proof_data: &TestD
     println!("Serializing and dumping to disk");
 
     let serialized_proof_bytes = rkyv::to_bytes::<_, 256>(proof_data).unwrap();
-    println!("SERLEN: {:?}", serialized_proof_bytes.len());
 
     let mut tapes: Vec<std::fs::File> = files
         .iter()
@@ -108,7 +109,10 @@ fn deserialize_from_disk(
     tapes[0]
         .read(&mut merkle_root_buffer)
         .expect("(public) read failed for merkle root");
-    assert_eq!(merkle_root_buffer, expected_merkle_root, "merkle root mismatched");
+    assert_eq!(
+        merkle_root_buffer, expected_merkle_root,
+        "merkle root mismatched"
+    );
 
     // Read private tape (variable)
     let mut length_prefix = [0u8; 4];
@@ -116,9 +120,8 @@ fn deserialize_from_disk(
     tapes[1]
         .read(&mut length_prefix)
         .expect("(private) read failed for length prefix");
-    
+
     let length_prefix = u32::from_le_bytes(length_prefix);
-    println!("DESLEN: {:?}", length_prefix);
 
     let mut testdata_buf = Vec::with_capacity(length_prefix as usize);
     testdata_buf.resize(length_prefix as usize, 0);
@@ -126,22 +129,34 @@ fn deserialize_from_disk(
         .read(&mut testdata_buf[0..(length_prefix as usize)])
         .expect("(private) read failed for merkle proof data");
 
-    let deserialized_testdata = unsafe {
-        rkyv::from_bytes_unchecked::<TestData>(&testdata_buf)
-            .expect("failed to deserialize vec")
-    };
+    let archived = unsafe { rkyv::archived_root::<TestData>(&testdata_buf) };
+    let deserialized_testdata: TestData = archived.deserialize(&mut rkyv::Infallible).unwrap();
 
-    assert_eq!(deserialized_testdata, expected_testdata, "testdata mismatch");
-    
+    assert_eq!(
+        deserialized_testdata, expected_testdata,
+        "testdata mismatch"
+    );
+
     println!("Reading, deserializing and verifying buffers from disk [done]");
 
     (merkle_root_buffer, TestData::default())
 }
 
+fn verify_proof(merkle_root: [u8; 32], proof_data: TestData) {
+    let proof = MerkleProof::<Sha256>::try_from(proof_data.proof_bytes).unwrap();
+    let indices: Vec<usize> = proof_data.indices_to_prove.iter().map(|&x| x as usize).collect();
+    assert!(proof.verify(
+        merkle_root,
+        &indices[..],
+        proof_data.leaves_hashes.as_slice(),
+        proof_data.leaves_len as usize,
+    ));
+}
+
 fn main() {
     println!("Running merkleproof-trustedroot-native");
 
-    let files = ["public_input_tape", "private_input_tape"];
+    let files = ["public_input.tape", "private_input.tape"];
     let (merkle_root, proof_data) =
         generate_merkle(vec![21, 32, 101, 201, 1, 2, 3, 90], vec![3, 4]);
 
@@ -149,7 +164,7 @@ fn main() {
 
     let (merkle_root, proof_data) = deserialize_from_disk(files, merkle_root, proof_data);
 
-    // verify_proof(merkle_root, proof_data);
+    verify_proof(merkle_root, proof_data);
 
     println!("all done!")
 }
