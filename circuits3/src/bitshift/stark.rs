@@ -55,6 +55,7 @@ mod tests {
     use crate::generation::bitshift::generate_bitshift_trace;
 
     #[test]
+    #[allow(clippy::items_after_statements)]
     fn test_stark() -> Result<(), VerificationError> {
         let (config, mut challenger) = DefaultConfig::make_config();
         let trace = generate_bitshift_trace();
