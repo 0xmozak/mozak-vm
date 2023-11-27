@@ -37,7 +37,7 @@ pub trait Mozak3StarkConfig {
     fn make_config() -> (Self::MyConfig, Self::Challenger);
 }
 
-#[allow(clippy::pedantic)]
+#[allow(clippy::module_name_repetitions)]
 pub struct DefaultConfig;
 
 impl Mozak3StarkConfig for DefaultConfig {
