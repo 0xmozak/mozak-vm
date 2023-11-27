@@ -4,7 +4,10 @@
 use core::assert_eq;
 
 use mozak_sdk::io::{get_tapes, Extractor};
-use rs_merkle::{MerkleProof, algorithms::Sha256};
+use rs_merkle::algorithms::Sha256;
+use rs_merkle::MerkleProof;
+
+use crate::core_logic::TestData;
 
 /// ## Function ID 0
 /// This function verifies
@@ -13,10 +16,11 @@ fn merkleproof_trustedroot_verify(
     merkleroot: [u8; 32],
 
     // Private inputs
+    leaves: TestData,
     proof: Vec<u8>,
 ) {
     let proof = MerkleProof::<Sha256>::try_from(proof).unwrap();
-    assert!(proof.verify(merkleroot, vec![3,4], leaf_hashes, leaves.len()))
+    assert!(proof.verify(merkleroot, vec![3, 4], leaf_hashes, leaves.len()))
 }
 
 // In general, we try to envision `main()` not be a
@@ -42,10 +46,7 @@ pub fn main() {
             public_tape.get_buf(&mut merkleroot, 32);
             private_tape.get_buf(&mut proofbuf, proof_len.into());
 
-            merkleproof_trustedroot_verify(
-                merkleroot,
-                proofbuf[0..(proof_len as usize)].to_vec()
-            );
+            merkleproof_trustedroot_verify(merkleroot, proofbuf[0..(proof_len as usize)].to_vec());
         }
         _ => (),
     };
