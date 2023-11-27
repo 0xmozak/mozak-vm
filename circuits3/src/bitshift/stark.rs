@@ -63,6 +63,7 @@ mod tests {
     use crate::generation::bitshift::generate_bitshift_trace;
 
     #[test]
+    #[allow(clippy::items_after_statements)]
     fn test_stark() -> Result<(), VerificationError> {
         // TODO: figure out what each of these hardcoded values mean
         type Val = Goldilocks;
