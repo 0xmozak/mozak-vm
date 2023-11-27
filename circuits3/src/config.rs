@@ -15,6 +15,7 @@ use rand::thread_rng;
 
 /// This config refers to types required to use Plonky3 `uni_stark` prover
 /// and verifier
+#[allow(clippy::pedantic)]
 pub trait Mozak3StarkConfig {
     type Val;
     type Domain;
@@ -36,6 +37,7 @@ pub trait Mozak3StarkConfig {
     fn make_config() -> (Self::MyConfig, Self::Challenger);
 }
 
+#[allow(clippy::pedantic)]
 pub struct DefaultConfig;
 
 impl Mozak3StarkConfig for DefaultConfig {
