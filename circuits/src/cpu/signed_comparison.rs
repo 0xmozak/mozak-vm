@@ -1,11 +1,15 @@
 //! This module implements constraints for comparisons, SLT and SLTU.
 //! Where `SLT` means 'Set if Less Then', and 'SLTU' is the same but unsigned.
 
+use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
-use starky::constraint_consumer::ConstraintConsumer;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 
 use super::columns::CpuState;
-use crate::stark::utils::is_binary;
+use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 /// # Explanation
 ///
@@ -36,12 +40,41 @@ pub(crate) fn signed_constraints<P: PackedField>(
     yield_constr.constraint((P::ONES - lv.inst.is_op2_signed) * lv.op2_sign_bit);
 }
 
+pub(crate) fn signed_constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    is_binary_ext_circuit(builder, lv.op1_sign_bit, yield_constr);
+    is_binary_ext_circuit(builder, lv.op2_sign_bit, yield_constr);
+
+    let one = builder.one_extension();
+    let one_sub_is_op1_signed = builder.sub_extension(one, lv.inst.is_op1_signed);
+    let op1_sign_bit_constr = builder.mul_extension(one_sub_is_op1_signed, lv.op1_sign_bit);
+    yield_constr.constraint(builder, op1_sign_bit_constr);
+
+    let one_sub_is_op2_signed = builder.sub_extension(one, lv.inst.is_op2_signed);
+    let op2_sign_bit_constr = builder.mul_extension(one_sub_is_op2_signed, lv.op2_sign_bit);
+    yield_constr.constraint(builder, op2_sign_bit_constr);
+}
+
 pub(crate) fn slt_constraints<P: PackedField>(
     lv: &CpuState<P>,
     yield_constr: &mut ConstraintConsumer<P>,
 ) {
     // Check: the destination has the same value as stored in `less_than`.
     yield_constr.constraint(lv.inst.ops.slt * (lv.less_than - lv.dst_value));
+}
+
+pub(crate) fn slt_constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    let less_than_sub_dst_value = builder.sub_extension(lv.less_than, lv.dst_value);
+    let slt_constr = builder.mul_extension(lv.inst.ops.slt, less_than_sub_dst_value);
+
+    yield_constr.constraint(builder, slt_constr);
 }
 
 #[cfg(test)]
