@@ -58,6 +58,7 @@ mod tests {
     #[allow(clippy::items_after_statements)]
     fn test_stark() -> Result<(), VerificationError> {
         let (config, mut challenger) = DefaultConfig::make_config();
+        let mut verifer_challenger = challenger.clone();
         let trace = generate_bitshift_trace();
         let proof = prove::<<DefaultConfig as Mozak3StarkConfig>::MyConfig, _>(
             &config,
@@ -66,6 +67,6 @@ mod tests {
             trace,
         );
 
-        verify(&config, &BitShiftStark, &mut challenger, &proof)
+        verify(&config, &BitShiftStark, &mut verifer_challenger, &proof)
     }
 }
