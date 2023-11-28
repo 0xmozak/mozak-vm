@@ -150,9 +150,9 @@ where
     });
 
     // Register program ROM and memory init trace cap as public inputs.
-    for kind in [TableKind::Program, TableKind::MemoryInit].iter() {
+    for kind in [TableKind::Program, TableKind::MemoryInit] {
         builder.register_public_inputs(
-            &targets[*kind as usize]
+            &targets[kind as usize]
                 .stark_proof_with_pis_target
                 .proof
                 .trace_cap
