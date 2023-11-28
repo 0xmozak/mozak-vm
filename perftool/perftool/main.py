@@ -13,11 +13,11 @@ from path import (
 import typer
 
 from .utils import (
-    build_ELF,
     build_release,
     create_repo_from_commit,
     init_csv,
     load_bench_function_data,
+    maybe_build_ELF,
     sample_and_bench,
     write_into_csv,
 )
@@ -32,11 +32,14 @@ def load_commits_from_config(bench_function: str) -> dict[str, str]:
 
 
 def build_repo(commit: str):
-    try:
-        get_actual_commit_folder(commit).mkdir()
-    except FileExistsError:
-        pass
-    create_repo_from_commit(commit)
+    if commit == "latest":
+        print("Treating the current repo as latest")
+    else:
+        try:
+            get_actual_commit_folder(commit).mkdir()
+        except FileExistsError:
+            pass
+        create_repo_from_commit(commit)
     cli_repo = get_actual_cli_repo(commit)
     build_release(cli_repo)
 
@@ -63,8 +66,12 @@ def bench(bench_function: str, min_value: int, max_value: int):
             data = sample_and_bench(cli_repo, bench_function, min_value, max_value)
             data_csv_file = get_data_csv_file(bench_function, commit)
             write_into_csv(data, data_csv_file)
+            print(".", end="", flush=True)
         except KeyboardInterrupt:
             print("Exiting...")
+            break
+        except Exception as e:
+            print(e)
             break
 
 
@@ -79,7 +86,7 @@ def build(bench_function: str):
     for commit in bench_commits.values():
         build_repo(commit)
         create_symlink_for_repo(bench_function, commit)
-        build_ELF(bench_function, commit)
+        maybe_build_ELF(bench_function, commit)
     print(f"Bench {bench_function} built successfully.")
 
 
