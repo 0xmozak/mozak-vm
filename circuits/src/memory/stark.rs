@@ -126,7 +126,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint((P::ONES - lv.is_writable) * lv.is_store);
 
         // For all "load" operations, the value cannot change between rows
-        yield_constr.constraint(nv.is_load * (nv.value - lv.value));
+        yield_constr.constraint(nv.is_load * (nv.value - lv.value) * (P::ONES - nv.is_zeroed));
 
         // Clock constraints
         // -----------------
@@ -197,7 +197,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let nv_value_sub_lv_value = builder.sub_extension(nv.value, lv.value);
         let is_load_mul_nv_value_sub_lv_value =
             builder.mul_extension(nv.is_load, nv_value_sub_lv_value);
-        yield_constr.constraint(builder, is_load_mul_nv_value_sub_lv_value);
+        let one_sub_is_zeroed = builder.sub_extension(one, nv.is_zeroed);
+        let is_load_mul_nv_value_sub_lv_value_mul_one_sub_nv_is_zeroed =
+            builder.mul_extension(is_load_mul_nv_value_sub_lv_value, one_sub_is_zeroed);
+        yield_constr.constraint(
+            builder,
+            is_load_mul_nv_value_sub_lv_value_mul_one_sub_nv_is_zeroed,
+        );
 
         let one_sub_is_next_a_new_addr = builder.sub_extension(one, is_next_a_new_addr);
         let nv_clk_sub_lv_clk = builder.sub_extension(nv.clk, lv.clk);
