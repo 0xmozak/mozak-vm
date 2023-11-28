@@ -160,7 +160,7 @@ where
                 .iter()
                 .flat_map(|h| h.elements)
                 .collect::<Vec<_>>(),
-        )
+        );
     }
 
     add_common_recursion_gates(&mut builder);
