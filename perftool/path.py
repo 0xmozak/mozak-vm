@@ -8,6 +8,7 @@ TMPFOLDERNAME = "Perftool_Repos_tmp"
 TMPFOLDER = Path(tempfile.gettempdir()) / TMPFOLDERNAME
 CONFIG_JSON = Path.cwd() / "config.json"
 PLOT_FOLDER = Path.cwd() / "plots"
+VM_DIR = Path.cwd().parent
 
 
 def get_config_json() -> Path:
@@ -41,6 +42,8 @@ def get_tmp_folder() -> Path:
 
 
 def get_commit_folder(bench_function: str, commit: str) -> Path:
+    if commit == "latest":
+        return VM_DIR
     try:
         return get_commit_symlink(bench_function, commit).resolve()
     except FileNotFoundError as e:
@@ -48,6 +51,8 @@ def get_commit_folder(bench_function: str, commit: str) -> Path:
 
 
 def get_actual_commit_folder(commit: str) -> Path:
+    if commit == "latest":
+        return VM_DIR
     return TMPFOLDER / commit
 
 
@@ -56,10 +61,12 @@ def get_cli_repo(bench_function: str, commit: str) -> Path:
 
 
 def get_actual_cli_repo(commit: str) -> Path:
-    return TMPFOLDER / commit / "cli"
+    return get_actual_commit_folder(commit) / "cli"
 
 
 def create_symlink_for_repo(bench_function: str, commit: str):
+    if commit == "latest":
+        return
     commit_folder = get_actual_commit_folder(commit)
     commit_link = get_bench_folder(bench_function) / commit
     try:

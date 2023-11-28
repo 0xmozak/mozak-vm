@@ -9,15 +9,14 @@
                 "Opt level 1": "207afb821ba4ca049cc1f711d7739db8d41c70eb",
                 "Opt level 2": "2d47469c7a1d94dc0fc1cb56123e571c0c73929c",
                 "Opt level 3": "afa5e662bc7914b2b039f18c814b30cb8ca217b0"
-            },
-            "elf": ""
+            }
         },
         "fibo-input-bench": {
             "description": "Benching ELF computing nth fibonacci number",
             "parameter": "n",
             "output": "time taken (in s)",
             "commits": {
-                "latest": "de3f684b15421d6c9e65a8f2f0116b864e6c1a67"
+                "latest": "latest"
             },
             "elf": "examples/fibonacci-input"
         }
