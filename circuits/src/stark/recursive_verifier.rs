@@ -149,6 +149,20 @@ where
         )
     });
 
+    // Register program ROM and memory init trace cap as public inputs.
+    for kind in [TableKind::Program, TableKind::MemoryInit].iter() {
+        builder.register_public_inputs(
+            &targets[*kind as usize]
+                .stark_proof_with_pis_target
+                .proof
+                .trace_cap
+                .0
+                .iter()
+                .flat_map(|h| h.elements)
+                .collect::<Vec<_>>(),
+        )
+    }
+
     add_common_recursion_gates(&mut builder);
 
     // Pad to the minimum degree.
