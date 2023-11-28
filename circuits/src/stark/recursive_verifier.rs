@@ -44,7 +44,7 @@ where
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>, {
     pub circuit: CircuitData<F, C, D>,
-    pub targets: [Option<StarkVerifierTargets<F, C, D>>; NUM_TABLES],
+    pub targets: [StarkVerifierTargets<F, C, D>; NUM_TABLES],
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -105,37 +105,15 @@ where
         let mut inputs = PartialWitness::new();
 
         all_kind!(|kind| {
-            // TODO(Daniel): remove the check when we implement recursive verification for
-            // all starks.
-            if matches!(
-                kind,
-                // TableKind::RangeCheck
-                    | TableKind::Cpu
-                    // | TableKind::Xor
-                    // | TableKind::Bitshift
-                    // | TableKind::Program
-                    // | TableKind::Memory
-                    // | TableKind::MemoryInit
-                    // | TableKind::RangeCheckLimb
-                    // | TableKind::HalfWordMemory
-                    // | TableKind::FullWordMemory
-                    // | TableKind::IoMemoryPrivate
-                    // | TableKind::IoMemoryPublic
-            ) {
-                let target = &self.targets[kind as usize];
-                target.as_ref().unwrap().set_targets(
-                    &mut inputs,
-                    &all_proof.proofs_with_metadata[kind as usize],
-                    &all_proof.ctl_challenges,
-                );
-            }
+            self.targets[kind as usize].set_targets(
+                &mut inputs,
+                &all_proof.proofs_with_metadata[kind as usize],
+                &all_proof.ctl_challenges,
+            );
         });
 
         // Set public inputs
-        let cpu_target = &self.targets[TableKind::Cpu as usize]
-            .as_ref()
-            .unwrap()
-            .stark_proof_with_pis_target;
+        let cpu_target = &self.targets[TableKind::Cpu as usize].stark_proof_with_pis_target;
         inputs.set_target_arr(
             cpu_target.public_inputs.as_ref(),
             all_proof.public_inputs.borrow(),
@@ -161,33 +139,14 @@ where
     let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
     let targets = all_starks!(mozak_stark, |stark, kind| {
-        // TODO(Daniel): remove the check when we implement recursive verification for
-        // all starks.
-        matches!(
+        recursive_stark_circuit::<F, C, _, D>(
+            &mut builder,
             kind,
-            // TableKind::RangeCheck
-                | TableKind::Cpu
-                // | TableKind::Xor
-                // | TableKind::Bitshift
-                // | TableKind::Program
-                // | TableKind::Memory
-                // | TableKind::MemoryInit
-                // | TableKind::RangeCheckLimb
-                // | TableKind::HalfWordMemory
-                // | TableKind::FullWordMemory
-                // | TableKind::IoMemoryPrivate
-                // | TableKind::IoMemoryPublic
+            stark,
+            degree_bits[kind as usize],
+            &mozak_stark.cross_table_lookups,
+            inner_config,
         )
-        .then(|| {
-            recursive_stark_circuit::<F, C, _, D>(
-                &mut builder,
-                kind,
-                stark,
-                degree_bits[kind as usize],
-                &mozak_stark.cross_table_lookups,
-                inner_config,
-            )
-        })
     });
 
     add_common_recursion_gates(&mut builder);
