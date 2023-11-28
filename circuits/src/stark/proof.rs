@@ -177,6 +177,7 @@ impl<const D: usize> StarkProofTarget<D> {
     }
 }
 
+#[derive(Eq, PartialEq, Debug)]
 pub struct StarkProofWithPublicInputsTarget<const D: usize> {
     pub proof: StarkProofTarget<D>,
     pub public_inputs: Vec<Target>,

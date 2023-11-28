@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::fmt::Debug;
 
 use anyhow::Result;
@@ -52,7 +53,7 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>, {
-    pub stark_proof_target: StarkProofTarget<D>,
+    pub stark_proof_with_pis_target: StarkProofWithPublicInputsTarget<D>,
     pub ctl_challenges_target: GrandProductChallengeSet<Target>,
     pub init_challenger_state_target: <C::Hasher as AlgebraicHasher<F>>::AlgebraicPermutation,
     pub zero_target: Target,
@@ -70,9 +71,9 @@ where
         proof_with_metadata: &StarkProofWithMetadata<F, C, D>,
         ctl_challenges: &GrandProductChallengeSet<F>,
     ) {
-        set_stark_proof_target(
+        set_stark_proof_with_pis_target(
             witness,
-            &self.stark_proof_target,
+            &self.stark_proof_with_pis_target.proof,
             &proof_with_metadata.proof,
             self.zero_target,
         );
@@ -108,7 +109,18 @@ where
             // all starks.
             if matches!(
                 kind,
-                TableKind::Xor | TableKind::Bitshift | TableKind::Program | TableKind::MemoryInit
+                // TableKind::RangeCheck
+                    | TableKind::Cpu
+                    // | TableKind::Xor
+                    // | TableKind::Bitshift
+                    // | TableKind::Program
+                    // | TableKind::Memory
+                    // | TableKind::MemoryInit
+                    // | TableKind::RangeCheckLimb
+                    // | TableKind::HalfWordMemory
+                    // | TableKind::FullWordMemory
+                    // | TableKind::IoMemoryPrivate
+                    // | TableKind::IoMemoryPublic
             ) {
                 let target = &self.targets[kind as usize];
                 target.as_ref().unwrap().set_targets(
@@ -118,6 +130,16 @@ where
                 );
             }
         });
+
+        // Set public inputs
+        let cpu_target = &self.targets[TableKind::Cpu as usize]
+            .as_ref()
+            .unwrap()
+            .stark_proof_with_pis_target;
+        inputs.set_target_arr(
+            cpu_target.public_inputs.as_ref(),
+            all_proof.public_inputs.borrow(),
+        );
 
         self.circuit.prove(inputs)
     }
@@ -143,7 +165,18 @@ where
         // all starks.
         matches!(
             kind,
-            TableKind::Xor | TableKind::Bitshift | TableKind::Program | TableKind::MemoryInit
+            // TableKind::RangeCheck
+                | TableKind::Cpu
+                // | TableKind::Xor
+                // | TableKind::Bitshift
+                // | TableKind::Program
+                // | TableKind::Memory
+                // | TableKind::MemoryInit
+                // | TableKind::RangeCheckLimb
+                // | TableKind::HalfWordMemory
+                // | TableKind::FullWordMemory
+                // | TableKind::IoMemoryPrivate
+                // | TableKind::IoMemoryPublic
         )
         .then(|| {
             recursive_stark_circuit::<F, C, _, D>(
@@ -189,10 +222,10 @@ where
 
     let num_ctl_zs =
         CrossTableLookup::num_ctl_zs(cross_table_lookups, table, inner_config.num_challenges);
-    let proof_target =
+    let stark_proof_with_pis_target =
         add_virtual_stark_proof_with_pis(builder, stark, inner_config, degree_bits, num_ctl_zs);
     builder.register_public_inputs(
-        &proof_target
+        &stark_proof_with_pis_target
             .proof
             .trace_cap
             .0
@@ -212,7 +245,7 @@ where
 
     let ctl_vars = CtlCheckVarsTarget::from_proof(
         table,
-        &proof_target.proof,
+        &stark_proof_with_pis_target.proof,
         cross_table_lookups,
         &ctl_challenges_target,
     );
@@ -223,26 +256,27 @@ where
         }));
     let mut challenger =
         RecursiveChallenger::<F, C::Hasher, D>::from_state(init_challenger_state_target);
-    let challenges =
-        proof_target
-            .proof
-            .get_challenges::<F, C>(builder, &mut challenger, inner_config);
+    let challenges = stark_proof_with_pis_target.proof.get_challenges::<F, C>(
+        builder,
+        &mut challenger,
+        inner_config,
+    );
     let challenger_state = challenger.compact(builder);
     builder.register_public_inputs(challenger_state.as_ref());
 
-    builder.register_public_inputs(&proof_target.proof.openings.ctl_zs_last);
+    builder.register_public_inputs(&stark_proof_with_pis_target.proof.openings.ctl_zs_last);
 
     verify_stark_proof_with_challenges_circuit::<F, C, _, D>(
         builder,
         stark,
-        &proof_target,
+        &stark_proof_with_pis_target,
         &challenges,
         &ctl_vars,
         inner_config,
     );
 
     StarkVerifierTargets {
-        stark_proof_target: proof_target.proof,
+        stark_proof_with_pis_target,
         ctl_challenges_target,
         init_challenger_state_target,
         zero_target,
@@ -447,7 +481,7 @@ fn add_virtual_stark_opening_set<F: RichField + Extendable<D>, S: Stark<F, D>, c
     }
 }
 
-pub fn set_stark_proof_target<F, C: GenericConfig<D, F = F>, W, const D: usize>(
+pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D: usize>(
     witness: &mut W,
     proof_target: &StarkProofTarget<D>,
     proof: &StarkProof<F, C, D>,
