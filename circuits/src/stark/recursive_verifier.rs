@@ -183,21 +183,12 @@ where
         CrossTableLookup::num_ctl_zs(cross_table_lookups, table, inner_config.num_challenges);
     let stark_proof_with_pis_target =
         add_virtual_stark_proof_with_pis(builder, stark, inner_config, degree_bits, num_ctl_zs);
-    builder.register_public_inputs(
-        &stark_proof_with_pis_target
-            .proof
-            .trace_cap
-            .0
-            .iter()
-            .flat_map(|h| h.elements)
-            .collect::<Vec<_>>(),
-    );
 
     let ctl_challenges_target = GrandProductChallengeSet {
         challenges: (0..inner_config.num_challenges)
             .map(|_| GrandProductChallenge {
-                beta: builder.add_virtual_public_input(),
-                gamma: builder.add_virtual_public_input(),
+                beta: builder.add_virtual_target(),
+                gamma: builder.add_virtual_target(),
             })
             .collect(),
     };
@@ -211,7 +202,7 @@ where
 
     let init_challenger_state_target =
         <C::Hasher as AlgebraicHasher<F>>::AlgebraicPermutation::new(std::iter::from_fn(|| {
-            Some(builder.add_virtual_public_input())
+            Some(builder.add_virtual_target())
         }));
     let mut challenger =
         RecursiveChallenger::<F, C::Hasher, D>::from_state(init_challenger_state_target);
@@ -220,10 +211,6 @@ where
         &mut challenger,
         inner_config,
     );
-    let challenger_state = challenger.compact(builder);
-    builder.register_public_inputs(challenger_state.as_ref());
-
-    builder.register_public_inputs(&stark_proof_with_pis_target.proof.openings.ctl_zs_last);
 
     verify_stark_proof_with_challenges_circuit::<F, C, _, D>(
         builder,
@@ -389,6 +376,7 @@ pub fn add_virtual_stark_proof_with_pis<
 ) -> StarkProofWithPublicInputsTarget<D> {
     let proof = add_virtual_stark_proof::<F, S, D>(builder, stark, config, degree_bits, num_ctl_zs);
     let public_inputs = builder.add_virtual_targets(S::PUBLIC_INPUTS);
+    builder.register_public_inputs(&public_inputs);
     StarkProofWithPublicInputsTarget {
         proof,
         public_inputs,
