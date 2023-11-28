@@ -1,6 +1,6 @@
 use plonky2::field::types::Field;
 
-use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 
 columns_view_impl!(MemElement);
@@ -25,8 +25,6 @@ pub struct MemoryInit<T> {
     /// 1 if this row is a read-write, 0 if this row is read-only
     pub is_writable: T,
 }
-
-pub const NUM_MEMORYINIT_COLS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;
 
 /// Columns containing the data which are looked up from the Memory Table
 #[must_use]

@@ -13,6 +13,7 @@ use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
 use crate::memory_io::stark::InputOuputMemoryStark;
+use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::poseidon2::stark::Poseidon2_12Stark;
 #[cfg(feature = "enable_poseidon_starks")]
@@ -26,12 +27,12 @@ use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::stark::XorStark;
 use crate::{
-    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memoryinit, program,
-    rangecheck, xor,
+    bitshift, cpu, memory, memory_fullword, memory_halfword, memory_io, memory_zeroinit,
+    memoryinit, program, rangecheck, xor,
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
-    12 + cfg!(feature = "enable_register_starks") as usize
+    13 + cfg!(feature = "enable_register_starks") as usize
         + cfg!(feature = "enable_poseidon_starks") as usize * 2
 };
 
@@ -57,6 +58,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub memory_stark: MemoryStark<F, D>,
     #[StarkSet(stark_kind = "MemoryInit")]
     pub memory_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "MemoryZeroInit")]
+    pub memory_zeroinit_stark: MemoryZeroInitStark<F, D>,
     #[StarkSet(stark_kind = "RangeCheckLimb")]
     pub rangecheck_limb_stark: RangeCheckLimbStark<F, D>,
     #[StarkSet(stark_kind = "HalfWordMemory")]
@@ -218,6 +221,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             program_stark: ProgramStark::default(),
             memory_stark: MemoryStark::default(),
             memory_init_stark: MemoryInitStark::default(),
+            memory_zeroinit_stark: MemoryZeroInitStark::default(),
             rangecheck_limb_stark: RangeCheckLimbStark::default(),
             halfword_memory_stark: HalfWordMemoryStark::default(),
             fullword_memory_stark: FullWordMemoryStark::default(),
@@ -235,6 +239,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 ProgramCpuTable::lookups(),
                 IntoMemoryTable::lookups(),
                 MemoryInitMemoryTable::lookups(),
+                MemoryZeroInitMemoryTable::lookups(),
                 LimbTable::lookups(),
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
@@ -303,6 +308,7 @@ table_impl!(BitshiftTable, TableKind::Bitshift);
 table_impl!(ProgramTable, TableKind::Program);
 table_impl!(MemoryTable, TableKind::Memory);
 table_impl!(MemoryInitTable, TableKind::MemoryInit);
+table_impl!(MemoryZeroInitTable, TableKind::MemoryZeroInit);
 table_impl!(RangeCheckLimbTable, TableKind::RangeCheckLimb);
 table_impl!(HalfWordMemoryTable, TableKind::HalfWordMemory);
 table_impl!(FullWordMemoryTable, TableKind::FullWordMemory);
@@ -455,6 +461,23 @@ impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
             MemoryInitTable::new(
                 memoryinit::columns::data_for_memory(),
                 memoryinit::columns::filter_for_memory(),
+            ),
+        )
+    }
+}
+
+pub struct MemoryZeroInitMemoryTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for MemoryZeroInitMemoryTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![MemoryTable::new(
+                memory::columns::data_for_memory_zeroinit(),
+                memory::columns::filter_for_memory_zeroinit(),
+            )],
+            MemoryZeroInitTable::new(
+                memory_zeroinit::columns::data_for_memory(),
+                memory_zeroinit::columns::filter_for_memory(),
             ),
         )
     }
