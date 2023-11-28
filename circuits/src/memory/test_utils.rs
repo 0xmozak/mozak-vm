@@ -52,7 +52,6 @@ pub fn memory_trace_test_case(repeats: usize) -> (Program, ExecutionRecord<Goldi
             (101, 0),
             (102, 0),
             (103, 0),
-            (200, 0),
             (201, 0),
             (202, 0),
             (203, 0),
