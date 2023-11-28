@@ -213,7 +213,6 @@ mod tests {
     };
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
-    use crate::memory::columns::Memory;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::test_utils::{inv, prep_table};
 
@@ -251,8 +250,7 @@ mod tests {
             trace,
             prep_table(vec![
                 //is_writable  addr  clk is_store, is_load, is_init  is_zeroed  value  diff_addr  diff_addr_inv  diff_clk
-                [       1,     100,   0,     0,      0,       1,         0,         0,    100,     inv(100),            0],  // Memory Init: 100
-                [       1,     100,   1,     1,      0,       0,         0,       255,      0,           0,             1],  // Operations:  100
+                [       1,     100,   1,     1,      0,       0,         1,       255,    100,    inv(100),             0],  // Operations:  100
                 [       1,     100,   2,     0,      1,       0,         0,       255,      0,           0,             1],  // Operations:  100
                 [       1,     100,   5,     1,      0,       0,         0,        10,      0,           0,             3],  // Operations:  100
                 [       1,     100,   6,     0,      1,       0,         0,        10,      0,           0,             1],  // Operations:  100
@@ -264,6 +262,7 @@ mod tests {
                 [       1,     201,   0,     0,      0,       1,         0,         0,      1,      inv(1),             0],  // Memory Init: 201
                 [       1,     202,   0,     0,      0,       1,         0,         0,      1,      inv(1),             0],  // Memory Init: 202
                 [       1,     203,   0,     0,      0,       1,         0,         0,      1,      inv(1),             0],  // Memory Init: 203
+                [       1,     203,   0,     0,      0,       0,         0,         0,      0,           0,             0],  // Padding
                 [       1,     203,   0,     0,      0,       0,         0,         0,      0,           0,             0],  // Padding
                 [       1,     203,   0,     0,      0,       0,         0,         0,      0,           0,             0],  // Padding
                 [       1,     203,   0,     0,      0,       0,         0,         0,      0,           0,             0],  // Padding
@@ -310,7 +309,7 @@ mod tests {
         assert_eq!(trace, prep_table(vec![
             // is_writable   addr   clk  is_store, is_load, is_init  is_zeroed  value  diff_addr  diff_addr_inv  diff_clk
             [        0,      100,   0,      0,        0,      1,         0,       5,    100,        inv(100),          0],
-            [        0,      101,   0,      0,        0,      1,         0,       6,      1,               1,          0],
+            [        0,      101,   0,      0,        0,      1,         0,       6,      1,          inv(1),          0],
             [        1,      200,   0,      0,        0,      1,         0,       7,     99,         inv(99),          0],
             [        1,      201,   0,      0,        0,      1,         0,       8,      1,               1,          0],
             [        1,      201,   0,      0,        0,      0,         0,       8,      0,               0,          0],

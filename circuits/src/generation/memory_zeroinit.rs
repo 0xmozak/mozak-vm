@@ -49,7 +49,7 @@ pub fn generate_memory_zero_init_trace<F: RichField>(
                 });
         });
 
-    let memory_zeroinits: Vec<MemoryZeroInit<F>> = zeroinit_set
+    let mut memory_zeroinits: Vec<MemoryZeroInit<F>> = zeroinit_set
         .into_iter()
         .map(|addr| MemoryZeroInit {
             addr,
@@ -57,6 +57,7 @@ pub fn generate_memory_zero_init_trace<F: RichField>(
         })
         .collect();
 
+    memory_zeroinits.sort_by_key(|m| m.addr.to_canonical_u64());
     pad_trace_with_default(memory_zeroinits)
 }
 
@@ -67,15 +68,35 @@ mod tests {
     use super::*;
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::memory::test_utils::memory_trace_test_case;
+    use crate::test_utils::prep_table;
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
 
     #[test]
-    fn test_generate() {
+    fn generate_trace() {
         let (program, record) = memory_trace_test_case(1);
         let memory_init_rows = generate_memory_init_trace(&program);
-        let _ = generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed);
+        let trace = generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed);
+
+        assert_eq!(
+            trace,
+            // In `memory_trace_test_case()`, there is 1 operation each on addresses
+            // '100' and '200' that only happen upon execution that is not in
+            // `MemoryInit`. This is tracked in this trace here, to prep for CTL.
+            prep_table(vec![
+                // addr, filter
+                [100, 1],
+                [200, 1],
+                // padding
+                [0, 0],
+                [0, 0],
+                [0, 0],
+                [0, 0],
+                [0, 0],
+                [0, 0],
+            ])
+        );
     }
 }
