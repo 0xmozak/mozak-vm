@@ -4,6 +4,7 @@ use starky::config::StarkConfig;
 
 use crate::test_utils::prove_and_verify_mozak_stark;
 
+#[allow(clippy::module_name_repetitions)]
 pub fn nop_bench(iterations: u32) -> Result<(), anyhow::Error> {
     let instructions = [
         Instruction {
