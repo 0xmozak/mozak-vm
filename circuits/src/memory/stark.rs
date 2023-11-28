@@ -120,11 +120,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // All memory init happens prior to exec and the `clk` would be `0`.
         yield_constr.constraint(lv.is_init * lv.clk);
 
-        // If instead, the `addr` talks about an address not coming from static ELF,
-        // it needs to begin with a `SB` (store) operation before any further access
-        // However `clk` value `0` is a special case.
-        // yield_constr.constraint(lv.diff_addr * lv.clk * (P::ONES - lv.is_store));
-
         // Operation constraints
         // ---------------------
         // No `SB` operation can be seen if memory address is not marked `writable`
