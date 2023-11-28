@@ -69,6 +69,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary(yield_constr, lv.is_store);
         is_binary(yield_constr, lv.is_load);
         is_binary(yield_constr, lv.is_init);
+        is_binary(yield_constr, lv.is_zeroed);
         is_binary(yield_constr, lv.is_executed());
 
         // `is_local_a_new_addr` should be binary. To keep constraint degree <= 3,
@@ -122,7 +123,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // If instead, the `addr` talks about an address not coming from static ELF,
         // it needs to begin with a `SB` (store) operation before any further access
         // However `clk` value `0` is a special case.
-        yield_constr.constraint(lv.diff_addr * lv.clk * (P::ONES - lv.is_store));
+        // yield_constr.constraint(lv.diff_addr * lv.clk * (P::ONES - lv.is_store));
 
         // Operation constraints
         // ---------------------
@@ -177,6 +178,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary_ext_circuit(builder, lv.is_store, yield_constr);
         is_binary_ext_circuit(builder, lv.is_load, yield_constr);
         is_binary_ext_circuit(builder, lv.is_init, yield_constr);
+        is_binary_ext_circuit(builder, lv.is_zeroed, yield_constr);
         let lv_is_executed = is_executed_ext_circuit(builder, lv);
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
@@ -191,11 +193,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         let is_init_mul_clk = builder.mul_extension(lv.is_init, lv.clk);
         yield_constr.constraint(builder, is_init_mul_clk);
-
-        let one_sub_is_store = builder.sub_extension(one, lv.is_store);
-        let diff_addr_mul_clk = builder.mul_extension(lv.diff_addr, lv.clk);
-        let constr = builder.mul_extension(diff_addr_mul_clk, one_sub_is_store);
-        yield_constr.constraint(builder, constr);
 
         let one_sub_is_writable = builder.sub_extension(one, lv.is_writable);
         let is_store_mul_one_sub_is_writable =
