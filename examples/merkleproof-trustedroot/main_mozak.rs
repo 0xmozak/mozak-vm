@@ -1,11 +1,13 @@
 #![no_main]
 #![feature(restricted_std)]
+mod core_logic;
 
-use core::assert_eq;
+use std::io::Read;
 
 use mozak_sdk::io::{get_tapes, Extractor};
 use rs_merkle::algorithms::Sha256;
 use rs_merkle::MerkleProof;
+use rkyv::Deserialize;
 
 use crate::core_logic::TestData;
 
@@ -13,14 +15,23 @@ use crate::core_logic::TestData;
 /// This function verifies
 fn merkleproof_trustedroot_verify(
     // Public inputs
-    merkleroot: [u8; 32],
+    merkle_root: [u8; 32],
 
     // Private inputs
-    leaves: TestData,
-    proof: Vec<u8>,
+    proof_data: TestData
 ) {
-    let proof = MerkleProof::<Sha256>::try_from(proof).unwrap();
-    assert!(proof.verify(merkleroot, vec![3, 4], leaf_hashes, leaves.len()))
+    let proof = MerkleProof::<Sha256>::try_from(proof_data.proof_bytes).unwrap();
+    let indices: Vec<usize> = proof_data
+        .indices_to_prove
+        .iter()
+        .map(|&x| x as usize)
+        .collect();
+    assert!(proof.verify(
+        merkle_root,
+        &indices[..],
+        proof_data.leaves_hashes.as_slice(),
+        proof_data.leaves_len as usize,
+    ));
 }
 
 // In general, we try to envision `main()` not be a
@@ -37,16 +48,28 @@ pub fn main() {
 
     match function_id {
         0 => {
-            let mut merkleroot: [u8; 32] = [0; 32];
-            const MERKLEPROOF_MAX: usize = 255;
-            let mut proofbuf: [u8; MERKLEPROOF_MAX] = [0; MERKLEPROOF_MAX];
+            let mut merkle_root_buffer = [0u8; 32];
+            public_tape
+                .read(&mut merkle_root_buffer)
+                .expect("(public) read failed for merkle root");
 
-            // TODO: make this 32-bit
-            let proof_len = private_tape.get_u8();
-            public_tape.get_buf(&mut merkleroot, 32);
-            private_tape.get_buf(&mut proofbuf, proof_len.into());
+            let mut length_prefix = [0u8; 4];
+            // Length prefix (u32)
+            private_tape
+                .read(&mut length_prefix)
+                .expect("(private) read failed for length prefix");
+            let length_prefix = u32::from_le_bytes(length_prefix);
 
-            merkleproof_trustedroot_verify(merkleroot, proofbuf[0..(proof_len as usize)].to_vec());
+            let mut testdata_buf = Vec::with_capacity(length_prefix as usize);
+            testdata_buf.resize(length_prefix as usize, 0);
+            private_tape
+                .read(&mut testdata_buf[0..(length_prefix as usize)])
+                .expect("(private) read failed for merkle proof data");
+
+            let archived = unsafe { rkyv::archived_root::<TestData>(&testdata_buf) };
+            let deserialized_testdata: TestData = archived.deserialize(&mut rkyv::Infallible).unwrap();
+
+            merkleproof_trustedroot_verify(merkle_root_buffer, deserialized_testdata);
         }
         _ => (),
     };

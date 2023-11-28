@@ -139,12 +139,16 @@ fn deserialize_from_disk(
 
     println!("Reading, deserializing and verifying buffers from disk [done]");
 
-    (merkle_root_buffer, TestData::default())
+    (merkle_root_buffer, deserialized_testdata)
 }
 
 fn verify_proof(merkle_root: [u8; 32], proof_data: TestData) {
     let proof = MerkleProof::<Sha256>::try_from(proof_data.proof_bytes).unwrap();
-    let indices: Vec<usize> = proof_data.indices_to_prove.iter().map(|&x| x as usize).collect();
+    let indices: Vec<usize> = proof_data
+        .indices_to_prove
+        .iter()
+        .map(|&x| x as usize)
+        .collect();
     assert!(proof.verify(
         merkle_root,
         &indices[..],
