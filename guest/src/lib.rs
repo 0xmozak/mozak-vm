@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc as rust_alloc;
 
@@ -11,10 +11,10 @@ pub mod hash;
 macro_rules! entry {
     ($path:path) => {
         // Type check the given path
-#[cfg(target_os = "zkvm")]
+        #[cfg(target_os = "zkvm")]
         const MOZAK_ENTRY: fn() = $path;
 
-#[cfg(target_os = "zkvm")]
+        #[cfg(target_os = "zkvm")]
         mod mozak_generated_main {
             #[no_mangle]
             fn main() { super::MOZAK_ENTRY() }
