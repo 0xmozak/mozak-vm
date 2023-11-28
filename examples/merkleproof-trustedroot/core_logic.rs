@@ -1,7 +1,12 @@
 extern crate alloc;
 use alloc::vec::Vec;
+use std::fs::File;
+use std::io::{Read, Write};
 
+use rkyv::ser::serializers::AllocSerializer;
 use rkyv::{Archive, Deserialize, Serialize};
+use rs_merkle::algorithms::Sha256;
+use rs_merkle::MerkleProof;
 
 #[derive(Archive, Deserialize, Serialize, Debug, PartialEq, Default)]
 #[archive(
@@ -11,9 +16,59 @@ use rkyv::{Archive, Deserialize, Serialize};
 )]
 // // Derives can be passed through to the generated type:
 #[archive_attr(derive(Debug))]
-pub struct TestData {
+pub struct ProofData {
+    /// Indices in merkle tree to be proven
     pub indices_to_prove: Vec<u32>,
-    pub leaves_hashes: Vec<[u8; 32]>,
+
+    /// Hashes of the leaves at the indices
+    /// that we intend to prove
+    pub leaf_hashes: Vec<[u8; 32]>,
+
+    /// Serialized (non-rkyv) bytes that merkle-prove
+    /// multiple `leaf_hashes` against a trust `merkle_root`
     pub proof_bytes: Vec<u8>,
+
+    /// Number of leaves in the merkle tree
     pub leaves_len: u32,
+}
+
+pub type MerkleRootType = [u8; 32];
+
+// TODO: shift to SDK
+pub fn to_tape_function_id(public_tape: &mut File, id: u8) {
+    public_tape
+        .write(&[id])
+        .expect("failure while writing function ID");
+}
+
+// TODO: shift to SDK
+pub fn to_tape_rawbuf(tape: &mut File, buf: &[u8]) {
+    tape.write(buf).expect("failure while writing raw buffer");
+}
+
+// TODO: shift to SDK
+pub fn to_tape_serialized<T, const N: usize>(tape: &mut File, object: &T)
+where
+    T: Serialize<AllocSerializer<N>>, {
+    let serialized_obj = rkyv::to_bytes::<_, N>(object).unwrap();
+    let serialized_obj_len = (serialized_obj.len() as u32).to_le_bytes();
+    tape.write(&serialized_obj_len)
+        .expect("failure while writing serialized obj len prefix");
+    tape.write(&serialized_obj)
+        .expect("failure while writing serialized obj");
+}
+
+pub fn verify_merkle_proof(merkle_root: MerkleRootType, proof_data: ProofData) {
+    let proof = MerkleProof::<Sha256>::try_from(proof_data.proof_bytes).unwrap();
+    let indices: Vec<usize> = proof_data
+        .indices_to_prove
+        .iter()
+        .map(|&x| x as usize)
+        .collect();
+    assert!(proof.verify(
+        merkle_root,
+        &indices[..],
+        proof_data.leaf_hashes.as_slice(),
+        proof_data.leaves_len as usize,
+    ));
 }

@@ -5,11 +5,11 @@ mod core_logic;
 use std::io::Read;
 
 use mozak_sdk::io::{get_tapes, Extractor};
+use rkyv::Deserialize;
 use rs_merkle::algorithms::Sha256;
 use rs_merkle::MerkleProof;
-use rkyv::Deserialize;
 
-use crate::core_logic::TestData;
+use crate::core_logic::{ProofData, verify_merkle_proof};
 
 /// ## Function ID 0
 /// This function verifies
@@ -18,20 +18,9 @@ fn merkleproof_trustedroot_verify(
     merkle_root: [u8; 32],
 
     // Private inputs
-    proof_data: TestData
+    proof_data: ProofData,
 ) {
-    let proof = MerkleProof::<Sha256>::try_from(proof_data.proof_bytes).unwrap();
-    let indices: Vec<usize> = proof_data
-        .indices_to_prove
-        .iter()
-        .map(|&x| x as usize)
-        .collect();
-    assert!(proof.verify(
-        merkle_root,
-        &indices[..],
-        proof_data.leaves_hashes.as_slice(),
-        proof_data.leaves_len as usize,
-    ));
+    verify_merkle_proof(merkle_root, proof_data);
 }
 
 // In general, we try to envision `main()` not be a
@@ -66,8 +55,9 @@ pub fn main() {
                 .read(&mut testdata_buf[0..(length_prefix as usize)])
                 .expect("(private) read failed for merkle proof data");
 
-            let archived = unsafe { rkyv::archived_root::<TestData>(&testdata_buf) };
-            let deserialized_testdata: TestData = archived.deserialize(&mut rkyv::Infallible).unwrap();
+            let archived = unsafe { rkyv::archived_root::<ProofData>(&testdata_buf) };
+            let deserialized_testdata: ProofData =
+                archived.deserialize(&mut rkyv::Infallible).unwrap();
 
             merkleproof_trustedroot_verify(merkle_root_buffer, deserialized_testdata);
         }
