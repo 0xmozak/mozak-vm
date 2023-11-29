@@ -28,7 +28,7 @@ use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{all_kind, all_starks};
 use crate::cross_table_lookup::{CrossTableLookup, CtlCheckVarsTarget};
-use crate::stark::mozak_stark::{MozakStark, TableKind, NUM_TABLES};
+use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::poly::eval_vanishing_poly_circuit;
 use crate::stark::proof::{
@@ -44,7 +44,7 @@ where
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>, {
     pub circuit: CircuitData<F, C, D>,
-    pub targets: [StarkVerifierTargets<F, C, D>; NUM_TABLES],
+    pub targets: [StarkVerifierTargets<F, C, D>; TableKind::COUNT],
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -129,7 +129,7 @@ pub fn recursive_mozak_stark_circuit<
     const D: usize,
 >(
     mozak_stark: &MozakStark<F, D>,
-    degree_bits: [usize; NUM_TABLES],
+    degree_bits: [usize; TableKind::COUNT],
     circuit_config: &CircuitConfig,
     inner_config: &StarkConfig,
     min_degree_bits: usize,
