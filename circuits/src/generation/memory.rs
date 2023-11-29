@@ -191,12 +191,11 @@ pub fn generate_memory_trace<F: RichField>(
             {
                 vec![
                     Memory {
-                        is_writable: F::ONE,
-                        addr: mem.addr,
+                        clk: F::ZERO,
+                        is_store: F::ZERO,
+                        is_load: F::ZERO,
                         is_init: F::ONE,
-                        diff_addr: mem.diff_addr,
-                        diff_addr_inv: mem.diff_addr_inv,
-                        ..Memory::default()
+                        ..mem
                     },
                     Memory {
                         diff_addr: F::ZERO,
