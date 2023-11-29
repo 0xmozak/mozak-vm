@@ -195,6 +195,7 @@ pub fn generate_memory_trace<F: RichField>(
                         is_store: F::ZERO,
                         is_load: F::ZERO,
                         is_init: F::ONE,
+                        diff_clk: F::ZERO,
                         ..mem
                     },
                     Memory {
