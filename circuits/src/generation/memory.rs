@@ -164,7 +164,6 @@ pub fn generate_memory_trace<F: RichField>(
     let merged_trace = merged_trace
         .into_iter()
         .flat_map(move |mut mem| {
-            // for mem in &mut merged_trace {
             mem.diff_addr = mem.addr - last_addr.unwrap_or_default();
             mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
             if Some(mem.addr) == last_addr {
