@@ -62,7 +62,7 @@ impl From<&MozakMemoryRegion> for IoTapeData {
             .data
             .iter()
             .sorted_by_key(|e| e.0)
-            .map(|e| *e.1)
+            .map(|e| *e.1) // FIXME: this assumes `mozak_memory_region` is dense
             .collect();
         Self {
             mozak_offset: mozak_memory_region.starting_address,
