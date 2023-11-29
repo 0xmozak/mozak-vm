@@ -22,7 +22,6 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
             is_store: F::ZERO,
             is_load: F::ZERO,
             is_init: F::ZERO,
-            is_zeroed: F::ZERO,
             diff_addr: F::ZERO,
             diff_addr_inv: F::ZERO,
             diff_clk: F::ZERO,
@@ -162,34 +161,51 @@ pub fn generate_memory_trace<F: RichField>(
     let mut last_clk = F::ZERO;
     let mut last_addr = None;
     let mut last_is_writable = F::ONE;
-    for mem in &mut merged_trace {
-        mem.diff_addr = mem.addr - last_addr.unwrap_or_default();
-        mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
-        if Some(mem.addr) == last_addr {
-            // the check doesn't pass for the first row, so this is ok.
-            mem.diff_clk = mem.clk - last_clk;
-        } else {
-            // rows with is_init set are the source of truth about is_writable
-            // non init memory are always writable
-            last_is_writable = F::from_bool(mem.is_init.is_zero() | mem.is_writable.is_one());
-        }
-        (last_clk, last_addr) = (mem.clk, Some(mem.addr));
-        mem.is_writable = last_is_writable;
+    let merged_trace = merged_trace
+        .into_iter()
+        .flat_map(move |mut mem| {
+            mem.diff_addr = mem.addr - last_addr.unwrap_or_default();
+            mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
+            if Some(mem.addr) == last_addr {
+                // the check doesn't pass for the first row, so this is ok.
+                mem.diff_clk = mem.clk - last_clk;
+            } else {
+                // rows with is_init set are the source of truth about is_writable
+                // non init memory are always writable
+                last_is_writable = F::from_bool(mem.is_init.is_zero() | mem.is_writable.is_one());
+            }
+            (last_clk, last_addr) = (mem.clk, Some(mem.addr));
+            mem.is_writable = last_is_writable;
 
-        // If the row:
-        //   1) is not an init row,
-        //   2) is an execution row (not padding),
-        //   3) is a new address entry in the trace i.e. we have a store or load without
-        //   any inits,
-        // Then we want to mark the current memory address as 'zeroed out'
-        // to be looked up by the `MemoryZeroInit` trace.
-        if mem.is_init.is_zero()
-            && (mem.is_load.is_one() || mem.is_store.is_one())
-            && mem.diff_addr.is_nonzero()
-        {
-            mem.is_zeroed = F::ONE;
-        }
-    }
+            // TODO(Matthias): Fix logic.
+            // If the row:
+            //   1) is an execution row (not padding),
+            //   2) is a new address entry in the trace i.e. diff_addr != 0
+            // Then we want to mark the current memory address as 'zeroed out'
+            // to be looked up by the `MemoryZeroInit` trace by inserting
+            // an extra init row.
+            if (mem.is_load.is_one() || mem.is_store.is_one()) && mem.diff_addr.is_nonzero() {
+                vec![
+                    Memory {
+                        clk: F::ONE,
+                        is_store: F::ZERO,
+                        is_load: F::ZERO,
+                        is_init: F::ONE,
+                        diff_clk: F::ZERO,
+                        value: F::ZERO,
+                        ..mem
+                    },
+                    Memory {
+                        diff_addr: F::ZERO,
+                        diff_addr_inv: F::ZERO,
+                        ..mem
+                    },
+                ]
+            } else {
+                vec![mem]
+            }
+        })
+        .collect();
 
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
@@ -249,23 +265,23 @@ mod tests {
         assert_eq!(
             trace,
             prep_table(vec![
-                //is_writable  addr  clk is_store, is_load, is_init  is_zeroed  value  diff_addr  diff_addr_inv  diff_clk
-                [       1,     100,   1,     1,      0,       0,         1,       255,    100,    inv(100),             0],  // Operations:  100
-                [       1,     100,   2,     0,      1,       0,         0,       255,      0,           0,             1],  // Operations:  100
-                [       1,     100,   5,     1,      0,       0,         0,        10,      0,           0,             3],  // Operations:  100
-                [       1,     100,   6,     0,      1,       0,         0,        10,      0,           0,             1],  // Operations:  100
-                [       1,     101,   0,     0,      0,       1,         0,         0,      1,      inv(1),             0],  // Memory Init: 101
-                [       1,     102,   0,     0,      0,       1,         0,         0,      1,      inv(1),             0],  // Memory Init: 102
-                [       1,     103,   0,     0,      0,       1,         0,         0,      1,      inv(1),             0],  // Memory Init: 103
-                [       1,     200,   3,     1,      0,       0,         1,        15,     97,     inv(97),             0],  // Operations:  200
-                [       1,     200,   4,     0,      1,       0,         0,        15,      0,           0,             1],  // Operations:  200
-                [       1,     201,   0,     0,      0,       1,         0,         0,      1,      inv(1),             0],  // Memory Init: 201
-                [       1,     202,   0,     0,      0,       1,         0,         0,      1,      inv(1),             0],  // Memory Init: 202
-                [       1,     203,   0,     0,      0,       1,         0,         0,      1,      inv(1),             0],  // Memory Init: 203
-                [       1,     203,   0,     0,      0,       0,         0,         0,      0,           0,             0],  // Padding
-                [       1,     203,   0,     0,      0,       0,         0,         0,      0,           0,             0],  // Padding
-                [       1,     203,   0,     0,      0,       0,         0,         0,      0,           0,             0],  // Padding
-                [       1,     203,   0,     0,      0,       0,         0,         0,      0,           0,             0],  // Padding
+                //is_writable  addr  clk is_store, is_load, is_init  value  diff_addr  diff_addr_inv  diff_clk
+                [       1,     100,   1,     0,      0,       1,        0,    100,       inv(100),         0],  // Zero Init:   100
+                [       1,     100,   2,     1,      0,       0,      255,      0,              0,         0],  // Operations:  100
+                [       1,     100,   3,     0,      1,       0,      255,      0,              0,         1],  // Operations:  100
+                [       1,     100,   6,     1,      0,       0,       10,      0,              0,         3],  // Operations:  100
+                [       1,     100,   7,     0,      1,       0,       10,      0,              0,         1],  // Operations:  100
+                [       1,     101,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 101
+                [       1,     102,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 102
+                [       1,     103,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 103
+                [       1,     200,   1,     0,      0,       1,        0,     97,        inv(97),         0],  // Zero Init:   200
+                [       1,     200,   4,     1,      0,       0,       15,      0,              0,         0],  // Operations:  200
+                [       1,     200,   5,     0,      1,       0,       15,      0,              0,         1],  // Operations:  200
+                [       1,     201,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 201
+                [       1,     202,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 202
+                [       1,     203,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 203
+                [       1,     203,   0,     0,      0,       0,        0,      0,              0,         0],  // Padding
+                [       1,     203,   0,     0,      0,       0,        0,      0,              0,         0],  // Padding
             ])
         );
     }
@@ -307,15 +323,15 @@ mod tests {
 
         let inv = inv::<F>;
         assert_eq!(trace, prep_table(vec![
-            // is_writable   addr   clk  is_store, is_load, is_init  is_zeroed  value  diff_addr  diff_addr_inv  diff_clk
-            [        0,      100,   0,      0,        0,      1,         0,       5,    100,        inv(100),          0],
-            [        0,      101,   0,      0,        0,      1,         0,       6,      1,          inv(1),          0],
-            [        1,      200,   0,      0,        0,      1,         0,       7,     99,         inv(99),          0],
-            [        1,      201,   0,      0,        0,      1,         0,       8,      1,               1,          0],
-            [        1,      201,   0,      0,        0,      0,         0,       8,      0,               0,          0],
-            [        1,      201,   0,      0,        0,      0,         0,       8,      0,               0,          0],
-            [        1,      201,   0,      0,        0,      0,         0,       8,      0,               0,          0],
-            [        1,      201,   0,      0,        0,      0,         0,       8,      0,               0,          0],
+            // is_writable   addr   clk  is_store, is_load, is_init  value  diff_addr  diff_addr_inv  diff_clk
+            [        0,      100,   0,      0,        0,      1,         5,      100,        inv(100),       0],
+            [        0,      101,   0,      0,        0,      1,         6,        1,          inv(1),       0],
+            [        1,      200,   0,      0,        0,      1,         7,       99,         inv(99),       0],
+            [        1,      201,   0,      0,        0,      1,         8,        1,               1,       0],
+            [        1,      201,   0,      0,        0,      0,         8,        0,               0,       0],
+            [        1,      201,   0,      0,        0,      0,         8,        0,               0,       0],
+            [        1,      201,   0,      0,        0,      0,         8,        0,               0,       0],
+            [        1,      201,   0,      0,        0,      0,         8,        0,               0,       0],
         ]));
     }
 }

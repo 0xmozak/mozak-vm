@@ -43,8 +43,6 @@ pub struct Memory<T> {
     pub is_load: T,
     /// Memory Initialisation from ELF (prior to vm execution)
     pub is_init: T,
-    /// Memory Initialisation for memory accesses (during vm execution)
-    pub is_zeroed: T,
 
     /// Value of memory access.
     pub value: T,
@@ -197,7 +195,6 @@ pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
         Column::single(col_map().addr),
         Column::single(col_map().clk),
         Column::single(col_map().value),
-        Column::single(col_map().is_init),
     ]
 }
 
@@ -230,10 +227,13 @@ pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
 /// Table
 #[must_use]
 pub fn data_for_memory_zeroinit<F: Field>() -> Vec<Column<F>> {
-    vec![Column::single(col_map().addr)]
+    vec![
+        Column::single(col_map().addr),
+        Column::constant(F::ONE), // clk
+    ]
 }
 
 /// Column for a binary filter to indicate a lookup to the `MemoryZeroInit`
 /// Table
 #[must_use]
-pub fn filter_for_memory_zeroinit<F: Field>() -> Column<F> { Column::single(col_map().is_zeroed) }
+pub fn filter_for_memory_zeroinit<F: Field>() -> Column<F> { Column::single(col_map().is_init) }

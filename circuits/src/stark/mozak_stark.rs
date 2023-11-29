@@ -32,7 +32,7 @@ use crate::{
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
-    13 + cfg!(feature = "enable_register_starks") as usize
+    12 + cfg!(feature = "enable_register_starks") as usize
         + cfg!(feature = "enable_poseidon_starks") as usize * 2
 };
 
@@ -239,7 +239,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 ProgramCpuTable::lookups(),
                 IntoMemoryTable::lookups(),
                 MemoryInitMemoryTable::lookups(),
-                MemoryZeroInitMemoryTable::lookups(),
                 LimbTable::lookups(),
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
@@ -454,30 +453,19 @@ pub struct MemoryInitMemoryTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
-            vec![MemoryTable::new(
+            vec![
+                MemoryInitTable::new(
+                    memoryinit::columns::data_for_memory(),
+                    memoryinit::columns::filter_for_memory(),
+                ),
+                MemoryZeroInitTable::new(
+                    memory_zeroinit::columns::data_for_memory(),
+                    memory_zeroinit::columns::filter_for_memory(),
+                ),
+            ],
+            MemoryTable::new(
                 memory::columns::data_for_memoryinit(),
                 memory::columns::filter_for_memoryinit(),
-            )],
-            MemoryInitTable::new(
-                memoryinit::columns::data_for_memory(),
-                memoryinit::columns::filter_for_memory(),
-            ),
-        )
-    }
-}
-
-pub struct MemoryZeroInitMemoryTable<F: Field>(CrossTableLookup<F>);
-
-impl<F: Field> Lookups<F> for MemoryZeroInitMemoryTable<F> {
-    fn lookups() -> CrossTableLookup<F> {
-        CrossTableLookup::new(
-            vec![MemoryTable::new(
-                memory::columns::data_for_memory_zeroinit(),
-                memory::columns::filter_for_memory_zeroinit(),
-            )],
-            MemoryZeroInitTable::new(
-                memory_zeroinit::columns::data_for_memory(),
-                memory_zeroinit::columns::filter_for_memory(),
             ),
         )
     }
