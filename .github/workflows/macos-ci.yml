@@ -40,7 +40,7 @@ jobs:
         run: cargo test --no-run --locked --all-targets
 
       - name: Test
-        run: MOZAK_STARK_DEBUG=true cargo nextest run --locked --all-targets
+        run: MOZAK_STARK_DEBUG=true cargo nextest run --no-fail-fast --locked --all-targets
 
       - name: Create github issue for failed action
         uses: imjohnbo/issue-bot@v3
