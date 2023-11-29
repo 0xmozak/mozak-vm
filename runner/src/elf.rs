@@ -1,6 +1,7 @@
 use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::iter::repeat;
+use std::time;
 
 use anyhow::{anyhow, ensure, Result};
 use derive_more::{Deref, DerefMut};
@@ -17,7 +18,6 @@ use serde::{Deserialize, Serialize};
 use crate::decode::decode_instruction;
 use crate::instruction::{DecodingError, Instruction};
 use crate::util::load_u32;
-
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MozakMemoryRegion {
     pub starting_address: u32,
@@ -194,10 +194,27 @@ impl MozakMemory {
 /// A Mozak program runtime arguments
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MozakRunTimeArguments {
-    state_root: [u8; 32],
-    timestamp: [u8; 4],
-    io_tape_private: Vec<u8>,
-    io_tape_public: Vec<u8>,
+    pub state_root: [u8; 32],
+    pub timestamp: [u8; 4],
+    pub io_tape_private: Vec<u8>,
+    pub io_tape_public: Vec<u8>,
+}
+
+impl MozakRunTimeArguments {
+    /// # Panics
+    #[must_use]
+    pub fn new(state_root: &[u8; 32], io_tape_private: &[u8], io_tape_public: &[u8]) -> Self {
+        MozakRunTimeArguments {
+            state_root: *state_root,
+            timestamp: time::SystemTime::now()
+                .duration_since(time::SystemTime::UNIX_EPOCH)
+                .expect("Time-Now - duration UNIX_EPOCH should succeed")
+                .as_secs_f32()
+                .to_le_bytes(),
+            io_tape_private: io_tape_private.to_vec(),
+            io_tape_public: io_tape_public.to_vec(),
+        }
+    }
 }
 
 /// A RISC-V program
@@ -311,7 +328,6 @@ impl From<HashMap<u32, u32>> for Data {
         )
     }
 }
-
 impl Program {
     /// Initialize a RISC Program from an appropriate ELF file
     ///
@@ -436,22 +452,38 @@ impl Program {
     ///
     /// # Panics
     /// TODO: Roman
-    pub fn load_program(
-        elf_bytes: &[u8],
-        io_tape_private: &[u8],
-        io_tape_public: &[u8],
-    ) -> Result<Program> {
+    pub fn load_program(elf_bytes: &[u8], args: &MozakRunTimeArguments) -> Result<Program> {
         let mut program = Program::load_elf(elf_bytes).unwrap();
+        // [0] - State Root
+        let state_root_addr = program.mozak_ro_memory.state_root.starting_address;
+        for (i, ell) in args.state_root.iter().enumerate() {
+            program
+                .mozak_ro_memory
+                .state_root
+                .data
+                .insert(state_root_addr + u32::try_from(i).unwrap(), *ell);
+        }
+        // [1] - Timestamp
+        let timestamp_addr = program.mozak_ro_memory.timestamp.starting_address;
+        for (i, ell) in args.state_root.iter().enumerate() {
+            program
+                .mozak_ro_memory
+                .timestamp
+                .data
+                .insert(timestamp_addr + u32::try_from(i).unwrap(), *ell);
+        }
+        // [2] - IO private
         let io_priv_start_addr = program.mozak_ro_memory.io_tape_private.starting_address;
-        for (i, e) in io_tape_private.iter().enumerate() {
+        for (i, e) in args.io_tape_private.iter().enumerate() {
             program
                 .mozak_ro_memory
                 .io_tape_private
                 .data
                 .insert(io_priv_start_addr + u32::try_from(i).unwrap(), *e);
         }
+        // [3] - IO public
         let io_pub_start_addr = program.mozak_ro_memory.io_tape_public.starting_address;
-        for (i, e) in io_tape_public.iter().enumerate() {
+        for (i, e) in args.io_tape_public.iter().enumerate() {
             program
                 .mozak_ro_memory
                 .io_tape_public

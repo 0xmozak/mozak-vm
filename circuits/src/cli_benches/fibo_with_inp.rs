@@ -1,4 +1,4 @@
-use mozak_runner::elf::Program;
+use mozak_runner::elf::{MozakRunTimeArguments, Program};
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
@@ -32,7 +32,11 @@ pub fn fibonacci_with_input(n: u32) -> Result<(), anyhow::Error> {
             eg. `cd examples/fibonacci-input && cargo build --release`",
     );
     let out = fibonacci(n);
-    let program = Program::load_program(&elf, &n.to_le_bytes(), &out.to_le_bytes()).unwrap();
+    let program = Program::load_program(
+        &elf,
+        &MozakRunTimeArguments::new(&[0; 32], &n.to_le_bytes(), &out.to_le_bytes()),
+    )
+    .unwrap();
     let state = State::<GoldilocksField>::new(program.clone());
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record)
