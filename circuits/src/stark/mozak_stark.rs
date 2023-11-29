@@ -454,13 +454,13 @@ pub struct MemoryInitMemoryTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         CrossTableLookup::new(
-            vec![MemoryTable::new(
-                memory::columns::data_for_memoryinit(),
-                memory::columns::filter_for_memoryinit(),
-            )],
-            MemoryInitTable::new(
+            vec![MemoryInitTable::new(
                 memoryinit::columns::data_for_memory(),
                 memoryinit::columns::filter_for_memory(),
+            )],
+            MemoryTable::new(
+                memory::columns::data_for_memoryinit(),
+                memory::columns::filter_for_memoryinit(),
             ),
         )
     }
