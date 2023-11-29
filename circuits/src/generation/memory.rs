@@ -161,35 +161,55 @@ pub fn generate_memory_trace<F: RichField>(
     let mut last_clk = F::ZERO;
     let mut last_addr = None;
     let mut last_is_writable = F::ONE;
-    for mem in &mut merged_trace {
-        mem.diff_addr = mem.addr - last_addr.unwrap_or_default();
-        mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
-        if Some(mem.addr) == last_addr {
-            // the check doesn't pass for the first row, so this is ok.
-            mem.diff_clk = mem.clk - last_clk;
-        } else {
-            // rows with is_init set are the source of truth about is_writable
-            // non init memory are always writable
-            last_is_writable = F::from_bool(mem.is_init.is_zero() | mem.is_writable.is_one());
-        }
-        (last_clk, last_addr) = (mem.clk, Some(mem.addr));
-        mem.is_writable = last_is_writable;
+    let merged_trace = merged_trace
+        .into_iter()
+        .flat_map(move |mut mem| {
+            // for mem in &mut merged_trace {
+            mem.diff_addr = mem.addr - last_addr.unwrap_or_default();
+            mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
+            if Some(mem.addr) == last_addr {
+                // the check doesn't pass for the first row, so this is ok.
+                mem.diff_clk = mem.clk - last_clk;
+            } else {
+                // rows with is_init set are the source of truth about is_writable
+                // non init memory are always writable
+                last_is_writable = F::from_bool(mem.is_init.is_zero() | mem.is_writable.is_one());
+            }
+            (last_clk, last_addr) = (mem.clk, Some(mem.addr));
+            mem.is_writable = last_is_writable;
 
-        // TODO(Matthias): Fix logic.
-        // If the row:
-        //   1) is not an init row,
-        //   2) is an execution row (not padding),
-        //   3) is a new address entry in the trace i.e. we have a store or load without
-        //   any inits,
-        // Then we want to mark the current memory address as 'zeroed out'
-        // to be looked up by the `MemoryZeroInit` trace.
-        if mem.is_init.is_zero()
-            && (mem.is_load.is_one() || mem.is_store.is_one())
-            && mem.diff_addr.is_nonzero()
-        {
-            mem.is_init = F::ONE;
-        }
-    }
+            // TODO(Matthias): Fix logic.
+            // If the row:
+            //   1) is not an init row,
+            //   2) is an execution row (not padding),
+            //   3) is a new address entry in the trace i.e. we have a store or load without
+            //   any inits,
+            // Then we want to mark the current memory address as 'zeroed out'
+            // to be looked up by the `MemoryZeroInit` trace.
+            if mem.is_init.is_zero()
+                && (mem.is_load.is_one() || mem.is_store.is_one())
+                && mem.diff_addr.is_nonzero()
+            {
+                vec![
+                    Memory {
+                        is_writable: F::ONE,
+                        addr: mem.addr,
+                        is_init: F::ONE,
+                        diff_addr: mem.diff_addr,
+                        diff_addr_inv: mem.diff_addr_inv,
+                        ..Memory::default()
+                    },
+                    Memory {
+                        diff_addr: F::ZERO,
+                        diff_addr_inv: F::ZERO,
+                        ..mem
+                    },
+                ]
+            } else {
+                vec![mem]
+            }
+        })
+        .collect();
 
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
