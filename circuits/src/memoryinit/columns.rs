@@ -35,8 +35,6 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
         // clk:
         Column::constant(F::ZERO),
         Column::single(col_map().element.value),
-        // is_init:
-        Column::constant(F::ONE),
     ]
 }
 

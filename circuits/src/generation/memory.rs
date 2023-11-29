@@ -22,7 +22,6 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
             is_store: F::ZERO,
             is_load: F::ZERO,
             is_init: F::ZERO,
-            is_zeroed: F::ZERO,
             diff_addr: F::ZERO,
             diff_addr_inv: F::ZERO,
             diff_clk: F::ZERO,
@@ -176,6 +175,7 @@ pub fn generate_memory_trace<F: RichField>(
         (last_clk, last_addr) = (mem.clk, Some(mem.addr));
         mem.is_writable = last_is_writable;
 
+        // TODO(Matthias): Fix logic.
         // If the row:
         //   1) is not an init row,
         //   2) is an execution row (not padding),
@@ -187,7 +187,7 @@ pub fn generate_memory_trace<F: RichField>(
             && (mem.is_load.is_one() || mem.is_store.is_one())
             && mem.diff_addr.is_nonzero()
         {
-            mem.is_zeroed = F::ONE;
+            mem.is_init = F::ONE;
         }
     }
 

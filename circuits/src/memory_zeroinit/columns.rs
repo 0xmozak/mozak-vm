@@ -16,7 +16,17 @@ pub const NUM_MEMORYINIT_COLS: usize = MemoryZeroInit::<()>::NUMBER_OF_COLUMNS;
 
 /// Columns containing the data which are looked up from the Memory Table
 #[must_use]
-pub fn data_for_memory<F: Field>() -> Vec<Column<F>> { vec![Column::single(col_map().addr)] }
+pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
+    vec![
+        // is_writable:
+        Column::constant(F::ONE),
+        Column::single(col_map().addr),
+        // clk:
+        Column::constant(F::ZERO),
+        // value:
+        Column::constant(F::ZERO),
+    ]
+}
 
 /// Column for a binary filter to indicate a lookup from the Memory Table
 #[must_use]
