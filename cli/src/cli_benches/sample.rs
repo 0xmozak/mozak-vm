@@ -1,8 +1,7 @@
+use mozak_circuits::stark::mozak_stark::MozakStark;
+use mozak_circuits::test_utils::ProveAndVerify;
 use mozak_runner::instruction::{Args, Instruction, Op};
 use mozak_runner::test_utils::simple_test_code;
-
-use crate::stark::mozak_stark::MozakStark;
-use crate::test_utils::ProveAndVerify;
 
 #[allow(clippy::pedantic)]
 pub fn sample_bench(reg_value: u32) -> Result<(), anyhow::Error> {
