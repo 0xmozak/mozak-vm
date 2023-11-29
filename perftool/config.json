@@ -19,6 +19,24 @@
                 "latest": "latest"
             },
             "elf": "examples/fibonacci-input"
+        },
+
+        "xor-stark2": {
+            "description": "Benching XorStark with Plonky2 backend",
+            "parameter": "n",
+            "output": "time taken (in s)",
+            "commits": {
+                "latest": "latest"
+            }
+        },
+
+        "xor-stark3": {
+            "description": "Benching XorStark with Plonky3 backend",
+            "parameter": "n",
+            "output": "time taken (in s)",
+            "commits": {
+                "latest": "latest"
+            }
         }
     }
 }

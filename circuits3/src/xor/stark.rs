@@ -6,7 +6,7 @@ use p3_matrix::MatrixRowSlices;
 use super::columns::XorColumnsView;
 use crate::utils::reduce_with_powers;
 
-struct XorStark;
+pub struct XorStark;
 
 impl<F> BaseAir<F> for XorStark {}
 
