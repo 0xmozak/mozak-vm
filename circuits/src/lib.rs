@@ -8,7 +8,6 @@
 #![allow(clippy::ignored_unit_patterns)]
 
 pub mod bitshift;
-pub mod cli_benches;
 pub mod columns_view;
 pub mod cpu;
 pub mod cross_table_lookup;
