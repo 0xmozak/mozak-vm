@@ -58,10 +58,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // inverse in the field leading multiplied value `1`. In case there is
         // no change in addr, `diff_addr` (and consequently `diff_addr_inv`)
         // remain `0` when multiplied to each other give `0`.
-        let (is_local_a_new_addr, is_next_a_new_addr) = (
-            lv.diff_addr * lv.diff_addr_inv, // constrained below
-            nv.diff_addr * nv.diff_addr_inv, // constrained below
-        );
+        let is_local_a_new_addr = lv.diff_addr * lv.diff_addr_inv;
 
         // Boolean constraints
         // -------------------
@@ -164,10 +161,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     ) {
         let lv: &Memory<ExtensionTarget<D>> = vars.get_local_values().into();
         let nv: &Memory<ExtensionTarget<D>> = vars.get_next_values().into();
-        let (is_local_a_new_addr, is_next_a_new_addr) = (
-            builder.mul_extension(lv.diff_addr, lv.diff_addr_inv),
-            builder.mul_extension(nv.diff_addr, nv.diff_addr_inv),
-        );
+        let is_local_a_new_addr = builder.mul_extension(lv.diff_addr, lv.diff_addr_inv);
         is_binary_ext_circuit(builder, lv.is_writable, yield_constr);
         is_binary_ext_circuit(builder, lv.is_store, yield_constr);
         is_binary_ext_circuit(builder, lv.is_load, yield_constr);
