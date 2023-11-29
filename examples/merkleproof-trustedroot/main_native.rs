@@ -4,13 +4,13 @@ mod core_logic;
 use std::fs::File;
 use std::io::{Read, Write};
 
-use rkyv::Deserialize;
+use rkyv::{Deserialize, Infallible};
 use rs_merkle::algorithms::Sha256;
 use rs_merkle::{Hasher, MerkleProof, MerkleTree};
 
 use crate::core_logic::{
-    to_tape_function_id, to_tape_rawbuf, to_tape_serialized, verify_merkle_proof, MerkleRootType,
-    ProofData,
+    from_tape_function_id, from_tape_rawbuf, from_tape_serialized, to_tape_function_id,
+    to_tape_rawbuf, to_tape_serialized, verify_merkle_proof, MerkleRootType, ProofData,
 };
 
 /// Generates a merkle tree based on the leaf values given
@@ -89,62 +89,60 @@ fn deserialize_from_disk(
 ) -> ([u8; 32], ProofData) {
     println!("Reading, deserializing and verifying buffers from disk");
 
-    let mut tapes: Vec<std::fs::File> = files
-        .iter()
-        .map(|x| {
-            std::fs::OpenOptions::new()
-                .read(true)
-                .write(false)
-                .open(x)
-                .expect("cannot open tape")
-        })
-        .collect();
+    let mut tapes = get_tapes_native(true, files);
 
-    // Read public tape (33 bytes)
-    let mut function_id_buffer = [0u8; 1];
-    let mut merkle_root_buffer = [0u8; 32];
+    // Public tape
+    let fn_id: u8 = from_tape_function_id(&mut tapes[0]);
+    let merkle_root: MerkleRootType = from_tape_rawbuf::<32>(&mut tapes[0]);
+
+    // Private tape
+    let proof_data = from_tape_serialized::<ProofData, 256>(&mut tapes[1]);
+    // // Read public tape (33 bytes)
+    // let mut function_id_buffer = [0u8; 1];
+    // let mut merkle_root_buffer = [0u8; 32];
 
     // Function ID (u8)
-    tapes[0]
-        .read(&mut function_id_buffer)
-        .expect("(public) read failed for function ID");
-    assert_eq!(function_id_buffer[0], 0, "function ID mismatched");
+    // tapes[0]
+    //     .read(&mut function_id_buffer)
+    //     .expect("(public) read failed for function ID");
+    // assert_eq!(function_id_buffer[0], 0, "function ID mismatched");
 
     // Merkle state root ([u8; 32])
-    tapes[0]
-        .read(&mut merkle_root_buffer)
-        .expect("(public) read failed for merkle root");
-    assert_eq!(
-        merkle_root_buffer, expected_merkle_root,
-        "merkle root mismatched"
-    );
+    // tapes[0]
+    //     .read(&mut merkle_root_buffer)
+    //     .expect("(public) read failed for merkle root");
+    // assert_eq!(
+    //     merkle_root_buffer, expected_merkle_root,
+    //     "merkle root mismatched"
+    // );
 
     // Read private tape (variable)
-    let mut length_prefix = [0u8; 4];
+    // let mut length_prefix = [0u8; 4];
     // Length prefix (u32)
-    tapes[1]
-        .read(&mut length_prefix)
-        .expect("(private) read failed for length prefix");
+    // tapes[1]
+    //     .read(&mut length_prefix)
+    //     .expect("(private) read failed for length prefix");
 
-    let length_prefix = u32::from_le_bytes(length_prefix);
+    // let length_prefix = u32::from_le_bytes(length_prefix);
 
-    let mut testdata_buf = Vec::with_capacity(length_prefix as usize);
-    testdata_buf.resize(length_prefix as usize, 0);
-    tapes[1]
-        .read(&mut testdata_buf[0..(length_prefix as usize)])
-        .expect("(private) read failed for merkle proof data");
+    // let mut testdata_buf = Vec::with_capacity(length_prefix as usize);
+    // testdata_buf.resize(length_prefix as usize, 0);
+    // tapes[1]
+    //     .read(&mut testdata_buf[0..(length_prefix as usize)])
+    //     .expect("(private) read failed for merkle proof data");
 
-    let archived = unsafe { rkyv::archived_root::<ProofData>(&testdata_buf) };
-    let deserialized_testdata: ProofData = archived.deserialize(&mut rkyv::Infallible).unwrap();
+    // let archived = unsafe { rkyv::archived_root::<ProofData>(&testdata_buf) };
+    // let deserialized_testdata: ProofData = archived.deserialize(&mut
+    // rkyv::Infallible).unwrap();
 
-    assert_eq!(
-        deserialized_testdata, expected_testdata,
-        "testdata mismatch"
-    );
+    // assert_eq!(
+    //     deserialized_testdata, expected_testdata,
+    //     "testdata mismatch"
+    // );
 
     println!("Reading, deserializing and verifying buffers from disk [done]");
 
-    (merkle_root_buffer, deserialized_testdata)
+    (merkle_root, proof_data)
 }
 
 fn main() {

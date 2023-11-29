@@ -1,10 +1,11 @@
 extern crate alloc;
 use alloc::vec::Vec;
+use rkyv::with::{Inline, With};
 use std::fs::File;
 use std::io::{Read, Write};
 
 use rkyv::ser::serializers::AllocSerializer;
-use rkyv::{Archive, Deserialize, Serialize};
+use rkyv::{Archive, Deserialize, Serialize, Fallible, Infallible};
 use rs_merkle::algorithms::Sha256;
 use rs_merkle::MerkleProof;
 
@@ -42,8 +43,24 @@ pub fn to_tape_function_id(public_tape: &mut File, id: u8) {
 }
 
 // TODO: shift to SDK
+pub fn from_tape_function_id(public_tape: &mut File) -> u8 {
+    let mut function_id_buffer = [0u8; 1];
+    public_tape
+        .read(&mut function_id_buffer)
+        .expect("failure while reading function ID");
+    function_id_buffer[0]
+}
+
+// TODO: shift to SDK
 pub fn to_tape_rawbuf(tape: &mut File, buf: &[u8]) {
     tape.write(buf).expect("failure while writing raw buffer");
+}
+
+// TODO: shift to SDK
+pub fn from_tape_rawbuf<const N: usize>(tape: &mut File) -> [u8; N] {
+    let mut buf = [0u8; N];
+    tape.read(&mut buf).expect("failure while reading raw buffer");
+    buf
 }
 
 // TODO: shift to SDK
@@ -56,6 +73,29 @@ where
         .expect("failure while writing serialized obj len prefix");
     tape.write(&serialized_obj)
         .expect("failure while writing serialized obj");
+}
+
+// TODO: shift to SDK
+pub fn from_tape_serialized<T, const N: usize>(tape: &mut File) -> T
+where
+    T: Archive, 
+    T::Archived: Deserialize<T, dyn Fallible<Error = rkyv::Infallible>>,
+{
+    let mut length_prefix = [0u8; 4];
+    tape.read(&mut length_prefix)
+        .expect("read failed for length prefix");
+    let length_prefix = u32::from_le_bytes(length_prefix);
+
+    let mut obj_buf = Vec::with_capacity(length_prefix as usize);
+    obj_buf.resize(length_prefix as usize, 0);
+
+    tape.read(&mut obj_buf[0..(length_prefix as usize)])
+        .expect("read failed for obj");
+
+    let archived = unsafe { rkyv::archived_root::<T>(&obj_buf) };
+    // let a = Infallible::deserialize(&self, deserializer)
+    let t: T = archived.deserialize(&mut rkyv::Infallible).unwrap();
+    t
 }
 
 pub fn verify_merkle_proof(merkle_root: MerkleRootType, proof_data: ProofData) {

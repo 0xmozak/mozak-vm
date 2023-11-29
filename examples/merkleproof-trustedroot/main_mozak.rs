@@ -9,7 +9,7 @@ use rkyv::Deserialize;
 use rs_merkle::algorithms::Sha256;
 use rs_merkle::MerkleProof;
 
-use crate::core_logic::{ProofData, verify_merkle_proof};
+use crate::core_logic::{verify_merkle_proof, ProofData};
 
 /// ## Function ID 0
 /// This function verifies
