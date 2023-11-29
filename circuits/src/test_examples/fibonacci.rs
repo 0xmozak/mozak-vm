@@ -1,4 +1,4 @@
-use mozak_runner::elf::Program;
+use mozak_runner::elf::{MozakRunTimeArguments, Program};
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
@@ -20,7 +20,8 @@ fn test_fibonacci() {
             You may need to build the fibonacci program within the examples directory
             eg. `cd examples/fibonacci && cargo build --release`",
     );
-    let program = Program::load_program(&elf, &[], &[]).unwrap();
+    let program =
+        Program::load_program(&elf, &MozakRunTimeArguments::new(&[0; 32], &[], &[])).unwrap();
     let state = State::<GoldilocksField>::new(program.clone());
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record).unwrap();
