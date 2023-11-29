@@ -79,10 +79,10 @@ enum Command {
 }
 
 /// Read a sequence of bytes from IO
-fn load_runtime_program_args(mut io_args: impl Read) -> Result<Vec<u8>> {
+fn load_runtime_program_args(mut io_args: impl Read, arg_name: &str) -> Result<Vec<u8>> {
     let mut io_args_bytes = Vec::new();
     let bytes_read = io_args.read_to_end(&mut io_args_bytes)?;
-    debug!("Read {bytes_read} of io_args data.");
+    debug!("Read {bytes_read} of {:?} data.", arg_name);
     Ok(io_args_bytes)
 }
 
@@ -128,9 +128,9 @@ fn main() -> Result<()> {
         } => {
             let program = load_program(
                 elf,
-                &load_runtime_program_args(state_root)?,
-                &load_runtime_program_args(io_tape_private)?,
-                &load_runtime_program_args(io_tape_public)?,
+                &load_runtime_program_args(state_root, "state_root")?,
+                &load_runtime_program_args(io_tape_private, "io_tape_private")?,
+                &load_runtime_program_args(io_tape_public, "io_tape_public")?,
             )?;
             let state = State::<GoldilocksField>::new(program.clone());
             let state = step(&program, state)?.last_state;
@@ -144,9 +144,9 @@ fn main() -> Result<()> {
         } => {
             let program = load_program(
                 elf,
-                &load_runtime_program_args(state_root)?,
-                &load_runtime_program_args(io_tape_private)?,
-                &load_runtime_program_args(io_tape_public)?,
+                &load_runtime_program_args(state_root, "state_root")?,
+                &load_runtime_program_args(io_tape_private, "io_tape_private")?,
+                &load_runtime_program_args(io_tape_public, "io_tape_public")?,
             )?;
             let state = State::<GoldilocksField>::new(program.clone());
             let record = step(&program, state)?;
@@ -161,9 +161,9 @@ fn main() -> Result<()> {
         } => {
             let program = load_program(
                 elf,
-                &load_runtime_program_args(state_root)?,
-                &load_runtime_program_args(io_tape_private)?,
-                &load_runtime_program_args(io_tape_public)?,
+                &load_runtime_program_args(state_root, "state_root")?,
+                &load_runtime_program_args(io_tape_private, "io_tape_private")?,
+                &load_runtime_program_args(io_tape_public, "io_tape_public")?,
             )?;
             let state = State::<GoldilocksField>::new(program.clone());
             let record = step(&program, state)?;
