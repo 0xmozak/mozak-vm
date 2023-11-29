@@ -191,11 +191,12 @@ pub fn generate_memory_trace<F: RichField>(
             {
                 vec![
                     Memory {
-                        clk: F::ZERO,
+                        clk: F::ONE,
                         is_store: F::ZERO,
                         is_load: F::ZERO,
                         is_init: F::ONE,
                         diff_clk: F::ZERO,
+                        value: F::ZERO,
                         ..mem
                     },
                     Memory {
@@ -265,26 +266,25 @@ mod tests {
         );
         let inv = inv::<F>;
 
-        assert_eq!(
-            trace,
+        assert_eq!(trace, 
             prep_table(vec![
-                //is_writable  addr  clk is_store, is_load, is_init  is_zeroed  value  diff_addr  diff_addr_inv  diff_clk
-                [       1,     100,   1,     1,      0,       0,         1,       255,    100,    inv(100),             0],  // Operations:  100
-                [       1,     100,   2,     0,      1,       0,         0,       255,      0,           0,             1],  // Operations:  100
-                [       1,     100,   5,     1,      0,       0,         0,        10,      0,           0,             3],  // Operations:  100
-                [       1,     100,   6,     0,      1,       0,         0,        10,      0,           0,             1],  // Operations:  100
-                [       1,     101,   0,     0,      0,       1,         0,         0,      1,      inv(1),             0],  // Memory Init: 101
-                [       1,     102,   0,     0,      0,       1,         0,         0,      1,      inv(1),             0],  // Memory Init: 102
-                [       1,     103,   0,     0,      0,       1,         0,         0,      1,      inv(1),             0],  // Memory Init: 103
-                [       1,     200,   3,     1,      0,       0,         1,        15,     97,     inv(97),             0],  // Operations:  200
-                [       1,     200,   4,     0,      1,       0,         0,        15,      0,           0,             1],  // Operations:  200
-                [       1,     201,   0,     0,      0,       1,         0,         0,      1,      inv(1),             0],  // Memory Init: 201
-                [       1,     202,   0,     0,      0,       1,         0,         0,      1,      inv(1),             0],  // Memory Init: 202
-                [       1,     203,   0,     0,      0,       1,         0,         0,      1,      inv(1),             0],  // Memory Init: 203
-                [       1,     203,   0,     0,      0,       0,         0,         0,      0,           0,             0],  // Padding
-                [       1,     203,   0,     0,      0,       0,         0,         0,      0,           0,             0],  // Padding
-                [       1,     203,   0,     0,      0,       0,         0,         0,      0,           0,             0],  // Padding
-                [       1,     203,   0,     0,      0,       0,         0,         0,      0,           0,             0],  // Padding
+                //is_writable  addr  clk is_store, is_load, is_init  value  diff_addr  diff_addr_inv  diff_clk
+                [       1,     100,   1,     0,      0,       1,        0,    100,       inv(100),         0],  // Operations:  100
+                [       1,     100,   2,     1,      0,       0,      255,      0,              0,         0],  // Operations:  100
+                [       1,     100,   3,     0,      1,       0,      255,      0,              0,         1],  // Operations:  100
+                [       1,     100,   6,     1,      0,       0,       10,      0,              0,         3],  // Operations:  100
+                [       1,     100,   7,     0,      1,       0,       10,      0,              0,         1],  // Operations:  100
+                [       1,     101,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 101
+                [       1,     102,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 102
+                [       1,     103,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 103
+                [       1,     200,   1,     0,      0,       1,        0,     97,        inv(97),         0],  // Operations:  200
+                [       1,     200,   4,     1,      0,       0,       15,      0,              0,         0],  // Operations:  200
+                [       1,     200,   5,     0,      1,       0,       15,      0,              0,         1],  // Operations:  200
+                [       1,     201,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 201
+                [       1,     202,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 202
+                [       1,     203,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 203
+                [       1,     203,   0,     0,      0,       0,        0,      0,              0,         0],  // Padding
+                [       1,     203,   0,     0,      0,       0,        0,      0,              0,         0],  // Padding
             ])
         );
     }
@@ -326,15 +326,15 @@ mod tests {
 
         let inv = inv::<F>;
         assert_eq!(trace, prep_table(vec![
-            // is_writable   addr   clk  is_store, is_load, is_init  is_zeroed  value  diff_addr  diff_addr_inv  diff_clk
-            [        0,      100,   0,      0,        0,      1,         0,       5,    100,        inv(100),          0],
-            [        0,      101,   0,      0,        0,      1,         0,       6,      1,          inv(1),          0],
-            [        1,      200,   0,      0,        0,      1,         0,       7,     99,         inv(99),          0],
-            [        1,      201,   0,      0,        0,      1,         0,       8,      1,               1,          0],
-            [        1,      201,   0,      0,        0,      0,         0,       8,      0,               0,          0],
-            [        1,      201,   0,      0,        0,      0,         0,       8,      0,               0,          0],
-            [        1,      201,   0,      0,        0,      0,         0,       8,      0,               0,          0],
-            [        1,      201,   0,      0,        0,      0,         0,       8,      0,               0,          0],
+            // is_writable   addr   clk  is_store, is_load, is_init  value  diff_addr  diff_addr_inv  diff_clk
+            [        0,      100,   0,      0,        0,      1,         5,      100,        inv(100),       0],
+            [        0,      101,   0,      0,        0,      1,         6,        1,          inv(1),       0],
+            [        1,      200,   0,      0,        0,      1,         7,       99,         inv(99),       0],
+            [        1,      201,   0,      0,        0,      1,         8,        1,               1,       0],
+            [        1,      201,   0,      0,        0,      0,         8,        0,               0,       0],
+            [        1,      201,   0,      0,        0,      0,         8,        0,               0,       0],
+            [        1,      201,   0,      0,        0,      0,         8,        0,               0,       0],
+            [        1,      201,   0,      0,        0,      0,         8,        0,               0,       0],
         ]));
     }
 }

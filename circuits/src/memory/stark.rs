@@ -118,8 +118,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // static ELF and dynamic (execution) at the same time or being writable as
         // well as non-writable at the same time.
 
-        // All memory init happens prior to exec and the `clk` would be `0`.
-        yield_constr.constraint(lv.is_init * lv.clk);
+        // All memory init happens prior to exec and the `clk` would be `0` or `1`.
+        yield_constr.constraint(lv.is_init * lv.clk * (P::ONES - lv.clk));
 
         // Operation constraints
         // ---------------------
@@ -136,10 +136,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // in case the "new row" describes an `addr` different from the current
         // row, we expect `diff_clk` to be `0`. New row's clk remains
         // unconstrained in such situation.
-        yield_constr.constraint_transition(
-            (P::ONES - is_next_a_new_addr) * (nv.diff_clk - (nv.clk - lv.clk)),
-        );
-        yield_constr.constraint_transition(is_local_a_new_addr * lv.diff_clk);
+        yield_constr.constraint_transition(nv.is_init * nv.diff_clk * (nv.clk - lv.clk));
+        yield_constr.constraint_transition(lv.is_init * lv.diff_clk);
 
         // Address constraints
         // -------------------
@@ -186,8 +184,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint_first_row(builder, diff_addr_sub_addr);
         yield_constr.constraint_first_row(builder, lv.diff_clk);
 
+        let one = builder.one_extension();
+        let one_sub_clk = builder.sub_extension(one, lv.clk);
         let is_init_mul_clk = builder.mul_extension(lv.is_init, lv.clk);
-        yield_constr.constraint(builder, is_init_mul_clk);
+        let is_init_mul_clk_mul_one_sub_clk = builder.mul_extension(is_init_mul_clk, one_sub_clk);
+        yield_constr.constraint(builder, is_init_mul_clk_mul_one_sub_clk);
 
         let one_sub_is_writable = builder.sub_extension(one, lv.is_writable);
         let is_store_mul_one_sub_is_writable =
@@ -199,18 +200,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
             builder.mul_extension(nv.is_load, nv_value_sub_lv_value);
         yield_constr.constraint(builder, is_load_mul_nv_value_sub_lv_value);
 
-        let one_sub_is_next_a_new_addr = builder.sub_extension(one, is_next_a_new_addr);
+        let nv_is_init_mul_nv_diff_clk = builder.mul_extension(nv.is_init, nv.diff_clk);
         let nv_clk_sub_lv_clk = builder.sub_extension(nv.clk, lv.clk);
         let nv_diff_clk_sub_nv_clk_sub_lv_clk =
-            builder.sub_extension(nv.diff_clk, nv_clk_sub_lv_clk);
-        let constr = builder.mul_extension(
-            nv_diff_clk_sub_nv_clk_sub_lv_clk,
-            one_sub_is_next_a_new_addr,
-        );
-        yield_constr.constraint_transition(builder, constr);
+            builder.mul_extension(nv_is_init_mul_nv_diff_clk, nv_clk_sub_lv_clk);
+        yield_constr.constraint_transition(builder, nv_diff_clk_sub_nv_clk_sub_lv_clk);
 
-        let constr = builder.mul_extension(is_local_a_new_addr, lv.diff_clk);
-        yield_constr.constraint_transition(builder, constr);
+        let is_init_mul_diff_clk = builder.mul_extension(lv.is_init, lv.diff_clk);
+        yield_constr.constraint_transition(builder, is_init_mul_diff_clk);
 
         let nv_addr_sub_lv_addr = builder.sub_extension(nv.addr, lv.addr);
         let constr = builder.sub_extension(nv.diff_addr, nv_addr_sub_lv_addr);

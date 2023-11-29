@@ -81,7 +81,7 @@ impl From<(&[u8], &[u8])> for IoTape {
 impl<F: RichField> Default for State<F> {
     fn default() -> Self {
         Self {
-            clk: 1,
+            clk: 2,
             halted: Default::default(),
             registers: Default::default(),
             pc: Default::default(),

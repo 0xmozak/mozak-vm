@@ -22,7 +22,7 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
         Column::constant(F::ONE),
         Column::single(col_map().addr),
         // clk:
-        Column::constant(F::ZERO),
+        Column::constant(F::ONE),
         // value:
         Column::constant(F::ZERO),
     ]
