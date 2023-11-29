@@ -45,7 +45,9 @@ pub struct State<F: RichField> {
     pub io_tape: IoTape,
     _phantom: PhantomData<F>,
 }
-
+/// TODO(maybe Daniel): Just a note,
+/// I'm a little skeptical of Rc<Vec<T>> over Rc<[T]> since Rc basically makes
+/// the Vec immutable and pointless.
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct IoTapeData {
     #[deref]

@@ -2,6 +2,8 @@
 #![deny(clippy::cargo)]
 // TODO: remove this when shadow_rs updates enough.
 #![allow(clippy::needless_raw_string_hashes)]
+extern crate core;
+
 use std::io::{Read, Write};
 use std::time::Duration;
 
@@ -18,7 +20,7 @@ use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
-use mozak_runner::elf::Program;
+use mozak_runner::elf::{MozakRunTimeArguments, Program};
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
@@ -47,18 +49,21 @@ enum Command {
     /// the registers
     Run {
         elf: Input,
+        state_root: Input,
         io_tape_private: Input,
         io_tape_public: Input,
     },
     /// Prove and verify the execution of a given ELF
     ProveAndVerify {
         elf: Input,
+        state_root: Input,
         io_tape_private: Input,
         io_tape_public: Input,
     },
     /// Prove the execution of given ELF and write proof to file.
     Prove {
         elf: Input,
+        state_root: Input,
         io_tape_private: Input,
         io_tape_public: Input,
         proof: Output,
@@ -74,18 +79,31 @@ enum Command {
 }
 
 /// Read a sequence of bytes from IO
-fn load_tape(mut io_tape: impl Read) -> Result<Vec<u8>> {
-    let mut io_tape_bytes = Vec::new();
-    let bytes_read = io_tape.read_to_end(&mut io_tape_bytes)?;
-    debug!("Read {bytes_read} of io_tape data.");
-    Ok(io_tape_bytes)
+fn load_runtime_program_args(mut io_args: impl Read, arg_name: &str) -> Result<Vec<u8>> {
+    let mut io_args_bytes = Vec::new();
+    let bytes_read = io_args.read_to_end(&mut io_args_bytes)?;
+    debug!("Read {bytes_read} of {:?} data.", arg_name);
+    Ok(io_args_bytes)
 }
 
-fn load_program(mut elf: Input, io_tape_private: &[u8], io_tape_public: &[u8]) -> Result<Program> {
+fn load_program(
+    mut elf: Input,
+    state_root: &[u8],
+    io_tape_private: &[u8],
+    io_tape_public: &[u8],
+) -> Result<Program> {
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
-    Program::load_program(&elf_bytes, io_tape_private, io_tape_public)
+    let mut sr = [0; 32];
+    assert_eq!(state_root.len(), 32);
+    for (i, e) in state_root.iter().enumerate() {
+        sr[i] = *e;
+    }
+    Program::load_program(
+        &elf_bytes,
+        &MozakRunTimeArguments::new(&sr, io_tape_private, io_tape_public),
+    )
 }
 
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
@@ -99,18 +117,20 @@ fn main() -> Result<()> {
         .init();
     match cli.command {
         Command::Decode { elf } => {
-            let program = load_program(elf, &[], &[])?;
+            let program = load_program(elf, &[0; 32], &[], &[])?;
             debug!("{program:?}");
         }
         Command::Run {
             elf,
+            state_root,
             io_tape_private,
             io_tape_public,
         } => {
             let program = load_program(
                 elf,
-                &load_tape(io_tape_private)?,
-                &load_tape(io_tape_public)?,
+                &load_runtime_program_args(state_root, "state_root")?,
+                &load_runtime_program_args(io_tape_private, "io_tape_private")?,
+                &load_runtime_program_args(io_tape_public, "io_tape_public")?,
             )?;
             let state = State::<GoldilocksField>::new(program.clone());
             let state = step(&program, state)?.last_state;
@@ -118,13 +138,15 @@ fn main() -> Result<()> {
         }
         Command::ProveAndVerify {
             elf,
+            state_root,
             io_tape_private,
             io_tape_public,
         } => {
             let program = load_program(
                 elf,
-                &load_tape(io_tape_private)?,
-                &load_tape(io_tape_public)?,
+                &load_runtime_program_args(state_root, "state_root")?,
+                &load_runtime_program_args(io_tape_private, "io_tape_private")?,
+                &load_runtime_program_args(io_tape_public, "io_tape_public")?,
             )?;
             let state = State::<GoldilocksField>::new(program.clone());
             let record = step(&program, state)?;
@@ -132,14 +154,16 @@ fn main() -> Result<()> {
         }
         Command::Prove {
             elf,
+            state_root,
             io_tape_private,
             io_tape_public,
             mut proof,
         } => {
             let program = load_program(
                 elf,
-                &load_tape(io_tape_private)?,
-                &load_tape(io_tape_public)?,
+                &load_runtime_program_args(state_root, "state_root")?,
+                &load_runtime_program_args(io_tape_private, "io_tape_private")?,
+                &load_runtime_program_args(io_tape_public, "io_tape_public")?,
             )?;
             let state = State::<GoldilocksField>::new(program.clone());
             let record = step(&program, state)?;
@@ -172,7 +196,7 @@ fn main() -> Result<()> {
             debug!("proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
-            let program = load_program(elf, &[], &[])?;
+            let program = load_program(elf, &[0; 32], &[], &[])?;
             let trace = generate_program_rom_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -189,7 +213,7 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::MemoryInitHash { elf } => {
-            let program = load_program(elf, &[], &[])?;
+            let program = load_program(elf, &[0; 32], &[], &[])?;
             let trace = generate_memory_init_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;

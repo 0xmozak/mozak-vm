@@ -366,6 +366,7 @@ pub fn step<F: RichField>(
             instruction,
             aux,
         });
+        log::trace!("clk: {:?}, {:?}", new_state.clk, instruction);
         last_state = new_state;
 
         if cfg!(debug_assertions) {
