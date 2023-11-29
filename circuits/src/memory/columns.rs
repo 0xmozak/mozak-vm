@@ -47,13 +47,6 @@ pub struct Memory<T> {
     /// Value of memory access.
     pub value: T,
 
-    /// Difference between current and previous address.
-    pub diff_addr: T,
-
-    /// (Hint column) Multiplicative inverse of the above `diff_addr`.
-    /// 0 if the `diff_addr` is 0.
-    pub diff_addr_inv: T,
-
     /// Difference between current and previous clock.
     pub diff_clk: T,
 }
@@ -166,7 +159,6 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let mem = col_map().map(Column::from);
     vec![
         MemoryTable::new(Column::singles([col_map().addr]), mem.is_executed()),
-        MemoryTable::new(Column::singles([col_map().diff_addr]), mem.is_executed()),
         MemoryTable::new(Column::singles([col_map().diff_clk]), mem.is_executed()),
     ]
 }

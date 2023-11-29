@@ -22,8 +22,6 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
             is_store: F::ZERO,
             is_load: F::ZERO,
             is_init: F::ZERO,
-            diff_addr: F::ZERO,
-            diff_addr_inv: F::ZERO,
             diff_clk: F::ZERO,
             // .. and all other columns just have their last value duplicated.
             ..trace.last().copied().unwrap_or_default()
@@ -164,8 +162,6 @@ pub fn generate_memory_trace<F: RichField>(
     let merged_trace = merged_trace
         .into_iter()
         .flat_map(move |mut mem| {
-            mem.diff_addr = mem.addr - last_addr.unwrap_or_default();
-            mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
             if Some(mem.addr) == last_addr {
                 // the check doesn't pass for the first row, so this is ok.
                 mem.diff_clk = mem.clk - last_clk;
@@ -174,6 +170,7 @@ pub fn generate_memory_trace<F: RichField>(
                 // non init memory are always writable
                 last_is_writable = F::from_bool(mem.is_init.is_zero() | mem.is_writable.is_one());
             }
+            let diff_addr = mem.addr - last_addr.unwrap_or_default();
             (last_clk, last_addr) = (mem.clk, Some(mem.addr));
             mem.is_writable = last_is_writable;
 
@@ -184,7 +181,7 @@ pub fn generate_memory_trace<F: RichField>(
             // Then we want to mark the current memory address as 'zeroed out'
             // to be looked up by the `MemoryZeroInit` trace by inserting
             // an extra init row.
-            if (mem.is_load.is_one() || mem.is_store.is_one()) && mem.diff_addr.is_nonzero() {
+            if (mem.is_load.is_one() || mem.is_store.is_one()) && diff_addr.is_nonzero() {
                 vec![
                     Memory {
                         clk: F::ONE,
@@ -195,11 +192,7 @@ pub fn generate_memory_trace<F: RichField>(
                         value: F::ZERO,
                         ..mem
                     },
-                    Memory {
-                        diff_addr: F::ZERO,
-                        diff_addr_inv: F::ZERO,
-                        ..mem
-                    },
+                    mem,
                 ]
             } else {
                 vec![mem]
@@ -230,7 +223,7 @@ mod tests {
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::test_utils::{inv, prep_table};
+    use crate::test_utils::prep_table;
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
@@ -260,28 +253,26 @@ mod tests {
             &io_memory_public_rows,
             &poseidon2_trace,
         );
-        let inv = inv::<F>;
-
         assert_eq!(
             trace,
             prep_table(vec![
-                //is_writable  addr  clk is_store, is_load, is_init  value  diff_addr  diff_addr_inv  diff_clk
-                [       1,     100,   1,     0,      0,       1,        0,    100,       inv(100),         0],  // Zero Init:   100
-                [       1,     100,   2,     1,      0,       0,      255,      0,              0,         0],  // Operations:  100
-                [       1,     100,   3,     0,      1,       0,      255,      0,              0,         1],  // Operations:  100
-                [       1,     100,   6,     1,      0,       0,       10,      0,              0,         3],  // Operations:  100
-                [       1,     100,   7,     0,      1,       0,       10,      0,              0,         1],  // Operations:  100
-                [       1,     101,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 101
-                [       1,     102,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 102
-                [       1,     103,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 103
-                [       1,     200,   1,     0,      0,       1,        0,     97,        inv(97),         0],  // Zero Init:   200
-                [       1,     200,   4,     1,      0,       0,       15,      0,              0,         0],  // Operations:  200
-                [       1,     200,   5,     0,      1,       0,       15,      0,              0,         1],  // Operations:  200
-                [       1,     201,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 201
-                [       1,     202,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 202
-                [       1,     203,   0,     0,      0,       1,        0,      1,         inv(1),         0],  // Memory Init: 203
-                [       1,     203,   0,     0,      0,       0,        0,      0,              0,         0],  // Padding
-                [       1,     203,   0,     0,      0,       0,        0,      0,              0,         0],  // Padding
+                //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk
+                [       1,     100,   1,     0,      0,       1,        0,       0],  // Zero Init:   100
+                [       1,     100,   2,     1,      0,       0,      255,       0],  // Operations:  100
+                [       1,     100,   3,     0,      1,       0,      255,       1],  // Operations:  100
+                [       1,     100,   6,     1,      0,       0,       10,       3],  // Operations:  100
+                [       1,     100,   7,     0,      1,       0,       10,       1],  // Operations:  100
+                [       1,     101,   0,     0,      0,       1,        0,       0],  // Memory Init: 101
+                [       1,     102,   0,     0,      0,       1,        0,       0],  // Memory Init: 102
+                [       1,     103,   0,     0,      0,       1,        0,       0],  // Memory Init: 103
+                [       1,     200,   1,     0,      0,       1,        0,       0],  // Zero Init:   200
+                [       1,     200,   4,     1,      0,       0,       15,       0],  // Operations:  200
+                [       1,     200,   5,     0,      1,       0,       15,       1],  // Operations:  200
+                [       1,     201,   0,     0,      0,       1,        0,       0],  // Memory Init: 201
+                [       1,     202,   0,     0,      0,       1,        0,       0],  // Memory Init: 202
+                [       1,     203,   0,     0,      0,       1,        0,       0],  // Memory Init: 203
+                [       1,     203,   0,     0,      0,       0,        0,       0],  // Padding
+                [       1,     203,   0,     0,      0,       0,        0,       0],  // Padding
             ])
         );
     }
@@ -321,17 +312,16 @@ mod tests {
             &poseidon2_trace,
         );
 
-        let inv = inv::<F>;
         assert_eq!(trace, prep_table(vec![
-            // is_writable   addr   clk  is_store, is_load, is_init  value  diff_addr  diff_addr_inv  diff_clk
-            [        0,      100,   0,      0,        0,      1,         5,      100,        inv(100),       0],
-            [        0,      101,   0,      0,        0,      1,         6,        1,          inv(1),       0],
-            [        1,      200,   0,      0,        0,      1,         7,       99,         inv(99),       0],
-            [        1,      201,   0,      0,        0,      1,         8,        1,               1,       0],
-            [        1,      201,   0,      0,        0,      0,         8,        0,               0,       0],
-            [        1,      201,   0,      0,        0,      0,         8,        0,               0,       0],
-            [        1,      201,   0,      0,        0,      0,         8,        0,               0,       0],
-            [        1,      201,   0,      0,        0,      0,         8,        0,               0,       0],
+            // is_writable   addr   clk  is_store, is_load, is_init  value  diff_clk
+            [        0,      100,   0,      0,        0,      1,         5,        0],
+            [        0,      101,   0,      0,        0,      1,         6,        0],
+            [        1,      200,   0,      0,        0,      1,         7,        0],
+            [        1,      201,   0,      0,        0,      1,         8,        0],
+            [        1,      201,   0,      0,        0,      0,         8,        0],
+            [        1,      201,   0,      0,        0,      0,         8,        0],
+            [        1,      201,   0,      0,        0,      0,         8,        0],
+            [        1,      201,   0,      0,        0,      0,         8,        0],
         ]));
     }
 }

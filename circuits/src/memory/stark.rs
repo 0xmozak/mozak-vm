@@ -49,17 +49,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv: &Memory<P> = vars.get_local_values().into();
         let nv: &Memory<P> = vars.get_next_values().into();
 
-        // Boolean variables describing whether the current row and
-        // next row has a change of address when compared to the
-        // previous entry in the table. This works on the assumption
-        // that any change in addr will have non-zero `diff_addr` and
-        // consequently `diff_addr_inv` values. Any non-zero values for
-        // `diff_addr` will lead "correct" `diff_addr_inv` to be multiplicative
-        // inverse in the field leading multiplied value `1`. In case there is
-        // no change in addr, `diff_addr` (and consequently `diff_addr_inv`)
-        // remain `0` when multiplied to each other give `0`.
-        let is_local_a_new_addr = lv.diff_addr * lv.diff_addr_inv;
-
         // Boolean constraints
         // -------------------
         // Constrain certain columns of the memory table to be only
@@ -69,10 +58,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary(yield_constr, lv.is_load);
         is_binary(yield_constr, lv.is_init);
         is_binary(yield_constr, lv.is_executed());
-
-        // `is_local_a_new_addr` should be binary. To keep constraint degree <= 3,
-        // the following is used
-        yield_constr.constraint(lv.diff_addr * (P::ONES - is_local_a_new_addr));
 
         // `is_next_a_new_addr` should be binary. However under context where `nv` is
         // `lv` a similar test runs as given above constraining it being a
@@ -86,7 +71,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // `diff_addr` are same for the first row. As a matter of preference,
         // we can have any `clk` in the first row, but `diff_clk` is `0`.
         // This is because when `addr` changes, `diff_clk` is expected to be `0`.
-        yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
         yield_constr.constraint_first_row(lv.diff_clk);
 
         // Ascending ordered, contigous "address" view constraint
@@ -136,12 +120,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint_transition(nv.is_init * nv.diff_clk * (nv.clk - lv.clk));
         yield_constr.constraint_transition(lv.is_init * lv.diff_clk);
 
-        // Address constraints
-        // -------------------
-        // We need to ensure that `diff_addr` always encapsulates difference in addr
-        // between two rows
-        yield_constr.constraint_transition(nv.diff_addr - (nv.addr - lv.addr));
-
         // Padding constraints
         // -------------------
         // Once we have padding, all subsequent rows are padding; ie not
@@ -161,7 +139,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     ) {
         let lv: &Memory<ExtensionTarget<D>> = vars.get_local_values().into();
         let nv: &Memory<ExtensionTarget<D>> = vars.get_next_values().into();
-        let is_local_a_new_addr = builder.mul_extension(lv.diff_addr, lv.diff_addr_inv);
         is_binary_ext_circuit(builder, lv.is_writable, yield_constr);
         is_binary_ext_circuit(builder, lv.is_store, yield_constr);
         is_binary_ext_circuit(builder, lv.is_load, yield_constr);
@@ -169,13 +146,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv_is_executed = is_executed_ext_circuit(builder, lv);
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
-        let one = builder.one_extension();
-        let one_sub_is_local_a_new_addr = builder.sub_extension(one, is_local_a_new_addr);
-        let constr = builder.mul_extension(lv.diff_addr, one_sub_is_local_a_new_addr);
-        yield_constr.constraint(builder, constr);
-
-        let diff_addr_sub_addr = builder.sub_extension(lv.diff_addr, lv.addr);
-        yield_constr.constraint_first_row(builder, diff_addr_sub_addr);
         yield_constr.constraint_first_row(builder, lv.diff_clk);
 
         let one = builder.one_extension();
@@ -202,10 +172,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         let is_init_mul_diff_clk = builder.mul_extension(lv.is_init, lv.diff_clk);
         yield_constr.constraint_transition(builder, is_init_mul_diff_clk);
-
-        let nv_addr_sub_lv_addr = builder.sub_extension(nv.addr, lv.addr);
-        let constr = builder.sub_extension(nv.diff_addr, nv_addr_sub_lv_addr);
-        yield_constr.constraint_transition(builder, constr);
 
         let nv_is_executed = is_executed_ext_circuit(builder, nv);
         let lv_is_executed_sub_nv_is_executed =
