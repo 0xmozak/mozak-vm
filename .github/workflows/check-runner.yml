@@ -20,19 +20,29 @@ jobs:
         run: |
           curl_runners () {
             local -r url="$1"
+            # Get all the runners
             runners=$(curl --silent --show-error \
               --header "Accept: application/vnd.github+json" \
               --header "Authorization: Bearer ${{ secrets.READ_RUNNERS_TOKEN }}" \
               --header "X-GitHub-Api-Version: 2022-11-28" \
               --location "${url}" || echo "")
             echo "${runners}"
+
+            # Filter to self-hosted runners that aren't busy
+            # Note that if a self-hosted runner is running this job, it will be considered 'busy' by GitHub,
+            # but obviously that's not busy by our standards.
             if echo "${runners}" | jq --exit-status '(.runners // [])[] | select(.status == "online" and (.busy == false or .name == "${{ runner.name }}") and .labels[] .name == "self-hosted")'; then
+              # If we found an available self-hosted runner, then proceed to signal our desire to use self-hosted.
               echo "runner-label=self-hosted" | tee --append "${GITHUB_OUTPUT}"
               exit 0
             fi
           }
 
+          # Try to find runners for this repo
           curl_runners "https://api.github.com/repos/${{ github.repository }}/actions/runners"
+
+          # Try to find runners for this org
           curl_runners "https://api.github.com/orgs/${{ github.repository_owner }}/actions/runners"
 
+          # We couldn't find any self-hosted runners, so fallback to GitHub runners
           echo "runner-label=ubuntu-latest" | tee --append "${GITHUB_OUTPUT}"

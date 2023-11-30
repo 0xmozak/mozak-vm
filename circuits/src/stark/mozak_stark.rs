@@ -136,9 +136,39 @@ macro_rules! mozak_stark_helpers {
         }
 
         // Generate the helper macros
+
+        /// Creates an array by repeatedly calls a "labmda" once per stark type.
+        ///
+        /// Note that these are not actual lambdas and so early returns will return from
+        /// the caller, not the lambda
+        ///
+        /// Can be called in two ways:
+        ///
+        /// # With Type
+        ///
+        /// Calls that need explicit type information of each stark type can provide the parent
+        /// `MozakStark` type to the macro in order to enable the "lambdas" to use the `stark!`
+        /// macro in-place of a type.
+        ///
+        /// ```rust
+        /// let foos = all_kind!(MozakStark<F, D>, |stark, kind| {
+        ///     // `stark` will be a different stark type on each call
+        ///     // `kind` will be a different `TableKind` on each call
+        ///     foo::<stark!()>(kind)
+        /// });
+        /// ```
+        ///
+        /// # Without Type
+        ///
+        /// Calls that do not need type information of each stark can merely omit the `MozakStark`
+        /// type and just deal with the `TableKind`
+        ///
+        /// ```rust
+        /// let bars = all_kind!(|stark, kind| bar(kind));
+        /// ```
         macro_rules! all_kind {
             ($stark_ty:ty, |$stark:ident, $kind:ident| $val:expr) => {{
-                use $crate::stark::mozak_stark::TableKind::*;
+                use $crate::stark::mozak_stark::{StarkKinds, TableKind::*};
                 [#(
                     {
                         // This enables callers to get the type using `$stark!()`
@@ -162,9 +192,29 @@ macro_rules! mozak_stark_helpers {
         }
         pub(crate) use all_kind;
 
-
+        /// Creates an array by repeated calls to a "lambda" once per stark value.
+        ///
+        /// Note that these are not actual lambdas and so early returns will return from
+        /// the caller, not the lambda
+        ///
+        /// Calls that need explicit type information of each stark type can provide the parent
+        /// `MozakStark` type to the macro in order to enable the "lambdas" to use the `stark!`
+        /// macro in-place of a type.
+        ///
+        /// ```rust
+        /// fn foo(mozak_stark: &mut MozakStark<F, D>) {
+        ///     let bars = all_starks!(mozak_stark, |stark, kind| {
+        ///         // `stark` will be a reference to different stark on each call
+        ///         // `kind` will be a different `TableKind` on each call
+        ///         bar(stark, kind)
+        ///     });
+        ///     let bazs = all_starks!(mozak_stark, |mut stark, kind| {
+        ///         // `stark` will be a mutable reference to different stark on each call
+        ///         baz(stark, kind)
+        ///     });
+        /// }
+        /// ```
         macro_rules! all_starks {
-            () => {};
             ($all_stark:expr, |$stark:ident, $kind:ident| $val:expr) => {{
                 use core::borrow::Borrow;
                 use $crate::stark::mozak_stark::TableKind::*;
@@ -265,9 +315,6 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
         }
     }
 }
-
-// TODO: Remove in favor of `TableKind::COUNT`
-pub(crate) const NUM_TABLES: usize = TableKind::COUNT;
 
 #[derive(Debug, Clone)]
 pub struct Table<F: Field> {
