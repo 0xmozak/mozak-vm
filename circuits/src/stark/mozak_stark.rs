@@ -312,9 +312,6 @@ impl<F: RichField + Extendable<D>, const D: usize> MozakStark<F, D> {
     }
 }
 
-// TODO: Remove in favor of `TableKind::COUNT`
-pub(crate) const NUM_TABLES: usize = TableKind::COUNT;
-
 #[derive(Debug, Clone)]
 pub struct Table<F: Field> {
     pub(crate) kind: TableKind,
