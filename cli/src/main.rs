@@ -95,14 +95,16 @@ fn load_program(
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
-    let mut sr = [0; 32];
+
     assert_eq!(state_root.len(), 32);
-    for (i, e) in state_root.iter().enumerate() {
-        sr[i] = *e;
-    }
+
     Program::load_program(
         &elf_bytes,
-        &MozakRunTimeArguments::new(&sr, io_tape_private, io_tape_public),
+        &MozakRunTimeArguments::new(
+            &state_root[0..32].try_into().unwrap(), // OK to unwrap since we assert len above
+            io_tape_private,
+            io_tape_public,
+        ),
     )
 }
 
