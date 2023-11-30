@@ -1,6 +1,7 @@
 use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::iter::repeat;
+use std::ops::Range;
 use std::time;
 
 use anyhow::{anyhow, ensure, Result};
@@ -24,6 +25,13 @@ pub struct MozakMemoryRegion {
     pub capacity: u32,
     pub data: Data,
 }
+
+impl MozakMemoryRegion {
+    fn memory_range(&self) -> Range<u32> {
+        self.starting_address..self.starting_address + self.capacity
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MozakMemory {
     // merkle state root
@@ -86,14 +94,10 @@ impl MozakMemory {
         let address: u32 =
             u32::try_from(ph.p_vaddr).expect("p_vaddr for zk-vm expected to be cast-able to u32");
         let mem_addresses = [
-            (self.state_root.starting_address
-                ..self.state_root.starting_address + self.state_root.capacity),
-            (self.timestamp.starting_address
-                ..self.timestamp.starting_address + self.timestamp.capacity),
-            (self.io_tape_public.starting_address
-                ..self.io_tape_public.starting_address + self.io_tape_public.capacity),
-            (self.io_tape_private.starting_address
-                ..self.io_tape_private.starting_address + self.io_tape_private.capacity),
+            self.state_root.memory_range(),
+            self.timestamp.memory_range(),
+            self.io_tape_public.memory_range(),
+            self.io_tape_private.memory_range(),
         ];
         log::trace!(
             "mozak-memory-addresses: {:?}, address: {:?}",

@@ -10,7 +10,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::WIDTH;
 use serde::{Deserialize, Serialize};
 
-use crate::elf::{Code, Data, MozakMemory, Program};
+use crate::elf::{Code, Data, MozakMemory, MozakMemoryRegion, Program};
 use crate::instruction::{Args, DecodingError, Instruction};
 
 /// State of RISC-V VM
@@ -56,6 +56,22 @@ pub struct IoTapeData {
     pub mozak_offset: u32,
 }
 
+impl From<&MozakMemoryRegion> for IoTapeData {
+    fn from(mozak_memory_region: &MozakMemoryRegion) -> Self {
+        let data = mozak_memory_region
+            .data
+            .iter()
+            .sorted_by_key(|e| e.0)
+            .map(|e| *e.1) // FIXME: this assumes `mozak_memory_region` is dense
+            .collect();
+        Self {
+            mozak_offset: mozak_memory_region.starting_address,
+            read_index: 0,
+            data: Rc::new(data),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct IoTape {
     #[deref]
@@ -81,37 +97,11 @@ impl From<(&[u8], &[u8])> for IoTape {
 }
 
 impl From<&MozakMemory> for IoTape {
-    // TODO(Roman): Refactor this ugly function
     fn from(mozak_memory: &MozakMemory) -> Self {
-        let mut io_tape: IoTape = IoTape::default();
-        // private
-        let io_tape_priv = &mozak_memory.io_tape_private;
-        io_tape.private.mozak_offset = io_tape_priv.starting_address;
-        io_tape.private.read_index = 0;
-        let mut v = vec![];
-        io_tape_priv
-            .data
-            .iter()
-            .sorted_by_key(|e| e.0)
-            .for_each(|e| {
-                v.push(*e.1);
-            });
-        io_tape.private.data = Rc::new(v);
-
-        // public
-        let io_tape_pub = &mozak_memory.io_tape_public;
-        io_tape.public.mozak_offset = io_tape_pub.starting_address;
-        io_tape.public.read_index = 0;
-        let mut v = vec![];
-        io_tape_pub
-            .data
-            .iter()
-            .sorted_by_key(|e| e.0)
-            .for_each(|e| {
-                v.push(*e.1);
-            });
-        io_tape.public.data = Rc::new(v);
-        io_tape
+        Self {
+            private: IoTapeData::from(&mozak_memory.io_tape_private),
+            public: IoTapeData::from(&mozak_memory.io_tape_public),
+        }
     }
 }
 
