@@ -40,7 +40,7 @@ jobs:
 
       - name: Build fibonacci-input ELF for benchmarking
         working-directory: examples/fibonacci-input
-        run: cargo build --release
+        run: cargo build --release --features=std
 
       - name: Compile
         run: cargo nextest run --no-run --locked --all-targets

@@ -1,27 +1,12 @@
-#![no_main]
-#![feature(restricted_std)]
+#![cfg_attr(target_os = "zkvm", no_main)]
+#![cfg_attr(feature = "std", feature(restricted_std))]
 
-use std::io;
 
-pub struct MozakIo {}
+use std::io::stdin;
+use std::io::Read;
+use std::io::BufReader;
+use guest::stdin::{MozakIoPublic, MozakIoPrivate};
 
-impl MozakIo {
-    fn read_private(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        #[cfg(target_os = "zkvm")]
-        {
-            mozak_system::system::syscall_ioread_private(buf.as_mut_ptr(), buf.len());
-            Ok(buf.len())
-        }
-    }
-
-    fn read_public(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        #[cfg(target_os = "zkvm")]
-        {
-            mozak_system::system::syscall_ioread_public(buf.as_mut_ptr(), buf.len());
-            Ok(buf.len())
-        }
-    }
-}
 
 fn fibonacci(n: u32) -> u32 {
     if n < 2 {
@@ -35,16 +20,23 @@ fn fibonacci(n: u32) -> u32 {
 }
 
 pub fn main() {
-    let mut mozak_io = MozakIo {};
+    #[cfg(not(target_os = "zkvm"))]
+    let args: Vec<String> = env::args().collect();
+    let mut mozak_io_private = MozakIoPrivate {
+        stdin: Box::new(BufReader::new(stdin())),
+    };
     // read from private iotape, the input
     let mut buffer = [0_u8; 4];
-    let n = mozak_io.read_private(buffer.as_mut()).expect("READ failed");
+    let n = mozak_io_private.read(buffer.as_mut()).expect("READ failed");
     assert!(n <= 4);
     let input = u32::from_le_bytes(buffer);
 
     // read from public iotape, the output
+    let mut mozak_io_public = MozakIoPublic {
+        stdin: Box::new(BufReader::new(stdin())),
+    };
     let mut buffer = [0_u8; 4];
-    let n = mozak_io.read_public(buffer.as_mut()).expect("READ failed");
+    let n = mozak_io_public.read(buffer.as_mut()).expect("READ failed");
     assert!(n <= 4);
     let out = u32::from_le_bytes(buffer);
 

@@ -3,22 +3,14 @@ edition = "2021"
 name = "stdin-mozak-guest"
 version = "0.1.0"
 
-[target.'cfg(target_os="zkvm")'.dependencies.guest]
-features = ["std"]
-path = "../../guest"
+[dependencies]
+guest = { path = "../../guest", default-features = false}
 
-[target.'cfg(target_os="zkvm")'.dependencies.mozak-system]
-features = []
-path = "../../system"
+mozak-system = { path = "../../system"}
 
 [features]
-native = []
+std = ["guest/std"]
 
 [[bin]]
 name = "stdin"
 path = "main.rs"
-
-[[bin]]
-name = "stdin-native"
-path = "main_native.rs"
-required-features = ["native"]
