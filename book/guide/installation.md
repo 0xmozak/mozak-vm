@@ -47,5 +47,5 @@ run Mozak-VM CLI commands with
 cargo run --bin mozak-cli [OPTIONS] <COMMAND>
 ```
 
-If you are intersted in making changes or found a bug related to the CLI, feel free to submit an [issue](https://github.com/0xmozak/mozak-vm/issues)
+If you are interested in making changes or found a bug related to the CLI, feel free to submit an [issue](https://github.com/0xmozak/mozak-vm/issues)
 
