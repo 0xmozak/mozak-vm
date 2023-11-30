@@ -44,7 +44,7 @@ pub fn main() {
     #[cfg(not(target_os = "zkvm"))]
     println!("Deserialized Value: {:?}", deserialized);
     let bytes = rkyv::to_bytes::<_, 256>(&deserialized).unwrap();
-    guest::env::write(&bytes);
+    guest::env::mozak_write(&bytes);
 }
 
 guest::entry!(main);

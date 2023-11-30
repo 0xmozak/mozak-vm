@@ -8,7 +8,7 @@ use alloc::vec::Vec;
 static mut OUTPUT_BYTES: Option<Vec<u8>> = None;
 
 #[no_mangle]
-pub fn init() {
+pub fn mozak_init() {
     #[cfg(target_os = "zkvm")]
     unsafe {
         OUTPUT_BYTES = Some(Vec::new());
@@ -16,7 +16,7 @@ pub fn init() {
 }
 
 #[no_mangle]
-pub fn finalize() {
+pub fn mozak_finalize() {
     #[cfg(target_os = "zkvm")]
     unsafe {
         let output_bytes_vec = OUTPUT_BYTES.as_ref().unwrap_unchecked();
@@ -26,7 +26,7 @@ pub fn finalize() {
 }
 
 #[no_mangle]
-pub fn write(output_data: &[u8]) {
+pub fn mozak_write(output_data: &[u8]) {
     #[cfg(target_os = "zkvm")]
     {
         let output_bytes_vec = unsafe { OUTPUT_BYTES.as_mut().unwrap_unchecked() };

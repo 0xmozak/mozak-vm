@@ -13,7 +13,7 @@ pub fn main() {
         hash.as_bytes()[..],
         hex!("5c2699dfd609d4566ee6656d2edb8298bacaccde758ec4f3005ff59a83347cd7")[..]
     );
-    guest::env::write(hash.as_bytes());
+    guest::env::mozak_write(hash.as_bytes());
 }
 
 guest::entry!(main);

@@ -28,14 +28,14 @@ macro_rules! entry {
 #[cfg(target_os = "zkvm")]
 #[no_mangle]
 unsafe extern "C" fn __start() {
-    env::init();
+    env::mozak_init();
     {
         extern "C" {
             fn main();
         }
         main()
     }
-    env::finalize();
+    env::mozak_finalize();
 }
 
 // The stack grows downwards (towards lower addresses) and the stack pointer
