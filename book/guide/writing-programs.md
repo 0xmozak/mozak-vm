@@ -99,6 +99,7 @@ Building the programs requires the [Rust nightly toolchain](https://www.rust-lan
 
 ```rust
 cargo build --release
+```
 
 This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/debug/`.
 
