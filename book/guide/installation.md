@@ -44,7 +44,7 @@ git clone https://github.com/0xmozak/mozak-vm.git && cd mozak-vm
 run Mozak-VM CLI commands with
 
 ```
-cargo run mozak-cli [OPTIONS] <COMMAND>
+cargo run --bin mozak-cli [OPTIONS] <COMMAND>
 ```
 
 If you are intersted in making changes or found a bug related to the CLI, feel free to submit an [issue](https://github.com/0xmozak/mozak-vm/issues)
