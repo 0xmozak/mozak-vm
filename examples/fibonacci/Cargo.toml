@@ -6,6 +6,9 @@ version = "0.1.0"
 [dependencies]
 guest = { path = "../../guest", default-features = false }
 
+[features]
+std = ["guest/std"]
+
 [[bin]]
 name = "fibonacci"
 path = "main.rs"

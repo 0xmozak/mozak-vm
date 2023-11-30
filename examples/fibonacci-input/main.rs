@@ -1,6 +1,8 @@
 #![cfg_attr(target_os = "zkvm", no_main)]
-#![cfg_attr(feature = "std", feature(restricted_std))]
+#![feature(restricted_std)]
 
+#[cfg(not(target_os = "zkvm"))]
+use std::env;
 use std::io::{stdin, BufReader, Read};
 
 use guest::stdin::{MozakIoPrivate, MozakIoPublic};
@@ -21,6 +23,8 @@ pub fn main() {
     let args: Vec<String> = env::args().collect();
     let mut mozak_io_private = MozakIoPrivate {
         stdin: Box::new(BufReader::new(stdin())),
+        #[cfg(not(target_os = "zkvm"))]
+        io_tape_file: args[1].clone(),
     };
     // read from private iotape, the input
     let mut buffer = [0_u8; 4];
@@ -31,6 +35,8 @@ pub fn main() {
     // read from public iotape, the output
     let mut mozak_io_public = MozakIoPublic {
         stdin: Box::new(BufReader::new(stdin())),
+        #[cfg(not(target_os = "zkvm"))]
+        io_tape_file: args[2].clone(),
     };
     let mut buffer = [0_u8; 4];
     let n = mozak_io_public.read(buffer.as_mut()).expect("READ failed");
