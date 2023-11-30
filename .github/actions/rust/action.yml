@@ -60,6 +60,10 @@ runs:
         prefix-key: ${{ inputs.cache-key != '' && inputs.cache-key || null }}
         cache-provider: "local"
 
+    - name: Debug
+      shell: bash
+      run: echo ${{ steps.local-cache.outputs.cache-hit }}
+
     - name: Cache Rust artifacts (Remote)
       uses: 0xmozak/rust-cache@2d3d248878077ffa33fb285b1be0b70dd859d6df
       if: ${{ steps.local-cache.outputs.cache-hit != 'true'}}
