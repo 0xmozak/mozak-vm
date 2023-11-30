@@ -192,7 +192,10 @@ pub fn generate_memory_trace<F: RichField>(
                         value: F::ZERO,
                         ..mem
                     },
-                    mem,
+                    Memory {
+                        diff_clk: mem.clk - F::ONE,
+                        ..mem
+                    },
                 ]
             } else {
                 vec![mem]
@@ -258,7 +261,7 @@ mod tests {
             prep_table(vec![
                 //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk
                 [       1,     100,   1,     0,      0,       1,        0,       0],  // Zero Init:   100
-                [       1,     100,   2,     1,      0,       0,      255,       0],  // Operations:  100
+                [       1,     100,   2,     1,      0,       0,      255,       1],  // Operations:  100
                 [       1,     100,   3,     0,      1,       0,      255,       1],  // Operations:  100
                 [       1,     100,   6,     1,      0,       0,       10,       3],  // Operations:  100
                 [       1,     100,   7,     0,      1,       0,       10,       1],  // Operations:  100
@@ -266,7 +269,7 @@ mod tests {
                 [       1,     102,   0,     0,      0,       1,        0,       0],  // Memory Init: 102
                 [       1,     103,   0,     0,      0,       1,        0,       0],  // Memory Init: 103
                 [       1,     200,   1,     0,      0,       1,        0,       0],  // Zero Init:   200
-                [       1,     200,   4,     1,      0,       0,       15,       0],  // Operations:  200
+                [       1,     200,   4,     1,      0,       0,       15,       3],  // Operations:  200
                 [       1,     200,   5,     0,      1,       0,       15,       1],  // Operations:  200
                 [       1,     201,   0,     0,      0,       1,        0,       0],  // Memory Init: 201
                 [       1,     202,   0,     0,      0,       1,        0,       0],  // Memory Init: 202

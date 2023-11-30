@@ -117,7 +117,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // in case the "new row" describes an `addr` different from the current
         // row, we expect `diff_clk` to be `0`. New row's clk remains
         // unconstrained in such situation.
-        yield_constr.constraint_transition(nv.is_init * nv.diff_clk * (nv.clk - lv.clk));
+        yield_constr
+            .constraint_transition((P::ONES - nv.is_init) * (nv.diff_clk - (nv.clk - lv.clk)));
         yield_constr.constraint_transition(lv.is_init * lv.diff_clk);
 
         // Padding constraints
@@ -164,11 +165,16 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
             builder.mul_extension(nv.is_load, nv_value_sub_lv_value);
         yield_constr.constraint(builder, is_load_mul_nv_value_sub_lv_value);
 
-        let nv_is_init_mul_nv_diff_clk = builder.mul_extension(nv.is_init, nv.diff_clk);
+        let one_sub_nv_is_init = builder.sub_extension(one, nv.is_init);
         let nv_clk_sub_lv_clk = builder.sub_extension(nv.clk, lv.clk);
         let nv_diff_clk_sub_nv_clk_sub_lv_clk =
-            builder.mul_extension(nv_is_init_mul_nv_diff_clk, nv_clk_sub_lv_clk);
-        yield_constr.constraint_transition(builder, nv_diff_clk_sub_nv_clk_sub_lv_clk);
+            builder.sub_extension(nv.diff_clk, nv_clk_sub_lv_clk);
+        let one_sub_nv_is_init_mul_nv_diff_clk_sub_nv_clk_sub_lv_clk =
+            builder.mul_extension(one_sub_nv_is_init, nv_diff_clk_sub_nv_clk_sub_lv_clk);
+        yield_constr.constraint_transition(
+            builder,
+            one_sub_nv_is_init_mul_nv_diff_clk_sub_nv_clk_sub_lv_clk,
+        );
 
         let is_init_mul_diff_clk = builder.mul_extension(lv.is_init, lv.diff_clk);
         yield_constr.constraint_transition(builder, is_init_mul_diff_clk);
