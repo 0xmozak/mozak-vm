@@ -27,12 +27,14 @@ def build_release(cli_repo: Path):
     subprocess.run(["cargo", "build", "--release"], cwd=cli_repo, check=True)
 
 
-def build_ELF(bench_function: str, commit: str):
+def maybe_build_ELF(bench_function: str, commit: str):
     data = load_bench_function_data(bench_function)
-    elf = data["elf"]
-    if elf == "":
+    elf = data.get("elf")
+    if elf is None:
+        print(f"Skipping build ELF for {bench_function}...")
         return
-    elf_path = get_elf_path(data["elf"], commit)
+    print(f"Building ELF for {bench_function}")
+    elf_path = get_elf_path(elf, commit)
     subprocess.run(["cargo", "build", "--release"], cwd=elf_path, check=True)
 
 
