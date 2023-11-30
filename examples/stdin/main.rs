@@ -13,7 +13,7 @@ pub fn main() {
     // Private IO
     let mut mozak_io_private = MozakIoPrivate {
         stdin: Box::new(BufReader::new(stdin())),
-    #[cfg(not(target_os = "zkvm"))]
+        #[cfg(not(target_os = "zkvm"))]
         io_tape_file: args[1].clone(),
     };
     let mut buffer = [0_u8; 1];
@@ -42,7 +42,7 @@ pub fn main() {
     // Public IO
     let mut mozak_io_public = MozakIoPublic {
         stdin: Box::new(BufReader::new(stdin())),
-    #[cfg(not(target_os = "zkvm"))]
+        #[cfg(not(target_os = "zkvm"))]
         io_tape_file: args[2].clone(),
     };
     let mut buffer = [0_u8; 1];

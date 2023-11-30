@@ -1,12 +1,9 @@
 #![cfg_attr(target_os = "zkvm", no_main)]
 #![cfg_attr(feature = "std", feature(restricted_std))]
 
+use std::io::{stdin, BufReader, Read};
 
-use std::io::stdin;
-use std::io::Read;
-use std::io::BufReader;
-use guest::stdin::{MozakIoPublic, MozakIoPrivate};
-
+use guest::stdin::{MozakIoPrivate, MozakIoPublic};
 
 fn fibonacci(n: u32) -> u32 {
     if n < 2 {
