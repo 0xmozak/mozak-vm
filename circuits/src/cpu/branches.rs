@@ -1,11 +1,15 @@
 //! This module implements constraints for the branch operations.
 
+use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
-use starky::constraint_consumer::ConstraintConsumer;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 
-use super::columns::CpuState;
-use crate::stark::utils::is_binary;
+use super::columns::{signed_diff_extension_target, CpuState};
+use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 /// Constraints for `less_than` and `normalised_diff`
 /// For `less_than`:
@@ -46,6 +50,38 @@ pub(crate) fn comparison_constraints<P: PackedField>(
     yield_constr.constraint(lt * (P::ONES - lv.normalised_diff));
 }
 
+pub(crate) fn comparison_constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    let lt = lv.less_than;
+    is_binary_ext_circuit(builder, lt, yield_constr);
+
+    let one = builder.constant_extension(F::Extension::ONE);
+    let one_sub_lt = builder.sub_extension(one, lt);
+    let signed_diff = signed_diff_extension_target(builder, lv);
+    let abs_diff_sub_signed_diff = builder.sub_extension(lv.abs_diff, signed_diff);
+    let constr = builder.mul_extension(one_sub_lt, abs_diff_sub_signed_diff);
+    yield_constr.constraint(builder, constr);
+
+    let abs_diff_add_signed_diff = builder.add_extension(lv.abs_diff, signed_diff);
+    let constr = builder.mul_extension(lt, abs_diff_add_signed_diff);
+    yield_constr.constraint(builder, constr);
+
+    is_binary_ext_circuit(builder, lv.normalised_diff, yield_constr);
+    let one_sub_normalised_diff = builder.sub_extension(one, lv.normalised_diff);
+    let constr = builder.mul_extension(signed_diff, one_sub_normalised_diff);
+    yield_constr.constraint(builder, constr);
+
+    let signed_diff_mul_cmp_diff_inv = builder.mul_extension(signed_diff, lv.cmp_diff_inv);
+    let constr = builder.sub_extension(signed_diff_mul_cmp_diff_inv, lv.normalised_diff);
+    yield_constr.constraint(builder, constr);
+
+    let lt_mul_one_sub_normalised_diff = builder.mul_extension(lt, one_sub_normalised_diff);
+    yield_constr.constraint(builder, lt_mul_one_sub_normalised_diff);
+}
+
 /// Constraints for conditional branch operations
 pub(crate) fn constraints<P: PackedField>(
     lv: &CpuState<P>,
@@ -79,6 +115,63 @@ pub(crate) fn constraints<P: PackedField>(
     // Check: for BNE, we reverse the checks of BNE.
     yield_constr.constraint(ops.bne * lv.normalised_diff * (next_pc - branched_pc));
     yield_constr.constraint(ops.bne * (P::ONES - lv.normalised_diff) * (next_pc - bumped_pc));
+}
+
+pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    nv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    let ops = &lv.inst.ops;
+    let is_blt = ops.blt;
+    let is_bge = ops.bge;
+
+    let four = builder.constant_extension(F::Extension::from_noncanonical_u64(4));
+    let bumped_pc = builder.add_extension(lv.inst.pc, four);
+    let branched_pc = lv.inst.imm_value;
+    let next_pc = nv.inst.pc;
+
+    let lt = lv.less_than;
+
+    let is_blt_mul_lt = builder.mul_extension(is_blt, lt);
+    let next_pc_sub_branched_pc = builder.sub_extension(next_pc, branched_pc);
+    let constr = builder.mul_extension(is_blt_mul_lt, next_pc_sub_branched_pc);
+    yield_constr.constraint(builder, constr);
+
+    let one = builder.constant_extension(F::Extension::ONE);
+    let one_sub_lt = builder.sub_extension(one, lt);
+    let next_pc_sub_bumped_pc = builder.sub_extension(next_pc, bumped_pc);
+    let is_blt_mul_one_sub_lt = builder.mul_extension(is_blt, one_sub_lt);
+    let constr = builder.mul_extension(is_blt_mul_one_sub_lt, next_pc_sub_bumped_pc);
+    yield_constr.constraint(builder, constr);
+
+    let is_bge_mul_lt = builder.mul_extension(is_bge, lt);
+    let constr = builder.mul_extension(is_bge_mul_lt, next_pc_sub_bumped_pc);
+    yield_constr.constraint(builder, constr);
+
+    let is_bge_mul_one_sub_lt = builder.mul_extension(is_bge, one_sub_lt);
+    let constr = builder.mul_extension(is_bge_mul_one_sub_lt, next_pc_sub_branched_pc);
+    yield_constr.constraint(builder, constr);
+
+    let one_sub_normalised_diff = builder.sub_extension(one, lv.normalised_diff);
+    let is_beq_mul_one_sub_normalised_diff =
+        builder.mul_extension(ops.beq, one_sub_normalised_diff);
+    let constr = builder.mul_extension(is_beq_mul_one_sub_normalised_diff, next_pc_sub_branched_pc);
+    yield_constr.constraint(builder, constr);
+
+    let is_beq_mul_normalised_diff = builder.mul_extension(ops.beq, lv.normalised_diff);
+    let constr = builder.mul_extension(is_beq_mul_normalised_diff, next_pc_sub_bumped_pc);
+    yield_constr.constraint(builder, constr);
+
+    let is_bne_mul_normalised_diff = builder.mul_extension(ops.bne, lv.normalised_diff);
+    let constr = builder.mul_extension(is_bne_mul_normalised_diff, next_pc_sub_branched_pc);
+    yield_constr.constraint(builder, constr);
+
+    let is_bne_mul_one_sub_normalised_diff =
+        builder.mul_extension(ops.bne, one_sub_normalised_diff);
+    let constr = builder.mul_extension(is_bne_mul_one_sub_normalised_diff, next_pc_sub_bumped_pc);
+    yield_constr.constraint(builder, constr);
 }
 
 #[cfg(test)]
