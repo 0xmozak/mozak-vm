@@ -4,9 +4,9 @@ name = "stdin-mozak-guest"
 version = "0.1.0"
 
 [dependencies]
-guest = { path = "../../guest", default-features = false}
+guest = { path = "../../guest", default-features = false }
 
-mozak-system = { path = "../../system"}
+mozak-system = { path = "../../system" }
 
 [features]
 std = ["guest/std"]

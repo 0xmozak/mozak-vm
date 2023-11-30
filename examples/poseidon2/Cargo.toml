@@ -4,7 +4,7 @@ name = "poseidon2-example-mozak-guest"
 version = "0.1.0"
 
 [dependencies]
-guest = { path = "../../guest", default-features=false }
+guest = { path = "../../guest", default-features = false }
 hex-literal = "0.2"
 
 [[bin]]

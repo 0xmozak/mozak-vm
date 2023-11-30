@@ -5,8 +5,8 @@ version = "0.1.0"
 
 
 [dependencies]
+guest = { path = "../../guest", default-features = false }
 rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
-guest = { path = "../../guest", default-features = false}
 
 [features]
 std = ["guest/std"]
