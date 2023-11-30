@@ -123,10 +123,10 @@ mozak-cli prove target/riscv32im-mozak-zkvm-elf/release/<ELF_NAME> <IO_TAPE_PRIV
 
 where `<PROOF>` is the path to the proof file
 
-To prove the execution of the program, run:
+To verify the execution of the program, run:
 
 ```rust
-mozak-cli prove target/riscv32im-mozak-zkvm-elf/release/<ELF_NAME> <IO_TAPE_PRIVATE> <IO_TAPE_PUBLIC> <PROOF>
+mozak-cli verify <PROOF>
 ```
 
 If you want to see more examples, check out the examples in the [examples folder of our repository].

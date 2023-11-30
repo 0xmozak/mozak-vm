@@ -7,7 +7,7 @@
 - [Installation](guide/installation.md)
 - [Writing Programs](guide/writing-programs.md)
 
-# Reference Guide
+<!-- # Reference Guide
 
 - [Command Line Tool](cli/README.md)
     - [decode](cli/decode.md)
@@ -17,7 +17,7 @@
     - [verify](cli/verify.md)
     - [program-rom-hash](cli/program-rom-hash.md)
     - [memory-init-hash](cli/memory-init-hash.md)
-    - [bench](cli/bench.md)
+    - [bench](cli/bench.md) -->
 
 <!-- # Architecture -->
 <!-- TODO -->
