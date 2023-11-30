@@ -113,7 +113,7 @@ use `mozak-cli`'s run command to execute generated ELF.
 mozak-cli run target/riscv32im-mozak-zkvm-elf/release/<ELF_NAME> <IO_TAPE_PRIVATE> <IO_TAPE_PUBLIC>
 ```
 
-For this fibonnachi example, both `<IO_TAPE_PRIVATE>` and `<IO_TAPE_PUBLIC>`, the pivate and public inputs respectively, are empty files.
+For this fibonnacci example, both `<IO_TAPE_PRIVATE>` and `<IO_TAPE_PUBLIC>`, the private and public inputs respectively, are empty files.
 
 To prove the execution of the program, run:
 
