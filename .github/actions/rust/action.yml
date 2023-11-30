@@ -55,13 +55,13 @@ runs:
 
     - id: local-cache
       name: Cache Rust artifacts (Local)
-      uses: 0xmozak/rust-cache@649bd9e318b2ed2e617805d2e3f360ff2b7200ff
+      uses: 0xmozak/rust-cache@2d3d248878077ffa33fb285b1be0b70dd859d6df
       with:
         prefix-key: ${{ inputs.cache-key != '' && inputs.cache-key || null }}
         cache-provider: "local"
 
     - name: Cache Rust artifacts (Remote)
-      uses: 0xmozak/rust-cache@649bd9e318b2ed2e617805d2e3f360ff2b7200ff
+      uses: 0xmozak/rust-cache@2d3d248878077ffa33fb285b1be0b70dd859d6df
       if: ${{ steps.local-cache.outputs.cache-hit != 'true'}}
       with:
         require-full-match: ${{ steps.local-cache.outputs.partial-hit }}
