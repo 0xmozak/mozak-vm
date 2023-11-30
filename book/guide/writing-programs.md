@@ -1,7 +1,7 @@
 # Writing Programs
 
 [RISC-V] is a general purpose instruction set architecture. As a RISC-V Zero-Knowledge Virtual Machine, 
-Mozak-VM can prove and verify arbitrary programs that are compiled to RISC-V regardless of whether the program
+Mozak-VM aims to be able to prove and verify arbitrary programs that are compiled to RISC-V regardless of whether the program
 was written in Rust, C++, or another language.
 
 For now, we support the RV32I Base Integer Instructions and RV32M Multiply Extension Instructions of RISC-V and writing
