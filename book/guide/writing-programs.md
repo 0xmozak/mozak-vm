@@ -95,11 +95,10 @@ pub fn main() {
 guest::entry!(main);
 ```
 
-Building the programs require Rust nightly toolchain. To Build the program, run
+Building the programs requires the [Rust nightly toolchain](https://www.rust-lang.org/tools/install). To Build the program, run
 
 ```rust
 cargo build --release
-```
 
 This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/debug/`.
 
