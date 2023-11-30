@@ -189,7 +189,7 @@ macro_rules! mozak_stark_helpers {
         }
         pub(crate) use all_kind;
 
-        /// Creates an array by repeatedly calls a "labmda" once per stark value.
+        /// Creates an array by repeated calls to a "lambda" once per stark value.
         ///
         /// Note that these are not actual lambdas and so early returns will return from
         /// the caller, not the lambda

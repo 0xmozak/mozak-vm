@@ -29,10 +29,10 @@ jobs:
             echo "${runners}"
 
             # Filter to self-hosted runners that aren't busy
-            # Note that if a self-hosted runner is running this job, it will be considered `busy` by GitHub
-            # But obviously that's not busy by our standards
+            # Note that if a self-hosted runner is running this job, it will be considered 'busy' by GitHub,
+            # but obviously that's not busy by our standards.
             if echo "${runners}" | jq --exit-status '(.runners // [])[] | select(.status == "online" and (.busy == false or .name == "${{ runner.name }}") and .labels[] .name == "self-hosted")'; then
-              # If we found an available self-hosted runner, then proceed to signal our desire to use self-hosted
+              # If we found an available self-hosted runner, then proceed to signal our desire to use self-hosted.
               echo "runner-label=self-hosted" | tee --append "${GITHUB_OUTPUT}"
               exit 0
             fi
