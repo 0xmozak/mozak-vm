@@ -81,7 +81,7 @@ jobs:
       - name: Build all examples
         run: |
           cd examples
-          git ls-files -z '*/Cargo.toml' | xargs -0 --max-args=1 -- cargo build --manifest-path
+          ./build-examples.sh
 
   cargo-fmt:
     needs: check-runner
