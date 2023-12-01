@@ -2,14 +2,11 @@
 #![feature(restricted_std)]
 mod core_logic;
 
-use std::io::Read;
+use mozak_sdk::io::{
+    from_tape_deserialized, from_tape_rawbuf, get_tapes, MozakPrivateInput, MozakPublicInput,
+};
 
-use mozak_sdk::io::{get_tapes, Extractor};
-use rkyv::Deserialize;
-use rs_merkle::algorithms::Sha256;
-use rs_merkle::MerkleProof;
-
-use crate::core_logic::{verify_merkle_proof, ProofData};
+use crate::core_logic::{verify_merkle_proof, MerkleRootType, ProofData};
 
 /// ## Function ID 0
 /// This function verifies
@@ -33,33 +30,18 @@ fn merkleproof_trustedroot_verify(
 pub fn main() {
     let (mut public_tape, mut private_tape) = get_tapes();
 
-    let function_id = public_tape.get_u8();
-
-    match function_id {
+    #[allow(clippy::single_match)]
+    match public_tape.get_function_id() {
         0 => {
-            let mut merkle_root_buffer = [0u8; 32];
-            public_tape
-                .read(&mut merkle_root_buffer)
-                .expect("(public) read failed for merkle root");
+            // Public tape
+            let merkle_root: MerkleRootType =
+                from_tape_rawbuf::<MozakPublicInput, 32>(&mut public_tape);
 
-            let mut length_prefix = [0u8; 4];
-            // Length prefix (u32)
-            private_tape
-                .read(&mut length_prefix)
-                .expect("(private) read failed for length prefix");
-            let length_prefix = u32::from_le_bytes(length_prefix);
+            // Private tape
+            let proof_data =
+                from_tape_deserialized::<MozakPrivateInput, ProofData, 256>(&mut private_tape);
 
-            let mut testdata_buf = Vec::with_capacity(length_prefix as usize);
-            testdata_buf.resize(length_prefix as usize, 0);
-            private_tape
-                .read(&mut testdata_buf[0..(length_prefix as usize)])
-                .expect("(private) read failed for merkle proof data");
-
-            let archived = unsafe { rkyv::archived_root::<ProofData>(&testdata_buf) };
-            let deserialized_testdata: ProofData =
-                archived.deserialize(&mut rkyv::Infallible).unwrap();
-
-            merkleproof_trustedroot_verify(merkle_root_buffer, deserialized_testdata);
+            merkleproof_trustedroot_verify(merkle_root, proof_data);
         }
         _ => (),
     };

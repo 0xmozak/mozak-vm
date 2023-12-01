@@ -2,6 +2,11 @@ use std::io::{self, stdin, BufReader, Read};
 
 use mozak_system::system::{syscall_ioread_public, syscall_ioread_private};
 
+use rkyv::{
+    Serialize, Deserialize, ser::serializers::AllocSerializer, Archive
+};
+
+
 pub trait Extractor {
     /// Extract one byte from the tape
     fn get_u8(&mut self) -> u8;
@@ -62,6 +67,12 @@ impl<'a> Extractor for MozakPublicInput<'a> {
         let bytes_read = self.read(buf.as_mut()).expect("READ failed");
         assert!(bytes_read == 1);
         buf[0]
+    }
+}
+
+impl MozakPublicInput<'_> {
+    pub fn get_function_id(&mut self) -> u8 {
+        self.get_u8()
     }
 }
 
@@ -136,4 +147,96 @@ pub fn get_tapes<'a>() -> (MozakPublicInput<'a>, MozakPrivateInput<'a>) {
             stdin: Box::new(BufReader::new(stdin())),
         },
     )
+}
+
+/// Native API that provides open files for IOTape access in either
+/// read-only or write-only mode.
+// #[allow(dead_code)]
+pub fn get_tapes_native(is_read: bool, files: [&str; 2]) -> Vec<std::fs::File> {
+    let mut new_oo = std::fs::OpenOptions::new();
+
+    let open_options = match is_read {
+        true => new_oo.read(true).write(false),
+        false => new_oo.append(true).create(true),
+    };
+    files
+        .iter()
+        .map(|x| open_options.open(x).expect("cannot open tape"))
+        .collect()
+}
+
+/// Native API that writes to a tape a single u8 value signifying
+/// function ID selector.
+pub fn to_tape_function_id<T>(public_tape: &mut T, id: u8) 
+where T: std::io::Write
+{
+    public_tape
+        .write(&[id])
+        .expect("failure while writing function ID");
+}
+
+/// Native API that reads from a tape a single u8 value signifying
+/// function ID selector.
+pub fn from_tape_function_id<T>(public_tape: &mut T) -> u8 
+where T: std::io::Read
+{
+    let mut function_id_buffer = [0u8; 1];
+    public_tape
+        .read(&mut function_id_buffer)
+        .expect("failure while reading function ID");
+    function_id_buffer[0]
+}
+
+/// Native API that writes to a tape a non-length prefixed raw buffer
+pub fn to_tape_rawbuf<T>(tape: &mut T, buf: &[u8]) 
+where T: std::io::Write
+{
+    tape.write(buf).expect("failure while writing raw buffer");
+}
+
+/// Native API that reads from a tape a non-length prefixed raw buffer
+pub fn from_tape_rawbuf<T, const N: usize>(tape: &mut T) -> [u8; N] 
+where T: std::io::Read
+{
+    let mut buf = [0u8; N];
+    tape.read(&mut buf).expect("failure while reading raw buffer");
+    buf
+}
+
+/// Native API that serializes and writes to tape an `rkyv` serializable 
+/// data structure with 32-bit length prefix.
+pub fn to_tape_serialized<F,T, const N: usize>(tape: &mut F, object: &T)
+where
+    F: std::io::Write,
+    T: Serialize<AllocSerializer<N>>, 
+{
+    let serialized_obj = rkyv::to_bytes::<_, N>(object).unwrap();
+    let serialized_obj_len = (serialized_obj.len() as u32).to_le_bytes();
+    tape.write(&serialized_obj_len)
+        .expect("failure while writing serialized obj len prefix");
+    tape.write(&serialized_obj)
+        .expect("failure while writing serialized obj");
+}
+
+/// Native API that reads and deserializes from tape an `rkyv` deserializable 
+/// data structure with 32-bit length prefix.
+pub fn from_tape_deserialized<F, T, const N: usize>(tape: &mut F) -> T
+where
+    F: std::io::Read,
+    T: Archive, 
+    T::Archived: Deserialize<T, rkyv::Infallible>,
+{
+    let mut length_prefix = [0u8; 4];
+    tape.read(&mut length_prefix)
+        .expect("read failed for length prefix");
+    let length_prefix = u32::from_le_bytes(length_prefix);
+
+    let mut obj_buf = Vec::with_capacity(length_prefix as usize);
+    obj_buf.resize(length_prefix as usize, 0);
+
+    tape.read(&mut obj_buf[0..(length_prefix as usize)])
+        .expect("read failed for obj");
+
+    let archived = unsafe { rkyv::archived_root::<T>(&obj_buf) };
+    archived.deserialize(&mut rkyv::Infallible).unwrap()
 }

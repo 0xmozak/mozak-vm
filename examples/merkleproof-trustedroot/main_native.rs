@@ -1,17 +1,16 @@
 // #![feature(restricted_std)]
 mod core_logic;
-
 use std::fs::File;
-use std::io::{Read, Write};
 
-use rkyv::{Deserialize, Infallible};
-use rs_merkle::algorithms::Sha256;
-use rs_merkle::{Hasher, MerkleProof, MerkleTree};
-
-use crate::core_logic::{
-    from_tape_function_id, from_tape_rawbuf, from_tape_serialized, to_tape_function_id,
-    to_tape_rawbuf, to_tape_serialized, verify_merkle_proof, MerkleRootType, ProofData,
+use mozak_sdk::io::{
+    from_tape_deserialized, from_tape_function_id, from_tape_rawbuf, get_tapes_native,
+    to_tape_function_id, to_tape_rawbuf, to_tape_serialized,
 };
+use rs_merkle::algorithms::Sha256;
+use rs_merkle::{Hasher, MerkleTree};
+use simple_logger::{set_up_color_terminal, SimpleLogger};
+
+use crate::core_logic::{verify_merkle_proof, MerkleRootType, ProofData};
 
 /// Generates a merkle tree based on the leaf values given
 /// Returns merkle root and ProofData. Uses `SHA256` hasher
@@ -55,56 +54,56 @@ fn generate_merkle(
 /// `files` denote tapes in order `public`, `private`.
 /// Uses `rkyv` serialization.
 fn serialize_to_disk(files: [&str; 2], merkle_root: [u8; 32], proof_data: &ProofData) {
-    println!("Serializing and dumping to disk");
+    log::info!("Serializing and dumping to disk: {:#?}", files);
 
     let mut tapes = get_tapes_native(false, files);
 
     // Public tape
     to_tape_function_id(&mut tapes[0], 0);
+
+    log::info!("Merkle root: 0x{}", hex::encode(&merkle_root));
     to_tape_rawbuf(&mut tapes[0], &merkle_root);
 
     // Private tape
-    to_tape_serialized::<ProofData, 256>(&mut tapes[1], proof_data);
+    log::info!("Proof Data: {:#?}", proof_data);
+    to_tape_serialized::<File, ProofData, 256>(&mut tapes[1], proof_data);
 
-    println!("Serializing and dumping to disk [done]");
-}
-
-fn get_tapes_native(is_read: bool, files: [&str; 2]) -> Vec<File> {
-    let mut new_oo = std::fs::OpenOptions::new();
-
-    let open_options = match is_read {
-        true => new_oo.read(true).write(false),
-        false => new_oo.append(true).create(true),
-    };
-    files
-        .iter()
-        .map(|x| open_options.open(x).expect("cannot open tape"))
-        .collect()
+    log::info!("Serializing and dumping to disk: [done]");
 }
 
 fn deserialize_from_disk(
     files: [&str; 2],
-    expected_merkle_root: [u8; 32],
-    expected_testdata: ProofData,
-) -> ([u8; 32], ProofData) {
-    println!("Reading, deserializing and verifying buffers from disk");
+    expected_merkle_root: MerkleRootType,
+    expected_proofdata: ProofData,
+) -> (MerkleRootType, ProofData) {
+    log::info!(
+        "Reading, deserializing and verifying buffers from disk: {:#?}",
+        files
+    );
 
     let mut tapes = get_tapes_native(true, files);
 
     // Public tape
     let fn_id: u8 = from_tape_function_id(&mut tapes[0]);
-    let merkle_root: MerkleRootType = from_tape_rawbuf::<32>(&mut tapes[0]);
+    assert_eq!(fn_id, 0, "function ID not 0");
+
+    let merkle_root: MerkleRootType = from_tape_rawbuf::<File, 32>(&mut tapes[0]);
+    assert_eq!(merkle_root, expected_merkle_root, "unexpected merkle root");
 
     // Private tape
-    let proof_data = from_tape_serialized::<ProofData, 256>(&mut tapes[1]);
+    let proof_data = from_tape_deserialized::<File, ProofData, 256>(&mut tapes[1]);
+    assert_eq!(proof_data, expected_proofdata, "unexpected proof data");
 
-    println!("Reading, deserializing and verifying buffers from disk [done]");
+    log::info!("Reading, deserializing and verifying buffers from disk:[done]");
 
     (merkle_root, proof_data)
 }
 
 fn main() {
-    println!("Running merkleproof-trustedroot-native");
+    SimpleLogger::new().init().unwrap();
+    set_up_color_terminal();
+
+    log::info!("Running merkleproof-trustedroot-native");
 
     let files = ["public_input.tape", "private_input.tape"];
     let (merkle_root, proof_data) =
@@ -116,5 +115,5 @@ fn main() {
 
     verify_merkle_proof(merkle_root, proof_data);
 
-    println!("all done!")
+    log::info!("Generated tapes and verified proof, all done!");
 }

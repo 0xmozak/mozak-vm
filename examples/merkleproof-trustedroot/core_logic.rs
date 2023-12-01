@@ -1,15 +1,11 @@
 extern crate alloc;
 use alloc::vec::Vec;
-use rkyv::with::{Inline, With};
-use std::fs::File;
-use std::io::{Read, Write};
 
-use rkyv::ser::serializers::AllocSerializer;
-use rkyv::{Archive, Deserialize, Serialize, Fallible, Infallible};
+use rkyv::{Archive, Deserialize, Serialize};
 use rs_merkle::algorithms::Sha256;
 use rs_merkle::MerkleProof;
 
-#[derive(Archive, Deserialize, Serialize, Debug, PartialEq, Default)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Default)]
 #[archive(
     // This will generate a PartialEq impl between our unarchived and archived
     // types:
@@ -33,68 +29,27 @@ pub struct ProofData {
     pub leaves_len: u32,
 }
 
+#[cfg(not(target_os = "zkvm"))]
+impl std::fmt::Debug for ProofData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Define the formatting for MyStruct
+        f.debug_struct("ProofData")
+            .field("indices_to_prove", &self.indices_to_prove)
+            .field(
+                "leaf_hashes",
+                &self
+                    .leaf_hashes
+                    .iter()
+                    .map(|x| hex::encode(x))
+                    .collect::<Vec<String>>(),
+            )
+            .field("proof_bytes", &hex::encode(&self.proof_bytes))
+            .field("leaves_len", &self.leaves_len)
+            .finish()
+    }
+}
+
 pub type MerkleRootType = [u8; 32];
-
-// TODO: shift to SDK
-pub fn to_tape_function_id(public_tape: &mut File, id: u8) {
-    public_tape
-        .write(&[id])
-        .expect("failure while writing function ID");
-}
-
-// TODO: shift to SDK
-pub fn from_tape_function_id(public_tape: &mut File) -> u8 {
-    let mut function_id_buffer = [0u8; 1];
-    public_tape
-        .read(&mut function_id_buffer)
-        .expect("failure while reading function ID");
-    function_id_buffer[0]
-}
-
-// TODO: shift to SDK
-pub fn to_tape_rawbuf(tape: &mut File, buf: &[u8]) {
-    tape.write(buf).expect("failure while writing raw buffer");
-}
-
-// TODO: shift to SDK
-pub fn from_tape_rawbuf<const N: usize>(tape: &mut File) -> [u8; N] {
-    let mut buf = [0u8; N];
-    tape.read(&mut buf).expect("failure while reading raw buffer");
-    buf
-}
-
-// TODO: shift to SDK
-pub fn to_tape_serialized<T, const N: usize>(tape: &mut File, object: &T)
-where
-    T: Serialize<AllocSerializer<N>>, {
-    let serialized_obj = rkyv::to_bytes::<_, N>(object).unwrap();
-    let serialized_obj_len = (serialized_obj.len() as u32).to_le_bytes();
-    tape.write(&serialized_obj_len)
-        .expect("failure while writing serialized obj len prefix");
-    tape.write(&serialized_obj)
-        .expect("failure while writing serialized obj");
-}
-
-// TODO: shift to SDK
-pub fn from_tape_serialized<T, const N: usize>(tape: &mut File) -> T
-where
-    T: Archive, 
-    T::Archived: Deserialize<T, rkyv::Infallible>,
-{
-    let mut length_prefix = [0u8; 4];
-    tape.read(&mut length_prefix)
-        .expect("read failed for length prefix");
-    let length_prefix = u32::from_le_bytes(length_prefix);
-
-    let mut obj_buf = Vec::with_capacity(length_prefix as usize);
-    obj_buf.resize(length_prefix as usize, 0);
-
-    tape.read(&mut obj_buf[0..(length_prefix as usize)])
-        .expect("read failed for obj");
-
-    let archived = unsafe { rkyv::archived_root::<T>(&obj_buf) };
-    archived.deserialize(&mut rkyv::Infallible).unwrap()
-}
 
 pub fn verify_merkle_proof(merkle_root: MerkleRootType, proof_data: ProofData) {
     let proof = MerkleProof::<Sha256>::try_from(proof_data.proof_bytes).unwrap();
