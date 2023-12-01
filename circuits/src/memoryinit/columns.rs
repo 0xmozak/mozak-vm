@@ -1,6 +1,6 @@
 use plonky2::field::types::Field;
 
-use crate::columns_view::{columns_view_impl, make_col_map, NumberOfColumns};
+use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
 
 columns_view_impl!(MemElement);
@@ -26,8 +26,6 @@ pub struct MemoryInit<T> {
     pub is_writable: T,
 }
 
-pub const NUM_MEMORYINIT_COLS: usize = MemoryInit::<()>::NUMBER_OF_COLUMNS;
-
 /// Columns containing the data which are looked up from the Memory Table
 #[must_use]
 pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
@@ -37,8 +35,6 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
         // clk:
         Column::constant(F::ZERO),
         Column::single(col_map().element.value),
-        // is_init:
-        Column::constant(F::ONE),
     ]
 }
 
