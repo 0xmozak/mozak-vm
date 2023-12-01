@@ -79,7 +79,7 @@ where
 pub fn from_tape_serialized<T, const N: usize>(tape: &mut File) -> T
 where
     T: Archive, 
-    T::Archived: Deserialize<T, dyn Fallible<Error = rkyv::Infallible>>,
+    T::Archived: Deserialize<T, rkyv::Infallible>,
 {
     let mut length_prefix = [0u8; 4];
     tape.read(&mut length_prefix)
@@ -93,9 +93,7 @@ where
         .expect("read failed for obj");
 
     let archived = unsafe { rkyv::archived_root::<T>(&obj_buf) };
-    // let a = Infallible::deserialize(&self, deserializer)
-    let t: T = archived.deserialize(&mut rkyv::Infallible).unwrap();
-    t
+    archived.deserialize(&mut rkyv::Infallible).unwrap()
 }
 
 pub fn verify_merkle_proof(merkle_root: MerkleRootType, proof_data: ProofData) {

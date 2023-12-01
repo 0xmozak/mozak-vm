@@ -97,48 +97,6 @@ fn deserialize_from_disk(
 
     // Private tape
     let proof_data = from_tape_serialized::<ProofData, 256>(&mut tapes[1]);
-    // // Read public tape (33 bytes)
-    // let mut function_id_buffer = [0u8; 1];
-    // let mut merkle_root_buffer = [0u8; 32];
-
-    // Function ID (u8)
-    // tapes[0]
-    //     .read(&mut function_id_buffer)
-    //     .expect("(public) read failed for function ID");
-    // assert_eq!(function_id_buffer[0], 0, "function ID mismatched");
-
-    // Merkle state root ([u8; 32])
-    // tapes[0]
-    //     .read(&mut merkle_root_buffer)
-    //     .expect("(public) read failed for merkle root");
-    // assert_eq!(
-    //     merkle_root_buffer, expected_merkle_root,
-    //     "merkle root mismatched"
-    // );
-
-    // Read private tape (variable)
-    // let mut length_prefix = [0u8; 4];
-    // Length prefix (u32)
-    // tapes[1]
-    //     .read(&mut length_prefix)
-    //     .expect("(private) read failed for length prefix");
-
-    // let length_prefix = u32::from_le_bytes(length_prefix);
-
-    // let mut testdata_buf = Vec::with_capacity(length_prefix as usize);
-    // testdata_buf.resize(length_prefix as usize, 0);
-    // tapes[1]
-    //     .read(&mut testdata_buf[0..(length_prefix as usize)])
-    //     .expect("(private) read failed for merkle proof data");
-
-    // let archived = unsafe { rkyv::archived_root::<ProofData>(&testdata_buf) };
-    // let deserialized_testdata: ProofData = archived.deserialize(&mut
-    // rkyv::Infallible).unwrap();
-
-    // assert_eq!(
-    //     deserialized_testdata, expected_testdata,
-    //     "testdata mismatch"
-    // );
 
     println!("Reading, deserializing and verifying buffers from disk [done]");
 
