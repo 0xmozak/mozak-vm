@@ -63,21 +63,36 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // ---------------------------------
         // The memory table is assumed to be ordered by `addr` in ascending order.
         // such that whenever we describe an memory init / access
-        // pattern of an "address", a correct table gurantees the following:
-        //    All rows for a specific `addr` start with either a memory init (via static
-        //    ELF) with `is_init` flag set (case for ro or rw static memory) or `SB`
-        //    (case for heap / other dynamic addresses). It is assumed that static
-        //    memory init operation happens before any execution has started and
-        //    consequently `clk` should be `0` for such entries.
-        // NOTE: We rely on 'Ascending ordered, contigous "address" view constraint'
-        // to provide us with a guarantee of single contigous block of rows per `addr`.
-        // If that gurantee does not exist, for some address `x`, different contigous
-        // blocks of rows in memory table can present case for them being derived from
-        // static ELF and dynamic (execution) at the same time or being writable as
+        // pattern of an "address", a correct table guarantees the following:
+        //
+        // All rows for a specific `addr` start with either:
+        //   1) a memory init (via static ELF), or
+        //   2) a zero init (case for heap / other dynamic addresses).
+        // For these starting rows, `is_init` will be true.
+        //
+        // 1) Memory Init
+        //   All memory init rows will have clk `0`.
+        //
+        // 2) Zero Init
+        //   All zero initialized memory will have clk `1` and value `0`. They
+        //   should also be writable.
+        //
+        // NOTE: We rely on 'Ascending ordered, contiguous
+        // "address" view constraint' to provide us with a guarantee of single
+        // contiguous block of rows per `addr`. If that guarantee does not exist,
+        // for some address `x`, different contiguous blocks of rows in memory
+        // table can present case for them being derived from static ELF and
+        // dynamic (execution) at the same time or being writable as
         // well as non-writable at the same time.
 
         // All memory init happens prior to exec and the `clk` would be `0` or `1`.
         yield_constr.constraint(lv.is_init * lv.clk * (P::ONES - lv.clk));
+        // All zero inits should have value `0`.
+        // (Assumption: `is_init` == 1, `clk` == 1)
+        yield_constr.constraint(lv.is_init * lv.clk * lv.value);
+        // All zero inits should be writable.
+        // (Assumption: `is_init` == 1, `clk` == 1)
+        yield_constr.constraint(lv.is_init * lv.clk * (P::ONES - lv.is_writable));
 
         // Operation constraints
         // ---------------------
@@ -117,6 +132,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     ) {
         let lv: &Memory<ExtensionTarget<D>> = vars.get_local_values().into();
         let nv: &Memory<ExtensionTarget<D>> = vars.get_next_values().into();
+
         is_binary_ext_circuit(builder, lv.is_writable, yield_constr);
         is_binary_ext_circuit(builder, lv.is_store, yield_constr);
         is_binary_ext_circuit(builder, lv.is_load, yield_constr);
@@ -124,13 +140,21 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv_is_executed = is_executed_ext_circuit(builder, lv);
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
+        let is_init_mul_clk = builder.mul_extension(lv.is_init, lv.clk);
+
         let one = builder.one_extension();
         let one_sub_clk = builder.sub_extension(one, lv.clk);
-        let is_init_mul_clk = builder.mul_extension(lv.is_init, lv.clk);
         let is_init_mul_clk_mul_one_sub_clk = builder.mul_extension(is_init_mul_clk, one_sub_clk);
         yield_constr.constraint(builder, is_init_mul_clk_mul_one_sub_clk);
 
+        let is_init_mul_clk_mul_value = builder.mul_extension(is_init_mul_clk, lv.value);
+        yield_constr.constraint(builder, is_init_mul_clk_mul_value);
+
         let one_sub_is_writable = builder.sub_extension(one, lv.is_writable);
+        let is_init_mul_clk_mul_one_sub_is_writable =
+            builder.mul_extension(is_init_mul_clk, one_sub_is_writable);
+        yield_constr.constraint(builder, is_init_mul_clk_mul_one_sub_is_writable);
+
         let is_store_mul_one_sub_is_writable =
             builder.mul_extension(lv.is_store, one_sub_is_writable);
         yield_constr.constraint(builder, is_store_mul_one_sub_is_writable);
@@ -150,9 +174,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
             builder,
             one_sub_nv_is_init_mul_nv_diff_clk_sub_nv_clk_sub_lv_clk,
         );
-
-        let is_init_mul_diff_clk = builder.mul_extension(lv.is_init, lv.diff_clk);
-        yield_constr.constraint_transition(builder, is_init_mul_diff_clk);
+        let lv_is_init_mul_lv_diff_clk = builder.mul_extension(lv.is_init, lv.diff_clk);
+        yield_constr.constraint_transition(builder, lv_is_init_mul_lv_diff_clk);
 
         let nv_is_executed = is_executed_ext_circuit(builder, nv);
         let lv_is_executed_sub_nv_is_executed =
