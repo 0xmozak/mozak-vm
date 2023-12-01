@@ -16,7 +16,7 @@ use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
     trace.resize(
-        trace.len().next_power_of_two().max(MIN_TRACE_LENGTH),
+        (trace.len() + 1).next_power_of_two().max(MIN_TRACE_LENGTH),
         Memory {
             // Some columns need special treatment..
             is_store: F::ZERO,

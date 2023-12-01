@@ -159,6 +159,7 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let mem = col_map().map(Column::from);
     vec![
         MemoryTable::new(Column::singles([col_map().addr]), mem.is_executed()),
+        MemoryTable::new(Column::singles_diff([col_map().addr]), mem.is_executed()),
         MemoryTable::new(Column::singles([col_map().diff_clk]), mem.is_executed()),
     ]
 }
