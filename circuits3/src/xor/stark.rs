@@ -49,7 +49,7 @@ mod tests {
     #[test]
     #[allow(clippy::items_after_statements)]
     fn test_stark() -> Result<(), VerificationError> {
-        let n = 4;
+        let n = 12;
         let (config, mut challenger) = DefaultConfig::make_config();
         let mut verifer_challenger = challenger.clone();
         let trace = generate_dummy_xor_trace(n);
