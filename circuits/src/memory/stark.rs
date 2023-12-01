@@ -59,29 +59,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary(yield_constr, lv.is_init);
         is_binary(yield_constr, lv.is_executed());
 
-        // `is_next_a_new_addr` should be binary. However under context where `nv` is
-        // `lv` a similar test runs as given above constraining it being a
-        // boolean. Hence, we do not explicitly check for `is_next_a_new_addr`
-        // to be boolean here.
-
-        // First row constraints
-        // ---------------------
-        // When starting off, the first `addr` we encounter is supposed to be
-        // relatively away from `0` by `diff_addr`, consequently `addr` and
-        // `diff_addr` are same for the first row. As a matter of preference,
-        // we can have any `clk` in the first row, but `diff_clk` is `0`.
-        // This is because when `addr` changes, `diff_clk` is expected to be `0`.
-        yield_constr.constraint_first_row(lv.diff_clk);
-
-        // Ascending ordered, contigous "address" view constraint
-        // ------------------------------------------------------
-        // All memory init / accesses for a given `addr` is described via contigous
-        // rows. This is constrained by range-check on `diff_addr` which in 32-bit
-        // RISC can only assume values 0..1<<32. If similar range-checking
-        // constraint is put on `addr` as well, the only possibility of
-        // non-contigous address view occurs when the prime order of field in
-        // question is of size less than 2*(2^32 - 1).
-
         // Memory initialization Constraints
         // ---------------------------------
         // The memory table is assumed to be ordered by `addr` in ascending order.
