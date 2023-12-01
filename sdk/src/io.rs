@@ -144,9 +144,11 @@ pub fn get_tapes<'a>() -> (MozakPublicInput<'a>, MozakPrivateInput<'a>) {
     )
 }
 
-/// Native API that provides open files for IOTape access in either
-/// read-only or write-only mode.
-// #[allow(dead_code)]
+/// Native API that provides open files for `IOTape` access in either
+/// read-only or write-only mode. Infallible, may panic internally
+#[must_use]
+#[allow(clippy::match_bool)]
+#[allow(clippy::missing_panics_doc)]
 pub fn get_tapes_native(is_read: bool, files: [&str; 2]) -> Vec<std::fs::File> {
     let mut new_oo = std::fs::OpenOptions::new();
 
@@ -160,75 +162,85 @@ pub fn get_tapes_native(is_read: bool, files: [&str; 2]) -> Vec<std::fs::File> {
         .collect()
 }
 
-/// Native API that writes to a tape a single u8 value signifying
-/// function ID selector.
+/// Writes to a tape a single `u8` value signifying
+/// function ID selector. Infallible, may panic internally
+#[allow(clippy::missing_panics_doc)]
 pub fn to_tape_function_id<T>(public_tape: &mut T, id: u8)
 where
     T: std::io::Write, {
     public_tape
-        .write(&[id])
+        .write_all(&[id])
         .expect("failure while writing function ID");
 }
 
-/// Native API that reads from a tape a single u8 value signifying
-/// function ID selector.
+/// Reads from a tape a single `u8` value signifying
+/// function ID selector. Infallible, may panic internally
+#[allow(clippy::missing_panics_doc)]
 pub fn from_tape_function_id<T>(public_tape: &mut T) -> u8
 where
     T: std::io::Read, {
     let mut function_id_buffer = [0u8; 1];
     public_tape
-        .read(&mut function_id_buffer)
+        .read_exact(&mut function_id_buffer)
         .expect("failure while reading function ID");
     function_id_buffer[0]
 }
 
-/// Native API that writes to a tape a non-length prefixed raw buffer
+/// Writes to a tape a non-length prefixed raw buffer.
+/// Infallible, may panic internally
+#[allow(clippy::missing_panics_doc)]
 pub fn to_tape_rawbuf<T>(tape: &mut T, buf: &[u8])
 where
     T: std::io::Write, {
-    tape.write(buf).expect("failure while writing raw buffer");
+    tape.write_all(buf)
+        .expect("failure while writing raw buffer");
 }
 
-/// Native API that reads from a tape a non-length prefixed raw buffer
+/// Reads from a tape a non-length prefixed raw buffer.
+/// Infallible, may panic internally
+#[allow(clippy::missing_panics_doc)]
 pub fn from_tape_rawbuf<T, const N: usize>(tape: &mut T) -> [u8; N]
 where
     T: std::io::Read, {
     let mut buf = [0u8; N];
-    tape.read(&mut buf)
+    tape.read_exact(&mut buf)
         .expect("failure while reading raw buffer");
     buf
 }
 
-/// Native API that serializes and writes to tape an `rkyv` serializable
-/// data structure with 32-bit length prefix.
+/// Serializes and writes to tape an `rkyv` serializable
+/// data structure with 32-bit LE length prefix.
+/// Infallible, may panic internally
+#[allow(clippy::missing_panics_doc)]
 pub fn to_tape_serialized<F, T, const N: usize>(tape: &mut F, object: &T)
 where
     F: std::io::Write,
     T: Serialize<AllocSerializer<N>>, {
     let serialized_obj = rkyv::to_bytes::<_, N>(object).unwrap();
-    let serialized_obj_len = (serialized_obj.len() as u32).to_le_bytes();
-    tape.write(&serialized_obj_len)
+    let serialized_obj_len = u32::try_from(serialized_obj.len()).unwrap().to_le_bytes();
+    tape.write_all(&serialized_obj_len)
         .expect("failure while writing serialized obj len prefix");
-    tape.write(&serialized_obj)
+    tape.write_all(&serialized_obj)
         .expect("failure while writing serialized obj");
 }
 
-/// Native API that reads and deserializes from tape an `rkyv` deserializable
-/// data structure with 32-bit length prefix.
+/// Reads and deserializes from tape an `rkyv` deserializable
+/// data structure with 32-bit LE length prefix.
+/// Infallible, may panic internally
+#[allow(clippy::missing_panics_doc)]
 pub fn from_tape_deserialized<F, T, const N: usize>(tape: &mut F) -> T
 where
     F: std::io::Read,
     T: Archive,
     T::Archived: Deserialize<T, rkyv::Infallible>, {
     let mut length_prefix = [0u8; 4];
-    tape.read(&mut length_prefix)
+    tape.read_exact(&mut length_prefix)
         .expect("read failed for length prefix");
     let length_prefix = u32::from_le_bytes(length_prefix);
 
-    let mut obj_buf = Vec::with_capacity(length_prefix as usize);
-    obj_buf.resize(length_prefix as usize, 0);
+    let mut obj_buf = vec![0; length_prefix as usize];
 
-    tape.read(&mut obj_buf[0..(length_prefix as usize)])
+    tape.read_exact(&mut obj_buf[0..(length_prefix as usize)])
         .expect("read failed for obj");
 
     let archived = unsafe { rkyv::archived_root::<T>(&obj_buf) };
