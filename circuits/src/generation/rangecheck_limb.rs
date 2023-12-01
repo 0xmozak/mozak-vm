@@ -3,7 +3,6 @@ use std::ops::Index;
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
-use crate::cpu::columns::CpuState;
 use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::rangecheck_limb::columns::RangeCheckLimb;
@@ -35,7 +34,6 @@ where
 /// This is used by cpu trace to do direct u8 lookups
 #[must_use]
 pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
-    cpu_trace: &[CpuState<F>],
     rangecheck_trace: &[RangeCheckColumnsView<F>],
     memory_trace: &[Memory<F>],
 ) -> Vec<RangeCheckLimb<F>> {
@@ -45,7 +43,6 @@ pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
         .into_iter()
         .flat_map(|looking_table| match looking_table.kind {
             TableKind::RangeCheck => extract_with_mul(rangecheck_trace, &looking_table),
-            TableKind::Cpu => extract_with_mul(cpu_trace, &looking_table),
             TableKind::Memory => extract_with_mul(memory_trace, &looking_table),
             other => unimplemented!("Can't range check {other:?} tables"),
         })
@@ -115,7 +112,7 @@ mod tests {
         );
         let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
-        let trace = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows, &memory_rows);
+        let trace = generate_rangecheck_limb_trace(&rangecheck_rows, &memory_rows);
 
         for row in &trace {
             // TODO(bing): more comprehensive test once we rip out the old trace gen logic.

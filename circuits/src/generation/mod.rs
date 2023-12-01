@@ -97,8 +97,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed);
 
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
-    let rangecheck_limb_rows =
-        generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows, &memory_rows);
+    let rangecheck_limb_rows = generate_rangecheck_limb_trace(&rangecheck_rows, &memory_rows);
     #[allow(unused)]
     let register_init_rows = generate_register_init_trace::<F>();
     #[allow(unused)]
