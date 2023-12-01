@@ -122,7 +122,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // If instead, the `addr` talks about an address not coming from static ELF,
         // it needs to begin with a `SB` (store) operation before any further access
         // However `clk` value `0` is a special case.
-        // yield_constr.constraint(lv.diff_addr * lv.clk * (P::ONES - lv.is_store));
+        yield_constr.constraint(lv.diff_addr * lv.clk * (P::ONES - lv.is_store));
 
         // Operation constraints
         // ---------------------
@@ -130,7 +130,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint((P::ONES - lv.is_writable) * lv.is_store);
 
         // For all "load" operations, the value cannot change between rows
-        // yield_constr.constraint(nv.is_load * (nv.value - lv.value));
+        yield_constr.constraint(nv.is_load * (nv.value - lv.value));
 
         // Clock constraints
         // -----------------
@@ -192,10 +192,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let is_init_mul_clk = builder.mul_extension(lv.is_init, lv.clk);
         yield_constr.constraint(builder, is_init_mul_clk);
 
-        // let one_sub_is_store = builder.sub_extension(one, lv.is_store);
-        // let diff_addr_mul_clk = builder.mul_extension(lv.diff_addr, lv.clk);
-        // let constr = builder.mul_extension(diff_addr_mul_clk, one_sub_is_store);
-        // yield_constr.constraint(builder, constr);
+        let one_sub_is_store = builder.sub_extension(one, lv.is_store);
+        let diff_addr_mul_clk = builder.mul_extension(lv.diff_addr, lv.clk);
+        let constr = builder.mul_extension(diff_addr_mul_clk, one_sub_is_store);
+        yield_constr.constraint(builder, constr);
 
         let one_sub_is_writable = builder.sub_extension(one, lv.is_writable);
         let is_store_mul_one_sub_is_writable =
@@ -203,9 +203,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr.constraint(builder, is_store_mul_one_sub_is_writable);
 
         let nv_value_sub_lv_value = builder.sub_extension(nv.value, lv.value);
-        // let is_load_mul_nv_value_sub_lv_value =
-        builder.mul_extension(nv.is_load, nv_value_sub_lv_value);
-        // yield_constr.constraint(builder, is_load_mul_nv_value_sub_lv_value);
+        let is_load_mul_nv_value_sub_lv_value =
+            builder.mul_extension(nv.is_load, nv_value_sub_lv_value);
+        yield_constr.constraint(builder, is_load_mul_nv_value_sub_lv_value);
 
         let one_sub_is_next_a_new_addr = builder.sub_extension(one, is_next_a_new_addr);
         let nv_clk_sub_lv_clk = builder.sub_extension(nv.clk, lv.clk);
