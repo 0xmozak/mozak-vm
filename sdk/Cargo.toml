@@ -10,5 +10,5 @@ repository = "https://github.com/0xmozak/mozak-node/sdk"
 version = "0.1.0"
 
 [dependencies]
-mozak-system = { path = "../system"}
+mozak-system = { path = "../system" }
 rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
