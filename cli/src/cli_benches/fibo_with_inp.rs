@@ -1,4 +1,4 @@
-use mozak_runner::elf::{MozakRunTimeArguments, Program};
+use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
@@ -31,6 +31,7 @@ pub fn fibonacci_with_input(n: u32) -> Result<(), anyhow::Error> {
             You may need to build the fibonacci program within the examples directory
             eg. `cd examples/fibonacci-input && cargo build --release`",
     );
+    let program = Program::load_elf(&elf).unwrap();
     let out = fibonacci(n);
     let program = Program::load_program(
         &elf,

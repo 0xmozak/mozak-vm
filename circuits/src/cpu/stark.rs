@@ -454,11 +454,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         jalr::constraints(lv, nv, yield_constr);
         ecall::constraints(lv, nv, yield_constr);
 
-        // Clock starts at 1. This is to differentiate
-        // execution clocks (1 and above) from clk value of `0` which is
-        // reserved for any initialisation concerns. e.g. memory initialization
-        // prior to program execution, register initialization etc.
-        yield_constr.constraint_first_row(P::ONES - lv.clk);
+        // Clock starts at 2. This is to differentiate
+        // execution clocks (2 and above) from
+        // clk values `0` and `1` which are reserved for
+        // elf initialisation and zero initialisation respectively.
+        yield_constr.constraint_first_row(P::ONES + P::ONES - lv.clk);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -506,9 +506,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for CpuStark<F, D
         jalr::constraints_circuit(builder, lv, nv, yield_constr);
         ecall::constraints_circuit(builder, lv, nv, yield_constr);
 
-        let one = builder.one_extension();
-        let one_sub_lv_clk = builder.sub_extension(one, lv.clk);
-        yield_constr.constraint_first_row(builder, one_sub_lv_clk);
+        let two = builder.two_extension();
+        let two_sub_lv_clk = builder.sub_extension(two, lv.clk);
+        yield_constr.constraint_first_row(builder, two_sub_lv_clk);
     }
 }
 

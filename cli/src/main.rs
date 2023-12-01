@@ -20,6 +20,7 @@ use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
+use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_runner::elf::{MozakRunTimeArguments, Program};
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
