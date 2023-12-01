@@ -1,11 +1,9 @@
-use mozak_runner::elf::Program;
+use mozak_circuits::stark::mozak_stark::MozakStark;
+use mozak_circuits::test_utils::ProveAndVerify;
+use mozak_runner::elf::{MozakRunTimeArguments, Program};
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
-
-use crate::stark::mozak_stark::MozakStark;
-use crate::test_utils::ProveAndVerify;
-
 const FIBO_INP_ELF_EXAMPLE_PATH: &str =
     "examples/target/riscv32im-mozak-zkvm-elf/release/fibonacci-input";
 
@@ -31,7 +29,6 @@ pub fn fibonacci_with_input(n: u32) -> Result<(), anyhow::Error> {
             You may need to build the fibonacci program within the examples directory
             eg. `cd examples/fibonacci-input && cargo build --release`",
     );
-    let program = Program::load_elf(&elf).unwrap();
     let out = fibonacci(n);
     let program = Program::load_program(
         &elf,
