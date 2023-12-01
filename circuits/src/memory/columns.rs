@@ -165,7 +165,7 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
 }
 
 #[must_use]
-pub fn u8_rangecheck_looking<F: Field>() -> Vec<Table<F>> {
+pub fn rangecheck_u8_looking<F: Field>() -> Vec<Table<F>> {
     let mem = col_map().map(Column::from);
     vec![MemoryTable::new(
         Column::singles([col_map().value]),

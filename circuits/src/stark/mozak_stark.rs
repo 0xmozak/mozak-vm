@@ -577,7 +577,7 @@ impl<F: Field> Lookups<F> for RangeCheckU8LookupTable<F> {
     fn lookups() -> CrossTableLookup<F> {
         let looking: Vec<Table<F>> = chain![
             rangecheck_looking(),
-            memory::columns::u8_rangecheck_looking(),
+            memory::columns::rangecheck_u8_looking(),
         ]
         .collect();
         CrossTableLookup::new(
