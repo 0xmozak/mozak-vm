@@ -16,7 +16,7 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-use crate::stark::mozak_stark::{Table, TableKind, NUM_TABLES};
+use crate::stark::mozak_stark::{Table, TableKind};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProofTarget, StarkProofWithMetadata};
 
@@ -58,7 +58,7 @@ pub(crate) struct CtlZData<F: Field> {
 
 pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: usize>(
     cross_table_lookups: &[CrossTableLookup<F>],
-    ctl_zs_lasts: &[Vec<F>; NUM_TABLES],
+    ctl_zs_lasts: &[Vec<F>; TableKind::COUNT],
     config: &StarkConfig,
 ) -> Result<()> {
     let mut ctl_zs_openings = ctl_zs_lasts.iter().map(|v| v.iter()).collect::<Vec<_>>();
@@ -90,11 +90,11 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
 }
 
 pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
-    trace_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+    trace_poly_values: &[Vec<PolynomialValues<F>>; TableKind::COUNT],
     cross_table_lookups: &[CrossTableLookup<F>],
     ctl_challenges: &GrandProductChallengeSet<F>,
-) -> [CtlData<F>; NUM_TABLES] {
-    let mut ctl_data_per_table = [0; NUM_TABLES].map(|_| CtlData::default());
+) -> [CtlData<F>; TableKind::COUNT] {
+    let mut ctl_data_per_table = [0; TableKind::COUNT].map(|_| CtlData::default());
     for &challenge in &ctl_challenges.challenges {
         for CrossTableLookup {
             looking_tables,
@@ -232,16 +232,16 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
     CtlCheckVars<'a, F, F::Extension, F::Extension, D>
 {
     pub(crate) fn from_proofs<C: GenericConfig<D, F = F>>(
-        proofs: &[StarkProofWithMetadata<F, C, D>; NUM_TABLES],
+        proofs: &[StarkProofWithMetadata<F, C, D>; TableKind::COUNT],
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
-    ) -> [Vec<Self>; NUM_TABLES] {
+    ) -> [Vec<Self>; TableKind::COUNT] {
         let mut ctl_zs = proofs
             .iter()
             .map(|p| izip!(&p.proof.openings.ctl_zs, &p.proof.openings.ctl_zs_next))
             .collect::<Vec<_>>();
 
-        let mut ctl_vars_per_table = [0; NUM_TABLES].map(|_| vec![]);
+        let mut ctl_vars_per_table = [0; TableKind::COUNT].map(|_| vec![]);
         let ctl_chain = cross_table_lookups.iter().flat_map(
             |CrossTableLookup {
                  looking_tables,
@@ -386,7 +386,7 @@ pub mod ctl_utils {
     use plonky2::hash::hash_types::RichField;
 
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
-    use crate::stark::mozak_stark::{MozakStark, Table, TableKind, NUM_TABLES};
+    use crate::stark::mozak_stark::{MozakStark, Table, TableKind};
 
     #[derive(Debug)]
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
@@ -479,7 +479,7 @@ pub mod ctl_utils {
         Ok(())
     }
     pub fn debug_ctl<F: RichField + Extendable<D>, const D: usize>(
-        traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+        traces_poly_values: &[Vec<PolynomialValues<F>>; TableKind::COUNT],
         mozak_stark: &MozakStark<F, D>,
     ) {
         mozak_stark
