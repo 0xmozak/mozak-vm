@@ -133,12 +133,7 @@ mod tests {
             &io_memory_public_rows,
             &poseidon2_trace,
         );
-
-        println!("cpu rows: {:?}", cpu_rows);
-        println!("mem rows: {:?}", memory_rows);
-
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
-        println!("trace: {:?}", trace);
         assert_eq!(
             trace.len(),
             MIN_TRACE_LENGTH,
