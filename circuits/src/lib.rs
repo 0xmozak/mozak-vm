@@ -23,7 +23,7 @@ pub mod poseidon2;
 pub mod poseidon2_sponge;
 pub mod program;
 pub mod rangecheck;
-pub mod rangecheck_limb;
+pub mod rangecheck_u8;
 pub mod register;
 pub mod registerinit;
 pub mod stark;

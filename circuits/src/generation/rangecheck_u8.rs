@@ -5,8 +5,8 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
-use crate::rangecheck_limb::columns::RangeCheckLimb;
-use crate::stark::mozak_stark::{LimbTable, Lookups, Table, TableKind};
+use crate::rangecheck_u8::columns::RangeCheckU8;
+use crate::stark::mozak_stark::{Lookups, RangeCheckU8LookupTable, Table, TableKind};
 
 /// extract the values with multiplicity nonzero
 pub fn extract_with_mul<F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<(F, F)>
@@ -33,12 +33,12 @@ where
 ///
 /// This is used by cpu trace to do direct u8 lookups
 #[must_use]
-pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
+pub(crate) fn generate_rangecheck_u8_trace<F: RichField>(
     rangecheck_trace: &[RangeCheckColumnsView<F>],
     memory_trace: &[Memory<F>],
-) -> Vec<RangeCheckLimb<F>> {
+) -> Vec<RangeCheckU8<F>> {
     let mut multiplicities = [0u64; 256];
-    LimbTable::lookups()
+    RangeCheckU8LookupTable::lookups()
         .looking_tables
         .into_iter()
         .flat_map(|looking_table| match looking_table.kind {
@@ -51,7 +51,7 @@ pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
             multiplicities[limb as usize] += multiplicity.to_canonical_u64();
         });
     (0..=u8::MAX)
-        .map(|limb| RangeCheckLimb {
+        .map(|limb| RangeCheckU8 {
             value: F::from_canonical_u8(limb),
             multiplicity: F::from_canonical_u64(multiplicities[limb as usize]),
         })
@@ -112,7 +112,7 @@ mod tests {
         );
         let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
-        let trace = generate_rangecheck_limb_trace(&rangecheck_rows, &memory_rows);
+        let trace = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
 
         for row in &trace {
             // TODO(bing): more comprehensive test once we rip out the old trace gen logic.
