@@ -58,6 +58,9 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub memory_stark: MemoryStark<F, D>,
     #[StarkSet(stark_kind = "MemoryInit")]
     pub memory_init_stark: MemoryInitStark<F, D>,
+    // TODO(Bing): find a way to natively constrain zero initializations within
+    // the `MemoryStark`, instead of relying on a CTL between this and the
+    // `MemoryStark`.
     #[StarkSet(stark_kind = "MemoryZeroInit")]
     pub memory_zeroinit_stark: MemoryZeroInitStark<F, D>,
     #[StarkSet(stark_kind = "RangeCheckLimb")]
