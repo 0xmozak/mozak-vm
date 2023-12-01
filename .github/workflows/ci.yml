@@ -23,7 +23,6 @@ jobs:
     secrets: inherit
 
   cargo-test:
-    if: github.event.pull_request.draft == false
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
@@ -47,10 +46,9 @@ jobs:
         run: cargo nextest run --no-run --locked --all-targets
 
       - name: Test
-        run: MOZAK_STARK_DEBUG=true cargo nextest run --locked --all-targets
+        run: MOZAK_STARK_DEBUG=true cargo nextest run --no-fail-fast --locked --all-targets
 
   cargo-clippy:
-    if: github.event.pull_request.draft == false
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
@@ -69,7 +67,6 @@ jobs:
         run: cargo clippy --all-features -- -D warnings
 
   cargo-build-examples:
-    if: github.event.pull_request.draft == false
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
@@ -87,7 +84,6 @@ jobs:
           git ls-files -z '*/Cargo.toml' | xargs -0 --max-args=1 -- cargo build --manifest-path
 
   cargo-fmt:
-    if: github.event.pull_request.draft == false
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
@@ -103,7 +99,6 @@ jobs:
         run: cargo fmt --all --check
 
   taplo-fmt:
-    if: github.event.pull_request.draft == false
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
