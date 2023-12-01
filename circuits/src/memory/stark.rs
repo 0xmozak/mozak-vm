@@ -124,8 +124,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv_is_executed = is_executed_ext_circuit(builder, lv);
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
-        yield_constr.constraint_first_row(builder, lv.diff_clk);
-
         let one = builder.one_extension();
         let one_sub_clk = builder.sub_extension(one, lv.clk);
         let is_init_mul_clk = builder.mul_extension(lv.is_init, lv.clk);
