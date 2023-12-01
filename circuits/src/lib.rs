@@ -17,6 +17,7 @@ pub mod memory;
 pub mod memory_fullword;
 pub mod memory_halfword;
 pub mod memory_io;
+pub mod memory_zeroinit;
 pub mod memoryinit;
 pub mod poseidon2;
 pub mod poseidon2_sponge;

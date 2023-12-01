@@ -6,14 +6,14 @@ use crate::columns_view::NumberOfColumns;
 use crate::xor::columns::{XorColumnsView, XorView};
 fn to_bits(n: u32) -> [u32; 32] {
     let mut bits = [0; 32];
-    for i in 0..32 {
-        bits[i] = (n >> i) & 1;
+    for (i, bit_i) in bits.iter_mut().enumerate() {
+        *bit_i = (n >> i) & 1;
     }
     bits
 }
-pub fn generate_dummy_xor_trace<F: Field>(n: usize) -> RowMajorMatrix<F> {
-    let n = n as u32;
-    let num_rows = n.next_power_of_two() as u32;
+
+pub fn generate_dummy_xor_trace<F: Field>(n: u32) -> RowMajorMatrix<F> {
+    let num_rows = n.next_power_of_two();
     let trace_values = (0..n).flat_map(|i: u32| XorColumnsView {
         is_execution_row: 1,
         execution: XorView {
