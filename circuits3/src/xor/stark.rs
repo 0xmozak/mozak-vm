@@ -6,6 +6,7 @@ use p3_matrix::MatrixRowSlices;
 use super::columns::XorColumnsView;
 use crate::utils::reduce_with_powers;
 
+#[allow(clippy::module_name_repetitions)]
 pub struct XorStark;
 
 impl<F> BaseAir<F> for XorStark {}

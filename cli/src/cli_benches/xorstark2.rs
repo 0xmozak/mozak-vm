@@ -30,12 +30,11 @@ fn prove_and_verify_stark(trace: Vec<XorColumnsView<F>>) -> Result<(), anyhow::E
 
 fn to_bits(n: u32) -> [u32; 32] {
     let mut bits = [0; 32];
-    for i in 0..32 {
-        bits[i] = (n >> i) & 1;
+    for (i, bit_i) in bits.iter_mut().enumerate() {
+        *bit_i = (n >> i) & 1;
     }
     bits
 }
-
 fn gen_xor_trace<F: Field>(n: u32) -> Vec<XorColumnsView<F>> {
     let mut trace = vec![];
     for i in 0..n {

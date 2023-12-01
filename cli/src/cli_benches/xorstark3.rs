@@ -6,7 +6,7 @@ use p3_uni_stark::{prove, verify};
 pub fn xor_stark_plonky3(n: u32) -> Result<(), anyhow::Error> {
     let (config, mut challenger) = DefaultConfig::make_config();
     let mut verifer_challenger = challenger.clone();
-    let trace = generate_dummy_xor_trace(n as usize);
+    let trace = generate_dummy_xor_trace(n);
     let proof = prove::<<DefaultConfig as Mozak3StarkConfig>::MyConfig, _>(
         &config,
         &XorStark,
