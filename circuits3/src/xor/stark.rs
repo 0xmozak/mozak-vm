@@ -22,7 +22,7 @@ impl<AB: AirBuilder> Air<AB> for XorStark {
 
         // Check: bit representation of inputs and output were generated correctly.
         for (opx, opx_limbs) in izip![lv.execution, lv.limbs] {
-            builder.assert_zero(reduce_with_powers(opx_limbs, AB::Expr::two()) - opx)
+            builder.assert_zero(reduce_with_powers(opx_limbs, &AB::Expr::two()) - opx);
         }
 
         // Check: output bit representation is Xor of input a and b bit representations

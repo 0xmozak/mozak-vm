@@ -6,8 +6,8 @@ use crate::columns_view::NumberOfColumns;
 use crate::xor::columns::{XorColumnsView, XorView};
 fn to_bits(n: u32) -> [u32; 32] {
     let mut bits = [0; 32];
-    for i in 0..32 {
-        bits[i] = (n >> i) & 1;
+    for (i, bit_i) in bits.iter_mut().enumerate() {
+        *bit_i = (n >> i) & 1;
     }
     bits
 }
