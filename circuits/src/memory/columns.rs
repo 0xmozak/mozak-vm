@@ -214,18 +214,3 @@ pub fn filter_for_halfword_memory<F: Field>() -> Column<F> {
     let mem = col_map().map(Column::from);
     mem.is_store + mem.is_load
 }
-
-/// Columns containing the data which are looked up in the `MemoryZeroInit`
-/// Table
-#[must_use]
-pub fn data_for_memory_zeroinit<F: Field>() -> Vec<Column<F>> {
-    vec![
-        Column::single(col_map().addr),
-        Column::constant(F::ONE), // clk
-    ]
-}
-
-/// Column for a binary filter to indicate a lookup to the `MemoryZeroInit`
-/// Table
-#[must_use]
-pub fn filter_for_memory_zeroinit<F: Field>() -> Column<F> { Column::single(col_map().is_init) }
