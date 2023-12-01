@@ -164,6 +164,15 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     ]
 }
 
+#[must_use]
+pub fn u8_rangecheck_looking<F: Field>() -> Vec<Table<F>> {
+    let mem = col_map().map(Column::from);
+    vec![MemoryTable::new(
+        Column::singles([col_map().value]),
+        mem.is_executed(),
+    )]
+}
+
 /// Columns containing the data which are looked from the CPU table into Memory
 /// stark table.
 #[must_use]

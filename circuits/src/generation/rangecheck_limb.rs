@@ -4,6 +4,7 @@ use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
 use crate::cpu::columns::CpuState;
+use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
 use crate::rangecheck_limb::columns::RangeCheckLimb;
 use crate::stark::mozak_stark::{LimbTable, Lookups, Table, TableKind};
@@ -36,6 +37,7 @@ where
 pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     rangecheck_trace: &[RangeCheckColumnsView<F>],
+    memory_trace: &[Memory<F>],
 ) -> Vec<RangeCheckLimb<F>> {
     let mut multiplicities = [0u64; 256];
     LimbTable::lookups()
@@ -44,6 +46,7 @@ pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
         .flat_map(|looking_table| match looking_table.kind {
             TableKind::RangeCheck => extract_with_mul(rangecheck_trace, &looking_table),
             TableKind::Cpu => extract_with_mul(cpu_trace, &looking_table),
+            TableKind::Memory => extract_with_mul(memory_trace, &looking_table),
             other => unimplemented!("Can't range check {other:?} tables"),
         })
         .for_each(|(multiplicity, limb)| {
@@ -112,7 +115,7 @@ mod tests {
         );
         let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
-        let trace = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows);
+        let trace = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows, &memory_rows);
 
         for row in &trace {
             // TODO(bing): more comprehensive test once we rip out the old trace gen logic.
@@ -121,8 +124,8 @@ mod tests {
         }
 
         assert_eq!(trace[0].value, F::from_canonical_u8(0));
-        assert_eq!(trace[0].multiplicity, F::from_canonical_u64(19));
+        assert_eq!(trace[0].multiplicity, F::from_canonical_u64(20));
         assert_eq!(trace[255].value, F::from_canonical_u8(u8::MAX));
-        assert_eq!(trace[255].multiplicity, F::from_canonical_u64(8));
+        assert_eq!(trace[255].multiplicity, F::from_canonical_u64(9));
     }
 }

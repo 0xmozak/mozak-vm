@@ -575,8 +575,13 @@ impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
 pub struct LimbTable<F: Field>(CrossTableLookup<F>);
 impl<F: Field> Lookups<F> for LimbTable<F> {
     fn lookups() -> CrossTableLookup<F> {
-        CrossTableLookup::new(
+        let looking: Vec<Table<F>> = chain![
             rangecheck_looking(),
+            memory::columns::u8_rangecheck_looking(),
+        ]
+        .collect();
+        CrossTableLookup::new(
+            looking,
             RangeCheckLimbTable::new(
                 crate::rangecheck_limb::columns::data(),
                 crate::rangecheck_limb::columns::filter(),
