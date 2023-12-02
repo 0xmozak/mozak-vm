@@ -5,7 +5,7 @@ use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
 
-const FIBO_BYTES: &[u8] = include_bytes!(env!("FIBONACCI_INPUT_ELF"));
+const FIBONACCI_INPUT_BYTES: &[u8] = include_bytes!(env!("FIBONACCI_INPUT_ELF"));
 
 fn fibonacci(n: u32) -> u32 {
     if n < 2 {
@@ -19,7 +19,7 @@ fn fibonacci(n: u32) -> u32 {
 }
 
 pub fn fibonacci_with_input(n: u32) -> Result<(), anyhow::Error> {
-    let program = Program::load_elf(FIBO_BYTES).unwrap();
+    let program = Program::load_elf(FIBONACCI_INPUT_BYTES).unwrap();
     let out = fibonacci(n);
     let state =
         State::<GoldilocksField>::new(program.clone(), &n.to_le_bytes(), &out.to_le_bytes());
