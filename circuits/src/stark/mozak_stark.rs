@@ -153,7 +153,7 @@ macro_rules! mozak_stark_helpers {
         /// `MozakStark` type to the macro in order to enable the "lambdas" to use the `stark!`
         /// macro in-place of a type.
         ///
-        /// ```rust
+        /// ```ignore
         /// let foos = all_kind!(MozakStark<F, D>, |stark, kind| {
         ///     // `stark` will be a different stark type on each call
         ///     // `kind` will be a different `TableKind` on each call
@@ -166,7 +166,7 @@ macro_rules! mozak_stark_helpers {
         /// Calls that do not need type information of each stark can merely omit the `MozakStark`
         /// type and just deal with the `TableKind`
         ///
-        /// ```rust
+        /// ```ignore
         /// let bars = all_kind!(|stark, kind| bar(kind));
         /// ```
         macro_rules! all_kind {
@@ -204,7 +204,7 @@ macro_rules! mozak_stark_helpers {
         /// `MozakStark` type to the macro in order to enable the "lambdas" to use the `stark!`
         /// macro in-place of a type.
         ///
-        /// ```rust
+        /// ```ignore
         /// fn foo(mozak_stark: &mut MozakStark<F, D>) {
         ///     let bars = all_starks!(mozak_stark, |stark, kind| {
         ///         // `stark` will be a reference to different stark on each call
