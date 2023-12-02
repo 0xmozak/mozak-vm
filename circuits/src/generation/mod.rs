@@ -9,6 +9,7 @@ pub mod halfword_memory;
 pub mod instruction;
 pub mod io_memory;
 pub mod memory;
+pub mod memory_zeroinit;
 pub mod memoryinit;
 pub mod poseidon2;
 pub mod poseidon2_output_bytes;
@@ -52,6 +53,7 @@ use crate::columns_view::HasNamedColumns;
 use crate::generation::io_memory::{
     generate_io_memory_private_trace, generate_io_memory_public_trace,
 };
+use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
 use crate::generation::poseidon2::generate_poseidon2_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::stark::mozak_stark::{
@@ -95,6 +97,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &io_memory_public_rows,
         &poseiden2_sponge_rows,
     );
+    let memory_zeroinit_rows =
+        generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed);
+
     let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
     let rangecheck_limb_rows = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows);
     #[allow(unused)]
@@ -110,6 +115,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         program_stark: trace_rows_to_poly_values(program_rows),
         memory_stark: trace_rows_to_poly_values(memory_rows),
         memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
+        memory_zeroinit_stark: trace_rows_to_poly_values(memory_zeroinit_rows),
         rangecheck_limb_stark: trace_rows_to_poly_values(rangecheck_limb_rows),
         halfword_memory_stark: trace_rows_to_poly_values(halfword_memory_rows),
         fullword_memory_stark: trace_rows_to_poly_values(fullword_memory_rows),

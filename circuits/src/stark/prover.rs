@@ -23,7 +23,7 @@ use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{MozakStark, TableKind, TableKindSetBuilder, NUM_TABLES};
+use super::mozak_stark::{MozakStark, TableKind, TableKindSetBuilder};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
@@ -75,7 +75,7 @@ pub fn prove_with_traces<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     public_inputs: PublicInputs<F>,
-    traces_poly_values: &[Vec<PolynomialValues<F>>; NUM_TABLES],
+    traces_poly_values: &[Vec<PolynomialValues<F>>; TableKind::COUNT],
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
 where
