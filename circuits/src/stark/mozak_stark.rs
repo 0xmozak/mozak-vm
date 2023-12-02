@@ -25,7 +25,7 @@ use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::rangecheck_looking;
 use crate::rangecheck::stark::RangeCheckStark;
-use crate::rangecheck_limb::stark::RangeCheckLimbStark;
+use crate::rangecheck_u8::stark::RangeCheckU8Stark;
 use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::stark::XorStark;
@@ -66,8 +66,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     // `MemoryStark`.
     #[StarkSet(stark_kind = "MemoryZeroInit")]
     pub memory_zeroinit_stark: MemoryZeroInitStark<F, D>,
-    #[StarkSet(stark_kind = "RangeCheckLimb")]
-    pub rangecheck_limb_stark: RangeCheckLimbStark<F, D>,
+    #[StarkSet(stark_kind = "RangeCheckU8")]
+    pub rangecheck_u8_stark: RangeCheckU8Stark<F, D>,
     #[StarkSet(stark_kind = "HalfWordMemory")]
     pub halfword_memory_stark: HalfWordMemoryStark<F, D>,
     #[StarkSet(stark_kind = "FullWordMemory")]
@@ -283,7 +283,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             memory_stark: MemoryStark::default(),
             memory_init_stark: MemoryInitStark::default(),
             memory_zeroinit_stark: MemoryZeroInitStark::default(),
-            rangecheck_limb_stark: RangeCheckLimbStark::default(),
+            rangecheck_u8_stark: RangeCheckU8Stark::default(),
             halfword_memory_stark: HalfWordMemoryStark::default(),
             fullword_memory_stark: FullWordMemoryStark::default(),
             register_init_stark: RegisterInitStark::default(),
@@ -301,7 +301,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 ProgramCpuTable::lookups(),
                 IntoMemoryTable::lookups(),
                 MemoryInitMemoryTable::lookups(),
-                LimbTable::lookups(),
+                RangeCheckU8LookupTable::lookups(),
                 HalfWordMemoryCpuTable::lookups(),
                 FullWordMemoryCpuTable::lookups(),
                 #[cfg(feature = "enable_register_starks")]
@@ -369,7 +369,7 @@ table_impl!(ProgramTable, TableKind::Program);
 table_impl!(MemoryTable, TableKind::Memory);
 table_impl!(MemoryInitTable, TableKind::MemoryInit);
 table_impl!(MemoryZeroInitTable, TableKind::MemoryZeroInit);
-table_impl!(RangeCheckLimbTable, TableKind::RangeCheckLimb);
+table_impl!(RangeCheckU8Table, TableKind::RangeCheckU8);
 table_impl!(HalfWordMemoryTable, TableKind::HalfWordMemory);
 table_impl!(FullWordMemoryTable, TableKind::FullWordMemory);
 #[cfg(feature = "enable_register_starks")]
@@ -562,14 +562,19 @@ impl<F: Field> Lookups<F> for ProgramCpuTable<F> {
     }
 }
 
-pub struct LimbTable<F: Field>(CrossTableLookup<F>);
-impl<F: Field> Lookups<F> for LimbTable<F> {
+pub struct RangeCheckU8LookupTable<F: Field>(CrossTableLookup<F>);
+impl<F: Field> Lookups<F> for RangeCheckU8LookupTable<F> {
     fn lookups() -> CrossTableLookup<F> {
-        CrossTableLookup::new(
+        let looking: Vec<Table<F>> = chain![
             rangecheck_looking(),
-            RangeCheckLimbTable::new(
-                crate::rangecheck_limb::columns::data(),
-                crate::rangecheck_limb::columns::filter(),
+            memory::columns::rangecheck_u8_looking(),
+        ]
+        .collect();
+        CrossTableLookup::new(
+            looking,
+            RangeCheckU8Table::new(
+                crate::rangecheck_u8::columns::data(),
+                crate::rangecheck_u8::columns::filter(),
             ),
         )
     }

@@ -3,10 +3,10 @@ use std::ops::Index;
 use itertools::Itertools;
 use plonky2::hash::hash_types::RichField;
 
-use crate::cpu::columns::CpuState;
+use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
-use crate::rangecheck_limb::columns::RangeCheckLimb;
-use crate::stark::mozak_stark::{LimbTable, Lookups, Table, TableKind};
+use crate::rangecheck_u8::columns::RangeCheckU8;
+use crate::stark::mozak_stark::{Lookups, RangeCheckU8LookupTable, Table, TableKind};
 
 /// extract the values with multiplicity nonzero
 pub fn extract_with_mul<F: RichField, V>(trace: &[V], looking_table: &Table<F>) -> Vec<(F, F)>
@@ -33,17 +33,17 @@ where
 ///
 /// This is used by cpu trace to do direct u8 lookups
 #[must_use]
-pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
-    cpu_trace: &[CpuState<F>],
+pub(crate) fn generate_rangecheck_u8_trace<F: RichField>(
     rangecheck_trace: &[RangeCheckColumnsView<F>],
-) -> Vec<RangeCheckLimb<F>> {
+    memory_trace: &[Memory<F>],
+) -> Vec<RangeCheckU8<F>> {
     let mut multiplicities = [0u64; 256];
-    LimbTable::lookups()
+    RangeCheckU8LookupTable::lookups()
         .looking_tables
         .into_iter()
         .flat_map(|looking_table| match looking_table.kind {
             TableKind::RangeCheck => extract_with_mul(rangecheck_trace, &looking_table),
-            TableKind::Cpu => extract_with_mul(cpu_trace, &looking_table),
+            TableKind::Memory => extract_with_mul(memory_trace, &looking_table),
             other => unimplemented!("Can't range check {other:?} tables"),
         })
         .for_each(|(multiplicity, limb)| {
@@ -51,7 +51,7 @@ pub(crate) fn generate_rangecheck_limb_trace<F: RichField>(
             multiplicities[limb as usize] += multiplicity.to_canonical_u64();
         });
     (0..=u8::MAX)
-        .map(|limb| RangeCheckLimb {
+        .map(|limb| RangeCheckU8 {
             value: F::from_canonical_u8(limb),
             multiplicity: F::from_canonical_u64(multiplicities[limb as usize]),
         })
@@ -112,7 +112,7 @@ mod tests {
         );
         let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
 
-        let trace = generate_rangecheck_limb_trace(&cpu_rows, &rangecheck_rows);
+        let trace = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
 
         for row in &trace {
             // TODO(bing): more comprehensive test once we rip out the old trace gen logic.
@@ -121,8 +121,8 @@ mod tests {
         }
 
         assert_eq!(trace[0].value, F::from_canonical_u8(0));
-        assert_eq!(trace[0].multiplicity, F::from_canonical_u64(19));
+        assert_eq!(trace[0].multiplicity, F::from_canonical_u64(20));
         assert_eq!(trace[255].value, F::from_canonical_u8(u8::MAX));
-        assert_eq!(trace[255].multiplicity, F::from_canonical_u64(8));
+        assert_eq!(trace[255].multiplicity, F::from_canonical_u64(9));
     }
 }
