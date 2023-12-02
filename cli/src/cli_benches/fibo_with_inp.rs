@@ -5,8 +5,7 @@ use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
 
-const FIBO_INP_ELF_EXAMPLE_PATH: &str =
-    "examples/target/riscv32im-mozak-zkvm-elf/release/fibonacci-input";
+const FIBO_BYTES: &[u8] = include_bytes!(env!("FIBONACCI_INPUT_ELF"));
 
 fn fibonacci(n: u32) -> u32 {
     if n < 2 {
@@ -20,17 +19,7 @@ fn fibonacci(n: u32) -> u32 {
 }
 
 pub fn fibonacci_with_input(n: u32) -> Result<(), anyhow::Error> {
-    let elf_path = std::env::current_dir()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .join(FIBO_INP_ELF_EXAMPLE_PATH);
-    let elf = std::fs::read(elf_path).expect(
-        "Reading the fibonacci-input elf should not fail.
-            You may need to build the fibonacci program within the examples directory
-            eg. `cd examples/fibonacci-input && cargo build --release`",
-    );
-    let program = Program::load_elf(&elf).unwrap();
+    let program = Program::load_elf(FIBO_BYTES).unwrap();
     let out = fibonacci(n);
     let state =
         State::<GoldilocksField>::new(program.clone(), &n.to_le_bytes(), &out.to_le_bytes());
