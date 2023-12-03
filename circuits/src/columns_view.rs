@@ -136,13 +136,9 @@ macro_rules! columns_view_impl {
 
         impl<'a, T> From<&'a [T]> for &'a $s<T> {
             fn from(value: &'a [T]) -> Self {
-                const LEN: usize = std::mem::size_of::<$s<u8>>();
-                fn helper<'a, T: 'a>(value: &'a [T]) -> &'a $s<T> {
-                    let value = value.get(..LEN).expect("slice of correct length");
-                    let value = unsafe { &*(value.as_ptr().cast::<[T; LEN]>()) };
-                    $s::from_array_ref(value)
-                }
-                helper::<'a, T>(value)
+                let value: &[T; std::mem::size_of::<$s<u8>>()] =
+                    value.try_into().expect("slice of correct length");
+                $s::from_array_ref(value)
             }
         }
 
