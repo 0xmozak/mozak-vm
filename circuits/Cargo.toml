@@ -46,10 +46,6 @@ enable_poseidon_starks = []
 enable_register_starks = []
 test = []
 
-[[test]]
-name = "riscv_tests"
-required-features = ["test"]
-
 [[bench]]
 harness = false
 name = "simple_prover"
