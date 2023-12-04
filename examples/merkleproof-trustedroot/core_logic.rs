@@ -32,7 +32,6 @@ pub struct ProofData {
 #[cfg(not(target_os = "zkvm"))]
 impl std::fmt::Debug for ProofData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Define the formatting for MyStruct
         f.debug_struct("ProofData")
             .field("indices_to_prove", &self.indices_to_prove)
             .field(
