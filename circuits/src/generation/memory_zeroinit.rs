@@ -15,7 +15,16 @@ pub fn generate_memory_zero_init_trace<F: RichField>(
     step_rows: &[Row<F>],
 ) -> Vec<MemoryZeroInit<F>> {
     let mut zeroinit_set: HashSet<F> = HashSet::new();
-    let meminit_map: HashSet<F> = mem_init_rows.iter().map(|r| r.element.address).collect();
+    let meminit_map: HashSet<F> = mem_init_rows
+        .iter()
+        .filter_map(|r| {
+            if r.filter.is_one() {
+                Some(r.element.address)
+            } else {
+                None
+            }
+        })
+        .collect();
 
     step_rows
         .iter()
