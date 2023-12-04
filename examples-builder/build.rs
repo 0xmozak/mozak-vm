@@ -1,4 +1,4 @@
-use std::fs::{create_dir_all, File};
+use std::fs::File;
 use std::io::{self, Write};
 use std::path::Path;
 use std::process::Command;
@@ -12,11 +12,14 @@ struct Crate {
 
 macro_rules! ecrate {
     ($name:literal, $glob:literal) => {
+        ecrate!($name, $name, $glob)
+    };
+    ($name:literal, $file:literal, $glob:literal) => {
         Crate {
             crate_path: concat!("../examples/", $name),
             elf_path: concat!(
                 "../examples/target/riscv32im-mozak-zkvm-elf/release/",
-                $name
+                $file
             ),
             glob_name: $glob,
             enabled: cfg!(feature = $name),
@@ -30,24 +33,19 @@ const CRATES: &[Crate] = &[
     ecrate!("memory-access", "MEMORY_ACCESS_ELF"),
     ecrate!("min-max", "MIN_MAX_ELF"),
     ecrate!("panic", "PANIC_ELF"),
-    ecrate!("poseidon2", "POSEIDON2_ELF"),
+    ecrate!("poseidon2", "poseidon2-example", "POSEIDON2_ELF"),
     ecrate!("rkyv-serialization", "RKYV_SERIALIZATION_ELF"),
-    ecrate!("sha2", "SHA2_ELF"),
+    ecrate!("sha2", "sha2-example", "SHA2_ELF"),
     ecrate!("static-mem-access", "STATIC_MEM_ACCESS_ELF"),
     ecrate!("stdin", "STDIN_ELF"),
 ];
 const CARGO_MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
 fn build_elf(dest: &mut File, crate_path: &str, elf_path: &str, glob_name: &str) {
-    // Just touch for clippy
+    // Use a dummy array for clippy, since not building the elf is faster than
+    // building the elf
     if cfg!(feature = "cargo-clippy") {
-        let elf_path = Path::new(elf_path);
-        create_dir_all(elf_path.parent().unwrap()).expect("failed to touch elf dir");
-        File::options()
-            .create(true)
-            .append(true)
-            .open(elf_path)
-            .expect("failed to touch elf");
+        writeln!(dest, r#"pub const {glob_name}: &[u8] = &[];"#)
     } else {
         let output = Command::new("cargo")
             .args(["build", "--release"])
@@ -61,16 +59,15 @@ fn build_elf(dest: &mut File, crate_path: &str, elf_path: &str, glob_name: &str)
             io::stderr().write_all(&output.stderr).unwrap();
             panic!("cargo build {crate_path} failed.");
         }
+        writeln!(
+            dest,
+            r#"pub const {glob_name}: &[u8] = include_bytes!("{CARGO_MANIFEST_DIR}/{elf_path}");"#
+        )
     }
+    .expect("failed to write vars.rs");
 
     println!("cargo:rerun-if-changed={crate_path}");
     println!("cargo:rerun-if-changed={elf_path}");
-
-    writeln!(
-        dest,
-        r#"pub const {glob_name}: &[u8] = include_bytes!("{CARGO_MANIFEST_DIR}/{elf_path}");"#
-    )
-    .expect("failed to write vars.rs");
 }
 
 fn main() {
