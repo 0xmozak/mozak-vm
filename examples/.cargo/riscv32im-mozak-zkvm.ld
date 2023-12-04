@@ -42,44 +42,78 @@ SECTIONS {
     _mozak_private_io_tape            = 0x20000000; /* assumed size is 512 MB */
     _mozak_private_io_tape_capacity   = 0x20000000; /* 512 MB in bytes */
 
-    /* [2] - BSS ram */
+    /* [2] - SHSTRTAB rom */
+    .shstrtab : { *(.shstrtab .shstrtab.*) } > ram
+    _shstrtab_start = ADDR(.shstrtab);
+    _shstrtab_end = _shstrtab_start + SIZEOF(.shstrtab);
+
+    /* [3] - STRTAB rom */
+    .strtab : { *(.strtab .strtab.*) } > ram
+    _strtab_start = ADDR(.strtab);
+    _strtab_end = _strtab_start + SIZEOF(.strtab);
+
+    /* [4] - SYMTAB rom */
+    .symtab : { *(.symtab .symtab.*) } > ram
+    _symtab_start = ADDR(.symtab);
+    _symtab_end = _symtab_start + SIZEOF(.symtab);
+
+    /* [5] - BSS ram */
     .bss : { *(.bss); *(.bss.*) } > ram
     _bss_start = ADDR(.bss);
     _bss_load_start = LOADADDR(.bss);
     _bss_end = _bss_start + SIZEOF(.bss);
 
-    /* [3] - DATA ram */
-    .data : { *(.data); *(.data.*) } > ram
+    /* [6] - SBSS ram */
+    .sbss : { *(.sbss); *(.sbss.*); *(.sdata); *(.sdata.*) } > ram
+    _sbss_start = ADDR(.sbss);
+    _sbss_load_start = LOADADDR(.sbss);
+    _sbss_end = _bss_start + SIZEOF(.sbss);
+
+    /* [7] - DATA ram */
+    .data : { *(.data); *(.data.*); *(.data1); *(.data1.*) } > ram
     _data_start = ADDR(.data);
     _data_load_start = LOADADDR(.data);
     _data_end = _data_start + SIZEOF(.data);
 
-    /* [4] - End of uninitialized data segment (used for heap) - mozak heap grows up */
+    /* [8] - End of uninitialized data segment (used for heap) - mozak heap grows up */
     _mozak_heap_start = _data_end;
+    .mozak_heap : {} > ram
 
-    /* [5] - mozak stack - grows down */
-    _mozak_stack_top = 0xFFFFFFFF;
-
-    /* .text and .rodata just go straight into the ROM. We don't need to mutate them ever. */
-    /* [6] - TEXT rom */
-    .text : { *(.text) } > rom
+    /* [9] - TEXT rom */
+    .text : { *(.text); *(.text.*); *(.init) *(.init.*); *(.fini); *(.fini.*) } > rom
     _text_start = ADDR(.text);
     _text_end = _text_start + SIZEOF(.text);
 
-    /* [7] - RODATA rom */
-    .rodata : { *(.rodata); *(.rodata.*); } > rom
+    /* [10] - RODATA rom */
+    .rodata : { *(.rodata .rodata.*); *(.rodata1 .rodata1.*) } > rom
     _rodata_start = ADDR(.rodata);
     _rodata_end = _rodata_start + SIZEOF(.rodata);
 
-    /* [8] - Init mozak_stack (NOT IN USE) */
+    /* [11] - mozak stack - grows down */
+    _mozak_stack_top = 0xFFFFFFFF;
+    .mozak_stack : {} > mozak_stack
+
+    /* [12] - Init mozak_stack with 0xFF (NOT IN USE - runtime increased cause of FILL ) */
     /*
-        . = 0xF0000000;
-        .mozak_stack : { FILL(0x00) . += 256M; }
+        .mozak_stack : {
+            . = _mozak_stack_top;
+            FILL(0x00)
+            . -= 256M;
+        } > mozak_stack
     */
 
-    /* [9] - don't insert these sections */
+    /* [13] - don't insert these sections */
     /DISCARD/ : {
-        *(.note .comment .riscv .riscv.*);
+        *(.note .comment);
+        *(.riscv .riscv.*);
+        *(.debug .debug.*);
+        *(.line .line.*);
+        *(.relname .relname.* .relaname .relaname.*);
+        *(.dynstr .dynstr.* .dynsym .dynsym.* .dynamic .dynamic.*);
+        *(.eh_frame .eh_frame.* .glink .glink.* .got .got.* .plt .plt.*);
+        *(.toc .toc.* .tocbss .tocbss.*);
+        *(.branch_lt .branch_lt.* .opd .opd.*);
+        *(.rela.dyn .rela.dyn.* .rela.plt .rela.plt.* .toc1 .toc1.*)
     }
 }
 

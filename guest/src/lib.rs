@@ -20,8 +20,7 @@ macro_rules! entry {
     };
 }
 
-#[allow(unused_macros)]
-macro addr_of($place:expr) {
+pub(crate) macro mozak_addr_of($place:expr) {
     &raw const $place
 }
 
@@ -65,7 +64,6 @@ r#"
 .global _start;
 _start:
     la sp, {0}
-    lw sp, 0(sp)
     jal ra, __start;
 "#,
     sym _mozak_stack_top
