@@ -793,6 +793,7 @@ dependencies = [
  "itertools 0.12.0",
  "log",
  "mozak-circuits-derive",
+ "mozak-examples",
  "mozak-runner",
  "mozak-system",
  "plonky2",
@@ -853,11 +854,16 @@ dependencies = [
  "itertools 0.12.0",
  "log",
  "mozak-circuits",
+ "mozak-examples",
  "mozak-runner",
  "plonky2",
  "proptest",
  "starky",
 ]
+
+[[package]]
+name = "mozak-examples"
+version = "0.1.0"
 
 [[package]]
 name = "mozak-node"
