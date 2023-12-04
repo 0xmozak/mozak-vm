@@ -26,10 +26,6 @@ pub(crate) const unsafe fn transmute_ref<T, U>(t: &T) -> &U {
     debug_assert!(size_of::<T>() == size_of::<U>());
     &*((t as *const T).cast::<U>())
 }
-pub(crate) unsafe fn transmute_mut<T, U>(t: &mut T) -> &mut U {
-    debug_assert!(size_of::<T>() == size_of::<U>());
-    &mut *((t as *mut T).cast::<U>())
-}
 
 pub trait NumberOfColumns {
     const NUMBER_OF_COLUMNS: usize;
@@ -67,14 +63,6 @@ macro_rules! columns_view_impl {
             const fn array_ref(v: &$s<T>) -> &[T; std::mem::size_of::<$s<u8>>()] {
                 unsafe { crate::columns_view::transmute_ref(v) }
             }
-
-            pub fn from_array_mut(value: &mut [T; std::mem::size_of::<$s<u8>>()]) -> &mut $s<T> {
-                unsafe { crate::columns_view::transmute_mut(value) }
-            }
-
-            pub fn array_mut(v: &mut $s<T>) -> &mut [T; std::mem::size_of::<$s<u8>>()] {
-                unsafe { crate::columns_view::transmute_mut(v) }
-            }
         }
 
         impl<T> $s<T> {
@@ -94,14 +82,6 @@ macro_rules! columns_view_impl {
                 crate::columns_view::ColumnViewImplHider::<Self>::array_ref(self)
             }
 
-            fn from_array_mut(value: &mut [T; std::mem::size_of::<$s<u8>>()]) -> &mut Self {
-                crate::columns_view::ColumnViewImplHider::<Self>::from_array_mut(value)
-            }
-
-            fn array_mut(&mut self) -> &mut [T; std::mem::size_of::<$s<u8>>()] {
-                crate::columns_view::ColumnViewImplHider::<Self>::array_mut(self)
-            }
-
             pub fn iter(&self) -> std::slice::Iter<T> { self.array_ref().into_iter() }
 
             // At the moment we only use `map` Instruction,
@@ -109,10 +89,10 @@ macro_rules! columns_view_impl {
             // TODO(Matthias): remove this marker, once we use it for the other structs,
             // too.
             #[allow(dead_code)]
-            pub fn map<B: std::fmt::Debug, F>(self, f: F) -> $s<B>
+            pub fn map<B, F>(self, f: F) -> $s<B>
             where
                 F: FnMut(T) -> B, {
-                self.into_iter().map(f).collect()
+                $s::from_array(self.into_array().map(f))
             }
         }
 
@@ -137,26 +117,8 @@ macro_rules! columns_view_impl {
             }
         }
 
-        impl<T> std::borrow::Borrow<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
-            fn borrow(&self) -> &$s<T> { $s::from_array_ref(self) }
-        }
-
-        impl<T> std::borrow::BorrowMut<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
-            fn borrow_mut(&mut self) -> &mut $s<T> { $s::from_array_mut(self) }
-        }
-
-        impl<T> std::borrow::Borrow<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
-            fn borrow(&self) -> &[T; std::mem::size_of::<$s<u8>>()] { self.array_ref() }
-        }
-        impl<T> std::borrow::BorrowMut<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
-            fn borrow_mut(&mut self) -> &mut [T; std::mem::size_of::<$s<u8>>()] { self.array_mut() }
-        }
-
         impl<T> std::borrow::Borrow<[T]> for $s<T> {
             fn borrow(&self) -> &[T] { self.array_ref() }
-        }
-        impl<T> std::borrow::BorrowMut<[T]> for $s<T> {
-            fn borrow_mut(&mut self) -> &mut [T] { self.array_mut() }
         }
 
         impl<T> std::iter::IntoIterator for $s<T> {

@@ -6,7 +6,6 @@
 
 use std::marker::PhantomData;
 use std::mem::{size_of, ManuallyDrop};
-use std::ops::IndexMut;
 
 pub(crate) const unsafe fn transmute_without_compile_time_size_checks<T, U>(t: T) -> U {
     #[repr(C)]
@@ -26,10 +25,6 @@ pub(crate) const unsafe fn transmute_without_compile_time_size_checks<T, U>(t: T
 pub(crate) const unsafe fn transmute_ref<T, U>(t: &T) -> &U {
     debug_assert!(size_of::<T>() == size_of::<U>());
     &*((t as *const T).cast::<U>())
-}
-pub(crate) unsafe fn transmute_mut<T, U>(t: &mut T) -> &mut U {
-    debug_assert!(size_of::<T>() == size_of::<U>());
-    &mut *((t as *mut T).cast::<U>())
 }
 
 pub trait HasNamedColumns {
@@ -72,14 +67,6 @@ macro_rules! columns_view_impl {
             const fn array_ref(v: &$s<T>) -> &[T; std::mem::size_of::<$s<u8>>()] {
                 unsafe { crate::columns_view::transmute_ref(v) }
             }
-
-            pub fn from_array_mut(value: &mut [T; std::mem::size_of::<$s<u8>>()]) -> &mut $s<T> {
-                unsafe { crate::columns_view::transmute_mut(value) }
-            }
-
-            pub fn array_mut(v: &mut $s<T>) -> &mut [T; std::mem::size_of::<$s<u8>>()] {
-                unsafe { crate::columns_view::transmute_mut(v) }
-            }
         }
 
         impl<T> $s<T> {
@@ -99,14 +86,6 @@ macro_rules! columns_view_impl {
                 crate::columns_view::ColumnViewImplHider::<Self>::array_ref(self)
             }
 
-            fn from_array_mut(value: &mut [T; std::mem::size_of::<$s<u8>>()]) -> &mut Self {
-                crate::columns_view::ColumnViewImplHider::<Self>::from_array_mut(value)
-            }
-
-            fn array_mut(&mut self) -> &mut [T; std::mem::size_of::<$s<u8>>()] {
-                crate::columns_view::ColumnViewImplHider::<Self>::array_mut(self)
-            }
-
             pub fn iter(&self) -> std::slice::Iter<T> { self.array_ref().into_iter() }
 
             // At the moment we only use `map` Instruction,
@@ -114,10 +93,10 @@ macro_rules! columns_view_impl {
             // TODO(Matthias): remove this marker, once we use it for the other structs,
             // too.
             #[allow(dead_code)]
-            pub fn map<B: std::fmt::Debug, F>(self, f: F) -> $s<B>
+            pub fn map<B, F>(self, f: F) -> $s<B>
             where
                 F: FnMut(T) -> B, {
-                self.into_iter().map(f).collect()
+                $s::from_array(self.into_array().map(f))
             }
         }
 
@@ -142,26 +121,8 @@ macro_rules! columns_view_impl {
             }
         }
 
-        impl<T> std::borrow::Borrow<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
-            fn borrow(&self) -> &$s<T> { $s::from_array_ref(self) }
-        }
-
-        impl<T> std::borrow::BorrowMut<$s<T>> for [T; std::mem::size_of::<$s<u8>>()] {
-            fn borrow_mut(&mut self) -> &mut $s<T> { $s::from_array_mut(self) }
-        }
-
-        impl<T> std::borrow::Borrow<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
-            fn borrow(&self) -> &[T; std::mem::size_of::<$s<u8>>()] { self.array_ref() }
-        }
-        impl<T> std::borrow::BorrowMut<[T; std::mem::size_of::<$s<u8>>()]> for $s<T> {
-            fn borrow_mut(&mut self) -> &mut [T; std::mem::size_of::<$s<u8>>()] { self.array_mut() }
-        }
-
         impl<T> std::borrow::Borrow<[T]> for $s<T> {
             fn borrow(&self) -> &[T] { self.array_ref() }
-        }
-        impl<T> std::borrow::BorrowMut<[T]> for $s<T> {
-            fn borrow_mut(&mut self) -> &mut [T] { self.array_mut() }
         }
 
         impl<T, I> std::ops::Index<I> for $s<T>
@@ -171,13 +132,6 @@ macro_rules! columns_view_impl {
             type Output = <[T] as std::ops::Index<I>>::Output;
 
             fn index(&self, index: I) -> &Self::Output { &self.array_ref()[index] }
-        }
-
-        impl<T, I> std::ops::IndexMut<I> for $s<T>
-        where
-            [T]: std::ops::IndexMut<I>,
-        {
-            fn index_mut(&mut self, index: I) -> &mut Self::Output { &mut self.array_mut()[index] }
         }
 
         impl<T> std::iter::IntoIterator for $s<T> {
@@ -207,6 +161,17 @@ macro_rules! columns_view_impl {
 
 pub(crate) use columns_view_impl;
 
+#[must_use]
+pub const fn col_map<const NUMBER_OF_COLUMNS: usize>() -> [usize; NUMBER_OF_COLUMNS] {
+    let mut indices_arr = [0usize; NUMBER_OF_COLUMNS];
+    let mut i = 0;
+    while i < indices_arr.len() {
+        indices_arr[i] = i;
+        i += 1;
+    }
+    indices_arr
+}
+
 /// Implement a static `MAP` of the `ColumnsView` from an array with length
 /// [`NumberOfColumns`] of the `ColumnsView` that allows for indexing into an
 /// array with the column name rather than the column index.
@@ -215,13 +180,8 @@ macro_rules! make_col_map {
         pub(crate) const fn col_map() -> &'static $s<usize> {
             const MAP: $s<usize> = {
                 use crate::columns_view::NumberOfColumns;
-                let mut indices_arr = [0usize; $s::<()>::NUMBER_OF_COLUMNS];
-                let mut i = 0;
-                while i < indices_arr.len() {
-                    indices_arr[i] = i;
-                    i += 1;
-                }
-                $s::from_array(indices_arr)
+                const NUMBER_OF_COLUMNS: usize = $s::<()>::NUMBER_OF_COLUMNS;
+                $s::from_array(crate::columns_view::col_map::<NUMBER_OF_COLUMNS>())
             };
             &MAP
         }
@@ -231,8 +191,10 @@ pub(crate) use make_col_map;
 
 /// Return a selector that is only active at index `which`
 #[must_use]
-pub fn selection<T: IndexMut<usize, Output = u32> + Default>(which: usize) -> T {
-    let mut selectors = T::default();
-    selectors[which] = 1;
-    selectors
+pub fn selection<T, const NUMBER_OF_COLUMNS: usize>(which: usize) -> T
+where
+    T: From<[u32; NUMBER_OF_COLUMNS]>, {
+    let mut indices_arr = [0; NUMBER_OF_COLUMNS];
+    indices_arr[which] = 1;
+    indices_arr.into()
 }
