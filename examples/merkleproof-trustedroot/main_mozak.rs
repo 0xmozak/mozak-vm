@@ -9,7 +9,7 @@ use mozak_sdk::io::{
 use crate::core_logic::{verify_merkle_proof, MerkleRootType, ProofData};
 
 /// ## Function ID 0
-/// This function verifies
+/// This function verifies merkle proof
 fn merkleproof_trustedroot_verify(
     // Public inputs
     merkle_root: [u8; 32],

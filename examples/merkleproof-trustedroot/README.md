@@ -3,7 +3,7 @@
 To compile for Mozak-VM:
 
 ```sh
-# from project root
+# inside examples directory
 cargo +nightly build --release --bin merkleproof-trustedroot
 ```
 
