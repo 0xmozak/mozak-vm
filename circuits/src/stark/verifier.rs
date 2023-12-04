@@ -34,7 +34,7 @@ where
     } = all_proof.get_challenges(config);
 
     ensure!(
-        all_proof.proofs_with_metadata[TableKind::Program as usize]
+        all_proof.proofs_with_metadata[TableKind::Program]
             .proof
             .trace_cap
             == all_proof.program_rom_trace_cap,
@@ -42,7 +42,7 @@ where
     );
 
     ensure!(
-        all_proof.proofs_with_metadata[TableKind::MemoryInit as usize]
+        all_proof.proofs_with_metadata[TableKind::MemoryInit]
             .proof
             .trace_cap
             == all_proof.memory_init_trace_cap,
@@ -63,10 +63,10 @@ where
     all_starks!(mozak_stark, |stark, kind| {
         verify_stark_proof_with_challenges(
             stark,
-            &all_proof.proofs_with_metadata[kind as usize].proof,
-            &stark_challenges[kind as usize],
-            public_inputs[kind as usize],
-            &ctl_vars_per_table[kind as usize],
+            &all_proof.proofs_with_metadata[kind].proof,
+            &stark_challenges[kind],
+            public_inputs[kind],
+            &ctl_vars_per_table[kind],
             config,
         )?;
     });
