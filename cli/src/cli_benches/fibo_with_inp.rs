@@ -17,10 +17,13 @@ fn fibonacci(n: u32) -> u32 {
 }
 
 pub fn fibonacci_with_input(n: u32) -> Result<(), anyhow::Error> {
-    let program = Program::load_elf(mozak_examples::FIBONACCI_INPUT_ELF).unwrap();
     let out = fibonacci(n);
-    let state =
-        State::<GoldilocksField>::new(program.clone(), &n.to_le_bytes(), &out.to_le_bytes());
+    let program = Program::load_program(
+        mozak_examples::FIBONACCI_INPUT_ELF,
+        &MozakRunTimeArguments::new(&[0; 32], &n.to_le_bytes(), &out.to_le_bytes()),
+    )
+    .unwrap();
+    let state = State::<GoldilocksField>::new(program.clone());
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record)
 }
