@@ -3,7 +3,6 @@
 use std::fmt::Display;
 
 use anyhow::{ensure, Result};
-use itertools::Itertools;
 use log::log_enabled;
 use log::Level::Debug;
 use mozak_runner::elf::Program;
@@ -23,7 +22,7 @@ use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{MozakStark, TableKind, TableKindSetBuilder};
+use super::mozak_stark::{MozakStark, TableKind, TableKindArray, TableKindSetBuilder};
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
@@ -75,7 +74,7 @@ pub fn prove_with_traces<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     public_inputs: PublicInputs<F>,
-    traces_poly_values: &[Vec<PolynomialValues<F>>; TableKind::COUNT],
+    traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     timing: &mut TimingTree,
 ) -> Result<AllProof<F, C, D>>
 where
@@ -88,8 +87,8 @@ where
         timing,
         "Compute trace commitments for each table",
         traces_poly_values
-            .iter()
-            .zip_eq(TableKind::all())
+            .clone()
+            .with_kind()
             .map(|(trace, table)| {
                 timed!(
                     timing,
@@ -104,13 +103,11 @@ where
                     )
                 )
             })
-            .collect::<Vec<_>>()
     );
 
     let trace_caps = trace_commitments
-        .iter()
-        .map(|c| c.merkle_tree.cap.clone())
-        .collect::<Vec<_>>();
+        .each_ref()
+        .map(|c| c.merkle_tree.cap.clone());
     // Add trace commitments to the challenger entropy pool.
     let mut challenger = Challenger::<F, C::Hasher>::new();
     for cap in &trace_caps {
@@ -142,8 +139,8 @@ where
         )?
     );
 
-    let program_rom_trace_cap = trace_caps[TableKind::Program as usize].clone();
-    let memory_init_trace_cap = trace_caps[TableKind::MemoryInit as usize].clone();
+    let program_rom_trace_cap = trace_caps[TableKind::Program].clone();
+    let memory_init_trace_cap = trace_caps[TableKind::MemoryInit].clone();
     if log_enabled!(Debug) {
         timing.print();
     }
@@ -323,12 +320,12 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,
     public_inputs: &PublicInputs<F>,
-    traces_poly_values: &[Vec<PolynomialValues<F>>; TableKind::COUNT],
-    trace_commitments: &[PolynomialBatch<F, C, D>],
-    ctl_data_per_table: &[CtlData<F>; TableKind::COUNT],
+    traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
+    trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
+    ctl_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<[StarkProofWithMetadata<F, C, D>; TableKind::COUNT]>
+) -> Result<TableKindArray<StarkProofWithMetadata<F, C, D>>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
@@ -343,10 +340,10 @@ where
         prove_single_table(
             stark,
             config,
-            &traces_poly_values[kind as usize],
-            &trace_commitments[kind as usize],
-            public_inputs[kind as usize],
-            &ctl_data_per_table[kind as usize],
+            &traces_poly_values[kind],
+            &trace_commitments[kind],
+            public_inputs[kind],
+            &ctl_data_per_table[kind],
             challenger,
             timing,
         )?
