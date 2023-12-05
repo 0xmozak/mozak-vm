@@ -11,6 +11,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = { version = "1.0", default-features = false }
+arrayvec = { version = "0.7", default-features = false }
 bitfield = "0.14"
 clap = { version = "4.4", features = [
   "derive",
@@ -37,6 +38,7 @@ criterion = { version = "0.5", features = ["html_reports"] }
 env_logger = { version = "0.10" }
 hex = "0.4"
 im = "15.1"
+mozak-examples = { path = "../examples-builder", features = ["fibonacci"] }
 mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.4"
 

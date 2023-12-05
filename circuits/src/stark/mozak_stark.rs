@@ -1,3 +1,5 @@
+use std::ops::{Index, IndexMut};
+
 use itertools::chain;
 use mozak_circuits_derive::StarkSet;
 use plonky2::field::extension::Extendable;
@@ -117,13 +119,7 @@ macro_rules! mozak_stark_helpers {
         }
 
         impl TableKind {
-            pub const COUNT: usize = $kind_count;
-
-            #[must_use]
-            pub fn all() -> [Self; Self::COUNT] {
-                use TableKind::*;
-                [$($kind_names,)*]
-            }
+            const COUNT: usize = $kind_count;
         }
 
         // Generate the set builder
@@ -133,8 +129,16 @@ macro_rules! mozak_stark_helpers {
         }
 
         impl<T> TableKindSetBuilder<T> {
-            pub fn build(self) -> [T; TableKind::COUNT] {
-                [$(self.$fields,)*]
+            pub fn from_array(array: TableKindArray<T>) -> Self {
+                let TableKindArray([$($fields,)*]) = array;
+                Self{$($fields,)*}
+            }
+            pub fn build(self) -> TableKindArray<T> {
+                TableKindArray([$(self.$fields,)*])
+            }
+            pub fn build_with_kind(self) -> TableKindArray<(T, TableKind)> {
+                use TableKind::*;
+                TableKindArray([$((self.$fields, $kind_names),)*])
             }
         }
 
@@ -179,26 +183,28 @@ macro_rules! mozak_stark_helpers {
         /// ```
         macro_rules! all_kind {
             ($stark_ty:ty, |$stark:ident, $kind:ident| $val:expr) => {{
-                use $crate::stark::mozak_stark::{StarkKinds, TableKind::*};
-                [#(
+                use $crate::stark::mozak_stark::{StarkKinds, TableKindArray, TableKind::*};
+                TableKindArray([$(
                     {
                         // This enables callers to get the type using `$stark!()`
                         macro_rules! $stark {
-                            () => {<$stark_ty as StarkKinds>::#kinds}
+                            () => {<$stark_ty as StarkKinds>::$kind_names}
                         }
-                        let $kind = #kinds;
+                        #[allow(non_upper_case_globals)]
+                        const $kind: TableKind = $kind_names;
                         $val
                     },)*
-                ]
+                ])
             }};
             (|$kind:ident| $val:expr) => {{
-                use $crate::stark::mozak_stark::TableKind::*;
-                [$(
+                use $crate::stark::mozak_stark::{TableKindArray, TableKind::{self, *}};
+                TableKindArray([$(
                     {
-                        let $kind = $kind_names;
+                        #[allow(non_upper_case_globals)]
+                        const $kind: TableKind = $kind_names;
                         $val
                     },)*
-                ]
+                ])
             }};
         }
         pub(crate) use all_kind;
@@ -228,27 +234,27 @@ macro_rules! mozak_stark_helpers {
         macro_rules! all_starks {
             ($all_stark:expr, |$stark:ident, $kind:ident| $val:expr) => {{
                 use core::borrow::Borrow;
-                use $crate::stark::mozak_stark::TableKind::*;
+                use $crate::stark::mozak_stark::{TableKindArray, TableKind::*};
                 let all_stark = $all_stark.borrow();
-                [$(
+                TableKindArray([$(
                     {
                         let $stark = &all_stark.$fields;
                         let $kind = $kind_names;
                         $val
                     },)*
-                ]
+                ])
             }};
             ($all_stark:expr, |mut $stark:ident, $kind:ident| $val:expr) => {{
                 use core::borrow::BorrowMut;
-                use $crate::stark::mozak_stark::TableKind::*;
+                use $crate::stark::mozak_stark::{TableKindArray, TableKind::*};
                 let all_stark = $all_stark.borrow_mut();
-                [$(
+                TableKindArray([$(
                     {
                         let $stark = &mut all_stark.$fields;
                         let $kind = $kind_names;
                         $val
                     },)*
-                ]
+                ])
             }};
         }
         pub(crate) use all_starks;
@@ -261,6 +267,48 @@ macro_rules! mozak_stark_helpers {
 tt_call::tt_call! {
     macro = [{ mozak_stark_set }]
     ~~> mozak_stark_helpers
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(transparent)]
+pub struct TableKindArray<T>(pub [T; TableKind::COUNT]);
+
+impl<T> Index<TableKind> for TableKindArray<T> {
+    type Output = T;
+
+    fn index(&self, kind: TableKind) -> &Self::Output { &self.0[kind as usize] }
+}
+
+impl<T> IndexMut<TableKind> for TableKindArray<T> {
+    fn index_mut(&mut self, kind: TableKind) -> &mut Self::Output { &mut self.0[kind as usize] }
+}
+
+impl<'a, T> IntoIterator for &'a TableKindArray<T> {
+    type IntoIter = std::slice::Iter<'a, T>;
+    type Item = &'a T;
+
+    fn into_iter(self) -> Self::IntoIter { self.0.iter() }
+}
+
+impl<T> TableKindArray<T> {
+    pub fn map<F, U>(self, f: F) -> TableKindArray<U>
+    where
+        F: FnMut(T) -> U, {
+        TableKindArray(self.0.map(f))
+    }
+
+    pub fn with_kind(self) -> TableKindArray<(T, TableKind)> {
+        TableKindSetBuilder::from_array(self).build_with_kind()
+    }
+
+    pub fn each_ref(&self) -> TableKindArray<&T> {
+        // TODO: replace with `self.0.each_ref()` (blocked on rust-lang/rust#76118)
+        all_kind!(|kind| &self[kind])
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> { self.0.iter() }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> { self.0.iter_mut() }
 }
 
 columns_view_impl!(PublicInputs);
