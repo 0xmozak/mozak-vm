@@ -399,7 +399,7 @@ impl<F: RichField> State<F> {
             let read_index = self.io_tape.public.read_index;
             let remaining_len = self.io_tape.public.data.len() - read_index;
             let limit = num_bytes.min(remaining_len);
-            log::debug!(
+            log::trace!(
                 "ECALL Public IO_READ 0x{:0x}, {:?}, data.len: {:?}, data: {:?}",
                 read_index,
                 remaining_len,
@@ -416,7 +416,7 @@ impl<F: RichField> State<F> {
             let read_index = self.io_tape.private.read_index;
             let remaining_len = self.io_tape.private.data.len() - read_index;
             let limit = num_bytes.min(remaining_len);
-            log::debug!(
+            log::trace!(
                 "ECALL Private IO_READ 0x{:0x}, {:?}, data.len: {:?}, data: {:?}",
                 read_index,
                 remaining_len,
