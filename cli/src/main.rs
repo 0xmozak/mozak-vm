@@ -14,6 +14,7 @@ use mozak_circuits::generation::program::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
+use mozak_circuits::stark::recursive_verifier::recursive_mozak_stark_circuit;
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
@@ -24,6 +25,7 @@ use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
+use plonky2::plonk::circuit_data::CircuitConfig;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
@@ -62,6 +64,7 @@ enum Command {
         io_tape_private: Input,
         io_tape_public: Input,
         proof: Output,
+        recursive_proof: Option<Output>,
     },
     /// Verify the given proof from file.
     Verify { proof: Input },
@@ -135,6 +138,7 @@ fn main() -> Result<()> {
             io_tape_private,
             io_tape_public,
             mut proof,
+            recursive_proof,
         } => {
             let program = load_program(elf)?;
             let state = State::<GoldilocksField>::new(
@@ -159,8 +163,25 @@ fn main() -> Result<()> {
                 public_inputs,
                 &mut TimingTree::default(),
             )?;
-            let s = all_proof.serialize_proof_to_flexbuffer()?;
+            let s = all_proof.clone().serialize_proof_to_flexbuffer()?;
             proof.write_all(s.view())?;
+
+            // Generate recursive proof
+            if let Some(mut recursive_proof_output) = recursive_proof {
+                let circuit_config = CircuitConfig::standard_recursion_config();
+                let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
+                    &stark,
+                    &all_proof.degree_bits(&config),
+                    &circuit_config,
+                    &config,
+                    12,
+                );
+
+                let recursive_all_proof = mozak_stark_circuit.prove(&all_proof)?;
+                let s = recursive_all_proof.to_bytes();
+                recursive_proof_output.write_all(&s)?;
+            }
+
             debug!("proof generated successfully!");
         }
         Command::Verify { mut proof } => {
