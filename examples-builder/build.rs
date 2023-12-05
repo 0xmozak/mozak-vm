@@ -40,7 +40,7 @@ const CRATES: &[Crate] = &[
     ecrate!("sha2", "sha2-example", "SHA2_ELF", false),
     ecrate!("static-mem-access", "STATIC_MEM_ACCESS_ELF", false),
     ecrate!("stdin", "STDIN_ELF", false),
-    ecrate!("merkleproof-trustedroot", "MERKLEPROOF-TRUSTEDROOT", false),
+    ecrate!("merkleproof-trustedroot", "MERKLEPROOF_TRUSTEDROOT", false),
 ];
 const CARGO_MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
