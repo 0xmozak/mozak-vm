@@ -66,15 +66,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // pattern of an "address", a correct table guarantees the following:
         //
         // All rows for a specific `addr` start with either:
-        //   1) a memory init (via static ELF), or
+        //   1) a memory init via static ELF (hereby referred to as elf init), or
         //   2) a zero init (case for heap / other dynamic addresses).
         // For these starting rows, `is_init` will be true.
         //
-        // 1) Memory Init
-        //   All memory init rows will have clk `0`.
+        // 1) ELF Init
+        //   All elf init rows will have clk `1`.
         //
         // 2) Zero Init
-        //   All zero initialized memory will have clk `1` and value `0`. They
+        //   All zero initialized memory will have clk `0` and value `0`. They
         //   should also be writable.
         //
         // NOTE: We rely on 'Ascending ordered, contiguous
@@ -84,15 +84,20 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // table can present case for them being derived from static ELF and
         // dynamic (execution) at the same time or being writable as
         // well as non-writable at the same time.
+        //
+        // A zero init at clk == 0,
+        // while an ELF init happens at clk == 1.
+        let zero_init_clk = P::ONES - lv.clk;
+        let elf_init_clk = lv.clk;
 
-        // All memory init happens prior to exec and the `clk` would be `0` or `1`.
-        yield_constr.constraint(lv.is_init * lv.clk * (P::ONES - lv.clk));
+        // All init ops happen prior to exec and the `clk` would be `0` or `1`.
+        yield_constr.constraint(lv.is_init * zero_init_clk * elf_init_clk);
         // All zero inits should have value `0`.
-        // (Assumption: `is_init` == 1, `clk` == 1)
-        yield_constr.constraint(lv.is_init * lv.clk * lv.value);
+        // (Assumption: `is_init` == 1, `clk` == 0)
+        yield_constr.constraint(lv.is_init * zero_init_clk * lv.value);
         // All zero inits should be writable.
-        // (Assumption: `is_init` == 1, `clk` == 1)
-        yield_constr.constraint(lv.is_init * lv.clk * (P::ONES - lv.is_writable));
+        // (Assumption: `is_init` == 1, `clk` == 0)
+        yield_constr.constraint(lv.is_init * zero_init_clk * (P::ONES - lv.is_writable));
 
         // Operation constraints
         // ---------------------
@@ -140,19 +145,20 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv_is_executed = is_executed_ext_circuit(builder, lv);
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
-        let is_init_mul_clk = builder.mul_extension(lv.is_init, lv.clk);
-
         let one = builder.one_extension();
         let one_sub_clk = builder.sub_extension(one, lv.clk);
-        let is_init_mul_clk_mul_one_sub_clk = builder.mul_extension(is_init_mul_clk, one_sub_clk);
-        yield_constr.constraint(builder, is_init_mul_clk_mul_one_sub_clk);
+        let is_init_mul_one_sub_clk = builder.mul_extension(lv.is_init, one_sub_clk);
 
-        let is_init_mul_clk_mul_value = builder.mul_extension(is_init_mul_clk, lv.value);
+        let is_init_mul_one_sub_clk_mul_clk =
+            builder.mul_extension(is_init_mul_one_sub_clk, lv.clk);
+        yield_constr.constraint(builder, is_init_mul_one_sub_clk_mul_clk);
+
+        let is_init_mul_clk_mul_value = builder.mul_extension(is_init_mul_one_sub_clk, lv.value);
         yield_constr.constraint(builder, is_init_mul_clk_mul_value);
 
         let one_sub_is_writable = builder.sub_extension(one, lv.is_writable);
         let is_init_mul_clk_mul_one_sub_is_writable =
-            builder.mul_extension(is_init_mul_clk, one_sub_is_writable);
+            builder.mul_extension(is_init_mul_one_sub_clk, one_sub_is_writable);
         yield_constr.constraint(builder, is_init_mul_clk_mul_one_sub_is_writable);
 
         let is_store_mul_one_sub_is_writable =
