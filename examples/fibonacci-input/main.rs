@@ -49,7 +49,7 @@ pub fn main() {
     let out = u32::from_le_bytes(buffer);
 
     let ans = fibonacci(input);
-    assert!(ans >= out);
+    assert!(ans == out);
 }
 
 guest::entry!(main);
