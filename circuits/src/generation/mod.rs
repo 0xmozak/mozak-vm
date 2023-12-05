@@ -57,7 +57,7 @@ use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
 use crate::generation::poseidon2::generate_poseidon2_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::stark::mozak_stark::{
-    all_starks, MozakStark, PublicInputs, TableKind, TableKindSetBuilder,
+    all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
 };
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
 
@@ -73,7 +73,7 @@ pub const MIN_TRACE_LENGTH: usize = 8;
 pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     program: &Program,
     record: &ExecutionRecord<F>,
-) -> [Vec<PolynomialValues<F>>; TableKind::COUNT] {
+) -> TableKindArray<Vec<PolynomialValues<F>>> {
     let cpu_rows = generate_cpu_trace::<F>(record);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
@@ -154,7 +154,7 @@ pub fn transpose_polys<
 }
 
 pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
-    traces_poly_values: &[Vec<PolynomialValues<F>>; TableKind::COUNT],
+    traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     mozak_stark: &MozakStark<F, D>,
     public_inputs: &PublicInputs<F>,
 ) {
@@ -165,11 +165,7 @@ pub fn debug_traces<F: RichField + Extendable<D>, const D: usize>(
     .build();
 
     all_starks!(mozak_stark, |stark, kind| {
-        debug_single_trace::<F, D, _>(
-            stark,
-            &traces_poly_values[kind as usize],
-            public_inputs[kind as usize],
-        );
+        debug_single_trace::<F, D, _>(stark, &traces_poly_values[kind], public_inputs[kind]);
     });
 }
 

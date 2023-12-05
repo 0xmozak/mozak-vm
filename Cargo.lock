@@ -100,6 +100,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
+name = "arrayvec"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -776,6 +782,7 @@ name = "mozak-circuits"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arrayvec",
  "bitfield",
  "clap",
  "criterion",
@@ -813,6 +820,7 @@ dependencies = [
 name = "mozak-circuits3"
 version = "0.1.0"
 dependencies = [
+ "arrayvec",
  "log",
  "mozak-circuits",
  "p3-air",

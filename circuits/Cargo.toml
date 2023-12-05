@@ -11,6 +11,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = { version = "1.0", default-features = false }
+arrayvec = { version = "0.7", default-features = false }
 bitfield = "0.14"
 clap = { version = "4.4", features = [
   "derive",
