@@ -1,3 +1,5 @@
+use std::ops::{Index, IndexMut};
+
 use itertools::chain;
 use mozak_circuits_derive::StarkSet;
 use plonky2::field::extension::Extendable;
@@ -17,6 +19,9 @@ use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::poseidon2::stark::Poseidon2_12Stark;
 #[cfg(feature = "enable_poseidon_starks")]
+use crate::poseidon2_output_bytes;
+use crate::poseidon2_output_bytes::stark::Poseidon2OutputBytesStark;
+#[cfg(feature = "enable_poseidon_starks")]
 use crate::poseidon2_sponge;
 use crate::poseidon2_sponge::stark::Poseidon2SpongeStark;
 use crate::program::stark::ProgramStark;
@@ -33,7 +38,7 @@ use crate::{
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
     12 + cfg!(feature = "enable_register_starks") as usize
-        + cfg!(feature = "enable_poseidon_starks") as usize * 2
+        + cfg!(feature = "enable_poseidon_starks") as usize * 3
 };
 
 /// STARK Gadgets of Mozak-VM
@@ -87,6 +92,11 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
         StarkSet(stark_kind = "Poseidon2Sponge")
     )]
     pub poseidon2_sponge_stark: Poseidon2SpongeStark<F, D>,
+    #[cfg_attr(
+        feature = "enable_poseidon_starks",
+        StarkSet(stark_kind = "Poseidon2OutputBytes")
+    )]
+    pub poseidon2_output_bytes_stark: Poseidon2OutputBytesStark<F, D>,
     pub cross_table_lookups: [CrossTableLookup<F>; NUM_CROSS_TABLE_LOOKUP],
 
     pub debug: bool,
@@ -109,13 +119,7 @@ macro_rules! mozak_stark_helpers {
         }
 
         impl TableKind {
-            pub const COUNT: usize = $kind_count;
-
-            #[must_use]
-            pub fn all() -> [Self; Self::COUNT] {
-                use TableKind::*;
-                [$($kind_names,)*]
-            }
+            const COUNT: usize = $kind_count;
         }
 
         // Generate the set builder
@@ -125,8 +129,16 @@ macro_rules! mozak_stark_helpers {
         }
 
         impl<T> TableKindSetBuilder<T> {
-            pub fn build(self) -> [T; TableKind::COUNT] {
-                [$(self.$fields,)*]
+            pub fn from_array(array: TableKindArray<T>) -> Self {
+                let TableKindArray([$($fields,)*]) = array;
+                Self{$($fields,)*}
+            }
+            pub fn build(self) -> TableKindArray<T> {
+                TableKindArray([$(self.$fields,)*])
+            }
+            pub fn build_with_kind(self) -> TableKindArray<(T, TableKind)> {
+                use TableKind::*;
+                TableKindArray([$((self.$fields, $kind_names),)*])
             }
         }
 
@@ -153,7 +165,7 @@ macro_rules! mozak_stark_helpers {
         /// `MozakStark` type to the macro in order to enable the "lambdas" to use the `stark!`
         /// macro in-place of a type.
         ///
-        /// ```rust
+        /// ```ignore
         /// let foos = all_kind!(MozakStark<F, D>, |stark, kind| {
         ///     // `stark` will be a different stark type on each call
         ///     // `kind` will be a different `TableKind` on each call
@@ -166,31 +178,33 @@ macro_rules! mozak_stark_helpers {
         /// Calls that do not need type information of each stark can merely omit the `MozakStark`
         /// type and just deal with the `TableKind`
         ///
-        /// ```rust
+        /// ```ignore
         /// let bars = all_kind!(|stark, kind| bar(kind));
         /// ```
         macro_rules! all_kind {
             ($stark_ty:ty, |$stark:ident, $kind:ident| $val:expr) => {{
-                use $crate::stark::mozak_stark::{StarkKinds, TableKind::*};
-                [#(
+                use $crate::stark::mozak_stark::{StarkKinds, TableKindArray, TableKind::*};
+                TableKindArray([$(
                     {
                         // This enables callers to get the type using `$stark!()`
                         macro_rules! $stark {
-                            () => {<$stark_ty as StarkKinds>::#kinds}
+                            () => {<$stark_ty as StarkKinds>::$kind_names}
                         }
-                        let $kind = #kinds;
+                        #[allow(non_upper_case_globals)]
+                        const $kind: TableKind = $kind_names;
                         $val
                     },)*
-                ]
+                ])
             }};
             (|$kind:ident| $val:expr) => {{
-                use $crate::stark::mozak_stark::TableKind::*;
-                [$(
+                use $crate::stark::mozak_stark::{TableKindArray, TableKind::{self, *}};
+                TableKindArray([$(
                     {
-                        let $kind = $kind_names;
+                        #[allow(non_upper_case_globals)]
+                        const $kind: TableKind = $kind_names;
                         $val
                     },)*
-                ]
+                ])
             }};
         }
         pub(crate) use all_kind;
@@ -204,7 +218,7 @@ macro_rules! mozak_stark_helpers {
         /// `MozakStark` type to the macro in order to enable the "lambdas" to use the `stark!`
         /// macro in-place of a type.
         ///
-        /// ```rust
+        /// ```ignore
         /// fn foo(mozak_stark: &mut MozakStark<F, D>) {
         ///     let bars = all_starks!(mozak_stark, |stark, kind| {
         ///         // `stark` will be a reference to different stark on each call
@@ -220,27 +234,27 @@ macro_rules! mozak_stark_helpers {
         macro_rules! all_starks {
             ($all_stark:expr, |$stark:ident, $kind:ident| $val:expr) => {{
                 use core::borrow::Borrow;
-                use $crate::stark::mozak_stark::TableKind::*;
+                use $crate::stark::mozak_stark::{TableKindArray, TableKind::*};
                 let all_stark = $all_stark.borrow();
-                [$(
+                TableKindArray([$(
                     {
                         let $stark = &all_stark.$fields;
                         let $kind = $kind_names;
                         $val
                     },)*
-                ]
+                ])
             }};
             ($all_stark:expr, |mut $stark:ident, $kind:ident| $val:expr) => {{
                 use core::borrow::BorrowMut;
-                use $crate::stark::mozak_stark::TableKind::*;
+                use $crate::stark::mozak_stark::{TableKindArray, TableKind::*};
                 let all_stark = $all_stark.borrow_mut();
-                [$(
+                TableKindArray([$(
                     {
                         let $stark = &mut all_stark.$fields;
                         let $kind = $kind_names;
                         $val
                     },)*
-                ]
+                ])
             }};
         }
         pub(crate) use all_starks;
@@ -253,6 +267,48 @@ macro_rules! mozak_stark_helpers {
 tt_call::tt_call! {
     macro = [{ mozak_stark_set }]
     ~~> mozak_stark_helpers
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(transparent)]
+pub struct TableKindArray<T>(pub [T; TableKind::COUNT]);
+
+impl<T> Index<TableKind> for TableKindArray<T> {
+    type Output = T;
+
+    fn index(&self, kind: TableKind) -> &Self::Output { &self.0[kind as usize] }
+}
+
+impl<T> IndexMut<TableKind> for TableKindArray<T> {
+    fn index_mut(&mut self, kind: TableKind) -> &mut Self::Output { &mut self.0[kind as usize] }
+}
+
+impl<'a, T> IntoIterator for &'a TableKindArray<T> {
+    type IntoIter = std::slice::Iter<'a, T>;
+    type Item = &'a T;
+
+    fn into_iter(self) -> Self::IntoIter { self.0.iter() }
+}
+
+impl<T> TableKindArray<T> {
+    pub fn map<F, U>(self, f: F) -> TableKindArray<U>
+    where
+        F: FnMut(T) -> U, {
+        TableKindArray(self.0.map(f))
+    }
+
+    pub fn with_kind(self) -> TableKindArray<(T, TableKind)> {
+        TableKindSetBuilder::from_array(self).build_with_kind()
+    }
+
+    pub fn each_ref(&self) -> TableKindArray<&T> {
+        // TODO: replace with `self.0.each_ref()` (blocked on rust-lang/rust#76118)
+        all_kind!(|kind| &self[kind])
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> { self.0.iter() }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> { self.0.iter_mut() }
 }
 
 columns_view_impl!(PublicInputs);
@@ -284,6 +340,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             io_memory_public_stark: InputOuputMemoryStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
+            poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
             cross_table_lookups: [
                 RangecheckTable::lookups(),
                 XorCpuTable::lookups(),
@@ -303,6 +360,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 Poseidon2SpongeCpuTable::lookups(),
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2Poseidon2SpongeTable::lookups(),
+                #[cfg(feature = "enable_poseidon_starks")]
+                Poseidon2OutputBytesPoseidon2SpongeTable::lookups(),
             ],
             debug: false,
         }
@@ -371,6 +430,8 @@ table_impl!(IoMemoryPublicTable, TableKind::IoMemoryPublic);
 table_impl!(Poseidon2SpongeTable, TableKind::Poseidon2Sponge);
 #[cfg(feature = "enable_poseidon_starks")]
 table_impl!(Poseidon2Table, TableKind::Poseidon2);
+#[cfg(feature = "enable_poseidon_starks")]
+table_impl!(Poseidon2OutputBytesTable, TableKind::Poseidon2OutputBytes);
 
 pub trait Lookups<F: Field> {
     fn lookups() -> CrossTableLookup<F>;
@@ -452,41 +513,18 @@ impl<F: Field> Lookups<F> for IntoMemoryTable<F> {
         ]);
         #[cfg(feature = "enable_poseidon_starks")]
         {
-            tables.extend(vec![
-                // poseidon2_sponge input
+            tables.extend((0..8).map(|index| {
                 Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_input_memory(0),
+                    poseidon2_sponge::columns::data_for_input_memory(index),
                     poseidon2_sponge::columns::filter_for_input_memory(),
-                ),
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_input_memory(1),
-                    poseidon2_sponge::columns::filter_for_input_memory(),
-                ),
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_input_memory(2),
-                    poseidon2_sponge::columns::filter_for_input_memory(),
-                ),
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_input_memory(3),
-                    poseidon2_sponge::columns::filter_for_input_memory(),
-                ),
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_input_memory(4),
-                    poseidon2_sponge::columns::filter_for_input_memory(),
-                ),
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_input_memory(5),
-                    poseidon2_sponge::columns::filter_for_input_memory(),
-                ),
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_input_memory(6),
-                    poseidon2_sponge::columns::filter_for_input_memory(),
-                ),
-                Poseidon2SpongeTable::new(
-                    poseidon2_sponge::columns::data_for_input_memory(7),
-                    poseidon2_sponge::columns::filter_for_input_memory(),
-                ),
-            ]);
+                )
+            }));
+            tables.extend((0..32).map(|index| {
+                Poseidon2OutputBytesTable::new(
+                    poseidon2_output_bytes::columns::data_for_output_memory(index),
+                    poseidon2_output_bytes::columns::filter_for_output_memory(),
+                )
+            }));
         }
         CrossTableLookup::new(
             tables,
@@ -708,6 +746,24 @@ impl<F: Field> Lookups<F> for Poseidon2Poseidon2SpongeTable<F> {
             Poseidon2SpongeTable::new(
                 crate::poseidon2_sponge::columns::data_for_poseidon2(),
                 crate::poseidon2_sponge::columns::filter_for_poseidon2(),
+            ),
+        )
+    }
+}
+
+#[cfg(feature = "enable_poseidon_starks")]
+pub struct Poseidon2OutputBytesPoseidon2SpongeTable<F: Field>(CrossTableLookup<F>);
+#[cfg(feature = "enable_poseidon_starks")]
+impl<F: Field> Lookups<F> for Poseidon2OutputBytesPoseidon2SpongeTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![Poseidon2OutputBytesTable::new(
+                crate::poseidon2_output_bytes::columns::data_for_poseidon2_sponge(),
+                crate::poseidon2_output_bytes::columns::filter_for_poseidon2_sponge(),
+            )],
+            Poseidon2SpongeTable::new(
+                crate::poseidon2_sponge::columns::data_for_poseidon2_output_bytes(),
+                crate::poseidon2_sponge::columns::filter_for_poseidon2_output_bytes(),
             ),
         )
     }
