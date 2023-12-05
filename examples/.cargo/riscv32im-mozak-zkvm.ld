@@ -157,4 +157,5 @@ SECTIONS {
     }
 }
 
+/* 0xF000_0000 is a bottom of mozak-stack, so ro_data-end needs to be less */
 ASSERT(_rodata_end < 0xF0000000, "risc-v mozak linker script: program is too large")
