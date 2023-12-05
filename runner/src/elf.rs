@@ -331,6 +331,7 @@ impl Program {
     // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
     // exercise the error handling?
     #[allow(clippy::similar_names)]
+    #[allow(clippy::too_many_lines)]
     pub fn load_elf(input: &[u8]) -> Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
         ensure!(elf.ehdr.class == Class::ELF32, "Not a 32-bit ELF");
@@ -398,22 +399,31 @@ impl Program {
             &mozak_ro_memory,
         )?);
 
-        let ro_memory_addresses = ro_memory.keys().sorted().collect_vec();
-        log::debug!(
-            "ro_memory_addresses_start:{:#0x}, ro_memory_addresses_end: {:#0x}",
-            ro_memory_addresses.first().unwrap(),
-            ro_memory_addresses.last().unwrap()
-        );
+        if ro_memory.keys().len() > 0 {
+            let ro_memory_addresses = ro_memory.keys().sorted().collect_vec();
+            log::debug!(
+                "ro_memory_addresses_start:{:#0x}, ro_memory_addresses_end: {:#0x}",
+                ro_memory_addresses.first().unwrap(),
+                ro_memory_addresses.last().unwrap()
+            );
+        } else {
+            log::debug!("ro_memory_addresses is empty");
+        }
         let rw_memory = Data(extract(
             |flags, _, _| flags == elf::abi::PF_R | elf::abi::PF_W,
             &mozak_ro_memory,
         )?);
-        let rw_memory_addresses = rw_memory.keys().sorted().collect_vec();
-        log::debug!(
-            "rw_memory_addresses_start:{:#0x}, rw_memory_addresses_end: {:#0x}",
-            rw_memory_addresses.first().unwrap(),
-            rw_memory_addresses.last().unwrap()
-        );
+
+        if rw_memory.keys().len() > 0 {
+            let rw_memory_addresses = rw_memory.keys().sorted().collect_vec();
+            log::debug!(
+                "rw_memory_addresses_start:{:#0x}, rw_memory_addresses_end: {:#0x}",
+                rw_memory_addresses.first().unwrap(),
+                rw_memory_addresses.last().unwrap()
+            );
+        } else {
+            log::debug!("rw_memory_addresses is empty");
+        }
         // Because we are implementing a modified Harvard Architecture, we make an
         // independent copy of the executable segments. In practice,
         // instructions will be in a R_X segment, so their data will show up in ro_code
@@ -422,12 +432,17 @@ impl Program {
             |flags, _, _| flags & elf::abi::PF_X == elf::abi::PF_X,
             &mozak_ro_memory,
         )?);
-        let ro_code_addresses = ro_code.keys().sorted().collect_vec();
-        log::debug!(
-            "ro_code_start:{:#0x}, ro_code_end: {:#0x}",
-            ro_code_addresses.first().unwrap(),
-            ro_code_addresses.last().unwrap()
-        );
+
+        if ro_code.keys().len() > 0 {
+            let ro_code_addresses = ro_code.keys().sorted().collect_vec();
+            log::debug!(
+                "ro_code_start:{:#0x}, ro_code_end: {:#0x}",
+                ro_code_addresses.first().unwrap(),
+                ro_code_addresses.last().unwrap()
+            );
+        } else {
+            log::debug!("ro_code_addresses is empty");
+        }
         Ok(Program {
             entry_point,
             ro_memory,
@@ -442,7 +457,7 @@ impl Program {
     /// invalid.
     ///
     /// # Panics
-    /// TODO: Roman
+    /// `Program::load_elf`
     pub fn load_program(elf_bytes: &[u8], args: &MozakRunTimeArguments) -> Result<Program> {
         let mut program = Program::load_elf(elf_bytes).unwrap();
         // [0] - State Root
