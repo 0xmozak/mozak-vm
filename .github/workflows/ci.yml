@@ -33,15 +33,6 @@ jobs:
         with:
           local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
 
-
-      - name: Build fibonacci ELF for benchmarking
-        working-directory: examples/fibonacci
-        run: cargo build --release
-
-      - name: Build fibonacci-input ELF for benchmarking
-        working-directory: examples/fibonacci-input
-        run: cargo build --release --features=std
-
       - name: Compile
         run: cargo nextest run --no-run --locked --all-targets
 
@@ -77,11 +68,10 @@ jobs:
         with:
           local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
 
-
       - name: Build all examples
         run: |
-          cd examples
-          ./build-examples.sh
+          cd examples-builder
+          cargo build --all-features
 
   cargo-fmt:
     needs: check-runner

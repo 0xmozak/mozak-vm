@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -11,23 +10,24 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
-use super::columns::RangeCheckLimb;
+use super::columns::MemoryZeroInit;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
-#[derive(Copy, Clone, Default, StarkNameDisplay)]
+#[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct RangeCheckLimbStark<F, const D: usize> {
+pub struct MemoryZeroInitStark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F, const D: usize> HasNamedColumns for RangeCheckLimbStark<F, D> {
-    type Columns = RangeCheckLimb<F>;
+impl<F, const D: usize> HasNamedColumns for MemoryZeroInitStark<F, D> {
+    type Columns = MemoryZeroInit<F>;
 }
 
-const COLUMNS: usize = RangeCheckLimb::<()>::NUMBER_OF_COLUMNS;
+const COLUMNS: usize = MemoryZeroInit::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckLimbStark<F, D> {
+impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryZeroInitStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
 
     where
@@ -43,12 +43,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckLim
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &RangeCheckLimb<P> = vars.get_local_values().into();
-        let nv: &RangeCheckLimb<P> = vars.get_next_values().into();
-        // Check: the `element`s form a sequence from 0 to 255
-        yield_constr.constraint_first_row(lv.value);
-        yield_constr.constraint_transition(nv.value - lv.value - FE::ONE);
-        yield_constr.constraint_last_row(lv.value - FE::from_canonical_u8(u8::MAX));
+        let lv: &MemoryZeroInit<P> = vars.get_local_values().into();
+        is_binary(yield_constr, lv.filter);
     }
 
     fn eval_ext_circuit(
@@ -57,16 +53,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckLim
         vars: &Self::EvaluationFrameTarget,
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &RangeCheckLimb<ExtensionTarget<D>> = vars.get_local_values().into();
-        let nv: &RangeCheckLimb<ExtensionTarget<D>> = vars.get_next_values().into();
-        yield_constr.constraint_first_row(builder, lv.value);
-        let one = builder.constant_extension(F::Extension::from_canonical_u8(1));
-        let nv_sub_lv = builder.sub_extension(nv.value, lv.value);
-        let nv_sub_lv_sub_one = builder.sub_extension(nv_sub_lv, one);
-        yield_constr.constraint_transition(builder, nv_sub_lv_sub_one);
-        let u8max = builder.constant_extension(F::Extension::from_canonical_u8(u8::MAX));
-        let lv_sub_u8max = builder.sub_extension(lv.value, u8max);
-        yield_constr.constraint_last_row(builder, lv_sub_u8max);
+        let lv: &MemoryZeroInit<ExtensionTarget<D>> = vars.get_local_values().into();
+        is_binary_ext_circuit(builder, lv.filter, yield_constr);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -82,7 +70,7 @@ mod tests {
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
-    type S = RangeCheckLimbStark<F, D>;
+    type S = MemoryZeroInitStark<F, D>;
 
     #[test]
     fn test_circuit() -> anyhow::Result<()> {

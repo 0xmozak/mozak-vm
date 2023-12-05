@@ -16,7 +16,7 @@ use starky::stark::Stark;
 use thiserror::Error;
 
 pub use crate::linear_combination::Column;
-use crate::stark::mozak_stark::{Table, TableKind};
+use crate::stark::mozak_stark::{all_kind, Table, TableKind, TableKindArray};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::proof::{StarkProofTarget, StarkProofWithMetadata};
 
@@ -58,10 +58,10 @@ pub(crate) struct CtlZData<F: Field> {
 
 pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: usize>(
     cross_table_lookups: &[CrossTableLookup<F>],
-    ctl_zs_lasts: &[Vec<F>; TableKind::COUNT],
+    ctl_zs_lasts: &TableKindArray<Vec<F>>,
     config: &StarkConfig,
 ) -> Result<()> {
-    let mut ctl_zs_openings = ctl_zs_lasts.iter().map(|v| v.iter()).collect::<Vec<_>>();
+    let mut ctl_zs_openings = ctl_zs_lasts.each_ref().map(|v| v.iter());
     for _ in 0..config.num_challenges {
         for CrossTableLookup {
             looking_tables,
@@ -70,9 +70,9 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
         {
             let looking_zs_sum = looking_tables
                 .iter()
-                .map(|table| *ctl_zs_openings[table.kind as usize].next().unwrap())
+                .map(|table| *ctl_zs_openings[table.kind].next().unwrap())
                 .sum::<F>();
-            let looked_z = *ctl_zs_openings[looked_table.kind as usize].next().unwrap();
+            let looked_z = *ctl_zs_openings[looked_table.kind].next().unwrap();
 
             ensure!(
                 looking_zs_sum == looked_z,
@@ -90,11 +90,11 @@ pub(crate) fn verify_cross_table_lookups<F: RichField + Extendable<D>, const D: 
 }
 
 pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
-    trace_poly_values: &[Vec<PolynomialValues<F>>; TableKind::COUNT],
+    trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     cross_table_lookups: &[CrossTableLookup<F>],
     ctl_challenges: &GrandProductChallengeSet<F>,
-) -> [CtlData<F>; TableKind::COUNT] {
-    let mut ctl_data_per_table = [0; TableKind::COUNT].map(|_| CtlData::default());
+) -> TableKindArray<CtlData<F>> {
+    let mut ctl_data_per_table = all_kind!(|_kind| CtlData::default());
     for &challenge in &ctl_challenges.challenges {
         for CrossTableLookup {
             looking_tables,
@@ -105,7 +105,7 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
 
             let make_z = |table: &Table<F>| {
                 partial_sums(
-                    &trace_poly_values[table.kind as usize],
+                    &trace_poly_values[table.kind],
                     &table.columns,
                     &table.filter_column,
                     challenge,
@@ -126,14 +126,12 @@ pub(crate) fn cross_table_lookup_data<F: RichField, const D: usize>(
                 looked_table,
                 z_looked
             )]) {
-                ctl_data_per_table[table.kind as usize]
-                    .zs_columns
-                    .push(CtlZData {
-                        z,
-                        challenge,
-                        columns: table.columns.clone(),
-                        filter_column: table.filter_column.clone(),
-                    });
+                ctl_data_per_table[table.kind].zs_columns.push(CtlZData {
+                    z,
+                    challenge,
+                    columns: table.columns.clone(),
+                    filter_column: table.filter_column.clone(),
+                });
             }
         }
     }
@@ -232,16 +230,15 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
     CtlCheckVars<'a, F, F::Extension, F::Extension, D>
 {
     pub(crate) fn from_proofs<C: GenericConfig<D, F = F>>(
-        proofs: &[StarkProofWithMetadata<F, C, D>; TableKind::COUNT],
+        proofs: &TableKindArray<StarkProofWithMetadata<F, C, D>>,
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
-    ) -> [Vec<Self>; TableKind::COUNT] {
+    ) -> TableKindArray<Vec<Self>> {
         let mut ctl_zs = proofs
-            .iter()
-            .map(|p| izip!(&p.proof.openings.ctl_zs, &p.proof.openings.ctl_zs_next))
-            .collect::<Vec<_>>();
+            .each_ref()
+            .map(|p| izip!(&p.proof.openings.ctl_zs, &p.proof.openings.ctl_zs_next));
 
-        let mut ctl_vars_per_table = [0; TableKind::COUNT].map(|_| vec![]);
+        let mut ctl_vars_per_table = all_kind!(|_kind| vec![]);
         let ctl_chain = cross_table_lookups.iter().flat_map(
             |CrossTableLookup {
                  looking_tables,
@@ -249,8 +246,8 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
              }| chain!(looking_tables, [looked_table]),
         );
         for (&challenges, table) in iproduct!(&ctl_challenges.challenges, ctl_chain) {
-            let (&local_z, &next_z) = ctl_zs[table.kind as usize].next().unwrap();
-            ctl_vars_per_table[table.kind as usize].push(Self {
+            let (&local_z, &next_z) = ctl_zs[table.kind].next().unwrap();
+            ctl_vars_per_table[table.kind].push(Self {
                 local_z,
                 next_z,
                 challenges,
@@ -386,7 +383,7 @@ pub mod ctl_utils {
     use plonky2::hash::hash_types::RichField;
 
     use crate::cross_table_lookup::{CrossTableLookup, LookupError};
-    use crate::stark::mozak_stark::{MozakStark, Table, TableKind};
+    use crate::stark::mozak_stark::{MozakStark, Table, TableKind, TableKindArray};
 
     #[derive(Debug)]
     struct MultiSet<F>(HashMap<Vec<F>, Vec<(TableKind, F)>>);
@@ -404,10 +401,10 @@ pub mod ctl_utils {
 
         fn process_row(
             &mut self,
-            trace_poly_values: &[Vec<PolynomialValues<F>>],
+            trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
             table: &Table<F>,
         ) {
-            let trace = &trace_poly_values[table.kind as usize];
+            let trace = &trace_poly_values[table.kind];
             for i in 0..trace[0].len() {
                 let filter = table.filter_column.eval_table(trace, i);
                 if filter.is_nonzero() {
@@ -423,7 +420,7 @@ pub mod ctl_utils {
     }
 
     pub fn check_single_ctl<F: Field>(
-        trace_poly_values: &[Vec<PolynomialValues<F>>],
+        trace_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
         ctl: &CrossTableLookup<F>,
     ) -> Result<(), LookupError> {
         /// Sums and compares the multiplicities of the given looking and looked
@@ -479,7 +476,7 @@ pub mod ctl_utils {
         Ok(())
     }
     pub fn debug_ctl<F: RichField + Extendable<D>, const D: usize>(
-        traces_poly_values: &[Vec<PolynomialValues<F>>; TableKind::COUNT],
+        traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
         mozak_stark: &MozakStark<F, D>,
     ) {
         mozak_stark
@@ -498,7 +495,7 @@ mod tests {
 
     use super::ctl_utils::check_single_ctl;
     use super::*;
-    use crate::stark::mozak_stark::{CpuTable, Lookups, RangeCheckTable};
+    use crate::stark::mozak_stark::{CpuTable, Lookups, RangeCheckTable, TableKindSetBuilder};
 
     #[allow(clippy::similar_names)]
     /// Specify which column(s) to find data related to lookups.
@@ -635,7 +632,12 @@ mod tests {
             .one(0) // filter column
             .set_values(1, 6)
             .build();
-        let traces = vec![foo_trace, bar_trace];
+        let traces = TableKindSetBuilder {
+            cpu_stark: foo_trace,
+            rangecheck_stark: bar_trace,
+            ..Default::default()
+        }
+        .build();
         assert!(matches!(
             check_single_ctl(&traces, &dummy_cross_table_lookup).unwrap_err(),
             LookupError::InconsistentTableRows
@@ -662,7 +664,12 @@ mod tests {
             .one(0) // filter column
             .set_values(1, 5)
             .build();
-        let traces = vec![foo_trace, bar_trace];
+        let traces = TableKindSetBuilder {
+            cpu_stark: foo_trace,
+            rangecheck_stark: bar_trace,
+            ..Default::default()
+        }
+        .build();
         check_single_ctl(&traces, &dummy_cross_table_lookup)?;
         Ok(())
     }
