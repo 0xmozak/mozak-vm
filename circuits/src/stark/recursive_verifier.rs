@@ -26,7 +26,7 @@ use starky::constraint_consumer::RecursiveConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{all_kind, all_starks};
+use super::mozak_stark::{all_kind, all_starks, TableKindArray};
 use crate::cross_table_lookup::{CrossTableLookup, CtlCheckVarsTarget};
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
@@ -44,7 +44,7 @@ where
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>, {
     pub circuit: CircuitData<F, C, D>,
-    pub targets: [StarkVerifierTargets<F, C, D>; TableKind::COUNT],
+    pub targets: TableKindArray<StarkVerifierTargets<F, C, D>>,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -105,15 +105,15 @@ where
         let mut inputs = PartialWitness::new();
 
         all_kind!(|kind| {
-            self.targets[kind as usize].set_targets(
+            self.targets[kind].set_targets(
                 &mut inputs,
-                &all_proof.proofs_with_metadata[kind as usize],
+                &all_proof.proofs_with_metadata[kind],
                 &all_proof.ctl_challenges,
             );
         });
 
         // Set public inputs
-        let cpu_target = &self.targets[TableKind::Cpu as usize].stark_proof_with_pis_target;
+        let cpu_target = &self.targets[TableKind::Cpu].stark_proof_with_pis_target;
         inputs.set_target_arr(
             cpu_target.public_inputs.as_ref(),
             all_proof.public_inputs.borrow(),
@@ -129,7 +129,7 @@ pub fn recursive_mozak_stark_circuit<
     const D: usize,
 >(
     mozak_stark: &MozakStark<F, D>,
-    degree_bits: [usize; TableKind::COUNT],
+    degree_bits: &TableKindArray<usize>,
     circuit_config: &CircuitConfig,
     inner_config: &StarkConfig,
     min_degree_bits: usize,
@@ -143,7 +143,7 @@ where
             &mut builder,
             kind,
             stark,
-            degree_bits[kind as usize],
+            degree_bits[kind],
             &mozak_stark.cross_table_lookups,
             inner_config,
         )
@@ -152,7 +152,7 @@ where
     // Register program ROM and memory init trace cap as public inputs.
     for kind in [TableKind::Program, TableKind::MemoryInit] {
         builder.register_public_inputs(
-            &targets[kind as usize]
+            &targets[kind]
                 .stark_proof_with_pis_target
                 .proof
                 .trace_cap
@@ -516,7 +516,7 @@ mod tests {
         let circuit_config = CircuitConfig::standard_recursion_config();
         let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
             &stark,
-            mozak_proof.degree_bits(&config),
+            &mozak_proof.degree_bits(&config),
             &circuit_config,
             &config,
             12,
