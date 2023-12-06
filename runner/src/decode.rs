@@ -66,9 +66,7 @@ bitfield! {
 ///
 /// let instruction = decode_instruction(0, 0x018B_80B3);
 ///
-/// assert!(
-///     instruction
-///         == Instruction {
+/// assert_eq!(instruction, Ok(Instruction {
 ///             op: Op::ADD,
 ///             args: Args {
 ///                 rd: 1,
@@ -76,7 +74,7 @@ bitfield! {
 ///                 rs2: 24,
 ///                 imm: 0,
 ///             }
-///         }
+///         })
 /// );
 /// ```
 #[allow(clippy::too_many_lines)]
