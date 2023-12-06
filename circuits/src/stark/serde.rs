@@ -15,7 +15,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
     ///
     /// # Errors
     /// Errors if serialization fails.
-    pub fn serialize_proof_to_flexbuffer(self) -> Result<FlexbufferSerializer> {
+    pub fn serialize_proof_to_flexbuffer(&self) -> Result<FlexbufferSerializer> {
         let mut s = FlexbufferSerializer::new();
         self.serialize(&mut s)?;
         Ok(s)
