@@ -45,7 +45,7 @@ mozak-cli -vvv run target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
 ## Exploring binaries
 ### To dump assembly files
 ```bash
-RUSTFLAGS="--emit asm" cargo +nightly build
+RUSTFLAGS="--emit asm -Cpasses=loweratomic -Zlocation-detail=none -Clink-arg=-T./.cargo/riscv32im-mozak-zkvm.ld" cargo +nightly build --target ../.cargo/riscv32im-mozak-zkvm-elf.json
 ```
 After this, `target/riscv32im-risc0-zkvm-elf/debug/deps/` would contain assembly files with `.s` extension
 
