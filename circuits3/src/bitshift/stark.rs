@@ -3,10 +3,13 @@ use p3_field::AbstractField;
 use p3_matrix::MatrixRowSlices;
 
 use super::columns::BitShift;
+use crate::columns_view::NumberOfColumns;
 
 struct BitShiftStark;
 
-impl<F> BaseAir<F> for BitShiftStark {}
+impl<F> BaseAir<F> for BitShiftStark {
+    fn width(&self) -> usize { BitShift::<F>::NUMBER_OF_COLUMNS }
+}
 
 impl<AB: AirBuilder> Air<AB> for BitShiftStark {
     fn eval(&self, builder: &mut AB) {
@@ -43,6 +46,13 @@ impl<AB: AirBuilder> Air<AB> for BitShiftStark {
         builder
             .when_last_row()
             .assert_eq(local.multiplier, AB::Expr::from_canonical_u32(1 << 31));
+
+        // TODO(Kapil): Current version of plonky3 has bug: it does not support
+        // a degree one stark. So we are adding this stupid constraint for a now.
+        builder.assert_zero(
+            local.amount * local.multiplier * local.amount
+                - local.amount * local.amount * local.multiplier,
+        );
     }
 }
 
