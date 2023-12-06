@@ -1,4 +1,3 @@
-import json
 import re
 import subprocess
 from pathlib import Path
@@ -6,8 +5,7 @@ import random
 from typing import Tuple
 from config import Config
 import pandas as pd
-from path import get_actual_commit_folder, get_elf_path
-from pyparsing import Any
+from path import get_actual_cli_repo, get_actual_commit_folder, get_elf_path
 
 
 def sample(min_value: int, max_value: int) -> int:
@@ -17,7 +15,7 @@ def sample(min_value: int, max_value: int) -> int:
 def create_repo_from_commit(commit: str):
     commit_folder = get_actual_commit_folder(commit)
     if (commit_folder / ".git").is_file():
-        print(f"Skipping build for {commit}...")
+        print(f"Skipping git worktree for {commit}...")
         return
     subprocess.run(
         ["git", "worktree", "add", "--force", commit_folder, commit], check=True
@@ -26,6 +24,19 @@ def create_repo_from_commit(commit: str):
 
 def build_release(cli_repo: Path):
     subprocess.run(["cargo", "build", "--release"], cwd=cli_repo, check=True)
+
+
+def build_repo(commit: str):
+    if commit == "latest":
+        print("Treating the current repo as latest")
+    else:
+        try:
+            get_actual_commit_folder(commit).mkdir()
+        except FileExistsError:
+            pass
+        create_repo_from_commit(commit)
+    cli_repo = get_actual_cli_repo(commit)
+    build_release(cli_repo)
 
 
 def maybe_build_ELF(bench_name, bench_description: str, commit: str):
@@ -67,13 +78,6 @@ def sample_and_bench(
     output = bench(bench_function, parameter, cli_repo)
 
     return (parameter, output)
-
-
-def load_bench_function_data(bench_function: str) -> dict[str, Any]:
-    config_file_path = Path.cwd() / "config.json"
-    with open(config_file_path, "r") as f:
-        config = json.load(f)
-        return config["benches"][bench_function]
 
 
 def init_csv(csv_file_path: Path, bench_name: str):

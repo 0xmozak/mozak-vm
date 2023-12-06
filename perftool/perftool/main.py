@@ -4,8 +4,6 @@ from path import (
     create_folders_if_not_exist,
     create_symlink_for_repo,
     delete_folder_if_no_symlink,
-    get_actual_cli_repo,
-    get_actual_commit_folder,
     get_bench_folder,
     get_cli_repo,
     get_data_csv_file,
@@ -14,41 +12,20 @@ from path import (
 import typer
 
 from .utils import (
-    build_release,
-    create_repo_from_commit,
+    build_repo,
     init_csv,
-    load_bench_function_data,
     maybe_build_ELF,
     sample_and_bench,
     write_into_csv,
 )
 
-TEMPFOLDERNAME: str = "Perftool_Repos_tmp"
-
 app = typer.Typer()
-
-
-def load_commits_from_config(bench_function: str) -> dict[str, str]:
-    return load_bench_function_data(bench_function)["commits"]
-
-
-def build_repo(commit: str):
-    if commit == "latest":
-        print("Treating the current repo as latest")
-    else:
-        try:
-            get_actual_commit_folder(commit).mkdir()
-        except FileExistsError:
-            pass
-        create_repo_from_commit(commit)
-    cli_repo = get_actual_cli_repo(commit)
-    build_release(cli_repo)
 
 
 @app.command()
 def bench(bench_name: str, min_value: int, max_value: int):
     """
-    Bench  `bench_function` with parameter sampled in range `(min_value, max_value)`
+    Bench  `bench_name` with parameter sampled in range `(min_value, max_value)`
     It keeps sampling parameter, benches the function and updates the data csv file,
       till terminated by Ctrl+C
     """
