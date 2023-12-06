@@ -20,9 +20,6 @@ mozak-circuits = { path = "../circuits" }
 p3-air = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-field = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-matrix = { git = "https://github.com/Plonky3/Plonky3.git" }
-
-
-[dev-dependencies]
 p3-challenger = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-commit = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-dft = { git = "https://github.com/Plonky3/Plonky3.git" }
@@ -36,7 +33,3 @@ p3-poseidon2 = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-uni-stark = { git = "https://github.com/Plonky3/Plonky3.git" }
 rand = "0.8.5"
-
-[features]
-default = []
-test = []
