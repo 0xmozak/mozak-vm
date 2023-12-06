@@ -47,7 +47,7 @@ impl<AB: AirBuilder> Air<AB> for BitShiftStark {
             .when_last_row()
             .assert_eq(local.multiplier, AB::Expr::from_canonical_u32(1 << 31));
 
-        // TODO(Kapil): Current version of plonky3 has bug: it does not support
+        // TODO(Kapil): Current version of plonky3 has a bug: it does not support
         // a degree one stark. So we are adding this stupid constraint for a now.
         builder.assert_zero(
             local.amount * local.multiplier * local.amount
