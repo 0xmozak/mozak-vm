@@ -7,7 +7,7 @@ extern crate core;
 use std::io::{Read, Write};
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
 use clio::{Input, Output};
 use log::debug;
@@ -91,15 +91,13 @@ fn load_runtime_program_args(mut io_args: impl Read, arg_name: &str) -> Result<V
 
 fn load_program(
     mut elf: Input,
-    state_root: &[u8],
+    state_root: &[u8; 32],
     io_tape_private: &[u8],
     io_tape_public: &[u8],
 ) -> Result<Program> {
     let mut elf_bytes = Vec::new();
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
-
-    assert_eq!(state_root.len(), 32);
 
     Program::load_program(
         &elf_bytes,
@@ -133,7 +131,9 @@ fn main() -> Result<()> {
         } => {
             let program = load_program(
                 elf,
-                &load_runtime_program_args(state_root, "state_root")?,
+                &load_runtime_program_args(state_root, "state_root")?
+                    .try_into()
+                    .map_err(|actual| anyhow!("Expected vector of length 32, got: {actual:?}"))?,
                 &load_runtime_program_args(io_tape_private, "io_tape_private")?,
                 &load_runtime_program_args(io_tape_public, "io_tape_public")?,
             )?;
@@ -149,7 +149,9 @@ fn main() -> Result<()> {
         } => {
             let program = load_program(
                 elf,
-                &load_runtime_program_args(state_root, "state_root")?,
+                &load_runtime_program_args(state_root, "state_root")?
+                    .try_into()
+                    .map_err(|actual| anyhow!("Expected vector of length 32, got: {actual:?}"))?,
                 &load_runtime_program_args(io_tape_private, "io_tape_private")?,
                 &load_runtime_program_args(io_tape_public, "io_tape_public")?,
             )?;
@@ -167,7 +169,9 @@ fn main() -> Result<()> {
         } => {
             let program = load_program(
                 elf,
-                &load_runtime_program_args(state_root, "state_root")?,
+                &load_runtime_program_args(state_root, "state_root")?
+                    .try_into()
+                    .map_err(|old| anyhow!("Expected vector of length 32, got: {old:?}"))?,
                 &load_runtime_program_args(io_tape_private, "io_tape_private")?,
                 &load_runtime_program_args(io_tape_public, "io_tape_public")?,
             )?;
