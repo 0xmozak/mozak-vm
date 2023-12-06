@@ -163,7 +163,7 @@ fn main() -> Result<()> {
                 public_inputs,
                 &mut TimingTree::default(),
             )?;
-            let s = all_proof.clone().serialize_proof_to_flexbuffer()?;
+            let s = all_proof.serialize_proof_to_flexbuffer()?;
             proof.write_all(s.view())?;
 
             // Generate recursive proof
