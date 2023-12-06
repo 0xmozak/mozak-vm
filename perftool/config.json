@@ -35,7 +35,7 @@
         }
     },
     "xor-nop": {
-        "description": "Benching XOR repeated for given number of iterations",
+        "description": "Benching XOR vs NOP repeated for given number of iterations",
         "parameter": "iterations",
         "output": "time taken (in s)",
         "benches": {
