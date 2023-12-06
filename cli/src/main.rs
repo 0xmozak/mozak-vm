@@ -102,7 +102,7 @@ fn load_program(
     Program::load_program(
         &elf_bytes,
         &MozakRunTimeArguments::new(
-            &state_root[0..32].try_into().unwrap(), // OK to unwrap since we assert len above
+            state_root,
             io_tape_private,
             io_tape_public,
         ),
