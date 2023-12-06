@@ -1,5 +1,6 @@
 from itertools import cycle
 from pathlib import Path
+from config import Config
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -56,20 +57,24 @@ def plot_data(
     )
 
 
-def plot_all(bench_function: str):
+def plot_all(bench_name: str):
     linecycler = cycle(["-", "--", "-.", ":"])
     markerscycler = cycle(["o", ",", "v", "^"])
     colorscycler = cycle(["r", "b", "c", "m"])
-    commits, description, x_label, y_label = load_plot_data_from_config(bench_function)
+    config = Config()
+    x_label = config.get_parameter_name(bench_name)
+    y_label = config.get_output_name(bench_name)
+    description = config.get_description(bench_name)
+    bench_with_commits_dict = config.get_benches_with_commit(bench_name)
     plt.figure(figsize=(8, 6))
 
     num_samples = 0
-    for commit_description in commits:
-        data_csv_data_file = get_data_csv_file(
-            bench_function, commits[commit_description]
+    for bench_description, bench in bench_with_commits_dict.items():
+        data_csv_file = get_data_csv_file(
+            bench_name, bench["bench_function"], bench["commit"]
         )
         x_data, y_data, slope, intercept, predicted_y = get_data_from_csv(
-            data_csv_data_file, x_label, y_label
+            data_csv_file, x_label, y_label
         )
         color = next(colorscycler)
         marker = next(markerscycler)
@@ -78,7 +83,7 @@ def plot_all(bench_function: str):
             x_data=x_data,
             y_data=y_data,
             predicted_y=predicted_y,
-            label=commit_description,
+            label=bench_description,
             color=color,
             marker=marker,
             linestyle=linestyle,
@@ -90,17 +95,17 @@ def plot_all(bench_function: str):
     plt.legend()
 
 
-def update_plot_from_csv(bench_function: str):
-    plot_all(bench_function)
+def update_plot_from_csv(bench_name: str):
+    plot_all(bench_name)
 
 
 @app.command()
-def plot(bench_function: str):
+def plot(bench_name: str):
     """
     Plot the data from the csv files corresponding to given `bench_function`
     """
-    update_plot_from_csv(bench_function)
-    plt.savefig(get_plot_svg_file(bench_function))
+    update_plot_from_csv(bench_name)
+    plt.savefig(get_plot_svg_file(bench_name))
     plt.close()
 
 

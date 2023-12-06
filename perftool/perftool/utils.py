@@ -3,7 +3,8 @@ import re
 import subprocess
 from pathlib import Path
 import random
-from typing import List
+from typing import Tuple
+from config import Config
 import pandas as pd
 from path import get_actual_commit_folder, get_elf_path
 from pyparsing import Any
@@ -27,13 +28,13 @@ def build_release(cli_repo: Path):
     subprocess.run(["cargo", "build", "--release"], cwd=cli_repo, check=True)
 
 
-def maybe_build_ELF(bench_function: str, commit: str):
-    data = load_bench_function_data(bench_function)
-    elf = data.get("elf")
+def maybe_build_ELF(bench_name, bench_description: str, commit: str):
+    config = Config()
+    elf = config.get_elf(bench_name, bench_description)
     if elf is None:
-        print(f"Skipping build ELF for {bench_function}...")
+        print(f"Skipping build ELF for {bench_name}...")
         return
-    print(f"Building ELF for {bench_function}")
+    print(f"Building ELF for {bench_name}")
     elf_path = get_elf_path(elf, commit)
     subprocess.run(["cargo", "build", "--release"], cwd=elf_path, check=True)
 
@@ -61,11 +62,11 @@ def sample_and_bench(
     bench_function: str,
     min_value: int,
     max_value: int,
-) -> dict[str, List[int | float]]:
+) -> Tuple[float, float]:
     parameter = sample(min_value, max_value)
     output = bench(bench_function, parameter, cli_repo)
-    bench_data = load_bench_function_data(bench_function)
-    return {bench_data["parameter"]: [parameter], bench_data["output"]: [output]}
+
+    return (parameter, output)
 
 
 def load_bench_function_data(bench_function: str) -> dict[str, Any]:
@@ -75,9 +76,12 @@ def load_bench_function_data(bench_function: str) -> dict[str, Any]:
         return config["benches"][bench_function]
 
 
-def init_csv(csv_file_path: Path, bench_function: str):
-    bench_function_data = load_bench_function_data(bench_function)
-    headers = [bench_function_data["parameter"], bench_function_data["output"]]
+def init_csv(csv_file_path: Path, bench_name: str):
+    config = Config()
+    headers = [
+        config.get_parameter_name(bench_name),
+        config.get_output_name(bench_name),
+    ]
     try:
         existing_headers = pd.read_csv(csv_file_path, nrows=0).columns.tolist()
     except FileNotFoundError:
