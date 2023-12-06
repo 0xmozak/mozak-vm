@@ -234,7 +234,7 @@ fn main() -> Result<()> {
             let mut cd_buffer: Vec<u8> = vec![];
             common_data.read_to_end(&mut cd_buffer)?;
 
-            let deserialized: CommonDataWithDegreeBits = serde_json::from_slice(&*cd_buffer)?;
+            let deserialized: CommonDataWithDegreeBits = serde_json::from_slice(&cd_buffer)?;
             let gate_serializer = DefaultGateSerializer;
             let common_data = CommonCircuitData::<F, D>::from_bytes(
                 deserialized.common_data_bytes,
