@@ -142,9 +142,8 @@ mod tests {
         );
         for (i, row) in trace.iter().enumerate() {
             match i {
-                0 | 1 => {
-                    assert_eq!(row.multiplicity, F::TWO);
-                }
+                0 => assert_eq!(row.multiplicity, F::from_canonical_u8(4)),
+                1 => assert_eq!(row.multiplicity, F::from_canonical_u8(1)),
                 _ => {}
             }
         }

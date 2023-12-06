@@ -1,7 +1,7 @@
-use mozak_circuits::stark::mozak_stark::MozakStark;
-use mozak_circuits::test_utils::ProveAndVerify;
+use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
 use mozak_runner::instruction::{Args, Instruction, Op};
 use mozak_runner::test_utils::simple_test_code;
+use starky::config::StarkConfig;
 
 #[allow(clippy::pedantic)]
 pub fn sample_bench(reg_value: u32) -> Result<(), anyhow::Error> {
@@ -26,7 +26,7 @@ pub fn sample_bench(reg_value: u32) -> Result<(), anyhow::Error> {
         },
     ];
     let (program, record) = simple_test_code(instructions, &[], &[(1, reg_value)]);
-    MozakStark::prove_and_verify(&program, &record)
+    prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
 }
 
 #[cfg(test)]

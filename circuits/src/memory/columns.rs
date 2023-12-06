@@ -2,11 +2,12 @@ use core::ops::Add;
 
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
-use plonky2::hash::hash_types::RichField;
+use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use plonky2::plonk::config::GenericHashOut;
 
 use crate::columns_view::{columns_view_impl, make_col_map};
 use crate::cross_table_lookup::Column;
@@ -46,13 +47,6 @@ pub struct Memory<T> {
 
     /// Value of memory access.
     pub value: T,
-
-    /// Difference between current and previous address.
-    pub diff_addr: T,
-
-    /// (Hint column) Multiplicative inverse of the above `diff_addr`.
-    /// 0 if the `diff_addr` is 0.
-    pub diff_addr_inv: T,
 
     /// Difference between current and previous clock.
     pub diff_clk: T,
@@ -119,7 +113,7 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
         } else {
             let rate = Poseidon2Permutation::<F>::RATE;
             // each Field element in preimage represents a byte.
-            (0..rate)
+            let mut inputs: Vec<Memory<F>> = (0..rate)
                 .map(|i| Memory {
                     clk: value.clk,
                     addr: value.input_addr
@@ -128,7 +122,25 @@ impl<F: RichField> From<&Poseidon2Sponge<F>> for Vec<Memory<F>> {
                     value: value.preimage[i],
                     ..Default::default()
                 })
-                .collect()
+                .collect();
+            if value.gen_output.is_one() {
+                let hash_out: [F; NUM_HASH_OUT_ELTS] = value.output[..NUM_HASH_OUT_ELTS]
+                    .try_into()
+                    .expect("shouldn't fail");
+                let output_bytes: Vec<u8> = HashOut::<F>::from(hash_out).to_bytes();
+                let outputs: Vec<Memory<F>> = (0..output_bytes.len())
+                    .map(|i| Memory {
+                        clk: value.clk,
+                        addr: value.output_addr
+                            + F::from_canonical_u8(u8::try_from(i).expect("i > 255")),
+                        is_store: F::ONE,
+                        value: F::from_canonical_u8(output_bytes[i]),
+                        ..Default::default()
+                    })
+                    .collect();
+                inputs.extend(outputs);
+            }
+            inputs
             // TODO: Handle OUTPUT Bytes
         }
     }
@@ -166,9 +178,18 @@ pub fn rangecheck_looking<F: Field>() -> Vec<Table<F>> {
     let mem = col_map().map(Column::from);
     vec![
         MemoryTable::new(Column::singles([col_map().addr]), mem.is_executed()),
-        MemoryTable::new(Column::singles([col_map().diff_addr]), mem.is_executed()),
+        MemoryTable::new(Column::singles_diff([col_map().addr]), mem.is_executed()),
         MemoryTable::new(Column::singles([col_map().diff_clk]), mem.is_executed()),
     ]
+}
+
+#[must_use]
+pub fn rangecheck_u8_looking<F: Field>() -> Vec<Table<F>> {
+    let mem = col_map().map(Column::from);
+    vec![MemoryTable::new(
+        Column::singles([col_map().value]),
+        mem.is_executed(),
+    )]
 }
 
 /// Columns containing the data which are looked from the CPU table into Memory
@@ -195,7 +216,6 @@ pub fn data_for_memoryinit<F: Field>() -> Vec<Column<F>> {
         Column::single(col_map().addr),
         Column::single(col_map().clk),
         Column::single(col_map().value),
-        Column::single(col_map().is_init),
     ]
 }
 

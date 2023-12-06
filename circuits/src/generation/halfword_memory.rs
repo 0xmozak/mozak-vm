@@ -64,7 +64,6 @@ pub fn generate_halfword_memory_trace<F: RichField>(
 mod tests {
 
     use plonky2::field::goldilocks_field::GoldilocksField;
-    use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
 
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
@@ -75,11 +74,7 @@ mod tests {
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory_halfword::test_utils::halfword_memory_trace_test_case;
-    use crate::test_utils::{inv, prep_table};
-
-    const D: usize = 2;
-    type C = Poseidon2GoldilocksConfig;
-    type F = <C as GenericConfig<D>>::F;
+    use crate::test_utils::prep_table;
 
     // This test simulates the scenario of a set of instructions
     // which perform store byte (SH) and load byte signed / unsigned (LH/LHU)
@@ -106,27 +101,26 @@ mod tests {
             &io_memory_public_rows,
             &poseidon2_rows,
         );
-        let inv = inv::<F>;
         assert_eq!(
             trace,
             prep_table(vec![
-                //is_writable  addr   clk  is_store, is_load, is_init  value  diff_addr  diff_addr_inv  diff_clk
-                [       1,     400,   0,      0,        0,       1,        0,    400,     inv(400),            0],  // Memory Init: 400
-                [       1,     400,   1,      1,        0,       0,        2,      0,           0,             1],  // Operations:  400
-                [       1,     400,   2,      0,        1,       0,        2,      0,           0,             1],  // Operations:  400
-                [       1,     401,   0,      0,        0,       1,        0,      1,       inv(1),            0],  // Memory Init: 401
-                [       1,     401,   1,      1,        0,       0,        1,      0,           0,             1],  // Operations:  401
-                [       1,     401,   2,      0,        1,       0,        1,      0,           0,             1],  // Operations:  401
-                [       1,     402,   0,      0,        0,       1,        0,      1,      inv(1),             0],  // Memory Init: 402
-                [       1,     403,   0,      0,        0,       1,        0,      1,      inv(1),             0],  // Memory Init: 403
-                [       1,     500,   0,      0,        0,       1,        0,     97,     inv(97),             0],  // Memory Init: 500
-                [       1,     500,   3,      1,        0,       0,        4,      0,           0,             3],  // Operations:  500
-                [       1,     500,   4,      0,        1,       0,        4,      0,           0,             1],  // Operations:  500
-                [       1,     501,   0,      0,        0,       1,        0,      1,      inv(1),             0],  // Memory Init: 501
-                [       1,     501,   3,      1,        0,       0,        3,      0,           0,             3],  // Operations:  501
-                [       1,     501,   4,      0,        1,       0,        3,      0,           0,             1],  // Operations:  501
-                [       1,     502,   0,      0,        0,       1,        0,      1,      inv(1),             0],  // Memory Init: 502
-                [       1,     503,   0,      0,        0,       1,        0,      1,      inv(1),             0],  // Memory Init: 503
+                //is_writable  addr   clk  is_store, is_load, is_init  value  diff_clk
+                [       1,     400,   0,      0,        0,       1,        0,        0],  // Memory Init: 400
+                [       1,     400,   2,      1,        0,       0,        2,        2],  // Operations:  400
+                [       1,     400,   3,      0,        1,       0,        2,        1],  // Operations:  400
+                [       1,     401,   0,      0,        0,       1,        0,        0],  // Memory Init: 401
+                [       1,     401,   2,      1,        0,       0,        1,        2],  // Operations:  401
+                [       1,     401,   3,      0,        1,       0,        1,        1],  // Operations:  401
+                [       1,     402,   0,      0,        0,       1,        0,        0],  // Memory Init: 402
+                [       1,     403,   0,      0,        0,       1,        0,        0],  // Memory Init: 403
+                [       1,     500,   0,      0,        0,       1,        0,        0],  // Memory Init: 500
+                [       1,     500,   4,      1,        0,       0,        4,        4],  // Operations:  500
+                [       1,     500,   5,      0,        1,       0,        4,        1],  // Operations:  500
+                [       1,     501,   0,      0,        0,       1,        0,        0],  // Memory Init: 501
+                [       1,     501,   4,      1,        0,       0,        3,        4],  // Operations:  501
+                [       1,     501,   5,      0,        1,       0,        3,        1],  // Operations:  501
+                [       1,     502,   0,      0,        0,       1,        0,        0],  // Memory Init: 502
+                [       1,     502,   0,      0,        0,       0,        0,        0],  // padding
             ])
         );
     }
