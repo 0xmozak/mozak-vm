@@ -1,9 +1,9 @@
-use mozak_circuits::stark::mozak_stark::MozakStark;
-use mozak_circuits::test_utils::ProveAndVerify;
+use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
 use mozak_runner::elf::Program;
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
+use starky::config::StarkConfig;
 
 fn fibonacci(n: u32) -> u32 {
     if n < 2 {
@@ -22,7 +22,7 @@ pub fn fibonacci_with_input(n: u32) -> Result<(), anyhow::Error> {
     let state =
         State::<GoldilocksField>::new(program.clone(), &n.to_le_bytes(), &out.to_le_bytes());
     let record = step(&program, state).unwrap();
-    MozakStark::prove_and_verify(&program, &record)
+    prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
 }
 
 #[cfg(test)]
