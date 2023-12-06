@@ -65,17 +65,24 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // such that whenever we describe an memory init / access
         // pattern of an "address", a correct table guarantees the following:
         //
-        // All rows for a specific `addr` start with either:
-        //   1) a memory init via static ELF (hereby referred to as elf init), or
-        //   2) a zero init (case for heap / other dynamic addresses).
+        // All rows for a specific `addr` MUST start with one, or both, of:
+        //   1) a zero init (case for heap / other dynamic addresses).
+        //   2) a memory init via static ELF (hereby referred to as elf init), or
         // For these starting rows, `is_init` will be true.
         //
-        // 1) ELF Init
-        //   All elf init rows will have clk `1`.
-        //
-        // 2) Zero Init
+        // 1) Zero Init
         //   All zero initialized memory will have clk `0` and value `0`. They
         //   should also be writable.
+        //
+        // 2) ELF Init
+        //   All elf init rows will have clk `1`.
+        //
+        // In principle, zero initializations for a certain address MUST come
+        // before any elf initializations to ensure we don't zero out any memory
+        // initialized by the ELF. The ELF init having a higher `clk` than
+        // the zero init ensures this via `diff_clk` being included in the
+        // range checks. If `diff_clk` range check is removed, we must
+        // include a new constraint that constrains the above relationship.
         //
         // NOTE: We rely on 'Ascending ordered, contiguous
         // "address" view constraint' to provide us with a guarantee of single
