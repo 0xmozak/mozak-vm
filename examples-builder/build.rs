@@ -8,13 +8,14 @@ struct Crate {
     elf_path: &'static str,
     glob_name: &'static str,
     enabled: bool,
+    uses_std: bool,
 }
 
 macro_rules! ecrate {
-    ($name:literal, $glob:literal) => {
-        ecrate!($name, $name, $glob)
+    ($name:literal, $glob:literal, $uses_std:expr) => {
+        ecrate!($name, $name, $glob, $uses_std)
     };
-    ($name:literal, $file:literal, $glob:literal) => {
+    ($name:literal, $file:literal, $glob:literal, $uses_std:expr) => {
         Crate {
             crate_path: concat!("../examples/", $name),
             elf_path: concat!(
@@ -23,32 +24,39 @@ macro_rules! ecrate {
             ),
             glob_name: $glob,
             enabled: cfg!(feature = $name),
+            uses_std: $uses_std == true,
         }
     };
 }
 
 const CRATES: &[Crate] = &[
-    ecrate!("fibonacci", "FIBONACCI_ELF"),
-    ecrate!("fibonacci-input", "FIBONACCI_INPUT_ELF"),
-    ecrate!("memory-access", "MEMORY_ACCESS_ELF"),
-    ecrate!("min-max", "MIN_MAX_ELF"),
-    ecrate!("panic", "PANIC_ELF"),
-    ecrate!("poseidon2", "poseidon2-example", "POSEIDON2_ELF"),
-    ecrate!("rkyv-serialization", "RKYV_SERIALIZATION_ELF"),
-    ecrate!("sha2", "sha2-example", "SHA2_ELF"),
-    ecrate!("static-mem-access", "STATIC_MEM_ACCESS_ELF"),
-    ecrate!("stdin", "STDIN_ELF"),
+    ecrate!("fibonacci", "FIBONACCI_ELF", false),
+    ecrate!("fibonacci-input", "FIBONACCI_INPUT_ELF", false),
+    ecrate!("memory-access", "MEMORY_ACCESS_ELF", false),
+    ecrate!("min-max", "MIN_MAX_ELF", false),
+    ecrate!("panic", "PANIC_ELF", false),
+    ecrate!("poseidon2", "poseidon2-example", "POSEIDON2_ELF", false),
+    ecrate!("rkyv-serialization", "RKYV_SERIALIZATION_ELF", false),
+    ecrate!("sha2", "sha2-example", "SHA2_ELF", false),
+    ecrate!("static-mem-access", "STATIC_MEM_ACCESS_ELF", false),
+    ecrate!("stdin", "STDIN_ELF", false),
+    ecrate!("merkleproof-trustedroot", "MERKLEPROOF_TRUSTEDROOT", false),
 ];
 const CARGO_MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
-fn build_elf(dest: &mut File, crate_path: &str, elf_path: &str, glob_name: &str) {
+fn build_elf(dest: &mut File, crate_path: &str, elf_path: &str, glob_name: &str, uses_std: bool) {
     // Use a dummy array for clippy, since not building the elf is faster than
     // building the elf
     if cfg!(feature = "cargo-clippy") {
         writeln!(dest, r#"pub const {glob_name}: &[u8] = &[];"#)
     } else {
+        let args = if uses_std {
+            vec!["build", "--release", "--features=std"]
+        } else {
+            vec!["build", "--release"]
+        };
         let output = Command::new("cargo")
-            .args(["build", "--release"])
+            .args(args)
             .current_dir(crate_path)
             .env_clear()
             .envs(std::env::vars().filter(|x| !x.0.starts_with("CARGO_")))
@@ -79,7 +87,7 @@ fn main() {
 
     for c in CRATES {
         if c.enabled {
-            build_elf(&mut dest, c.crate_path, c.elf_path, c.glob_name)
+            build_elf(&mut dest, c.crate_path, c.elf_path, c.glob_name, c.uses_std)
         }
     }
 }
