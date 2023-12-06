@@ -399,31 +399,21 @@ impl Program {
             &mozak_ro_memory,
         )?);
 
-        if ro_memory.keys().len() > 0 {
-            let ro_memory_addresses = ro_memory.keys().sorted().collect_vec();
-            log::debug!(
-                "ro_memory_addresses_start:{:#0x}, ro_memory_addresses_end: {:#0x}",
-                ro_memory_addresses.first().unwrap(),
-                ro_memory_addresses.last().unwrap()
-            );
-        } else {
-            log::debug!("ro_memory_addresses is empty");
-        }
+        log::debug!(
+            "ro_memory_addresses_start:{:?}, ro_memory_addresses_end: {:?}",
+            ro_memory.keys().min(),
+            ro_memory.keys().max(),
+        );
         let rw_memory = Data(extract(
             |flags, _, _| flags == elf::abi::PF_R | elf::abi::PF_W,
             &mozak_ro_memory,
         )?);
 
-        if rw_memory.keys().len() > 0 {
-            let rw_memory_addresses = rw_memory.keys().sorted().collect_vec();
-            log::debug!(
-                "rw_memory_addresses_start:{:#0x}, rw_memory_addresses_end: {:#0x}",
-                rw_memory_addresses.first().unwrap(),
-                rw_memory_addresses.last().unwrap()
-            );
-        } else {
-            log::debug!("rw_memory_addresses is empty");
-        }
+        log::debug!(
+            "rw_memory_addresses_start:{:?}, rw_memory_addresses_end: {:?}",
+            rw_memory.keys().min(),
+            rw_memory.keys().max(),
+        );
         // Because we are implementing a modified Harvard Architecture, we make an
         // independent copy of the executable segments. In practice,
         // instructions will be in a R_X segment, so their data will show up in ro_code
@@ -433,16 +423,11 @@ impl Program {
             &mozak_ro_memory,
         )?);
 
-        if ro_code.keys().len() > 0 {
-            let ro_code_addresses = ro_code.keys().sorted().collect_vec();
-            log::debug!(
-                "ro_code_start:{:#0x}, ro_code_end: {:#0x}",
-                ro_code_addresses.first().unwrap(),
-                ro_code_addresses.last().unwrap()
-            );
-        } else {
-            log::debug!("ro_code_addresses is empty");
-        }
+        log::debug!(
+            "ro_code_start:{:?}, ro_code_end: {:?}",
+            ro_code.keys().min(),
+            ro_code.keys().max(),
+        );
         Ok(Program {
             entry_point,
             ro_memory,

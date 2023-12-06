@@ -101,11 +101,7 @@ fn load_program(
 
     Program::load_program(
         &elf_bytes,
-        &MozakRunTimeArguments::new(
-            state_root,
-            io_tape_private,
-            io_tape_public,
-        ),
+        &MozakRunTimeArguments::new(state_root, io_tape_private, io_tape_public),
     )
 }
 
