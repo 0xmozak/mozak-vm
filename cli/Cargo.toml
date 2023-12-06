@@ -18,6 +18,7 @@ clap = { version = "4.4", features = [
   "wrap_help",
 ] }
 mozak-circuits = { path = "../circuits", features = ["test"] }
+mozak-examples = { path = "../examples-builder", features = ["fibonacci-input"] }
 mozak-circuits3 = { path = "../circuits3", features = ["test"] }
 mozak-runner = { path = "../runner", features = ["test"] }
 # TODO(Matthias): implement shell completion for CLI via clap_complete

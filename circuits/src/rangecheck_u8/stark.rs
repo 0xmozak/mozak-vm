@@ -11,23 +11,23 @@ use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsume
 use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
-use super::columns::RangeCheckLimb;
+use super::columns::RangeCheckU8;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
-pub struct RangeCheckLimbStark<F, const D: usize> {
+pub struct RangeCheckU8Stark<F, const D: usize> {
     pub _f: PhantomData<F>,
 }
 
-impl<F, const D: usize> HasNamedColumns for RangeCheckLimbStark<F, D> {
-    type Columns = RangeCheckLimb<F>;
+impl<F, const D: usize> HasNamedColumns for RangeCheckU8Stark<F, D> {
+    type Columns = RangeCheckU8<F>;
 }
 
-const COLUMNS: usize = RangeCheckLimb::<()>::NUMBER_OF_COLUMNS;
+const COLUMNS: usize = RangeCheckU8::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
-impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckLimbStark<F, D> {
+impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckU8Stark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
 
     where
@@ -43,8 +43,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckLim
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &RangeCheckLimb<P> = vars.get_local_values().into();
-        let nv: &RangeCheckLimb<P> = vars.get_next_values().into();
+        let lv: &RangeCheckU8<P> = vars.get_local_values().into();
+        let nv: &RangeCheckU8<P> = vars.get_next_values().into();
         // Check: the `element`s form a sequence from 0 to 255
         yield_constr.constraint_first_row(lv.value);
         yield_constr.constraint_transition(nv.value - lv.value - FE::ONE);
@@ -57,8 +57,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckLim
         vars: &Self::EvaluationFrameTarget,
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        let lv: &RangeCheckLimb<ExtensionTarget<D>> = vars.get_local_values().into();
-        let nv: &RangeCheckLimb<ExtensionTarget<D>> = vars.get_next_values().into();
+        let lv: &RangeCheckU8<ExtensionTarget<D>> = vars.get_local_values().into();
+        let nv: &RangeCheckU8<ExtensionTarget<D>> = vars.get_next_values().into();
         yield_constr.constraint_first_row(builder, lv.value);
         let one = builder.constant_extension(F::Extension::from_canonical_u8(1));
         let nv_sub_lv = builder.sub_extension(nv.value, lv.value);
@@ -82,7 +82,7 @@ mod tests {
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
-    type S = RangeCheckLimbStark<F, D>;
+    type S = RangeCheckU8Stark<F, D>;
 
     #[test]
     fn test_circuit() -> anyhow::Result<()> {

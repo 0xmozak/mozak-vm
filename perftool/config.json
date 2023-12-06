@@ -20,6 +20,22 @@
             },
             "elf": "examples/fibonacci-input"
         },
+        "xor-bench": {
+            "description": "Benching XOR repeated for given number of iterations",
+            "parameter": "iterations",
+            "output": "time taken (in s)",
+            "commits": {
+                "XOR": "latest"
+            }
+        },
+        "nop-bench": {
+            "description": "Benching NOP repeated for given number of iterations",
+            "parameter": "iterations",
+            "output": "time taken (in s)",
+            "commits": {
+                "NOP": "latest"
+            }
+        },
 
         "xor-stark2": {
             "description": "Benching XorStark with Plonky2 backend",

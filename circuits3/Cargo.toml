@@ -13,19 +13,23 @@ version = "0.1.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+arrayvec = { version = "0.7", default-features = false }
 itertools = "0.12.0"
 log = "0.4"
 mozak-circuits = { path = "../circuits" }
 p3-air = { git = "https://github.com/Plonky3/Plonky3.git" }
+p3-field = { git = "https://github.com/Plonky3/Plonky3.git" }
+p3-matrix = { git = "https://github.com/Plonky3/Plonky3.git" }
+
+
+[dev-dependencies]
 p3-challenger = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-commit = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-dft = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-field = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-fri = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-goldilocks = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-keccak = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-ldt = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-matrix = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-mds = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-merkle-tree = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-poseidon2 = { git = "https://github.com/Plonky3/Plonky3.git" }

@@ -35,11 +35,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
     type EvaluationFrameTarget =
         StarkFrame<ExtensionTarget<D>, ExtensionTarget<D>, COLUMNS, PUBLIC_INPUTS>;
 
-    // NOTE: Actual range check happens in RangeCheckLimbStark. A CrossTableLookup
+    // NOTE: Actual range check happens in RangeCheckU8Stark. A CrossTableLookup
     // between RangeCheckStark and others like MemoryStark and CpuStark ensure
     // that both have same value. A CrossTableLookup between RangeCheckStark and
-    // RangeCheckLimbStark ensures that each limb from this stark are covered
-    // in RangeCheckLimbStark.
+    // RangeCheckU8Stark ensures that each limb from this stark are covered
+    // in RangeCheckU8Stark.
     // Here we check if limbs are formed properly
     fn eval_packed_generic<FE, P, const D2: usize>(
         &self,

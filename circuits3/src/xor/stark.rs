@@ -4,12 +4,15 @@ use p3_field::AbstractField;
 use p3_matrix::MatrixRowSlices;
 
 use super::columns::XorColumnsView;
+use crate::columns_view::NumberOfColumns;
 use crate::utils::reduce_with_powers;
 
 #[allow(clippy::module_name_repetitions)]
 pub struct XorStark;
 
-impl<F> BaseAir<F> for XorStark {}
+impl<F> BaseAir<F> for XorStark {
+    fn width(&self) -> usize { XorColumnsView::<F>::NUMBER_OF_COLUMNS }
+}
 
 impl<AB: AirBuilder> Air<AB> for XorStark {
     fn eval(&self, builder: &mut AB) {
@@ -36,6 +39,13 @@ impl<AB: AirBuilder> Air<AB> for XorStark {
             let xor = (a + b) - (a * b) * AB::Expr::two();
             builder.assert_zero(res - xor);
         }
+
+        // TODO(Kapil): Current version of plonky3 has a bug: it does not support
+        // a degree one stark. So we are adding this stupid constraint for a now.
+        builder.assert_zero(
+            lv.execution.a * lv.is_execution_row * lv.execution.a
+                - lv.execution.a * lv.execution.a * lv.is_execution_row,
+        );
     }
 }
 
@@ -54,7 +64,6 @@ mod tests {
         let (config, mut challenger) = DefaultConfig::make_config();
         let mut verifer_challenger = challenger.clone();
         let trace = generate_dummy_xor_trace(n);
-        println!("{:?}", trace.values.len());
         let proof = prove::<<DefaultConfig as Mozak3StarkConfig>::MyConfig, _>(
             &config,
             &XorStark,
