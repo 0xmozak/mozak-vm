@@ -108,76 +108,40 @@ impl MozakMemory {
     }
 
     fn fill(&mut self, st: &(SymbolTable<LittleEndian>, StringTable)) {
+        let mut map = std::collections::HashMap::from([
+            ("merkle_state_root", &mut self.state_root.starting_address),
+            ("merkle_state_root_capacity", &mut self.state_root.capacity),
+            ("timestamp", &mut self.timestamp.starting_address),
+            ("timestamp_capacity", &mut self.timestamp.capacity),
+            ("public_io_tape", &mut self.io_tape_public.starting_address),
+            ("public_io_tape_capacity", &mut self.io_tape_public.capacity),
+            (
+                "private_io_tape",
+                &mut self.io_tape_private.starting_address,
+            ),
+            (
+                "private_io_tape_capacity",
+                &mut self.io_tape_private.capacity,
+            ),
+        ]);
         for s in st.0.iter() {
-            let sym_name = st.1.get(s.st_name as usize).unwrap().to_string();
-            let sym_value = s.st_value;
-            log::trace!("sym_name: {:?}", sym_name);
-            log::trace!("sym_value: {:0x}", sym_value);
-
-            match sym_name.as_str() {
-                "_mozak_merkle_state_root" => {
-                    self.state_root.starting_address = u32::try_from(sym_value)
-                        .expect("state_root address should be u32 cast-able");
-                    log::debug!(
-                        "_mozak_merkle_state_root: 0x{:0x}",
-                        self.state_root.starting_address
-                    );
-                }
-                "_mozak_merkle_state_root_capacity" => {
-                    self.state_root.capacity = u32::try_from(sym_value)
-                        .expect("state_root_max_capacity should be u32 cast-able");
-                    log::debug!(
-                        "_mozak_merkle_state_root_capacity: 0x{:0x}",
-                        self.state_root.capacity
-                    );
-                }
-                "_mozak_timestamp" => {
-                    self.timestamp.starting_address = u32::try_from(sym_value)
-                        .expect("timestamp address should be u32 cast-able");
-                    log::debug!("_mozak_timestamp: 0x{:0x}", self.timestamp.starting_address);
-                }
-                "_mozak_timestamp_capacity" => {
-                    self.timestamp.capacity = u32::try_from(sym_value)
-                        .expect("timestamp_max_capacity should be u32 cast-able");
-                    log::debug!(
-                        "_mozak_timestamp_capacity: 0x{:0x}",
-                        self.timestamp.capacity
-                    );
-                }
-                "_mozak_public_io_tape" => {
-                    self.io_tape_public.starting_address = u32::try_from(sym_value)
-                        .expect("io_tape_public address should be u32 cast-able");
-                    log::debug!(
-                        "_mozak_public_io_tape: 0x{:0x}",
-                        self.io_tape_public.starting_address
-                    );
-                }
-                "_mozak_public_io_tape_capacity" => {
-                    self.io_tape_public.capacity = u32::try_from(sym_value)
-                        .expect("io_tape_public_max_capacity should be u32 cast-able");
-                    log::debug!(
-                        "_mozak_public_io_tape_capacity: 0x{:0x}",
-                        self.io_tape_public.capacity
-                    );
-                }
-                "_mozak_private_io_tape" => {
-                    self.io_tape_private.starting_address = u32::try_from(sym_value)
-                        .expect("io_tape_private address should be u32 cast-able");
-                    log::debug!(
-                        "_mozak_private_io_tape: 0x{:0x}",
-                        self.io_tape_private.starting_address
-                    );
-                }
-                "_mozak_private_io_tape_capacity" => {
-                    self.io_tape_private.capacity = u32::try_from(sym_value)
-                        .expect("io_tape_private_max_capacity should be u32 cast-able");
-                    log::debug!(
-                        "_mozak_private_io_tape_capacity: 0x{:0x}",
-                        self.io_tape_private.capacity
-                    );
-                }
-                _ => {}
-            }
+            st.1.get(s.st_name as usize)
+                .unwrap()
+                .strip_prefix("_mozak_")
+                .and_then(|sym_name| {
+                    let sym_value = s.st_value;
+                    log::trace!("sym_name: {:?}", sym_name);
+                    log::trace!("sym_value: {:0x}", sym_value);
+                    map.get_mut(sym_name).map(|&mut ref mut slot| {
+                        **slot = u32::try_from(sym_value).unwrap_or_else(|err| {
+                            panic!(
+                                "{sym_value:?} address should be u32 cast-able:
+            {err}"
+                            )
+                        });
+                        log::debug!("{sym_name:?}: 0x{slot:0x}",);
+                    })
+                });
         }
     }
 }
@@ -394,7 +358,7 @@ impl Program {
             |flags, ph, mozak_memory: &MozakMemory| {
                 (flags & elf::abi::PF_R == elf::abi::PF_R)
                     && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
-                    && (!mozak_memory.is_mozak_ro_memory_address(ph))
+                    && !mozak_memory.is_mozak_ro_memory_address(ph)
             },
             &mozak_ro_memory,
         )?);
