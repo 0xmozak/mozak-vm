@@ -1,31 +1,29 @@
+from typing import Dict
 import json
-from typing import Dict, TypedDict
+
 from path import CONFIG_JSON
 
+global config
+with open(CONFIG_JSON) as f:
+    config = json.load(f)
+    f.close()
 
-class BenchWithCommit(TypedDict):
-    commit: str
-    bench_function: str
+
+def get_benches_with_commit(bench_name: str) -> Dict[str, Dict[str, str]]:
+    return config[bench_name]["benches"]
 
 
-class Config:
-    def __init__(self):
-        config_file_path = CONFIG_JSON
-        with open(config_file_path, "r") as f:
-            config = json.load(f)
-        self.config = config
+def get_elf(bench_name: str, bench_description: str) -> str | None:
+    return config[bench_name]["benches"][bench_description].get("elf")
 
-    def get_benches_with_commit(self, bench_name: str) -> Dict[str, BenchWithCommit]:
-        return self.config[bench_name]["benches"]
 
-    def get_elf(self, bench_name: str, bench_description: str) -> str | None:
-        return self.config[bench_name]["benches"][bench_description].get("elf")
+def get_parameter_name(bench_name: str) -> str:
+    return config[bench_name]["parameter"]
 
-    def get_parameter_name(self, bench_name: str) -> str:
-        return self.config[bench_name]["parameter"]
 
-    def get_output_name(self, bench_name: str) -> str:
-        return self.config[bench_name]["output"]
+def get_output_name(bench_name: str) -> str:
+    return config[bench_name]["output"]
 
-    def get_description(self, bench_name: str) -> str:
-        return self.config[bench_name]["description"]
+
+def get_description(bench_name: str) -> str:
+    return config[bench_name]["description"]

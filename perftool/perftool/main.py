@@ -1,5 +1,5 @@
 import random
-from config import Config
+from config import get_benches_with_commit, get_output_name, get_parameter_name
 from path import (
     create_folders_if_not_exist,
     create_symlink_for_repo,
@@ -29,14 +29,13 @@ def bench(bench_name: str, min_value: int, max_value: int):
     It keeps sampling parameter, benches the function and updates the data csv file,
       till terminated by Ctrl+C
     """
-    config = Config()
-    bench_commits_dict = config.get_benches_with_commit(bench_name)
+    bench_commits_dict = get_benches_with_commit(bench_name)
     benches = list(
         bench_with_commit for bench_with_commit in bench_commits_dict.values()
     )
 
-    parameter_name = config.get_parameter_name(bench_name)
-    output_name = config.get_output_name(bench_name)
+    parameter_name = get_parameter_name(bench_name)
+    output_name = get_output_name(bench_name)
 
     # initialize the csv files with headers if they does not exist
     for bench in benches:
@@ -74,8 +73,7 @@ def build(bench_name: str):
     Build all the commits specified in `config.json` for given `bench_function`,
       in `--release` mode.
     """
-    config = Config()
-    bench_commits_dict = config.get_benches_with_commit(bench_name)
+    bench_commits_dict = get_benches_with_commit(bench_name)
     create_folders_if_not_exist(bench_name)
     for bench_description, bench_with_commit in bench_commits_dict.items():
         commit = bench_with_commit["commit"]

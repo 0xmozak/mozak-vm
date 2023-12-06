@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 import random
 from typing import Tuple
-from config import Config
+from config import get_elf, get_output_name, get_parameter_name
 import pandas as pd
 from path import get_actual_cli_repo, get_actual_commit_folder, get_elf_path
 
@@ -40,8 +40,7 @@ def build_repo(commit: str):
 
 
 def maybe_build_ELF(bench_name, bench_description: str, commit: str):
-    config = Config()
-    elf = config.get_elf(bench_name, bench_description)
+    elf = get_elf(bench_name, bench_description)
     if elf is None:
         print(f"Skipping build ELF for {bench_name}...")
         return
@@ -81,10 +80,9 @@ def sample_and_bench(
 
 
 def init_csv(csv_file_path: Path, bench_name: str):
-    config = Config()
     headers = [
-        config.get_parameter_name(bench_name),
-        config.get_output_name(bench_name),
+        get_parameter_name(bench_name),
+        get_output_name(bench_name),
     ]
     try:
         existing_headers = pd.read_csv(csv_file_path, nrows=0).columns.tolist()

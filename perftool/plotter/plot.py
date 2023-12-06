@@ -1,6 +1,11 @@
 from itertools import cycle
 from pathlib import Path
-from config import Config
+from config import (
+    get_benches_with_commit,
+    get_description,
+    get_output_name,
+    get_parameter_name,
+)
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -61,11 +66,10 @@ def plot_all(bench_name: str):
     linecycler = cycle(["-", "--", "-.", ":"])
     markerscycler = cycle(["o", ",", "v", "^"])
     colorscycler = cycle(["r", "b", "c", "m"])
-    config = Config()
-    x_label = config.get_parameter_name(bench_name)
-    y_label = config.get_output_name(bench_name)
-    description = config.get_description(bench_name)
-    bench_with_commits_dict = config.get_benches_with_commit(bench_name)
+    x_label = get_parameter_name(bench_name)
+    y_label = get_output_name(bench_name)
+    description = get_description(bench_name)
+    bench_with_commits_dict = get_benches_with_commit(bench_name)
     plt.figure(figsize=(8, 6))
 
     num_samples = 0
