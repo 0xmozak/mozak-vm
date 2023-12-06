@@ -8,16 +8,19 @@ Building the programs require Rust nightly toolchain. Exploring the generated EL
 
 ### To build for mozak-vm
 ```bash
-cargo build
+cargo build --release
 ```
-This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/debug/`.
+if example is using `std` crate then pass `--features=std` too.
+
+This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/release/`.
 
 ### To build for x86_64 with Linux OS
 ```bash
-cargo build --target x86_64-unknown-linux-gnu --features=std
+cargo build --release --target x86_64-unknown-linux-gnu --features=std
 ```
+Currently we don't support `no_std` on native target so `--features=std` is must.
 
-This would build ELF executables under `target/x86_64-unknown-linux-gnu/debug/`.
+This would build ELF executables under `target/x86_64-unknown-linux-gnu/release/`.
 
 ## Running ELFs
 
