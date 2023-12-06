@@ -11,7 +11,7 @@ use clio::{Input, Output};
 use log::debug;
 use mozak_circuits::generation::memoryinit::generate_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
-use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
+use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs, TableKindArray};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::recursive_mozak_stark_circuit;
@@ -25,8 +25,11 @@ use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
-use plonky2::plonk::circuit_data::CircuitConfig;
+use plonky2::plonk::circuit_data::{CircuitConfig, CommonCircuitData};
+use plonky2::plonk::proof::ProofWithPublicInputs;
+use plonky2::util::serialization::DefaultGateSerializer;
 use plonky2::util::timing::TimingTree;
+use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
 #[derive(Parser, Debug, Clone)]
@@ -68,6 +71,8 @@ enum Command {
     },
     /// Verify the given proof from file.
     Verify { proof: Input },
+    /// Verify the given recursive proof from file.
+    VerifyRecursiveProof { proof: Input, common_data: Input },
     /// Compute the Program Rom Hash of the given ELF.
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
@@ -89,6 +94,12 @@ fn load_program(mut elf: Input) -> Result<Program> {
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
     Program::load_elf(&elf_bytes)
+}
+
+#[derive(Serialize, Deserialize)]
+struct CommonDataWithDegreeBits {
+    common_data_bytes: Vec<u8>,
+    degree_bits: TableKindArray<usize>,
 }
 
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
@@ -169,7 +180,7 @@ fn main() -> Result<()> {
             // Generate recursive proof
             if let Some(mut recursive_proof_output) = recursive_proof {
                 let circuit_config = CircuitConfig::standard_recursion_config();
-                let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
+                let recursive_circuit = recursive_mozak_stark_circuit::<F, C, D>(
                     &stark,
                     &all_proof.degree_bits(&config),
                     &circuit_config,
@@ -177,9 +188,33 @@ fn main() -> Result<()> {
                     12,
                 );
 
-                let recursive_all_proof = mozak_stark_circuit.prove(&all_proof)?;
+                let recursive_all_proof = recursive_circuit.prove(&all_proof)?;
                 let s = recursive_all_proof.to_bytes();
                 recursive_proof_output.write_all(&s)?;
+
+                // Generate the common data file
+                let mut cd_output_path = recursive_proof_output.path().clone();
+                cd_output_path.set_extension("cd");
+                let mut cd_output = cd_output_path.create()?;
+
+                let gate_serializer = DefaultGateSerializer;
+                let common_data_bytes = recursive_circuit
+                    .circuit
+                    .common
+                    .to_bytes(&gate_serializer)
+                    .map_err(|_| anyhow::Error::msg("CommonCircuitData serialization failed."))?;
+                debug!(
+                    "Common circuit data length: {} bytes",
+                    common_data_bytes.len()
+                );
+
+                let common_data_with_degree_bits = CommonDataWithDegreeBits {
+                    common_data_bytes,
+                    degree_bits: all_proof.degree_bits(&config),
+                };
+
+                let serialized = serde_json::to_string(&common_data_with_degree_bits)?;
+                cd_output.write_all(serialized.as_bytes())?;
             }
 
             debug!("proof generated successfully!");
@@ -190,7 +225,42 @@ fn main() -> Result<()> {
             proof.read_to_end(&mut buffer)?;
             let all_proof = AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(&buffer)?;
             verify_proof(&stark, all_proof, &config)?;
-            debug!("proof verified successfully!");
+            println!("proof verified successfully!");
+        }
+        Command::VerifyRecursiveProof {
+            mut proof,
+            mut common_data,
+        } => {
+            let mut cd_buffer: Vec<u8> = vec![];
+            common_data.read_to_end(&mut cd_buffer)?;
+
+            let deserialized: CommonDataWithDegreeBits = serde_json::from_slice(&*cd_buffer)?;
+            let gate_serializer = DefaultGateSerializer;
+            let common_data = CommonCircuitData::<F, D>::from_bytes(
+                deserialized.common_data_bytes,
+                &gate_serializer,
+            )
+            .map_err(|_| anyhow::Error::msg("CommonCircuitData deserialization failed."))?;
+
+            let mut buffer: Vec<u8> = vec![];
+            proof.read_to_end(&mut buffer)?;
+            let recursive_proof: ProofWithPublicInputs<F, C, D> =
+                ProofWithPublicInputs::from_bytes(buffer, &common_data).map_err(|_| {
+                    anyhow::Error::msg("ProofWithPublicInputs deserialization failed.")
+                })?;
+
+            let stark = S::default();
+            let circuit_config = CircuitConfig::standard_recursion_config();
+            let recursive_circuit = recursive_mozak_stark_circuit::<F, C, D>(
+                &stark,
+                &deserialized.degree_bits,
+                &circuit_config,
+                &config,
+                12,
+            );
+            recursive_circuit.circuit.verify(recursive_proof)?;
+
+            println!("Recursive proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
             let program = load_program(elf)?;
