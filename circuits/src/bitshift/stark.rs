@@ -1,8 +1,9 @@
-use std::fmt::Display;
 use std::marker::PhantomData;
 
+use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -12,10 +13,9 @@ use starky::stark::Stark;
 
 use super::columns::{Bitshift, BitshiftView};
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::display::derive_display_stark_name;
 
-derive_display_stark_name!(BitshiftStark);
-#[derive(Copy, Clone, Default)]
+/// Bitshift Trace Constraints
+#[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct BitshiftStark<F, const D: usize> {
     pub _f: PhantomData<F>,
@@ -44,8 +44,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &BitshiftView<P> = vars.get_local_values().try_into().unwrap();
-        let nv: &BitshiftView<P> = vars.get_next_values().try_into().unwrap();
+        let lv: &BitshiftView<P> = vars.get_local_values().into();
+        let nv: &BitshiftView<P> = vars.get_next_values().into();
         let lv: &Bitshift<P> = &lv.executed;
         let nv: &Bitshift<P> = &nv.executed;
 
@@ -85,11 +85,40 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
 
     fn eval_ext_circuit(
         &self,
-        _builder: &mut CircuitBuilder<F, D>,
-        _vars: &Self::EvaluationFrameTarget,
-        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        unimplemented!()
+        let lv: &BitshiftView<ExtensionTarget<D>> = vars.get_local_values().into();
+        let nv: &BitshiftView<ExtensionTarget<D>> = vars.get_next_values().into();
+        let lv: &Bitshift<ExtensionTarget<D>> = &lv.executed;
+        let nv: &Bitshift<ExtensionTarget<D>> = &nv.executed;
+
+        yield_constr.constraint_first_row(builder, lv.amount);
+
+        let diff = builder.sub_extension(nv.amount, lv.amount);
+        let one_extension = builder.one_extension();
+        let diff_sub_one = builder.sub_extension(diff, one_extension);
+        let diff_mul_diff_sub_one = builder.mul_extension(diff, diff_sub_one);
+        yield_constr.constraint_transition(builder, diff_mul_diff_sub_one);
+
+        let thirty_one_extension = builder.constant_extension(F::Extension::from_canonical_u8(31));
+        let amount_sub_thirty_one = builder.sub_extension(lv.amount, thirty_one_extension);
+        yield_constr.constraint_last_row(builder, amount_sub_thirty_one);
+
+        let multiplier_minus_one = builder.sub_extension(lv.multiplier, one_extension);
+        yield_constr.constraint_first_row(builder, multiplier_minus_one);
+
+        let one_plus_diff = builder.add_extension(one_extension, diff);
+        let either_multiplier = builder.mul_extension(one_plus_diff, lv.multiplier);
+        let multiplier_difference = builder.sub_extension(nv.multiplier, either_multiplier);
+        yield_constr.constraint_transition(builder, multiplier_difference);
+
+        let two_to_thirty_one_extension =
+            builder.constant_extension(F::Extension::from_canonical_u32(1 << 31));
+        let multiplier_sub_two_to_thirty_one =
+            builder.sub_extension(lv.multiplier, two_to_thirty_one_extension);
+        yield_constr.constraint_last_row(builder, multiplier_sub_two_to_thirty_one);
     }
 }
 
@@ -101,7 +130,7 @@ mod tests {
     use mozak_runner::test_utils::{simple_test_code, u32_extra};
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use proptest::{prop_assert_eq, proptest};
-    use starky::stark_testing::test_stark_low_degree;
+    use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
 
     use super::BitshiftStark;
     use crate::stark::mozak_stark::MozakStark;
@@ -133,7 +162,7 @@ mod tests {
         };
         // We use 3 similar instructions here to ensure duplicates and padding work
         // during trace generation.
-        let (program, record) = simple_test_code(&[sll, sll, sll], &[], &[(7, p), (8, q)]);
+        let (program, record) = simple_test_code([sll, sll, sll], &[], &[(7, p), (8, q)]);
         assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
         MozakStark::prove_and_verify(&program, &record)
     }
@@ -154,7 +183,7 @@ mod tests {
 
         // We use 3 similar instructions here to ensure duplicates and padding work
         // during trace generation.
-        let (program, record) = simple_test_code(&[srl, srl, srl], &[], &[(7, p), (8, q)]);
+        let (program, record) = simple_test_code([srl, srl, srl], &[], &[(7, p), (8, q)]);
         assert_eq!(record.executed[0].aux.dst_val, p >> (q & 0x1F));
         MozakStark::prove_and_verify(&program, &record)
     }
@@ -163,7 +192,7 @@ mod tests {
         #[test]
         fn prove_shift_amount_proptest(p in u32_extra(), q in u32_extra()) {
             let (program, record) = simple_test_code(
-                &[Instruction {
+                [Instruction {
                     op: Op::SLL,
                     args: Args {
                         rd: 5,
@@ -189,5 +218,13 @@ mod tests {
             prop_assert_eq!(record.executed[1].aux.dst_val, p >> (q & 0x1F));
             BitshiftStark::prove_and_verify(&program, &record).unwrap();
         }
+    }
+
+    #[test]
+    fn test_circuit() -> anyhow::Result<()> {
+        let stark = S::default();
+        test_stark_circuit_constraints::<F, C, S, D>(stark)?;
+
+        Ok(())
     }
 }

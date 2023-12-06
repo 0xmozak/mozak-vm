@@ -40,14 +40,14 @@ mod tests {
     use crate::stark::proof::AllProof;
     use crate::stark::prover::prove;
     use crate::stark::verifier::verify_proof;
-    use crate::test_utils::{standard_faster_config, C, D, F, S};
+    use crate::test_utils::{fast_test_config, C, D, F, S};
     use crate::utils::from_u32;
 
     #[test]
     fn test_serialization_deserialization() {
-        let (program, record) = simple_test_code(&[], &[], &[]);
+        let (program, record) = simple_test_code([], &[], &[]);
         let stark = S::default();
-        let config = standard_faster_config();
+        let config = fast_test_config();
         let public_inputs = PublicInputs {
             entry_point: from_u32(program.entry_point),
         };
@@ -67,6 +67,6 @@ mod tests {
         let all_proof_deserialized =
             AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(s.view())
                 .expect("deserialization failed");
-        verify_proof(stark, all_proof_deserialized, &config).unwrap();
+        verify_proof(&stark, all_proof_deserialized, &config).unwrap();
     }
 }

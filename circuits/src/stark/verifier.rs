@@ -13,16 +13,15 @@ use starky::constraint_consumer::ConstraintConsumer;
 use starky::evaluation_frame::StarkEvaluationFrame;
 use starky::stark::{LookupConfig, Stark};
 
-use super::mozak_stark::{MozakStark, TableKind};
+use super::mozak_stark::{all_starks, MozakStark, TableKind, TableKindSetBuilder};
 use super::proof::AllProof;
 use crate::cross_table_lookup::{verify_cross_table_lookups, CtlCheckVars};
-use crate::stark::permutation::PermutationCheckVars;
 use crate::stark::poly::eval_vanishing_poly;
 use crate::stark::proof::{AllProofChallenges, StarkOpeningSet, StarkProof, StarkProofChallenges};
 
 #[allow(clippy::too_many_lines)]
 pub fn verify_proof<F, C, const D: usize>(
-    mozak_stark: MozakStark<F, D>,
+    mozak_stark: &MozakStark<F, D>,
     all_proof: AllProof<F, C, D>,
     config: &StarkConfig,
 ) -> Result<()>
@@ -32,74 +31,50 @@ where
     let AllProofChallenges {
         stark_challenges,
         ctl_challenges,
-    } = all_proof.get_challenges(&mozak_stark, config);
-    let nums_permutation_zs = mozak_stark.nums_permutation_zs(config);
-
-    let MozakStark {
-        cpu_stark,
-        rangecheck_stark,
-        xor_stark,
-        shift_amount_stark,
-        program_stark,
-        memory_stark,
-        memory_init_stark,
-        rangecheck_limb_stark,
-        register_init_stark,
-        register_stark,
-        cross_table_lookups,
-        halfword_memory_stark,
-        fullword_memory_stark,
-        io_memory_stark,
-        ..
-    } = mozak_stark;
+    } = all_proof.get_challenges(config);
 
     ensure!(
-        all_proof.stark_proofs[TableKind::Program as usize].trace_cap
+        all_proof.proofs_with_metadata[TableKind::Program]
+            .proof
+            .trace_cap
             == all_proof.program_rom_trace_cap,
         "Mismatch between Program ROM trace caps"
     );
 
     ensure!(
-        all_proof.stark_proofs[TableKind::MemoryInit as usize].trace_cap
+        all_proof.proofs_with_metadata[TableKind::MemoryInit]
+            .proof
+            .trace_cap
             == all_proof.memory_init_trace_cap,
         "Mismatch between MemoryInit trace caps"
     );
 
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
-        &all_proof.stark_proofs,
-        &cross_table_lookups,
+        &all_proof.proofs_with_metadata,
+        &mozak_stark.cross_table_lookups,
         &ctl_challenges,
-        &nums_permutation_zs,
     );
 
-    macro_rules! verify {
-        ($stark: expr, $kind: expr, $public_inputs: expr) => {
-            verify_stark_proof_with_challenges(
-                &$stark,
-                &all_proof.stark_proofs[$kind as usize],
-                &stark_challenges[$kind as usize],
-                $public_inputs,
-                &ctl_vars_per_table[$kind as usize],
-                config,
-            )?;
-        };
+    let public_inputs = TableKindSetBuilder::<&[_]> {
+        cpu_stark: all_proof.public_inputs.borrow(),
+        ..Default::default()
     }
-
-    verify!(cpu_stark, TableKind::Cpu, all_proof.public_inputs.borrow());
-    verify!(rangecheck_stark, TableKind::RangeCheck, &[]);
-    verify!(xor_stark, TableKind::Xor, &[]);
-    verify!(shift_amount_stark, TableKind::Bitshift, &[]);
-    verify!(program_stark, TableKind::Program, &[]);
-    verify!(memory_stark, TableKind::Memory, &[]);
-    verify!(memory_init_stark, TableKind::MemoryInit, &[]);
-    verify!(rangecheck_limb_stark, TableKind::RangeCheckLimb, &[]);
-    verify!(halfword_memory_stark, TableKind::HalfWordMemory, &[]);
-    verify!(fullword_memory_stark, TableKind::FullWordMemory, &[]);
-
-    verify!(register_init_stark, TableKind::RegisterInit, &[]);
-    verify!(register_stark, TableKind::Register, &[]);
-    verify!(io_memory_stark, TableKind::IoMemory, &[]);
-    verify_cross_table_lookups::<F, D>(&cross_table_lookups, &all_proof.all_ctl_zs_last(), config)?;
+    .build();
+    all_starks!(mozak_stark, |stark, kind| {
+        verify_stark_proof_with_challenges(
+            stark,
+            &all_proof.proofs_with_metadata[kind].proof,
+            &stark_challenges[kind],
+            public_inputs[kind],
+            &ctl_vars_per_table[kind],
+            config,
+        )?;
+    });
+    verify_cross_table_lookups::<F, D>(
+        &mozak_stark.cross_table_lookups,
+        &all_proof.all_ctl_zs_last(),
+        config,
+    )?;
     Ok(())
 }
 
@@ -122,8 +97,8 @@ where
     let StarkOpeningSet {
         local_values,
         next_values,
-        permutation_ctl_zs,
-        permutation_ctl_zs_next,
+        ctl_zs: _,
+        ctl_zs_next: _,
         ctl_zs_last,
         quotient_polys,
     } = &proof.openings;
@@ -151,17 +126,9 @@ where
         l_0,
         l_last,
     );
-    let num_permutation_zs = stark.num_permutation_batches(config);
-    let permutation_data = PermutationCheckVars {
-        local_zs: permutation_ctl_zs[..num_permutation_zs].to_vec(),
-        next_zs: permutation_ctl_zs_next[..num_permutation_zs].to_vec(),
-        permutation_challenge_sets: challenges.permutation_challenge_sets.clone(),
-    };
     eval_vanishing_poly::<F, F::Extension, F::Extension, S, D, D>(
         stark,
-        config,
         &vars,
-        permutation_data,
         ctl_vars,
         &mut consumer,
     );
@@ -190,7 +157,7 @@ where
 
     let merkle_caps = vec![
         proof.trace_cap.clone(),
-        proof.permutation_ctl_zs_cap.clone(),
+        proof.ctl_zs_cap.clone(),
         proof.quotient_polys_cap.clone(),
     ];
 
@@ -226,7 +193,7 @@ where
     S: Stark<F, D>, {
     let StarkProof {
         trace_cap,
-        permutation_ctl_zs_cap,
+        ctl_zs_cap,
         quotient_polys_cap,
         openings,
         // The shape of the opening proof will be checked in the FRI verifier (see
@@ -237,8 +204,8 @@ where
     let StarkOpeningSet {
         local_values,
         next_values,
-        permutation_ctl_zs,
-        permutation_ctl_zs_next,
+        ctl_zs,
+        ctl_zs_next,
         ctl_zs_last,
         quotient_polys,
     } = openings;
@@ -246,16 +213,15 @@ where
     let degree_bits = proof.recover_degree_bits(config);
     let fri_params = config.fri_params(degree_bits);
     let cap_height = fri_params.config.cap_height;
-    let num_zs = num_ctl_zs + stark.num_permutation_batches(config);
 
     ensure!(trace_cap.height() == cap_height);
-    ensure!(permutation_ctl_zs_cap.height() == cap_height);
+    ensure!(ctl_zs_cap.height() == cap_height);
     ensure!(quotient_polys_cap.height() == cap_height);
 
     ensure!(local_values.len() == S::COLUMNS);
     ensure!(next_values.len() == S::COLUMNS);
-    ensure!(permutation_ctl_zs.len() == num_zs);
-    ensure!(permutation_ctl_zs_next.len() == num_zs);
+    ensure!(ctl_zs.len() == num_ctl_zs);
+    ensure!(ctl_zs_next.len() == num_ctl_zs);
     ensure!(ctl_zs_last.len() == num_ctl_zs);
     ensure!(quotient_polys.len() == stark.num_quotient_polys(config));
 

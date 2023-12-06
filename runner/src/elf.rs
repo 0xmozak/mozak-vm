@@ -1,22 +1,21 @@
-// Copyright 2023 MOZAK.
-
+use std::cmp::{max, min};
 use std::collections::HashSet;
+use std::iter::repeat;
 
-use anyhow::{anyhow, ensure, Result};
+use anyhow::{anyhow, ensure};
 use derive_more::Deref;
 use elf::endian::LittleEndian;
 use elf::file::Class;
-use elf::segment::ProgramHeader;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
-use itertools::{iproduct, Itertools};
+use itertools::{chain, iproduct, Itertools};
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
-use crate::instruction::Instruction;
+use crate::instruction::{DecodingError, Instruction};
 use crate::util::load_u32;
 
-/// A RISC program
+/// A RISC-V program
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Program {
     /// The entrypoint of the program
@@ -34,17 +33,24 @@ pub struct Program {
     pub ro_code: Code,
 }
 
+/// Executable code of the ELF
+///
+/// A wrapper of a map from pc to [Instruction]
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
-pub struct Code(pub HashMap<u32, Instruction>);
+pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
 
+/// Memory of RISC-V Program
+///
+/// A wrapper around a map from a 32-bit address to a byte of memory
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
 pub struct Data(pub HashMap<u32, u8>);
 
 impl Code {
+    /// Get [Instruction] given `pc`
     #[must_use]
-    pub fn get_instruction(&self, pc: u32) -> Instruction {
+    pub fn get_instruction(&self, pc: u32) -> Option<&Result<Instruction, DecodingError>> {
         let Code(code) = self;
-        code.get(&pc).copied().unwrap_or_default()
+        code.get(&pc)
     }
 }
 
@@ -127,7 +133,7 @@ impl Program {
     // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
     // exercise the error handling?
     #[allow(clippy::similar_names)]
-    pub fn load_elf(input: &[u8]) -> Result<Program> {
+    pub fn load_elf(input: &[u8]) -> anyhow::Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
         ensure!(elf.ehdr.class == Class::ELF32, "Not a 32-bit ELF");
         ensure!(
@@ -148,16 +154,18 @@ impl Program {
         let extract = |check_flags: fn(u32) -> bool| {
             segments
                 .iter()
-                .filter(|s: &ProgramHeader| s.p_type == elf::abi::PT_LOAD)
                 .filter(|s| check_flags(s.p_flags))
-                .map(|segment| -> Result<_> {
+                .map(|segment| -> anyhow::Result<_> {
                     let file_size: usize = segment.p_filesz.try_into()?;
                     let mem_size: usize = segment.p_memsz.try_into()?;
                     let vaddr: u32 = segment.p_vaddr.try_into()?;
                     let offset = segment.p_offset.try_into()?;
+
+                    let min_size = min(file_size, mem_size);
+                    let max_size = max(file_size, mem_size);
                     Ok((vaddr..).zip(
-                        input[offset..offset + std::cmp::min(file_size, mem_size)]
-                            .iter()
+                        chain!(&input[offset..][..min_size], repeat(&0u8))
+                            .take(max_size)
                             .copied(),
                     ))
                 })

@@ -1,6 +1,6 @@
-use std::fmt::Display;
 use std::marker::PhantomData;
 
+use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -12,11 +12,9 @@ use starky::stark::Stark;
 
 use super::columns::RegisterInit;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::display::derive_display_stark_name;
 use crate::stark::utils::is_binary;
 
-derive_display_stark_name!(RegisterInitStark);
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RegisterInitStark<F, const D: usize> {
     pub _f: PhantomData<F>,
@@ -50,7 +48,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterInitS
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &RegisterInit<P> = vars.get_local_values().try_into().unwrap();
+        let lv: &RegisterInit<P> = vars.get_local_values().into();
         // Check: `is_looked_up` is a binary filter column.
         is_binary(yield_constr, lv.is_looked_up);
     }

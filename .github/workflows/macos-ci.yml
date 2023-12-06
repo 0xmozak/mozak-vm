@@ -21,16 +21,18 @@ jobs:
       contents: read
       issues: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install rust toolkit
         uses: ./.github/actions/rust
 
-      - name: Build ELF(s) for benchmarking
-        run: cd examples/fibonacci && cargo build --release
+      # TODO(Matthias): consider de-duplicating with `.github/workflows/ci.yml`
+      # to make keeping these in sync easier.
+      - name: Compile
+        run: cargo test --no-run --locked --all-targets
 
-      - name: Run tests
-        run: cargo test --locked --all-targets
+      - name: Test
+        run: MOZAK_STARK_DEBUG=true cargo nextest run --no-fail-fast --locked --all-targets
 
       - name: Create github issue for failed action
         uses: imjohnbo/issue-bot@v3

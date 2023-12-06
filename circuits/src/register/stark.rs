@@ -1,6 +1,6 @@
-use std::fmt::Display;
 use std::marker::PhantomData;
 
+use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -12,11 +12,9 @@ use starky::stark::Stark;
 
 use super::columns::Register;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::display::derive_display_stark_name;
 use crate::stark::utils::is_binary;
 
-derive_display_stark_name!(RegisterStark);
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct RegisterStark<F, const D: usize> {
     pub _f: PhantomData<F>,
@@ -59,8 +57,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &Register<P> = vars.get_local_values().try_into().unwrap();
-        let nv: &Register<P> = vars.get_next_values().try_into().unwrap();
+        let lv: &Register<P> = vars.get_local_values().into();
+        let nv: &Register<P> = vars.get_next_values().into();
 
         // Constraint 1: filter columns take 0 or 1 values only.
         is_binary(yield_constr, lv.ops.is_init);
@@ -131,7 +129,7 @@ mod tests {
 
     fn prove_stark<Stark: ProveAndVerify>(a: u32, b: u32, imm: u32, rd: u8) {
         let (program, record) = simple_test_code(
-            &[
+            [
                 Instruction {
                     op: Op::ADD,
                     args: Args {

@@ -1,17 +1,17 @@
 use std::collections::HashSet;
 
 use itertools::{chain, Itertools};
-use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Instruction, Op};
 use mozak_runner::state::{Aux, IoEntry, IoOpcode, State};
-use mozak_runner::system::ecall;
-use mozak_runner::system::reg_abi::REG_A0;
 use mozak_runner::vm::{ExecutionRecord, Row};
+use mozak_system::system::ecall;
+use mozak_system::system::reg_abi::REG_A0;
 use plonky2::hash::hash_types::RichField;
 
 use crate::bitshift::columns::Bitshift;
 use crate::cpu::columns as cpu_cols;
 use crate::cpu::columns::{CpuColumnsExtended, CpuState};
+use crate::generation::MIN_TRACE_LENGTH;
 use crate::program::columns::{InstructionRow, ProgramRom};
 use crate::stark::utils::transpose_trace;
 use crate::utils::{from_u32, pad_trace_with_last_to_len, sign_extend};
@@ -26,7 +26,7 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     let len = cpu_trace
         .len()
         .max(permuted.len())
-        .max(4)
+        .max(MIN_TRACE_LENGTH)
         .next_power_of_two();
     let ori_len = permuted.len();
     permuted = pad_trace_with_last_to_len(permuted, len);
@@ -37,10 +37,8 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     chain!(transpose_trace(cpu_trace), transpose_trace(permuted)).collect()
 }
 
-pub fn generate_cpu_trace<F: RichField>(
-    program: &Program,
-    record: &ExecutionRecord<F>,
-) -> Vec<CpuState<F>> {
+/// Converting each row of the `record` to a row represented by [`CpuState`]
+pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuState<F>> {
     let mut trace: Vec<CpuState<F>> = vec![];
     let ExecutionRecord {
         executed,
@@ -50,14 +48,19 @@ pub fn generate_cpu_trace<F: RichField>(
         state: last_state.clone(),
         // `Aux` has auxiliary information about an executed CPU cycle.
         // The last state is the final state after the last execution.  Thus naturally it has no
-        // associated auxiliarye execution information. We use a dummy aux to make the row
+        // associated auxiliary execution information. We use a dummy aux to make the row
         // generation work, but we could refactor to make this unnecessary.
-        aux: executed.last().unwrap().aux.clone(),
+        ..executed.last().unwrap().clone()
     }];
 
     let default_io_entry = IoEntry::default();
-    for Row { state, aux } in chain![executed, last_row] {
-        let inst = state.current_instruction(program);
+    for Row {
+        state,
+        instruction,
+        aux,
+    } in chain![executed, last_row]
+    {
+        let inst = *instruction;
         let io = aux.io.as_ref().unwrap_or(&default_io_entry);
         let mut row = CpuState {
             clk: F::from_noncanonical_u64(state.clk),
@@ -73,16 +76,33 @@ pub fn generate_cpu_trace<F: RichField>(
             // To be overridden by users of the gadget.
             // TODO(Matthias): find a way to make either compiler or runtime complain
             // if we have two (conflicting) users in the same row.
-            bitshift: Bitshift::from(0).map(F::from_canonical_u64),
+            bitshift: Bitshift::from(0).map(F::from_canonical_u32),
             xor: generate_xor_row(&inst, state),
             mem_addr: F::from_canonical_u32(aux.mem.unwrap_or_default().addr),
             mem_value_raw: from_u32(aux.mem.unwrap_or_default().raw_value),
             rs2_value: from_u32(state.get_register_value(inst.args.rs2)),
+            #[cfg(feature = "enable_poseidon_starks")]
+            is_poseidon2: F::from_bool(aux.poseidon2.is_some()),
+            #[cfg(feature = "enable_poseidon_starks")]
+            poseidon2_input_addr: F::from_canonical_u32(
+                aux.poseidon2.clone().unwrap_or_default().addr,
+            ),
+            #[cfg(feature = "enable_poseidon_starks")]
+            poseidon2_input_len: F::from_canonical_u32(
+                aux.poseidon2.clone().unwrap_or_default().len,
+            ),
             io_addr: F::from_canonical_u32(io.addr),
             io_size: F::from_canonical_usize(io.data.len()),
-            is_io_store: F::from_bool(matches!((inst.op, io.op), (Op::ECALL, IoOpcode::Store))),
+            is_io_store_private: F::from_bool(matches!(
+                (inst.op, io.op),
+                (Op::ECALL, IoOpcode::StorePrivate)
+            )),
+            is_io_store_public: F::from_bool(matches!(
+                (inst.op, io.op),
+                (Op::ECALL, IoOpcode::StorePublic)
+            )),
             is_halt: F::from_bool(matches!(
-                (inst.op, state.registers[usize::try_from(REG_A0).unwrap()]),
+                (inst.op, state.registers[usize::from(REG_A0)]),
                 (Op::ECALL, ecall::HALT)
             )),
             ..CpuState::default()
@@ -106,6 +126,8 @@ fn generate_conditional_branch_row<F: RichField>(row: &mut CpuState<F>) {
     row.normalised_diff = F::from_bool(row.signed_diff().is_nonzero());
 }
 
+/// Generates a bitshift row on a shift operation. This is used in the bitshift
+/// lookup table.
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::similar_names)]
 fn generate_shift_row<F: RichField>(row: &mut CpuState<F>, aux: &Aux<F>) {
@@ -256,7 +278,7 @@ fn operands_sign_handling<F: RichField>(row: &mut CpuState<F>, aux: &Aux<F>) {
 
 fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State<F>) -> XorView<F> {
     let a = match inst.op {
-        Op::AND | Op::OR | Op::XOR => state.get_register_value(inst.args.rs1),
+        Op::AND | Op::OR | Op::XOR | Op::SB | Op::SH => state.get_register_value(inst.args.rs1),
         Op::SRL | Op::SLL | Op::SRA => 0b1_1111,
         _ => 0,
     };
@@ -264,6 +286,8 @@ fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State<F>) -> XorVi
         Op::AND | Op::OR | Op::XOR | Op::SRL | Op::SLL | Op::SRA => state
             .get_register_value(inst.args.rs2)
             .wrapping_add(inst.args.imm),
+        Op::SB => 0x0000_00FF,
+        Op::SH => 0x0000_FFFF,
         _ => 0,
     };
     XorView { a, b, out: a ^ b }.map(from_u32)
@@ -295,7 +319,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
     // used_pcs
     let unused_instructions: Vec<_> = program_rom
         .iter()
-        .filter(|row| !used_pcs.contains(&row.inst.pc))
+        .filter(|row| !used_pcs.contains(&row.inst.pc) && row.filter.is_nonzero())
         .copied()
         .collect();
 
@@ -364,10 +388,10 @@ mod tests {
             CpuState {
                 inst: Instruction {
                     pc: 1,
-                    ops: selection(4),
-                    rs1: 4,
-                    rs2: 4,
-                    rd: 4,
+                    ops: selection(3),
+                    rs1: 2,
+                    rs2: 1,
+                    rd: 1,
                     imm_value: 4,
                     ..Default::default()
                 },
@@ -422,8 +446,8 @@ mod tests {
             },
             ProgramRom {
                 inst: InstructionRow {
-                    pc: 1,
-                    inst_data: reduce_with_powers(vec![3, 0, 0, 3, 3, 3, 3]),
+                    pc: 3,
+                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
                 },
                 filter: 0,
             },

@@ -1,9 +1,13 @@
 use itertools::{Itertools, MergeBy};
+use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::util::transpose;
-use starky::constraint_consumer::ConstraintConsumer;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 
 /// Ensure an expression only takes on values 0 or 1.
 /// This doubles the degree of the provided expression `x`,
@@ -13,6 +17,17 @@ pub fn is_binary<P: PackedField>(yield_constr: &mut ConstraintConsumer<P>, x: P)
     yield_constr.constraint(x * (P::ONES - x));
 }
 
+pub fn is_binary_ext_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    x: ExtensionTarget<D>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    let one = builder.one_extension();
+    let x_sub_one = builder.sub_extension(one, x);
+    let x_mul_x_sub_one = builder.mul_extension(x, x_sub_one);
+    yield_constr.constraint(builder, x_mul_x_sub_one);
+}
+
 #[must_use]
 pub fn trace_to_poly_values<F: Field, Grid: IntoIterator<Item = Vec<F>>>(
     trace: Grid,
@@ -20,6 +35,8 @@ pub fn trace_to_poly_values<F: Field, Grid: IntoIterator<Item = Vec<F>>>(
     trace.into_iter().map(PolynomialValues::new).collect()
 }
 
+/// Transform a given row-major trace to a column-major trace by flipping it
+/// over its diagonal.
 #[must_use]
 pub fn transpose_trace<F: Field, Row: IntoIterator<Item = F>>(trace_rows: Vec<Row>) -> Vec<Vec<F>> {
     transpose(
@@ -32,6 +49,7 @@ pub fn transpose_trace<F: Field, Row: IntoIterator<Item = F>>(trace_rows: Vec<Ro
 
 /// A helper function to transpose a row-wise trace and put it in the format
 /// that `prove` expects.
+/// Intepret a row trace as a polynomial
 #[must_use]
 pub fn trace_rows_to_poly_values<F: Field, Row: IntoIterator<Item = F>>(
     trace_rows: Vec<Row>,

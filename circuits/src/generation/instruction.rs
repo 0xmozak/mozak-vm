@@ -28,7 +28,6 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
             rs2_used: u32::from(inst.args.rs2 > 0),
             rd: u32::from(inst.args.rd),
             rd_used: u32::from(inst.args.rd > 0),
-
             ..Self::default()
         };
         *match inst.op {
@@ -57,7 +56,6 @@ impl From<(u32, Instruction)> for columns::Instruction<u32> {
             Op::XOR => &mut cols.ops.xor,
             Op::OR => &mut cols.ops.or,
             Op::AND => &mut cols.ops.and,
-            other @ Op::UNKNOWN => unimplemented!("Opcode {other:?} not supported, yet."),
         } = 1;
         cols
     }

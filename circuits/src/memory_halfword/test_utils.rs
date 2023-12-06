@@ -46,12 +46,19 @@ pub fn halfword_memory_trace_test_case(
         .flatten()
         .copied()
         .collect::<Vec<_>>();
-    let (program, record) = simple_test_code(&code, &[(400, 0), (500, 0)], &[
-        (1, 0x0102),
-        (2, 0x0304),
-        (3, 0xFFFF),
-        (4, 0x0000_FFFF),
-    ]);
+    let (program, record) = simple_test_code(
+        code,
+        &[
+            (400, 0),
+            (401, 0),
+            (402, 0),
+            (403, 0),
+            (500, 0),
+            (501, 0),
+            (502, 0),
+        ],
+        &[(1, 0x0102), (2, 0x0304), (3, 0xFFFF), (4, 0x0000_FFFF)],
+    );
 
     if repeats > 0 {
         let state = &record.last_state;

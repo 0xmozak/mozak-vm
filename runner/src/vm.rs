@@ -1,20 +1,13 @@
-use std::iter::repeat;
 use std::str::from_utf8;
 
 use anyhow::{anyhow, Result};
-use itertools::izip;
-use plonky2::field::goldilocks_field::GoldilocksField;
-use plonky2::field::types::Field;
-use plonky2::hash::hash_types::{HashOut, RichField, NUM_HASH_OUT_ELTS};
-use plonky2::hash::hashing::PlonkyPermutation;
-use plonky2::hash::poseidon2::Poseidon2Permutation;
-use plonky2::plonk::config::GenericHashOut;
+use mozak_system::system::ecall;
+use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2};
+use plonky2::hash::hash_types::RichField;
 
 use crate::elf::Program;
-use crate::instruction::{Args, Op};
+use crate::instruction::{Args, Instruction, Op};
 use crate::state::{Aux, IoEntry, IoOpcode, MemEntry, State};
-use crate::system::ecall;
-use crate::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
 
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
@@ -118,6 +111,7 @@ impl<F: RichField> State<F> {
     }
 
     fn ecall_halt(self) -> (Aux<F>, Self) {
+        log::trace!("ECALL HALT at CLK: {:?}", self.clk);
         // Note: we don't advance the program counter for 'halt'.
         // That is we treat 'halt' like an endless loop.
         (
@@ -133,16 +127,16 @@ impl<F: RichField> State<F> {
     ///
     /// Panics if while executing `IO_READ`, I/O tape does not have sufficient
     /// bytes.
-    fn ecall_io_read(self) -> (Aux<F>, Self) {
+    fn ecall_io_read(self, op: IoOpcode) -> (Aux<F>, Self) {
         let buffer_start = self.get_register_value(REG_A1);
         let num_bytes_requsted = self.get_register_value(REG_A2);
-        let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize);
+        let (data, updated_self) = self.read_iobytes(num_bytes_requsted as usize, op);
         (
             Aux {
                 dst_val: u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
                 io: Some(IoEntry {
                     addr: buffer_start,
-                    op: IoOpcode::Store,
+                    op,
                     data: data.clone(),
                 }),
                 ..Default::default()
@@ -158,10 +152,6 @@ impl<F: RichField> State<F> {
                         )
                         .unwrap()
                 })
-                .set_register_value(
-                    REG_A0,
-                    u32::try_from(data.len()).expect("cannot fit data.len() into u32"),
-                )
                 .bump_pc(),
         )
     }
@@ -170,6 +160,7 @@ impl<F: RichField> State<F> {
     ///
     /// Panics if Vec<u8> to string conversion fails.
     fn ecall_panic(self) -> (Aux<F>, Self) {
+        log::trace!("ECALL PANIC at CLK: {:?}", self.clk);
         let msg_len = self.get_register_value(REG_A1);
         let msg_ptr = self.get_register_value(REG_A2);
         let mut msg_vec = vec![];
@@ -182,36 +173,12 @@ impl<F: RichField> State<F> {
         );
     }
 
-    fn ecall_poseidon2(self) -> (Aux<F>, Self) {
-        let input_ptr = self.get_register_value(REG_A1);
-        // lengths are in bytes
-        let input_len = self.get_register_value(REG_A2);
-        let output_ptr = self.get_register_value(REG_A3);
-        let output_len = 32;
-        let input: Vec<GoldilocksField> = (0..input_len)
-            .map(|i| GoldilocksField::from_canonical_u8(self.load_u8(input_ptr + i)))
-            .collect();
-        let hash =
-            hash_n_to_m_with_pad::<GoldilocksField, Poseidon2Permutation<GoldilocksField>>(&input)
-                .to_bytes();
-        assert!(output_len == hash.len());
-        (
-            Aux::default(),
-            izip!(0.., hash)
-                .fold(self, |updated_self, (i, byte)| {
-                    updated_self
-                        .store_u8(output_ptr.wrapping_add(i), byte)
-                        .unwrap()
-                })
-                .bump_pc(),
-        )
-    }
-
     #[must_use]
     pub fn ecall(self) -> (Aux<F>, Self) {
         match self.get_register_value(REG_A0) {
             ecall::HALT => self.ecall_halt(),
-            ecall::IO_READ => self.ecall_io_read(),
+            ecall::IO_READ_PRIVATE => self.ecall_io_read(IoOpcode::StorePrivate),
+            ecall::IO_READ_PUBLIC => self.ecall_io_read(IoOpcode::StorePublic),
             ecall::PANIC => self.ecall_panic(),
             ecall::POSEIDON2 => self.ecall_poseidon2(),
             _ => (Aux::default(), self.bump_pc()),
@@ -225,7 +192,8 @@ impl<F: RichField> State<F> {
     /// TODO: Review the decision to panic.  We might also switch to using a
     /// Result, so that the caller can handle this.
     pub fn store(self, inst: &Args, bytes: u32) -> (Aux<F>, Self) {
-        let raw_value: u32 = self.get_register_value(inst.rs1);
+        let mask = u32::MAX >> (32 - 8 * bytes);
+        let raw_value: u32 = self.get_register_value(inst.rs1) & mask;
         let addr = self.get_register_value(inst.rs2).wrapping_add(inst.imm);
         (
             Aux {
@@ -248,8 +216,17 @@ impl<F: RichField> State<F> {
     ///
     /// Errors if the program contains an instruction with an unsupported
     /// opcode.
-    pub fn execute_instruction(self, program: &Program) -> Result<(Aux<F>, Self)> {
-        let inst = self.current_instruction(program);
+    pub fn execute_instruction(self, program: &Program) -> Result<(Aux<F>, Instruction, Self)> {
+        let inst = self
+            .current_instruction(program)
+            .ok_or(anyhow!("Can't find instruction."))?
+            .map_err(|e| {
+                anyhow!(
+                    "Unknown instruction {:x} at address {:x}",
+                    e.instruction,
+                    e.pc
+                )
+            })?;
         macro_rules! rop {
             ($op: expr) => {
                 self.register_op(&inst.args, $op)
@@ -314,7 +291,6 @@ impl<F: RichField> State<F> {
             Op::DIVU => rop!(divu),
             Op::REM => rop!(rem),
             Op::REMU => rop!(remu),
-            Op::UNKNOWN => return Err(anyhow!("Unsupported opcode: {}", inst.op)),
         };
         Ok((
             Aux {
@@ -323,6 +299,7 @@ impl<F: RichField> State<F> {
                 op2,
                 ..aux
             },
+            inst,
             state.bump_clock(),
         ))
     }
@@ -330,15 +307,31 @@ impl<F: RichField> State<F> {
 
 /// Each row corresponds to the state of the VM _just before_ executing the
 /// instruction that the program counter points to.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Row<F: RichField> {
     pub state: State<F>,
     pub aux: Aux<F>,
+    pub instruction: Instruction,
 }
 
+impl<F: RichField> Row<F> {
+    #[must_use]
+    pub fn new(op: Op) -> Self {
+        Row {
+            state: State::default(),
+            aux: Aux::default(),
+            instruction: Instruction::new(op, Args::default()),
+        }
+    }
+}
+
+/// Unconstrained Trace produced by running the code
 #[derive(Debug, Default)]
 pub struct ExecutionRecord<F: RichField> {
+    /// Each row holds the state of the vm and auxiliary
+    /// information associated
     pub executed: Vec<Row<F>>,
+    /// The last state of the vm before the program halts
     pub last_state: State<F>,
 }
 
@@ -361,9 +354,10 @@ pub fn step<F: RichField>(
 ) -> Result<ExecutionRecord<F>> {
     let mut executed = vec![];
     while !last_state.has_halted() {
-        let (aux, new_state) = last_state.clone().execute_instruction(program)?;
+        let (aux, instruction, new_state) = last_state.clone().execute_instruction(program)?;
         executed.push(Row {
             state: last_state,
+            instruction,
             aux,
         });
         last_state = new_state;
@@ -381,33 +375,6 @@ pub fn step<F: RichField>(
         executed,
         last_state,
     })
-}
-
-// Based on hash_n_to_m_no_pad() from plonky2/src/hash/hashing.rs
-pub fn hash_n_to_m_with_pad<F: RichField, P: PlonkyPermutation<F>>(inputs: &[F]) -> HashOut<F> {
-    let mut perm = P::new(repeat(F::ZERO));
-    let mut inputs = inputs.to_vec();
-    let len = inputs.len();
-    // Add padding if required
-    inputs.resize(len.next_multiple_of(P::RATE), F::ZERO);
-
-    // Absorb all input chunks.
-    for chunk in inputs.chunks(P::RATE) {
-        perm.set_from_slice(chunk, 0);
-        perm.permute();
-    }
-
-    // Squeeze untill we have the desired number of outputs.
-    let mut outputs = Vec::new();
-    loop {
-        for &item in perm.squeeze() {
-            outputs.push(item);
-            if outputs.len() == NUM_HASH_OUT_ELTS {
-                return HashOut::from_vec(outputs);
-            }
-        }
-        perm.permute();
-    }
 }
 
 #[cfg(test)]
@@ -428,8 +395,8 @@ mod tests {
     use crate::vm::step;
 
     fn simple_test_code(
-        code: &[Instruction],
-        mem: &[(u32, u32)],
+        code: impl IntoIterator<Item = Instruction>,
+        mem: &[(u32, u8)],
         regs: &[(u8, u32)],
     ) -> ExecutionRecord<GoldilocksField> {
         crate::test_utils::simple_test_code(code, mem, regs).1
@@ -437,7 +404,7 @@ mod tests {
 
     fn divu_with_imm(rd: u8, rs1: u8, rs1_value: u32, imm: u32) {
         let e = simple_test_code(
-            &[Instruction::new(Op::DIVU, Args {
+            [Instruction::new(Op::DIVU, Args {
                 rd,
                 rs1,
                 imm,
@@ -454,7 +421,7 @@ mod tests {
 
     fn mul_with_imm(rd: u8, rs1: u8, rs1_value: u32, imm: u32) {
         let e = simple_test_code(
-            &[Instruction::new(Op::MUL, Args {
+            [Instruction::new(Op::MUL, Args {
                 rd,
                 rs1,
                 imm,
@@ -469,25 +436,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_hash_n_to_m_with_pad() {
-        let data = "💥 Mozak-VM Rocks With Poseidon2";
-        let data_bytes = data.as_bytes();
-        let data_fields: Vec<GoldilocksField> = data_bytes
-            .iter()
-            .map(|x| GoldilocksField::from_canonical_u8(*x))
-            .collect();
-        let hash = super::hash_n_to_m_with_pad::<
-            GoldilocksField,
-            Poseidon2Permutation<GoldilocksField>,
-        >(&data_fields);
-        let hash_bytes = hash.to_bytes();
-        assert_eq!(
-            hash_bytes,
-            hex_literal::hex!("4afb11172461851820da91ce1b972afd87caf69abe4316097280a4784b1fe396")[..]
-        );
-    }
-
     proptest! {
         #![proptest_config(ProptestConfig { max_global_rejects: 100_000, .. Default::default() })]
         #[test]
@@ -495,7 +443,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let sum = rs1_value.wrapping_add(rs2_value);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::ADD,
                     Args {
                         rd,
@@ -513,7 +461,7 @@ mod tests {
         #[test]
         fn addi_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::ADD,
                     Args {
                         rd,
@@ -532,7 +480,7 @@ mod tests {
         fn sll_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SLL,
                     Args {
                         rd,
@@ -554,7 +502,7 @@ mod tests {
         fn and_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::AND,
                     Args { rd,
                     rs1,
@@ -574,7 +522,7 @@ mod tests {
         #[test]
         fn andi_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::AND,
                     Args { rd,
                     rs1,
@@ -597,7 +545,7 @@ mod tests {
         fn srl_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SRL,
                     Args { rd,
                     rs1,
@@ -624,7 +572,7 @@ mod tests {
         fn or_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::OR,
                     Args { rd,
                     rs1,
@@ -644,7 +592,7 @@ mod tests {
         #[test]
         fn ori_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::OR,
                     Args { rd,
                     rs1,
@@ -666,7 +614,7 @@ mod tests {
         fn xor_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::XOR,
                     Args { rd,
                     rs1,
@@ -686,7 +634,7 @@ mod tests {
         #[test]
         fn xori_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::XOR,
                     Args { rd,
                     rs1,
@@ -708,7 +656,7 @@ mod tests {
         fn sra_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SRA,
                     Args { rd,
                     rs1,
@@ -728,7 +676,7 @@ mod tests {
         #[test]
         fn srai_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SRA,
                     Args { rd,
                     rs1,
@@ -750,7 +698,7 @@ mod tests {
         fn slt_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SLT,
                     Args { rd,
                     rs1,
@@ -773,7 +721,7 @@ mod tests {
         fn sltu_proptest(rd in reg(), rs1 in reg(), rs2 in reg(), rs1_value in u32_extra(), rs2_value in u32_extra()) {
             prop_assume!(rs1 != rs2);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SLTU,
                     Args { rd,
                     rs1,
@@ -793,7 +741,7 @@ mod tests {
         #[test]
         fn slti_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SLT,
                     Args { rd,
                     rs1,
@@ -810,7 +758,7 @@ mod tests {
         #[test]
         fn sltiu_proptest(rd in reg(), rs1 in reg(), rs1_value in u32_extra(), imm in u32_extra()) {
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SLTU,
                     Args { rd,
                     rs1,
@@ -835,7 +783,7 @@ mod tests {
             let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::LB,
                     Args { rd,
                     rs2,
@@ -844,7 +792,7 @@ mod tests {
                 }
 
                 )],
-                &[(address, memory_value as u32)],
+                &[(address, memory_value as u8)],
                 &[(rs2, rs2_value)]
             );
 
@@ -857,7 +805,7 @@ mod tests {
             let address = rs2_value.wrapping_add(offset);
 
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::LBU,
                     Args { rd,
                     rs2,
@@ -866,7 +814,7 @@ mod tests {
                 }
 
                 )],
-                &[(address, u32::from(memory_value))],
+                &[(address, memory_value)],
                 &[(rs2, rs2_value)]
             );
             assert_eq!(state_before_final(&e).get_register_value(rd), u32::from(memory_value));
@@ -875,9 +823,10 @@ mod tests {
         #[test]
         fn lh_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in i16_extra()) {
             let address = rs2_value.wrapping_add(offset);
+            let [mem0, mem1] = memory_value.to_le_bytes();
 
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::LH,
                     Args { rd,
                     rs2,
@@ -886,7 +835,7 @@ mod tests {
                 }
 
                 )],
-                &[(address, u32::from(memory_value as u16))],
+                &[(address, mem0), (address.wrapping_add(1), mem1)],
                 &[(rs2, rs2_value)]
             );
             assert_eq!(state_before_final(&e).get_register_value(rd), i32::from(memory_value) as u32);
@@ -895,9 +844,10 @@ mod tests {
         #[test]
         fn lhu_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in u16_extra()) {
             let address = rs2_value.wrapping_add(offset);
+            let [mem0, mem1] = memory_value.to_le_bytes();
 
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::LHU,
                     Args { rd,
                     rs2,
@@ -906,7 +856,7 @@ mod tests {
                 }
 
                 )],
-                &[(address, u32::from(memory_value))],
+                &[(address, mem0), (address.wrapping_add(1), mem1)],
                 &[(rs2, rs2_value)]
             );
 
@@ -916,9 +866,10 @@ mod tests {
         #[test]
         fn lw_proptest(rd in reg(), rs2 in reg(), rs2_value in u32_extra(), offset in u32_extra(), memory_value in u32_extra()) {
             let address = rs2_value.wrapping_add(offset);
+            let [mem0, mem1, mem2, mem3] = memory_value.to_le_bytes();
 
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::LW,
                     Args { rd,
                     rs2,
@@ -926,7 +877,7 @@ mod tests {
                     ..Args::default()
                 }
                 )],
-                &[(address, memory_value)],
+                &[(address, mem0), (address.wrapping_add(1), mem1), (address.wrapping_add(2), mem2), (address.wrapping_add(3), mem3)],
                 &[(rs2, rs2_value)]
             );
             assert_eq!(state_before_final(&e).get_register_value(rd), memory_value);
@@ -937,7 +888,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let address = rs2_val.wrapping_add(offset);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SB,
                     Args {rs1,
                     rs2,
@@ -957,7 +908,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let address = rs2_val.wrapping_add(offset);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SH,
                     Args {
                     rs1,
@@ -988,7 +939,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let address = rs2_val.wrapping_add(offset);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::SW,
                 Args {
                     rs1,
@@ -1019,7 +970,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let prod = rs1_value.wrapping_mul(rs2_value);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::MUL,
                     Args { rd,
                     rs1,
@@ -1045,7 +996,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let prod: i64 = i64::from(rs1_value) * i64::from(rs2_value);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::MULH,
                     Args { rd,
                     rs1,
@@ -1065,7 +1016,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let prod: u64 = u64::from(rs1_value) * u64::from(rs2_value);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::MULHU,
                     Args { rd,
                     rs1,
@@ -1085,7 +1036,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             let prod: i64 = i64::from(rs1_value) * i64::from(rs2_value);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::MULHSU,
                     Args { rd,
                     rs1,
@@ -1105,7 +1056,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             prop_assume!(rs2_value != 0);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::DIV,
                     Args { rd,
                     rs1,
@@ -1124,7 +1075,7 @@ mod tests {
             prop_assume!(rs1 != rs2);
             prop_assume!(rs2_value != 0);
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::DIVU,
                     Args { rd,
                     rs1,
@@ -1151,7 +1102,7 @@ mod tests {
             prop_assume!(rs1_value != i32::min_value() && rs2_value != -1);
             let rem = rs1_value % rs2_value;
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::REM,
                     Args { rd,
                     rs1,
@@ -1171,7 +1122,7 @@ mod tests {
             prop_assume!(rs2_value != 0);
             let rem = rs1_value % rs2_value;
             let e = simple_test_code(
-                &[Instruction::new(
+                [Instruction::new(
                     Op::REMU,
                     Args { rd,
                     rs1,
@@ -1191,7 +1142,7 @@ mod tests {
             prop_assume!(rd != rs1);
             prop_assume!(rd != rs2);
             let e = simple_test_code(
-                &[  // rs1 == rs1: take imm-path (8)
+                [  // rs1 == rs1: take imm-path (8)
                     Instruction::new(
                         Op::BEQ,
                         Args { rd,
@@ -1230,7 +1181,7 @@ mod tests {
             prop_assume!(rs1_value != rs2_value);
 
             let e = simple_test_code(
-                &[  // rs1 != rs2: take imm-path (8)
+                [  // rs1 != rs2: take imm-path (8)
                     Instruction::new(
                         Op::BNE,
                         Args { rd,
@@ -1270,7 +1221,7 @@ mod tests {
             prop_assume!(rs1_value < rs2_value);
 
             let e = simple_test_code(
-                &[
+                [
                     Instruction::new(
                         Op::BLT,
                         Args { rd,
@@ -1310,7 +1261,7 @@ mod tests {
             prop_assume!(rs1_value < rs2_value);
 
             let e = simple_test_code(
-                &[
+                [
                     Instruction::new(
                         Op::BLTU,
                         Args { rd,
@@ -1350,7 +1301,7 @@ mod tests {
             prop_assume!(rs1_value >= rs2_value);
 
             let e = simple_test_code(
-                &[
+                [
                     Instruction::new(
                         Op::BGE,
                         Args { rd,
@@ -1390,7 +1341,7 @@ mod tests {
             prop_assume!(rs1_value >= rs2_value);
 
             let e = simple_test_code(
-                &[
+                [
                     Instruction::new(
                         Op::BGEU,
                         Args {
@@ -1438,7 +1389,7 @@ mod tests {
             }
                     );
             let e = simple_test_code(
-                &[
+                [
                     Instruction::new(
                         Op::JALR,
                         Args {
@@ -1491,7 +1442,7 @@ mod tests {
 
     #[test]
     fn ecall() {
-        let _ = simple_test_code(&[Instruction::new(Op::ECALL, Args::default())], &[], &[]);
+        let _ = simple_test_code([Instruction::new(Op::ECALL, Args::default())], &[], &[]);
     }
 
     #[test]

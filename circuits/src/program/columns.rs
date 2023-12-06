@@ -20,6 +20,7 @@ pub struct InstructionRow<T> {
 
 columns_view_impl!(ProgramRom);
 make_col_map!(ProgramRom);
+/// A Row of ROM generated from read-only memory
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
 pub struct ProgramRom<T> {
@@ -33,4 +34,4 @@ pub struct ProgramRom<T> {
 pub const NUM_PROGRAM_COLS: usize = ProgramRom::<()>::NUMBER_OF_COLUMNS;
 
 #[must_use]
-pub fn data_for_ctl<F: Field>() -> Vec<Column<F>> { Column::singles(MAP.inst) }
+pub fn data_for_ctl<F: Field>() -> Vec<Column<F>> { Column::singles(col_map().inst) }

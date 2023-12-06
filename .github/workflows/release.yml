@@ -1,0 +1,62 @@
+# Adapted from Lighthouse: https://github.com/sigp/lighthouse/blob/stable/.github/workflows/release.yml
+name: Release
+
+on:
+  push:
+    tags:
+      - v*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-runner:
+    uses: ./.github/workflows/check-runner.yml
+    secrets: inherit
+
+  draft-release:
+    name: draft release
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    permissions:
+      # Required to post the release
+      contents: write
+    steps:
+      # This is necessary for generating the changelog.
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" | tee --append "$GITHUB_ENV"
+      # ==============================
+      #       Create release draft
+      # ==============================
+      - name: Generate full changelog
+        run: |
+          tee --append "$GITHUB_ENV" << ENDBODY
+          CHANGELOG<<EOF
+          $(git log --pretty=tformat:"- %s" $(git describe --tags --abbrev=0 ${TAG_NAME}^)..${TAG_NAME})
+          EOF
+          ENDBODY
+
+      - name: Create Release Draft
+        env:
+          GITHUB_USER: ${{ github.repository_owner }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+        # The formatting here is borrowed from OpenEthereum: https://github.com/openethereum/openethereum/blob/main/.github/workflows/build.yml
+        run: |
+          gh release create --verify-tag --draft --notes-file - "$TAG_NAME" << ENDBODY
+          <Release Name, Version and Time>
+
+          ## Summary
+
+          Add a summary.
+
+          ## All Changes
+
+          ${CHANGELOG}
+          ENDBODY

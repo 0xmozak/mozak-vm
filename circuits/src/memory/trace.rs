@@ -7,4 +7,9 @@ pub fn get_memory_inst_addr<F: RichField>(row: &Row<F>) -> F {
 }
 
 #[must_use]
+pub fn get_memory_raw_value<F: RichField>(row: &Row<F>) -> F {
+    F::from_canonical_u32(row.aux.mem.unwrap_or_default().raw_value)
+}
+
+#[must_use]
 pub fn get_memory_inst_clk<F: RichField>(row: &Row<F>) -> F { F::from_canonical_u64(row.state.clk) }

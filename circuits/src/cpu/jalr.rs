@@ -2,9 +2,13 @@
 //! JALR writes the address of the instruction following the jump, being pc + 4,
 //! And then sets the target address with sum of signed immediate and rs1.
 
+use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
 use plonky2::field::types::Field;
-use starky::constraint_consumer::ConstraintConsumer;
+use plonky2::hash::hash_types::RichField;
+use plonky2::iop::ext_target::ExtensionTarget;
+use plonky2::plonk::circuit_builder::CircuitBuilder;
+use starky::constraint_consumer::{ConstraintConsumer, RecursiveConstraintConsumer};
 
 use super::columns::CpuState;
 
@@ -37,6 +41,44 @@ pub(crate) fn constraints<P: PackedField>(
     );
 }
 
+pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    lv: &CpuState<ExtensionTarget<D>>,
+    nv: &CpuState<ExtensionTarget<D>>,
+    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+) {
+    let wrap_at = builder.constant_extension(F::Extension::from_noncanonical_u64(1 << 32));
+
+    let four = builder.constant_extension(F::Extension::from_noncanonical_u64(4));
+    let return_address = builder.add_extension(lv.inst.pc, four);
+    let wrapped_return_address = builder.sub_extension(return_address, wrap_at);
+
+    let destination = lv.dst_value;
+    let jalr_op = lv.inst.ops.jalr;
+    let destination_sub_return_address = builder.sub_extension(destination, return_address);
+    let destination_sub_wrapped_return_address =
+        builder.sub_extension(destination, wrapped_return_address);
+
+    // Temporary variable for the first constraint
+    let temp1 = builder.mul_extension(
+        destination_sub_return_address,
+        destination_sub_wrapped_return_address,
+    );
+    let constraint1 = builder.mul_extension(jalr_op, temp1);
+    yield_constr.constraint(builder, constraint1);
+
+    let jump_target = builder.add_extension(lv.op1_value, lv.op2_value);
+    let wrapped_jump_target = builder.sub_extension(jump_target, wrap_at);
+    let new_pc = nv.inst.pc;
+    let new_pc_sub_jump_target = builder.sub_extension(new_pc, jump_target);
+    let new_pc_sub_wrapped_jump_target = builder.sub_extension(new_pc, wrapped_jump_target);
+
+    // Temporary variable for the second constraint
+    let temp2 = builder.mul_extension(new_pc_sub_jump_target, new_pc_sub_wrapped_jump_target);
+    let constraint2 = builder.mul_extension(jalr_op, temp2);
+    yield_constr.constraint_transition(builder, constraint2);
+}
+
 #[cfg(test)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
@@ -51,7 +93,7 @@ mod tests {
     #[test]
     fn prove_jalr_goto_no_rs1() {
         let (program, record) = simple_test_code(
-            &[Instruction {
+            [Instruction {
                 op: Op::JALR,
                 args: Args {
                     rd: 0,
@@ -70,7 +112,7 @@ mod tests {
     #[test]
     fn prove_jalr_goto_rs1_zero() {
         let (program, record) = simple_test_code(
-            &[Instruction {
+            [Instruction {
                 op: Op::JALR,
                 args: Args {
                     rd: 0,
@@ -89,7 +131,7 @@ mod tests {
     #[test]
     fn prove_jalr_goto_imm_zero_rs1_not_zero() {
         let (program, record) = simple_test_code(
-            &[Instruction {
+            [Instruction {
                 op: Op::JALR,
                 args: Args {
                     rd: 0,
@@ -108,7 +150,7 @@ mod tests {
     #[test]
     fn prove_jalr() {
         let (program, record) = simple_test_code(
-            &[Instruction {
+            [Instruction {
                 op: Op::JALR,
                 args: Args {
                     rd: 1,
@@ -126,7 +168,7 @@ mod tests {
 
     fn prove_triple_jalr<Stark: ProveAndVerify>() {
         let (program, record) = simple_test_code(
-            &[
+            [
                 Instruction {
                     op: Op::JALR,
                     args: Args {
@@ -169,7 +211,7 @@ mod tests {
             let jump_target: u32 = 8;
             let imm = jump_target.wrapping_sub(rs1_val);
             let (program, record) = simple_test_code(
-                &[Instruction {
+                [Instruction {
                     op: Op::JALR,
                     args: Args {
                         rd,

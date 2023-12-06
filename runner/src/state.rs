@@ -10,9 +10,9 @@ use plonky2::hash::poseidon2::WIDTH;
 use serde::{Deserialize, Serialize};
 
 use crate::elf::{Code, Data, Program};
-use crate::instruction::{Args, Instruction};
+use crate::instruction::{Args, DecodingError, Instruction};
 
-/// State of our VM
+/// State of RISC-V VM
 ///
 /// Note: In general clone is not necessarily what you want, but in our case we
 /// carefully picked the type of `memory` to be clonable in about O(1)
@@ -27,12 +27,14 @@ use crate::instruction::{Args, Instruction};
 /// You can think of this as instructions being cached at the start of the
 /// program and that cache never updating afterwards.
 ///
-/// This is very similar to what many real world CPUs, including Risc-V ones, do
+/// This is very similar to what many real world CPUs, including RISC-V ones, do
 /// by default. The FENCE instruction can be used to make the CPU update the
 /// instruction cache on many CPUs.  But we deliberately don't support that
 /// usecase.
 #[derive(Clone, Debug)]
 pub struct State<F: RichField> {
+    /// Clock used to count how many execution are executed
+    /// Also used to avoid infinite loop
     pub clk: u64,
     pub halted: bool,
     pub registers: [u32; 32],
@@ -44,17 +46,30 @@ pub struct State<F: RichField> {
 }
 
 #[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
-pub struct IoTape {
+pub struct IoTapeData {
     #[deref]
     pub data: Rc<Vec<u8>>,
     pub read_index: usize,
 }
 
-impl From<&[u8]> for IoTape {
-    fn from(data: &[u8]) -> Self {
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
+pub struct IoTape {
+    #[deref]
+    private: IoTapeData,
+    public: IoTapeData,
+}
+
+impl From<(&[u8], &[u8])> for IoTape {
+    fn from(data: (&[u8], &[u8])) -> Self {
         Self {
-            data: Rc::new(data.to_vec()),
-            read_index: 0,
+            private: IoTapeData {
+                data: Rc::new(data.0.to_vec()),
+                read_index: 0,
+            },
+            public: IoTapeData {
+                data: Rc::new(data.1.to_vec()),
+                read_index: 0,
+            },
         }
     }
 }
@@ -66,7 +81,7 @@ impl From<&[u8]> for IoTape {
 impl<F: RichField> Default for State<F> {
     fn default() -> Self {
         Self {
-            clk: 1,
+            clk: 2,
             halted: Default::default(),
             registers: Default::default(),
             pc: Default::default(),
@@ -113,7 +128,8 @@ pub struct MemEntry {
 pub enum IoOpcode {
     #[default]
     None,
-    Store,
+    StorePrivate,
+    StorePublic,
 }
 #[derive(Debug, Clone, Default)]
 pub struct IoEntry {
@@ -122,20 +138,25 @@ pub struct IoEntry {
     pub data: Vec<u8>,
 }
 
-// First part in pair is preimage and second is output.
-pub type Poseidon2SpongeData<F> = Vec<([F; WIDTH], [F; WIDTH])>;
+#[derive(Debug, Clone, Default)]
+pub struct Poseidon2SpongeData<F> {
+    pub preimage: [F; WIDTH],
+    pub output: [F; WIDTH],
+    pub gen_output: F,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct Poseidon2Entry<F: RichField> {
     pub addr: u32,
+    pub output_addr: u32,
     pub len: u32,
-    pub sponge_data: Poseidon2SpongeData<F>,
+    pub sponge_data: Vec<Poseidon2SpongeData<F>>,
 }
 
 /// Auxiliary information about the instruction execution
 #[derive(Debug, Clone, Default)]
 pub struct Aux<F: RichField> {
-    // This could be an Option<u32>, but given how Risc-V instruction are specified,
+    // This could be an Option<u32>, but given how RISC-V instruction are specified,
     // 0 serves as a default value just fine.
     pub dst_val: u32,
     pub new_pc: u32,
@@ -157,13 +178,14 @@ impl<F: RichField> State<F> {
             entry_point: pc,
             ..
         }: Program,
-        io_tape: &[u8],
+        io_tape_private: &[u8],
+        io_tape_public: &[u8],
     ) -> Self {
         Self {
             pc,
             rw_memory,
             ro_memory,
-            io_tape: io_tape.into(),
+            io_tape: (io_tape_private, io_tape_public).into(),
             ..Default::default()
         }
     }
@@ -318,23 +340,47 @@ impl<F: RichField> State<F> {
     }
 
     #[must_use]
-    pub fn current_instruction(&self, program: &Program) -> Instruction {
+    pub fn current_instruction<'a>(
+        &self,
+        program: &'a Program,
+    ) -> Option<&'a Result<Instruction, DecodingError>> {
         let pc = self.get_pc();
         let inst = program.ro_code.get_instruction(pc);
-        trace!("PC: {pc:#x?}, Decoded Inst: {inst:?}");
+        let clk = self.clk;
+        trace!("CLK: {clk:#?}, PC: {pc:#x?}, Decoded Inst: {inst:?}");
         inst
     }
 
+    ///  Read bytes from `io_tape`.
+    ///
+    ///  # Panics
+    ///  Panics if number of requested bytes are more than remaining bytes on
+    /// `io_tape`.
+    /// TODO(Matthias): remove that limitation (again).
     #[must_use]
-    pub fn read_iobytes(mut self, num_bytes: usize) -> (Vec<u8>, Self) {
-        let read_index = self.io_tape.read_index;
-        let remaining_len = self.io_tape.len() - read_index;
-        let limit = num_bytes.min(remaining_len);
-        self.io_tape.read_index += limit;
-        (
-            self.io_tape.data[read_index..(read_index + limit)].to_vec(),
-            self,
-        )
+    pub fn read_iobytes(mut self, num_bytes: usize, op: IoOpcode) -> (Vec<u8>, Self) {
+        assert!(matches!(op, IoOpcode::StorePublic | IoOpcode::StorePrivate));
+        if op == IoOpcode::StorePublic {
+            log::trace!("ECALL Public IO_READ at CLK: {:?}", self.clk);
+            let read_index = self.io_tape.public.read_index;
+            let remaining_len = self.io_tape.public.data.len() - read_index;
+            let limit = num_bytes.min(remaining_len);
+            self.io_tape.public.read_index += limit;
+            (
+                self.io_tape.public.data[read_index..(read_index + limit)].to_vec(),
+                self,
+            )
+        } else {
+            log::trace!("ECALL Private IO_READ at CLK: {:?}", self.clk);
+            let read_index = self.io_tape.private.read_index;
+            let remaining_len = self.io_tape.private.data.len() - read_index;
+            let limit = num_bytes.min(remaining_len);
+            self.io_tape.private.read_index += limit;
+            (
+                self.io_tape.private.data[read_index..(read_index + limit)].to_vec(),
+                self,
+            )
+        }
     }
 }
 
@@ -344,10 +390,15 @@ mod test {
 
     #[test]
     fn test_io_tape_serialization() {
-        let io_tape = IoTape::from(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..]);
+        let io_tape = IoTape::from((
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..],
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..],
+        ));
         let serialized = serde_json::to_string(&io_tape).unwrap();
         let deserialized: IoTape = serde_json::from_str(&serialized).unwrap();
-        assert_eq!(io_tape.read_index, deserialized.read_index);
-        assert_eq!(io_tape.data, deserialized.data);
+        assert_eq!(io_tape.private.read_index, deserialized.private.read_index);
+        assert_eq!(io_tape.private.data, deserialized.private.data);
+        assert_eq!(io_tape.public.read_index, deserialized.public.read_index);
+        assert_eq!(io_tape.public.data, deserialized.public.data);
     }
 }

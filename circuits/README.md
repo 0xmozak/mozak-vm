@@ -150,51 +150,7 @@ You can refer to the documentation in the `stark/permutation.rs` for more detail
 
 ### Subset Arguments (Lookups)
 
-Subset Argument (commonly referred to as Lookup) checks if a set of values (tuple of values) of a
-*looking* column (group of columns), is subset of a set of values (tuple of values) of a *looked*
-column (group of columns). The converse is not required to be true, as the looked column (group of columns)
-might have more unique values than the looking column (group of columns). Nevertheless, both looking and looked columns
-must have the same number of rows.
-
-The Subset Argument under the hood use two Permutation Arguments, adds twice the number of new columns as number of
-looked columns, and creates degree one constraint between the newly added groups of columns.
-
-To give some intuition on how it works, lets assume we want to do lookups between a _Looking Column_ and the _Looked
-Column_. For sets of columns it works identically. First, we add two more columns - _Permuted Looking Column_ and
-_Permuted Looked Column_. We populate the _Permuted Looking Column_ with rows of *Looking Column*, grouped by the
-values. We then populate the rows of the _Permuted Looked Column_ with values from the _Looked Column_ in the following
-way:
-
-- If the same row is present in the _Looking Column_, we place it at the same row index as this rows first occurrence in
-  the _Permuted Looking Column_.
-- Otherwise, we leave it until the end to fill in all the blank index positions.
-
-Now, to make sure we have the Subset Lookup working, it is enough for us to check:
-
-1. The permutation between _Column 1_ and _Permuted Column 1_
-2. The permutation between _Column 2_ and _Permuted Column 2_
-3. For each row:
-    - Either value in _Permuted Column 1_ equals the value in _Permuted Column 2_.
-    - Or value in _Permuted Column 1_ is the same as value in _Permuted Column 1_ one row above.
-
-_Below is the illustration of the subset lookup between looking Column 1 and looked Column 2, with the 2 introduced
-helper columns._
-
-| Column 1 | Permuted Column 1 | Permuted Column 2 | Column 2 |
-|----------|-------------------|-------------------|----------|
-| 1        | 1                 | 1                 | 1        |
-| 2        | 1                 | 4                 | 2        |
-| 3        | 1                 | 5                 | 3        |
-| 1        | 2                 | 2                 | 4        |
-| 1        | 3                 | 3                 | 5        |
-| 3        | 3                 | 6                 | 6        |
-
-You can refer to the documentation in the `lookup.rs` for more details on how it is implemented.
-
-Also, one can refer to several sources we have used as an inspiration for our codebase:
-
-- [ZCash Halo2 lookup docs](https://zcash.github.io/halo2/design/proving-system/lookup.html)
-- [ZK Meetup Seoul ECC X ZKS Deep dive on Halo2](https://www.youtube.com/watch?v=YlTt12s7vGE&t=5237s)
+TODO: Add a description of how subset arguments work now.  Compare [How Miden does it](https://0xpolygonmiden.github.io/miden-vm/design/lookups/logup.html)
 
 ### Cross Table Permutation (Multi-Multi-Set) Arguments
 
@@ -260,7 +216,7 @@ This summarises the types of arguments used in the codebase.
 After we have defined the constraints, we need to fill in the tables with values that actually fulfill the constraints.
 This is done in the `generation` module based on the trace of the program and the code of the program.
 
-## Stark Cryptography
+## STARK Cryptography
 
 As the **Plonky2** API is quite limiting, especially when it comes to the CTL, we had to actually use all the primitives
 directly and not their abstractions. This is why in the `stark` module you will find the STARK protocol implementation.

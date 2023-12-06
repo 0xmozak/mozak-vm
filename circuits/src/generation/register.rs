@@ -1,10 +1,10 @@
 use itertools::{chain, izip, Itertools};
-use mozak_runner::elf::Program;
 use mozak_runner::instruction::Args;
 use mozak_runner::state::State;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::hash::hash_types::RichField;
 
+use crate::generation::MIN_TRACE_LENGTH;
 use crate::register::columns::{dummy, init, read, write, Ops, Register};
 
 /// Sort rows into blocks of ascending addresses, and then sort each block
@@ -33,7 +33,7 @@ fn init_register_trace<F: RichField>(state: &State<F>) -> Vec<Register<F>> {
 
 #[must_use]
 pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> {
-    let len = trace.len().next_power_of_two().max(4);
+    let len = trace.len().next_power_of_two().max(MIN_TRACE_LENGTH);
     trace.resize(len, Register {
         ops: dummy(),
         // ..And fill other columns with duplicate of last real trace row.
@@ -52,10 +52,7 @@ pub fn pad_trace<F: RichField>(mut trace: Vec<Register<F>>) -> Vec<Register<F>> 
 /// 3) pad with dummy rows (`is_used` == 0) to ensure that trace is a power of
 ///    2.
 #[must_use]
-pub fn generate_register_trace<F: RichField>(
-    program: &Program,
-    record: &ExecutionRecord<F>,
-) -> Vec<Register<F>> {
+pub fn generate_register_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<Register<F>> {
     let ExecutionRecord {
         executed,
         last_state,
@@ -65,9 +62,9 @@ pub fn generate_register_trace<F: RichField>(
         |reg: fn(&Args) -> u8, ops: Ops<F>, clk_offset: u64| -> _ {
             executed
                 .iter()
-                .filter(move |row| reg(&row.state.current_instruction(program).args) != 0)
+                .filter(move |row| reg(&row.instruction.args) != 0)
                 .map(move |row| {
-                    let reg = reg(&row.state.current_instruction(program).args);
+                    let reg = reg(&row.instruction.args);
 
                     // Ignore r0 because r0 should always be 0.
                     // TODO: assert r0 = 0 constraint in CPU trace.
@@ -118,6 +115,7 @@ pub fn generate_register_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
+    use mozak_runner::elf::Program;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::simple_test_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
@@ -152,7 +150,7 @@ mod tests {
             }),
         ];
 
-        simple_test_code(&instructions, &[], &[(6, 100), (7, 200)])
+        simple_test_code(instructions, &[], &[(6, 100), (7, 200)])
     }
 
     #[rustfmt::skip]
@@ -191,12 +189,12 @@ mod tests {
     #[test]
     #[rustfmt::skip]
     fn generate_reg_trace() {
-        let (program, record) = setup();
+        let (_program, record) = setup();
 
         // TODO: generate this from cpu rows?
         // For now, use program and record directly to avoid changing the CPU columns
         // yet.
-        let trace = generate_register_trace::<F>(&program, &record);
+        let trace = generate_register_trace::<F>(&record);
 
         // This is the actual trace of the instructions.
         let mut expected_trace = prep_table(
@@ -210,23 +208,23 @@ mod tests {
                 [    2,    0,             0,                 0,        1,      0,       0], // init
                 [    3,    0,             0,                 0,        1,      0,       0], // init
                 [    4,    0,             0,                 0,        1,      0,       0], // init
-                [    4,  300,             5,                 5,        0,      0,       1], // 1st inst
-                [    4,  300,             6,                 1,        0,      1,       0], // 2nd inst
-                [    4,  500,            11,                 5,        0,      0,       1], // 3rd inst
-                [    5,    0,             0,           neg(11),        1,      0,       0], // init
-                [    5,  400,             8,                 8,        0,      0,       1], // 2nd inst
-                [    5,  400,             9,                 1,        0,      1,       0], // 3rd inst
-                [    6,  100,             0,            neg(9),        1,      0,       0], // init
-                [    6,  100,             3,                 3,        0,      1,       0], // 1st inst
-                [    6,  100,             7,                 4,        0,      1,       0], // 2nd inst
-                [    7,  200,             0,            neg(7),        1,      0,       0], // init
-                [    7,  200,             4,                 4,        0,      1,       0], // 1st inst
-                [    8,    0,             0,            neg(4),        1,      0,       0], // init
+                [    4,  300,             8,                 8,        0,      0,       1], // 1st inst
+                [    4,  300,             9,                 1,        0,      1,       0], // 2nd inst
+                [    4,  500,            14,                 5,        0,      0,       1], // 3rd inst
+                [    5,    0,             0,           neg(14),        1,      0,       0], // init
+                [    5,  400,            11,                11,        0,      0,       1], // 2nd inst
+                [    5,  400,            12,                 1,        0,      1,       0], // 3rd inst
+                [    6,  100,             0,           neg(12),        1,      0,       0], // init
+                [    6,  100,             6,                 6,        0,      1,       0], // 1st inst
+                [    6,  100,            10,                 4,        0,      1,       0], // 2nd inst
+                [    7,  200,             0,           neg(10),        1,      0,       0], // init
+                [    7,  200,             7,                 7,        0,      1,       0], // 1st inst
+                [    8,    0,             0,            neg(7),        1,      0,       0], // init
                 [    9,    0,             0,                 0,        1,      0,       0], // init
                 [    10,   0,             0,                 0,        1,      0,       0], // init
                 // This is one part of the instructions added in the setup fn `simple_test_code()`
-                [    10,   0,            14,                14,        0,      0,       1],
-                [    11,   0,             0,           neg(14),        1,      0,       0], // init
+                [    10,   0,            17,                17,        0,      0,       1],
+                [    11,   0,             0,           neg(17),        1,      0,       0], // init
             ],
         );
 

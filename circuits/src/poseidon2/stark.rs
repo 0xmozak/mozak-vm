@@ -1,10 +1,8 @@
-use std::fmt::Display;
 use std::marker::PhantomData;
 
+use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
-use plonky2::field::polynomial::PolynomialValues;
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::Poseidon2;
 use plonky2::iop::ext_target::ExtensionTarget;
@@ -14,8 +12,8 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use super::columns::Poseidon2State;
-use crate::display::derive_display_stark_name;
-use crate::poseidon2::columns::{NUM_POSEIDON2_COLS, ROUNDS_F, ROUNDS_P, SBOX_DEGREE, STATE_SIZE};
+use crate::columns_view::HasNamedColumns;
+use crate::poseidon2::columns::{NUM_POSEIDON2_COLS, ROUNDS_F, ROUNDS_P, STATE_SIZE};
 use crate::stark::utils::is_binary;
 
 // degree: 1
@@ -44,20 +42,15 @@ where
     out
 }
 
-// degree: SBOX_DEGREE (7)
+// degree: 3
 fn sbox_p_constraints<F: RichField + Extendable<D>, const D: usize, FE, P, const D2: usize>(
-    state: &P,
+    x: &P,
+    x_qube: &P,
 ) -> P
 where
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
-    let mut out = P::ONES;
-
-    for _ in 0..SBOX_DEGREE {
-        out = out.mul(*state);
-    }
-
-    out
+    *x_qube * *x_qube * *x
 }
 
 fn matmul_m4_constraints<
@@ -182,11 +175,14 @@ where
     out
 }
 
-derive_display_stark_name!(Poseidon2_12Stark);
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct Poseidon2_12Stark<F, const D: usize> {
     pub _f: PhantomData<F>,
+}
+
+impl<F, const D: usize> HasNamedColumns for Poseidon2_12Stark<F, D> {
+    type Columns = Poseidon2State<F>;
 }
 
 const COLUMNS: usize = NUM_POSEIDON2_COLS;
@@ -207,7 +203,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &Poseidon2State<P> = vars.get_local_values().try_into().unwrap();
+        let lv: &Poseidon2State<P> = vars.get_local_values().into();
 
         // row can be execution or padding.
         is_binary(yield_constr, lv.is_exe);
@@ -219,7 +215,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
             state = add_rc_constraints(&state, r);
             #[allow(clippy::needless_range_loop)]
             for i in 0..STATE_SIZE {
-                state[i] = sbox_p_constraints(&state[i]);
+                state[i] = sbox_p_constraints(
+                    &state[i],
+                    &lv.s_box_input_qube_first_full_rounds[r * STATE_SIZE + i],
+                );
             }
             state = matmul_external12_constraints(&state);
             for (i, state_i) in state.iter_mut().enumerate().take(STATE_SIZE) {
@@ -232,7 +231,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         // partial rounds
         for i in 0..ROUNDS_P {
             state[0] += FE::from_basefield(F::from_canonical_u64(<F as Poseidon2>::RC12_MID[i]));
-            state[0] = sbox_p_constraints(&state[0]);
+            state[0] = sbox_p_constraints(&state[0], &lv.s_box_input_qube_partial_rounds[i]);
             state = matmul_internal12_constraints(&state);
             yield_constr.constraint(state[0] - lv.state0_after_partial_rounds[i]);
             state[0] = lv.state0_after_partial_rounds[i];
@@ -250,7 +249,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
             state = add_rc_constraints(&state, r);
             #[allow(clippy::needless_range_loop)]
             for j in 0..STATE_SIZE {
-                state[j] = sbox_p_constraints(&state[j]);
+                state[j] = sbox_p_constraints(
+                    &state[j],
+                    &lv.s_box_input_qube_second_full_rounds[i * STATE_SIZE + j],
+                );
             }
             state = matmul_external12_constraints(&state);
             for (j, state_j) in state.iter_mut().enumerate().take(STATE_SIZE) {
@@ -261,7 +263,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         }
     }
 
-    fn constraint_degree(&self) -> usize { 7 }
+    fn constraint_degree(&self) -> usize { 3 }
 
     fn eval_ext_circuit(
         &self,
@@ -273,18 +275,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
     }
 }
 
-pub fn trace_to_poly_values<F: Field, const COLUMNS: usize>(
-    trace: [Vec<F>; COLUMNS],
-) -> Vec<PolynomialValues<F>> {
-    trace.into_iter().map(PolynomialValues::new).collect()
-}
-
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use mozak_runner::state::{Aux, Poseidon2Entry};
-    use mozak_runner::vm::Row;
-    use plonky2::field::types::Sample;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use plonky2::util::timing::TimingTree;
     use starky::config::StarkConfig;
@@ -293,9 +286,9 @@ mod tests {
     use starky::verifier::verify_stark_proof;
 
     use crate::generation::poseidon2::generate_poseidon2_trace;
-    use crate::poseidon2::columns::STATE_SIZE;
     use crate::poseidon2::stark::Poseidon2_12Stark;
     use crate::stark::utils::trace_rows_to_poly_values;
+    use crate::test_utils::{create_poseidon2_test, Poseidon2Test};
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
@@ -308,30 +301,13 @@ mod tests {
         config.fri_config.cap_height = 0;
         config.fri_config.rate_bits = 3; // to meet the constraint degree bound
 
-        let num_rows = 12;
-        let mut step_rows = vec![];
-        let mut sponge_data = vec![];
+        let (_program, record) = create_poseidon2_test(&[Poseidon2Test {
+            data: "😇 Mozak is knowledge arguments based technology".to_string(),
+            input_start_addr: 1024,
+            output_start_addr: 2048,
+        }]);
 
-        for _ in 0..num_rows {
-            let preimage = (0..STATE_SIZE).map(|_| F::rand()).collect::<Vec<_>>();
-            // NOTE: this stark does not use output from sponge_data so its okay to pass all
-            // ZERO as output
-            sponge_data.push((
-                preimage.try_into().expect("can't fail"),
-                [F::default(); STATE_SIZE],
-            ));
-        }
-        step_rows.push(Row {
-            aux: Aux {
-                poseidon2: Some(Poseidon2Entry::<F> {
-                    addr: 0,
-                    len: 0, // does not matter
-                    sponge_data,
-                }),
-                ..Default::default()
-            },
-            ..Default::default()
-        });
+        let step_rows = record.executed;
 
         let stark = S::default();
         let trace = generate_poseidon2_trace(&step_rows);

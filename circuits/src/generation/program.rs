@@ -11,9 +11,13 @@ pub fn generate_program_rom_trace<F: RichField>(program: &Program) -> Vec<Progra
     let mut roms = program
         .ro_code
         .iter()
-        .map(|(&pc, &inst)| ProgramRom {
-            filter: F::ONE,
-            inst: InstructionRow::from(Instruction::from((pc, inst)).map(F::from_canonical_u32)),
+        .filter_map(|(&pc, &inst)| {
+            Some(ProgramRom {
+                filter: F::ONE,
+                inst: InstructionRow::from(
+                    Instruction::from((pc, inst.ok()?)).map(F::from_canonical_u32),
+                ),
+            })
         })
         .collect::<Vec<_>>();
 

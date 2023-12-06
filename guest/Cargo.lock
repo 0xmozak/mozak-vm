@@ -5,3 +5,10 @@ version = 3
 [[package]]
 name = "guest"
 version = "0.1.0"
+dependencies = [
+ "mozak-system",
+]
+
+[[package]]
+name = "mozak-system"
+version = "0.1.0"

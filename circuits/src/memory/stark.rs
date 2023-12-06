@@ -1,6 +1,6 @@
-use std::fmt::Display;
 use std::marker::PhantomData;
 
+use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
 use plonky2::hash::hash_types::RichField;
@@ -11,12 +11,10 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::display::derive_display_stark_name;
-use crate::memory::columns::Memory;
-use crate::stark::utils::is_binary;
+use crate::memory::columns::{is_executed_ext_circuit, Memory};
+use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
-derive_display_stark_name!(MemoryStark);
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
 pub struct MemoryStark<F, const D: usize> {
     pub _f: PhantomData<F>,
@@ -46,22 +44,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        let lv: &Memory<P> = vars.get_local_values().try_into().unwrap();
-        let nv: &Memory<P> = vars.get_next_values().try_into().unwrap();
-
-        // Boolean variables describing whether the current row and
-        // next row has a change of address when compared to the
-        // previous entry in the table. This works on the assumption
-        // that any change in addr will have non-zero `diff_addr` and
-        // consequently `diff_addr_inv` values. Any non-zero values for
-        // `diff_addr` will lead "correct" `diff_addr_inv` to be multiplicative
-        // inverse in the field leading multiplied value `1`. In case there is
-        // no change in addr, `diff_addr` (and consequently `diff_addr_inv`)
-        // remain `0` when multiplied to each other give `0`.
-        let (is_local_a_new_addr, is_next_a_new_addr) = (
-            lv.diff_addr * lv.diff_addr_inv, // constrained below
-            nv.diff_addr * nv.diff_addr_inv, // constrained below
-        );
+        // TODO(Matthias): see whether we need to add a constraint to forbid two is_init
+        // in a row (with the same address).
+        let lv: &Memory<P> = vars.get_local_values().into();
+        let nv: &Memory<P> = vars.get_next_values().into();
 
         // Boolean constraints
         // -------------------
@@ -73,58 +59,40 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary(yield_constr, lv.is_init);
         is_binary(yield_constr, lv.is_executed());
 
-        // `is_local_a_new_addr` should be binary. To keep constraint degree <= 3,
-        // the following is used
-        yield_constr.constraint(lv.diff_addr * (P::ONES - is_local_a_new_addr));
-
-        // `is_next_a_new_addr` should be binary. However under context where `nv` is
-        // `lv` a similar test runs as given above constraining it being a
-        // boolean. Hence, we do not explicitly check for `is_next_a_new_addr`
-        // to be boolean here.
-
-        // First row constraints
-        // ---------------------
-        // When starting off, the first `addr` we encounter is supposed to be
-        // relatively away from `0` by `diff_addr`, consequently `addr` and
-        // `diff_addr` are same for the first row. As a matter of preference,
-        // we can have any `clk` in the first row, but `diff_clk` is `0`.
-        // This is because when `addr` changes, `diff_clk` is expected to be `0`.
-        yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
-        yield_constr.constraint_first_row(lv.diff_clk);
-
-        // Ascending ordered, contigous "address" view constraint
-        // ------------------------------------------------------
-        // All memory init / accesses for a given `addr` is described via contigous
-        // rows. This is constrained by range-check on `diff_addr` which in 32-bit
-        // RISC can only assume values 0..1<<32. If similar range-checking
-        // constraint is put on `addr` as well, the only possibility of
-        // non-contigous address view occurs when the prime order of field in
-        // question is of size less than 2*(2^32 - 1).
-
         // Memory initialization Constraints
         // ---------------------------------
         // The memory table is assumed to be ordered by `addr` in ascending order.
         // such that whenever we describe an memory init / access
-        // pattern of an "address", a correct table gurantees the following:
-        //    All rows for a specific `addr` start with either a memory init (via static
-        //    ELF) with `is_init` flag set (case for ro or rw static memory) or `SB`
-        //    (case for heap / other dynamic addresses). It is assumed that static
-        //    memory init operation happens before any execution has started and
-        //    consequently `clk` should be `0` for such entries.
-        // NOTE: We rely on 'Ascending ordered, contigous "address" view constraint'
-        // to provide us with a guarantee of single contigous block of rows per `addr`.
-        // If that gurantee does not exist, for some address `x`, different contigous
-        // blocks of rows in memory table can present case for them being derived from
-        // static ELF and dynamic (execution) at the same time or being writable as
+        // pattern of an "address", a correct table guarantees the following:
+        //
+        // All rows for a specific `addr` start with either:
+        //   1) a memory init (via static ELF), or
+        //   2) a zero init (case for heap / other dynamic addresses).
+        // For these starting rows, `is_init` will be true.
+        //
+        // 1) Memory Init
+        //   All memory init rows will have clk `0`.
+        //
+        // 2) Zero Init
+        //   All zero initialized memory will have clk `1` and value `0`. They
+        //   should also be writable.
+        //
+        // NOTE: We rely on 'Ascending ordered, contiguous
+        // "address" view constraint' to provide us with a guarantee of single
+        // contiguous block of rows per `addr`. If that guarantee does not exist,
+        // for some address `x`, different contiguous blocks of rows in memory
+        // table can present case for them being derived from static ELF and
+        // dynamic (execution) at the same time or being writable as
         // well as non-writable at the same time.
 
-        // All memory init happens prior to exec and the `clk` would be `0`.
-        yield_constr.constraint(lv.is_init * lv.clk);
-
-        // If instead, the `addr` talks about an address not coming from static ELF,
-        // it needs to begin with a `SB` (store) operation before any further access
-        // However `clk` value `0` is a special case.
-        yield_constr.constraint(lv.diff_addr * lv.clk * (P::ONES - lv.is_store));
+        // All memory init happens prior to exec and the `clk` would be `0` or `1`.
+        yield_constr.constraint(lv.is_init * lv.clk * (P::ONES - lv.clk));
+        // All zero inits should have value `0`.
+        // (Assumption: `is_init` == 1, `clk` == 1)
+        yield_constr.constraint(lv.is_init * lv.clk * lv.value);
+        // All zero inits should be writable.
+        // (Assumption: `is_init` == 1, `clk` == 1)
+        yield_constr.constraint(lv.is_init * lv.clk * (P::ONES - lv.is_writable));
 
         // Operation constraints
         // ---------------------
@@ -141,16 +109,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // in case the "new row" describes an `addr` different from the current
         // row, we expect `diff_clk` to be `0`. New row's clk remains
         // unconstrained in such situation.
-        yield_constr.constraint_transition(
-            (P::ONES - is_next_a_new_addr) * (nv.diff_clk - (nv.clk - lv.clk)),
-        );
-        yield_constr.constraint_transition(is_local_a_new_addr * lv.diff_clk);
-
-        // Address constraints
-        // -------------------
-        // We need to ensure that `diff_addr` always encapsulates difference in addr
-        // between two rows
-        yield_constr.constraint_transition(nv.diff_addr - (nv.addr - lv.addr));
+        yield_constr
+            .constraint_transition((P::ONES - nv.is_init) * (nv.diff_clk - (nv.clk - lv.clk)));
+        yield_constr.constraint_transition(lv.is_init * lv.diff_clk);
 
         // Padding constraints
         // -------------------
@@ -162,21 +123,75 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
     fn constraint_degree(&self) -> usize { 3 }
 
+    #[allow(clippy::similar_names)]
     fn eval_ext_circuit(
         &self,
-        _builder: &mut CircuitBuilder<F, D>,
-        _vars: &Self::EvaluationFrameTarget,
-        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        unimplemented!()
+        let lv: &Memory<ExtensionTarget<D>> = vars.get_local_values().into();
+        let nv: &Memory<ExtensionTarget<D>> = vars.get_next_values().into();
+
+        is_binary_ext_circuit(builder, lv.is_writable, yield_constr);
+        is_binary_ext_circuit(builder, lv.is_store, yield_constr);
+        is_binary_ext_circuit(builder, lv.is_load, yield_constr);
+        is_binary_ext_circuit(builder, lv.is_init, yield_constr);
+        let lv_is_executed = is_executed_ext_circuit(builder, lv);
+        is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
+
+        let is_init_mul_clk = builder.mul_extension(lv.is_init, lv.clk);
+
+        let one = builder.one_extension();
+        let one_sub_clk = builder.sub_extension(one, lv.clk);
+        let is_init_mul_clk_mul_one_sub_clk = builder.mul_extension(is_init_mul_clk, one_sub_clk);
+        yield_constr.constraint(builder, is_init_mul_clk_mul_one_sub_clk);
+
+        let is_init_mul_clk_mul_value = builder.mul_extension(is_init_mul_clk, lv.value);
+        yield_constr.constraint(builder, is_init_mul_clk_mul_value);
+
+        let one_sub_is_writable = builder.sub_extension(one, lv.is_writable);
+        let is_init_mul_clk_mul_one_sub_is_writable =
+            builder.mul_extension(is_init_mul_clk, one_sub_is_writable);
+        yield_constr.constraint(builder, is_init_mul_clk_mul_one_sub_is_writable);
+
+        let is_store_mul_one_sub_is_writable =
+            builder.mul_extension(lv.is_store, one_sub_is_writable);
+        yield_constr.constraint(builder, is_store_mul_one_sub_is_writable);
+
+        let nv_value_sub_lv_value = builder.sub_extension(nv.value, lv.value);
+        let is_load_mul_nv_value_sub_lv_value =
+            builder.mul_extension(nv.is_load, nv_value_sub_lv_value);
+        yield_constr.constraint(builder, is_load_mul_nv_value_sub_lv_value);
+
+        let one_sub_nv_is_init = builder.sub_extension(one, nv.is_init);
+        let nv_clk_sub_lv_clk = builder.sub_extension(nv.clk, lv.clk);
+        let nv_diff_clk_sub_nv_clk_sub_lv_clk =
+            builder.sub_extension(nv.diff_clk, nv_clk_sub_lv_clk);
+        let one_sub_nv_is_init_mul_nv_diff_clk_sub_nv_clk_sub_lv_clk =
+            builder.mul_extension(one_sub_nv_is_init, nv_diff_clk_sub_nv_clk_sub_lv_clk);
+        yield_constr.constraint_transition(
+            builder,
+            one_sub_nv_is_init_mul_nv_diff_clk_sub_nv_clk_sub_lv_clk,
+        );
+        let lv_is_init_mul_lv_diff_clk = builder.mul_extension(lv.is_init, lv.diff_clk);
+        yield_constr.constraint_transition(builder, lv_is_init_mul_lv_diff_clk);
+
+        let nv_is_executed = is_executed_ext_circuit(builder, nv);
+        let lv_is_executed_sub_nv_is_executed =
+            builder.sub_extension(lv_is_executed, nv_is_executed);
+        let constr = builder.mul_extension(nv_is_executed, lv_is_executed_sub_nv_is_executed);
+        yield_constr.constraint_transition(builder, constr);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use mozak_runner::instruction::{Args, Instruction, Op};
+    use mozak_runner::test_utils::simple_test_code;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
-    use starky::stark_testing::test_stark_low_degree;
+    use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
 
     use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
@@ -207,6 +222,65 @@ mod tests {
             let (program, executed) = memory_trace_test_case(repeats);
             MemoryStark::prove_and_verify(&program, &executed)?;
         }
+        Ok(())
+    }
+
+    pub fn memory<Stark: ProveAndVerify>(
+        iterations: u32,
+        addr_offset: u32,
+    ) -> Result<(), anyhow::Error> {
+        let instructions = [
+            Instruction {
+                op: Op::ADD,
+                args: Args {
+                    rd: 1,
+                    rs1: 1,
+                    imm: 1_u32.wrapping_neg(),
+                    ..Args::default()
+                },
+            },
+            Instruction {
+                op: Op::SB,
+                args: Args {
+                    rs1: 1,
+                    rs2: 1,
+                    imm: addr_offset,
+                    ..Args::default()
+                },
+            },
+            Instruction {
+                op: Op::BLT,
+                args: Args {
+                    rs1: 0,
+                    rs2: 1,
+                    imm: 0,
+                    ..Args::default()
+                },
+            },
+        ];
+        let (program, record) = simple_test_code(instructions, &[], &[(1, iterations)]);
+        Stark::prove_and_verify(&program, &record)
+    }
+
+    #[test]
+    fn prove_memory_mozak_example() { memory::<MozakStark<F, D>>(150, 0).unwrap(); }
+
+    use mozak_runner::test_utils::{u32_extra, u8_extra};
+    use proptest::prelude::ProptestConfig;
+    use proptest::proptest;
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(4))]
+        #[test]
+        fn prove_memory_mozak(iterations in u8_extra(), addr_offset in u32_extra()) {
+            memory::<MozakStark<F, D>>(iterations.into(), addr_offset).unwrap();
+        }
+    }
+
+    #[test]
+    fn test_circuit() -> anyhow::Result<()> {
+        let stark = S::default();
+        test_stark_circuit_constraints::<F, C, S, D>(stark)?;
+
         Ok(())
     }
 }

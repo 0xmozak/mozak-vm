@@ -95,24 +95,24 @@ impl<T: Add<Output = T>> Register<T> {
 }
 
 #[must_use]
-pub fn data_for_register_init<F: Field>() -> Vec<Column<F>> { Column::singles([MAP.addr]) }
+pub fn data_for_register_init<F: Field>() -> Vec<Column<F>> { Column::singles([col_map().addr]) }
 
 #[must_use]
-pub fn filter_for_register_init<F: Field>() -> Column<F> { Column::from(MAP.ops.is_init) }
+pub fn filter_for_register_init<F: Field>() -> Column<F> { Column::from(col_map().ops.is_init) }
 
 #[must_use]
 pub fn data_for_cpu<F: Field>() -> Vec<Column<F>> {
     vec![
-        Column::single(MAP.addr),
-        Column::single(MAP.value),
-        Column::single(MAP.augmented_clk),
-        Column::single(MAP.ops.is_read),
-        Column::single(MAP.ops.is_write),
+        Column::single(col_map().addr),
+        Column::single(col_map().value),
+        Column::single(col_map().augmented_clk),
+        Column::single(col_map().ops.is_read),
+        Column::single(col_map().ops.is_write),
     ]
 }
 
 #[must_use]
 pub fn filter_for_cpu<F: Field>() -> Column<F> {
-    let is_used = MAP.map(Column::from);
+    let is_used = col_map().map(Column::from);
     is_used.ops.is_write + is_used.ops.is_read
 }
