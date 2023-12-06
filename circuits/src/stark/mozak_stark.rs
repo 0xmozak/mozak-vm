@@ -37,7 +37,7 @@ use crate::{
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
-    12 + cfg!(feature = "enable_register_starks") as usize
+    12 + cfg!(feature = "enable_register_starks") as usize * 2
         + cfg!(feature = "enable_poseidon_starks") as usize * 3
 };
 
