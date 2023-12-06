@@ -1,4 +1,4 @@
-use itertools::{self, chain};
+use itertools::{self, chain, Itertools};
 use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -153,53 +153,48 @@ pub fn generate_memory_trace<F: RichField>(
     merged_trace.extend(transform_poseidon2_sponge(poseidon2_sponge_rows));
 
     merged_trace.sort_by_key(key);
-
-    // Ensures constraints by filling remaining inter-row
-    // relation values: clock difference and addr difference and is_writable
-    let mut last_clk = F::ZERO;
-    let mut last_addr = None;
-    let mut last_is_writable = F::ONE;
     let merged_trace = merged_trace
         .into_iter()
-        .flat_map(move |mut mem| {
-            if Some(mem.addr) == last_addr {
-                // the check doesn't pass for the first row, so this is ok.
-                mem.diff_clk = mem.clk - last_clk;
-            } else {
-                // rows with is_init set are the source of truth about is_writable
-                // non init memory are always writable
-                last_is_writable = F::from_bool(mem.is_init.is_zero() | mem.is_writable.is_one());
-            }
-            let diff_addr = mem.addr - last_addr.unwrap_or_default();
-            (last_clk, last_addr) = (mem.clk, Some(mem.addr));
-            mem.is_writable = last_is_writable;
-
-            // TODO(Matthias): Fix logic.
-            // If the row:
-            //   1) is an execution row (not padding),
-            //   2) is a new address entry in the trace i.e. diff_addr != 0
-            // Then we want to mark the current memory address as 'zeroed out'
-            // to be looked up by the `MemoryZeroInit` trace by inserting
-            // an extra init row.
-            if (mem.is_load.is_one() || mem.is_store.is_one()) && diff_addr.is_nonzero() {
-                vec![
-                    Memory {
+        .group_by(|&mem| mem.addr)
+        .into_iter()
+        .flat_map(|(_addr, mem)| {
+            let mut mem_vec = vec![];
+            let mut prev_mem: Option<Memory<F>> = None;
+            for mut current_mem in mem {
+                match prev_mem {
+                    None => {
+                        // rows with is_init set are the source of truth about is_writable
+                        current_mem.is_writable = F::from_bool(
+                            current_mem.is_init.is_zero() | current_mem.is_writable.is_one(),
+                        );
+                    }
+                    Some(prev_mem_unwrapped) => {
+                        current_mem.is_writable = prev_mem_unwrapped.is_writable;
+                        current_mem.diff_clk = current_mem.clk - prev_mem_unwrapped.clk;
+                    }
+                }
+                if prev_mem.is_none()
+                    && (current_mem.is_load.is_one() || current_mem.is_store.is_one())
+                {
+                    mem_vec.push(Memory {
                         clk: F::ONE,
                         is_store: F::ZERO,
                         is_load: F::ZERO,
                         is_init: F::ONE,
                         diff_clk: F::ZERO,
                         value: F::ZERO,
-                        ..mem
-                    },
-                    Memory {
-                        diff_clk: mem.clk - F::ONE,
-                        ..mem
-                    },
-                ]
-            } else {
-                vec![mem]
+                        ..current_mem
+                    });
+                    mem_vec.push(Memory {
+                        diff_clk: current_mem.clk - F::ONE,
+                        ..current_mem
+                    });
+                } else {
+                    mem_vec.push(current_mem);
+                }
+                prev_mem = Some(current_mem);
             }
+            mem_vec
         })
         .collect();
 
