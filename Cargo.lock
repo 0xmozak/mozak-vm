@@ -821,6 +821,7 @@ name = "mozak-circuits3"
 version = "0.1.0"
 dependencies = [
  "arrayvec",
+ "itertools 0.12.0",
  "log",
  "mozak-circuits",
  "p3-air",
