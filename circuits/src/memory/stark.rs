@@ -79,9 +79,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         //
         // In principle, zero initializations for a certain address MUST come
         // before any elf initializations to ensure we don't zero out any memory
-        // initialized by the ELF. The ELF init having a higher `clk` than
-        // the zero init ensures this via `diff_clk` being included in the
-        // range checks. If `diff_clk` range check is removed, we must
+        // initialized by the ELF. This is constrained via a rangecheck on `diff_clk`.
+        // Since clk is in ascending order, any memory address with a zero init
+        // (`clk` == 0) after an elf init (`clk` == 1) would be caught by
+        // this range check.
+        //
+        // Note that if `diff_clk` range check is removed, we must
         // include a new constraint that constrains the above relationship.
         //
         // NOTE: We rely on 'Ascending ordered, contiguous
