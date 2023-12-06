@@ -19,4 +19,3 @@ pub mod util;
 pub mod vm;
 
 extern crate alloc;
-extern crate core;
