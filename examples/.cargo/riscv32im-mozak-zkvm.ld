@@ -3,40 +3,18 @@
 /*====================================================================================================================*/
 
 /*====================================================================================================================*/
-/* Resources that helped to develop this script                                                                       */
+/* This linker-script was tested on LLD LLVM linker, it may or may not work with another linkers, the syntax and the  */
+/* parameters are sometime different from linker to linker. This linker script mostly oriented to release-build,      */
+/* since it throw away debug sections. Currently debug build works as expected without it, but maybe we will have two */
+/* scripts, one for release and one for debug, later                                                                  */
+/* Useful info howto add/remove something from this script:                                                           */
+/* 1) Add / Remove / Modify                                                                                           */
+/* 2) Enable linker map-file generation (refer to config.toml)                                                        */
+/* 3) Check that map layout looks as we expect                                                                        */
+/* 4) Use nm, objdump to list the sections, symbols, disassembly - don't assume, check !                              */
+/* 5) All this is very experimental and not document, low-level                                                       */
+/* 6) Look for useful links in README.ld file                                                                         */
 /*====================================================================================================================*/
-/*
- *
- * 1)  General info about linker-script, C & Rust statics etc ...
- *     https://mcyoung.xyz/2021/06/01/linker-script/
- * 2)  About FILL / fill commands
- *     https://mcuoneclipse.com/2014/06/23/filling-unused-memory-with-the-gnu-linker/
- * 3)  Examples of linked-scripts (RICS-V)
- *     https://github.com/Lichtso/riscv-llvm-templates/blob/master/src/spike.lds
- * 4)  RISC-V attributes sections
- *     https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc#rv-section
- * 5)  Rust info about linker-scripts
- *     https://docs.rust-embedded.org/embedonomicon/memory-layout.html
- * 6)  LLVM Linker
- *     https://lld.llvm.org/ELF/linker_script.html
- * 7)  Linux Loader
- *     http://www.dbp-consulting.com/tutorials/debugging/linuxProgramStartup.html
- * 8)  More about init/fini
- *     https://maskray.me/blog/2021-11-07-init-ctors-init-array
- * 9)  Linux exec sys-call
- *     https://linuxhint.com/linux-exec-system-call/
- * 10) About Rust run-time
- *     https://ductile.systems/rusts-runtime/
- * 11) More code about Rust run-time
- *     https://github.com/rust-lang/rust/blob/master/library/std/src/rt.rs
- * 12) Loader / ELF by Ulrich Drepper
- *     https://akkadia.org/drepper/dsohowto.pdf
- * 13) Linux kernel task-struct
- *     https://docs.huihoo.com/doxygen/linux/kernel/3.7/structtask__struct.html
- * 14) Another linker-script guide
- *     https://www.phaedsys.com/principals/emprog/emprogdata/thunderbench-Linker-Script-guide.pdf
- *
- */
 
 /*====================================================================================================================*/
 /* Mozak-zkVM memory layout                                                                                           */
@@ -63,7 +41,8 @@ OUTPUT_ARCH( "riscv32" )
 ENTRY( _start )
 
 SECTIONS {
-    /* [0] - RISCV rom (NOT IN USE) */
+    /* [0] - RISCV rom (NOT IN USE), since riscv attributes section is discarded */
+    /*       It still here, since maybe in future we will want this section back */
     /*
         .riscv : { *(.riscv); *(.riscv.attributes); *(.riscv.attributes.*); } > riscv_rom
         _riscv_start = ADDR(.riscv);
@@ -134,6 +113,8 @@ SECTIONS {
     .mozak_stack : {} > mozak_stack
 
     /* [12] - Init mozak_stack with 0xFF (NOT IN USE - runtime increased cause of FILL ) */
+    /*        This section + FILL works as expected but increase instruction count etc ..*/
+    /*        Prefer to leave it here, maybe in use later                                */
     /*
         .mozak_stack : {
             . = _mozak_stack_top;
@@ -144,16 +125,40 @@ SECTIONS {
 
     /* [13] - don't insert these sections */
     /DISCARD/ : {
+        /******************************************************/
+        /* [13.1] - sections related to note & comment        */
+        /******************************************************/
         *(.note .comment);
+
+        /******************************************************/
+        /* [13.2] - riscv sections - maybe will be used later */
+        /******************************************************/
         *(.riscv .riscv.*);
+
+        /******************************************************/
+        /* [13.3] - debug sections                            */
+        /******************************************************/
         *(.debug .debug.* .debug_*);
         *(.line .line.*);
+
+        /******************************************************/
+        /* [13.4] - exceptions - not supported at all         */
+        /******************************************************/
+        *(.eh_frame .eh_frame.*);
+
+        /******************************************************/
+        /* [13.4] - dynamic symbols, only static is supported */
+        /******************************************************/
+        *(.glink .glink.* .got .got.* .plt .plt.*);
         *(.relname .relname.* .relaname .relaname.*);
         *(.dynstr .dynstr.* .dynsym .dynsym.* .dynamic .dynamic.*);
-        *(.eh_frame .eh_frame.* .glink .glink.* .got .got.* .plt .plt.*);
-        *(.toc .toc.* .tocbss .tocbss.*);
+        *(.rela.dyn .rela.dyn.* .rela.plt .rela.plt.*);
+        *(.toc .toc.* .tocbss .tocbss.* .toc1 .toc1.*);
         *(.branch_lt .branch_lt.* .opd .opd.*);
-        *(.rela.dyn .rela.dyn.* .rela.plt .rela.plt.* .toc1 .toc1.*)
+        /******************************************************/
+        /* [13.5] - all other stuff that is not supported     */
+        /******************************************************/
+        *(.interp .interp.*);
     }
 }
 
