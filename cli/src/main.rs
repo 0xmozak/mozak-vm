@@ -21,7 +21,7 @@ use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
-use mozak_runner::elf::{RunTimeArguments, Program};
+use mozak_runner::elf::{RuntimeArguments, Program};
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
@@ -101,7 +101,7 @@ fn load_program(
 
     Program::load_program(
         &elf_bytes,
-        &RunTimeArguments::new(state_root, io_tape_private, io_tape_public),
+        &RuntimeArguments::new(state_root, io_tape_private, io_tape_public),
     )
 }
 

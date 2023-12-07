@@ -1,5 +1,5 @@
 use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
-use mozak_runner::elf::{RunTimeArguments, Program};
+use mozak_runner::elf::{RuntimeArguments, Program};
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
@@ -20,7 +20,7 @@ pub fn fibonacci_with_input(n: u32) -> Result<(), anyhow::Error> {
     let out = fibonacci(n);
     let program = Program::load_program(
         mozak_examples::FIBONACCI_INPUT_ELF,
-        &RunTimeArguments::new(&[0; 32], &n.to_le_bytes(), &out.to_le_bytes()),
+        &RuntimeArguments::new(&[0; 32], &n.to_le_bytes(), &out.to_le_bytes()),
     )
     .unwrap();
     let state = State::<GoldilocksField>::new(program.clone());

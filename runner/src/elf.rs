@@ -185,18 +185,18 @@ impl MozakMemory {
 
 /// A Mozak program runtime arguments
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct RunTimeArguments {
+pub struct RuntimeArguments {
     pub state_root: [u8; 32],
     pub timestamp: [u8; 4],
     pub io_tape_private: Vec<u8>,
     pub io_tape_public: Vec<u8>,
 }
 
-impl RunTimeArguments {
+impl RuntimeArguments {
     /// # Panics
     #[must_use]
     pub fn new(state_root: &[u8; 32], io_tape_private: &[u8], io_tape_public: &[u8]) -> Self {
-        RunTimeArguments {
+        RuntimeArguments {
             state_root: *state_root,
             timestamp: time::SystemTime::now()
                 .duration_since(time::SystemTime::UNIX_EPOCH)
@@ -450,7 +450,7 @@ impl Program {
     ///
     /// # Panics
     /// `Program::load_elf`
-    pub fn load_program(elf_bytes: &[u8], args: &RunTimeArguments) -> Result<Program> {
+    pub fn load_program(elf_bytes: &[u8], args: &RuntimeArguments) -> Result<Program> {
         let mut program = Program::load_elf(elf_bytes).unwrap();
         // [0] - State Root
         let state_root_addr = program.mozak_ro_memory.state_root.starting_address;
