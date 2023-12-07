@@ -13,13 +13,6 @@ version = "0.1.0"
 anyhow = { version = "1.0", default-features = false }
 arrayvec = { version = "0.7", default-features = false }
 bitfield = "0.14"
-clap = { version = "4.4", features = [
-  "derive",
-  "cargo",
-  "env",
-  "unicode",
-  "wrap_help",
-] }
 flexbuffers = "2.0"
 itertools = "0.12"
 log = "0.4"
