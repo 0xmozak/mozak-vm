@@ -12,7 +12,7 @@
 /* 2) Enable linker map-file generation (refer to config.toml)                                                        */
 /* 3) Check that map layout looks as we expect                                                                        */
 /* 4) Use nm, objdump to list the sections, symbols, disassembly - don't assume, check !                              */
-/* 5) All this is very experimental and not document, low-level                                                       */
+/* 5) All this is very experimental and not documented, low-level, toolchain and specific version dependent (can be)  */
 /* 6) Look for useful links in README.ld file                                                                         */
 /*====================================================================================================================*/
 
