@@ -6,6 +6,7 @@ extern crate core;
 
 use std::io::{Read, Write};
 use std::time::Duration;
+use std::time;
 
 use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
@@ -21,7 +22,7 @@ use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
-use mozak_runner::elf::{RuntimeArguments, Program};
+use mozak_runner::elf::{Program, RuntimeArguments};
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
@@ -92,6 +93,7 @@ fn load_runtime_program_args(mut io_args: impl Read, arg_name: &str) -> Result<V
 fn load_program(
     mut elf: Input,
     state_root: &[u8; 32],
+    unix_time: f32,
     io_tape_private: &[u8],
     io_tape_public: &[u8],
 ) -> Result<Program> {
@@ -101,7 +103,7 @@ fn load_program(
 
     Program::load_program(
         &elf_bytes,
-        &RuntimeArguments::new(state_root, io_tape_private, io_tape_public),
+        &RuntimeArguments::new(state_root, unix_time, io_tape_private, io_tape_public),
     )
 }
 
@@ -116,7 +118,7 @@ fn main() -> Result<()> {
         .init();
     match cli.command {
         Command::Decode { elf } => {
-            let program = load_program(elf, &[0; 32], &[], &[])?;
+            let program = load_program(elf, &[0; 32], 0.0, &[], &[])?;
             debug!("{program:?}");
         }
         Command::Run {
@@ -130,6 +132,10 @@ fn main() -> Result<()> {
                 &load_runtime_program_args(state_root, "state_root")?
                     .try_into()
                     .map_err(|actual| anyhow!("Expected vector of length 32, got: {actual:?}"))?,
+                time::SystemTime::now()
+                    .duration_since(time::SystemTime::UNIX_EPOCH)
+                    .expect("Time-Now - duration UNIX_EPOCH should succeed")
+                    .as_secs_f32(),
                 &load_runtime_program_args(io_tape_private, "io_tape_private")?,
                 &load_runtime_program_args(io_tape_public, "io_tape_public")?,
             )?;
@@ -148,6 +154,10 @@ fn main() -> Result<()> {
                 &load_runtime_program_args(state_root, "state_root")?
                     .try_into()
                     .map_err(|actual| anyhow!("Expected vector of length 32, got: {actual:?}"))?,
+                time::SystemTime::now()
+                    .duration_since(time::SystemTime::UNIX_EPOCH)
+                    .expect("Time-Now - duration UNIX_EPOCH should succeed")
+                    .as_secs_f32(),
                 &load_runtime_program_args(io_tape_private, "io_tape_private")?,
                 &load_runtime_program_args(io_tape_public, "io_tape_public")?,
             )?;
@@ -168,6 +178,10 @@ fn main() -> Result<()> {
                 &load_runtime_program_args(state_root, "state_root")?
                     .try_into()
                     .map_err(|old| anyhow!("Expected vector of length 32, got: {old:?}"))?,
+                time::SystemTime::now()
+                    .duration_since(time::SystemTime::UNIX_EPOCH)
+                    .expect("Time-Now - duration UNIX_EPOCH should succeed")
+                    .as_secs_f32(),
                 &load_runtime_program_args(io_tape_private, "io_tape_private")?,
                 &load_runtime_program_args(io_tape_public, "io_tape_public")?,
             )?;
@@ -219,7 +233,7 @@ fn main() -> Result<()> {
             debug!("proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
-            let program = load_program(elf, &[0; 32], &[], &[])?;
+            let program = load_program(elf, &[0; 32], 0.0, &[], &[])?;
             let trace = generate_program_rom_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
@@ -236,7 +250,7 @@ fn main() -> Result<()> {
             println!("{trace_cap:?}");
         }
         Command::MemoryInitHash { elf } => {
-            let program = load_program(elf, &[0; 32], &[], &[])?;
+            let program = load_program(elf, &[0; 32], 0.0, &[], &[])?;
             let trace = generate_memory_init_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;

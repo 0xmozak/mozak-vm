@@ -2,7 +2,6 @@ use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::iter::repeat;
 use std::ops::Range;
-use std::time;
 
 use anyhow::{anyhow, ensure, Result};
 use derive_more::{Deref, DerefMut};
@@ -195,14 +194,15 @@ pub struct RuntimeArguments {
 impl RuntimeArguments {
     /// # Panics
     #[must_use]
-    pub fn new(state_root: &[u8; 32], io_tape_private: &[u8], io_tape_public: &[u8]) -> Self {
+    pub fn new(
+        state_root: &[u8; 32],
+        unix_time: f32,
+        io_tape_private: &[u8],
+        io_tape_public: &[u8],
+    ) -> Self {
         RuntimeArguments {
             state_root: *state_root,
-            timestamp: time::SystemTime::now()
-                .duration_since(time::SystemTime::UNIX_EPOCH)
-                .expect("Time-Now - duration UNIX_EPOCH should succeed")
-                .as_secs_f32()
-                .to_le_bytes(),
+            timestamp: unix_time.to_le_bytes(),
             io_tape_private: io_tape_private.to_vec(),
             io_tape_public: io_tape_public.to_vec(),
         }
@@ -446,7 +446,7 @@ impl Program {
 
     /// Loads a "mozak program" from static ELF and populates the reserved
     /// memory with runtime arguments
-    /// 
+    ///
     /// # Errors
     /// Will return `Err` if the ELF file is invalid or if the entrypoint is
     /// invalid.
