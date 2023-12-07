@@ -1,10 +1,10 @@
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
-use mozak_circuits::test_utils::fast_test_config;
 use mozak_circuits::xor::columns::{XorColumnsView, XorView};
 use mozak_circuits::xor::stark::XorStark;
 use plonky2::field::types::Field;
 use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
 use plonky2::util::timing::TimingTree;
+use starky::config::StarkConfig;
 use starky::prover::prove;
 use starky::verifier::verify_stark_proof;
 
@@ -14,7 +14,7 @@ pub type C = Poseidon2GoldilocksConfig;
 pub type F = <C as GenericConfig<D>>::F;
 
 fn prove_and_verify_stark(trace: Vec<XorColumnsView<F>>) -> Result<(), anyhow::Error> {
-    let config = fast_test_config();
+    let config = StarkConfig::standard_fast_config();
     let trace_poly_values = trace_rows_to_poly_values(trace);
     let stark = XorStark::<F, 2>::default();
     let proof = prove::<F, C, S, D>(
