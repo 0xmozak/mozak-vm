@@ -2,11 +2,10 @@
 #![deny(clippy::cargo)]
 // TODO: remove this when shadow_rs updates enough.
 #![allow(clippy::needless_raw_string_hashes)]
-extern crate core;
 
 use std::io::{Read, Write};
-use std::time::Duration;
 use std::time;
+use std::time::Duration;
 
 use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
