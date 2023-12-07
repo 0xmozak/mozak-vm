@@ -1,6 +1,6 @@
 use clap::{Args as Args_, Subcommand};
 
-use super::fibonacci_input::fibonacci_with_input;
+use super::fibonacci_input::fibonacci_input;
 use super::nop::nop_bench;
 use super::sample::sample_bench;
 use super::xor::xor_bench;
@@ -24,7 +24,7 @@ impl BenchArgs {
     pub fn run(&self) -> Result<(), anyhow::Error> {
         match self.function {
             BenchFunction::SampleBench { iterations } => sample_bench(iterations),
-            BenchFunction::FiboInputBench { n } => fibonacci_with_input(n),
+            BenchFunction::FiboInputBench { n } => fibonacci_input(n),
             BenchFunction::XorBench { iterations } => xor_bench(iterations),
             BenchFunction::NopBench { iterations } => nop_bench(iterations),
         }
