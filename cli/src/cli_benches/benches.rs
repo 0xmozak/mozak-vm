@@ -1,6 +1,6 @@
 use clap::{Args as Args_, Subcommand};
 
-use super::fibo_with_inp::fibonacci_with_input;
+use super::fibonacci_input::fibonacci_with_input;
 use super::nop::nop_bench;
 use super::sample::sample_bench;
 use super::xor::xor_bench;
