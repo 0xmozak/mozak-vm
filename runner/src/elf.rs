@@ -444,6 +444,9 @@ impl Program {
         })
     }
 
+    /// Loads a "mozak program" from static ELF and populates the reserved
+    /// memory with runtime arguments
+    /// 
     /// # Errors
     /// Will return `Err` if the ELF file is invalid or if the entrypoint is
     /// invalid.
@@ -454,39 +457,39 @@ impl Program {
         let mut program = Program::load_elf(elf_bytes).unwrap();
         // [0] - State Root
         let state_root_addr = program.mozak_ro_memory.state_root.starting_address;
-        for (i, ell) in args.state_root.iter().enumerate() {
+        for (idx, byte) in args.state_root.iter().enumerate() {
             program
                 .mozak_ro_memory
                 .state_root
                 .data
-                .insert(state_root_addr + u32::try_from(i).unwrap(), *ell);
+                .insert(state_root_addr + u32::try_from(idx).unwrap(), *byte);
         }
         // [1] - Timestamp
         let timestamp_addr = program.mozak_ro_memory.timestamp.starting_address;
-        for (i, ell) in args.state_root.iter().enumerate() {
+        for (idx, byte) in args.state_root.iter().enumerate() {
             program
                 .mozak_ro_memory
                 .timestamp
                 .data
-                .insert(timestamp_addr + u32::try_from(i).unwrap(), *ell);
+                .insert(timestamp_addr + u32::try_from(idx).unwrap(), *byte);
         }
         // [2] - IO private
         let io_priv_start_addr = program.mozak_ro_memory.io_tape_private.starting_address;
-        for (i, e) in args.io_tape_private.iter().enumerate() {
+        for (idx, byte) in args.io_tape_private.iter().enumerate() {
             program
                 .mozak_ro_memory
                 .io_tape_private
                 .data
-                .insert(io_priv_start_addr + u32::try_from(i).unwrap(), *e);
+                .insert(io_priv_start_addr + u32::try_from(idx).unwrap(), *byte);
         }
         // [3] - IO public
         let io_pub_start_addr = program.mozak_ro_memory.io_tape_public.starting_address;
-        for (i, e) in args.io_tape_public.iter().enumerate() {
+        for (idx, byte) in args.io_tape_public.iter().enumerate() {
             program
                 .mozak_ro_memory
                 .io_tape_public
                 .data
-                .insert(io_pub_start_addr + u32::try_from(i).unwrap(), *e);
+                .insert(io_pub_start_addr + u32::try_from(idx).unwrap(), *byte);
         }
         Ok(program)
     }
