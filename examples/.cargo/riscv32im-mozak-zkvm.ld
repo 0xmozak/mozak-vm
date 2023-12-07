@@ -155,6 +155,7 @@ SECTIONS {
         *(.rela.dyn .rela.dyn.* .rela.plt .rela.plt.*);
         *(.toc .toc.* .tocbss .tocbss.* .toc1 .toc1.*);
         *(.branch_lt .branch_lt.* .opd .opd.*);
+
         /******************************************************/
         /* [13.5] - all other stuff that is not supported     */
         /******************************************************/
