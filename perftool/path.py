@@ -69,7 +69,11 @@ def create_symlink_for_repo(bench_name: str, commit: str):
         return
     commit_folder = get_actual_commit_folder(commit)
     commit_link = get_bench_folder(bench_name) / commit
-    commit_link.symlink_to(commit_folder)
+    try:
+        commit_link.symlink_to(commit_folder)
+    except FileExistsError:
+        # symlink already exists
+        pass
 
 
 def create_folders_if_not_exist(bench_name: str):
