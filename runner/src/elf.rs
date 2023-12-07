@@ -396,7 +396,13 @@ impl Program {
         };
         let mut mozak_ro_memory: MozakMemory = MozakMemory::default();
         mozak_ro_memory.fill(&elf.symbol_table().unwrap().unwrap());
-
+        // && (!mozak_memory.is_mozak_ro_memory_address(ph)) --- this line is used to
+        // filter RO-addresses related to the mozak-ROM. Currently we don't
+        // support filtering by sections and, we don't know if it even possible.
+        // Mozak-ROM address are RO address and will be filled by loader-code
+        // with arguments provided from outside. Mozak-ROM can be accessed as Read-ONLY
+        // from rust code and currently no init code to this section is
+        // supported.
         let ro_memory = Data(extract(
             |flags, ph, mozak_memory: &MozakMemory| {
                 (flags & elf::abi::PF_R == elf::abi::PF_R)
