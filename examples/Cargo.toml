@@ -6,3 +6,27 @@ resolver = "2"
 codegen-units = 1
 lto = "fat"
 opt-level = "z"
+
+[profile.dev]
+codegen-units = 1
+lto = "fat"
+opt-level = "z"
+# this one needs to be turned off, please refer to this resource: https://github.com/Rahix/avr-hal/issues/131
+# Yeah, this is a known behavior, unfortunately.
+# The problem is that in debug builds, overflow-checks are enabled.
+# Due to a problem in cargo's build-std, they are not only enabled for your code,
+# but also for the compiler-builtins crate.
+# This means, the compiler will insert overflow checks into the intrinsics defined in compiler-builtins,
+# which in turn reference the panic handler symbol. Now due to the way the Rust standard library works,
+# this is not possible (binary object linking order).
+# That's why you get the errors.
+# Error:  = note: rust-lld: error: undefined symbol: core::panicking::panic::ha6d2dc04e36d0fe8
+#          >>> referenced by mut_ptr.rs:1044
+# (/Users/user/.rustup/toolchains/nightly-2023-11-05-x86_64-apple-darwin/
+#  lib/rustlib/src/rust/library/core/src/ptr/mut_ptr.rs:1044)
+#          >>> compiler_builtins-b410f4b1d85bd25b.compiler_builtins.a685d0c6c969416-cgu.0.rcgu.o:
+# (compiler_builtins::mem::memcpy::hbc72866d2b83536f)
+# in archive
+# /Users/user/Source/mozak/mozak-vm/examples/target/
+# riscv32im-mozak-zkvm-elf/debug/deps/libcompiler_builtins-b410f4b1d85bd25b.rlib
+overflow-checks = false

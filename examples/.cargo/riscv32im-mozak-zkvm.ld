@@ -146,7 +146,7 @@ SECTIONS {
     /DISCARD/ : {
         *(.note .comment);
         *(.riscv .riscv.*);
-        *(.debug .debug.*);
+        *(.debug .debug.* .debug_*);
         *(.line .line.*);
         *(.relname .relname.* .relaname .relaname.*);
         *(.dynstr .dynstr.* .dynsym .dynsym.* .dynamic .dynamic.*);

@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use crate::decode::decode_instruction;
 use crate::instruction::{DecodingError, Instruction};
 use crate::util::load_u32;
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MozakMemoryRegion {
     pub starting_address: u32,
@@ -314,11 +315,17 @@ impl Program {
             .ok_or_else(|| anyhow!("Missing segment table"))?;
         ensure!(segments.len() <= 256, "Too many program headers");
 
-        let extract = |check_flags: fn(u32, s: &ProgramHeader, m: &MozakMemory) -> bool,
-                       m: &MozakMemory| {
+        let extract = |check_flags: fn(
+            u32,
+            program_headers: &ProgramHeader,
+            mozak_memory: &MozakMemory,
+        ) -> bool,
+                       mozak_memory: &MozakMemory| {
             segments
                 .iter()
-                .filter(|s| check_flags(s.p_flags, s, m))
+                .filter(|program_header| {
+                    check_flags(program_header.p_flags, program_header, mozak_memory)
+                })
                 .map(|segment| -> anyhow::Result<_> {
                     let file_size: usize = segment.p_filesz.try_into()?;
                     let mem_size: usize = segment.p_memsz.try_into()?;
