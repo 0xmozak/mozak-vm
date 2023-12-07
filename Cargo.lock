@@ -784,7 +784,6 @@ dependencies = [
  "anyhow",
  "arrayvec",
  "bitfield",
- "clap",
  "criterion",
  "env_logger",
  "flexbuffers",
@@ -822,7 +821,6 @@ version = "0.1.0"
 dependencies = [
  "arrayvec",
  "log",
- "mozak-circuits",
  "p3-air",
  "p3-challenger",
  "p3-commit",
@@ -830,7 +828,6 @@ dependencies = [
  "p3-field",
  "p3-fri",
  "p3-goldilocks",
- "p3-keccak",
  "p3-ldt",
  "p3-matrix",
  "p3-mds",
@@ -1116,15 +1113,6 @@ dependencies = [
  "p3-field",
  "p3-matrix",
  "p3-util",
-]
-
-[[package]]
-name = "p3-keccak"
-version = "0.1.0"
-source = "git+https://github.com/Plonky3/Plonky3.git#b21d54f13fd7949a2661c9478b91c01bc3abccbe"
-dependencies = [
- "p3-symmetric",
- "tiny-keccak",
 ]
 
 [[package]]
