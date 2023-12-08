@@ -26,11 +26,11 @@ p3-commit = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-dft = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-fri = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-goldilocks = { git = "https://github.com/Plonky3/Plonky3.git" }
+p3-keccak = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-ldt = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-mds = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-merkle-tree = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-poseidon2 = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-uni-stark = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-keccak = { git = "https://github.com/Plonky3/Plonky3.git" }
 rand = "0.8.5"
