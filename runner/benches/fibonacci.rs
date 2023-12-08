@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use mozak_runner::elf::{MozakRunTimeArguments, Program};
+use mozak_runner::elf::{Program, RuntimeArguments};
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
@@ -26,7 +26,7 @@ fn fibonacci_benchmark(c: &mut Criterion) {
     group.bench_function("fibonacci", |b| {
         b.iter(|| {
             let program =
-                Program::load_program(&elf, &MozakRunTimeArguments::new(&[0; 32], &[], &[]))
+                Program::load_program(&elf, &RuntimeArguments::new(&[0; 32], 0.0, &[], &[]))
                     .unwrap();
             let state = State::<GoldilocksField>::from(&program);
             let _state = step(&program, state).unwrap();

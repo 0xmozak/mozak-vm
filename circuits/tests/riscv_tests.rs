@@ -2,7 +2,7 @@ use std::include_bytes;
 
 use anyhow::Result;
 use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
-use mozak_runner::elf::{MozakRunTimeArguments, Program};
+use mozak_runner::elf::{Program, RuntimeArguments};
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
@@ -24,7 +24,7 @@ use starky::config::StarkConfig;
 fn run_test(elf: &[u8]) -> Result<()> {
     let _ = env_logger::try_init();
     let program =
-        Program::load_program(elf, &MozakRunTimeArguments::new(&[0; 32], &[], &[])).unwrap();
+        Program::load_program(elf, &RuntimeArguments::new(&[0; 32], 0.0, &[], &[])).unwrap();
     let state = State::<GoldilocksField>::from(&program);
     let record = step(&program, state)?;
     let state = record.last_state.clone();

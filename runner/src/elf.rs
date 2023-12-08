@@ -2,7 +2,6 @@ use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::iter::repeat;
 use std::ops::Range;
-use std::time;
 
 use anyhow::{anyhow, ensure, Result};
 use derive_more::{Deref, DerefMut};
@@ -149,24 +148,25 @@ impl MozakMemory {
 
 /// A Mozak program runtime arguments
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct MozakRunTimeArguments {
+pub struct RuntimeArguments {
     pub state_root: [u8; 32],
     pub timestamp: [u8; 4],
     pub io_tape_private: Vec<u8>,
     pub io_tape_public: Vec<u8>,
 }
 
-impl MozakRunTimeArguments {
+impl RuntimeArguments {
     /// # Panics
     #[must_use]
-    pub fn new(state_root: &[u8; 32], io_tape_private: &[u8], io_tape_public: &[u8]) -> Self {
-        MozakRunTimeArguments {
+    pub fn new(
+        state_root: &[u8; 32],
+        unix_time: f32,
+        io_tape_private: &[u8],
+        io_tape_public: &[u8],
+    ) -> Self {
+        RuntimeArguments {
             state_root: *state_root,
-            timestamp: time::SystemTime::now()
-                .duration_since(time::SystemTime::UNIX_EPOCH)
-                .expect("Time-Now - duration UNIX_EPOCH should succeed")
-                .as_secs_f32()
-                .to_le_bytes(),
+            timestamp: unix_time.to_le_bytes(),
             io_tape_private: io_tape_private.to_vec(),
             io_tape_public: io_tape_public.to_vec(),
         }
@@ -360,7 +360,13 @@ impl Program {
         };
         let mut mozak_ro_memory: MozakMemory = MozakMemory::default();
         mozak_ro_memory.fill(&elf.symbol_table().unwrap().unwrap());
-
+        // && (!mozak_memory.is_mozak_ro_memory_address(ph)) --- this line is used to
+        // filter RO-addresses related to the mozak-ROM. Currently we don't
+        // support filtering by sections and, we don't know if it even possible.
+        // Mozak-ROM address are RO address and will be filled by loader-code
+        // with arguments provided from outside. Mozak-ROM can be accessed as Read-ONLY
+        // from rust code and currently no init code to this section is
+        // supported.
         let ro_memory = Data(extract(
             |flags, ph, mozak_memory: &MozakMemory| {
                 (flags & elf::abi::PF_R == elf::abi::PF_R)
@@ -408,49 +414,52 @@ impl Program {
         })
     }
 
+    /// Loads a "mozak program" from static ELF and populates the reserved
+    /// memory with runtime arguments
+    ///
     /// # Errors
     /// Will return `Err` if the ELF file is invalid or if the entrypoint is
     /// invalid.
     ///
     /// # Panics
     /// `Program::load_elf`
-    pub fn load_program(elf_bytes: &[u8], args: &MozakRunTimeArguments) -> Result<Program> {
+    pub fn load_program(elf_bytes: &[u8], args: &RuntimeArguments) -> Result<Program> {
         let mut program = Program::load_elf(elf_bytes).unwrap();
         // [0] - State Root
         let state_root_addr = program.mozak_ro_memory.state_root.starting_address;
-        for (i, ell) in args.state_root.iter().enumerate() {
+        for (idx, byte) in args.state_root.iter().enumerate() {
             program
                 .mozak_ro_memory
                 .state_root
                 .data
-                .insert(state_root_addr + u32::try_from(i).unwrap(), *ell);
+                .insert(state_root_addr + u32::try_from(idx).unwrap(), *byte);
         }
         // [1] - Timestamp
         let timestamp_addr = program.mozak_ro_memory.timestamp.starting_address;
-        for (i, ell) in args.state_root.iter().enumerate() {
+        for (idx, byte) in args.state_root.iter().enumerate() {
             program
                 .mozak_ro_memory
                 .timestamp
                 .data
-                .insert(timestamp_addr + u32::try_from(i).unwrap(), *ell);
+                .insert(timestamp_addr + u32::try_from(idx).unwrap(), *byte);
         }
         // [2] - IO private
         let io_priv_start_addr = program.mozak_ro_memory.io_tape_private.starting_address;
-        for (i, e) in args.io_tape_private.iter().enumerate() {
+        for (idx, byte) in args.io_tape_private.iter().enumerate() {
             program
                 .mozak_ro_memory
                 .io_tape_private
                 .data
-                .insert(io_priv_start_addr + u32::try_from(i).unwrap(), *e);
+                .insert(io_priv_start_addr + u32::try_from(idx).unwrap(), *byte);
         }
         // [3] - IO public
         let io_pub_start_addr = program.mozak_ro_memory.io_tape_public.starting_address;
-        for (i, e) in args.io_tape_public.iter().enumerate() {
+        for (idx, byte) in args.io_tape_public.iter().enumerate() {
             program
                 .mozak_ro_memory
                 .io_tape_public
                 .data
-                .insert(io_pub_start_addr + u32::try_from(i).unwrap(), *e);
+                .insert(io_pub_start_addr + u32::try_from(idx).unwrap(), *byte);
         }
         Ok(program)
     }
