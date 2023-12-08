@@ -50,6 +50,7 @@ pub fn main() {
 
     let ans = fibonacci(input);
     assert!(ans == out);
+    guest::env::write(&out.to_le_bytes());
 }
 
 guest::entry!(main);
