@@ -24,9 +24,9 @@ pub fn finalize() {
 }
 
 pub fn write(output_data: &[u8]) {
-#[cfg(target_os = "zkvm")]
+    #[cfg(target_os = "zkvm")]
     {
-    let output_bytes_vec = unsafe { OUTPUT_BYTES.as_mut().unwrap_unchecked() };
-    output_bytes_vec.extend_from_slice(output_data);
+        let output_bytes_vec = unsafe { OUTPUT_BYTES.as_mut().unwrap_unchecked() };
+        output_bytes_vec.extend_from_slice(output_data);
     }
 }
