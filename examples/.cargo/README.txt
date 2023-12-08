@@ -32,7 +32,9 @@
  *     https://www.phaedsys.com/principals/emprog/emprogdata/thunderbench-Linker-Script-guide.pdf
  */
 
-/* Useful commands:
+/*
+ * Useful commands:
  * 1) Show sections: `riscv64-unknown-elf-readelf -S ELF_EXE`
  * 2) Disassembly: `riscv64-unknown-elf-objdump -D ELF_EXE | riscv64-unknown-elf-c++filt`
  * 3) Show all symbols: `riscv64-unknown-elf-nm -a ELF_EXE | riscv64-unknown-elf-c++filt`
+ */
