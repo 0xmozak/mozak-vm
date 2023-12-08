@@ -72,7 +72,8 @@ impl Mozak3StarkConfig for DefaultConfig {
     type MyMds = IntegratedCosetMds<Self::Val, { Self::WIDTH }>;
     type PackedChallenge = BinomialExtensionField<<Self::Val as Field>::Packing, { Self::D }>;
     type Pcs = FriBasedPcs<Self::MyFriConfig, Self::ValMmcs, Self::Dft, Self::Challenger>;
-    /// Poseidon2 with sbox degree 7 (Since 7 is smallest prime dividing (p-1))
+    /// Poseidon2 with sbox degree 7 (Since 7 is smallest prime not dividing
+    /// (p-1))
     type Perm = Poseidon2<Self::Val, Self::MyMds, DiffusionMatrixGoldilocks, { Self::WIDTH }, 7>;
     type Quotient = QuotientMmcs<Self::Val, Self::Challenge, Self::ValMmcs>;
     type Val = Goldilocks;
