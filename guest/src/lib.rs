@@ -1,4 +1,5 @@
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(feature = "std", feature(restricted_std))]
 
 extern crate alloc as rust_alloc;
 
@@ -6,6 +7,8 @@ extern crate alloc as rust_alloc;
 mod alloc;
 pub mod env;
 pub mod hash;
+#[cfg(feature = "std")]
+pub mod stdin;
 
 #[macro_export]
 macro_rules! entry {

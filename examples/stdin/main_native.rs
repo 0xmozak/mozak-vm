@@ -1,10 +1,7 @@
-// TODO: Unify core_logic with this file. See https://github.com/0xmozak/mozak-vm/issues/664
-mod core_logic;
-
 use std::env;
 use std::io::{stdin, BufReader, Read};
 
-use crate::core_logic::{MozakIoPrivate, MozakIoPublic};
+use guest::stdin::{MozakIoPrivate, MozakIoPublic};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
