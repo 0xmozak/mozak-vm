@@ -108,41 +108,31 @@ impl MozakMemory {
     }
 
     fn fill(&mut self, st: &(SymbolTable<LittleEndian>, StringTable)) {
-        let mut map = std::collections::HashMap::from([
-            ("merkle_state_root", &mut self.state_root.starting_address),
-            ("merkle_state_root_capacity", &mut self.state_root.capacity),
-            ("timestamp", &mut self.timestamp.starting_address),
-            ("timestamp_capacity", &mut self.timestamp.capacity),
-            ("public_io_tape", &mut self.io_tape_public.starting_address),
-            ("public_io_tape_capacity", &mut self.io_tape_public.capacity),
-            (
-                "private_io_tape",
-                &mut self.io_tape_private.starting_address,
-            ),
-            (
-                "private_io_tape_capacity",
-                &mut self.io_tape_private.capacity,
-            ),
-        ]);
-        for s in st.0.iter() {
-            st.1.get(s.st_name as usize)
-                .unwrap()
-                .strip_prefix("_mozak_")
-                .and_then(|sym_name| {
-                    let sym_value = s.st_value;
-                    log::trace!("sym_name: {:?}", sym_name);
-                    log::trace!("sym_value: {:0x}", sym_value);
-                    map.get_mut(sym_name).map(|&mut ref mut slot| {
-                        **slot = u32::try_from(sym_value).unwrap_or_else(|err| {
-                            panic!(
-                                "{sym_value:?} address should be u32 cast-able:
-            {err}"
-                            )
-                        });
-                        log::debug!("{sym_name:?}: 0x{slot:0x}",);
-                    })
-                });
-        }
+        let symbol_map: HashMap<_, _> =
+            st.0.iter()
+                .map(|s| (st.1.get(s.st_name as usize).unwrap(), s.st_value))
+                .collect();
+        let get = |sym_name: &str| {
+            u32::try_from(
+                symbol_map
+                    .get(sym_name)
+                    .unwrap_or_else(|| panic!("{sym_name} not found")),
+            )
+            .unwrap_or_else(|err| {
+                panic!(
+                    "{sym_name}'s address should be u32 cast-able:
+        {err}"
+                )
+            })
+        };
+        self.state_root.starting_address = get("_mozak_merkle_state_root");
+        self.state_root.capacity = get("_mozak_merkle_state_root_capacity");
+        self.timestamp.starting_address = get("_mozak_timestamp");
+        self.timestamp.capacity = get("_mozak_timestamp_capacity");
+        self.io_tape_public.starting_address = get("_mozak_public_io_tape");
+        self.io_tape_public.capacity = get("_mozak_public_io_tape_capacity");
+        self.io_tape_private.starting_address = get("_mozak_private_io_tape");
+        self.io_tape_private.capacity = get("_mozak_private_io_tape_capacity");
     }
 }
 
