@@ -97,8 +97,10 @@ SECTIONS {
     _data_end = _data_start + SIZEOF(.data);
 
     /* [8] - End of uninitialized data segment (used for heap) - mozak heap grows up */
-    _mozak_heap_start = _data_end;
-    .mozak_heap : {} > ram
+    .mozak_heap : {
+        _mozak_heap_start = _data_end;
+        _mozak_heap_end = 0xB0000000;
+    } > ram
 
     /* [9] - TEXT rom */
     .text : { *(.text); *(.text.*); *(.init) *(.init.*); *(.fini); *(.fini.*) } > rom
@@ -111,8 +113,10 @@ SECTIONS {
     _rodata_end = _rodata_start + SIZEOF(.rodata);
 
     /* [11] - mozak stack - grows down */
-    _mozak_stack_top = 0xFFFFFFFF;
-    .mozak_stack : {} > mozak_stack
+    .mozak_stack : {
+        _mozak_stack_end = 0xF0000000;
+        _mozak_stack_top = 0xFFFFFFFF;
+    } > mozak_stack
 
     /* [12] - Init mozak_stack with 0xFF (NOT IN USE - runtime increased cause of FILL ) */
     /*        This section + FILL works as expected but increase instruction count etc ..*/
