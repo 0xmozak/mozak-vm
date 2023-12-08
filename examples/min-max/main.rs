@@ -13,7 +13,7 @@ pub fn min_max() -> Vec<u8> {
 
 pub fn main() {
     let result = min_max();
-    guest::env::mozak_write(&result);
+    guest::env::write(&result);
 }
 
 guest::entry!(main);

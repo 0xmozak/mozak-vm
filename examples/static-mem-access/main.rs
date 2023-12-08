@@ -11,7 +11,7 @@ pub fn main() {
         assert!(R_CONST_A == 41);
         assert!(R_STATIC_B > 0);
         R_STATIC_B = 56;
-        guest::env::mozak_write(&R_STATIC_B.to_be_bytes());
+        guest::env::write(&R_STATIC_B.to_be_bytes());
     }
 }
 

@@ -37,7 +37,7 @@ pub fn main() {
     #[cfg(not(target_os = "zkvm"))]
     println!("The private bytes: {:?}", &buffer[..n]);
     assert!(n == 5);
-    guest::env::mozak_write(&n.to_be_bytes());
+    guest::env::write(&n.to_be_bytes());
 
     // Public IO
     let mut mozak_io_public = MozakIoPublic {
@@ -66,7 +66,7 @@ pub fn main() {
     #[cfg(not(target_os = "zkvm"))]
     println!("The public bytes: {:?}", &buffer[..n]);
     assert!(n == 5);
-    guest::env::mozak_write(&n.to_be_bytes());
+    guest::env::write(&n.to_be_bytes());
 }
 
 guest::entry!(main);

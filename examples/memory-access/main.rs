@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 
 pub fn main() {
     let vector: Vec<u8> = vec![128];
-    guest::env::mozak_write(vector.as_slice());
+    guest::env::write(vector.as_slice());
 }
 
 guest::entry!(main);
