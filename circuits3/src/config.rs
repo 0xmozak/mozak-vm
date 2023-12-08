@@ -1,6 +1,6 @@
 use p3_challenger::DuplexChallenger;
 use p3_commit::ExtensionMmcs;
-use p3_dft::Radix2DitParallel;
+use p3_dft::Radix2Bowers;
 use p3_field::extension::BinomialExtensionField;
 use p3_field::Field;
 use p3_fri::{FriBasedPcs, FriConfigImpl, FriLdt};
@@ -51,7 +51,7 @@ impl Mozak3StarkConfig for DefaultConfig {
     type Challenge = BinomialExtensionField<Self::Val, { Self::D }>;
     type ChallengeMmcs = ExtensionMmcs<Self::Val, Self::Challenge, Self::ValMmcs>;
     type Challenger = DuplexChallenger<Self::Val, Self::Perm, { Self::WIDTH }>;
-    type Dft = Radix2DitParallel;
+    type Dft = Radix2Bowers;
     /// Function used to combine `2` (hashed) nodes of Merkle tree
     type MyCompress = TruncatedPermutation<Self::Perm, 2, { Self::CHUNK }, { Self::WIDTH }>;
     type MyConfig = StarkConfigImpl<
@@ -83,8 +83,8 @@ impl Mozak3StarkConfig for DefaultConfig {
         { Self::CHUNK },
     >;
 
-    /// Since MyHash outputs 32 bytes, we can use 256/64 = 4 Field elements to
-    /// represent it.
+    /// Since `MyHash` outputs 32 bytes, we can use 256/64 = 4 Field elements
+    /// to represent it.
     const CHUNK: usize = 4;
     const D: usize = 2;
     const WIDTH: usize = 16;
