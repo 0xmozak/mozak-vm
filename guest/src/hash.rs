@@ -33,7 +33,7 @@ pub fn poseidon2_hash(input: &[u8]) -> Digest {
             Poseidon2Hash::hash_no_pad(&data_fields)
                 .to_bytes()
                 .try_into()
-                .expect("can't fail"),
+                .expect("Output length does not match to DIGEST_BYTES"),
         )
     }
 }

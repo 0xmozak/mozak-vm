@@ -18,7 +18,7 @@ This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/release/
 ```bash
 cargo build --release --target x86_64-unknown-linux-gnu --features=std
 ```
-Currently we don't support `no_std` on native target so `--features=std` is must.
+Currently we don't support `no_std` for the native target so `--features=std` is a must.
 
 This would build ELF executables under `target/x86_64-unknown-linux-gnu/release/`.
 
