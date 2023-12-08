@@ -61,17 +61,17 @@ SECTIONS {
     _mozak_private_io_tape            = 0x20000000; /* assumed size is 512 MB */
     _mozak_private_io_tape_capacity   = 0x20000000; /* 512 MB in bytes */
 
-    /* [2] - SHSTRTAB rom */
+    /* [2] - SHSTRTAB ram */
     .shstrtab : { *(.shstrtab .shstrtab.*) } > ram
     _shstrtab_start = ADDR(.shstrtab);
     _shstrtab_end = _shstrtab_start + SIZEOF(.shstrtab);
 
-    /* [3] - STRTAB rom */
+    /* [3] - STRTAB ram */
     .strtab : { *(.strtab .strtab.*) } > ram
     _strtab_start = ADDR(.strtab);
     _strtab_end = _strtab_start + SIZEOF(.strtab);
 
-    /* [4] - SYMTAB rom */
+    /* [4] - SYMTAB ram */
     .symtab : { *(.symtab .symtab.*) } > ram
     _symtab_start = ADDR(.symtab);
     _symtab_end = _symtab_start + SIZEOF(.symtab);
