@@ -43,11 +43,11 @@ unsafe extern "C" fn __start() {
 //
 // For more details:
 // https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc
-#[cfg(all(not(feature = "std"), target_os = "zkvm"))]
+#[cfg(target_os = "zkvm")]
 static STACK_TOP: u32 = 0xFFFF_FFFF;
 
 // Entry point; sets up stack pointer and passes to __start.
-#[cfg(all(not(feature = "std"), target_os = "zkvm"))]
+#[cfg(target_os = "zkvm")]
 core::arch::global_asm!(
 r#"
 .section .text._start;
