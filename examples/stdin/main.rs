@@ -1,11 +1,9 @@
 #![no_main]
 #![feature(restricted_std)]
 
-mod core_logic;
-
 use std::io::{stdin, BufReader, Read};
 
-use crate::core_logic::{MozakIoPrivate, MozakIoPublic};
+use guest::stdin::{MozakIoPrivate, MozakIoPublic};
 
 pub fn main() {
     // Private IO
