@@ -855,6 +855,7 @@ dependencies = [
  "mozak-runner",
  "plonky2",
  "proptest",
+ "serde_json",
  "starky",
 ]
 
