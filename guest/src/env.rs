@@ -7,7 +7,6 @@ use alloc::vec::Vec;
 #[cfg(target_os = "zkvm")]
 static mut OUTPUT_BYTES: Option<Vec<u8>> = None;
 
-#[no_mangle]
 #[cfg(target_os = "zkvm")]
 pub fn init() {
     unsafe {
@@ -15,7 +14,6 @@ pub fn init() {
     }
 }
 
-#[no_mangle]
 #[cfg(target_os = "zkvm")]
 pub fn finalize() {
     unsafe {
@@ -25,7 +23,6 @@ pub fn finalize() {
     }
 }
 
-#[no_mangle]
 pub fn write(output_data: &[u8]) {
 #[cfg(target_os = "zkvm")]
     {
