@@ -61,18 +61,18 @@ SECTIONS {
     _mozak_private_io_tape            = 0x20000000; /* assumed size is 512 MB */
     _mozak_private_io_tape_capacity   = 0x20000000; /* 512 MB in bytes */
 
-    /* [2] - SHSTRTAB ram */
-    .shstrtab : { *(.shstrtab .shstrtab.*) } > ram
+    /* [2] - SHSTRTAB - no region - address = 0, can't be placed in region, only place in sections table */
+    .shstrtab : { *(.shstrtab .shstrtab.*) }
     _shstrtab_start = ADDR(.shstrtab);
     _shstrtab_end = _shstrtab_start + SIZEOF(.shstrtab);
 
-    /* [3] - STRTAB ram */
-    .strtab : { *(.strtab .strtab.*) } > ram
+    /* [3] - STRTAB - no region - address = 0, can't be placed in region, only place in sections table */
+    .strtab : { *(.strtab .strtab.*) }
     _strtab_start = ADDR(.strtab);
     _strtab_end = _strtab_start + SIZEOF(.strtab);
 
-    /* [4] - SYMTAB ram */
-    .symtab : { *(.symtab .symtab.*) } > ram
+    /* [4] - SYMTAB - no region - address = 0, can't be placed in region, only place in sections table */
+    .symtab : { *(.symtab .symtab.*) }
     _symtab_start = ADDR(.symtab);
     _symtab_end = _symtab_start + SIZEOF(.symtab);
 
