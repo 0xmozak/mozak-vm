@@ -14,10 +14,10 @@ pub mod stdin;
 macro_rules! entry {
     ($path:path) => {
         // Type check the given path
-#[cfg(target_os = "zkvm")]
+        #[cfg(target_os = "zkvm")]
         const MOZAK_ENTRY: fn() = $path;
 
-#[cfg(target_os = "zkvm")]
+        #[cfg(target_os = "zkvm")]
         mod mozak_generated_main {
             #[no_mangle]
             fn main() { super::MOZAK_ENTRY() }
