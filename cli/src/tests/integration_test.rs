@@ -1,40 +1,47 @@
 use std::fs;
 use std::process::Command;
 
+use tempdir::TempDir;
+
 #[test]
 fn test_prove_and_verify_recursive_proof_command() {
-    // Path constants for the test
-    const ELF_FILE: &str = "../examples/target/riscv32im-mozak-zkvm-elf/release/fibonacci";
-    const IO_TAPE_PRIVATE: &str = "io_tape_private.txt";
-    const IO_TAPE_PUBLIC: &str = "io_tape_public.txt";
-    const PROOF_FILE: &str = "proof.bin";
-    const RECURSIVE_PROOF_FILE: &str = "recursive_proof.bin";
-    const RECURSIVE_PROOF_DB: &str = "recursive_proof.db";
+    // Create a temporary directory
+    let temp_dir = TempDir::new("test_dir").expect("Failed to create a temporary directory");
+    let temp_path = temp_dir.path();
+
+    // Define file paths inside the temporary directory
+    let io_tape_private = temp_path.join("io_tape_private.txt");
+    let io_tape_public = temp_path.join("io_tape_public.txt");
+    let proof_file = temp_path.join("proof.bin");
+    let recursive_proof_file = temp_path.join("recursive_proof.bin");
+    let recursive_proof_db = temp_path.join("recursive_proof.db");
+
+    let elf_file: &str = "../examples/target/riscv32im-mozak-zkvm-elf/release/fibonacci";
 
     // Create mock IO tape files
-    fs::write(IO_TAPE_PRIVATE, b"").expect("Failed to create IO tape private file");
-    fs::write(IO_TAPE_PUBLIC, b"").expect("Failed to create IO tape public file");
+    fs::write(&io_tape_private, b"").expect("Failed to create IO tape private file");
+    fs::write(&io_tape_public, b"").expect("Failed to create IO tape public file");
 
-    // Execute the `--prove` command using the 'fibonacci' ELF file
+    // Execute the `--prove` command
     let output = Command::new("cargo")
         .args([
             "run",
             "--",
             "prove",
-            ELF_FILE,
-            IO_TAPE_PRIVATE,
-            IO_TAPE_PUBLIC,
-            PROOF_FILE,
-            RECURSIVE_PROOF_FILE,
+            elf_file,
+            &io_tape_private.to_string_lossy(),
+            &io_tape_public.to_string_lossy(),
+            &proof_file.to_string_lossy(),
+            &recursive_proof_file.to_string_lossy(),
         ])
         .output()
         .expect("Failed to execute prove command");
     assert!(output.status.success(), "Prove command failed");
 
     // Assert the existence of output files
-    for file in &[PROOF_FILE, RECURSIVE_PROOF_FILE, RECURSIVE_PROOF_DB] {
-        let file_exists = fs::metadata(file).is_ok();
-        assert!(file_exists, "Expected file {} not found", file);
+    for file in &[&proof_file, &recursive_proof_file, &recursive_proof_db] {
+        let file_exists = file.exists();
+        assert!(file_exists, "Expected file {:?} not found", file);
     }
 
     // Execute the `--verify_recursive_proof` command
@@ -43,8 +50,8 @@ fn test_prove_and_verify_recursive_proof_command() {
             "run",
             "--",
             "verify-recursive-proof",
-            RECURSIVE_PROOF_FILE,
-            RECURSIVE_PROOF_DB,
+            &recursive_proof_file.to_string_lossy(),
+            &recursive_proof_db.to_string_lossy(),
         ])
         .output()
         .expect("Failed to execute verify-recursive-proof command");
@@ -52,15 +59,4 @@ fn test_prove_and_verify_recursive_proof_command() {
         output.status.success(),
         "Verify recursive proof command failed"
     );
-
-    // Cleanup
-    for file in &[
-        IO_TAPE_PRIVATE,
-        IO_TAPE_PUBLIC,
-        PROOF_FILE,
-        RECURSIVE_PROOF_FILE,
-        RECURSIVE_PROOF_DB,
-    ] {
-        fs::remove_file(file).unwrap_or_else(|_| panic!("Failed to delete file {}", file));
-    }
 }
