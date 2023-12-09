@@ -4,15 +4,12 @@ use std::process::Command;
 #[test]
 fn test_prove_and_verify_recursive_proof_command() {
     // Path constants for the test
-    const ELF_FILE: &str = "fibonacci";
+    const ELF_FILE: &str = "../examples/target/riscv32im-mozak-zkvm-elf/release/fibonacci";
     const IO_TAPE_PRIVATE: &str = "io_tape_private.txt";
     const IO_TAPE_PUBLIC: &str = "io_tape_public.txt";
     const PROOF_FILE: &str = "proof.bin";
     const RECURSIVE_PROOF_FILE: &str = "recursive_proof.bin";
     const RECURSIVE_PROOF_DB: &str = "recursive_proof.db";
-
-    // Create an ELF file
-    fs::write(ELF_FILE, mozak_examples::FIBONACCI_ELF).expect("Failed to write data to ELF file");
 
     // Create mock IO tape files
     fs::write(IO_TAPE_PRIVATE, b"").expect("Failed to create IO tape private file");
@@ -58,7 +55,6 @@ fn test_prove_and_verify_recursive_proof_command() {
 
     // Cleanup
     for file in &[
-        ELF_FILE,
         IO_TAPE_PRIVATE,
         IO_TAPE_PUBLIC,
         PROOF_FILE,
