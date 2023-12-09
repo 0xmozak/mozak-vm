@@ -1,6 +1,6 @@
-use std::process::Command;
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 
 #[test]
 fn test_prove_and_verify_recursive_proof_command() {
@@ -8,7 +8,10 @@ fn test_prove_and_verify_recursive_proof_command() {
     let elf_path = Path::new("src/tests/fibonacci");
 
     // Make sure the ELF file exists
-    assert!(elf_path.exists(), "The 'fibonacci' ELF file does not exist in the tests directory");
+    assert!(
+        elf_path.exists(),
+        "The 'fibonacci' ELF file does not exist in the tests directory"
+    );
 
     // Create mock IO tape files
     fs::write("io_tape_private.txt", b"").expect("Failed to create IO tape private file");
@@ -16,7 +19,16 @@ fn test_prove_and_verify_recursive_proof_command() {
 
     // Execute the `--prove` command using the 'fibonacci' ELF file
     let output = Command::new("cargo")
-        .args(["run", "--", "prove", elf_path.to_str().unwrap(), "io_tape_private.txt", "io_tape_public.txt", "proof.bin", "recursive_proof.bin"])
+        .args([
+            "run",
+            "--",
+            "prove",
+            elf_path.to_str().unwrap(),
+            "io_tape_private.txt",
+            "io_tape_public.txt",
+            "proof.bin",
+            "recursive_proof.bin",
+        ])
         .output()
         .expect("Failed to execute prove command");
     assert!(output.status.success());
@@ -27,7 +39,13 @@ fn test_prove_and_verify_recursive_proof_command() {
 
     // Execute the `--verify_recursive_proof` command
     let output = Command::new("cargo")
-        .args(["run", "--", "verify-recursive-proof", "recursive_proof.bin", "recursive_proof.db"])
+        .args([
+            "run",
+            "--",
+            "verify-recursive-proof",
+            "recursive_proof.bin",
+            "recursive_proof.db",
+        ])
         .output()
         .expect("Failed to execute verify-recursive-proof command");
     assert!(output.status.success());
