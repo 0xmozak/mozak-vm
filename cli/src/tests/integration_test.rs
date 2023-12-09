@@ -65,6 +65,6 @@ fn test_prove_and_verify_recursive_proof_command() {
         RECURSIVE_PROOF_FILE,
         RECURSIVE_PROOF_DB,
     ] {
-        fs::remove_file(file).expect(format!("Failed to delete file {}", file).as_str());
+        fs::remove_file(file).unwrap_or_else(|_| panic!("Failed to delete file {}", file));
     }
 }
