@@ -29,4 +29,6 @@ pub fn write(output_data: &[u8]) {
         let output_bytes_vec = unsafe { OUTPUT_BYTES.as_mut().unwrap_unchecked() };
         output_bytes_vec.extend_from_slice(output_data);
     }
+    #[cfg(not(target_os = "zkvm"))]
+    core::hint::black_box(output_data);
 }
