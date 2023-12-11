@@ -14,6 +14,7 @@
 /* 4) Use nm, objdump to list the sections, symbols, disassembly - don't assume, check !                              */
 /* 5) All this is very experimental and not documented, low-level, toolchain and specific version dependent (can be)  */
 /* 6) Look for useful links in README.ld file                                                                         */
+/* 7) Ones linker-script is changed, guest (symbols `_mozak`) & elf loader maybe affected too                         */
 /*====================================================================================================================*/
 
 /*====================================================================================================================*/
@@ -58,6 +59,10 @@ MEMORY {
 /*  The OUTPUT_ARCH command specifies the machine architecture where the                                              */
 /*  argument is one of the names used in the BFD library. More                                                        */
 /*  specifically one of the entire in bfd/cpu-mips.c                                                                  */
+/*  We may want to change `_start` symbol, according to this:                                                         */
+/*  https://www.gridbugs.org/if-you-use-a-custom-linker-script-_start-is-not-necessarily-the-entry-point              */
+/*  Change must be done here and in guest/src/lib.rs - currently looks like no need to take action, but still useful  */
+/*  to have here a comment about it                                                                                   */
 /*====================================================================================================================*/
 OUTPUT_ARCH( "riscv32" )
 

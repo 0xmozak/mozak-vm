@@ -56,8 +56,6 @@ extern "C" {
     static _mozak_stack_top: u32;
     #[link_name = "_mozak_merkle_state_root"]
     static _mozak_merkle_state_root: u32;
-    #[link_name = "_mozak_timestamp"]
-    static _mozak_timestamp: u32;
     #[link_name = "_mozak_public_io_tape"]
     static _mozak_public_io_tape: u32;
     #[link_name = "_mozak_private_io_tape"]
