@@ -458,7 +458,8 @@ impl Program {
     /// invalid.
     ///
     /// # Panics
-    /// `Program::load_elf`
+    /// When `Program::load_elf` or index as address expected to be u32
+    /// cast-able
     pub fn load_program(elf_bytes: &[u8], args: &RuntimeArguments) -> Result<Program> {
         let mut program = Program::load_elf(elf_bytes).unwrap();
         // [0] - State Root
@@ -472,7 +473,7 @@ impl Program {
         }
         // [1] - Timestamp
         let timestamp_addr = program.mozak_ro_memory.timestamp.starting_address;
-        for (idx, byte) in args.state_root.iter().enumerate() {
+        for (idx, byte) in args.timestamp.iter().enumerate() {
             program
                 .mozak_ro_memory
                 .timestamp
