@@ -8,7 +8,7 @@ use crate::test_utils::ProveAndVerify;
 
 #[test]
 fn test_fibonacci() {
-    let program = Program::load_program(
+    let program = Program::mozak_load_program(
         mozak_examples::FIBONACCI_ELF,
         &RuntimeArguments::new(&[0; 32], &[], &[]),
     )

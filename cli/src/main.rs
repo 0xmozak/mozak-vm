@@ -100,7 +100,7 @@ fn load_program(
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
 
-    Program::load_program(
+    Program::mozak_load_program(
         &elf_bytes,
         &RuntimeArguments::new(state_root, io_tape_private, io_tape_public),
     )

@@ -26,7 +26,8 @@ fn fibonacci_benchmark(c: &mut Criterion) {
     group.bench_function("fibonacci", |b| {
         b.iter(|| {
             let program =
-                Program::load_program(&elf, &RuntimeArguments::new(&[0; 32], &[], &[])).unwrap();
+                Program::mozak_load_program(&elf, &RuntimeArguments::new(&[0; 32], &[], &[]))
+                    .unwrap();
             let state = State::<GoldilocksField>::from(&program);
             let _state = step(&program, state).unwrap();
         })

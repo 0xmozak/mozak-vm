@@ -18,7 +18,7 @@ fn fibonacci(n: u32) -> u32 {
 
 pub fn fibonacci_input(n: u32) -> Result<(), anyhow::Error> {
     let out = fibonacci(n);
-    let program = Program::load_program(
+    let program = Program::mozak_load_program(
         mozak_examples::FIBONACCI_INPUT_ELF,
         &RuntimeArguments::new(&[0; 32], &n.to_le_bytes(), &out.to_le_bytes()),
     )
