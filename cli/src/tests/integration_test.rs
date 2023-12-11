@@ -1,7 +1,7 @@
 use std::fs;
 use std::process::Command;
 
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 #[test]
 fn test_prove_and_verify_recursive_proof_command() {
