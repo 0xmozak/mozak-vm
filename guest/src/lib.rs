@@ -66,9 +66,9 @@ extern "C" {
 #[cfg(target_os = "zkvm")]
 core::arch::global_asm!(
 r#"
-.section .text._start;
-.global _start;
-_start:
+.section .text._mozak_entry_start;
+.global _mozak_entry_start;
+_mozak_entry_start:
     la sp, {0}
     jal ra, __start;
 "#,

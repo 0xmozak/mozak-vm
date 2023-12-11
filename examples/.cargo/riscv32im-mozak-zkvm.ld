@@ -56,25 +56,22 @@ MEMORY {
 /*====================================================================================================================*/
 
 /*====================================================================================================================*/
-/*  The OUTPUT_ARCH command specifies the machine architecture where the                                              */
-/*  argument is one of the names used in the BFD library. More                                                        */
-/*  specifically one of the entire in bfd/cpu-mips.c                                                                  */
-/*  We may want to change `_start` symbol, according to this:                                                         */
-/*  https://www.gridbugs.org/if-you-use-a-custom-linker-script-_start-is-not-necessarily-the-entry-point              */
-/*  Change must be done here and in guest/src/lib.rs - currently looks like no need to take action, but still useful  */
-/*  to have here a comment about it                                                                                   */
+/*  The OUTPUT_ARCH command specifies the machine architecture                                                        */
 /*====================================================================================================================*/
 OUTPUT_ARCH( "riscv32" )
 
 /*====================================================================================================================*/
 /*  The ENTRY command specifies the entry point (ie. first instruction to execute)                                    */
-/*  The symbol _start is defined in crt0.S                                                                            */
+/*  The symbol _mozak_entry_start is defined guest/src/lib.rs and in linux in crt0.S `_start`                         */
+/*  We may want to change this symbol, according to this:                                                             */
+/*  https://www.gridbugs.org/if-you-use-a-custom-linker-script-_start-is-not-necessarily-the-entry-point              */
+/*  Change must be done here and in guest/src/lib.rs                                                                  */
 /*====================================================================================================================*/
-ENTRY( _start )
+ENTRY( _mozak_entry_start )
 
 /*====================================================================================================================*/
 /*  The _start & _end symbols are defined since currently we don't have mechanism to extract sections by name         */
-/*  so, this is the only why to fully parse mozak-style-elf by mozak-elf-loader                                       */
+/*  so, this is the only way to fully parse mozak-style-elf by mozak-elf-loader                                       */
 /*  later on, when and if this mechanism will be introduced and tested, these symbols can be removed                  */
 /*  but, having these defined is very convenient for linker-scripts and it does not affect proving time and not       */
 /*  final memory layout                                                                                               */
