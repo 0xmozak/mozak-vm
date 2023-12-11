@@ -21,7 +21,7 @@
 /* - riscv_rom defined since compiler insert symbols related to it, currently these symbols are discarded, but it     */
 /*   it maybe used in future. Another reason: looks like somehow it is good practice to leave some region started     */
 /*   specifically on address ZERO.                                                                                    */
-/* - RAM -> ROM -> STACK schema is used because it will help to catch out-of-bounds writes, since ROM is read-only    */
+/* - ROM -> RAM -> ROM -> STACK schema is used: it will help to catch out-of-bounds writes, since ROM is read-only    */
 /*====================================================================================================================*/
 MEMORY {
     riscv_rom(r!wx):   ORIGIN = 0x00000000, LENGTH = 16M   /* used for riscv-attributes */
@@ -30,6 +30,29 @@ MEMORY {
     rom(rx):           ORIGIN = 0xB0000000, LENGTH = 768M  /* ro-data & code - regular rom */
     mozak_stack(rw!x): ORIGIN = 0xF0000000, LENGTH = 256M  /* mozak stack */
 }
+/*====================================================================================================================*/
+/* Example of `readelf -S fibonacci-input`                                                                            */
+/* There are 12 section headers, starting at offset 0xad90:                                                           */
+/* Section Headers:                                                                                                   */
+/* [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al                                     */
+/* [ 0]                   NULL            00000000 000000 000000 00      0   0  0                                     */
+/* [ 1] .mozak_globals    PROGBITS        00000000 000134 000000 00   A  0   0  1                                     */
+/* [ 2] .shstrtab         STRTAB          00000000 00673c 000062 00      0   0  1                                     */
+/* [ 3] .strtab           STRTAB          00000000 00679e 00344f 00      0   0  1                                     */
+/* [ 4] .symtab           SYMTAB          00000000 009bf0 0011a0 10      3 247  4                                     */
+/* [ 5] .bss              NOBITS          40000000 001000 000028 00  WA  0   0  4                                     */
+/* [ 6] .sbss             PROGBITS        40000028 001028 000014 00  WA  0   0  4                                     */
+/* [ 7] .data             PROGBITS        4000003c 00103c 000000 00  WA  0   0  1                                     */
+/* [ 8] .mozak_heap       PROGBITS        4000003c 00103c 000000 00  WA  0   0  1                                     */
+/* [ 9] .text             PROGBITS        b0000000 002000 00360c 00  AX  0   0  4                                     */
+/* [10] .rodata           PROGBITS        b000360c 00560c 001130 00  AM  0   0  4                                     */
+/* [11] .mozak_stack      PROGBITS        f0000000 00673c 000000 00   A  0   0  1                                     */
+/* Key to Flags:                                                                                                      */
+/* W (write), A (alloc), X (execute), M (merge), S (strings), I (info),                                               */
+/* L (link order), O (extra OS processing required), G (group), T (TLS),                                              */
+/* C (compressed), x (unknown), o (OS specific), E (exclude),                                                         */
+/* D (mbind), p (processor specific)                                                                                  */
+/*====================================================================================================================*/
 
 /*====================================================================================================================*/
 /*  The OUTPUT_ARCH command specifies the machine architecture where the                                              */
@@ -52,11 +75,11 @@ ENTRY( _start )
 /*  final memory layout                                                                                               */
 /*====================================================================================================================*/
 SECTIONS {
-    /* RISCV rom (NOT IN USE), since riscv attributes section is discarded */
-    /* It still here, since maybe in future we will want this section back */
-    /* Since linker-scripts are very undocumented and each linker slightly */
-    /* differs, and because actually these symbols indeed produced by      */
-    /* compiles, it was decided to leave this section here - commented-out */
+    /* RISCV rom (NOT IN USE), since riscv attributes section is discarded  */
+    /* It still here, maybe in future we will want this section back        */
+    /* Linker-scripts are very undocumented and each linker slightly        */
+    /* differs, and because actually these symbols indeed produced by       */
+    /* compiler, it was decided to leave this section here as commented-out */
     /*
         .riscv : { *(.riscv); *(.riscv.attributes); *(.riscv.attributes.*); } > riscv_rom
         _riscv_start = ADDR(.riscv);
