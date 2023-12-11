@@ -4,7 +4,10 @@ name = "fibonacci-mozak-guest"
 version = "0.1.0"
 
 [dependencies]
-guest = { path = "../../guest" }
+guest = { path = "../../guest", default-features = false }
+
+[features]
+std = ["guest/std"]
 
 [[bin]]
 name = "fibonacci"
