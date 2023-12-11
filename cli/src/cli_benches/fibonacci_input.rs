@@ -20,7 +20,7 @@ pub fn fibonacci_input(n: u32) -> Result<(), anyhow::Error> {
     let out = fibonacci(n);
     let program = Program::load_program(
         mozak_examples::FIBONACCI_INPUT_ELF,
-        &RuntimeArguments::new(&[0; 32], 0.0, &n.to_le_bytes(), &out.to_le_bytes()),
+        &RuntimeArguments::new(&[0; 32], &n.to_le_bytes(), &out.to_le_bytes()),
     )
     .unwrap();
     let state = State::<GoldilocksField>::new(program.clone());

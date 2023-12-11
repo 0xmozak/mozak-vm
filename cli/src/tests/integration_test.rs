@@ -10,6 +10,7 @@ fn test_prove_and_verify_recursive_proof_command() {
     let temp_path = temp_dir.path();
 
     // Define file paths inside the temporary directory
+    let state_root = temp_path.join("state_root.txt");
     let io_tape_private = temp_path.join("io_tape_private.txt");
     let io_tape_public = temp_path.join("io_tape_public.txt");
     let proof_file = temp_path.join("proof.bin");
@@ -19,6 +20,8 @@ fn test_prove_and_verify_recursive_proof_command() {
     let elf_file: &str = "../examples/target/riscv32im-mozak-zkvm-elf/release/fibonacci";
 
     // Create mock IO tape files
+    fs::write(&state_root, b"00000000000000000000000000000000")
+        .expect("Failed to create state root file");
     fs::write(&io_tape_private, b"").expect("Failed to create IO tape private file");
     fs::write(&io_tape_public, b"").expect("Failed to create IO tape public file");
 
@@ -29,6 +32,7 @@ fn test_prove_and_verify_recursive_proof_command() {
             "--",
             "prove",
             elf_file,
+            &state_root.to_string_lossy(),
             &io_tape_private.to_string_lossy(),
             &io_tape_public.to_string_lossy(),
             &proof_file.to_string_lossy(),

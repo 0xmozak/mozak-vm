@@ -36,8 +36,6 @@ impl MozakMemoryRegion {
 pub struct MozakMemory {
     // merkle state root
     pub state_root: MozakMemoryRegion,
-    // timestamp
-    pub timestamp: MozakMemoryRegion,
     // io private
     pub io_tape_private: MozakMemoryRegion,
     // io public
@@ -51,11 +49,6 @@ impl Default for MozakMemory {
             state_root: MozakMemoryRegion {
                 starting_address: 0x0100_0000_u32,
                 capacity: 0x0000_0100_u32,
-                ..Default::default()
-            },
-            timestamp: MozakMemoryRegion {
-                starting_address: 0x0100_0100_u32,
-                capacity: 0x0000_0008_u32,
                 ..Default::default()
             },
             io_tape_private: MozakMemoryRegion {
@@ -95,7 +88,6 @@ impl MozakMemory {
             u32::try_from(ph.p_vaddr).expect("p_vaddr for zk-vm expected to be cast-able to u32");
         let mem_addresses = [
             self.state_root.memory_range(),
-            self.timestamp.memory_range(),
             self.io_tape_public.memory_range(),
             self.io_tape_private.memory_range(),
         ];
@@ -129,19 +121,6 @@ impl MozakMemory {
                     log::debug!(
                         "_mozak_merkle_state_root_capacity: 0x{:0x}",
                         self.state_root.capacity
-                    );
-                }
-                "_mozak_timestamp" => {
-                    self.timestamp.starting_address = u32::try_from(sym_value)
-                        .expect("timestamp address should be u32 cast-able");
-                    log::debug!("_mozak_timestamp: 0x{:0x}", self.timestamp.starting_address);
-                }
-                "_mozak_timestamp_capacity" => {
-                    self.timestamp.capacity = u32::try_from(sym_value)
-                        .expect("timestamp_max_capacity should be u32 cast-able");
-                    log::debug!(
-                        "_mozak_timestamp_capacity: 0x{:0x}",
-                        self.timestamp.capacity
                     );
                 }
                 "_mozak_public_io_tape" => {
@@ -186,7 +165,6 @@ impl MozakMemory {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RuntimeArguments {
     pub state_root: [u8; 32],
-    pub timestamp: [u8; 8],
     pub io_tape_private: Vec<u8>,
     pub io_tape_public: Vec<u8>,
 }
@@ -194,15 +172,9 @@ pub struct RuntimeArguments {
 impl RuntimeArguments {
     /// # Panics
     #[must_use]
-    pub fn new(
-        state_root: &[u8; 32],
-        unix_time: u64,
-        io_tape_private: &[u8],
-        io_tape_public: &[u8],
-    ) -> Self {
+    pub fn new(state_root: &[u8; 32], io_tape_private: &[u8], io_tape_public: &[u8]) -> Self {
         RuntimeArguments {
             state_root: *state_root,
-            timestamp: unix_time.to_le_bytes(),
             io_tape_private: io_tape_private.to_vec(),
             io_tape_public: io_tape_public.to_vec(),
         }
@@ -470,15 +442,6 @@ impl Program {
                 .state_root
                 .data
                 .insert(state_root_addr + u32::try_from(idx).unwrap(), *byte);
-        }
-        // [1] - Timestamp
-        let timestamp_addr = program.mozak_ro_memory.timestamp.starting_address;
-        for (idx, byte) in args.timestamp.iter().enumerate() {
-            program
-                .mozak_ro_memory
-                .timestamp
-                .data
-                .insert(timestamp_addr + u32::try_from(idx).unwrap(), *byte);
         }
         // [2] - IO private
         let io_priv_start_addr = program.mozak_ro_memory.io_tape_private.starting_address;

@@ -53,10 +53,8 @@ SECTIONS {
     .mozak_globals : {
         _mozak_merkle_state_root          = 0x01000000; /* assumed size is 32 bytes */
         _mozak_merkle_state_root_capacity = 0x00000100; /* 32 bytes */
-        _mozak_timestamp                  = 0x01000100; /* assumed size of timestamp is 4 bytes, the rest can be used */
-        _mozak_timestamp_capacity         = 0x00000008; /* 8 bytes */
-        _mozak_empty_space                = 0x01000108; /* empty space - reserved for future use */
-        _mozak_empty_space_capacity       = 0x0EFFFEF8; /* empty space capacity - 0x10000000 - 0x01000108 */
+        _mozak_empty_space                = 0x01000100; /* empty space - reserved for future use */
+        _mozak_empty_space_capacity       = 0x0EFFFF00; /* empty space capacity - 0x10000000 - 0x01000100 */
         _mozak_public_io_tape             = 0x10000000; /* assumed size is 256 MB */
         _mozak_public_io_tape_capacity    = 0x10000000; /* 256 MB in bytes */
         _mozak_private_io_tape            = 0x20000000; /* assumed size is 512 MB */

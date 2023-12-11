@@ -10,7 +10,7 @@ use crate::test_utils::ProveAndVerify;
 fn test_fibonacci() {
     let program = Program::load_program(
         mozak_examples::FIBONACCI_ELF,
-        &RuntimeArguments::new(&[0; 32], 0.0, &[], &[]),
+        &RuntimeArguments::new(&[0; 32], &[], &[]),
     )
     .unwrap();
     let state = State::<GoldilocksField>::new(program.clone());
