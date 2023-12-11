@@ -6,7 +6,7 @@ use tempfile::TempDir;
 #[test]
 fn test_prove_and_verify_recursive_proof_command() {
     // Create a temporary directory
-    let temp_dir = TempDir::new("test_dir").expect("Failed to create a temporary directory");
+    let temp_dir = TempDir::new().expect("Failed to create a temporary directory");
     let temp_path = temp_dir.path();
 
     // Define file paths inside the temporary directory
