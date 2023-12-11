@@ -186,7 +186,7 @@ impl MozakMemory {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RuntimeArguments {
     pub state_root: [u8; 32],
-    pub timestamp: [u8; 4],
+    pub timestamp: [u8; 8],
     pub io_tape_private: Vec<u8>,
     pub io_tape_public: Vec<u8>,
 }
@@ -196,7 +196,7 @@ impl RuntimeArguments {
     #[must_use]
     pub fn new(
         state_root: &[u8; 32],
-        unix_time: f32,
+        unix_time: u64,
         io_tape_private: &[u8],
         io_tape_public: &[u8],
     ) -> Self {
