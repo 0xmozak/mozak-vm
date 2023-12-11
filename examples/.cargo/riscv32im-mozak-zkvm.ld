@@ -153,7 +153,7 @@ SECTIONS {
         *(.eh_frame .eh_frame.*);
 
         /******************************************************/
-        /* [13.4] - dynamic symbols, only static is supported */
+        /* [13.5] - dynamic symbols, only static is supported */
         /******************************************************/
         *(.glink .glink.* .got .got.* .plt .plt.*);
         *(.relname .relname.* .relaname .relaname.*);
@@ -163,7 +163,7 @@ SECTIONS {
         *(.branch_lt .branch_lt.* .opd .opd.*);
 
         /******************************************************/
-        /* [13.5] - all other stuff that is not supported     */
+        /* [13.6] - all other stuff that is not supported     */
         /******************************************************/
         *(.interp .interp.*)
     }
