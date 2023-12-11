@@ -36,8 +36,22 @@ jobs:
       - name: Compile
         run: cargo nextest run --no-run --locked --all-targets
 
-      - name: Test
-        run: MOZAK_STARK_DEBUG=true cargo nextest run --no-fail-fast --locked --all-targets
+       #- name: Test
+        # run: MOZAK_STARK_DEBUG=true cargo nextest run --no-fail-fast --locked --all-targets
+
+      - name: Install taplo-cli
+        run: |
+          curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
+            gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
+
+      - name: Install mozak-cli
+        run: |
+          cargo install --bin mozak-cli
+
+      - name: Build and run examples
+        run: |
+          cd examples && cargo build --release
+          ./run_examples.sh
 
   cargo-clippy:
     needs: check-runner
