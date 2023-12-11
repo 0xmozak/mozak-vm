@@ -32,9 +32,9 @@ MEMORY {
 }
 
 /*====================================================================================================================*/
-/*    The OUTPUT_ARCH command specifies the machine architecture where the                                            */
-/*    argument is one of the names used in the BFD library. More                                                      */
-/*    specifically one of the entire in bfd/cpu-mips.c                                                                */
+/*  The OUTPUT_ARCH command specifies the machine architecture where the                                              */
+/*  argument is one of the names used in the BFD library. More                                                        */
+/*  specifically one of the entire in bfd/cpu-mips.c                                                                  */
 /*====================================================================================================================*/
 OUTPUT_ARCH( "riscv32" )
 
@@ -45,11 +45,11 @@ OUTPUT_ARCH( "riscv32" )
 ENTRY( _start )
 
 /*====================================================================================================================*/
-/* _start & _end symbols are defined since currently we don't have mechanism to extract sections by name              */
-/* so, this is the only why to fully parse mozak-style-elf by mozak-elf-loader                                        */
-/* later on, when and if this mechanism will be introduced and tested, these symbols can be removed                   */
-/* but, having these defined is very convenient for linker-scripts and it does not affect proving time and not        */
-/* final memory layout                                                                                                */
+/*  The _start & _end symbols are defined since currently we don't have mechanism to extract sections by name         */
+/*  so, this is the only why to fully parse mozak-style-elf by mozak-elf-loader                                       */
+/*  later on, when and if this mechanism will be introduced and tested, these symbols can be removed                  */
+/*  but, having these defined is very convenient for linker-scripts and it does not affect proving time and not       */
+/*  final memory layout                                                                                               */
 /*====================================================================================================================*/
 SECTIONS {
     /* [0] - RISCV rom (NOT IN USE), since riscv attributes section is discarded */
