@@ -1,4 +1,4 @@
-#![no_main]
+#![cfg_attr(target_os = "zkvm", no_main)]
 #![feature(restricted_std)]
 
 #[cfg(not(target_os = "zkvm"))]
