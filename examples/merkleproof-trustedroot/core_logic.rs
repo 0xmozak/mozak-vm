@@ -57,10 +57,13 @@ pub fn verify_merkle_proof(merkle_root: MerkleRootType, proof_data: ProofData) {
         .iter()
         .map(|&x| x as usize)
         .collect();
-    assert!(proof.verify(
+    let verified = proof.verify(
         merkle_root,
         &indices[..],
         proof_data.leaf_hashes.as_slice(),
         proof_data.leaves_len as usize,
-    ));
+    );
+    assert!(verified, "merkle proof verification failed");
+
+    guest::env::write(&[verified.into(); 1]);
 }
