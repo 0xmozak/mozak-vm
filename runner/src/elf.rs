@@ -43,6 +43,7 @@ pub struct MozakMemory {
 }
 
 impl Default for MozakMemory {
+    /// Assumed to be used only from tests
     fn default() -> Self {
         // These magic numbers taken from mozak-linker-script
         MozakMemory {
@@ -83,6 +84,14 @@ impl From<(&[u8], &[u8])> for MozakMemory {
     }
 }
 impl MozakMemory {
+    fn new() -> MozakMemory {
+        MozakMemory {
+            state_root: MozakMemoryRegion::default(),
+            io_tape_private: MozakMemoryRegion::default(),
+            io_tape_public: MozakMemoryRegion::default(),
+        }
+    }
+
     fn is_mozak_ro_memory_address(&self, ph: &ProgramHeader) -> bool {
         let address: u32 =
             u32::try_from(ph.p_vaddr).expect("p_vaddr for zk-vm expected to be cast-able to u32");
@@ -394,19 +403,13 @@ impl Program {
                 .flatten_ok()
                 .try_collect()
         };
+        // using here zeros as values, because otherwise it will silently be with right
+        // values
+        let mut mozak_ro_memory = MozakMemory::new();
         // if mozak-elf then fill memory, otherwise zeros
-        let mozak_ro_memory: MozakMemory = if is_mozak_elf {
-            let mut mozak_memory = MozakMemory::default();
-            mozak_memory.fill(&elf.symbol_table().unwrap().unwrap());
-            mozak_memory
-        } else {
-            // All regions will be zero
-            MozakMemory {
-                state_root: MozakMemoryRegion::default(),
-                io_tape_private: MozakMemoryRegion::default(),
-                io_tape_public: MozakMemoryRegion::default(),
-            }
-        };
+        if is_mozak_elf {
+            mozak_ro_memory.fill(&elf.symbol_table().unwrap().unwrap());
+        }
 
         let ro_memory = if is_mozak_elf {
             // && (!mozak_memory.is_mozak_ro_memory_address(ph)) --- this line is used to
