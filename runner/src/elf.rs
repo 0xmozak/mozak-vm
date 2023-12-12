@@ -84,8 +84,8 @@ impl From<(&[u8], &[u8])> for MozakMemory {
     }
 }
 impl MozakMemory {
-    fn new() -> MozakMemory {
-        MozakMemory {
+    fn new() -> Self {
+        Self {
             state_root: MozakMemoryRegion::default(),
             io_tape_private: MozakMemoryRegion::default(),
             io_tape_public: MozakMemoryRegion::default(),
