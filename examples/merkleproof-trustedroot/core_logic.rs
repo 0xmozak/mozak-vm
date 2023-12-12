@@ -65,6 +65,5 @@ pub fn verify_merkle_proof(merkle_root: MerkleRootType, proof_data: ProofData) {
     );
     assert!(verified, "merkle proof verification failed");
 
-    #[cfg(target_os = "zkvm")]
     guest::env::write(&[verified.into(); 1]);
 }
