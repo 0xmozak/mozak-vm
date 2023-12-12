@@ -96,11 +96,27 @@ impl From<(&[u8], &[u8])> for IoTape {
     }
 }
 
-impl From<&MozakMemory> for IoTape {
-    fn from(mozak_memory: &MozakMemory) -> Self {
+impl From<&Option<MozakMemory>> for IoTape {
+    fn from(mozak_memory: &Option<MozakMemory>) -> Self {
+        if mozak_memory.is_some() {
+            return Self {
+                private: IoTapeData::from(
+                    &mozak_memory
+                        .as_ref()
+                        .expect("MozakMemory exist")
+                        .io_tape_private,
+                ),
+                public: IoTapeData::from(
+                    &mozak_memory
+                        .as_ref()
+                        .expect("MozakMemory exist")
+                        .io_tape_public,
+                ),
+            };
+        }
         Self {
-            private: IoTapeData::from(&mozak_memory.io_tape_private),
-            public: IoTapeData::from(&mozak_memory.io_tape_public),
+            private: IoTapeData::default(),
+            public: IoTapeData::default(),
         }
     }
 }

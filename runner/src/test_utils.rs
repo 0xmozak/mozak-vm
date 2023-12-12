@@ -58,7 +58,7 @@ pub fn simple_test_code_with_ro_memory(
         ro_memory: Data(ro_mem.iter().copied().collect()),
         rw_memory: Data(rw_mem.iter().copied().collect()),
         ro_code,
-        mozak_ro_memory: MozakMemory::from((io_tape_private, io_tape_public)),
+        mozak_ro_memory: Some(MozakMemory::from((io_tape_private, io_tape_public))),
         ..Default::default()
     };
 

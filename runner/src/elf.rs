@@ -1,3 +1,4 @@
+use core::option::Option;
 use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::iter::repeat;
@@ -84,12 +85,20 @@ impl From<(&[u8], &[u8])> for MozakMemory {
     }
 }
 impl MozakMemory {
-    fn new() -> Self {
-        Self {
-            state_root: MozakMemoryRegion::default(),
-            io_tape_private: MozakMemoryRegion::default(),
-            io_tape_public: MozakMemoryRegion::default(),
+    fn new(
+        st: &(SymbolTable<LittleEndian>, StringTable),
+        is_mozak_elf: bool,
+    ) -> Option<MozakMemory> {
+        if is_mozak_elf {
+            let mut mozak_memory = Self {
+                state_root: MozakMemoryRegion::default(),
+                io_tape_private: MozakMemoryRegion::default(),
+                io_tape_public: MozakMemoryRegion::default(),
+            };
+            mozak_memory.fill(st);
+            return Some(mozak_memory);
         }
+        None
     }
 
     fn is_mozak_ro_memory_address(&self, ph: &ProgramHeader) -> bool {
@@ -222,7 +231,7 @@ pub struct Program {
     pub ro_code: Code,
 
     /// Mozak run-time memory
-    pub mozak_ro_memory: MozakMemory,
+    pub mozak_ro_memory: Option<MozakMemory>,
 }
 
 /// Executable code of the ELF
@@ -270,7 +279,7 @@ impl From<HashMap<u32, u8>> for Program {
             ro_code: Code::from(&image),
             ro_memory: Data::default(),
             rw_memory: Data(image),
-            mozak_ro_memory: MozakMemory::default(),
+            mozak_ro_memory: Some(MozakMemory::default()),
         }
     }
 }
@@ -363,9 +372,9 @@ impl Program {
         let extract = |check_flags: fn(
             u32,
             program_headers: &ProgramHeader,
-            mozak_memory: &MozakMemory,
+            mozak_memory: &Option<MozakMemory>,
         ) -> bool,
-                       mozak_memory: &MozakMemory| {
+                       mozak_memory: &Option<MozakMemory>| {
             segments
                 .iter()
                 .filter(|program_header| {
@@ -405,11 +414,8 @@ impl Program {
         };
         // using here zeros as values, because otherwise it will silently be with right
         // values
-        let mut mozak_ro_memory = MozakMemory::new();
         // if mozak-elf then fill memory, otherwise zeros
-        if is_mozak_elf {
-            mozak_ro_memory.fill(&elf.symbol_table().unwrap().unwrap());
-        }
+        let mozak_ro_memory = MozakMemory::new(&elf.symbol_table().unwrap().unwrap(), is_mozak_elf);
 
         let ro_memory = if is_mozak_elf {
             // && (!mozak_memory.is_mozak_ro_memory_address(ph)) --- this line is used to
@@ -420,10 +426,13 @@ impl Program {
             // from rust code and currently no init code to this section is
             // supported.
             Data(extract(
-                |flags, ph, mozak_memory: &MozakMemory| {
+                |flags, ph, mozak_memory: &Option<MozakMemory>| {
                     (flags & elf::abi::PF_R == elf::abi::PF_R)
                         && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
-                        && (!mozak_memory.is_mozak_ro_memory_address(ph))
+                        && (!mozak_memory
+                            .as_ref()
+                            .expect("Expected to exist for mozak-elf")
+                            .is_mozak_ro_memory_address(ph))
                 },
                 &mozak_ro_memory,
             )?)
@@ -501,29 +510,30 @@ impl Program {
     /// cast-able
     pub fn mozak_load_program(elf_bytes: &[u8], args: &RuntimeArguments) -> Result<Program> {
         let mut program = Program::mozak_load_elf(elf_bytes).unwrap();
+        let mozak_ro_memory = program
+            .mozak_ro_memory
+            .as_mut()
+            .expect("MozakMemory exist for mozak-elf case");
         // [0] - State Root
-        let state_root_addr = program.mozak_ro_memory.state_root.starting_address;
+        let state_root_addr = mozak_ro_memory.state_root.starting_address;
         for (idx, byte) in args.state_root.iter().enumerate() {
-            program
-                .mozak_ro_memory
+            mozak_ro_memory
                 .state_root
                 .data
                 .insert(state_root_addr + u32::try_from(idx).unwrap(), *byte);
         }
         // [2] - IO private
-        let io_priv_start_addr = program.mozak_ro_memory.io_tape_private.starting_address;
+        let io_priv_start_addr = mozak_ro_memory.io_tape_private.starting_address;
         for (idx, byte) in args.io_tape_private.iter().enumerate() {
-            program
-                .mozak_ro_memory
+            mozak_ro_memory
                 .io_tape_private
                 .data
                 .insert(io_priv_start_addr + u32::try_from(idx).unwrap(), *byte);
         }
         // [3] - IO public
-        let io_pub_start_addr = program.mozak_ro_memory.io_tape_public.starting_address;
+        let io_pub_start_addr = mozak_ro_memory.io_tape_public.starting_address;
         for (idx, byte) in args.io_tape_public.iter().enumerate() {
-            program
-                .mozak_ro_memory
+            mozak_ro_memory
                 .io_tape_public
                 .data
                 .insert(io_pub_start_addr + u32::try_from(idx).unwrap(), *byte);
