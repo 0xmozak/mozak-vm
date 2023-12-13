@@ -4,6 +4,8 @@ MEMBERS=$(taplo get -f examples/Cargo.toml 'workspace.members')
 # TODO(bing): add debug
 PROFILES=("release")
 
+failed=""
+
 for profile in ${PROFILES[@]}
 do
     for member in ${MEMBERS}
@@ -27,12 +29,17 @@ do
 
             cargo run --bin mozak-cli run -vvv examples/target/riscv32im-mozak-zkvm-elf/${profile}/${bin} examples/${private_iotape} examples/${public_iotape}
 
+            # cargo exits with 0 if success
             if [ $? != 0 ]; then
-                echo -e  "\nRunning ${bin} (${profile}) failed"
-                exit 1
+                failed="${failed}${bin} (${profile})\n"
             fi
         done
     done
 done
+
+if [ -n "$failed" ]; then
+    echo -e  "\nSome tests failed:\n${failed}"
+    exit 1
+fi
 
 exit 0
