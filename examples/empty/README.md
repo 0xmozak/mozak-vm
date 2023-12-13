@@ -4,7 +4,7 @@ be documented [here](../../docs/linker-script.md).
 
 # To run
 
-To compile for Mozak-VM:
+To build for Mozak-VM:
 
 ```sh
 # inside examples directory
