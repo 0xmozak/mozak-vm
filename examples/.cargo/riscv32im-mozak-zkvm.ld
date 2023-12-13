@@ -33,6 +33,7 @@ MEMORY {
     ram(rw!x):          ORIGIN = 0x50000000, LENGTH = 2560M
 
     /* General purpose STACK for program to use, leaving last few bytes for "kernel"                         */
+    /*  left over for consistency with the established layout, but that we don't really need it.             */
     mozak_stack(rw!x):  ORIGIN = 0xF0000000, LENGTH = 240M
 }
 
