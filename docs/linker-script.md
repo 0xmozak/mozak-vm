@@ -19,7 +19,6 @@ generated ELF
 Checkout `examples/.cargo` and uncomment the "WITHOUT linker-script" `rustflags`. It should look as follows:
 
 ```toml
-...
 [build]
 ########   LINKER SCRIPT ###########
 # Uncomment the following to build WITHOUT any linker script
@@ -28,7 +27,6 @@ rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
 # Uncomment the following to build WITH linker script
 # rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none", "-Clink-arg=-T./.cargo/riscv32im-mozak-zkvm.ld"]
 ########   LINKER SCRIPT ###########
-...
 ```
 
 If we explore via
@@ -79,7 +77,6 @@ The file off means the file offset for the section. In the example above, .text 
 Checkout `examples/.cargo` and uncomment the "WITH linker-script" `rustflags`. It should look as follows:
 
 ```toml
-...
 [build]
 ########   LINKER SCRIPT ###########
 # Uncomment the following to build WITHOUT any linker script
@@ -88,7 +85,6 @@ Checkout `examples/.cargo` and uncomment the "WITH linker-script" `rustflags`. I
 # Uncomment the following to compile WITH linker script
 rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none", "-Clink-arg=-T./.cargo/riscv32im-mozak-zkvm.ld"]
 ########   LINKER SCRIPT ###########
-...
 ```
 Based losely on the following setup:
 
