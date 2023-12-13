@@ -14,6 +14,7 @@ pub extern "C" fn alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
     // Alert: Linker Script variable hardcoded here. This is an assumption on
     // program layout. Corresponds to linker's script memory address space
     // for `ram`
+    // TODO: fix this, read from link time variable
     static mut HEAP_POS: usize = 0x5000_0000;
 
     // SAFETY: Single threaded, so nothing else can touch this while we're working.
