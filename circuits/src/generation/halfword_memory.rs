@@ -101,26 +101,25 @@ mod tests {
             &io_memory_public_rows,
             &poseidon2_rows,
         );
-        assert_eq!(
-            trace,
+        assert_eq!(trace,
             prep_table(vec![
                 //is_writable  addr   clk  is_store, is_load, is_init  value  diff_clk
-                [       1,     400,   0,      0,        0,       1,        0,        0],  // Memory Init: 400
-                [       1,     400,   2,      1,        0,       0,        2,        2],  // Operations:  400
+                [       1,     400,   1,      0,        0,       1,        0,        0],  // Memory Init: 400
+                [       1,     400,   2,      1,        0,       0,        2,        1],  // Operations:  400
                 [       1,     400,   3,      0,        1,       0,        2,        1],  // Operations:  400
-                [       1,     401,   0,      0,        0,       1,        0,        0],  // Memory Init: 401
-                [       1,     401,   2,      1,        0,       0,        1,        2],  // Operations:  401
+                [       1,     401,   1,      0,        0,       1,        0,        0],  // Memory Init: 401
+                [       1,     401,   2,      1,        0,       0,        1,        1],  // Operations:  401
                 [       1,     401,   3,      0,        1,       0,        1,        1],  // Operations:  401
-                [       1,     402,   0,      0,        0,       1,        0,        0],  // Memory Init: 402
-                [       1,     403,   0,      0,        0,       1,        0,        0],  // Memory Init: 403
-                [       1,     500,   0,      0,        0,       1,        0,        0],  // Memory Init: 500
-                [       1,     500,   4,      1,        0,       0,        4,        4],  // Operations:  500
+                [       1,     402,   1,      0,        0,       1,        0,        0],  // Memory Init: 402
+                [       1,     403,   1,      0,        0,       1,        0,        0],  // Memory Init: 403
+                [       1,     500,   1,      0,        0,       1,        0,        0],  // Memory Init: 500
+                [       1,     500,   4,      1,        0,       0,        4,        3],  // Operations:  500
                 [       1,     500,   5,      0,        1,       0,        4,        1],  // Operations:  500
-                [       1,     501,   0,      0,        0,       1,        0,        0],  // Memory Init: 501
-                [       1,     501,   4,      1,        0,       0,        3,        4],  // Operations:  501
+                [       1,     501,   1,      0,        0,       1,        0,        0],  // Memory Init: 501
+                [       1,     501,   4,      1,        0,       0,        3,        3],  // Operations:  501
                 [       1,     501,   5,      0,        1,       0,        3,        1],  // Operations:  501
-                [       1,     502,   0,      0,        0,       1,        0,        0],  // Memory Init: 502
-                [       1,     502,   0,      0,        0,       0,        0,        0],  // padding
+                [       1,     502,   1,      0,        0,       1,        0,        0],  // Memory Init: 502
+                [       1,     502,   1,      0,        0,       0,        0,        0],  // padding
             ])
         );
     }
