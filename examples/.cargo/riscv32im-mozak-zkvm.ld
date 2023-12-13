@@ -71,6 +71,7 @@ SECTIONS {
     .data : { *(.data); *(.data.*); *(.data1); *(.data1.*) } > elf_rwdata
 
     /* For memory region: `ram` --------------------------------------------------------------------------   */
+
     /* For memory region: `mozak_stack` ------------------------------------------------------------------   */
 
     /* DISCARD sections to forcefully remove sections                                                        */

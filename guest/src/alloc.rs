@@ -18,7 +18,10 @@ pub extern "C" fn alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
     let mut heap_pos = unsafe { HEAP_POS };
 
     if heap_pos == 0 {
-        heap_pos = unsafe { (&_end) as *const u8 as usize };
+        // Alert: Linker Script variable hardcoded here. This is an assumption on
+        // program layout. Corresponds to linker's script memory address space
+        // for `ram`
+        heap_pos = 0x5000_0000;
     }
 
     let offset = heap_pos & (align - 1);
