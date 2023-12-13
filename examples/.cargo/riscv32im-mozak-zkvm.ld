@@ -14,26 +14,26 @@ ENTRY( _start )
 /*====================================================================================================================*/
 MEMORY {
     /* We reserve the first few bytes for any "future" use. This inludes for sections like .risc_attributes */
-    riscv_rom(r!wx):   ORIGIN = 0x00000000, LENGTH = 16M
+    riscv_rom(r!wx):    ORIGIN = 0x00000000, LENGTH = 16M
 
     /* Executable code section, right after reserved, we give it 240M so that `riscv_rom` + `readonly_code` */
     /* combine together to take up a good whole number 256M.                                                */
-    readonly_code(rx): ORIGIN = 0x01000000, LENGTH = 240M
+    readonly_code(rx):  ORIGIN = 0x01000000, LENGTH = 240M
     
     /* Static data section, to be populated with rodata from program ELF                                    */
-    elf_rodata(r!x):   ORIGIN = 0x10000000, LENGTH = 256M
+    elf_rodata(r!x):    ORIGIN = 0x10000000, LENGTH = 256M
 
     /* Static data section to be populated with blockchain "globals" or context-specific mozak variables    */
-    mozak_rom(r!x):    ORIGIN = 0x20000000, LENGTH = 512M
+    mozak_context(r!x): ORIGIN = 0x20000000, LENGTH = 512M
 
     /* Uninitialised and initialized memory from ELF                                                         */
-    elf_rwdata(rw!x):  ORIGIN = 0x40000000, LENGTH = 256M
+    elf_rwdata(rw!x):   ORIGIN = 0x40000000, LENGTH = 256M
 
     /* General purpose RAM is worth 2.5GB for us                                                             */
-    ram(rw!x):         ORIGIN = 0x50000000, LENGTH = 2560M
+    ram(rw!x):          ORIGIN = 0x50000000, LENGTH = 2560M
 
     /* General purpose STACK for program to use, leaving last few bytes for "kernel"                         */
-    mozak_stack(rw!x): ORIGIN = 0xF0000000, LENGTH = 240M
+    mozak_stack(rw!x):  ORIGIN = 0xF0000000, LENGTH = 240M
 }
 
 SECTIONS {
@@ -49,7 +49,7 @@ SECTIONS {
     /* For memory region: `elf_rodata` -------------------------------------------------------------------   */
     .rodata : { *(.rodata .rodata.*); *(.rodata1 .rodata1.*) } > elf_rodata
 
-    /* For memory region: `mozak_rom` --------------------------------------------------------------------   */
+    /* For memory region: `mozak_context` ----------------------------------------------------------------   */
     /* mozak globals, NOTE: needs to sync with memory regions defined above                                  */
         .mozak_globals : {
             /* Globals like state root can be filled within 0x20000000 to 0x200FFFFF                         */
@@ -57,8 +57,7 @@ SECTIONS {
             /* Space left intentional for further use                                                        */
             _mozak_public_io_tape             = 0x21000000;
             _mozak_private_io_tape            = 0x30000000;
-        }
-
+        } > mozak_context
 
     /* For memory region: `elf_rwdata` -------------------------------------------------------------------   */
     /* BSS uninitialised memory */
