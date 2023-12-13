@@ -16,6 +16,21 @@ generated ELF
 - Others: https://github.com/riscv-software-src/riscv-tools
 
 ### Sections via normal build process
+Checkout `examples/.cargo` and uncomment the "WITHOUT linker-script" `rustflags`. It should look as follows:
+
+```toml
+...
+[build]
+########   LINKER SCRIPT ###########
+# Uncomment the following to compile WITHOU any linker script
+rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
+
+# Uncomment the following to compile WITH    linker script
+# rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none", "-Clink-arg=-T./.cargo/riscv32im-mozak-zkvm.ld"]
+########   LINKER SCRIPT ###########
+...
+```
+
 If we explore via
 ```
 ./riscv64-unknown-elf-objdump -h mozak-vm/examples/target/riscv32im-mozak-zkvm-elf/release/empty
@@ -25,13 +40,19 @@ we get
 ```
 Sections:
 Idx Name          Size      VMA       LMA       File off  Algn
-  0 .rodata       00000004  000100d4  000100d4  000000d4  2**2
+  0 .rodata       00000254  000100f4  000100f4  000000f4  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
-  1 .text         00000014  000110d8  000110d8  000000d8  2**2
+  1 .text         000013a0  00011348  00011348  00000348  2**2
                   CONTENTS, ALLOC, LOAD, READONLY, CODE
-  2 .comment      00000048  00000000  00000000  000000ec  2**0
+  2 .data         00000014  000136e8  000136e8  000016e8  2**0
+                  CONTENTS, ALLOC, LOAD, DATA
+  3 .sdata        00000008  000136fc  000136fc  000016fc  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+  4 .sbss         0000000c  00013704  00013704  00001704  2**2
+                  ALLOC
+  5 .comment      00000048  00000000  00000000  00001704  2**0
                   CONTENTS, READONLY
-  3 .riscv.attributes 00000021  00000000  00000000  00000134  2**0
+  6 .riscv.attributes 00000021  00000000  00000000  0000174c  2**0
                   CONTENTS, READONLY
 ```
 Excerpt from [Stack Overflow](https://stackoverflow.com/questions/6218384/virtual-and-physical-addresses-of-sections-in-elf-files):
@@ -44,12 +65,47 @@ An example of when they might be different is when a data section is loaded into
 
 "VMA" and "LMA" are GNU utility terminology and not in the ELF specification. Once you get down to looking at it from interpreting an ELF executable file, you will find that there is a program header field called "p_paddr" and another called "p_vaddr".
 
-Here are scenarios where VMA and LMA might differ:
+Here are scenarios where VMA and LMA might differ (not used, just for docs):
 
 - Position-Independent Executables (PIE): When creating position-independent executables (PIE) or shared libraries, the loader might relocate the program in memory to avoid collisions with other programs. In such cases, the VMA addresses (addresses during execution) might differ from the LMA addresses (addresses at which the program is loaded).
 
 - Address Space Layout Randomization (ASLR): Some operating systems use ASLR, which randomizes the base address of a program or shared library in memory at load time. This randomization might cause the VMA and LMA to differ as the loaded address can vary from one execution to another.
 
-The file off means the file offset for the section. In the example above, .text section starts from `0x000000d8` in a file.
+For most of our use cases we can consider them as equal in values.
+
+The file off means the file offset for the section. In the example above, .text section starts from `0x00000348` in a file.
 
 ### Sections via custom linker script for reserved memory
+Checkout `examples/.cargo` and uncomment the "WITH linker-script" `rustflags`. It should look as follows:
+
+```toml
+...
+[build]
+########   LINKER SCRIPT ###########
+# Uncomment the following to compile WITHOU any linker script
+# rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
+
+# Uncomment the following to compile WITH    linker script
+rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none", "-Clink-arg=-T./.cargo/riscv32im-mozak-zkvm.ld"]
+########   LINKER SCRIPT ###########
+...
+```
+Based losely on the following setup:
+
+![Memory layout](memory_layout.png)
+
+Same build now reveals the following sections:
+```
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .text         000013a0  01000000  01000000  00001000  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  1 .rodata       00000254  10000000  10000000  00003000  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  2 .mozak_globals 00000000  00000000  00000000  00003254  2**0
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  3 .sbss         00000014  40000000  40000000  00004000  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+  4 .data         00000014  40000014  40000014  00004014  2**0
+                  CONTENTS, ALLOC, LOAD, DATA
+```
+It's worth noting that now we see new additions `.mozak_globals` as well as `.sbss` and `.data` in their relevant VMA/LMA location `0x40000000`+.
