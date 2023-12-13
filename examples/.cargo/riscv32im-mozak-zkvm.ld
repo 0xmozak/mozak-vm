@@ -41,7 +41,7 @@ MEMORY {
     /* 
     General purpose STACK for program to use, leaving last few bytes for "kernel", left over for 
     consistency with the established layout, but that we don't really need it. The following is commented
-    out since these values are not used right now. 
+    out since these values are not used right now.
     */
     /* mozak_stack(rw!x):  ORIGIN = 0xF0000000, LENGTH = 240M */
 }
