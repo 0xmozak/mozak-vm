@@ -22,7 +22,7 @@ Checkout `examples/.cargo` and uncomment the "WITHOUT linker-script" `rustflags`
 ...
 [build]
 ########   LINKER SCRIPT ###########
-# Uncomment the following to compile WITHOU any linker script
+# Uncomment the following to build WITHOUT any linker script
 rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
 
 # Uncomment the following to compile WITH    linker script
