@@ -19,12 +19,16 @@ do
                     echo "(mozak-cli) skipping (${profile}): ${bin}"
                     continue
                     ;;
+                "fibonacci-input" )
+                    private_iotape="${member}/iotape_private"
+                    public_iotape="${member}/iotape_public"
+                    ;;
             esac
 
             cargo run --bin mozak-cli run -vvv examples/target/riscv32im-mozak-zkvm-elf/${profile}/${bin} examples/${private_iotape} examples/${public_iotape}
 
             if [ $? != 0 ]; then
-                echo "One of the tests failed".
+                echo "Running ${bin} (${profile}) failed".
                 exit 1
             fi
         done
