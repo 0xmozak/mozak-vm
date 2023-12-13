@@ -17,6 +17,7 @@ do
             private_iotape="iotape.txt"
             public_iotape="iotape.txt"
             case ${bin} in
+                # TODO(bing): fix to work with this script
                 "panic" | "merkleproof-trustedroot-native" )
                     echo "(mozak-cli) skipping (${profile}): ${bin}"
                     continue
