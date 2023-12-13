@@ -28,7 +28,7 @@ do
             cargo run --bin mozak-cli run -vvv examples/target/riscv32im-mozak-zkvm-elf/${profile}/${bin} examples/${private_iotape} examples/${public_iotape}
 
             if [ $? != 0 ]; then
-                echo "Running ${bin} (${profile}) failed".
+                echo -e  "\nRunning ${bin} (${profile}) failed"
                 exit 1
             fi
         done
