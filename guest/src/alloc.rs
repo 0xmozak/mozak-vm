@@ -10,19 +10,14 @@ pub extern "C" fn alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
         static _end: u8;
     }
 
-    // Pointer to next heap address to use, or 0 if the heap has not yet been
-    // initialized.
-    static mut HEAP_POS: usize = 0;
+    // Pointer to next heap address to use
+    // Alert: Linker Script variable hardcoded here. This is an assumption on
+    // program layout. Corresponds to linker's script memory address space
+    // for `ram`
+    static mut HEAP_POS: usize = 0x5000_0000;
 
     // SAFETY: Single threaded, so nothing else can touch this while we're working.
     let mut heap_pos = unsafe { HEAP_POS };
-
-    if heap_pos == 0 {
-        // Alert: Linker Script variable hardcoded here. This is an assumption on
-        // program layout. Corresponds to linker's script memory address space
-        // for `ram`
-        heap_pos = 0x5000_0000;
-    }
 
     let offset = heap_pos & (align - 1);
     if offset != 0 {
