@@ -51,13 +51,13 @@ SECTIONS {
 
     /* For memory region: `mozak_context` ----------------------------------------------------------------   */
     /* mozak globals, NOTE: needs to sync with memory regions defined above                                  */
-        .mozak_globals : {
-            /* Globals like state root can be filled within 0x20000000 to 0x200FFFFF                         */
-            _mozak_merkle_state_root          = 0x20000000;
-            /* Space left intentional for further use                                                        */
-            _mozak_public_io_tape             = 0x21000000;
-            _mozak_private_io_tape            = 0x30000000;
-        } > mozak_context
+    .mozak_globals : {
+        /* Globals like state root can be filled within 0x20000000 to 0x200FFFFF                         */
+        _mozak_merkle_state_root          = 0x20000000;
+        /* Space left intentional for further use                                                        */
+        _mozak_public_io_tape             = 0x21000000;
+        _mozak_private_io_tape            = 0x30000000;
+    } > mozak_context
 
     /* For memory region: `elf_rwdata` -------------------------------------------------------------------   */
     /* BSS uninitialised memory */
