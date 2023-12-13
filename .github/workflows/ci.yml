@@ -36,8 +36,8 @@ jobs:
       - name: Compile
         run: cargo nextest run --no-run --locked --all-targets
 
-       #- name: Test
-        # run: MOZAK_STARK_DEBUG=true cargo nextest run --no-fail-fast --locked --all-targets
+      - name: Test
+        run: MOZAK_STARK_DEBUG=true cargo nextest run --no-fail-fast --locked --all-targets
 
       - name: Install taplo-cli
         run: |
