@@ -25,7 +25,7 @@ Checkout `examples/.cargo` and uncomment the "WITHOUT linker-script" `rustflags`
 # Uncomment the following to build WITHOUT any linker script
 rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
 
-# Uncomment the following to compile WITH    linker script
+# Uncomment the following to build WITH linker script
 # rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none", "-Clink-arg=-T./.cargo/riscv32im-mozak-zkvm.ld"]
 ########   LINKER SCRIPT ###########
 ...
