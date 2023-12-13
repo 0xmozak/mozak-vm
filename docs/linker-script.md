@@ -3,10 +3,10 @@ Linker script used while generating mozak-vm targetted program ELFs modifies the
 This document intends to clarify this in more detail.
 
 ## Without linker script
-We take an example of `empty` within `examples`. Without a linker script, we build the system using
+We take an example of `bss-tester` within `examples`. Without a linker script, we build the system using
 the command 
 ```sh
-cargo +nightly build --release --bin empty
+cargo +nightly build --release --bin bss-tester
 ```
 
 ### Exploring via `objdump`
@@ -31,7 +31,7 @@ rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
 
 If we explore via
 ```
-./riscv64-unknown-elf-objdump -h mozak-vm/examples/target/riscv32im-mozak-zkvm-elf/release/empty
+./riscv64-unknown-elf-objdump -h mozak-vm/examples/target/riscv32im-mozak-zkvm-elf/release/bss-tester
 ```
 
 we get

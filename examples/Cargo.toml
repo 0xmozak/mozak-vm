@@ -1,6 +1,6 @@
 [workspace]
 members = [
-  "empty",
+  "bss-tester",
   "fibonacci",
   "min-max",
   "memory-access",
