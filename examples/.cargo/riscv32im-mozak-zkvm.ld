@@ -40,9 +40,10 @@ MEMORY {
 
     /* 
     General purpose STACK for program to use, leaving last few bytes for "kernel", left over for 
-    consistency with the established layout, but that we don't really need it.
+    consistency with the established layout, but that we don't really need it. The following is commented
+    out since these values are not used right now. 
     */
-    mozak_stack(rw!x):  ORIGIN = 0xF0000000, LENGTH = 240M
+    /* mozak_stack(rw!x):  ORIGIN = 0xF0000000, LENGTH = 240M */
 }
 
 SECTIONS {
@@ -62,10 +63,10 @@ SECTIONS {
 
     /* For memory region: `mozak_context` ----------------------------------------------------------------   */
 
-    /* mozak mozak_context_variables, NOTE: needs to sync with memory regions defined above */
-    .mozak_context_variables : {
+    /* mozak_globals, NOTE: needs to sync with memory regions defined above */
+    .mozak_globals : {
         /* Globals like state root can be filled within 0x20000000 to 0x200FFFFF */
-        _mozak_merkle_state_root          = 0x20000000;
+        _mozak_context_variables          = 0x20000000;
         /* Space left intentional for further use */
         _mozak_public_io_tape             = 0x21000000;
         _mozak_private_io_tape            = 0x30000000;
@@ -83,8 +84,6 @@ SECTIONS {
     .data : { *(.data); *(.data.*); *(.data1); *(.data1.*) } > elf_rwdata
 
     /* For memory region: `ram` ------------------------------ EMPTY -------------------------------------   */
-
-    /* For memory region: `mozak_stack` ---------------------- EMPTY -------- ----------------------------   */
 
     /* DISCARD to forcefully remove sections */
     /DISCARD/ : {
