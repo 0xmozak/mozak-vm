@@ -9,8 +9,6 @@ pub fn main() {
     unsafe{
         assert_eq!(XYZ[2], 51);
     }
-    // assert_eq!(G, 200);
-    // assert_eq!(G_STR, "hello");
 }
 
 guest::entry!(main);
