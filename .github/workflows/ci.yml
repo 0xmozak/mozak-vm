@@ -44,14 +44,10 @@ jobs:
           curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
             gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
 
-      - name: Install mozak-cli
-        run: |
-          cargo install --bin mozak-cli
-
       - name: Build and run examples
         run: |
           cd examples && cargo build --release
-          ./run_examples.sh
+          cd .. && ./run_examples.sh
 
   cargo-clippy:
     needs: check-runner
