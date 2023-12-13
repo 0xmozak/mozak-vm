@@ -104,4 +104,4 @@ Idx Name          Size      VMA       LMA       File off  Algn
   4 .data         00000014  40000014  40000014  00004014  2**0
                   CONTENTS, ALLOC, LOAD, DATA
 ```
-It's worth noting that now we see new additions `.mozak_globals` as well as `.sbss` and `.data` in their relevant VMA/LMA location `0x40000000`+.
+It's worth noting that now we see new additions `.mozak_globals` as well as `.sbss` and `.data` in their relevant VMA/LMA location `0x40000000` onwards.
