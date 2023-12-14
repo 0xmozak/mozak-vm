@@ -13,7 +13,7 @@ runs:
       name: Get info
       shell: bash
       run: |
-        RUST_VERSION="$(cat rust-toolchain.toml | grep '^channel\s*=' | cut --delimiter '=' --fields=2 | sed 's/"//g' | sed --expression 's/^[ \t]*//')"
+        RUST_VERSION="$(cat rust-toolchain.toml | grep '^channel\s*=' | cut --delimiter '=' --fields=2 | sed 's/"//g' | sed 's/^[ \t]*//')"
         echo "rust-version=${RUST_VERSION}" >> "$GITHUB_OUTPUT"
         echo "cache-primary-key=toolchain-${{ runner.os }}-${{ runner.arch }}-${RUST_VERSION}" >> "$GITHUB_OUTPUT"
 
