@@ -1,5 +1,18 @@
 [workspace]
-members = ["fibonacci", "min-max", "memory-access", "panic", "poseidon2", "static-mem-access", "sha2", "rkyv-serialization", "stdin", "fibonacci-input", "merkleproof-trustedroot"]
+members = [
+  "bss-tester",
+  "fibonacci",
+  "min-max",
+  "memory-access",
+  "panic",
+  "poseidon2",
+  "static-mem-access",
+  "sha2",
+  "rkyv-serialization",
+  "stdin",
+  "fibonacci-input",
+  "merkleproof-trustedroot",
+]
 resolver = "2"
 
 [profile.release]
