@@ -28,7 +28,10 @@ do
                     ;;
             esac
 
-            cargo run --bin mozak-cli run -vvv examples/target/riscv32im-mozak-zkvm-elf/${profile}/${bin} examples/${private_iotape} examples/${public_iotape}
+            cargo run --bin mozak-cli \
+            run -vvv examples/target/riscv32im-mozak-zkvm-elf/${profile}/${bin} \
+            examples/${private_iotape} \
+            examples/${public_iotape}
 
             # cargo exits with 0 if success
             if [ $? != 0 ]; then
