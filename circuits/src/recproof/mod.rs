@@ -1,7 +1,6 @@
 use anyhow::Result;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
-use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
@@ -190,6 +189,7 @@ where
     C: GenericConfig<D, F = F>,
     <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
 {
+    #[must_use]
     pub fn new(circuit_config: &CircuitConfig) -> Self {
         fn add_object<F, const D: usize>(builder: &mut CircuitBuilder<F, D>) -> LeafObjectTargets
         where
@@ -201,7 +201,7 @@ where
 
             let hash = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(
                 data.into_iter()
-                    .chain(owner.elements.into_iter())
+                    .chain(owner.elements)
                     .chain([lifetime, last_updated])
                     .collect(),
             );
@@ -215,7 +215,7 @@ where
             }
         }
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-        let _true = builder._true();
+        let true_ = builder._true();
 
         let old_hash_present = builder.add_virtual_bool_target_safe();
         let old_object = add_object(&mut builder);
@@ -237,7 +237,7 @@ where
             // make sure we're not trying to retain an expired leaf
             let tmp = builder.and(new_hash_present, expired);
             let tmp = builder.not(tmp);
-            builder.connect(tmp.target, _true.target);
+            builder.connect(tmp.target, true_.target);
         }
 
         builder.register_public_input(new_object.last_updated);
@@ -291,8 +291,7 @@ where
         }
     }
 
-    fn set_input(
-        &self,
+    fn set_object(
         inputs: &mut PartialWitness<F>,
         targets: &LeafObjectTargets,
         object: &Object<F, D>,
@@ -313,7 +312,7 @@ where
         let mut inputs = PartialWitness::new();
         if let Some((old_object, old_hash)) = old_object {
             inputs.set_bool_target(self.targets.old_hash_present, true);
-            self.set_input(&mut inputs, &self.targets.old_object, old_object, *old_hash);
+            Self::set_object(&mut inputs, &self.targets.old_object, old_object, *old_hash);
             inputs.set_hash_target(self.targets.old_object_hash, *old_hash);
         } else {
             let dummy_obj = Object {
@@ -323,7 +322,7 @@ where
                 last_updated: F::ZERO,
             };
             inputs.set_bool_target(self.targets.old_hash_present, false);
-            self.set_input(
+            Self::set_object(
                 &mut inputs,
                 &self.targets.old_object,
                 &dummy_obj,
@@ -335,7 +334,7 @@ where
         match new_object {
             Ok((new_object, new_hash)) => {
                 inputs.set_bool_target(self.targets.new_hash_present, true);
-                self.set_input(&mut inputs, &self.targets.new_object, new_object, *new_hash);
+                Self::set_object(&mut inputs, &self.targets.new_object, new_object, *new_hash);
                 inputs.set_hash_target(self.targets.new_object_hash, *new_hash);
             }
             Err(last_updated) => {
@@ -346,13 +345,12 @@ where
                     last_updated,
                 };
                 inputs.set_target(self.targets.new_object.last_updated, last_updated);
-                self.set_input(
+                Self::set_object(
                     &mut inputs,
                     &self.targets.new_object,
                     &dummy_obj,
                     dummy_obj.hash(),
                 );
-                // inputs.set_hash_target(self.targets.new_object_hash, HashOut::ZERO);
                 inputs.set_bool_target(self.targets.new_hash_present, false);
             }
         }
@@ -446,7 +444,7 @@ where
                 .old_hash
                 .elements
                 .into_iter()
-                .chain(right_dir.old_hash.elements.into_iter())
+                .chain(right_dir.old_hash.elements)
                 .collect(),
         );
         let new_hash = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(
@@ -454,7 +452,7 @@ where
                 .new_hash
                 .elements
                 .into_iter()
-                .chain(right_dir.new_hash.elements.into_iter())
+                .chain(right_dir.new_hash.elements)
                 .collect(),
         );
 
@@ -787,7 +785,7 @@ mod test {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "was set twice with different values")]
     fn expired_leaf() {
         let data_fields: Vec<_> = "💥 Mozak-State Rocks With Poseidon2"
             .bytes()
@@ -865,18 +863,18 @@ mod test {
         };
         let object_1_pair = (&object_1, &object_1.hash());
         let object_2_pair = (&object_2, &object_2.hash());
-        let branch_12 = hash_branch(&object_1_pair.1, &object_2_pair.1);
+        let branch_12 = hash_branch(object_1_pair.1, object_2_pair.1);
         let object_1_v2_pair = (&object_1_v2, &object_1_v2.hash());
-        let branch_12_v2 = hash_branch(&object_1_v2_pair.1, &object_2_pair.1);
+        let branch_12_v2 = hash_branch(object_1_v2_pair.1, object_2_pair.1);
 
         // Update an object
         let leaf_proof = leaf_circuit.prove(Some(object_1_pair), Ok(object_1_v2_pair))?;
         leaf_circuit.circuit.verify(leaf_proof.clone())?;
 
         let branch_proof = branch_circuit.prove(
-            Some(&object_1_pair.1),
+            Some(object_1_pair.1),
             Some(&leaf_proof),
-            Some(&object_2_pair.1),
+            Some(object_2_pair.1),
             None,
             Some(&branch_12),
             Some(&branch_12_v2),
