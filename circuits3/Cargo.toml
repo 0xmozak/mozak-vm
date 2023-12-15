@@ -15,7 +15,6 @@ version = "0.1.0"
 [dependencies]
 arrayvec = { version = "0.7", default-features = false }
 log = "0.4"
-mozak-circuits = { path = "../circuits" }
 p3-air = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-field = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-matrix = { git = "https://github.com/Plonky3/Plonky3.git" }
@@ -27,7 +26,6 @@ p3-commit = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-dft = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-fri = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-goldilocks = { git = "https://github.com/Plonky3/Plonky3.git" }
-p3-keccak = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-ldt = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-mds = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-merkle-tree = { git = "https://github.com/Plonky3/Plonky3.git" }

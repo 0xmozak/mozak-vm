@@ -191,9 +191,9 @@ pub fn debug_single_trace<
             if consumer.debug_api_has_constraint_failed() {
                 let lv: S::Columns = lv.iter().copied().collect();
                 let nv: S::Columns = nv.iter().copied().collect();
-                println!("Debug constraints for {stark}");
-                println!("lv-row[{lv_row}] - values: {lv:?}");
-                println!("nv-row[{nv_row}] - values: {nv:?}");
+                log::error!("Debug constraints for {stark}");
+                log::error!("lv-row[{lv_row}] - values: {lv:?}");
+                log::error!("nv-row[{nv_row}] - values: {nv:?}");
             }
             assert!(!consumer.debug_api_has_constraint_failed());
         });
