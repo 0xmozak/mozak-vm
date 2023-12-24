@@ -7,6 +7,14 @@
 - [Installation](guide/installation.md)
 - [Writing Programs](guide/writing-programs.md)
 
+# Technical Documents
+
+- [Starky](technical/starky.md)
+- [Trace Generation](technical/trace_generation.md)
+- [Writing Starky Constraints](technical/writing_starky_constraints.md)
+- [Memory Design and Checking](technical/memory_design_and_checking.md)
+- [Cross Table Lookups](technical/cross_table_lookups.md)
+
 <!-- # Reference Guide
 
 - [Command Line Tool](cli/README.md)
