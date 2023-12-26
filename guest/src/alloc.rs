@@ -1,24 +1,20 @@
 #[no_mangle]
 pub extern "C" fn alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
     extern "C" {
-        // This symbol is defined by the loader and marks the end
-        // of all elf sections, so this is where we start our
-        // heap.
-        //
-        // This is generated automatically by the linker; see
-        // https://lld.llvm.org/ELF/linker_script.html#sections-command
-        static _end: u8;
+        // This symbol is defined in linker script
+        static _heap_start: u8;
     }
 
-    // Pointer to next heap address to use
-    // Alert: Linker Script variable hardcoded here. This is an assumption on
-    // program layout. Corresponds to linker's script memory address space
-    // for `ram`
-    // TODO: fix this, read from link time variable
-    static mut HEAP_POS: usize = 0x5000_0000;
+    // Pointer to next heap address to use, or 0 if the heap has not been
+    // initialized.
+    static mut HEAP_POS: usize = 0;
 
     // SAFETY: Single threaded, so nothing else can touch this while we're working.
     let mut heap_pos = unsafe { HEAP_POS };
+
+    if heap_pos == 0 {
+        heap_pos = unsafe { (&_heap_start) as *const u8 as usize };
+    }
 
     let offset = heap_pos & (align - 1);
     if offset != 0 {
