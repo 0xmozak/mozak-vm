@@ -7,6 +7,7 @@ pub mod ecall {
     pub const IO_READ_PRIVATE: u32 = 2;
     pub const POSEIDON2: u32 = 3;
     pub const IO_READ_PUBLIC: u32 = 4;
+    /// Syscall to output the VM trace log at `clk`. Useful for debugging.
     pub const VM_TRACE_LOG: u32 = 5;
 }
 
