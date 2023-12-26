@@ -179,6 +179,7 @@ impl<F: RichField> State<F> {
         );
     }
 
+    /// Outputs the VM trace log at `clk`. Useful for debugging.
     /// # Panics
     ///
     /// Panics if Vec<u8> to string conversion fails.
