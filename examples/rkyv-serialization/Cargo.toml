@@ -3,20 +3,14 @@ edition = "2021"
 name = "rkyv-serialization-mozak-guest"
 version = "0.1.0"
 
-[target.'cfg(target_os="zkvm")'.dependencies.guest]
-path = "../../guest"
-
-[features]
-native = []
 
 [dependencies]
+guest = { path = "../../guest", default-features = false }
 rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
+
+[features]
+std = ["guest/std"]
 
 [[bin]]
 name = "rkyv-serialization"
 path = "main.rs"
-
-[[bin]]
-name = "rkyv-serialization-native"
-path = "main_native.rs"
-required-features = ["native"]

@@ -20,7 +20,7 @@ pub fn data_for_memory<F: Field>() -> Vec<Column<F>> {
     vec![
         Column::constant(F::ONE), // is_writable
         Column::single(col_map().addr),
-        Column::constant(F::ONE),  // clk
+        Column::constant(F::ZERO), // clk
         Column::constant(F::ZERO), // value
     ]
 }
