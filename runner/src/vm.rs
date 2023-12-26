@@ -179,6 +179,24 @@ impl<F: RichField> State<F> {
         );
     }
 
+    /// # Panics
+    ///
+    /// Panics if Vec<u8> to string conversion fails.
+    fn ecall_trace_log(self) -> (Aux<F>, Self) {
+        log::trace!("ECALL VM_TRACE_LOG at CLK: {:?}", self.clk);
+        let msg_len = self.get_register_value(REG_A1);
+        let msg_ptr = self.get_register_value(REG_A2);
+        let mut msg_vec = vec![];
+        for addr in msg_ptr..(msg_ptr + msg_len) {
+            msg_vec.push(self.load_u8(addr));
+        }
+        log::trace!(
+            "VM TRACE LOG: {}",
+            from_utf8(&msg_vec).expect("A valid utf8 VM trace log message should be provided")
+        );
+        (Aux::default(), self.bump_pc())
+    }
+
     #[must_use]
     pub fn ecall(self) -> (Aux<F>, Self) {
         match self.get_register_value(REG_A0) {
@@ -187,6 +205,7 @@ impl<F: RichField> State<F> {
             ecall::IO_READ_PUBLIC => self.ecall_io_read(IoOpcode::StorePublic),
             ecall::PANIC => self.ecall_panic(),
             ecall::POSEIDON2 => self.ecall_poseidon2(),
+            ecall::VM_TRACE_LOG => self.ecall_trace_log(),
             _ => (Aux::default(), self.bump_pc()),
         }
     }

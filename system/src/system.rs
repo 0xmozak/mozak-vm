@@ -7,6 +7,7 @@ pub mod ecall {
     pub const IO_READ_PRIVATE: u32 = 2;
     pub const POSEIDON2: u32 = 3;
     pub const IO_READ_PUBLIC: u32 = 4;
+    pub const VM_TRACE_LOG: u32 = 5;
 }
 
 pub mod reg_abi {
@@ -108,6 +109,24 @@ pub fn syscall_panic(msg_ptr: *const u8, msg_len: usize) {
         core::arch::asm!(
             "ecall",
             in ("a0") ecall::PANIC,
+            in ("a1") msg_len,
+            in ("a2") msg_ptr,
+        );
+    }
+    #[cfg(not(target_os = "zkvm"))]
+    {
+        let _ = msg_ptr;
+        let _ = msg_len;
+        unimplemented!()
+    }
+}
+
+pub fn syscall_trace(msg_ptr: *const u8, msg_len: usize) {
+    #[cfg(target_os = "zkvm")]
+    unsafe {
+        core::arch::asm!(
+            "ecall",
+            in ("a0") ecall::VM_TRACE_LOG,
             in ("a1") msg_len,
             in ("a2") msg_ptr,
         );
