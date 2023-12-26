@@ -96,9 +96,8 @@ jobs:
 
       - name: Install taplo-cli
         run: |
-          # Source: https://taplo.tamasfe.dev/cli/installation/binary.html#example
-          curl --fail --silent --show-error --location https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
-            gzip --decompress - | install --mode=755 /dev/stdin /usr/local/bin/taplo
+          curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
+            gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
 
       - name: taplo fmt
         run: taplo fmt --check
