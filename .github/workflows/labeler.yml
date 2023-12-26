@@ -15,8 +15,31 @@ jobs:
   triage:
     runs-on: ubuntu-latest
     steps:
-      - uses: github/issue-labeler@v2.6
+      - name: Label PR
+        uses: github/issue-labeler@v3.3
+        id: issue-labeler
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           configuration-path: .github/actions/labeler.yml
           enable-versioned-regex: 0
+          sync-labels: 1
+
+      - name: Create documentation issue
+        if: ${{ steps.issue-labeler.outputs.labels-added }}
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: new-migrated-issue.yml
+          repo: ci-tests-org/doc_issue_tracking
+          ref: main
+          token: ${{ secrets.DOCS_REPO_TOKEN }}
+          inputs: '{ "pr-number": "${{ github.event.pull_request.number }}" }'
+
+      - name: Close documentation issue
+        if: ${{ steps.issue-labeler.outputs.labels-removed }}
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: delete-migrated-issue.yml
+          repo: ci-tests-org/doc_issue_tracking
+          ref: main
+          token: ${{ secrets.DOCS_REPO_TOKEN }}
+          inputs: '{ "pr-number": "${{ github.event.pull_request.number }}" }'
