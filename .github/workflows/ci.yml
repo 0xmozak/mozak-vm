@@ -39,11 +39,6 @@ jobs:
       - name: Test
         run: MOZAK_STARK_DEBUG=true cargo nextest run --no-fail-fast --locked --all-targets
 
-      - name: Install taplo-cli
-        run: |
-          curl --fail --silent --show-error --location https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
-            gzip --decompress - | install --mode=755 /dev/stdin /usr/local/bin/taplo
-
       - name: Build and run examples
         run: |
           cd examples && cargo build --release
@@ -103,11 +98,6 @@ jobs:
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install taplo-cli
-        run: |
-          curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
-            gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
 
       - name: taplo fmt
         run: taplo fmt --check
