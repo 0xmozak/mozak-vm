@@ -44,6 +44,7 @@ runs:
       uses: taiki-e/install-action@nextest
         
     - name: Install taplo-cli
+      shell: bash
       run: |
         curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
           gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
