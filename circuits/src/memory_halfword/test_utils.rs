@@ -56,7 +56,6 @@ pub fn halfword_memory_trace_test_case(
             (500, 0),
             (501, 0),
             (502, 0),
-            (503, 0),
         ],
         &[(1, 0x0102), (2, 0x0304), (3, 0xFFFF), (4, 0x0000_FFFF)],
     );

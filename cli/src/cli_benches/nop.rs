@@ -1,11 +1,10 @@
-use mozak_runner::instruction::{Args, Instruction, Op};
+use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
+use mozak_runner::instruction::{Args, Instruction, Op, NOP};
 use mozak_runner::test_utils::simple_test_code;
+use starky::config::StarkConfig;
 
-use crate::stark::mozak_stark::MozakStark;
-use crate::test_utils::ProveAndVerify;
-
-#[allow(clippy::pedantic)]
-pub fn sample_bench(reg_value: u32) -> Result<(), anyhow::Error> {
+#[allow(clippy::module_name_repetitions)]
+pub fn nop_bench(iterations: u32) -> Result<(), anyhow::Error> {
     let instructions = [
         Instruction {
             op: Op::ADD,
@@ -16,6 +15,7 @@ pub fn sample_bench(reg_value: u32) -> Result<(), anyhow::Error> {
                 ..Args::default()
             },
         },
+        NOP,
         Instruction {
             op: Op::BLT,
             args: Args {
@@ -26,8 +26,8 @@ pub fn sample_bench(reg_value: u32) -> Result<(), anyhow::Error> {
             },
         },
     ];
-    let (program, record) = simple_test_code(instructions, &[], &[(1, reg_value)]);
-    MozakStark::prove_and_verify(&program, &record)
+    let (program, record) = simple_test_code(instructions, &[], &[(1, iterations)]);
+    prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
 }
 
 #[cfg(test)]
@@ -35,12 +35,16 @@ mod tests {
     use crate::cli_benches::benches::{BenchArgs, BenchFunction};
 
     #[test]
-    fn test_sample_bench() { super::sample_bench(123).unwrap(); }
+    fn test_nop_bench() {
+        let iterations = 10;
+        super::nop_bench(iterations).unwrap();
+    }
 
     #[test]
-    fn test_sample_bench_run() {
+    fn test_nop_bench_with_run() {
+        let iterations = 10;
         let bench = BenchArgs {
-            function: BenchFunction::SampleBench { iterations: 123 },
+            function: BenchFunction::NopBench { iterations },
         };
         bench.run().unwrap();
     }
