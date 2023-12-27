@@ -24,3 +24,6 @@ tmp
 *.svg
 !air.svg
 !main-logo.svg
+
+# Generated IOTapes
+*.tape

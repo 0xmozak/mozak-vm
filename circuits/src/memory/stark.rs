@@ -44,22 +44,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
+        // TODO(Matthias): see whether we need to add a constraint to forbid two is_init
+        // in a row (with the same address).
         let lv: &Memory<P> = vars.get_local_values().into();
         let nv: &Memory<P> = vars.get_next_values().into();
-
-        // Boolean variables describing whether the current row and
-        // next row has a change of address when compared to the
-        // previous entry in the table. This works on the assumption
-        // that any change in addr will have non-zero `diff_addr` and
-        // consequently `diff_addr_inv` values. Any non-zero values for
-        // `diff_addr` will lead "correct" `diff_addr_inv` to be multiplicative
-        // inverse in the field leading multiplied value `1`. In case there is
-        // no change in addr, `diff_addr` (and consequently `diff_addr_inv`)
-        // remain `0` when multiplied to each other give `0`.
-        let (is_local_a_new_addr, is_next_a_new_addr) = (
-            lv.diff_addr * lv.diff_addr_inv, // constrained below
-            nv.diff_addr * nv.diff_addr_inv, // constrained below
-        );
 
         // Boolean constraints
         // -------------------
@@ -71,58 +59,55 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary(yield_constr, lv.is_init);
         is_binary(yield_constr, lv.is_executed());
 
-        // `is_local_a_new_addr` should be binary. To keep constraint degree <= 3,
-        // the following is used
-        yield_constr.constraint(lv.diff_addr * (P::ONES - is_local_a_new_addr));
-
-        // `is_next_a_new_addr` should be binary. However under context where `nv` is
-        // `lv` a similar test runs as given above constraining it being a
-        // boolean. Hence, we do not explicitly check for `is_next_a_new_addr`
-        // to be boolean here.
-
-        // First row constraints
-        // ---------------------
-        // When starting off, the first `addr` we encounter is supposed to be
-        // relatively away from `0` by `diff_addr`, consequently `addr` and
-        // `diff_addr` are same for the first row. As a matter of preference,
-        // we can have any `clk` in the first row, but `diff_clk` is `0`.
-        // This is because when `addr` changes, `diff_clk` is expected to be `0`.
-        yield_constr.constraint_first_row(lv.diff_addr - lv.addr);
-        yield_constr.constraint_first_row(lv.diff_clk);
-
-        // Ascending ordered, contigous "address" view constraint
-        // ------------------------------------------------------
-        // All memory init / accesses for a given `addr` is described via contigous
-        // rows. This is constrained by range-check on `diff_addr` which in 32-bit
-        // RISC can only assume values 0..1<<32. If similar range-checking
-        // constraint is put on `addr` as well, the only possibility of
-        // non-contigous address view occurs when the prime order of field in
-        // question is of size less than 2*(2^32 - 1).
-
         // Memory initialization Constraints
         // ---------------------------------
         // The memory table is assumed to be ordered by `addr` in ascending order.
         // such that whenever we describe an memory init / access
-        // pattern of an "address", a correct table gurantees the following:
-        //    All rows for a specific `addr` start with either a memory init (via static
-        //    ELF) with `is_init` flag set (case for ro or rw static memory) or `SB`
-        //    (case for heap / other dynamic addresses). It is assumed that static
-        //    memory init operation happens before any execution has started and
-        //    consequently `clk` should be `0` for such entries.
-        // NOTE: We rely on 'Ascending ordered, contigous "address" view constraint'
-        // to provide us with a guarantee of single contigous block of rows per `addr`.
-        // If that gurantee does not exist, for some address `x`, different contigous
-        // blocks of rows in memory table can present case for them being derived from
-        // static ELF and dynamic (execution) at the same time or being writable as
+        // pattern of an "address", a correct table guarantees the following:
+        //
+        // All rows for a specific `addr` MUST start with one, or both, of:
+        //   1) a zero init (case for heap / other dynamic addresses).
+        //   2) a memory init via static ELF (hereby referred to as elf init), or
+        // For these starting rows, `is_init` will be true.
+        //
+        // 1) Zero Init
+        //   All zero initialized memory will have clk `0` and value `0`. They
+        //   should also be writable.
+        //
+        // 2) ELF Init
+        //   All elf init rows will have clk `1`.
+        //
+        // In principle, zero initializations for a certain address MUST come
+        // before any elf initializations to ensure we don't zero out any memory
+        // initialized by the ELF. This is constrained via a rangecheck on `diff_clk`.
+        // Since clk is in ascending order, any memory address with a zero init
+        // (`clk` == 0) after an elf init (`clk` == 1) would be caught by
+        // this range check.
+        //
+        // Note that if `diff_clk` range check is removed, we must
+        // include a new constraint that constrains the above relationship.
+        //
+        // NOTE: We rely on 'Ascending ordered, contiguous
+        // "address" view constraint' to provide us with a guarantee of single
+        // contiguous block of rows per `addr`. If that guarantee does not exist,
+        // for some address `x`, different contiguous blocks of rows in memory
+        // table can present case for them being derived from static ELF and
+        // dynamic (execution) at the same time or being writable as
         // well as non-writable at the same time.
+        //
+        // A zero init at clk == 0,
+        // while an ELF init happens at clk == 1.
+        let zero_init_clk = P::ONES - lv.clk;
+        let elf_init_clk = lv.clk;
 
-        // All memory init happens prior to exec and the `clk` would be `0`.
-        yield_constr.constraint(lv.is_init * lv.clk);
-
-        // If instead, the `addr` talks about an address not coming from static ELF,
-        // it needs to begin with a `SB` (store) operation before any further access
-        // However `clk` value `0` is a special case.
-        yield_constr.constraint(lv.diff_addr * lv.clk * (P::ONES - lv.is_store));
+        // All init ops happen prior to exec and the `clk` would be `0` or `1`.
+        yield_constr.constraint(lv.is_init * zero_init_clk * elf_init_clk);
+        // All zero inits should have value `0`.
+        // (Assumption: `is_init` == 1, `clk` == 0)
+        yield_constr.constraint(lv.is_init * zero_init_clk * lv.value);
+        // All zero inits should be writable.
+        // (Assumption: `is_init` == 1, `clk` == 0)
+        yield_constr.constraint(lv.is_init * zero_init_clk * (P::ONES - lv.is_writable));
 
         // Operation constraints
         // ---------------------
@@ -139,16 +124,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         // in case the "new row" describes an `addr` different from the current
         // row, we expect `diff_clk` to be `0`. New row's clk remains
         // unconstrained in such situation.
-        yield_constr.constraint_transition(
-            (P::ONES - is_next_a_new_addr) * (nv.diff_clk - (nv.clk - lv.clk)),
-        );
-        yield_constr.constraint_transition(is_local_a_new_addr * lv.diff_clk);
-
-        // Address constraints
-        // -------------------
-        // We need to ensure that `diff_addr` always encapsulates difference in addr
-        // between two rows
-        yield_constr.constraint_transition(nv.diff_addr - (nv.addr - lv.addr));
+        yield_constr
+            .constraint_transition((P::ONES - nv.is_init) * (nv.diff_clk - (nv.clk - lv.clk)));
+        yield_constr.constraint_transition(lv.is_init * lv.diff_clk);
 
         // Padding constraints
         // -------------------
@@ -169,10 +147,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     ) {
         let lv: &Memory<ExtensionTarget<D>> = vars.get_local_values().into();
         let nv: &Memory<ExtensionTarget<D>> = vars.get_next_values().into();
-        let (is_local_a_new_addr, is_next_a_new_addr) = (
-            builder.mul_extension(lv.diff_addr, lv.diff_addr_inv),
-            builder.mul_extension(nv.diff_addr, nv.diff_addr_inv),
-        );
+
         is_binary_ext_circuit(builder, lv.is_writable, yield_constr);
         is_binary_ext_circuit(builder, lv.is_store, yield_constr);
         is_binary_ext_circuit(builder, lv.is_load, yield_constr);
@@ -181,23 +156,21 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
         let one = builder.one_extension();
-        let one_sub_is_local_a_new_addr = builder.sub_extension(one, is_local_a_new_addr);
-        let constr = builder.mul_extension(lv.diff_addr, one_sub_is_local_a_new_addr);
-        yield_constr.constraint(builder, constr);
+        let one_sub_clk = builder.sub_extension(one, lv.clk);
+        let is_init_mul_one_sub_clk = builder.mul_extension(lv.is_init, one_sub_clk);
 
-        let diff_addr_sub_addr = builder.sub_extension(lv.diff_addr, lv.addr);
-        yield_constr.constraint_first_row(builder, diff_addr_sub_addr);
-        yield_constr.constraint_first_row(builder, lv.diff_clk);
+        let is_init_mul_one_sub_clk_mul_clk =
+            builder.mul_extension(is_init_mul_one_sub_clk, lv.clk);
+        yield_constr.constraint(builder, is_init_mul_one_sub_clk_mul_clk);
 
-        let is_init_mul_clk = builder.mul_extension(lv.is_init, lv.clk);
-        yield_constr.constraint(builder, is_init_mul_clk);
-
-        let one_sub_is_store = builder.sub_extension(one, lv.is_store);
-        let diff_addr_mul_clk = builder.mul_extension(lv.diff_addr, lv.clk);
-        let constr = builder.mul_extension(diff_addr_mul_clk, one_sub_is_store);
-        yield_constr.constraint(builder, constr);
+        let is_init_mul_clk_mul_value = builder.mul_extension(is_init_mul_one_sub_clk, lv.value);
+        yield_constr.constraint(builder, is_init_mul_clk_mul_value);
 
         let one_sub_is_writable = builder.sub_extension(one, lv.is_writable);
+        let is_init_mul_clk_mul_one_sub_is_writable =
+            builder.mul_extension(is_init_mul_one_sub_clk, one_sub_is_writable);
+        yield_constr.constraint(builder, is_init_mul_clk_mul_one_sub_is_writable);
+
         let is_store_mul_one_sub_is_writable =
             builder.mul_extension(lv.is_store, one_sub_is_writable);
         yield_constr.constraint(builder, is_store_mul_one_sub_is_writable);
@@ -207,22 +180,18 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
             builder.mul_extension(nv.is_load, nv_value_sub_lv_value);
         yield_constr.constraint(builder, is_load_mul_nv_value_sub_lv_value);
 
-        let one_sub_is_next_a_new_addr = builder.sub_extension(one, is_next_a_new_addr);
+        let one_sub_nv_is_init = builder.sub_extension(one, nv.is_init);
         let nv_clk_sub_lv_clk = builder.sub_extension(nv.clk, lv.clk);
         let nv_diff_clk_sub_nv_clk_sub_lv_clk =
             builder.sub_extension(nv.diff_clk, nv_clk_sub_lv_clk);
-        let constr = builder.mul_extension(
-            nv_diff_clk_sub_nv_clk_sub_lv_clk,
-            one_sub_is_next_a_new_addr,
+        let one_sub_nv_is_init_mul_nv_diff_clk_sub_nv_clk_sub_lv_clk =
+            builder.mul_extension(one_sub_nv_is_init, nv_diff_clk_sub_nv_clk_sub_lv_clk);
+        yield_constr.constraint_transition(
+            builder,
+            one_sub_nv_is_init_mul_nv_diff_clk_sub_nv_clk_sub_lv_clk,
         );
-        yield_constr.constraint_transition(builder, constr);
-
-        let constr = builder.mul_extension(is_local_a_new_addr, lv.diff_clk);
-        yield_constr.constraint_transition(builder, constr);
-
-        let nv_addr_sub_lv_addr = builder.sub_extension(nv.addr, lv.addr);
-        let constr = builder.sub_extension(nv.diff_addr, nv_addr_sub_lv_addr);
-        yield_constr.constraint_transition(builder, constr);
+        let lv_is_init_mul_lv_diff_clk = builder.mul_extension(lv.is_init, lv.diff_clk);
+        yield_constr.constraint_transition(builder, lv_is_init_mul_lv_diff_clk);
 
         let nv_is_executed = is_executed_ext_circuit(builder, nv);
         let lv_is_executed_sub_nv_is_executed =

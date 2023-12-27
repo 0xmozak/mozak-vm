@@ -16,14 +16,14 @@ use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use starky::config::StarkConfig;
 
-use crate::stark::mozak_stark::{PublicInputs, TableKind};
+use super::mozak_stark::{all_kind, PublicInputs, TableKindArray};
 use crate::stark::permutation::challenge::{GrandProductChallengeSet, GrandProductChallengeTrait};
 
 #[allow(clippy::module_name_repetitions)]
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> AllProof<F, C, D> {
-    pub fn degree_bits(&self, config: &StarkConfig) -> [usize; TableKind::COUNT] {
-        core::array::from_fn(|i| {
-            self.proofs_with_metadata[i]
+    pub fn degree_bits(&self, config: &StarkConfig) -> TableKindArray<usize> {
+        all_kind!(|kind| {
+            self.proofs_with_metadata[kind]
                 .proof
                 .recover_degree_bits(config)
         })
@@ -337,7 +337,7 @@ where
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(bound = "")]
 pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> {
-    pub proofs_with_metadata: [StarkProofWithMetadata<F, C, D>; TableKind::COUNT],
+    pub proofs_with_metadata: TableKindArray<StarkProofWithMetadata<F, C, D>>,
     #[allow(dead_code)]
     // TODO: Support serialization of `ctl_challenges`.
     #[serde(skip)]
@@ -348,7 +348,7 @@ pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, co
 }
 
 pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {
-    pub stark_challenges: [StarkProofChallenges<F, D>; TableKind::COUNT],
+    pub stark_challenges: TableKindArray<StarkProofChallenges<F, D>>,
     pub ctl_challenges: GrandProductChallengeSet<F>,
 }
 
@@ -366,9 +366,9 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
         let ctl_challenges = challenger.get_grand_product_challenge_set(config.num_challenges);
 
         AllProofChallenges {
-            stark_challenges: core::array::from_fn(|i| {
+            stark_challenges: all_kind!(|kind| {
                 challenger.compact();
-                self.proofs_with_metadata[i]
+                self.proofs_with_metadata[kind]
                     .proof
                     .get_challenges(&mut challenger, config)
             }),
@@ -379,7 +379,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
     /// Returns the ordered openings of cross-table lookups `Z` polynomials at
     /// `g^-1`. The order corresponds to the order declared in
     /// [`TableKind`](crate::cross_table_lookup::TableKind).
-    pub(crate) fn all_ctl_zs_last(self) -> [Vec<F>; TableKind::COUNT] {
+    pub(crate) fn all_ctl_zs_last(self) -> TableKindArray<Vec<F>> {
         self.proofs_with_metadata
             .map(|p| p.proof.openings.ctl_zs_last)
     }

@@ -1,4 +1,4 @@
-use itertools::{self, chain};
+use itertools::{self, chain, Itertools};
 use mozak_runner::instruction::Op;
 use mozak_runner::vm::Row;
 use plonky2::hash::hash_types::RichField;
@@ -16,14 +16,12 @@ use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 #[must_use]
 fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
     trace.resize(
-        trace.len().next_power_of_two().max(MIN_TRACE_LENGTH),
+        (trace.len() + 1).next_power_of_two().max(MIN_TRACE_LENGTH),
         Memory {
             // Some columns need special treatment..
             is_store: F::ZERO,
             is_load: F::ZERO,
             is_init: F::ZERO,
-            diff_addr: F::ZERO,
-            diff_addr_inv: F::ZERO,
             diff_clk: F::ZERO,
             // .. and all other columns just have their last value duplicated.
             ..trace.last().copied().unwrap_or_default()
@@ -155,26 +153,50 @@ pub fn generate_memory_trace<F: RichField>(
     merged_trace.extend(transform_poseidon2_sponge(poseidon2_sponge_rows));
 
     merged_trace.sort_by_key(key);
-
-    // Ensures constraints by filling remaining inter-row
-    // relation values: clock difference and addr difference and is_writable
-    let mut last_clk = F::ZERO;
-    let mut last_addr = None;
-    let mut last_is_writable = F::ONE;
-    for mem in &mut merged_trace {
-        mem.diff_addr = mem.addr - last_addr.unwrap_or_default();
-        mem.diff_addr_inv = mem.diff_addr.try_inverse().unwrap_or_default();
-        if Some(mem.addr) == last_addr {
-            // the check doesn't pass for the first row, so this is ok.
-            mem.diff_clk = mem.clk - last_clk;
-        } else {
-            // rows with is_init set are the source of truth about is_writable
-            // non init memory are always writable
-            last_is_writable = F::from_bool(mem.is_init.is_zero() | mem.is_writable.is_one());
-        }
-        (last_clk, last_addr) = (mem.clk, Some(mem.addr));
-        mem.is_writable = last_is_writable;
-    }
+    let merged_trace = merged_trace
+        .into_iter()
+        .group_by(|&mem| mem.addr)
+        .into_iter()
+        .flat_map(|(_addr, mem)| {
+            let mut mem_vec = vec![];
+            let mut prev_mem: Option<Memory<F>> = None;
+            for mut current_mem in mem {
+                match prev_mem {
+                    None => {
+                        // rows with is_init set are the source of truth about is_writable
+                        current_mem.is_writable = F::from_bool(
+                            current_mem.is_init.is_zero() | current_mem.is_writable.is_one(),
+                        );
+                    }
+                    Some(prev_mem_unwrapped) => {
+                        current_mem.is_writable = prev_mem_unwrapped.is_writable;
+                        current_mem.diff_clk = current_mem.clk - prev_mem_unwrapped.clk;
+                    }
+                }
+                if prev_mem.is_none()
+                    && (current_mem.is_load.is_one() || current_mem.is_store.is_one())
+                {
+                    mem_vec.push(Memory {
+                        clk: F::ZERO,
+                        is_store: F::ZERO,
+                        is_load: F::ZERO,
+                        is_init: F::ONE,
+                        diff_clk: F::ZERO,
+                        value: F::ZERO,
+                        ..current_mem
+                    });
+                    mem_vec.push(Memory {
+                        diff_clk: current_mem.clk,
+                        ..current_mem
+                    });
+                } else {
+                    mem_vec.push(current_mem);
+                }
+                prev_mem = Some(current_mem);
+            }
+            mem_vec
+        })
+        .collect();
 
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
@@ -199,7 +221,7 @@ mod tests {
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::test_utils::{inv, prep_table};
+    use crate::test_utils::prep_table;
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
@@ -229,27 +251,26 @@ mod tests {
             &io_memory_public_rows,
             &poseidon2_trace,
         );
-        let inv = inv::<F>;
         assert_eq!(
             trace,
             prep_table(vec![
-                //is_writable  addr  clk is_store, is_load, is_init  value  diff_addr  diff_addr_inv  diff_clk
-                [       1,     100,   0,     0,      0,       1,        0,    100,     inv(100),            0],  // Memory Init: 100
-                [       1,     100,   1,     1,      0,       0,      255,      0,           0,             1],  // Operations:  100
-                [       1,     100,   2,     0,      1,       0,      255,      0,           0,             1],  // Operations:  100
-                [       1,     100,   5,     1,      0,       0,       10,      0,           0,             3],  // Operations:  100
-                [       1,     100,   6,     0,      1,       0,       10,      0,           0,             1],  // Operations:  100
-                [       1,     101,   0,     0,      0,       1,        0,      1,      inv(1),             0],  // Memory Init: 101
-                [       1,     102,   0,     0,      0,       1,        0,      1,      inv(1),             0],  // Memory Init: 102
-                [       1,     103,   0,     0,      0,       1,        0,      1,      inv(1),             0],  // Memory Init: 103
-                [       1,     200,   0,     0,      0,       1,        0,     97,     inv(97),             0],  // Memory Init: 200
-                [       1,     200,   3,     1,      0,       0,       15,      0,           0,             3],  // Operations:  200
-                [       1,     200,   4,     0,      1,       0,       15,      0,           0,             1],  // Operations:  200
-                [       1,     201,   0,     0,      0,       1,        0,      1,      inv(1),             0],  // Memory Init: 201
-                [       1,     202,   0,     0,      0,       1,        0,      1,      inv(1),             0],  // Memory Init: 202
-                [       1,     203,   0,     0,      0,       1,        0,      1,      inv(1),             0],  // Memory Init: 203
-                [       1,     203,   0,     0,      0,       0,        0,      0,           0,             0],  // Padding
-                [       1,     203,   0,     0,      0,       0,        0,      0,           0,             0],  // Padding
+                //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk
+                [       1,     100,   0,     0,      0,       1,        0,       0],  // Zero Init:   100
+                [       1,     100,   2,     1,      0,       0,      255,       2],  // Operations:  100
+                [       1,     100,   3,     0,      1,       0,      255,       1],  // Operations:  100
+                [       1,     100,   6,     1,      0,       0,       10,       3],  // Operations:  100
+                [       1,     100,   7,     0,      1,       0,       10,       1],  // Operations:  100
+                [       1,     101,   1,     0,      0,       1,        0,       0],  // Memory Init: 101
+                [       1,     102,   1,     0,      0,       1,        0,       0],  // Memory Init: 102
+                [       1,     103,   1,     0,      0,       1,        0,       0],  // Memory Init: 103
+                [       1,     200,   0,     0,      0,       1,        0,       0],  // Zero Init:   200
+                [       1,     200,   4,     1,      0,       0,       15,       4],  // Operations:  200
+                [       1,     200,   5,     0,      1,       0,       15,       1],  // Operations:  200
+                [       1,     201,   1,     0,      0,       1,        0,       0],  // Memory Init: 201
+                [       1,     202,   1,     0,      0,       1,        0,       0],  // Memory Init: 202
+                [       1,     203,   1,     0,      0,       1,        0,       0],  // Memory Init: 203
+                [       1,     203,   1,     0,      0,       0,        0,       0],  // Padding
+                [       1,     203,   1,     0,      0,       0,        0,       0],  // Padding
             ])
         );
     }
@@ -289,17 +310,16 @@ mod tests {
             &poseidon2_trace,
         );
 
-        let inv = inv::<F>;
         assert_eq!(trace, prep_table(vec![
-            // is_writable   addr   clk  is_store, is_load, is_init   value  diff_addr  diff_addr_inv  diff_clk
-            [        0,      100,   0,      0,        0,      1,       5,    100,    inv(100),             0],
-            [        0,      101,   0,      0,        0,      1,       6,      1,           1,             0],
-            [        1,      200,   0,      0,        0,      1,       7,     99,     inv(99),             0],
-            [        1,      201,   0,      0,        0,      1,       8,      1,           1,             0],
-            [        1,      201,   0,      0,        0,      0,       8,      0,           0,             0],
-            [        1,      201,   0,      0,        0,      0,       8,      0,           0,             0],
-            [        1,      201,   0,      0,        0,      0,       8,      0,           0,             0],
-            [        1,      201,   0,      0,        0,      0,       8,      0,           0,             0],
+            // is_writable   addr   clk  is_store, is_load, is_init  value  diff_clk
+            [        0,      100,   1,      0,        0,      1,         5,        0],
+            [        0,      101,   1,      0,        0,      1,         6,        0],
+            [        1,      200,   1,      0,        0,      1,         7,        0],
+            [        1,      201,   1,      0,        0,      1,         8,        0],
+            [        1,      201,   1,      0,        0,      0,         8,        0],
+            [        1,      201,   1,      0,        0,      0,         8,        0],
+            [        1,      201,   1,      0,        0,      0,         8,        0],
+            [        1,      201,   1,      0,        0,      0,         8,        0],
         ]));
     }
 }

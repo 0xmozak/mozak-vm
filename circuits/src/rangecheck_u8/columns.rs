@@ -5,7 +5,7 @@ use crate::cross_table_lookup::Column;
 
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq, Debug, Default)]
-pub struct RangeCheckLimb<T> {
+pub struct RangeCheckU8<T> {
     /// The u8 value to be range checked
     pub value: T,
 
@@ -13,8 +13,8 @@ pub struct RangeCheckLimb<T> {
     /// the trace. This is m(x) in the paper.
     pub multiplicity: T,
 }
-columns_view_impl!(RangeCheckLimb);
-make_col_map!(RangeCheckLimb);
+columns_view_impl!(RangeCheckU8);
+make_col_map!(RangeCheckU8);
 
 #[must_use]
 pub fn data<F: Field>() -> Vec<Column<F>> { vec![Column::single(col_map().value)] }
