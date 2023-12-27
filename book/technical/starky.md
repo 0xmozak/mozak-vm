@@ -10,7 +10,7 @@ Scalable means the proving system has quasilinear time prover \\(\mathcal{P}\\) 
 Transparent means the random challenges of the verifier in these systems are public-coin.
 
 ### Construction
-In STARK, execution of a program is compiled down to Algebraic Intermediate Representation (AIR). 
+In STARK, execution of a program is transformed to Algebraic Intermediate Representation (AIR). 
 
 <p align="center">
 <img src="../assets/air.svg" style="width:300px; height:200px">
