@@ -3,15 +3,9 @@ build-std = ["alloc", "core", "compiler_builtins", "std", "panic_abort", "proc_m
 build-std-features = ["compiler-builtins-mem"]
 
 [build]
-########   LINKER SCRIPT ###########
-# Uncomment the following to build WITHOUT any linker script
-# rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
-
-# Uncomment the following to build WITH linker script
-rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none", "-Clink-arg=-T./.cargo/riscv32im-mozak-zkvm.ld"]
-########   LINKER SCRIPT ###########
-
 target = "./.cargo/riscv32im-mozak-zkvm-elf.json"
+rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none"]
 
 [target.riscv32im-mozak-zkvm-elf]
 runner = "../target/release/mozak-cli -vvv run"
+rustflags = ["-C", "passes=loweratomic", "-Zlocation-detail=none", "-Clink-arg=-T./.cargo/riscv32im-mozak-zkvm.ld"]
