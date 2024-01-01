@@ -1,12 +1,16 @@
+use core::option::Option;
 use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::iter::repeat;
+use std::ops::Range;
 
-use anyhow::{anyhow, ensure};
-use derive_more::Deref;
+use anyhow::{anyhow, ensure, Result};
+use derive_more::{Deref, DerefMut};
 use elf::endian::LittleEndian;
 use elf::file::Class;
-use elf::segment::SegmentTable;
+use elf::segment::{ProgramHeader, SegmentTable};
+use elf::string_table::StringTable;
+use elf::symbol::SymbolTable;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
 use itertools::{chain, iproduct, Itertools};
@@ -15,6 +19,180 @@ use serde::{Deserialize, Serialize};
 use crate::decode::decode_instruction;
 use crate::instruction::{DecodingError, Instruction};
 use crate::util::load_u32;
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct MozakMemoryRegion {
+    pub starting_address: u32,
+    pub capacity: u32,
+    pub data: Data,
+}
+
+impl MozakMemoryRegion {
+    fn memory_range(&self) -> Range<u32> {
+        self.starting_address..self.starting_address + self.capacity
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MozakMemory {
+    // context variables
+    pub context_variables: MozakMemoryRegion,
+    // io private
+    pub io_tape_private: MozakMemoryRegion,
+    // io public
+    pub io_tape_public: MozakMemoryRegion,
+}
+
+impl Default for MozakMemory {
+    /// Assumed to be used only from tests
+    fn default() -> Self {
+        // These magic numbers taken from mozak-linker-script
+        MozakMemory {
+            context_variables: MozakMemoryRegion {
+                starting_address: 0x2000_0000_u32,
+                capacity: 0x0100_0000_u32,
+                ..Default::default()
+            },
+            io_tape_private: MozakMemoryRegion {
+                starting_address: 0x2100_0000_u32,
+                capacity: 0x0F00_0000_u32,
+                ..Default::default()
+            },
+            io_tape_public: MozakMemoryRegion {
+                starting_address: 0x3000_0000_u32,
+                capacity: 0x1000_0000_u32,
+                ..Default::default()
+            },
+        }
+    }
+}
+
+impl From<(&[u8], &[u8])> for MozakMemory {
+    // data: private, public
+    fn from(data: (&[u8], &[u8])) -> Self {
+        let mut mm = MozakMemory::default();
+        let mut index = mm.io_tape_private.starting_address;
+        data.0.iter().for_each(|e| {
+            mm.io_tape_private.data.insert(index, *e);
+            index += 1;
+        });
+        let mut index = mm.io_tape_public.starting_address;
+        data.1.iter().for_each(|e| {
+            mm.io_tape_public.data.insert(index, *e);
+            index += 1;
+        });
+        mm
+    }
+}
+impl MozakMemory {
+    fn new(
+        st: &(SymbolTable<LittleEndian>, StringTable),
+        is_mozak_elf: bool,
+    ) -> Option<MozakMemory> {
+        if is_mozak_elf {
+            let mut mozak_memory = Self {
+                context_variables: MozakMemoryRegion::default(),
+                io_tape_private: MozakMemoryRegion::default(),
+                io_tape_public: MozakMemoryRegion::default(),
+            };
+            mozak_memory.fill(st);
+            return Some(mozak_memory);
+        }
+        None
+    }
+
+    fn is_mozak_ro_memory_address(&self, program_header: &ProgramHeader) -> bool {
+        let address: u32 = u32::try_from(program_header.p_vaddr)
+            .expect("p_vaddr for zk-vm expected to be cast-able to u32");
+        let mem_addresses = [
+            self.context_variables.memory_range(),
+            self.io_tape_public.memory_range(),
+            self.io_tape_private.memory_range(),
+        ];
+        log::trace!(
+            "mozak-memory-addresses: {:?}, address: {:?}",
+            mem_addresses,
+            address
+        );
+        mem_addresses.iter().any(|r| r.contains(&address))
+    }
+
+    fn fill(&mut self, st: &(SymbolTable<LittleEndian>, StringTable)) {
+        let mut expected_results_cnt = 0;
+        // currently only 3 variables defined in linker scripts, related to
+        // mozak-ro-memory
+        let expected_results = 3;
+        for s in st.0.iter() {
+            let sym_name = st.1.get(s.st_name as usize).unwrap().to_string();
+            let sym_value = s.st_value;
+            log::trace!("sym_name: {:?}", sym_name);
+            log::trace!("sym_value: {:0x}", sym_value);
+
+            // extract addresses from ELF symbols
+            match sym_name.as_str() {
+                "_mozak_context_variables" => {
+                    self.context_variables.starting_address = u32::try_from(sym_value)
+                        .expect("context_variables address should be u32 cast-able");
+                    log::debug!(
+                        "_mozak_context_variables: 0x{:0x}",
+                        self.context_variables.starting_address
+                    );
+                    expected_results_cnt += 1;
+                }
+                "_mozak_public_io_tape" => {
+                    self.io_tape_public.starting_address = u32::try_from(sym_value)
+                        .expect("io_tape_public address should be u32 cast-able");
+                    log::debug!(
+                        "_mozak_public_io_tape: 0x{:0x}",
+                        self.io_tape_public.starting_address
+                    );
+                    expected_results_cnt += 1;
+                }
+                "_mozak_private_io_tape" => {
+                    self.io_tape_private.starting_address = u32::try_from(sym_value)
+                        .expect("io_tape_private address should be u32 cast-able");
+                    log::debug!(
+                        "_mozak_private_io_tape: 0x{:0x}",
+                        self.io_tape_private.starting_address
+                    );
+                    expected_results_cnt += 1;
+                }
+                _ => {}
+            }
+        }
+        assert_eq!(
+            expected_results_cnt, expected_results,
+            "Expected _mozak symbols"
+        );
+        // compute capacity, assume single memory region (refer to linker-script)
+        self.context_variables.capacity =
+            self.io_tape_public.starting_address - self.context_variables.starting_address;
+        self.io_tape_public.capacity =
+            self.io_tape_private.starting_address - self.io_tape_public.starting_address;
+        // refer to linker-script to understand this magic number ...
+        self.io_tape_private.capacity = 0x4000_0000_u32 - self.io_tape_private.starting_address;
+    }
+}
+
+/// A Mozak program runtime arguments
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct RuntimeArguments {
+    pub context_variables: Vec<u8>,
+    pub io_tape_private: Vec<u8>,
+    pub io_tape_public: Vec<u8>,
+}
+
+impl RuntimeArguments {
+    /// # Panics
+    #[must_use]
+    pub fn new(context_variables: &[u8], io_tape_private: &[u8], io_tape_public: &[u8]) -> Self {
+        RuntimeArguments {
+            context_variables: context_variables.to_vec(),
+            io_tape_private: io_tape_private.to_vec(),
+            io_tape_public: io_tape_public.to_vec(),
+        }
+    }
+}
 
 /// A RISC-V program
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -32,6 +210,9 @@ pub struct Program {
 
     /// Executable code of the ELF, read only
     pub ro_code: Code,
+
+    /// Mozak run-time memory
+    pub mozak_ro_memory: Option<MozakMemory>,
 }
 
 /// Executable code of the ELF
@@ -43,7 +224,7 @@ pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
 /// Memory of RISC-V Program
 ///
 /// A wrapper around a map from a 32-bit address to a byte of memory
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut)]
 pub struct Data(pub HashMap<u32, u8>);
 
 impl Code {
@@ -79,6 +260,7 @@ impl From<HashMap<u32, u8>> for Program {
             ro_code: Code::from(&image),
             ro_memory: Data::default(),
             rw_memory: Data(image),
+            mozak_ro_memory: Some(MozakMemory::default()),
         }
     }
 }
@@ -125,16 +307,35 @@ impl From<HashMap<u32, u32>> for Data {
 }
 
 impl Program {
+    /// Vanilla load-elf - NOT expect "_mozak_*" symbols in link. Maybe we
+    /// should rename it later, with `vanilla_` prefix
+    /// # Errors
+    /// Same as `Program::internal_load_elf`
+    /// # Panics
+    /// Same as `Program::internal_load_elf`
+    pub fn load_elf(input: &[u8]) -> Result<Program> { Program::internal_load_elf(input, false) }
+
+    /// Mozak load-elf - expect "_mozak_*" symbols in link
+    /// # Errors
+    /// Same as `Program::internal_load_elf`
+    /// # Panics
+    /// Same as `Program::internal_load_elf`
+    pub fn mozak_load_elf(input: &[u8]) -> Result<Program> {
+        Program::internal_load_elf(input, true)
+    }
+
     /// Initialize a RISC Program from an appropriate ELF file
     ///
     /// # Errors
     /// Will return `Err` if the ELF file is invalid or if the entrypoint is
     /// invalid.
+    ///
+    /// # Panics
     // This function is actually mostly covered by tests, but it's too annoying to work out how to
     // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
     // exercise the error handling?
     #[allow(clippy::similar_names)]
-    pub fn load_elf(input: &[u8]) -> anyhow::Result<Program> {
+    fn internal_load_elf(input: &[u8], is_mozak_elf: bool) -> Result<Program> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
         ensure!(elf.ehdr.class == Class::ELF32, "Not a 32-bit ELF");
         ensure!(
@@ -152,28 +353,58 @@ impl Program {
             .ok_or_else(|| anyhow!("Missing segment table"))?;
         ensure!(segments.len() <= 256, "Too many program headers");
 
-        let ro_memory = Data(Program::extract_elf_data(
-            |flags| {
-                (flags & elf::abi::PF_R == elf::abi::PF_R)
-                    && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
-            },
-            input,
-            &segments,
-        ));
+        // if mozak-elf then fill memory, otherwise None
+        let mozak_ro_memory = MozakMemory::new(&elf.symbol_table().unwrap().unwrap(), is_mozak_elf);
+
+        let ro_memory = if is_mozak_elf {
+            // `&& (!mozak_memory.is_mozak_ro_memory_address(ph))` --> this line is used to
+            // filter RO-addresses related to the mozak-ROM. Currently we don't
+            // support filtering by sections and, we don't know if it even possible.
+            // Mozak-ROM address are RO address and will be filled by loader-code
+            // with arguments provided from outside. Mozak-ROM can be accessed as Read-ONLY
+            // from rust code and currently no init code to this section is
+            // supported.
+            Data(Program::extract_elf_data(
+                |flags, ph, mozak_memory: &Option<MozakMemory>| {
+                    (flags & elf::abi::PF_R == elf::abi::PF_R)
+                        && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
+                        && (!mozak_memory
+                            .as_ref()
+                            .expect("Expected to exist for mozak-elf")
+                            .is_mozak_ro_memory_address(ph))
+                },
+                input,
+                &segments,
+                &mozak_ro_memory,
+            ))
+        } else {
+            Data(Program::extract_elf_data(
+                |flags, _, _| {
+                    (flags & elf::abi::PF_R == elf::abi::PF_R)
+                        && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
+                },
+                input,
+                &segments,
+                &mozak_ro_memory,
+            ))
+        };
 
         let rw_memory = Data(Program::extract_elf_data(
-            |flags| flags == elf::abi::PF_R | elf::abi::PF_W,
+            |flags, _, _| flags == elf::abi::PF_R | elf::abi::PF_W,
             input,
             &segments,
+            &mozak_ro_memory,
         ));
+
         // Because we are implementing a modified Harvard Architecture, we make an
         // independent copy of the executable segments. In practice,
         // instructions will be in a R_X segment, so their data will show up in ro_code
         // and ro_memory. (RWX segments would show up in ro_code and rw_memory.)
         let ro_code = Code::from(&Program::extract_elf_data(
-            |flags| flags & elf::abi::PF_X == elf::abi::PF_X,
+            |flags, _, _| flags & elf::abi::PF_X == elf::abi::PF_X,
             input,
             &segments,
+            &mozak_ro_memory,
         ));
 
         Ok(Program {
@@ -181,17 +412,25 @@ impl Program {
             ro_memory,
             rw_memory,
             ro_code,
+            mozak_ro_memory,
         })
     }
 
     fn extract_elf_data(
-        check_program_flags: fn(u32) -> bool,
+        check_program_flags: fn(
+            u32,
+            program_headers: &ProgramHeader,
+            mozak_memory: &Option<MozakMemory>,
+        ) -> bool,
         input: &[u8],
         segments: &SegmentTable<LittleEndian>,
+        mozak_memory: &Option<MozakMemory>,
     ) -> HashMap<u32, u8> {
         segments
             .iter()
-            .filter(|program_header| check_program_flags(program_header.p_flags))
+            .filter(|program_header| {
+                check_program_flags(program_header.p_flags, program_header, mozak_memory)
+            })
             .map(|program_header| -> anyhow::Result<_> {
                 let file_size: usize = program_header.p_filesz.try_into()?;
                 let mem_size: usize = program_header.p_memsz.try_into()?;
@@ -209,6 +448,63 @@ impl Program {
             .flatten_ok()
             .try_collect()
             .expect("extract elf data should always succeed")
+    }
+
+    /// Loads a "risc-v program" from static ELF and populates the reserved
+    /// memory with runtime arguments. Note: this function added mostly for
+    /// convenience of the API. Later on, maybe we should rename it with prefix:
+    /// `vanilla_`
+    ///
+    /// # Errors
+    /// Will return `Err` if the ELF file is invalid or if the entrypoint is
+    /// invalid.
+    ///
+    /// # Panics
+    /// When `Program::load_elf` or index as address expected to be u32
+    /// cast-able
+    pub fn load_program(elf_bytes: &[u8]) -> Result<Program> { Program::load_elf(elf_bytes) }
+
+    /// Loads a "mozak program" from static ELF and populates the reserved
+    /// memory with runtime arguments
+    ///
+    /// # Errors
+    /// Will return `Err` if the ELF file is invalid or if the entrypoint is
+    /// invalid.
+    ///
+    /// # Panics
+    /// When `Program::load_elf` or index as address expected to be u32
+    /// cast-able
+    pub fn mozak_load_program(elf_bytes: &[u8], args: &RuntimeArguments) -> Result<Program> {
+        let mut program = Program::mozak_load_elf(elf_bytes).unwrap();
+        let mozak_ro_memory = program
+            .mozak_ro_memory
+            .as_mut()
+            .expect("MozakMemory should exist for mozak-elf case");
+        // Context Variables address
+        let context_variables_addr = mozak_ro_memory.context_variables.starting_address;
+        for (idx, byte) in args.context_variables.iter().enumerate() {
+            mozak_ro_memory
+                .context_variables
+                .data
+                .insert(context_variables_addr + u32::try_from(idx).unwrap(), *byte);
+        }
+        // IO public
+        let io_pub_start_addr = mozak_ro_memory.io_tape_public.starting_address;
+        for (idx, byte) in args.io_tape_public.iter().enumerate() {
+            mozak_ro_memory
+                .io_tape_public
+                .data
+                .insert(io_pub_start_addr + u32::try_from(idx).unwrap(), *byte);
+        }
+        // IO private
+        let io_priv_start_addr = mozak_ro_memory.io_tape_private.starting_address;
+        for (idx, byte) in args.io_tape_private.iter().enumerate() {
+            mozak_ro_memory
+                .io_tape_private
+                .data
+                .insert(io_priv_start_addr + u32::try_from(idx).unwrap(), *byte);
+        }
+        Ok(program)
     }
 }
 

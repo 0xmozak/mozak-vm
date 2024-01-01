@@ -101,6 +101,7 @@ impl<F: RichField> From<Program> for State<F> {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
+            mozak_ro_memory: _,
         }: Program,
     ) -> Self {
         Self {
