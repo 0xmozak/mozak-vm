@@ -799,6 +799,7 @@ dependencies = [
  "p3-field",
  "p3-fri",
  "p3-goldilocks",
+ "p3-keccak",
  "p3-ldt",
  "p3-matrix",
  "p3-mds",
