@@ -177,7 +177,7 @@ pub fn generate_memory_trace<F: RichField>(
                     && (current_mem.is_load.is_one() || current_mem.is_store.is_one())
                 {
                     mem_vec.push(Memory {
-                        clk: F::ONE,
+                        clk: F::ZERO,
                         is_store: F::ZERO,
                         is_load: F::ZERO,
                         is_init: F::ONE,
@@ -186,7 +186,7 @@ pub fn generate_memory_trace<F: RichField>(
                         ..current_mem
                     });
                     mem_vec.push(Memory {
-                        diff_clk: current_mem.clk - F::ONE,
+                        diff_clk: current_mem.clk,
                         ..current_mem
                     });
                 } else {
@@ -255,22 +255,22 @@ mod tests {
             trace,
             prep_table(vec![
                 //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk
-                [       1,     100,   1,     0,      0,       1,        0,       0],  // Zero Init:   100
-                [       1,     100,   2,     1,      0,       0,      255,       1],  // Operations:  100
+                [       1,     100,   0,     0,      0,       1,        0,       0],  // Zero Init:   100
+                [       1,     100,   2,     1,      0,       0,      255,       2],  // Operations:  100
                 [       1,     100,   3,     0,      1,       0,      255,       1],  // Operations:  100
                 [       1,     100,   6,     1,      0,       0,       10,       3],  // Operations:  100
                 [       1,     100,   7,     0,      1,       0,       10,       1],  // Operations:  100
-                [       1,     101,   0,     0,      0,       1,        0,       0],  // Memory Init: 101
-                [       1,     102,   0,     0,      0,       1,        0,       0],  // Memory Init: 102
-                [       1,     103,   0,     0,      0,       1,        0,       0],  // Memory Init: 103
-                [       1,     200,   1,     0,      0,       1,        0,       0],  // Zero Init:   200
-                [       1,     200,   4,     1,      0,       0,       15,       3],  // Operations:  200
+                [       1,     101,   1,     0,      0,       1,        0,       0],  // Memory Init: 101
+                [       1,     102,   1,     0,      0,       1,        0,       0],  // Memory Init: 102
+                [       1,     103,   1,     0,      0,       1,        0,       0],  // Memory Init: 103
+                [       1,     200,   0,     0,      0,       1,        0,       0],  // Zero Init:   200
+                [       1,     200,   4,     1,      0,       0,       15,       4],  // Operations:  200
                 [       1,     200,   5,     0,      1,       0,       15,       1],  // Operations:  200
-                [       1,     201,   0,     0,      0,       1,        0,       0],  // Memory Init: 201
-                [       1,     202,   0,     0,      0,       1,        0,       0],  // Memory Init: 202
-                [       1,     203,   0,     0,      0,       1,        0,       0],  // Memory Init: 203
-                [       1,     203,   0,     0,      0,       0,        0,       0],  // Padding
-                [       1,     203,   0,     0,      0,       0,        0,       0],  // Padding
+                [       1,     201,   1,     0,      0,       1,        0,       0],  // Memory Init: 201
+                [       1,     202,   1,     0,      0,       1,        0,       0],  // Memory Init: 202
+                [       1,     203,   1,     0,      0,       1,        0,       0],  // Memory Init: 203
+                [       1,     203,   1,     0,      0,       0,        0,       0],  // Padding
+                [       1,     203,   1,     0,      0,       0,        0,       0],  // Padding
             ])
         );
     }
@@ -312,14 +312,14 @@ mod tests {
 
         assert_eq!(trace, prep_table(vec![
             // is_writable   addr   clk  is_store, is_load, is_init  value  diff_clk
-            [        0,      100,   0,      0,        0,      1,         5,        0],
-            [        0,      101,   0,      0,        0,      1,         6,        0],
-            [        1,      200,   0,      0,        0,      1,         7,        0],
-            [        1,      201,   0,      0,        0,      1,         8,        0],
-            [        1,      201,   0,      0,        0,      0,         8,        0],
-            [        1,      201,   0,      0,        0,      0,         8,        0],
-            [        1,      201,   0,      0,        0,      0,         8,        0],
-            [        1,      201,   0,      0,        0,      0,         8,        0],
+            [        0,      100,   1,      0,        0,      1,         5,        0],
+            [        0,      101,   1,      0,        0,      1,         6,        0],
+            [        1,      200,   1,      0,        0,      1,         7,        0],
+            [        1,      201,   1,      0,        0,      1,         8,        0],
+            [        1,      201,   1,      0,        0,      0,         8,        0],
+            [        1,      201,   1,      0,        0,      0,         8,        0],
+            [        1,      201,   1,      0,        0,      0,         8,        0],
+            [        1,      201,   1,      0,        0,      0,         8,        0],
         ]));
     }
 }
