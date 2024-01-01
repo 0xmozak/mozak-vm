@@ -329,7 +329,9 @@ impl<F: RichField> State<F> {
     pub fn store_u8(mut self, addr: u32, value: u8) -> Result<Self> {
         match self.ro_memory.entry(addr) {
             im::hashmap::Entry::Occupied(entry) => Err(anyhow!(
-                "cannot write to ro_memory entry {:?}",
+                "cannot write to ro_memory: address,value and entry {:#0x}, {:#0x}, {:?}",
+                addr,
+                value,
                 (entry.key(), entry.get())
             )),
             im::hashmap::Entry::Vacant(_) => {

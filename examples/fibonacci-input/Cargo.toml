@@ -3,14 +3,14 @@ edition = "2021"
 name = "fibonacci-input"
 version = "0.1.0"
 
-[target.'cfg(target_os="zkvm")'.dependencies.guest]
-features = ["std"]
-path = "../../guest"
+[dependencies]
+guest = { path = "../../guest", default-features = false }
 
-[target.'cfg(target_os="zkvm")'.dependencies.mozak-system]
-features = []
-path = "../../system"
+mozak-system = { path = "../../system" }
 
 [[bin]]
 name = "fibonacci-input"
 path = "main.rs"
+
+[features]
+std = ["guest/std"]
