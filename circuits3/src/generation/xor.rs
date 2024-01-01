@@ -19,12 +19,12 @@ pub fn generate_dummy_xor_trace<F: Field>(n: u32) -> RowMajorMatrix<F> {
         execution: XorView {
             a: i,
             b: i.wrapping_add(1),
-            out: i ^ (i.wrapping_add(1)),
+            out: i ^ i.wrapping_add(1),
         },
         limbs: XorView {
             a: to_bits(i),
             b: to_bits(i.wrapping_add(1)),
-            out: to_bits(i ^ (i.wrapping_add(1))),
+            out: to_bits(i ^ i.wrapping_add(1)),
         },
     });
     let pad_values = (n..num_rows).flat_map(|_| XorColumnsView::default());
