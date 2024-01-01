@@ -7,9 +7,8 @@ where
     V: Add<E, Output = E>,
     E: AbstractField,
     I::IntoIter: DoubleEndedIterator, {
-    let mut sum = E::zero();
-    for term in terms.into_iter().rev() {
-        sum = term + alpha.clone() * sum;
-    }
-    sum
+    terms
+        .into_iter()
+        .rev()
+        .fold(E::zero(), |acc, term| term + alpha.clone() * acc)
 }
