@@ -30,10 +30,7 @@ def build_repo(commit: str):
     if commit == "latest":
         print("Treating the current repo as latest")
     else:
-        try:
-            get_actual_commit_folder(commit).mkdir()
-        except FileExistsError:
-            pass
+        get_actual_commit_folder(commit).mkdir(exist_ok=True)
         create_repo_from_commit(commit)
     cli_repo = get_actual_cli_repo(commit)
     build_release(cli_repo)
