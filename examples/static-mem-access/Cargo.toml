@@ -6,8 +6,11 @@ version = "0.1.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-guest = { path = "../../guest" }
+guest = { path = "../../guest", default-features = false }
 
 [[bin]]
 name = "static-mem-access"
 path = "main.rs"
+
+[features]
+std = ["guest/std"]

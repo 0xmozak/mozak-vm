@@ -16,7 +16,7 @@ fn fibonacci(n: u32) -> u32 {
     curr
 }
 
-pub fn fibonacci_with_input(n: u32) -> Result<(), anyhow::Error> {
+pub fn fibonacci_input(n: u32) -> Result<(), anyhow::Error> {
     let program = Program::load_elf(mozak_examples::FIBONACCI_INPUT_ELF).unwrap();
     let out = fibonacci(n);
     let state =
@@ -32,7 +32,7 @@ mod tests {
     #[test]
     fn test_fibonacci_with_input() {
         let n = 10;
-        super::fibonacci_with_input(n).unwrap();
+        super::fibonacci_input(n).unwrap();
     }
 
     #[test]
