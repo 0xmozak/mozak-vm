@@ -47,23 +47,21 @@
                 "commit": "latest",
                 "bench_function": "nop-bench"
             }
-        },
+        }
+    },
 
-        "xor-stark2": {
-            "description": "Benching XorStark with Plonky2 backend",
-            "parameter": "n",
-            "output": "time taken (in s)",
-            "commits": {
-                "latest": "latest"
-            }
-        },
-
-        "xor-stark3": {
-            "description": "Benching XorStark with Plonky3 backend",
-            "parameter": "n",
-            "output": "time taken (in s)",
-            "commits": {
-                "latest": "latest"
+    "xorstark": {
+        "description": "Benching XorStark in plonky2 vs plonky3",
+        "parameter": "n",
+        "output": "time taken (in s)",
+        "benches": {
+            "plonky2": {
+                "commit": "latest",
+                "bench_function": "xor-stark2" 
+            },
+            "plonky3": {
+                "commit": "latest",
+                "bench_function": "xor-stark3" 
             }
         }
     }
