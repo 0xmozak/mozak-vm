@@ -1,12 +1,11 @@
-import json
 import re
 import subprocess
 from pathlib import Path
 import random
-from typing import List
+from typing import Tuple
+from config import get_elf, get_output_name, get_parameter_name
 import pandas as pd
-from path import get_actual_commit_folder, get_elf_path
-from pyparsing import Any
+from path import get_actual_cli_repo, get_actual_commit_folder, get_elf_path
 
 
 def sample(min_value: int, max_value: int) -> int:
@@ -16,7 +15,7 @@ def sample(min_value: int, max_value: int) -> int:
 def create_repo_from_commit(commit: str):
     commit_folder = get_actual_commit_folder(commit)
     if (commit_folder / ".git").is_file():
-        print(f"Skipping build for {commit}...")
+        print(f"Skipping git worktree for {commit}...")
         return
     subprocess.run(
         ["git", "worktree", "add", "--force", commit_folder, commit], check=True
@@ -27,13 +26,22 @@ def build_release(cli_repo: Path):
     subprocess.run(["cargo", "build", "--release"], cwd=cli_repo, check=True)
 
 
-def maybe_build_ELF(bench_function: str, commit: str):
-    data = load_bench_function_data(bench_function)
-    elf = data.get("elf")
+def build_repo(commit: str):
+    if commit == "latest":
+        print("Treating the current repo as latest")
+    else:
+        get_actual_commit_folder(commit).mkdir(exist_ok=True)
+        create_repo_from_commit(commit)
+    cli_repo = get_actual_cli_repo(commit)
+    build_release(cli_repo)
+
+
+def maybe_build_ELF(bench_name, bench_description: str, commit: str):
+    elf = get_elf(bench_name, bench_description)
     if elf is None:
-        print(f"Skipping build ELF for {bench_function}...")
+        print(f"Skipping build ELF for {bench_name}...")
         return
-    print(f"Building ELF for {bench_function}")
+    print(f"Building ELF for {bench_name}")
     elf_path = get_elf_path(elf, commit)
     subprocess.run(["cargo", "build", "--release"], cwd=elf_path, check=True)
 
@@ -61,23 +69,18 @@ def sample_and_bench(
     bench_function: str,
     min_value: int,
     max_value: int,
-) -> dict[str, List[int | float]]:
+) -> Tuple[float, float]:
     parameter = sample(min_value, max_value)
     output = bench(bench_function, parameter, cli_repo)
-    bench_data = load_bench_function_data(bench_function)
-    return {bench_data["parameter"]: [parameter], bench_data["output"]: [output]}
+
+    return (parameter, output)
 
 
-def load_bench_function_data(bench_function: str) -> dict[str, Any]:
-    config_file_path = Path.cwd() / "config.json"
-    with open(config_file_path, "r") as f:
-        config = json.load(f)
-        return config["benches"][bench_function]
-
-
-def init_csv(csv_file_path: Path, bench_function: str):
-    bench_function_data = load_bench_function_data(bench_function)
-    headers = [bench_function_data["parameter"], bench_function_data["output"]]
+def init_csv(csv_file_path: Path, bench_name: str):
+    headers = [
+        get_parameter_name(bench_name),
+        get_output_name(bench_name),
+    ]
     try:
         existing_headers = pd.read_csv(csv_file_path, nrows=0).columns.tolist()
     except FileNotFoundError:
