@@ -43,6 +43,7 @@ pub struct MozakMemory {
     pub io_tape_public: MozakMemoryRegion,
 }
 
+#[cfg(test)]
 impl Default for MozakMemory {
     /// Assumed to be used only from tests
     fn default() -> Self {
@@ -68,33 +69,36 @@ impl Default for MozakMemory {
 }
 
 impl From<(&[u8], &[u8])> for MozakMemory {
-    // data: private, public
-    fn from(data: (&[u8], &[u8])) -> Self {
-        let mut mm = MozakMemory::default();
-        let mut index = mm.io_tape_private.starting_address;
-        data.0.iter().for_each(|e| {
-            mm.io_tape_private.data.insert(index, *e);
+    fn from((private, public): (&[u8], &[u8])) -> Self {
+        let mut mozak_memory = MozakMemory::create();
+        let mut index = mozak_memory.io_tape_private.starting_address;
+        for item in private {
+            mozak_memory.io_tape_private.data.insert(index, *item);
             index += 1;
-        });
-        let mut index = mm.io_tape_public.starting_address;
-        data.1.iter().for_each(|e| {
-            mm.io_tape_public.data.insert(index, *e);
+        }
+        let mut index = mozak_memory.io_tape_public.starting_address;
+        for item in public {
+            mozak_memory.io_tape_public.data.insert(index, *item);
             index += 1;
-        });
-        mm
+        }
+        mozak_memory
     }
 }
 impl MozakMemory {
+    fn create() -> MozakMemory {
+        MozakMemory {
+            context_variables: MozakMemoryRegion::default(),
+            io_tape_private: MozakMemoryRegion::default(),
+            io_tape_public: MozakMemoryRegion::default(),
+        }
+    }
+
     fn new(
         st: &(SymbolTable<LittleEndian>, StringTable),
         is_mozak_elf: bool,
     ) -> Option<MozakMemory> {
         if is_mozak_elf {
-            let mut mozak_memory = Self {
-                context_variables: MozakMemoryRegion::default(),
-                io_tape_private: MozakMemoryRegion::default(),
-                io_tape_public: MozakMemoryRegion::default(),
-            };
+            let mut mozak_memory = MozakMemory::create();
             mozak_memory.fill(st);
             return Some(mozak_memory);
         }
@@ -117,53 +121,41 @@ impl MozakMemory {
         mem_addresses.iter().any(|r| r.contains(&address))
     }
 
-    fn fill(&mut self, st: &(SymbolTable<LittleEndian>, StringTable)) {
-        let mut expected_results_cnt = 0;
-        // currently only 3 variables defined in linker scripts, related to
-        // mozak-ro-memory
-        let expected_results = 3;
-        for s in st.0.iter() {
-            let sym_name = st.1.get(s.st_name as usize).unwrap().to_string();
-            let sym_value = s.st_value;
-            log::trace!("sym_name: {:?}", sym_name);
-            log::trace!("sym_value: {:0x}", sym_value);
-
-            // extract addresses from ELF symbols
-            match sym_name.as_str() {
-                "_mozak_context_variables" => {
-                    self.context_variables.starting_address = u32::try_from(sym_value)
-                        .expect("context_variables address should be u32 cast-able");
-                    log::debug!(
-                        "_mozak_context_variables: 0x{:0x}",
-                        self.context_variables.starting_address
-                    );
-                    expected_results_cnt += 1;
-                }
-                "_mozak_public_io_tape" => {
-                    self.io_tape_public.starting_address = u32::try_from(sym_value)
-                        .expect("io_tape_public address should be u32 cast-able");
-                    log::debug!(
-                        "_mozak_public_io_tape: 0x{:0x}",
-                        self.io_tape_public.starting_address
-                    );
-                    expected_results_cnt += 1;
-                }
-                "_mozak_private_io_tape" => {
-                    self.io_tape_private.starting_address = u32::try_from(sym_value)
-                        .expect("io_tape_private address should be u32 cast-able");
-                    log::debug!(
-                        "_mozak_private_io_tape: 0x{:0x}",
-                        self.io_tape_private.starting_address
-                    );
-                    expected_results_cnt += 1;
-                }
-                _ => {}
-            }
-        }
-        assert_eq!(
-            expected_results_cnt, expected_results,
-            "Expected _mozak symbols"
+    fn fill(&mut self, (symbol_table, string_table): &(SymbolTable<LittleEndian>, StringTable)) {
+        let symbol_map: HashMap<_, _> = symbol_table
+            .iter()
+            .map(|s| (string_table.get(s.st_name as usize).unwrap(), s.st_value))
+            .collect();
+        let get = |sym_name: &str| {
+            u32::try_from(
+                *symbol_map
+                    .get(sym_name)
+                    .unwrap_or_else(|| panic!("{sym_name} not found")),
+            )
+            .unwrap_or_else(|err| {
+                panic!(
+                    "{sym_name}'s address should be u32 cast-able:
+        {err}"
+                )
+            })
+        };
+        self.context_variables.starting_address = get("_mozak_context_variables");
+        log::debug!(
+            "_mozak_context_variables: 0x{:0x}",
+            self.context_variables.starting_address
         );
+        self.io_tape_public.starting_address = get("_mozak_public_io_tape");
+        log::debug!(
+            "_mozak_public_io_tape: 0x{:0x}",
+            self.io_tape_public.starting_address
+        );
+
+        self.io_tape_private.starting_address = get("_mozak_private_io_tape");
+        log::debug!(
+            "_mozak_private_io_tape: 0x{:0x}",
+            self.io_tape_private.starting_address
+        );
+
         // compute capacity, assume single memory region (refer to linker-script)
         self.context_variables.capacity =
             self.io_tape_public.starting_address - self.context_variables.starting_address;
@@ -260,7 +252,7 @@ impl From<HashMap<u32, u8>> for Program {
             ro_code: Code::from(&image),
             ro_memory: Data::default(),
             rw_memory: Data(image),
-            mozak_ro_memory: Some(MozakMemory::default()),
+            mozak_ro_memory: None,
         }
     }
 }
@@ -460,7 +452,7 @@ impl Program {
     /// invalid.
     ///
     /// # Panics
-    /// When `Program::load_elf` or index as address expected to be u32
+    /// When `Program::load_elf` or index as address is not cast-able to u32
     /// cast-able
     pub fn load_program(elf_bytes: &[u8]) -> Result<Program> { Program::load_elf(elf_bytes) }
 
@@ -472,7 +464,7 @@ impl Program {
     /// invalid.
     ///
     /// # Panics
-    /// When `Program::load_elf` or index as address expected to be u32
+    /// When `Program::load_elf` or index as address is not cast-able to be u32
     /// cast-able
     pub fn mozak_load_program(elf_bytes: &[u8], args: &RuntimeArguments) -> Result<Program> {
         let mut program = Program::mozak_load_elf(elf_bytes).unwrap();
