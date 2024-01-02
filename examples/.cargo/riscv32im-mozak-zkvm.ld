@@ -47,6 +47,8 @@ MEMORY {
     /* mozak_stack(rw!x):  ORIGIN = 0xF0000000, LENGTH = 240M */
 }
 
+_heap_start = ORIGIN(ram);
+
 SECTIONS {
     /* For memory region: `riscv_rom` --------------------------------------------------------------------   */
 
