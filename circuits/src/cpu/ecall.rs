@@ -2,10 +2,8 @@
 //! 'ECALL'.
 
 use itertools::izip;
-use mozak_system::system::ecall;
 use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
-use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -99,8 +97,6 @@ pub(crate) fn halt_constraints_circuit<F: RichField + Extendable<D>, const D: us
     let halt_ecall_plus_running_sub_one = builder.sub_extension(halt_ecall_plus_running, one);
     let constraint1 = builder.mul_extension(lv.is_halt, halt_ecall_plus_running_sub_one);
     yield_constr.constraint_transition(builder, constraint1);
-
-    let halt_value = builder.constant_extension(F::Extension::from_canonical_u32(ecall::HALT));
 
     let nv_pc_sub_lv_pc = builder.sub_extension(nv.inst.pc, lv.inst.pc);
     let ecall_mul_nv_pc_sub_lv_pc = builder.mul_extension(lv.inst.ops.ecall, nv_pc_sub_lv_pc);
