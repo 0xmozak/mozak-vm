@@ -50,21 +50,21 @@ enum Command {
     /// the registers
     Run {
         elf: Input,
-        io_tape_private: Input,
-        io_tape_public: Input,
+        io_tape_private: Option<Input>,
+        io_tape_public: Option<Input>,
     },
     /// Prove and verify the execution of a given ELF
     ProveAndVerify {
         elf: Input,
-        io_tape_private: Input,
-        io_tape_public: Input,
+        io_tape_private: Option<Input>,
+        io_tape_public: Option<Input>,
     },
     /// Prove the execution of given ELF and write proof to file.
     Prove {
         elf: Input,
-        io_tape_private: Input,
-        io_tape_public: Input,
         proof: Output,
+        io_tape_private: Option<Input>,
+        io_tape_public: Option<Input>,
         recursive_proof: Option<Output>,
     },
     /// Verify the given proof from file.
@@ -116,8 +116,8 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             let state = State::<GoldilocksField>::new(
                 program.clone(),
-                &load_tape(io_tape_private)?,
-                &load_tape(io_tape_public)?,
+                &load_tape(io_tape_private.unwrap_or_default())?,
+                &load_tape(io_tape_public.unwrap_or_default())?,
             );
             let state = step(&program, state)?.last_state;
             debug!("{:?}", state.registers);
@@ -130,8 +130,8 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             let state = State::<GoldilocksField>::new(
                 program.clone(),
-                &load_tape(io_tape_private)?,
-                &load_tape(io_tape_public)?,
+                &load_tape(io_tape_private.unwrap_or_default())?,
+                &load_tape(io_tape_public.unwrap_or_default())?,
             );
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
@@ -146,8 +146,8 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             let state = State::<GoldilocksField>::new(
                 program.clone(),
-                &load_tape(io_tape_private)?,
-                &load_tape(io_tape_public)?,
+                &load_tape(io_tape_private.unwrap_or_default())?,
+                &load_tape(io_tape_public.unwrap_or_default())?,
             );
             let record = step(&program, state)?;
             let stark = if cli.debug {
