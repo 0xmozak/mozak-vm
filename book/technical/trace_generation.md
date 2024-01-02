@@ -10,7 +10,7 @@ Here are a list of functions that are related to each operation above:
 
 ## Decoding
 Programs are compiled to `risc32im-mozak-zkvm-elf`. This is a custom RISC-V target specified by this [json] file. If you are interested in what the flags 
-in the json file standards for, check out the target options spec [here]
+in the json file standard for, check out the target options spec [here]
 
 
 [construction of STARK]: starky.md#construction
