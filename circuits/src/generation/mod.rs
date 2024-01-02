@@ -121,9 +121,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         fullword_memory_stark: trace_rows_to_poly_values(fullword_memory_rows),
         io_memory_private_stark: trace_rows_to_poly_values(io_memory_private_rows),
         io_memory_public_stark: trace_rows_to_poly_values(io_memory_public_rows),
-        #[cfg(feature = "enable_register_starks")]
         register_init_stark: trace_rows_to_poly_values(register_init_rows),
-        #[cfg(feature = "enable_register_starks")]
         register_stark: trace_rows_to_poly_values(register_rows),
         #[cfg(feature = "enable_poseidon_starks")]
         poseidon2_stark: trace_rows_to_poly_values(poseidon2_rows),
