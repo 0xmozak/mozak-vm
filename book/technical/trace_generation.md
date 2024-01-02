@@ -9,7 +9,7 @@ Here are a list of functions that are related to each operation above:
 - Trace Generation: [generate_traces]
 
 ## Decoding
-Programs are compiled down to `risc32im-mozak-zkvm-elf`. This is a custom RISC-V target specified by this [json] file. If you are interested in what the flags in the json file standard for, check out the target options spec [here].
+Programs are compiled down to `risc32im-mozak-zkvm-elf`. This is a custom RISC-V target specified by this [json] file. If you are interested in what these flags in the json file standard for, check out the target options spec [here].
 
 
 [construction of STARK]: starky.md#construction
