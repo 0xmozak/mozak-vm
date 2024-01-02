@@ -48,6 +48,9 @@ impl Default for MozakMemory {
     /// Assumed to be used only from tests
     fn default() -> Self {
         // These magic numbers taken from mozak-linker-script
+        // TODO(Roman): Once `end-of-mozak-region` symbol will be added to linker-script
+        // it will be possible to implement test that load mozak-empty-ELF and check
+        // that all expected addresses and capacities are indeed aligned with the code.
         MozakMemory {
             context_variables: MozakMemoryRegion {
                 starting_address: 0x2000_0000_u32,
@@ -162,6 +165,11 @@ impl MozakMemory {
         self.io_tape_public.capacity =
             self.io_tape_private.starting_address - self.io_tape_public.starting_address;
         // refer to linker-script to understand this magic number ...
+        // TODO(Roman): to get rid off this magic number, we need to have `_end` symbol
+        // in linker script This way we can compute capacity directly from
+        // linker-script. Currently, test that loads empty ELF, compiled with
+        // linker-script we not help us, since there is not symbol that defines
+        // `end-of-mozak-region`...
         self.io_tape_private.capacity = 0x4000_0000_u32 - self.io_tape_private.starting_address;
     }
 }
