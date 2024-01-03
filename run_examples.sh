@@ -14,8 +14,8 @@ do
         for bin in ${BINS}
         do
             echo "(mozak-cli) running example (${profile}): ${bin}"
-            private_iotape="iotape.txt"
-            public_iotape="iotape.txt"
+            private_iotape=""
+            public_iotape=""
             case ${bin} in
                 # TODO(bing): fix to work with this script
                 "panic" | "merkleproof-trustedroot-native" )
@@ -23,15 +23,15 @@ do
                     continue
                     ;;
                 "fibonacci-input" )
-                    private_iotape="${member}/iotape_private"
-                    public_iotape="${member}/iotape_public"
+                    private_iotape="examples/${member}/iotape_private"
+                    public_iotape="examples/${member}/iotape_public"
                     ;;
             esac
 
             cargo run --bin mozak-cli \
             run -vvv examples/target/riscv32im-mozak-zkvm-elf/${profile}/${bin} \
-            examples/${private_iotape} \
-            examples/${public_iotape}
+            ${private_iotape} \
+            ${public_iotape}
 
             # cargo exits with 0 if success
             if [ $? != 0 ]; then
