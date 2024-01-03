@@ -731,54 +731,53 @@ where
 
 #[cfg(test)]
 mod test {
-    use plonky2::field::types::Field;
+    use plonky2::field::types::{Field, Sample};
     use plonky2::plonk::circuit_data::CircuitConfig;
 
     use super::*;
     use crate::test_utils::{C, D, F};
 
+    fn hash_str(v: &str) -> HashOut<F> {
+        let v: Vec<_> = v.bytes().map(F::from_canonical_u8).collect();
+        Poseidon2Hash::hash_no_pad(&v)
+    }
+
     #[test]
     fn verify_leaf() -> Result<()> {
-        let data_fields: Vec<_> = "💥 Mozak-State Rocks With Poseidon2"
-            .bytes()
-            .map(F::from_canonical_u8)
-            .collect();
+        let data_v1 = F::rand_array();
+        let data_v2 = F::rand_array();
 
-        let owner_fields: Vec<_> = "Totally A Program"
-            .bytes()
-            .map(F::from_canonical_u8)
-            .collect();
-        let owner_1 = Poseidon2Hash::hash_no_pad(&owner_fields);
+        let owner = hash_str("Totally A Program");
 
         let circuit_config = CircuitConfig::standard_recursion_config();
         let circuit = LeafCircuit::<F, C, D>::new(&circuit_config);
 
-        let old_object = Object::<F, D> {
-            data: Poseidon2Hash::hash_no_pad(&data_fields).elements,
+        let object_v1 = Object::<F, D> {
+            data: data_v1,
             last_updated: F::from_canonical_u8(42),
             lifetime: F::from_canonical_u8(69),
-            owner: owner_1,
+            owner,
         };
-        let new_object = Object {
-            data: Poseidon2Hash::hash_no_pad(&data_fields).elements,
+        let object_v2 = Object {
+            data: data_v2,
             last_updated: F::from_canonical_u8(43),
             lifetime: F::from_canonical_u8(69),
-            owner: owner_1,
+            owner,
         };
 
-        let old = (&old_object, &old_object.hash());
-        let new = (&new_object, &new_object.hash());
+        let object_v1_pair = (&object_v1, &object_v1.hash());
+        let object_v2_pair = (&object_v2, &object_v2.hash());
 
         // Create an object
-        let proof = circuit.prove(None, Ok(new))?;
+        let proof = circuit.prove(None, Ok(object_v1_pair))?;
         circuit.circuit.verify(proof)?;
 
         // Update an object
-        let proof = circuit.prove(Some(old), Ok(new))?;
+        let proof = circuit.prove(Some(object_v1_pair), Ok(object_v2_pair))?;
         circuit.circuit.verify(proof)?;
 
         // Delete an object
-        let proof = circuit.prove(Some(old), Err(new_object.last_updated))?;
+        let proof = circuit.prove(Some(object_v1_pair), Err(object_v2.last_updated))?;
         circuit.circuit.verify(proof)?;
 
         Ok(())
@@ -787,97 +786,91 @@ mod test {
     #[test]
     #[should_panic(expected = "was set twice with different values")]
     fn expired_leaf() {
-        let data_fields: Vec<_> = "💥 Mozak-State Rocks With Poseidon2"
-            .bytes()
-            .map(F::from_canonical_u8)
-            .collect();
+        let data = F::rand_array();
 
         let owner_fields: Vec<_> = "Totally A Program"
             .bytes()
             .map(F::from_canonical_u8)
             .collect();
-        let owner_1 = Poseidon2Hash::hash_no_pad(&owner_fields);
+        let owner = Poseidon2Hash::hash_no_pad(&owner_fields);
 
         let circuit_config = CircuitConfig::standard_recursion_config();
         let circuit = LeafCircuit::<F, C, D>::new(&circuit_config);
 
-        let old_object = Object::<F, D> {
-            data: Poseidon2Hash::hash_no_pad(&data_fields).elements,
+        let object_v1 = Object::<F, D> {
+            data,
             last_updated: F::from_canonical_u8(42),
             lifetime: F::from_canonical_u8(69),
-            owner: owner_1,
+            owner,
         };
-        let new_object = Object {
-            data: Poseidon2Hash::hash_no_pad(&data_fields).elements,
+        let object_v2 = Object {
+            data,
             last_updated: F::from_canonical_u8(70),
             lifetime: F::from_canonical_u8(69),
-            owner: owner_1,
+            owner,
         };
 
-        let old = (&old_object, &old_object.hash());
-        let new = (&new_object, &new_object.hash());
+        let object_v1_pair = (&object_v1, &object_v1.hash());
+        let object_v2_pair = (&object_v2, &object_v2.hash());
 
         // Update an object
-        let proof = circuit.prove(Some(old), Ok(new));
+        let proof = circuit.prove(Some(object_v1_pair), Ok(object_v2_pair));
         assert!(proof.is_err());
     }
 
     #[test]
     fn verify_branch() -> Result<()> {
-        let data_1: Vec<_> = "Alpha".bytes().map(F::from_canonical_u8).collect();
-        let data_2: Vec<_> = "Beta".bytes().map(F::from_canonical_u8).collect();
-        let data_3: Vec<_> = "Gamma".bytes().map(F::from_canonical_u8).collect();
+        let data_a_v1 = F::rand_array();
+        let data_a_v2 = F::rand_array();
+        let data_b = F::rand_array();
 
-        let owner_fields: Vec<_> = "Totally A Program"
-            .bytes()
-            .map(F::from_canonical_u8)
-            .collect();
-        let owner_1 = Poseidon2Hash::hash_no_pad(&owner_fields);
-        let owner_fields: Vec<_> = "A Different Program"
-            .bytes()
-            .map(F::from_canonical_u8)
-            .collect();
-        let owner_2 = Poseidon2Hash::hash_no_pad(&owner_fields);
+        let owner_a = hash_str("Totally A Program");
+        let owner_b = hash_str("A Different Program");
 
         let circuit_config = CircuitConfig::standard_recursion_config();
         let leaf_circuit = LeafCircuit::<F, C, D>::new(&circuit_config);
-        let branch_circuit = BranchCircuit::<F, C, D>::from_leaf(&circuit_config, &leaf_circuit);
 
-        let object_1 = Object::<F, D> {
-            data: Poseidon2Hash::hash_no_pad(&data_1).elements,
+        let object_a_v1 = Object::<F, D> {
+            data: data_a_v1,
             last_updated: F::from_canonical_u8(42),
             lifetime: F::from_canonical_u8(69),
-            owner: owner_1,
+            owner: owner_a,
         };
-        let object_2 = Object::<F, D> {
-            data: Poseidon2Hash::hash_no_pad(&data_2).elements,
-            last_updated: F::from_canonical_u8(43),
-            lifetime: F::from_canonical_u8(99),
-            owner: owner_2,
-        };
-        let object_1_v2 = Object::<F, D> {
-            data: Poseidon2Hash::hash_no_pad(&data_3).elements,
+        let object_a_v2 = Object::<F, D> {
+            data: data_a_v2,
             last_updated: F::from_canonical_u8(44),
             lifetime: F::from_canonical_u8(69),
-            owner: owner_1,
+            owner: owner_a,
         };
-        let object_1_pair = (&object_1, &object_1.hash());
-        let object_2_pair = (&object_2, &object_2.hash());
-        let branch_12 = hash_branch(object_1_pair.1, object_2_pair.1);
-        let object_1_v2_pair = (&object_1_v2, &object_1_v2.hash());
-        let branch_12_v2 = hash_branch(object_1_v2_pair.1, object_2_pair.1);
+        let object_a_v1_pair = (&object_a_v1, &object_a_v1.hash());
+        let object_a_v2_pair = (&object_a_v2, &object_a_v2.hash());
 
         // Update an object
-        let leaf_proof = leaf_circuit.prove(Some(object_1_pair), Ok(object_1_v2_pair))?;
+        let leaf_proof = leaf_circuit.prove(Some(object_a_v1_pair), Ok(object_a_v2_pair))?;
         leaf_circuit.circuit.verify(leaf_proof.clone())?;
 
+        // No updates
+        let object_b = Object::<F, D> {
+            data: data_b,
+            last_updated: F::from_canonical_u8(43),
+            lifetime: F::from_canonical_u8(99),
+            owner: owner_b,
+        };
+        let object_b_pair = (&object_b, &object_b.hash());
+
+        // Branch
+        let branch_circuit = BranchCircuit::<F, C, D>::from_leaf(&circuit_config, &leaf_circuit);
+
+        let branch_ab = hash_branch(object_a_v1_pair.1, object_b_pair.1);
+        let branch_ab_v2 = hash_branch(object_a_v2_pair.1, object_b_pair.1);
+
         let branch_proof = branch_circuit.prove(
-            Some(object_1_pair.1),
+            Some(object_a_v1_pair.1),
             Some(&leaf_proof),
-            Some(object_2_pair.1),
+            Some(object_b_pair.1),
             None,
-            Some(&branch_12),
-            Some(&branch_12_v2),
+            Some(&branch_ab),
+            Some(&branch_ab_v2),
         )?;
         branch_circuit.circuit.verify(branch_proof)?;
 
