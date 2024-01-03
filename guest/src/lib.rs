@@ -47,7 +47,7 @@ unsafe extern "C" fn __start() {
 // For more details:
 // https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc
 #[cfg(target_os = "zkvm")]
-static STACK_TOP: u32 = 0xFFFF_FFFF;
+static STACK_TOP: u32 = 0xFFFF_0000;
 
 // Entry point; sets up stack pointer and passes to __start.
 #[cfg(target_os = "zkvm")]
