@@ -57,12 +57,12 @@ impl Default for MozakMemory {
                 capacity: 0x0100_0000_u32,
                 ..Default::default()
             },
-            io_tape_private: MozakMemoryRegion {
+            io_tape_public: MozakMemoryRegion {
                 starting_address: 0x2100_0000_u32,
                 capacity: 0x0F00_0000_u32,
                 ..Default::default()
             },
-            io_tape_public: MozakMemoryRegion {
+            io_tape_private: MozakMemoryRegion {
                 starting_address: 0x3000_0000_u32,
                 capacity: 0x1000_0000_u32,
                 ..Default::default()
