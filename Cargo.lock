@@ -819,6 +819,7 @@ dependencies = [
  "clap_derive",
  "clio",
  "env_logger",
+ "fastrand",
  "itertools 0.12.0",
  "log",
  "mozak-circuits",
