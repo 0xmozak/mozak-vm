@@ -46,7 +46,8 @@ runs:
     - name: Install taplo-cli
       shell: bash
       run: |
-        curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
+        curl --fail --silent --show-error --location \
+        https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
           gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
 
     - id: toolchain-cache-save
