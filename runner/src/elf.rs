@@ -481,29 +481,17 @@ impl Program {
             .as_mut()
             .expect("MozakMemory should exist for mozak-elf case");
         // Context Variables address
-        let context_variables_addr = mozak_ro_memory.context_variables.starting_address;
-        for (idx, byte) in args.context_variables.iter().enumerate() {
-            mozak_ro_memory
-                .context_variables
-                .data
-                .insert(context_variables_addr + u32::try_from(idx).unwrap(), *byte);
-        }
+        mozak_ro_memory
+            .context_variables
+            .fill(args.context_variables.as_slice());
         // IO public
-        let io_pub_start_addr = mozak_ro_memory.io_tape_public.starting_address;
-        for (idx, byte) in args.io_tape_public.iter().enumerate() {
-            mozak_ro_memory
-                .io_tape_public
-                .data
-                .insert(io_pub_start_addr + u32::try_from(idx).unwrap(), *byte);
-        }
+        mozak_ro_memory
+            .io_tape_public
+            .fill(args.io_tape_public.as_slice());
         // IO private
-        let io_priv_start_addr = mozak_ro_memory.io_tape_private.starting_address;
-        for (idx, byte) in args.io_tape_private.iter().enumerate() {
-            mozak_ro_memory
-                .io_tape_private
-                .data
-                .insert(io_priv_start_addr + u32::try_from(idx).unwrap(), *byte);
-        }
+        mozak_ro_memory
+            .io_tape_private
+            .fill(args.io_tape_private.as_slice());
         Ok(program)
     }
 }
