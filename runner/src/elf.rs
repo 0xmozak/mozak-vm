@@ -74,16 +74,15 @@ impl Default for MozakMemory {
 impl From<(&[u8], &[u8])> for MozakMemory {
     fn from((private, public): (&[u8], &[u8])) -> Self {
         let mut mozak_memory = MozakMemory::create();
-        let mut index = mozak_memory.io_tape_private.starting_address;
-        for item in private {
-            mozak_memory.io_tape_private.data.insert(index, *item);
-            index += 1;
-        }
-        let mut index = mozak_memory.io_tape_public.starting_address;
-        for item in public {
-            mozak_memory.io_tape_public.data.insert(index, *item);
-            index += 1;
-        }
+        let fill = |data: &[u8], memory_region: &mut MozakMemoryRegion| {
+            let mut index = memory_region.starting_address;
+            for item in data {
+                memory_region.data.insert(index, *item);
+                index += 1;
+            }
+        };
+        fill(private, &mut mozak_memory.io_tape_private);
+        fill(public, &mut mozak_memory.io_tape_public);
         mozak_memory
     }
 }
