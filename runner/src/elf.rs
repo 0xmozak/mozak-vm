@@ -31,6 +31,14 @@ impl MozakMemoryRegion {
     fn memory_range(&self) -> Range<u32> {
         self.starting_address..self.starting_address + self.capacity
     }
+
+    fn fill(&mut self, data: &[u8]) {
+        let mut index = self.starting_address;
+        for item in data {
+            self.data.insert(index, *item);
+            index += 1;
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -74,15 +82,8 @@ impl Default for MozakMemory {
 impl From<(&[u8], &[u8])> for MozakMemory {
     fn from((private, public): (&[u8], &[u8])) -> Self {
         let mut mozak_memory = MozakMemory::create();
-        let fill = |data: &[u8], memory_region: &mut MozakMemoryRegion| {
-            let mut index = memory_region.starting_address;
-            for item in data {
-                memory_region.data.insert(index, *item);
-                index += 1;
-            }
-        };
-        fill(private, &mut mozak_memory.io_tape_private);
-        fill(public, &mut mozak_memory.io_tape_public);
+        mozak_memory.io_tape_private.fill(private);
+        mozak_memory.io_tape_public.fill(public);
         mozak_memory
     }
 }
