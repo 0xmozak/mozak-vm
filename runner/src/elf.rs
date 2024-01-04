@@ -328,10 +328,12 @@ impl Program {
     /// Same as `Program::internal_load_elf`
     /// # Panics
     /// Same as `Program::internal_load_elf`
+    /// TODO(Roman): Refactor this API to be aligned with `mozak_load_elf` -
+    /// just return Program
     pub fn load_elf(input: &[u8]) -> Result<Program> {
         Ok(Program::internal_load_elf(
             input,
-            Program::validate_elf(input)?,
+            Program::parse_and_validate_elf(input)?,
             false,
             |flags, _, _| {
                 (flags & elf::abi::PF_R == elf::abi::PF_R)
@@ -373,7 +375,7 @@ impl Program {
         )
     }
 
-    fn validate_elf(
+    fn parse_and_validate_elf(
         input: &[u8],
     ) -> Result<(ElfBytes<LittleEndian>, u32, SegmentTable<LittleEndian>)> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
@@ -512,7 +514,8 @@ impl Program {
     /// When `Program::load_elf` or index as address is not cast-able to be u32
     /// cast-able
     pub fn mozak_load_program(elf_bytes: &[u8], args: &RuntimeArguments) -> Result<Program> {
-        let mut program = Program::mozak_load_elf(elf_bytes, Program::validate_elf(elf_bytes)?);
+        let mut program =
+            Program::mozak_load_elf(elf_bytes, Program::parse_and_validate_elf(elf_bytes)?);
         let mozak_ro_memory = program
             .mozak_ro_memory
             .as_mut()
