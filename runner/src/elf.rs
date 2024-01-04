@@ -13,7 +13,7 @@ use elf::string_table::StringTable;
 use elf::symbol::SymbolTable;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
-use itertools::{chain, iproduct, Itertools};
+use itertools::{chain, iproduct, izip, Itertools};
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
@@ -37,10 +37,8 @@ impl MozakMemoryRegion {
             data.len() <= self.capacity.try_into().unwrap(),
             "fill data must be fit capacity"
         );
-        let mut index = self.starting_address;
-        for item in data {
-            self.data.insert(index, *item);
-            index += 1;
+        for (index, &item) in izip!(self.starting_address.., data) {
+            self.data.insert(index, item);
         }
         assert!(
             self.data.len() <= self.capacity.try_into().unwrap(),
