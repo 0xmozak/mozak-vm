@@ -35,14 +35,14 @@ impl MozakMemoryRegion {
     fn fill(&mut self, data: &[u8]) {
         assert!(
             data.len() <= self.capacity.try_into().unwrap(),
-            "fill data must be fit capacity"
+            "fill data must fit into capacity"
         );
         for (index, &item) in izip!(self.starting_address.., data) {
             self.data.insert(index, item);
         }
         assert!(
             self.data.len() <= self.capacity.try_into().unwrap(),
-            "data does not fil capacity"
+            "data does not fit into capacity"
         );
     }
 }
