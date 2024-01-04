@@ -80,10 +80,14 @@ enum Command {
 }
 
 /// Read a sequence of bytes from IO
-fn load_tape(mut io_tape: impl Read) -> Result<Vec<u8>> {
+fn load_tape(io_tape: Option<impl Read>) -> Result<Vec<u8>> {
     let mut io_tape_bytes = Vec::new();
-    let bytes_read = io_tape.read_to_end(&mut io_tape_bytes)?;
-    debug!("Read {bytes_read} of io_tape data.");
+
+    if let Some(mut tape) = io_tape {
+        let bytes_read = tape.read_to_end(&mut io_tape_bytes)?;
+        debug!("Read {bytes_read} of io_tape data.");
+    }
+
     Ok(io_tape_bytes)
 }
 
@@ -116,8 +120,8 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             let state = State::<GoldilocksField>::new(
                 program.clone(),
-                &load_tape(io_tape_private.unwrap_or_default())?,
-                &load_tape(io_tape_public.unwrap_or_default())?,
+                &load_tape(io_tape_private)?,
+                &load_tape(io_tape_public)?,
             );
             let state = step(&program, state)?.last_state;
             debug!("{:?}", state.registers);
@@ -130,8 +134,8 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             let state = State::<GoldilocksField>::new(
                 program.clone(),
-                &load_tape(io_tape_private.unwrap_or_default())?,
-                &load_tape(io_tape_public.unwrap_or_default())?,
+                &load_tape(io_tape_private)?,
+                &load_tape(io_tape_public)?,
             );
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
@@ -146,8 +150,8 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             let state = State::<GoldilocksField>::new(
                 program.clone(),
-                &load_tape(io_tape_private.unwrap_or_default())?,
-                &load_tape(io_tape_public.unwrap_or_default())?,
+                &load_tape(io_tape_private)?,
+                &load_tape(io_tape_public)?,
             );
             let record = step(&program, state)?;
             let stark = if cli.debug {
