@@ -9,6 +9,7 @@ use mimalloc::MiMalloc;
 static GLOBAL: MiMalloc = MiMalloc;
 
 pub mod decode;
+pub mod ecall;
 pub mod elf;
 pub mod instruction;
 pub mod poseidon2;

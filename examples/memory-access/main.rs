@@ -6,8 +6,9 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 pub fn main() {
-    let vector: Vec<u8> = vec![128];
-    guest::env::write(vector.as_slice());
+    let mut vector: Vec<u8> = vec![128, 129, 100];
+    let mut drain = vector.drain(..);
+    guest::env::write(&drain.next().unwrap().to_be_bytes());
 }
 
 guest::entry!(main);
