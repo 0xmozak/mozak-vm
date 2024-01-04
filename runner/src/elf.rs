@@ -218,6 +218,15 @@ pub struct Program {
     pub ro_code: Code,
 
     /// Mozak run-time memory
+    // Earlier our Program was completely determined by the ELF, and did not
+    // differ from one run to the next.
+    // Compare how the existing code doesn't add io_tape information to the Program, but to the
+    // State. Conceptually, we are trying to replace this existing mechanism here, but currently we
+    // decided to leave it as is, later on we may refactor it to be 3 structs (something like
+    // this): Program, State, Init-Data. Currently during execution we have chain of states, and
+    // each state has Aux-Data that has some debug-help info (like memory snapshot) of the whole
+    // program. It is not really a perf problem since its actually a reference but, maybe later on
+    // we will decide to refactor it, because this debug-help info wasn't really usefull much.
     pub mozak_ro_memory: Option<MozakMemory>,
 }
 
