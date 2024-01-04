@@ -33,11 +33,19 @@ impl MozakMemoryRegion {
     }
 
     fn fill(&mut self, data: &[u8]) {
+        assert!(
+            data.len() <= self.capacity.try_into().unwrap(),
+            "fill data must be fit capacity"
+        );
         let mut index = self.starting_address;
         for item in data {
             self.data.insert(index, *item);
             index += 1;
         }
+        assert!(
+            self.data.len() <= self.capacity.try_into().unwrap(),
+            "data does not fil capacity"
+        );
     }
 }
 
@@ -498,7 +506,7 @@ impl Program {
 
 #[cfg(test)]
 mod test {
-    use crate::elf::Program;
+    use crate::elf::{MozakMemoryRegion, Program};
 
     #[test]
     fn test_serialize_deserialize() {
@@ -511,5 +519,21 @@ mod test {
         assert_eq!(program.ro_memory.0, deserialized.ro_memory.0);
         assert_eq!(program.rw_memory.0, deserialized.rw_memory.0);
         assert_eq!(program.ro_code.0, deserialized.ro_code.0);
+    }
+
+    #[test]
+    fn test_mozak_memory_region() {
+        let mut mmr = MozakMemoryRegion {
+            capacity: 10,
+            ..Default::default()
+        };
+        mmr.fill(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        assert_eq!(mmr.starting_address, 0);
+        assert_eq!(mmr.capacity, 10);
+        let data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        mmr.data.iter().for_each(|(k, v)| {
+            assert_eq!(u8::try_from(*k).unwrap(), *v);
+            assert_eq!(data[usize::try_from(*k).unwrap()], *v);
+        });
     }
 }
