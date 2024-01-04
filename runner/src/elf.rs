@@ -328,29 +328,54 @@ impl Program {
     /// Same as `Program::internal_load_elf`
     /// # Panics
     /// Same as `Program::internal_load_elf`
-    pub fn load_elf(input: &[u8]) -> Result<Program> { Program::internal_load_elf(input, false) }
+    pub fn load_elf(input: &[u8]) -> Result<Program> {
+        Ok(Program::internal_load_elf(
+            input,
+            Program::validate_elf(input)?,
+            false,
+            |flags, _, _| {
+                (flags & elf::abi::PF_R == elf::abi::PF_R)
+                    && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
+            },
+        ))
+    }
 
     /// Mozak load-elf - expect "_mozak_*" symbols in link
     /// # Errors
     /// Same as `Program::internal_load_elf`
     /// # Panics
     /// Same as `Program::internal_load_elf`
-    pub fn mozak_load_elf(input: &[u8]) -> Result<Program> {
-        Program::internal_load_elf(input, true)
+    #[must_use]
+    pub fn mozak_load_elf(
+        input: &[u8],
+        (elf, entry_point, segments): (ElfBytes<LittleEndian>, u32, SegmentTable<LittleEndian>),
+    ) -> Program {
+        // Information related to the `check_program_flags`
+        // `&& (!mozak_memory.is_mozak_ro_memory_address(ph))` --> this line is used to
+        // filter RO-addresses related to the mozak-ROM. Currently we don't
+        // support filtering by sections and, we don't know if it even possible.
+        // Mozak-ROM address are RO address and will be filled by loader-code
+        // with arguments provided from outside. Mozak-ROM can be accessed as Read-ONLY
+        // from rust code and currently no init code to this section is
+        // supported.
+        Program::internal_load_elf(
+            input,
+            (elf, entry_point, segments),
+            true,
+            |flags, ph, mozak_memory: &Option<MozakMemory>| {
+                (flags & elf::abi::PF_R == elf::abi::PF_R)
+                    && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
+                    && (!mozak_memory
+                        .as_ref()
+                        .expect("Expected to exist for mozak-elf")
+                        .is_mozak_ro_memory_address(ph))
+            },
+        )
     }
 
-    /// Initialize a RISC Program from an appropriate ELF file
-    ///
-    /// # Errors
-    /// Will return `Err` if the ELF file is invalid or if the entrypoint is
-    /// invalid.
-    ///
-    /// # Panics
-    // This function is actually mostly covered by tests, but it's too annoying to work out how to
-    // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
-    // exercise the error handling?
-    #[allow(clippy::similar_names)]
-    fn internal_load_elf(input: &[u8], is_mozak_elf: bool) -> Result<Program> {
+    fn validate_elf(
+        input: &[u8],
+    ) -> Result<(ElfBytes<LittleEndian>, u32, SegmentTable<LittleEndian>)> {
         let elf = ElfBytes::<LittleEndian>::minimal_parse(input)?;
         ensure!(elf.ehdr.class == Class::ELF32, "Not a 32-bit ELF");
         ensure!(
@@ -367,42 +392,39 @@ impl Program {
             .segments()
             .ok_or_else(|| anyhow!("Missing segment table"))?;
         ensure!(segments.len() <= 256, "Too many program headers");
+        Ok((elf, entry_point, segments))
+    }
 
+    /// Initialize a RISC Program from an appropriate ELF file
+    ///
+    /// # Errors
+    /// Will return `Err` if the ELF file is invalid or if the entrypoint is
+    /// invalid.
+    ///
+    /// # Panics
+    // This function is actually mostly covered by tests, but it's too annoying to work out how to
+    // tell tarpaulin that we haven't covered all the error conditions. TODO: write tests to
+    // exercise the error handling?
+    #[allow(clippy::similar_names)]
+    fn internal_load_elf(
+        input: &[u8],
+        (elf, entry_point, segments): (ElfBytes<LittleEndian>, u32, SegmentTable<LittleEndian>),
+        is_mozak_elf: bool,
+        check_program_flags: fn(
+            u32,
+            program_headers: &ProgramHeader,
+            mozak_memory: &Option<MozakMemory>,
+        ) -> bool,
+    ) -> Program {
         // if mozak-elf then fill memory, otherwise None
         let mozak_ro_memory = MozakMemory::new(&elf.symbol_table().unwrap().unwrap(), is_mozak_elf);
 
-        let ro_memory = if is_mozak_elf {
-            // `&& (!mozak_memory.is_mozak_ro_memory_address(ph))` --> this line is used to
-            // filter RO-addresses related to the mozak-ROM. Currently we don't
-            // support filtering by sections and, we don't know if it even possible.
-            // Mozak-ROM address are RO address and will be filled by loader-code
-            // with arguments provided from outside. Mozak-ROM can be accessed as Read-ONLY
-            // from rust code and currently no init code to this section is
-            // supported.
-            Data(Program::extract_elf_data(
-                |flags, ph, mozak_memory: &Option<MozakMemory>| {
-                    (flags & elf::abi::PF_R == elf::abi::PF_R)
-                        && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
-                        && (!mozak_memory
-                            .as_ref()
-                            .expect("Expected to exist for mozak-elf")
-                            .is_mozak_ro_memory_address(ph))
-                },
-                input,
-                &segments,
-                &mozak_ro_memory,
-            ))
-        } else {
-            Data(Program::extract_elf_data(
-                |flags, _, _| {
-                    (flags & elf::abi::PF_R == elf::abi::PF_R)
-                        && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
-                },
-                input,
-                &segments,
-                &mozak_ro_memory,
-            ))
-        };
+        let ro_memory = Data(Program::extract_elf_data(
+            check_program_flags,
+            input,
+            &segments,
+            &mozak_ro_memory,
+        ));
 
         let rw_memory = Data(Program::extract_elf_data(
             |flags, _, _| flags == elf::abi::PF_R | elf::abi::PF_W,
@@ -422,13 +444,13 @@ impl Program {
             &mozak_ro_memory,
         ));
 
-        Ok(Program {
+        Program {
             entry_point,
             ro_memory,
             rw_memory,
             ro_code,
             mozak_ro_memory,
-        })
+        }
     }
 
     fn extract_elf_data(
@@ -490,7 +512,7 @@ impl Program {
     /// When `Program::load_elf` or index as address is not cast-able to be u32
     /// cast-able
     pub fn mozak_load_program(elf_bytes: &[u8], args: &RuntimeArguments) -> Result<Program> {
-        let mut program = Program::mozak_load_elf(elf_bytes).unwrap();
+        let mut program = Program::mozak_load_elf(elf_bytes, Program::validate_elf(elf_bytes)?);
         let mozak_ro_memory = program
             .mozak_ro_memory
             .as_mut()
