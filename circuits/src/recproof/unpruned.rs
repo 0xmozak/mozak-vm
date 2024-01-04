@@ -7,15 +7,7 @@ use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use super::{BranchCircuit, CircuitType, LeafCircuit, SubCircuit};
-
-pub struct Type;
-
-impl CircuitType for Type {
-    type BranchSubCircuit<'a, const D: usize> = BranchSubCircuit<'a, D>;
-    type LeafSubCircuit = LeafSubCircuit;
-    type PublicIndices = PublicIndices;
-}
+use super::SubCircuit;
 
 #[derive(Copy, Clone)]
 pub struct PublicIndices {
@@ -46,20 +38,21 @@ pub struct LeafTargets {
 
 impl LeafSubCircuit {
     #[must_use]
-    pub fn new<F, C, const D: usize, B, R>(
+    pub fn new<F, C, const D: usize, T, B, R>(
         mut builder: CircuitBuilder<F, D>,
+        t: T,
         build: B,
     ) -> (CircuitData<F, C, D>, (Self, R))
     where
-        B: FnOnce(CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
+        B: FnOnce(T, &LeafTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
         let unpruned_hash = builder.add_virtual_hash();
         builder.register_public_inputs(&unpruned_hash.elements);
 
-        let (circuit, r) = build(builder);
-
         let targets = LeafTargets { unpruned_hash };
+        let (circuit, r) = build(t, &targets, builder);
+
         let indices = PublicIndices {
             unpruned_hash: targets.unpruned_hash.elements.map(|target| {
                 circuit
@@ -179,7 +172,7 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
 
     pub fn from_leaf<F, C, B, R>(
         builder: CircuitBuilder<F, D>,
-        leaf: &'a dyn LeafCircuit<Type, F, C, D>,
+        leaf: &'a LeafSubCircuit,
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
         build: B,
@@ -188,22 +181,15 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
         B: FnOnce(CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
-        let left_dir = Self::dir_from_node(left_proof, leaf.sub_circuit());
-        let right_dir = Self::dir_from_node(right_proof, leaf.sub_circuit());
+        let left_dir = Self::dir_from_node(left_proof, leaf);
+        let right_dir = Self::dir_from_node(right_proof, leaf);
         let height = 0;
-        Self::from_dirs(
-            leaf.sub_circuit(),
-            builder,
-            left_dir,
-            right_dir,
-            height,
-            build,
-        )
+        Self::from_dirs(leaf, builder, left_dir, right_dir, height, build)
     }
 
     pub fn from_branch<F, C, B, R>(
         builder: CircuitBuilder<F, D>,
-        branch: &'a dyn BranchCircuit<Type, F, C, D>,
+        branch: &'a BranchSubCircuit<'a, D>,
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
         build: B,
@@ -212,17 +198,10 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
         B: FnOnce(CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
-        let left_dir = Self::dir_from_node(left_proof, branch.sub_circuit());
-        let right_dir = Self::dir_from_node(right_proof, branch.sub_circuit());
-        let height = branch.branch_sub_circuit().height + 1;
-        Self::from_dirs(
-            branch.sub_circuit(),
-            builder,
-            left_dir,
-            right_dir,
-            height,
-            build,
-        )
+        let left_dir = Self::dir_from_node(left_proof, branch);
+        let right_dir = Self::dir_from_node(right_proof, branch);
+        let height = branch.height + 1;
+        Self::from_dirs(branch, builder, left_dir, right_dir, height, build)
     }
 
     pub fn set_inputs<F: RichField>(
@@ -245,11 +224,10 @@ mod test {
     use anyhow::Result;
     use plonky2::field::types::Field;
     use plonky2::plonk::circuit_data::CircuitConfig;
-    use plonky2::plonk::config::Hasher;
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
-    use crate::recproof::Circuit;
+    use crate::recproof::test::{hash_branch, hash_str};
     use crate::test_utils::{C, D, F};
 
     pub struct DummyLeafCircuit {
@@ -257,22 +235,12 @@ mod test {
         pub circuit: CircuitData<F, C, D>,
     }
 
-    impl Circuit<Type, F, C, D> for DummyLeafCircuit {
-        fn sub_circuit(&self) -> &dyn SubCircuit<PublicIndices> { &self.unpruned }
-
-        fn circuit_data(&self) -> &CircuitData<F, C, D> { &self.circuit }
-    }
-
-    impl LeafCircuit<Type, F, C, D> for DummyLeafCircuit {
-        fn leaf_sub_circuit(&self) -> &LeafSubCircuit { &self.unpruned }
-    }
-
     impl DummyLeafCircuit {
         #[must_use]
         pub fn new(circuit_config: &CircuitConfig) -> Self {
             let builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
             let (circuit, (unpruned, ())) =
-                LeafSubCircuit::new(builder, |builder| (builder.build(), ()));
+                LeafSubCircuit::new(builder, (), |(), _targets, builder| (builder.build(), ()));
 
             Self { unpruned, circuit }
         }
@@ -291,17 +259,8 @@ mod test {
     }
 
     pub struct DummyBranchTargets {
-        left_proof: ProofWithPublicInputsTarget<D>,
-        right_proof: ProofWithPublicInputsTarget<D>,
-    }
-
-    impl<'a> Circuit<Type, F, C, D> for DummyBranchCircuit<'a> {
-        fn sub_circuit(&self) -> &dyn SubCircuit<PublicIndices> { &self.summarized }
-
-        fn circuit_data(&self) -> &CircuitData<F, C, D> { &self.circuit }
-    }
-    impl<'a> BranchCircuit<Type, F, C, D> for DummyBranchCircuit<'a> {
-        fn branch_sub_circuit(&self) -> &BranchSubCircuit<'_, D> { &self.summarized }
+        pub left_proof: ProofWithPublicInputsTarget<D>,
+        pub right_proof: ProofWithPublicInputsTarget<D>,
     }
 
     impl<'a> DummyBranchCircuit<'a> {
@@ -309,7 +268,7 @@ mod test {
         pub fn from_leaf(circuit_config: &CircuitConfig, leaf: &'a DummyLeafCircuit) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-            let circuit_data = leaf.circuit_data();
+            let circuit_data = &leaf.circuit;
             let common = &circuit_data.common;
             let verifier = builder.constant_verifier_data(&circuit_data.verifier_only);
             let left_proof = builder.add_virtual_proof_with_pis(common);
@@ -317,10 +276,13 @@ mod test {
             builder.verify_proof::<C>(&left_proof, &verifier, common);
             builder.verify_proof::<C>(&right_proof, &verifier, common);
 
-            let (circuit, (summarized, ())) =
-                BranchSubCircuit::from_leaf(builder, leaf, &left_proof, &right_proof, |builder| {
-                    (builder.build(), ())
-                });
+            let (circuit, (summarized, ())) = BranchSubCircuit::from_leaf(
+                builder,
+                &leaf.unpruned,
+                &left_proof,
+                &right_proof,
+                |builder| (builder.build(), ()),
+            );
 
             let targets = DummyBranchTargets {
                 left_proof,
@@ -337,7 +299,7 @@ mod test {
         pub fn from_branch(circuit_config: &CircuitConfig, branch: &'a DummyBranchCircuit) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-            let circuit_data = branch.circuit_data();
+            let circuit_data = &branch.circuit;
             let common = &circuit_data.common;
             let verifier = builder.constant_verifier_data(&circuit_data.verifier_only);
             let left_proof = builder.add_virtual_proof_with_pis(common);
@@ -347,7 +309,7 @@ mod test {
 
             let (circuit, (summarized, ())) = BranchSubCircuit::from_branch(
                 builder,
-                branch,
+                &branch.summarized,
                 &left_proof,
                 &right_proof,
                 |builder| (builder.build(), ()),
@@ -377,17 +339,6 @@ mod test {
             self.summarized.set_inputs(&mut inputs, unpruned_hash);
             self.circuit.prove(inputs)
         }
-    }
-
-    fn hash_str(v: &str) -> HashOut<F> {
-        let v: Vec<_> = v.bytes().map(F::from_canonical_u8).collect();
-        Poseidon2Hash::hash_no_pad(&v)
-    }
-
-    fn hash_branch<F: RichField>(left: &HashOut<F>, right: &HashOut<F>) -> HashOut<F> {
-        let [l0, l1, l2, l3] = left.elements;
-        let [r0, r1, r2, r3] = right.elements;
-        Poseidon2Hash::hash_no_pad(&[l0, l1, l2, l3, r0, r1, r2, r3])
     }
 
     #[test]
