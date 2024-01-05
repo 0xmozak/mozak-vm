@@ -137,7 +137,7 @@ impl<F: RichField> From<&Poseidon2OutputBytes<F>> for Vec<Memory<F>> {
                 .map(|i| Memory {
                     clk: value.clk,
                     addr: value.output_addr
-                        + F::from_canonical_u8(u8::try_from(i).expect("i > 255")),
+                        + F::from_canonical_u8(u8::try_from(i).expect("BYTES_COUNT of poseidon output should be representable by a u8")),
                     is_store: F::ONE,
                     value: value.output_bytes[i],
                     ..Default::default()
