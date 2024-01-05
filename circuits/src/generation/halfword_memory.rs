@@ -66,6 +66,7 @@ mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
 
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
+    use crate::generation::generate_poseidon2_output_bytes_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
         generate_io_memory_private_trace, generate_io_memory_public_trace,
@@ -91,6 +92,7 @@ mod tests {
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
         let poseidon2_rows = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_rows);
 
         let trace = generate_memory_trace::<GoldilocksField>(
             &record.executed,
@@ -100,6 +102,7 @@ mod tests {
             &io_memory_private_rows,
             &io_memory_public_rows,
             &poseidon2_rows,
+            &poseidon2_output_bytes,
         );
         assert_eq!(trace,
             prep_table(vec![
