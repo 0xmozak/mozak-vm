@@ -56,7 +56,7 @@
         "benches": {
             "poseidon2": {
                 "commit": "latest",
-                "bench_function": "poseidon2"
+                "bench_function": "poseidon2-bench"
             }
         }
     }
