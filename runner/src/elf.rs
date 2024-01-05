@@ -105,7 +105,7 @@ impl MozakMemory {
     fn new(st: &(SymbolTable<LittleEndian>, StringTable)) -> MozakMemory {
         let mut mozak_memory = MozakMemory::create();
         mozak_memory.fill(st);
-        return mozak_memory;
+        mozak_memory
     }
 
     fn is_mozak_ro_memory_address(&self, program_header: &ProgramHeader) -> bool {
