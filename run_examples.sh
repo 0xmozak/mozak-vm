@@ -19,9 +19,15 @@ do
             public_iotape=""
             case ${bin} in
                 # TODO(bing): fix to work with this script
-                "panic" | "merkleproof-trustedroot-native" )
+                "panic" )
                     echo "(mozak-cli) skipping (${profile}): ${bin}"
                     skipped="${skipped}${bin} (${profile})\n"
+                    continue
+                    ;;
+                # For this, we skip without writing to skipped because we
+                # run the native version along with the zkvm version.
+                "merkleproof-trustedroot-native" )
+                    echo "(mozak-cli) skipping (${profile}): ${bin}"
                     continue
                     ;;
                 "fibonacci-input" )
@@ -29,6 +35,9 @@ do
                     public_iotape="examples/${member}/iotape_public"
                     ;;
                 "merkleproof-trustedroot" )
+                    host_target=$(rustc --version --verbose | grep 'host' | cut -d ' ' -f2)
+                    cargo run --manifest-path=examples/${bin}/Cargo.toml --release --features="native" --bin merkleproof-trustedroot-native --target $host_target
+
                     private_iotape="examples/${member}/private_input.tape"
                     public_iotape="examples/${member}/public_input.tape"
                     ;;
