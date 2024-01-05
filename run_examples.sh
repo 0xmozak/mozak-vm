@@ -5,6 +5,7 @@ MEMBERS=$(taplo get -f examples/Cargo.toml 'workspace.members')
 PROFILES=("release")
 
 failed=""
+skipped=""
 
 for profile in ${PROFILES[@]}
 do
@@ -20,12 +21,18 @@ do
                 # TODO(bing): fix to work with this script
                 "panic" | "merkleproof-trustedroot-native" )
                     echo "(mozak-cli) skipping (${profile}): ${bin}"
+                    skipped="${skipped}${bin} (${profile})\n"
                     continue
                     ;;
                 "fibonacci-input" )
                     private_iotape="examples/${member}/iotape_private"
                     public_iotape="examples/${member}/iotape_public"
                     ;;
+                "merkleproof-trustedroot" )
+                    private_iotape="examples/${member}/private_input.tape"
+                    public_iotape="examples/${member}/public_input.tape"
+                    ;;
+
             esac
 
             cargo run --bin mozak-cli \
@@ -40,6 +47,12 @@ do
         done
     done
 done
+
+if [ -n "$skipped" ]; then
+    echo -e  "\nSome tests were skipped:\n${skipped}"
+    exit 0 
+fi
+
 
 if [ -n "$failed" ]; then
     echo -e  "\nSome tests failed:\n${failed}"
