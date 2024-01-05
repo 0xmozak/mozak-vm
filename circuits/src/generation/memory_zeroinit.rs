@@ -51,7 +51,8 @@ pub fn generate_memory_zero_init_trace<F: RichField>(
                 Op::ECALL => {
                     // must be poseidon2 ECALL as per filter above
                     let output_addr = row.aux.poseidon2.clone().unwrap_or_default().output_addr;
-                    (0..u32::try_from(BYTES_COUNT).expect("BYTES_COUNT of a poseidon output should be representable by a u8"))
+                    (0..u32::try_from(BYTES_COUNT)
+                        .expect("BYTES_COUNT of a poseidon output should be representable by a u8"))
                         .map(|i| F::from_canonical_u32(output_addr.wrapping_add(i)))
                         .collect()
                 }
