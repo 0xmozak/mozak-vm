@@ -8,6 +8,7 @@ static mut XYZ: [u8; 20] = [51; 20];
 pub fn main() {
     unsafe{
         assert_eq!(XYZ[2], 51);
+        guest::env::write(&XYZ);
     }
 }
 
