@@ -102,12 +102,6 @@ impl MozakMemory {
         }
     }
 
-    fn new(st: &(SymbolTable<LittleEndian>, StringTable)) -> MozakMemory {
-        let mut mozak_memory = MozakMemory::create();
-        mozak_memory.fill(st);
-        mozak_memory
-    }
-
     fn is_mozak_ro_memory_address(&self, program_header: &ProgramHeader) -> bool {
         let address: u32 = u32::try_from(program_header.p_vaddr)
             .expect("p_vaddr for zk-vm expected to be cast-able to u32");
@@ -314,7 +308,8 @@ impl From<HashMap<u32, u32>> for Data {
         )
     }
 }
-
+type CheckProgramFlags =
+    fn(flags: u32, program_headers: &ProgramHeader, mozak_memory: &Option<MozakMemory>) -> bool;
 impl Program {
     /// Vanilla load-elf - NOT expect "_mozak_*" symbols in link. Maybe we
     /// should rename it later, with `vanilla_` prefix
@@ -328,7 +323,8 @@ impl Program {
         let (_, entry_point, segments) = Program::parse_and_validate_elf(input)?;
         Ok(Program::internal_load_elf(
             input,
-            (entry_point, segments),
+            entry_point,
+            segments,
             |flags, _, _| {
                 (flags & elf::abi::PF_R == elf::abi::PF_R)
                     && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
@@ -357,7 +353,8 @@ impl Program {
         // supported.
         Program::internal_load_elf(
             input,
-            (entry_point, segments),
+            entry_point,
+            segments,
             |flags, ph, mozak_memory: &Option<MozakMemory>| {
                 (flags & elf::abi::PF_R == elf::abi::PF_R)
                     && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
@@ -366,7 +363,11 @@ impl Program {
                         .expect("Expected to exist for mozak-elf")
                         .is_mozak_ro_memory_address(ph))
             },
-            Some(MozakMemory::new(&elf.symbol_table().unwrap().unwrap())),
+            Some({
+                let mut mm = MozakMemory::create();
+                mm.fill(&elf.symbol_table().unwrap().unwrap());
+                mm
+            }),
         )
     }
 
@@ -405,7 +406,8 @@ impl Program {
     #[allow(clippy::similar_names)]
     fn internal_load_elf(
         input: &[u8],
-        (entry_point, segments): (u32, SegmentTable<LittleEndian>),
+        entry_point: u32,
+        segments: SegmentTable<LittleEndian>,
         check_program_flags: fn(
             u32,
             program_headers: &ProgramHeader,
@@ -448,11 +450,7 @@ impl Program {
     }
 
     fn extract_elf_data(
-        check_program_flags: fn(
-            u32,
-            program_headers: &ProgramHeader,
-            mozak_memory: &Option<MozakMemory>,
-        ) -> bool,
+        check_program_flags: CheckProgramFlags,
         input: &[u8],
         segments: &SegmentTable<LittleEndian>,
         mozak_memory: &Option<MozakMemory>,
