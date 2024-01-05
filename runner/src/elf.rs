@@ -60,6 +60,9 @@ pub struct MozakMemory {
 #[cfg(test)]
 impl Default for MozakMemory {
     /// Assumed to be used only from tests
+    // TODO(Roman): maybe `default` should be swapped with MozakMemory::create()
+    // function, and `create()` will be used only by the tests and renamed to
+    // `default_for_tests()` + conditional compilation ?
     fn default() -> Self {
         // These magic numbers taken from mozak-linker-script
         // TODO(Roman): Once `end-of-mozak-region` symbol will be added to linker-script
