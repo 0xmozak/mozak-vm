@@ -102,16 +102,10 @@ impl MozakMemory {
         }
     }
 
-    fn new(
-        st: &(SymbolTable<LittleEndian>, StringTable),
-        is_mozak_elf: bool,
-    ) -> Option<MozakMemory> {
-        if is_mozak_elf {
-            let mut mozak_memory = MozakMemory::create();
-            mozak_memory.fill(st);
-            return Some(mozak_memory);
-        }
-        None
+    fn new(st: &(SymbolTable<LittleEndian>, StringTable)) -> MozakMemory {
+        let mut mozak_memory = MozakMemory::create();
+        mozak_memory.fill(st);
+        return mozak_memory;
     }
 
     fn is_mozak_ro_memory_address(&self, program_header: &ProgramHeader) -> bool {
@@ -331,13 +325,15 @@ impl Program {
     /// TODO(Roman): Refactor this API to be aligned with `mozak_load_elf` -
     /// just return Program
     pub fn load_elf(input: &[u8]) -> Result<Program> {
+        let (_, entry_point, segments) = Program::parse_and_validate_elf(input)?;
         Ok(Program::internal_load_elf(
             input,
-            Program::parse_and_validate_elf(input)?,
+            (entry_point, segments),
             |flags, _, _| {
                 (flags & elf::abi::PF_R == elf::abi::PF_R)
                     && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
             },
+            None,
         ))
     }
 
@@ -361,7 +357,7 @@ impl Program {
         // supported.
         Program::internal_load_elf(
             input,
-            (elf, entry_point, segments),
+            (entry_point, segments),
             |flags, ph, mozak_memory: &Option<MozakMemory>| {
                 (flags & elf::abi::PF_R == elf::abi::PF_R)
                     && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
@@ -370,6 +366,7 @@ impl Program {
                         .expect("Expected to exist for mozak-elf")
                         .is_mozak_ro_memory_address(ph))
             },
+            Some(MozakMemory::new(&elf.symbol_table().unwrap().unwrap())),
         )
     }
 
@@ -408,16 +405,14 @@ impl Program {
     #[allow(clippy::similar_names)]
     fn internal_load_elf(
         input: &[u8],
-        (elf, entry_point, segments): (ElfBytes<LittleEndian>, u32, SegmentTable<LittleEndian>),
+        (entry_point, segments): (u32, SegmentTable<LittleEndian>),
         check_program_flags: fn(
             u32,
             program_headers: &ProgramHeader,
             mozak_memory: &Option<MozakMemory>,
         ) -> bool,
+        mozak_ro_memory: Option<MozakMemory>,
     ) -> Program {
-        // if mozak-elf then fill memory, otherwise None
-        let mozak_ro_memory = MozakMemory::new(&elf.symbol_table().unwrap().unwrap(), is_mozak_elf);
-
         let ro_memory = Data(Program::extract_elf_data(
             check_program_flags,
             input,
