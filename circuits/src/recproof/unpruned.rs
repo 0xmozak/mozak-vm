@@ -38,20 +38,19 @@ pub struct LeafTargets {
 
 impl LeafSubCircuit {
     #[must_use]
-    pub fn new<F, C, const D: usize, T, B, R>(
+    pub fn new<F, C, const D: usize, B, R>(
         mut builder: CircuitBuilder<F, D>,
-        t: T,
         build: B,
     ) -> (CircuitData<F, C, D>, (Self, R))
     where
-        B: FnOnce(T, &LeafTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
+        B: FnOnce(&LeafTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
         let unpruned_hash = builder.add_virtual_hash();
         builder.register_public_inputs(&unpruned_hash.elements);
 
         let targets = LeafTargets { unpruned_hash };
-        let (circuit, r) = build(t, &targets, builder);
+        let (circuit, r) = build(&targets, builder);
 
         let indices = PublicIndices {
             unpruned_hash: targets.unpruned_hash.elements.map(|target| {
@@ -118,7 +117,7 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
         build: B,
     ) -> (CircuitData<F, C, D>, (Self, R))
     where
-        B: FnOnce(CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
+        B: FnOnce(&BranchTargets<D>, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
         let unpruned_hash = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(
@@ -132,13 +131,13 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
 
         builder.register_public_inputs(&unpruned_hash.elements);
 
-        let (circuit, r) = build(builder);
-
         let targets = BranchTargets {
             left_dir,
             right_dir,
             unpruned_hash,
         };
+        let (circuit, r) = build(&targets, builder);
+
         let indices = PublicIndices {
             unpruned_hash: targets.unpruned_hash.elements.map(|target| {
                 circuit
@@ -178,7 +177,7 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
         build: B,
     ) -> (CircuitData<F, C, D>, (Self, R))
     where
-        B: FnOnce(CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
+        B: FnOnce(&BranchTargets<D>, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
         let left_dir = Self::dir_from_node(left_proof, leaf);
@@ -195,7 +194,7 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
         build: B,
     ) -> (CircuitData<F, C, D>, (Self, R))
     where
-        B: FnOnce(CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
+        B: FnOnce(&BranchTargets<D>, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
         let left_dir = Self::dir_from_node(left_proof, branch);
@@ -227,8 +226,7 @@ mod test {
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
-    use crate::recproof::test::{hash_branch, hash_str};
-    use crate::test_utils::{C, D, F};
+    use crate::test_utils::{hash_branch, hash_str, C, D, F};
 
     pub struct DummyLeafCircuit {
         pub unpruned: LeafSubCircuit,
@@ -240,7 +238,7 @@ mod test {
         pub fn new(circuit_config: &CircuitConfig) -> Self {
             let builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
             let (circuit, (unpruned, ())) =
-                LeafSubCircuit::new(builder, (), |(), _targets, builder| (builder.build(), ()));
+                LeafSubCircuit::new(builder, |_targets, builder| (builder.build(), ()));
 
             Self { unpruned, circuit }
         }
@@ -281,7 +279,7 @@ mod test {
                 &leaf.unpruned,
                 &left_proof,
                 &right_proof,
-                |builder| (builder.build(), ()),
+                |_targets, builder| (builder.build(), ()),
             );
 
             let targets = DummyBranchTargets {
@@ -312,7 +310,7 @@ mod test {
                 &branch.summarized,
                 &left_proof,
                 &right_proof,
-                |builder| (builder.build(), ()),
+                |_targets, builder| (builder.build(), ()),
             );
 
             let targets = DummyBranchTargets {
@@ -383,21 +381,21 @@ mod test {
         leaf_circuit.circuit.verify(non_zero_proof_2.clone())?;
 
         // Branch proofs
-        let both1_branch_proof =
+        let branch_1_and_0_proof =
             branch_circuit_1.prove(&non_zero_proof_1, &zero_proof, both_hash_1)?;
         branch_circuit_1
             .circuit
-            .verify(both1_branch_proof.clone())?;
+            .verify(branch_1_and_0_proof.clone())?;
 
-        let both2_branch_proof =
+        let branch_0_and_2_proof =
             branch_circuit_1.prove(&zero_proof, &non_zero_proof_2, both_hash_2)?;
         branch_circuit_1
             .circuit
-            .verify(both2_branch_proof.clone())?;
+            .verify(branch_0_and_2_proof.clone())?;
 
         // Double branch proofs
         let both1_2_branch_proof =
-            branch_circuit_2.prove(&both1_branch_proof, &both2_branch_proof, both_hash_1_2)?;
+            branch_circuit_2.prove(&branch_1_and_0_proof, &branch_0_and_2_proof, both_hash_1_2)?;
         branch_circuit_2.circuit.verify(both1_2_branch_proof)?;
 
         Ok(())

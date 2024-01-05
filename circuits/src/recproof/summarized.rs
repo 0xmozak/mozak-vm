@@ -1,68 +1,14 @@
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::poseidon2::Poseidon2Hash;
-use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
-use plonky2::iop::target::{BoolTarget, Target};
-use plonky2::iop::witness::{PartialWitness, PartitionWitness, Witness, WitnessWrite};
+use plonky2::iop::target::BoolTarget;
+use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitData, CommonCircuitData};
+use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
-use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
-use super::SubCircuit;
-
-/// A generator for testing if a value equals zero
-#[derive(Debug, Default)]
-struct NonzeroTestGenerator {
-    to_test: Target,
-    result: BoolTarget,
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D> for NonzeroTestGenerator {
-    fn id(&self) -> String { "NonzeroTestGenerator".to_string() }
-
-    fn dependencies(&self) -> Vec<Target> { vec![self.to_test] }
-
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        let to_test_value = witness.get_target(self.to_test);
-        out_buffer.set_bool_target(self.result, to_test_value.is_nonzero());
-    }
-
-    fn serialize(&self, dst: &mut Vec<u8>, _common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-        dst.write_target(self.to_test)?;
-        dst.write_target_bool(self.result)
-    }
-
-    fn deserialize(src: &mut Buffer, _common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-        let to_test = src.read_target()?;
-        let result = src.read_target_bool()?;
-        Ok(Self { to_test, result })
-    }
-}
-
-fn is_nonzero<F, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    to_test: Target,
-) -> BoolTarget
-where
-    F: RichField + Extendable<D>, {
-    // `result = to_test != 0`, meaning it's 0 for `to_test == 0` or 1 for all other
-    // to_test we'll represent this as `result = 0 | 1`
-    // note that this can be falsely proved so we have to put some constraints below
-    // to ensure it
-    let result = builder.add_virtual_bool_target_safe();
-    builder.add_simple_generator(NonzeroTestGenerator { to_test, result });
-
-    // Enforce the result through arithmetic
-    let neg = builder.not(result); // neg = 1 | 0
-    let denom = builder.add(to_test, neg.target); // denom = 1 | to_test
-    let div = builder.div(to_test, denom); // div = 0 | 1
-
-    builder.connect(result.target, div);
-
-    result
-}
+use super::{is_nonzero, SubCircuit};
 
 #[derive(Copy, Clone)]
 pub struct PublicIndices {
@@ -104,13 +50,12 @@ pub struct LeafTargets {
 
 impl LeafSubCircuit {
     #[must_use]
-    pub fn new<F, C, const D: usize, T, B, R>(
+    pub fn new<F, C, const D: usize, B, R>(
         mut builder: CircuitBuilder<F, D>,
-        t: T,
         build: B,
     ) -> (CircuitData<F, C, D>, (Self, R))
     where
-        B: FnOnce(T, &LeafTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
+        B: FnOnce(&LeafTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
         let summary_hash_present = builder.add_virtual_bool_target_safe();
@@ -121,7 +66,7 @@ impl LeafSubCircuit {
         // let hash_or_zero = summary_hash.elements.map(|e|
         //     builder.mul(e, summary_hash_present.target)
         // );
-        // // `assert_eq!(summary_hash, hash_or_zero)`
+        // `assert_eq!(summary_hash, hash_or_zero)`
         // builder.connect_hashes(summary_hash, HashOutTarget::from(hash_or_zero));
 
         // prove hashes align with presence
@@ -137,7 +82,7 @@ impl LeafSubCircuit {
             summary_hash_present,
             summary_hash,
         };
-        let (circuit, r) = build(t, &targets, builder);
+        let (circuit, r) = build(&targets, builder);
         let public_inputs = &circuit.prover_only.public_inputs;
 
         let indices = PublicIndices {
@@ -223,7 +168,7 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
         build: B,
     ) -> (CircuitData<F, C, D>, (Self, R))
     where
-        B: FnOnce(CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
+        B: FnOnce(&BranchTargets<D>, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
         let summary_hash_present = builder.or(
@@ -266,25 +211,22 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
         builder.register_public_input(summary_hash_present.target);
         builder.register_public_inputs(&summary_hash);
 
-        let (circuit, r) = build(builder);
-
         let targets = BranchTargets {
             left_dir,
             right_dir,
             summary_hash_present,
             summary_hash: HashOutTarget::from(summary_hash),
         };
+        let (circuit, r) = build(&targets, builder);
+        let public_inputs = &circuit.prover_only.public_inputs;
+
         let indices = PublicIndices {
-            summary_hash_present: circuit
-                .prover_only
-                .public_inputs
+            summary_hash_present: public_inputs
                 .iter()
                 .position(|&pi| pi == targets.summary_hash_present.target)
                 .expect("target not found"),
             summary_hash: targets.summary_hash.elements.map(|target| {
-                circuit
-                    .prover_only
-                    .public_inputs
+                public_inputs
                     .iter()
                     .position(|&pi| pi == target)
                     .expect("target not found")
@@ -324,7 +266,7 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
         build: B,
     ) -> (CircuitData<F, C, D>, (Self, R))
     where
-        B: FnOnce(CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
+        B: FnOnce(&BranchTargets<D>, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
         let left_dir = Self::dir_from_node(left_proof, leaf);
@@ -341,7 +283,7 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
         build: B,
     ) -> (CircuitData<F, C, D>, (Self, R))
     where
-        B: FnOnce(CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
+        B: FnOnce(&BranchTargets<D>, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
         let left_dir = Self::dir_from_node(left_proof, branch);
@@ -383,8 +325,7 @@ mod test {
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
-    use crate::recproof::test::{hash_branch, hash_str};
-    use crate::test_utils::{C, D, F};
+    use crate::test_utils::{hash_branch, hash_str, C, D, F};
 
     pub struct DummyLeafCircuit {
         pub summarized: LeafSubCircuit,
@@ -396,7 +337,7 @@ mod test {
         pub fn new(circuit_config: &CircuitConfig) -> Self {
             let builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
             let (circuit, (summarized, ())) =
-                LeafSubCircuit::new(builder, (), |(), _targets, builder| (builder.build(), ()));
+                LeafSubCircuit::new(builder, |_targets, builder| (builder.build(), ()));
 
             Self {
                 summarized,
@@ -451,7 +392,7 @@ mod test {
                 &leaf.summarized,
                 &left_proof,
                 &right_proof,
-                |builder| (builder.build(), ()),
+                |_targets, builder| (builder.build(), ()),
             );
 
             let targets = DummyBranchTargets {
@@ -482,7 +423,7 @@ mod test {
                 &branch.summarized,
                 &left_proof,
                 &right_proof,
-                |builder| (builder.build(), ()),
+                |_targets, builder| (builder.build(), ()),
             );
 
             let targets = DummyBranchTargets {
