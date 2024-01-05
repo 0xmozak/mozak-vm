@@ -334,7 +334,6 @@ impl Program {
         Ok(Program::internal_load_elf(
             input,
             Program::parse_and_validate_elf(input)?,
-            false,
             |flags, _, _| {
                 (flags & elf::abi::PF_R == elf::abi::PF_R)
                     && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
@@ -363,7 +362,6 @@ impl Program {
         Program::internal_load_elf(
             input,
             (elf, entry_point, segments),
-            true,
             |flags, ph, mozak_memory: &Option<MozakMemory>| {
                 (flags & elf::abi::PF_R == elf::abi::PF_R)
                     && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
@@ -411,7 +409,6 @@ impl Program {
     fn internal_load_elf(
         input: &[u8],
         (elf, entry_point, segments): (ElfBytes<LittleEndian>, u32, SegmentTable<LittleEndian>),
-        is_mozak_elf: bool,
         check_program_flags: fn(
             u32,
             program_headers: &ProgramHeader,
