@@ -6,6 +6,7 @@ use anyhow::{anyhow, ensure};
 use derive_more::Deref;
 use elf::endian::LittleEndian;
 use elf::file::Class;
+use elf::segment::SegmentTable;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
 use itertools::{chain, iproduct, Itertools};
@@ -151,38 +152,29 @@ impl Program {
             .ok_or_else(|| anyhow!("Missing segment table"))?;
         ensure!(segments.len() <= 256, "Too many program headers");
 
-        let extract = |check_flags: fn(u32) -> bool| {
-            segments
-                .iter()
-                .filter(|s| check_flags(s.p_flags))
-                .map(|segment| -> anyhow::Result<_> {
-                    let file_size: usize = segment.p_filesz.try_into()?;
-                    let mem_size: usize = segment.p_memsz.try_into()?;
-                    let vaddr: u32 = segment.p_vaddr.try_into()?;
-                    let offset = segment.p_offset.try_into()?;
+        let ro_memory = Data(Program::extract_elf_data(
+            |flags| {
+                (flags & elf::abi::PF_R == elf::abi::PF_R)
+                    && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
+            },
+            input,
+            &segments,
+        ));
 
-                    let min_size = min(file_size, mem_size);
-                    let max_size = max(file_size, mem_size);
-                    Ok((vaddr..).zip(
-                        chain!(&input[offset..][..min_size], repeat(&0u8))
-                            .take(max_size)
-                            .copied(),
-                    ))
-                })
-                .flatten_ok()
-                .try_collect()
-        };
-
-        let ro_memory = Data(extract(|flags| {
-            (flags & elf::abi::PF_R == elf::abi::PF_R)
-                && (flags & elf::abi::PF_W == elf::abi::PF_NONE)
-        })?);
-        let rw_memory = Data(extract(|flags| flags == elf::abi::PF_R | elf::abi::PF_W)?);
+        let rw_memory = Data(Program::extract_elf_data(
+            |flags| flags == elf::abi::PF_R | elf::abi::PF_W,
+            input,
+            &segments,
+        ));
         // Because we are implementing a modified Harvard Architecture, we make an
         // independent copy of the executable segments. In practice,
         // instructions will be in a R_X segment, so their data will show up in ro_code
         // and ro_memory. (RWX segments would show up in ro_code and rw_memory.)
-        let ro_code = Code::from(&extract(|flags| flags & elf::abi::PF_X == elf::abi::PF_X)?);
+        let ro_code = Code::from(&Program::extract_elf_data(
+            |flags| flags & elf::abi::PF_X == elf::abi::PF_X,
+            input,
+            &segments,
+        ));
 
         Ok(Program {
             entry_point,
@@ -190,6 +182,33 @@ impl Program {
             rw_memory,
             ro_code,
         })
+    }
+
+    fn extract_elf_data(
+        check_program_flags: fn(u32) -> bool,
+        input: &[u8],
+        segments: &SegmentTable<LittleEndian>,
+    ) -> HashMap<u32, u8> {
+        segments
+            .iter()
+            .filter(|program_header| check_program_flags(program_header.p_flags))
+            .map(|program_header| -> anyhow::Result<_> {
+                let file_size: usize = program_header.p_filesz.try_into()?;
+                let mem_size: usize = program_header.p_memsz.try_into()?;
+                let vaddr: u32 = program_header.p_vaddr.try_into()?;
+                let offset = program_header.p_offset.try_into()?;
+
+                let min_size = min(file_size, mem_size);
+                let max_size = max(file_size, mem_size);
+                Ok((vaddr..).zip(
+                    chain!(&input[offset..][..min_size], repeat(&0u8))
+                        .take(max_size)
+                        .copied(),
+                ))
+            })
+            .flatten_ok()
+            .try_collect()
+            .expect("extract elf data should always succeed")
     }
 }
 

@@ -50,21 +50,21 @@ enum Command {
     /// the registers
     Run {
         elf: Input,
-        io_tape_private: Input,
-        io_tape_public: Input,
+        io_tape_private: Option<Input>,
+        io_tape_public: Option<Input>,
     },
     /// Prove and verify the execution of a given ELF
     ProveAndVerify {
         elf: Input,
-        io_tape_private: Input,
-        io_tape_public: Input,
+        io_tape_private: Option<Input>,
+        io_tape_public: Option<Input>,
     },
     /// Prove the execution of given ELF and write proof to file.
     Prove {
         elf: Input,
-        io_tape_private: Input,
-        io_tape_public: Input,
         proof: Output,
+        io_tape_private: Option<Input>,
+        io_tape_public: Option<Input>,
         recursive_proof: Option<Output>,
     },
     /// Verify the given proof from file.
@@ -80,10 +80,14 @@ enum Command {
 }
 
 /// Read a sequence of bytes from IO
-fn load_tape(mut io_tape: impl Read) -> Result<Vec<u8>> {
+fn load_tape(io_tape: Option<impl Read>) -> Result<Vec<u8>> {
     let mut io_tape_bytes = Vec::new();
-    let bytes_read = io_tape.read_to_end(&mut io_tape_bytes)?;
-    debug!("Read {bytes_read} of io_tape data.");
+
+    if let Some(mut tape) = io_tape {
+        let bytes_read = tape.read_to_end(&mut io_tape_bytes)?;
+        debug!("Read {bytes_read} of io_tape data.");
+    }
+
     Ok(io_tape_bytes)
 }
 
