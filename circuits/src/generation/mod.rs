@@ -96,6 +96,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &io_memory_private_rows,
         &io_memory_public_rows,
         &poseiden2_sponge_rows,
+        &poseidon2_output_bytes_rows,
     );
     let memory_zeroinit_rows =
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed);

@@ -76,6 +76,7 @@ mod tests {
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
+    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory_fullword::test_utils::fullword_memory_trace_test_case;
     use crate::test_utils::prep_table;
@@ -94,6 +95,7 @@ mod tests {
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows= generate_io_memory_public_trace(&record.executed);
         let poseidon2_rows = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_rows);
         let trace = generate_memory_trace::<GoldilocksField>(
             &record.executed,
             &memory_init,
@@ -102,6 +104,7 @@ mod tests {
             &io_memory_private_rows,
             &io_memory_public_rows,
             &poseidon2_rows,
+            &poseidon2_output_bytes,
         );
         assert_eq!(
             trace,
