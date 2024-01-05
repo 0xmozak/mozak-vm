@@ -13,7 +13,7 @@ pub fn poseidon2_bench(input_len: u32) -> Result<(), anyhow::Error> {
     let (program, record) = create_poseidon2_test(&[Poseidon2Test {
         data: s,
         input_start_addr: 1024,
-        output_start_addr: 1024 + input_len as u32,
+        output_start_addr: 1024 + input_len,
     }]);
 
     prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
