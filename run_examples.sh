@@ -38,8 +38,8 @@ do
                     host_target=$(rustc --version --verbose | grep 'host' | cut -d ' ' -f2)
                     cargo run --manifest-path=examples/${bin}/Cargo.toml --release --features="native" --bin merkleproof-trustedroot-native --target $host_target
 
-                    private_iotape="examples/${member}/private_input.tape"
-                    public_iotape="examples/${member}/public_input.tape"
+                    private_iotape="private_input.tape"
+                    public_iotape="public_input.tape"
                     ;;
 
             esac
