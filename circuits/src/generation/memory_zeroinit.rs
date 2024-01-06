@@ -6,6 +6,7 @@ use plonky2::hash::hash_types::RichField;
 
 use crate::memory_zeroinit::columns::MemoryZeroInit;
 use crate::memoryinit::columns::MemoryInit;
+use crate::poseidon2_output_bytes::columns::BYTES_COUNT;
 use crate::utils::pad_trace_with_default;
 
 /// Generates a zero init trace
@@ -34,6 +35,7 @@ pub fn generate_memory_zero_init_trace<F: RichField>(
                     row.instruction.op,
                     Op::LB | Op::LBU | Op::SB | Op::SH | Op::LH | Op::LHU | Op::LW | Op::SW
                 )
+                || (row.instruction.op == Op::ECALL && row.aux.poseidon2.is_some())
         })
         .for_each(|row| {
             let addr = row.aux.mem.unwrap_or_default().addr;
@@ -46,6 +48,14 @@ pub fn generate_memory_zero_init_trace<F: RichField>(
                 Op::LW | Op::SW => (0..4)
                     .map(|i| F::from_canonical_u32(addr.wrapping_add(i)))
                     .collect(),
+                Op::ECALL => {
+                    // must be poseidon2 ECALL as per filter above
+                    let output_addr = row.aux.poseidon2.clone().unwrap_or_default().output_addr;
+                    (0..u32::try_from(BYTES_COUNT)
+                        .expect("BYTES_COUNT of a poseidon output should be representable by a u8"))
+                        .map(|i| F::from_canonical_u32(output_addr.wrapping_add(i)))
+                        .collect()
+                }
                 // This should never be reached, because we already filter by memory ops.
                 _ => unreachable!(),
             };
@@ -67,7 +77,9 @@ pub fn generate_memory_zero_init_trace<F: RichField>(
         .collect();
 
     memory_zeroinits.sort_by_key(|m| m.addr.to_canonical_u64());
-    pad_trace_with_default(memory_zeroinits)
+    let trace = pad_trace_with_default(memory_zeroinits);
+    log::trace!("MemoryZeroInit trace {:?}", trace);
+    trace
 }
 
 #[cfg(test)]

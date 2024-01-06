@@ -32,6 +32,7 @@ use crate::generation::io_memory::{
 };
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::memoryinit::generate_memory_init_trace;
+use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
 use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
@@ -143,6 +144,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
         let memory_trace = generate_memory_trace::<F>(
             &record.executed,
             &memory_init,
@@ -151,6 +153,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &io_memory_private,
             &io_memory_public,
             &poseidon2_trace,
+            &poseidon2_output_bytes,
         );
         let trace_poly_values =
             trace_rows_to_poly_values(generate_rangecheck_trace(&cpu_trace, &memory_trace));
@@ -199,6 +202,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
         let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(
             &record.executed,
             &memory_init,
@@ -207,6 +211,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
             &io_memory_private,
             &io_memory_public,
             &poseidon2_trace,
+            &poseidon2_output_bytes,
         ));
         let proof = prove_table::<F, C, S, D>(
             stark,
