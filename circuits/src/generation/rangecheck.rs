@@ -97,6 +97,7 @@ mod tests {
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
+    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::generation::MIN_TRACE_LENGTH;
 
@@ -124,6 +125,7 @@ mod tests {
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
         let memory_rows = generate_memory_trace::<F>(
             &record.executed,
             &memory_init,
@@ -132,6 +134,7 @@ mod tests {
             &io_memory_private_rows,
             &io_memory_public_rows,
             &poseidon2_trace,
+            &poseidon2_output_bytes,
         );
         let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
         assert_eq!(
