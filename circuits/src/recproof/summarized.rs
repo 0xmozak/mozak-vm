@@ -8,7 +8,7 @@ use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use super::{is_nonzero, SubCircuit};
+use super::is_nonzero;
 
 #[derive(Copy, Clone)]
 pub struct PublicIndices {
@@ -121,19 +121,12 @@ impl LeafSubCircuit {
     }
 }
 
-impl SubCircuit<PublicIndices> for LeafSubCircuit {
-    fn pis(&self) -> usize { 5 }
-
-    fn get_indices(&self) -> PublicIndices { self.indices }
-}
-
-pub struct BranchSubCircuit<'a, const D: usize> {
+pub struct BranchSubCircuit<const D: usize> {
     pub targets: BranchTargets<D>,
     pub indices: PublicIndices,
     /// The distance from the leaves (`0`` being the lowest branch)
     /// Used for debugging
     pub height: usize,
-    pub inner_circuit: &'a dyn SubCircuit<PublicIndices>,
 }
 
 pub struct BranchTargets<const D: usize> {
@@ -158,9 +151,8 @@ pub struct BranchDirTargets<const D: usize> {
     pub summary_hash: HashOutTarget,
 }
 
-impl<'a, const D: usize> BranchSubCircuit<'a, D> {
+impl<const D: usize> BranchSubCircuit<D> {
     fn from_dirs<F, C, B, R>(
-        inner_circuit: &'a dyn SubCircuit<PublicIndices>,
         mut builder: CircuitBuilder<F, D>,
         left_dir: BranchDirTargets<D>,
         right_dir: BranchDirTargets<D>,
@@ -236,7 +228,6 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
             targets,
             indices,
             height,
-            inner_circuit,
         };
 
         (circuit, (v, r))
@@ -244,13 +235,11 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
 
     fn dir_from_node(
         proof: &ProofWithPublicInputsTarget<D>,
-        sub_circuit: &dyn SubCircuit<PublicIndices>,
+        indices: &PublicIndices,
     ) -> BranchDirTargets<D> {
-        let node_idx = sub_circuit.get_indices();
-
-        let summary_hash_present = node_idx.get_summary_hash_present(&proof.public_inputs);
+        let summary_hash_present = indices.get_summary_hash_present(&proof.public_inputs);
         let summary_hash_present = BoolTarget::new_unsafe(summary_hash_present);
-        let summary_hash = HashOutTarget::from(node_idx.get_summary_hash(&proof.public_inputs));
+        let summary_hash = HashOutTarget::from(indices.get_summary_hash(&proof.public_inputs));
 
         BranchDirTargets {
             summary_hash_present,
@@ -260,7 +249,7 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
 
     pub fn from_leaf<F, C, B, R>(
         builder: CircuitBuilder<F, D>,
-        leaf: &'a LeafSubCircuit,
+        leaf: &LeafSubCircuit,
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
         build: B,
@@ -269,15 +258,15 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
         B: FnOnce(&BranchTargets<D>, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
-        let left_dir = Self::dir_from_node(left_proof, leaf);
-        let right_dir = Self::dir_from_node(right_proof, leaf);
+        let left_dir = Self::dir_from_node(left_proof, &leaf.indices);
+        let right_dir = Self::dir_from_node(right_proof, &leaf.indices);
         let height = 0;
-        Self::from_dirs(leaf, builder, left_dir, right_dir, height, build)
+        Self::from_dirs(builder, left_dir, right_dir, height, build)
     }
 
     pub fn from_branch<F, C, B, R>(
         builder: CircuitBuilder<F, D>,
-        branch: &'a BranchSubCircuit<'a, D>,
+        branch: &BranchSubCircuit<D>,
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
         build: B,
@@ -286,10 +275,10 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
         B: FnOnce(&BranchTargets<D>, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
-        let left_dir = Self::dir_from_node(left_proof, branch);
-        let right_dir = Self::dir_from_node(right_proof, branch);
+        let left_dir = Self::dir_from_node(left_proof, &branch.indices);
+        let right_dir = Self::dir_from_node(right_proof, &branch.indices);
         let height = branch.height + 1;
-        Self::from_dirs(branch, builder, left_dir, right_dir, height, build)
+        Self::from_dirs(builder, left_dir, right_dir, height, build)
     }
 
     pub fn set_inputs<F: RichField>(
@@ -309,12 +298,6 @@ impl<'a, const D: usize> BranchSubCircuit<'a, D> {
         inputs.set_bool_target(self.targets.summary_hash_present, summary_hash_present);
         inputs.set_hash_target(self.targets.summary_hash, summary_hash);
     }
-}
-
-impl<'a, const D: usize> SubCircuit<PublicIndices> for BranchSubCircuit<'a, D> {
-    fn pis(&self) -> usize { 5 }
-
-    fn get_indices(&self) -> PublicIndices { self.indices }
 }
 
 #[cfg(test)]
@@ -363,8 +346,8 @@ mod test {
         }
     }
 
-    pub struct DummyBranchCircuit<'a> {
-        pub summarized: BranchSubCircuit<'a, D>,
+    pub struct DummyBranchCircuit {
+        pub summarized: BranchSubCircuit<D>,
         pub circuit: CircuitData<F, C, D>,
         pub targets: DummyBranchTargets,
     }
@@ -374,9 +357,9 @@ mod test {
         pub right_proof: ProofWithPublicInputsTarget<D>,
     }
 
-    impl<'a> DummyBranchCircuit<'a> {
+    impl DummyBranchCircuit {
         #[must_use]
-        pub fn from_leaf(circuit_config: &CircuitConfig, leaf: &'a DummyLeafCircuit) -> Self {
+        pub fn from_leaf(circuit_config: &CircuitConfig, leaf: &DummyLeafCircuit) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
             let circuit_data = &leaf.circuit;
@@ -407,7 +390,7 @@ mod test {
             }
         }
 
-        pub fn from_branch(circuit_config: &CircuitConfig, branch: &'a DummyBranchCircuit) -> Self {
+        pub fn from_branch(circuit_config: &CircuitConfig, branch: &DummyBranchCircuit) -> Self {
             let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
             let circuit_data = &branch.circuit;
