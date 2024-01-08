@@ -1,4 +1,4 @@
-use mozak_runner::elf::Program;
+use mozak_runner::elf::{Program, RuntimeArguments};
 use mozak_runner::state::State;
 use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
@@ -10,6 +10,19 @@ use crate::test_utils::ProveAndVerify;
 fn test_fibonacci() {
     let program = Program::load_elf(mozak_examples::FIBONACCI_ELF).unwrap();
     let state = State::<GoldilocksField>::new(program.clone(), &[], &[]);
+    let record = step(&program, state).unwrap();
+    MozakStark::prove_and_verify(&program, &record).unwrap();
+}
+
+#[test]
+fn test_fibonacci_mozak_elf() {
+    let args = RuntimeArguments::new(&[], &[], &[]);
+    let program = Program::mozak_load_program(mozak_examples::FIBONACCI_ELF, &args).unwrap();
+    let state = State::<GoldilocksField>::new(
+        program.clone(),
+        args.io_tape_private.as_slice(),
+        args.io_tape_public.as_slice(),
+    );
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record).unwrap();
 }
