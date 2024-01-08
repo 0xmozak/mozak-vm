@@ -1,5 +1,6 @@
 use std::fs;
 use std::process::Command;
+use std::time::Instant;
 
 use tempfile::TempDir;
 
@@ -22,6 +23,9 @@ fn test_prove_and_verify_recursive_proof_command() {
     fs::write(&io_tape_private, b"").expect("Failed to create IO tape private file");
     fs::write(&io_tape_public, b"").expect("Failed to create IO tape public file");
 
+    // Start timer for prove command
+    let start = Instant::now();
+
     // Execute the `--prove` command
     let output = Command::new("cargo")
         .args([
@@ -38,11 +42,18 @@ fn test_prove_and_verify_recursive_proof_command() {
         .expect("Failed to execute prove command");
     assert!(output.status.success(), "Prove command failed");
 
+    // Stop timer and print duration for prove command
+    let duration = start.elapsed();
+    println!("Time taken for prove command: {:?}", duration);
+
     // Assert the existence of output files
     for file in &[&proof_file, &recursive_proof_file, &recursive_proof_db] {
         let file_exists = file.exists();
         assert!(file_exists, "Expected file {:?} not found", file);
     }
+
+    // Start timer for verify-recursive-proof command
+    let start = Instant::now();
 
     // Execute the `--verify_recursive_proof` command
     let output = Command::new("cargo")
@@ -59,4 +70,8 @@ fn test_prove_and_verify_recursive_proof_command() {
         output.status.success(),
         "Verify recursive proof command failed"
     );
+
+    // Stop timer and print duration for verify-recursive-proof command
+    let duration = start.elapsed();
+    println!("Time taken for verify-recursive-proof command: {:?}", duration);
 }
