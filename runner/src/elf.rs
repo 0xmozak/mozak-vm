@@ -531,8 +531,9 @@ impl Program {
 
 #[cfg(test)]
 mod test {
-    use crate::elf::{MozakMemoryRegion, Program};
+    use mozak_examples::EMPTY_ELF;
 
+    use crate::elf::{MozakMemoryRegion, Program, RuntimeArguments};
     #[test]
     fn test_serialize_deserialize() {
         let program = Program::default();
@@ -560,5 +561,13 @@ mod test {
             assert_eq!(u8::try_from(*k).unwrap(), *v);
             assert_eq!(data[usize::try_from(*k).unwrap()], *v);
         });
+    }
+    #[test]
+    fn test_empty_elf() {
+        let program = Program::mozak_load_program(
+            mozak_examples::EMPTY_ELF,
+            &RuntimeArguments::new(&[], &[], &[]),
+        )
+        .unwrap();
     }
 }
