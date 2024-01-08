@@ -18,6 +18,8 @@ fn test_fibonacci() {
 fn test_fibonacci_mozak_elf() {
     let args = RuntimeArguments::new(&[], &[], &[]);
     let program = Program::mozak_load_program(mozak_examples::FIBONACCI_ELF, &args).unwrap();
+    // TODO(Roman): once new io-tapes stark will be implemented, this call needs to
+    // be refactored since it uses old-io-tapes stark backend.
     let state = State::<GoldilocksField>::new(
         program.clone(),
         args.io_tape_private.as_slice(),
