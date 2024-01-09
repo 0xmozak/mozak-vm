@@ -73,5 +73,8 @@ fn test_prove_and_verify_recursive_proof_command() {
 
     // Stop timer and print duration for verify-recursive-proof command
     let duration = start.elapsed();
-    println!("Time taken for verify-recursive-proof command: {:?}", duration);
+    println!(
+        "Time taken for verify-recursive-proof command: {:?}",
+        duration
+    );
 }

@@ -20,16 +20,15 @@ use crate::xor::columns::XorView;
 #[must_use]
 pub fn generate_cpu_trace_extended<F: RichField>(
     cpu_trace: Vec<CpuState<F>>,
-    program_rom: &[ProgramRom<F>],
+    permuted: Vec<ProgramRom<F>>,
 ) -> CpuColumnsExtended<Vec<F>> {
-    let mut permuted = generate_permuted_inst_trace(&cpu_trace, program_rom);
     let len = cpu_trace
         .len()
         .max(permuted.len())
         .max(MIN_TRACE_LENGTH)
         .next_power_of_two();
     let ori_len = permuted.len();
-    permuted = pad_trace_with_last_to_len(permuted, len);
+    let mut permuted = pad_trace_with_last_to_len(permuted, len);
     for entry in permuted.iter_mut().skip(ori_len) {
         entry.filter = F::ZERO;
     }

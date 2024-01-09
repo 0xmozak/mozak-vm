@@ -50,6 +50,7 @@ use self::register::generate_register_trace;
 use self::registerinit::generate_register_init_trace;
 use self::xor::generate_xor_trace;
 use crate::columns_view::HasNamedColumns;
+use crate::generation::cpu::generate_permuted_inst_trace;
 use crate::generation::io_memory::{
     generate_io_memory_private_trace, generate_io_memory_public_trace,
 };
@@ -107,9 +108,18 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let register_init_rows = generate_register_init_trace::<F>();
     #[allow(unused)]
     let register_rows = generate_register_trace::<F>(record);
+    let cpu_permuted_inst_rows = generate_permuted_inst_trace(&cpu_rows, &program_rows);
+
+    #[cfg(feature = "enable_batch_fri")]
+    {
+        let mut len = 0;
+    }
 
     TableKindSetBuilder {
-        cpu_stark: trace_to_poly_values(generate_cpu_trace_extended(cpu_rows, &program_rows)),
+        cpu_stark: trace_to_poly_values(generate_cpu_trace_extended(
+            cpu_rows,
+            cpu_permuted_inst_rows,
+        )),
         rangecheck_stark: trace_rows_to_poly_values(rangecheck_rows),
         xor_stark: trace_rows_to_poly_values(xor_rows),
         shift_amount_stark: trace_rows_to_poly_values(shift_amount_rows),

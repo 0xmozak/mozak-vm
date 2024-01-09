@@ -24,7 +24,9 @@ use starky::verifier::verify_stark_proof;
 use crate::bitshift::stark::BitshiftStark;
 use crate::cpu::stark::CpuStark;
 use crate::generation::bitshift::generate_shift_amount_trace;
-use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
+use crate::generation::cpu::{
+    generate_cpu_trace, generate_cpu_trace_extended, generate_permuted_inst_trace,
+};
 use crate::generation::fullword_memory::generate_fullword_memory_trace;
 use crate::generation::halfword_memory::generate_halfword_memory_trace;
 use crate::generation::io_memory::{
@@ -111,9 +113,12 @@ impl ProveAndVerify for CpuStark<F, D> {
         let config = fast_test_config();
 
         let stark = S::default();
+        let cpu_trace = generate_cpu_trace(record);
+        let cpu_permuted_inst_trace =
+            generate_permuted_inst_trace(&cpu_trace, &generate_program_rom_trace(&program));
         let trace_poly_values = trace_to_poly_values(generate_cpu_trace_extended(
-            generate_cpu_trace(record),
-            &generate_program_rom_trace(program),
+            cpu_trace,
+            cpu_permuted_inst_trace,
         ));
         let public_inputs: PublicInputs<F> = PublicInputs {
             entry_point: from_u32(program.entry_point),

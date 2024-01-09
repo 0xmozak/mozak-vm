@@ -234,7 +234,9 @@ mod tests {
     use starky::verifier::verify_stark_proof;
 
     use crate::cpu::stark::CpuStark;
-    use crate::generation::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
+    use crate::generation::cpu::{
+        generate_cpu_trace, generate_cpu_trace_extended, generate_permuted_inst_trace,
+    };
     use crate::generation::program::generate_program_rom_trace;
     use crate::stark::mozak_stark::{MozakStark, PublicInputs};
     use crate::stark::utils::trace_to_poly_values;
@@ -265,12 +267,17 @@ mod tests {
         assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
         let mut timing = TimingTree::new("mulhsu", log::Level::Debug);
         let cpu_trace = timed!(timing, "generate_cpu_trace", generate_cpu_trace(&record));
+        let cpu_permuted_inst_trace = timed!(
+            timing,
+            "generate_cpu_permuted_inst_trace",
+            generate_permuted_inst_trace(&cpu_trace, &generate_program_rom_trace(&program))
+        );
         let trace_poly_values = timed!(
             timing,
             "trace to poly",
             trace_to_poly_values(generate_cpu_trace_extended(
                 cpu_trace,
-                &generate_program_rom_trace(&program)
+                cpu_permuted_inst_trace
             ))
         );
         let stark = S::default();
