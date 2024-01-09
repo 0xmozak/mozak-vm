@@ -2,7 +2,8 @@
 
 Loading and Storing to Memory are also constrained as a Starky trace in Mozak-VM.
 
-<!-- TODO(ethan): The memory initialization constraints part could also be moved here -->
+Like All STARK constraints. We have initialization constraints that constrain the initial values in the cells and transition constraints that constrain
+how the values in the cells should be updated.
 
 Consider the following Memory trace
 
@@ -30,7 +31,33 @@ Here are what the columns stands for
 
 At trace generation phase, We sorted the memory access trace based first on ADDR then on CLK.
 
-We have the following constraints for the memory trace.
+<!-- moved from docs in the circuits/src/memory/stark.rs -->
+## Memory initialization Constraints
+
+The memory table is assumed to be ordered by `addr` in ascending order.
+such that whenever we describe an memory init / access
+pattern of an "address", a correct table guarantees the following:
+
+All rows for a specific `addr` MUST start with one, or both, of:
+  1) a zero init (case for heap / other dynamic addresses).
+  2) a memory init via static ELF (hereby referred to as elf init), or
+For these starting rows, `is_init` will be true.
+
+1) Zero Init
+  All zero initialized memory will have clk `0` and value `0`. They
+  should also be writable.
+
+2) ELF Init
+  All elf init rows will have clk `1`.
+
+In principle, zero initializations for a certain address MUST come
+before any elf initializations to ensure we don't zero out any memory
+initialized by the ELF. This is constrained via a rangecheck on `diff_clk`.
+Since clk is in ascending order, any memory address with a zero init
+(`clk` == 0) after an elf init (`clk` == 1) would be caught by
+this range check.
+
+## Memory Transition Constraints
 
 Define `new_addr = DIFF_ADDR * DIFF_ADDR_INV `. This value can either be 1 or 0. If it is 1, we switched to
 a new address and vice versa.
