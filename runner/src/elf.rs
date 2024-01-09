@@ -531,7 +531,7 @@ impl Program {
 
 #[cfg(test)]
 mod test {
-    use crate::elf::{MozakMemoryRegion, Program, RuntimeArguments};
+    use crate::elf::{MozakMemory, MozakMemoryRegion, Program, RuntimeArguments};
     #[test]
     fn test_serialize_deserialize() {
         let program = Program::default();
@@ -561,11 +561,66 @@ mod test {
         });
     }
     #[test]
-    fn test_empty_elf() {
-        let _program = Program::mozak_load_program(
+    fn test_empty_elf_with_empty_args() {
+        let mozak_ro_memory = Program::mozak_load_program(
             mozak_examples::EMPTY_ELF,
             &RuntimeArguments::new(&[], &[], &[]),
         )
+        .unwrap()
+        .mozak_ro_memory
         .unwrap();
+        assert_eq!(mozak_ro_memory.context_variables.data.len(), 0);
+        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 0);
+        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 0);
+    }
+    #[test]
+    fn test_empty_elf_with_args() {
+        let mozak_ro_memory = Program::mozak_load_program(
+            mozak_examples::EMPTY_ELF,
+            &RuntimeArguments::new(&[0], &[0, 1], &[0, 1, 2]),
+        )
+        .unwrap()
+        .mozak_ro_memory
+        .unwrap();
+        assert_eq!(mozak_ro_memory.context_variables.data.len(), 1);
+        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 2);
+        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 3);
+    }
+
+    #[test]
+    fn test_empty_elf_check_assumed_offsets() {
+        // This test ensures mozak-loader & mozak-linker-script is indeed aligned
+        let mozak_ro_memory = Program::mozak_load_program(
+            mozak_examples::EMPTY_ELF,
+            &RuntimeArguments::new(&[], &[], &[]),
+        )
+        .unwrap()
+        .mozak_ro_memory
+        .unwrap();
+        let test_mozak_ro_memory = MozakMemory::default();
+        assert_eq!(
+            mozak_ro_memory.context_variables.capacity,
+            test_mozak_ro_memory.context_variables.capacity
+        );
+        assert_eq!(
+            mozak_ro_memory.context_variables.starting_address,
+            test_mozak_ro_memory.context_variables.starting_address
+        );
+        assert_eq!(
+            mozak_ro_memory.io_tape_private.capacity,
+            test_mozak_ro_memory.io_tape_private.capacity
+        );
+        assert_eq!(
+            mozak_ro_memory.io_tape_private.starting_address,
+            test_mozak_ro_memory.io_tape_private.starting_address
+        );
+        assert_eq!(
+            mozak_ro_memory.io_tape_public.capacity,
+            test_mozak_ro_memory.io_tape_public.capacity
+        );
+        assert_eq!(
+            mozak_ro_memory.io_tape_public.starting_address,
+            test_mozak_ro_memory.io_tape_public.starting_address
+        );
     }
 }
