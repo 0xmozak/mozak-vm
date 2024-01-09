@@ -588,7 +588,7 @@ mod test {
     }
 
     #[test]
-    fn test_empty_elf_check_assumed_offsets() {
+    fn test_empty_elf_check_assumed_values() {
         // This test ensures mozak-loader & mozak-linker-script is indeed aligned
         let mozak_ro_memory = Program::mozak_load_program(
             mozak_examples::EMPTY_ELF,
