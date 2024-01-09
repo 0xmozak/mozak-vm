@@ -22,17 +22,6 @@ pub fn generate_cpu_trace_extended<F: RichField>(
     cpu_trace: Vec<CpuState<F>>,
     permuted: Vec<ProgramRom<F>>,
 ) -> CpuColumnsExtended<Vec<F>> {
-    let len = cpu_trace
-        .len()
-        .max(permuted.len())
-        .max(MIN_TRACE_LENGTH)
-        .next_power_of_two();
-    let ori_len = permuted.len();
-    let mut permuted = pad_trace_with_last_to_len(permuted, len);
-    for entry in permuted.iter_mut().skip(ori_len) {
-        entry.filter = F::ZERO;
-    }
-    let cpu_trace = pad_trace_with_last_to_len(cpu_trace, len);
     chain!(transpose_trace(cpu_trace), transpose_trace(permuted)).collect()
 }
 
@@ -299,10 +288,10 @@ fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State<F>) -> XorVi
 // or a similar method.
 #[must_use]
 pub fn generate_permuted_inst_trace<F: RichField>(
-    trace: &[CpuState<F>],
-    program_rom: &[ProgramRom<F>],
+    trace: &mut Vec<CpuState<F>>,
+    program_rom: &Vec<ProgramRom<F>>,
 ) -> Vec<ProgramRom<F>> {
-    let mut cpu_trace: Vec<_> = trace
+    let mut permuted: Vec<_> = trace
         .iter()
         .filter(|row| row.is_running == F::ONE)
         .map(|row| row.inst)
@@ -315,7 +304,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
         })
         .collect();
 
-    let used_pcs: HashSet<F> = cpu_trace.iter().map(|row| row.inst.pc).collect();
+    let used_pcs: HashSet<F> = permuted.iter().map(|row| row.inst.pc).collect();
 
     // Filter program_rom to contain only instructions with the pc that are not in
     // used_pcs
@@ -325,8 +314,21 @@ pub fn generate_permuted_inst_trace<F: RichField>(
         .copied()
         .collect();
 
-    cpu_trace.extend(unused_instructions);
-    cpu_trace
+    permuted.extend(unused_instructions);
+
+    let len = trace
+        .len()
+        .max(permuted.len())
+        .max(MIN_TRACE_LENGTH)
+        .next_power_of_two();
+    let ori_len = permuted.len();
+    let mut permuted = pad_trace_with_last_to_len(permuted, len);
+    for entry in permuted.iter_mut().skip(ori_len) {
+        entry.filter = F::ZERO;
+    }
+    trace.resize(len, trace.last().unwrap().clone());
+
+    permuted
 }
 
 #[cfg(test)]
@@ -347,7 +349,7 @@ mod tests {
         type C = Poseidon2GoldilocksConfig;
         type F = <C as GenericConfig<D>>::F;
 
-        let cpu_trace: Vec<CpuState<F>> = [
+        let mut cpu_trace: Vec<CpuState<F>> = [
             CpuState {
                 inst: Instruction {
                     pc: 1,
@@ -453,12 +455,40 @@ mod tests {
                 },
                 filter: 0,
             },
+            ProgramRom {
+                inst: InstructionRow {
+                    pc: 3,
+                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
+                },
+                filter: 0,
+            },
+            ProgramRom {
+                inst: InstructionRow {
+                    pc: 3,
+                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
+                },
+                filter: 0,
+            },
+            ProgramRom {
+                inst: InstructionRow {
+                    pc: 3,
+                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
+                },
+                filter: 0,
+            },
+            ProgramRom {
+                inst: InstructionRow {
+                    pc: 3,
+                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
+                },
+                filter: 0,
+            },
         ]
         .into_iter()
         .map(|row| row.map(F::from_canonical_u64))
         .collect();
 
-        let permuted = generate_permuted_inst_trace(&cpu_trace, &program_trace);
+        let permuted = generate_permuted_inst_trace(&mut cpu_trace, &program_trace);
         let expected_permuted: Vec<ProgramRom<F>> = [
             ProgramRom {
                 inst: InstructionRow {
@@ -487,6 +517,34 @@ mod tests {
                     inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
                 },
                 filter: 1,
+            },
+            ProgramRom {
+                inst: InstructionRow {
+                    pc: 3,
+                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
+                },
+                filter: 0,
+            },
+            ProgramRom {
+                inst: InstructionRow {
+                    pc: 3,
+                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
+                },
+                filter: 0,
+            },
+            ProgramRom {
+                inst: InstructionRow {
+                    pc: 3,
+                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
+                },
+                filter: 0,
+            },
+            ProgramRom {
+                inst: InstructionRow {
+                    pc: 3,
+                    inst_data: reduce_with_powers(vec![2, 0, 0, 1, 2, 3, 1]),
+                },
+                filter: 0,
             },
         ]
         .into_iter()

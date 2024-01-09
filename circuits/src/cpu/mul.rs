@@ -266,11 +266,11 @@ mod tests {
         let res = i64::from(a).wrapping_mul(i64::from(b));
         assert_eq!(record.executed[0].aux.dst_val, (res >> 32) as u32);
         let mut timing = TimingTree::new("mulhsu", log::Level::Debug);
-        let cpu_trace = timed!(timing, "generate_cpu_trace", generate_cpu_trace(&record));
+        let mut cpu_trace = timed!(timing, "generate_cpu_trace", generate_cpu_trace(&record));
         let cpu_permuted_inst_trace = timed!(
             timing,
             "generate_cpu_permuted_inst_trace",
-            generate_permuted_inst_trace(&cpu_trace, &generate_program_rom_trace(&program))
+            generate_permuted_inst_trace(&mut cpu_trace, &generate_program_rom_trace(&program))
         );
         let trace_poly_values = timed!(
             timing,
