@@ -4,7 +4,7 @@ name = "bss-tester"
 version = "0.1.0"
 
 [dependencies]
-guest = { path = "../../guest" }
+guest = { path = "../../guest", default-features = false }
 
 [[bin]]
 name = "bss-tester"
