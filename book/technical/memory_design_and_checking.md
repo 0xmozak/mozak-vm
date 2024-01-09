@@ -2,9 +2,6 @@
 
 Loading and Storing to Memory are also constrained as a Starky trace in Mozak-VM.
 
-Like All STARK constraints. We have initialization constraints that constrain the initial values in the cells and transition constraints that constrain
-how the values in the cells should be updated.
-
 Consider the following Memory trace
 
 | Is Executed | ADDR | CLK | OP | VALUE | DIFF_ADDR | DIFF_ADDR_INV       | DIFF_CLK |
@@ -30,6 +27,9 @@ Here are what the columns stands for
 - DIFF_CLK: How much the clock of this row is different from the previous row.
 
 At trace generation phase, We sorted the memory access trace based first on ADDR then on CLK.
+
+Like All STARK constraints. We have initialization constraints that constrain the initial values in the cells and transition constraints that constrain
+how the values in the cells should be updated.
 
 <!-- moved from docs in the circuits/src/memory/stark.rs -->
 ## Memory initialization Constraints
