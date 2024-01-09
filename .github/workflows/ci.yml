@@ -93,6 +93,17 @@ jobs:
       - name: Run fmt
         run: cargo fmt --all --check
 
+  shellcheck:
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run shellcheck and shfmt
+        uses: luizm/action-sh-checker@master
+        env:
+          SHFMT_OPTS: -i 4 -ci
+
   taplo-fmt:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
