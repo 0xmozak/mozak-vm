@@ -531,8 +531,6 @@ impl Program {
 
 #[cfg(test)]
 mod test {
-    use mozak_examples::EMPTY_ELF;
-
     use crate::elf::{MozakMemoryRegion, Program, RuntimeArguments};
     #[test]
     fn test_serialize_deserialize() {
@@ -564,7 +562,7 @@ mod test {
     }
     #[test]
     fn test_empty_elf() {
-        let program = Program::mozak_load_program(
+        let _program = Program::mozak_load_program(
             mozak_examples::EMPTY_ELF,
             &RuntimeArguments::new(&[], &[], &[]),
         )

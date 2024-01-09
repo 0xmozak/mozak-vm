@@ -12,6 +12,7 @@ members = [
   "stdin",
   "fibonacci-input",
   "merkleproof-trustedroot",
+  "empty",
 ]
 resolver = "2"
 
