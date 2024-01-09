@@ -7,11 +7,11 @@ PROFILES=("release")
 failed=""
 skipped=""
 
-for profile in ${PROFILES[@]}
+for profile in "${PROFILES[@]}"
 do
     for member in ${MEMBERS}
     do
-        BINS=$(taplo get -f examples/${member}/Cargo.toml 'bin.*.name')
+        BINS=$(taplo get -f examples/"${member}"/Cargo.toml 'bin.*.name')
         for bin in ${BINS}
         do
             echo "(mozak-cli) running example (${profile}): ${bin}"
@@ -36,7 +36,7 @@ do
                     ;;
                 "merkleproof-trustedroot" )
                     host_target=$(rustc --version --verbose | grep 'host' | cut -d ' ' -f2)
-                    cargo run --manifest-path=examples/${bin}/Cargo.toml --release --features="native" --bin merkleproof-trustedroot-native --target $host_target
+                    cargo run --manifest-path=examples/"${bin}"/Cargo.toml --release --features="native" --bin merkleproof-trustedroot-native --target "$host_target"
 
                     private_iotape="private_input.tape"
                     public_iotape="public_input.tape"
@@ -44,13 +44,16 @@ do
 
             esac
 
-            cargo run --bin mozak-cli \
-            run -vvv examples/target/riscv32im-mozak-zkvm-elf/${profile}/${bin} \
+            # shellcheck disable=SC2086
+            # Double quoting the iotapes here is not what we want since we 
+            # want an empty argument if iotapes are not required.
+            cmd=$(cargo run --bin mozak-cli \
+            run -vvv examples/target/riscv32im-mozak-zkvm-elf/"${profile}"/"${bin}" \
             ${private_iotape} \
-            ${public_iotape}
+            ${public_iotape})
 
             # cargo exits with 0 if success
-            if [ $? != 0 ]; then
+            if [ ! "$cmd" ]; then
                 failed="${failed}${bin} (${profile})\n"
             fi
         done
