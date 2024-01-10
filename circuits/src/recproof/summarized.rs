@@ -121,20 +121,20 @@ impl LeafSubCircuit {
     }
 }
 
-pub struct BranchSubCircuit<const D: usize> {
-    pub targets: BranchTargets<D>,
+pub struct BranchSubCircuit {
+    pub targets: BranchTargets,
     pub indices: PublicIndices,
     /// The distance from the leaves (`0`` being the lowest branch)
     /// Used for debugging
     pub height: usize,
 }
 
-pub struct BranchTargets<const D: usize> {
+pub struct BranchTargets {
     /// The left dir
-    pub left_dir: BranchDirTargets<D>,
+    pub left_dir: BranchDirTargets,
 
     /// The right dir
-    pub right_dir: BranchDirTargets<D>,
+    pub right_dir: BranchDirTargets,
 
     pub summary_hash_present: BoolTarget,
 
@@ -144,23 +144,23 @@ pub struct BranchTargets<const D: usize> {
     pub summary_hash: HashOutTarget,
 }
 
-pub struct BranchDirTargets<const D: usize> {
+pub struct BranchDirTargets {
     pub summary_hash_present: BoolTarget,
 
     /// The hash of this dir proved by `proof` or ZERO if absent
     pub summary_hash: HashOutTarget,
 }
 
-impl<const D: usize> BranchSubCircuit<D> {
-    fn from_dirs<F, C, B, R>(
+impl BranchSubCircuit {
+    fn from_dirs<F, C, const D: usize, B, R>(
         mut builder: CircuitBuilder<F, D>,
-        left_dir: BranchDirTargets<D>,
-        right_dir: BranchDirTargets<D>,
+        left_dir: BranchDirTargets,
+        right_dir: BranchDirTargets,
         height: usize,
         build: B,
     ) -> (CircuitData<F, C, D>, (Self, R))
     where
-        B: FnOnce(&BranchTargets<D>, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
+        B: FnOnce(&BranchTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
         let summary_hash_present = builder.or(
@@ -233,10 +233,10 @@ impl<const D: usize> BranchSubCircuit<D> {
         (circuit, (v, r))
     }
 
-    fn dir_from_node(
+    fn dir_from_node<const D: usize>(
         proof: &ProofWithPublicInputsTarget<D>,
         indices: &PublicIndices,
-    ) -> BranchDirTargets<D> {
+    ) -> BranchDirTargets {
         let summary_hash_present = indices.get_summary_hash_present(&proof.public_inputs);
         let summary_hash_present = BoolTarget::new_unsafe(summary_hash_present);
         let summary_hash = HashOutTarget::from(indices.get_summary_hash(&proof.public_inputs));
@@ -247,7 +247,7 @@ impl<const D: usize> BranchSubCircuit<D> {
         }
     }
 
-    pub fn from_leaf<F, C, B, R>(
+    pub fn from_leaf<F, C, const D: usize, B, R>(
         builder: CircuitBuilder<F, D>,
         leaf: &LeafSubCircuit,
         left_proof: &ProofWithPublicInputsTarget<D>,
@@ -255,7 +255,7 @@ impl<const D: usize> BranchSubCircuit<D> {
         build: B,
     ) -> (CircuitData<F, C, D>, (Self, R))
     where
-        B: FnOnce(&BranchTargets<D>, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
+        B: FnOnce(&BranchTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
         let left_dir = Self::dir_from_node(left_proof, &leaf.indices);
@@ -264,15 +264,15 @@ impl<const D: usize> BranchSubCircuit<D> {
         Self::from_dirs(builder, left_dir, right_dir, height, build)
     }
 
-    pub fn from_branch<F, C, B, R>(
+    pub fn from_branch<F, C, const D: usize, B, R>(
         builder: CircuitBuilder<F, D>,
-        branch: &BranchSubCircuit<D>,
+        branch: &BranchSubCircuit,
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
         build: B,
     ) -> (CircuitData<F, C, D>, (Self, R))
     where
-        B: FnOnce(&BranchTargets<D>, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
+        B: FnOnce(&BranchTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
         let left_dir = Self::dir_from_node(left_proof, &branch.indices);
@@ -347,7 +347,7 @@ mod test {
     }
 
     pub struct DummyBranchCircuit {
-        pub summarized: BranchSubCircuit<D>,
+        pub summarized: BranchSubCircuit,
         pub circuit: CircuitData<F, C, D>,
         pub targets: DummyBranchTargets,
     }
