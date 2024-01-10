@@ -61,14 +61,6 @@ impl LeafSubCircuit {
         let summary_hash_present = builder.add_virtual_bool_target_safe();
         let summary_hash = builder.add_virtual_hash();
 
-        // prove absent hashes are zero
-        // `let hash_or_zero = if present { summary_hash } else { zero }`
-        // let hash_or_zero = summary_hash.elements.map(|e|
-        //     builder.mul(e, summary_hash_present.target)
-        // );
-        // `assert_eq!(summary_hash, hash_or_zero)`
-        // builder.connect_hashes(summary_hash, HashOutTarget::from(hash_or_zero));
-
         // prove hashes align with presence
         for e in summary_hash.elements {
             let e = is_nonzero(&mut builder, e);
@@ -130,11 +122,11 @@ pub struct BranchSubCircuit {
 }
 
 pub struct BranchTargets {
-    /// The left dir
-    pub left_dir: BranchDirTargets,
+    /// The left direction
+    pub left: BranchDirectionTargets,
 
-    /// The right dir
-    pub right_dir: BranchDirTargets,
+    /// The right direction
+    pub right: BranchDirectionTargets,
 
     pub summary_hash_present: BoolTarget,
 
@@ -144,18 +136,19 @@ pub struct BranchTargets {
     pub summary_hash: HashOutTarget,
 }
 
-pub struct BranchDirTargets {
+pub struct BranchDirectionTargets {
     pub summary_hash_present: BoolTarget,
 
-    /// The hash of this dir proved by `proof` or ZERO if absent
+    /// The hash of this direction proved by the associated proof or ZERO if
+    /// absent
     pub summary_hash: HashOutTarget,
 }
 
 impl BranchSubCircuit {
-    fn from_dirs<F, C, const D: usize, B, R>(
+    fn from_directions<F, C, const D: usize, B, R>(
         mut builder: CircuitBuilder<F, D>,
-        left_dir: BranchDirTargets,
-        right_dir: BranchDirTargets,
+        left: BranchDirectionTargets,
+        right: BranchDirectionTargets,
         height: usize,
         build: B,
     ) -> (CircuitData<F, C, D>, (Self, R))
@@ -163,23 +156,17 @@ impl BranchSubCircuit {
         B: FnOnce(&BranchTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
-        let summary_hash_present = builder.or(
-            left_dir.summary_hash_present,
-            right_dir.summary_hash_present,
-        );
-        let both_present = builder.and(
-            left_dir.summary_hash_present,
-            right_dir.summary_hash_present,
-        );
+        let summary_hash_present =
+            builder.or(left.summary_hash_present, right.summary_hash_present);
+        let both_present = builder.and(left.summary_hash_present, right.summary_hash_present);
         let not_both_present = builder.not(both_present);
 
         // Construct the hash of [left, right]
         let hash_both = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(
-            left_dir
-                .summary_hash
+            left.summary_hash
                 .elements
                 .into_iter()
-                .chain(right_dir.summary_hash.elements)
+                .chain(right.summary_hash.elements)
                 .collect(),
         );
         // zero it out if we don't have both sides
@@ -191,8 +178,8 @@ impl BranchSubCircuit {
         // Since absent sides will be zero, we can just sum.
         let hash_absent = [0, 1, 2, 3].map(|i| {
             builder.add(
-                left_dir.summary_hash.elements[i],
-                right_dir.summary_hash.elements[i],
+                left.summary_hash.elements[i],
+                right.summary_hash.elements[i],
             )
         });
         // zero it out if we DO have both sides
@@ -204,8 +191,8 @@ impl BranchSubCircuit {
         builder.register_public_inputs(&summary_hash);
 
         let targets = BranchTargets {
-            left_dir,
-            right_dir,
+            left,
+            right,
             summary_hash_present,
             summary_hash: HashOutTarget::from(summary_hash),
         };
@@ -233,15 +220,15 @@ impl BranchSubCircuit {
         (circuit, (v, r))
     }
 
-    fn dir_from_node<const D: usize>(
+    fn direction_from_node<const D: usize>(
         proof: &ProofWithPublicInputsTarget<D>,
         indices: &PublicIndices,
-    ) -> BranchDirTargets {
+    ) -> BranchDirectionTargets {
         let summary_hash_present = indices.get_summary_hash_present(&proof.public_inputs);
         let summary_hash_present = BoolTarget::new_unsafe(summary_hash_present);
         let summary_hash = HashOutTarget::from(indices.get_summary_hash(&proof.public_inputs));
 
-        BranchDirTargets {
+        BranchDirectionTargets {
             summary_hash_present,
             summary_hash,
         }
@@ -258,10 +245,10 @@ impl BranchSubCircuit {
         B: FnOnce(&BranchTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
-        let left_dir = Self::dir_from_node(left_proof, &leaf.indices);
-        let right_dir = Self::dir_from_node(right_proof, &leaf.indices);
+        let left_dir = Self::direction_from_node(left_proof, &leaf.indices);
+        let right_dir = Self::direction_from_node(right_proof, &leaf.indices);
         let height = 0;
-        Self::from_dirs(builder, left_dir, right_dir, height, build)
+        Self::from_directions(builder, left_dir, right_dir, height, build)
     }
 
     pub fn from_branch<F, C, const D: usize, B, R>(
@@ -275,10 +262,10 @@ impl BranchSubCircuit {
         B: FnOnce(&BranchTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
-        let left_dir = Self::dir_from_node(left_proof, &branch.indices);
-        let right_dir = Self::dir_from_node(right_proof, &branch.indices);
+        let left_dir = Self::direction_from_node(left_proof, &branch.indices);
+        let right_dir = Self::direction_from_node(right_proof, &branch.indices);
         let height = branch.height + 1;
-        Self::from_dirs(builder, left_dir, right_dir, height, build)
+        Self::from_directions(builder, left_dir, right_dir, height, build)
     }
 
     pub fn set_inputs<F: RichField>(
