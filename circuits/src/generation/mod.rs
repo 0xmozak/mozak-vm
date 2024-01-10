@@ -155,7 +155,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         shift_amount_rows[row].multiplicity = F::ZERO;
     }
     #[cfg(feature = "enable_batch_fri")]
-    let program_rows = pad_trace_with_last_to_len(program_rows, len);
+    let program_rows = pad_trace_with_default_to_len(program_rows, len);
     #[cfg(feature = "enable_batch_fri")]
     let memory_init_rows = pad_trace_with_last_to_len(memory_init_rows, len);
     #[cfg(feature = "enable_batch_fri")]
@@ -182,7 +182,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     #[cfg(feature = "enable_batch_fri")]
     let memory_zeroinit_rows = pad_trace_with_last_to_len(memory_zeroinit_rows, len);
     #[cfg(feature = "enable_batch_fri")]
-    let rangecheck_rows = pad_trace_with_last_to_len(rangecheck_rows, len);
+    let rangecheck_rows = pad_trace_with_default_to_len(rangecheck_rows, len);
     #[cfg(feature = "enable_batch_fri")]
     let mut rangecheck_u8_rows = pad_trace_with_last_to_len(rangecheck_u8_rows, len);
     #[cfg(feature = "enable_batch_fri")]
