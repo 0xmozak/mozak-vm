@@ -1,4 +1,4 @@
-# Memory Constrains
+# Memory Constraints
 
 Loading and Storing to Memory are also constrained as a Starky trace in Mozak-VM.
 
