@@ -41,6 +41,7 @@ const CRATES: &[Crate] = &[
     ecrate!("static-mem-access", "STATIC_MEM_ACCESS_ELF", false),
     ecrate!("stdin", "STDIN_ELF", true),
     ecrate!("merkleproof-trustedroot", "MERKLEPROOF_TRUSTEDROOT", false),
+    ecrate!("empty", "EMPTY_ELF", false),
 ];
 const CARGO_MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
