@@ -8,8 +8,6 @@ use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use super::is_nonzero;
-
 #[derive(Copy, Clone)]
 pub struct PublicIndices {
     pub summary_hash_present: usize,
@@ -63,7 +61,7 @@ impl LeafSubCircuit {
 
         // prove hashes align with presence
         for e in summary_hash.elements {
-            let e = is_nonzero(&mut builder, e);
+            let e = builder.is_nonzero(e);
             builder.connect(e.target, summary_hash_present.target);
         }
 

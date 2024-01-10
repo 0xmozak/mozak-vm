@@ -32,5 +32,5 @@ lto = "fat"
 lto = "thin"
 
 [patch.crates-io]
-plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
-starky = { git = "https://github.com/0xmozak/plonky2.git" }
+plonky2 = { git = "https://github.com/0xmozak/plonky2.git", rev = "96c007ff2ea335603a5d340386d3717a446fc99c" }
+starky = { git = "https://github.com/0xmozak/plonky2.git", rev = "96c007ff2ea335603a5d340386d3717a446fc99c" }
