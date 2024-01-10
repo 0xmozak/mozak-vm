@@ -1,3 +1,12 @@
+//! Subcircuits for recursively proving the entire contents of a merkle tree
+//!
+//! These subcircuits are pseudo-recursive, building on top of each other to
+//! create the next level up of the merkle tree. "Pseudo-" here means the height
+//! must be fixed ahead of time and not depend on the content.
+//!
+//! These subcircuits are useful because with just a pair of them, say a old and
+//! new, you can prove a transition from the current merkle root (proved by old)
+//! to a new merkle root (proved by new).
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::poseidon2::Poseidon2Hash;
@@ -7,16 +16,21 @@ use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
+/// The indices of the public inputs of this subcircuit in any
+/// `ProofWithPublicInputs`
 #[derive(Copy, Clone)]
 pub struct PublicIndices {
+    /// The indices of each of the elements of the unpruned hash
     pub unpruned_hash: [usize; NUM_HASH_OUT_ELTS],
 }
 
 impl PublicIndices {
+    /// Extract unpruned hash from an array of public inputs.
     pub fn get_unpruned_hash<T: Copy>(&self, public_inputs: &[T]) -> [T; NUM_HASH_OUT_ELTS] {
         self.unpruned_hash.map(|i| public_inputs[i])
     }
 
+    /// Insert unpruned hash into an array of public inputs.
     pub fn set_unpruned_hash<T>(&self, public_inputs: &mut [T], v: [T; NUM_HASH_OUT_ELTS]) {
         for (i, v) in v.into_iter().enumerate() {
             public_inputs[self.unpruned_hash[i]] = v;
@@ -24,6 +38,8 @@ impl PublicIndices {
     }
 }
 
+/// The leaf subcircuit metadata. This subcircuit does basically nothing, simply
+/// expressing that a hash exists
 pub struct LeafSubCircuit {
     pub targets: LeafTargets,
     pub indices: PublicIndices,
@@ -48,8 +64,11 @@ impl LeafSubCircuit {
         builder.register_public_inputs(&unpruned_hash.elements);
 
         let targets = LeafTargets { unpruned_hash };
+
+        // Build the circuit
         let (circuit, r) = build(&targets, builder);
 
+        // Find the indicies
         let indices = PublicIndices {
             unpruned_hash: targets.unpruned_hash.elements.map(|target| {
                 circuit
@@ -65,6 +84,7 @@ impl LeafSubCircuit {
         (circuit, (v, r))
     }
 
+    /// Get ready to generate a proof
     pub fn set_inputs<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
@@ -74,6 +94,10 @@ impl LeafSubCircuit {
     }
 }
 
+/// The branch subcircuit metadata. This subcircuit proves knowledge of two
+/// private subcircuit proofs, and that the public `unpruned_hash` values of
+/// those circuits hash together to the public `unpruned_hash` value of this
+/// circuit.
 pub struct BranchSubCircuit<const D: usize> {
     pub targets: BranchTargets<D>,
     pub indices: PublicIndices,
@@ -110,6 +134,7 @@ impl<const D: usize> BranchSubCircuit<D> {
         B: FnOnce(&BranchTargets<D>, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
+        // Hash the left and right together
         let unpruned_hash = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(
             left_dir
                 .unpruned_hash
@@ -119,6 +144,7 @@ impl<const D: usize> BranchSubCircuit<D> {
                 .collect(),
         );
 
+        // Register the "output"
         builder.register_public_inputs(&unpruned_hash.elements);
 
         let targets = BranchTargets {
@@ -126,8 +152,11 @@ impl<const D: usize> BranchSubCircuit<D> {
             right_dir,
             unpruned_hash,
         };
+
+        // Build the circuit
         let (circuit, r) = build(&targets, builder);
 
+        // Find the indicies
         let indices = PublicIndices {
             unpruned_hash: targets.unpruned_hash.elements.map(|target| {
                 circuit
@@ -190,6 +219,7 @@ impl<const D: usize> BranchSubCircuit<D> {
         Self::from_dirs(builder, left_dir, right_dir, height, build)
     }
 
+    /// Get ready to generate a proof
     pub fn set_inputs<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
