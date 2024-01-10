@@ -82,7 +82,7 @@ This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/debug/`.
 change the following to actual files after iotapes are added to examples
 -->
 
-use `mozak-cli`'s run command to execute generated ELF, where `<IO_TAPE_PRIVATE>` and `<IO_TAPE_PUBLIC>` are the private and public inputs.
+use `mozak-cli`'s run command to execute generated ELF, where `<IO_TAPE_PRIVATE>` and `<IO_TAPE_PUBLIC>` are files containing the private and public inputs of the program.
 
 ```rust
 mozak-cli run target/riscv32im-mozak-zkvm-elf/release/<ELF_NAME> <IO_TAPE_PRIVATE> <IO_TAPE_PUBLIC>
