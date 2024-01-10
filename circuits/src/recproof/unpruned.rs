@@ -103,7 +103,7 @@ pub struct BranchSubCircuit {
     pub indices: PublicIndices,
     /// The distance from the leaves (`0`` being the lowest branch)
     /// Used for debugging
-    pub height: usize,
+    pub dbg_height: usize,
 }
 
 pub struct BranchTargets {
@@ -169,7 +169,7 @@ impl BranchSubCircuit {
         let v = Self {
             targets,
             indices,
-            height,
+            dbg_height: height,
         };
 
         (circuit, (v, r))
@@ -214,7 +214,7 @@ impl BranchSubCircuit {
         C: GenericConfig<D, F = F>, {
         let left = Self::direction_from_node(left_proof, &branch.indices);
         let right = Self::direction_from_node(right_proof, &branch.indices);
-        let height = branch.height + 1;
+        let height = branch.dbg_height + 1;
         Self::from_directions(builder, left, right, height, build)
     }
 
