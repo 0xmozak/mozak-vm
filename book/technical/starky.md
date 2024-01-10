@@ -3,7 +3,7 @@
 [Starky] is an efficient Rust implementation of the Scalable Transparent ARgument of Knowledge (STARK) proving system.
 
 ## STARK Overview
-A proving system allows to a prover \\( \mathcal{P} \\) prove to the verifier \\(\mathcal{V}\\) that some NP statement \\(S\\) is true. Roughly speaking, it also means that given some public inputs \\(x\\) and private inputs \\(w\\) and some program (or circuit) \\(C\\). The prover is able to prove the correct execution of the program \\(C(x,w) = y\\).
+A proving system allows a prover \\( \mathcal{P} \\) prove to the verifier \\(\mathcal{V}\\) that some NP statement \\(S\\) is true. Roughly speaking, it also means that given some public inputs \\(x\\) and private inputs \\(w\\) and some program (or circuit) \\(C\\). The prover is able to prove the correct execution of the program \\(C(x,w) = y\\).
 
 Scalable means the proving system has quasilinear time prover \\(\mathcal{P}\\) and polylogarithmic time verifier \\(\mathcal{V}\\).
 
