@@ -69,7 +69,7 @@ a new address and vice versa.
 4. `DIFF_ADDR (next row) <= ADDR (next row) - ADDR (this row)` The address difference between rows is always less or equal to the difference 
     of address between rows.
 5. If `OP (next row) == LB`, `VALUE (next row) == VALUE (this row)`. Load should not change values.
-6. `(new_addr - 1) * DIFF_ADDR == 0` and `(new_addr - 1) * DIFF_ADDR_INV == 0`. This constraints the relationship among `new_addr`, `DIFF_ADDR` and 
+6. `(new_addr - 1) * DIFF_ADDR == 0` and `(new_addr - 1) * DIFF_ADDR_INV == 0`. This constrains the relationship among `new_addr`, `DIFF_ADDR` and 
    `DIFF_ADDR_INV`
 7. `(IS_EXECUTED (this row) - IS_EXECUTED (next row)) * IS_EXECUTED (next row) == 0`. Constraints on the padding rows of the trace.
 
