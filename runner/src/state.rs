@@ -172,6 +172,12 @@ pub struct Aux<F: RichField> {
 impl<F: RichField> State<F> {
     #[must_use]
     #[allow(clippy::similar_names)]
+    // TODO(Roman): currently this function uses old io-tape mechanism (based on
+    // `ecall`) once a new stark mechanics related to io-tapes will be added, this
+    // function will be used only for old-io-tapes API, and another function
+    // `new_mozak_elf` will be added specifically for new io-tapes mechanism
+    // NOTE: currently, both mozak-elf and vanilla elf will use this API since there
+    // is still no stark-backend that supports new-io-tapes
     pub fn new(
         Program {
             rw_memory: Data(rw_memory),
