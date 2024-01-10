@@ -20,7 +20,7 @@ use crate::decode::decode_instruction;
 use crate::instruction::{DecodingError, Instruction};
 use crate::util::load_u32;
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct MozakMemoryRegion {
     pub starting_address: u32,
     pub capacity: u32,
@@ -47,7 +47,7 @@ impl MozakMemoryRegion {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct MozakMemory {
     // context variables
     pub context_variables: MozakMemoryRegion,
@@ -230,7 +230,7 @@ pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
 /// Memory of RISC-V Program
 ///
 /// A wrapper around a map from a 32-bit address to a byte of memory
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut)]
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut, PartialEq)]
 pub struct Data(pub HashMap<u32, u8>);
 
 impl Code {
@@ -598,29 +598,6 @@ mod test {
         .mozak_ro_memory
         .unwrap();
         let test_mozak_ro_memory = MozakMemory::default();
-        assert_eq!(
-            mozak_ro_memory.context_variables.capacity,
-            test_mozak_ro_memory.context_variables.capacity
-        );
-        assert_eq!(
-            mozak_ro_memory.context_variables.starting_address,
-            test_mozak_ro_memory.context_variables.starting_address
-        );
-        assert_eq!(
-            mozak_ro_memory.io_tape_private.capacity,
-            test_mozak_ro_memory.io_tape_private.capacity
-        );
-        assert_eq!(
-            mozak_ro_memory.io_tape_private.starting_address,
-            test_mozak_ro_memory.io_tape_private.starting_address
-        );
-        assert_eq!(
-            mozak_ro_memory.io_tape_public.capacity,
-            test_mozak_ro_memory.io_tape_public.capacity
-        );
-        assert_eq!(
-            mozak_ro_memory.io_tape_public.starting_address,
-            test_mozak_ro_memory.io_tape_public.starting_address
-        );
+        assert_eq!(mozak_ro_memory, test_mozak_ro_memory);
     }
 }
