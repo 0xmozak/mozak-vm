@@ -47,7 +47,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckU8S
         let nv: &RangeCheckU8<P> = vars.get_next_values().into();
         // Check: the `element`s form a sequence from 0 to 255
         yield_constr.constraint_first_row(lv.value);
-        yield_constr.constraint_transition(nv.value - lv.value - FE::ONE);
+        yield_constr.constraint_transition((nv.value - lv.value) * (nv.value - lv.value - FE::ONE));
         yield_constr.constraint_last_row(lv.value - FE::from_canonical_u8(u8::MAX));
     }
 
@@ -63,7 +63,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckU8S
         let one = builder.constant_extension(F::Extension::from_canonical_u8(1));
         let nv_sub_lv = builder.sub_extension(nv.value, lv.value);
         let nv_sub_lv_sub_one = builder.sub_extension(nv_sub_lv, one);
-        yield_constr.constraint_transition(builder, nv_sub_lv_sub_one);
+        let nv_sub_lv_mul_nv_sub_lv_sub_one = builder.mul_extension(nv_sub_lv, nv_sub_lv_sub_one);
+        yield_constr.constraint_transition(builder, nv_sub_lv_mul_nv_sub_lv_sub_one);
         let u8max = builder.constant_extension(F::Extension::from_canonical_u8(u8::MAX));
         let lv_sub_u8max = builder.sub_extension(lv.value, u8max);
         yield_constr.constraint_last_row(builder, lv_sub_u8max);

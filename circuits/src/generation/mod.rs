@@ -61,6 +61,9 @@ use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
 };
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
+use crate::utils::pad_trace_with_default_to_len;
+#[cfg(feature = "enable_batch_fri")]
+use crate::utils::pad_trace_with_last_to_len;
 
 pub const MIN_TRACE_LENGTH: usize = 8;
 
@@ -111,9 +114,91 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let cpu_permuted_inst_rows = generate_permuted_inst_trace(&mut cpu_rows, &program_rows);
 
     #[cfg(feature = "enable_batch_fri")]
-    {
-        let mut len = 0;
+    let lengths = [
+        cpu_rows.len(),
+        xor_rows.len(),
+        shift_amount_rows.len(),
+        program_rows.len(),
+        memory_init_rows.len(),
+        halfword_memory_rows.len(),
+        fullword_memory_rows.len(),
+        io_memory_private_rows.len(),
+        io_memory_public_rows.len(),
+        #[cfg(feature = "enable_poseidon_starks")]
+        poseiden2_sponge_rows.len(),
+        #[cfg(feature = "enable_poseidon_starks")]
+        poseidon2_output_bytes_rows.len(),
+        #[cfg(feature = "enable_poseidon_starks")]
+        poseidon2_rows.len(),
+        memory_rows.len(),
+        memory_zeroinit_rows.len(),
+        rangecheck_rows.len(),
+        rangecheck_u8_rows.len(),
+        #[cfg(feature = "enable_register_starks")]
+        register_init_rows.len(),
+        #[cfg(feature = "enable_register_starks")]
+        register_rows.len(),
+        cpu_permuted_inst_rows.len(),
+    ];
+
+    #[cfg(feature = "enable_batch_fri")]
+    let len = *lengths.iter().max().unwrap_or(&0);
+
+    #[cfg(feature = "enable_batch_fri")]
+    let cpu_rows = pad_trace_with_last_to_len(cpu_rows, len);
+    #[cfg(feature = "enable_batch_fri")]
+    let xor_rows = pad_trace_with_last_to_len(xor_rows, len);
+    #[cfg(feature = "enable_batch_fri")]
+    let mut shift_amount_rows = pad_trace_with_last_to_len(shift_amount_rows, len);
+    #[cfg(feature = "enable_batch_fri")]
+    for row in 32..shift_amount_rows.len() {
+        shift_amount_rows[row].multiplicity = F::ZERO;
     }
+    #[cfg(feature = "enable_batch_fri")]
+    let program_rows = pad_trace_with_last_to_len(program_rows, len);
+    #[cfg(feature = "enable_batch_fri")]
+    let memory_init_rows = pad_trace_with_last_to_len(memory_init_rows, len);
+    #[cfg(feature = "enable_batch_fri")]
+    let halfword_memory_rows = pad_trace_with_last_to_len(halfword_memory_rows, len);
+    #[cfg(feature = "enable_batch_fri")]
+    let fullword_memory_rows = pad_trace_with_last_to_len(fullword_memory_rows, len);
+    #[cfg(feature = "enable_batch_fri")]
+    let io_memory_private_rows = pad_trace_with_last_to_len(io_memory_private_rows, len);
+    #[cfg(feature = "enable_batch_fri")]
+    let io_memory_public_rows = pad_trace_with_last_to_len(io_memory_public_rows, len);
+
+    #[cfg(feature = "enable_poseidon_starks")]
+    #[cfg(feature = "enable_batch_fri")]
+    let poseiden2_sponge_rows = pad_trace_with_last_to_len(poseiden2_sponge_rows, len);
+    #[cfg(feature = "enable_poseidon_starks")]
+    #[cfg(feature = "enable_batch_fri")]
+    let poseidon2_output_bytes_rows = pad_trace_with_last_to_len(poseidon2_output_bytes_rows, len);
+    #[cfg(feature = "enable_poseidon_starks")]
+    #[cfg(feature = "enable_batch_fri")]
+    let poseidon2_rows = pad_trace_with_last_to_len(poseidon2_rows, len);
+
+    #[cfg(feature = "enable_batch_fri")]
+    let memory_rows = pad_trace_with_last_to_len(memory_rows, len);
+    #[cfg(feature = "enable_batch_fri")]
+    let memory_zeroinit_rows = pad_trace_with_last_to_len(memory_zeroinit_rows, len);
+    #[cfg(feature = "enable_batch_fri")]
+    let rangecheck_rows = pad_trace_with_last_to_len(rangecheck_rows, len);
+    #[cfg(feature = "enable_batch_fri")]
+    let mut rangecheck_u8_rows = pad_trace_with_last_to_len(rangecheck_u8_rows, len);
+    #[cfg(feature = "enable_batch_fri")]
+    for row in 256..rangecheck_u8_rows.len() {
+        rangecheck_u8_rows[row].multiplicity = F::ZERO;
+    }
+
+    #[cfg(feature = "enable_register_starks")]
+    #[cfg(feature = "enable_batch_fri")]
+    let register_init_rows = pad_trace_with_last_to_len(register_init_rows, len);
+    #[cfg(feature = "enable_register_starks")]
+    #[cfg(feature = "enable_batch_fri")]
+    let register_rows = pad_trace_with_last_to_len(register_rows, len);
+
+    #[cfg(feature = "enable_batch_fri")]
+    let cpu_permuted_inst_rows = pad_trace_with_last_to_len(cpu_permuted_inst_rows, len);
 
     TableKindSetBuilder {
         cpu_stark: trace_to_poly_values(generate_cpu_trace_extended(
