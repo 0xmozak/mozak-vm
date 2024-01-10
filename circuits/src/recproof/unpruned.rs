@@ -107,26 +107,26 @@ pub struct BranchSubCircuit {
 }
 
 pub struct BranchTargets {
-    /// The left dir
-    pub left_dir: BranchDirTargets,
+    /// The left direction
+    pub left: BranchDirectionTargets,
 
-    /// The right dir
-    pub right_dir: BranchDirTargets,
+    /// The right direction
+    pub right: BranchDirectionTargets,
 
     /// The hash of `[left.unpruned_hash, right.unpruned_hash]`
     pub unpruned_hash: HashOutTarget,
 }
 
-pub struct BranchDirTargets {
-    /// The hash of this dir proved by `proof`
+pub struct BranchDirectionTargets {
+    /// The hash of this direction proved by the associated proof
     pub unpruned_hash: HashOutTarget,
 }
 
 impl BranchSubCircuit {
-    fn from_dirs<F, C, const D: usize, B, R>(
+    fn from_directions<F, C, const D: usize, B, R>(
         mut builder: CircuitBuilder<F, D>,
-        left_dir: BranchDirTargets,
-        right_dir: BranchDirTargets,
+        left: BranchDirectionTargets,
+        right: BranchDirectionTargets,
         height: usize,
         build: B,
     ) -> (CircuitData<F, C, D>, (Self, R))
@@ -136,11 +136,10 @@ impl BranchSubCircuit {
         C: GenericConfig<D, F = F>, {
         // Hash the left and right together
         let unpruned_hash = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(
-            left_dir
-                .unpruned_hash
+            left.unpruned_hash
                 .elements
                 .into_iter()
-                .chain(right_dir.unpruned_hash.elements)
+                .chain(right.unpruned_hash.elements)
                 .collect(),
         );
 
@@ -148,8 +147,8 @@ impl BranchSubCircuit {
         builder.register_public_inputs(&unpruned_hash.elements);
 
         let targets = BranchTargets {
-            left_dir,
-            right_dir,
+            left,
+            right,
             unpruned_hash,
         };
 
@@ -176,13 +175,13 @@ impl BranchSubCircuit {
         (circuit, (v, r))
     }
 
-    fn dir_from_node<const D: usize>(
+    fn direction_from_node<const D: usize>(
         proof: &ProofWithPublicInputsTarget<D>,
         indices: &PublicIndices,
-    ) -> BranchDirTargets {
+    ) -> BranchDirectionTargets {
         let unpruned_hash = HashOutTarget::from(indices.get_unpruned_hash(&proof.public_inputs));
 
-        BranchDirTargets { unpruned_hash }
+        BranchDirectionTargets { unpruned_hash }
     }
 
     pub fn from_leaf<F, C, const D: usize, B, R>(
@@ -196,10 +195,10 @@ impl BranchSubCircuit {
         B: FnOnce(&BranchTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
-        let left_dir = Self::dir_from_node(left_proof, &leaf.indices);
-        let right_dir = Self::dir_from_node(right_proof, &leaf.indices);
+        let left = Self::direction_from_node(left_proof, &leaf.indices);
+        let right = Self::direction_from_node(right_proof, &leaf.indices);
         let height = 0;
-        Self::from_dirs(builder, left_dir, right_dir, height, build)
+        Self::from_directions(builder, left, right, height, build)
     }
 
     pub fn from_branch<F, C, const D: usize, B, R>(
@@ -213,10 +212,10 @@ impl BranchSubCircuit {
         B: FnOnce(&BranchTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>, {
-        let left_dir = Self::dir_from_node(left_proof, &branch.indices);
-        let right_dir = Self::dir_from_node(right_proof, &branch.indices);
+        let left = Self::direction_from_node(left_proof, &branch.indices);
+        let right = Self::direction_from_node(right_proof, &branch.indices);
         let height = branch.height + 1;
-        Self::from_dirs(builder, left_dir, right_dir, height, build)
+        Self::from_directions(builder, left, right, height, build)
     }
 
     /// Get ready to generate a proof
