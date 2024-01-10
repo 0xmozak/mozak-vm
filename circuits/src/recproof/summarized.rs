@@ -116,9 +116,9 @@ impl LeafSubCircuit {
 pub struct BranchSubCircuit {
     pub targets: BranchTargets,
     pub indices: PublicIndices,
-    /// The distance from the leaves (`0`` being the lowest branch)
+    /// The distance from the leaves (`0` being the lowest branch)
     /// Used for debugging
-    pub height: usize,
+    pub dbg_height: usize,
 }
 
 pub struct BranchTargets {
@@ -149,7 +149,7 @@ impl BranchSubCircuit {
         mut builder: CircuitBuilder<F, D>,
         left: BranchDirectionTargets,
         right: BranchDirectionTargets,
-        height: usize,
+        dbg_height: usize,
         build: B,
     ) -> (CircuitData<F, C, D>, (Self, R))
     where
@@ -214,7 +214,7 @@ impl BranchSubCircuit {
         let v = Self {
             targets,
             indices,
-            height,
+            dbg_height,
         };
 
         (circuit, (v, r))
@@ -247,8 +247,8 @@ impl BranchSubCircuit {
         C: GenericConfig<D, F = F>, {
         let left_dir = Self::direction_from_node(left_proof, &leaf.indices);
         let right_dir = Self::direction_from_node(right_proof, &leaf.indices);
-        let height = 0;
-        Self::from_directions(builder, left_dir, right_dir, height, build)
+        let dbg_height = 0;
+        Self::from_directions(builder, left_dir, right_dir, dbg_height, build)
     }
 
     pub fn from_branch<F, C, const D: usize, B, R>(
@@ -264,8 +264,8 @@ impl BranchSubCircuit {
         C: GenericConfig<D, F = F>, {
         let left_dir = Self::direction_from_node(left_proof, &branch.indices);
         let right_dir = Self::direction_from_node(right_proof, &branch.indices);
-        let height = branch.height + 1;
-        Self::from_directions(builder, left_dir, right_dir, height, build)
+        let dbg_height = branch.dbg_height + 1;
+        Self::from_directions(builder, left_dir, right_dir, dbg_height, build)
     }
 
     pub fn set_inputs<F: RichField>(
