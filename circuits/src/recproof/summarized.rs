@@ -6,6 +6,7 @@
 //!
 //! These subcircuits are useful to prove knowledge of a selected subset of
 //! nodes.
+use iter_fixed::IntoIteratorFixed;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::poseidon2::Poseidon2Hash;
@@ -167,31 +168,33 @@ impl BranchSubCircuit {
         let both_present = builder.and(left.summary_hash_present, right.summary_hash_present);
         let not_both_present = builder.not(both_present);
 
+        let l_hash = left.summary_hash.elements;
+        let r_hash = right.summary_hash.elements;
+
         // Construct the hash of [left, right]
-        let hash_both = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(
-            left.summary_hash
-                .elements
-                .into_iter()
-                .chain(right.summary_hash.elements)
-                .collect(),
-        );
+        let hash_both = builder
+            .hash_n_to_hash_no_pad::<Poseidon2Hash>(l_hash.into_iter().chain(r_hash).collect());
         // zero it out if we don't have both sides
         let hash_both = hash_both
             .elements
             .map(|e| builder.mul(e, both_present.target));
 
         // Construct the forwarding "hash".
-        // Since absent sides will be zero, we can just sum.
-        let hash_absent = [0, 1, 2, 3].map(|i| {
-            builder.add(
-                left.summary_hash.elements[i],
-                right.summary_hash.elements[i],
-            )
-        });
-        // zero it out if we DO have both sides
-        let hash_absent = hash_absent.map(|e| builder.mul(e, not_both_present.target));
 
-        let summary_hash = [0, 1, 2, 3].map(|i| builder.add(hash_both[i], hash_absent[i]));
+        let summary_hash: [_; 4] = l_hash
+            .into_iter_fixed()
+            .zip(r_hash)
+            .zip(hash_both)
+            .map(|((l, r), hash_both)| {
+                // Since absent sides will be zero, we can just sum.
+                let lr_sum = builder.add(l, r);
+                // zero it out if we DO have both sides
+                let hash_absent = builder.mul(lr_sum, not_both_present.target);
+
+                // Add the two possibilities together, since at least one will be zero
+                builder.add(hash_both, hash_absent)
+            })
+            .collect();
 
         builder.register_public_input(summary_hash_present.target);
         builder.register_public_inputs(&summary_hash);
