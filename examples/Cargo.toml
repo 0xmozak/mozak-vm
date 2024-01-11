@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "amm",
   "bss-tester",
   "fibonacci",
   "min-max",
