@@ -14,7 +14,7 @@ fn main() {
     SimpleLogger::new().init().unwrap();
     set_up_color_terminal();
 
-    log::info!("Running amm-trustedroot-native");
+    log::info!("Running amm-native");
 
     let files = ["public_input.tape", "private_input.tape"];
 
