@@ -1,6 +1,7 @@
 #![allow(clippy::too_many_lines)]
 
 use std::fmt::Display;
+use std::time::Instant;
 
 use anyhow::{ensure, Result};
 use log::log_enabled;
@@ -52,18 +53,25 @@ pub fn prove<F, C, const D: usize>(
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
+    let start = Instant::now();
     let traces_poly_values = generate_traces(program, record);
+    let duration = start.elapsed();
+    println!("Time taken for generate_traces: {:?}", duration);
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
         debug_ctl(&traces_poly_values, mozak_stark);
     }
-    prove_with_traces(
+    let start = Instant::now();
+    let res = prove_with_traces(
         mozak_stark,
         config,
         public_inputs,
         &traces_poly_values,
         timing,
-    )
+    );
+    let duration = start.elapsed();
+    println!("Time taken for prove: {:?}", duration);
+    res
 }
 
 /// Given the traces generated from [`generate_traces`], prove a [`MozakStark`].
@@ -277,6 +285,7 @@ where
 
     let initial_merkle_trees = vec![trace_commitment, &ctl_zs_commitment, &quotient_commitment];
 
+    // #[cfg(not(feature = "enable_batch_fri"))]
     let opening_proof = timed!(
         timing,
         format!("{stark}: compute opening proofs").as_str(),

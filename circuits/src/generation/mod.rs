@@ -61,6 +61,7 @@ use crate::stark::mozak_stark::{
     all_starks, MozakStark, PublicInputs, TableKindArray, TableKindSetBuilder,
 };
 use crate::stark::utils::{trace_rows_to_poly_values, trace_to_poly_values};
+#[cfg(feature = "enable_batch_fri")]
 use crate::utils::pad_trace_with_default_to_len;
 #[cfg(feature = "enable_batch_fri")]
 use crate::utils::pad_trace_with_last_to_len;
@@ -144,6 +145,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     #[cfg(feature = "enable_batch_fri")]
     let len = *lengths.iter().max().unwrap_or(&0);
 
+    // TODO: carefully review the padding logic
     #[cfg(feature = "enable_batch_fri")]
     let cpu_rows = pad_trace_with_last_to_len(cpu_rows, len);
     #[cfg(feature = "enable_batch_fri")]
