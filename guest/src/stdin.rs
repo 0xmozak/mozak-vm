@@ -37,12 +37,12 @@ impl<'a> Read for MozakIo<'a> {
             let n_bytes = self.stdin.read(buf).expect("read should not fail");
             // open I/O log file in append mode.
             use std::io::Write;
-            let mut io_tape = std::fs::OpenOptions::new()
+            let mut out = std::fs::OpenOptions::new()
                 .append(true)
                 .create(true)
                 .open(self.file.as_str())
-                .expect("cannot open tape");
-            io_tape.write(buf).expect("write failed");
+                .expect("cannot open file");
+            out.write(buf).expect("write failed");
             Ok(n_bytes)
         }
     }
