@@ -36,7 +36,7 @@ mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.4"
 
 [features]
-default = ["enable_batch_fri"]
+#default = ["enable_batch_fri"]
 enable_batch_fri = []
 enable_poseidon_starks = []
 enable_register_starks = []

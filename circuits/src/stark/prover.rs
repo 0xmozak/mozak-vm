@@ -24,6 +24,8 @@ use starky::config::StarkConfig;
 use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{MozakStark, TableKind, TableKindArray, TableKindSetBuilder};
+#[cfg(feature = "enable_batch_fri")]
+use super::mozak_stark::all_kind;
 use super::proof::{AllProof, StarkOpeningSet, StarkProof};
 use crate::cross_table_lookup::ctl_utils::debug_ctl;
 use crate::cross_table_lookup::{cross_table_lookup_data, CtlData};
@@ -146,6 +148,21 @@ where
             timing
         )?
     );
+
+    #[cfg(feature = "enable_batch_fri")]
+    timed!(
+        timing,
+        "compute batch fri proof",
+        prove_batch_fri(
+        mozak_stark,
+        config,
+        &public_inputs,
+        traces_poly_values,
+        &trace_commitments,
+        &ctl_data_per_table,
+        &mut challenger,
+        timing
+    ));
 
     let program_rom_trace_cap = trace_caps[TableKind::Program].clone();
     let memory_init_trace_cap = trace_caps[TableKind::MemoryInit].clone();
@@ -357,6 +374,163 @@ where
             timing,
         )?
     }))
+}
+
+
+#[cfg(feature = "enable_batch_fri")]
+#[allow(clippy::too_many_arguments)]
+pub fn prove_batch_fri<F, C, const D: usize>(
+    mozak_stark: &MozakStark<F, D>,
+    config: &StarkConfig,
+    public_inputs: &PublicInputs<F>,
+    traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
+    trace_commitments: &TableKindArray<PolynomialBatch<F, C, D>>,
+    ctl_data_per_table: &TableKindArray<CtlData<F>>,
+    challenger: &mut Challenger<F, C::Hasher>,
+    timing: &mut TimingTree,
+) // -> Result<StarkProofWithMetadata<F, C, D>>
+    where
+        F: RichField + Extendable<D>,
+        C: GenericConfig<D, F = F>, {
+    let degrees = all_kind!(|kind| traces_poly_values[kind][0].len());
+    let degree = degrees[TableKind::Cpu];
+    assert!(degrees.iter().all(|&d| d == degree), "Not all traces have the same degree");
+
+    /*
+    let degree_bits = log2_strict(degree);
+    let fri_params = config.fri_params(degree_bits);
+    let rate_bits = config.fri_config.rate_bits;
+    let cap_height = config.fri_config.cap_height;
+    assert!(
+        fri_params.total_arities() <= degree_bits + rate_bits - cap_height,
+        "FRI total reduction arity is too large.",
+    );
+
+    let init_challenger_state = challenger.compact();
+
+    let z_polys = ctl_data.z_polys();
+    // TODO(Matthias): make the code work with empty z_polys, too.
+    assert!(!z_polys.is_empty(), "No CTL?");
+
+    let ctl_zs_commitment = timed!(
+        timing,
+        format!("{stark}: compute Zs commitment").as_str(),
+        PolynomialBatch::from_values(
+            z_polys,
+            rate_bits,
+            false,
+            config.fri_config.cap_height,
+            timing,
+            None,
+        )
+    );
+
+    let ctl_zs_cap = ctl_zs_commitment.merkle_tree.cap.clone();
+    challenger.observe_cap(&ctl_zs_cap);
+
+    let alphas = challenger.get_n_challenges(config.num_challenges);
+    let quotient_polys = timed!(
+        timing,
+        format!("{stark}: compute quotient polynomial").as_str(),
+        compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
+            stark,
+            trace_commitment,
+            &ctl_zs_commitment,
+            public_inputs,
+            ctl_data,
+            &alphas,
+            degree_bits,
+            config,
+        )
+    );
+
+    let all_quotient_chunks = timed!(
+        timing,
+        format!("{stark}: split quotient polynomial").as_str(),
+        quotient_polys
+            .into_par_iter()
+            .flat_map(|mut quotient_poly| {
+                quotient_poly
+                    .trim_to_len(degree * stark.quotient_degree_factor())
+                    .expect(
+                        "Quotient has failed, the vanishing polynomial is not divisible by Z_H",
+                    );
+                // Split quotient into degree-n chunks.
+                quotient_poly.chunks(degree)
+            })
+            .collect()
+    );
+    let quotient_commitment = timed!(
+        timing,
+        format!("{stark}: compute quotient commitment").as_str(),
+        PolynomialBatch::from_coeffs(
+            all_quotient_chunks,
+            rate_bits,
+            false,
+            config.fri_config.cap_height,
+            timing,
+            None,
+        )
+    );
+    let quotient_polys_cap = quotient_commitment.merkle_tree.cap.clone();
+    challenger.observe_cap(&quotient_polys_cap);
+
+    let zeta = challenger.get_extension_challenge::<D>();
+    // To avoid leaking witness data, we want to ensure that our opening locations,
+    // `zeta` and `g * zeta`, are not in our subgroup `H`. It suffices to check
+    // `zeta` only, since `(g * zeta)^n = zeta^n`, where `n` is the order of
+    // `g`.
+    let g = F::primitive_root_of_unity(degree_bits);
+    ensure!(
+        zeta.exp_power_of_2(degree_bits) != F::Extension::ONE,
+        "Opening point is in the subgroup."
+    );
+
+    let openings = StarkOpeningSet::new(
+        zeta,
+        g,
+        trace_commitment,
+        &ctl_zs_commitment,
+        &quotient_commitment,
+        degree_bits,
+    );
+
+    challenger.observe_openings(&openings.to_fri_openings());
+
+    let initial_merkle_trees = vec![trace_commitment, &ctl_zs_commitment, &quotient_commitment];
+
+    // #[cfg(not(feature = "enable_batch_fri"))]
+    let opening_proof = timed!(
+        timing,
+        format!("{stark}: compute opening proofs").as_str(),
+        PolynomialBatch::prove_openings(
+            &stark.fri_instance(
+                zeta,
+                g,
+                config,
+                Some(&LookupConfig {
+                    degree_bits,
+                    num_zs: ctl_data.len()
+                })
+            ),
+            &initial_merkle_trees,
+            challenger,
+            &fri_params,
+            timing,
+        )
+    );
+
+    let proof = StarkProof {
+        trace_cap: trace_commitment.merkle_tree.cap.clone(),
+        ctl_zs_cap,
+        quotient_polys_cap,
+        openings,
+        opening_proof,
+    };
+    Ok(StarkProofWithMetadata {
+        init_challenger_state,
+        proof,
+    })*/
 }
 
 #[cfg(test)]

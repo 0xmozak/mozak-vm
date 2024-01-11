@@ -1,7 +1,6 @@
-use std::fs;
 use std::process::Command;
 use std::time::Instant;
-use std::str;
+use std::{fs, str};
 
 use tempfile::TempDir;
 
@@ -50,10 +49,16 @@ fn test_prove_and_verify_recursive_proof_command() {
 
     // Print stdout and stderr
     if !output.stdout.is_empty() {
-        println!("Standard Output:\n{}", str::from_utf8(&output.stdout).unwrap_or("[Invalid UTF-8 in stdout]"));
+        println!(
+            "Standard Output:\n{}",
+            str::from_utf8(&output.stdout).unwrap_or("[Invalid UTF-8 in stdout]")
+        );
     }
     if !output.stderr.is_empty() {
-        println!("Standard Error:\n{}", str::from_utf8(&output.stderr).unwrap_or("[Invalid UTF-8 in stderr]"));
+        println!(
+            "Standard Error:\n{}",
+            str::from_utf8(&output.stderr).unwrap_or("[Invalid UTF-8 in stderr]")
+        );
     }
 
     // Assert the existence of output files
@@ -91,9 +96,15 @@ fn test_prove_and_verify_recursive_proof_command() {
 
     // Print stdout and stderr
     if !output.stdout.is_empty() {
-        println!("Standard Output:\n{}", str::from_utf8(&output.stdout).unwrap_or("[Invalid UTF-8 in stdout]"));
+        println!(
+            "Standard Output:\n{}",
+            str::from_utf8(&output.stdout).unwrap_or("[Invalid UTF-8 in stdout]")
+        );
     }
     if !output.stderr.is_empty() {
-        println!("Standard Error:\n{}", str::from_utf8(&output.stderr).unwrap_or("[Invalid UTF-8 in stderr]"));
+        println!(
+            "Standard Error:\n{}",
+            str::from_utf8(&output.stderr).unwrap_or("[Invalid UTF-8 in stderr]")
+        );
     }
 }
