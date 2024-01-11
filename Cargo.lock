@@ -861,6 +861,7 @@ dependencies = [
  "itertools 0.12.0",
  "log",
  "mimalloc",
+ "mozak-examples",
  "mozak-system",
  "plonky2",
  "proptest",
@@ -1250,7 +1251,7 @@ dependencies = [
 [[package]]
 name = "plonky2"
 version = "0.1.4"
-source = "git+https://github.com/0xmozak/plonky2.git#74d0807dc07ebf38a2c7c49edce33786e79c6ef7"
+source = "git+https://github.com/0xmozak/plonky2.git#70d88e2b463a6bf5927830c69f8bc822da54bf1a"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1274,7 +1275,7 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#74d0807dc07ebf38a2c7c49edce33786e79c6ef7"
+source = "git+https://github.com/0xmozak/plonky2.git#70d88e2b463a6bf5927830c69f8bc822da54bf1a"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -1289,7 +1290,7 @@ dependencies = [
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#74d0807dc07ebf38a2c7c49edce33786e79c6ef7"
+source = "git+https://github.com/0xmozak/plonky2.git#70d88e2b463a6bf5927830c69f8bc822da54bf1a"
 dependencies = [
  "rayon",
 ]
@@ -1297,7 +1298,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.1.1"
-source = "git+https://github.com/0xmozak/plonky2.git#74d0807dc07ebf38a2c7c49edce33786e79c6ef7"
+source = "git+https://github.com/0xmozak/plonky2.git#70d88e2b463a6bf5927830c69f8bc822da54bf1a"
 
 [[package]]
 name = "plotters"
@@ -1684,7 +1685,7 @@ checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
 [[package]]
 name = "starky"
 version = "0.1.2"
-source = "git+https://github.com/0xmozak/plonky2.git#74d0807dc07ebf38a2c7c49edce33786e79c6ef7"
+source = "git+https://github.com/0xmozak/plonky2.git#70d88e2b463a6bf5927830c69f8bc822da54bf1a"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
