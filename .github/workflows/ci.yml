@@ -102,7 +102,7 @@ jobs:
       - name: Run shellcheck and shfmt
         uses: luizm/action-sh-checker@master
         env:
-          SHFMT_OPTS: -i 4 -ci
+          SHFMT_OPTS: --indent 4 --case-indent
 
   taplo-fmt:
     needs: check-runner
