@@ -110,5 +110,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install rust toolkit
+        uses: ./.github/actions/rust
+        with:
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
+
       - name: taplo fmt
         run: taplo fmt --check
