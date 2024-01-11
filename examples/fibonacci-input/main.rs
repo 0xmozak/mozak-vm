@@ -24,7 +24,7 @@ pub fn main() {
     let mut mozak_io_private = MozakIoPrivate(MozakIo {
         stdin: Box::new(BufReader::new(stdin())),
         #[cfg(not(target_os = "zkvm"))]
-        io_tape_file: args[1].clone(),
+        file: args[1].clone(),
     });
     // read from private iotape, the input
     let mut buffer = [0_u8; 4];
@@ -36,7 +36,7 @@ pub fn main() {
     let mut mozak_io_public = MozakIoPublic(MozakIo {
         stdin: Box::new(BufReader::new(stdin())),
         #[cfg(not(target_os = "zkvm"))]
-        io_tape_file: args[2].clone(),
+        file: args[2].clone(),
     });
     let mut buffer = [0_u8; 4];
     let n = mozak_io_public.read(buffer.as_mut()).expect("READ failed");
