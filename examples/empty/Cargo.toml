@@ -1,0 +1,11 @@
+[package]
+edition = "2021"
+name = "empty"
+version = "0.1.0"
+
+[dependencies]
+guest = { path = "../../guest", default-features = false }
+
+[[bin]]
+name = "empty"
+path = "main.rs"

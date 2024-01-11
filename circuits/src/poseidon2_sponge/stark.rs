@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
+use plonky2::field::types::Field;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::hash::poseidon2::Poseidon2Permutation;
@@ -15,7 +16,7 @@ use starky::stark::Stark;
 use super::columns::NUM_POSEIDON2_SPONGE_COLS;
 use crate::columns_view::HasNamedColumns;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
-use crate::stark::utils::is_binary;
+use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -57,16 +58,16 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         let lv: &Poseidon2Sponge<P> = vars.get_local_values().into();
         let nv: &Poseidon2Sponge<P> = vars.get_next_values().into();
 
-        is_binary(yield_constr, lv.ops.is_init_permute);
-        is_binary(yield_constr, lv.ops.is_permute);
-        is_binary(yield_constr, lv.ops.is_init_permute + lv.ops.is_permute);
-        is_binary(yield_constr, lv.gen_output);
+        for val in [lv.ops.is_permute, lv.ops.is_init_permute, lv.gen_output] {
+            is_binary(yield_constr, val);
+        }
+        let is_exe = lv.ops.is_init_permute + lv.ops.is_permute;
+        is_binary(yield_constr, is_exe);
 
-        let is_dummy =
-            |vars: &Poseidon2Sponge<P>| P::ONES - (vars.ops.is_init_permute + vars.ops.is_permute);
+        let is_dummy = P::ONES - is_exe;
 
         // dummy row does not generate output
-        yield_constr.constraint(is_dummy(lv) * lv.gen_output);
+        yield_constr.constraint(is_dummy * lv.gen_output);
 
         // if row generates output then it must be last rate sized
         // chunk of input.
@@ -111,13 +112,92 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2Spon
         });
     }
 
+    #[allow(clippy::similar_names)]
     fn eval_ext_circuit(
         &self,
-        _builder: &mut CircuitBuilder<F, D>,
-        _vars: &Self::EvaluationFrameTarget,
-        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        unimplemented!()
+        let lv: &Poseidon2Sponge<ExtensionTarget<D>> = vars.get_local_values().into();
+        let nv: &Poseidon2Sponge<ExtensionTarget<D>> = vars.get_next_values().into();
+
+        let rate = u8::try_from(Poseidon2Permutation::<F>::RATE).expect("rate > 255");
+        let state_size = u8::try_from(Poseidon2Permutation::<F>::WIDTH).expect("state_size > 255");
+
+        for val in [lv.ops.is_permute, lv.ops.is_init_permute, lv.gen_output] {
+            is_binary_ext_circuit(builder, val, yield_constr);
+        }
+        let is_exe = builder.add_extension(lv.ops.is_init_permute, lv.ops.is_permute);
+        is_binary_ext_circuit(builder, is_exe, yield_constr);
+
+        let one = builder.constant_extension(F::Extension::from_canonical_u8(1));
+        let is_dummy = builder.sub_extension(one, is_exe);
+
+        // dummy row does not generate output
+        let dummy_mul_get_output = builder.mul_extension(is_dummy, lv.gen_output);
+        yield_constr.constraint(builder, dummy_mul_get_output);
+
+        // if row generates output then it must be last rate sized
+        // chunk of input.
+        let rate_ext = builder.constant_extension(F::Extension::from_canonical_u8(rate));
+        let input_len_sub_rate = builder.sub_extension(lv.input_len, rate_ext);
+        let gen_op_len_check = builder.mul_extension(lv.gen_output, input_len_sub_rate);
+        yield_constr.constraint(builder, gen_op_len_check);
+
+        // First row must be init permute or dummy row.
+        let is_init_lv = builder.sub_extension(one, lv.ops.is_init_permute);
+        let is_dummy_lv = builder.add_extension(lv.ops.is_init_permute, lv.ops.is_permute);
+        let is_init_or_is_dummy_lv = builder.mul_extension(is_init_lv, is_dummy_lv);
+        yield_constr.constraint_first_row(builder, is_init_or_is_dummy_lv);
+
+        // if row generates output then next row can be dummy or start of next hashing
+        let is_init_nv = builder.sub_extension(one, nv.ops.is_init_permute);
+        let is_dummy_nv = builder.add_extension(nv.ops.is_init_permute, nv.ops.is_permute);
+        let is_init_or_is_dummy_nv = builder.mul_extension(is_init_nv, is_dummy_nv);
+        let gen_op_nv_check = builder.mul_extension(lv.gen_output, is_init_or_is_dummy_nv);
+        yield_constr.constraint(builder, gen_op_nv_check);
+
+        // Clk should not change within a sponge
+        let clk_diff = builder.sub_extension(lv.clk, nv.clk);
+        let clk_check = builder.mul_extension(nv.ops.is_permute, clk_diff);
+        yield_constr.constraint_transition(builder, clk_check);
+
+        let is_dummy_lv = builder.add_extension(lv.ops.is_init_permute, lv.ops.is_permute);
+        let not_gen_op = builder.sub_extension(one, lv.gen_output);
+        let not_last_sponge = builder.mul_extension(not_gen_op, is_dummy_lv);
+
+        let nv_input_len_rate = builder.add_extension(nv.input_len, rate_ext);
+        let input_len_diff_rate = builder.sub_extension(lv.input_len, nv_input_len_rate);
+        let len_check = builder.mul_extension(not_last_sponge, input_len_diff_rate);
+        // if current row consumes input and its not last sponge then next row must have
+        // length decreases by RATE, note that only actual execution row can consume
+        // input
+        yield_constr.constraint_transition(builder, len_check);
+        // and input_addr increases by RATE
+        let nv_input_addr_rate = builder.sub_extension(nv.input_addr, rate_ext);
+        let input_addr_diff_rate = builder.sub_extension(lv.input_addr, nv_input_addr_rate);
+        let addr_check = builder.mul_extension(not_last_sponge, input_addr_diff_rate);
+        yield_constr.constraint_transition(builder, addr_check);
+
+        let zero = builder.constant_extension(F::Extension::ZERO);
+        // For each init_permute capacity bits are zero.
+        (rate..state_size).for_each(|i| {
+            let value_sub_zero = builder.sub_extension(lv.preimage[i as usize], zero);
+            let zero_check = builder.mul_extension(lv.ops.is_init_permute, value_sub_zero);
+            yield_constr.constraint(builder, zero_check);
+        });
+
+        // For each permute capacity bits are copied from previous output.
+        (rate..state_size).for_each(|i| {
+            let is_not_init_perm = builder.sub_extension(one, nv.ops.is_init_permute);
+            let is_perm_mul_not_init_perm =
+                builder.mul_extension(is_not_init_perm, nv.ops.is_permute);
+            let value_sub_output =
+                builder.sub_extension(nv.preimage[i as usize], lv.output[i as usize]);
+            let value_check = builder.mul_extension(is_perm_mul_not_init_perm, value_sub_output);
+            yield_constr.constraint(builder, value_check);
+        });
     }
 
     fn constraint_degree(&self) -> usize { 3 }
@@ -130,7 +210,7 @@ mod tests {
     use plonky2::util::timing::TimingTree;
     use starky::config::StarkConfig;
     use starky::prover::prove;
-    use starky::stark_testing::test_stark_low_degree;
+    use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
     use starky::verifier::verify_stark_proof;
 
     use super::Poseidon2SpongeStark;
@@ -198,5 +278,12 @@ mod tests {
     fn poseidon2_stark_degree() -> Result<()> {
         let stark = S::default();
         test_stark_low_degree(stark)
+    }
+    #[test]
+    fn test_circuit() -> anyhow::Result<()> {
+        let stark = S::default();
+        test_stark_circuit_constraints::<F, C, S, D>(stark)?;
+
+        Ok(())
     }
 }
