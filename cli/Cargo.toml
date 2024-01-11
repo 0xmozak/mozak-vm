@@ -30,7 +30,7 @@ env_logger = "0.10"
 itertools = "0.12"
 log = "0.4"
 plonky2 = "0.1"
-serde_json = "1.0.108"
+serde_json = "1.0.111"
 starky = "0.1"
 tempfile = "3"
 
