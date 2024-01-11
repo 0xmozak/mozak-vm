@@ -11,6 +11,26 @@ pub struct MozakIoPrivate<'a>(pub MozakIo<'a>);
 pub struct MozakIoPublic<'a>(pub MozakIo<'a>);
 
 #[cfg(not(target_os = "zkvm"))]
+macro_rules! io_traits {
+    ($s: ident) => {
+        impl<'a> std::ops::Deref for $s<'a> {
+            type Target = MozakIo<'a>;
+
+            fn deref(&self) -> &Self::Target { &self.0 }
+        }
+
+        impl<'a> std::ops::DerefMut for $s<'a> {
+            fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+        }
+    };
+}
+
+#[cfg(not(target_os = "zkvm"))]
+io_traits!(MozakIoPublic);
+#[cfg(not(target_os = "zkvm"))]
+io_traits!(MozakIoPrivate);
+
+#[cfg(not(target_os = "zkvm"))]
 impl<'a> Read for MozakIo<'a> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         {
