@@ -11,7 +11,7 @@ pub struct MozakIoPrivate<'a>(pub MozakIo<'a>);
 pub struct MozakIoPublic<'a>(pub MozakIo<'a>);
 
 #[cfg(not(target_os = "zkvm"))]
-macro_rules! io_traits {
+macro_rules! native_io_impl {
     ($s: ident) => {
         impl<'a> std::ops::Deref for $s<'a> {
             type Target = MozakIo<'a>;
@@ -26,9 +26,9 @@ macro_rules! io_traits {
 }
 
 #[cfg(not(target_os = "zkvm"))]
-io_traits!(MozakIoPublic);
+native_io_impl!(MozakIoPublic);
 #[cfg(not(target_os = "zkvm"))]
-io_traits!(MozakIoPrivate);
+native_io_impl!(MozakIoPrivate);
 
 #[cfg(not(target_os = "zkvm"))]
 impl<'a> Read for MozakIo<'a> {
