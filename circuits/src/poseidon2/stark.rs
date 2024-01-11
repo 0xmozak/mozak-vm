@@ -25,32 +25,26 @@ fn add_rc_constraints<
     const D2: usize,
     const STATE_SIZE: usize,
 >(
-    state: &[P; STATE_SIZE],
+    state: &mut [P; STATE_SIZE],
     r: usize,
-) -> [P; STATE_SIZE]
-where
+) where
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
     assert_eq!(STATE_SIZE, 12);
-    let mut out = [P::ZEROS; STATE_SIZE];
 
     for i in 0..STATE_SIZE {
-        out[i] =
-            state[i] + FE::from_basefield(F::from_canonical_u64(<F as Poseidon2>::RC12[r + i]));
+        state[i] += FE::from_basefield(F::from_canonical_u64(<F as Poseidon2>::RC12[r + i]));
     }
-
-    out
 }
 
 // degree: 3
 fn sbox_p_constraints<F: RichField + Extendable<D>, const D: usize, FE, P, const D2: usize>(
-    x: &P,
+    x: &mut P,
     x_qube: &P,
-) -> P
-where
+) where
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
-    *x_qube * *x_qube * *x
+    *x = *x_qube * *x_qube * *x
 }
 
 fn matmul_m4_constraints<
@@ -61,14 +55,12 @@ fn matmul_m4_constraints<
     const D2: usize,
     const STATE_SIZE: usize,
 >(
-    state: &[P; STATE_SIZE],
-) -> [P; STATE_SIZE]
-where
+    state: &mut [P; STATE_SIZE],
+) where
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
     // input x = (x0, x1, x2, x3)
     assert_eq!(STATE_SIZE, 12);
-    let mut out = [P::ZEROS; STATE_SIZE];
     let t4 = STATE_SIZE / 4;
     for i in 0..t4 {
         let start_index = i * 4;
@@ -102,12 +94,11 @@ where
         // t7 = t2 + t4
         let t_7 = t_2 + t_4;
 
-        out[start_index] = t_6;
-        out[start_index + 1] = t_5;
-        out[start_index + 2] = t_7;
-        out[start_index + 3] = t_4;
+        state[start_index] = t_6;
+        state[start_index + 1] = t_5;
+        state[start_index + 2] = t_7;
+        state[start_index + 3] = t_4;
     }
-    out
 }
 
 fn matmul_external12_constraints<
@@ -118,28 +109,25 @@ fn matmul_external12_constraints<
     const D2: usize,
     const STATE_SIZE: usize,
 >(
-    state: &[P; STATE_SIZE],
-) -> [P; STATE_SIZE]
-where
+    state: &mut [P; STATE_SIZE],
+) where
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
     assert_eq!(STATE_SIZE, 12);
-    let mut out = [P::ZEROS; STATE_SIZE];
-    let updated_state = matmul_m4_constraints(state);
+    matmul_m4_constraints(state);
 
     let t4 = STATE_SIZE / 4;
     let mut stored = [P::ZEROS; 4];
 
     for l in 0..4 {
-        stored[l] = updated_state[l];
+        stored[l] = state[l];
         for j in 1..t4 {
-            stored[l] += updated_state[4 * j + l];
+            stored[l] += state[4 * j + l];
         }
     }
     for i in 0..STATE_SIZE {
-        out[i] = updated_state[i].add(stored[i % 4]);
+        state[i] = state[i].add(stored[i % 4]);
     }
-    out
 }
 
 // degree: 1
@@ -151,28 +139,24 @@ fn matmul_internal12_constraints<
     const D2: usize,
     const STATE_SIZE: usize,
 >(
-    state: &[P; STATE_SIZE],
-) -> [P; STATE_SIZE]
-where
+    state: &mut [P; STATE_SIZE],
+) where
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
     assert_eq!(STATE_SIZE, 12);
-    let mut out = [P::ZEROS; STATE_SIZE];
     let mut sum = P::ZEROS;
 
-    for item in state {
+    for item in &mut *state {
         sum += *item;
     }
 
     for i in 0..STATE_SIZE {
-        out[i] = state[i]
+        state[i] = state[i]
             * FE::from_basefield(F::from_canonical_u64(
                 <F as Poseidon2>::MAT_DIAG12_M_1[i] - 1,
             ));
-        out[i] += sum;
+        state[i] += sum;
     }
-
-    out
 }
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
@@ -208,19 +192,20 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         // row can be execution or padding.
         is_binary(yield_constr, lv.is_exe);
 
+        let mut state = lv.input;
         #[allow(clippy::range_plus_one)]
-        let mut state: [P; STATE_SIZE] = matmul_external12_constraints(&lv.input);
+        matmul_external12_constraints(&mut state);
         // first full rounds
         for r in 0..(ROUNDS_F / 2) {
-            state = add_rc_constraints(&state, r);
+            add_rc_constraints(&mut state, r);
             #[allow(clippy::needless_range_loop)]
             for i in 0..STATE_SIZE {
-                state[i] = sbox_p_constraints(
-                    &state[i],
+                sbox_p_constraints(
+                    &mut state[i],
                     &lv.s_box_input_qube_first_full_rounds[r * STATE_SIZE + i],
                 );
             }
-            state = matmul_external12_constraints(&state);
+            matmul_external12_constraints(&mut state);
             for (i, state_i) in state.iter_mut().enumerate().take(STATE_SIZE) {
                 yield_constr
                     .constraint(*state_i - lv.state_after_first_full_rounds[r * STATE_SIZE + i]);
@@ -231,8 +216,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         // partial rounds
         for i in 0..ROUNDS_P {
             state[0] += FE::from_basefield(F::from_canonical_u64(<F as Poseidon2>::RC12_MID[i]));
-            state[0] = sbox_p_constraints(&state[0], &lv.s_box_input_qube_partial_rounds[i]);
-            state = matmul_internal12_constraints(&state);
+            sbox_p_constraints(&mut state[0], &lv.s_box_input_qube_partial_rounds[i]);
+            matmul_internal12_constraints(&mut state);
             yield_constr.constraint(state[0] - lv.state0_after_partial_rounds[i]);
             state[0] = lv.state0_after_partial_rounds[i];
         }
@@ -246,15 +231,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for Poseidon2_12S
         // last full rounds
         for i in 0..(ROUNDS_F / 2) {
             let r = (ROUNDS_F / 2) + i;
-            state = add_rc_constraints(&state, r);
+            add_rc_constraints(&mut state, r);
             #[allow(clippy::needless_range_loop)]
             for j in 0..STATE_SIZE {
-                state[j] = sbox_p_constraints(
-                    &state[j],
+                sbox_p_constraints(
+                    &mut state[j],
                     &lv.s_box_input_qube_second_full_rounds[i * STATE_SIZE + j],
                 );
             }
-            state = matmul_external12_constraints(&state);
+            matmul_external12_constraints(&mut state);
             for (j, state_j) in state.iter_mut().enumerate().take(STATE_SIZE) {
                 yield_constr
                     .constraint(*state_j - lv.state_after_second_full_rounds[i * STATE_SIZE + j]);
