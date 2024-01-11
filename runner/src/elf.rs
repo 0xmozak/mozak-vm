@@ -20,7 +20,7 @@ use crate::decode::decode_instruction;
 use crate::instruction::{DecodingError, Instruction};
 use crate::util::load_u32;
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct MozakMemoryRegion {
     pub starting_address: u32,
     pub capacity: u32,
@@ -47,7 +47,7 @@ impl MozakMemoryRegion {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct MozakMemory {
     // context variables
     pub context_variables: MozakMemoryRegion,
@@ -230,7 +230,7 @@ pub struct Code(pub HashMap<u32, Result<Instruction, DecodingError>>);
 /// Memory of RISC-V Program
 ///
 /// A wrapper around a map from a 32-bit address to a byte of memory
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut)]
+#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize, DerefMut, PartialEq)]
 pub struct Data(pub HashMap<u32, u8>);
 
 impl Code {
@@ -531,8 +531,7 @@ impl Program {
 
 #[cfg(test)]
 mod test {
-    use crate::elf::{MozakMemoryRegion, Program};
-
+    use crate::elf::{MozakMemory, MozakMemoryRegion, Program, RuntimeArguments};
     #[test]
     fn test_serialize_deserialize() {
         let program = Program::default();
@@ -560,5 +559,45 @@ mod test {
             assert_eq!(u8::try_from(*k).unwrap(), *v);
             assert_eq!(data[usize::try_from(*k).unwrap()], *v);
         });
+    }
+    #[test]
+    fn test_empty_elf_with_empty_args() {
+        let mozak_ro_memory = Program::mozak_load_program(
+            mozak_examples::EMPTY_ELF,
+            &RuntimeArguments::new(&[], &[], &[]),
+        )
+        .unwrap()
+        .mozak_ro_memory
+        .unwrap();
+        assert_eq!(mozak_ro_memory.context_variables.data.len(), 0);
+        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 0);
+        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 0);
+    }
+    #[test]
+    fn test_empty_elf_with_args() {
+        let mozak_ro_memory = Program::mozak_load_program(
+            mozak_examples::EMPTY_ELF,
+            &RuntimeArguments::new(&[0], &[0, 1], &[0, 1, 2]),
+        )
+        .unwrap()
+        .mozak_ro_memory
+        .unwrap();
+        assert_eq!(mozak_ro_memory.context_variables.data.len(), 1);
+        assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 2);
+        assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 3);
+    }
+
+    #[test]
+    fn test_empty_elf_check_assumed_values() {
+        // This test ensures mozak-loader & mozak-linker-script is indeed aligned
+        let mozak_ro_memory = Program::mozak_load_program(
+            mozak_examples::EMPTY_ELF,
+            &RuntimeArguments::new(&[], &[], &[]),
+        )
+        .unwrap()
+        .mozak_ro_memory
+        .unwrap();
+        let test_mozak_ro_memory = MozakMemory::default();
+        assert_eq!(mozak_ro_memory, test_mozak_ro_memory);
     }
 }
