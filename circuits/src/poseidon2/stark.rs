@@ -32,8 +32,8 @@ fn add_rc_constraints<
     P: PackedField<Scalar = FE>, {
     assert_eq!(STATE_SIZE, 12);
 
-    for i in 0..STATE_SIZE {
-        state[i] += FE::from_basefield(F::from_canonical_u64(<F as Poseidon2>::RC12[r + i]));
+    for (i, val) in state.iter_mut().enumerate().take(STATE_SIZE) {
+        *val += FE::from_basefield(F::from_canonical_u64(<F as Poseidon2>::RC12[r + i]));
     }
 }
 
@@ -44,7 +44,7 @@ fn sbox_p_constraints<F: RichField + Extendable<D>, const D: usize, FE, P, const
 ) where
     FE: FieldExtension<D2, BaseField = F>,
     P: PackedField<Scalar = FE>, {
-    *x = *x_qube * *x_qube * *x
+    *x = *x_qube * *x_qube * *x;
 }
 
 fn matmul_m4_constraints<
@@ -150,12 +150,11 @@ fn matmul_internal12_constraints<
         sum += *item;
     }
 
-    for i in 0..STATE_SIZE {
-        state[i] = state[i]
-            * FE::from_basefield(F::from_canonical_u64(
-                <F as Poseidon2>::MAT_DIAG12_M_1[i] - 1,
-            ));
-        state[i] += sum;
+    for (i, val) in state.iter_mut().enumerate().take(STATE_SIZE) {
+        *val *= FE::from_basefield(F::from_canonical_u64(
+            <F as Poseidon2>::MAT_DIAG12_M_1[i] - 1,
+        ));
+        *val += sum;
     }
 }
 
