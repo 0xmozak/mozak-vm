@@ -182,7 +182,6 @@ fn main() -> Result<()> {
                     &degree_bits,
                     &circuit_config,
                     &config,
-                    12,
                 );
 
                 let recursive_all_proof = recursive_circuit.prove(&all_proof)?;
@@ -223,7 +222,6 @@ fn main() -> Result<()> {
                 &degree_bits,
                 &circuit_config,
                 &config,
-                12,
             );
 
             let mut buffer: Vec<u8> = vec![];

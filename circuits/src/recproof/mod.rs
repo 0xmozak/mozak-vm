@@ -164,8 +164,8 @@ where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
     pub summarized: summarized::BranchSubCircuit<'a, D>,
-    pub old: unpruned::BranchSubCircuit<'a, D>,
-    pub new: unpruned::BranchSubCircuit<'a, D>,
+    pub old: unpruned::BranchSubCircuit,
+    pub new: unpruned::BranchSubCircuit,
     pub circuit: CircuitData<F, C, D>,
     pub targets: CompleteBranchTargets<D>,
 }
