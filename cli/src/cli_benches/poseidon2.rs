@@ -1,5 +1,3 @@
-use std::iter::repeat_with;
-
 use mozak_circuits::test_utils::{
     create_poseidon2_test, prove_and_verify_mozak_stark, Poseidon2Test,
 };
@@ -7,9 +5,7 @@ use starky::config::StarkConfig;
 
 #[allow(clippy::pedantic)]
 pub fn poseidon2_bench(input_len: u32) -> Result<(), anyhow::Error> {
-    let s: String = repeat_with(fastrand::alphanumeric)
-        .take(input_len as usize)
-        .collect();
+    let s: String = "dead_beef_feed_c0de".repeat(input_len as usize);
     let (program, record) = create_poseidon2_test(&[Poseidon2Test {
         data: s,
         input_start_addr: 1024,

@@ -27,7 +27,6 @@ clap-verbosity-flag = "2.1"
 clap_derive = "4.3"
 clio = { version = "0.3", features = ["http-ureq", "clap-parse"] }
 env_logger = "0.10"
-fastrand = "2.0.1"
 itertools = "0.12"
 log = "0.4"
 plonky2 = "0.1"
