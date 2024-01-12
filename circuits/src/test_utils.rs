@@ -9,9 +9,11 @@ use mozak_runner::vm::ExecutionRecord;
 use mozak_system::system::ecall;
 use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
 use plonky2::field::goldilocks_field::GoldilocksField;
+use plonky2::field::types::Field;
 use plonky2::fri::FriConfig;
-use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
+use plonky2::hash::hash_types::{HashOut, RichField};
+use plonky2::hash::poseidon2::Poseidon2Hash;
+use plonky2::plonk::config::{GenericConfig, Hasher, Poseidon2GoldilocksConfig};
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
@@ -458,4 +460,15 @@ pub fn create_poseidon2_test(
     }
 
     simple_test_code(instructions, memory.as_slice(), &[])
+}
+
+pub fn hash_str(v: &str) -> HashOut<F> {
+    let v: Vec<_> = v.bytes().map(F::from_canonical_u8).collect();
+    Poseidon2Hash::hash_no_pad(&v)
+}
+
+pub fn hash_branch<F: RichField>(left: &HashOut<F>, right: &HashOut<F>) -> HashOut<F> {
+    let [l0, l1, l2, l3] = left.elements;
+    let [r0, r1, r2, r3] = right.elements;
+    Poseidon2Hash::hash_no_pad(&[l0, l1, l2, l3, r0, r1, r2, r3])
 }
