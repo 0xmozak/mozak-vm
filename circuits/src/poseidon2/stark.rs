@@ -204,7 +204,7 @@ fn matmul_m4_circuit<F: RichField + Extendable<D>, const D: usize, const STATE_S
         let t_2 = builder.mul_const_add_extension(F::TWO, state[start_index + 1], t_1);
 
         // t3 = 2x3 + t0
-        let t_3 = builder.mul_const_add_extension(F::TWO, state[start_index + 3], t_1);
+        let t_3 = builder.mul_const_add_extension(F::TWO, state[start_index + 3], t_0);
 
         // t4 = 4t1 + t3
         let t_4 = builder.mul_const_add_extension(four, t_1, t_3);
