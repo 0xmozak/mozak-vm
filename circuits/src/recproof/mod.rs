@@ -2,69 +2,14 @@ use anyhow::Result;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
-use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
-use plonky2::iop::target::{BoolTarget, Target};
-use plonky2::iop::witness::{PartialWitness, PartitionWitness, Witness, WitnessWrite};
+use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, CommonCircuitData};
+use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
-use plonky2::util::serialization::{Buffer, IoResult, Read, Write};
 
 pub mod summarized;
 pub mod unpruned;
-
-/// A generator for testing if a value equals zero
-#[derive(Debug, Default)]
-struct NonzeroTestGenerator {
-    to_test: Target,
-    result: BoolTarget,
-}
-
-impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D> for NonzeroTestGenerator {
-    fn id(&self) -> String { "NonzeroTestGenerator".to_string() }
-
-    fn dependencies(&self) -> Vec<Target> { vec![self.to_test] }
-
-    fn run_once(&self, witness: &PartitionWitness<F>, out_buffer: &mut GeneratedValues<F>) {
-        let to_test_value = witness.get_target(self.to_test);
-        out_buffer.set_bool_target(self.result, to_test_value.is_nonzero());
-    }
-
-    fn serialize(&self, dst: &mut Vec<u8>, _common_data: &CommonCircuitData<F, D>) -> IoResult<()> {
-        dst.write_target(self.to_test)?;
-        dst.write_target_bool(self.result)
-    }
-
-    fn deserialize(src: &mut Buffer, _common_data: &CommonCircuitData<F, D>) -> IoResult<Self> {
-        let to_test = src.read_target()?;
-        let result = src.read_target_bool()?;
-        Ok(Self { to_test, result })
-    }
-}
-
-fn is_nonzero<F, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    to_test: Target,
-) -> BoolTarget
-where
-    F: RichField + Extendable<D>, {
-    // `result = to_test != 0`, meaning it's 0 for `to_test == 0` or 1 for all other
-    // to_test we'll represent this as `result = 0 | 1`
-    // note that this can be falsely proved so we have to put some constraints below
-    // to ensure it
-    let result = builder.add_virtual_bool_target_safe();
-    builder.add_simple_generator(NonzeroTestGenerator { to_test, result });
-
-    // Enforce the result through arithmetic
-    let neg = builder.not(result); // neg = 1 | 0
-    let denom = builder.add(to_test, neg.target); // denom = 1 | to_test
-    let div = builder.div(to_test, denom); // div = 0 | 1
-
-    builder.connect(result.target, div);
-
-    result
-}
 
 pub trait SubCircuit<PublicIndices> {
     fn pis(&self) -> usize;
@@ -159,11 +104,11 @@ where
     }
 }
 
-pub struct CompleteBranchCircuit<'a, F, C, const D: usize>
+pub struct CompleteBranchCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
-    pub summarized: summarized::BranchSubCircuit<'a, D>,
+    pub summarized: summarized::BranchSubCircuit,
     pub old: unpruned::BranchSubCircuit,
     pub new: unpruned::BranchSubCircuit,
     pub circuit: CircuitData<F, C, D>,
@@ -175,16 +120,13 @@ pub struct CompleteBranchTargets<const D: usize> {
     pub right_proof: ProofWithPublicInputsTarget<D>,
 }
 
-impl<'a, F, C, const D: usize> CompleteBranchCircuit<'a, F, C, D>
+impl<F, C, const D: usize> CompleteBranchCircuit<F, C, D>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
 {
     #[must_use]
-    pub fn from_leaf(
-        circuit_config: &CircuitConfig,
-        leaf: &'a CompleteLeafCircuit<F, C, D>,
-    ) -> Self {
+    pub fn from_leaf(circuit_config: &CircuitConfig, leaf: &CompleteLeafCircuit<F, C, D>) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
         let left_proof = builder.add_virtual_proof_with_pis(&leaf.circuit.common);
         let right_proof = builder.add_virtual_proof_with_pis(&leaf.circuit.common);
@@ -228,7 +170,7 @@ where
     #[must_use]
     pub fn from_branch(
         circuit_config: &CircuitConfig,
-        branch: &'a CompleteBranchCircuit<'a, F, C, D>,
+        branch: &CompleteBranchCircuit<F, C, D>,
     ) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
         let left_proof = builder.add_virtual_proof_with_pis(&branch.circuit.common);
