@@ -241,15 +241,15 @@ fn matmul_external12_circuit<
     temp[2] = builder.add_many_extension([state[2], state[2], state[6], state[10]]);
     temp[3] = builder.add_many_extension([state[3], state[3], state[7], state[11]]);
 
-    temp[4] = builder.add_many_extension([state[0], state[4], state[4], state[8]]);
-    temp[5] = builder.add_many_extension([state[1], state[5], state[5], state[9]]);
-    temp[6] = builder.add_many_extension([state[2], state[6], state[6], state[10]]);
-    temp[7] = builder.add_many_extension([state[3], state[7], state[7], state[11]]);
+    temp[4] = builder.add_many_extension([state[4], state[0], state[4], state[8]]);
+    temp[5] = builder.add_many_extension([state[5], state[1], state[5], state[9]]);
+    temp[6] = builder.add_many_extension([state[6], state[2], state[6], state[10]]);
+    temp[7] = builder.add_many_extension([state[7], state[3], state[7], state[11]]);
 
-    temp[8] = builder.add_many_extension([state[0], state[4], state[8], state[8]]);
-    temp[9] = builder.add_many_extension([state[1], state[5], state[9], state[9]]);
-    temp[10] = builder.add_many_extension([state[2], state[6], state[10], state[10]]);
-    temp[11] = builder.add_many_extension([state[3], state[7], state[11], state[11]]);
+    temp[8] = builder.add_many_extension([state[8], state[0], state[4], state[8]]);
+    temp[9] = builder.add_many_extension([state[9], state[1], state[5], state[9]]);
+    temp[10] = builder.add_many_extension([state[10], state[2], state[6], state[10]]);
+    temp[11] = builder.add_many_extension([state[11], state[3], state[7], state[11]]);
 
     *state = temp;
 }
@@ -263,10 +263,7 @@ fn matmul_internal12_circuit<
     state: &mut [ExtensionTarget<D>; STATE_SIZE],
 ) {
     assert_eq!(STATE_SIZE, 12);
-    let sum = builder.add_many_extension([
-        state[0], state[1], state[2], state[3], state[4], state[5], state[6], state[7], state[8],
-        state[9], state[10], state[11],
-    ]);
+    let sum = builder.add_many_extension(*state);
 
     for (i, val) in state.iter_mut().enumerate().take(STATE_SIZE) {
         let round_const = F::Extension::from_canonical_u64(<F as Poseidon2>::MAT_DIAG12_M_1[i] - 1);
