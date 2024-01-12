@@ -180,7 +180,6 @@ impl BranchSubCircuit {
             .map(|e| builder.mul(e, both_present.target));
 
         // Construct the forwarding "hash".
-
         let summary_hash: [_; NUM_HASH_OUT_ELTS] = l_hash
             .into_iter_fixed()
             .zip(r_hash)
