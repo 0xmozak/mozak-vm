@@ -9,7 +9,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::WIDTH;
 use serde::{Deserialize, Serialize};
 
-use crate::elf::{Code, Data, Program};
+use crate::elf::{Code, Data, Program, RuntimeArguments};
 use crate::instruction::{Args, DecodingError, Instruction};
 
 /// State of RISC-V VM
@@ -185,8 +185,11 @@ impl<F: RichField> State<F> {
             entry_point: pc,
             ..
         }: Program,
-        io_tape_private: &[u8],
-        io_tape_public: &[u8],
+        RuntimeArguments {
+            io_tape_private,
+            io_tape_public,
+            ..
+        }: RuntimeArguments,
     ) -> Self {
         Self {
             pc,
@@ -196,7 +199,7 @@ impl<F: RichField> State<F> {
             // in .mozak_global sections in the RISC-V binary.
             // Now, the CLI simply does unwrap_or_default() to either
             // use an iotape from file or default to an empty input.
-            io_tape: (io_tape_private, io_tape_public).into(),
+            io_tape: (io_tape_private.as_slice(), io_tape_public.as_slice()).into(),
             ..Default::default()
         }
     }
