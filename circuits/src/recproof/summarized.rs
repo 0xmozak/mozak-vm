@@ -181,7 +181,7 @@ impl BranchSubCircuit {
 
         // Construct the forwarding "hash".
 
-        let summary_hash: [_; 4] = l_hash
+        let summary_hash: [_; NUM_HASH_OUT_ELTS] = l_hash
             .into_iter_fixed()
             .zip(r_hash)
             .zip(hash_both)
@@ -451,7 +451,7 @@ mod test {
         let circuit_config = CircuitConfig::standard_recursion_config();
         let circuit = DummyLeafCircuit::new(&circuit_config);
 
-        let zero_hash = HashOut::from([F::ZERO; 4]);
+        let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
         let non_zero_hash = hash_str("Non-Zero Hash");
 
         let proof = circuit.prove(zero_hash)?;
@@ -469,7 +469,7 @@ mod test {
         let circuit_config = CircuitConfig::standard_recursion_config();
         let circuit = DummyLeafCircuit::new(&circuit_config);
 
-        let zero_hash = HashOut::from([F::ZERO; 4]);
+        let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
 
         let proof = circuit.prove_unsafe(true, zero_hash).unwrap();
         circuit.circuit.verify(proof).unwrap();
@@ -494,7 +494,7 @@ mod test {
         let branch_circuit_1 = DummyBranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
         let branch_circuit_2 = DummyBranchCircuit::from_branch(&circuit_config, &branch_circuit_1);
 
-        let zero_hash = HashOut::from([F::ZERO; 4]);
+        let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1");
         let non_zero_hash_2 = hash_str("Non-Zero Hash 2");
         let both_hash = hash_branch(&non_zero_hash_1, &non_zero_hash_2);
@@ -598,7 +598,7 @@ mod test {
         let leaf_circuit = DummyLeafCircuit::new(&circuit_config);
         let branch_circuit_1 = DummyBranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
 
-        let zero_hash = HashOut::from([F::ZERO; 4]);
+        let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
 
         let zero_proof = leaf_circuit.prove(zero_hash).unwrap();
         leaf_circuit.circuit.verify(zero_proof.clone()).unwrap();
@@ -618,7 +618,7 @@ mod test {
         let leaf_circuit = DummyLeafCircuit::new(&circuit_config);
         let branch_circuit_1 = DummyBranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
 
-        let zero_hash = HashOut::from([F::ZERO; 4]);
+        let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
 
         let zero_proof = leaf_circuit.prove(zero_hash).unwrap();
         leaf_circuit.circuit.verify(zero_proof.clone()).unwrap();
@@ -636,7 +636,7 @@ mod test {
         let leaf_circuit = DummyLeafCircuit::new(&circuit_config);
         let branch_circuit_1 = DummyBranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
 
-        let zero_hash = HashOut::from([F::ZERO; 4]);
+        let zero_hash = HashOut::from([F::ZERO; NUM_HASH_OUT_ELTS]);
         let non_zero_hash = hash_str("Non-Zero Hash");
 
         let zero_proof = leaf_circuit.prove(zero_hash).unwrap();
