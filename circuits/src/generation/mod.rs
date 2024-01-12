@@ -2,6 +2,7 @@
 //! appropriate values based on the [`Program`] and [`ExecutionRecord`].
 
 use std::fmt::Debug;
+
 pub mod bitshift;
 pub mod cpu;
 pub mod fullword_memory;
@@ -100,7 +101,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let mut poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
     #[allow(unused_mut)]
     #[allow(unused)]
-    let mut poseidon2_output_bytes_rows = generate_poseidon2_output_bytes_trace(&poseiden2_sponge_rows);
+    let mut poseidon2_output_bytes_rows =
+        generate_poseidon2_output_bytes_trace(&poseiden2_sponge_rows);
     #[allow(unused_mut)]
     #[allow(unused)]
     let mut poseidon2_rows = generate_poseidon2_trace(&record.executed);
@@ -164,63 +166,45 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let len = *lengths.iter().max().unwrap_or(&0);
 
     // TODO: carefully review the padding logic
-    #[cfg(feature = "enable_batch_fri")] {
+    #[cfg(feature = "enable_batch_fri")]
+    {
         cpu_rows = pad_trace_with_last_to_len(cpu_rows, len);
-    }
-    #[cfg(feature = "enable_batch_fri")]{
-     xor_rows = pad_trace_with_last_to_len(xor_rows, len);
-    }
-    #[cfg(feature = "enable_batch_fri")]{
-      shift_amount_rows = pad_trace_with_last_to_len(shift_amount_rows, len);}
-    #[cfg(feature = "enable_batch_fri")]
-    for row in 32..shift_amount_rows.len() {
-        shift_amount_rows[row].multiplicity = F::ZERO;
-    }
-    #[cfg(feature = "enable_batch_fri")]{
-     program_rows = pad_trace_with_default_to_len(program_rows, len);}
-    #[cfg(feature = "enable_batch_fri")]
-    { memory_init_rows = pad_trace_with_last_to_len(memory_init_rows, len); }
-    #[cfg(feature = "enable_batch_fri")]
-    { halfword_memory_rows = pad_trace_with_last_to_len(halfword_memory_rows, len); }
-    #[cfg(feature = "enable_batch_fri")]
-    { fullword_memory_rows = pad_trace_with_last_to_len(fullword_memory_rows, len); }
-    #[cfg(feature = "enable_batch_fri")]
-    { io_memory_private_rows = pad_trace_with_last_to_len(io_memory_private_rows, len); }
-    #[cfg(feature = "enable_batch_fri")]
-    { io_memory_public_rows = pad_trace_with_last_to_len(io_memory_public_rows, len); }
+        xor_rows = pad_trace_with_last_to_len(xor_rows, len);
+        shift_amount_rows = pad_trace_with_last_to_len(shift_amount_rows, len);
+        for row in 32..shift_amount_rows.len() {
+            shift_amount_rows[row].multiplicity = F::ZERO;
+        }
+        program_rows = pad_trace_with_default_to_len(program_rows, len);
+        memory_init_rows = pad_trace_with_last_to_len(memory_init_rows, len);
+        halfword_memory_rows = pad_trace_with_last_to_len(halfword_memory_rows, len);
+        fullword_memory_rows = pad_trace_with_last_to_len(fullword_memory_rows, len);
+        io_memory_private_rows = pad_trace_with_last_to_len(io_memory_private_rows, len);
+        io_memory_public_rows = pad_trace_with_last_to_len(io_memory_public_rows, len);
 
-    #[cfg(feature = "enable_poseidon_starks")]
-    #[cfg(feature = "enable_batch_fri")]
-    { poseiden2_sponge_rows = pad_trace_with_last_to_len(poseiden2_sponge_rows, len); }
-    #[cfg(feature = "enable_poseidon_starks")]
-    #[cfg(feature = "enable_batch_fri")]
-    { poseidon2_output_bytes_rows = pad_trace_with_last_to_len(poseidon2_output_bytes_rows, len); }
-    #[cfg(feature = "enable_poseidon_starks")]
-    #[cfg(feature = "enable_batch_fri")]
-    { poseidon2_rows = pad_trace_with_last_to_len(poseidon2_rows, len); }
+        #[cfg(feature = "enable_poseidon_starks")]
+        {
+            poseiden2_sponge_rows = pad_trace_with_last_to_len(poseiden2_sponge_rows, len);
+            poseidon2_output_bytes_rows =
+                pad_trace_with_last_to_len(poseidon2_output_bytes_rows, len);
+            poseidon2_rows = pad_trace_with_last_to_len(poseidon2_rows, len);
+        }
 
-    #[cfg(feature = "enable_batch_fri")]
-    { memory_rows = pad_trace_with_last_to_len(memory_rows, len); }
-    #[cfg(feature = "enable_batch_fri")]
-    { memory_zeroinit_rows = pad_trace_with_last_to_len(memory_zeroinit_rows, len); }
-    #[cfg(feature = "enable_batch_fri")]
-    { rangecheck_rows = pad_trace_with_default_to_len(rangecheck_rows, len); }
-    #[cfg(feature = "enable_batch_fri")]
-    { rangecheck_u8_rows = pad_trace_with_last_to_len(rangecheck_u8_rows, len); }
-    #[cfg(feature = "enable_batch_fri")]
-    for row in 256..rangecheck_u8_rows.len() {
-        rangecheck_u8_rows[row].multiplicity = F::ZERO;
+        memory_rows = pad_trace_with_last_to_len(memory_rows, len);
+        memory_zeroinit_rows = pad_trace_with_last_to_len(memory_zeroinit_rows, len);
+        rangecheck_rows = pad_trace_with_default_to_len(rangecheck_rows, len);
+        rangecheck_u8_rows = pad_trace_with_last_to_len(rangecheck_u8_rows, len);
+        for row in 256..rangecheck_u8_rows.len() {
+            rangecheck_u8_rows[row].multiplicity = F::ZERO;
+        }
+
+        #[cfg(feature = "enable_register_starks")]
+        {
+            register_init_rows = pad_trace_with_last_to_len(register_init_rows, len);
+            register_rows = pad_trace_with_last_to_len(register_rows, len);
+        }
+
+        cpu_permuted_inst_rows = pad_trace_with_last_to_len(cpu_permuted_inst_rows, len);
     }
-
-    #[cfg(feature = "enable_register_starks")]
-    #[cfg(feature = "enable_batch_fri")]
-    { register_init_rows = pad_trace_with_last_to_len(register_init_rows, len); }
-    #[cfg(feature = "enable_register_starks")]
-    #[cfg(feature = "enable_batch_fri")]
-    { register_rows = pad_trace_with_last_to_len(register_rows, len); }
-
-    #[cfg(feature = "enable_batch_fri")]
-    { cpu_permuted_inst_rows = pad_trace_with_last_to_len(cpu_permuted_inst_rows, len); }
 
     TableKindSetBuilder {
         cpu_stark: trace_to_poly_values(generate_cpu_trace_extended(
