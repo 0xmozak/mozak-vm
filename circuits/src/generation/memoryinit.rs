@@ -10,24 +10,19 @@ use crate::utils::pad_trace_with_default;
 pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
     let mut memory_inits: Vec<MemoryInit<F>> = chain! {
         ro_init(program),
-        program.mozak_ro_memory.iter().flat_map(|mozak_ro_memory| {
-            [
-                &mozak_ro_memory.io_tape_public.data,
-                &mozak_ro_memory.io_tape_private.data,
-            ]
-            .iter()
-            .flat_map(|mem| {
-                mem.iter().map(move |(&addr, &value)| MemoryInit {
-                    filter: F::ONE,
-                    is_writable: F::ZERO,
-                    element: MemElement {
-                        address: F::from_canonical_u32(addr),
-                        value: F::from_canonical_u8(value),
-                    },
-                })
+        program.mozak_ro_memory.iter().flat_map(|mozak_ro_memory|
+            chain!{
+                mozak_ro_memory.io_tape_public.data.iter(),
+                mozak_ro_memory.io_tape_private.data.iter(),
             })
-            .collect_vec()
-        })
+            .map(move |(&addr, &value)| MemoryInit {
+                filter: F::ONE,
+                is_writable: F::ZERO,
+                element: MemElement {
+                    address: F::from_canonical_u32(addr),
+                    value: F::from_canonical_u8(value),
+                },
+            }),
     }
     .collect();
 
