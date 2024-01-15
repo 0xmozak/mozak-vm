@@ -19,6 +19,7 @@ pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<Memory
         elf_memory_init(program),
         program.mozak_ro_memory.iter().flat_map(|mozak_ro_memory|
             chain!{
+                // TODO(Roman): once context variables will be in use, extend it here !
                 mozak_ro_memory.io_tape_public.data.iter(),
                 mozak_ro_memory.io_tape_private.data.iter(),
             })
