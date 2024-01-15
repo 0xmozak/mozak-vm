@@ -70,7 +70,7 @@ We will see how the bitshift table in our code base is constrained.
 
 The code below generates constraints for a RISC-V bitshift table. When a bitshift instruction is executed, the instruction and corresponding registers are constrained by refering to this table.
 
-`local_values` stands for the values of the current row, and `next_values` stands for values of the next row. \\( multiplier = 1 << amount \\).
+The table has an `amount` and a `multiplier` field. Specifically, \\( multiplier = 1 << amount \\). `local_values` stands for the values of the current row, and `next_values` stands for values of the next row. 
 The constraints logic are written with comments in the code. 
 
 ```rust
