@@ -2,7 +2,7 @@
 
 Install the mdBook through methods in the installation section of the mdBook [guide].
 
-To build and view the book locally, run
+To build and read the book locally, run
 
 ```
 mdbook build --open
