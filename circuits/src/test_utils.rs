@@ -9,9 +9,11 @@ use mozak_runner::vm::ExecutionRecord;
 use mozak_system::system::ecall;
 use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
 use plonky2::field::goldilocks_field::GoldilocksField;
+use plonky2::field::types::Field;
 use plonky2::fri::FriConfig;
-use plonky2::hash::hash_types::RichField;
-use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
+use plonky2::hash::hash_types::{HashOut, RichField};
+use plonky2::hash::poseidon2::Poseidon2Hash;
+use plonky2::plonk::config::{GenericConfig, Hasher, Poseidon2GoldilocksConfig};
 use plonky2::util::log2_ceil;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
@@ -30,6 +32,7 @@ use crate::generation::io_memory::{
 };
 use crate::generation::memory::generate_memory_trace;
 use crate::generation::memoryinit::generate_memory_init_trace;
+use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
 use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::generation::rangecheck::generate_rangecheck_trace;
@@ -141,6 +144,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
         let memory_trace = generate_memory_trace::<F>(
             &record.executed,
             &memory_init,
@@ -149,6 +153,7 @@ impl ProveAndVerify for RangeCheckStark<F, D> {
             &io_memory_private,
             &io_memory_public,
             &poseidon2_trace,
+            &poseidon2_output_bytes,
         );
         let trace_poly_values =
             trace_rows_to_poly_values(generate_rangecheck_trace(&cpu_trace, &memory_trace));
@@ -197,6 +202,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
         let io_memory_private = generate_io_memory_private_trace(&record.executed);
         let io_memory_public = generate_io_memory_public_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
         let trace_poly_values = trace_rows_to_poly_values(generate_memory_trace(
             &record.executed,
             &memory_init,
@@ -205,6 +211,7 @@ impl ProveAndVerify for MemoryStark<F, D> {
             &io_memory_private,
             &io_memory_public,
             &poseidon2_trace,
+            &poseidon2_output_bytes,
         ));
         let proof = prove_table::<F, C, S, D>(
             stark,
@@ -453,4 +460,15 @@ pub fn create_poseidon2_test(
     }
 
     simple_test_code(instructions, memory.as_slice(), &[])
+}
+
+pub fn hash_str(v: &str) -> HashOut<F> {
+    let v: Vec<_> = v.bytes().map(F::from_canonical_u8).collect();
+    Poseidon2Hash::hash_no_pad(&v)
+}
+
+pub fn hash_branch<F: RichField>(left: &HashOut<F>, right: &HashOut<F>) -> HashOut<F> {
+    let [l0, l1, l2, l3] = left.elements;
+    let [r0, r1, r2, r3] = right.elements;
+    Poseidon2Hash::hash_no_pad(&[l0, l1, l2, l3, r0, r1, r2, r3])
 }

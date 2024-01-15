@@ -10,6 +10,7 @@ use crate::memory_fullword::columns::FullWordMemory;
 use crate::memory_halfword::columns::HalfWordMemory;
 use crate::memory_io::columns::InputOutputMemory;
 use crate::memoryinit::columns::MemoryInit;
+use crate::poseidon2_output_bytes::columns::Poseidon2OutputBytes;
 use crate::poseidon2_sponge::columns::Poseidon2Sponge;
 
 /// Pad the memory trace to a power of 2.
@@ -89,6 +90,13 @@ pub fn transform_poseidon2_sponge<F: RichField>(
     sponge_data.iter().flat_map(Into::<Vec<Memory<F>>>::into)
 }
 
+#[cfg(feature = "enable_poseidon_starks")]
+pub fn transform_poseidon2_output_bytes<F: RichField>(
+    output_bytes: &[Poseidon2OutputBytes<F>],
+) -> impl Iterator<Item = Memory<F>> + '_ {
+    output_bytes.iter().flat_map(Into::<Vec<Memory<F>>>::into)
+}
+
 /// Generates Memory trace from a memory full-word table.
 ///
 /// These need to be further interleaved with runtime memory trace generated
@@ -135,6 +143,8 @@ pub fn generate_memory_trace<F: RichField>(
     io_memory_public_rows: &[InputOutputMemory<F>],
     #[allow(unused)] //
     poseidon2_sponge_rows: &[Poseidon2Sponge<F>],
+    #[allow(unused)] //
+    poseidon2_output_bytes_rows: &[Poseidon2OutputBytes<F>],
 ) -> Vec<Memory<F>> {
     // `merged_trace` is address sorted combination of static and
     // dynamic memory trace components of program (ELF and execution)
@@ -151,6 +161,10 @@ pub fn generate_memory_trace<F: RichField>(
 
     #[cfg(feature = "enable_poseidon_starks")]
     merged_trace.extend(transform_poseidon2_sponge(poseidon2_sponge_rows));
+    #[cfg(feature = "enable_poseidon_starks")]
+    merged_trace.extend(transform_poseidon2_output_bytes(
+        poseidon2_output_bytes_rows,
+    ));
 
     merged_trace.sort_by_key(key);
     let merged_trace = merged_trace
@@ -177,7 +191,7 @@ pub fn generate_memory_trace<F: RichField>(
                     && (current_mem.is_load.is_one() || current_mem.is_store.is_one())
                 {
                     mem_vec.push(Memory {
-                        clk: F::ONE,
+                        clk: F::ZERO,
                         is_store: F::ZERO,
                         is_load: F::ZERO,
                         is_init: F::ONE,
@@ -186,7 +200,7 @@ pub fn generate_memory_trace<F: RichField>(
                         ..current_mem
                     });
                     mem_vec.push(Memory {
-                        diff_clk: current_mem.clk - F::ONE,
+                        diff_clk: current_mem.clk,
                         ..current_mem
                     });
                 } else {
@@ -219,6 +233,7 @@ mod tests {
         generate_io_memory_private_trace, generate_io_memory_public_trace,
     };
     use crate::generation::memoryinit::generate_memory_init_trace;
+    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory::test_utils::memory_trace_test_case;
     use crate::test_utils::prep_table;
@@ -241,6 +256,7 @@ mod tests {
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
 
         let trace = super::generate_memory_trace::<GoldilocksField>(
             &record.executed,
@@ -250,27 +266,28 @@ mod tests {
             &io_memory_private_rows,
             &io_memory_public_rows,
             &poseidon2_trace,
+            &poseidon2_output_bytes,
         );
         assert_eq!(
             trace,
             prep_table(vec![
                 //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk
-                [       1,     100,   1,     0,      0,       1,        0,       0],  // Zero Init:   100
-                [       1,     100,   2,     1,      0,       0,      255,       1],  // Operations:  100
+                [       1,     100,   0,     0,      0,       1,        0,       0],  // Zero Init:   100
+                [       1,     100,   2,     1,      0,       0,      255,       2],  // Operations:  100
                 [       1,     100,   3,     0,      1,       0,      255,       1],  // Operations:  100
                 [       1,     100,   6,     1,      0,       0,       10,       3],  // Operations:  100
                 [       1,     100,   7,     0,      1,       0,       10,       1],  // Operations:  100
-                [       1,     101,   0,     0,      0,       1,        0,       0],  // Memory Init: 101
-                [       1,     102,   0,     0,      0,       1,        0,       0],  // Memory Init: 102
-                [       1,     103,   0,     0,      0,       1,        0,       0],  // Memory Init: 103
-                [       1,     200,   1,     0,      0,       1,        0,       0],  // Zero Init:   200
-                [       1,     200,   4,     1,      0,       0,       15,       3],  // Operations:  200
+                [       1,     101,   1,     0,      0,       1,        0,       0],  // Memory Init: 101
+                [       1,     102,   1,     0,      0,       1,        0,       0],  // Memory Init: 102
+                [       1,     103,   1,     0,      0,       1,        0,       0],  // Memory Init: 103
+                [       1,     200,   0,     0,      0,       1,        0,       0],  // Zero Init:   200
+                [       1,     200,   4,     1,      0,       0,       15,       4],  // Operations:  200
                 [       1,     200,   5,     0,      1,       0,       15,       1],  // Operations:  200
-                [       1,     201,   0,     0,      0,       1,        0,       0],  // Memory Init: 201
-                [       1,     202,   0,     0,      0,       1,        0,       0],  // Memory Init: 202
-                [       1,     203,   0,     0,      0,       1,        0,       0],  // Memory Init: 203
-                [       1,     203,   0,     0,      0,       0,        0,       0],  // Padding
-                [       1,     203,   0,     0,      0,       0,        0,       0],  // Padding
+                [       1,     201,   1,     0,      0,       1,        0,       0],  // Memory Init: 201
+                [       1,     202,   1,     0,      0,       1,        0,       0],  // Memory Init: 202
+                [       1,     203,   1,     0,      0,       1,        0,       0],  // Memory Init: 203
+                [       1,     203,   1,     0,      0,       0,        0,       0],  // Padding
+                [       1,     203,   1,     0,      0,       0,        0,       0],  // Padding
             ])
         );
     }
@@ -300,6 +317,7 @@ mod tests {
         let io_memory_private_rows = generate_io_memory_private_trace(&[]);
         let io_memory_public_rows = generate_io_memory_public_trace(&[]);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&[]);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
         let trace = super::generate_memory_trace::<F>(
             &[],
             &memory_init,
@@ -308,18 +326,19 @@ mod tests {
             &io_memory_private_rows,
             &io_memory_public_rows,
             &poseidon2_trace,
+            &poseidon2_output_bytes,
         );
 
         assert_eq!(trace, prep_table(vec![
             // is_writable   addr   clk  is_store, is_load, is_init  value  diff_clk
-            [        0,      100,   0,      0,        0,      1,         5,        0],
-            [        0,      101,   0,      0,        0,      1,         6,        0],
-            [        1,      200,   0,      0,        0,      1,         7,        0],
-            [        1,      201,   0,      0,        0,      1,         8,        0],
-            [        1,      201,   0,      0,        0,      0,         8,        0],
-            [        1,      201,   0,      0,        0,      0,         8,        0],
-            [        1,      201,   0,      0,        0,      0,         8,        0],
-            [        1,      201,   0,      0,        0,      0,         8,        0],
+            [        0,      100,   1,      0,        0,      1,         5,        0],
+            [        0,      101,   1,      0,        0,      1,         6,        0],
+            [        1,      200,   1,      0,        0,      1,         7,        0],
+            [        1,      201,   1,      0,        0,      1,         8,        0],
+            [        1,      201,   1,      0,        0,      0,         8,        0],
+            [        1,      201,   1,      0,        0,      0,         8,        0],
+            [        1,      201,   1,      0,        0,      0,         8,        0],
+            [        1,      201,   1,      0,        0,      0,         8,        0],
         ]));
     }
 }

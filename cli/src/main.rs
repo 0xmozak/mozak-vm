@@ -7,11 +7,12 @@ use std::time::Duration;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use clap_derive::Args;
 use clio::{Input, Output};
 use log::debug;
 use mozak_circuits::generation::memoryinit::generate_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
-use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
+use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs, TableKindArray};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::recursive_mozak_stark_circuit;
@@ -26,6 +27,7 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 use plonky2::plonk::circuit_data::CircuitConfig;
+use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
 use starky::config::StarkConfig;
 
@@ -41,47 +43,80 @@ struct Cli {
     debug: bool,
 }
 
+#[derive(Clone, Debug, Args)]
+pub struct RuntimeArguments {
+    /// Private input.
+    #[arg(long)]
+    io_tape_private: Option<Input>,
+    /// Public input.
+    #[arg(long)]
+    io_tape_public: Option<Input>,
+}
+
+#[derive(Clone, Debug, Args)]
+pub struct RunArgs {
+    elf: Input,
+    #[command(flatten)]
+    args: RuntimeArguments,
+}
+
+#[derive(Clone, Debug, Args)]
+pub struct ProveArgs {
+    elf: Input,
+    proof: Output,
+    #[command(flatten)]
+    args: RuntimeArguments,
+    recursive_proof: Option<Output>,
+}
+
+impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
+    fn from(value: RuntimeArguments) -> Self {
+        let mut io_tape_private = vec![];
+        let mut io_tape_public = vec![];
+
+        if let Some(mut t) = value.io_tape_private {
+            let bytes_read = t
+                .read_to_end(&mut io_tape_private)
+                .expect("Read should pass");
+            debug!("Read {bytes_read} of io_tape data.");
+        };
+
+        if let Some(mut t) = value.io_tape_public {
+            let bytes_read = t
+                .read_to_end(&mut io_tape_public)
+                .expect("Read should pass");
+            debug!("Read {bytes_read} of io_tape data.");
+        };
+
+        Self {
+            context_variables: vec![],
+            io_tape_private,
+            io_tape_public,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Subcommand)]
 enum Command {
     /// Decode a given ELF and prints the program
     Decode { elf: Input },
     /// Decode and execute a given ELF. Prints the final state of
     /// the registers
-    Run {
-        elf: Input,
-        io_tape_private: Input,
-        io_tape_public: Input,
-    },
+    Run(RunArgs),
     /// Prove and verify the execution of a given ELF
-    ProveAndVerify {
-        elf: Input,
-        io_tape_private: Input,
-        io_tape_public: Input,
-    },
+    ProveAndVerify(RunArgs),
     /// Prove the execution of given ELF and write proof to file.
-    Prove {
-        elf: Input,
-        io_tape_private: Input,
-        io_tape_public: Input,
-        proof: Output,
-        recursive_proof: Option<Output>,
-    },
+    Prove(ProveArgs),
     /// Verify the given proof from file.
     Verify { proof: Input },
+    /// Verify the given recursive proof from file.
+    VerifyRecursiveProof { proof: Input, degree_bits: Input },
     /// Compute the Program Rom Hash of the given ELF.
     ProgramRomHash { elf: Input },
     /// Compute the Memory Init Hash of the given ELF.
     MemoryInitHash { elf: Input },
     /// Bench the function with given parameters
     Bench(BenchArgs),
-}
-
-/// Read a sequence of bytes from IO
-fn load_tape(mut io_tape: impl Read) -> Result<Vec<u8>> {
-    let mut io_tape_bytes = Vec::new();
-    let bytes_read = io_tape.read_to_end(&mut io_tape_bytes)?;
-    debug!("Read {bytes_read} of io_tape data.");
-    Ok(io_tape_bytes)
 }
 
 fn load_program(mut elf: Input) -> Result<Program> {
@@ -105,47 +140,26 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             debug!("{program:?}");
         }
-        Command::Run {
-            elf,
-            io_tape_private,
-            io_tape_public,
-        } => {
+        Command::Run(RunArgs { elf, args }) => {
             let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(
-                program.clone(),
-                &load_tape(io_tape_private)?,
-                &load_tape(io_tape_public)?,
-            );
+            let state = State::<GoldilocksField>::new(program.clone(), args.into());
             let state = step(&program, state)?.last_state;
             debug!("{:?}", state.registers);
         }
-        Command::ProveAndVerify {
-            elf,
-            io_tape_private,
-            io_tape_public,
-        } => {
+        Command::ProveAndVerify(RunArgs { elf, args }) => {
             let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(
-                program.clone(),
-                &load_tape(io_tape_private)?,
-                &load_tape(io_tape_public)?,
-            );
+            let state = State::<GoldilocksField>::new(program.clone(), args.into());
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
         }
-        Command::Prove {
+        Command::Prove(ProveArgs {
             elf,
-            io_tape_private,
-            io_tape_public,
+            args,
             mut proof,
             recursive_proof,
-        } => {
+        }) => {
             let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(
-                program.clone(),
-                &load_tape(io_tape_private)?,
-                &load_tape(io_tape_public)?,
-            );
+            let state = State::<GoldilocksField>::new(program.clone(), args.into());
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
@@ -169,17 +183,25 @@ fn main() -> Result<()> {
             // Generate recursive proof
             if let Some(mut recursive_proof_output) = recursive_proof {
                 let circuit_config = CircuitConfig::standard_recursion_config();
-                let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
+                let degree_bits = all_proof.degree_bits(&config);
+                let recursive_circuit = recursive_mozak_stark_circuit::<F, C, D>(
                     &stark,
-                    &all_proof.degree_bits(&config),
+                    &degree_bits,
                     &circuit_config,
                     &config,
-                    12,
                 );
 
-                let recursive_all_proof = mozak_stark_circuit.prove(&all_proof)?;
+                let recursive_all_proof = recursive_circuit.prove(&all_proof)?;
                 let s = recursive_all_proof.to_bytes();
                 recursive_proof_output.write_all(&s)?;
+
+                // Generate the degree bits file
+                let mut degree_bits_output_path = recursive_proof_output.path().clone();
+                degree_bits_output_path.set_extension("db");
+                let mut degree_bits_output = degree_bits_output_path.create()?;
+
+                let serialized = serde_json::to_string(&degree_bits)?;
+                degree_bits_output.write_all(serialized.as_bytes())?;
             }
 
             debug!("proof generated successfully!");
@@ -190,7 +212,35 @@ fn main() -> Result<()> {
             proof.read_to_end(&mut buffer)?;
             let all_proof = AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(&buffer)?;
             verify_proof(&stark, all_proof, &config)?;
-            debug!("proof verified successfully!");
+            println!("proof verified successfully!");
+        }
+        Command::VerifyRecursiveProof {
+            mut proof,
+            mut degree_bits,
+        } => {
+            let mut degree_bits_buffer: Vec<u8> = vec![];
+            degree_bits.read_to_end(&mut degree_bits_buffer)?;
+            let degree_bits: TableKindArray<usize> = serde_json::from_slice(&degree_bits_buffer)?;
+
+            let stark = S::default();
+            let circuit_config = CircuitConfig::standard_recursion_config();
+            let recursive_circuit = recursive_mozak_stark_circuit::<F, C, D>(
+                &stark,
+                &degree_bits,
+                &circuit_config,
+                &config,
+            );
+
+            let mut buffer: Vec<u8> = vec![];
+            proof.read_to_end(&mut buffer)?;
+            let recursive_proof: ProofWithPublicInputs<F, C, D> =
+                ProofWithPublicInputs::from_bytes(buffer, &recursive_circuit.circuit.common)
+                    .map_err(|_| {
+                        anyhow::Error::msg("ProofWithPublicInputs deserialization failed.")
+                    })?;
+
+            recursive_circuit.circuit.verify(recursive_proof)?;
+            println!("Recursive proof verified successfully!");
         }
         Command::ProgramRomHash { elf } => {
             let program = load_program(elf)?;

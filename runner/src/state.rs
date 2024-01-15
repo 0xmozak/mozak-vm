@@ -9,7 +9,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::WIDTH;
 use serde::{Deserialize, Serialize};
 
-use crate::elf::{Code, Data, Program};
+use crate::elf::{Code, Data, Program, RuntimeArguments};
 use crate::instruction::{Args, DecodingError, Instruction};
 
 /// State of RISC-V VM
@@ -101,6 +101,7 @@ impl<F: RichField> From<Program> for State<F> {
             rw_memory: Data(rw_memory),
             ro_memory: Data(ro_memory),
             entry_point: pc,
+            mozak_ro_memory: _,
         }: Program,
     ) -> Self {
         Self {
@@ -171,6 +172,12 @@ pub struct Aux<F: RichField> {
 impl<F: RichField> State<F> {
     #[must_use]
     #[allow(clippy::similar_names)]
+    // TODO(Roman): currently this function uses old io-tape mechanism (based on
+    // `ecall`) once a new stark mechanics related to io-tapes will be added, this
+    // function will be used only for old-io-tapes API, and another function
+    // `new_mozak_elf` will be added specifically for new io-tapes mechanism
+    // NOTE: currently, both mozak-elf and vanilla elf will use this API since there
+    // is still no stark-backend that supports new-io-tapes
     pub fn new(
         Program {
             rw_memory: Data(rw_memory),
@@ -178,14 +185,21 @@ impl<F: RichField> State<F> {
             entry_point: pc,
             ..
         }: Program,
-        io_tape_private: &[u8],
-        io_tape_public: &[u8],
+        RuntimeArguments {
+            io_tape_private,
+            io_tape_public,
+            ..
+        }: RuntimeArguments,
     ) -> Self {
         Self {
             pc,
             rw_memory,
             ro_memory,
-            io_tape: (io_tape_private, io_tape_public).into(),
+            // TODO(bing): Handle the case where iotapes are
+            // in .mozak_global sections in the RISC-V binary.
+            // Now, the CLI simply does unwrap_or_default() to either
+            // use an iotape from file or default to an empty input.
+            io_tape: (io_tape_private.as_slice(), io_tape_public.as_slice()).into(),
             ..Default::default()
         }
     }

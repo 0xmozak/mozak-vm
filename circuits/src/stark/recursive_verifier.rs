@@ -7,7 +7,6 @@ use plonky2::field::types::Field;
 use plonky2::fri::witness_util::set_fri_proof_target;
 use plonky2::gates::exponentiation::ExponentiationGate;
 use plonky2::gates::gate::GateRef;
-use plonky2::gates::noop::NoopGate;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::iop::challenger::RecursiveChallenger;
@@ -18,7 +17,6 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
-use plonky2::util::log2_ceil;
 use plonky2::util::reducing::ReducingFactorTarget;
 use plonky2::with_context;
 use starky::config::StarkConfig;
@@ -132,7 +130,6 @@ pub fn recursive_mozak_stark_circuit<
     degree_bits: &TableKindArray<usize>,
     circuit_config: &CircuitConfig,
     inner_config: &StarkConfig,
-    min_degree_bits: usize,
 ) -> MozakStarkVerifierCircuit<F, C, D>
 where
     C::Hasher: AlgebraicHasher<F>, {
@@ -164,11 +161,6 @@ where
     }
 
     add_common_recursion_gates(&mut builder);
-
-    // Pad to the minimum degree.
-    while log2_ceil(builder.num_gates()) < min_degree_bits {
-        builder.add_gate(NoopGate, vec![]);
-    }
 
     let circuit = builder.build();
     MozakStarkVerifierCircuit { circuit, targets }
@@ -519,7 +511,6 @@ mod tests {
             &mozak_proof.degree_bits(&config),
             &circuit_config,
             &config,
-            12,
         );
 
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;

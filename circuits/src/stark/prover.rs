@@ -466,8 +466,9 @@ mod tests {
             },
             Poseidon2Test {
                 data: "😇 Mozak is knowledge arguments based technology".to_string(),
-                input_start_addr: 1024 + 32, /* make sure input and output do not overlap with
-                                              * earlier call */
+                input_start_addr: 1024 + 32,
+                // make sure input and output do not overlap with
+                // earlier call
                 output_start_addr: 2048,
             },
         ]);
