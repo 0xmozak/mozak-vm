@@ -3,10 +3,10 @@
 // FIXME: Remove this, when proptest's macro is updated not to trigger clippy.
 #![allow(clippy::ignored_unit_patterns)]
 
-use mimalloc::MiMalloc;
+// use mimalloc::MiMalloc;
 
-#[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
+// #[global_allocator]
+// static GLOBAL: MiMalloc = MiMalloc;
 
 pub mod decode;
 pub mod ecall;
