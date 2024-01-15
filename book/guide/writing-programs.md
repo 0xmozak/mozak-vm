@@ -68,7 +68,9 @@ guest::entry!(main);
 
 Here is the entire code of the fibonnaci program.
 
+```rust
 {{#include ../../examples/fibonacci/main.rs}}
+```
 
 Building the programs requires the [Rust nightly toolchain](https://www.rust-lang.org/tools/install). To Build the program, run
 
