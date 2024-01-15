@@ -156,6 +156,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
+    use mozak_runner::elf::RuntimeArguments;
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{simple_test_code_with_io_tape, u32_extra, u8_extra};
     use mozak_system::system::ecall;
@@ -184,8 +185,7 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 0),                        // A2 - size
             ],
-            &[],
-            &[],
+            RuntimeArguments::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -205,8 +205,7 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 0),                        // A2 - size
             ],
-            &[],
-            &[],
+            RuntimeArguments::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -226,8 +225,7 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 1),                        // A2 - size
             ],
-            &[content],
-            &[],
+            RuntimeArguments::new(vec![], vec![content], vec![], vec![]),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -247,8 +245,7 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 1),                        // A2 - size
             ],
-            &[],
-            &[content],
+            RuntimeArguments::new(vec![], vec![], vec![content], vec![]),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -296,8 +293,7 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 1),                        // A2 - size
             ],
-            &[content],
-            &[content],
+            RuntimeArguments::new(vec![], vec![content], vec![content], vec![]),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -367,8 +363,12 @@ mod tests {
                 (imm.wrapping_add(offset).wrapping_add(3), 0),
             ],
             &[],
-            &[content, content, content, content],
-            &[],
+            RuntimeArguments::new(
+                vec![],
+                vec![content, content, content, content],
+                vec![],
+                vec![],
+            ),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }

@@ -184,16 +184,16 @@ impl RuntimeArguments {
     /// # Panics
     #[must_use]
     pub fn new(
-        context_variables: &[u8],
-        io_tape_private: &[u8],
-        io_tape_public: &[u8],
-        transcript: &[u8],
+        context_variables: Vec<u8>,
+        io_tape_private: Vec<u8>,
+        io_tape_public: Vec<u8>,
+        transcript: Vec<u8>,
     ) -> Self {
         RuntimeArguments {
-            context_variables: context_variables.to_vec(),
-            io_tape_private: io_tape_private.to_vec(),
-            io_tape_public: io_tape_public.to_vec(),
-            transcript: transcript.to_vec(),
+            context_variables,
+            io_tape_private,
+            io_tape_public,
+            transcript,
         }
     }
 }
@@ -569,13 +569,11 @@ mod test {
     }
     #[test]
     fn test_empty_elf_with_empty_args() {
-        let mozak_ro_memory = Program::mozak_load_program(
-            mozak_examples::EMPTY_ELF,
-            &RuntimeArguments::new(&[], &[], &[], &[]),
-        )
-        .unwrap()
-        .mozak_ro_memory
-        .unwrap();
+        let mozak_ro_memory =
+            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments::default())
+                .unwrap()
+                .mozak_ro_memory
+                .unwrap();
         assert_eq!(mozak_ro_memory.context_variables.data.len(), 0);
         assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 0);
         assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 0);
@@ -584,7 +582,7 @@ mod test {
     fn test_empty_elf_with_args() {
         let mozak_ro_memory = Program::mozak_load_program(
             mozak_examples::EMPTY_ELF,
-            &RuntimeArguments::new(&[0], &[0, 1], &[0, 1, 2], &[]),
+            &RuntimeArguments::new(vec![0], vec![0, 1], vec![0, 1, 2], vec![]),
         )
         .unwrap()
         .mozak_ro_memory
@@ -597,13 +595,11 @@ mod test {
     #[test]
     fn test_empty_elf_check_assumed_values() {
         // This test ensures mozak-loader & mozak-linker-script is indeed aligned
-        let mozak_ro_memory = Program::mozak_load_program(
-            mozak_examples::EMPTY_ELF,
-            &RuntimeArguments::new(&[], &[], &[], &[]),
-        )
-        .unwrap()
-        .mozak_ro_memory
-        .unwrap();
+        let mozak_ro_memory =
+            Program::mozak_load_program(mozak_examples::EMPTY_ELF, &RuntimeArguments::default())
+                .unwrap()
+                .mozak_ro_memory
+                .unwrap();
         let test_mozak_ro_memory = MozakMemory::default();
         assert_eq!(mozak_ro_memory, test_mozak_ro_memory);
     }
