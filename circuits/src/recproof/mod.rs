@@ -124,12 +124,17 @@ impl<F, C, const D: usize> CompleteBranchCircuit<F, C, D>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
+    <C as GenericConfig<D>>::Hasher: AlgebraicHasher<F>,
 {
     #[must_use]
     pub fn from_leaf(circuit_config: &CircuitConfig, leaf: &CompleteLeafCircuit<F, C, D>) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-        let left_proof = builder.add_virtual_proof_with_pis(&leaf.circuit.common);
-        let right_proof = builder.add_virtual_proof_with_pis(&leaf.circuit.common);
+        let common = &leaf.circuit.common;
+        let verifier = builder.constant_verifier_data(&leaf.circuit.verifier_only);
+        let left_proof = builder.add_virtual_proof_with_pis(common);
+        let right_proof = builder.add_virtual_proof_with_pis(common);
+        builder.verify_proof::<C>(&left_proof, &verifier, common);
+        builder.verify_proof::<C>(&right_proof, &verifier, common);
 
         let (circuit, (summarized, (old, (new, ())))) = summarized::BranchSubCircuit::from_leaf(
             builder,
@@ -173,8 +178,12 @@ where
         branch: &CompleteBranchCircuit<F, C, D>,
     ) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-        let left_proof = builder.add_virtual_proof_with_pis(&branch.circuit.common);
-        let right_proof = builder.add_virtual_proof_with_pis(&branch.circuit.common);
+        let common = &branch.circuit.common;
+        let verifier = builder.constant_verifier_data(&branch.circuit.verifier_only);
+        let left_proof = builder.add_virtual_proof_with_pis(common);
+        let right_proof = builder.add_virtual_proof_with_pis(common);
+        builder.verify_proof::<C>(&left_proof, &verifier, common);
+        builder.verify_proof::<C>(&right_proof, &verifier, common);
 
         let (circuit, (summarized, (old, (new, ())))) = summarized::BranchSubCircuit::from_branch(
             builder,
