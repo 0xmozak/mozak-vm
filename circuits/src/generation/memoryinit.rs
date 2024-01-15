@@ -8,8 +8,15 @@ use crate::utils::pad_trace_with_default;
 /// Generates a memory init ROM trace
 #[must_use]
 pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
+    // TODO(Roman): we need to introduce in the following PR, new constraint that
+    // insures that we only have SINGLE memory init per each address. This way we
+    // force for memory-addresses not to overlap. For example: imaging someone
+    // compile ELF with modified version of mozak-linker-script, and then also make
+    // use of buggy mozak-loader code that does not insures non-overlapping nature
+    // of the elf-ro & mozak-ro memory regions -> this new constraint will insure
+    // that this situation will be properly handled
     let mut memory_inits: Vec<MemoryInit<F>> = chain! {
-        ro_init(program),
+        elf_memory_init(program),
         program.mozak_ro_memory.iter().flat_map(|mozak_ro_memory|
             chain!{
                 mozak_ro_memory.io_tape_public.data.iter(),
@@ -34,7 +41,7 @@ pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<Memory
 }
 
 #[must_use]
-pub fn ro_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
+pub fn elf_memory_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
     [(F::ZERO, &program.ro_memory), (F::ONE, &program.rw_memory)]
         .iter()
         .flat_map(|&(is_writable, mem)| {
@@ -51,8 +58,10 @@ pub fn ro_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
 }
 
 #[must_use]
-pub fn generate_memory_ro_init_trace_only<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
-    let mut memory_inits: Vec<MemoryInit<F>> = ro_init(program);
+pub fn generate_memory_elf_memory_init_trace_only<F: RichField>(
+    program: &Program,
+) -> Vec<MemoryInit<F>> {
+    let mut memory_inits: Vec<MemoryInit<F>> = elf_memory_init(program);
     memory_inits.sort_by_key(|init| init.element.address.to_canonical_u64());
 
     let trace = pad_trace_with_default(memory_inits);
