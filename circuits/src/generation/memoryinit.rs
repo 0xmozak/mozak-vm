@@ -15,7 +15,7 @@ pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<Memory
                 mozak_ro_memory.io_tape_public.data.iter(),
                 mozak_ro_memory.io_tape_private.data.iter(),
             })
-            .map(move |(&addr, &value)| MemoryInit {
+            .map(|(&addr, &value)| MemoryInit {
                 filter: F::ONE,
                 is_writable: F::ZERO,
                 element: MemElement {
