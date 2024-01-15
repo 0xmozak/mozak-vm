@@ -177,16 +177,23 @@ pub struct RuntimeArguments {
     pub context_variables: Vec<u8>,
     pub io_tape_private: Vec<u8>,
     pub io_tape_public: Vec<u8>,
+    pub transcript: Vec<u8>,
 }
 
 impl RuntimeArguments {
     /// # Panics
     #[must_use]
-    pub fn new(context_variables: &[u8], io_tape_private: &[u8], io_tape_public: &[u8]) -> Self {
+    pub fn new(
+        context_variables: &[u8],
+        io_tape_private: &[u8],
+        io_tape_public: &[u8],
+        transcript: &[u8],
+    ) -> Self {
         RuntimeArguments {
             context_variables: context_variables.to_vec(),
             io_tape_private: io_tape_private.to_vec(),
             io_tape_public: io_tape_public.to_vec(),
+            transcript: transcript.to_vec(),
         }
     }
 }
@@ -564,7 +571,7 @@ mod test {
     fn test_empty_elf_with_empty_args() {
         let mozak_ro_memory = Program::mozak_load_program(
             mozak_examples::EMPTY_ELF,
-            &RuntimeArguments::new(&[], &[], &[]),
+            &RuntimeArguments::new(&[], &[], &[], &[]),
         )
         .unwrap()
         .mozak_ro_memory
@@ -577,7 +584,7 @@ mod test {
     fn test_empty_elf_with_args() {
         let mozak_ro_memory = Program::mozak_load_program(
             mozak_examples::EMPTY_ELF,
-            &RuntimeArguments::new(&[0], &[0, 1], &[0, 1, 2]),
+            &RuntimeArguments::new(&[0], &[0, 1], &[0, 1, 2], &[]),
         )
         .unwrap()
         .mozak_ro_memory
@@ -592,7 +599,7 @@ mod test {
         // This test ensures mozak-loader & mozak-linker-script is indeed aligned
         let mozak_ro_memory = Program::mozak_load_program(
             mozak_examples::EMPTY_ELF,
-            &RuntimeArguments::new(&[], &[], &[]),
+            &RuntimeArguments::new(&[], &[], &[], &[]),
         )
         .unwrap()
         .mozak_ro_memory

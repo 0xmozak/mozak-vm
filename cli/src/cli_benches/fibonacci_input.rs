@@ -23,6 +23,7 @@ pub fn fibonacci_input(n: u32) -> Result<(), anyhow::Error> {
         context_variables: vec![],
         io_tape_private: n.to_le_bytes().to_vec(),
         io_tape_public: out.to_le_bytes().to_vec(),
+        transcript: vec![],
     });
     let record = step(&program, state).unwrap();
     prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
@@ -30,7 +31,7 @@ pub fn fibonacci_input(n: u32) -> Result<(), anyhow::Error> {
 
 pub fn fibonacci_input_mozak_elf(n: u32) -> Result<(), anyhow::Error> {
     let out = fibonacci(n);
-    let args = RuntimeArguments::new(&[], &n.to_le_bytes(), &out.to_le_bytes());
+    let args = RuntimeArguments::new(&[], &n.to_le_bytes(), &out.to_le_bytes(), &[]);
     let program = Program::mozak_load_program(mozak_examples::FIBONACCI_INPUT_ELF, &args).unwrap();
     // TODO(Roman): once new io-tapes stark will be implemented, this call needs to
     // be refactored since it uses old-io-tapes stark backend.
