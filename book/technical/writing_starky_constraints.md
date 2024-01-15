@@ -43,43 +43,25 @@ We will be using `vars` to get the current and next row of the evaluation frame,
 ///
 /// Leaves degree unchanged.
 #[track_caller]
-pub fn constraint_transition(&mut self, constraint: P) {
-    self.constraint(constraint * self.z_last);
-}
+pub fn constraint_transition(&mut self, constraint: P) 
 
 /// Add one constraint on all rows.
 #[track_caller]
-pub fn constraint(&mut self, constraint: P) {
-    #[cfg(feature = "std")]
-    if self.debug_api && !constraint.is_zeros() {
-        log::error!(
-            "ConstraintConsumer - DEBUG trace (non-zero-constraint): {}",
-            std::panic::Location::caller()
-        );
-    }
-    for (&alpha, acc) in self.alphas.iter().zip(&mut self.constraint_accs) {
-        *acc *= alpha;
-        *acc += constraint;
-    }
-}
+pub fn constraint(&mut self, constraint: P)
 
 /// Add one constraint, but first multiply it by a filter such that it will only apply to the
 /// first row of the trace.
 ///
 /// Increases degree by 1.
 #[track_caller]
-pub fn constraint_first_row(&mut self, constraint: P) {
-    self.constraint(constraint * self.lagrange_basis_first);
-}
+pub fn constraint_first_row(&mut self, constraint: P) 
 
 /// Add one constraint, but first multiply it by a filter such that it will only apply to the
 /// last row of the trace.
 ///
 /// Increases degree by 1.
 #[track_caller]
-pub fn constraint_last_row(&mut self, constraint: P) {
-    self.constraint(constraint * self.lagrange_basis_last);
-}
+pub fn constraint_last_row(&mut self, constraint: P) 
 ```
 
 ## Bitshift table Example
