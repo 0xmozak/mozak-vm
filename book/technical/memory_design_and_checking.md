@@ -26,7 +26,7 @@ Here are what the columns stands for
 - DIFF_ADDR_INV: Inverse of DIFF_ADDR. This is useful for further constraints.
 - DIFF_CLK: How much the clock of this row is different from the previous row.
 
-At trace generation phase, We sorted the memory access trace based first on ADDR then on CLK.
+At trace generation phase, We sorted the memory access trace based first on ADDR then on CLK. A Cross Table Lookup argument is used to ensure that the memory trace is the same before and after the reordering.
 
 Like All STARK constraints. We have initialization constraints that constrain the initial values in the cells and transition constraints that constrain
 how the values in the cells should be updated.
