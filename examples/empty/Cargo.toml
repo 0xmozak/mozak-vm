@@ -1,11 +1,11 @@
 [package]
 edition = "2021"
-name = "bss-tester"
+name = "empty"
 version = "0.1.0"
 
 [dependencies]
 guest = { path = "../../guest", default-features = false }
 
 [[bin]]
-name = "bss-tester"
+name = "empty"
 path = "main.rs"
