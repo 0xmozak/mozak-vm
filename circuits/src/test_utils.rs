@@ -42,7 +42,7 @@ use crate::generation::xor::generate_xor_trace;
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
-use crate::memory_io::stark::InputOuputMemoryStark;
+use crate::memory_io::stark::InputOutputMemoryStark;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
@@ -265,9 +265,9 @@ impl ProveAndVerify for FullWordMemoryStark<F, D> {
     }
 }
 
-impl ProveAndVerify for InputOuputMemoryStark<F, D> {
+impl ProveAndVerify for InputOutputMemoryStark<F, D> {
     fn prove_and_verify(_program: &Program, record: &ExecutionRecord<F>) -> Result<()> {
-        type S = InputOuputMemoryStark<F, D>;
+        type S = InputOutputMemoryStark<F, D>;
         let config = fast_test_config();
 
         let stark = S::default();
