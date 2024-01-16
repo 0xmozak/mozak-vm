@@ -11,3 +11,6 @@ crate-type = ["cdylib"]
 [dependencies]
 wasm-bindgen = "0.2"
 mozak-runner = { path = "../runner"}
+mozak-circuits = { path = "../circuits", features = ["test"] }
+starky = { git = "https://github.com/0xmozak/plonky2.git", features = ["std"]}
+console_error_panic_hook = "0.1.7"
