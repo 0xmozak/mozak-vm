@@ -157,7 +157,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOuputMem
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{simple_test_code_with_io_tape, u32_extra, u8_extra};
+    use mozak_runner::test_utils::{u32_extra, u8_extra};
+    use mozak_runner::util::execute_code_with_io_tape;
     use mozak_system::system::ecall;
     use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2};
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
@@ -170,7 +171,7 @@ mod tests {
     use crate::test_utils::{ProveAndVerify, D, F};
 
     pub fn prove_io_read_private_zero_size<Stark: ProveAndVerify>(offset: u32, imm: u32) {
-        let (program, record) = simple_test_code_with_io_tape(
+        let (program, record) = execute_code_with_io_tape(
             [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
@@ -191,7 +192,7 @@ mod tests {
     }
 
     pub fn prove_io_read_public_zero_size<Stark: ProveAndVerify>(offset: u32, imm: u32) {
-        let (program, record) = simple_test_code_with_io_tape(
+        let (program, record) = execute_code_with_io_tape(
             [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
@@ -212,7 +213,7 @@ mod tests {
     }
 
     pub fn prove_io_read_private<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
-        let (program, record) = simple_test_code_with_io_tape(
+        let (program, record) = execute_code_with_io_tape(
             [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
@@ -233,7 +234,7 @@ mod tests {
     }
 
     pub fn prove_io_read_public<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
-        let (program, record) = simple_test_code_with_io_tape(
+        let (program, record) = execute_code_with_io_tape(
             [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
@@ -254,7 +255,7 @@ mod tests {
     }
 
     pub fn prove_io_read<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
-        let (program, record) = simple_test_code_with_io_tape(
+        let (program, record) = execute_code_with_io_tape(
             [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
@@ -303,7 +304,7 @@ mod tests {
     }
 
     pub fn prove_io_read_explicit<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
-        let (program, record) = simple_test_code_with_io_tape(
+        let (program, record) = execute_code_with_io_tape(
             [
                 Instruction {
                     op: Op::ADD,

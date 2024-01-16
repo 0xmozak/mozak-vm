@@ -23,6 +23,7 @@ mozak-examples = { path = "../examples-builder", features = ["empty"] }
 mozak-system = { path = "../system" }
 plonky2 = "0.1"
 serde = { version = "1.0", features = ["derive"] }
+proptest = {version = "1.4", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
@@ -38,4 +39,4 @@ name = "fibonacci"
 [features]
 default = ["std", "im/serde"]
 std = ["anyhow/std"]
-test = ["env_logger"]
+test = ["env_logger", "proptest"]

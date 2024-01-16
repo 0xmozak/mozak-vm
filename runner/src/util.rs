@@ -93,7 +93,7 @@ pub fn execute_code(
 
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
-pub fn simple_test_code_with_io_tape(
+pub fn execute_code_with_io_tape(
     code: impl IntoIterator<Item = Instruction>,
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],

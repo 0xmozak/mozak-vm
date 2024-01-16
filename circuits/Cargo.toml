@@ -20,10 +20,10 @@ log = "0.4"
 mozak-circuits-derive = { path = "./derive" }
 mozak-runner = { path = "../runner" }
 mozak-system = { path = "../system" }
-plonky2 = "0.1"
+plonky2 = {version = "0.1", default-features = false}
 rayon = "1.8"
 serde = { version = "1.0", features = ["derive"] }
-starky = "0.1"
+starky = {version = "0.1", default-features = false }
 thiserror = "1.0"
 tt-call = "1.0"
 
@@ -40,6 +40,7 @@ proptest = "1.4"
 enable_poseidon_starks = []
 enable_register_starks = []
 test = []
+timing = ["plonky2/timing", "starky/timing"]
 
 [[test]]
 name = "riscv_tests"
