@@ -10,6 +10,19 @@ pub mod ecall {
     pub const IO_READ_TRANSCRIPT: u32 = 5;
     /// Syscall to output the VM trace log at `clk`. Useful for debugging.
     pub const VM_TRACE_LOG: u32 = 6;
+
+    pub fn log<'a>(raw_ecall: u32) -> &'a str {
+        match raw_ecall {
+            HALT => "halt",
+            PANIC => "panic",
+            IO_READ_PUBLIC => "ioread public tape",
+            POSEIDON2 => "poseidon2",
+            IO_READ_PRIVATE => "ioread private tape",
+            IO_READ_TRANSCRIPT => "ioread transcript",
+            VM_TRACE_LOG => "vm trace log",
+            _ => "",
+        }
+    }
 }
 
 pub mod reg_abi {
