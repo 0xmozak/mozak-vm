@@ -43,7 +43,7 @@ We will be using `vars` to get the current and next row of the evaluation frame,
 ///
 /// Leaves degree unchanged.
 #[track_caller]
-pub fn constraint_transition(&mut self, constraint: P) 
+pub fn constraint_transition(&mut self, constraint: P)
 
 /// Add one constraint on all rows.
 #[track_caller]
@@ -54,24 +54,24 @@ pub fn constraint(&mut self, constraint: P)
 ///
 /// Increases degree by 1.
 #[track_caller]
-pub fn constraint_first_row(&mut self, constraint: P) 
+pub fn constraint_first_row(&mut self, constraint: P)
 
 /// Add one constraint, but first multiply it by a filter such that it will only apply to the
 /// last row of the trace.
 ///
 /// Increases degree by 1.
 #[track_caller]
-pub fn constraint_last_row(&mut self, constraint: P) 
+pub fn constraint_last_row(&mut self, constraint: P)
 ```
 
 ## Bitshift table Example
 
-We will see how the bitshift table in our code base is constrained. 
+We will see how the bitshift table in our code base is constrained.
 
 The code below generates constraints for a RISC-V bitshift table. When a bitshift instruction is executed, the instruction and corresponding registers are constrained by refering to this table.
 
-The table has an `amount` and a `multiplier` field. Specifically, \\( multiplier = 1 << amount \\). `local_values` stands for the values of the current row, and `next_values` stands for values of the next row. 
-The constraints logic are written with comments in the code. 
+The table has an `amount` and a `multiplier` field. Specifically, \\( multiplier = 1 << amount \\). `local_values` stands for the values of the current row, and `next_values` stands for values of the next row.
+The constraints logic are written with comments in the code.
 
 ```rust
 {{#include ../../circuits/src/bitshift/stark.rs:40:82}}

@@ -1,6 +1,6 @@
 # Writing Programs
 
-[RISC-V] is a general purpose instruction set architecture. As a RISC-V Zero-Knowledge Virtual Machine, 
+[RISC-V] is a general purpose instruction set architecture. As a RISC-V Zero-Knowledge Virtual Machine,
 Mozak-VM aims to be able to prove and verify arbitrary programs that are compiled to RISC-V regardless of whether the program
 was written in Rust, C++, or another language.
 
@@ -12,7 +12,7 @@ If you are not sure what these instructions mentioned above include, checkout [a
 ## Executable and Linkable Format
 
 At a high level, programs are compiled to RISC-V [ELFs], that are executed and proven independently. The execution generates a computation trace
-and then proven with the Zero-Knowledge Proof System. 
+and then proven with the Zero-Knowledge Proof System.
 
 <!-- If you are interested in learning more about this check out architecture section (not written yet) -->
 

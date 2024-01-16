@@ -21,7 +21,7 @@ Here are what the columns stands for
 - CLK: A clock counter of that starts at 0 and is increased by 1 at each step of the execution.
 - OP: Operand that is either a Store Byte (SB) or a Load Byte (LB). At this stage, all forms of memory
   access, such as Load Full Word and Load Half Word, are converted to a single type of memory access.
-- VALUE: The value get or used by the operand. 
+- VALUE: The value get or used by the operand.
 - DIFF_ADDR: How much the addree of this row is different from the previous row.
 - DIFF_ADDR_INV: Inverse of DIFF_ADDR. This is useful for further constraints.
 - DIFF_CLK: How much the clock of this row is different from the previous row.
@@ -66,10 +66,9 @@ a new address and vice versa.
 2. If not `new_addr`, `DIFF_CLK (next row) <= CLK (next row) - CLK (this row)`. If we are at the same address, the clock difference
    between rows must be less or equal to the clock difference.
 3. If `new_address`, `DIFF_CLK == 0`. `DIFF_CLK` is set to 0 at new address.
-4. `DIFF_ADDR (next row) <= ADDR (next row) - ADDR (this row)` The address difference between rows is always less or equal to the difference 
+4. `DIFF_ADDR (next row) <= ADDR (next row) - ADDR (this row)` The address difference between rows is always less or equal to the difference
     of address between rows.
 5. If `OP (next row) == LB`, `VALUE (next row) == VALUE (this row)`. Load should not change values.
-6. `(new_addr - 1) * DIFF_ADDR == 0` and `(new_addr - 1) * DIFF_ADDR_INV == 0`. This constrains the relationship among `new_addr`, `DIFF_ADDR` and 
+6. `(new_addr - 1) * DIFF_ADDR == 0` and `(new_addr - 1) * DIFF_ADDR_INV == 0`. This constrains the relationship among `new_addr`, `DIFF_ADDR` and
    `DIFF_ADDR_INV`
 7. `(IS_EXECUTED (this row) - IS_EXECUTED (next row)) * IS_EXECUTED (next row) == 0`. Constraints on the padding rows of the trace.
-
