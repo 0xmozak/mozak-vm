@@ -110,7 +110,7 @@ pub fn syscall_transcript_read(buf_ptr: *mut u8, buf_len: usize) {
     unsafe {
         core::arch::asm!(
         "ecall",
-        in ("a0") ecall::TRANSCRIPT_READ,
+        in ("a0") ecall::IO_READ_TRANSCRIPT,
         in ("a1") buf_ptr,
         in ("a2") buf_len,
         );
