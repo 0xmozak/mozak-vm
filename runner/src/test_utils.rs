@@ -68,8 +68,8 @@ pub fn simple_test_code_with_ro_memory(
 
     let state0 = State::new(program.clone(), crate::elf::RuntimeArguments {
         context_variables: vec![],
-        io_tape_private: io_tape_private.to_vec(),
-        io_tape_public: io_tape_public.to_vec(),
+        io_tape_private,
+        io_tape_public,
         transcript: vec![],
     });
 
