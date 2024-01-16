@@ -2,7 +2,7 @@
 
 MEMBERS=$(taplo get -f examples/Cargo.toml 'workspace.members')
 # TODO(bing): add debug
-PROFILES=("release")
+PROFILES=("debug")
 
 failed=""
 skipped=""

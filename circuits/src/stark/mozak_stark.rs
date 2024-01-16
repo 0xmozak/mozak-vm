@@ -14,7 +14,7 @@ use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
-use crate::memory_io::stark::InputOuputMemoryStark;
+use crate::memory_io::stark::InputOutputMemoryStark;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::poseidon2::stark::Poseidon2_12Stark;
@@ -37,7 +37,7 @@ use crate::{
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
-    12 + cfg!(feature = "enable_register_starks") as usize
+    13 + cfg!(feature = "enable_register_starks") as usize
         + cfg!(feature = "enable_poseidon_starks") as usize * 3
 };
 
@@ -75,9 +75,11 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     #[StarkSet(stark_kind = "FullWordMemory")]
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
     #[StarkSet(stark_kind = "IoMemoryPrivate")]
-    pub io_memory_private_stark: InputOuputMemoryStark<F, D>,
+    pub io_memory_private_stark: InputOutputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "IoMemoryPublic")]
-    pub io_memory_public_stark: InputOuputMemoryStark<F, D>,
+    pub io_memory_public_stark: InputOutputMemoryStark<F, D>,
+    #[StarkSet(stark_kind = "IoTranscript")]
+    pub io_transcript_stark: InputOutputMemoryStark<F, D>,
     #[cfg_attr(
         feature = "enable_register_starks",
         StarkSet(stark_kind = "RegisterInit")
@@ -336,8 +338,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             fullword_memory_stark: FullWordMemoryStark::default(),
             register_init_stark: RegisterInitStark::default(),
             register_stark: RegisterStark::default(),
-            io_memory_private_stark: InputOuputMemoryStark::default(),
-            io_memory_public_stark: InputOuputMemoryStark::default(),
+            io_memory_private_stark: InputOutputMemoryStark::default(),
+            io_memory_public_stark: InputOutputMemoryStark::default(),
+            io_transcript_stark: InputOutputMemoryStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
@@ -356,6 +359,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 RegisterRegInitTable::lookups(),
                 IoMemoryPrivateCpuTable::lookups(),
                 IoMemoryPublicCpuTable::lookups(),
+                IoTranscriptCpuTable::lookups(),
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2SpongeCpuTable::lookups(),
                 #[cfg(feature = "enable_poseidon_starks")]
@@ -426,6 +430,7 @@ table_impl!(RegisterInitTable, TableKind::RegisterInit);
 table_impl!(RegisterTable, TableKind::Register);
 table_impl!(IoMemoryPrivateTable, TableKind::IoMemoryPrivate);
 table_impl!(IoMemoryPublicTable, TableKind::IoMemoryPublic);
+table_impl!(IoTranscriptTable, TableKind::IoTranscript);
 #[cfg(feature = "enable_poseidon_starks")]
 table_impl!(Poseidon2SpongeTable, TableKind::Poseidon2Sponge);
 #[cfg(feature = "enable_poseidon_starks")]
@@ -708,6 +713,23 @@ impl<F: Field> Lookups<F> for IoMemoryPublicCpuTable<F> {
                 cpu::columns::filter_for_io_memory_public(),
             )],
             IoMemoryPublicTable::new(
+                memory_io::columns::data_for_cpu(),
+                memory_io::columns::filter_for_cpu(),
+            ),
+        )
+    }
+}
+
+pub struct IoTranscriptCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for IoTranscriptCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_io_transcript(),
+                cpu::columns::filter_for_io_transcript(),
+            )],
+            IoTranscriptTable::new(
                 memory_io::columns::data_for_cpu(),
                 memory_io::columns::filter_for_cpu(),
             ),

@@ -12,6 +12,22 @@ use serde::{Deserialize, Serialize};
 use crate::elf::{Code, Data, Program, RuntimeArguments};
 use crate::instruction::{Args, DecodingError, Instruction};
 
+pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
+    let remaining_len = buf.len() - *index;
+    let limit = num_bytes.min(remaining_len);
+    let read = buf[*index..(*index + limit)].to_vec();
+    log::trace!(
+        "ECALL Public IO_READ 0x{:0x}, {:?}, data.len: {:?}, data: {:?}",
+        index,
+        remaining_len,
+        buf.len(),
+        read
+    );
+
+    *index += limit;
+    read
+}
+
 /// State of RISC-V VM
 ///
 /// Note: In general clone is not necessarily what you want, but in our case we
@@ -42,32 +58,33 @@ pub struct State<F: RichField> {
     pub rw_memory: HashMap<u32, u8>,
     pub ro_memory: HashMap<u32, u8>,
     pub io_tape: IoTape,
+    pub transcript: IoTapeData,
     _phantom: PhantomData<F>,
 }
 
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deref, Serialize, Deserialize)]
 pub struct IoTapeData {
     #[deref]
-    pub data: Rc<Vec<u8>>,
+    pub data: Rc<[u8]>,
     pub read_index: usize,
 }
 
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deref, Serialize, Deserialize)]
 pub struct IoTape {
     #[deref]
-    private: IoTapeData,
-    public: IoTapeData,
+    pub private: IoTapeData,
+    pub public: IoTapeData,
 }
 
-impl From<(&[u8], &[u8])> for IoTape {
-    fn from(data: (&[u8], &[u8])) -> Self {
+impl From<(Vec<u8>, Vec<u8>)> for IoTape {
+    fn from(data: (Vec<u8>, Vec<u8>)) -> Self {
         Self {
             private: IoTapeData {
-                data: Rc::new(data.0.to_vec()),
+                data: Rc::from(data.0),
                 read_index: 0,
             },
             public: IoTapeData {
-                data: Rc::new(data.1.to_vec()),
+                data: Rc::from(data.1),
                 read_index: 0,
             },
         }
@@ -87,7 +104,11 @@ impl<F: RichField> Default for State<F> {
             pc: Default::default(),
             rw_memory: HashMap::default(),
             ro_memory: HashMap::default(),
-            io_tape: IoTape::default(),
+            io_tape: IoTape::from((vec![], vec![])),
+            transcript: IoTapeData {
+                data: [].into(),
+                read_index: 0,
+            },
             _phantom: PhantomData,
         }
     }
@@ -123,7 +144,7 @@ pub struct MemEntry {
     pub raw_value: u32,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Default)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Display)]
 #[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 #[repr(u8)]
 pub enum IoOpcode {
@@ -131,8 +152,10 @@ pub enum IoOpcode {
     None,
     StorePrivate,
     StorePublic,
+    StoreTranscript,
 }
-#[derive(Debug, Clone, Default)]
+
+#[derive(Debug, Default, Clone)]
 pub struct IoEntry {
     pub addr: u32,
     pub op: IoOpcode,
@@ -199,7 +222,7 @@ impl<F: RichField> State<F> {
             // in .mozak_global sections in the RISC-V binary.
             // Now, the CLI simply does unwrap_or_default() to either
             // use an iotape from file or default to an empty input.
-            io_tape: (io_tape_private.as_slice(), io_tape_public.as_slice()).into(),
+            io_tape: (io_tape_private, io_tape_public).into(),
             ..Default::default()
         }
     }
@@ -420,10 +443,9 @@ mod test {
 
     #[test]
     fn test_io_tape_serialization() {
-        let io_tape = IoTape::from((
-            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..],
-            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..],
-        ));
+        let io_tape = IoTape::from((vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10], vec![
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        ]));
         let serialized = serde_json::to_string(&io_tape).unwrap();
         let deserialized: IoTape = serde_json::from_str(&serialized).unwrap();
         assert_eq!(io_tape.private.read_index, deserialized.private.read_index);

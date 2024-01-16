@@ -7,8 +7,9 @@ pub mod ecall {
     pub const IO_READ_PRIVATE: u32 = 2;
     pub const POSEIDON2: u32 = 3;
     pub const IO_READ_PUBLIC: u32 = 4;
+    pub const IO_READ_TRANSCRIPT: u32 = 5;
     /// Syscall to output the VM trace log at `clk`. Useful for debugging.
-    pub const VM_TRACE_LOG: u32 = 5;
+    pub const VM_TRACE_LOG: u32 = 6;
 }
 
 pub mod reg_abi {
@@ -92,6 +93,24 @@ pub fn syscall_ioread_public(buf_ptr: *mut u8, buf_len: usize) {
         core::arch::asm!(
         "ecall",
         in ("a0") ecall::IO_READ_PUBLIC,
+        in ("a1") buf_ptr,
+        in ("a2") buf_len,
+        );
+    }
+    #[cfg(not(target_os = "zkvm"))]
+    {
+        let _ = buf_ptr;
+        let _ = buf_len;
+        unimplemented!()
+    }
+}
+
+pub fn syscall_transcript_read(buf_ptr: *mut u8, buf_len: usize) {
+    #[cfg(target_os = "zkvm")]
+    unsafe {
+        core::arch::asm!(
+        "ecall",
+        in ("a0") ecall::TRANSCRIPT_READ,
         in ("a1") buf_ptr,
         in ("a2") buf_len,
         );
