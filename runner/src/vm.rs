@@ -311,9 +311,8 @@ mod tests {
     use super::*;
     use crate::elf::Program;
     use crate::instruction::{Args, Instruction, Op};
-    use crate::test_utils::{
-        i16_extra, i32_extra, i8_extra, reg, state_before_final, u16_extra, u32_extra, u8_extra,
-    };
+    use crate::test_utils::{i16_extra, i32_extra, i8_extra, reg, u16_extra, u32_extra, u8_extra};
+    use crate::util::state_before_final;
     use crate::vm::step;
 
     fn simple_test_code(
@@ -321,7 +320,7 @@ mod tests {
         mem: &[(u32, u8)],
         regs: &[(u8, u32)],
     ) -> ExecutionRecord<GoldilocksField> {
-        crate::test_utils::simple_test_code(code, mem, regs).1
+        crate::util::execute_code(code, mem, regs).1
     }
 
     fn divu_with_imm(rd: u8, rs1: u8, rs1_value: u32, imm: u32) {
