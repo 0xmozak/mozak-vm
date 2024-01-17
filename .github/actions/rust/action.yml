@@ -37,7 +37,7 @@ runs:
       uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ steps.get-info.outputs.rust-version }}
-        components: rustfmt, clippy
+        components: rustfmt, clippy, rust-analyzer
 
     - name: Install nextest
       if: ${{ steps.toolchain-cache-restore.outputs.cache-hit != 'true' }}
