@@ -39,7 +39,8 @@ pub trait NumberOfColumns {
 #[doc(hidden)]
 pub struct ColumnViewImplHider<T>(PhantomData<T>);
 
-// TODO(Matthias): this could probably be a custom derive macro?
+// Note: this could also be a custom derive macro, but clippy can't look 'into'
+// procedural macros.  So we leave it as is.
 /// Functions to handle and seamlessly convert between `SubTableView` with named
 /// fields and default `[T, ColumnSize]` column representations.
 ///

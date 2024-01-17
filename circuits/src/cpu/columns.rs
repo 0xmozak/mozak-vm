@@ -418,8 +418,6 @@ impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
 
     pub fn ops_that_shift(self) -> T { self.sll + self.srl + self.sra }
 
-    // TODO: Add other mem ops like SH, SW, LB, LW, LH, LHU as we implement the
-    // constraints.
     pub fn byte_mem_ops(self) -> T { self.sb + self.lb }
 
     pub fn halfword_mem_ops(self) -> T { self.sh + self.lh }
