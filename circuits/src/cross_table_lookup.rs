@@ -234,9 +234,12 @@ impl<'a, F: RichField + Extendable<D>, const D: usize>
         cross_table_lookups: &'a [CrossTableLookup<F>],
         ctl_challenges: &'a GrandProductChallengeSet<F>,
     ) -> TableKindArray<Vec<Self>> {
-        let mut ctl_zs = proofs
-            .each_ref()
-            .map(|p| izip!(&p.proof.openings.ctl_zs, &p.proof.openings.ctl_zs_next));
+        let mut ctl_zs = proofs.each_ref().map(|p| {
+            izip!(
+                &p.proof.openings.as_ref().unwrap().ctl_zs,
+                &p.proof.openings.as_ref().unwrap().ctl_zs_next
+            )
+        });
 
         let mut ctl_vars_per_table = all_kind!(|_kind| vec![]);
         let ctl_chain = cross_table_lookups.iter().flat_map(

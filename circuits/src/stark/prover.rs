@@ -233,49 +233,16 @@ where
     let ctl_zs_cap = ctl_zs_commitment.merkle_tree.cap.clone();
     challenger.observe_cap(&ctl_zs_cap);
 
-    let alphas = challenger.get_n_challenges(config.num_challenges);
-    let quotient_polys = timed!(
+    let quotient_commitment = compute_quotient_batch_poly(
+        stark,
+        config,
+        degree,
+        &ctl_zs_commitment,
+        trace_commitment,
+        public_inputs,
+        ctl_data,
+        challenger,
         timing,
-        format!("{stark}: compute quotient polynomial").as_str(),
-        compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
-            stark,
-            trace_commitment,
-            &ctl_zs_commitment,
-            public_inputs,
-            ctl_data,
-            &alphas,
-            degree_bits,
-            config,
-        )
-    );
-
-    let all_quotient_chunks = timed!(
-        timing,
-        format!("{stark}: split quotient polynomial").as_str(),
-        quotient_polys
-            .into_par_iter()
-            .flat_map(|mut quotient_poly| {
-                quotient_poly
-                    .trim_to_len(degree * stark.quotient_degree_factor())
-                    .expect(
-                        "Quotient has failed, the vanishing polynomial is not divisible by Z_H",
-                    );
-                // Split quotient into degree-n chunks.
-                quotient_poly.chunks(degree)
-            })
-            .collect()
-    );
-    let quotient_commitment = timed!(
-        timing,
-        format!("{stark}: compute quotient commitment").as_str(),
-        PolynomialBatch::from_coeffs(
-            all_quotient_chunks,
-            rate_bits,
-            false,
-            config.fri_config.cap_height,
-            timing,
-            None,
-        )
     );
     let quotient_polys_cap = quotient_commitment.merkle_tree.cap.clone();
     challenger.observe_cap(&quotient_polys_cap);
@@ -329,7 +296,7 @@ where
         trace_cap: trace_commitment.merkle_tree.cap.clone(),
         ctl_zs_cap,
         quotient_polys_cap,
-        openings,
+        openings: Some(openings),
         opening_proof: Some(opening_proof),
     };
     Ok(StarkProofWithMetadata {
@@ -378,6 +345,69 @@ where
     }))
 }
 
+pub(crate) fn compute_quotient_batch_poly<F, C, S, const D: usize>(
+    stark: &S,
+    config: &StarkConfig,
+    degree: usize,
+    ctl_zs_commitment: &PolynomialBatch<F, C, D>,
+    trace_commitment: &PolynomialBatch<F, C, D>,
+    public_inputs: &[F],
+    ctl_data: &CtlData<F>,
+    challenger: &mut Challenger<F, C::Hasher>,
+    timing: &mut TimingTree,
+) -> PolynomialBatch<F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    S: Stark<F, D> + Display, {
+    let degree_bits = log2_strict(degree);
+    let rate_bits = config.fri_config.rate_bits;
+    let alphas = challenger.get_n_challenges(config.num_challenges);
+    let quotient_polys = timed!(
+        timing,
+        format!("{stark}: compute quotient polynomial").as_str(),
+        compute_quotient_polys::<F, <F as Packable>::Packing, C, S, D>(
+            stark,
+            trace_commitment,
+            ctl_zs_commitment,
+            public_inputs,
+            ctl_data,
+            &alphas,
+            degree_bits,
+            config,
+        )
+    );
+
+    let all_quotient_chunks = timed!(
+        timing,
+        format!("{stark}: split quotient polynomial").as_str(),
+        quotient_polys
+            .into_par_iter()
+            .flat_map(|mut quotient_poly| {
+                quotient_poly
+                    .trim_to_len(degree * stark.quotient_degree_factor())
+                    .expect(
+                        "Quotient has failed, the vanishing polynomial is not divisible by Z_H",
+                    );
+                // Split quotient into degree-n chunks.
+                quotient_poly.chunks(degree)
+            })
+            .collect()
+    );
+    timed!(
+        timing,
+        format!("{stark}: compute quotient commitment").as_str(),
+        PolynomialBatch::from_coeffs(
+            all_quotient_chunks,
+            rate_bits,
+            false,
+            config.fri_config.cap_height,
+            timing,
+            None,
+        )
+    )
+}
+
 #[cfg(feature = "enable_batch_fri")]
 #[allow(clippy::too_many_arguments)]
 pub fn prove_batch_fri<F, C, const D: usize>(
@@ -389,8 +419,7 @@ pub fn prove_batch_fri<F, C, const D: usize>(
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-)
-// -> Result<StarkProofWithMetadata<F, C, D>>
+) -> Result<TableKindArray<StarkProof<F, C, D>>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
@@ -417,13 +446,46 @@ where
         "FRI total reduction arity is too large.",
     );
 
-    all_starks!(mozak_stark, |stark, kind| {
-        let init_challenger_state = challenger.compact();
+    let ctl_zs_commitments = all_starks!(mozak_stark, |stark, kind| timed!(
+        timing,
+        format!("{stark}: compute Zs commitment").as_str(),
+        PolynomialBatch::<F, C, D>::from_values(
+            ctl_data_per_table[kind].z_polys(),
+            rate_bits,
+            false,
+            config.fri_config.cap_height,
+            timing,
+            None,
+        )
+    ));
 
-        let z_polys = ctl_data_per_table[kind].z_polys();
-        // TODO(Matthias): make the code work with empty z_polys, too.
-        assert!(!z_polys.is_empty(), "No CTL?");
-    });
+    let quotient_commitments = all_starks!(mozak_stark, |stark, kind| compute_quotient_batch_poly(
+        stark,
+        config,
+        degree,
+        &ctl_zs_commitments[kind],
+        &trace_commitments[kind],
+        public_inputs[kind],
+        &ctl_data_per_table[kind],
+        challenger,
+        timing,
+    ));
+
+    Ok(all_starks!(mozak_stark, |stark, kind| {
+        let ctl_zs_cap = ctl_zs_commitments[kind].merkle_tree.cap.clone();
+        challenger.observe_cap(&ctl_zs_cap);
+
+        let quotient_polys_cap = quotient_commitments[kind].merkle_tree.cap.clone();
+        challenger.observe_cap(&quotient_polys_cap);
+
+        StarkProof {
+            trace_cap: trace_commitments[kind].merkle_tree.cap.clone(),
+            ctl_zs_cap,
+            quotient_polys_cap,
+            openings: None,
+            opening_proof: None,
+        }
+    }))
 }
 
 #[cfg(test)]

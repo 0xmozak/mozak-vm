@@ -101,7 +101,7 @@ where
         ctl_zs_next: _,
         ctl_zs_last,
         quotient_polys,
-    } = &proof.openings;
+    } = &proof.openings.as_ref().unwrap();
 
     let vars = S::EvaluationFrame::from_values(
         local_values,
@@ -171,7 +171,7 @@ where
                 num_zs: ctl_zs_last.len(),
             }),
         ),
-        &proof.openings.to_fri_openings(),
+        &proof.openings.as_ref().unwrap().to_fri_openings(),
         &challenges.fri_challenges,
         &merkle_caps,
         &proof.opening_proof.as_ref().unwrap(),
@@ -208,7 +208,7 @@ where
         ctl_zs_next,
         ctl_zs_last,
         quotient_polys,
-    } = openings;
+    } = openings.as_ref().unwrap();
 
     let degree_bits = proof.recover_degree_bits(config);
     let fri_params = config.fri_params(degree_bits);
