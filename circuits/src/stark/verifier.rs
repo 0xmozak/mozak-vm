@@ -174,7 +174,7 @@ where
         &proof.openings.to_fri_openings(),
         &challenges.fri_challenges,
         &merkle_caps,
-        &proof.opening_proof,
+        &proof.opening_proof.as_ref().unwrap(),
         &config.fri_params(degree_bits),
     )?;
 

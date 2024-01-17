@@ -453,7 +453,11 @@ pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D
 
     witness.set_cap_target(&proof_target.ctl_zs_cap, &proof.ctl_zs_cap);
 
-    set_fri_proof_target(witness, &proof_target.opening_proof, &proof.opening_proof);
+    set_fri_proof_target(
+        witness,
+        &proof_target.opening_proof,
+        &proof.opening_proof.as_ref().unwrap(),
+    );
 }
 
 #[cfg(test)]

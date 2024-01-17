@@ -43,13 +43,17 @@ pub struct StarkProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, 
     /// Purported values of each polynomial at the challenge point.
     pub openings: StarkOpeningSet<F, D>,
     /// A batch FRI argument for all openings.
-    pub opening_proof: FriProof<F, C::Hasher, D>,
+    pub opening_proof: Option<FriProof<F, C::Hasher, D>>,
 }
 
 impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> StarkProof<F, C, D> {
     /// Recover the length of the trace from a STARK proof and a STARK config.
     pub fn recover_degree_bits(&self, config: &StarkConfig) -> usize {
-        let initial_merkle_proof = &self.opening_proof.query_round_proofs[0]
+        let initial_merkle_proof = &self
+            .opening_proof
+            .as_ref()
+            .unwrap()
+            .query_round_proofs[0]
             .initial_trees_proof
             .evals_proofs[0]
             .1;
@@ -71,15 +75,16 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
             ctl_zs_cap,
             quotient_polys_cap,
             openings,
-            opening_proof:
-                FriProof {
-                    commit_phase_merkle_caps,
-                    final_poly,
-                    pow_witness,
-                    ..
-                },
+            opening_proof,
             ..
         } = &self;
+
+        let FriProof {
+            commit_phase_merkle_caps,
+            final_poly,
+            pow_witness,
+            ..
+        } = opening_proof.as_ref().unwrap();
 
         let num_challenges = config.num_challenges;
 
@@ -345,6 +350,8 @@ pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, co
     pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
     pub memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub public_inputs: PublicInputs<F>,
+    // #[cfg(feature = "enable_batch_fri")]
+    // pub batch_fri_proof: StarkProof<F, C, D>,
 }
 
 pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {
