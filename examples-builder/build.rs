@@ -24,7 +24,7 @@ macro_rules! ecrate {
             ),
             glob_name: $glob,
             enabled: cfg!(feature = $name),
-            uses_std: $uses_std == true,
+            uses_std: $uses_std,
         }
     };
 }
