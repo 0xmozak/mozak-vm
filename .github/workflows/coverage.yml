@@ -40,7 +40,7 @@ jobs:
       - name: Run tests for coverage
         # skip-clean is there to make tarpaulin not re-build unnecessarily,
         # so caching dependencies works.
-        run: cargo tarpaulin --release --skip-clean --engine llvm --locked --workspace --out Xml
+        run: nice cargo tarpaulin --release --skip-clean --engine llvm --locked --workspace --out Xml
 
       - name: Coverage Comment
         uses: ewjoachim/coverage-comment-action@v1.0.3
