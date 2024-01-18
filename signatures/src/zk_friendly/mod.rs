@@ -3,12 +3,12 @@ use plonky2::field::extension::Extendable;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::{Field, Field64, PrimeField64};
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
-use plonky2::hash::poseidon::{Poseidon, PoseidonHash};
+use plonky2::hash::poseidon::PoseidonHash;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut, Hasher};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
 /// This is supposed to be a slice of four field
@@ -122,11 +122,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use plonky2::field::types::Field;
     use plonky2::plonk::circuit_data::CircuitConfig;
-    use plonky2::plonk::config::{
-        self, GenericConfig, Hasher, Poseidon2GoldilocksConfig, PoseidonGoldilocksConfig,
-    };
+    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use super::PrivateKey;
     use crate::zk_friendly::Message;
@@ -136,7 +133,6 @@ mod tests {
         let config = CircuitConfig::standard_recursion_config();
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<2>>::F;
-        type hasher = <C as GenericConfig<2>>::Hasher;
         let private_key = PrivateKey { limbs: [1; 32] };
         let public_key = private_key.get_public_key();
 
