@@ -32,6 +32,7 @@ pub fn simple_test_code_with_ro_memory(
     let RuntimeArguments {
         io_tape_private,
         io_tape_public,
+        transcript,
         ..
     } = runtime_args;
     let _ = env_logger::try_init();
@@ -70,7 +71,7 @@ pub fn simple_test_code_with_ro_memory(
         context_variables: vec![],
         io_tape_private,
         io_tape_public,
-        transcript: vec![],
+        transcript,
     });
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
