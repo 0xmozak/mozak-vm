@@ -114,7 +114,7 @@ where
         public_key_target.into(),
         msg_target,
     );
-
+    builder.print_gate_counts(0);
     let data = builder.build::<C>();
     let proof = data.prove(witness).unwrap();
     (data, proof)
@@ -122,6 +122,7 @@ where
 
 #[cfg(test)]
 mod tests {
+
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
@@ -130,6 +131,8 @@ mod tests {
 
     #[test]
     fn test_signature() {
+        use env_logger;
+        env_logger::init();
         let config = CircuitConfig::standard_recursion_config();
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<2>>::F;
@@ -139,7 +142,7 @@ mod tests {
         let msg = Message([1; 32]);
 
         let (data, proof) = super::prove_sign::<F, C, 2>(config, private_key, public_key, msg);
-        println!("proof size: {}", proof.public_inputs.len());
+        println!("public_input size: {}", proof.public_inputs.len());
         assert!(data.verify(proof).is_ok());
     }
 }

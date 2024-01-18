@@ -1677,6 +1677,7 @@ dependencies = [
 name = "signatures"
 version = "0.1.0"
 dependencies = [
+ "env_logger",
  "itertools 0.12.0",
  "mozak-circuits",
  "plonky2",
