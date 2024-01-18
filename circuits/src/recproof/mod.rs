@@ -1,7 +1,9 @@
 use anyhow::Result;
+use iter_fixed::IntoIteratorFixed;
 use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
+use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::hash::poseidon2::Poseidon2Hash;
+use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
@@ -10,6 +12,20 @@ use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
 pub mod summarized;
 pub mod unpruned;
+
+/// Reduce a hash-sized group of booleans by `&&`ing them together
+fn and_helper<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    bools: [BoolTarget; NUM_HASH_OUT_ELTS],
+) -> BoolTarget
+where
+    F: RichField + Extendable<D>, {
+    let bools = [
+        builder.and(bools[0], bools[1]),
+        builder.and(bools[2], bools[3]),
+    ];
+    builder.and(bools[0], bools[1])
+}
 
 pub trait SubCircuit<PublicIndices> {
     fn pis(&self) -> usize;
@@ -38,14 +54,12 @@ where
             summarized::LeafSubCircuit::new(builder, |summarized_targets, builder| {
                 unpruned::LeafSubCircuit::new(builder, |old_targets, builder| {
                     unpruned::LeafSubCircuit::new(builder, |new_targets, mut builder| {
+                        let old_hash = old_targets.unpruned_hash.elements;
+                        let new_hash = new_targets.unpruned_hash.elements;
+
                         // Summarize both old and new by hashing them together
                         let old_new_parent = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(
-                            old_targets
-                                .unpruned_hash
-                                .elements
-                                .into_iter()
-                                .chain(new_targets.unpruned_hash.elements)
-                                .collect(),
+                            old_hash.into_iter().chain(new_hash).collect(),
                         );
 
                         // zero it out based on if this node is being summarized
@@ -60,17 +74,12 @@ where
                         );
 
                         // Ensure the presence is based on if there's any change
-                        let unchanged = [0, 1, 2, 3].map(|i| {
-                            builder.is_equal(
-                                old_targets.unpruned_hash.elements[i],
-                                new_targets.unpruned_hash.elements[i],
-                            )
-                        });
-                        let unchanged = [
-                            builder.and(unchanged[0], unchanged[1]),
-                            builder.and(unchanged[2], unchanged[3]),
-                        ];
-                        let unchanged = builder.and(unchanged[0], unchanged[1]);
+                        let unchanged = old_hash
+                            .into_iter_fixed()
+                            .zip(new_hash)
+                            .map(|(old, new)| builder.is_equal(old, new))
+                            .collect();
+                        let unchanged = and_helper(&mut builder, unchanged);
                         let changed = builder.not(unchanged);
                         builder.connect(
                             changed.target,
