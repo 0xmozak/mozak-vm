@@ -69,9 +69,9 @@ pub fn sign_circuit<F: RichField + Extendable<D>, C: GenericConfig<D>, const D: 
     msg_target: [Target; 32],
 ) where
     C::Hasher: AlgebraicHasher<F>, {
-    // range check each limb to be 32 bits
+    // range check each limb to be 8 bits
     chain!(private_key_target, msg_target)
-        .for_each(|target_limb| builder.range_check(target_limb, 32));
+        .for_each(|target_limb| builder.range_check(target_limb, 8));
 
     let hash_private_key = builder.hash_or_noop::<C::Hasher>(private_key_target.to_vec());
 
