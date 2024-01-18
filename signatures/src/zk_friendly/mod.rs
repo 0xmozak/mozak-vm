@@ -62,6 +62,8 @@ impl PrivateKey {
         PoseidonHash::hash_or_noop(&limbs_field).into()
     }
 }
+
+/// For simplicity, this is assumed to be a 256 bit hash
 pub struct Message([u8; 32]);
 
 pub fn sign_circuit<F: RichField + Extendable<D>, C: GenericConfig<D>, const D: usize>(
@@ -75,6 +77,7 @@ pub fn sign_circuit<F: RichField + Extendable<D>, C: GenericConfig<D>, const D: 
     chain!(private_key_target, msg_target)
         .for_each(|target_limb| builder.range_check(target_limb, 8));
 
+    // hash the private key
     let hash_private_key = builder.hash_or_noop::<C::Hasher>(private_key_target.to_vec());
 
     // check hash(private_key) == public key
@@ -96,14 +99,17 @@ where
     let mut witness = PartialWitness::<F>::new();
     let mut builder = CircuitBuilder::<F, D>::new(config);
 
+    // create targets
     let private_key_target = builder.add_virtual_target_arr::<32>();
     let public_key_target = builder.add_virtual_target_arr::<4>();
     let msg_target = builder.add_virtual_target_arr::<32>();
 
+    // convert inputs slices to field slices.
     let private_key_field = private_key.get_limbs().map(|x| F::from_canonical_u8(x));
-    let public_key_field = public_key.get_limbs().map(|x| F::from_canonical_u64(x));
+    let public_key_field = public_key.get_limbs().map(|x| F::from_noncanonical_u64(x));
     let msg_field = msg.0.map(|x| F::from_canonical_u8(x));
 
+    // set target values
     witness.set_target_arr(&private_key_target, &private_key_field);
     witness.set_target_arr(&public_key_target, &public_key_field);
     witness.set_target_arr(&msg_target, &msg_field);
@@ -114,6 +120,7 @@ where
         public_key_target.into(),
         msg_target,
     );
+
     builder.print_gate_counts(0);
     let data = builder.build::<C>();
     let proof = data.prove(witness).unwrap();
@@ -125,6 +132,7 @@ mod tests {
 
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
+    use rand::Rng;
 
     use super::PrivateKey;
     use crate::zk_friendly::Message;
@@ -133,13 +141,19 @@ mod tests {
     fn test_signature() {
         use env_logger;
         env_logger::init();
+        let mut rng = rand::thread_rng();
         let config = CircuitConfig::standard_recursion_config();
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<2>>::F;
-        let private_key = PrivateKey { limbs: [1; 32] };
+
+        // generate random private key
+        let private_key = PrivateKey {
+            limbs: rng.gen::<[u8; 32]>(),
+        };
         let public_key = private_key.get_public_key();
 
-        let msg = Message([1; 32]);
+        // generate random message
+        let msg = Message(rng.gen::<[u8; 32]>());
 
         let (data, proof) = super::prove_sign::<F, C, 2>(config, private_key, public_key, msg);
         println!("public_input size: {}", proof.public_inputs.len());
