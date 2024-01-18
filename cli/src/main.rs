@@ -10,7 +10,7 @@ use clap::{Parser, Subcommand};
 use clap_derive::Args;
 use clio::{Input, Output};
 use log::debug;
-use mozak_circuits::generation::memoryinit::generate_memory_init_trace;
+use mozak_circuits::generation::memoryinit::generate_memory_elf_memory_init_trace_only;
 use mozak_circuits::generation::program::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs, TableKindArray};
 use mozak_circuits::stark::proof::AllProof;
@@ -261,7 +261,7 @@ fn main() -> Result<()> {
         }
         Command::MemoryInitHash { elf } => {
             let program = load_program(elf)?;
-            let trace = generate_memory_init_trace(&program);
+            let trace = generate_memory_elf_memory_init_trace_only(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
             let cap_height = config.fri_config.cap_height;
