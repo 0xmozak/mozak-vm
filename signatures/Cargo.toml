@@ -1,7 +1,13 @@
 [package]
-name = "signatures"
-version = "0.1.0"
+categories = ["cryptography"]
+description = "Collection of signatures to be used in protocol"
 edition = "2021"
+keywords = ["crypto", "zero-knowledge", "vm"]
+license = "All rights reserved"
+name = "signatures"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-vm"
+version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

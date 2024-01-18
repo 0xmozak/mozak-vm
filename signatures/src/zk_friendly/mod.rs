@@ -32,20 +32,17 @@ impl PublicKey {
 
     pub fn get_limbs(&self) -> [u64; 4] { self.limbs }
 
-    pub fn get_limbs_field(&self) -> Vec<GoldilocksField> {
-        self.get_limbs()
-            .iter()
-            .map(|limb| GoldilocksField::from_noncanonical_u64(*limb))
-            .collect()
+    pub fn get_limbs_field(&self) -> [GoldilocksField; 4] {
+        self.get_limbs().map(GoldilocksField::from_canonical_u64)
     }
 }
 
 impl From<HashOut<GoldilocksField>> for PublicKey {
     fn from(hash: HashOut<GoldilocksField>) -> Self {
-        let mut limbs: [u64; 4] = [0; 4];
-        for i in 0..4 {
-            limbs[i] = hash.elements[i].to_noncanonical_u64();
-        }
+        let limbs = hash
+            .elements
+            .map(|elem| GoldilocksField::to_canonical_u64(&elem));
+
         Self::new(limbs).unwrap()
     }
 }
@@ -64,11 +61,8 @@ impl PrivateKey {
         PoseidonHash::hash_or_noop(&self.get_limbs_field()).into()
     }
 
-    pub fn get_limbs_field(&self) -> Vec<GoldilocksField> {
-        self.get_limbs()
-            .iter()
-            .map(|limb| GoldilocksField::from_canonical_u8(*limb))
-            .collect()
+    pub fn get_limbs_field(&self) -> [GoldilocksField; 32] {
+        self.get_limbs().map(GoldilocksField::from_canonical_u8)
     }
 }
 
@@ -78,13 +72,12 @@ pub struct Message {
 }
 
 impl Message {
+    pub fn new(limbs: [u8; 32]) -> Self { Self { limbs } }
+
     pub fn get_limbs(&self) -> [u8; 32] { self.limbs }
 
-    pub fn get_limbs_field(&self) -> Vec<GoldilocksField> {
-        self.get_limbs()
-            .iter()
-            .map(|limb| GoldilocksField::from_canonical_u8(*limb))
-            .collect()
+    pub fn get_limbs_field(&self) -> [GoldilocksField; 32] {
+        self.get_limbs().map(GoldilocksField::from_canonical_u8)
     }
 }
 
@@ -164,15 +157,11 @@ mod tests {
         let mut rng = rand::thread_rng();
 
         // generate random private key
-        let private_key = PrivateKey {
-            limbs: rng.gen::<[u8; 32]>(),
-        };
+        let private_key = PrivateKey::new(rng.gen::<[u8; 32]>());
+        // get public key associated with private key
         let public_key = private_key.get_public_key();
-
         // generate random message
-        let msg = Message {
-            limbs: rng.gen::<[u8; 32]>(),
-        };
+        let msg = Message::new(rng.gen::<[u8; 32]>());
 
         (private_key, public_key, msg)
     }
