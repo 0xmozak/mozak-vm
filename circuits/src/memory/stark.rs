@@ -44,8 +44,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
     ) where
         FE: FieldExtension<D2, BaseField = F>,
         P: PackedField<Scalar = FE>, {
-        // TODO(Matthias): see whether we need to add a constraint to forbid two is_init
-        // in a row (with the same address).
+        // TODO(Matthias): add a constraint to forbid two is_init in a row (with the
+        // same address).  See `circuits/src/generation/memoryinit.rs` in
+        // `a75c8fbc2701a4a6b791b2ff71857795860c5591`
         let lv: &Memory<P> = vars.get_local_values().into();
         let nv: &Memory<P> = vars.get_next_values().into();
 
