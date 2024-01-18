@@ -456,9 +456,6 @@ pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D
     set_fri_proof_target(witness, &proof_target.opening_proof, &proof.opening_proof);
 }
 
-// TODO(Matthias): remove this limitation, once we implement the recursion for
-// Register Starks.
-#[cfg(not(feature = "enable_register_starks"))]
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
@@ -509,22 +506,14 @@ mod tests {
         verify_proof(&stark, mozak_proof.clone(), &config)?;
 
         let circuit_config = CircuitConfig::standard_recursion_config();
-        let mozak_stark_circuit: crate::stark::recursive_verifier::MozakStarkVerifierCircuit<
-            plonky2::field::goldilocks_field::GoldilocksField,
-            plonky2::plonk::config::Poseidon2GoldilocksConfig,
-            2,
-        > = recursive_mozak_stark_circuit::<F, C, D>(
+        let mozak_stark_circuit = recursive_mozak_stark_circuit::<F, C, D>(
             &stark,
             &mozak_proof.degree_bits(&config),
             &circuit_config,
             &config,
         );
 
-        let recursive_proof: plonky2::plonk::proof::ProofWithPublicInputs<
-            plonky2::field::goldilocks_field::GoldilocksField,
-            plonky2::plonk::config::Poseidon2GoldilocksConfig,
-            2,
-        > = mozak_stark_circuit.prove(&mozak_proof)?;
+        let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
         mozak_stark_circuit.circuit.verify(recursive_proof)
     }
 }
