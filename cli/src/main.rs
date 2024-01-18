@@ -97,6 +97,7 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
         };
 
         Self {
+            // TODO(bing): use `context_variables`
             context_variables: vec![],
             io_tape_private,
             io_tape_public,
