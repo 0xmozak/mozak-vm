@@ -295,62 +295,126 @@ mod test {
     }
 
     #[test]
-    fn verify_branch() -> Result<()> {
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_leaf_create() {
         let circuit_config = CircuitConfig::standard_recursion_config();
-        let leaf_circuit = CompleteLeafCircuit::<F, C, D>::new(&circuit_config);
-        let branch_circuit_1 = CompleteBranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
+        let circuit = CompleteLeafCircuit::<F, C, D>::new(&circuit_config);
 
         let zero_hash = HashOut::from([F::ZERO; 4]);
         let non_zero_hash_1 = hash_str("Non-Zero Hash 1");
-        let hash_0_to_0 = hash_branch(&zero_hash, &zero_hash);
+
+        let proof = circuit
+            .prove(zero_hash, non_zero_hash_1, zero_hash)
+            .unwrap();
+        circuit.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_leaf_update() {
+        let circuit_config = CircuitConfig::standard_recursion_config();
+        let circuit = CompleteLeafCircuit::<F, C, D>::new(&circuit_config);
+
+        let zero_hash = HashOut::from([F::ZERO; 4]);
+        let non_zero_hash_1 = hash_str("Non-Zero Hash 1");
+        let non_zero_hash_2 = hash_str("Non-Zero Hash 2");
         let hash_0_to_1 = hash_branch(&zero_hash, &non_zero_hash_1);
-        let hash_1_to_0 = hash_branch(&non_zero_hash_1, &zero_hash);
-        let hash_1_to_1 = hash_branch(&non_zero_hash_1, &non_zero_hash_1);
-        let hash_01_to_01 = hash_branch(&hash_0_to_1, &hash_0_to_1);
+
+        let proof = circuit
+            .prove(non_zero_hash_1, non_zero_hash_2, hash_0_to_1)
+            .unwrap();
+        circuit.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_leaf_non_update() {
+        let circuit_config = CircuitConfig::standard_recursion_config();
+        let circuit = CompleteLeafCircuit::<F, C, D>::new(&circuit_config);
+
+        let non_zero_hash_2 = hash_str("Non-Zero Hash 2");
+
+        let proof = circuit
+            .prove(non_zero_hash_2, non_zero_hash_2, non_zero_hash_2)
+            .unwrap();
+        circuit.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    fn verify_branch() -> Result<()> {
+        let circuit_config = CircuitConfig::standard_recursion_config();
+        let leaf_circuit = CompleteLeafCircuit::<F, C, D>::new(&circuit_config);
+        let branch_circuit_h0 = CompleteBranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
+        let branch_circuit_h1 =
+            CompleteBranchCircuit::from_branch(&circuit_config, &branch_circuit_h0);
+
+        let zero_hash = HashOut::from([F::ZERO; 4]);
+        let non_zero_hash_1 = hash_str("Non-Zero Hash 1");
+        let hash_0_and_0 = hash_branch(&zero_hash, &zero_hash);
+        let hash_0_and_1 = hash_branch(&zero_hash, &non_zero_hash_1);
+        let hash_1_and_0 = hash_branch(&non_zero_hash_1, &zero_hash);
+        let hash_1_and_1 = hash_branch(&non_zero_hash_1, &non_zero_hash_1);
+        let hash_00_and_00 = hash_branch(&hash_0_and_0, &hash_0_and_0);
+        let hash_01_and_01 = hash_branch(&hash_0_and_1, &hash_0_and_1);
+        let hash_01_and_10 = hash_branch(&hash_0_and_1, &hash_1_and_0);
 
         // Leaf proofs
         let zero_proof = leaf_circuit.prove(zero_hash, zero_hash, zero_hash)?;
         leaf_circuit.circuit.verify(zero_proof.clone())?;
 
-        let proof_0_to_1 = leaf_circuit.prove(zero_hash, non_zero_hash_1, hash_0_to_1)?;
+        let proof_0_to_1 = leaf_circuit.prove(zero_hash, non_zero_hash_1, hash_0_and_1)?;
         leaf_circuit.circuit.verify(proof_0_to_1.clone())?;
 
         // Branch proofs
-        let branch_00_and_00_proof = branch_circuit_1.prove(
+        let branch_00_and_00_proof = branch_circuit_h0.prove(
             &zero_proof,
             &zero_proof,
-            hash_0_to_0,
-            hash_0_to_0,
+            hash_0_and_0,
+            hash_0_and_0,
             zero_hash,
         )?;
-        branch_circuit_1.circuit.verify(branch_00_and_00_proof)?;
+        branch_circuit_h0.circuit.verify(branch_00_and_00_proof)?;
 
-        let branch_00_and_01_proof = branch_circuit_1.prove(
+        let branch_00_and_01_proof = branch_circuit_h0.prove(
             &zero_proof,
             &proof_0_to_1,
-            hash_0_to_0,
-            hash_0_to_1,
-            hash_0_to_1,
+            hash_0_and_0,
+            hash_0_and_1,
+            hash_0_and_1,
         )?;
-        branch_circuit_1.circuit.verify(branch_00_and_01_proof)?;
+        branch_circuit_h0
+            .circuit
+            .verify(branch_00_and_01_proof.clone())?;
 
-        let branch_01_and_00_proof = branch_circuit_1.prove(
+        let branch_01_and_00_proof = branch_circuit_h0.prove(
             &proof_0_to_1,
             &zero_proof,
-            hash_0_to_0,
-            hash_1_to_0,
-            hash_0_to_1,
+            hash_0_and_0,
+            hash_1_and_0,
+            hash_0_and_1,
         )?;
-        branch_circuit_1.circuit.verify(branch_01_and_00_proof)?;
+        branch_circuit_h0
+            .circuit
+            .verify(branch_01_and_00_proof.clone())?;
 
-        let branch_01_and_01_proof = branch_circuit_1.prove(
+        let branch_01_and_01_proof = branch_circuit_h0.prove(
             &proof_0_to_1,
             &proof_0_to_1,
-            hash_0_to_0,
-            hash_1_to_1,
-            hash_01_to_01,
+            hash_0_and_0,
+            hash_1_and_1,
+            hash_01_and_01,
         )?;
-        branch_circuit_1.circuit.verify(branch_01_and_01_proof)?;
+        branch_circuit_h0.circuit.verify(branch_01_and_01_proof)?;
+
+        // Double branch proof
+        let proof = branch_circuit_h1.prove(
+            &branch_00_and_01_proof,
+            &branch_01_and_00_proof,
+            hash_00_and_00,
+            hash_01_and_10,
+            hash_01_and_01,
+        )?;
+        branch_circuit_h1.circuit.verify(proof)?;
 
         Ok(())
     }
