@@ -111,6 +111,7 @@ pub fn prove_sign<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, cons
 ) -> (CircuitData<F, C, D>, ProofWithPublicInputs<F, C, D>)
 where
     C::Hasher: AlgebraicHasher<F>, {
+    env_logger::init();
     let mut witness = PartialWitness::<F>::new();
     let mut builder = CircuitBuilder::<F, D>::new(config);
 
@@ -173,15 +174,12 @@ mod tests {
         let config = CircuitConfig::standard_recursion_config();
         let (private_key, public_key, msg) = generate_signature_data();
         let (data, proof) = super::prove_sign::<F, C, 2>(config, &private_key, &public_key, &msg);
-        println!("public_input size: {}", proof.public_inputs.len());
         assert!(data.verify(proof).is_ok());
     }
 
     #[test]
     #[should_panic]
     fn test_tampering_public_key() {
-        use env_logger;
-        env_logger::init();
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<2>>::F;
         let config = CircuitConfig::standard_recursion_config();
@@ -199,8 +197,6 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_tampering_message() {
-        use env_logger;
-        env_logger::init();
         type C = PoseidonGoldilocksConfig;
         type F = <C as GenericConfig<2>>::F;
         let config = CircuitConfig::standard_recursion_config();
