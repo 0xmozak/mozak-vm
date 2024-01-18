@@ -110,7 +110,7 @@ mod tests {
         assert_eq!(
             trace,
             prep_table(vec![
-                //is_writable  addr   clk  is_store, is_load, is_init  value   diff_clk      diff_addr_inv 
+                //is_writable  addr   clk  is_store, is_load, is_init  value   diff_clk      diff_addr_inv
                 [       1,     600,   1,     0,         0,       1,        0,         0,     inv::<F>(600)],// Memory Init: 600
                 [       1,     600,   2,     1,         0,       0,       13,         1,     inv::<F>(0)],  // Operations:  600
                 [       1,     600,   3,     0,         1,       0,       13,         1,     inv::<F>(0)],  // Operations:  600
