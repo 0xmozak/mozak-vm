@@ -6,3 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+itertools = "0.12.0"
+mozak-circuits = { version = "0.1.0", path = "../circuits" }
+plonky2 = "0.1"
