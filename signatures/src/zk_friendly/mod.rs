@@ -37,9 +37,9 @@ impl From<HashOut<GoldilocksField>> for PublicKey {
     fn from(hash: HashOut<GoldilocksField>) -> Self {
         let mut limbs: [u64; 4] = [0; 4];
         for i in 0..4 {
-            limbs[i] = hash.elements[i].to_canonical_u64();
+            limbs[i] = hash.elements[i].to_noncanonical_u64();
         }
-        Self { limbs }
+        Self::new(limbs).unwrap()
     }
 }
 
