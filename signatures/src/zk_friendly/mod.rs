@@ -31,6 +31,13 @@ impl PublicKey {
     }
 
     pub fn get_limbs(&self) -> [u64; 4] { self.limbs }
+
+    pub fn get_limbs_field(&self) -> Vec<GoldilocksField> {
+        self.get_limbs()
+            .iter()
+            .map(|limb| GoldilocksField::from_noncanonical_u64(*limb))
+            .collect()
+    }
 }
 
 impl From<HashOut<GoldilocksField>> for PublicKey {
@@ -54,17 +61,32 @@ impl PrivateKey {
     pub fn get_limbs(&self) -> [u8; 32] { self.limbs }
 
     pub fn get_public_key(&self) -> PublicKey {
-        let limbs_field: Vec<GoldilocksField> = self
-            .get_limbs()
+        PoseidonHash::hash_or_noop(&self.get_limbs_field()).into()
+    }
+
+    pub fn get_limbs_field(&self) -> Vec<GoldilocksField> {
+        self.get_limbs()
             .iter()
             .map(|limb| GoldilocksField::from_canonical_u8(*limb))
-            .collect();
-        PoseidonHash::hash_or_noop(&limbs_field).into()
+            .collect()
     }
 }
 
 /// For simplicity, this is assumed to be a 256 bit hash
-pub struct Message([u8; 32]);
+pub struct Message {
+    limbs: [u8; 32],
+}
+
+impl Message {
+    pub fn get_limbs(&self) -> [u8; 32] { self.limbs }
+
+    pub fn get_limbs_field(&self) -> Vec<GoldilocksField> {
+        self.get_limbs()
+            .iter()
+            .map(|limb| GoldilocksField::from_canonical_u8(*limb))
+            .collect()
+    }
+}
 
 pub fn sign_circuit<F: RichField + Extendable<D>, C: GenericConfig<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
@@ -90,9 +112,9 @@ pub fn sign_circuit<F: RichField + Extendable<D>, C: GenericConfig<D>, const D: 
 
 pub fn prove_sign<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>(
     config: CircuitConfig,
-    private_key: PrivateKey,
-    public_key: PublicKey,
-    msg: Message,
+    private_key: &PrivateKey,
+    public_key: &PublicKey,
+    msg: &Message,
 ) -> (CircuitData<F, C, D>, ProofWithPublicInputs<F, C, D>)
 where
     C::Hasher: AlgebraicHasher<F>, {
@@ -107,7 +129,7 @@ where
     // convert inputs slices to field slices.
     let private_key_field = private_key.get_limbs().map(|x| F::from_canonical_u8(x));
     let public_key_field = public_key.get_limbs().map(|x| F::from_noncanonical_u64(x));
-    let msg_field = msg.0.map(|x| F::from_canonical_u8(x));
+    let msg_field = msg.get_limbs().map(|x| F::from_canonical_u8(x));
 
     // set target values
     witness.set_target_arr(&private_key_target, &private_key_field);
@@ -130,21 +152,16 @@ where
 #[cfg(test)]
 mod tests {
 
+    use plonky2::field::types::Sample;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use rand::Rng;
 
-    use super::PrivateKey;
+    use super::{PrivateKey, PublicKey};
     use crate::zk_friendly::Message;
 
-    #[test]
-    fn test_signature() {
-        use env_logger;
-        env_logger::init();
+    fn generate_signature_data() -> (PrivateKey, PublicKey, Message) {
         let mut rng = rand::thread_rng();
-        let config = CircuitConfig::standard_recursion_config();
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<2>>::F;
 
         // generate random private key
         let private_key = PrivateKey {
@@ -153,10 +170,59 @@ mod tests {
         let public_key = private_key.get_public_key();
 
         // generate random message
-        let msg = Message(rng.gen::<[u8; 32]>());
+        let msg = Message {
+            limbs: rng.gen::<[u8; 32]>(),
+        };
 
-        let (data, proof) = super::prove_sign::<F, C, 2>(config, private_key, public_key, msg);
+        (private_key, public_key, msg)
+    }
+
+    #[test]
+    fn test_signature() {
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<2>>::F;
+        let config = CircuitConfig::standard_recursion_config();
+        let (private_key, public_key, msg) = generate_signature_data();
+        let (data, proof) = super::prove_sign::<F, C, 2>(config, &private_key, &public_key, &msg);
         println!("public_input size: {}", proof.public_inputs.len());
+        assert!(data.verify(proof).is_ok());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_tampering_public_key() {
+        use env_logger;
+        env_logger::init();
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<2>>::F;
+        let config = CircuitConfig::standard_recursion_config();
+        let (private_key, public_key, msg) = generate_signature_data();
+        let (data, mut proof) =
+            super::prove_sign::<F, C, 2>(config, &private_key, &public_key, &msg);
+
+        // assert public key is there in public inputs
+        assert_eq!(proof.public_inputs[..4], public_key.get_limbs_field());
+        // tamper with public key
+        proof.public_inputs[0] = F::rand();
+        assert!(data.verify(proof).is_ok());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_tampering_message() {
+        use env_logger;
+        env_logger::init();
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<2>>::F;
+        let config = CircuitConfig::standard_recursion_config();
+        let (private_key, public_key, msg) = generate_signature_data();
+        let (data, mut proof) =
+            super::prove_sign::<F, C, 2>(config, &private_key, &public_key, &msg);
+
+        // assert msg is there in public inputs
+        assert_eq!(proof.public_inputs[4..], msg.get_limbs_field());
+        // tamper with msg
+        proof.public_inputs[4] = F::rand();
         assert!(data.verify(proof).is_ok());
     }
 }
