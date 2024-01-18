@@ -17,7 +17,7 @@ pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
     let limit = num_bytes.min(remaining_len);
     let read = buf[*index..(*index + limit)].to_vec();
     log::trace!(
-        "ECALL Public IO_READ 0x{:0x}, {:?}, data.len: {:?}, data: {:?}",
+        "read: 0x{:0x}, {:?}, data.len: {:?}, data: {:?}",
         index,
         remaining_len,
         buf.len(),
