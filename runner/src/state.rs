@@ -144,7 +144,7 @@ pub struct MemEntry {
     pub raw_value: u32,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Display)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Display, Default)]
 #[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
 #[repr(u8)]
 pub enum IoOpcode {
