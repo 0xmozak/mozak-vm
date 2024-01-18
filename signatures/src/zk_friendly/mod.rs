@@ -1,7 +1,7 @@
 use itertools::chain;
 use plonky2::field::extension::Extendable;
 use plonky2::field::goldilocks_field::GoldilocksField;
-use plonky2::field::types::{Field, PrimeField64};
+use plonky2::field::types::{Field, Field64, PrimeField64};
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
 use plonky2::hash::poseidon::{Poseidon, PoseidonHash};
 use plonky2::iop::target::Target;
@@ -10,8 +10,6 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut, Hasher};
 use plonky2::plonk::proof::ProofWithPublicInputs;
-
-const GOLDILOCKS_PRIME: u64 = 0xffffffff00000001;
 
 /// This is supposed to be a slice of four field
 /// elements in goldilocks, since its output of
@@ -22,7 +20,11 @@ pub struct PublicKey {
 
 impl PublicKey {
     pub fn new(limbs: [u64; 4]) -> Option<Self> {
-        match limbs.iter().filter(|&&x| x >= GOLDILOCKS_PRIME).count() {
+        match limbs
+            .iter()
+            .filter(|&&x| x >= GoldilocksField::ORDER)
+            .count()
+        {
             0 => Some(Self { limbs }),
             _ => None,
         }
