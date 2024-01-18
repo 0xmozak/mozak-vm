@@ -263,7 +263,7 @@ impl From<&HashMap<u32, u8>> for Code {
     }
 }
 
-// TODO: Right now, we only have conventient functions for initialising the
+// TODO: Right now, we only have convenient functions for initialising the
 // rw_memory and ro_code. In the future we might want to add ones for ro_memory
 // as well (or leave it to be manually constructed by the caller).
 impl From<HashMap<u32, u8>> for Program {

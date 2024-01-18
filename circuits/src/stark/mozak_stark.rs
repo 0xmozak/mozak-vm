@@ -28,6 +28,8 @@ use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::rangecheck_looking;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::stark::RangeCheckU8Stark;
+#[cfg(feature = "enable_register_starks")]
+use crate::register;
 use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::stark::XorStark;
@@ -446,9 +448,15 @@ pub struct RangecheckTable<F: Field>(CrossTableLookup<F>);
 
 impl<F: Field> Lookups<F> for RangecheckTable<F> {
     fn lookups() -> CrossTableLookup<F> {
+        #[cfg(feature = "enable_register_starks")]
+        let register = register::columns::rangecheck_looking();
+        #[cfg(not(feature = "enable_register_starks"))]
+        let register: Vec<Table<F>> = vec![];
+
         let looking: Vec<Table<F>> = chain![
             memory::columns::rangecheck_looking(),
             cpu::columns::rangecheck_looking(),
+            register,
         ]
         .collect();
         CrossTableLookup::new(

@@ -76,6 +76,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     record: &ExecutionRecord<F>,
 ) -> TableKindArray<Vec<PolynomialValues<F>>> {
     let cpu_rows = generate_cpu_trace::<F>(record);
+    let register_rows = generate_register_trace::<F>(record);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
@@ -103,7 +104,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let memory_zeroinit_rows =
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed);
 
-    let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
+    let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
     #[allow(unused)]
     let register_init_rows = generate_register_init_trace::<F>();
