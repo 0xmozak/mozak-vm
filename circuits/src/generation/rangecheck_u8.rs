@@ -127,7 +127,10 @@ mod tests {
         }
 
         assert_eq!(trace[0].value, F::from_canonical_u8(0));
-        assert_eq!(trace[0].multiplicity, F::from_canonical_u64(26));
+        assert_eq!(
+            trace[0].multiplicity,
+            F::from_canonical_u64(20 + 6 * u64::from(cfg!(feature = "enable_register_starks")))
+        );
         assert_eq!(trace[255].value, F::from_canonical_u8(u8::MAX));
         assert_eq!(trace[255].multiplicity, F::from_canonical_u64(9));
     }
