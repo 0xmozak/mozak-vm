@@ -143,8 +143,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         //  --> next.diff_addr_inv != 0 but (lv.addr - nv.addr) * nv.diff_addr_inv == 1
         //  --> so, expression: (P::ONES - (lv.addr - nv.addr) * nv.diff_addr_inv) == 0
         yield_constr.constraint_transition(
-            nv.diff_addr_inv * (P::ONES - (nv.addr - lv.addr) * nv.diff_addr_inv),
+            (nv.addr - lv.addr) * (P::ONES - (nv.addr - lv.addr) * nv.diff_addr_inv),
         );
+
         // b) checking that lv.is_init == 1 only when lv.diff_addr_inv != 0
         // Note: lv.diff_addr_inv != 0 IFF: lv.addr != nv.addr
         yield_constr.constraint(lv.diff_addr_inv * (P::ONES - lv.is_init));
@@ -218,14 +219,14 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
             builder.mul_extension(nv.diff_addr_inv, nv_addr_sub_lv_addr);
         let one_sub_nv_addr_sub_lv_addr_mul_nv_diff_addr_inv =
             builder.sub_extension(one, nv_addr_sub_lv_addr_mul_nv_diff_addr_inv);
-        let nv_diff_addr_inv_mul_one_sub_nv_addr_sub_lv_addr_mul_nv_diff_addr_inv = builder
+        let nv_addr_sub_lv_addr_mul_one_sub_nv_addr_sub_lv_addr_mul_nv_diff_addr_inv = builder
             .mul_extension(
-                nv.diff_addr_inv,
+                nv_addr_sub_lv_addr,
                 one_sub_nv_addr_sub_lv_addr_mul_nv_diff_addr_inv,
             );
         yield_constr.constraint_transition(
             builder,
-            nv_diff_addr_inv_mul_one_sub_nv_addr_sub_lv_addr_mul_nv_diff_addr_inv,
+            nv_addr_sub_lv_addr_mul_one_sub_nv_addr_sub_lv_addr_mul_nv_diff_addr_inv,
         );
 
         let one_minus_lv_is_init = builder.sub_extension(one, lv.is_init);

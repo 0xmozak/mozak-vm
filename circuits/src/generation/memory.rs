@@ -213,13 +213,12 @@ pub fn generate_memory_trace<F: RichField>(
         })
         .collect();
 
-    let mut prev_mem_addr: u64 = 0;
+    let mut prev_mem_addr = F::ZERO;
     for current_mem in &mut merged_trace {
-        current_mem.diff_addr_inv =
-            F::from_canonical_u64(current_mem.addr.to_canonical_u64() - prev_mem_addr)
-                .try_inverse()
-                .unwrap_or_default();
-        prev_mem_addr = current_mem.addr.to_canonical_u64();
+        current_mem.diff_addr_inv = (current_mem.addr - prev_mem_addr)
+            .try_inverse()
+            .unwrap_or_default();
+        prev_mem_addr = current_mem.addr;
     }
 
     // If the trace length is not a power of two, we need to extend the trace to the
