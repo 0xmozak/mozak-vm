@@ -50,7 +50,7 @@ impl std::fmt::Debug for Address {
 /// Each program in the mozak ecosystem is identifyable by two
 /// hashes: `program_rom_hash` & `memory_init_hash` and a program
 /// entry point `entry_point`
-#[derive(Archive, Deserialize, Serialize, PartialEq, Default)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
@@ -67,17 +67,29 @@ pub struct ProgramIdentifier {
     pub entry_point: u32,
 }
 
+impl ProgramIdentifier {
+    /// Checks if the objects all have the same `constraint_owner` as
+    /// `self`.
+    pub fn ensure_owners(&self, objects: dyn Iterator<Item = StateObject>) {
+        objects.for_each(|x| {
+            if x.constraint_owner != self {
+                panic("constraint owner does not match program identifier");
+            }
+        })
+    }
+}
+
 
 /// Each storage object is a unit of information in the global
 /// state tree constrained for modification only by its `constraint_owner`
-#[derive(Archive, Deserialize, Serialize, PartialEq, Default)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub struct StateObject {
     /// [IMMUTABLE] Constraint-Owner is the only program which can
     /// mutate the `metadata` and `data` fields of this object
-	constraint_owner: ProgramIdentifier,
+	pub constraint_owner: ProgramIdentifier,
 
 	/// [MUTABLE] Object-associated Metadata (e.g. managing permissions, 
     /// expiry, etc.)
@@ -85,5 +97,5 @@ pub struct StateObject {
 
 	/// [MUTABLE] Serialized data object understandable and affectable
     /// by `constraint_owner`
-	data: &[u8],
+	pub data: &[u8],
 }
