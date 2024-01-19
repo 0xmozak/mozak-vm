@@ -231,7 +231,6 @@ pub fn generate_memory_trace<F: RichField>(
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
     use im::hashmap::HashMap;
     use mozak_runner::elf::{Data, Program};
     use plonky2::field::goldilocks_field::GoldilocksField;
@@ -241,7 +240,6 @@ mod tests {
     use starky::verifier::verify_stark_proof;
 
     use super::pad_mem_trace;
-    use crate::generation::debug_single_trace;
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
@@ -263,7 +261,8 @@ mod tests {
 
     #[rustfmt::skip]
     #[test]
-    fn double_init() -> Result<()> {
+    #[should_panic = "failing constraint: only single init is allowed per memory address"]
+    fn double_init() {
         let _ = env_logger::try_init();
         let stark = S::default();
 
@@ -275,16 +274,14 @@ mod tests {
         let trace = pad_mem_trace(trace);
         let trace_poly_values = trace_rows_to_poly_values(trace);
         let config = fast_test_config();
-        debug_single_trace::<F, D, _>(&stark, &trace_poly_values, &[]);
         let proof = prove_table::<F, C, S, D>(
             stark,
             &config,
             trace_poly_values,
             &[],
             &mut TimingTree::default(),
-        )?;
-        verify_stark_proof(stark, proof, &config)?;
-        Ok(())
+        ).unwrap();
+        assert!(verify_stark_proof(stark, proof, &config).is_ok(), "failing constraint: only single init is allowed per memory address");
     }
 
     // This test simulates the scenario of a set of instructions
