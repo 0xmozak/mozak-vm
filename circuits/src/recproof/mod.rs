@@ -1,7 +1,7 @@
 use anyhow::Result;
 use iter_fixed::IntoIteratorFixed;
 use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
+use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
 use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
@@ -16,7 +16,7 @@ pub mod unpruned;
 /// Reduce a hash-sized group of booleans by `&&`ing them together
 fn and_helper<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
-    bools: [BoolTarget; NUM_HASH_OUT_ELTS],
+    bools: [BoolTarget; 4],
 ) -> BoolTarget
 where
     F: RichField + Extendable<D>, {
