@@ -294,7 +294,7 @@ fn generate_xor_row<F: RichField>(inst: &Instruction, state: &State<F>) -> XorVi
 #[must_use]
 pub fn generate_permuted_inst_trace<F: RichField>(
     trace: &mut Vec<CpuState<F>>,
-    program_rom: &Vec<ProgramRom<F>>,
+    program_rom: &[ProgramRom<F>],
 ) -> Vec<ProgramRom<F>> {
     let mut permuted: Vec<_> = trace
         .iter()
@@ -331,7 +331,7 @@ pub fn generate_permuted_inst_trace<F: RichField>(
     for entry in permuted.iter_mut().skip(ori_len) {
         entry.filter = F::ZERO;
     }
-    trace.resize(len, trace.last().unwrap().clone());
+    trace.resize(len, *trace.last().unwrap());
 
     permuted
 }

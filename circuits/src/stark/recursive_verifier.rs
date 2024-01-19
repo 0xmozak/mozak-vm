@@ -456,7 +456,7 @@ pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D
     set_fri_proof_target(
         witness,
         &proof_target.opening_proof,
-        &proof.opening_proof.as_ref().unwrap(),
+        proof.opening_proof.as_ref().unwrap(),
     );
 }
 

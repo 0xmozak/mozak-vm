@@ -60,7 +60,7 @@ where
     let start = Instant::now();
     let traces_poly_values = generate_traces(program, record);
     let duration = start.elapsed();
-    println!("Time taken for generate_traces: {:?}", duration);
+    println!("Time taken for generate_traces: {duration:?}");
     if mozak_stark.debug || std::env::var("MOZAK_STARK_DEBUG").is_ok() {
         debug_traces(&traces_poly_values, mozak_stark, &public_inputs);
         debug_ctl(&traces_poly_values, mozak_stark);
@@ -74,7 +74,7 @@ where
         timing,
     );
     let duration = start.elapsed();
-    println!("Time taken for prove: {:?}", duration);
+    println!("Time taken for prove: {duration:?}");
     res
 }
 
@@ -350,6 +350,8 @@ where
     }))
 }
 
+/// Compute the quotient polynomial for a single STARK table.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn compute_quotient_batch_poly<F, C, S, const D: usize>(
     stark: &S,
     config: &StarkConfig,
@@ -415,6 +417,7 @@ where
 
 #[cfg(feature = "enable_batch_fri")]
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 pub fn prove_batch_fri<F, C, const D: usize>(
     mozak_stark: &MozakStark<F, D>,
     config: &StarkConfig,

@@ -1,5 +1,4 @@
 use std::process::Command;
-use std::time::Instant;
 use std::{fs, str};
 
 use tempfile::TempDir;
@@ -25,14 +24,10 @@ fn test_prove_and_verify_recursive_proof_command() {
     fs::write(&io_tape_public, b"").expect("Failed to create IO tape public file");
     fs::write(&transcript, b"").expect("Failed to create transcript file");
 
-    // Start timer for prove command
-    let start = Instant::now();
-
     // Execute the `--prove` command
     let output = Command::new("cargo")
         .args([
             "run",
-            "-r",
             "--",
             "prove",
             elf_file,
@@ -53,38 +48,16 @@ fn test_prove_and_verify_recursive_proof_command() {
         output
     );
 
-    // Stop timer and print duration for prove command
-    let duration = start.elapsed();
-    println!("Time taken for prove command: {:?}", duration);
-
-    // Print stdout and stderr
-    if !output.stdout.is_empty() {
-        println!(
-            "Standard Output:\n{}",
-            str::from_utf8(&output.stdout).unwrap_or("[Invalid UTF-8 in stdout]")
-        );
-    }
-    if !output.stderr.is_empty() {
-        println!(
-            "Standard Error:\n{}",
-            str::from_utf8(&output.stderr).unwrap_or("[Invalid UTF-8 in stderr]")
-        );
-    }
-
     // Assert the existence of output files
     for file in &[&proof_file, &recursive_proof_file, &recursive_proof_db] {
         let file_exists = file.exists();
         assert!(file_exists, "Expected file {:?} not found", file);
     }
 
-    // Start timer for verify-recursive-proof command
-    let start = Instant::now();
-
     // Execute the `--verify_recursive_proof` command
     let output = Command::new("cargo")
         .args([
             "run",
-            "-r",
             "--",
             "verify-recursive-proof",
             &recursive_proof_file.to_string_lossy(),
@@ -96,25 +69,4 @@ fn test_prove_and_verify_recursive_proof_command() {
         output.status.success(),
         "Verify recursive proof command failed"
     );
-
-    // Stop timer and print duration for verify-recursive-proof command
-    let duration = start.elapsed();
-    println!(
-        "Time taken for verify-recursive-proof command: {:?}",
-        duration
-    );
-
-    // Print stdout and stderr
-    if !output.stdout.is_empty() {
-        println!(
-            "Standard Output:\n{}",
-            str::from_utf8(&output.stdout).unwrap_or("[Invalid UTF-8 in stdout]")
-        );
-    }
-    if !output.stderr.is_empty() {
-        println!(
-            "Standard Error:\n{}",
-            str::from_utf8(&output.stderr).unwrap_or("[Invalid UTF-8 in stderr]")
-        );
-    }
 }

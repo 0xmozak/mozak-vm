@@ -115,7 +115,7 @@ impl ProveAndVerify for CpuStark<F, D> {
         let stark = S::default();
         let mut cpu_trace = generate_cpu_trace(record);
         let cpu_permuted_inst_trace =
-            generate_permuted_inst_trace(&mut cpu_trace, &generate_program_rom_trace(&program));
+            generate_permuted_inst_trace(&mut cpu_trace, &generate_program_rom_trace(program));
         let trace_poly_values = trace_to_poly_values(generate_cpu_trace_extended(
             cpu_trace,
             cpu_permuted_inst_trace,
