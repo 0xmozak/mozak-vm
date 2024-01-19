@@ -68,7 +68,6 @@ impl<F: RichField> State<F> {
     /// Panics if hash output of `hash_n_to_m_no_pad` has length different
     /// then expected value.
     pub fn ecall_poseidon2(self) -> (Aux<F>, Self) {
-        log::trace!("ECALL POSEIDON2 at CLK: {:?}", self.clk);
         let input_ptr = self.get_register_value(REG_A1);
         // lengths are in bytes
         let input_len = self.get_register_value(REG_A2);

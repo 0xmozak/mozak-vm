@@ -88,6 +88,11 @@ pub fn generate_cpu_trace<F: RichField>(record: &ExecutionRecord<F>) -> Vec<CpuS
                 (inst.op, io.op),
                 (Op::ECALL, IoOpcode::StorePublic)
             )),
+            is_io_transcript: F::from_bool(matches!(
+                (inst.op, io.op),
+                (Op::ECALL, IoOpcode::StoreTranscript)
+            )),
+
             is_halt: F::from_bool(matches!(
                 (inst.op, state.registers[usize::from(REG_A0)]),
                 (Op::ECALL, ecall::HALT)

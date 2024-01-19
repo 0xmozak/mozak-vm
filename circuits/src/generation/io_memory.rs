@@ -50,7 +50,9 @@ pub fn generate_io_memory_trace<F: RichField>(
                         ops: Ops {
                             is_io_store: F::from_bool(matches!(
                                 op,
-                                IoOpcode::StorePrivate | IoOpcode::StorePublic
+                                IoOpcode::StorePrivate
+                                    | IoOpcode::StorePublic
+                                    | IoOpcode::StoreTranscript
                             )),
                             is_memory_store: F::ZERO,
                         },
@@ -70,7 +72,9 @@ pub fn generate_io_memory_trace<F: RichField>(
                                 is_io_store: F::ZERO,
                                 is_memory_store: F::from_bool(matches!(
                                     op,
-                                    IoOpcode::StorePrivate | IoOpcode::StorePublic
+                                    IoOpcode::StorePrivate
+                                        | IoOpcode::StorePublic
+                                        | IoOpcode::StoreTranscript
                                 )),
                             },
                             is_lv_and_nv_are_memory_rows: F::from_bool(i + 1 != len),
@@ -94,4 +98,11 @@ pub fn generate_io_memory_public_trace<F: RichField>(
     step_rows: &[Row<F>],
 ) -> Vec<InputOutputMemory<F>> {
     generate_io_memory_trace(step_rows, IoOpcode::StorePublic)
+}
+
+#[must_use]
+pub fn generate_io_transcript_trace<F: RichField>(
+    step_rows: &[Row<F>],
+) -> Vec<InputOutputMemory<F>> {
+    generate_io_memory_trace(step_rows, IoOpcode::StoreTranscript)
 }

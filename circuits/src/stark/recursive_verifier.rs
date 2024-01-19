@@ -460,6 +460,9 @@ pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D
     );
 }
 
+// TODO(Matthias): remove this limitation, once we implement the recursion for
+// Register Starks.
+#[cfg(not(feature = "enable_register_starks"))]
 #[cfg(test)]
 mod tests {
     use anyhow::Result;

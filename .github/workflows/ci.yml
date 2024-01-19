@@ -34,15 +34,15 @@ jobs:
           local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
 
       - name: Compile
-        run: cargo nextest run --no-run --locked --all-targets
+        run: nice cargo nextest run --no-run --locked --features="enable_poseidon_starks" --all-targets
 
       - name: Test
-        run: MOZAK_STARK_DEBUG=true cargo nextest run --no-fail-fast --locked --all-targets
+        run: MOZAK_STARK_DEBUG=true nice cargo nextest run --no-fail-fast --locked --features="enable_poseidon_starks" --all-targets
 
       - name: Build and run examples
         run: |
-          cd examples && cargo build --release
-          cd .. && ./run_examples.sh
+          cd examples && nice cargo build --release
+          cd .. && nice ./run_examples.sh
 
   cargo-clippy:
     needs: check-runner

@@ -8,7 +8,7 @@ use proptest::prop_oneof;
 #[cfg(any(feature = "test", test))]
 use proptest::strategy::{Just, Strategy};
 
-use crate::elf::{Code, Data, Program};
+use crate::elf::{Code, Data, Program, RuntimeArguments};
 use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
@@ -27,9 +27,14 @@ pub fn simple_test_code_with_ro_memory(
     ro_mem: &[(u32, u8)],
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
-    io_tape_private: &[u8],
-    io_tape_public: &[u8],
+    runtime_args: RuntimeArguments,
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
+    let RuntimeArguments {
+        io_tape_private,
+        io_tape_public,
+        transcript,
+        ..
+    } = runtime_args;
     let _ = env_logger::try_init();
     let ro_code = Code(
         izip!(
@@ -62,7 +67,12 @@ pub fn simple_test_code_with_ro_memory(
         ..Default::default()
     };
 
-    let state0 = State::new(program.clone(), io_tape_private, io_tape_public);
+    let state0 = State::new(program.clone(), crate::elf::RuntimeArguments {
+        context_variables: vec![],
+        io_tape_private,
+        io_tape_public,
+        transcript,
+    });
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
         state.set_register_value(*rs, *val)
@@ -80,19 +90,18 @@ pub fn simple_test_code(
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
-    simple_test_code_with_ro_memory(code, &[], rw_mem, regs, &[], &[])
+    simple_test_code_with_ro_memory(code, &[], rw_mem, regs, RuntimeArguments::default())
 }
 
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
-pub fn simple_test_code_with_io_tape(
+pub fn simple_test_code_with_runtime_args(
     code: impl IntoIterator<Item = Instruction>,
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
-    io_tape_private: &[u8],
-    io_tape_public: &[u8],
+    runtime_args: RuntimeArguments,
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
-    simple_test_code_with_ro_memory(code, &[], rw_mem, regs, io_tape_private, io_tape_public)
+    simple_test_code_with_ro_memory(code, &[], rw_mem, regs, runtime_args)
 }
 
 #[cfg(any(feature = "test", test))]
