@@ -270,7 +270,7 @@ mod tests {
         let trace: Vec<Memory<GoldilocksField>> = prep_table(vec![
                 //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk    diff_addr_inv
                 [       0,     100,   1,     0,      0,       1,        1,       0,     inv::<F>(100)],
-                [       1,     100,   1,     0,      0,       1,        1,       0,     inv::<F>(0)],
+                [       1,     100,   1,     0,      0,       1,        2,       0,     inv::<F>(0)],
         ]);
         let trace = pad_mem_trace(trace);
         let trace_poly_values = trace_rows_to_poly_values(trace);
