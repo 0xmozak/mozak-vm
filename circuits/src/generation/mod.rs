@@ -178,8 +178,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         cpu_rows = pad_trace_with_last_to_len(cpu_rows, len);
         xor_rows = pad_trace_with_last_to_len(xor_rows, len);
         shift_amount_rows = pad_trace_with_last_to_len(shift_amount_rows, len);
-        for mut multiplicity in shift_amount_rows.iter_mut().skip(32) {
-            multiplicity = F::ZERO;
+        for row in shift_amount_rows.iter_mut().skip(32) {
+            row.multiplicity = F::ZERO;
         }
         program_rows = pad_trace_with_default_to_len(program_rows, len);
         memory_init_rows = pad_trace_with_last_to_len(memory_init_rows, len);
@@ -201,8 +201,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         memory_zeroinit_rows = pad_trace_with_last_to_len(memory_zeroinit_rows, len);
         rangecheck_rows = pad_trace_with_default_to_len(rangecheck_rows, len);
         rangecheck_u8_rows = pad_trace_with_last_to_len(rangecheck_u8_rows, len);
-        for mut multiplicity in rangecheck_u8_rows.iter_mut().skip(256) {
-            multiplicity = F::ZERO;
+        for row in rangecheck_u8_rows.iter_mut().skip(256) {
+            row.multiplicity = F::ZERO;
         }
 
         #[cfg(feature = "enable_register_starks")]
