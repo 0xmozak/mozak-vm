@@ -27,9 +27,14 @@ pub(crate) fn constraints<P: PackedField>(
     is_binary(yield_constr, lv.is_halt);
     is_binary(yield_constr, lv.is_io_store_private);
     is_binary(yield_constr, lv.is_io_store_public);
+    is_binary(yield_constr, lv.is_io_transcript);
     yield_constr.constraint(
         lv.inst.ops.ecall
-            - (lv.is_halt + lv.is_io_store_private + lv.is_io_store_public + lv.is_poseidon2),
+            - (lv.is_halt
+                + lv.is_io_store_private
+                + lv.is_io_store_public
+                + lv.is_io_transcript
+                + lv.is_poseidon2),
     );
     halt_constraints(lv, nv, yield_constr);
     io_constraints(lv, yield_constr);
@@ -83,6 +88,10 @@ pub(crate) fn io_constraints<P: PackedField>(
         lv.is_io_store_public
             * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::IO_READ_PUBLIC)),
     );
+    yield_constr.constraint(
+        lv.is_io_transcript
+            * (lv.regs[REG_A0 as usize] - P::Scalar::from_canonical_u32(ecall::IO_READ_TRANSCRIPT)),
+    );
 }
 
 pub(crate) fn poseidon2_constraints<P: PackedField>(
@@ -105,11 +114,13 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
     is_binary_ext_circuit(builder, lv.is_halt, yield_constr);
     is_binary_ext_circuit(builder, lv.is_io_store_private, yield_constr);
     is_binary_ext_circuit(builder, lv.is_io_store_public, yield_constr);
+    is_binary_ext_circuit(builder, lv.is_io_transcript, yield_constr);
 
     let is_ecall_ops = add_extension_vec(builder, vec![
         lv.is_halt,
         lv.is_io_store_private,
         lv.is_io_store_public,
+        lv.is_io_transcript,
         lv.is_poseidon2,
     ]);
     let ecall_constraint = builder.sub_extension(lv.inst.ops.ecall, is_ecall_ops);
@@ -177,6 +188,14 @@ pub(crate) fn io_constraints_circuit<F: RichField + Extendable<D>, const D: usiz
         builder.sub_extension(lv.regs[REG_A0 as usize], io_read_public_value);
     let constraint_public = builder.mul_extension(lv.is_io_store_public, reg_a0_sub_io_read_public);
     yield_constr.constraint(builder, constraint_public);
+
+    let io_read_transcript_value =
+        builder.constant_extension(F::Extension::from_canonical_u32(ecall::IO_READ_TRANSCRIPT));
+    let reg_a0_sub_io_read_transcript =
+        builder.sub_extension(lv.regs[REG_A0 as usize], io_read_transcript_value);
+    let constraint_transcript =
+        builder.mul_extension(lv.is_io_transcript, reg_a0_sub_io_read_transcript);
+    yield_constr.constraint(builder, constraint_transcript);
 }
 
 pub(crate) fn poseidon2_constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
