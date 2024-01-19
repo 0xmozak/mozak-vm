@@ -18,7 +18,9 @@ pub fn main() {
 
     #[allow(clippy::single_match)]
     match public_tape.get_function_id() {
-        0 => {}
+        0 => {
+            
+        }
         _ => (),
     };
 }
