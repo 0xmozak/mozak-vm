@@ -87,23 +87,23 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     #[allow(unused_mut)]
     let mut xor_rows = generate_xor_trace(&cpu_rows);
     #[allow(unused_mut)]
-        let mut shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
+    let mut shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     #[allow(unused_mut)]
-        let mut program_rows = generate_program_rom_trace(program);
+    let mut program_rows = generate_program_rom_trace(program);
     #[allow(unused_mut)]
-        let mut memory_init_rows = generate_memory_init_trace(program);
+    let mut memory_init_rows = generate_memory_init_trace(program);
     #[allow(unused_mut)]
-        let mut halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
+    let mut halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
     #[allow(unused_mut)]
-        let mut fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
+    let mut fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
     #[allow(unused_mut)]
-        let mut io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
+    let mut io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
     #[allow(unused_mut)]
-        let mut io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
+    let mut io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
     #[allow(unused_mut)]
-        let mut io_transcript_rows = generate_io_transcript_trace(&record.executed);
+    let mut io_transcript_rows = generate_io_transcript_trace(&record.executed);
     #[allow(unused_mut)]
-        let mut poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
+    let mut poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
     #[allow(unused_mut)]
     #[allow(unused)]
     let mut poseidon2_output_bytes_rows =
@@ -127,7 +127,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed);
 
     #[allow(unused_mut)]
-    let mut rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
+    let mut rangecheck_rows =
+        generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
     #[allow(unused_mut)]
     let mut rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
     #[allow(unused_mut)]
@@ -185,7 +186,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         fullword_memory_rows = pad_trace_with_last_to_len(fullword_memory_rows, len);
         io_memory_private_rows = pad_trace_with_last_to_len(io_memory_private_rows, len);
         io_memory_public_rows = pad_trace_with_last_to_len(io_memory_public_rows, len);
-        io_transcript_rows = pad_trace_with_last_to_len(io_memory_public_rows, len);
+        io_transcript_rows = pad_trace_with_last_to_len(io_transcript_rows, len);
 
         #[cfg(feature = "enable_poseidon_starks")]
         {
