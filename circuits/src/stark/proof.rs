@@ -41,7 +41,7 @@ pub struct StarkProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, 
     /// Merkle cap of LDEs of trace values.
     pub quotient_polys_cap: MerkleCap<F, C::Hasher>,
     /// Purported values of each polynomial at the challenge point.
-    pub openings: Option<StarkOpeningSet<F, D>>,
+    pub openings: StarkOpeningSet<F, D>,
     /// A batch FRI argument for all openings.
     pub opening_proof: Option<FriProof<F, C::Hasher, D>>,
 }
@@ -57,7 +57,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
         lde_bits - config.fri_config.rate_bits
     }
 
-    pub fn num_ctl_zs(&self) -> usize { self.openings.as_ref().unwrap().ctl_zs_last.len() }
+    pub fn num_ctl_zs(&self) -> usize { self.openings.ctl_zs_last.len() }
 
     /// Computes all Fiat-Shamir challenges used in the STARK proof.
     pub(crate) fn get_challenges(
@@ -91,7 +91,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> S
         challenger.observe_cap(quotient_polys_cap);
         let stark_zeta = challenger.get_extension_challenge::<D>();
 
-        challenger.observe_openings(&openings.as_ref().unwrap().to_fri_openings());
+        challenger.observe_openings(&openings.to_fri_openings());
 
         StarkProofChallenges {
             stark_alphas,
@@ -346,8 +346,8 @@ pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, co
     pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
     pub memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub public_inputs: PublicInputs<F>,
-    // #[cfg(feature = "enable_batch_fri")]
-    // pub batch_fri_proof: StarkProof<F, C, D>,
+    #[cfg(feature = "enable_batch_fri")]
+    pub batch_fri_proof: FriProof<F, C::Hasher, D>,
 }
 
 pub(crate) struct AllProofChallenges<F: RichField + Extendable<D>, const D: usize> {
@@ -384,6 +384,6 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
     /// [`TableKind`](crate::cross_table_lookup::TableKind).
     pub(crate) fn all_ctl_zs_last(self) -> TableKindArray<Vec<F>> {
         self.proofs_with_metadata
-            .map(|p| p.proof.openings.unwrap().ctl_zs_last)
+            .map(|p| p.proof.openings.ctl_zs_last)
     }
 }

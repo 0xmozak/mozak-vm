@@ -13,9 +13,11 @@ use plonky2::field::packable::Packable;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
+#[cfg(feature = "enable_batch_fri")]
+use plonky2::fri::proof::FriProof;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
-use plonky2::plonk::config::{GenericConfig, Hasher};
+use plonky2::plonk::config::GenericConfig;
 use plonky2::timed;
 use plonky2::util::log2_strict;
 use plonky2::util::timing::TimingTree;
@@ -135,6 +137,7 @@ where
         )
     );
 
+    #[cfg(not(feature = "enable_batch_fri"))]
     let proofs_with_metadata = timed!(
         timing,
         "compute all proofs given commitments",
@@ -151,7 +154,7 @@ where
     );
 
     #[cfg(feature = "enable_batch_fri")]
-    timed!(
+    let (proofs_with_metadata, batch_fri_proof) = timed!(
         timing,
         "compute batch fri proof",
         prove_batch_fri(
@@ -164,7 +167,7 @@ where
             &mut challenger,
             timing
         )
-    );
+    )?;
 
     let program_rom_trace_cap = trace_caps[TableKind::Program].clone();
     let memory_init_trace_cap = trace_caps[TableKind::MemoryInit].clone();
@@ -177,6 +180,8 @@ where
         program_rom_trace_cap,
         memory_init_trace_cap,
         public_inputs,
+        #[cfg(feature = "enable_batch_fri")]
+        batch_fri_proof,
     })
 }
 
@@ -296,7 +301,7 @@ where
         trace_cap: trace_commitment.merkle_tree.cap.clone(),
         ctl_zs_cap,
         quotient_polys_cap,
-        openings: Some(openings),
+        openings,
         opening_proof: Some(opening_proof),
     };
     Ok(StarkProofWithMetadata {
@@ -419,7 +424,10 @@ pub fn prove_batch_fri<F, C, const D: usize>(
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
-) -> Result<TableKindArray<StarkProof<F, C, D>>>
+) -> Result<(
+    TableKindArray<StarkProofWithMetadata<F, C, D>>,
+    FriProof<F, C::Hasher, D>,
+)>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
@@ -471,21 +479,83 @@ where
         timing,
     ));
 
-    Ok(all_starks!(mozak_stark, |stark, kind| {
+    all_kind!(|kind| {
         let ctl_zs_cap = ctl_zs_commitments[kind].merkle_tree.cap.clone();
         challenger.observe_cap(&ctl_zs_cap);
 
         let quotient_polys_cap = quotient_commitments[kind].merkle_tree.cap.clone();
         challenger.observe_cap(&quotient_polys_cap);
+    });
 
-        StarkProof {
+    let zeta = challenger.get_extension_challenge::<D>();
+    // To avoid leaking witness data, we want to ensure that our opening locations,
+    // `zeta` and `g * zeta`, are not in our subgroup `H`. It suffices to check
+    // `zeta` only, since `(g * zeta)^n = zeta^n`, where `n` is the order of
+    // `g`.
+    let g = F::primitive_root_of_unity(degree_bits);
+    ensure!(
+        zeta.exp_power_of_2(degree_bits) != F::Extension::ONE,
+        "Opening point is in the subgroup."
+    );
+
+    let all_caps = all_kind!(|kind| {
+        // TODO(Sai): we may not need it.
+        let init_challenger_state = challenger.compact();
+
+        let openings = StarkOpeningSet::new(
+            zeta,
+            g,
+            &trace_commitments[kind],
+            &ctl_zs_commitments[kind],
+            &quotient_commitments[kind],
+            degree_bits,
+        );
+
+        challenger.observe_openings(&openings.to_fri_openings());
+
+        let proof = StarkProof {
             trace_cap: trace_commitments[kind].merkle_tree.cap.clone(),
-            ctl_zs_cap,
-            quotient_polys_cap,
-            openings: None,
+            ctl_zs_cap: ctl_zs_commitments[kind].merkle_tree.cap.clone(),
+            quotient_polys_cap: quotient_commitments[kind].merkle_tree.cap.clone(),
+            openings,
             opening_proof: None,
+        };
+        StarkProofWithMetadata {
+            init_challenger_state,
+            proof,
         }
-    }))
+    });
+
+    let batch_fri_proof = {
+        let mut initial_merkle_trees = vec![];
+        all_kind!(|kind| {
+            initial_merkle_trees.push(&trace_commitments[kind]);
+            initial_merkle_trees.push(&ctl_zs_commitments[kind]);
+            initial_merkle_trees.push(&quotient_commitments[kind]);
+        });
+
+        timed!(
+            timing,
+            "compute batch opening proofs",
+            PolynomialBatch::prove_openings(
+                &mozak_stark.cpu_stark.fri_instance(
+                    zeta,
+                    g,
+                    config,
+                    Some(&LookupConfig {
+                        degree_bits,
+                        num_zs: ctl_data_per_table[TableKind::Cpu].len()
+                    })
+                ),
+                &initial_merkle_trees,
+                challenger,
+                &fri_params,
+                timing,
+            )
+        )
+    };
+
+    Ok((all_caps, batch_fri_proof))
 }
 
 #[cfg(test)]

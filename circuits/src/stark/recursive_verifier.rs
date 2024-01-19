@@ -448,7 +448,7 @@ pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D
 
     witness.set_fri_openings(
         &proof_target.openings.to_fri_openings(zero),
-        &proof.openings.as_ref().unwrap().to_fri_openings(),
+        &proof.openings.to_fri_openings(),
     );
 
     witness.set_cap_target(&proof_target.ctl_zs_cap, &proof.ctl_zs_cap);
