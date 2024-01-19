@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_signature() {
-        let config = CircuitConfig::standard_recursion_config();
+        let config = CircuitConfig::standard_recursion_zk_config();
         let (private_key, public_key, msg) = generate_signature_data();
         let (data, proof) = super::prove_sign::<F, C, 2>(config, &private_key, &public_key, &msg);
         assert!(data.verify(proof).is_ok());
@@ -180,7 +180,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_tampering_public_key() {
-        let config = CircuitConfig::standard_recursion_config();
+        let config = CircuitConfig::standard_recursion_zk_config();
         let (private_key, public_key, msg) = generate_signature_data();
         let (data, mut proof) =
             super::prove_sign::<F, C, 2>(config, &private_key, &public_key, &msg);
