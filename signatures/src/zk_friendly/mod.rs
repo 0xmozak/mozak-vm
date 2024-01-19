@@ -153,6 +153,8 @@ mod tests {
 
     use super::{PrivateKey, PublicKey};
     use crate::zk_friendly::Message;
+    type C = PoseidonGoldilocksConfig;
+    type F = <C as GenericConfig<2>>::F;
 
     fn generate_signature_data() -> (PrivateKey, PublicKey, Message) {
         let mut rng = rand::thread_rng();
@@ -169,8 +171,6 @@ mod tests {
 
     #[test]
     fn test_signature() {
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<2>>::F;
         let config = CircuitConfig::standard_recursion_config();
         let (private_key, public_key, msg) = generate_signature_data();
         let (data, proof) = super::prove_sign::<F, C, 2>(config, &private_key, &public_key, &msg);
@@ -180,8 +180,6 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_tampering_public_key() {
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<2>>::F;
         let config = CircuitConfig::standard_recursion_config();
         let (private_key, public_key, msg) = generate_signature_data();
         let (data, mut proof) =
@@ -197,9 +195,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_tampering_message() {
-        type C = PoseidonGoldilocksConfig;
-        type F = <C as GenericConfig<2>>::F;
-        let config = CircuitConfig::standard_recursion_config();
+        let config = CircuitConfig::standard_recursion_zk_config();
         let (private_key, public_key, msg) = generate_signature_data();
         let (data, mut proof) =
             super::prove_sign::<F, C, 2>(config, &private_key, &public_key, &msg);
