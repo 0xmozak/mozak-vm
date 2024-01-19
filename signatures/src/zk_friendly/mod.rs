@@ -11,15 +11,19 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
+pub const PUBLIC_KEY_U64LIMBS: usize = 4;
+pub const PRIVATE_KEY_U8LIMBS: usize = 32;
+pub const MESSAGE_U8LIMBS: usize = 32;
+
 /// This is supposed to be a slice of four field
 /// elements in goldilocks, since its output of
 /// poseidon hash.
 pub struct PublicKey {
-    limbs: [u64; 4],
+    limbs: [u64; PUBLIC_KEY_U64LIMBS],
 }
 
 impl PublicKey {
-    pub fn new(limbs: [u64; 4]) -> Option<Self> {
+    pub fn new(limbs: [u64; PUBLIC_KEY_U64LIMBS]) -> Option<Self> {
         match limbs
             .iter()
             .filter(|&&x| x >= GoldilocksField::ORDER)
@@ -30,9 +34,9 @@ impl PublicKey {
         }
     }
 
-    pub fn get_limbs(&self) -> [u64; 4] { self.limbs }
+    pub fn get_limbs(&self) -> [u64; PUBLIC_KEY_U64LIMBS] { self.limbs }
 
-    pub fn get_limbs_field(&self) -> [GoldilocksField; 4] {
+    pub fn get_limbs_field(&self) -> [GoldilocksField; PUBLIC_KEY_U64LIMBS] {
         self.get_limbs().map(GoldilocksField::from_canonical_u64)
     }
 }
@@ -49,43 +53,43 @@ impl From<HashOut<GoldilocksField>> for PublicKey {
 
 /// 256 bit private key
 pub struct PrivateKey {
-    limbs: [u8; 32],
+    limbs: [u8; PRIVATE_KEY_U8LIMBS],
 }
 
 impl PrivateKey {
-    pub fn new(limbs: [u8; 32]) -> Self { Self { limbs } }
+    pub fn new(limbs: [u8; PRIVATE_KEY_U8LIMBS]) -> Self { Self { limbs } }
 
-    pub fn get_limbs(&self) -> [u8; 32] { self.limbs }
+    pub fn get_limbs(&self) -> [u8; PRIVATE_KEY_U8LIMBS] { self.limbs }
 
     pub fn get_public_key(&self) -> PublicKey {
         PoseidonHash::hash_or_noop(&self.get_limbs_field()).into()
     }
 
-    pub fn get_limbs_field(&self) -> [GoldilocksField; 32] {
+    pub fn get_limbs_field(&self) -> [GoldilocksField; PRIVATE_KEY_U8LIMBS] {
         self.get_limbs().map(GoldilocksField::from_canonical_u8)
     }
 }
 
 /// For simplicity, this is assumed to be a 256 bit hash
 pub struct Message {
-    limbs: [u8; 32],
+    limbs: [u8; PRIVATE_KEY_U8LIMBS],
 }
 
 impl Message {
-    pub fn new(limbs: [u8; 32]) -> Self { Self { limbs } }
+    pub fn new(limbs: [u8; PRIVATE_KEY_U8LIMBS]) -> Self { Self { limbs } }
 
-    pub fn get_limbs(&self) -> [u8; 32] { self.limbs }
+    pub fn get_limbs(&self) -> [u8; PRIVATE_KEY_U8LIMBS] { self.limbs }
 
-    pub fn get_limbs_field(&self) -> [GoldilocksField; 32] {
+    pub fn get_limbs_field(&self) -> [GoldilocksField; PRIVATE_KEY_U8LIMBS] {
         self.get_limbs().map(GoldilocksField::from_canonical_u8)
     }
 }
 
 pub fn sign_circuit<F: RichField + Extendable<D>, C: GenericConfig<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
-    private_key_target: [Target; 32],
+    private_key_target: [Target; PRIVATE_KEY_U8LIMBS],
     public_key_target: HashOutTarget,
-    msg_target: [Target; 32],
+    msg_target: [Target; MESSAGE_U8LIMBS],
 ) where
     C::Hasher: AlgebraicHasher<F>, {
     // range check each limb to be 8 bits
@@ -116,9 +120,9 @@ where
     let mut builder = CircuitBuilder::<F, D>::new(config);
 
     // create targets
-    let private_key_target = builder.add_virtual_target_arr::<32>();
-    let public_key_target = builder.add_virtual_target_arr::<4>();
-    let msg_target = builder.add_virtual_target_arr::<32>();
+    let private_key_target = builder.add_virtual_target_arr::<PRIVATE_KEY_U8LIMBS>();
+    let public_key_target = builder.add_virtual_target_arr::<PUBLIC_KEY_U64LIMBS>();
+    let msg_target = builder.add_virtual_target_arr::<PRIVATE_KEY_U8LIMBS>();
 
     // convert inputs slices to field slices.
     let private_key_field = private_key.get_limbs().map(|x| F::from_canonical_u8(x));
@@ -151,7 +155,7 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use rand::Rng;
 
-    use super::{PrivateKey, PublicKey};
+    use super::{PrivateKey, PublicKey, MESSAGE_U8LIMBS, PRIVATE_KEY_U8LIMBS};
     use crate::zk_friendly::Message;
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<2>>::F;
@@ -160,11 +164,11 @@ mod tests {
         let mut rng = rand::thread_rng();
 
         // generate random private key
-        let private_key = PrivateKey::new(rng.gen::<[u8; 32]>());
+        let private_key = PrivateKey::new(rng.gen::<[u8; PRIVATE_KEY_U8LIMBS]>());
         // get public key associated with private key
         let public_key = private_key.get_public_key();
         // generate random message
-        let msg = Message::new(rng.gen::<[u8; 32]>());
+        let msg = Message::new(rng.gen::<[u8; MESSAGE_U8LIMBS]>());
 
         (private_key, public_key, msg)
     }
