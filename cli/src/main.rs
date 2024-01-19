@@ -51,6 +51,8 @@ pub struct RuntimeArguments {
     /// Public input.
     #[arg(long)]
     io_tape_public: Option<Input>,
+    #[arg(long)]
+    transcript: Option<Input>,
 }
 
 #[derive(Clone, Debug, Args)]
@@ -73,6 +75,7 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
     fn from(value: RuntimeArguments) -> Self {
         let mut io_tape_private = vec![];
         let mut io_tape_public = vec![];
+        let mut transcript = vec![];
 
         if let Some(mut t) = value.io_tape_private {
             let bytes_read = t
@@ -88,10 +91,17 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
             debug!("Read {bytes_read} of io_tape data.");
         };
 
+        if let Some(mut t) = value.transcript {
+            let bytes_read = t.read_to_end(&mut transcript).expect("Read should pass");
+            debug!("Read {bytes_read} of transcript data.");
+        };
+
         Self {
+            // TODO(bing): use `context_variables`
             context_variables: vec![],
             io_tape_private,
             io_tape_public,
+            transcript,
         }
     }
 }

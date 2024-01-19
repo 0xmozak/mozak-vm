@@ -170,6 +170,7 @@ pub struct CpuState<T> {
     pub io_size: T,
     pub is_io_store_private: T,
     pub is_io_store_public: T,
+    pub is_io_transcript: T,
     pub is_halt: T,
     pub is_poseidon2: T,
     pub poseidon2_input_addr: T,
@@ -410,6 +411,19 @@ pub fn filter_for_io_memory_public<F: Field>() -> Column<F> {
     cpu.is_io_store_public
 }
 
+#[must_use]
+pub fn data_for_io_transcript<F: Field>() -> Vec<Column<F>> {
+    let cpu = col_map().cpu.map(Column::from);
+    vec![cpu.clk, cpu.io_addr, cpu.io_size, cpu.is_io_transcript]
+}
+
+/// Column for a binary filter for memory instruction in IO Memory stark.
+/// [`CpuTable`](crate::cross_table_lookup::CpuTable).
+#[must_use]
+pub fn filter_for_io_transcript<F: Field>() -> Column<F> {
+    let cpu = col_map().cpu.map(Column::from);
+    cpu.is_io_transcript
+}
 impl<T: core::ops::Add<Output = T>> OpSelectors<T> {
     #[must_use]
     pub fn ops_that_use_xor(self) -> T {
