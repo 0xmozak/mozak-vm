@@ -30,7 +30,9 @@ fn test_prove_and_verify_recursive_proof_command() {
             "prove",
             elf_file,
             &proof_file.to_string_lossy(),
+            "--io-tape-private",
             &io_tape_private.to_string_lossy(),
+            "--io-tape-public",
             &io_tape_public.to_string_lossy(),
             &recursive_proof_file.to_string_lossy(),
         ])

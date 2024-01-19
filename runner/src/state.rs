@@ -9,7 +9,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::hash::poseidon2::WIDTH;
 use serde::{Deserialize, Serialize};
 
-use crate::elf::{Code, Data, Program};
+use crate::elf::{Code, Data, Program, RuntimeArguments};
 use crate::instruction::{Args, DecodingError, Instruction};
 
 /// State of RISC-V VM
@@ -45,29 +45,29 @@ pub struct State<F: RichField> {
     _phantom: PhantomData<F>,
 }
 
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deref, Serialize, Deserialize)]
 pub struct IoTapeData {
     #[deref]
-    pub data: Rc<Vec<u8>>,
+    pub data: Rc<[u8]>,
     pub read_index: usize,
 }
 
-#[derive(Clone, Debug, Default, Deref, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deref, Serialize, Deserialize)]
 pub struct IoTape {
     #[deref]
     private: IoTapeData,
     public: IoTapeData,
 }
 
-impl From<(&[u8], &[u8])> for IoTape {
-    fn from(data: (&[u8], &[u8])) -> Self {
+impl From<(Vec<u8>, Vec<u8>)> for IoTape {
+    fn from(data: (Vec<u8>, Vec<u8>)) -> Self {
         Self {
             private: IoTapeData {
-                data: Rc::new(data.0.to_vec()),
+                data: Rc::from(data.0),
                 read_index: 0,
             },
             public: IoTapeData {
-                data: Rc::new(data.1.to_vec()),
+                data: Rc::from(data.1),
                 read_index: 0,
             },
         }
@@ -87,7 +87,7 @@ impl<F: RichField> Default for State<F> {
             pc: Default::default(),
             rw_memory: HashMap::default(),
             ro_memory: HashMap::default(),
-            io_tape: IoTape::default(),
+            io_tape: IoTape::from((vec![], vec![])),
             _phantom: PhantomData,
         }
     }
@@ -185,8 +185,11 @@ impl<F: RichField> State<F> {
             entry_point: pc,
             ..
         }: Program,
-        io_tape_private: &[u8],
-        io_tape_public: &[u8],
+        RuntimeArguments {
+            io_tape_private,
+            io_tape_public,
+            ..
+        }: RuntimeArguments,
     ) -> Self {
         Self {
             pc,
@@ -374,7 +377,6 @@ impl<F: RichField> State<F> {
     pub fn read_iobytes(mut self, num_bytes: usize, op: IoOpcode) -> (Vec<u8>, Self) {
         assert!(matches!(op, IoOpcode::StorePublic | IoOpcode::StorePrivate));
         if op == IoOpcode::StorePublic {
-            log::trace!("ECALL Public IO_READ at CLK: {:?}", self.clk);
             let read_index = self.io_tape.public.read_index;
             let remaining_len = self.io_tape.public.data.len() - read_index;
             let limit = num_bytes.min(remaining_len);
@@ -391,7 +393,6 @@ impl<F: RichField> State<F> {
                 self,
             )
         } else {
-            log::trace!("ECALL Private IO_READ at CLK: {:?}", self.clk);
             let read_index = self.io_tape.private.read_index;
             let remaining_len = self.io_tape.private.data.len() - read_index;
             let limit = num_bytes.min(remaining_len);
@@ -417,10 +418,9 @@ mod test {
 
     #[test]
     fn test_io_tape_serialization() {
-        let io_tape = IoTape::from((
-            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..],
-            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..],
-        ));
+        let io_tape = IoTape::from((vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10], vec![
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        ]));
         let serialized = serde_json::to_string(&io_tape).unwrap();
         let deserialized: IoTape = serde_json::from_str(&serialized).unwrap();
         assert_eq!(io_tape.private.read_index, deserialized.private.read_index);

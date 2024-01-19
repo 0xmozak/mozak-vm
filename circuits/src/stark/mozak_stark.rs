@@ -14,7 +14,7 @@ use crate::cross_table_lookup::{Column, CrossTableLookup};
 use crate::memory::stark::MemoryStark;
 use crate::memory_fullword::stark::FullWordMemoryStark;
 use crate::memory_halfword::stark::HalfWordMemoryStark;
-use crate::memory_io::stark::InputOuputMemoryStark;
+use crate::memory_io::stark::InputOutputMemoryStark;
 use crate::memory_zeroinit::stark::MemoryZeroInitStark;
 use crate::memoryinit::stark::MemoryInitStark;
 use crate::poseidon2::stark::Poseidon2_12Stark;
@@ -28,6 +28,8 @@ use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::rangecheck_looking;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::stark::RangeCheckU8Stark;
+#[cfg(feature = "enable_register_starks")]
+use crate::register;
 use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::stark::XorStark;
@@ -75,9 +77,9 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     #[StarkSet(stark_kind = "FullWordMemory")]
     pub fullword_memory_stark: FullWordMemoryStark<F, D>,
     #[StarkSet(stark_kind = "IoMemoryPrivate")]
-    pub io_memory_private_stark: InputOuputMemoryStark<F, D>,
+    pub io_memory_private_stark: InputOutputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "IoMemoryPublic")]
-    pub io_memory_public_stark: InputOuputMemoryStark<F, D>,
+    pub io_memory_public_stark: InputOutputMemoryStark<F, D>,
     #[cfg_attr(
         feature = "enable_register_starks",
         StarkSet(stark_kind = "RegisterInit")
@@ -336,8 +338,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             fullword_memory_stark: FullWordMemoryStark::default(),
             register_init_stark: RegisterInitStark::default(),
             register_stark: RegisterStark::default(),
-            io_memory_private_stark: InputOuputMemoryStark::default(),
-            io_memory_public_stark: InputOuputMemoryStark::default(),
+            io_memory_private_stark: InputOutputMemoryStark::default(),
+            io_memory_public_stark: InputOutputMemoryStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
@@ -441,9 +443,15 @@ pub struct RangecheckTable<F: Field>(CrossTableLookup<F>);
 
 impl<F: Field> Lookups<F> for RangecheckTable<F> {
     fn lookups() -> CrossTableLookup<F> {
+        #[cfg(feature = "enable_register_starks")]
+        let register = register::columns::rangecheck_looking();
+        #[cfg(not(feature = "enable_register_starks"))]
+        let register: Vec<Table<F>> = vec![];
+
         let looking: Vec<Table<F>> = chain![
             memory::columns::rangecheck_looking(),
             cpu::columns::rangecheck_looking(),
+            register,
         ]
         .collect();
         CrossTableLookup::new(

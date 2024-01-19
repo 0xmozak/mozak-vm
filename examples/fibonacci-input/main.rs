@@ -5,7 +5,7 @@
 use std::env;
 use std::io::{stdin, BufReader, Read};
 
-use guest::stdin::{MozakIoPrivate, MozakIoPublic};
+use guest::stdin::{MozakIo, MozakIoPrivate, MozakIoPublic};
 
 fn fibonacci(n: u32) -> u32 {
     if n < 2 {
@@ -21,11 +21,11 @@ fn fibonacci(n: u32) -> u32 {
 pub fn main() {
     #[cfg(not(target_os = "zkvm"))]
     let args: Vec<String> = env::args().collect();
-    let mut mozak_io_private = MozakIoPrivate {
+    let mut mozak_io_private = MozakIoPrivate(MozakIo {
         stdin: Box::new(BufReader::new(stdin())),
         #[cfg(not(target_os = "zkvm"))]
-        io_tape_file: args[1].clone(),
-    };
+        file: args[1].clone(),
+    });
     // read from private iotape, the input
     let mut buffer = [0_u8; 4];
     let n = mozak_io_private.read(buffer.as_mut()).expect("READ failed");
@@ -33,11 +33,11 @@ pub fn main() {
     let input = u32::from_le_bytes(buffer);
 
     // read from public iotape, the output
-    let mut mozak_io_public = MozakIoPublic {
+    let mut mozak_io_public = MozakIoPublic(MozakIo {
         stdin: Box::new(BufReader::new(stdin())),
         #[cfg(not(target_os = "zkvm"))]
-        io_tape_file: args[2].clone(),
-    };
+        file: args[2].clone(),
+    });
     let mut buffer = [0_u8; 4];
     let n = mozak_io_public.read(buffer.as_mut()).expect("READ failed");
     assert!(n <= 4);
