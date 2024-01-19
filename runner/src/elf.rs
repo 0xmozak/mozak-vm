@@ -177,6 +177,7 @@ pub struct RuntimeArguments {
     pub context_variables: Vec<u8>,
     pub io_tape_private: Vec<u8>,
     pub io_tape_public: Vec<u8>,
+    pub transcript: Vec<u8>,
 }
 
 impl RuntimeArguments {
@@ -186,11 +187,13 @@ impl RuntimeArguments {
         context_variables: Vec<u8>,
         io_tape_private: Vec<u8>,
         io_tape_public: Vec<u8>,
+        transcript: Vec<u8>,
     ) -> Self {
         RuntimeArguments {
             context_variables,
             io_tape_private,
             io_tape_public,
+            transcript,
         }
     }
 }
@@ -579,7 +582,7 @@ mod test {
     fn test_empty_elf_with_args() {
         let mozak_ro_memory = Program::mozak_load_program(
             mozak_examples::EMPTY_ELF,
-            &RuntimeArguments::new(vec![0], vec![0, 1], vec![0, 1, 2]),
+            &RuntimeArguments::new(vec![0], vec![0, 1], vec![0, 1, 2], vec![]),
         )
         .unwrap()
         .mozak_ro_memory

@@ -12,6 +12,22 @@ use serde::{Deserialize, Serialize};
 use crate::elf::{Code, Data, Program, RuntimeArguments};
 use crate::instruction::{Args, DecodingError, Instruction};
 
+pub fn read_bytes(buf: &[u8], index: &mut usize, num_bytes: usize) -> Vec<u8> {
+    let remaining_len = buf.len() - *index;
+    let limit = num_bytes.min(remaining_len);
+    let read = buf[*index..(*index + limit)].to_vec();
+    log::trace!(
+        "read: 0x{:0x}, {:?}, data.len: {:?}, data: {:?}",
+        index,
+        remaining_len,
+        buf.len(),
+        read
+    );
+
+    *index += limit;
+    read
+}
+
 /// State of RISC-V VM
 ///
 /// Note: In general clone is not necessarily what you want, but in our case we
@@ -42,6 +58,7 @@ pub struct State<F: RichField> {
     pub rw_memory: HashMap<u32, u8>,
     pub ro_memory: HashMap<u32, u8>,
     pub io_tape: IoTape,
+    pub transcript: IoTapeData,
     _phantom: PhantomData<F>,
 }
 
@@ -55,8 +72,8 @@ pub struct IoTapeData {
 #[derive(Clone, Debug, Deref, Serialize, Deserialize)]
 pub struct IoTape {
     #[deref]
-    private: IoTapeData,
-    public: IoTapeData,
+    pub private: IoTapeData,
+    pub public: IoTapeData,
 }
 
 impl From<(Vec<u8>, Vec<u8>)> for IoTape {
@@ -88,6 +105,10 @@ impl<F: RichField> Default for State<F> {
             rw_memory: HashMap::default(),
             ro_memory: HashMap::default(),
             io_tape: IoTape::from((vec![], vec![])),
+            transcript: IoTapeData {
+                data: [].into(),
+                read_index: 0,
+            },
             _phantom: PhantomData,
         }
     }
@@ -131,8 +152,10 @@ pub enum IoOpcode {
     None,
     StorePrivate,
     StorePublic,
+    StoreTranscript,
 }
-#[derive(Debug, Clone, Default)]
+
+#[derive(Debug, Default, Clone)]
 pub struct IoEntry {
     pub addr: u32,
     pub op: IoOpcode,
