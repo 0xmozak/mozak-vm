@@ -12,7 +12,7 @@ use starky::stark::Stark;
 
 use super::columns::RegisterInit;
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::stark::utils::is_binary;
+use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
 #[derive(Clone, Copy, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -55,11 +55,12 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterInitS
 
     fn eval_ext_circuit(
         &self,
-        _builder: &mut CircuitBuilder<F, D>,
-        _vars: &Self::EvaluationFrameTarget,
-        _yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        vars: &Self::EvaluationFrameTarget,
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        unimplemented!()
+        let lv: &RegisterInit<_> = vars.get_local_values().into();
+        is_binary_ext_circuit(builder, lv.is_looked_up, yield_constr);
     }
 
     fn constraint_degree(&self) -> usize { 3 }
