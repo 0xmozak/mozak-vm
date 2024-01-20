@@ -8,13 +8,14 @@ use log::log_enabled;
 use log::Level::Debug;
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
-use plonky2::field::extension::Extendable;
+use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packable::Packable;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 #[cfg(feature = "enable_batch_fri")]
 use plonky2::fri::proof::FriProof;
+use plonky2::fri::structure::{FriBatchInfo, FriInstanceInfo, FriOracleInfo, FriPolynomialInfo};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::GenericConfig;
@@ -415,6 +416,79 @@ where
     )
 }
 
+pub(crate) fn update_fri_instance<F, S, const D: usize>(
+    stark: &S,
+    oracles: &mut Vec<FriOracleInfo>,
+    batches: &mut Vec<FriBatchInfo<F, D>>,
+    zeta: F::Extension,
+    g: F,
+    config: &StarkConfig,
+    lookup_cfg: Option<&LookupConfig>,
+) where
+    F: RichField + Extendable<D>,
+    S: Stark<F, D> + Display, {
+    let trace_info = FriPolynomialInfo::from_range(oracles.len(), 0..S::COLUMNS);
+    let trace_oracle = FriOracleInfo {
+        num_polys: S::COLUMNS,
+        blinding: false,
+    };
+    oracles.push(trace_oracle);
+
+    let num_ctl_zs = lookup_cfg.map(|n| n.num_zs).unwrap_or_default();
+    let num_permutation_batches = stark.num_permutation_batches(config);
+    let num_z_polys = num_permutation_batches + num_ctl_zs;
+
+    let permutation_zs_info = FriPolynomialInfo::from_range(oracles.len(), 0..num_z_polys);
+
+    let ctl_zs_info = FriPolynomialInfo::from_range(
+        oracles.len(),
+        num_permutation_batches..num_permutation_batches + num_ctl_zs,
+    );
+
+    let permutation_oracle = FriOracleInfo {
+        num_polys: num_z_polys,
+        blinding: false,
+    };
+
+    if stark.uses_permutation_args() || lookup_cfg.is_some() {
+        oracles.push(permutation_oracle);
+    }
+
+    let num_quotient_polys = stark.quotient_degree_factor() * config.num_challenges;
+    let quotient_info = FriPolynomialInfo::from_range(oracles.len(), 0..num_quotient_polys);
+    let quotient_oracle = FriOracleInfo {
+        num_polys: num_quotient_polys,
+        blinding: false,
+    };
+    oracles.push(quotient_oracle);
+
+    let zeta_batch = FriBatchInfo {
+        point: zeta,
+        polynomials: [
+            trace_info.clone(),
+            permutation_zs_info.clone(),
+            quotient_info,
+        ]
+        .concat(),
+    };
+    let zeta_next_batch = FriBatchInfo {
+        point: zeta.scalar_mul(g),
+        polynomials: [trace_info, permutation_zs_info].concat(),
+    };
+
+    batches.push(zeta_batch);
+    batches.push(zeta_next_batch);
+
+    if let Some(lookup_cfg) = lookup_cfg {
+        let ctl_last_batch = FriBatchInfo {
+            point: F::Extension::primitive_root_of_unity(lookup_cfg.degree_bits).inverse(),
+            polynomials: ctl_zs_info,
+        };
+
+        batches.push(ctl_last_batch);
+    }
+}
+
 #[cfg(feature = "enable_batch_fri")]
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
@@ -537,19 +611,28 @@ where
             initial_merkle_trees.push(&quotient_commitments[kind]);
         });
 
+        let mut oracles = vec![];
+        let mut batches = vec![];
+        all_starks!(mozak_stark, |stark, kind| {
+            update_fri_instance(
+                stark,
+                &mut oracles,
+                &mut batches,
+                zeta,
+                g,
+                config,
+                Some(&LookupConfig {
+                    degree_bits,
+                    num_zs: ctl_data_per_table[kind].len(),
+                }),
+            );
+        });
+
         timed!(
             timing,
             "compute batch opening proofs",
             PolynomialBatch::prove_openings(
-                &mozak_stark.cpu_stark.fri_instance(
-                    zeta,
-                    g,
-                    config,
-                    Some(&LookupConfig {
-                        degree_bits,
-                        num_zs: ctl_data_per_table[TableKind::Cpu].len()
-                    })
-                ),
+                &FriInstanceInfo { oracles, batches },
                 &initial_merkle_trees,
                 challenger,
                 &fri_params,
