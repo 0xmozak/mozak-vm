@@ -72,15 +72,15 @@ impl PrivateKey {
 
 /// For simplicity, this is assumed to be a 256 bit hash
 pub struct Message {
-    limbs: [u8; PRIVATE_KEY_U8LIMBS],
+    limbs: [u8; MESSAGE_U8LIMBS],
 }
 
 impl Message {
-    pub fn new(limbs: [u8; PRIVATE_KEY_U8LIMBS]) -> Self { Self { limbs } }
+    pub fn new(limbs: [u8; MESSAGE_U8LIMBS]) -> Self { Self { limbs } }
 
-    pub fn get_limbs(&self) -> [u8; PRIVATE_KEY_U8LIMBS] { self.limbs }
+    pub fn get_limbs(&self) -> [u8; MESSAGE_U8LIMBS] { self.limbs }
 
-    pub fn get_limbs_field(&self) -> [GoldilocksField; PRIVATE_KEY_U8LIMBS] {
+    pub fn get_limbs_field(&self) -> [GoldilocksField; MESSAGE_U8LIMBS] {
         self.get_limbs().map(GoldilocksField::from_canonical_u8)
     }
 }
@@ -122,7 +122,7 @@ where
     // create targets
     let private_key_target = builder.add_virtual_target_arr::<PRIVATE_KEY_U8LIMBS>();
     let public_key_target = builder.add_virtual_target_arr::<PUBLIC_KEY_U64LIMBS>();
-    let msg_target = builder.add_virtual_target_arr::<PRIVATE_KEY_U8LIMBS>();
+    let msg_target = builder.add_virtual_target_arr::<MESSAGE_U8LIMBS>();
 
     // convert inputs slices to field slices.
     let private_key_field = private_key.get_limbs().map(|x| F::from_canonical_u8(x));
@@ -151,6 +151,7 @@ where
 mod tests {
 
     use plonky2::field::types::Sample;
+    use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use rand::Rng;
@@ -159,6 +160,7 @@ mod tests {
     use crate::zk_friendly::Message;
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<2>>::F;
+    const D: usize = 2;
 
     fn generate_signature_data() -> (PrivateKey, PublicKey, Message) {
         let mut rng = rand::thread_rng();
@@ -187,10 +189,13 @@ mod tests {
         let config = CircuitConfig::standard_recursion_zk_config();
         let (private_key, public_key, msg) = generate_signature_data();
         let (data, mut proof) =
-            super::prove_sign::<F, C, 2>(config, &private_key, &public_key, &msg);
+            super::prove_sign::<F, C, D>(config, &private_key, &public_key, &msg);
 
         // assert public key is there in public inputs
-        assert_eq!(proof.public_inputs[..4], public_key.get_limbs_field());
+        assert_eq!(
+            proof.public_inputs[..NUM_HASH_OUT_ELTS],
+            public_key.get_limbs_field()
+        );
         // tamper with public key
         proof.public_inputs[0] = F::rand();
         assert!(data.verify(proof).is_ok());
@@ -202,12 +207,15 @@ mod tests {
         let config = CircuitConfig::standard_recursion_zk_config();
         let (private_key, public_key, msg) = generate_signature_data();
         let (data, mut proof) =
-            super::prove_sign::<F, C, 2>(config, &private_key, &public_key, &msg);
+            super::prove_sign::<F, C, D>(config, &private_key, &public_key, &msg);
 
         // assert msg is there in public inputs
-        assert_eq!(proof.public_inputs[4..], msg.get_limbs_field());
+        assert_eq!(
+            proof.public_inputs[NUM_HASH_OUT_ELTS..],
+            msg.get_limbs_field()
+        );
         // tamper with msg
-        proof.public_inputs[4] = F::rand();
+        proof.public_inputs[NUM_HASH_OUT_ELTS] = F::rand();
         assert!(data.verify(proof).is_ok());
     }
 }
