@@ -1,7 +1,6 @@
 use p3_challenger::{CanObserve, FieldChallenger};
 use p3_commit::{Pcs, UnivariatePcs};
 use p3_field::TwoAdicField;
-use p3_matrix::Matrix;
 use p3_uni_stark::StarkConfig;
 use p3_util::log2_strict_usize;
 
@@ -9,9 +8,13 @@ use crate::generation::bitshift::generate_bitshift_trace;
 use crate::generation::xor::generate_dummy_xor_trace;
 
 const XOR_TRACE_LEN_LOG: u32 = 10;
+const NUM_STARKS: usize = 2;
 
 /// Note that this is an incomplete prover. Mainly intended for experiment.
-pub fn prove<SC: StarkConfig>(config: SC, mut challenger: SC::Challenger) {
+/// # Panics
+/// This function will panic if the number of traces is not equal to the number
+/// of Starks.
+pub fn prove<SC: StarkConfig>(config: &SC, mut challenger: SC::Challenger) {
     // collect traces of each stark as Matrices
     let traces = [
         generate_bitshift_trace(),
@@ -19,15 +22,15 @@ pub fn prove<SC: StarkConfig>(config: SC, mut challenger: SC::Challenger) {
     ];
 
     // height of each trace matrix
-    let degrees: [usize; 2] = traces
+    let degrees: [usize; NUM_STARKS] = traces
         .iter()
-        .map(|trace| trace.height())
+        .map(p3_matrix::Matrix::height)
         .collect::<Vec<_>>()
         .try_into()
         .unwrap();
 
-    let log_degrees = degrees.map(|d| log2_strict_usize(d));
-    let g_subgroups = log_degrees.map(|log_deg| SC::Val::two_adic_generator(log_deg));
+    let log_degrees = degrees.map(log2_strict_usize);
+    let g_subgroups = log_degrees.map(SC::Val::two_adic_generator);
 
     // commit to traces
     let (commit, data) = config.pcs().commit_batches(traces.to_vec());
@@ -54,6 +57,6 @@ mod tests {
     #[test]
     fn test_prove() {
         let (config, challenger) = DefaultConfig::make_config();
-        prove(config, challenger);
+        prove(&config, challenger);
     }
 }
