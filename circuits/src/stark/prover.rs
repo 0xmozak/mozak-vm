@@ -277,7 +277,6 @@ where
 
     let initial_merkle_trees = vec![trace_commitment, &ctl_zs_commitment, &quotient_commitment];
 
-    // #[cfg(not(feature = "enable_batch_fri"))]
     let opening_proof = timed!(
         timing,
         format!("{stark}: compute opening proofs").as_str(),
