@@ -4,6 +4,7 @@
 pub mod bitshift;
 pub mod columns_view;
 pub mod generation;
+pub mod prover;
 pub mod utils;
 pub mod xor;
 
