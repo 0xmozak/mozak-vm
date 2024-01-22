@@ -2,7 +2,7 @@ use rkyv::{Archive, Serialize, Deserialize};
 
 /// Canonical hashed type in "mozak vm". Can store hashed values of
 /// Poseidon2 hash.
-#[derive(Archive, Deserialize, Serialize, PartialEq, Default)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 pub struct Poseidon2HashType([u8; 4]);
@@ -70,10 +70,13 @@ pub struct ProgramIdentifier {
 impl ProgramIdentifier {
     /// Checks if the objects all have the same `constraint_owner` as
     /// `self`.
-    pub fn ensure_owners(&self, objects: dyn Iterator<Item = StateObject>) {
+    pub fn ensure_owners<'a, T>(&self, objects: T) 
+    where 
+    T: Iterator<Item = StateObject<'a>> + Sized
+    {
         objects.for_each(|x| {
-            if x.constraint_owner != self {
-                panic("constraint owner does not match program identifier");
+            if x.constraint_owner != *self {
+                panic!("constraint owner does not match program identifier");
             }
         })
     }
@@ -84,9 +87,8 @@ impl ProgramIdentifier {
 /// state tree constrained for modification only by its `constraint_owner`
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default)]
 #[archive(compare(PartialEq))]
-#[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
-pub struct StateObject {
+pub struct StateObject<'a> {
     /// [IMMUTABLE] Constraint-Owner is the only program which can
     /// mutate the `metadata` and `data` fields of this object
 	pub constraint_owner: ProgramIdentifier,
@@ -97,5 +99,5 @@ pub struct StateObject {
 
 	/// [MUTABLE] Serialized data object understandable and affectable
     /// by `constraint_owner`
-	pub data: &[u8],
+	pub data: &'a [u8],
 }

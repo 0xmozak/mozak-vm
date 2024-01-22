@@ -35,8 +35,8 @@ dependencies = [
  "log",
  "mozak_sdk",
  "rkyv",
- "rs_merkle",
  "simple_logger",
+ "uint",
 ]
 
 [[package]]

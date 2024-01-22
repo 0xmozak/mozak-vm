@@ -1,5 +1,6 @@
 #![no_main]
 #![feature(restricted_std)]
+
 mod core_logic;
 
 use mozak_sdk::io::{

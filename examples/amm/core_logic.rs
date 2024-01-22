@@ -26,20 +26,20 @@ pub struct MetadataObject {
 /// returned. It is assumed that only the last element of both `objects_presented` and 
 /// `objects_requested` will ever be subject to such rebalancing. This gets returned in the 
 /// order `(to_user, presented_change, requested_change)`
-pub fn swap_tokens(
+pub fn swap_tokens<'a>(
     metadata_object: MetadataObject,
     amount_in: Unsigned256,
-    objects_presented: Vec<StateObject>,
-    objects_requested: Vec<StateObject>
+    objects_presented: Vec<StateObject<'a>>,
+    objects_requested: Vec<StateObject<'a>>
 ) -> (
-    Vec<StateObject>,  // Objects given to the user from the AMM
-    Option<StateObject>,  // Residual change from `objects_presented`
-    Option<StateObject>   // Residual change from `objects_requested`
+    Vec<StateObject<'a>>,  // Objects given to the user from the AMM
+    Option<StateObject<'a>>,  // Residual change from `objects_presented`
+    Option<StateObject<'a>>   // Residual change from `objects_requested`
 ) {
     let idx_in = if objects_presented.is_empty() {
-        panic!("no obj presented for swap");
+        panic!("no objects presented for swap");
     } else {
-        (objects_presented[0].constraint_owner != metadata_object.token_programs[0]) as u8
+        (objects_presented[0].constraint_owner != metadata_object.token_programs[0]) as usize
     };
 
     let idx_out = 1 - idx_in;
