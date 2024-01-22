@@ -7,9 +7,10 @@ use std::time::Duration;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use clap_derive::Args;
 use clio::{Input, Output};
 use log::debug;
-use mozak_circuits::generation::memoryinit::generate_memory_init_trace;
+use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs, TableKindArray};
 use mozak_circuits::stark::proof::AllProof;
@@ -42,31 +43,80 @@ struct Cli {
     debug: bool,
 }
 
+#[derive(Clone, Debug, Args)]
+pub struct RuntimeArguments {
+    /// Private input.
+    #[arg(long)]
+    io_tape_private: Option<Input>,
+    /// Public input.
+    #[arg(long)]
+    io_tape_public: Option<Input>,
+    #[arg(long)]
+    transcript: Option<Input>,
+}
+
+#[derive(Clone, Debug, Args)]
+pub struct RunArgs {
+    elf: Input,
+    #[command(flatten)]
+    args: RuntimeArguments,
+}
+
+#[derive(Clone, Debug, Args)]
+pub struct ProveArgs {
+    elf: Input,
+    proof: Output,
+    #[command(flatten)]
+    args: RuntimeArguments,
+    recursive_proof: Option<Output>,
+}
+
+impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
+    fn from(value: RuntimeArguments) -> Self {
+        let mut io_tape_private = vec![];
+        let mut io_tape_public = vec![];
+        let mut transcript = vec![];
+
+        if let Some(mut t) = value.io_tape_private {
+            let bytes_read = t
+                .read_to_end(&mut io_tape_private)
+                .expect("Read should pass");
+            debug!("Read {bytes_read} of io_tape data.");
+        };
+
+        if let Some(mut t) = value.io_tape_public {
+            let bytes_read = t
+                .read_to_end(&mut io_tape_public)
+                .expect("Read should pass");
+            debug!("Read {bytes_read} of io_tape data.");
+        };
+
+        if let Some(mut t) = value.transcript {
+            let bytes_read = t.read_to_end(&mut transcript).expect("Read should pass");
+            debug!("Read {bytes_read} of transcript data.");
+        };
+
+        Self {
+            // TODO(bing): use `context_variables`
+            context_variables: vec![],
+            io_tape_private,
+            io_tape_public,
+            transcript,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Subcommand)]
 enum Command {
     /// Decode a given ELF and prints the program
     Decode { elf: Input },
     /// Decode and execute a given ELF. Prints the final state of
     /// the registers
-    Run {
-        elf: Input,
-        io_tape_private: Input,
-        io_tape_public: Input,
-    },
+    Run(RunArgs),
     /// Prove and verify the execution of a given ELF
-    ProveAndVerify {
-        elf: Input,
-        io_tape_private: Input,
-        io_tape_public: Input,
-    },
+    ProveAndVerify(RunArgs),
     /// Prove the execution of given ELF and write proof to file.
-    Prove {
-        elf: Input,
-        io_tape_private: Input,
-        io_tape_public: Input,
-        proof: Output,
-        recursive_proof: Option<Output>,
-    },
+    Prove(ProveArgs),
     /// Verify the given proof from file.
     Verify { proof: Input },
     /// Verify the given recursive proof from file.
@@ -77,14 +127,6 @@ enum Command {
     MemoryInitHash { elf: Input },
     /// Bench the function with given parameters
     Bench(BenchArgs),
-}
-
-/// Read a sequence of bytes from IO
-fn load_tape(mut io_tape: impl Read) -> Result<Vec<u8>> {
-    let mut io_tape_bytes = Vec::new();
-    let bytes_read = io_tape.read_to_end(&mut io_tape_bytes)?;
-    debug!("Read {bytes_read} of io_tape data.");
-    Ok(io_tape_bytes)
 }
 
 fn load_program(mut elf: Input) -> Result<Program> {
@@ -108,47 +150,26 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             debug!("{program:?}");
         }
-        Command::Run {
-            elf,
-            io_tape_private,
-            io_tape_public,
-        } => {
+        Command::Run(RunArgs { elf, args }) => {
             let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(
-                program.clone(),
-                &load_tape(io_tape_private)?,
-                &load_tape(io_tape_public)?,
-            );
+            let state = State::<GoldilocksField>::new(program.clone(), args.into());
             let state = step(&program, state)?.last_state;
             debug!("{:?}", state.registers);
         }
-        Command::ProveAndVerify {
-            elf,
-            io_tape_private,
-            io_tape_public,
-        } => {
+        Command::ProveAndVerify(RunArgs { elf, args }) => {
             let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(
-                program.clone(),
-                &load_tape(io_tape_private)?,
-                &load_tape(io_tape_public)?,
-            );
+            let state = State::<GoldilocksField>::new(program.clone(), args.into());
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
         }
-        Command::Prove {
+        Command::Prove(ProveArgs {
             elf,
-            io_tape_private,
-            io_tape_public,
+            args,
             mut proof,
             recursive_proof,
-        } => {
+        }) => {
             let program = load_program(elf)?;
-            let state = State::<GoldilocksField>::new(
-                program.clone(),
-                &load_tape(io_tape_private)?,
-                &load_tape(io_tape_public)?,
-            );
+            let state = State::<GoldilocksField>::new(program.clone(), args.into());
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
@@ -178,7 +199,6 @@ fn main() -> Result<()> {
                     &degree_bits,
                     &circuit_config,
                     &config,
-                    12,
                 );
 
                 let recursive_all_proof = recursive_circuit.prove(&all_proof)?;
@@ -219,7 +239,6 @@ fn main() -> Result<()> {
                 &degree_bits,
                 &circuit_config,
                 &config,
-                12,
             );
 
             let mut buffer: Vec<u8> = vec![];
@@ -252,7 +271,7 @@ fn main() -> Result<()> {
         }
         Command::MemoryInitHash { elf } => {
             let program = load_program(elf)?;
-            let trace = generate_memory_init_trace(&program);
+            let trace = generate_elf_memory_init_trace(&program);
             let trace_poly_values = trace_rows_to_poly_values(trace);
             let rate_bits = config.fri_config.rate_bits;
             let cap_height = config.fri_config.cap_height;

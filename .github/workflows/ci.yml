@@ -34,10 +34,15 @@ jobs:
           local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
 
       - name: Compile
-        run: cargo nextest run --no-run --locked --all-targets
+        run: nice cargo nextest run --no-run --locked --features="enable_poseidon_starks" --all-targets
 
       - name: Test
-        run: MOZAK_STARK_DEBUG=true cargo nextest run --no-fail-fast --locked --all-targets
+        run: MOZAK_STARK_DEBUG=true nice cargo nextest run --no-fail-fast --locked --features="enable_poseidon_starks" --all-targets
+
+      - name: Build and run examples
+        run: |
+          cd examples && nice cargo build --release
+          cd .. && nice ./run_examples.sh
 
   cargo-clippy:
     needs: check-runner
@@ -88,16 +93,27 @@ jobs:
       - name: Run fmt
         run: cargo fmt --all --check
 
+  shellcheck:
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run shellcheck and shfmt
+        uses: luizm/action-sh-checker@master
+        env:
+          SHFMT_OPTS: --indent 4 --case-indent
+
   taplo-fmt:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install taplo-cli
-        run: |
-          curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
-            gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
+      - name: Install rust toolkit
+        uses: ./.github/actions/rust
+        with:
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
 
       - name: taplo fmt
         run: taplo fmt --check

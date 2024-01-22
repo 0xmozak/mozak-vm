@@ -40,6 +40,7 @@ use self::bitshift::generate_shift_amount_trace;
 use self::cpu::{generate_cpu_trace, generate_cpu_trace_extended};
 use self::fullword_memory::generate_fullword_memory_trace;
 use self::halfword_memory::generate_halfword_memory_trace;
+use self::io_memory::generate_io_transcript_trace;
 use self::memory::generate_memory_trace;
 use self::memoryinit::generate_memory_init_trace;
 use self::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
@@ -75,6 +76,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     record: &ExecutionRecord<F>,
 ) -> TableKindArray<Vec<PolynomialValues<F>>> {
     let cpu_rows = generate_cpu_trace::<F>(record);
+    let register_rows = generate_register_trace::<F>(record);
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
@@ -83,6 +85,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
     let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
     let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
+    let io_transcript_rows = generate_io_transcript_trace(&record.executed);
     let poseiden2_sponge_rows = generate_poseidon2_sponge_trace(&record.executed);
     #[allow(unused)]
     let poseidon2_output_bytes_rows = generate_poseidon2_output_bytes_trace(&poseiden2_sponge_rows);
@@ -96,11 +99,12 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         &io_memory_private_rows,
         &io_memory_public_rows,
         &poseiden2_sponge_rows,
+        &poseidon2_output_bytes_rows,
     );
     let memory_zeroinit_rows =
         generate_memory_zero_init_trace::<F>(&memory_init_rows, &record.executed);
 
-    let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
+    let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
     let rangecheck_u8_rows = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
     #[allow(unused)]
     let register_init_rows = generate_register_init_trace::<F>();
@@ -121,6 +125,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         fullword_memory_stark: trace_rows_to_poly_values(fullword_memory_rows),
         io_memory_private_stark: trace_rows_to_poly_values(io_memory_private_rows),
         io_memory_public_stark: trace_rows_to_poly_values(io_memory_public_rows),
+        io_transcript_stark: trace_rows_to_poly_values(io_transcript_rows),
         #[cfg(feature = "enable_register_starks")]
         register_init_stark: trace_rows_to_poly_values(register_init_rows),
         #[cfg(feature = "enable_register_starks")]
