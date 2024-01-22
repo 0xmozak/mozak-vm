@@ -797,6 +797,7 @@ name = "mozak-circuits3"
 version = "0.1.0"
 dependencies = [
  "arrayvec",
+ "itertools 0.12.0",
  "log",
  "p3-air",
  "p3-challenger",
@@ -1671,6 +1672,17 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "signatures"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "itertools 0.12.0",
+ "mozak-circuits",
+ "plonky2",
+ "rand",
 ]
 
 [[package]]
