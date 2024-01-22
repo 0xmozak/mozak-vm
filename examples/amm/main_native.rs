@@ -1,4 +1,4 @@
-// #![feature(restricted_std)]
+#![feature(restricted_std)]
 mod core_logic;
 use std::fs::File;
 

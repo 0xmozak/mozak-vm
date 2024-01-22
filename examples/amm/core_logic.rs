@@ -1,3 +1,6 @@
+
+#![feature(restricted_std)]
+
 extern crate alloc;
 // use alloc::vec::Vec;
 use mozak_sdk::coretypes::{ProgramIdentifier, StateObject};
