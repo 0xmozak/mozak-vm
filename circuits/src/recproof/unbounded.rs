@@ -6,7 +6,7 @@ use std::array;
 
 use plonky2::field::extension::Extendable;
 use plonky2::gates::noop::NoopGate;
-use plonky2::hash::hash_types::{HashOutTarget, MerkleCapTarget, RichField};
+use plonky2::hash::hash_types::{HashOutTarget, MerkleCapTarget, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -27,12 +27,14 @@ fn from_slice<F: RichField + Extendable<D>, const D: usize>(
     let constants_sigmas_cap = MerkleCapTarget(
         (0..cap_len)
             .map(|i| HashOutTarget {
-                elements: array::from_fn(|j| slice[len - 4 * (cap_len - i) + j]),
+                elements: array::from_fn(|j| slice[len - NUM_HASH_OUT_ELTS * (cap_len - i) + j]),
             })
             .collect(),
     );
     let circuit_digest = HashOutTarget {
-        elements: array::from_fn(|i| slice[len - 4 - 4 * cap_len + i]),
+        elements: array::from_fn(|i| {
+            slice[len - NUM_HASH_OUT_ELTS - NUM_HASH_OUT_ELTS * cap_len + i]
+        }),
     };
 
     VerifierCircuitTarget {
@@ -51,14 +53,10 @@ pub fn common_data_for_recursion<
 where
     C::Hasher: AlgebraicHasher<F>, {
     let config = CircuitConfig::standard_recursion_config();
-    let builder = CircuitBuilder::<F, D>::new(config);
-    let data = builder.build::<C>();
-
-    let config = CircuitConfig::standard_recursion_config();
     let mut builder = CircuitBuilder::<F, D>::new(config);
-    let proof = builder.add_virtual_proof_with_pis(&data.common);
-    let verifier_data = builder.add_virtual_verifier_data(data.common.config.fri_config.cap_height);
-    builder.verify_proof::<C>(&proof, &verifier_data, &data.common);
+    while builder.num_gates() < 1 << 12 {
+        builder.add_gate(NoopGate, vec![]);
+    }
     let data = builder.build::<C>();
 
     let config = CircuitConfig::standard_recursion_config();

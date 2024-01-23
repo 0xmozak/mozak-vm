@@ -6,7 +6,6 @@
 use iter_fixed::IntoIteratorFixed;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
-use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
@@ -14,21 +13,7 @@ use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use super::select_hash;
-
-/// Computes `h0 == h1`.
-fn and_helper<F, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    bools: [BoolTarget; NUM_HASH_OUT_ELTS],
-) -> BoolTarget
-where
-    F: RichField + Extendable<D>, {
-    let bools = [
-        builder.and(bools[0], bools[1]),
-        builder.and(bools[2], bools[3]),
-    ];
-    builder.and(bools[0], bools[1])
-}
+use super::{and_helper, hash_or_forward, or_helper};
 
 /// Computes `h0 == h1`.
 fn hashes_equal<F, const D: usize>(
@@ -106,7 +91,7 @@ pub struct LeafTargets {
     /// The leaf value or ZERO if absent
     pub hash: HashOutTarget,
 
-    /// The value to be progated throughout the produced tree
+    /// The value to be propagated throughout the produced tree
     pub leaf_value: HashOutTarget,
 }
 
@@ -203,7 +188,7 @@ pub struct BranchTargets {
     /// The leaf value or ZERO if absent
     pub hash: HashOutTarget,
 
-    /// The value to be progated throughout the produced tree
+    /// The value to be propagated throughout the produced tree
     pub leaf_value: HashOutTarget,
 
     /// Indicates if the left branch is a leaf or not
@@ -234,46 +219,22 @@ impl BranchSubCircuit {
         let l_hash = leaf.indices.get_hash(&left_proof.public_inputs);
         let r_hash = leaf.indices.get_hash(&right_proof.public_inputs);
 
-        let left_non_zero: [_; NUM_HASH_OUT_ELTS] = l_hash
+        let left_non_zero = l_hash
             .into_iter_fixed()
             .map(|l_hash| builder.is_nonzero(l_hash))
             .collect();
-        let right_non_zero: [_; NUM_HASH_OUT_ELTS] = r_hash
+        let right_non_zero = r_hash
             .into_iter_fixed()
             .map(|r_hash| builder.is_nonzero(r_hash))
             .collect();
 
-        let left_non_zero = [
-            builder.or(left_non_zero[0], left_non_zero[1]),
-            builder.or(left_non_zero[2], left_non_zero[3]),
-        ];
-        let left_non_zero = builder.or(left_non_zero[0], left_non_zero[1]);
-
-        let right_non_zero = [
-            builder.or(right_non_zero[0], right_non_zero[1]),
-            builder.or(right_non_zero[2], right_non_zero[3]),
-        ];
-        let right_non_zero = builder.or(right_non_zero[0], right_non_zero[1]);
-
-        let both_present = builder.and(left_non_zero, right_non_zero);
-
-        // Construct the hash of [left, right]
-        let hash_both = builder
-            .hash_n_to_hash_no_pad::<Poseidon2Hash>(l_hash.into_iter().chain(r_hash).collect());
-
-        // Construct the forwarding "hash".
-        let hash_absent = l_hash
-            .into_iter_fixed()
-            .zip(r_hash)
-            // Since absent sides will be zero, we can just sum.
-            .map(|(l, r)| builder.add(l, r))
-            .collect();
-        let hash_absent = HashOutTarget {
-            elements: hash_absent,
-        };
+        // If any elements are non-zero, then it's non-zero
+        let left_non_zero = or_helper(&mut builder, left_non_zero);
+        let right_non_zero = or_helper(&mut builder, right_non_zero);
 
         // Select the hash based on presence
-        let summary_hash = select_hash(&mut builder, both_present, hash_both, hash_absent);
+        let summary_hash =
+            hash_or_forward(&mut builder, left_non_zero, l_hash, right_non_zero, r_hash);
         builder.connect_hashes(hash, summary_hash);
 
         // Make sure the leaf values are the same
