@@ -5,7 +5,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::memoryinit::columns::{MemElement, MemoryInit};
 use crate::utils::pad_trace_with_default;
 
-/// Generates a memory init ROM trace
+/// Generates a memory init ROM trace (ELF + Mozak)
 #[must_use]
 pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
     let mut memory_inits: Vec<MemoryInit<F>> = chain! {
@@ -24,13 +24,6 @@ pub fn generate_memory_init_trace<F: RichField>(program: &Program) -> Vec<Memory
 /// Generates a mozak memory init ROM trace
 #[must_use]
 pub fn generate_mozak_memory_init_trace<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
-    // TODO(Roman): we need to introduce in the following PR, new constraint that
-    // insures that we only have SINGLE memory init per each address. This way we
-    // force for memory-addresses not to overlap. For example: imaging someone
-    // compile ELF with modified version of mozak-linker-script, and then also make
-    // use of buggy mozak-loader code that does not insures non-overlapping nature
-    // of the elf-ro & mozak-ro memory regions -> this new constraint will insure
-    // that this situation will be properly handled
     let mut memory_inits: Vec<MemoryInit<F>> = mozak_memory_init(program);
     memory_inits.sort_by_key(|init| init.element.address.to_canonical_u64());
 
@@ -79,7 +72,7 @@ pub fn elf_memory_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
         .collect_vec()
 }
 
-// TODO(Roman): rename it to `generate_elf_memory_init_trace`
+/// Generates a elf memory init ROM trace
 #[must_use]
 pub fn generate_elf_memory_init_trace<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
     let mut memory_inits: Vec<MemoryInit<F>> = elf_memory_init(program);
