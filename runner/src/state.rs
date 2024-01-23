@@ -229,7 +229,8 @@ impl<F: RichField> State<F> {
 
     #[must_use]
     #[allow(clippy::similar_names)]
-    // TODO(Roman): fn name looks strange .... :)
+    // TODO(Roman): fn name looks strange .... :), but once old-io-tapes mechanism
+    // will be removed, I will rename this function to `new`
     pub fn new_mozak_api(
         Program {
             rw_memory: Data(rw_memory),
