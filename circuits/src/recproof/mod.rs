@@ -10,6 +10,7 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
+pub mod merge;
 pub mod summarized;
 pub mod unpruned;
 
