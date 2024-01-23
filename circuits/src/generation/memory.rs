@@ -24,6 +24,7 @@ fn pad_mem_trace<F: RichField>(mut trace: Vec<Memory<F>>) -> Vec<Memory<F>> {
             is_load: F::ZERO,
             is_init: F::ZERO,
             diff_clk: F::ZERO,
+            diff_addr_inv: F::ZERO,
             // .. and all other columns just have their last value duplicated.
             ..trace.last().copied().unwrap_or_default()
         },
@@ -167,7 +168,7 @@ pub fn generate_memory_trace<F: RichField>(
     ));
 
     merged_trace.sort_by_key(key);
-    let merged_trace = merged_trace
+    let mut merged_trace: Vec<_> = merged_trace
         .into_iter()
         .group_by(|&mem| mem.addr)
         .into_iter()
@@ -212,6 +213,14 @@ pub fn generate_memory_trace<F: RichField>(
         })
         .collect();
 
+    let mut prev_mem_addr = F::ZERO;
+    for current_mem in &mut merged_trace {
+        current_mem.diff_addr_inv = (current_mem.addr - prev_mem_addr)
+            .try_inverse()
+            .unwrap_or_default();
+        prev_mem_addr = current_mem.addr;
+    }
+
     // If the trace length is not a power of two, we need to extend the trace to the
     // next power of two. The additional elements are filled with the last row
     // of the trace.
@@ -226,7 +235,11 @@ mod tests {
     use mozak_runner::elf::{Data, Program};
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
+    use plonky2::util::timing::TimingTree;
+    use starky::prover::prove as prove_table;
+    use starky::verifier::verify_stark_proof;
 
+    use super::pad_mem_trace;
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
@@ -235,12 +248,68 @@ mod tests {
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
+    use crate::memory::columns::Memory;
+    use crate::memory::stark::MemoryStark;
     use crate::memory::test_utils::memory_trace_test_case;
-    use crate::test_utils::prep_table;
+    use crate::stark::utils::trace_rows_to_poly_values;
+    use crate::test_utils::{fast_test_config, inv, prep_table};
 
     const D: usize = 2;
     type C = Poseidon2GoldilocksConfig;
     type F = <C as GenericConfig<D>>::F;
+    type S = MemoryStark<F, D>;
+
+    #[rustfmt::skip]
+    #[test]
+    #[ignore]
+    #[should_panic = "failing constraint: init is required per memory address"]
+    // TODO(Roman): fix this test, looks like we should constrain the `is_init` 
+    fn no_init() {
+        let _ = env_logger::try_init();
+        let stark = S::default();
+
+        let trace: Vec<Memory<GoldilocksField>> = prep_table(vec![
+            //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk    diff_addr_inv
+            [       0,     100,   1,     0,      0,       0,        1,       0,     inv::<F>(100)],
+            [       1,     100,   1,     0,      0,       0,        2,       0,     inv::<F>(0)],
+        ]);
+        let trace = pad_mem_trace(trace);
+        let trace_poly_values = trace_rows_to_poly_values(trace);
+        let config = fast_test_config();
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            &[],
+            &mut TimingTree::default(),
+        ).unwrap();
+        assert!(verify_stark_proof(stark, proof, &config).is_ok(), "failing constraint: init is required per memory address");
+    }
+
+    #[rustfmt::skip]
+    #[test]
+    #[should_panic = "failing constraint: only single init is allowed per memory address"]
+    fn double_init() {
+        let _ = env_logger::try_init();
+        let stark = S::default();
+
+        let trace: Vec<Memory<GoldilocksField>> = prep_table(vec![
+                //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk    diff_addr_inv
+                [       0,     100,   1,     0,      0,       1,        1,       0,     inv::<F>(100)],
+                [       1,     100,   1,     0,      0,       1,        2,       0,     inv::<F>(0)],
+        ]);
+        let trace = pad_mem_trace(trace);
+        let trace_poly_values = trace_rows_to_poly_values(trace);
+        let config = fast_test_config();
+        let proof = prove_table::<F, C, S, D>(
+            stark,
+            &config,
+            trace_poly_values,
+            &[],
+            &mut TimingTree::default(),
+        ).unwrap();
+        assert!(verify_stark_proof(stark, proof, &config).is_ok(), "failing constraint: only single init is allowed per memory address");
+    }
 
     // This test simulates the scenario of a set of instructions
     // which perform store byte (SB) and load byte unsigned (LBU) operations
@@ -271,23 +340,23 @@ mod tests {
         assert_eq!(
             trace,
             prep_table(vec![
-                //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk
-                [       1,     100,   0,     0,      0,       1,        0,       0],  // Zero Init:   100
-                [       1,     100,   2,     1,      0,       0,      255,       2],  // Operations:  100
-                [       1,     100,   3,     0,      1,       0,      255,       1],  // Operations:  100
-                [       1,     100,   6,     1,      0,       0,       10,       3],  // Operations:  100
-                [       1,     100,   7,     0,      1,       0,       10,       1],  // Operations:  100
-                [       1,     101,   1,     0,      0,       1,        0,       0],  // Memory Init: 101
-                [       1,     102,   1,     0,      0,       1,        0,       0],  // Memory Init: 102
-                [       1,     103,   1,     0,      0,       1,        0,       0],  // Memory Init: 103
-                [       1,     200,   0,     0,      0,       1,        0,       0],  // Zero Init:   200
-                [       1,     200,   4,     1,      0,       0,       15,       4],  // Operations:  200
-                [       1,     200,   5,     0,      1,       0,       15,       1],  // Operations:  200
-                [       1,     201,   1,     0,      0,       1,        0,       0],  // Memory Init: 201
-                [       1,     202,   1,     0,      0,       1,        0,       0],  // Memory Init: 202
-                [       1,     203,   1,     0,      0,       1,        0,       0],  // Memory Init: 203
-                [       1,     203,   1,     0,      0,       0,        0,       0],  // Padding
-                [       1,     203,   1,     0,      0,       0,        0,       0],  // Padding
+                //is_writable  addr  clk is_store, is_load, is_init  value  diff_clk    diff_addr_inv
+                [       1,     100,   0,     0,      0,       1,        0,       0,     inv::<F>(100)],  // Zero Init:   100
+                [       1,     100,   2,     1,      0,       0,      255,       2,     inv::<F>(0)  ],  // Operations:  100
+                [       1,     100,   3,     0,      1,       0,      255,       1,     inv::<F>(0)  ],  // Operations:  100
+                [       1,     100,   6,     1,      0,       0,       10,       3,     inv::<F>(0)  ],  // Operations:  100
+                [       1,     100,   7,     0,      1,       0,       10,       1,     inv::<F>(0)  ],  // Operations:  100
+                [       1,     101,   1,     0,      0,       1,        0,       0,     inv::<F>(1)  ],  // Memory Init: 101
+                [       1,     102,   1,     0,      0,       1,        0,       0,     inv::<F>(1)  ],  // Memory Init: 102
+                [       1,     103,   1,     0,      0,       1,        0,       0,     inv::<F>(1)  ],  // Memory Init: 103
+                [       1,     200,   0,     0,      0,       1,        0,       0,     inv::<F>(97) ],  // Zero Init:   200
+                [       1,     200,   4,     1,      0,       0,       15,       4,     inv::<F>(0)  ],  // Operations:  200
+                [       1,     200,   5,     0,      1,       0,       15,       1,     inv::<F>(0)  ],  // Operations:  200
+                [       1,     201,   1,     0,      0,       1,        0,       0,     inv::<F>(1)  ],  // Memory Init: 201
+                [       1,     202,   1,     0,      0,       1,        0,       0,     inv::<F>(1)  ],  // Memory Init: 202
+                [       1,     203,   1,     0,      0,       1,        0,       0,     inv::<F>(1)  ],  // Memory Init: 203
+                [       1,     203,   1,     0,      0,       0,        0,       0,     inv::<F>(0)  ],  // Padding
+                [       1,     203,   1,     0,      0,       0,        0,       0,     inv::<F>(0)  ],  // Padding
             ])
         );
     }
@@ -330,15 +399,15 @@ mod tests {
         );
 
         assert_eq!(trace, prep_table(vec![
-            // is_writable   addr   clk  is_store, is_load, is_init  value  diff_clk
-            [        0,      100,   1,      0,        0,      1,         5,        0],
-            [        0,      101,   1,      0,        0,      1,         6,        0],
-            [        1,      200,   1,      0,        0,      1,         7,        0],
-            [        1,      201,   1,      0,        0,      1,         8,        0],
-            [        1,      201,   1,      0,        0,      0,         8,        0],
-            [        1,      201,   1,      0,        0,      0,         8,        0],
-            [        1,      201,   1,      0,        0,      0,         8,        0],
-            [        1,      201,   1,      0,        0,      0,         8,        0],
+            // is_writable   addr   clk  is_store, is_load, is_init  value  diff_clk      diff_addr_inv
+            [        0,      100,   1,      0,        0,      1,         5,        0,     inv::<F>(100) ],
+            [        0,      101,   1,      0,        0,      1,         6,        0,     inv::<F>(1)   ],
+            [        1,      200,   1,      0,        0,      1,         7,        0,     inv::<F>(99)  ],
+            [        1,      201,   1,      0,        0,      1,         8,        0,     inv::<F>(1)   ],
+            [        1,      201,   1,      0,        0,      0,         8,        0,     inv::<F>(0)   ],
+            [        1,      201,   1,      0,        0,      0,         8,        0,     inv::<F>(0)   ],
+            [        1,      201,   1,      0,        0,      0,         8,        0,     inv::<F>(0)   ],
+            [        1,      201,   1,      0,        0,      0,         8,        0,     inv::<F>(0)   ],
         ]));
     }
 }

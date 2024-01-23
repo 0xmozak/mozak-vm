@@ -59,9 +59,7 @@ pub fn elf_memory_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
 }
 
 #[must_use]
-pub fn generate_memory_elf_memory_init_trace_only<F: RichField>(
-    program: &Program,
-) -> Vec<MemoryInit<F>> {
+pub fn generate_elf_memory_init_trace<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> {
     let mut memory_inits: Vec<MemoryInit<F>> = elf_memory_init(program);
     memory_inits.sort_by_key(|init| init.element.address.to_canonical_u64());
 
