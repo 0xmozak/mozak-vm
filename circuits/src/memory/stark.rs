@@ -136,10 +136,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr
             .constraint_transition((lv.is_executed() - nv.is_executed()) * nv.is_executed());
 
-        // We can have init == 1 row only when address is changing
+        // We can have init == 1 row only when address is changing. More specifically,
+        // is_init has to be the first row in an address block.
         // a) checking diff-addr-inv was computed correctly
         // If next.address - current.address == 0
-        //  --> next.diff_addr_inv = 0
+        // --> next.diff_addr_inv = 0
         // Else current.address - next.address != 0
         //  --> next.diff_addr_inv != 0 but (lv.addr - nv.addr) * nv.diff_addr_inv == 1
         //  --> so, expression: (P::ONES - (lv.addr - nv.addr) * nv.diff_addr_inv) == 0
