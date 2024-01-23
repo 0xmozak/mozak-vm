@@ -136,13 +136,25 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         yield_constr
             .constraint_transition((lv.is_executed() - nv.is_executed()) * nv.is_executed());
 
-        // Only single init row is allowed per address
+        // We can have init == 1 row only when address is changing. More specifically,
+        // is_init has to be the first row in an address block.
         // a) checking diff-addr-inv was computed correctly
         // If next.address - current.address == 0
-        //  --> next.diff_addr_inv = 0
+        // --> next.diff_addr_inv = 0
         // Else current.address - next.address != 0
         //  --> next.diff_addr_inv != 0 but (lv.addr - nv.addr) * nv.diff_addr_inv == 1
         //  --> so, expression: (P::ONES - (lv.addr - nv.addr) * nv.diff_addr_inv) == 0
+        // NOTE: we don't really have to constrain diff-addr-inv to be zero when address
+        // does not change at all, so, this constrain can be removed, and the
+        // `diff_addr * nv.diff_addr_inv - nv.is_init` constrain will be enough to
+        // ensure that diff-addr-inv for the case of address change was indeed computed
+        // correctly. We still prefer to leave this code, because maybe diff-addr-inv
+        // can be usefull for feature scenarios, BUT if we will want to take advantage
+        // on last 0.001% of perf, it can be removed (if other parts of the code will
+        // not use it somewhere)
+        // TODO(Roman): how we insure sorted addresses - via RangeCheck:
+        // MemoryTable::new(Column::singles_diff([col_map().addr]), mem.is_executed())
+        // Please add test that fails with not-sorted memory trace
         let diff_addr = nv.addr - lv.addr;
         yield_constr.constraint_transition(diff_addr * (P::ONES - diff_addr * nv.diff_addr_inv));
 
