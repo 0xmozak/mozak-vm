@@ -56,7 +56,7 @@ use crate::generation::io_memory::{
 };
 use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
 use crate::generation::memoryinit::{
-    generate_memory_elf_memory_init_trace_only, generate_mozak_memory_init_trace,
+    generate_elf_memory_init_trace, generate_mozak_memory_init_trace,
 };
 use crate::generation::poseidon2::generate_poseidon2_trace;
 use crate::generation::program::generate_program_rom_trace;
@@ -83,7 +83,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
-    let memory_init_rows = generate_memory_elf_memory_init_trace_only(program);
+    let memory_init_rows = generate_elf_memory_init_trace(program);
     let mozak_memory_init_rows = generate_mozak_memory_init_trace(program);
     let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
     let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
