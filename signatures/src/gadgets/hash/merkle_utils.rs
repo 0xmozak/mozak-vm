@@ -2,11 +2,9 @@ use plonky2::hash::hash_types::RichField;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use super::{
-    sha256::WitnessHashSha2,
-    sha256_merkle::{DeltaMerkleProofSha256Gadget, MerkleProofSha256Gadget},
-    WitnessHash,
-};
+use super::sha256::WitnessHashSha2;
+use super::sha256_merkle::{DeltaMerkleProofSha256Gadget, MerkleProofSha256Gadget};
+use super::WitnessHash;
 
 #[serde_as]
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy)]

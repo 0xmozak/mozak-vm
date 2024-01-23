@@ -6,9 +6,9 @@ use plonky2::iop::target::BoolTarget;
 use plonky2::iop::witness::Witness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::biguint::{BigUintTarget, CircuitBuilderBiguint, WitnessBigUint};
-use crate::u32::arithmetic_u32::{CircuitBuilderU32, U32Target};
-use crate::u32::witness::WitnessU32;
+use crate::gadgets::nonnative::biguint::{BigUintTarget, CircuitBuilderBiguint, WitnessBigUint};
+use crate::gadgets::u32::arithmetic_u32::{CircuitBuilderU32, U32Target};
+use crate::gadgets::u32::witness::WitnessU32;
 
 pub type Hash256Target = [U32Target; 8];
 #[derive(Clone, Debug)]

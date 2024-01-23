@@ -1,8 +1,7 @@
-use alloc::string::String;
-use alloc::vec::Vec;
-use alloc::{format, vec};
 use core::marker::PhantomData;
-use plonky2::plonk::circuit_data::CommonCircuitData;
+use std::string::String;
+use std::vec::Vec;
+use std::{format, vec};
 
 use plonky2::field::extension::Extendable;
 use plonky2::field::types::Field;
@@ -14,6 +13,7 @@ use plonky2::iop::generator::{GeneratedValues, SimpleGenerator, WitnessGenerator
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::plonk_common::{reduce_with_powers, reduce_with_powers_ext_circuit};
 use plonky2::plonk::vars::{EvaluationTargets, EvaluationVars, EvaluationVarsBase};
 use plonky2::util::ceil_div_usize;
@@ -27,6 +27,9 @@ pub struct U32RangeCheckGate<F: RichField + Extendable<D>, const D: usize> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> U32RangeCheckGate<F, D> {
+    pub const AUX_LIMB_BITS: usize = 2;
+    pub const BASE: usize = 1 << Self::AUX_LIMB_BITS;
+
     pub fn new(num_input_limbs: usize) -> Self {
         Self {
             num_input_limbs,
@@ -34,16 +37,13 @@ impl<F: RichField + Extendable<D>, const D: usize> U32RangeCheckGate<F, D> {
         }
     }
 
-    pub const AUX_LIMB_BITS: usize = 2;
-    pub const BASE: usize = 1 << Self::AUX_LIMB_BITS;
+    fn aux_limbs_per_input_limb(&self) -> usize { ceil_div_usize(32, Self::AUX_LIMB_BITS) }
 
-    fn aux_limbs_per_input_limb(&self) -> usize {
-        ceil_div_usize(32, Self::AUX_LIMB_BITS)
-    }
     pub fn wire_ith_input_limb(&self, i: usize) -> usize {
         debug_assert!(i < self.num_input_limbs);
         i
     }
+
     pub fn wire_ith_input_limb_jth_aux_limb(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_input_limbs);
         debug_assert!(j < self.aux_limbs_per_input_limb());
@@ -52,18 +52,13 @@ impl<F: RichField + Extendable<D>, const D: usize> U32RangeCheckGate<F, D> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32RangeCheckGate<F, D> {
-    fn id(&self) -> String {
-        format!("{self:?}")
-    }
+    fn id(&self) -> String { format!("{self:?}") }
 
-    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
-    }
+    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> { todo!() }
 
     fn deserialize(_src: &mut Buffer, _: &CommonCircuitData<F, D>) -> IoResult<Self>
     where
-        Self: Sized,
-    {
+        Self: Sized, {
         todo!()
     }
 
@@ -155,20 +150,15 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32RangeCheckG
         vec![WitnessGeneratorRef::new(gen.adapter())]
     }
 
-    fn num_wires(&self) -> usize {
-        self.num_input_limbs * (1 + self.aux_limbs_per_input_limb())
-    }
+    fn num_wires(&self) -> usize { self.num_input_limbs * (1 + self.aux_limbs_per_input_limb()) }
 
-    fn num_constants(&self) -> usize {
-        0
-    }
+    fn num_constants(&self) -> usize { 0 }
 
     // Bounded by the range-check (x-0)*(x-1)*...*(x-BASE+1).
-    fn degree(&self) -> usize {
-        Self::BASE
-    }
+    fn degree(&self) -> usize { Self::BASE }
 
-    // 1 for checking the each sum of aux limbs, plus a range check for each aux limb.
+    // 1 for checking the each sum of aux limbs, plus a range check for each aux
+    // limb.
     fn num_constraints(&self) -> usize {
         self.num_input_limbs * (1 + self.aux_limbs_per_input_limb())
     }
@@ -183,9 +173,7 @@ pub struct U32RangeCheckGenerator<F: RichField + Extendable<D>, const D: usize> 
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for U32RangeCheckGenerator<F, D>
 {
-    fn id(&self) -> String {
-        format!("u32_range_check_{}", self.row)
-    }
+    fn id(&self) -> String { format!("u32_range_check_{}", self.row) }
 
     fn dependencies(&self) -> Vec<Target> {
         let num_input_limbs = self.gate.num_input_limbs;
@@ -218,14 +206,11 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         }
     }
 
-    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
-    }
+    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> { todo!() }
 
     fn deserialize(_src: &mut Buffer, _: &CommonCircuitData<F, D>) -> IoResult<Self>
     where
-        Self: Sized,
-    {
+        Self: Sized, {
         todo!()
     }
 }
@@ -246,9 +231,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn low_degree() {
-        test_low_degree::<GoldilocksField, _, 4>(U32RangeCheckGate::new(8))
-    }
+    fn low_degree() { test_low_degree::<GoldilocksField, _, 4>(U32RangeCheckGate::new(8)) }
 
     #[test]
     fn eval_fns() -> Result<()> {

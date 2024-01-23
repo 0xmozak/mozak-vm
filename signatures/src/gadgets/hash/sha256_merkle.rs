@@ -3,10 +3,9 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::u32::arithmetic_u32::U32Target;
-
 use super::sha256::{CircuitBuilderHashSha2, WitnessHashSha2};
 use super::{CircuitBuilderHash, Hash256Target, WitnessHash};
+use crate::gadgets::u32::arithmetic_u32::U32Target;
 
 fn select_hash256<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
@@ -144,37 +143,38 @@ impl DeltaMerkleProofSha256Gadget {
 #[cfg(test)]
 mod tests {
 
-    use crate::hash::merkle_utils::{DeltaMerkleProof256, MerkleProof256};
-    use crate::hash::sha256_merkle::{DeltaMerkleProofSha256Gadget, MerkleProofSha256Gadget};
-    use crate::hash::{CircuitBuilderHash, WitnessHash};
     use plonky2::iop::witness::PartialWitness;
     use plonky2::plonk::circuit_builder::CircuitBuilder;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    /*
-    use super::super::merkle_utils::MerkleHasher;
-    use crate::hash::merkle_utils::Hash256;
-    use sha2::{Digest, Sha256};
 
-    pub struct Sha256Hasher {}
-    impl Sha256Hasher {
-        pub fn new() -> Self {
-            Self {}
-        }
-    }
-
-    impl MerkleHasher<Hash256> for Sha256Hasher {
-        fn two_to_one(&self, left: &Hash256, right: &Hash256) -> Hash256 {
-            let mut hasher = Sha256::new();
-            hasher.update(left.0);
-            hasher.update(right.0);
-            let result = hasher.finalize();
-            let mut hash = [0u8; 32];
-            hash.copy_from_slice(&result[..]);
-            Hash256(hash)
-        }
-    }
-    */
+    use crate::gadgets::hash::merkle_utils::{DeltaMerkleProof256, MerkleProof256};
+    use crate::gadgets::hash::sha256_merkle::{
+        DeltaMerkleProofSha256Gadget, MerkleProofSha256Gadget,
+    };
+    use crate::gadgets::hash::{CircuitBuilderHash, WitnessHash};
+    // use super::super::merkle_utils::MerkleHasher;
+    // use crate::hash::merkle_utils::Hash256;
+    // use sha2::{Digest, Sha256};
+    //
+    // pub struct Sha256Hasher {}
+    // impl Sha256Hasher {
+    // pub fn new() -> Self {
+    // Self {}
+    // }
+    // }
+    //
+    // impl MerkleHasher<Hash256> for Sha256Hasher {
+    // fn two_to_one(&self, left: &Hash256, right: &Hash256) -> Hash256 {
+    // let mut hasher = Sha256::new();
+    // hasher.update(left.0);
+    // hasher.update(right.0);
+    // let result = hasher.finalize();
+    // let mut hash = [0u8; 32];
+    // hash.copy_from_slice(&result[..]);
+    // Hash256(hash)
+    // }
+    // }
 
     #[test]
     fn test_verify_small_merkle_proof() {

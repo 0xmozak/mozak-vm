@@ -5,12 +5,11 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::Witness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::biguint::CircuitBuilderBiguint;
-use crate::hash::{HashInputTarget, HashOutputTarget, WitnessHash};
-use crate::u32::arithmetic_u32::{CircuitBuilderU32, U32Target};
-use crate::u32::interleaved_u32::CircuitBuilderB32;
-
 use super::Hash256Target;
+use crate::gadgets::hash::{HashInputTarget, HashOutputTarget, WitnessHash};
+use crate::gadgets::nonnative::biguint::CircuitBuilderBiguint;
+use crate::gadgets::u32::arithmetic_u32::{CircuitBuilderU32, U32Target};
+use crate::gadgets::u32::interleaved_u32::CircuitBuilderB32;
 
 pub trait WitnessHashSha2<F: PrimeField64>: Witness<F> {
     fn set_sha256_input_target(&mut self, target: &HashInputTarget, value: &[u8]);
@@ -134,12 +133,11 @@ fn maj<F: RichField + Extendable<D>, const D: usize>(
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderHashSha2<F, D>
     for CircuitBuilder<F, D>
 {
-    fn add_u32_lo(&mut self, a: U32Target, b: U32Target) -> U32Target {
-        self.add_u32(a, b).0
-    }
+    fn add_u32_lo(&mut self, a: U32Target, b: U32Target) -> U32Target { self.add_u32(a, b).0 }
 
-    // add sha256 padding in circuit, useful when the len of the input is constant / known
-    // currently only handles len multiple of 32, e.g. 512 used in Ethereum Simple Serialize
+    // add sha256 padding in circuit, useful when the len of the input is constant /
+    // known currently only handles len multiple of 32, e.g. 512 used in
+    // Ethereum Simple Serialize
     fn sha256_input_padding(&mut self, target: &HashInputTarget, padding_len: u64) {
         let limbs = &target.input.limbs;
         let len = limbs.len();
@@ -171,13 +169,15 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderHashSha2<F, D>
         let mut state = Vec::<U32Target>::new();
 
         // Initialize hash values:
-        // (first 32 bits of the fractional parts of the square roots of the first 8 primes 2..19)
+        // (first 32 bits of the fractional parts of the square roots of the first 8
+        // primes 2..19)
         for item in &H256_256 {
             state.push(self.constant_u32(*item));
         }
 
         // Initialize array of round constants:
-        // (first 32 bits of the fractional parts of the cube roots of the first 64 primes 2..311)
+        // (first 32 bits of the fractional parts of the cube roots of the first 64
+        // primes 2..311)
         let mut k256 = Vec::new();
         for item in &K32 {
             k256.push(self.constant_u32(*item));
@@ -201,7 +201,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderHashSha2<F, D>
             let mut h = state[7];
 
             for i in 0..64 {
-                // Extend the first 16 words into the remaining 48 words w[16..63] of the message schedule array
+                // Extend the first 16 words into the remaining 48 words w[16..63] of the
+                // message schedule array
                 if i >= 16 {
                     let s0 = sigma(self, w[(i + 1) & 0xf], 7, 18, 3);
                     let s1 = sigma(self, w[(i + 14) & 0xf], 17, 19, 10);
@@ -226,7 +227,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderHashSha2<F, D>
                 d = c;
                 c = b;
                 b = a;
-                a = self.add_u32_lo(temp1, temp2); // add_many_u32 of 3 elements is the same
+                a = self.add_u32_lo(temp1, temp2); // add_many_u32 of 3 elements
+                                                   // is the same
             }
 
             // Add the compressed chunk to the current hash value
@@ -261,7 +263,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderHashSha2<F, D>
         ];
 
         // Initialize array of round constants:
-        // (first 32 bits of the fractional parts of the cube roots of the first 64 primes 2..311)
+        // (first 32 bits of the fractional parts of the cube roots of the first 64
+        // primes 2..311)
         let mut k256 = Vec::new();
         for item in &K32 {
             k256.push(self.constant_u32(*item));
@@ -287,7 +290,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderHashSha2<F, D>
         let mut h = state[7];
 
         for i in 0..64 {
-            // Extend the first 16 words into the remaining 48 words w[16..63] of the message schedule array
+            // Extend the first 16 words into the remaining 48 words w[16..63] of the
+            // message schedule array
             if i >= 16 {
                 let s0 = sigma(self, w[(i + 1) & 0xf], 7, 18, 3);
                 let s1 = sigma(self, w[(i + 14) & 0xf], 17, 19, 10);
@@ -312,7 +316,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderHashSha2<F, D>
             d = c;
             c = b;
             b = a;
-            a = self.add_u32_lo(temp1, temp2); // add_many_u32 of 3 elements is the same
+            a = self.add_u32_lo(temp1, temp2); // add_many_u32 of 3 elements is
+                                               // the same
         }
 
         // Add the compressed chunk to the current hash value
@@ -346,7 +351,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderHashSha2<F, D>
         let mut h = state[7];
 
         for i in 0..64 {
-            // Extend the first 16 words into the remaining 48 words w[16..63] of the message schedule array
+            // Extend the first 16 words into the remaining 48 words w[16..63] of the
+            // message schedule array
             if i >= 16 {
                 let s0 = sigma(self, w[(i + 1) & 0xf], 7, 18, 3);
                 let s1 = sigma(self, w[(i + 14) & 0xf], 17, 19, 10);
@@ -371,7 +377,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderHashSha2<F, D>
             d = c;
             c = b;
             b = a;
-            a = self.add_u32_lo(temp1, temp2); // add_many_u32 of 3 elements is the same
+            a = self.add_u32_lo(temp1, temp2); // add_many_u32 of 3 elements is
+                                               // the same
         }
 
         // Add the compressed chunk to the current hash value
@@ -396,9 +403,9 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use sha2::{Digest, Sha256};
 
-    use crate::hash::merkle_utils::Hash256;
-    use crate::hash::sha256::{CircuitBuilderHashSha2, WitnessHashSha2};
-    use crate::hash::{CircuitBuilderHash, WitnessHash};
+    use crate::gadgets::hash::merkle_utils::Hash256;
+    use crate::gadgets::hash::sha256::{CircuitBuilderHashSha2, WitnessHashSha2};
+    use crate::gadgets::hash::{CircuitBuilderHash, WitnessHash};
     const SHA256_BLOCK: usize = 512;
 
     #[test]

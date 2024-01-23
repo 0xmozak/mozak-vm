@@ -1,7 +1,6 @@
-use alloc::format;
-use alloc::string::String;
-use alloc::vec::Vec;
 use core::marker::PhantomData;
+use std::format;
+use std::string::String;
 
 use itertools::unfold;
 use plonky2::field::extension::Extendable;
@@ -23,7 +22,8 @@ use plonky2::util::serialization::{Buffer, IoResult};
 const LOG2_MAX_NUM_ADDENDS: usize = 4;
 const MAX_NUM_ADDENDS: usize = 24;
 
-/// A gate to perform addition on `num_addends` different 32-bit values, plus a small carry
+/// A gate to perform addition on `num_addends` different 32-bit values, plus a
+/// small carry
 #[derive(Copy, Clone, Debug)]
 pub struct U32AddManyGate<F: RichField + Extendable<D>, const D: usize> {
     pub num_addends: usize,
@@ -52,6 +52,7 @@ impl<F: RichField + Extendable<D>, const D: usize> U32AddManyGate<F, D> {
         debug_assert!(j < self.num_addends);
         (self.num_addends + 3) * i + j
     }
+
     pub fn wire_ith_carry(&self, i: usize) -> usize {
         debug_assert!(i < self.num_ops);
         (self.num_addends + 3) * i + self.num_addends
@@ -61,23 +62,19 @@ impl<F: RichField + Extendable<D>, const D: usize> U32AddManyGate<F, D> {
         debug_assert!(i < self.num_ops);
         (self.num_addends + 3) * i + self.num_addends + 1
     }
+
     pub fn wire_ith_output_carry(&self, i: usize) -> usize {
         debug_assert!(i < self.num_ops);
         (self.num_addends + 3) * i + self.num_addends + 2
     }
 
-    pub fn limb_bits() -> usize {
-        2
-    }
-    pub fn num_result_limbs() -> usize {
-        ceil_div_usize(32, Self::limb_bits())
-    }
-    pub fn num_carry_limbs() -> usize {
-        ceil_div_usize(LOG2_MAX_NUM_ADDENDS, Self::limb_bits())
-    }
-    pub fn num_limbs() -> usize {
-        Self::num_result_limbs() + Self::num_carry_limbs()
-    }
+    pub fn limb_bits() -> usize { 2 }
+
+    pub fn num_result_limbs() -> usize { ceil_div_usize(32, Self::limb_bits()) }
+
+    pub fn num_carry_limbs() -> usize { ceil_div_usize(LOG2_MAX_NUM_ADDENDS, Self::limb_bits()) }
+
+    pub fn num_limbs() -> usize { Self::num_result_limbs() + Self::num_carry_limbs() }
 
     pub fn wire_ith_output_jth_limb(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
@@ -87,18 +84,13 @@ impl<F: RichField + Extendable<D>, const D: usize> U32AddManyGate<F, D> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32AddManyGate<F, D> {
-    fn id(&self) -> String {
-        format!("{self:?}")
-    }
+    fn id(&self) -> String { format!("{self:?}") }
 
-    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
-    }
+    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> { todo!() }
 
     fn deserialize(_src: &mut Buffer, _: &CommonCircuitData<F, D>) -> IoResult<Self>
     where
-        Self: Sized,
-    {
+        Self: Sized, {
         todo!()
     }
 
@@ -268,17 +260,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32AddManyGate
         (self.num_addends + 3) * self.num_ops + Self::num_limbs() * self.num_ops
     }
 
-    fn num_constants(&self) -> usize {
-        0
-    }
+    fn num_constants(&self) -> usize { 0 }
 
-    fn degree(&self) -> usize {
-        1 << Self::limb_bits()
-    }
+    fn degree(&self) -> usize { 1 << Self::limb_bits() }
 
-    fn num_constraints(&self) -> usize {
-        self.num_ops * (3 + Self::num_limbs())
-    }
+    fn num_constraints(&self) -> usize { self.num_ops * (3 + Self::num_limbs()) }
 }
 
 #[derive(Clone, Debug)]
@@ -292,9 +278,7 @@ struct U32AddManyGenerator<F: RichField + Extendable<D>, const D: usize> {
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for U32AddManyGenerator<F, D>
 {
-    fn id(&self) -> String {
-        format!("u32_add_many_{}_{}", self.row, self.i)
-    }
+    fn id(&self) -> String { format!("u32_add_many_{}_{}", self.row, self.i) }
 
     fn dependencies(&self) -> Vec<Target> {
         let local_target = |column| Target::wire(self.row, column);
@@ -356,14 +340,11 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         }
     }
 
-    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
-    }
+    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> { todo!() }
 
     fn deserialize(_src: &mut Buffer, _: &CommonCircuitData<F, D>) -> IoResult<Self>
     where
-        Self: Sized,
-    {
+        Self: Sized, {
         todo!()
     }
 }

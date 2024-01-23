@@ -12,10 +12,18 @@ version = "0.1.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.79"
 env_logger = { version = "0.10" }
+hex = "0.4.3"
 itertools = "0.12.0"
 mozak-circuits = { version = "0.1.0", path = "../circuits" }
+num = "0.4.1"
 plonky2 = "0.1"
+serde = "1.0.195"
+serde_with = { version = "3.5.0", features = ["hex"]  }
+sha2 = "0.10.8"
+sha3 = "0.10.8"
 
 [dev-dependencies]
 rand = "0.8.5"
+serde_json = "1.0"

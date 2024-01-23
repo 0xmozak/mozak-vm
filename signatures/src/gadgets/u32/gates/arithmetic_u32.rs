@@ -1,7 +1,7 @@
-use alloc::string::String;
-use alloc::vec::Vec;
-use alloc::{format, vec};
 use core::marker::PhantomData;
+use std::string::String;
+use std::vec::Vec;
+use std::{format, vec};
 
 use itertools::unfold;
 use plonky2::field::extension::Extendable;
@@ -24,7 +24,8 @@ use plonky2::plonk::vars::{
 };
 use plonky2::util::serialization::{Buffer, IoResult};
 
-/// A gate to perform a basic mul-add on 32-bit values (we assume they are range-checked beforehand).
+/// A gate to perform a basic mul-add on 32-bit values (we assume they are
+/// range-checked beforehand).
 #[derive(Copy, Clone, Debug)]
 pub struct U32ArithmeticGate<F: RichField + Extendable<D>, const D: usize> {
     pub num_ops: usize,
@@ -48,10 +49,12 @@ impl<F: RichField + Extendable<D>, const D: usize> U32ArithmeticGate<F, D> {
         debug_assert!(i < self.num_ops);
         Self::routed_wires_per_op() * i
     }
+
     pub fn wire_ith_multiplicand_1(&self, i: usize) -> usize {
         debug_assert!(i < self.num_ops);
         Self::routed_wires_per_op() * i + 1
     }
+
     pub fn wire_ith_addend(&self, i: usize) -> usize {
         debug_assert!(i < self.num_ops);
         Self::routed_wires_per_op() * i + 2
@@ -72,15 +75,12 @@ impl<F: RichField + Extendable<D>, const D: usize> U32ArithmeticGate<F, D> {
         Self::routed_wires_per_op() * i + 5
     }
 
-    pub fn limb_bits() -> usize {
-        2
-    }
-    pub fn num_limbs() -> usize {
-        64 / Self::limb_bits()
-    }
-    pub fn routed_wires_per_op() -> usize {
-        6
-    }
+    pub fn limb_bits() -> usize { 2 }
+
+    pub fn num_limbs() -> usize { 64 / Self::limb_bits() }
+
+    pub fn routed_wires_per_op() -> usize { 6 }
+
     pub fn wire_ith_output_jth_limb(&self, i: usize, j: usize) -> usize {
         debug_assert!(i < self.num_ops);
         debug_assert!(j < Self::num_limbs());
@@ -89,18 +89,13 @@ impl<F: RichField + Extendable<D>, const D: usize> U32ArithmeticGate<F, D> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32ArithmeticGate<F, D> {
-    fn id(&self) -> String {
-        format!("{self:?}")
-    }
+    fn id(&self) -> String { format!("{self:?}") }
 
-    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
-    }
+    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> { todo!() }
 
     fn deserialize(_src: &mut Buffer, _: &CommonCircuitData<F, D>) -> IoResult<Self>
     where
-        Self: Sized,
-    {
+        Self: Sized, {
         todo!()
     }
 
@@ -129,8 +124,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32ArithmeticG
                 // If this is zero, the diff is invertible, so the high limb is not `u32::MAX`.
                 // inverse * diff - 1
                 let hi_not_max = inverse * diff - one;
-                // If this is zero, either the high limb is not `u32::MAX`, or the low limb is zero.
-                // hi_not_max * limb_0_u32
+                // If this is zero, either the high limb is not `u32::MAX`, or the low limb is
+                // zero. hi_not_max * limb_0_u32
                 let hi_not_max_or_lo_zero = hi_not_max * output_low;
 
                 constraints.push(hi_not_max_or_lo_zero);
@@ -207,7 +202,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32ArithmeticG
                 let diff = builder.sub_extension(u32_max, output_high);
                 // If this is zero, the diff is invertible, so the high limb is not `u32::MAX`.
                 let hi_not_max = builder.mul_sub_extension(inverse, diff, one);
-                // If this is zero, either the high limb is not `u32::MAX`, or the low limb is zero.
+                // If this is zero, either the high limb is not `u32::MAX`, or the low limb is
+                // zero.
                 let hi_not_max_or_lo_zero = builder.mul_extension(hi_not_max, output_low);
 
                 constraints.push(hi_not_max_or_lo_zero);
@@ -272,17 +268,11 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for U32ArithmeticG
         self.num_ops * (Self::routed_wires_per_op() + Self::num_limbs())
     }
 
-    fn num_constants(&self) -> usize {
-        0
-    }
+    fn num_constants(&self) -> usize { 0 }
 
-    fn degree(&self) -> usize {
-        1 << Self::limb_bits()
-    }
+    fn degree(&self) -> usize { 1 << Self::limb_bits() }
 
-    fn num_constraints(&self) -> usize {
-        self.num_ops * (4 + Self::num_limbs())
-    }
+    fn num_constraints(&self) -> usize { self.num_ops * (4 + Self::num_limbs()) }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
@@ -315,8 +305,8 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
                 // If this is zero, the diff is invertible, so the high limb is not `u32::MAX`.
                 // inverse * diff - 1
                 let hi_not_max = inverse * diff - one;
-                // If this is zero, either the high limb is not `u32::MAX`, or the low limb is zero.
-                // hi_not_max * limb_0_u32
+                // If this is zero, either the high limb is not `u32::MAX`, or the low limb is
+                // zero. hi_not_max * limb_0_u32
                 let hi_not_max_or_lo_zero = hi_not_max * output_low;
 
                 yield_constr.one(hi_not_max_or_lo_zero);
@@ -361,9 +351,7 @@ struct U32ArithmeticGenerator<F: RichField + Extendable<D>, const D: usize> {
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for U32ArithmeticGenerator<F, D>
 {
-    fn id(&self) -> String {
-        format!("u32_arith_{}_{}", self.row, self.i)
-    }
+    fn id(&self) -> String { format!("u32_arith_{}_{}", self.row, self.i) }
 
     fn dependencies(&self) -> Vec<Target> {
         let local_target = |column| Target::wire(self.row, column);
@@ -427,14 +415,11 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         }
     }
 
-    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
-    }
+    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> { todo!() }
 
     fn deserialize(_src: &mut Buffer, _: &CommonCircuitData<F, D>) -> IoResult<Self>
     where
-        Self: Sized,
-    {
+        Self: Sized, {
         todo!()
     }
 }

@@ -5,10 +5,10 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::witness::Witness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::biguint::CircuitBuilderBiguint;
-use crate::hash::{HashInputTarget, HashOutputTarget, WitnessHash};
-use crate::u32::arithmetic_u32::{CircuitBuilderU32, U32Target};
-use crate::u32::interleaved_u32::CircuitBuilderB32;
+use crate::gadgets::hash::{HashInputTarget, HashOutputTarget, WitnessHash};
+use crate::gadgets::nonnative::biguint::CircuitBuilderBiguint;
+use crate::gadgets::u32::arithmetic_u32::{CircuitBuilderU32, U32Target};
+use crate::gadgets::u32::interleaved_u32::CircuitBuilderB32;
 
 const KECCAK256_C: usize = 1600;
 pub const KECCAK256_R: usize = 1088;
@@ -186,8 +186,10 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, KeccakGoldilocksConfig, PoseidonGoldilocksConfig};
     use sha3::{Digest, Keccak256};
 
-    use crate::hash::keccak256::{CircuitBuilderHashKeccak, WitnessHashKeccak, KECCAK256_R};
-    use crate::hash::CircuitBuilderHash;
+    use crate::gadgets::hash::keccak256::{
+        CircuitBuilderHashKeccak, WitnessHashKeccak, KECCAK256_R,
+    };
+    use crate::gadgets::hash::CircuitBuilderHash;
 
     #[test]
     fn test_keccak256_short() {

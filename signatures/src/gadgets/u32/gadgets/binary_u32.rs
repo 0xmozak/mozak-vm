@@ -6,7 +6,7 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::BoolTarget;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::u32::gadgets::arithmetic_u32::U32Target;
+use crate::gadgets::u32::gadgets::arithmetic_u32::U32Target;
 
 /// Bin32Target is an inefficient representation of 32x BoolTargets
 /// Whenever possible, use interleaved_u32::B32Target instead

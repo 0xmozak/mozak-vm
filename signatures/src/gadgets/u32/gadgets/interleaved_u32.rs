@@ -3,10 +3,10 @@ use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-use crate::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
-use crate::u32::gates::interleave_u32::U32InterleaveGate;
-use crate::u32::gates::uninterleave_to_b32::UninterleaveToB32Gate;
-use crate::u32::gates::uninterleave_to_u32::UninterleaveToU32Gate;
+use crate::gadgets::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
+use crate::gadgets::u32::gates::interleave_u32::U32InterleaveGate;
+use crate::gadgets::u32::gates::uninterleave_to_b32::UninterleaveToB32Gate;
+use crate::gadgets::u32::gates::uninterleave_to_u32::UninterleaveToU32Gate;
 
 pub struct B32Target(pub Target);
 
@@ -82,9 +82,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderB32<F, D>
     }
 
     // right rotate := left rotate of 32-n
-    fn rrot_u32(&mut self, a: U32Target, n: u8) -> U32Target {
-        self.lrot_u32(a, 32 - n)
-    }
+    fn rrot_u32(&mut self, a: U32Target, n: u8) -> U32Target { self.lrot_u32(a, 32 - n) }
 
     // convert U32Target -> B32Target by interleaving the bits
     fn interleave_u32(&mut self, x: U32Target) -> B32Target {
@@ -129,16 +127,27 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderB32<F, D>
     /// Important! This function is unsafe!
     /// It fails for 3+ inputs all set to 0xffffffff
     ///
-    /// More generally, it fails if the sum of the three interleaved inputs for a given iteration exceeds the Goldilocks field characteristic.
-    /// In these cases, the sum gets reduced mod the field order and will produce.
-    /// If we assume the outputs for a 3-way add of interleaved u32 inputs are uniformly distributed in [0, 2^64-1] (don't think this is actually true but I think close enough),
-    /// then the odds of this happening are 1 - ((2^64-2^32+1) / (2^64-1)) = 2.3283064e-10, so it's unlikely to inhibit an honest prover trying to prove something actually correct.
+    /// More generally, it fails if the sum of the three interleaved inputs for
+    /// a given iteration exceeds the Goldilocks field characteristic.
+    /// In these cases, the sum gets reduced mod the field order and will
+    /// produce. If we assume the outputs for a 3-way add of interleaved u32
+    /// inputs are uniformly distributed in [0, 2^64-1] (don't think this is
+    /// actually true but I think close enough), then the odds of this
+    /// happening are 1 - ((2^64-2^32+1) / (2^64-1)) = 2.3283064e-10, so it's
+    /// unlikely to inhibit an honest prover trying to prove something actually
+    /// correct.
     ///
-    /// However, please keep in mind that adversarially this makes it possible in some cases to prove an invalid input hashes to the same result as a valid input.
-    /// For example, this circuit can incorrectly prove that 0xffffffff XOR 0xffffffff XOR 0xffffffff is equal to 0x0000fffe.
-    /// If you have three inputs whose XOR actually *do* evaluate to 0x0000fffe, then a malicious prover can substitute 0xffffffff for the actual inputs and still produce a valid proof.
-    /// Cases like this basically require the first half of the real result to be all 0's, so odds of roughly 1/(2^16) per input triple that this exploit appears
-    /// Currently we haven't thought of any particular attacks that can exploit this, but once again should be kept in mind.
+    /// However, please keep in mind that adversarially this makes it possible
+    /// in some cases to prove an invalid input hashes to the same result as a
+    /// valid input. For example, this circuit can incorrectly prove that
+    /// 0xffffffff XOR 0xffffffff XOR 0xffffffff is equal to 0x0000fffe.
+    /// If you have three inputs whose XOR actually *do* evaluate to 0x0000fffe,
+    /// then a malicious prover can substitute 0xffffffff for the actual inputs
+    /// and still produce a valid proof. Cases like this basically require
+    /// the first half of the real result to be all 0's, so odds of roughly
+    /// 1/(2^16) per input triple that this exploit appears Currently we
+    /// haven't thought of any particular attacks that can exploit this, but
+    /// once again should be kept in mind.
     fn unsafe_xor_many_u32(&mut self, x: &[U32Target]) -> U32Target {
         match x.len() {
             0 => self.zero_u32(),
@@ -275,10 +284,11 @@ mod tests {
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
 
     use super::*;
-    use crate::u32::witness::WitnessU32;
+    use crate::gadgets::u32::witness::WitnessU32;
 
     #[test]
-    /// One hard-coded test case for now. Are there any weird edge cases that should also be explicitly covered?
+    /// One hard-coded test case for now. Are there any weird edge cases that
+    /// should also be explicitly covered?
     pub fn test_interleave_u32() -> Result<()> {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -311,7 +321,8 @@ mod tests {
     }
 
     #[test]
-    /// One hard-coded test case for now. Are there any weird edge cases that should also be explicitly covered?
+    /// One hard-coded test case for now. Are there any weird edge cases that
+    /// should also be explicitly covered?
     pub fn test_uninterleave_to_u32() -> Result<()> {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;
@@ -344,7 +355,8 @@ mod tests {
     }
 
     #[test]
-    /// One hard-coded test case for now. Are there any weird edge cases that should also be explicitly covered?
+    /// One hard-coded test case for now. Are there any weird edge cases that
+    /// should also be explicitly covered?
     pub fn test_uninterleave_to_b32() -> Result<()> {
         const D: usize = 2;
         type C = PoseidonGoldilocksConfig;

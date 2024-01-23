@@ -1,8 +1,7 @@
-use alloc::string::String;
-use alloc::vec::Vec;
-use alloc::{format, vec};
 use core::marker::PhantomData;
-use plonky2::plonk::circuit_data::CommonCircuitData;
+use std::string::String;
+use std::vec::Vec;
+use std::{format, vec};
 
 use plonky2::field::extension::Extendable;
 use plonky2::field::packed::PackedField;
@@ -17,6 +16,7 @@ use plonky2::iop::target::Target;
 use plonky2::iop::wire::Wire;
 use plonky2::iop::witness::{PartitionWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::plonk_common::{reduce_with_powers, reduce_with_powers_ext_circuit};
 use plonky2::plonk::vars::{
     EvaluationTargets, EvaluationVars, EvaluationVarsBase, EvaluationVarsBaseBatch,
@@ -43,25 +43,15 @@ impl<F: RichField + Extendable<D>, const D: usize> ComparisonGate<F, D> {
         }
     }
 
-    pub fn chunk_bits(&self) -> usize {
-        ceil_div_usize(self.num_bits, self.num_chunks)
-    }
+    pub fn chunk_bits(&self) -> usize { ceil_div_usize(self.num_bits, self.num_chunks) }
 
-    pub fn wire_first_input(&self) -> usize {
-        0
-    }
+    pub fn wire_first_input(&self) -> usize { 0 }
 
-    pub fn wire_second_input(&self) -> usize {
-        1
-    }
+    pub fn wire_second_input(&self) -> usize { 1 }
 
-    pub fn wire_result_bool(&self) -> usize {
-        2
-    }
+    pub fn wire_result_bool(&self) -> usize { 2 }
 
-    pub fn wire_most_significant_diff(&self) -> usize {
-        3
-    }
+    pub fn wire_most_significant_diff(&self) -> usize { 3 }
 
     pub fn wire_first_chunk_val(&self, chunk: usize) -> usize {
         debug_assert!(chunk < self.num_chunks);
@@ -95,18 +85,13 @@ impl<F: RichField + Extendable<D>, const D: usize> ComparisonGate<F, D> {
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for ComparisonGate<F, D> {
-    fn id(&self) -> String {
-        format!("{self:?}<D={D}>")
-    }
+    fn id(&self) -> String { format!("{self:?}<D={D}>") }
 
-    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
-    }
+    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> { todo!() }
 
     fn deserialize(_src: &mut Buffer, _: &CommonCircuitData<F, D>) -> IoResult<Self>
     where
-        Self: Sized,
-    {
+        Self: Sized, {
         todo!()
     }
 
@@ -182,7 +167,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for ComparisonGate
         let two_n = F::Extension::from_canonical_u64(1 << self.chunk_bits());
         constraints.push((two_n + most_significant_diff) - bits_combined);
 
-        // Iff first <= second, the top (n + 1st) bit of (2^n + most_significant_diff) will be 1.
+        // Iff first <= second, the top (n + 1st) bit of (2^n + most_significant_diff)
+        // will be 1.
         let result_bool = vars.local_wires[self.wire_result_bool()];
         constraints.push(result_bool - most_significant_diff_bits[self.chunk_bits()]);
 
@@ -290,7 +276,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for ComparisonGate
         let sum = builder.add_extension(two_n, most_significant_diff);
         constraints.push(builder.sub_extension(sum, bits_combined));
 
-        // Iff first <= second, the top (n + 1st) bit of (2^n + most_significant_diff) will be 1.
+        // Iff first <= second, the top (n + 1st) bit of (2^n + most_significant_diff)
+        // will be 1.
         let result_bool = vars.local_wires[self.wire_result_bool()];
         constraints.push(
             builder.sub_extension(result_bool, most_significant_diff_bits[self.chunk_bits()]),
@@ -307,21 +294,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Gate<F, D> for ComparisonGate
         vec![WitnessGeneratorRef::new(gen.adapter())]
     }
 
-    fn num_wires(&self) -> usize {
-        4 + 5 * self.num_chunks + (self.chunk_bits() + 1)
-    }
+    fn num_wires(&self) -> usize { 4 + 5 * self.num_chunks + (self.chunk_bits() + 1) }
 
-    fn num_constants(&self) -> usize {
-        0
-    }
+    fn num_constants(&self) -> usize { 0 }
 
-    fn degree(&self) -> usize {
-        1 << self.chunk_bits()
-    }
+    fn degree(&self) -> usize { 1 << self.chunk_bits() }
 
-    fn num_constraints(&self) -> usize {
-        6 + 5 * self.num_chunks + self.chunk_bits()
-    }
+    fn num_constraints(&self) -> usize { 6 + 5 * self.num_chunks + self.chunk_bits() }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
@@ -401,7 +380,8 @@ impl<F: RichField + Extendable<D>, const D: usize> PackedEvaluableBase<F, D>
         let two_n = F::from_canonical_u64(1 << self.chunk_bits());
         yield_constr.one((most_significant_diff + two_n) - bits_combined);
 
-        // Iff first <= second, the top (n + 1st) bit of (2^n - 1 + most_significant_diff) will be 1.
+        // Iff first <= second, the top (n + 1st) bit of (2^n - 1 +
+        // most_significant_diff) will be 1.
         let result_bool = vars.local_wires[self.wire_result_bool()];
         yield_constr.one(result_bool - most_significant_diff_bits[self.chunk_bits()]);
     }
@@ -416,9 +396,7 @@ struct ComparisonGenerator<F: RichField + Extendable<D>, const D: usize> {
 impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
     for ComparisonGenerator<F, D>
 {
-    fn id(&self) -> String {
-        format!("comparison_{}", self.row)
-    }
+    fn id(&self) -> String { format!("comparison_{}", self.row) }
 
     fn dependencies(&self) -> Vec<Target> {
         let local_target = |column| Target::wire(self.row, column);
@@ -529,14 +507,11 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         }
     }
 
-    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
-    }
+    fn serialize(&self, _dst: &mut Vec<u8>, _: &CommonCircuitData<F, D>) -> IoResult<()> { todo!() }
 
     fn deserialize(_src: &mut Buffer, _: &CommonCircuitData<F, D>) -> IoResult<Self>
     where
-        Self: Sized,
-    {
+        Self: Sized, {
         todo!()
     }
 }

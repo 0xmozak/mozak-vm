@@ -1,6 +1,5 @@
-use alloc::vec;
-use alloc::vec::Vec;
 use core::marker::PhantomData;
+use std::vec;
 
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
@@ -11,10 +10,10 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult};
 
-use crate::u32::gates::add_many_u32::U32AddManyGate;
-use crate::u32::gates::arithmetic_u32::U32ArithmeticGate;
-use crate::u32::gates::subtraction_u32::U32SubtractionGate;
-use crate::u32::witness::GeneratedValuesU32;
+use crate::gadgets::u32::gates::add_many_u32::U32AddManyGate;
+use crate::gadgets::u32::gates::arithmetic_u32::U32ArithmeticGate;
+use crate::gadgets::u32::gates::subtraction_u32::U32SubtractionGate;
+use crate::gadgets::u32::witness::GeneratedValuesU32;
 
 #[derive(Clone, Copy, Debug)]
 pub struct U32Target(pub Target);
@@ -259,8 +258,10 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         out_buffer.set_u32_target(self.high, high);
     }
 
+    #[allow(unused_variables)]
     fn serialize(&self, _dst: &mut Vec<u8>, c: &CommonCircuitData<F, D>) -> IoResult<()> { todo!() }
 
+    #[allow(unused_variables)]
     fn deserialize(_src: &mut Buffer, c: &CommonCircuitData<F, D>) -> IoResult<Self>
     where
         Self: Sized, {

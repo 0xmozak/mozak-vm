@@ -1,7 +1,6 @@
-use alloc::vec;
-use alloc::vec::Vec;
 use core::marker::PhantomData;
-use plonky2::plonk::circuit_data::CommonCircuitData;
+use std::vec;
+use std::vec::Vec;
 
 use num::{BigUint, Integer, Zero};
 use plonky2::field::extension::Extendable;
@@ -11,11 +10,12 @@ use plonky2::iop::generator::{GeneratedValues, SimpleGenerator};
 use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartitionWitness, Witness};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
+use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::util::serialization::{Buffer, IoResult};
 
-use crate::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
-use crate::u32::gadgets::multiple_comparison::list_le_u32_circuit;
-use crate::u32::witness::{GeneratedValuesU32, WitnessU32};
+use crate::gadgets::u32::gadgets::arithmetic_u32::{CircuitBuilderU32, U32Target};
+use crate::gadgets::u32::gadgets::multiple_comparison::list_le_u32_circuit;
+use crate::gadgets::u32::witness::{GeneratedValuesU32, WitnessU32};
 
 #[derive(Clone, Debug)]
 pub struct BigUintTarget {
@@ -23,13 +23,9 @@ pub struct BigUintTarget {
 }
 
 impl BigUintTarget {
-    pub fn num_limbs(&self) -> usize {
-        self.limbs.len()
-    }
+    pub fn num_limbs(&self) -> usize { self.limbs.len() }
 
-    pub fn get_limb(&self, i: usize) -> U32Target {
-        self.limbs[i]
-    }
+    pub fn get_limb(&self, i: usize) -> U32Target { self.limbs[i] }
 }
 
 pub trait CircuitBuilderBiguint<F: RichField + Extendable<D>, const D: usize> {
@@ -53,7 +49,8 @@ pub trait CircuitBuilderBiguint<F: RichField + Extendable<D>, const D: usize> {
     fn add_biguint_nc(&mut self, a: &BigUintTarget, b: &BigUintTarget) -> BigUintTarget;
     fn add_biguint(&mut self, a: &BigUintTarget, b: &BigUintTarget) -> BigUintTarget;
 
-    /// Subtract two `BigUintTarget`s. We assume that the first is larger than the second.
+    /// Subtract two `BigUintTarget`s. We assume that the first is larger than
+    /// the second.
     fn sub_biguint(&mut self, a: &BigUintTarget, b: &BigUintTarget) -> BigUintTarget;
 
     fn sqr_biguint(&mut self, a: &BigUintTarget) -> BigUintTarget;
@@ -64,7 +61,8 @@ pub trait CircuitBuilderBiguint<F: RichField + Extendable<D>, const D: usize> {
 
     fn mul_biguint_by_bool(&mut self, a: &BigUintTarget, b: BoolTarget) -> BigUintTarget;
 
-    /// Returns x * y + z. This is no more efficient than mul-then-add; it's purely for convenience (only need to call one CircuitBuilder function).
+    /// Returns x * y + z. This is no more efficient than mul-then-add; it's
+    /// purely for convenience (only need to call one CircuitBuilder function).
     fn mul_add_biguint(
         &mut self,
         x: &BigUintTarget,
@@ -96,9 +94,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderBiguint<F, D>
         BigUintTarget { limbs }
     }
 
-    fn zero_biguint(&mut self) -> BigUintTarget {
-        self.constant_biguint(&BigUint::zero())
-    }
+    fn zero_biguint(&mut self) -> BigUintTarget { self.constant_biguint(&BigUint::zero()) }
 
     fn connect_biguint(&mut self, lhs: &BigUintTarget, rhs: &BigUintTarget) {
         let min_limbs = lhs.num_limbs().min(rhs.num_limbs());
@@ -469,14 +465,13 @@ impl<F: RichField + Extendable<D>, const D: usize> SimpleGenerator<F, D>
         out_buffer.set_biguint_target(&self.rem, &rem);
     }
 
-    fn serialize(&self, _dst: &mut Vec<u8>, c: &CommonCircuitData<F, D>) -> IoResult<()> {
-        todo!()
-    }
+    #[allow(unused_variables)]
+    fn serialize(&self, _dst: &mut Vec<u8>, c: &CommonCircuitData<F, D>) -> IoResult<()> { todo!() }
 
+    #[allow(unused_variables)]
     fn deserialize(_src: &mut Buffer, c: &CommonCircuitData<F, D>) -> IoResult<Self>
     where
-        Self: Sized,
-    {
+        Self: Sized, {
         todo!()
     }
 }
@@ -492,7 +487,7 @@ mod tests {
     use rand::rngs::OsRng;
     use rand::Rng;
 
-    use crate::nonnative::gadgets::biguint::{CircuitBuilderBiguint, WitnessBigUint};
+    use crate::gadgets::nonnative::gadgets::biguint::{CircuitBuilderBiguint, WitnessBigUint};
 
     #[test]
     fn test_biguint_add() -> Result<()> {
