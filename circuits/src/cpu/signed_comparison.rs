@@ -81,7 +81,8 @@ pub(crate) fn slt_constraints_circuit<F: RichField + Extendable<D>, const D: usi
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{simple_test_code, u32_extra};
+    use mozak_runner::test_utils::u32_extra;
+    use mozak_runner::util::execute_code;
     use proptest::prelude::{any, ProptestConfig};
     use proptest::proptest;
 
@@ -91,7 +92,7 @@ mod tests {
 
     fn prove_slt<Stark: ProveAndVerify>(a: u32, op2: u32, use_imm: bool) {
         let (b, imm) = if use_imm { (0, op2) } else { (op2, 0) };
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [
                 Instruction {
                     op: Op::SLTU,
