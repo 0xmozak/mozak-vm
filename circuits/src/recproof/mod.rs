@@ -100,7 +100,24 @@ where
     builder.or(bools[0], bools[1])
 }
 
-/// Reduce a hash-sized group of booleans by `&&`ing them together
+/// Computes `h0 == h1`.
+fn hashes_equal<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    h0: HashOutTarget,
+    h1: HashOutTarget,
+) -> BoolTarget
+where
+    F: RichField + Extendable<D>, {
+    let eq = h0
+        .elements
+        .into_iter_fixed()
+        .zip(h1.elements)
+        .map(|(h0, h1)| builder.is_equal(h0, h1))
+        .collect();
+    and_helper(builder, eq)
+}
+
+/// Hash left and right together if both are present, otherwise forward one
 fn hash_or_forward<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     left_present: BoolTarget,
@@ -129,6 +146,31 @@ where
 
     // Select the hash based on presence
     select_hash(builder, both_present, hash_both, hash_absent)
+}
+
+/// `hash_or_forward` but using non-zero to determine presence
+fn hash_or_forward_zero<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    left: [Target; NUM_HASH_OUT_ELTS],
+    right: [Target; NUM_HASH_OUT_ELTS],
+) -> HashOutTarget
+where
+    F: RichField + Extendable<D>, {
+    let left_non_zero = left
+        .into_iter_fixed()
+        .map(|l_hash| builder.is_nonzero(l_hash))
+        .collect();
+    let right_non_zero = right
+        .into_iter_fixed()
+        .map(|r_hash| builder.is_nonzero(r_hash))
+        .collect();
+
+    // If any elements are non-zero, then it's non-zero
+    let left_non_zero = or_helper(builder, left_non_zero);
+    let right_non_zero = or_helper(builder, right_non_zero);
+
+    // Select the hash based on presence
+    hash_or_forward(builder, left_non_zero, left, right_non_zero, right)
 }
 
 pub trait SubCircuit<PublicIndices> {
