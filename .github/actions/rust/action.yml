@@ -42,8 +42,9 @@ runs:
     - name: Install nextest
       if: ${{ steps.toolchain-cache-restore.outputs.cache-hit != 'true' }}
       uses: taiki-e/install-action@nextest
-        
+
     - name: Install taplo-cli
+      if: ${{ steps.toolchain-cache-restore.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
         cargo install --git https://github.com/tamasfe/taplo taplo-cli
