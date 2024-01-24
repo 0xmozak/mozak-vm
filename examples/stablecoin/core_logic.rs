@@ -1,6 +1,5 @@
+#![feature(restricted_std)]
 extern crate alloc;
-
-use std::ops::Add;
 
 // use alloc::vec::Vec;
 use mozak_sdk::{
@@ -9,11 +8,13 @@ use mozak_sdk::{
 };
 use rkyv::{Archive, Deserialize, Serialize};
 
+#[repr(u8)]
 pub enum Methods {
-    MINT,
-    BURN,
-    TRANSFER,
-    SPLIT,
+    Mint,
+    Burn,
+    Transfer,
+    GetAmount,
+    Split,
 }
 
 // TODO: how do we verify owner?

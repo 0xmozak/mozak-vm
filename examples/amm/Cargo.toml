@@ -10,6 +10,7 @@ native = []
 guest = { path = "../../guest", features = ["std"]}
 mozak_sdk = { path = "../../sdk" }
 rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
+stablecoin-mozak-guest = { path = "../stablecoin" }
 
 [target.'cfg(not(target_os="zkvm"))'.dependencies.log]
 version = "0.4"

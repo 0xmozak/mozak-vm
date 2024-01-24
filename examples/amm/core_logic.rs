@@ -88,7 +88,7 @@ pub fn swap_tokens<'a>(
 
         residual_presented = Some(cross_program_call::<StateObject>(
             &metadata_object.token_programs[idx_in],
-            "split_obj",
+            stablecoin::Methods::Split as u8,
             &calldata.as_slice(),
         ));
     }
@@ -104,7 +104,7 @@ pub fn swap_tokens<'a>(
 
         residual_requested = Some(cross_program_call::<StateObject>(
             &metadata_object.token_programs[idx_out],
-            "split_obj",
+            stablecoin::Methods::Split as u8,
             &calldata.as_slice(),
         ));
     }
@@ -117,7 +117,7 @@ pub fn swap_tokens<'a>(
             .chain(self_address.to_le_bytes().iter())
             .cloned()
             .collect();
-        cross_program_call::<()>(&x.constraint_owner, "transfer", &calldata.as_slice());
+        cross_program_call::<()>(&x.constraint_owner, stablecoin::Methods::Transfer as u8, &calldata.as_slice());
     });
 
     objects_requested.iter().for_each(|x| {
@@ -128,7 +128,7 @@ pub fn swap_tokens<'a>(
         .chain(user_wallet.to_le_bytes().iter())
         .cloned()
         .collect();
-        cross_program_call::<()>(&x.constraint_owner, "transfer", &calldata.as_slice());
+        cross_program_call::<()>(&x.constraint_owner, stablecoin::Methods::Transfer as u8, &calldata.as_slice());
     });
 
     (residual_presented, residual_requested)
@@ -139,7 +139,7 @@ fn extract_amounts<'a>(objects: &Vec<StateObject<'a>>) -> (u64, u64) {
     let mut total_amount = 0;
     let mut last_amount = 0;
     for obj in objects {
-        last_amount = cross_program_call(&obj.constraint_owner, "get_amount", obj.data);
+        last_amount = cross_program_call(&obj.constraint_owner, stablecoin::Methods::GetAmount as u8, obj.data);
         total_amount += last_amount;
     }
     (total_amount, last_amount)

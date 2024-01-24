@@ -22,10 +22,14 @@ version = "4.3.0"
 version = "0.4"
 
 [[bin]]
-name = "stablecoin"
+name = "stablecoinbin"
 path = "main_mozak.rs"
 
 [[bin]]
 name = "stablecoin-native"
 path = "main_native.rs"
 required-features = ["native"]
+
+[lib]
+name = "stablecoin"
+path = "core_logic.rs"

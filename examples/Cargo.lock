@@ -36,6 +36,7 @@ dependencies = [
  "mozak_sdk",
  "rkyv",
  "simple_logger",
+ "stablecoin-mozak-guest",
 ]
 
 [[package]]
