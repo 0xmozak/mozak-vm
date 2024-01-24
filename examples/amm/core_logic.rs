@@ -83,9 +83,9 @@ pub fn swap_tokens<'a>(
             .collect();
 
         residual_presented = Some(cross_program_call::<StateObject>(
-            &metadata_object.token_programs[idx_in],
+            metadata_object.token_programs[idx_in],
             stablecoin::Methods::Split as u8,
-            calldata.as_slice(),
+            calldata,
         ));
     }
     let mut residual_requested: Option<StateObject<'a>> = None;
@@ -99,9 +99,9 @@ pub fn swap_tokens<'a>(
             .collect();
 
         residual_requested = Some(cross_program_call::<StateObject>(
-            &metadata_object.token_programs[idx_out],
+            metadata_object.token_programs[idx_out],
             stablecoin::Methods::Split as u8,
-            calldata.as_slice(),
+            calldata,
         ));
     }
 
@@ -114,9 +114,9 @@ pub fn swap_tokens<'a>(
             .cloned()
             .collect();
         cross_program_call::<()>(
-            &x.constraint_owner,
+            x.constraint_owner,
             stablecoin::Methods::Transfer as u8,
-            calldata.as_slice(),
+            calldata,
         );
     });
 
@@ -129,9 +129,9 @@ pub fn swap_tokens<'a>(
             .cloned()
             .collect();
         cross_program_call::<()>(
-            &x.constraint_owner,
+            x.constraint_owner,
             stablecoin::Methods::Transfer as u8,
-            calldata.as_slice(),
+            calldata,
         );
     });
 
@@ -144,9 +144,9 @@ fn extract_amounts(objects: &Vec<StateObject<'_>>) -> (u64, u64) {
     let mut last_amount = 0;
     for obj in objects {
         last_amount = cross_program_call(
-            &obj.constraint_owner,
+            obj.constraint_owner,
             stablecoin::Methods::GetAmount as u8,
-            obj.data,
+            obj.data.to_vec(),
         );
         total_amount += last_amount;
     }

@@ -2,7 +2,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 
 /// Canonical hashed type in "mozak vm". Can store hashed values of
 /// Poseidon2 hash.
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 pub struct Poseidon2HashType([u8; 4]);
@@ -16,7 +16,7 @@ impl std::fmt::Debug for Poseidon2HashType {
                 &self
                     .0
                     .iter()
-                    .map(|x| hex::encode(x))
+                    .map(|x| hex::encode([*x]))
                     .collect::<Vec<String>>(),
             )
             .finish()
@@ -24,15 +24,13 @@ impl std::fmt::Debug for Poseidon2HashType {
 }
 
 impl Poseidon2HashType {
-    pub fn to_le_bytes(&self) -> [u8; 4] {
-        self.0
-    }
+    pub fn to_le_bytes(&self) -> [u8; 4] { self.0 }
 }
 
 pub const STATE_TREE_DEPTH: usize = 8;
 
 /// Canonical "address" type of object in "mozak vm".
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 pub struct Address([u8; STATE_TREE_DEPTH]);
@@ -46,7 +44,7 @@ impl std::fmt::Debug for Address {
                 &self
                     .0
                     .iter()
-                    .map(|x| hex::encode(x))
+                    .map(|x| hex::encode([*x]))
                     .collect::<Vec<String>>(),
             )
             .finish()
@@ -60,7 +58,7 @@ impl Address {
 /// Each program in the mozak ecosystem is identifyable by two
 /// hashes: `program_rom_hash` & `memory_init_hash` and a program
 /// entry point `entry_point`
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
@@ -91,7 +89,7 @@ impl ProgramIdentifier {
     }
 
     pub fn to_le_bytes(&self) -> [u8; 12] {
-        let mut le_bytes_array:[u8; 12] = [0; 12];
+        let mut le_bytes_array: [u8; 12] = [0; 12];
         le_bytes_array[0..4].copy_from_slice(&self.program_rom_hash.to_le_bytes());
         le_bytes_array[4..8].copy_from_slice(&self.memory_init_hash.to_le_bytes());
         le_bytes_array[8..12].copy_from_slice(&self.entry_point.to_le_bytes());
@@ -101,7 +99,7 @@ impl ProgramIdentifier {
 
 /// Each storage object is a unit of information in the global
 /// state tree constrained for modification only by its `constraint_owner`
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub struct StateObject<'a> {
@@ -122,10 +120,11 @@ pub struct StateObject<'a> {
 }
 
 /// Canonical "address" type of object in "mozak vm".
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default)]
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-pub struct CPCMessage{
+#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+pub struct CPCMessage {
     /// recipient of cross-program-call message. Tuple of ProgramID
     /// and methodID
     pub recipient_program: ProgramIdentifier,

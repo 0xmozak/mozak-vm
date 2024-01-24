@@ -391,6 +391,7 @@ version = "0.1.0"
 name = "mozak_sdk"
 version = "0.1.0"
 dependencies = [
+ "hex 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static",
  "mozak-system",
  "rkyv",

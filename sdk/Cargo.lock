@@ -70,6 +70,12 @@ dependencies = [
 [[package]]
 name = "hex"
 version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
+name = "hex"
+version = "0.4.3"
 source = "git+https://github.com/0xmozak/rust-hex?branch=restricted_std#88ac01d8ee73637b36a09cbac05611da6c4b9ba1"
 
 [[package]]
@@ -92,6 +98,7 @@ version = "0.1.0"
 name = "mozak_sdk"
 version = "0.1.0"
 dependencies = [
+ "hex 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static",
  "mozak-system",
  "rkyv",
@@ -224,7 +231,7 @@ source = "git+https://github.com/0xmozak/parity-common?branch=restricted_std#ecb
 dependencies = [
  "byteorder",
  "crunchy",
- "hex",
+ "hex 0.4.3 (git+https://github.com/0xmozak/rust-hex?branch=restricted_std)",
  "static_assertions",
 ]
 

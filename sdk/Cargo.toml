@@ -16,3 +16,6 @@ uint = { git = "https://github.com/0xmozak/parity-common", branch="restricted_st
 
 [target.'cfg(not(target_os="zkvm"))'.dependencies.lazy_static]
 version = "1.4.0"
+
+[target.'cfg(not(target_os="zkvm"))'.dependencies.hex]
+version = "0.4"
