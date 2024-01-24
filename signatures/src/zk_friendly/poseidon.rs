@@ -115,7 +115,6 @@ pub fn prove_sign<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, cons
 ) -> (CircuitData<F, C, D>, ProofWithPublicInputs<F, C, D>)
 where
     C::Hasher: AlgebraicHasher<F>, {
-    env_logger::init();
     let mut witness = PartialWitness::<F>::new();
     let mut builder = CircuitBuilder::<F, D>::new(config);
 
@@ -162,6 +161,7 @@ mod tests {
     const D: usize = 2;
 
     fn generate_signature_data() -> (PrivateKey, PublicKey, Message) {
+        let _ = env_logger::try_init();
         let mut rng = rand::thread_rng();
 
         // generate random private key
