@@ -18,12 +18,6 @@ pub fn load_u32(m: &HashMap<u32, u8>, addr: u32) -> u32 {
     u32::from_le_bytes(bytes)
 }
 
-/// Returns the state just before the final state
-#[must_use]
-pub fn state_before_final(e: &ExecutionRecord<GoldilocksField>) -> &State<GoldilocksField> {
-    &e.executed[e.executed.len() - 2].state
-}
-
 #[must_use]
 #[allow(clippy::missing_panics_doc)]
 #[allow(clippy::similar_names)]

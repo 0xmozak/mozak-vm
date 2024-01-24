@@ -83,7 +83,7 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
     use mozak_runner::test_utils::{reg, u32_extra};
-    use mozak_runner::util::{execute_code, state_before_final};
+    use mozak_runner::util::execute_code;
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
@@ -235,7 +235,7 @@ mod tests {
                 &[(rs1, rs1_val)],
             );
             assert_eq!(record.executed.len(), 3);
-            assert_eq!(state_before_final(&record).get_register_value(rd), 4);
+            assert_eq!(record.state_before_final().get_register_value(rd), 4);
             CpuStark::prove_and_verify(&program, &record).unwrap();
         }
     }
