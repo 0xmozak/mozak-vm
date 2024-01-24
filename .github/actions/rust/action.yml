@@ -43,11 +43,20 @@ runs:
       if: ${{ steps.toolchain-cache-restore.outputs.cache-hit != 'true' }}
       uses: taiki-e/install-action@nextest
         
-    - name: Install taplo-cli
+    - name: Install taplo-cli (linux)
       shell: bash
+      if: ${{ runner.os == 'linux' }}
       run: |
         curl --fail --silent --show-error --location \
         https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
+          gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
+
+    - name: Install taplo-cli (macOS)
+      shell: bash
+      if: ${{ runner.os == 'macOS' }}
+      run: |
+        curl --fail --silent --show-error --location \
+        https://github.com/tamasfe/taplo/releases/latest/download/taplo-darwin-x86_64.gz | \
           gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
 
     - id: toolchain-cache-save
