@@ -9,6 +9,7 @@ pub struct MozakIo<'a> {
 
 pub struct MozakIoPrivate<'a>(pub MozakIo<'a>);
 pub struct MozakIoPublic<'a>(pub MozakIo<'a>);
+pub struct MozakTranscript<'a>(pub MozakIo<'a>);
 
 #[cfg(not(target_os = "zkvm"))]
 macro_rules! native_io_impl {
@@ -63,6 +64,16 @@ impl<'a> Read for MozakIoPublic<'a> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         {
             mozak_system::system::syscall_ioread_public(buf.as_mut_ptr(), buf.len());
+            Ok(buf.len())
+        }
+    }
+}
+
+#[cfg(target_os = "zkvm")]
+impl<'a> Read for MozakTranscript<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        {
+            mozak_system::system::syscall_transcript_read(buf.as_mut_ptr(), buf.len());
             Ok(buf.len())
         }
     }

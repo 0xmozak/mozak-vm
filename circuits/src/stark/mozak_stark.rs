@@ -28,6 +28,8 @@ use crate::program::stark::ProgramStark;
 use crate::rangecheck::columns::rangecheck_looking;
 use crate::rangecheck::stark::RangeCheckStark;
 use crate::rangecheck_u8::stark::RangeCheckU8Stark;
+#[cfg(feature = "enable_register_starks")]
+use crate::register;
 use crate::register::stark::RegisterStark;
 use crate::registerinit::stark::RegisterInitStark;
 use crate::xor::stark::XorStark;
@@ -37,7 +39,7 @@ use crate::{
 };
 
 const NUM_CROSS_TABLE_LOOKUP: usize = {
-    12 + cfg!(feature = "enable_register_starks") as usize
+    13 + cfg!(feature = "enable_register_starks") as usize
         + cfg!(feature = "enable_poseidon_starks") as usize * 3
 };
 
@@ -63,6 +65,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub memory_stark: MemoryStark<F, D>,
     #[StarkSet(stark_kind = "MemoryInit")]
     pub memory_init_stark: MemoryInitStark<F, D>,
+    #[StarkSet(stark_kind = "MozakMemoryInit")]
+    pub mozak_memory_init_stark: MemoryInitStark<F, D>,
     // TODO(Bing): find a way to natively constrain zero initializations within
     // the `MemoryStark`, instead of relying on a CTL between this and the
     // `MemoryStark`.
@@ -78,6 +82,8 @@ pub struct MozakStark<F: RichField + Extendable<D>, const D: usize> {
     pub io_memory_private_stark: InputOutputMemoryStark<F, D>,
     #[StarkSet(stark_kind = "IoMemoryPublic")]
     pub io_memory_public_stark: InputOutputMemoryStark<F, D>,
+    #[StarkSet(stark_kind = "IoTranscript")]
+    pub io_transcript_stark: InputOutputMemoryStark<F, D>,
     #[cfg_attr(
         feature = "enable_register_starks",
         StarkSet(stark_kind = "RegisterInit")
@@ -330,6 +336,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             program_stark: ProgramStark::default(),
             memory_stark: MemoryStark::default(),
             memory_init_stark: MemoryInitStark::default(),
+            mozak_memory_init_stark: MemoryInitStark::default(),
             memory_zeroinit_stark: MemoryZeroInitStark::default(),
             rangecheck_u8_stark: RangeCheckU8Stark::default(),
             halfword_memory_stark: HalfWordMemoryStark::default(),
@@ -338,6 +345,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             register_stark: RegisterStark::default(),
             io_memory_private_stark: InputOutputMemoryStark::default(),
             io_memory_public_stark: InputOutputMemoryStark::default(),
+            io_transcript_stark: InputOutputMemoryStark::default(),
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
@@ -356,6 +364,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
                 RegisterRegInitTable::lookups(),
                 IoMemoryPrivateCpuTable::lookups(),
                 IoMemoryPublicCpuTable::lookups(),
+                IoTranscriptCpuTable::lookups(),
                 #[cfg(feature = "enable_poseidon_starks")]
                 Poseidon2SpongeCpuTable::lookups(),
                 #[cfg(feature = "enable_poseidon_starks")]
@@ -416,6 +425,7 @@ table_impl!(BitshiftTable, TableKind::Bitshift);
 table_impl!(ProgramTable, TableKind::Program);
 table_impl!(MemoryTable, TableKind::Memory);
 table_impl!(MemoryInitTable, TableKind::MemoryInit);
+table_impl!(MozakMemoryInitTable, TableKind::MozakMemoryInit);
 table_impl!(MemoryZeroInitTable, TableKind::MemoryZeroInit);
 table_impl!(RangeCheckU8Table, TableKind::RangeCheckU8);
 table_impl!(HalfWordMemoryTable, TableKind::HalfWordMemory);
@@ -426,6 +436,7 @@ table_impl!(RegisterInitTable, TableKind::RegisterInit);
 table_impl!(RegisterTable, TableKind::Register);
 table_impl!(IoMemoryPrivateTable, TableKind::IoMemoryPrivate);
 table_impl!(IoMemoryPublicTable, TableKind::IoMemoryPublic);
+table_impl!(IoTranscriptTable, TableKind::IoTranscript);
 #[cfg(feature = "enable_poseidon_starks")]
 table_impl!(Poseidon2SpongeTable, TableKind::Poseidon2Sponge);
 #[cfg(feature = "enable_poseidon_starks")]
@@ -441,9 +452,15 @@ pub struct RangecheckTable<F: Field>(CrossTableLookup<F>);
 
 impl<F: Field> Lookups<F> for RangecheckTable<F> {
     fn lookups() -> CrossTableLookup<F> {
+        #[cfg(feature = "enable_register_starks")]
+        let register = register::columns::rangecheck_looking();
+        #[cfg(not(feature = "enable_register_starks"))]
+        let register: Vec<Table<F>> = vec![];
+
         let looking: Vec<Table<F>> = chain![
             memory::columns::rangecheck_looking(),
             cpu::columns::rangecheck_looking(),
+            register,
         ]
         .collect();
         CrossTableLookup::new(
@@ -543,6 +560,10 @@ impl<F: Field> Lookups<F> for MemoryInitMemoryTable<F> {
         CrossTableLookup::new(
             vec![
                 MemoryInitTable::new(
+                    memoryinit::columns::data_for_memory(),
+                    memoryinit::columns::filter_for_memory(),
+                ),
+                MozakMemoryInitTable::new(
                     memoryinit::columns::data_for_memory(),
                     memoryinit::columns::filter_for_memory(),
                 ),
@@ -708,6 +729,23 @@ impl<F: Field> Lookups<F> for IoMemoryPublicCpuTable<F> {
                 cpu::columns::filter_for_io_memory_public(),
             )],
             IoMemoryPublicTable::new(
+                memory_io::columns::data_for_cpu(),
+                memory_io::columns::filter_for_cpu(),
+            ),
+        )
+    }
+}
+
+pub struct IoTranscriptCpuTable<F: Field>(CrossTableLookup<F>);
+
+impl<F: Field> Lookups<F> for IoTranscriptCpuTable<F> {
+    fn lookups() -> CrossTableLookup<F> {
+        CrossTableLookup::new(
+            vec![CpuTable::new(
+                cpu::columns::data_for_io_transcript(),
+                cpu::columns::filter_for_io_transcript(),
+            )],
+            IoTranscriptTable::new(
                 memory_io::columns::data_for_cpu(),
                 memory_io::columns::filter_for_cpu(),
             ),

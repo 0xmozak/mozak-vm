@@ -156,8 +156,10 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
 #[cfg(test)]
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
+    use mozak_runner::elf::RuntimeArguments;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{simple_test_code_with_io_tape, u32_extra, u8_extra};
+    use mozak_runner::test_utils::{u32_extra, u8_extra};
+    use mozak_runner::util::execute_code_with_runtime_args;
     use mozak_system::system::ecall;
     use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2};
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
@@ -170,7 +172,7 @@ mod tests {
     use crate::test_utils::{ProveAndVerify, D, F};
 
     pub fn prove_io_read_private_zero_size<Stark: ProveAndVerify>(offset: u32, imm: u32) {
-        let (program, record) = simple_test_code_with_io_tape(
+        let (program, record) = execute_code_with_runtime_args(
             [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
@@ -184,14 +186,13 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 0),                        // A2 - size
             ],
-            &[],
-            &[],
+            RuntimeArguments::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
     pub fn prove_io_read_public_zero_size<Stark: ProveAndVerify>(offset: u32, imm: u32) {
-        let (program, record) = simple_test_code_with_io_tape(
+        let (program, record) = execute_code_with_runtime_args(
             [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
@@ -205,14 +206,33 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 0),                        // A2 - size
             ],
-            &[],
-            &[],
+            RuntimeArguments::default(),
+        );
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    pub fn prove_io_read_transcript_zero_size<Stark: ProveAndVerify>(offset: u32, imm: u32) {
+        let (program, record) = execute_code_with_runtime_args(
+            [
+                // set sys-call IO_READ in x10(or a0)
+                Instruction {
+                    op: Op::ECALL,
+                    args: Args::default(),
+                },
+            ],
+            &[(imm.wrapping_add(offset), 0)],
+            &[
+                (REG_A0, ecall::IO_READ_TRANSCRIPT),
+                (REG_A1, imm.wrapping_add(offset)), // A1 - address
+                (REG_A2, 0),                        // A2 - size
+            ],
+            RuntimeArguments::default(),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
     pub fn prove_io_read_private<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
-        let (program, record) = simple_test_code_with_io_tape(
+        let (program, record) = execute_code_with_runtime_args(
             [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
@@ -226,14 +246,13 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 1),                        // A2 - size
             ],
-            &[content],
-            &[],
+            RuntimeArguments::new(vec![], vec![content], vec![], vec![]),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
     pub fn prove_io_read_public<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
-        let (program, record) = simple_test_code_with_io_tape(
+        let (program, record) = execute_code_with_runtime_args(
             [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
@@ -243,18 +262,37 @@ mod tests {
             ],
             &[(imm.wrapping_add(offset), 0)],
             &[
-                (REG_A0, ecall::IO_READ_PUBLIC),
+                (REG_A0, ecall::IO_READ_TRANSCRIPT),
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 1),                        // A2 - size
             ],
-            &[],
-            &[content],
+            RuntimeArguments::new(vec![], vec![], vec![content], vec![]),
+        );
+        Stark::prove_and_verify(&program, &record).unwrap();
+    }
+
+    pub fn prove_io_read_transcript<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
+        let (program, record) = execute_code_with_runtime_args(
+            [
+                // set sys-call IO_READ in x10(or a0)
+                Instruction {
+                    op: Op::ECALL,
+                    args: Args::default(),
+                },
+            ],
+            &[(imm.wrapping_add(offset), 0)],
+            &[
+                (REG_A0, ecall::IO_READ_TRANSCRIPT),
+                (REG_A1, imm.wrapping_add(offset)), // A1 - address
+                (REG_A2, 1),                        // A2 - size
+            ],
+            RuntimeArguments::new(vec![], vec![], vec![], vec![content]),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
     pub fn prove_io_read<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
-        let (program, record) = simple_test_code_with_io_tape(
+        let (program, record) = execute_code_with_runtime_args(
             [
                 // set sys-call IO_READ in x10(or a0)
                 Instruction {
@@ -296,14 +334,13 @@ mod tests {
                 (REG_A1, imm.wrapping_add(offset)), // A1 - address
                 (REG_A2, 1),                        // A2 - size
             ],
-            &[content],
-            &[content],
+            RuntimeArguments::new(vec![], vec![content], vec![content], vec![content]),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
     pub fn prove_io_read_explicit<Stark: ProveAndVerify>(offset: u32, imm: u32, content: u8) {
-        let (program, record) = simple_test_code_with_io_tape(
+        let (program, record) = execute_code_with_runtime_args(
             [
                 Instruction {
                     op: Op::ADD,
@@ -367,8 +404,12 @@ mod tests {
                 (imm.wrapping_add(offset).wrapping_add(3), 0),
             ],
             &[],
-            &[content, content, content, content],
-            &[],
+            RuntimeArguments::new(
+                vec![],
+                vec![content, content, content, content],
+                vec![],
+                vec![],
+            ),
         );
         Stark::prove_and_verify(&program, &record).unwrap();
     }
@@ -391,6 +432,16 @@ mod tests {
         fn prove_io_read_public_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
             prove_io_read_public::<MozakStark<F, D>>(offset, imm, content);
         }
+        #[test]
+        fn prove_io_read_transcript_zero_size_mozak(offset in u32_extra(), imm in u32_extra()) {
+            prove_io_read_transcript_zero_size::<MozakStark<F, D>>(offset, imm);
+        }
+        #[test]
+        fn prove_io_read_transcript_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
+            prove_io_read_transcript::<MozakStark<F, D>>(offset, imm, content);
+        }
+
+
         #[test]
         fn prove_io_read_mozak(offset in u32_extra(), imm in u32_extra(), content in u8_extra()) {
             prove_io_read::<MozakStark<F, D>>(offset, imm, content);
