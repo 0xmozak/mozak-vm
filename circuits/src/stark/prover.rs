@@ -419,10 +419,8 @@ pub(crate) fn update_fri_instance<F, S, const D: usize>(
     stark: &S,
     oracles: &mut Vec<FriOracleInfo>,
     batches: &mut Vec<FriBatchInfo<F, D>>,
-    zeta: F::Extension,
-    g: F,
     config: &StarkConfig,
-    lookup_cfg: Option<&LookupConfig>,
+    num_ctl_zs: usize,
 ) where
     F: RichField + Extendable<D>,
     S: Stark<F, D> + Display, {
@@ -433,7 +431,6 @@ pub(crate) fn update_fri_instance<F, S, const D: usize>(
     };
     oracles.push(trace_oracle);
 
-    let num_ctl_zs = lookup_cfg.map(|n| n.num_zs).unwrap_or_default();
     let num_permutation_batches = stark.num_permutation_batches(config);
     let num_z_polys = num_permutation_batches + num_ctl_zs;
 
@@ -449,9 +446,7 @@ pub(crate) fn update_fri_instance<F, S, const D: usize>(
         blinding: false,
     };
 
-    if stark.uses_permutation_args() || lookup_cfg.is_some() {
-        oracles.push(permutation_oracle);
-    }
+    oracles.push(permutation_oracle);
 
     let num_quotient_polys = stark.quotient_degree_factor() * config.num_challenges;
     let quotient_info = FriPolynomialInfo::from_range(oracles.len(), 0..num_quotient_polys);
@@ -461,31 +456,17 @@ pub(crate) fn update_fri_instance<F, S, const D: usize>(
     };
     oracles.push(quotient_oracle);
 
-    let zeta_batch = FriBatchInfo {
-        point: zeta,
-        polynomials: [
-            trace_info.clone(),
-            permutation_zs_info.clone(),
-            quotient_info,
-        ]
-        .concat(),
-    };
-    let zeta_next_batch = FriBatchInfo {
-        point: zeta.scalar_mul(g),
-        polynomials: [trace_info, permutation_zs_info].concat(),
-    };
-
-    batches.push(zeta_batch);
-    batches.push(zeta_next_batch);
-
-    if let Some(lookup_cfg) = lookup_cfg {
-        let ctl_last_batch = FriBatchInfo {
-            point: F::Extension::primitive_root_of_unity(lookup_cfg.degree_bits).inverse(),
-            polynomials: ctl_zs_info,
-        };
-
-        batches.push(ctl_last_batch);
-    }
+    assert_eq!(batches.len(), 3);
+    batches[0].polynomials.append(&mut trace_info.clone());
+    batches[0]
+        .polynomials
+        .append(&mut permutation_zs_info.clone());
+    batches[0].polynomials.append(&mut quotient_info.clone());
+    batches[1].polynomials.append(&mut trace_info.clone());
+    batches[1]
+        .polynomials
+        .append(&mut permutation_zs_info.clone());
+    batches[2].polynomials.append(&mut ctl_zs_info.clone());
 }
 
 #[cfg(feature = "enable_batch_fri")]
@@ -610,20 +591,31 @@ where
             initial_merkle_trees.push(&quotient_commitments[kind]);
         });
 
+        let initial_batch_value_0 = FriBatchInfo {
+            point: zeta,
+            polynomials: vec![],
+        };
+        let initial_batch_value_1 = FriBatchInfo {
+            point: zeta.scalar_mul(g),
+            polynomials: vec![],
+        };
+        let initial_batch_value_2 = FriBatchInfo {
+            point: F::Extension::primitive_root_of_unity(degree_bits).inverse(),
+            polynomials: vec![],
+        };
         let mut oracles = vec![];
-        let mut batches = vec![];
+        let mut batches = vec![
+            initial_batch_value_0,
+            initial_batch_value_1,
+            initial_batch_value_2,
+        ];
         all_starks!(mozak_stark, |stark, kind| {
             update_fri_instance(
                 stark,
                 &mut oracles,
                 &mut batches,
-                zeta,
-                g,
                 config,
-                Some(&LookupConfig {
-                    degree_bits,
-                    num_zs: ctl_data_per_table[kind].len(),
-                }),
+                ctl_data_per_table[kind].len(),
             );
         });
 
