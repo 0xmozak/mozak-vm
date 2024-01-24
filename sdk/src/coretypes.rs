@@ -121,31 +121,16 @@ pub struct StateObject<'a> {
     pub data: &'a [u8],
 }
 
-// /// Inefficient, better to use 32 bit limbs
-// construct_uint! {
-// 	pub struct U256(4);
-// }
+/// Canonical "address" type of object in "mozak vm".
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+pub struct CPCMessage{
+    /// recipient of cross-program-call message. Tuple of ProgramID
+    /// and methodID
+    pub recipient_program: ProgramIdentifier,
+    pub recipient_method: u8,
 
-// struct ArchivedU256 {
-
-// }
-
-// struct U256Resolver {
-
-// }
-
-// impl Archive for U256 {
-//     type Archived = ArchivedU256;
-//     type Resolver = U256Resolver;
-
-//     // The resolve function consumes the resolver and produces the archived
-//     // value at the given position.
-//     unsafe fn resolve(
-//         &self,
-//         pos: usize,
-//         resolver: Self::Resolver,
-//         out: *mut Self::Archived,
-//     ) {
-
-//     }
-// }
+    /// raw message over cpc
+    pub calldata: Vec<u8>,
+}

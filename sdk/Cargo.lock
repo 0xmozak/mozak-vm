@@ -73,6 +73,12 @@ version = "0.4.3"
 source = "git+https://github.com/0xmozak/rust-hex?branch=restricted_std#88ac01d8ee73637b36a09cbac05611da6c4b9ba1"
 
 [[package]]
+name = "lazy_static"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+
+[[package]]
 name = "libc"
 version = "0.2.150"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -86,6 +92,7 @@ version = "0.1.0"
 name = "mozak_sdk"
 version = "0.1.0"
 dependencies = [
+ "lazy_static",
  "mozak-system",
  "rkyv",
  "uint",

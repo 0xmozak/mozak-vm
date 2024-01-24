@@ -3,9 +3,7 @@
 
 mod core_logic;
 
-use mozak_sdk::io::{
-    get_tapes
-};
+use mozak_sdk::io::get_tapes;
 
 // In general, we try to envision `main()` not be a
 // function executing business logic. Instead, we want
