@@ -82,7 +82,8 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 #[cfg(test)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{reg, simple_test_code, state_before_final, u32_extra};
+    use mozak_runner::test_utils::{reg, u32_extra};
+    use mozak_runner::util::execute_code;
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
 
@@ -92,7 +93,7 @@ mod tests {
 
     #[test]
     fn prove_jalr_goto_no_rs1() {
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::JALR,
                 args: Args {
@@ -111,7 +112,7 @@ mod tests {
 
     #[test]
     fn prove_jalr_goto_rs1_zero() {
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::JALR,
                 args: Args {
@@ -130,7 +131,7 @@ mod tests {
 
     #[test]
     fn prove_jalr_goto_imm_zero_rs1_not_zero() {
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::JALR,
                 args: Args {
@@ -149,7 +150,7 @@ mod tests {
 
     #[test]
     fn prove_jalr() {
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::JALR,
                 args: Args {
@@ -167,7 +168,7 @@ mod tests {
     }
 
     fn prove_triple_jalr<Stark: ProveAndVerify>() {
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [
                 Instruction {
                     op: Op::JALR,
@@ -210,7 +211,7 @@ mod tests {
         fn jalr_jumps_past_an_instruction(rs1 in reg(), rs1_val in u32_extra(), rd in reg(), sentinel in u32_extra()) {
             let jump_target: u32 = 8;
             let imm = jump_target.wrapping_sub(rs1_val);
-            let (program, record) = simple_test_code(
+            let (program, record) = execute_code(
                 [Instruction {
                     op: Op::JALR,
                     args: Args {
@@ -234,7 +235,7 @@ mod tests {
                 &[(rs1, rs1_val)],
             );
             assert_eq!(record.executed.len(), 3);
-            assert_eq!(state_before_final(&record).get_register_value(rd), 4);
+            assert_eq!(record.state_before_final().get_register_value(rd), 4);
             CpuStark::prove_and_verify(&program, &record).unwrap();
         }
     }
