@@ -4,7 +4,7 @@
 mod core_logic;
 
 use mozak_sdk::io::{
-    from_tape_deserialized, from_tape_rawbuf, get_tapes, MozakPrivateInput, MozakPublicInput,
+    get_tapes
 };
 
 // In general, we try to envision `main()` not be a
@@ -15,13 +15,11 @@ use mozak_sdk::io::{
 // function named `public_sum(...)` that verifies
 // that two numbers' sum is equivalent to a third number
 pub fn main() {
-    let (mut public_tape, mut private_tape) = get_tapes();
+    let (mut public_tape, mut _private_tape) = get_tapes();
 
     #[allow(clippy::single_match)]
     match public_tape.get_function_id() {
-        0 => {
-            
-        }
+        0 => {}
         _ => (),
     };
 }

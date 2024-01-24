@@ -26,10 +26,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "byteorder"
+version = "1.5.0"
+source = "git+https://github.com/0xmozak/byteorder?branch=restricted_std#36375c385d556cda5784f8be2836d411e6628e6a"
+
+[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "crunchy"
+version = "0.2.3"
+source = "git+https://github.com/0xmozak/crunchy?branch=restricted_std#f625c5ee27174840109f34143fd1a225c48ec89e"
 
 [[package]]
 name = "funty"
@@ -58,6 +68,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "git+https://github.com/0xmozak/rust-hex?branch=restricted_std#88ac01d8ee73637b36a09cbac05611da6c4b9ba1"
+
+[[package]]
 name = "libc"
 version = "0.2.150"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -73,6 +88,7 @@ version = "0.1.0"
 dependencies = [
  "mozak-system",
  "rkyv",
+ "uint",
 ]
 
 [[package]]
@@ -157,6 +173,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c107b6f4780854c8b126e228ea8869f4d7b71260f962fefb57b996b8959ba6b"
 
 [[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
 name = "syn"
 version = "1.0.109"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -187,6 +209,17 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "uint"
+version = "0.9.5"
+source = "git+https://github.com/0xmozak/parity-common?branch=restricted_std#ecbaa56da9eb84ad72c31044328b779f7a5e8117"
+dependencies = [
+ "byteorder",
+ "crunchy",
+ "hex",
+ "static_assertions",
+]
 
 [[package]]
 name = "unicode-ident"

@@ -36,7 +36,6 @@ dependencies = [
  "mozak_sdk",
  "rkyv",
  "simple_logger",
- "uint 0.9.5 (git+https://github.com/0xmozak/parity-common?branch=restricted_std)",
 ]
 
 [[package]]
@@ -393,6 +392,7 @@ version = "0.1.0"
 dependencies = [
  "mozak-system",
  "rkyv",
+ "uint 0.9.5 (git+https://github.com/0xmozak/parity-common?branch=restricted_std)",
 ]
 
 [[package]]
