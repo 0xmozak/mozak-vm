@@ -105,7 +105,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for XorStark<F, D
 mod tests {
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::simple_test_code;
+    use mozak_runner::util::execute_code;
     use plonky2::timed;
     use plonky2::util::timing::TimingTree;
     use starky::prover::prove as prove_table;
@@ -128,7 +128,7 @@ mod tests {
     fn test_xor_stark(a: u32, b: u32, imm: u32) {
         let config = fast_test_config();
 
-        let (_program, record) = simple_test_code(
+        let (_program, record) = execute_code(
             [
                 Instruction {
                     op: Op::XOR,
