@@ -127,7 +127,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for BitshiftStark
 mod tests {
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{simple_test_code, u32_extra};
+    use mozak_runner::test_utils::u32_extra;
+    use mozak_runner::util::execute_code;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use proptest::{prop_assert_eq, proptest};
     use starky::stark_testing::{test_stark_circuit_constraints, test_stark_low_degree};
@@ -162,7 +163,7 @@ mod tests {
         };
         // We use 3 similar instructions here to ensure duplicates and padding work
         // during trace generation.
-        let (program, record) = simple_test_code([sll, sll, sll], &[], &[(7, p), (8, q)]);
+        let (program, record) = execute_code([sll, sll, sll], &[], &[(7, p), (8, q)]);
         assert_eq!(record.executed[0].aux.dst_val, p << (q & 0x1F));
         MozakStark::prove_and_verify(&program, &record)
     }
@@ -183,7 +184,7 @@ mod tests {
 
         // We use 3 similar instructions here to ensure duplicates and padding work
         // during trace generation.
-        let (program, record) = simple_test_code([srl, srl, srl], &[], &[(7, p), (8, q)]);
+        let (program, record) = execute_code([srl, srl, srl], &[], &[(7, p), (8, q)]);
         assert_eq!(record.executed[0].aux.dst_val, p >> (q & 0x1F));
         MozakStark::prove_and_verify(&program, &record)
     }
@@ -191,7 +192,7 @@ mod tests {
     proptest! {
         #[test]
         fn prove_shift_amount_proptest(p in u32_extra(), q in u32_extra()) {
-            let (program, record) = simple_test_code(
+            let (program, record) = execute_code(
                 [Instruction {
                     op: Op::SLL,
                     args: Args {

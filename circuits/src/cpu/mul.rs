@@ -224,7 +224,8 @@ mod tests {
 
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{i32_extra, simple_test_code, u32_extra};
+    use mozak_runner::test_utils::{i32_extra, u32_extra};
+    use mozak_runner::util::execute_code;
     use plonky2::timed;
     use plonky2::util::timing::TimingTree;
     use proptest::prelude::ProptestConfig;
@@ -248,7 +249,7 @@ mod tests {
         let config = fast_test_config();
         let a = -2_147_451_028_i32;
         let b = 2_147_483_648_u32;
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::MULHSU,
                 args: Args {
@@ -300,7 +301,7 @@ mod tests {
     }
 
     fn prove_mul<Stark: ProveAndVerify>(a: u32, b: u32) -> Result<(), TestCaseError> {
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::MUL,
                 args: Args {
@@ -320,7 +321,7 @@ mod tests {
     }
 
     fn prove_mulhu<Stark: ProveAndVerify>(a: u32, b: u32) -> Result<(), TestCaseError> {
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::MULHU,
                 args: Args {
@@ -342,7 +343,7 @@ mod tests {
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_lossless)]
     fn prove_mulh<Stark: ProveAndVerify>(a: i32, b: i32) -> Result<(), TestCaseError> {
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::MULH,
                 args: Args {
@@ -365,7 +366,7 @@ mod tests {
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_lossless)]
     fn prove_mulhsu<Stark: ProveAndVerify>(a: i32, b: u32) -> Result<(), TestCaseError> {
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::MULHSU,
                 args: Args {
