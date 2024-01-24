@@ -1,0 +1,31 @@
+[package]
+edition = "2021"
+name = "stablecoin-mozak-guest"
+version = "0.1.0"
+
+[features]
+native = []
+
+[dependencies]
+guest = { path = "../../guest", features = ["std"]}
+mozak_sdk = { path = "../../sdk" }
+rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
+
+[target.'cfg(not(target_os="zkvm"))'.dependencies.log]
+version = "0.4"
+
+[target.'cfg(not(target_os="zkvm"))'.dependencies.simple_logger]
+features = ["colors", "timestamps", "nightly"]
+version = "4.3.0"
+
+[target.'cfg(not(target_os="zkvm"))'.dependencies.hex]
+version = "0.4"
+
+[[bin]]
+name = "stablecoin"
+path = "main_mozak.rs"
+
+[[bin]]
+name = "stablecoin-native"
+path = "main_native.rs"
+required-features = ["native"]

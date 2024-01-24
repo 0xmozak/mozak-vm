@@ -2,7 +2,7 @@ extern crate alloc;
 
 // use alloc::vec::Vec;
 use mozak_sdk::{
-    coretypes::{Address, Poseidon2HashType, ProgramIdentifier, StateObject},
+    coretypes::{Address, ProgramIdentifier, StateObject},
     cpc::cross_program_call,
 };
 use rkyv::{Archive, Deserialize, Serialize};
@@ -35,10 +35,10 @@ pub struct MetadataObject {
 pub fn swap_tokens<'a>(
     metadata_object: MetadataObject,
     amount_in: u64,
-    user_pubkey: Poseidon2HashType, 
+    user_wallet: ProgramIdentifier, 
     objects_presented: Vec<StateObject<'a>>,
     objects_requested: Vec<StateObject<'a>>,
-    usable_state_addresses: [Address; 2],
+    available_state_addresses: [Address; 2],
     self_address: ProgramIdentifier,
 ) -> (
     Option<StateObject<'a>>, // Residual change from `objects_presented`
@@ -79,31 +79,34 @@ pub fn swap_tokens<'a>(
     let mut residual_presented: Option<StateObject<'a>> = None;
     if last_presented > 0 {
         let remaining = total_presented - amount_in;
-        let calldata: Vec<u8> = usable_state_addresses[0]
+        let calldata: Vec<u8> = available_state_addresses[0]
             .get_raw()
             .iter()
             .chain(remaining.to_le_bytes().iter())
             .cloned()
             .collect();
 
-        //  Vec::from(usable_state_addresses[0].get_raw());
-        // calldata.extend_from_slice(remaining.to_le_bytes().as_ref());
         residual_presented = Some(cross_program_call::<StateObject>(
             &metadata_object.token_programs[idx_in],
             "split_obj",
             &calldata.as_slice(),
-        )); // TODO
+        ));
     }
     let mut residual_requested: Option<StateObject<'a>> = None;
     if last_requested > 0 {
         let remaining = total_requested - amount_out;
-        let mut calldata: Vec<u8> = Vec::from(usable_state_addresses[1].get_raw());
-        calldata.extend_from_slice(remaining.to_le_bytes().as_ref());
+        let calldata: Vec<u8> = available_state_addresses[0]
+            .get_raw()
+            .iter()
+            .chain(remaining.to_le_bytes().iter())
+            .cloned()
+            .collect();
+
         residual_requested = Some(cross_program_call::<StateObject>(
             &metadata_object.token_programs[idx_out],
             "split_obj",
             &calldata.as_slice(),
-        )); // TODO
+        ));
     }
 
     objects_presented.iter().for_each(|x| {
@@ -122,7 +125,7 @@ pub fn swap_tokens<'a>(
         .address
         .get_raw()
         .iter()
-        .chain(user_pubkey.to_le_bytes().iter())
+        .chain(user_wallet.to_le_bytes().iter())
         .cloned()
         .collect();
         cross_program_call::<()>(&x.constraint_owner, "transfer", &calldata.as_slice());

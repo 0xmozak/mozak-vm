@@ -771,6 +771,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "stablecoin-mozak-guest"
+version = "0.1.0"
+dependencies = [
+ "guest",
+ "hex 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log",
+ "mozak_sdk",
+ "rkyv",
+ "simple_logger",
+]
+
+[[package]]
 name = "static-mem-access"
 version = "0.1.0"
 dependencies = [
