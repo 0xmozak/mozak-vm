@@ -46,9 +46,7 @@ runs:
     - name: Install taplo-cli
       shell: bash
       run: |
-        curl --fail --silent --show-error --location \
-        https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
-          gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
+        cargo install --git https://github.com/tamasfe/taplo taplo-cli
 
     - id: toolchain-cache-save
       name: Cache Rust toolchain (Local Save)
