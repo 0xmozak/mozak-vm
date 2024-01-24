@@ -1894,6 +1894,7 @@ dependencies = [
  "env_logger",
  "hex",
  "itertools 0.12.0",
+ "log",
  "mozak-circuits",
  "num",
  "plonky2",

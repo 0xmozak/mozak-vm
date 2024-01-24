@@ -1,3 +1,4 @@
+use log;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::target::Target;
@@ -6,14 +7,18 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
+use plonky2::util::timing::TimingTree;
 
 use crate::gadgets::hash::keccak256::{CircuitBuilderHashKeccak, WitnessHashKeccak, KECCAK256_R};
 use crate::gadgets::hash::CircuitBuilderHash;
 use crate::gadgets::u32::arithmetic_u32::CircuitBuilderU32;
 use crate::gadgets::u32::witness::WitnessU32;
 
+/// Number of u8 elements needed to represent a private key.
 const PRIVATE_KEY_U8LIMBS: usize = 32;
+/// Number of u8 elements needed to represent a public key.
 const PUBLIC_KEY_U8LIMBS: usize = 32;
+/// Number of u32 elements needed to represent a message.
 const MESSAGE_U32LIMBS: usize = 8;
 
 /// This would be Keccak256 hash of 256 bit long private key
@@ -22,7 +27,7 @@ pub struct PublicKey([u8; PUBLIC_KEY_U8LIMBS]);
 /// 256 bit private key
 pub struct PrivateKey([u8; PRIVATE_KEY_U8LIMBS]);
 
-/// Message currently assumed to be
+/// Message currently assumed to be at most 256 bits long.
 pub struct Message([u32; MESSAGE_U32LIMBS]);
 
 pub fn prove_sign<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>(
@@ -36,7 +41,8 @@ where
     let mut witness = PartialWitness::<F>::new();
     let mut builder = CircuitBuilder::<F, D>::new(config);
 
-    // set private key target
+    // set private key target. Block size is 1 since 256 bits fit within a block of
+    // size
     let private_key_target = builder.add_virtual_hash_input_target(1, KECCAK256_R);
     // set public key target to be hash of private key
     let public_key_target = builder.hash_keccak256(&private_key_target);
@@ -68,7 +74,9 @@ where
 
     builder.print_gate_counts(0);
     let data = builder.build::<C>();
+    let timing = TimingTree::new("prove", log::Level::Debug);
     let proof = data.prove(witness).unwrap();
+    timing.print();
     (data, proof)
 }
 
@@ -90,15 +98,18 @@ mod tests {
     const PUBLIC_KEY_LEN_U32LIMBS: usize = 8;
 
     fn generate_signature_data() -> (PrivateKey, PublicKey, Message) {
+        env_logger::init();
         let mut rng = rand::thread_rng();
 
         // generate random private key
         let private_key = PrivateKey(rng.gen::<[u8; PRIVATE_KEY_U8LIMBS]>());
+
+        // set public key to be hash of private key
         let mut hasher = Keccak256::new();
         hasher.update(private_key.0);
         let result = hasher.finalize();
-        // get public key associated with private key
         let public_key = PublicKey(result.into());
+
         // generate random message
         let msg = Message(rng.gen::<[u32; MESSAGE_U32LIMBS]>());
 
@@ -107,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_signature() {
-        let config = CircuitConfig::standard_recursion_config();
+        let config = CircuitConfig::standard_recursion_zk_config();
         let (private_key, public_key, msg) = generate_signature_data();
         let (data, proof) = super::prove_sign::<F, C, D>(config, &private_key, &public_key, &msg);
         println!("{}", proof.public_inputs.len());
