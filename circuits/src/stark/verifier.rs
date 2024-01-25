@@ -42,11 +42,11 @@ where
     );
 
     ensure!(
-        all_proof.proofs_with_metadata[TableKind::MemoryInit]
+        all_proof.proofs_with_metadata[TableKind::ElfMemoryInit]
             .proof
             .trace_cap
-            == all_proof.memory_init_trace_cap,
-        "Mismatch between MemoryInit trace caps"
+            == all_proof.elf_memory_init_trace_cap,
+        "Mismatch between ElfMemoryInit trace caps"
     );
 
     let ctl_vars_per_table = CtlCheckVars::from_proofs(

@@ -57,6 +57,9 @@ use crate::generation::io_memory::{
     generate_io_memory_private_trace, generate_io_memory_public_trace,
 };
 use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
+use crate::generation::memoryinit::{
+    generate_elf_memory_init_trace, generate_mozak_memory_init_trace,
+};
 use crate::generation::poseidon2::generate_poseidon2_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::stark::mozak_stark::{
@@ -92,7 +95,9 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     #[allow(unused_mut)]
     let mut program_rows = generate_program_rom_trace(program);
     #[allow(unused_mut)]
-    let mut memory_init_rows = generate_memory_init_trace(program);
+    let mut memory_init_rows = generate_elf_memory_init_trace(program);
+    #[allow(unused_mut)]
+    let mut mozak_memory_init_rows = generate_mozak_memory_init_trace(program);
     #[allow(unused_mut)]
     let mut halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
     #[allow(unused_mut)]
@@ -115,7 +120,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     #[allow(unused_mut)]
     let mut memory_rows = generate_memory_trace(
         &record.executed,
-        &memory_init_rows,
+        &generate_memory_init_trace(program),
         &halfword_memory_rows,
         &fullword_memory_rows,
         &io_memory_private_rows,
@@ -148,10 +153,12 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         shift_amount_rows.len(),
         program_rows.len(),
         memory_init_rows.len(),
+        mozak_memory_init_rows.len(),
         halfword_memory_rows.len(),
         fullword_memory_rows.len(),
         io_memory_private_rows.len(),
         io_memory_public_rows.len(),
+        io_transcript_rows.len(),
         #[cfg(feature = "enable_poseidon_starks")]
         poseiden2_sponge_rows.len(),
         #[cfg(feature = "enable_poseidon_starks")]
@@ -183,6 +190,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         }
         program_rows = pad_trace_with_default_to_len(program_rows, len);
         memory_init_rows = pad_trace_with_last_to_len(memory_init_rows, len);
+        mozak_memory_init_rows = pad_trace_with_last_to_len(mozak_memory_init_rows, len);
         halfword_memory_rows = pad_trace_with_last_to_len(halfword_memory_rows, len);
         fullword_memory_rows = pad_trace_with_last_to_len(fullword_memory_rows, len);
         io_memory_private_rows = pad_trace_with_last_to_len(io_memory_private_rows, len);
@@ -224,7 +232,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         shift_amount_stark: trace_rows_to_poly_values(shift_amount_rows),
         program_stark: trace_rows_to_poly_values(program_rows),
         memory_stark: trace_rows_to_poly_values(memory_rows),
-        memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
+        elf_memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
+        mozak_memory_init_stark: trace_rows_to_poly_values(mozak_memory_init_rows),
         memory_zeroinit_stark: trace_rows_to_poly_values(memory_zeroinit_rows),
         rangecheck_u8_stark: trace_rows_to_poly_values(rangecheck_u8_rows),
         halfword_memory_stark: trace_rows_to_poly_values(halfword_memory_rows),

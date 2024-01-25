@@ -4,7 +4,7 @@ use anyhow::Result;
 use itertools::izip;
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
-use mozak_runner::test_utils::simple_test_code;
+use mozak_runner::util::execute_code;
 use mozak_runner::vm::ExecutionRecord;
 use mozak_system::system::ecall;
 use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
@@ -468,7 +468,7 @@ pub fn create_poseidon2_test(
         ]);
     }
 
-    simple_test_code(instructions, memory.as_slice(), &[])
+    execute_code(instructions, memory.as_slice(), &[])
 }
 
 pub fn hash_str(v: &str) -> HashOut<F> {

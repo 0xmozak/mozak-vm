@@ -175,7 +175,7 @@ where
     )?;
 
     let program_rom_trace_cap = trace_caps[TableKind::Program].clone();
-    let memory_init_trace_cap = trace_caps[TableKind::MemoryInit].clone();
+    let elf_memory_init_trace_cap = trace_caps[TableKind::ElfMemoryInit].clone();
     if log_enabled!(Debug) {
         timing.print();
     }
@@ -183,7 +183,7 @@ where
         proofs_with_metadata,
         ctl_challenges,
         program_rom_trace_cap,
-        memory_init_trace_cap,
+        elf_memory_init_trace_cap,
         public_inputs,
         #[cfg(feature = "enable_batch_fri")]
         batch_fri_proof,
@@ -644,7 +644,7 @@ where
 mod tests {
 
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::simple_test_code;
+    use mozak_runner::util::execute_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
     use plonky2::hash::poseidon2::Poseidon2Hash;
@@ -655,7 +655,7 @@ mod tests {
 
     #[test]
     fn prove_halt() {
-        let (program, record) = simple_test_code([], &[], &[]);
+        let (program, record) = execute_code([], &[], &[]);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
@@ -669,14 +669,14 @@ mod tests {
                 ..Args::default()
             },
         };
-        let (program, record) = simple_test_code([lui], &[], &[]);
+        let (program, record) = execute_code([lui], &[], &[]);
         assert_eq!(record.last_state.get_register_value(1), 0x8000_0000);
         MozakStark::prove_and_verify(&program, &record).unwrap();
     }
 
     #[test]
     fn prove_lui_2() {
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::ADD,
                 args: Args {
@@ -694,7 +694,7 @@ mod tests {
 
     #[test]
     fn prove_beq() {
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::BEQ,
                 args: Args {
