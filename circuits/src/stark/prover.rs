@@ -8,14 +8,18 @@ use log::log_enabled;
 use log::Level::Debug;
 use mozak_runner::elf::Program;
 use mozak_runner::vm::ExecutionRecord;
-use plonky2::field::extension::{Extendable, FieldExtension};
+#[cfg(feature = "enable_batch_fri")]
+use plonky2::field::extension::{FieldExtension};
+use plonky2::field::extension::{Extendable};
 use plonky2::field::packable::Packable;
 use plonky2::field::polynomial::PolynomialValues;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
 #[cfg(feature = "enable_batch_fri")]
 use plonky2::fri::proof::FriProof;
-use plonky2::fri::structure::{FriBatchInfo, FriInstanceInfo, FriOracleInfo, FriPolynomialInfo};
+#[cfg(feature = "enable_batch_fri")]
+use plonky2::fri::structure::{ FriInstanceInfo};
+use plonky2::fri::structure::{FriBatchInfo, FriOracleInfo, FriPolynomialInfo};
 use plonky2::hash::hash_types::RichField;
 use plonky2::iop::challenger::Challenger;
 use plonky2::plonk::config::GenericConfig;
@@ -415,7 +419,7 @@ where
     )
 }
 
-pub(crate) fn update_fri_instance<F, S, const D: usize>(
+pub fn update_fri_instance<F, S, const D: usize>(
     stark: &S,
     oracles: &mut Vec<FriOracleInfo>,
     batches: &mut Vec<FriBatchInfo<F, D>>,
