@@ -1,5 +1,8 @@
+use std::io::Write;
 #[cfg(not(target_os = "zkvm"))]
 use std::sync::Mutex;
+
+use rkyv::{Archive, Deserialize, Serialize};
 
 use crate::coretypes::ProgramIdentifier;
 
@@ -33,7 +36,18 @@ pub fn globaltrace_add_message(program: ProgramIdentifier, method: u8, calldata:
     println!("globaltrace_add_message called for CPC message: {:?}", msg);
 
     if let Ok(mut guard) = global_transcript_tape.lock() {
+        // Serializing is as easy as a single function call
+        let bytes = rkyv::to_bytes::<_, 256>(&msg).unwrap();
+
         guard.push(msg);
+
+        let mut out = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("transcript")
+            .expect("cannot open file");
+
+        out.write(&bytes).expect("write failed");
     } else {
         // Handle the case where the lock is poisoned
         panic!("Failed to acquire lock on global_transcript_tape");
