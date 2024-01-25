@@ -19,11 +19,11 @@ log = "0.4"
 mozak-circuits = { version = "0.1.0", path = "../circuits" }
 num = "0.4.1"
 plonky2 = "0.1"
+plonky2_crypto = { git = "https://github.com/0xmozak/plonky2-crypto.git" }
 serde = "1.0.195"
 serde_with = { version = "3.5.0", features = ["hex"] }
 sha2 = "0.10.8"
 sha3 = "0.10.8"
-plonky2_crypto = { git = "https://github.com/0xmozak/plonky2-crypto.git" }
 
 
 [dev-dependencies]
