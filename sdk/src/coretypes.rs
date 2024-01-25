@@ -27,6 +27,12 @@ impl Poseidon2HashType {
     pub fn to_le_bytes(&self) -> [u8; 4] { self.0 }
 }
 
+impl Into<Poseidon2HashType> for [u8; 4] {
+    fn into(self) -> Poseidon2HashType {
+        Poseidon2HashType(self)
+    }
+}
+
 pub const STATE_TREE_DEPTH: usize = 8;
 
 /// Canonical "address" type of object in "mozak vm".
@@ -53,6 +59,12 @@ impl std::fmt::Debug for Address {
 
 impl Address {
     pub fn get_raw(&self) -> [u8; STATE_TREE_DEPTH] { self.0 }
+}
+
+impl Into<Address> for [u8; STATE_TREE_DEPTH] {
+    fn into(self) -> Address {
+        Address(self)
+    }
 }
 
 /// Each program in the mozak ecosystem is identifyable by two
