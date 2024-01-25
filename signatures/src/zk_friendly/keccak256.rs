@@ -8,11 +8,10 @@ use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
-
-use crate::gadgets::hash::keccak256::{CircuitBuilderHashKeccak, WitnessHashKeccak, KECCAK256_R};
-use crate::gadgets::hash::CircuitBuilderHash;
-use crate::gadgets::u32::arithmetic_u32::CircuitBuilderU32;
-use crate::gadgets::u32::witness::WitnessU32;
+use plonky2_crypto::hash::keccak256::{CircuitBuilderHashKeccak, WitnessHashKeccak, KECCAK256_R};
+use plonky2_crypto::hash::CircuitBuilderHash;
+use plonky2_crypto::u32::arithmetic_u32::CircuitBuilderU32;
+use plonky2_crypto::u32::witness::WitnessU32;
 
 /// Number of u8 elements needed to represent a private key.
 const PRIVATE_KEY_U8LIMBS: usize = 32;
