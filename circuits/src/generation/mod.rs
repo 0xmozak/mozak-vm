@@ -122,7 +122,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         shift_amount_stark: trace_rows_to_poly_values(shift_amount_rows),
         program_stark: trace_rows_to_poly_values(program_rows),
         memory_stark: trace_rows_to_poly_values(memory_rows),
-        memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
+        elf_memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
         mozak_memory_init_stark: trace_rows_to_poly_values(mozak_memory_init_rows),
         memory_zeroinit_stark: trace_rows_to_poly_values(memory_zeroinit_rows),
         rangecheck_u8_stark: trace_rows_to_poly_values(rangecheck_u8_rows),
