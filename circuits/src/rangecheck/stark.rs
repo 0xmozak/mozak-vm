@@ -64,7 +64,7 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RangeCheckSta
 #[cfg(test)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::simple_test_code;
+    use mozak_runner::util::execute_code;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use starky::stark_testing::test_stark_circuit_constraints;
 
@@ -85,7 +85,7 @@ mod tests {
             .step_by(23)
             .map(|i| (i, inst))
             .collect::<Vec<_>>();
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::ADD,
                 args: Args {
