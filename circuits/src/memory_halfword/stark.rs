@@ -94,7 +94,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for HalfWordMemor
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{simple_test_code, u32_extra, u8_extra};
+    use mozak_runner::test_utils::{u32_extra, u8_extra};
+    use mozak_runner::util::execute_code;
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
@@ -110,7 +111,7 @@ mod tests {
         content: u8,
         is_unsigned: bool,
     ) {
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [
                 Instruction {
                     op: Op::SH,
