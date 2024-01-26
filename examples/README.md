@@ -1,5 +1,7 @@
 # Guest Programs
 
+*WARNING*: this workspace specifies default cargo target as `riscv32im-mozak-zkvm-elf`, which means that for building native versions we need to manually specify the system target via `--target` (see below).
+
 Examples contains cargo projects which generate ELF compatible with MozakVM. The target ISA is RISC-V with I and M extensions, described best in `.cargo/riscv32im-mozak-zkvm-elf.json`.
 
 Building the programs require Rust nightly toolchain. Exploring the generated ELF requires RISC-V toolkit, especially `objdump` or equivalent.
@@ -25,16 +27,25 @@ This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/release/
 
 For more details, our configuration is found at `.cargo/config.toml` at the root of the `examples` directory.
 
-### Native 
+### Native
 
-To build for native targets, we have to override the (default) custom target by
-specifying our desired target (eg. x86 64-bit Linux):
+To build for native targets, we need to manually specify the host target, which is returned by `rustc -vV`:
 
 ```bash
-cargo build --release --target x86_64-unknown-linux-gnu --features=std
+cargo build --release \
+            --target "$(rustc -vV | grep host | awk '{ print $2; }')" \
+            --features=std
 ```
 
 Currently we don't support `no_std` for the native target so `--features=std` is a must.
+
+You can build a particular example binary by specifying it with `--bin`, for instance to build `empty` use
+```bash
+cargo build --release \
+            --target "$(rustc -vV | grep host | awk '{ print $2; }')" \
+            --features=std \
+            --bin empty
+```
 
 This would build ELF executables under `target/x86_64-unknown-linux-gnu/release/`.
 
@@ -65,8 +76,18 @@ mozak-cli -vvv run target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
 
 ### Native
 
+Again, for `cargo run` you need to manually specify the system target and manually specify the binary.  For instance, to run `empty` use
+
 ```bash
-./target/x86_64-unknown-linux-gnu/debug/<EXECUTABLE_NAME>
+cargo run --release \
+          --target "$(rustc -vV | grep host | awk '{ print $2; }')" \
+          --features=std \
+          --bin empty
+```
+
+You can either run the binaries directly at
+```bash
+./target/<SYSTEM_TARGET>/<debug or release>/<EXECUTABLE_NAME>
 ```
 
 ## Exploring binaries
