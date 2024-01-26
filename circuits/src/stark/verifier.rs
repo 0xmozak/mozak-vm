@@ -6,6 +6,7 @@ use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::types::Field;
 use plonky2::fri::verifier::verify_fri_proof;
 use plonky2::hash::hash_types::RichField;
+use plonky2::hash::merkle_tree::MerkleCap;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::plonk_common::reduce_with_powers;
 use starky::config::StarkConfig;
@@ -49,6 +50,14 @@ where
         "Mismatch between ElfMemoryInit trace caps"
     );
 
+    ensure!(
+        all_proof.proofs_with_metadata[TableKind::IoTranscript]
+            .proof
+            .trace_cap
+            == all_proof.transcript_trace_cap,
+        "Mismatch between Transcript trace caps"
+    );
+
     let ctl_vars_per_table = CtlCheckVars::from_proofs(
         &all_proof.proofs_with_metadata,
         &mozak_stark.cross_table_lookups,
@@ -75,6 +84,28 @@ where
         &all_proof.all_ctl_zs_last(),
         config,
     )?;
+    Ok(())
+}
+
+/// Verifies proof(s) along with their transcripts.
+#[allow(clippy::too_many_lines)]
+pub fn verify_proof_bundle<F, C, const D: usize>(
+    mozak_stark: &MozakStark<F, D>,
+    proofs: Vec<AllProof<F, C, D>>,
+    config: &StarkConfig,
+) -> Result<()>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>, {
+    let mut prev_transcript_trace_cap: Option<MerkleCap<F, C::Hasher>> = None;
+    for proof in proofs {
+        if let Some(prev_transcript) = prev_transcript_trace_cap {
+            ensure!(prev_transcript == proof.transcript_trace_cap);
+        }
+        prev_transcript_trace_cap = Some(proof.transcript_trace_cap.clone());
+        verify_proof(mozak_stark, proof, config)?;
+    }
+
     Ok(())
 }
 

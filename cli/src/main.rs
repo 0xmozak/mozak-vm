@@ -17,7 +17,7 @@ use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::recursive_mozak_stark_circuit;
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
-use mozak_circuits::stark::verifier::verify_proof;
+use mozak_circuits::stark::verifier::{verify_proof, verify_proof_bundle};
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
 use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_runner::elf::Program;
@@ -119,6 +119,11 @@ enum Command {
     Prove(ProveArgs),
     /// Verify the given proof from file.
     Verify { proof: Input },
+    /// Verify the proofs and their transcripts from file.
+    VerifyBundle {
+        #[clap(long)]
+        proofs: Vec<Input>,
+    },
     /// Verify the given recursive proof from file.
     VerifyRecursiveProof { proof: Input, degree_bits: Input },
     /// Compute the Program Rom Hash of the given ELF.
@@ -222,6 +227,18 @@ fn main() -> Result<()> {
             proof.read_to_end(&mut buffer)?;
             let all_proof = AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(&buffer)?;
             verify_proof(&stark, all_proof, &config)?;
+            println!("proof verified successfully!");
+        }
+        Command::VerifyBundle { mut proofs } => {
+            let stark = S::default();
+            let mut raw_proofs = vec![];
+            let mut buffer: Vec<u8> = vec![];
+            for proof in proofs.iter_mut() {
+                proof.read_to_end(&mut buffer)?;
+                let all_proof = AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(&buffer)?;
+                raw_proofs.push(all_proof);
+            }
+            verify_proof_bundle(&stark, raw_proofs, &config)?;
             println!("proof verified successfully!");
         }
         Command::VerifyRecursiveProof {
