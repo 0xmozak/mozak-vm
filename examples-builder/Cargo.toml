@@ -13,6 +13,7 @@ version = "0.1.0"
 empty = []
 fibonacci = []
 fibonacci-input = []
+fibonacci-input-new-api = []
 memory-access = []
 merkleproof-trustedroot = []
 min-max = []
