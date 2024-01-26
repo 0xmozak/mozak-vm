@@ -233,7 +233,7 @@ fn main() -> Result<()> {
             let stark = S::default();
             let mut raw_proofs = vec![];
             let mut buffer: Vec<u8> = vec![];
-            for proof in proofs.iter_mut() {
+            for proof in &mut proofs {
                 proof.read_to_end(&mut buffer)?;
                 let all_proof = AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(&buffer)?;
                 raw_proofs.push(all_proof);
