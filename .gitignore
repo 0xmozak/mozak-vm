@@ -23,7 +23,10 @@ tmp
 /perftool/build
 *.svg
 !air.svg
+!ctlarg.svg
 !main-logo.svg
+!permutationarg.svg
+!subsetarg.svg
 
 # Generated IOTapes
 *.tape
