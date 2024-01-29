@@ -132,11 +132,11 @@ pub struct StateObject<'a> {
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
-pub struct CPCMessage<T: Sized> {
+pub struct CPCMessage {
     /// caller of cross-program-call message. Tuple of ProgramID
     /// and methodID
-    pub caller_program: ProgramIdentifier,
-    pub caller_method: u8,
+    // pub caller_program: ProgramIdentifier,
+    // pub caller_method: u8,
 
     /// recipient of cross-program-call message. Tuple of ProgramID
     /// and methodID
@@ -145,5 +145,5 @@ pub struct CPCMessage<T: Sized> {
 
     /// raw message over cpc
     pub calldata: Vec<u8>,
-    pub returnval: T,
+    // pub returnval: T,
 }
