@@ -46,13 +46,19 @@ pub const STATE_TREE_DEPTH: usize = 8;
 pub struct Address([u8; STATE_TREE_DEPTH]);
 
 #[cfg(not(target_os = "zkvm"))]
+impl std::ops::Deref for Address {
+    type Target = [u8; STATE_TREE_DEPTH];
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+#[cfg(not(target_os = "zkvm"))]
 impl std::fmt::Debug for Address {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Address")
             .field(
                 "address",
                 &self
-                    .0
                     .iter()
                     .map(|x| hex::encode([*x]))
                     .collect::<Vec<String>>(),
