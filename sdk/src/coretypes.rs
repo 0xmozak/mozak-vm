@@ -68,6 +68,7 @@ impl std::fmt::Debug for Address {
 }
 
 impl Address {
+    #[must_use]
     pub fn get_raw(&self) -> [u8; STATE_TREE_DEPTH] { self.0 }
 }
 
@@ -102,9 +103,10 @@ impl ProgramIdentifier {
     where
         T: Iterator<Item = &'a StateObject<'a>> + Sized, {
         objects.for_each(|x| {
-            if x.constraint_owner != *self {
-                panic!("constraint owner does not match program identifier");
-            }
+            assert!(
+                !(x.constraint_owner != *self),
+                "constraint owner does not match program identifier"
+            );
         })
     }
 

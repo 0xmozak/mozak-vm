@@ -10,6 +10,7 @@ lazy_static::lazy_static! {
 
 #[allow(unused_variables)]
 #[allow(unreachable_code)]
+#[must_use]
 pub fn cross_program_call<T>(program: ProgramIdentifier, method: u8, calldata: &[u8]) -> T
 where
     T: Sized + Default, {
