@@ -102,10 +102,9 @@ impl ProgramIdentifier {
     where
         T: Iterator<Item = &'a StateObject<'a>> + Sized, {
         objects.for_each(|x| {
-            assert_eq!(
-                x.constraint_owner, *self,
-                "constraint owner does not match program identifier"
-            );
+            if x.constraint_owner != *self {
+                panic!("constraint owner does not match program identifier");
+            }
         })
     }
 
