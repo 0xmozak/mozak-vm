@@ -30,6 +30,7 @@ impl std::fmt::Debug for Poseidon2HashType {
 }
 
 impl Poseidon2HashType {
+    #[must_use]
     pub fn to_le_bytes(&self) -> [u8; 4] { self.0 }
 }
 
@@ -99,6 +100,11 @@ pub struct ProgramIdentifier {
 impl ProgramIdentifier {
     /// Checks if the objects all have the same `constraint_owner` as
     /// `self`.
+    ///
+    /// # Panics
+    ///
+    /// Panicks if all given objects don't have the same constraint owner as
+    /// `self`.
     pub fn ensure_constraint_owner_similarity<'a, T>(&self, objects: T)
     where
         T: Iterator<Item = &'a StateObject<'a>> + Sized, {
@@ -107,7 +113,7 @@ impl ProgramIdentifier {
                 !(x.constraint_owner != *self),
                 "constraint owner does not match program identifier"
             );
-        })
+        });
     }
 
     #[must_use]
