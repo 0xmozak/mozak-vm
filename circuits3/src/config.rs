@@ -99,7 +99,7 @@ impl Mozak3StarkConfig for DefaultConfig {
         let val_mmcs = Self::ValMmcs::new(hash, compress);
         let challenge_mmcs = Self::ChallengeMmcs::new(val_mmcs.clone());
         let dft = Self::Dft {};
-        let fri_config = Self::MyFriConfig::new(40, challenge_mmcs);
+        let fri_config = Self::MyFriConfig::new(1, 40, 8, challenge_mmcs);
         let ldt = FriLdt { config: fri_config };
         let pcs = Self::Pcs::new(dft, val_mmcs, ldt);
         (

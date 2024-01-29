@@ -6,6 +6,7 @@ use p3_field::{
     cyclic_subgroup_coset_known_order, AbstractExtensionField, AbstractField, Field, PackedField,
     TwoAdicField,
 };
+use p3_matrix::dense::RowMajorMatrix;
 use p3_matrix::{MatrixGet, MatrixRows};
 use p3_maybe_rayon::prelude::{IntoParallelIterator, ParIterExt};
 use p3_uni_stark::{ProverConstraintFolder, StarkConfig, ZerofierOnCoset};
@@ -162,7 +163,7 @@ where
 
             // "Transpose" D packed base coefficients into WIDTH scalar extension
             // coefficients.
-            let limit = SC::PackedVal::WIDTH.min();
+            let limit = SC::PackedVal::WIDTH.min(quotient_size);
             (0..limit).map(move |idx_in_packing| {
                 let quotient_value = (0..<SC::Challenge as AbstractExtensionField<SC::Val>>::D)
                     .map(|coeff_idx| quotient.as_base_slice()[coeff_idx].as_slice()[idx_in_packing])
@@ -199,10 +200,21 @@ pub fn prove<SC: StarkConfig>(config: &SC, mut challenger: SC::Challenger) {
     let (commit, data) = config.pcs().commit_batches(traces.to_vec());
     challenger.observe(commit.clone());
 
+    let mut preprocessed_trace_ldes = config.pcs().get_ldes(&data);
+
     let zeta: SC::Challenge = challenger.sample_ext_element();
     let zeta_and_next: [Vec<SC::Challenge>; 2] =
         core::array::from_fn(|i| vec![zeta, zeta * g_subgroups[i]]);
     challenger.observe(commit.clone());
+
+    traces.map(|trace| {
+        let preprocessed_trace_lde = trace.map(|trace| preprocessed_trace_ldes.remove(0));
+    });
+
+    // let mut quotients: Vec<RowMajorMatrix<SC::Val>> = vec![];
+    // let (quotient_commit, quotient_data) = tracing::info_span!("commit to
+    // quotient chunks")     .in_scope(||
+    // pcs.commit_batches(quotients.to_vec()));
     let prover_data_and_points = [(&data, zeta_and_next.as_slice())];
 
     // generate openings proof
