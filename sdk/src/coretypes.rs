@@ -8,13 +8,19 @@ use rkyv::{Archive, Deserialize, Serialize};
 pub struct Poseidon2HashType([u8; 4]);
 
 #[cfg(not(target_os = "zkvm"))]
+impl std::ops::Deref for Poseidon2HashType {
+    type Target = [u8; 4];
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+#[cfg(not(target_os = "zkvm"))]
 impl std::fmt::Debug for Poseidon2HashType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Poseidon2HashType")
             .field(
                 "hash",
                 &self
-                    .0
                     .iter()
                     .map(|x| hex::encode([*x]))
                     .collect::<Vec<String>>(),
@@ -27,10 +33,8 @@ impl Poseidon2HashType {
     pub fn to_le_bytes(&self) -> [u8; 4] { self.0 }
 }
 
-impl Into<Poseidon2HashType> for [u8; 4] {
-    fn into(self) -> Poseidon2HashType {
-        Poseidon2HashType(self)
-    }
+impl From<[u8; 4]> for Poseidon2HashType {
+    fn from(value: [u8; 4]) -> Self { Poseidon2HashType(value) }
 }
 
 pub const STATE_TREE_DEPTH: usize = 8;
@@ -61,10 +65,8 @@ impl Address {
     pub fn get_raw(&self) -> [u8; STATE_TREE_DEPTH] { self.0 }
 }
 
-impl Into<Address> for [u8; STATE_TREE_DEPTH] {
-    fn into(self) -> Address {
-        Address(self)
-    }
+impl From<[u8; STATE_TREE_DEPTH]> for Address {
+    fn from(value: [u8; STATE_TREE_DEPTH]) -> Self { Address(value) }
 }
 
 /// Each program in the mozak ecosystem is identifyable by two
@@ -94,9 +96,10 @@ impl ProgramIdentifier {
     where
         T: Iterator<Item = &'a StateObject<'a>> + Sized, {
         objects.for_each(|x| {
-            if x.constraint_owner != *self {
-                panic!("constraint owner does not match program identifier");
-            }
+            assert_eq!(
+                x.constraint_owner, *self,
+                "constraint owner does not match program identifier"
+            );
         })
     }
 
