@@ -1,6 +1,5 @@
 extern crate alloc;
 
-// use alloc::vec::Vec;
 use mozak_sdk::coretypes::{Address, ProgramIdentifier, StateObject};
 use mozak_sdk::cpc::cross_program_call;
 use rkyv::{Archive, Deserialize, Serialize};
@@ -34,10 +33,10 @@ pub fn swap_tokens<'a>(
     metadata_object: MetadataObject,
     amount_in: u64,
     user_wallet: ProgramIdentifier,
-    objects_presented: Vec<StateObject<'a>>,
+    objects_presented: Vec<StateObject<'a>>,   
     objects_requested: Vec<StateObject<'a>>,
     available_state_addresses: [Address; 2],
-    self_address: ProgramIdentifier,
+    self_prog_id: ProgramIdentifier,
 ) -> (
     Option<StateObject<'a>>, // Residual change from `objects_presented`
     Option<StateObject<'a>>, // Residual change from `objects_requested`
@@ -110,7 +109,8 @@ pub fn swap_tokens<'a>(
             .address
             .get_raw()
             .iter()
-            .chain(self_address.to_le_bytes().iter())
+            .chain(self_prog_id
+        .to_le_bytes().iter())
             .cloned()
             .collect();
         cross_program_call::<()>(
