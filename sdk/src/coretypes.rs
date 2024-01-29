@@ -28,9 +28,7 @@ impl Poseidon2HashType {
 }
 
 impl Into<Poseidon2HashType> for [u8; 4] {
-    fn into(self) -> Poseidon2HashType {
-        Poseidon2HashType(self)
-    }
+    fn into(self) -> Poseidon2HashType { Poseidon2HashType(self) }
 }
 
 pub const STATE_TREE_DEPTH: usize = 8;
@@ -62,9 +60,7 @@ impl Address {
 }
 
 impl Into<Address> for [u8; STATE_TREE_DEPTH] {
-    fn into(self) -> Address {
-        Address(self)
-    }
+    fn into(self) -> Address { Address(self) }
 }
 
 /// Each program in the mozak ecosystem is identifyable by two
@@ -136,7 +132,12 @@ pub struct StateObject<'a> {
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
-pub struct CPCMessage {
+pub struct CPCMessage<T: Sized> {
+    /// caller of cross-program-call message. Tuple of ProgramID
+    /// and methodID
+    pub caller_program: ProgramIdentifier,
+    pub caller_method: u8,
+
     /// recipient of cross-program-call message. Tuple of ProgramID
     /// and methodID
     pub recipient_program: ProgramIdentifier,
@@ -144,4 +145,5 @@ pub struct CPCMessage {
 
     /// raw message over cpc
     pub calldata: Vec<u8>,
+    pub returnval: T,
 }
