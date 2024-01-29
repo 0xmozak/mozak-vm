@@ -10,7 +10,7 @@ lazy_static::lazy_static! {
 
 #[allow(unused_variables)]
 #[allow(unreachable_code)]
-pub fn cross_program_call<T>(program: ProgramIdentifier, method: u8, calldata: Vec<u8>) -> T
+pub fn cross_program_call<T>(program: ProgramIdentifier, method: u8, calldata: &[u8]) -> T
 where
     T: Sized + Default, {
     #[cfg(not(target_os = "zkvm"))]
@@ -22,7 +22,7 @@ where
 }
 
 #[cfg(not(target_os = "zkvm"))]
-pub fn globaltrace_add_message(program: ProgramIdentifier, method: u8, calldata: Vec<u8>) {
+pub fn globaltrace_add_message(program: ProgramIdentifier, method: u8, calldata: &[u8]) {
     use crate::coretypes::CPCMessage;
     let msg = CPCMessage {
         recipient_program: program,

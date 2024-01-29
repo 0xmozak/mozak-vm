@@ -108,6 +108,7 @@ impl ProgramIdentifier {
         })
     }
 
+    #[must_use]
     pub fn to_le_bytes(&self) -> [u8; 12] {
         let mut le_bytes_array: [u8; 12] = [0; 12];
         le_bytes_array[0..4].copy_from_slice(&self.program_rom_hash.to_le_bytes());
