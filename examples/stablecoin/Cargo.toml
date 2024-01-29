@@ -7,7 +7,7 @@ version = "0.1.0"
 native = []
 
 [dependencies]
-guest = { path = "../../guest", features = ["std"]}
+guest = { path = "../../guest", features = ["std"] }
 mozak_sdk = { path = "../../sdk" }
 rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
 
