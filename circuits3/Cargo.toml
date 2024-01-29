@@ -32,4 +32,5 @@ p3-poseidon2 = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-uni-stark = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-util = { git = "https://github.com/Plonky3/Plonky3.git" }
+p3-maybe-rayon = { git = "https://github.com/Plonky3/Plonky3.git" }
 rand = "0.8.5"
