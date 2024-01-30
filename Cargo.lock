@@ -974,7 +974,9 @@ dependencies = [
  "arrayvec",
  "itertools 0.12.0",
  "log",
+ "mozak-runner",
  "p3-air",
+ "p3-baby-bear",
  "p3-challenger",
  "p3-commit",
  "p3-dft",
@@ -989,6 +991,7 @@ dependencies = [
  "p3-poseidon2",
  "p3-symmetric",
  "p3-uni-stark",
+ "proptest",
  "rand",
 ]
 
