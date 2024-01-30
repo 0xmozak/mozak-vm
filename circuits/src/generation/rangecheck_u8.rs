@@ -77,6 +77,7 @@ mod tests {
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::generation::rangecheck::generate_rangecheck_trace;
+    use crate::generation::register::generate_register_trace;
 
     #[test]
     fn test_generate_trace() {
@@ -96,6 +97,7 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
+        let register_rows = generate_register_trace::<F>(&record);
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
@@ -113,7 +115,8 @@ mod tests {
             &poseidon2_trace,
             &poseidon2_output_bytes,
         );
-        let rangecheck_rows = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
+        let rangecheck_rows =
+            generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
 
         let trace = generate_rangecheck_u8_trace(&rangecheck_rows, &memory_rows);
 
@@ -124,7 +127,10 @@ mod tests {
         }
 
         assert_eq!(trace[0].value, F::from_canonical_u8(0));
-        assert_eq!(trace[0].multiplicity, F::from_canonical_u64(20));
+        assert_eq!(
+            trace[0].multiplicity,
+            F::from_canonical_u64(20 + 6 * u64::from(cfg!(feature = "enable_register_starks")))
+        );
         assert_eq!(trace[255].value, F::from_canonical_u8(u8::MAX));
         assert_eq!(trace[255].multiplicity, F::from_canonical_u64(9));
     }

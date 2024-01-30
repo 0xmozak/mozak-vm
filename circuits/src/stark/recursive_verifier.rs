@@ -147,7 +147,7 @@ where
     });
 
     // Register program ROM and memory init trace cap as public inputs.
-    for kind in [TableKind::Program, TableKind::MemoryInit] {
+    for kind in [TableKind::Program, TableKind::ElfMemoryInit] {
         builder.register_public_inputs(
             &targets[kind]
                 .stark_proof_with_pis_target
@@ -456,6 +456,9 @@ pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D
     set_fri_proof_target(witness, &proof_target.opening_proof, &proof.opening_proof);
 }
 
+// TODO(Matthias): remove this limitation, once we implement the recursion for
+// Register Starks.
+#[cfg(not(feature = "enable_register_starks"))]
 #[cfg(test)]
 mod tests {
     use anyhow::Result;

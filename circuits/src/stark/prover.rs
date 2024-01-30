@@ -140,7 +140,7 @@ where
     );
 
     let program_rom_trace_cap = trace_caps[TableKind::Program].clone();
-    let memory_init_trace_cap = trace_caps[TableKind::MemoryInit].clone();
+    let elf_memory_init_trace_cap = trace_caps[TableKind::ElfMemoryInit].clone();
     if log_enabled!(Debug) {
         timing.print();
     }
@@ -148,7 +148,7 @@ where
         proofs_with_metadata,
         ctl_challenges,
         program_rom_trace_cap,
-        memory_init_trace_cap,
+        elf_memory_init_trace_cap,
         public_inputs,
     })
 }

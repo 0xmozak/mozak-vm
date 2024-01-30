@@ -24,7 +24,7 @@ macro_rules! ecrate {
             ),
             glob_name: $glob,
             enabled: cfg!(feature = $name),
-            uses_std: $uses_std == true,
+            uses_std: $uses_std,
         }
     };
 }
@@ -70,7 +70,7 @@ fn build_elf(dest: &mut File, crate_path: &str, elf_path: &str, glob_name: &str,
         }
         writeln!(
             dest,
-            r#"pub const {glob_name}: &[u8] = include_bytes!("{CARGO_MANIFEST_DIR}/{elf_path}");"#
+            r#"pub const {glob_name}: &[u8] = include_bytes!(r"{CARGO_MANIFEST_DIR}/{elf_path}");"#
         )
     }
     .expect("failed to write vars.rs");

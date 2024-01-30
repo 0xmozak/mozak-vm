@@ -25,14 +25,13 @@ pub fn wasm_demo(a: u32, b: u32) {
         &[],
         &[(1, a), (2, b)],
     );
-    let res = mozak_runner::util::state_before_final(&e.1).get_register_value(3);
+    let res = e.1.state_before_final().get_register_value(3);
     let config = StarkConfig::standard_fast_config();
 
     alert(&format!("ADD {} {}, RES {}", a, b, res));
     let proving_res = prove_and_verify_mozak_stark(&e.0, &e.1, &config);
     alert(&format!("Proving :{}", proving_res.is_ok()));
 }
-
 
 pub fn wasm_demo_(a: u32, b: u32) {
     let e = mozak_runner::util::execute_code(
@@ -45,7 +44,7 @@ pub fn wasm_demo_(a: u32, b: u32) {
         &[],
         &[(1, a), (2, b)],
     );
-    let res = mozak_runner::util::state_before_final(&e.1).get_register_value(3);
+    let res = e.1.state_before_final().get_register_value(3);
     let config = StarkConfig::standard_fast_config();
 
     println!("ADD {} {}, RES {}", a, b, res);

@@ -1,0 +1,32 @@
+[package]
+categories = ["cryptography"]
+description = "Collection of signatures to be used in protocol"
+edition = "2021"
+keywords = ["crypto", "zero-knowledge", "vm"]
+license = "All rights reserved"
+name = "signatures"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-vm"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.79"
+hex = "0.4.3"
+itertools = "0.12.0"
+log = "0.4"
+mozak-circuits = { version = "0.1.0", path = "../circuits" }
+num = "0.4.1"
+plonky2 = "0.1"
+plonky2_crypto = { git = "https://github.com/0xmozak/plonky2-crypto.git" }
+serde = "1.0.196"
+serde_with = { version = "3.5.0", features = ["hex"] }
+sha2 = "0.10.8"
+sha3 = "0.10.8"
+
+
+[dev-dependencies]
+env_logger = { version = "0.10" }
+rand = "0.8.5"
+serde_json = "1.0"
