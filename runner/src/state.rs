@@ -228,6 +228,27 @@ impl<F: RichField> State<F> {
     }
 
     #[must_use]
+    #[allow(clippy::similar_names)]
+    // TODO(Roman): fn name looks strange .... :), but once old-io-tapes mechanism
+    // will be removed, I will rename this function to `new`
+    pub fn new_mozak_api(
+        Program {
+            rw_memory: Data(rw_memory),
+            ro_memory: Data(ro_memory),
+            entry_point: pc,
+            ..
+        }: Program,
+        RuntimeArguments { .. }: RuntimeArguments,
+    ) -> Self {
+        Self {
+            pc,
+            rw_memory,
+            ro_memory,
+            ..Default::default()
+        }
+    }
+
+    #[must_use]
     pub fn register_op<Fun>(self, data: &Args, op: Fun) -> (Aux<F>, Self)
     where
         Fun: FnOnce(u32, u32) -> u32, {
