@@ -33,7 +33,7 @@ pub fn swap_tokens<'a>(
     metadata_object: MetadataObject,
     amount_in: u64,
     user_wallet: ProgramIdentifier,
-    objects_presented: Vec<StateObject<'a>>,   
+    objects_presented: Vec<StateObject<'a>>,
     objects_requested: Vec<StateObject<'a>>,
     available_state_addresses: [Address; 2],
     self_prog_id: ProgramIdentifier,
@@ -109,8 +109,7 @@ pub fn swap_tokens<'a>(
             .address
             .get_raw()
             .iter()
-            .chain(self_prog_id
-        .to_le_bytes().iter())
+            .chain(self_prog_id.to_le_bytes().iter())
             .cloned()
             .collect();
         cross_program_call::<()>(
