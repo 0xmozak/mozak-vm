@@ -21,8 +21,8 @@ log = "0.4"
 mozak-examples = { path = "../examples-builder", features = ["empty"] }
 mozak-system = { path = "../system" }
 plonky2 = "0.1"
+proptest = { version = "1.4", optional = true }
 serde = { version = "1.0", features = ["derive"] }
-proptest = {version = "1.4", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 mimalloc = "0.1"

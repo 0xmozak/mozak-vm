@@ -1,10 +1,10 @@
 [package]
-name = "wasm_demo"
 categories = ["cryptography"]
 description = "Demo running MozakVM and proof generation in WASM"
 edition = "2021"
 keywords = ["crypto", "zero-knowledge", "vm"]
 license = "All rights reserved"
+name = "wasm_demo"
 readme = "README.md"
 repository = "https://github.com/0xmozak/mozak-vm"
 version = "0.1.0"
@@ -15,8 +15,8 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wasm-bindgen = "0.2"
-mozak-runner = { path = "../runner"}
-mozak-circuits = { path = "../circuits", features = ["test"] }
-starky = { git = "https://github.com/0xmozak/plonky2.git", features = ["std"]}
 console_error_panic_hook = "0.1.7"
+mozak-circuits = { path = "../circuits", features = ["test"] }
+mozak-runner = { path = "../runner" }
+starky = { git = "https://github.com/0xmozak/plonky2.git", features = ["std"] }
+wasm-bindgen = "0.2"
