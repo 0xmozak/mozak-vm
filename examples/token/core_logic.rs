@@ -35,9 +35,11 @@ pub fn transfer(
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
 ) {
-    assert!(cross_program_call::<bool>(
+    let is_approved = cross_program_call::<bool>(
         remittee_wallet,
         wallet::Methods::ApproveSignature as u8,
-        remitter_signature.to_vec(),
-    ));
+        remitter_signature.to_vec().into(),
+    );
+    #[cfg(target_os = "zkvm")]
+    assert!(is_approved);
 }

@@ -7,6 +7,7 @@ use mozak_sdk::io::{
     from_tape_deserialized, from_tape_function_id, from_tape_rawbuf, get_tapes_native,
     to_tape_function_id, to_tape_rawbuf, to_tape_serialized,
 };
+use mozak_sdk::cpc::globaltrace_dump_to_disk;
 use simple_logger::{set_up_color_terminal, SimpleLogger};
 use token::transfer;
 
@@ -50,6 +51,7 @@ fn main() {
         remittee_wallet,
     );
 
+    globaltrace_dump_to_disk("wallet_transfer_cpc".to_string());
 
     log::info!("Generated tapes and verified proof, all done!");
 }

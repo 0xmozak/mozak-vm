@@ -1,3 +1,4 @@
+use rkyv::with::Raw;
 use rkyv::{Archive, Deserialize, Serialize};
 
 /// Canonical hashed type in "mozak vm". Can store hashed values of
@@ -17,15 +18,15 @@ impl std::ops::Deref for Poseidon2HashType {
 #[cfg(not(target_os = "zkvm"))]
 impl std::fmt::Debug for Poseidon2HashType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Poseidon2HashType")
-            .field(
-                "hash",
-                &self
-                    .iter()
-                    .map(|x| hex::encode([*x]))
-                    .collect::<Vec<String>>(),
-            )
-            .finish()
+        write!(
+            f,
+            "Poseidon2HashType({:?})",
+            &self
+                .iter()
+                .map(|x| hex::encode([*x]))
+                .collect::<Vec<String>>()
+                .join("")
+        )
     }
 }
 
@@ -149,16 +150,50 @@ pub struct StateObject<'a> {
     pub data: &'a [u8],
 }
 
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+pub struct RawMessage(Vec<u8>);
+
+#[cfg(not(target_os = "zkvm"))]
+impl std::fmt::Debug for RawMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "RawMessage({:?})",
+            &self
+                .iter()
+                .map(|x| hex::encode([*x]))
+                .collect::<Vec<String>>()
+                .join("")
+        )
+    }
+}
+
+#[cfg(not(target_os = "zkvm"))]
+impl std::ops::Deref for RawMessage {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+impl From<Vec<u8>> for RawMessage {
+    fn from(value: Vec<u8>) -> RawMessage { RawMessage(value) }
+}
+
 /// Canonical "address" type of object in "mozak vm".
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
-pub struct CPCMessage {
+pub struct CPCMessage
+// R: Sized,
+{
     /// caller of cross-program-call message. Tuple of ProgramID
     /// and methodID
-    // pub caller_program: ProgramIdentifier,
-    // pub caller_method: u8,
+    /// TODO: Think about correctness of this??
+    pub caller_program: ProgramIdentifier,
+    pub caller_method: u8,
 
     /// recipient of cross-program-call message. Tuple of ProgramID
     /// and methodID
@@ -166,6 +201,6 @@ pub struct CPCMessage {
     pub recipient_method: u8,
 
     /// raw message over cpc
-    pub calldata: Vec<u8>,
+    pub calldata: RawMessage,
     // pub returnval: T,
 }
