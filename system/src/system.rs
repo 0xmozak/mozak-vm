@@ -93,6 +93,7 @@ pub fn syscall_ioread_private(buf_ptr: *mut u8, buf_len: usize) {
         );
     }
     #[cfg(all(target_os = "zkvm", feature = "mozak-ro-memory"))]
+    // TODO(Roman): later on please add assert(capacity >= buf_len)
     unsafe {
         extern "C" {
             #[link_name = "_mozak_private_io_tape"]
@@ -124,6 +125,7 @@ pub fn syscall_ioread_public(buf_ptr: *mut u8, buf_len: usize) {
         );
     }
     #[cfg(all(target_os = "zkvm", feature = "mozak-ro-memory"))]
+    // TODO(Roman): later on please add assert(capacity >= buf_len)
     unsafe {
         extern "C" {
             #[link_name = "_mozak_public_io_tape"]
