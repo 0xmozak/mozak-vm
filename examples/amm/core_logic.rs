@@ -112,11 +112,7 @@ pub fn swap_tokens<'a>(
             .chain(self_prog_id.to_le_bytes().iter())
             .cloned()
             .collect();
-        cross_program_call::<()>(
-            x.constraint_owner,
-            token::Methods::Transfer as u8,
-            calldata,
-        );
+        cross_program_call::<()>(x.constraint_owner, token::Methods::Transfer as u8, calldata);
     });
 
     objects_requested.iter().for_each(|x| {
@@ -127,11 +123,7 @@ pub fn swap_tokens<'a>(
             .chain(user_wallet.to_le_bytes().iter())
             .cloned()
             .collect();
-        cross_program_call::<()>(
-            x.constraint_owner,
-            token::Methods::Transfer as u8,
-            calldata,
-        );
+        cross_program_call::<()>(x.constraint_owner, token::Methods::Transfer as u8, calldata);
     });
 
     (residual_presented, residual_requested)
