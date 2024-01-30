@@ -1,7 +1,8 @@
 [workspace]
 members = [
   "amm",
-  "stablecoin",
+  "token",
+  "wallet",
   "bss-tester",
   "fibonacci",
   "min-max",

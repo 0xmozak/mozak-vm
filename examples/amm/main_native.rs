@@ -48,12 +48,12 @@ fn main() {
     ];
 
     let objects_presented = vec![
-        StateObject{
+        StateObject {
             address: [1, 0, 0, 0, 0, 0, 0, 0].into(),
             constraint_owner: usdc_program,
             data: &[],
         },
-        StateObject{
+        StateObject {
             address: [1, 0, 0, 0, 0, 0, 0, 1].into(),
             constraint_owner: usdc_program,
             data: &[],
@@ -61,19 +61,27 @@ fn main() {
     ];
 
     let objects_requested = vec![
-        StateObject{
+        StateObject {
             address: [2, 0, 0, 0, 0, 0, 0, 0].into(),
             constraint_owner: usdt_program,
             data: &[],
         },
-        StateObject{
+        StateObject {
             address: [2, 0, 0, 0, 0, 0, 0, 1].into(),
             constraint_owner: usdt_program,
             data: &[],
         },
     ];
 
-    swap_tokens(metadata_object, amount_in, user_wallet, objects_presented, objects_requested, available_state_addresses, amm_program);
+    swap_tokens(
+        metadata_object,
+        amount_in,
+        user_wallet,
+        objects_presented,
+        objects_requested,
+        available_state_addresses,
+        amm_program,
+    );
 
     // let files = ["public_input.tape", "private_input.tape"];
 

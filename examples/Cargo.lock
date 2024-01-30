@@ -36,7 +36,7 @@ dependencies = [
  "mozak_sdk",
  "rkyv",
  "simple_logger",
- "stablecoin-mozak-guest",
+ "token-mozak-guest",
 ]
 
 [[package]]
@@ -774,18 +774,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "stablecoin-mozak-guest"
-version = "0.1.0"
-dependencies = [
- "guest",
- "hex 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "log",
- "mozak_sdk",
- "rkyv",
- "simple_logger",
-]
-
-[[package]]
 name = "static-mem-access"
 version = "0.1.0"
 dependencies = [
@@ -890,6 +878,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
+name = "token-mozak-guest"
+version = "0.1.0"
+dependencies = [
+ "guest",
+ "hex 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log",
+ "mozak_sdk",
+ "rkyv",
+ "simple_logger",
+ "wallet-mozak-guest",
+]
+
+[[package]]
 name = "typenum"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -939,6 +940,18 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "wallet-mozak-guest"
+version = "0.1.0"
+dependencies = [
+ "guest",
+ "hex 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log",
+ "mozak_sdk",
+ "rkyv",
+ "simple_logger",
+]
 
 [[package]]
 name = "wasi"

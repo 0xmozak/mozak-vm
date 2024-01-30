@@ -28,6 +28,16 @@ pub fn split(original_object: StateObject, new_object_location: Address, new_obj
     // TODO
 }
 
-pub fn transfer(object: StateObject, new_owner: ProgramIdentifier) {
-    // TODO
+pub fn transfer(
+    self_prog_id: ProgramIdentifier,
+    object: StateObject,
+    remitter_signature: &[u8],
+    remitter_wallet: ProgramIdentifier,
+    remittee_wallet: ProgramIdentifier,
+) {
+    assert!(cross_program_call::<bool>(
+        remittee_wallet,
+        wallet::Methods::ApproveSignature as u8,
+        remitter_signature.to_vec(),
+    ));
 }

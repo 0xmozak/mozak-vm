@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "amm-mozak-guest"
+name = "token-mozak-guest"
 version = "0.1.0"
 
 [features]
@@ -10,7 +10,7 @@ native = []
 guest = { path = "../../guest", features = ["std"] }
 mozak_sdk = { path = "../../sdk" }
 rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
-token-mozak-guest = { path = "../token" }
+wallet-mozak-guest = { path = "../wallet" }
 
 [target.'cfg(not(target_os="zkvm"))'.dependencies.log]
 version = "0.4"
@@ -23,10 +23,14 @@ version = "4.3.0"
 version = "0.4"
 
 [[bin]]
-name = "amm"
+name = "tokenbin"
 path = "main_mozak.rs"
 
 [[bin]]
-name = "amm-native"
+name = "token-native"
 path = "main_native.rs"
 required-features = ["native"]
+
+[lib]
+name = "token"
+path = "core_logic.rs"

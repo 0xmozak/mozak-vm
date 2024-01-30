@@ -83,6 +83,7 @@ impl From<[u8; STATE_TREE_DEPTH]> for Address {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
+// #[derive(Debug)]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub struct ProgramIdentifier {
     /// ProgramRomHash defines the hash of the text section of the
