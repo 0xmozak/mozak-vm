@@ -14,6 +14,4 @@
 // ../target/wasm32-wasi/debug/demo.wasm
 //
 
-use wasm_demo;
-
 pub fn main() { wasm_demo::wasm_demo_(99, 99); }

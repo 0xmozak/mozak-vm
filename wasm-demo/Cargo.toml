@@ -1,7 +1,13 @@
 [package]
 name = "wasm_demo"
-version = "0.1.0"
+categories = ["cryptography"]
+description = "Demo running MozakVM and proof generation in WASM"
 edition = "2021"
+keywords = ["crypto", "zero-knowledge", "vm"]
+license = "All rights reserved"
+readme = "README.md"
+repository = "https://github.com/0xmozak/mozak-vm"
+version = "0.1.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
