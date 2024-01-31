@@ -1,13 +1,13 @@
 [package]
 edition = "2021"
-name = "stablecoin-mozak-guest"
+name = "wallet-mozak-guest"
 version = "0.1.0"
 
 [features]
 native = []
 
 [dependencies]
-guest = { path = "../../guest", features = ["std"] }
+guest = { path = "../../guest", features = ["std"]}
 mozak_sdk = { path = "../../sdk" }
 rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
 
@@ -22,14 +22,14 @@ version = "4.3.0"
 version = "0.4"
 
 [[bin]]
-name = "stablecoinbin"
+name = "walletbin"
 path = "main_mozak.rs"
 
 [[bin]]
-name = "stablecoin-native"
+name = "wallet-native"
 path = "main_native.rs"
 required-features = ["native"]
 
 [lib]
-name = "stablecoin"
+name = "wallet"
 path = "core_logic.rs"

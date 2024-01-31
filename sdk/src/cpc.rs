@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::coretypes::ProgramIdentifier;
+use crate::coretypes::{ProgramIdentifier, RawMessage};
 
 #[cfg(not(target_os = "zkvm"))]
 lazy_static::lazy_static! {
@@ -15,27 +15,54 @@ lazy_static::lazy_static! {
 #[allow(clippy::needless_pass_by_value)]
 #[allow(unreachable_code)]
 #[must_use]
-pub fn cross_program_call<T>(program: ProgramIdentifier, method: u8, calldata: Vec<u8>) -> T
+pub fn cross_program_call<A, R>(
+    caller_prog: ProgramIdentifier,
+    callee_prog: ProgramIdentifier,
+    callee_fnid: u8,
+    calldata: A,
+    expected_return: R,
+) -> R
 where
-    T: Sized + Default, {
+    A: Sized,
+    R: Sized + Clone, {
     #[cfg(not(target_os = "zkvm"))]
     {
-        globaltrace_add_message(program, method, calldata);
-        return T::default();
+        native_global_transcript_add_message(
+            caller_prog,
+            callee_prog,
+            callee_fnid,
+            calldata,
+            expected_return.clone(),
+        );
+        return expected_return;
     }
-    unimplemented!();
+    expected_return
+    // unimplemented!();
 }
 
 #[cfg(not(target_os = "zkvm"))]
-pub fn globaltrace_add_message(program: ProgramIdentifier, method: u8, calldata: Vec<u8>) {
-    use crate::coretypes::CPCMessage;
+pub fn native_global_transcript_add_message<A, R>(
+    caller_prog: ProgramIdentifier,
+    callee_prog: ProgramIdentifier,
+    callee_fnid: u8,
+    calldata: A,
+    expected_return: R,
+) where
+    A: Sized,
+    R: Sized, {
+    use crate::coretypes::{CPCMessage, RawMessage};
     let msg = CPCMessage {
-        recipient_program: program,
-        recipient_method: method,
-        calldata,
+        caller_prog,
+        callee_prog,
+        callee_fnid,
+        args: Vec::<u8>::new().into(),
+        ret: Vec::<u8>::new().into(),
     };
 
-    println!("globaltrace_add_message called for CPC message: {:?}", msg);
+    println!(
+        "native_global_transcript_add_message called for CPC message:\n{:#?}",
+        msg
+    );
 
     if let Ok(mut guard) = global_transcript_tape.lock() {
         // Serializing is as easy as a single function call
@@ -56,8 +83,26 @@ pub fn globaltrace_add_message(program: ProgramIdentifier, method: u8, calldata:
     }
 }
 
-// #[cfg(not(target_os = "zkvm"))]
-// pub fn globaltrace_dump_to_disk<T>(file: std::path::Path)
-// {
-//     // TODO
-// }
+#[cfg(not(target_os = "zkvm"))]
+pub fn globaltrace_dump_to_disk(file_template: String) {
+    fn write_to_file(file_path: String, content: &[u8]) {
+        use std::io::Write;
+        let path = std::path::Path::new(file_path.as_str());
+        let mut file = std::fs::File::create(&path).unwrap();
+        file.write_all(content).unwrap();
+    }
+
+    if let Ok(mut guard) = global_transcript_tape.lock() {
+        // let raw_pointer: *const crate::coretypes::CPCMessage = guard.as_ptr();
+        // let serialized_bytes = rkyv::to_bytes::<_, 4096>(&guard).unwrap();
+        // write_to_file(file_template + ".bin", rkyv::to_bytes::<_,
+        // 4096>(&guard).unwrap());
+        write_to_file(
+            file_template + ".tape_debug",
+            &format!("{:#?}", guard).into_bytes(),
+        );
+    } else {
+        // Handle the case where the lock is poisoned
+        panic!("Failed to acquire lock on global_transcript_tape");
+    }
+}

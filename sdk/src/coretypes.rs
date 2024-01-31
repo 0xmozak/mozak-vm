@@ -17,15 +17,15 @@ impl std::ops::Deref for Poseidon2HashType {
 #[cfg(not(target_os = "zkvm"))]
 impl std::fmt::Debug for Poseidon2HashType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Poseidon2HashType")
-            .field(
-                "hash",
-                &self
-                    .iter()
-                    .map(|x| hex::encode([*x]))
-                    .collect::<Vec<String>>(),
-            )
-            .finish()
+        write!(
+            f,
+            "Poseidon2HashType({:?})",
+            &self
+                .iter()
+                .map(|x| hex::encode([*x]))
+                .collect::<Vec<String>>()
+                .join("")
+        )
     }
 }
 
@@ -83,7 +83,6 @@ impl From<[u8; STATE_TREE_DEPTH]> for Address {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub struct ProgramIdentifier {
     /// ProgramRomHash defines the hash of the text section of the
     /// static ELF program concerned
@@ -126,6 +125,31 @@ impl ProgramIdentifier {
     }
 }
 
+#[cfg(not(target_os = "zkvm"))]
+impl std::fmt::Debug for ProgramIdentifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "PID(Pos2H): {}-{}-{}",
+            &self
+                .program_rom_hash
+                .to_le_bytes()
+                .iter()
+                .map(|x| hex::encode([*x]))
+                .collect::<Vec<String>>()
+                .join(""),
+            &self
+                .memory_init_hash
+                .to_le_bytes()
+                .iter()
+                .map(|x| hex::encode([*x]))
+                .collect::<Vec<String>>()
+                .join(""),
+            &self.entry_point,
+        )
+    }
+}
+
 /// Each storage object is a unit of information in the global
 /// state tree constrained for modification only by its `constraint_owner`
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
@@ -148,6 +172,37 @@ pub struct StateObject<'a> {
     pub data: &'a [u8],
 }
 
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+pub struct RawMessage(Vec<u8>);
+
+#[cfg(not(target_os = "zkvm"))]
+impl std::fmt::Debug for RawMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "RawMessage({:?})",
+            &self
+                .iter()
+                .map(|x| hex::encode([*x]))
+                .collect::<Vec<String>>()
+                .join("")
+        )
+    }
+}
+
+#[cfg(not(target_os = "zkvm"))]
+impl std::ops::Deref for RawMessage {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+impl From<Vec<u8>> for RawMessage {
+    fn from(value: Vec<u8>) -> RawMessage { RawMessage(value) }
+}
+
 /// Canonical "address" type of object in "mozak vm".
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
@@ -156,15 +211,46 @@ pub struct StateObject<'a> {
 pub struct CPCMessage {
     /// caller of cross-program-call message. Tuple of ProgramID
     /// and methodID
-    // pub caller_program: ProgramIdentifier,
-    // pub caller_method: u8,
+    /// TODO: Think about correctness of this??
+    pub caller_prog: ProgramIdentifier,
 
     /// recipient of cross-program-call message. Tuple of ProgramID
     /// and methodID
-    pub recipient_program: ProgramIdentifier,
-    pub recipient_method: u8,
+    pub callee_prog: ProgramIdentifier,
+    pub callee_fnid: u8,
 
     /// raw message over cpc
-    pub calldata: Vec<u8>,
-    // pub returnval: T,
+    pub args: RawMessage,
+    pub ret: RawMessage,
+}
+
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+pub struct Signature(Vec<u8>);
+
+#[cfg(not(target_os = "zkvm"))]
+impl std::fmt::Debug for Signature {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Signature({:?})",
+            &self
+                .iter()
+                .map(|x| hex::encode([*x]))
+                .collect::<Vec<String>>()
+                .join("")
+        )
+    }
+}
+
+#[cfg(not(target_os = "zkvm"))]
+impl std::ops::Deref for Signature {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+impl From<Vec<u8>> for Signature {
+    fn from(value: Vec<u8>) -> Signature { Signature(value) }
 }
