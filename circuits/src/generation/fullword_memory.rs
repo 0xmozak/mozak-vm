@@ -76,10 +76,12 @@ mod tests {
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
+    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory_fullword::test_utils::fullword_memory_trace_test_case;
-    use crate::test_utils::prep_table;
+    use crate::test_utils::{inv, prep_table};
 
+    type F = GoldilocksField;
     // This test simulates the scenario of a set of instructions
     // which perform store byte (SB) and load byte unsigned (LBU) operations
     // to memory and then checks if the memory trace is generated correctly.
@@ -94,6 +96,7 @@ mod tests {
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows= generate_io_memory_public_trace(&record.executed);
         let poseidon2_rows = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_rows);
         let trace = generate_memory_trace::<GoldilocksField>(
             &record.executed,
             &memory_init,
@@ -102,43 +105,44 @@ mod tests {
             &io_memory_private_rows,
             &io_memory_public_rows,
             &poseidon2_rows,
+            &poseidon2_output_bytes,
         );
         assert_eq!(
             trace,
             prep_table(vec![
-                //is_writable  addr   clk  is_store, is_load, is_init  value   diff_clk
-                [       1,     600,   1,     0,         0,       1,        0,         0],  // Memory Init: 600
-                [       1,     600,   2,     1,         0,       0,       13,         1],  // Operations:  600
-                [       1,     600,   3,     0,         1,       0,       13,         1],  // Operations:  600
-                [       1,     601,   1,     0,         0,       1,        0,         0],  // Memory Init: 601
-                [       1,     601,   2,     1,         0,       0,       12,         1],  // Operations:  601
-                [       1,     601,   3,     0,         1,       0,       12,         1],  // Operations:  601
-                [       1,     602,   1,     0,         0,       1,        0,         0],  // Memory Init: 602
-                [       1,     602,   2,     1,         0,       0,       11,         1],  // Operations:  602
-                [       1,     602,   3,     0,         1,       0,       11,         1],  // Operations:  603
-                [       1,     603,   1,     0,         0,       1,        0,         0],  // Memory Init: 603
-                [       1,     603,   2,     1,         0,       0,       10,         1],  // Operations:  603
-                [       1,     603,   3,     0,         1,       0,       10,         1],  // Operations:  603
-                [       1,     700,   1,     0,         0,       1,        0,         0],  // Memory Init: 700
-                [       1,     700,   4,     1,         0,       0,        4,         3],  // Operations:  700
-                [       1,     700,   5,     0,         1,       0,        4,         1],  // Operations:  700
-                [       1,     701,   1,     0,         0,       1,        0,         0],  // Memory Init: 701
-                [       1,     701,   4,     1,         0,       0,        3,         3],  // Operations:  701
-                [       1,     701,   5,     0,         1,       0,        3,         1],  // Operations:  701
-                [       1,     702,   1,     0,         0,       1,        0,         0],  // Memory Init: 702
-                [       1,     702,   4,     1,         0,       0,        2,         3],  // Operations:  702
-                [       1,     702,   5,     0,         1,       0,        2,         1],  // Operations:  703
-                [       1,     703,   1,     0,         0,       1,        0,         0],  // Memory Init: 703
-                [       1,     703,   4,     1,         0,       0,        1,         3],  // Operations:  703
-                [       1,     703,   5,     0,         1,       0,        1,         1],  // Operations:  703
-                [       1,     703,   5,     0,         0,       0,        1,         0],  // padding
-                [       1,     703,   5,     0,         0,       0,        1,         0],  // padding
-                [       1,     703,   5,     0,         0,       0,        1,         0],  // padding
-                [       1,     703,   5,     0,         0,       0,        1,         0],  // padding
-                [       1,     703,   5,     0,         0,       0,        1,         0],  // padding
-                [       1,     703,   5,     0,         0,       0,        1,         0],  // padding
-                [       1,     703,   5,     0,         0,       0,        1,         0],  // padding
-                [       1,     703,   5,     0,         0,       0,        1,         0],  // padding
+                //is_writable  addr   clk  is_store, is_load, is_init  value   diff_clk      diff_addr_inv
+                [       1,     600,   1,     0,         0,       1,        0,         0,     inv::<F>(600)],// Memory Init: 600
+                [       1,     600,   2,     1,         0,       0,       13,         1,     inv::<F>(0)],  // Operations:  600
+                [       1,     600,   3,     0,         1,       0,       13,         1,     inv::<F>(0)],  // Operations:  600
+                [       1,     601,   1,     0,         0,       1,        0,         0,     inv::<F>(1)],  // Memory Init: 601
+                [       1,     601,   2,     1,         0,       0,       12,         1,     inv::<F>(0)],  // Operations:  601
+                [       1,     601,   3,     0,         1,       0,       12,         1,     inv::<F>(0)],  // Operations:  601
+                [       1,     602,   1,     0,         0,       1,        0,         0,     inv::<F>(1)],  // Memory Init: 602
+                [       1,     602,   2,     1,         0,       0,       11,         1,     inv::<F>(0)],  // Operations:  602
+                [       1,     602,   3,     0,         1,       0,       11,         1,     inv::<F>(0)],  // Operations:  603
+                [       1,     603,   1,     0,         0,       1,        0,         0,     inv::<F>(1)],  // Memory Init: 603
+                [       1,     603,   2,     1,         0,       0,       10,         1,     inv::<F>(0)],  // Operations:  603
+                [       1,     603,   3,     0,         1,       0,       10,         1,     inv::<F>(0)],  // Operations:  603
+                [       1,     700,   1,     0,         0,       1,        0,         0,     inv::<F>(97)],  // Memory Init: 700
+                [       1,     700,   4,     1,         0,       0,        4,         3,     inv::<F>(0)],  // Operations:  700
+                [       1,     700,   5,     0,         1,       0,        4,         1,     inv::<F>(0)],  // Operations:  700
+                [       1,     701,   1,     0,         0,       1,        0,         0,     inv::<F>(1)],  // Memory Init: 701
+                [       1,     701,   4,     1,         0,       0,        3,         3,     inv::<F>(0)],  // Operations:  701
+                [       1,     701,   5,     0,         1,       0,        3,         1,     inv::<F>(0)],  // Operations:  701
+                [       1,     702,   1,     0,         0,       1,        0,         0,     inv::<F>(1)],  // Memory Init: 702
+                [       1,     702,   4,     1,         0,       0,        2,         3,     inv::<F>(0)],  // Operations:  702
+                [       1,     702,   5,     0,         1,       0,        2,         1,     inv::<F>(0)],  // Operations:  703
+                [       1,     703,   1,     0,         0,       1,        0,         0,     inv::<F>(1)],  // Memory Init: 703
+                [       1,     703,   4,     1,         0,       0,        1,         3,     inv::<F>(0)],  // Operations:  703
+                [       1,     703,   5,     0,         1,       0,        1,         1,     inv::<F>(0)],  // Operations:  703
+                [       1,     703,   5,     0,         0,       0,        1,         0,     inv::<F>(0)],  // padding
+                [       1,     703,   5,     0,         0,       0,        1,         0,     inv::<F>(0)],  // padding
+                [       1,     703,   5,     0,         0,       0,        1,         0,     inv::<F>(0)],  // padding
+                [       1,     703,   5,     0,         0,       0,        1,         0,     inv::<F>(0)],  // padding
+                [       1,     703,   5,     0,         0,       0,        1,         0,     inv::<F>(0)],  // padding
+                [       1,     703,   5,     0,         0,       0,        1,         0,     inv::<F>(0)],  // padding
+                [       1,     703,   5,     0,         0,       0,        1,         0,     inv::<F>(0)],  // padding
+                [       1,     703,   5,     0,         0,       0,        1,         0,     inv::<F>(0)],  // padding
             ])
         );
     }

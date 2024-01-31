@@ -3,12 +3,15 @@
 // FIXME: Remove this, when proptest's macro is updated not to trigger clippy.
 #![allow(clippy::ignored_unit_patterns)]
 
+#[cfg(not(target_arch = "wasm32"))]
 use mimalloc::MiMalloc;
 
+#[cfg(not(target_arch = "wasm32"))]
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
 pub mod decode;
+pub mod ecall;
 pub mod elf;
 pub mod instruction;
 pub mod poseidon2;

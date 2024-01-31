@@ -7,6 +7,7 @@ use plonky2::hash::hash_types::RichField;
 use crate::cpu::columns::CpuState;
 use crate::memory::columns::Memory;
 use crate::rangecheck::columns::RangeCheckColumnsView;
+use crate::register::columns::Register;
 use crate::stark::mozak_stark::{Lookups, RangecheckTable, Table, TableKind};
 use crate::utils::pad_trace_with_default;
 
@@ -44,9 +45,11 @@ where
 /// 2. trace width does not match the number of columns,
 /// 3. attempting to range check tuples instead of single values.
 #[must_use]
+#[allow(unused)]
 pub(crate) fn generate_rangecheck_trace<F: RichField>(
     cpu_trace: &[CpuState<F>],
     memory_trace: &[Memory<F>],
+    register_trace: &[Register<F>],
 ) -> Vec<RangeCheckColumnsView<F>> {
     let mut multiplicities: BTreeMap<u32, u64> = BTreeMap::new();
 
@@ -57,6 +60,8 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
             match looking_table.kind {
                 TableKind::Cpu => extract(cpu_trace, &looking_table),
                 TableKind::Memory => extract(memory_trace, &looking_table),
+                #[cfg(feature = "enable_register_starks")]
+                TableKind::Register => extract(register_trace, &looking_table),
                 other => unimplemented!("Can't range check {other:#?} tables"),
             }
             .into_iter()
@@ -84,7 +89,7 @@ pub(crate) fn generate_rangecheck_trace<F: RichField>(
 #[cfg(test)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::simple_test_code;
+    use mozak_runner::util::execute_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::Field;
 
@@ -97,13 +102,15 @@ mod tests {
     };
     use crate::generation::memory::generate_memory_trace;
     use crate::generation::memoryinit::generate_memory_init_trace;
+    use crate::generation::poseidon2_output_bytes::generate_poseidon2_output_bytes_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
+    use crate::generation::register::generate_register_trace;
     use crate::generation::MIN_TRACE_LENGTH;
 
     #[test]
     fn test_generate_trace() {
         type F = GoldilocksField;
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [Instruction {
                 op: Op::SB,
                 args: Args {
@@ -118,12 +125,14 @@ mod tests {
         );
 
         let cpu_rows = generate_cpu_trace::<F>(&record);
+        let register_rows = generate_register_trace::<F>(&record);
         let memory_init = generate_memory_init_trace(&program);
         let halfword_memory = generate_halfword_memory_trace(&record.executed);
         let fullword_memory = generate_fullword_memory_trace(&record.executed);
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
         let poseidon2_trace = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_trace);
         let memory_rows = generate_memory_trace::<F>(
             &record.executed,
             &memory_init,
@@ -132,8 +141,9 @@ mod tests {
             &io_memory_private_rows,
             &io_memory_public_rows,
             &poseidon2_trace,
+            &poseidon2_output_bytes,
         );
-        let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows);
+        let trace = generate_rangecheck_trace::<F>(&cpu_rows, &memory_rows, &register_rows);
         assert_eq!(
             trace.len(),
             MIN_TRACE_LENGTH,

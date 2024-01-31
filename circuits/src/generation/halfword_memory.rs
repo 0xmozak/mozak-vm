@@ -66,6 +66,7 @@ mod tests {
     use plonky2::field::goldilocks_field::GoldilocksField;
 
     use crate::generation::fullword_memory::generate_fullword_memory_trace;
+    use crate::generation::generate_poseidon2_output_bytes_trace;
     use crate::generation::halfword_memory::generate_halfword_memory_trace;
     use crate::generation::io_memory::{
         generate_io_memory_private_trace, generate_io_memory_public_trace,
@@ -74,8 +75,9 @@ mod tests {
     use crate::generation::memoryinit::generate_memory_init_trace;
     use crate::generation::poseidon2_sponge::generate_poseidon2_sponge_trace;
     use crate::memory_halfword::test_utils::halfword_memory_trace_test_case;
-    use crate::test_utils::prep_table;
+    use crate::test_utils::{inv, prep_table};
 
+    type F = GoldilocksField;
     // This test simulates the scenario of a set of instructions
     // which perform store byte (SH) and load byte signed / unsigned (LH/LHU)
     // operations to memory and then checks if the memory trace is generated
@@ -91,6 +93,7 @@ mod tests {
         let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
         let io_memory_public_rows = generate_io_memory_public_trace(&record.executed);
         let poseidon2_rows = generate_poseidon2_sponge_trace(&record.executed);
+        let poseidon2_output_bytes = generate_poseidon2_output_bytes_trace(&poseidon2_rows);
 
         let trace = generate_memory_trace::<GoldilocksField>(
             &record.executed,
@@ -100,26 +103,27 @@ mod tests {
             &io_memory_private_rows,
             &io_memory_public_rows,
             &poseidon2_rows,
+            &poseidon2_output_bytes,
         );
         assert_eq!(trace,
             prep_table(vec![
-                //is_writable  addr   clk  is_store, is_load, is_init  value  diff_clk
-                [       1,     400,   1,      0,        0,       1,        0,        0],  // Memory Init: 400
-                [       1,     400,   2,      1,        0,       0,        2,        1],  // Operations:  400
-                [       1,     400,   3,      0,        1,       0,        2,        1],  // Operations:  400
-                [       1,     401,   1,      0,        0,       1,        0,        0],  // Memory Init: 401
-                [       1,     401,   2,      1,        0,       0,        1,        1],  // Operations:  401
-                [       1,     401,   3,      0,        1,       0,        1,        1],  // Operations:  401
-                [       1,     402,   1,      0,        0,       1,        0,        0],  // Memory Init: 402
-                [       1,     403,   1,      0,        0,       1,        0,        0],  // Memory Init: 403
-                [       1,     500,   1,      0,        0,       1,        0,        0],  // Memory Init: 500
-                [       1,     500,   4,      1,        0,       0,        4,        3],  // Operations:  500
-                [       1,     500,   5,      0,        1,       0,        4,        1],  // Operations:  500
-                [       1,     501,   1,      0,        0,       1,        0,        0],  // Memory Init: 501
-                [       1,     501,   4,      1,        0,       0,        3,        3],  // Operations:  501
-                [       1,     501,   5,      0,        1,       0,        3,        1],  // Operations:  501
-                [       1,     502,   1,      0,        0,       1,        0,        0],  // Memory Init: 502
-                [       1,     502,   1,      0,        0,       0,        0,        0],  // padding
+                //is_writable  addr   clk  is_store, is_load, is_init  value  diff_clk      diff_addr_inv
+                [       1,     400,   1,      0,        0,       1,        0,        0,     inv::<F>(400)],// Memory Init: 400
+                [       1,     400,   2,      1,        0,       0,        2,        1,     inv::<F>(0)],  // Operations:  400
+                [       1,     400,   3,      0,        1,       0,        2,        1,     inv::<F>(0)],  // Operations:  400
+                [       1,     401,   1,      0,        0,       1,        0,        0,     inv::<F>(1)],  // Memory Init: 401
+                [       1,     401,   2,      1,        0,       0,        1,        1,     inv::<F>(0)],  // Operations:  401
+                [       1,     401,   3,      0,        1,       0,        1,        1,     inv::<F>(0)],  // Operations:  401
+                [       1,     402,   1,      0,        0,       1,        0,        0,     inv::<F>(1)],  // Memory Init: 402
+                [       1,     403,   1,      0,        0,       1,        0,        0,     inv::<F>(1)],  // Memory Init: 403
+                [       1,     500,   1,      0,        0,       1,        0,        0,     inv::<F>(97)], // Memory Init: 500
+                [       1,     500,   4,      1,        0,       0,        4,        3,     inv::<F>(0)],  // Operations:  500
+                [       1,     500,   5,      0,        1,       0,        4,        1,     inv::<F>(0)],  // Operations:  500
+                [       1,     501,   1,      0,        0,       1,        0,        0,     inv::<F>(1)],  // Memory Init: 501
+                [       1,     501,   4,      1,        0,       0,        3,        3,     inv::<F>(0)],  // Operations:  501
+                [       1,     501,   5,      0,        1,       0,        3,        1,     inv::<F>(0)],  // Operations:  501
+                [       1,     502,   1,      0,        0,       1,        0,        0,     inv::<F>(1)],  // Memory Init: 502
+                [       1,     502,   1,      0,        0,       0,        0,        0,     inv::<F>(0)],  // padding
             ])
         );
     }

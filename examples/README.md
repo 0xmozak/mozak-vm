@@ -1,46 +1,67 @@
 # Guest Programs
 
+*WARNING*: this workspace specifies default cargo target as `riscv32im-mozak-zkvm-elf`, which means that for building native versions we need to manually specify the system target via `--target` (see below).
+
 Examples contains cargo projects which generate ELF compatible with MozakVM. The target ISA is RISC-V with I and M extensions, described best in `.cargo/riscv32im-mozak-zkvm-elf.json`.
 
 Building the programs require Rust nightly toolchain. Exploring the generated ELF requires RISC-V toolkit, especially `objdump` or equivalent.
 
 ## Building ELFs
 
-### To build for mozak-vm
+### Mozak ZK-VM
+
+By default, we configure Cargo to build for the mozak-zkvm, so a plain
+build command uses our custom target and linker script:
+
 ```bash
 cargo build --release
 ```
-if example is using `std` crate then pass `--features=std` too.
+
+Some examples use `std`:
+
+```bash
+cargo build --release --features=std
+```
 
 This would build ELF executables under `target/riscv32im-mozak-zkvm-elf/release/`.
 
-### To build for x86_64 with Linux OS
+For more details, our configuration is found at `.cargo/config.toml` at the root of the `examples` directory.
+
+### Native
+
+To build for native targets, we need to manually specify the host target, which is returned by `rustc -vV`:
+
 ```bash
-cargo build --release --target x86_64-unknown-linux-gnu --features=std
+cargo build --release \
+            --target "$(rustc -vV | grep host | awk '{ print $2; }')" \
+            --features=std
 ```
+
 Currently we don't support `no_std` for the native target so `--features=std` is a must.
+
+You can build a particular example binary by specifying it with `--bin`, for instance to build `empty` use
+```bash
+cargo build --release \
+            --target "$(rustc -vV | grep host | awk '{ print $2; }')" \
+            --features=std \
+            --bin empty
+```
 
 This would build ELF executables under `target/x86_64-unknown-linux-gnu/release/`.
 
 ## Running ELFs
 
-### To run ELFs on mozak-vm
-The generated ELFs can be executed with `mozak-cli`.
+### Mozak ZK-VM
 
-To build mozak-cli, run (in the project root).
+The RISC-V ELFs can be used with `mozak-cli`.
+
+To build mozak-cli (from project root):
+
 ```bash
 cargo build --package mozak-cli --release
 ```
 
-After building `mozak-cli` use any of following ways to run the ELFs.
-
-Cargo run command:
-
-```bash
-cargo run --bin <EXECUTABLE_NAME>
-```
-
-Example:
+To run executables, for example, `min-max` example (from examples directory):
 
 ```bash
 cargo run --bin min-max
@@ -51,14 +72,26 @@ Note: For `cargo run` to work `mozak-cli` must be present at `../target/release/
 Otherwise use `mozak-cli`'s run command to execute generated ELF.
 ```bash
 mozak-cli -vvv run target/riscv32im-mozak-zkvm-elf/debug/<ELF_NAME>
-
 ```
-### To run ELFs on X86_64 with Linux OS
+
+### Native
+
+Again, for `cargo run` you need to manually specify the system target and manually specify the binary.  For instance, to run `empty` use
+
 ```bash
-./target/x86_64-unknown-linux-gnu/debug/<EXECUTABLE_NAME>
+cargo run --release \
+          --target "$(rustc -vV | grep host | awk '{ print $2; }')" \
+          --features=std \
+          --bin empty
+```
+
+You can either run the binaries directly at
+```bash
+./target/<SYSTEM_TARGET>/<debug or release>/<EXECUTABLE_NAME>
 ```
 
 ## Exploring binaries
+
 ### To dump assembly files
 ```bash
 RUSTFLAGS="--emit asm" cargo +nightly build
