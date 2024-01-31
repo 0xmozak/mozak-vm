@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <title>WASM DEMO</title>
+  </head>
+  <body>
+    <script type="module">
+      import init, { wasm_demo } from "./pkg/wasm_demo.js";
+      init().then(() => {
+        wasm_demo(99, 99);
+      });
+    </script>
+  </body>
+</html>
