@@ -13,24 +13,7 @@ use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use super::{and_helper, hash_or_forward, or_helper};
-
-/// Computes `h0 == h1`.
-fn hashes_equal<F, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    h0: HashOutTarget,
-    h1: HashOutTarget,
-) -> BoolTarget
-where
-    F: RichField + Extendable<D>, {
-    let eq = h0
-        .elements
-        .into_iter_fixed()
-        .zip(h1.elements)
-        .map(|(h0, h1)| builder.is_equal(h0, h1))
-        .collect();
-    and_helper(builder, eq)
-}
+use super::{and_helper, hash_or_forward, hashes_equal, or_helper};
 
 /// Computes `h0 == ZERO`.
 fn hash_is_zero<F, const D: usize>(
