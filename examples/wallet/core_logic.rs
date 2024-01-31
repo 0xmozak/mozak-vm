@@ -2,13 +2,21 @@
 extern crate alloc;
 
 // use alloc::vec::Vec;
-use mozak_sdk::coretypes::{Address, Poseidon2HashType, ProgramIdentifier, StateObject};
+use mozak_sdk::coretypes::{Address, Poseidon2HashType, ProgramIdentifier, Signature, StateObject};
 use mozak_sdk::cpc::cross_program_call;
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[repr(u8)]
-pub enum Methods {
+pub enum MethodsIdentifiers {
     ApproveSignature,
+}
+
+pub enum Operation {
+    TransferTo(ProgramIdentifier),
+}
+
+pub enum MethodArgs<'a> {
+    ApproveSignature(StateObject<'a>, Operation, Signature),
 }
 
 const PUB_KEY: [u8; 32] = [
@@ -17,4 +25,4 @@ const PUB_KEY: [u8; 32] = [
 ];
 
 // TODO: approves everything
-pub fn approve_signature(object: StateObject, operation: &str, signature: &[u8]) -> bool { true }
+pub fn approve_signature(object: StateObject, op: Operation, signature: &[u8]) -> bool { true }

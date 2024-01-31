@@ -1,4 +1,3 @@
-use rkyv::with::Raw;
 use rkyv::{Archive, Deserialize, Serialize};
 
 /// Canonical hashed type in "mozak vm". Can store hashed values of
@@ -84,8 +83,6 @@ impl From<[u8; STATE_TREE_DEPTH]> for Address {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Copy, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-// #[derive(Debug)]
-#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub struct ProgramIdentifier {
     /// ProgramRomHash defines the hash of the text section of the
     /// static ELF program concerned
@@ -125,6 +122,31 @@ impl ProgramIdentifier {
         le_bytes_array[4..8].copy_from_slice(&self.memory_init_hash.to_le_bytes());
         le_bytes_array[8..12].copy_from_slice(&self.entry_point.to_le_bytes());
         le_bytes_array
+    }
+}
+
+#[cfg(not(target_os = "zkvm"))]
+impl std::fmt::Debug for ProgramIdentifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "PID(Pos2H): {}-{}-{}",
+            &self
+                .program_rom_hash
+                .to_le_bytes()
+                .iter()
+                .map(|x| hex::encode([*x]))
+                .collect::<Vec<String>>()
+                .join(""),
+            &self
+                .memory_init_hash
+                .to_le_bytes()
+                .iter()
+                .map(|x| hex::encode([*x]))
+                .collect::<Vec<String>>()
+                .join(""),
+            &self.entry_point,
+        )
     }
 }
 
@@ -186,21 +208,49 @@ impl From<Vec<u8>> for RawMessage {
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
-pub struct CPCMessage
-// R: Sized,
-{
+pub struct CPCMessage {
     /// caller of cross-program-call message. Tuple of ProgramID
     /// and methodID
     /// TODO: Think about correctness of this??
-    pub caller_program: ProgramIdentifier,
-    pub caller_method: u8,
+    pub caller_prog: ProgramIdentifier,
 
     /// recipient of cross-program-call message. Tuple of ProgramID
     /// and methodID
-    pub recipient_program: ProgramIdentifier,
-    pub recipient_method: u8,
+    pub callee_prog: ProgramIdentifier,
+    pub callee_fnid: u8,
 
     /// raw message over cpc
-    pub calldata: RawMessage,
-    // pub returnval: T,
+    pub args: RawMessage,
+    pub ret: RawMessage,
+}
+
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+pub struct Signature(Vec<u8>);
+
+#[cfg(not(target_os = "zkvm"))]
+impl std::fmt::Debug for Signature {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Signature({:?})",
+            &self
+                .iter()
+                .map(|x| hex::encode([*x]))
+                .collect::<Vec<String>>()
+                .join("")
+        )
+    }
+}
+
+#[cfg(not(target_os = "zkvm"))]
+impl std::ops::Deref for Signature {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+impl From<Vec<u8>> for Signature {
+    fn from(value: Vec<u8>) -> Signature { Signature(value) }
 }

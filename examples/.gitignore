@@ -1,1 +1,3 @@
 /target
+*.tape_debug
+*.tape_bin

@@ -2,9 +2,8 @@
 extern crate alloc;
 
 // use alloc::vec::Vec;
-use mozak_sdk::coretypes::{Address, Poseidon2HashType, ProgramIdentifier, StateObject};
+use mozak_sdk::coretypes::{Address, ProgramIdentifier, Signature, StateObject};
 use mozak_sdk::cpc::cross_program_call;
-use rkyv::{Archive, Deserialize, Serialize};
 
 #[repr(u8)]
 pub enum Methods {
@@ -30,16 +29,20 @@ pub fn split(original_object: StateObject, new_object_location: Address, new_obj
 
 pub fn transfer(
     self_prog_id: ProgramIdentifier,
-    object: StateObject,
-    remitter_signature: &[u8],
+    token_object: StateObject,
+    remitter_signature: Signature,
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
 ) {
-    let is_approved = cross_program_call::<bool>(
+    assert!(cross_program_call(
+        self_prog_id,
         remittee_wallet,
-        wallet::Methods::ApproveSignature as u8,
-        remitter_signature.to_vec().into(),
-    );
-    #[cfg(target_os = "zkvm")]
-    assert!(is_approved);
+        wallet::MethodsIdentifiers::ApproveSignature as u8,
+        wallet::MethodArgs::ApproveSignature(
+            token_object,
+            wallet::Operation::TransferTo(remittee_wallet),
+            remitter_signature
+        ),
+        true,
+    ));
 }

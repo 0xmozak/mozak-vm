@@ -3,11 +3,11 @@ mod core_logic;
 use std::fs::File;
 
 use mozak_sdk::coretypes::{ProgramIdentifier, StateObject};
+use mozak_sdk::cpc::globaltrace_dump_to_disk;
 use mozak_sdk::io::{
     from_tape_deserialized, from_tape_function_id, from_tape_rawbuf, get_tapes_native,
     to_tape_function_id, to_tape_rawbuf, to_tape_serialized,
 };
-use mozak_sdk::cpc::globaltrace_dump_to_disk;
 use simple_logger::{set_up_color_terminal, SimpleLogger};
 use token::transfer;
 
@@ -41,12 +41,12 @@ fn main() {
         data: &[],
     };
 
-    let remitter_signature = [70u8, 20, 56, 33];
+    let remitter_signature = vec![70u8, 20, 56, 33].into();
 
     transfer(
         token_program,
         token_object,
-        &remitter_signature,
+        remitter_signature,
         remitter_wallet,
         remittee_wallet,
     );
