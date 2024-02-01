@@ -44,10 +44,9 @@ runs:
       uses: taiki-e/install-action@nextest
 
     - name: Install taplo-cli
-      if: ${{ steps.toolchain-cache-restore.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
-        cargo install --git https://github.com/tamasfe/taplo taplo-cli
+        cargo install --force --git https://github.com/tamasfe/taplo taplo-cli
 
     - id: toolchain-cache-save
       name: Cache Rust toolchain (Local Save)
