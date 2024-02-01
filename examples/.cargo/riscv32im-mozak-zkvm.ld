@@ -30,13 +30,13 @@ MEMORY {
     elf_rodata(r!x):    ORIGIN = 0x10000000, LENGTH = 256M
 
     /* Static data section to be populated with blockchain "globals" or context-specific mozak variables */
-    mozak_context(r!x): ORIGIN = 0x20000000, LENGTH = 768M
+    mozak_context(r!x): ORIGIN = 0x20000000, LENGTH = 1024M
 
     /* Uninitialised and initialized memory from ELF */
-    elf_rwdata(rw!x):   ORIGIN = 0x50000000, LENGTH = 256M
+    elf_rwdata(rw!x):   ORIGIN = 0x60000000, LENGTH = 256M
 
-    /* General purpose RAM is worth 2.3GB for us */
-    ram(rw!x):          ORIGIN = 0x60000000, LENGTH = 2304M
+    /* General purpose RAM is worth 2GB for us */
+    ram(rw!x):          ORIGIN = 0x60000000, LENGTH = 2048M
 
     /* 
     General purpose STACK for program to use, leaving last few bytes for "kernel", left over for 
@@ -74,6 +74,7 @@ SECTIONS {
         _mozak_public_io_tape             = 0x21000000;
         _mozak_private_io_tape            = 0x30000000;
         _mozak_transcript                 = 0x40000000;
+        _mozak_event_tape                 = 0x50000000;
     } > mozak_context
 
     /* For memory region: `elf_rwdata` -------------------------------------------------------------------   */
