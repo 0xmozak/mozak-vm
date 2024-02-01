@@ -55,6 +55,8 @@ pub struct MozakMemory {
     pub io_tape_private: MozakMemoryRegion,
     // io public
     pub io_tape_public: MozakMemoryRegion,
+    // transcript
+    pub transcript: MozakMemoryRegion,
 }
 
 #[cfg(test)]
@@ -84,6 +86,11 @@ impl Default for MozakMemory {
                 capacity: 0x1000_0000_u32,
                 ..Default::default()
             },
+            transcript: MozakMemoryRegion {
+                starting_address: 0x4000_0000_u32,
+                capacity: 0x1000_0000_u32,
+                ..Default::default()
+            },
         }
     }
 }
@@ -96,12 +103,14 @@ impl From<(&[u8], &[u8])> for MozakMemory {
         mozak_memory
     }
 }
+
 impl MozakMemory {
     fn create() -> MozakMemory {
         MozakMemory {
             context_variables: MozakMemoryRegion::default(),
             io_tape_private: MozakMemoryRegion::default(),
             io_tape_public: MozakMemoryRegion::default(),
+            transcript: MozakMemoryRegion::default(),
         }
     }
 
@@ -112,6 +121,7 @@ impl MozakMemory {
             self.context_variables.memory_range(),
             self.io_tape_public.memory_range(),
             self.io_tape_private.memory_range(),
+            self.transcript.memory_range(),
         ];
         log::trace!(
             "mozak-memory-addresses: {:?}, address: {:?}",
@@ -156,6 +166,12 @@ impl MozakMemory {
             self.io_tape_private.starting_address
         );
 
+        self.transcript.starting_address = get("_mozak_transcript");
+        log::debug!(
+            "_mozak_transcript: 0x{:0x}",
+            self.transcript.starting_address
+        );
+
         // compute capacity, assume single memory region (refer to linker-script)
         self.context_variables.capacity =
             self.io_tape_public.starting_address - self.context_variables.starting_address;
@@ -167,7 +183,9 @@ impl MozakMemory {
         // linker-script. Currently, test that loads empty ELF, compiled with
         // linker-script we not help us, since there is not symbol that defines
         // `end-of-mozak-region`...
-        self.io_tape_private.capacity = 0x4000_0000_u32 - self.io_tape_private.starting_address;
+        self.io_tape_private.capacity =
+            self.transcript.starting_address - self.io_tape_private.starting_address;
+        self.transcript.capacity = 0x5000_0000_u32 - self.transcript.starting_address;
     }
 }
 
@@ -532,6 +550,8 @@ impl Program {
         mozak_ro_memory
             .io_tape_private
             .fill(args.io_tape_private.as_slice());
+        mozak_ro_memory.transcript.fill(args.transcript.as_slice());
+
         Ok(program)
     }
 }
@@ -577,12 +597,13 @@ mod test {
         assert_eq!(mozak_ro_memory.context_variables.data.len(), 0);
         assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 0);
         assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 0);
+        assert_eq!(mozak_ro_memory.transcript.data.len(), 0);
     }
     #[test]
     fn test_empty_elf_with_args() {
         let mozak_ro_memory = Program::mozak_load_program(
             mozak_examples::EMPTY_ELF,
-            &RuntimeArguments::new(vec![0], vec![0, 1], vec![0, 1, 2], vec![]),
+            &RuntimeArguments::new(vec![0], vec![0, 1], vec![0, 1, 2], vec![0, 1, 2, 3]),
         )
         .unwrap()
         .mozak_ro_memory
@@ -590,6 +611,7 @@ mod test {
         assert_eq!(mozak_ro_memory.context_variables.data.len(), 1);
         assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 2);
         assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 3);
+        assert_eq!(mozak_ro_memory.transcript.data.len(), 4);
     }
 
     #[test]

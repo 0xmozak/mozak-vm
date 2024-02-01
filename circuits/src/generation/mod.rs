@@ -55,6 +55,9 @@ use crate::generation::io_memory::{
     generate_io_memory_private_trace, generate_io_memory_public_trace,
 };
 use crate::generation::memory_zeroinit::generate_memory_zero_init_trace;
+use crate::generation::memoryinit::{
+    generate_elf_memory_init_trace, generate_mozak_memory_init_trace,
+};
 use crate::generation::poseidon2::generate_poseidon2_trace;
 use crate::generation::program::generate_program_rom_trace;
 use crate::stark::mozak_stark::{
@@ -80,7 +83,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let xor_rows = generate_xor_trace(&cpu_rows);
     let shift_amount_rows = generate_shift_amount_trace(&cpu_rows);
     let program_rows = generate_program_rom_trace(program);
-    let memory_init_rows = generate_memory_init_trace(program);
+    let memory_init_rows = generate_elf_memory_init_trace(program);
+    let mozak_memory_init_rows = generate_mozak_memory_init_trace(program);
     let halfword_memory_rows = generate_halfword_memory_trace(&record.executed);
     let fullword_memory_rows = generate_fullword_memory_trace(&record.executed);
     let io_memory_private_rows = generate_io_memory_private_trace(&record.executed);
@@ -93,7 +97,7 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
     let poseidon2_rows = generate_poseidon2_trace(&record.executed);
     let memory_rows = generate_memory_trace(
         &record.executed,
-        &memory_init_rows,
+        &generate_memory_init_trace(program),
         &halfword_memory_rows,
         &fullword_memory_rows,
         &io_memory_private_rows,
@@ -118,7 +122,8 @@ pub fn generate_traces<F: RichField + Extendable<D>, const D: usize>(
         shift_amount_stark: trace_rows_to_poly_values(shift_amount_rows),
         program_stark: trace_rows_to_poly_values(program_rows),
         memory_stark: trace_rows_to_poly_values(memory_rows),
-        memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
+        elf_memory_init_stark: trace_rows_to_poly_values(memory_init_rows),
+        mozak_memory_init_stark: trace_rows_to_poly_values(mozak_memory_init_rows),
         memory_zeroinit_stark: trace_rows_to_poly_values(memory_zeroinit_rows),
         rangecheck_u8_stark: trace_rows_to_poly_values(rangecheck_u8_rows),
         halfword_memory_stark: trace_rows_to_poly_values(halfword_memory_rows),

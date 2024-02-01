@@ -33,7 +33,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 
 #[cfg(test)]
 mod tests {
-    use mozak_runner::test_utils::simple_test_code;
+    use mozak_runner::util::execute_code;
     use plonky2::util::timing::TimingTree;
 
     use crate::stark::mozak_stark::PublicInputs;
@@ -45,7 +45,7 @@ mod tests {
 
     #[test]
     fn test_serialization_deserialization() {
-        let (program, record) = simple_test_code([], &[], &[]);
+        let (program, record) = execute_code([], &[], &[]);
         let stark = S::default();
         let config = fast_test_config();
         let public_inputs = PublicInputs {
