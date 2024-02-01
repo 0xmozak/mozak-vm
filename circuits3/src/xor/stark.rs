@@ -53,7 +53,7 @@ mod tests {
     use p3_uni_stark::{prove, verify, VerificationError};
 
     use super::XorStark;
-    use crate::config::{DefaultConfig, Mozak3StarkConfig};
+    use crate::config::{BabyBearConfig, DefaultConfig, Mozak3StarkConfig};
     use crate::generation::xor::generate_dummy_xor_trace;
 
     #[test]
@@ -64,6 +64,23 @@ mod tests {
         let mut verifer_challenger = challenger.clone();
         let trace = generate_dummy_xor_trace(n);
         let proof = prove::<<DefaultConfig as Mozak3StarkConfig>::MyConfig, _>(
+            &config,
+            &XorStark,
+            &mut challenger,
+            trace,
+        );
+
+        verify(&config, &XorStark, &mut verifer_challenger, &proof)
+    }
+
+    #[test]
+    #[allow(clippy::items_after_statements)]
+    fn test_baby_bear_stark() -> Result<(), VerificationError> {
+        let n = 12;
+        let (config, mut challenger) = BabyBearConfig::make_config();
+        let mut verifer_challenger = challenger.clone();
+        let trace = generate_dummy_xor_trace(n);
+        let proof = prove::<<BabyBearConfig as Mozak3StarkConfig>::MyConfig, _>(
             &config,
             &XorStark,
             &mut challenger,
