@@ -9,12 +9,13 @@ use p3_matrix::MatrixGet;
 use p3_maybe_rayon::prelude::{IntoParallelIterator, ParIterExt};
 use p3_uni_stark::{ProverConstraintFolder, StarkConfig, ZerofierOnCoset};
 
+#[allow(clippy::module_name_repetitions)]
 pub fn quotient_values<SC, A, Mat>(
     config: &SC,
     air: &A,
     degree_bits: usize,
     quotient_degree_bits: usize,
-    trace_lde: Mat,
+    trace_lde: &Mat,
     alpha: SC::Challenge,
 ) -> Vec<SC::Challenge>
 where

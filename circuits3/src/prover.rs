@@ -36,7 +36,8 @@ pub fn prove<SC: StarkConfig>(config: &SC, mut challenger: SC::Challenger) {
         .try_into()
         .unwrap();
 
-    // I need to figure out
+    // log(constraint_degree - 1)
+    // TODO(Kapil): Remove hardcoded values
     let log_quotient_degrees = [1, 1];
 
     let log_degrees = degrees.map(log2_strict_usize);
@@ -48,19 +49,22 @@ pub fn prove<SC: StarkConfig>(config: &SC, mut challenger: SC::Challenger) {
     let alpha: SC::Challenge = challenger.sample_ext_element();
     let mut main_trace_ldes = config.pcs().get_ldes(&main_data);
 
+    // quotients
+    let mut quotients: Vec<RowMajorMatrix<SC::Val>> = vec![];
+
+    // compute quotients one by one.
+    // TODO(Kapil): do it by iterating over starks somehow (macros?)
+
     let trace_lde_1 = main_trace_ldes.pop().unwrap();
     let log_stride_for_quotient = pcs.log_blowup() - log_quotient_degrees[0];
     let trace_lde_1_for_quotient = trace_lde_1.vertically_strided(1 << log_stride_for_quotient, 0);
-
-    // quotients
-    let mut quotients: Vec<RowMajorMatrix<SC::Val>> = vec![];
 
     let quotient_values_1 = quotient_values(
         config,
         &BitShiftStark,
         log_degrees[0],
         log_quotient_degrees[0],
-        trace_lde_1_for_quotient,
+        &trace_lde_1_for_quotient,
         alpha,
     );
 
@@ -81,7 +85,7 @@ pub fn prove<SC: StarkConfig>(config: &SC, mut challenger: SC::Challenger) {
         &XorStark,
         log_degrees[1],
         log_quotient_degrees[1],
-        trace_lde_2_for_quotient,
+        &trace_lde_2_for_quotient,
         alpha,
     );
 
@@ -93,18 +97,19 @@ pub fn prove<SC: StarkConfig>(config: &SC, mut challenger: SC::Challenger) {
 
     quotients.push(quotient_chunks_flattened);
 
-    let (_quotient_commit, quotient_data) = config.pcs().commit_batches(quotients.to_vec());
+    // commit the quotients
+    let (_quotient_commit, quotient_data) = config.pcs().commit_batches(quotients);
 
     let zeta: SC::Challenge = challenger.sample_ext_element();
     let zeta_and_next: [Vec<SC::Challenge>; 2] = g_subgroups.map(|g| vec![zeta, zeta * g]);
     let zeta_exp_quotient_degree: [Vec<SC::Challenge>; 2] =
         log_quotient_degrees.map(|log_deg| vec![zeta.exp_power_of_2(log_deg)]);
     let prover_data_and_points = [
-        // TODO: Causes some errors, probably related to the fact that not all chips have
-        // preprocessed traces? (&preprocessed_data, zeta_and_next.as_slice()),
         (&main_data, zeta_and_next.as_slice()),
         (&quotient_data, zeta_exp_quotient_degree.as_slice()),
     ];
+
+    // compute openings and proofs
     let (_openings, _opening_proof) =
         pcs.open_multi_batches(&prover_data_and_points, &mut challenger);
 }

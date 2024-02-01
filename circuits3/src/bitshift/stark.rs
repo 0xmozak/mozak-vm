@@ -5,6 +5,7 @@ use p3_matrix::MatrixRowSlices;
 use super::columns::BitShift;
 use crate::columns_view::NumberOfColumns;
 
+#[allow(clippy::module_name_repetitions)]
 pub struct BitShiftStark;
 
 impl<F> BaseAir<F> for BitShiftStark {
@@ -14,8 +15,6 @@ impl<F> BaseAir<F> for BitShiftStark {
 impl<AB: AirBuilder> Air<AB> for BitShiftStark {
     fn eval(&self, builder: &mut AB) {
         let main = builder.main();
-        let blah = main.row_slice(0);
-        dbg!(blah.len());
         let local: &BitShift<AB::Var> = main.row_slice(0).into();
         let next: &BitShift<AB::Var> = main.row_slice(1).into();
 

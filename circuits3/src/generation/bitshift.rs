@@ -1,4 +1,3 @@
-use log::debug;
 use p3_field::Field;
 use p3_matrix::dense::RowMajorMatrix;
 
@@ -13,6 +12,5 @@ pub fn generate_bitshift_trace<F: Field>() -> RowMajorMatrix<F> {
         })
         .map(F::from_canonical_u32)
         .collect();
-    dbg!(&trace_values);
     RowMajorMatrix::new(trace_values, BitShift::<()>::NUMBER_OF_COLUMNS)
 }
