@@ -254,3 +254,20 @@ impl std::ops::Deref for Signature {
 impl From<Vec<u8>> for Signature {
     fn from(value: Vec<u8>) -> Signature { Signature(value) }
 }
+
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[archive(compare(PartialEq))]
+pub enum ContextVariable {
+    BlockHeight(u64),
+    SelfProgramIdentifier(ProgramIdentifier),
+}
+
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[archive(compare(PartialEq))]
+pub enum Event<'a> {
+    ReadContextVariable(ContextVariable),
+    ReadStateObject(StateObject<'a>),
+    UpdatedStateObject(StateObject<'a>),
+    CreatedStateObject(StateObject<'a>),
+    DeletedStateObject(StateObject<'a>),
+}
