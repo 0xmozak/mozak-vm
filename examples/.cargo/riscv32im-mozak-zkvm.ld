@@ -35,7 +35,7 @@ MEMORY {
     /* Uninitialised and initialized memory from ELF */
     elf_rwdata(rw!x):   ORIGIN = 0x50000000, LENGTH = 256M
 
-    /* General purpose RAM is worth 2.5GB for us */
+    /* General purpose RAM is worth 2.3GB for us */
     ram(rw!x):          ORIGIN = 0x60000000, LENGTH = 2304M
 
     /* 
