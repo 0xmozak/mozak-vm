@@ -102,7 +102,5 @@ impl EventTape {
         }
     }
 
-    pub fn emit_event(&self, event: Event) {
-        
-    }
+    pub fn emit_event(&self, event: Event) {}
 }
