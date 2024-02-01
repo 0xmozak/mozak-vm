@@ -1,0 +1,16 @@
+[package]
+edition = "2021"
+name = "fibonacci-input-new-api"
+version = "0.1.0"
+
+[dependencies]
+guest = { path = "../../guest", default-features = false }
+
+mozak-system = { path = "../../system", features = ["mozak-ro-memory"] }
+
+[[bin]]
+name = "fibonacci-input-new-api"
+path = "main.rs"
+
+[features]
+std = ["guest/std"]
