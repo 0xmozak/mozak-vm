@@ -34,6 +34,6 @@ p3-merkle-tree = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-poseidon2 = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git" }
 p3-uni-stark = { git = "https://github.com/Plonky3/Plonky3.git" }
-proptest = "1.4"
 p3-util = { git = "https://github.com/Plonky3/Plonky3.git" }
+proptest = "1.4"
 rand = "0.8.5"
