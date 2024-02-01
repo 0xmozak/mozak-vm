@@ -25,4 +25,4 @@ const PUB_KEY: [u8; 32] = [
 ];
 
 // TODO: approves everything
-pub fn approve_signature(object: StateObject, op: Operation, signature: &[u8]) -> bool { true }
+pub fn approve_signature(object: StateObject, op: Operation, signature: Signature) -> bool { true }

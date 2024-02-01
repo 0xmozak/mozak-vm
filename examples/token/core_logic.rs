@@ -36,7 +36,7 @@ pub fn transfer(
 ) {
     assert!(cross_program_call(
         self_prog_id,
-        remittee_wallet,
+        remitter_wallet,
         wallet::MethodsIdentifiers::ApproveSignature as u8,
         wallet::MethodArgs::ApproveSignature(
             token_object,

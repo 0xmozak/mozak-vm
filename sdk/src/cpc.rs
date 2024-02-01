@@ -1,7 +1,7 @@
 #[cfg(not(target_os = "zkvm"))]
 use std::sync::Mutex;
 
-use crate::coretypes::{ProgramIdentifier, RawMessage};
+use crate::coretypes::ProgramIdentifier;
 
 #[cfg(not(target_os = "zkvm"))]
 lazy_static::lazy_static! {

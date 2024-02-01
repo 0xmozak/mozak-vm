@@ -12,7 +12,8 @@ version = "0.1.0"
 [dependencies]
 mozak-system = { path = "../system" }
 rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
-uint = { git = "https://github.com/0xmozak/parity-common", branch = "restricted_std" }
+once_cell = { version = "1.19.0", default-features = false, features = ["race"] }
+# lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"] }
 
 [target.'cfg(not(target_os="zkvm"))'.dependencies.lazy_static]
 version = "1.4.0"
