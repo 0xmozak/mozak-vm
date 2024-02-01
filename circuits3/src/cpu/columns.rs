@@ -9,5 +9,4 @@ pub struct Add<T> {
     pub out: [T; 4],
 }
 
-// pub const NUM_ADD_COLS :usize = 15;
 columns_view_impl!(Add);
