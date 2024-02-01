@@ -22,3 +22,12 @@ fn test_fibonacci_mozak_elf() {
     let record = step(&program, state).unwrap();
     MozakStark::prove_and_verify(&program, &record).unwrap();
 }
+#[test]
+fn test_fibonacci_mozak_elf_new_api() {
+    let args = RuntimeArguments::default();
+    let program =
+        Program::mozak_load_program(mozak_examples::FIBONACCI_INPUT_ELF_NEW_API, &args).unwrap();
+    let state = State::<GoldilocksField>::new_mozak_api(program.clone(), args);
+    let record = step(&program, state).unwrap();
+    MozakStark::prove_and_verify(&program, &record).unwrap();
+}
