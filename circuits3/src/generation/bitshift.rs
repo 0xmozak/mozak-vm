@@ -13,6 +13,6 @@ pub fn generate_bitshift_trace<F: Field>() -> RowMajorMatrix<F> {
         })
         .map(F::from_canonical_u32)
         .collect();
-    debug!("{trace_values:?}");
+    dbg!(&trace_values);
     RowMajorMatrix::new(trace_values, BitShift::<()>::NUMBER_OF_COLUMNS)
 }
