@@ -126,7 +126,7 @@ impl EventTape {
             // #[cfg(target_os = "zkvm")]
             // offset: UnsafeCell::new(0),
             #[cfg(not(target_os = "zkvm"))]
-            writer: Vec::new(), //RefCell::new(Vec::new())
+            writer: Vec::new(), // RefCell::new(Vec::new())
         }
     }
 
@@ -144,10 +144,9 @@ impl EventTape {
     }
 }
 
-pub fn emit_event(event: Event) { unsafe { SYSTEM_TAPES.event_tape.emit_event(event) } }
-
 #[cfg(not(target_os = "zkvm"))]
 pub fn dump_tapes(file_template: String) {
+    use std::ptr::addr_of;
     fn write_to_file(file_path: &String, content: &[u8]) {
         use std::io::Write;
         let path = std::path::Path::new(file_path.as_str());
@@ -155,22 +154,53 @@ pub fn dump_tapes(file_template: String) {
         file.write_all(content).unwrap();
     }
 
+    let tape_clone = unsafe { SYSTEM_TAPES.clone() }; // .clone() removes `Lazy{}`
+
     let dbg_filename = file_template.clone() + ".tape_debug";
-    let dbg_bytes = unsafe { &format!("{:#?}", SYSTEM_TAPES).into_bytes() };
+    let dbg_bytes = unsafe { &format!("{:#?}", tape_clone).into_bytes() };
     println!("[TPDMP] Debug  dump: {:?}", dbg_filename);
     write_to_file(&dbg_filename, dbg_bytes);
 
     let bin_filename = file_template + ".tape_bin";
-    let bin_bytes = unsafe {
-        let clone = SYSTEM_TAPES.clone();
-        // let extracted_value =
-        //     once_cell::unsync::Lazy::<SystemTapes>::into_value(clone).unwrap();
-
-        rkyv::to_bytes::<_, 256>(&*(std::ptr::addr_of!(clone)))
-            .unwrap()
-
-        // write_to_file(&bin_filename, bin_bytes.as_slice());
-    };
+    let bin_bytes = unsafe { rkyv::to_bytes::<_, 256>(&*(addr_of!(tape_clone))).unwrap() };
     println!("[TPDMP] Binary dump: {:?}", bin_filename);
     write_to_file(&bin_filename, bin_bytes.as_slice());
 }
+
+
+/// ---- SDK accessible methods ---
+pub enum IOTape {
+    Private,
+    Public
+}
+
+/// Emit an event from mozak_vm to provide receipts of
+/// `reads` and state updates including `create` and `delete`.
+/// Panics on event-tape non-abidance.
+pub fn event_emit(event: Event) { unsafe { SYSTEM_TAPES.event_tape.emit_event(event) } }
+
+/// Receive one message from mailbox targetted to us and its index
+/// "consume" such message. Subsequent reads will never
+/// return the same message. Panics on call-tape non-abidance.
+pub fn mailbox_receive() -> Option<(CPCMessage, usize)> {unimplemented!()}
+
+/// Send one message from mailbox targetted to some third-party
+/// resulting in such messages finding itself in their mailbox
+/// Panics on call-tape non-abidance.
+pub fn mailbox_send(msg: CPCMessage) {unimplemented!()}
+
+/// Get raw pointer to access iotape (unsafe) without copy into
+/// buffer. Subsequent calls will provide pointers `num` away 
+/// (consumed) from pointer provided in this call for best 
+/// effort safety. `io_read` and `io_read_into` would also affect
+/// subsequent returns.
+/// Unsafe return values, use wisely!!
+pub fn io_raw_read(from: IOTape, num: usize) -> *const u8 {unimplemented!()}
+
+/// Get a buffer filled with num elements from choice of IOTape
+/// in process "consuming" such bytes.
+pub fn io_read(from: IOTape, num: usize) -> Vec<u8> {unimplemented!()}
+
+/// Fills a provided buffer with num elements from choice of IOTape
+/// in process "consuming" such bytes.
+pub fn io_read_into(from: IOTape, buf: &mut [u8]) {unimplemented!()}

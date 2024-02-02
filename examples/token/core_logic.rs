@@ -4,7 +4,7 @@ extern crate alloc;
 // use alloc::vec::Vec;
 use mozak_sdk::coretypes::{Address, Event, ProgramIdentifier, Signature, StateObject};
 use mozak_sdk::cpc::cross_program_call;
-use mozak_sdk::tapes::emit_event;
+use mozak_sdk::sys::event_emit;
 
 #[repr(u8)]
 pub enum Methods {
@@ -46,5 +46,5 @@ pub fn transfer(
         ),
         true,
     ));
-    emit_event(Event::UpdatedStateObject(token_object));
+    event_emit(Event::UpdatedStateObject(token_object));
 }

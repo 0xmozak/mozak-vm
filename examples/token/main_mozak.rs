@@ -4,18 +4,19 @@
 mod core_logic;
 
 use mozak_sdk::io::{get_tapes, Extractor};
+use mozak_sdk::sys::mailbox_receive;
 
 pub fn main() {
     // let (mut public_tape, mut _private_tape) = get_tapes();
 
-    // for message in sdk::read_cpc_transcript() {  /// iterator
-    //     // if (message.caller == self_prog_id) {
-    //     //     // dispatch and check
-    //     // }
-    //     if (message.recipient == self_prog_id) {
-    //         // dispatch and check
-    //     }
-    // }
+    sdk::set_self_prog(prog_id);
+
+    ///
+    for message in mailbox_receive().unwrap() { // iterator
+         // if (message.caller == self_prog_id) {
+         //     // dispatch and check
+         // }
+    }
 
     // Vec<Element>
     // Element: Vec<Element> | Message
