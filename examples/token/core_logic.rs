@@ -2,8 +2,9 @@
 extern crate alloc;
 
 // use alloc::vec::Vec;
-use mozak_sdk::coretypes::{Address, ProgramIdentifier, Signature, StateObject};
+use mozak_sdk::coretypes::{Address, Event, ProgramIdentifier, Signature, StateObject};
 use mozak_sdk::cpc::cross_program_call;
+use mozak_sdk::tapes::emit_event;
 
 #[repr(u8)]
 pub enum Methods {
@@ -14,22 +15,22 @@ pub enum Methods {
     Split,
 }
 
-// TODO: how do we verify owner?
-pub fn mint(address: Address, amount: u64) {
-    // TODO
-}
+// // TODO: how do we verify owner?
+// pub fn mint(address: Address, amount: u64) {
+//     // TODO
+// }
 
-pub fn burn(object: StateObject) {
-    // TODO
-}
+// pub fn burn(object: StateObject) {
+//     // TODO
+// }
 
-pub fn split(original_object: StateObject, new_object_location: Address, new_object_amount: u64) {
-    // TODO
-}
+// pub fn split(original_object: StateObject, new_object_location: Address,
+// new_object_amount: u64) {     // TODO
+// }
 
 pub fn transfer(
-    self_prog_id: ProgramIdentifier,
-    token_object: StateObject,
+    self_prog_id: ProgramIdentifier, // ContextVariables Table
+    token_object: StateObject,       //
     remitter_signature: Signature,
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
@@ -39,10 +40,11 @@ pub fn transfer(
         remitter_wallet,
         wallet::MethodsIdentifiers::ApproveSignature as u8,
         wallet::MethodArgs::ApproveSignature(
-            token_object,
+            token_object.clone(),
             wallet::Operation::TransferTo(remittee_wallet),
             remitter_signature
         ),
         true,
     ));
+    emit_event(Event::UpdatedStateObject(token_object));
 }

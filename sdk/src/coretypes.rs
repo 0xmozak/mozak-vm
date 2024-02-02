@@ -56,15 +56,15 @@ impl std::ops::Deref for Address {
 #[cfg(not(target_os = "zkvm"))]
 impl std::fmt::Debug for Address {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Address")
-            .field(
-                "address",
-                &self
-                    .iter()
-                    .map(|x| hex::encode([*x]))
-                    .collect::<Vec<String>>(),
-            )
-            .finish()
+        write!(
+            f,
+            "Addr: 0x{}",
+            &self
+                .iter()
+                .map(|x| hex::encode([*x]))
+                .collect::<Vec<String>>()
+                .join(""),
+        )
     }
 }
 
@@ -106,7 +106,7 @@ impl ProgramIdentifier {
     /// `self`.
     pub fn ensure_constraint_owner_similarity<'a, T>(&self, objects: T)
     where
-        T: Iterator<Item = &'a StateObject<'a>> + Sized, {
+        T: Iterator<Item = &'a StateObject> + Sized, {
         objects.for_each(|x| {
             assert!(
                 !(x.constraint_owner != *self),
@@ -154,8 +154,9 @@ impl std::fmt::Debug for ProgramIdentifier {
 /// state tree constrained for modification only by its `constraint_owner`
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
-pub struct StateObject<'a> {
+pub struct StateObject {
     /// [IMMUTABLE] Logical address of StateObject in the tree
     pub address: Address,
 
@@ -169,7 +170,7 @@ pub struct StateObject<'a> {
 
     /// [MUTABLE] Serialized data object understandable and affectable
     /// by `constraint_owner`
-    pub data: &'a [u8],
+    pub data: Vec<u8>,
 }
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
@@ -257,6 +258,8 @@ impl From<Vec<u8>> for Signature {
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub enum ContextVariable {
     BlockHeight(u64),
     SelfProgramIdentifier(ProgramIdentifier),
@@ -264,10 +267,12 @@ pub enum ContextVariable {
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
-pub enum Event<'a> {
+#[archive_attr(derive(Debug))]
+#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+pub enum Event {
     ReadContextVariable(ContextVariable),
-    ReadStateObject(StateObject<'a>),
-    UpdatedStateObject(StateObject<'a>),
-    CreatedStateObject(StateObject<'a>),
-    DeletedStateObject(StateObject<'a>),
+    ReadStateObject(StateObject),
+    UpdatedStateObject(StateObject),
+    CreatedStateObject(StateObject),
+    DeletedStateObject(StateObject),
 }

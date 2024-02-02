@@ -8,6 +8,7 @@ use mozak_sdk::io::{
     from_tape_deserialized, from_tape_function_id, from_tape_rawbuf, get_tapes_native,
     to_tape_function_id, to_tape_rawbuf, to_tape_serialized,
 };
+use mozak_sdk::tapes::dump_tapes;
 use simple_logger::{set_up_color_terminal, SimpleLogger};
 use token::transfer;
 
@@ -38,7 +39,7 @@ fn main() {
     let token_object = StateObject {
         address: [4, 0, 0, 0, 0, 0, 0, 0].into(),
         constraint_owner: token_program,
-        data: &[],
+        data: vec![],
     };
 
     let remitter_signature = vec![70u8, 20, 56, 33].into();
@@ -51,7 +52,8 @@ fn main() {
         remittee_wallet,
     );
 
-    globaltrace_dump_to_disk("wallet_transfer_cpc".to_string());
+    dump_tapes("wallet_tfr".to_string());
+    // globaltrace_dump_to_disk("wallet_transfer_cpc".to_string());
 
     log::info!("Generated tapes and verified proof, all done!");
 }

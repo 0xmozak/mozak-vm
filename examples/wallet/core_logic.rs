@@ -15,8 +15,8 @@ pub enum Operation {
     TransferTo(ProgramIdentifier),
 }
 
-pub enum MethodArgs<'a> {
-    ApproveSignature(StateObject<'a>, Operation, Signature),
+pub enum MethodArgs {
+    ApproveSignature(StateObject, Operation, Signature),
 }
 
 const PUB_KEY: [u8; 32] = [
