@@ -117,6 +117,42 @@ where
     and_helper(builder, eq)
 }
 
+/// Computes `h0 != ZERO`.
+fn hash_is_nonzero<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    h0: impl Into<HashOutTarget>,
+) -> BoolTarget
+where
+    F: RichField + Extendable<D>, {
+    let zero = h0
+        .into()
+        .elements
+        .into_iter_fixed()
+        .map(|h0| builder.is_nonzero(h0))
+        .collect();
+    // If any elements are non-zero, then it's non-zero
+    or_helper(builder, zero)
+}
+
+/// Computes `h0 == ZERO`.
+fn hash_is_zero<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    h0: HashOutTarget,
+) -> BoolTarget
+where
+    F: RichField + Extendable<D>, {
+    let zero = h0
+        .elements
+        .into_iter_fixed()
+        .map(|h0| {
+            let non_zero = builder.is_nonzero(h0);
+            builder.not(non_zero)
+        })
+        .collect();
+    // All numbers must be zero to be zero
+    and_helper(builder, zero)
+}
+
 /// Hash left and right together if both are present, otherwise forward one
 fn hash_or_forward<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
@@ -156,18 +192,8 @@ fn hash_or_forward_zero<F, const D: usize>(
 ) -> HashOutTarget
 where
     F: RichField + Extendable<D>, {
-    let left_non_zero = left
-        .into_iter_fixed()
-        .map(|l_hash| builder.is_nonzero(l_hash))
-        .collect();
-    let right_non_zero = right
-        .into_iter_fixed()
-        .map(|r_hash| builder.is_nonzero(r_hash))
-        .collect();
-
-    // If any elements are non-zero, then it's non-zero
-    let left_non_zero = or_helper(builder, left_non_zero);
-    let right_non_zero = or_helper(builder, right_non_zero);
+    let left_non_zero = hash_is_nonzero(builder, left);
+    let right_non_zero = hash_is_nonzero(builder, right);
 
     // Select the hash based on presence
     hash_or_forward(builder, left_non_zero, left, right_non_zero, right)
