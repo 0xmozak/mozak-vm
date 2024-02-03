@@ -101,6 +101,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let zero_init_clk = P::ONES - lv.clk;
         let elf_init_clk = lv.clk;
 
+        // first row init is always one or its a dummy row
+        yield_constr.constraint_first_row((P::ONES - lv.is_init) * lv.is_executed());
+
         // All init ops happen prior to exec and the `clk` would be `0` or `1`.
         yield_constr.constraint(lv.is_init * zero_init_clk * elf_init_clk);
         // All zero inits should have value `0`.
@@ -181,7 +184,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary_ext_circuit(builder, lv.is_init, yield_constr);
         let lv_is_executed = is_executed_ext_circuit(builder, lv);
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
+
         let one = builder.one_extension();
+        let one_minus_is_init = builder.sub_extension(one, lv.is_init);
+        let one_minus_is_init_times_executed =
+            builder.mul_extension(one_minus_is_init, lv_is_executed);
+        yield_constr.constraint_first_row(builder, one_minus_is_init_times_executed);
+
         let one_sub_clk = builder.sub_extension(one, lv.clk);
         let is_init_mul_one_sub_clk = builder.mul_extension(lv.is_init, one_sub_clk);
 
@@ -341,9 +350,9 @@ mod tests {
     }
 
     /// if all addresses are equal in memorytable, then
-    /// making all is_init as zero should fail.
-    /// Note this is required since this time, diff_addr_inv logic
-    /// can't help detect is_init for first row.
+    /// making all `is_init` as zero should fail.
+    /// Note this is required since this time, `diff_addr_inv` logic
+    /// can't help detect `is_init` for first row.
     #[test]
     fn no_init_fail() {
         let instructions = [Instruction {
@@ -420,7 +429,6 @@ mod tests {
         }
         .build();
 
-        type S = MemoryStark<F, D>;
         let config = fast_test_config();
 
         let stark = S::default();
