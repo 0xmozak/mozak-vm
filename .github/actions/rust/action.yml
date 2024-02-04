@@ -43,6 +43,14 @@ runs:
       if: ${{ steps.toolchain-cache-restore.outputs.cache-hit != 'true' }}
       uses: taiki-e/install-action@nextest
 
+    - name: Install libssl
+      shell: bash
+      # TODO: Handle windows and macOS if required.
+      run:  |
+            if [ "$RUNNER_OS" == "Linux" ]; then
+                apt-get install -y libssl-dev
+            fi
+
     - name: Install taplo-cli
       shell: bash
       run: |
