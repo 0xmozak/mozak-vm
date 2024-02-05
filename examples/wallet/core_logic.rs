@@ -18,7 +18,7 @@ pub enum Operation {
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub enum MethodArgs {
-    ApproveSignature(StateObject, Operation, Signature),
+    ApproveSignature(ProgramIdentifier, StateObject, Operation, Signature),
 }
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
@@ -37,8 +37,8 @@ impl Default for MethodReturns {
 pub fn dispatch(args: MethodArgs) -> MethodReturns {
     println!("[WLT: DISPATCH] dispatch called \n{:#?}", args);
     match args {
-        MethodArgs::ApproveSignature(object, operation, signature) =>
-            MethodReturns::ApproveSignature(approve_signature(object, operation, signature)),
+        MethodArgs::ApproveSignature(id, object, operation, signature) =>
+            MethodReturns::ApproveSignature(approve_signature(id, object, operation, signature)),
     }
 }
 
@@ -50,7 +50,7 @@ const PUB_KEY: [u8; 32] = [
 ];
 
 // TODO: approves everything
-pub fn approve_signature(object: StateObject, _op: Operation, _signature: Signature) -> bool {
-    event_emit(mozak_sdk::coretypes::Event::ReadStateObject(object.clone()));
+pub fn approve_signature(self_prog_id: ProgramIdentifier, object: StateObject, _op: Operation, _signature: Signature) -> bool {
+    event_emit(self_prog_id, mozak_sdk::coretypes::Event::ReadStateObject(object.clone()));
     true
 }

@@ -26,6 +26,7 @@ pub fn transfer(
             self_prog_id,
             remitter_wallet,
             wallet::MethodArgs::ApproveSignature(
+                remitter_wallet,
                 token_object.clone(),
                 wallet::Operation::TransferTo(remittee_wallet),
                 remitter_signature.clone()
@@ -39,5 +40,5 @@ pub fn transfer(
         wallet::MethodReturns::ApproveSignature(true),
         "wallet approval not found"
     );
-    event_emit(Event::UpdatedStateObject(token_object));
+    event_emit(self_prog_id, Event::UpdatedStateObject(token_object));
 }

@@ -163,7 +163,16 @@ pub struct EventTape {
     // #[cfg(target_os = "zkvm")]
     // // offset: UnsafeCell<usize>,
     #[cfg(not(target_os = "zkvm"))]
-    writer: Vec<Event>,
+    writer: Vec<EventTapeSingle>,
+}
+
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+pub struct EventTapeSingle {
+    id: ProgramIdentifier,
+    contents: Vec<Event>,
 }
 
 impl EventTape {
@@ -180,15 +189,28 @@ impl EventTape {
         }
     }
 
-    pub fn emit_event(&mut self, event: Event) {
+    pub fn emit_event(&mut self, id: ProgramIdentifier, event: Event) {
         #[cfg(target_os = "zkvm")]
         {}
         #[cfg(not(target_os = "zkvm"))]
         {
             println!("[EVENT] Add: {:#?}", event);
+            // TODO: Sad code, fix later
             unsafe {
-                self.writer.push(event);
+                for single_tape in self.writer.iter_mut() {
+                    if single_tape.id == id {
+                        single_tape.contents.push(event);
+                        return;
+                    }
+                }
+                self.writer.push(EventTapeSingle{
+                    id,
+                    contents: vec![event],
+                });
             }
+            // unsafe {
+            //     self.writer.push(event);
+            // }
             // self.writer.borrow_mut().push(event);
         }
     }
@@ -226,7 +248,7 @@ pub enum IOTape {
 /// Emit an event from mozak_vm to provide receipts of
 /// `reads` and state updates including `create` and `delete`.
 /// Panics on event-tape non-abidance.
-pub fn event_emit(event: Event) { unsafe { SYSTEM_TAPES.event_tape.emit_event(event) } }
+pub fn event_emit(id: ProgramIdentifier, event: Event) { unsafe { SYSTEM_TAPES.event_tape.emit_event(id, event) } }
 
 /// Receive one message from mailbox targetted to us and its index
 /// "consume" such message. Subsequent reads will never

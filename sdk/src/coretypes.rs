@@ -130,7 +130,7 @@ impl std::fmt::Debug for ProgramIdentifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "PID(Pos2H): {}-{}-{}",
+            "MZK-{}-{}-{}",
             &self
                 .program_rom_hash
                 .to_le_bytes()

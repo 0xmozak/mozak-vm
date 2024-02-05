@@ -36,7 +36,7 @@ fn main() {
 
     let remitter_signature = vec![70u8, 20, 56, 33].into();
 
-    event_emit(mozak_sdk::coretypes::Event::ReadContextVariable(
+    event_emit(token_program, mozak_sdk::coretypes::Event::ReadContextVariable(
         mozak_sdk::coretypes::ContextVariable::SelfProgramIdentifier(token_program),
     ));
 
