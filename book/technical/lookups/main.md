@@ -4,7 +4,7 @@ LookUp arguments are often used in zero knowledge virtual machines to optimize p
 
 ## Types of LookUp Arguments
 
-Usually,lookup arguments proves the following relations.
+Usually, lookup arguments proves the following relations.
 
 ### Subset Arguments
 
