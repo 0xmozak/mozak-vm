@@ -40,7 +40,7 @@ $$
 f_{new} = f + \frac{m_i}{c_i}
 $$
 
-the equality of the polynomials \\( f \\) and \\( g \\) are checked with opening of FRI.
+the equality of the polynomials \\( f \\) and \\( g \\) are checked with opening of FRI at the last row.
 
 The cross table lookup is implemented in [cross_table_lookup.rs].
 
