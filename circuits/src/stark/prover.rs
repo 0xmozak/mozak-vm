@@ -31,6 +31,7 @@ use crate::stark::mozak_stark::{all_starks, PublicInputs};
 use crate::stark::permutation::challenge::GrandProductChallengeTrait;
 use crate::stark::poly::compute_quotient_polys;
 use crate::stark::proof::StarkProofWithMetadata;
+use plonky2::fri::oracle::CudaInvContext;
 
 /// Prove the execution of a given [Program]
 ///
@@ -48,6 +49,7 @@ pub fn prove<F, C, const D: usize>(
     config: &StarkConfig,
     public_inputs: PublicInputs<F>,
     timing: &mut TimingTree,
+    ctx: &mut Option<&mut CudaInvContext<F, D>>
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
@@ -63,6 +65,7 @@ where
         public_inputs,
         &traces_poly_values,
         timing,
+        ctx,
     )
 }
 
@@ -76,14 +79,45 @@ pub fn prove_with_traces<F, C, const D: usize>(
     public_inputs: PublicInputs<F>,
     traces_poly_values: &TableKindArray<Vec<PolynomialValues<F>>>,
     timing: &mut TimingTree,
+    ctx: &mut Option<&mut CudaInvContext<F, D>>
 ) -> Result<AllProof<F, C, D>>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
     let rate_bits = config.fri_config.rate_bits;
     let cap_height = config.fri_config.cap_height;
+    let trace_commitments;
 
-    let trace_commitments = timed!(
+    #[cfg(feature = "cuda")]
+    {
+    trace_commitments = timed!(
+        timing,
+        "Compute trace commitments for each table",
+        traces_poly_values
+            .clone()
+            .with_kind()
+            .map(|(trace, table)| {
+                timed!(
+                    timing,
+                    &format!("compute trace commitment for {table:?}"),
+                    PolynomialBatch::<F, C, D>::from_values_cuda(
+                        trace.clone(),
+                        rate_bits,
+                        false,
+                        cap_height,
+                        timing,
+                        trace.len(),
+                        trace.first().expect("Not a single polynomial").len(),
+                        ctx.as_mut().unwrap(),
+                    )
+                )
+            })
+    );
+    }
+
+    #[cfg(not(feature = "cuda"))]
+    {
+    trace_commitments = timed!(
         timing,
         "Compute trace commitments for each table",
         traces_poly_values
@@ -104,6 +138,8 @@ where
                 )
             })
     );
+    }
+    // log::info!("trace_commitments {:?}", trace_commitments);
 
     let trace_caps = trace_commitments
         .each_ref()
@@ -124,6 +160,7 @@ where
             &ctl_challenges
         )
     );
+    #[cfg(feature = "cuda")]
     let proofs_with_metadata = timed!(
         timing,
         "compute all proofs given commitments",
@@ -135,7 +172,24 @@ where
             &trace_commitments,
             &ctl_data_per_table,
             &mut challenger,
-            timing
+            timing,
+            ctx,
+        )?
+    );
+    #[cfg(not(feature = "cuda"))]
+    let proofs_with_metadata = timed!(
+        timing,
+        "compute all proofs given commitments",
+        prove_with_commitments(
+            mozak_stark,
+            config,
+            &public_inputs,
+            traces_poly_values,
+            &trace_commitments,
+            &ctl_data_per_table,
+            &mut challenger,
+            timing,
+            &mut None
         )?
     );
 
@@ -171,6 +225,7 @@ pub(crate) fn prove_single_table<F, C, S, const D: usize>(
     ctl_data: &CtlData<F>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
+    ctx: &mut Option<&mut CudaInvContext<F, D>>,
 ) -> Result<StarkProofWithMetadata<F, C, D>>
 where
     F: RichField + Extendable<D>,
@@ -301,6 +356,7 @@ where
             challenger,
             &fri_params,
             timing,
+            ctx,
         )
     );
 
@@ -332,6 +388,7 @@ pub fn prove_with_commitments<F, C, const D: usize>(
     ctl_data_per_table: &TableKindArray<CtlData<F>>,
     challenger: &mut Challenger<F, C::Hasher>,
     timing: &mut TimingTree,
+    ctx: &mut Option<&mut CudaInvContext<F, D>>
 ) -> Result<TableKindArray<StarkProofWithMetadata<F, C, D>>>
 where
     F: RichField + Extendable<D>,
@@ -353,6 +410,7 @@ where
             &ctl_data_per_table[kind],
             challenger,
             timing,
+            ctx,
         )?
     }))
 }
@@ -480,4 +538,63 @@ mod tests {
             },
         ]);
     }
+    #[test]
+    #[cfg(feature = "cuda")]
+    fn test_cuda_poly_batch() {
+        use plonky2::fri::oracle::PolynomialBatch;
+        use plonky2::util::timing::TimingTree;
+         use plonky2::plonk::config::GenericConfig;
+         use plonky2::plonk::config::PoseidonGoldilocksConfig;
+         use plonky2::field::types::Sample;
+         use plonky2::field::polynomial::PolynomialValues;
+
+        
+const D: usize = 2;
+    type C = PoseidonGoldilocksConfig;
+    type F = <C as GenericConfig<D>>::F;
+    // use plonky2::field::fft::fft_root_table;
+        let values_num_per_poly = 1 << 6;
+        let poly_num = 8;
+        let mut polys = vec![];
+        for _i in 0..poly_num {
+            let poly: Vec<F> = (0..values_num_per_poly).map(|_| F::rand()).collect();
+            let poly_as_value = PolynomialValues::new(poly);
+            polys.push(poly_as_value);
+        }
+        let rate_bits = 3;
+        let cap_height = 4;
+        let len_cap = 1 << cap_height;
+        let _all_len = poly_num * values_num_per_poly * (1 << rate_bits);
+        let num_digests = 2 * (values_num_per_poly * (1 << rate_bits) - len_cap);
+        let _num_digests_and_caps = num_digests + len_cap;
+        let blinding = false;
+        let timing = &mut TimingTree::default();
+        let batch: PolynomialBatch<F, C, D> = PolynomialBatch::from_values(
+            polys.clone(),
+            rate_bits,
+            blinding,
+            cap_height,
+            timing,
+            None,
+        );
+        let ctx = &mut crate::test_utils::cuda_ctx();
+        let cuda_batch: PolynomialBatch<F, C, D> = PolynomialBatch::from_values_cuda(
+            polys,
+            rate_bits,
+            blinding,
+            cap_height,
+            timing,
+            poly_num,
+            values_num_per_poly,
+            ctx,
+        );
+        assert_eq!(batch.polynomials, cuda_batch.polynomials);
+        let leaves = batch.merkle_tree.leaves.into_iter().flatten().collect::<Vec<F>>();
+        assert_eq!(leaves, *cuda_batch.merkle_tree.my_leaves);
+        assert_eq!(batch.merkle_tree.cap, cuda_batch.merkle_tree.cap);
+        assert_eq!(batch.merkle_tree.digests.len(), cuda_batch.merkle_tree.my_digests.len());
+        assert_eq!(batch.merkle_tree.digests, *cuda_batch.merkle_tree.my_digests);
+    }
+
+
 }

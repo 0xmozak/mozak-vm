@@ -23,6 +23,9 @@ use mozak_circuits::stark::recursive_verifier::{
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
 use mozak_circuits::test_utils::{prove_and_verify_mozak_stark, C, D, F, S};
+#[cfg(feature = "cuda")]
+use mozak_circuits::test_utils::cuda_ctx;
+
 use mozak_cli::cli_benches::benches::BenchArgs;
 use mozak_runner::elf::Program;
 use mozak_runner::state::State;
@@ -186,6 +189,10 @@ fn main() -> Result<()> {
             let public_inputs = PublicInputs {
                 entry_point: F::from_canonical_u32(program.entry_point),
             };
+
+            #[cfg(feature = "cuda")]
+            {
+            let mut ctx =cuda_ctx();
             let all_proof = prove::<F, C, D>(
                 &program,
                 &record,
@@ -193,10 +200,10 @@ fn main() -> Result<()> {
                 &config,
                 public_inputs,
                 &mut TimingTree::default(),
+                &mut Some(&mut ctx),
             )?;
             let s = all_proof.serialize_proof_to_flexbuffer()?;
             proof.write_all(s.view())?;
-
             // Generate recursive proof
             if let Some(mut recursive_proof_output) = recursive_proof {
                 let degree_bits = all_proof.degree_bits(&config);
@@ -231,6 +238,45 @@ fn main() -> Result<()> {
                 let bytes = final_circuit.circuit.verifier_only.to_bytes().unwrap();
                 vk_output.write_all(&bytes)?;
             }
+            }
+
+            #[cfg(not(feature = "cuda"))]
+            {
+            let all_proof = prove::<F, C, D>(
+                &program,
+                &record,
+                &stark,
+                &config,
+                public_inputs,
+                &mut TimingTree::default(),
+            )?;
+            let s = all_proof.serialize_proof_to_flexbuffer()?;
+            proof.write_all(s.view())?;
+            // Generate recursive proof
+            if let Some(mut recursive_proof_output) = recursive_proof {
+                let circuit_config = CircuitConfig::standard_recursion_config();
+                let degree_bits = all_proof.degree_bits(&config);
+                let recursive_circuit = recursive_mozak_stark_circuit::<F, C, D>(
+                    &stark,
+                    &degree_bits,
+                    &circuit_config,
+                    &config,
+                );
+
+                let recursive_all_proof = recursive_circuit.prove(&all_proof)?;
+                let s = recursive_all_proof.to_bytes();
+                recursive_proof_output.write_all(&s)?;
+
+                // Generate the degree bits file
+                let mut degree_bits_output_path = recursive_proof_output.path().clone();
+                degree_bits_output_path.set_extension("db");
+                let mut degree_bits_output = degree_bits_output_path.create()?;
+
+                let serialized = serde_json::to_string(&degree_bits)?;
+                degree_bits_output.write_all(serialized.as_bytes())?;
+            }
+            }
+
 
             debug!("proof generated successfully!");
         }

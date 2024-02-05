@@ -76,6 +76,7 @@ where
             public_inputs[kind],
             &ctl_vars_per_table[kind],
             config,
+            kind,
         )?;
     });
     verify_cross_table_lookups::<F, D>(
@@ -98,6 +99,7 @@ pub(crate) fn verify_stark_proof_with_challenges<
     public_inputs: &[F],
     ctl_vars: &[CtlCheckVars<F, F::Extension, F::Extension, D>],
     config: &StarkConfig,
+    kind: TableKind,
 ) -> Result<()>
 where
 {
@@ -157,9 +159,12 @@ where
         .chunks(stark.quotient_degree_factor())
         .enumerate()
     {
+        let van_poly_zeta = vanishing_polys_zeta[i];
+        let opening_poly = z_h_zeta * reduce_with_powers(chunk, zeta_pow_deg);
+        log::info!("evaluation {:?}, quotient {:?}", van_poly_zeta, opening_poly);
         ensure!(
-            vanishing_polys_zeta[i] == z_h_zeta * reduce_with_powers(chunk, zeta_pow_deg),
-            "Mismatch between evaluation and opening of quotient polynomial"
+            van_poly_zeta == opening_poly,
+            "Mismatch between evaluation and opening of quotient polynomial {} {:?} {:?} {:?}", i, kind, van_poly_zeta, opening_poly
         );
     }
 

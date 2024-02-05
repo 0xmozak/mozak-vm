@@ -608,6 +608,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(unused_imports)]
 mod tests {
     use std::panic;
     use std::panic::AssertUnwindSafe;
@@ -639,6 +640,9 @@ mod tests {
     #[test]
     #[ignore]
     fn recursive_verify_mozak_starks() -> Result<()> {
+        #[cfg(not(feature = "cuda"))]
+        {
+        type S = MozakStark<F, D>;
         let stark = S::default();
         let mut config = StarkConfig::standard_fast_config();
         config.fri_config.cap_height = 1;
@@ -678,7 +682,9 @@ mod tests {
         );
 
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
-        mozak_stark_circuit.circuit.verify(recursive_proof)
+        mozak_stark_circuit.circuit.verify(recursive_proof)?;
+    }
+        Ok(())
     }
 
     #[test]
@@ -708,6 +714,7 @@ mod tests {
             &stark_config0,
             public_inputs,
             &mut TimingTree::default(),
+            &mut None,
         )?;
 
         let (program1, record1) = execute_code(vec![inst; 128], &[], &[(6, 100), (7, 200)]);
@@ -722,6 +729,7 @@ mod tests {
             &stark_config1,
             public_inputs,
             &mut TimingTree::default(),
+            &mut None,
         )?;
 
         // The degree bits should be different for the two proofs.

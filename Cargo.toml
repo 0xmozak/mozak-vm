@@ -32,5 +32,7 @@ lto = "fat"
 lto = "thin"
 
 [patch.crates-io]
-plonky2 = { git = "https://github.com/0xmozak/plonky2.git" }
-starky = { git = "https://github.com/0xmozak/plonky2.git" }
+plonky2 = { git = "https://github.com/0xmozak/plonky2.git", branch = "vivek/cuda" }
+starky = { git = "https://github.com/0xmozak/plonky2.git", branch = "vivek/cuda" }
+# plonky2 = { path = "../plonky2/plonky2" }
+# starky = { path = "../plonky2/starky" }

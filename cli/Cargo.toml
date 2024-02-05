@@ -37,3 +37,6 @@ tempfile = "3"
 mozak-circuits = { path = "../circuits", features = ["test"] }
 mozak-runner = { path = "../runner", features = ["test"] }
 proptest = "1.4"
+
+[features]
+cuda = ["mozak-circuits/cuda"]
