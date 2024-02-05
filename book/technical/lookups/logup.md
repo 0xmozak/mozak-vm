@@ -34,7 +34,7 @@ Both values from the looking tables and the looked table is combined like this.
 In the LogUp paper, the relation above is checked with the [sumcheck protocol]. Since Mozak-VM is using LogUp in a STARK setting, the sumcheck protocol
 check is replaced with FRI openings.
 
-A "running sum" polynomial \\( f \\) for the looking tables and a polynomial \\( g \\) for the looked table is kepted through the execution traces. At each step, they are accumulated through adding the new combined values \\( c_i \\) with their multiplicity \\( m_i\\)
+A "running sum" polynomial \\( f \\) for the looking tables and a polynomial \\( g \\) for the looked table are kepted through the execution traces. At each step, they are accumulated through adding the new combined values \\( c_i \\) with their multiplicity \\( m_i\\)
 
 $$
 f_{new} = f + \frac{m_i}{c_i}
