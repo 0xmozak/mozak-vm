@@ -180,14 +180,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fibonacci-input-new-api"
-version = "0.1.0"
-dependencies = [
- "guest",
- "mozak-system",
-]
-
-[[package]]
 name = "fibonacci-mozak-guest"
 version = "0.1.0"
 dependencies = [
