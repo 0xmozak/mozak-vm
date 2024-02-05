@@ -14,19 +14,6 @@ pub enum Methods {
     Split,
 }
 
-// // TODO: how do we verify owner?
-// pub fn mint(address: Address, amount: u64) {
-//     // TODO
-// }
-
-// pub fn burn(object: StateObject) {
-//     // TODO
-// }
-
-// pub fn split(original_object: StateObject, new_object_location: Address,
-// new_object_amount: u64) {     // TODO
-// }
-
 pub fn transfer(
     self_prog_id: ProgramIdentifier, // ContextVariables Table
     token_object: StateObject,       //

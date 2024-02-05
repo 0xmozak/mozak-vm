@@ -2,11 +2,9 @@
 mod core_logic;
 
 use mozak_sdk::coretypes::{ProgramIdentifier, StateObject};
-use mozak_sdk::sys::event_emit;
-
 #[cfg(not(target_os = "zkvm"))]
 use mozak_sdk::sys::dump_tapes;
-
+use mozak_sdk::sys::event_emit;
 use token::transfer;
 
 fn main() {

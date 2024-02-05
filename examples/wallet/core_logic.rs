@@ -1,18 +1,24 @@
 // #![feature(restricted_std)]
 extern crate alloc;
-
 // use alloc::vec::Vec;
 use mozak_sdk::coretypes::{ProgramIdentifier, Signature, StateObject};
+use rkyv::{Archive, Deserialize, Serialize};
 
 #[repr(u8)]
 pub enum MethodsIdentifiers {
     ApproveSignature,
 }
 
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
 pub enum Operation {
     TransferTo(ProgramIdentifier),
 }
 
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
 pub enum MethodArgs {
     ApproveSignature(StateObject, Operation, Signature),
 }
@@ -25,4 +31,6 @@ const PUB_KEY: [u8; 32] = [
 ];
 
 // TODO: approves everything
-pub fn approve_signature(_object: StateObject, _op: Operation, _signature: Signature) -> bool { true }
+pub fn approve_signature(_object: StateObject, _op: Operation, _signature: Signature) -> bool {
+    true
+}

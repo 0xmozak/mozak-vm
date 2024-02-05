@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use once_cell::unsync::Lazy;
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::coretypes::{CPCMessage, ContextVariable, Event, ProgramIdentifier};
+use crate::coretypes::{CPCMessage, Event, ProgramIdentifier};
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
@@ -107,16 +107,39 @@ impl CallTape {
         calldata: A,
         expected_return: R,
     ) where
-        A: Sized,
-        R: Sized + Clone, {
+        A: Sized
+            + rkyv::Serialize<
+                rkyv::ser::serializers::CompositeSerializer<
+                    rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
+                    rkyv::ser::serializers::FallbackScratch<
+                        rkyv::ser::serializers::HeapScratch<256>,
+                        rkyv::ser::serializers::AllocScratch,
+                    >,
+                    rkyv::ser::serializers::SharedSerializeMap,
+                >,
+            >,
+        R: Sized
+            + Clone
+            + rkyv::Serialize<
+                rkyv::ser::serializers::CompositeSerializer<
+                    rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
+                    rkyv::ser::serializers::FallbackScratch<
+                        rkyv::ser::serializers::HeapScratch<256>,
+                        rkyv::ser::serializers::AllocScratch,
+                    >,
+                    rkyv::ser::serializers::SharedSerializeMap,
+                >,
+            >, {
         #[cfg(not(target_os = "zkvm"))]
         {
+            let args = unsafe { rkyv::to_bytes::<_, 256>(&calldata).unwrap() };
+            let ret = unsafe { rkyv::to_bytes::<_, 256>(&expected_return).unwrap() };
             let msg = CPCMessage {
                 caller_prog,
                 callee_prog,
                 callee_fnid,
-                args: Vec::<u8>::new().into(),
-                ret: Vec::<u8>::new().into(),
+                args: args.into(),
+                ret: ret.into(),
             };
 
             println!("[CALL ] Add: {:#?}", msg);
@@ -221,8 +244,29 @@ pub fn mailbox_send<A, R>(
     expected_return: R,
 ) -> R
 where
-    A: Sized,
-    R: Sized + Clone, {
+    A: Sized
+        + rkyv::Serialize<
+            rkyv::ser::serializers::CompositeSerializer<
+                rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
+                rkyv::ser::serializers::FallbackScratch<
+                    rkyv::ser::serializers::HeapScratch<256>,
+                    rkyv::ser::serializers::AllocScratch,
+                >,
+                rkyv::ser::serializers::SharedSerializeMap,
+            >,
+        >,
+    R: Sized
+        + Clone
+        + rkyv::Serialize<
+            rkyv::ser::serializers::CompositeSerializer<
+                rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
+                rkyv::ser::serializers::FallbackScratch<
+                    rkyv::ser::serializers::HeapScratch<256>,
+                    rkyv::ser::serializers::AllocScratch,
+                >,
+                rkyv::ser::serializers::SharedSerializeMap,
+            >,
+        >, {
     unsafe {
         SYSTEM_TAPES.call_tape.to_mailbox(
             caller_prog,

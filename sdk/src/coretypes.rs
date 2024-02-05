@@ -1,4 +1,4 @@
-use rkyv::{Archive, Deserialize, Serialize};
+use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 
 /// Canonical hashed type in "mozak vm". Can store hashed values of
 /// Poseidon2 hash.
@@ -202,6 +202,10 @@ impl std::ops::Deref for RawMessage {
 
 impl From<Vec<u8>> for RawMessage {
     fn from(value: Vec<u8>) -> RawMessage { RawMessage(value) }
+}
+
+impl From<AlignedVec> for RawMessage {
+    fn from(value: AlignedVec) -> RawMessage { RawMessage(value.into_vec()) }
 }
 
 /// Canonical "address" type of object in "mozak vm".
