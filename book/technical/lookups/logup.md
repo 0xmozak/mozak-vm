@@ -21,7 +21,7 @@ The CTL argument argues that values from multiple tables are in a single table. 
 and "a single table" looked table in our codebase.
 
 To combine multiple tables, we use two random challenges \\( \beta \\) and \\( \gamma \\) from the verifier, which are generated using
-the Fiat-Shamir Heuristic in the non-interative setting. Let \\(s_0, s_1, s_2 ...\\) be values from a table, they are combined as
+the Fiat-Shamir Heuristic in the non-interactive setting. Let \\(s_0, s_1, s_2 ...\\) be values from a table, they are combined as
 
 $$
 s_0*\beta^{n-1} + s_1*\beta^{n-2} + ... + s_{n-1} + \gamma
