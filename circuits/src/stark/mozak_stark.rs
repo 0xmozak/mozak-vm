@@ -346,6 +346,9 @@ impl<F: RichField + Extendable<D>, const D: usize> Default for MozakStark<F, D> 
             poseidon2_sponge_stark: Poseidon2SpongeStark::default(),
             poseidon2_stark: Poseidon2_12Stark::default(),
             poseidon2_output_bytes_stark: Poseidon2OutputBytesStark::default(),
+
+            // These tables contains only a description of the tables.
+            // The values of the tables are generated as traces.
             cross_table_lookups: [
                 RangecheckTable::lookups(),
                 XorCpuTable::lookups(),

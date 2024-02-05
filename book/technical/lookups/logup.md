@@ -24,7 +24,7 @@ To combine multiple tables, we use two random challenges \\( \beta \\) and \\( \
 the Fiat-Shamir Heuristic in the non-interatice settting. Let \\(s_0, s_1, s_2 ...\\) be values from a table, they are combined as
 
 $$
-s_0*\beta^n + s_1*\beta^{n-1} + ... + s_{n-1}*\beta + \gamma
+s_0*\beta^{n-1} + s_1*\beta^{n-2} + ... + s_{n-1} + \gamma
 $$
 
 Both values from the looking tables and the looked table is combined like this.
