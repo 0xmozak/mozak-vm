@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use once_cell::unsync::Lazy;
 use rkyv::de::deserializers::SharedDeserializeMap;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
-use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
+use rkyv::{with, with::Skip, AlignedVec, Archive, Deserialize, Serialize};
 
 use crate::coretypes::{CPCMessage, Event, ProgramIdentifier};
 
@@ -17,7 +17,7 @@ pub type RkyvShared = rkyv::ser::serializers::SharedSerializeMap;
 pub trait RkyvSerializable =
     rkyv::Serialize<CompositeSerializer<RkyvSerializer, RkyvScratch, RkyvShared>>;
 pub trait CallArgument = Sized + RkyvSerializable;
-pub trait CallReturn = Sized + Clone + RkyvSerializable;
+pub trait CallReturn = Sized + Clone + Default + RkyvSerializable;
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
@@ -94,13 +94,8 @@ impl RawTape {
 pub struct CallTape {
     self_prog_id: ProgramIdentifier,
     #[cfg(not(target_os = "zkvm"))]
-    writer: Vec<CPCMessage>,
+    writer: Vec<CPCMessage>
 }
-
-// pub enum CallTapeNode {
-//     Call(CPCMessage),
-//     Delegate(CallTape),
-// }
 
 impl CallTape {
     pub fn new() -> Self {
@@ -119,30 +114,40 @@ impl CallTape {
         &mut self,
         caller_prog: ProgramIdentifier,
         callee_prog: ProgramIdentifier,
-        callee_fnid: u8,
-        calldata: A,
-        expected_return: R,
-    ) where
+        call_args: A,
+        dispatch_native: impl Fn(A) -> R,
+        dispatch_zkvm: impl Fn() -> R,
+    ) -> R
+    where
         A: CallArgument,
-        R: CallReturn, {
+        R: CallReturn
+    {
         #[cfg(not(target_os = "zkvm"))]
         {
-            let args = unsafe { rkyv::to_bytes::<_, 256>(&calldata).unwrap() };
-            let ret = unsafe { rkyv::to_bytes::<_, 256>(&expected_return).unwrap() };
             let msg = CPCMessage {
                 caller_prog,
                 callee_prog,
-                callee_fnid,
-                args: args.into(),
-                ret: ret.into(),
+                args: unsafe { rkyv::to_bytes::<_, 256>(&call_args).unwrap() }.into(),
+                ..CPCMessage::default()
             };
 
-            println!("[CALL ] Add: {:#?}", msg);
-
+            let mut inserted_idx = 0;
             unsafe {
                 self.writer.push(msg);
+                inserted_idx = self.writer.len() - 1;
             }
+
+            let retval = dispatch_native(call_args);
+
+            unsafe {
+                self.writer[inserted_idx].ret = rkyv::to_bytes::<_, 256>(&retval).unwrap().into();
+            }
+
+            println!("[CALL ] ResolvedAdd: {:#?}", unsafe {self.writer[inserted_idx].clone()});
+
+            return retval;
         }
+        R::default()
     }
 }
 
@@ -234,9 +239,9 @@ pub fn call_receive() -> Option<(CPCMessage, usize)> { unimplemented!() }
 pub fn call_send<A, R>(
     caller_prog: ProgramIdentifier,
     callee_prog: ProgramIdentifier,
-    callee_fnid: u8,
-    calldata: A,
-    expected_return: R,
+    call_args: A,
+    dispatch_native: impl Fn(A) -> R,
+    dispatch_zkvm: impl Fn() -> R,
 ) -> R
 where
     A: CallArgument,
@@ -245,12 +250,11 @@ where
         SYSTEM_TAPES.call_tape.to_mailbox(
             caller_prog,
             callee_prog,
-            callee_fnid,
-            calldata,
-            expected_return.clone(),
+            call_args,
+            dispatch_native,
+            dispatch_zkvm
         )
     }
-    expected_return
 }
 
 /// Get raw pointer to access iotape (unsafe) without copy into

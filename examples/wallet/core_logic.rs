@@ -1,17 +1,14 @@
-// #![feature(restricted_std)]
+#![feature(restricted_std)]
 extern crate alloc;
 // use alloc::vec::Vec;
-use mozak_sdk::{coretypes::{ProgramIdentifier, Signature, StateObject}, sys::event_emit};
+use mozak_sdk::coretypes::{ProgramIdentifier, Signature, StateObject};
+use mozak_sdk::sys::event_emit;
 use rkyv::{Archive, Deserialize, Serialize};
-
-#[repr(u8)]
-pub enum MethodsIdentifiers {
-    ApproveSignature,
-}
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
+#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub enum Operation {
     TransferTo(ProgramIdentifier),
 }
@@ -19,8 +16,30 @@ pub enum Operation {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
+#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub enum MethodArgs {
     ApproveSignature(StateObject, Operation, Signature),
+}
+
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+pub enum MethodReturns {
+    ApproveSignature(bool),
+}
+
+// TODO: Remove later
+impl Default for MethodReturns {
+    fn default() -> Self { Self::ApproveSignature(true) }
+}
+
+pub fn dispatch(args: MethodArgs) -> MethodReturns {
+    println!("[WLT: DISPATCH] dispatch called \n{:#?}", args);
+    match args {
+        MethodArgs::ApproveSignature(object, operation, signature) =>
+            MethodReturns::ApproveSignature(approve_signature(object, operation, signature)),
+    }
 }
 
 /// Hardcoded Pubkey
@@ -32,6 +51,6 @@ const PUB_KEY: [u8; 32] = [
 
 // TODO: approves everything
 pub fn approve_signature(object: StateObject, _op: Operation, _signature: Signature) -> bool {
-    event_emit(mozak_sdk::coretypes::Event::ReadStateObject(object));
+    event_emit(mozak_sdk::coretypes::Event::ReadStateObject(object.clone()));
     true
 }

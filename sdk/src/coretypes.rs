@@ -222,7 +222,6 @@ pub struct CPCMessage {
     /// recipient of cross-program-call message. Tuple of ProgramID
     /// and methodID
     pub callee_prog: ProgramIdentifier,
-    pub callee_fnid: u8,
 
     /// raw message over cpc
     pub args: RawMessage,

@@ -3,7 +3,7 @@ extern crate alloc;
 
 // use alloc::vec::Vec;
 use mozak_sdk::coretypes::{Event, ProgramIdentifier, Signature, StateObject};
-use mozak_sdk::sys::{event_emit, call_send};
+use mozak_sdk::sys::{call_send, event_emit};
 
 #[repr(u8)]
 pub enum Methods {
@@ -21,29 +21,23 @@ pub fn transfer(
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
 ) {
-    assert!(call_send(
-        self_prog_id,
-        remitter_wallet,
-        wallet::MethodsIdentifiers::ApproveSignature as u8,
-        wallet::MethodArgs::ApproveSignature(
-            token_object.clone(),
-            wallet::Operation::TransferTo(remittee_wallet),
-            remitter_signature.clone()
+    assert_eq!(
+        call_send(
+            self_prog_id,
+            remitter_wallet,
+            wallet::MethodArgs::ApproveSignature(
+                token_object.clone(),
+                wallet::Operation::TransferTo(remittee_wallet),
+                remitter_signature.clone()
+            ),
+            wallet::dispatch,
+            || -> wallet::MethodReturns {
+                wallet::MethodReturns::ApproveSignature(true) // TODO read from
+                                                              // private tape
+            }
         ),
-        {
-            #[cfg(not(target_os = "zkvm"))]
-            {
-                wallet::approve_signature(
-                    token_object.clone(),
-                    wallet::Operation::TransferTo(remittee_wallet),
-                    remitter_signature,
-                )
-            }
-            #[cfg(target_os = "zkvm")]
-            {
-                // TODO: private tape read
-            }
-        },
-    ));
+        wallet::MethodReturns::ApproveSignature(true),
+        "wallet approval not found"
+    );
     event_emit(Event::UpdatedStateObject(token_object));
 }
