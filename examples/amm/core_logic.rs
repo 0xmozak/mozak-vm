@@ -1,7 +1,6 @@
 extern crate alloc;
 
-use mozak_sdk::coretypes::{Address, ProgramIdentifier, StateObject};
-use mozak_sdk::cpc::cross_program_call;
+use mozak_sdk::{coretypes::{Address, ProgramIdentifier, StateObject}, sys::mailbox_send};
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Default)]
@@ -29,17 +28,14 @@ pub struct MetadataObject {
 /// only the last element of both `objects_presented` and `objects_requested`
 /// will ever be subject to such rebalancing. This gets returned in the
 /// order `(presented_change, requested_change)`
-pub fn swap_tokens<'a>(
+pub fn swap_tokens(
     metadata_object: MetadataObject,
     amount_in: u64,
     user_wallet: ProgramIdentifier,
-    objects_presented: Vec<StateObject<'a>>,
-    objects_requested: Vec<StateObject<'a>>,
+    objects_presented: Vec<StateObject>,
+    objects_requested: Vec<StateObject>,
     available_state_addresses: [Address; 2],
     self_prog_id: ProgramIdentifier,
-) -> (
-    Option<StateObject<'a>>, // Residual change from `objects_presented`
-    Option<StateObject<'a>>, // Residual change from `objects_requested`
 ) {
     let idx_in = if objects_presented.is_empty() {
         panic!("no objects presented for swap");
@@ -61,8 +57,8 @@ pub fn swap_tokens<'a>(
     metadata_object.token_programs[idx_out]
         .ensure_constraint_owner_similarity(objects_requested.iter());
 
-    let (total_presented, last_presented) = extract_amounts(&objects_presented);
-    let (total_requested, last_requested) = extract_amounts(&objects_requested);
+    let (total_presented, last_presented) = extract_amounts(self_prog_id, &objects_presented);
+    let (total_requested, last_requested) = extract_amounts(self_prog_id, &objects_requested);
 
     if total_presented < amount_in && (total_presented - last_presented) > amount_in {
         panic!("invalid token objects presented for transaction");
@@ -71,7 +67,7 @@ pub fn swap_tokens<'a>(
         panic!("invalid token objects requested for transaction");
     }
 
-    let mut residual_presented: Option<StateObject<'a>> = None;
+    let mut residual_presented: Option<StateObject> = None;
     if last_presented > 0 {
         let remaining = total_presented - amount_in;
         let calldata: Vec<u8> = available_state_addresses[0]
@@ -81,13 +77,17 @@ pub fn swap_tokens<'a>(
             .cloned()
             .collect();
 
-        residual_presented = Some(cross_program_call::<StateObject>(
-            metadata_object.token_programs[idx_in],
-            token::Methods::Split as u8,
-            calldata,
-        ));
+        residual_presented = Some(
+            mailbox_send(
+                self_prog_id,
+                metadata_object.token_programs[idx_in],
+                token::Methods::Split as u8,
+                calldata,
+                StateObject::default(),  // TODO: Take this as a public input
+            )
+        );
     }
-    let mut residual_requested: Option<StateObject<'a>> = None;
+    let mut residual_requested: Option<StateObject> = None;
     if last_requested > 0 {
         let remaining = total_requested - amount_out;
         let calldata: Vec<u8> = available_state_addresses[0]
@@ -97,11 +97,15 @@ pub fn swap_tokens<'a>(
             .cloned()
             .collect();
 
-        residual_requested = Some(cross_program_call::<StateObject>(
-            metadata_object.token_programs[idx_out],
-            token::Methods::Split as u8,
-            calldata,
-        ));
+        residual_requested = Some(
+            mailbox_send(
+                self_prog_id,
+                metadata_object.token_programs[idx_out],
+                token::Methods::Split as u8,
+                calldata,
+                StateObject::default(),  // TODO: Take this as a public input
+            )
+        );
     }
 
     objects_presented.iter().for_each(|x| {
@@ -112,7 +116,13 @@ pub fn swap_tokens<'a>(
             .chain(self_prog_id.to_le_bytes().iter())
             .cloned()
             .collect();
-        cross_program_call::<()>(x.constraint_owner, token::Methods::Transfer as u8, calldata);
+        mailbox_send(
+            self_prog_id,
+            x.constraint_owner,
+            token::Methods::Transfer as u8,
+            calldata,
+            (),  // TODO: Take this as a public input
+        );
     });
 
     objects_requested.iter().for_each(|x| {
@@ -123,21 +133,27 @@ pub fn swap_tokens<'a>(
             .chain(user_wallet.to_le_bytes().iter())
             .cloned()
             .collect();
-        cross_program_call::<()>(x.constraint_owner, token::Methods::Transfer as u8, calldata);
+        mailbox_send(
+            self_prog_id,
+            x.constraint_owner,
+            token::Methods::Transfer as u8,
+            calldata,
+            (),  // TODO: Take this as a public input
+        );
     });
-
-    (residual_presented, residual_requested)
 }
 
 #[must_use]
-fn extract_amounts(objects: &Vec<StateObject<'_>>) -> (u64, u64) {
+fn extract_amounts(self_prog_id: ProgramIdentifier, objects: &Vec<StateObject>) -> (u64, u64) {
     let mut total_amount = 0;
     let mut last_amount = 0;
     for obj in objects {
-        last_amount = cross_program_call(
+        last_amount = mailbox_send(
+            self_prog_id,
             obj.constraint_owner,
             token::Methods::GetAmount as u8,
             obj.data.to_vec(),
+            0,  // TODO: Take this as a public input
         );
         total_amount += last_amount;
     }

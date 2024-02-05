@@ -1,16 +1,13 @@
 #![feature(restricted_std)]
 mod core_logic;
-
+#[cfg(not(target_os = "zkvm"))]
+use mozak_sdk::sys::dump_tapes;
 use mozak_sdk::coretypes::{Address, Poseidon2HashType, ProgramIdentifier, StateObject};
-use simple_logger::{set_up_color_terminal, SimpleLogger};
 
 use crate::core_logic::{swap_tokens, MetadataObject};
 
 fn main() {
-    SimpleLogger::new().init().unwrap();
-    set_up_color_terminal();
-
-    log::info!("Running amm-native");
+    println!("------>   Running amm-native");
 
     let amm_program = ProgramIdentifier {
         program_rom_hash: [1, 113, 100, 251].into(),
@@ -51,12 +48,12 @@ fn main() {
         StateObject {
             address: [1, 0, 0, 0, 0, 0, 0, 0].into(),
             constraint_owner: usdc_program,
-            data: &[],
+            data: vec![],
         },
         StateObject {
             address: [1, 0, 0, 0, 0, 0, 0, 1].into(),
             constraint_owner: usdc_program,
-            data: &[],
+            data: vec![],
         },
     ];
 
@@ -64,12 +61,12 @@ fn main() {
         StateObject {
             address: [2, 0, 0, 0, 0, 0, 0, 0].into(),
             constraint_owner: usdt_program,
-            data: &[],
+            data: vec![],
         },
         StateObject {
             address: [2, 0, 0, 0, 0, 0, 0, 1].into(),
             constraint_owner: usdt_program,
-            data: &[],
+            data: vec![],
         },
     ];
 
@@ -83,7 +80,7 @@ fn main() {
         amm_program,
     );
 
-    // let files = ["public_input.tape", "private_input.tape"];
+    dump_tapes("amm_swap".to_string());
 
-    log::info!("Generated tapes and verified proof, all done!");
+    println!("------>   Generated tapes!");
 }

@@ -109,10 +109,28 @@ impl CallTape {
         expected_return: R,
     ) where
         A: Sized
-            + rkyv::Serialize<rkyv::ser::serializers::CompositeSerializer<rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>, rkyv::ser::serializers::FallbackScratch<rkyv::ser::serializers::HeapScratch<256>, rkyv::ser::serializers::AllocScratch>, rkyv::ser::serializers::SharedSerializeMap>>,
+            + rkyv::Serialize<
+                rkyv::ser::serializers::CompositeSerializer<
+                    rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
+                    rkyv::ser::serializers::FallbackScratch<
+                        rkyv::ser::serializers::HeapScratch<256>,
+                        rkyv::ser::serializers::AllocScratch,
+                    >,
+                    rkyv::ser::serializers::SharedSerializeMap,
+                >,
+            >,
         R: Sized
             + Clone
-            + rkyv::Serialize<rkyv::ser::serializers::CompositeSerializer<rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>, rkyv::ser::serializers::FallbackScratch<rkyv::ser::serializers::HeapScratch<256>, rkyv::ser::serializers::AllocScratch>, rkyv::ser::serializers::SharedSerializeMap>> {
+            + rkyv::Serialize<
+                rkyv::ser::serializers::CompositeSerializer<
+                    rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
+                    rkyv::ser::serializers::FallbackScratch<
+                        rkyv::ser::serializers::HeapScratch<256>,
+                        rkyv::ser::serializers::AllocScratch,
+                    >,
+                    rkyv::ser::serializers::SharedSerializeMap,
+                >,
+            >, {
         #[cfg(not(target_os = "zkvm"))]
         {
             let args = unsafe { rkyv::to_bytes::<_, 256>(&calldata).unwrap() };
@@ -228,10 +246,28 @@ pub fn mailbox_send<A, R>(
 ) -> R
 where
     A: Sized
-        + rkyv::Serialize<rkyv::ser::serializers::CompositeSerializer<rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>, rkyv::ser::serializers::FallbackScratch<rkyv::ser::serializers::HeapScratch<256>, rkyv::ser::serializers::AllocScratch>, rkyv::ser::serializers::SharedSerializeMap>>,
+        + rkyv::Serialize<
+            rkyv::ser::serializers::CompositeSerializer<
+                rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
+                rkyv::ser::serializers::FallbackScratch<
+                    rkyv::ser::serializers::HeapScratch<256>,
+                    rkyv::ser::serializers::AllocScratch,
+                >,
+                rkyv::ser::serializers::SharedSerializeMap,
+            >,
+        >,
     R: Sized
         + Clone
-        + rkyv::Serialize<rkyv::ser::serializers::CompositeSerializer<rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>, rkyv::ser::serializers::FallbackScratch<rkyv::ser::serializers::HeapScratch<256>, rkyv::ser::serializers::AllocScratch>, rkyv::ser::serializers::SharedSerializeMap>>, {
+        + rkyv::Serialize<
+            rkyv::ser::serializers::CompositeSerializer<
+                rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
+                rkyv::ser::serializers::FallbackScratch<
+                    rkyv::ser::serializers::HeapScratch<256>,
+                    rkyv::ser::serializers::AllocScratch,
+                >,
+                rkyv::ser::serializers::SharedSerializeMap,
+            >,
+        >, {
     unsafe {
         SYSTEM_TAPES.call_tape.to_mailbox(
             caller_prog,

@@ -50,5 +50,5 @@ fn main() {
 
     dump_tapes("wallet_tfr".to_string());
 
-    println!("------>   Generated tapes and verified proof, all done!");
+    println!("------>   Generated tapes!");
 }
