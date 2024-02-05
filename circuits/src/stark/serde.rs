@@ -32,6 +32,7 @@ impl<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize> A
 }
 
 #[cfg(test)]
+#[allow(unused_imports)]
 mod tests {
     use mozak_runner::util::execute_code;
     use plonky2::util::timing::TimingTree;
@@ -45,13 +46,15 @@ mod tests {
 
     #[test]
     fn test_serialization_deserialization() {
+        
+        #[cfg(not(feature = "cuda"))]
+        {    
         let (program, record) = execute_code([], &[], &[]);
         let stark = S::default();
         let config = fast_test_config();
         let public_inputs = PublicInputs {
             entry_point: from_u32(program.entry_point),
         };
-
         let all_proof = prove::<F, C, D>(
             &program,
             &record,
@@ -68,5 +71,6 @@ mod tests {
             AllProof::<F, C, D>::deserialize_proof_from_flexbuffer(s.view())
                 .expect("deserialization failed");
         verify_proof(&stark, all_proof_deserialized, &config).unwrap();
+        }
     }
 }

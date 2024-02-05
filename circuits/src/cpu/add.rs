@@ -77,6 +77,11 @@ mod tests {
         Stark::prove_and_verify(&program, &record).unwrap();
     }
 
+    #[test]
+    fn prove_add_cuda() {
+        prove_add::<MozakStark<F, D>>(90, 90, 5);
+    }
+
     use proptest::prelude::ProptestConfig;
     use proptest::proptest;
     proptest! {

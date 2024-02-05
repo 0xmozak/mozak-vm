@@ -468,6 +468,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "cuda-config"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ee74643f7430213a1a78320f88649de309b20b80818325575e393f848f79f5d"
+dependencies = [
+ "glob",
+]
+
+[[package]]
+name = "cuda-driver-sys"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d4c552cc0de854877d80bcd1f11db75d42be32962d72a6799b88dcca88fffbd"
+dependencies = [
+ "cuda-config",
+]
+
+[[package]]
 name = "darling"
 version = "0.20.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -653,6 +671,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "glob"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
+
+[[package]]
 name = "half"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -696,6 +720,15 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
+name = "home"
+version = "0.5.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3d1354bf6b7235cb4a0576c2619fd4ed18183f689b12b006a0ee7329eeff9a5"
+dependencies = [
+ "windows-sys 0.52.0",
+]
 
 [[package]]
 name = "humantime"
@@ -951,6 +984,8 @@ dependencies = [
  "plonky2",
  "proptest",
  "rayon",
+ "rustacuda",
+ "rustacuda_core",
  "serde",
  "starky",
  "thiserror",
@@ -1169,7 +1204,7 @@ dependencies = [
 [[package]]
 name = "plonky2"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#7a3b7d487aa23ca43d43b513b61cf0387b414015"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=vivek/cuda#0ffdb10b5bf5af6a295762a68cd5d6c6b81c1d89"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1179,15 +1214,27 @@ dependencies = [
  "keccak-hash",
  "log",
  "num",
+ "plonky2-cuda",
  "plonky2_field",
- "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git)",
+ "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=vivek/cuda)",
  "plonky2_util",
  "rand",
  "rand_chacha",
+ "rustacuda",
+ "rustacuda_core",
  "serde",
  "static_assertions",
  "unroll",
  "web-time",
+]
+
+[[package]]
+name = "plonky2-cuda"
+version = "0.1.0"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=vivek/cuda#0ffdb10b5bf5af6a295762a68cd5d6c6b81c1d89"
+dependencies = [
+ "cc",
+ "which",
 ]
 
 [[package]]
@@ -1210,13 +1257,15 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#7a3b7d487aa23ca43d43b513b61cf0387b414015"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=vivek/cuda#0ffdb10b5bf5af6a295762a68cd5d6c6b81c1d89"
 dependencies = [
  "anyhow",
  "itertools 0.12.1",
  "num",
  "plonky2_util",
  "rand",
+ "rustacuda",
+ "rustacuda_core",
  "serde",
  "static_assertions",
  "unroll",
@@ -1231,7 +1280,7 @@ checksum = "92ff44a90aaca13e10e7ddf8fab815ba1b404c3f7c3ca82aaf11c46beabaa923"
 [[package]]
 name = "plonky2_maybe_rayon"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#7a3b7d487aa23ca43d43b513b61cf0387b414015"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=vivek/cuda#0ffdb10b5bf5af6a295762a68cd5d6c6b81c1d89"
 dependencies = [
  "rayon",
 ]
@@ -1239,7 +1288,7 @@ dependencies = [
 [[package]]
 name = "plonky2_util"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#7a3b7d487aa23ca43d43b513b61cf0387b414015"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=vivek/cuda#0ffdb10b5bf5af6a295762a68cd5d6c6b81c1d89"
 
 [[package]]
 name = "plotters"
@@ -1482,6 +1531,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustacuda"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47208516ab5338b592d63560e90eaef405d0ec880347eaf7742d893b0a31e228"
+dependencies = [
+ "bitflags 1.3.2",
+ "cuda-driver-sys",
+ "rustacuda_core",
+ "rustacuda_derive",
+]
+
+[[package]]
+name = "rustacuda_core"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3858b08976dc2f860c5efbbb48cdcb0d4fafca92a6ac0898465af16c0dbe848"
+
+[[package]]
+name = "rustacuda_derive"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43ce8670a1a1d0fc2514a3b846dacdb65646f9bd494b6674cfacbb4ce430bd7e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "rustc_version"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1688,7 +1766,7 @@ checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
 [[package]]
 name = "starky"
 version = "0.2.0"
-source = "git+https://github.com/0xmozak/plonky2.git#7a3b7d487aa23ca43d43b513b61cf0387b414015"
+source = "git+https://github.com/0xmozak/plonky2.git?branch=vivek/cuda#0ffdb10b5bf5af6a295762a68cd5d6c6b81c1d89"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1697,7 +1775,7 @@ dependencies = [
  "log",
  "num-bigint",
  "plonky2",
- "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git)",
+ "plonky2_maybe_rayon 0.2.0 (git+https://github.com/0xmozak/plonky2.git?branch=vivek/cuda)",
  "plonky2_util",
 ]
 
@@ -2159,6 +2237,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3de34ae270483955a94f4b21bdaaeb83d508bb84a01435f393818edb0012009"
 dependencies = [
  "rustls-pki-types",
+]
+
+[[package]]
+name = "which"
+version = "4.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87ba24419a2078cd2b0f2ede2691b6c66d8e47836da3b6db8265ebad47afbfc7"
+dependencies = [
+ "either",
+ "home",
+ "once_cell",
+ "rustix",
 ]
 
 [[package]]
