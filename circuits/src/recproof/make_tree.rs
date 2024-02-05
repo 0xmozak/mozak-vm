@@ -3,7 +3,6 @@
 //!
 //! These subcircuits are recursive, building on top of each other to
 //! create the next level up of the merkle tree.
-use iter_fixed::IntoIteratorFixed;
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
 use plonky2::iop::target::BoolTarget;
@@ -13,25 +12,7 @@ use plonky2::plonk::circuit_data::CircuitData;
 use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
-use super::{and_helper, hash_or_forward, hashes_equal, or_helper};
-
-/// Computes `h0 == ZERO`.
-fn hash_is_zero<F, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    h0: HashOutTarget,
-) -> BoolTarget
-where
-    F: RichField + Extendable<D>, {
-    let zero = h0
-        .elements
-        .into_iter_fixed()
-        .map(|h0| {
-            let non_zero = builder.is_nonzero(h0);
-            builder.not(non_zero)
-        })
-        .collect();
-    and_helper(builder, zero)
-}
+use super::{hash_is_nonzero, hash_is_zero, hash_or_forward, hashes_equal};
 
 /// The indices of the public inputs of this subcircuit in any
 /// `ProofWithPublicInputs`
@@ -202,18 +183,9 @@ impl BranchSubCircuit {
         let l_hash = leaf.indices.get_hash(&left_proof.public_inputs);
         let r_hash = leaf.indices.get_hash(&right_proof.public_inputs);
 
-        let left_non_zero = l_hash
-            .into_iter_fixed()
-            .map(|l_hash| builder.is_nonzero(l_hash))
-            .collect();
-        let right_non_zero = r_hash
-            .into_iter_fixed()
-            .map(|r_hash| builder.is_nonzero(r_hash))
-            .collect();
-
-        // If any elements are non-zero, then it's non-zero
-        let left_non_zero = or_helper(&mut builder, left_non_zero);
-        let right_non_zero = or_helper(&mut builder, right_non_zero);
+        // Get presence
+        let left_non_zero = hash_is_nonzero(&mut builder, l_hash);
+        let right_non_zero = hash_is_nonzero(&mut builder, r_hash);
 
         // Select the hash based on presence
         let summary_hash =
