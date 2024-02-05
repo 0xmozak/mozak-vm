@@ -4,7 +4,7 @@ use anyhow::Result;
 use itertools::izip;
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::{Args, Instruction, Op};
-use mozak_runner::util::execute_code;
+use mozak_runner::test_utils::execute_code;
 use mozak_runner::vm::ExecutionRecord;
 use mozak_system::system::ecall;
 use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2, REG_A3};
