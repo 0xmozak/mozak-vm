@@ -183,7 +183,7 @@ impl std::fmt::Debug for RawMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "RawMessage({:?})",
+            "0x{}",
             &self
                 .iter()
                 .map(|x| hex::encode([*x]))

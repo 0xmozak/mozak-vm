@@ -8,7 +8,7 @@ use mozak_sdk::sys::event_emit;
 use token::transfer;
 
 fn main() {
-    println!("Running token-native");
+    println!("------>   Running token-native");
 
     let token_program = ProgramIdentifier {
         program_rom_hash: [11, 113, 20, 251].into(),
@@ -50,5 +50,5 @@ fn main() {
 
     dump_tapes("wallet_tfr".to_string());
 
-    println!("Generated tapes and verified proof, all done!");
+    println!("------>   Generated tapes and verified proof, all done!");
 }
