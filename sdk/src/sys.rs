@@ -5,9 +5,19 @@ use std::cell::RefCell;
 // use std::cell::UnsafeCell;
 use once_cell::unsync::Lazy;
 use rkyv::de::deserializers::SharedDeserializeMap;
+use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 
 use crate::coretypes::{CPCMessage, Event, ProgramIdentifier};
+
+pub type RkyvSerializer = rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>;
+pub type RkyvScratch = rkyv::ser::serializers::FallbackScratch<HeapScratch<256>, AllocScratch>;
+pub type RkyvShared = rkyv::ser::serializers::SharedSerializeMap;
+
+pub trait RkyvSerializable =
+    rkyv::Serialize<CompositeSerializer<RkyvSerializer, RkyvScratch, RkyvShared>>;
+pub trait CallArgument = Sized + RkyvSerializable;
+pub trait CallReturn = Sized + Clone + RkyvSerializable;
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
@@ -87,6 +97,11 @@ pub struct CallTape {
     writer: Vec<CPCMessage>,
 }
 
+// pub enum CallTapeNode {
+//     Call(CPCMessage),
+//     Delegate(CallTape),
+// }
+
 impl CallTape {
     pub fn new() -> Self {
         Self {
@@ -108,29 +123,8 @@ impl CallTape {
         calldata: A,
         expected_return: R,
     ) where
-        A: Sized
-            + rkyv::Serialize<
-                rkyv::ser::serializers::CompositeSerializer<
-                    rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
-                    rkyv::ser::serializers::FallbackScratch<
-                        rkyv::ser::serializers::HeapScratch<256>,
-                        rkyv::ser::serializers::AllocScratch,
-                    >,
-                    rkyv::ser::serializers::SharedSerializeMap,
-                >,
-            >,
-        R: Sized
-            + Clone
-            + rkyv::Serialize<
-                rkyv::ser::serializers::CompositeSerializer<
-                    rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
-                    rkyv::ser::serializers::FallbackScratch<
-                        rkyv::ser::serializers::HeapScratch<256>,
-                        rkyv::ser::serializers::AllocScratch,
-                    >,
-                    rkyv::ser::serializers::SharedSerializeMap,
-                >,
-            >, {
+        A: CallArgument,
+        R: CallReturn, {
         #[cfg(not(target_os = "zkvm"))]
         {
             let args = unsafe { rkyv::to_bytes::<_, 256>(&calldata).unwrap() };
@@ -232,12 +226,12 @@ pub fn event_emit(event: Event) { unsafe { SYSTEM_TAPES.event_tape.emit_event(ev
 /// Receive one message from mailbox targetted to us and its index
 /// "consume" such message. Subsequent reads will never
 /// return the same message. Panics on call-tape non-abidance.
-pub fn mailbox_receive() -> Option<(CPCMessage, usize)> { unimplemented!() }
+pub fn call_receive() -> Option<(CPCMessage, usize)> { unimplemented!() }
 
 /// Send one message from mailbox targetted to some third-party
 /// resulting in such messages finding itself in their mailbox
 /// Panics on call-tape non-abidance.
-pub fn mailbox_send<A, R>(
+pub fn call_send<A, R>(
     caller_prog: ProgramIdentifier,
     callee_prog: ProgramIdentifier,
     callee_fnid: u8,
@@ -245,29 +239,8 @@ pub fn mailbox_send<A, R>(
     expected_return: R,
 ) -> R
 where
-    A: Sized
-        + rkyv::Serialize<
-            rkyv::ser::serializers::CompositeSerializer<
-                rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
-                rkyv::ser::serializers::FallbackScratch<
-                    rkyv::ser::serializers::HeapScratch<256>,
-                    rkyv::ser::serializers::AllocScratch,
-                >,
-                rkyv::ser::serializers::SharedSerializeMap,
-            >,
-        >,
-    R: Sized
-        + Clone
-        + rkyv::Serialize<
-            rkyv::ser::serializers::CompositeSerializer<
-                rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
-                rkyv::ser::serializers::FallbackScratch<
-                    rkyv::ser::serializers::HeapScratch<256>,
-                    rkyv::ser::serializers::AllocScratch,
-                >,
-                rkyv::ser::serializers::SharedSerializeMap,
-            >,
-        >, {
+    A: CallArgument,
+    R: CallReturn, {
     unsafe {
         SYSTEM_TAPES.call_tape.to_mailbox(
             caller_prog,

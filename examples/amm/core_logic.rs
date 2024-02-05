@@ -1,7 +1,7 @@
 extern crate alloc;
 
 use mozak_sdk::coretypes::{Address, ProgramIdentifier, StateObject};
-use mozak_sdk::sys::mailbox_send;
+use mozak_sdk::sys::call_send;
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Default)]
@@ -78,7 +78,7 @@ pub fn swap_tokens(
             .cloned()
             .collect();
 
-        residual_presented = Some(mailbox_send(
+        residual_presented = Some(call_send(
             self_prog_id,
             metadata_object.token_programs[idx_in],
             token::Methods::Split as u8,
@@ -96,7 +96,7 @@ pub fn swap_tokens(
             .cloned()
             .collect();
 
-        residual_requested = Some(mailbox_send(
+        residual_requested = Some(call_send(
             self_prog_id,
             metadata_object.token_programs[idx_out],
             token::Methods::Split as u8,
@@ -113,7 +113,7 @@ pub fn swap_tokens(
             .chain(self_prog_id.to_le_bytes().iter())
             .cloned()
             .collect();
-        mailbox_send(
+        call_send(
             self_prog_id,
             x.constraint_owner,
             token::Methods::Transfer as u8,
@@ -130,7 +130,7 @@ pub fn swap_tokens(
             .chain(user_wallet.to_le_bytes().iter())
             .cloned()
             .collect();
-        mailbox_send(
+        call_send(
             self_prog_id,
             x.constraint_owner,
             token::Methods::Transfer as u8,
@@ -145,7 +145,7 @@ fn extract_amounts(self_prog_id: ProgramIdentifier, objects: &Vec<StateObject>) 
     let mut total_amount = 0;
     let mut last_amount = 0;
     for obj in objects {
-        last_amount = mailbox_send(
+        last_amount = call_send(
             self_prog_id,
             obj.constraint_owner,
             token::Methods::GetAmount as u8,

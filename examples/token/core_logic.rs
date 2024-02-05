@@ -3,8 +3,7 @@ extern crate alloc;
 
 // use alloc::vec::Vec;
 use mozak_sdk::coretypes::{Event, ProgramIdentifier, Signature, StateObject};
-use mozak_sdk::sys::{event_emit, mailbox_send};
-use wallet::approve_signature;
+use mozak_sdk::sys::{event_emit, call_send};
 
 #[repr(u8)]
 pub enum Methods {
@@ -22,7 +21,7 @@ pub fn transfer(
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
 ) {
-    assert!(mailbox_send(
+    assert!(call_send(
         self_prog_id,
         remitter_wallet,
         wallet::MethodsIdentifiers::ApproveSignature as u8,
@@ -34,7 +33,7 @@ pub fn transfer(
         {
             #[cfg(not(target_os = "zkvm"))]
             {
-                approve_signature(
+                wallet::approve_signature(
                     token_object.clone(),
                     wallet::Operation::TransferTo(remittee_wallet),
                     remitter_signature,
