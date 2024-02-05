@@ -2,7 +2,7 @@
 extern crate alloc;
 
 // use alloc::vec::Vec;
-use mozak_sdk::coretypes::{Address, Event, ProgramIdentifier, Signature, StateObject};
+use mozak_sdk::coretypes::{Event, ProgramIdentifier, Signature, StateObject};
 use mozak_sdk::sys::{event_emit, mailbox_send};
 
 #[repr(u8)]

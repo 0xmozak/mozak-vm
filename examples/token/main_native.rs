@@ -1,21 +1,16 @@
 #![feature(restricted_std)]
 mod core_logic;
-use std::fs::File;
 
 use mozak_sdk::coretypes::{ProgramIdentifier, StateObject};
-use mozak_sdk::io::{
-    from_tape_deserialized, from_tape_function_id, from_tape_rawbuf, get_tapes_native,
-    to_tape_function_id, to_tape_rawbuf, to_tape_serialized,
-};
-use mozak_sdk::sys::{dump_tapes, event_emit};
-use simple_logger::{set_up_color_terminal, SimpleLogger};
+use mozak_sdk::sys::event_emit;
+
+#[cfg(not(target_os = "zkvm"))]
+use mozak_sdk::sys::dump_tapes;
+
 use token::transfer;
 
 fn main() {
-    SimpleLogger::new().init().unwrap();
-    set_up_color_terminal();
-
-    log::info!("Running token-native");
+    println!("Running token-native");
 
     let token_program = ProgramIdentifier {
         program_rom_hash: [11, 113, 20, 251].into(),
@@ -56,7 +51,6 @@ fn main() {
     );
 
     dump_tapes("wallet_tfr".to_string());
-    // globaltrace_dump_to_disk("wallet_transfer_cpc".to_string());
 
-    log::info!("Generated tapes and verified proof, all done!");
+    println!("Generated tapes and verified proof, all done!");
 }
