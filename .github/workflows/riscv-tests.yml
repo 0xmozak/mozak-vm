@@ -59,7 +59,7 @@ jobs:
           delete-branch: true
           title: "Update RISC-V tests"
           add-paths: |
-            riscv-testdata/
+            riscv-testdata/testdata/
           body: |
             This PR is automatically generated as part of Github actions.
             Here is the action job: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
