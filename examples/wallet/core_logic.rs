@@ -1,7 +1,7 @@
 // #![feature(restricted_std)]
 extern crate alloc;
 // use alloc::vec::Vec;
-use mozak_sdk::coretypes::{ProgramIdentifier, Signature, StateObject};
+use mozak_sdk::{coretypes::{ProgramIdentifier, Signature, StateObject}, sys::event_emit};
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[repr(u8)]
@@ -31,6 +31,7 @@ const PUB_KEY: [u8; 32] = [
 ];
 
 // TODO: approves everything
-pub fn approve_signature(_object: StateObject, _op: Operation, _signature: Signature) -> bool {
+pub fn approve_signature(object: StateObject, _op: Operation, _signature: Signature) -> bool {
+    event_emit(mozak_sdk::coretypes::Event::ReadStateObject(object));
     true
 }

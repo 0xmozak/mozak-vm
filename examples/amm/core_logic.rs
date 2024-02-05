@@ -1,6 +1,7 @@
 extern crate alloc;
 
-use mozak_sdk::{coretypes::{Address, ProgramIdentifier, StateObject}, sys::mailbox_send};
+use mozak_sdk::coretypes::{Address, ProgramIdentifier, StateObject};
+use mozak_sdk::sys::mailbox_send;
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Default)]
@@ -77,15 +78,13 @@ pub fn swap_tokens(
             .cloned()
             .collect();
 
-        residual_presented = Some(
-            mailbox_send(
-                self_prog_id,
-                metadata_object.token_programs[idx_in],
-                token::Methods::Split as u8,
-                calldata,
-                StateObject::default(),  // TODO: Take this as a public input
-            )
-        );
+        residual_presented = Some(mailbox_send(
+            self_prog_id,
+            metadata_object.token_programs[idx_in],
+            token::Methods::Split as u8,
+            calldata,
+            StateObject::default(), // TODO: Take this as a public input
+        ));
     }
     let mut residual_requested: Option<StateObject> = None;
     if last_requested > 0 {
@@ -97,15 +96,13 @@ pub fn swap_tokens(
             .cloned()
             .collect();
 
-        residual_requested = Some(
-            mailbox_send(
-                self_prog_id,
-                metadata_object.token_programs[idx_out],
-                token::Methods::Split as u8,
-                calldata,
-                StateObject::default(),  // TODO: Take this as a public input
-            )
-        );
+        residual_requested = Some(mailbox_send(
+            self_prog_id,
+            metadata_object.token_programs[idx_out],
+            token::Methods::Split as u8,
+            calldata,
+            StateObject::default(), // TODO: Take this as a public input
+        ));
     }
 
     objects_presented.iter().for_each(|x| {
@@ -121,7 +118,7 @@ pub fn swap_tokens(
             x.constraint_owner,
             token::Methods::Transfer as u8,
             calldata,
-            (),  // TODO: Take this as a public input
+            (), // TODO: Take this as a public input
         );
     });
 
@@ -138,7 +135,7 @@ pub fn swap_tokens(
             x.constraint_owner,
             token::Methods::Transfer as u8,
             calldata,
-            (),  // TODO: Take this as a public input
+            (), // TODO: Take this as a public input
         );
     });
 }
@@ -153,7 +150,7 @@ fn extract_amounts(self_prog_id: ProgramIdentifier, objects: &Vec<StateObject>) 
             obj.constraint_owner,
             token::Methods::GetAmount as u8,
             obj.data.to_vec(),
-            0,  // TODO: Take this as a public input
+            0, // TODO: Take this as a public input
         );
         total_amount += last_amount;
     }

@@ -4,6 +4,7 @@ extern crate alloc;
 // use alloc::vec::Vec;
 use mozak_sdk::coretypes::{Event, ProgramIdentifier, Signature, StateObject};
 use mozak_sdk::sys::{event_emit, mailbox_send};
+use wallet::approve_signature;
 
 #[repr(u8)]
 pub enum Methods {
@@ -28,9 +29,22 @@ pub fn transfer(
         wallet::MethodArgs::ApproveSignature(
             token_object.clone(),
             wallet::Operation::TransferTo(remittee_wallet),
-            remitter_signature
+            remitter_signature.clone()
         ),
-        true,
+        {
+            #[cfg(not(target_os = "zkvm"))]
+            {
+                approve_signature(
+                    token_object.clone(),
+                    wallet::Operation::TransferTo(remittee_wallet),
+                    remitter_signature,
+                )
+            }
+            #[cfg(target_os = "zkvm")]
+            {
+                // TODO: private tape read
+            }
+        },
     ));
     event_emit(Event::UpdatedStateObject(token_object));
 }

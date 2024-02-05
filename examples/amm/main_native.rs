@@ -1,8 +1,8 @@
 #![feature(restricted_std)]
 mod core_logic;
+use mozak_sdk::coretypes::{Address, Poseidon2HashType, ProgramIdentifier, StateObject};
 #[cfg(not(target_os = "zkvm"))]
 use mozak_sdk::sys::dump_tapes;
-use mozak_sdk::coretypes::{Address, Poseidon2HashType, ProgramIdentifier, StateObject};
 
 use crate::core_logic::{swap_tokens, MetadataObject};
 
