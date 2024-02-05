@@ -21,23 +21,26 @@ The CTL argument argues that values from multiple tables are in a single table. 
 and "a single table" looked table in our codebase.
 
 To combine multiple tables, we use two random challenges \\( \beta \\) and \\( \gamma \\) from the verifier, which are generated using
-the Fiat-Shamir Heuristic in the non-interactive setting. Let \\(s_0, s_1, s_2 ...\\) be values from a table, they are combined as
+the Fiat-Shamir Heuristic in the non-interactive setting. Let \\(s_0, s_1, s_2 ...\\) be columnss from a table, they are combined as
 
 $$
-s_0*\beta^{n-1} + s_1*\beta^{n-2} + ... + s_{n-1} + \gamma
+c_i = s_0*\beta^{n-1} + s_1*\beta^{n-2} + ... + s_{n-1} + \gamma
 $$
 
 Both values from the looking tables and the looked table is combined like this.
 
-### Quotient polynomial to check the equality of the relation
+### LogUp in STARK setting
 
 In the LogUp paper, the relation above is checked with the [sumcheck protocol]. Since Mozak-VM is using LogUp in a STARK setting, the sumcheck protocol
-check is replaced with a quotient polynomial check. i.e. two polynomial are the same if a random evaluation of their quotient polynomials are the same.
-The quotient polynomial \\( h(x) \\) is aquired by a division of the vanishing polynomial \\( Z_H(x) \\).
+check is replaced with FRI openings.
+
+A "running sum" polynomial \\( f \\) for the looking tables and a polynomial \\( g \\) for the looked table is kepted through the execution traces. At each step, they are accumulated through adding the new combined values \\( c_i \\) with their multiplicity \\( m_i\\)
 
 $$
-g(x) = h(x) * Z_H(x)
+f_{new} = f + \frac{m_i}{c_i}
 $$
+
+the equality of the polynomials \\( f \\) and \\( g \\) are checked with opening of FRI.
 
 The cross table lookup is implemented in [cross_table_lookup.rs].
 
