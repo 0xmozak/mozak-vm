@@ -92,6 +92,7 @@ impl RawTape {
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub struct CallTape {
+    #[cfg(target_os = "zkvm")]
     self_prog_id: ProgramIdentifier,
     #[cfg(not(target_os = "zkvm"))]
     writer: Vec<CPCMessage>
@@ -100,12 +101,14 @@ pub struct CallTape {
 impl CallTape {
     pub fn new() -> Self {
         Self {
+            #[cfg(target_os = "zkvm")]
             self_prog_id: ProgramIdentifier::default(),
             #[cfg(not(target_os = "zkvm"))]
             writer: Vec::new(),
         }
     }
 
+    #[cfg(target_os = "zkvm")]
     pub(crate) fn set_self_prog_id(&mut self, id: ProgramIdentifier) { self.self_prog_id = id; }
 
     pub fn from_mailbox(&self) {}

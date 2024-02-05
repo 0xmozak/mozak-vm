@@ -4,14 +4,47 @@ extern crate alloc;
 // use alloc::vec::Vec;
 use mozak_sdk::coretypes::{Event, ProgramIdentifier, Signature, StateObject};
 use mozak_sdk::sys::{call_send, event_emit};
+use rkyv::{Archive, Deserialize, Serialize};
 
-#[repr(u8)]
-pub enum Methods {
-    Mint,
-    Burn,
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+pub enum MethodArgs {
+    // Mint,
+    // Burn,
+    Transfer(
+        ProgramIdentifier,
+        StateObject,
+        Signature,
+        ProgramIdentifier,
+        ProgramIdentifier,
+    ),
+    // GetAmount,
+    // Split,
+}
+
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+pub enum MethodReturns {
     Transfer,
-    GetAmount,
-    Split,
+}
+
+// TODO: Remove later
+impl Default for MethodReturns {
+    fn default() -> Self { Self::Transfer }
+}
+
+pub fn dispatch(args: MethodArgs) -> MethodReturns {
+    println!("[TKN: DISPATCH] dispatch called \n{:#?}", args);
+    match args {
+        MethodArgs::Transfer(id, object, signature, remitter, remittee) => {
+            transfer(id, object, signature, remitter, remittee);
+            MethodReturns::Transfer
+        }
+    }
 }
 
 pub fn transfer(
@@ -21,6 +54,13 @@ pub fn transfer(
     remitter_wallet: ProgramIdentifier,
     remittee_wallet: ProgramIdentifier,
 ) {
+    event_emit(
+        self_prog_id,
+        mozak_sdk::coretypes::Event::ReadContextVariable(
+            mozak_sdk::coretypes::ContextVariable::SelfProgramIdentifier(self_prog_id),
+        ),
+    );
+
     assert_eq!(
         call_send(
             self_prog_id,

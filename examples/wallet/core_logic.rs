@@ -50,7 +50,21 @@ const PUB_KEY: [u8; 32] = [
 ];
 
 // TODO: approves everything
-pub fn approve_signature(self_prog_id: ProgramIdentifier, object: StateObject, _op: Operation, _signature: Signature) -> bool {
-    event_emit(self_prog_id, mozak_sdk::coretypes::Event::ReadStateObject(object.clone()));
+pub fn approve_signature(
+    self_prog_id: ProgramIdentifier,
+    object: StateObject,
+    _op: Operation,
+    _signature: Signature,
+) -> bool {
+    event_emit(
+        self_prog_id,
+        mozak_sdk::coretypes::Event::ReadContextVariable(
+            mozak_sdk::coretypes::ContextVariable::SelfProgramIdentifier(self_prog_id),
+        ),
+    );
+    event_emit(
+        self_prog_id,
+        mozak_sdk::coretypes::Event::ReadStateObject(object.clone()),
+    );
     true
 }
