@@ -33,7 +33,7 @@ dependencies = [
  "guest",
  "hex",
  "log",
- "mozak_sdk",
+ "mozak-sdk",
  "rkyv",
  "simple_logger",
  "token-mozak-guest",
@@ -363,7 +363,7 @@ dependencies = [
  "guest",
  "hex",
  "log",
- "mozak_sdk",
+ "mozak-sdk",
  "rkyv",
  "rs_merkle",
  "simple_logger",
@@ -377,11 +377,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "mozak-system"
-version = "0.1.0"
-
-[[package]]
-name = "mozak_sdk"
+name = "mozak-sdk"
 version = "0.1.0"
 dependencies = [
  "hex",
@@ -390,6 +386,10 @@ dependencies = [
  "once_cell",
  "rkyv",
 ]
+
+[[package]]
+name = "mozak-system"
+version = "0.1.0"
 
 [[package]]
 name = "num"
@@ -877,7 +877,7 @@ dependencies = [
  "guest",
  "hex",
  "log",
- "mozak_sdk",
+ "mozak-sdk",
  "rkyv",
  "simple_logger",
  "wallet-mozak-guest",
@@ -930,7 +930,7 @@ dependencies = [
  "guest",
  "hex",
  "log",
- "mozak_sdk",
+ "mozak-sdk",
  "rkyv",
  "simple_logger",
 ]

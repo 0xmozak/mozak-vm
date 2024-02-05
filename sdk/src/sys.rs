@@ -4,7 +4,11 @@ use std::cell::RefCell;
 /// Unsafe code stays here and never leaves this file!!
 // use std::cell::UnsafeCell;
 use once_cell::unsync::Lazy;
-use rkyv::{Archive, Deserialize, Serialize};
+use rkyv::de::deserializers::SharedDeserializeMap;
+use rkyv::ser::serializers::{
+    AlignedSerializer, AllocScratch, CompositeSerializer, FallbackScratch, HeapScratch,
+};
+use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 
 use crate::coretypes::{CPCMessage, Event, ProgramIdentifier};
 
@@ -109,25 +113,19 @@ impl CallTape {
     ) where
         A: Sized
             + rkyv::Serialize<
-                rkyv::ser::serializers::CompositeSerializer<
-                    rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
-                    rkyv::ser::serializers::FallbackScratch<
-                        rkyv::ser::serializers::HeapScratch<256>,
-                        rkyv::ser::serializers::AllocScratch,
-                    >,
-                    rkyv::ser::serializers::SharedSerializeMap,
+                CompositeSerializer<
+                    AlignedSerializer<AlignedVec>,
+                    FallbackScratch<HeapScratch<256>, AllocScratch>,
+                    SharedDeserializeMap,
                 >,
             >,
         R: Sized
             + Clone
             + rkyv::Serialize<
-                rkyv::ser::serializers::CompositeSerializer<
-                    rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
-                    rkyv::ser::serializers::FallbackScratch<
-                        rkyv::ser::serializers::HeapScratch<256>,
-                        rkyv::ser::serializers::AllocScratch,
-                    >,
-                    rkyv::ser::serializers::SharedSerializeMap,
+                CompositeSerializer<
+                    AlignedSerializer<AlignedVec>,
+                    FallbackScratch<HeapScratch<256>, AllocScratch>,
+                    SharedDeserializeMap,
                 >,
             >, {
         #[cfg(not(target_os = "zkvm"))]
@@ -246,25 +244,19 @@ pub fn mailbox_send<A, R>(
 where
     A: Sized
         + rkyv::Serialize<
-            rkyv::ser::serializers::CompositeSerializer<
-                rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
-                rkyv::ser::serializers::FallbackScratch<
-                    rkyv::ser::serializers::HeapScratch<256>,
-                    rkyv::ser::serializers::AllocScratch,
-                >,
-                rkyv::ser::serializers::SharedSerializeMap,
+            CompositeSerializer<
+                AlignedSerializer<AlignedVec>,
+                FallbackScratch<HeapScratch<256>, AllocScratch>,
+                SharedDeserializeMap,
             >,
         >,
     R: Sized
         + Clone
         + rkyv::Serialize<
-            rkyv::ser::serializers::CompositeSerializer<
-                rkyv::ser::serializers::AlignedSerializer<rkyv::AlignedVec>,
-                rkyv::ser::serializers::FallbackScratch<
-                    rkyv::ser::serializers::HeapScratch<256>,
-                    rkyv::ser::serializers::AllocScratch,
-                >,
-                rkyv::ser::serializers::SharedSerializeMap,
+            CompositeSerializer<
+                AlignedSerializer<AlignedVec>,
+                FallbackScratch<HeapScratch<256>, AllocScratch>,
+                SharedDeserializeMap,
             >,
         >, {
     unsafe {
