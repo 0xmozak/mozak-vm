@@ -1,8 +1,8 @@
 #[cfg(not(target_os = "zkvm"))]
 use std::cell::RefCell;
-/// Unsafe code stays here and never leaves this file!!
-use std::cell::UnsafeCell;
 
+/// Unsafe code stays here and never leaves this file!!
+// use std::cell::UnsafeCell;
 use once_cell::unsync::Lazy;
 use rkyv::{Archive, Deserialize, Serialize};
 
@@ -21,14 +21,17 @@ pub struct SystemTapes {
 
 #[cfg(target_os = "zkvm")]
 extern "C" {
-    static _mozak_tapes_public_start: usize;
-    static _mozak_tapes_public_len: usize;
-    static _mozak_tapes_private_start: usize;
-    static _mozak_tapes_private_len: usize;
-    static _mozak_tapes_call_start: usize;
-    static _mozak_tapes_call_len: usize;
-    static _mozak_tapes_events_start: usize;
-    static _mozak_tapes_events_len: usize;
+    static _mozak_tapes_start: usize;
+    static _mozak_tapes_len: usize;
+
+    // static _mozak_tapes_public_start: usize;
+    // static _mozak_tapes_public_len: usize;
+    // static _mozak_tapes_private_start: usize;
+    // static _mozak_tapes_private_len: usize;
+    // static _mozak_tapes_call_start: usize;
+    // static _mozak_tapes_call_len: usize;
+    // static _mozak_tapes_events_start: usize;
+    // static _mozak_tapes_events_len: usize;
 
 }
 
@@ -43,12 +46,12 @@ impl SystemTapes {
         }
     }
 
-    pub fn set_self_prog_id(&mut self, id: ProgramIdentifier) {
-        self.call_tape.set_self_prog_id(id);
-        self.event_tape.emit_event(Event::ReadContextVariable(
-            ContextVariable::SelfProgramIdentifier(id),
-        ));
-    }
+    // pub fn read_self_prog_id(&mut self, id: ProgramIdentifier) {
+    //     self.call_tape.set_self_prog_id(id);
+    //     self.event_tape.emit_event(Event::ReadContextVariable(
+    //         ContextVariable::SelfProgramIdentifier(id),
+    //     ));
+    // }
 }
 
 static mut SYSTEM_TAPES: Lazy<SystemTapes> = Lazy::new(|| SystemTapes::new());
@@ -79,18 +82,16 @@ impl RawTape {
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub struct CallTape {
     self_prog_id: ProgramIdentifier,
-    // start: usize,
-    // len: usize,
-    // offset: UnsafeCell<usize>,
+    #[cfg(not(target_os = "zkvm"))]
+    writer: Vec<CPCMessage>,
 }
 
 impl CallTape {
     pub fn new() -> Self {
         Self {
             self_prog_id: ProgramIdentifier::default(),
-            // start: 0,
-            // len: 0,
-            // offset: UnsafeCell::new(0),
+            #[cfg(not(target_os = "zkvm"))]
+            writer: Vec::new(),
         }
     }
 
@@ -98,7 +99,33 @@ impl CallTape {
 
     pub fn from_mailbox(&self) {}
 
-    pub fn to_mailbox(&self, message: &CPCMessage) {}
+    pub fn to_mailbox<A, R>(
+        &mut self,
+        caller_prog: ProgramIdentifier,
+        callee_prog: ProgramIdentifier,
+        callee_fnid: u8,
+        calldata: A,
+        expected_return: R,
+    ) where
+        A: Sized,
+        R: Sized + Clone, {
+        #[cfg(not(target_os = "zkvm"))]
+        {
+            let msg = CPCMessage {
+                caller_prog,
+                callee_prog,
+                callee_fnid,
+                args: Vec::<u8>::new().into(),
+                ret: Vec::<u8>::new().into(),
+            };
+
+            println!("[CALL ] Add: {:#?}", msg);
+
+            unsafe {
+                self.writer.push(msg);
+            }
+        }
+    }
 }
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
@@ -113,7 +140,7 @@ pub struct EventTape {
     // #[cfg(target_os = "zkvm")]
     // // offset: UnsafeCell<usize>,
     #[cfg(not(target_os = "zkvm"))]
-    writer: Vec<Event>, // RefCell<Vec<Event<'static>>>
+    writer: Vec<Event>,
 }
 
 impl EventTape {
@@ -126,7 +153,7 @@ impl EventTape {
             // #[cfg(target_os = "zkvm")]
             // offset: UnsafeCell::new(0),
             #[cfg(not(target_os = "zkvm"))]
-            writer: Vec::new(), // RefCell::new(Vec::new())
+            writer: Vec::new(),
         }
     }
 
@@ -135,7 +162,7 @@ impl EventTape {
         {}
         #[cfg(not(target_os = "zkvm"))]
         {
-            println!("[EVENT] Add: {:?}", event);
+            println!("[EVENT] Add: {:#?}", event);
             unsafe {
                 self.writer.push(event);
             }
@@ -167,11 +194,10 @@ pub fn dump_tapes(file_template: String) {
     write_to_file(&bin_filename, bin_bytes.as_slice());
 }
 
-
 /// ---- SDK accessible methods ---
 pub enum IOTape {
     Private,
-    Public
+    Public,
 }
 
 /// Emit an event from mozak_vm to provide receipts of
@@ -182,25 +208,45 @@ pub fn event_emit(event: Event) { unsafe { SYSTEM_TAPES.event_tape.emit_event(ev
 /// Receive one message from mailbox targetted to us and its index
 /// "consume" such message. Subsequent reads will never
 /// return the same message. Panics on call-tape non-abidance.
-pub fn mailbox_receive() -> Option<(CPCMessage, usize)> {unimplemented!()}
+pub fn mailbox_receive() -> Option<(CPCMessage, usize)> { unimplemented!() }
 
 /// Send one message from mailbox targetted to some third-party
 /// resulting in such messages finding itself in their mailbox
 /// Panics on call-tape non-abidance.
-pub fn mailbox_send(msg: CPCMessage) {unimplemented!()}
+pub fn mailbox_send<A, R>(
+    caller_prog: ProgramIdentifier,
+    callee_prog: ProgramIdentifier,
+    callee_fnid: u8,
+    calldata: A,
+    expected_return: R,
+) -> R
+where
+    A: Sized,
+    R: Sized + Clone, {
+    unsafe {
+        SYSTEM_TAPES.call_tape.to_mailbox(
+            caller_prog,
+            callee_prog,
+            callee_fnid,
+            calldata,
+            expected_return.clone(),
+        )
+    }
+    expected_return
+}
 
 /// Get raw pointer to access iotape (unsafe) without copy into
-/// buffer. Subsequent calls will provide pointers `num` away 
-/// (consumed) from pointer provided in this call for best 
+/// buffer. Subsequent calls will provide pointers `num` away
+/// (consumed) from pointer provided in this call for best
 /// effort safety. `io_read` and `io_read_into` would also affect
 /// subsequent returns.
 /// Unsafe return values, use wisely!!
-pub fn io_raw_read(from: IOTape, num: usize) -> *const u8 {unimplemented!()}
+pub fn io_raw_read(from: IOTape, num: usize) -> *const u8 { unimplemented!() }
 
 /// Get a buffer filled with num elements from choice of IOTape
 /// in process "consuming" such bytes.
-pub fn io_read(from: IOTape, num: usize) -> Vec<u8> {unimplemented!()}
+pub fn io_read(from: IOTape, num: usize) -> Vec<u8> { unimplemented!() }
 
 /// Fills a provided buffer with num elements from choice of IOTape
 /// in process "consuming" such bytes.
-pub fn io_read_into(from: IOTape, buf: &mut [u8]) {unimplemented!()}
+pub fn io_read_into(from: IOTape, buf: &mut [u8]) { unimplemented!() }

@@ -3,7 +3,6 @@ extern crate alloc;
 
 // use alloc::vec::Vec;
 use mozak_sdk::coretypes::{Address, Poseidon2HashType, ProgramIdentifier, Signature, StateObject};
-use mozak_sdk::cpc::cross_program_call;
 use rkyv::{Archive, Deserialize, Serialize};
 
 #[repr(u8)]
