@@ -59,7 +59,6 @@ pub struct MozakMemory {
     pub transcript: MozakMemoryRegion,
 }
 
-#[cfg(test)]
 impl Default for MozakMemory {
     /// Assumed to be used only from tests
     // TODO(Roman): maybe `default` should be swapped with MozakMemory::create()
@@ -115,8 +114,13 @@ impl MozakMemory {
     }
 
     fn is_mozak_ro_memory_address(&self, program_header: &ProgramHeader) -> bool {
-        let address: u32 = u32::try_from(program_header.p_vaddr)
-            .expect("p_vaddr for zk-vm expected to be cast-able to u32");
+        self.is_address_belong_to_mozak_ro_memory(
+            u32::try_from(program_header.p_vaddr)
+                .expect("p_vaddr for zk-vm expected to be cast-able to u32"),
+        )
+    }
+
+    fn is_address_belong_to_mozak_ro_memory(&self, address: u32) -> bool {
         let mem_addresses = [
             self.context_variables.memory_range(),
             self.io_tape_public.memory_range(),
@@ -213,6 +217,28 @@ impl RuntimeArguments {
             io_tape_public,
             transcript,
         }
+    }
+}
+
+impl From<&RuntimeArguments> for MozakMemory {
+    fn from(args: &RuntimeArguments) -> Self {
+        let mut mozak_ro_memory = MozakMemory::default();
+        // Context Variables address
+        mozak_ro_memory
+            .context_variables
+            .fill(args.context_variables.as_slice());
+        // IO public
+        mozak_ro_memory
+            .io_tape_public
+            .fill(args.io_tape_public.as_slice());
+        // IO private
+        mozak_ro_memory
+            .io_tape_private
+            .fill(args.io_tape_private.as_slice());
+        // Transcript
+        mozak_ro_memory.transcript.fill(args.transcript.as_slice());
+        // Return result
+        mozak_ro_memory
     }
 }
 
@@ -553,6 +579,43 @@ impl Program {
         mozak_ro_memory.transcript.fill(args.transcript.as_slice());
 
         Ok(program)
+    }
+
+    /// # Panics
+    /// When some of the provided addresses (rw,ro,code) belongs to
+    /// `mozak-ro-memory`
+    #[must_use]
+    #[allow(clippy::similar_names)]
+    pub fn create(
+        ro_mem: &[(u32, u8)],
+        rw_mem: &[(u32, u8)],
+        ro_code: &Code,
+        args: &RuntimeArguments,
+    ) -> Program {
+        let mozak_ro_memory = MozakMemory::from(args);
+        chain!(ro_mem.iter(), rw_mem.iter()).for_each(|addr_val_pair| {
+            // !mozak_ro_memory.is_address_belong_to_mozak_ro_memory(addr_val_pair.0),
+            assert!(
+                true,
+                "address: {:?} belongs to mozak-ro-memory - it is forbidden",
+                addr_val_pair.0
+            );
+        });
+        ro_code.iter().for_each(|addr_val_pair| {
+            // !mozak_ro_memory.is_address_belong_to_mozak_ro_memory(*addr_val_pair.0),
+            assert!(
+                true,
+                "address: {:?} belongs to mozak-ro-memory - it is forbidden",
+                addr_val_pair.0
+            );
+        });
+        Program {
+            ro_memory: Data(ro_mem.iter().copied().collect()),
+            rw_memory: Data(rw_mem.iter().copied().collect()),
+            ro_code: ro_code.clone(),
+            mozak_ro_memory: Some(MozakMemory::from(args)),
+            ..Default::default()
+        }
     }
 }
 

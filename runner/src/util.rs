@@ -3,7 +3,7 @@ use itertools::{chain, izip};
 use mozak_system::system::ecall;
 use plonky2::field::goldilocks_field::GoldilocksField;
 
-use crate::elf::{Code, Data, Program, RuntimeArguments};
+use crate::elf::{Code, Program, RuntimeArguments};
 use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
@@ -58,20 +58,27 @@ pub fn execute_code_with_ro_memory(
         )
         .collect(),
     );
-
-    let program = Program {
-        ro_memory: Data(ro_mem.iter().copied().collect()),
-        rw_memory: Data(rw_mem.iter().copied().collect()),
-        ro_code,
-        ..Default::default()
-    };
-
-    let state0 = State::new(program.clone(), crate::elf::RuntimeArguments {
+    let args = &RuntimeArguments {
         context_variables: vec![],
         io_tape_private,
         io_tape_public,
         transcript,
-    });
+    };
+    let program = Program::create(ro_mem, rw_mem, &ro_code, args);
+    let state0 = State::new_mozak_api(program.clone(), args.clone());
+    // let program = Program {
+    //     ro_memory: Data(ro_mem.iter().copied().collect()),
+    //     rw_memory: Data(rw_mem.iter().copied().collect()),
+    //     ro_code,
+    //     ..Default::default()
+    // };
+    //
+    // let state0 = State::new(program.clone(), crate::elf::RuntimeArguments {
+    //     context_variables: vec![],
+    //     io_tape_private,
+    //     io_tape_public,
+    //     transcript,
+    // });
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
         state.set_register_value(*rs, *val)
