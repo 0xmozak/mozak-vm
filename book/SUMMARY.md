@@ -37,4 +37,4 @@
 <!--    starky -->
 <!--    cross table lookup -->
 <!--    logup -->
-<!--    constrains of different instructions -->
+<!--    constraints of different instructions -->
