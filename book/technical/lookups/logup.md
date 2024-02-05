@@ -32,7 +32,7 @@ Both values from the looking tables and the looked table is combined like this.
 ### Quotient polynomial to check the equality of the relation
 
 In the LogUp paper, the relation above is checked with the [sumcheck protocol]. Since Mozak-VM is using LogUp in a STARK setting, the sumcheck protocol
-check is replaced with a quotient polynomial check. i.e. two polynomial are the same if a random evaluation of their quotient polynomial is the same.
+check is replaced with a quotient polynomial check. i.e. two polynomial are the same if a random evaluation of their quotient polynomials are the same.
 The quotient polynomial \\( h(x) \\) is aquired by a division of the vanishing polynomial \\( Z_H(x) \\).
 
 $$
