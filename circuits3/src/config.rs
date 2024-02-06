@@ -170,7 +170,7 @@ impl Mozak3StarkConfig for BabyBearConfig {
         let val_mmcs = Self::ValMmcs::new(hash, compress);
         let challenge_mmcs = Self::ChallengeMmcs::new(val_mmcs.clone());
         let dft = Self::Dft {};
-        let fri_config = FriConfig {
+        let fri_config = Self::FriConfig {
             log_blowup: 1,
             num_queries: 40,
             proof_of_work_bits: 8,
