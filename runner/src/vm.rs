@@ -325,7 +325,7 @@ mod tests {
         mem: &[(u32, u8)],
         regs: &[(u8, u32)],
     ) -> ExecutionRecord<GoldilocksField> {
-        crate::util::execute_code(code, mem, regs).1
+        crate::test_utils::execute_code(code, mem, regs).1
     }
 
     fn divu_with_imm(rd: u8, rs1: u8, rs1_value: u32, imm: u32) {
