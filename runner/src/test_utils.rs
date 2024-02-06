@@ -113,7 +113,7 @@ pub fn execute_code_with_ro_memory(
     // the warning - `ProgramResult.warning` isn't handled here since in tests we
     // indeed allow memory addresses to overlap
     let program = Program::create(ro_mem, rw_mem, &ro_code, &args).program;
-    let state0 = State::new_mozak_api(program.clone(), args);
+    let state0 = State::new(program.clone(), args);
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
         state.set_register_value(*rs, *val)
