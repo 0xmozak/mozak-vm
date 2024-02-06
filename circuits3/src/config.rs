@@ -37,6 +37,7 @@ pub trait Mozak3StarkConfig {
     type ChallengeMmcs;
     type Dft;
     type MyConfig;
+    type FriConfig;
 
     fn make_config() -> (Self::MyConfig, Self::Challenger);
 }
@@ -50,6 +51,7 @@ impl Mozak3StarkConfig for DefaultConfig {
     type ChallengeMmcs = ExtensionMmcs<Self::Val, Self::Challenge, Self::ValMmcs>;
     type Challenger = DuplexChallenger<Self::Val, Self::Perm, { Self::WIDTH }>;
     type Dft = Radix2Bowers;
+    type FriConfig = FriConfig<Self::ChallengeMmcs>;
     /// Function used to combine `2` (hashed) nodes of Merkle tree
     type MyCompress = TruncatedPermutation<Self::Perm, 2, { Self::CHUNK }, { Self::WIDTH }>;
     type MyConfig = StarkConfigImpl<
@@ -98,7 +100,7 @@ impl Mozak3StarkConfig for DefaultConfig {
         let val_mmcs = Self::ValMmcs::new(hash, compress);
         let challenge_mmcs = Self::ChallengeMmcs::new(val_mmcs.clone());
         let dft = Self::Dft {};
-        let fri_config = FriConfig {
+        let fri_config = Self::FriConfig {
             log_blowup: 1,
             num_queries: 40,
             proof_of_work_bits: 8,
@@ -120,6 +122,7 @@ impl Mozak3StarkConfig for BabyBearConfig {
     type ChallengeMmcs = ExtensionMmcs<Self::Val, Self::Challenge, Self::ValMmcs>;
     type Challenger = DuplexChallenger<Self::Val, Self::Perm, { Self::WIDTH }>;
     type Dft = Radix2Bowers;
+    type FriConfig = FriConfig<Self::ChallengeMmcs>;
     /// Function used to combine `2` (hashed) nodes of Merkle tree
     type MyCompress = TruncatedPermutation<Self::Perm, 2, { Self::CHUNK }, { Self::WIDTH }>;
     type MyConfig = StarkConfigImpl<
