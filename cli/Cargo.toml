@@ -31,9 +31,9 @@ env_logger = "0.10"
 itertools = "0.12"
 log = "0.4"
 plonky2 = "0.1"
+rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
 serde_json = "1.0.113"
 starky = "0.1"
-rkyv = { version = "0.7", default-features = false, features = ["size_32", "alloc"] }
 tempfile = "3"
 
 [dev-dependencies]
