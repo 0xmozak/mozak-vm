@@ -108,6 +108,15 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
     }
 }
 
+/// Deserializes an rkyv-serialized system tape binary file into `SystemTapes`.
+///
+/// # Errors
+///
+/// Errors if reading from the binary file fails.
+///
+/// # Panics
+///
+/// Panics if deserialization fails.
 pub fn deserialize_system_tape(mut bin: Input) -> Result<SystemTapes> {
     let mut sys_tapes_bytes = Vec::new();
     let bytes_read = bin.read_to_end(&mut sys_tapes_bytes)?;
@@ -119,6 +128,14 @@ pub fn deserialize_system_tape(mut bin: Input) -> Result<SystemTapes> {
     Ok(deserialized)
 }
 
+/// Deserializes an rkyv-serialized system tape binary file into
+/// [`SystemTapes`](mozak_sdk::sys::SystemTapes).
+///
+/// # Panics
+///
+/// Panics if conversion from rkyv-serialized system tape to
+/// [`RuntimeArguments`](mozak_runner::elf::RuntimeArguments)
+/// fails.
 pub fn tapes_to_runtime_arguments(tape_bin: Input) -> mozak_runner::elf::RuntimeArguments {
     let sys_tapes: SystemTapes = deserialize_system_tape(tape_bin).unwrap();
     debug!("{sys_tapes:?}");
@@ -177,7 +194,7 @@ fn load_program_with_args(
     let bytes_read = elf.read_to_end(&mut elf_bytes)?;
     debug!("Read {bytes_read} of ELF data.");
 
-    Program::mozak_load_program(&elf_bytes, &args)
+    Program::mozak_load_program(&elf_bytes, args)
 }
 
 /// Run me eg like `cargo run -- -vvv run vm/tests/testdata/rv32ui-p-addi
@@ -196,21 +213,21 @@ fn main() -> Result<()> {
         }
         Command::Run(RunArgs { elf, system_tape }) => {
             let args = system_tape.map_or_else(
-                || mozak_runner::elf::RuntimeArguments::default(),
+                mozak_runner::elf::RuntimeArguments::default,
                 tapes_to_runtime_arguments,
             );
             let program = load_program_with_args(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::new(program.clone(), args.into());
+            let state = State::<GoldilocksField>::new(program.clone(), args);
             let state = step(&program, state)?.last_state;
             debug!("{:?}", state.registers);
         }
         Command::ProveAndVerify(RunArgs { elf, system_tape }) => {
             let args = system_tape.map_or_else(
-                || mozak_runner::elf::RuntimeArguments::default(),
+                mozak_runner::elf::RuntimeArguments::default,
                 tapes_to_runtime_arguments,
             );
             let program = load_program_with_args(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::new(program.clone(), args.into());
+            let state = State::<GoldilocksField>::new(program.clone(), args);
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
         }
@@ -221,11 +238,11 @@ fn main() -> Result<()> {
             recursive_proof,
         }) => {
             let args = system_tape.map_or_else(
-                || mozak_runner::elf::RuntimeArguments::default(),
+                mozak_runner::elf::RuntimeArguments::default,
                 tapes_to_runtime_arguments,
             );
             let program = load_program_with_args(elf, &args).unwrap();
-            let state = State::<GoldilocksField>::new(program.clone(), args.into());
+            let state = State::<GoldilocksField>::new(program.clone(), args);
             let record = step(&program, state)?;
             let stark = if cli.debug {
                 MozakStark::default_debug()
