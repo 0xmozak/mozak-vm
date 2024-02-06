@@ -28,47 +28,52 @@ where
 {
     #[must_use]
     pub fn new(circuit_config: &CircuitConfig) -> Self {
-        let builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-        let (circuit, (summarized, (old, (new, ())))) =
-            summarized::LeafSubCircuit::new(builder, |summarized_targets, builder| {
-                unpruned::LeafSubCircuit::new(builder, |old_targets, builder| {
-                    unpruned::LeafSubCircuit::new(builder, |new_targets, mut builder| {
-                        let old_hash = old_targets.unpruned_hash.elements;
-                        let new_hash = new_targets.unpruned_hash.elements;
+        let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-                        // Summarize both old and new by hashing them together
-                        let old_new_parent = builder.hash_n_to_hash_no_pad::<Poseidon2Hash>(
-                            old_hash.into_iter().chain(new_hash).collect(),
-                        );
+        let summarized_inputs = summarized::LeafInputs::default(&mut builder);
+        let old_inputs = unpruned::LeafInputs::default(&mut builder);
+        let new_inputs = unpruned::LeafInputs::default(&mut builder);
 
-                        // zero it out based on if this node is being summarized
-                        let old_new_parent = old_new_parent.elements.map(|e| {
-                            builder.mul(e, summarized_targets.summary_hash_present.target)
-                        });
+        let summarized_targets = summarized_inputs.build(&mut builder);
+        let old_targets = old_inputs.build(&mut builder);
+        let new_targets = new_inputs.build(&mut builder);
 
-                        // This should be the summary hash
-                        builder.connect_hashes(
-                            HashOutTarget::from(old_new_parent),
-                            summarized_targets.summary_hash,
-                        );
+        let old_hash = old_targets.unpruned_hash.elements;
+        let new_hash = new_targets.unpruned_hash.elements;
 
-                        // Ensure the presence is based on if there's any change
-                        let unchanged = old_hash
-                            .into_iter_fixed()
-                            .zip(new_hash)
-                            .map(|(old, new)| builder.is_equal(old, new))
-                            .collect();
-                        let unchanged = and_helper(&mut builder, unchanged);
-                        let changed = builder.not(unchanged);
-                        builder.connect(
-                            changed.target,
-                            summarized_targets.summary_hash_present.target,
-                        );
+        // Summarize both old and new by hashing them together
+        let old_new_parent = builder
+            .hash_n_to_hash_no_pad::<Poseidon2Hash>(old_hash.into_iter().chain(new_hash).collect());
 
-                        (builder.build(), ())
-                    })
-                })
-            });
+        // zero it out based on if this node is being summarized
+        let old_new_parent = old_new_parent
+            .elements
+            .map(|e| builder.mul(e, summarized_targets.summary_hash_present.target));
+
+        // This should be the summary hash
+        builder.connect_hashes(
+            HashOutTarget::from(old_new_parent),
+            summarized_targets.summary_hash,
+        );
+
+        // Ensure the presence is based on if there's any change
+        let unchanged = old_hash
+            .into_iter_fixed()
+            .zip(new_hash)
+            .map(|(old, new)| builder.is_equal(old, new))
+            .collect();
+        let unchanged = and_helper(&mut builder, unchanged);
+        let changed = builder.not(unchanged);
+        builder.connect(
+            changed.target,
+            summarized_targets.summary_hash_present.target,
+        );
+
+        let circuit = builder.build();
+
+        let summarized = summarized_targets.build(&circuit.prover_only.public_inputs);
+        let old = old_targets.build(&circuit.prover_only.public_inputs);
+        let new = new_targets.build(&circuit.prover_only.public_inputs);
 
         Self {
             summarized,
@@ -121,42 +126,32 @@ where
         let verifier = builder.constant_verifier_data(&leaf.circuit.verifier_only);
         let left_proof = builder.add_virtual_proof_with_pis(common);
         let right_proof = builder.add_virtual_proof_with_pis(common);
+        let summarized_inputs = summarized::BranchInputs::default(&mut builder);
+        let old_inputs = unpruned::BranchInputs::default(&mut builder);
+        let new_inputs = unpruned::BranchInputs::default(&mut builder);
+
         builder.verify_proof::<C>(&left_proof, &verifier, common);
         builder.verify_proof::<C>(&right_proof, &verifier, common);
+        let summarized_targets =
+            summarized_inputs.from_leaf(&mut builder, &leaf.summarized, &left_proof, &right_proof);
+        let old_targets = old_inputs.from_leaf(&mut builder, &leaf.old, &left_proof, &right_proof);
+        let new_targets = new_inputs.from_leaf(&mut builder, &leaf.new, &left_proof, &right_proof);
+        let targets = BranchTargets {
+            left_proof,
+            right_proof,
+        };
 
-        let (circuit, (summarized, (old, (new, ())))) = summarized::BranchSubCircuit::from_leaf(
-            builder,
-            &leaf.summarized,
-            &left_proof,
-            &right_proof,
-            |_summarized_targets, builder| {
-                unpruned::BranchSubCircuit::from_leaf(
-                    builder,
-                    &leaf.old,
-                    &left_proof,
-                    &right_proof,
-                    |_old_targets, builder| {
-                        unpruned::BranchSubCircuit::from_leaf(
-                            builder,
-                            &leaf.new,
-                            &left_proof,
-                            &right_proof,
-                            |_new_targets, builder| (builder.build(), ()),
-                        )
-                    },
-                )
-            },
-        );
+        let circuit = builder.build();
+        let summarized = summarized_targets.from_leaf(&circuit.prover_only.public_inputs);
+        let old = old_targets.from_leaf(&circuit.prover_only.public_inputs);
+        let new = new_targets.from_leaf(&circuit.prover_only.public_inputs);
 
         Self {
             summarized,
             old,
             new,
             circuit,
-            targets: BranchTargets {
-                left_proof,
-                right_proof,
-            },
+            targets,
         }
     }
 
@@ -167,42 +162,39 @@ where
         let verifier = builder.constant_verifier_data(&branch.circuit.verifier_only);
         let left_proof = builder.add_virtual_proof_with_pis(common);
         let right_proof = builder.add_virtual_proof_with_pis(common);
+        let summarized_inputs = summarized::BranchInputs::default(&mut builder);
+        let old_inputs = unpruned::BranchInputs::default(&mut builder);
+        let new_inputs = unpruned::BranchInputs::default(&mut builder);
+
         builder.verify_proof::<C>(&left_proof, &verifier, common);
         builder.verify_proof::<C>(&right_proof, &verifier, common);
-
-        let (circuit, (summarized, (old, (new, ())))) = summarized::BranchSubCircuit::from_branch(
-            builder,
+        let summarized_targets = summarized_inputs.from_branch(
+            &mut builder,
             &branch.summarized,
             &left_proof,
             &right_proof,
-            |_summarized_targets, builder| {
-                unpruned::BranchSubCircuit::from_branch(
-                    builder,
-                    &branch.old,
-                    &left_proof,
-                    &right_proof,
-                    |_old_targets, builder| {
-                        unpruned::BranchSubCircuit::from_branch(
-                            builder,
-                            &branch.new,
-                            &left_proof,
-                            &right_proof,
-                            |_new_targets, builder| (builder.build(), ()),
-                        )
-                    },
-                )
-            },
         );
+        let old_targets =
+            old_inputs.from_branch(&mut builder, &branch.old, &left_proof, &right_proof);
+        let new_targets =
+            new_inputs.from_branch(&mut builder, &branch.new, &left_proof, &right_proof);
+        let targets = BranchTargets {
+            left_proof,
+            right_proof,
+        };
+
+        let circuit = builder.build();
+        let summarized =
+            summarized_targets.from_branch(&branch.summarized, &circuit.prover_only.public_inputs);
+        let old = old_targets.from_branch(&branch.old, &circuit.prover_only.public_inputs);
+        let new = new_targets.from_branch(&branch.new, &circuit.prover_only.public_inputs);
 
         Self {
             summarized,
             old,
             new,
             circuit,
-            targets: BranchTargets {
-                left_proof,
-                right_proof,
-            },
+            targets,
         }
     }
 

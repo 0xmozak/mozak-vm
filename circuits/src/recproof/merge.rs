@@ -5,11 +5,9 @@
 
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
-use plonky2::iop::target::BoolTarget;
+use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::CircuitData;
-use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
 use super::{hash_or_forward_zero, hashes_equal};
@@ -64,6 +62,17 @@ impl PublicIndices {
     }
 }
 
+pub struct LeafInputs {
+    /// The a hash
+    pub a_hash: HashOutTarget,
+
+    /// The b hash
+    pub b_hash: HashOutTarget,
+
+    /// The merged hash
+    pub merged_hash: HashOutTarget,
+}
+
 pub struct LeafTargets {
     /// The a hash
     pub a_hash: HashOutTarget,
@@ -75,6 +84,45 @@ pub struct LeafTargets {
     pub merged_hash: HashOutTarget,
 }
 
+impl LeafInputs {
+    pub fn default<F, const D: usize>(builder: &mut CircuitBuilder<F, D>) -> Self
+    where
+        F: RichField + Extendable<D>, {
+        let a_hash = builder.add_virtual_hash();
+        let b_hash = builder.add_virtual_hash();
+        let merged_hash = builder.add_virtual_hash();
+        builder.register_public_inputs(&a_hash.elements);
+        builder.register_public_inputs(&b_hash.elements);
+        builder.register_public_inputs(&merged_hash.elements);
+
+        Self {
+            a_hash,
+            b_hash,
+            merged_hash,
+        }
+    }
+
+    #[must_use]
+    pub fn build<F, const D: usize>(self, builder: &mut CircuitBuilder<F, D>) -> LeafTargets
+    where
+        F: RichField + Extendable<D>, {
+        let LeafInputs {
+            a_hash,
+            b_hash,
+            merged_hash,
+        } = self;
+
+        let merged_hash_calc = hash_or_forward_zero(builder, a_hash.elements, b_hash.elements);
+        builder.connect_hashes(merged_hash, merged_hash_calc);
+
+        LeafTargets {
+            a_hash,
+            b_hash,
+            merged_hash,
+        }
+    }
+}
+
 /// The leaf subcircuit metadata. This subcircuit merges up to two leaf hashes
 /// creating a parent node if two leafs are present, otherwise just forwarding
 /// any existing hash
@@ -83,61 +131,37 @@ pub struct LeafSubCircuit {
     pub indices: PublicIndices,
 }
 
-impl LeafSubCircuit {
+impl LeafTargets {
     #[must_use]
-    pub fn new<F, C, const D: usize, B, R>(
-        mut builder: CircuitBuilder<F, D>,
-        build: B,
-    ) -> (CircuitData<F, C, D>, (Self, R))
-    where
-        B: FnOnce(&LeafTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F>, {
-        let a_hash = builder.add_virtual_hash();
-        let b_hash = builder.add_virtual_hash();
-
-        let a_elem = a_hash.elements;
-        let b_elem = b_hash.elements;
-        let merged_hash = hash_or_forward_zero(&mut builder, a_elem, b_elem);
-
-        // Register public inputs
-        builder.register_public_inputs(&a_elem);
-        builder.register_public_inputs(&b_elem);
-        builder.register_public_inputs(&merged_hash.elements);
-
-        let targets = LeafTargets {
-            a_hash,
-            b_hash,
-            merged_hash,
-        };
-        let (circuit, r) = build(&targets, builder);
-        let public_inputs = &circuit.prover_only.public_inputs;
-
+    pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         let indices = PublicIndices {
-            a_hash: targets.a_hash.elements.map(|target| {
+            a_hash: self.a_hash.elements.map(|target| {
                 public_inputs
                     .iter()
                     .position(|&pi| pi == target)
                     .expect("target not found")
             }),
-            b_hash: targets.b_hash.elements.map(|target| {
+            b_hash: self.b_hash.elements.map(|target| {
                 public_inputs
                     .iter()
                     .position(|&pi| pi == target)
                     .expect("target not found")
             }),
-            merged_hash: targets.merged_hash.elements.map(|target| {
+            merged_hash: self.merged_hash.elements.map(|target| {
                 public_inputs
                     .iter()
                     .position(|&pi| pi == target)
                     .expect("target not found")
             }),
         };
-        let v = Self { targets, indices };
-
-        (circuit, (v, r))
+        LeafSubCircuit {
+            targets: self,
+            indices,
+        }
     }
+}
 
+impl LeafSubCircuit {
     pub fn set_inputs<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
@@ -151,6 +175,17 @@ impl LeafSubCircuit {
             inputs.set_hash_target(self.targets.merged_hash, merged_hash);
         }
     }
+}
+
+pub struct BranchInputs {
+    /// The a hash
+    pub a_hash: HashOutTarget,
+
+    /// The b hash
+    pub b_hash: HashOutTarget,
+
+    /// The merged hash
+    pub merged_hash: HashOutTarget,
 }
 
 pub struct BranchTargets {
@@ -170,6 +205,73 @@ pub struct BranchTargets {
     pub right_is_leaf: BoolTarget,
 }
 
+impl BranchInputs {
+    pub fn default<F, const D: usize>(builder: &mut CircuitBuilder<F, D>) -> Self
+    where
+        F: RichField + Extendable<D>, {
+        let a_hash = builder.add_virtual_hash();
+        let b_hash = builder.add_virtual_hash();
+        let merged_hash = builder.add_virtual_hash();
+        builder.register_public_inputs(&a_hash.elements);
+        builder.register_public_inputs(&b_hash.elements);
+        builder.register_public_inputs(&merged_hash.elements);
+
+        Self {
+            a_hash,
+            b_hash,
+            merged_hash,
+        }
+    }
+
+    #[must_use]
+    pub fn build<F, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<F, D>,
+        leaf: &LeafSubCircuit,
+        left_proof: &ProofWithPublicInputsTarget<D>,
+        right_proof: &ProofWithPublicInputsTarget<D>,
+    ) -> BranchTargets
+    where
+        F: RichField + Extendable<D>, {
+        let Self {
+            a_hash,
+            b_hash,
+            merged_hash,
+        } = self;
+        let left_a = leaf.indices.get_a_hash(&left_proof.public_inputs);
+        let left_b = leaf.indices.get_b_hash(&left_proof.public_inputs);
+        let left_merged = leaf.indices.get_merged_hash(&left_proof.public_inputs);
+        let left_is_leaf = {
+            let left_ab_hash = hash_or_forward_zero(builder, left_a, left_b);
+            hashes_equal(builder, left_merged.into(), left_ab_hash)
+        };
+
+        let right_a = leaf.indices.get_a_hash(&right_proof.public_inputs);
+        let right_b = leaf.indices.get_b_hash(&right_proof.public_inputs);
+        let right_merged = leaf.indices.get_merged_hash(&right_proof.public_inputs);
+        let right_is_leaf = {
+            let right_ab_hash = hash_or_forward_zero(builder, right_a, right_b);
+            hashes_equal(builder, right_merged.into(), right_ab_hash)
+        };
+
+        let a_hash_calc = hash_or_forward_zero(builder, left_a, right_a);
+        let b_hash_calc = hash_or_forward_zero(builder, left_b, right_b);
+        let merged_hash_calc = hash_or_forward_zero(builder, left_merged, right_merged);
+
+        builder.connect_hashes(a_hash_calc, a_hash);
+        builder.connect_hashes(b_hash_calc, b_hash);
+        builder.connect_hashes(merged_hash_calc, merged_hash);
+
+        BranchTargets {
+            a_hash,
+            b_hash,
+            merged_hash,
+            left_is_leaf,
+            right_is_leaf,
+        }
+    }
+}
+
 /// The branch subcircuit metadata. This subcircuit merges up to two leaf hashes
 /// creating a parent node if two leafs are present, otherwise just forwarding
 /// any existing hash
@@ -178,81 +280,39 @@ pub struct BranchSubCircuit {
     pub indices: PublicIndices,
 }
 
-impl BranchSubCircuit {
+impl BranchTargets {
     #[must_use]
-    pub fn new<F, C, const D: usize, B, R>(
-        mut builder: CircuitBuilder<F, D>,
-        leaf: &LeafSubCircuit,
-        left_proof: &ProofWithPublicInputsTarget<D>,
-        right_proof: &ProofWithPublicInputsTarget<D>,
-        build: B,
-    ) -> (CircuitData<F, C, D>, (Self, R))
-    where
-        B: FnOnce(&BranchTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F>, {
-        let left_a = leaf.indices.get_a_hash(&left_proof.public_inputs);
-        let left_b = leaf.indices.get_b_hash(&left_proof.public_inputs);
-        let left_merged = leaf.indices.get_merged_hash(&left_proof.public_inputs);
-        let left_is_leaf = {
-            let left_ab_hash = hash_or_forward_zero(&mut builder, left_a, left_b);
-            hashes_equal(&mut builder, left_merged.into(), left_ab_hash)
-        };
-
-        let right_a = leaf.indices.get_a_hash(&right_proof.public_inputs);
-        let right_b = leaf.indices.get_b_hash(&right_proof.public_inputs);
-        let right_merged = leaf.indices.get_merged_hash(&right_proof.public_inputs);
-        let right_is_leaf = {
-            let right_ab_hash = hash_or_forward_zero(&mut builder, right_a, right_b);
-            hashes_equal(&mut builder, right_merged.into(), right_ab_hash)
-        };
-
-        let a_hash = hash_or_forward_zero(&mut builder, left_a, right_a);
-        let b_hash = hash_or_forward_zero(&mut builder, left_b, right_b);
-        let merged_hash = hash_or_forward_zero(&mut builder, left_merged, right_merged);
-
-        // Register public inputs
-        builder.register_public_inputs(&a_hash.elements);
-        builder.register_public_inputs(&b_hash.elements);
-        builder.register_public_inputs(&merged_hash.elements);
-
-        let targets = BranchTargets {
-            a_hash,
-            b_hash,
-            merged_hash,
-            left_is_leaf,
-            right_is_leaf,
-        };
-
-        let (circuit, r) = build(&targets, builder);
-        let public_inputs = &circuit.prover_only.public_inputs;
-
+    pub fn build(self, leaf: &LeafSubCircuit, public_inputs: &[Target]) -> BranchSubCircuit {
         let indices = PublicIndices {
-            a_hash: targets.a_hash.elements.map(|target| {
+            a_hash: self.a_hash.elements.map(|target| {
                 public_inputs
                     .iter()
                     .position(|&pi| pi == target)
                     .expect("target not found")
             }),
-            b_hash: targets.b_hash.elements.map(|target| {
+            b_hash: self.b_hash.elements.map(|target| {
                 public_inputs
                     .iter()
                     .position(|&pi| pi == target)
                     .expect("target not found")
             }),
-            merged_hash: targets.merged_hash.elements.map(|target| {
+            merged_hash: self.merged_hash.elements.map(|target| {
                 public_inputs
                     .iter()
                     .position(|&pi| pi == target)
                     .expect("target not found")
             }),
         };
-        assert_eq!(indices, leaf.indices);
-        let v = Self { targets, indices };
+        debug_assert_eq!(indices, leaf.indices);
 
-        (circuit, (v, r))
+        BranchSubCircuit {
+            targets: self,
+            indices,
+        }
     }
+}
 
+impl BranchSubCircuit {
     pub fn set_inputs<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
@@ -273,7 +333,7 @@ mod test {
     use anyhow::Result;
     use plonky2::field::types::Field;
     use plonky2::hash::hash_types::{HashOut, NUM_HASH_OUT_ELTS};
-    use plonky2::plonk::circuit_data::CircuitConfig;
+    use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
     use super::*;
@@ -289,11 +349,13 @@ mod test {
     impl DummyLeafCircuit {
         #[must_use]
         pub fn new(circuit_config: &CircuitConfig) -> Self {
-            let builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-            let (circuit, (merge, (unbounded, ()))) =
-                LeafSubCircuit::new(builder, |_targets, builder| {
-                    unbounded::LeafSubCircuit::new(builder)
-                });
+            let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
+
+            let merge_inputs = LeafInputs::default(&mut builder);
+            let merge_targets = merge_inputs.build(&mut builder);
+
+            let (circuit, unbounded) = unbounded::LeafSubCircuit::new(builder);
+            let merge = merge_targets.build(&circuit.prover_only.public_inputs);
 
             Self {
                 merge,
@@ -336,27 +398,25 @@ mod test {
             let common = &leaf.circuit.common;
             let left_proof = builder.add_virtual_proof_with_pis(common);
             let right_proof = builder.add_virtual_proof_with_pis(common);
-            let (circuit, (merge, (unbounded, ()))) = BranchSubCircuit::new(
+
+            let merge_inputs = BranchInputs::default(&mut builder);
+
+            let merge_targets =
+                merge_inputs.build(&mut builder, &leaf.merge, &left_proof, &right_proof);
+            let (circuit, unbounded) = unbounded::BranchSubCircuit::new(
                 builder,
-                &leaf.merge,
+                &leaf.circuit,
+                merge_targets.left_is_leaf,
+                merge_targets.right_is_leaf,
                 &left_proof,
                 &right_proof,
-                |targets, builder| {
-                    unbounded::BranchSubCircuit::new(
-                        builder,
-                        &leaf.circuit,
-                        targets.left_is_leaf,
-                        targets.right_is_leaf,
-                        &left_proof,
-                        &right_proof,
-                    )
-                },
             );
 
             let targets = DummyBranchTargets {
                 left_proof,
                 right_proof,
             };
+            let merge = merge_targets.build(&leaf.merge, &circuit.prover_only.public_inputs);
             Self {
                 merge,
                 unbounded,
