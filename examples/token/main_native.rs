@@ -2,10 +2,10 @@
 mod core_logic;
 
 use mozak_sdk::coretypes::{ProgramIdentifier, StateObject};
+use mozak_sdk::sys::call_send;
 #[cfg(not(target_os = "zkvm"))]
 use mozak_sdk::sys::dump_tapes;
-use mozak_sdk::sys::{call_send, event_emit};
-use token::{dispatch, transfer, MethodArgs, MethodReturns};
+use token::{dispatch, MethodArgs, MethodReturns};
 
 fn main() {
     println!("------>   Running token-native");
@@ -52,14 +52,6 @@ fn main() {
                                     // private tape
         },
     );
-
-    // transfer(
-    //     token_program,
-    //     token_object,
-    //     remitter_signature,
-    //     remitter_wallet,
-    //     remittee_wallet,
-    // );
 
     dump_tapes("wallet_tfr".to_string());
 

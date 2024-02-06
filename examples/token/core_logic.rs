@@ -1,4 +1,3 @@
-#![feature(restricted_std)]
 extern crate alloc;
 
 // use alloc::vec::Vec;
@@ -37,6 +36,7 @@ impl Default for MethodReturns {
     fn default() -> Self { Self::Transfer }
 }
 
+#[allow(dead_code)]
 pub fn dispatch(args: MethodArgs) -> MethodReturns {
     println!("[TKN: DISPATCH] dispatch called \n{:#?}", args);
     match args {
@@ -47,6 +47,7 @@ pub fn dispatch(args: MethodArgs) -> MethodReturns {
     }
 }
 
+#[allow(dead_code)]
 pub fn transfer(
     self_prog_id: ProgramIdentifier, // ContextVariables Table
     token_object: StateObject,       //

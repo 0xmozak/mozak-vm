@@ -1,12 +1,6 @@
-#[cfg(not(target_os = "zkvm"))]
-use std::cell::RefCell;
-
-/// Unsafe code stays here and never leaves this file!!
-// use std::cell::UnsafeCell;
 use once_cell::unsync::Lazy;
-use rkyv::de::deserializers::SharedDeserializeMap;
 use rkyv::ser::serializers::{AllocScratch, CompositeSerializer, HeapScratch};
-use rkyv::{with, with::Skip, AlignedVec, Archive, Deserialize, Serialize};
+use rkyv::{Archive, Deserialize, Serialize};
 
 use crate::coretypes::{CPCMessage, Event, ProgramIdentifier};
 
@@ -95,7 +89,7 @@ pub struct CallTape {
     #[cfg(target_os = "zkvm")]
     self_prog_id: ProgramIdentifier,
     #[cfg(not(target_os = "zkvm"))]
-    writer: Vec<CPCMessage>
+    writer: Vec<CPCMessage>,
 }
 
 impl CallTape {
@@ -119,38 +113,38 @@ impl CallTape {
         callee_prog: ProgramIdentifier,
         call_args: A,
         dispatch_native: impl Fn(A) -> R,
-        dispatch_zkvm: impl Fn() -> R,
+        _dispatch_zkvm: impl Fn() -> R,
     ) -> R
     where
         A: CallArgument,
-        R: CallReturn
-    {
+        R: CallReturn, {
         #[cfg(not(target_os = "zkvm"))]
         {
             let msg = CPCMessage {
                 caller_prog,
                 callee_prog,
-                args: unsafe { rkyv::to_bytes::<_, 256>(&call_args).unwrap() }.into(),
+                args: rkyv::to_bytes::<_, 256>(&call_args).unwrap().into(),
                 ..CPCMessage::default()
             };
 
-            let mut inserted_idx = 0;
-            unsafe {
-                self.writer.push(msg);
-                inserted_idx = self.writer.len() - 1;
-            }
+            self.writer.push(msg);
+            let inserted_idx = self.writer.len() - 1;
 
             let retval = dispatch_native(call_args);
 
-            unsafe {
-                self.writer[inserted_idx].ret = rkyv::to_bytes::<_, 256>(&retval).unwrap().into();
-            }
+            self.writer[inserted_idx].ret = rkyv::to_bytes::<_, 256>(&retval).unwrap().into();
 
-            println!("[CALL ] ResolvedAdd: {:#?}", unsafe {self.writer[inserted_idx].clone()});
+            println!(
+                "[CALL ] ResolvedAdd: {:#?}",
+                self.writer[inserted_idx].clone()
+            );
 
-            return retval;
+            retval
         }
-        R::default()
+        #[cfg(target_os = "zkvm")]
+        {
+            R::default()
+        }
     }
 }
 
@@ -199,18 +193,16 @@ impl EventTape {
         {
             println!("[EVENT] Add: {:#?}", event);
             // TODO: Sad code, fix later
-            unsafe {
-                for single_tape in self.writer.iter_mut() {
-                    if single_tape.id == id {
-                        single_tape.contents.push(event);
-                        return;
-                    }
+            for single_tape in self.writer.iter_mut() {
+                if single_tape.id == id {
+                    single_tape.contents.push(event);
+                    return;
                 }
-                self.writer.push(EventTapeSingle{
-                    id,
-                    contents: vec![event],
-                });
             }
+            self.writer.push(EventTapeSingle {
+                id,
+                contents: vec![event],
+            });
             // unsafe {
             //     self.writer.push(event);
             // }
@@ -232,7 +224,7 @@ pub fn dump_tapes(file_template: String) {
     let tape_clone = unsafe { SYSTEM_TAPES.clone() }; // .clone() removes `Lazy{}`
 
     let dbg_filename = file_template.clone() + ".tape_debug";
-    let dbg_bytes = unsafe { &format!("{:#?}", tape_clone).into_bytes() };
+    let dbg_bytes = &format!("{:#?}", tape_clone).into_bytes();
     println!("[TPDMP] Debug  dump: {:?}", dbg_filename);
     write_to_file(&dbg_filename, dbg_bytes);
 
@@ -251,7 +243,9 @@ pub enum IOTape {
 /// Emit an event from mozak_vm to provide receipts of
 /// `reads` and state updates including `create` and `delete`.
 /// Panics on event-tape non-abidance.
-pub fn event_emit(id: ProgramIdentifier, event: Event) { unsafe { SYSTEM_TAPES.event_tape.emit_event(id, event) } }
+pub fn event_emit(id: ProgramIdentifier, event: Event) {
+    unsafe { SYSTEM_TAPES.event_tape.emit_event(id, event) }
+}
 
 /// Receive one message from mailbox targetted to us and its index
 /// "consume" such message. Subsequent reads will never
@@ -277,7 +271,7 @@ where
             callee_prog,
             call_args,
             dispatch_native,
-            dispatch_zkvm
+            dispatch_zkvm,
         )
     }
 }
@@ -288,12 +282,12 @@ where
 /// effort safety. `io_read` and `io_read_into` would also affect
 /// subsequent returns.
 /// Unsafe return values, use wisely!!
-pub fn io_raw_read(from: IOTape, num: usize) -> *const u8 { unimplemented!() }
+pub fn io_raw_read(_from: IOTape, _num: usize) -> *const u8 { unimplemented!() }
 
 /// Get a buffer filled with num elements from choice of IOTape
 /// in process "consuming" such bytes.
-pub fn io_read(from: IOTape, num: usize) -> Vec<u8> { unimplemented!() }
+pub fn io_read(_from: IOTape, _num: usize) -> Vec<u8> { unimplemented!() }
 
 /// Fills a provided buffer with num elements from choice of IOTape
 /// in process "consuming" such bytes.
-pub fn io_read_into(from: IOTape, buf: &mut [u8]) { unimplemented!() }
+pub fn io_read_into(_from: IOTape, _buf: &mut [u8]) { unimplemented!() }
