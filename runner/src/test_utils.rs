@@ -8,7 +8,7 @@ use proptest::prop_oneof;
 #[cfg(any(feature = "test", test))]
 use proptest::strategy::{Just, Strategy};
 
-use crate::elf::{Code, Data, Program, RuntimeArguments};
+use crate::elf::{Code, Program, RuntimeArguments};
 use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
 use crate::vm::{step, ExecutionRecord};

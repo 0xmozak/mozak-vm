@@ -18,7 +18,7 @@ use itertools::{chain, iproduct, izip, Itertools};
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
-use crate::instruction::{DecodingError, Instruction, Op};
+use crate::instruction::{DecodingError, Instruction};
 use crate::util::load_u32;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -368,7 +368,6 @@ impl From<HashMap<u32, u32>> for Data {
 type CheckProgramFlags =
     fn(flags: u32, program_headers: &ProgramHeader, mozak_memory: &Option<MozakMemory>) -> bool;
 
-#[must_use]
 #[cfg(any(feature = "test", test))]
 pub struct ProgramResult {
     // Program can be malformed, specifically when constructed with overlapping memory addresses,
