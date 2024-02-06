@@ -554,6 +554,26 @@ impl Program {
 
         Ok(program)
     }
+
+    // pub fn mozak_load_program_with_tape(elf_bytes: &[u8], tape: SystemTape) ->
+    // Result<Program> {     let mut program =
+    //         Program::mozak_load_elf(elf_bytes,
+    // Program::parse_and_validate_elf(elf_bytes)?);     let mozak_ro_memory =
+    // program         .mozak_ro_memory
+    //         .as_mut()
+    //         .expect("MozakMemory should exist for mozak-elf case");
+    //     // IO public
+    //     mozak_ro_memory
+    //         .io_tape_public
+    //         .fill(args.io_tape_public.as_slice());
+    //     // IO private
+    //     mozak_ro_memory
+    //         .io_tape_private
+    //         .fill(args.io_tape_private.as_slice());
+    //     mozak_ro_memory.transcript.fill(args.transcript.as_slice());
+
+    //     Ok(program)
+    // }
 }
 
 #[cfg(test)]
