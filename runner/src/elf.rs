@@ -115,14 +115,16 @@ impl MozakMemory {
         }
     }
 
+    // TODO(Roman): refactor this function, caller can parse p_vaddr, so pure u32
+    // address will be enough
     fn is_mozak_ro_memory_address(&self, program_header: &ProgramHeader) -> bool {
-        self.is_address_belong_to_mozak_ro_memory(
+        self.is_address_belongs_to_mozak_ro_memory(
             u32::try_from(program_header.p_vaddr)
                 .expect("p_vaddr for zk-vm expected to be cast-able to u32"),
         )
     }
 
-    fn is_address_belong_to_mozak_ro_memory(&self, address: u32) -> bool {
+    fn is_address_belongs_to_mozak_ro_memory(&self, address: u32) -> bool {
         let mem_addresses = [
             self.context_variables.memory_range(),
             self.io_tape_public.memory_range(),
@@ -595,10 +597,10 @@ impl Program {
     }
 
     /// # Panics
+    /// `fmt::write` should succeed, otherwise it will panic
+    /// # Errors
     /// When some of the provided addresses (rw,ro,code) belongs to
     /// `mozak-ro-memory`
-    /// # Errors
-    /// When ....
     #[must_use]
     #[cfg(any(feature = "test", test))]
     #[allow(clippy::similar_names)]
@@ -611,7 +613,7 @@ impl Program {
         let mozak_ro_memory = MozakMemory::from(args);
         let mut error = String::new();
         chain!(ro_mem.iter(), rw_mem.iter()).for_each(|addr_val_pair| {
-            if !mozak_ro_memory.is_address_belong_to_mozak_ro_memory(addr_val_pair.0) {
+            if !mozak_ro_memory.is_address_belongs_to_mozak_ro_memory(addr_val_pair.0) {
                 fmt::write(
                     &mut error,
                     format_args!(
@@ -623,7 +625,7 @@ impl Program {
             }
         });
         ro_code.iter().for_each(|addr_val_pair| {
-            if !mozak_ro_memory.is_address_belong_to_mozak_ro_memory(*addr_val_pair.0) {
+            if !mozak_ro_memory.is_address_belongs_to_mozak_ro_memory(*addr_val_pair.0) {
                 fmt::write(
                     &mut error,
                     format_args!(
@@ -634,15 +636,14 @@ impl Program {
                 .expect("write to string should succeed");
             }
         });
-        let program = Program {
-            ro_memory: Data(ro_mem.iter().copied().collect()),
-            rw_memory: Data(rw_mem.iter().copied().collect()),
-            ro_code: ro_code.clone(),
-            mozak_ro_memory: Some(mozak_ro_memory),
-            ..Default::default()
-        };
         ProgramResult {
-            program,
+            program: Program {
+                ro_memory: Data(ro_mem.iter().copied().collect()),
+                rw_memory: Data(rw_mem.iter().copied().collect()),
+                ro_code: ro_code.clone(),
+                mozak_ro_memory: Some(mozak_ro_memory),
+                ..Default::default()
+            },
             warning: if error.is_empty() { None } else { Some(error) },
         }
     }
