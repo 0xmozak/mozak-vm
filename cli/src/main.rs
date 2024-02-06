@@ -143,7 +143,17 @@ pub fn tapes_to_runtime_arguments(tape_bin: Input) -> mozak_runner::elf::Runtime
     let public_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.public_tape).unwrap();
     let private_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.private_tape).unwrap();
     let call_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.call_tape).unwrap();
-    let _ = rkyv::to_bytes::<_, 256>(&sys_tapes.event_tape).unwrap();
+    let event_tape_bytes = rkyv::to_bytes::<_, 256>(&sys_tapes.event_tape).unwrap();
+    debug!(
+        "Read {} of public tape data.
+Read {} of private tape data.
+Read {} of call tape data.
+Read {} of event tape data.",
+        public_tape_bytes.len(),
+        private_tape_bytes.len(),
+        call_tape_bytes.len(),
+        event_tape_bytes.len(),
+    );
 
     mozak_runner::elf::RuntimeArguments {
         // TODO(bing): use context variables
