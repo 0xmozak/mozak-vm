@@ -104,19 +104,16 @@ pub fn execute_code_with_ro_memory(
         .collect(),
     );
 
-    let program = Program {
-        ro_memory: Data(ro_mem.iter().copied().collect()),
-        rw_memory: Data(rw_mem.iter().copied().collect()),
-        ro_code,
-        ..Default::default()
-    };
-
-    let state0 = State::new(program.clone(), crate::elf::RuntimeArguments {
+    let args = RuntimeArguments {
         context_variables: vec![],
         io_tape_private,
         io_tape_public,
         transcript,
-    });
+    };
+    // the warning - `ProgramResult.warning` isn't handled here since in tests we
+    // indeed allow memory addresses to overlap
+    let program = Program::create(ro_mem, rw_mem, &ro_code, &args).program;
+    let state0 = State::new_mozak_api(program.clone(), args);
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
         state.set_register_value(*rs, *val)

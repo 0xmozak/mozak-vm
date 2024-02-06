@@ -1,6 +1,7 @@
 use core::option::Option;
 use std::cmp::{max, min};
 use std::collections::HashSet;
+use std::fmt;
 use std::iter::repeat;
 use std::ops::Range;
 
@@ -17,7 +18,7 @@ use itertools::{chain, iproduct, izip, Itertools};
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
-use crate::instruction::{DecodingError, Instruction};
+use crate::instruction::{DecodingError, Instruction, Op};
 use crate::util::load_u32;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -59,6 +60,7 @@ pub struct MozakMemory {
     pub transcript: MozakMemoryRegion,
 }
 
+#[cfg(any(feature = "test", test))]
 impl Default for MozakMemory {
     /// Assumed to be used only from tests
     // TODO(Roman): maybe `default` should be swapped with MozakMemory::create()
@@ -220,6 +222,7 @@ impl RuntimeArguments {
     }
 }
 
+#[cfg(any(feature = "test", test))]
 impl From<&RuntimeArguments> for MozakMemory {
     fn from(args: &RuntimeArguments) -> Self {
         let mut mozak_ro_memory = MozakMemory::default();
@@ -364,6 +367,17 @@ impl From<HashMap<u32, u32>> for Data {
 }
 type CheckProgramFlags =
     fn(flags: u32, program_headers: &ProgramHeader, mozak_memory: &Option<MozakMemory>) -> bool;
+
+#[must_use]
+#[cfg(any(feature = "test", test))]
+pub struct ProgramResult {
+    // Program can be malformed, specifically when constructed with overlapping memory addresses,
+    // for example WR addresses that lay in mozak-ro-memory-region
+    pub program: Program,
+    // This warning can be unhandled, for cases that require RO,RW or Code ELF regions to overlap
+    // with mozak-ro-memory region (more of less will used only in tests)
+    pub warning: Option<String>,
+}
 impl Program {
     /// Vanilla load-elf - NOT expect "_mozak_*" symbols in link. Maybe we
     /// should rename it later, with `vanilla_` prefix
@@ -584,37 +598,53 @@ impl Program {
     /// # Panics
     /// When some of the provided addresses (rw,ro,code) belongs to
     /// `mozak-ro-memory`
+    /// # Errors
+    /// When ....
     #[must_use]
+    #[cfg(any(feature = "test", test))]
     #[allow(clippy::similar_names)]
     pub fn create(
         ro_mem: &[(u32, u8)],
         rw_mem: &[(u32, u8)],
         ro_code: &Code,
         args: &RuntimeArguments,
-    ) -> Program {
+    ) -> ProgramResult {
         let mozak_ro_memory = MozakMemory::from(args);
+        let mut error = String::new();
         chain!(ro_mem.iter(), rw_mem.iter()).for_each(|addr_val_pair| {
-            // !mozak_ro_memory.is_address_belong_to_mozak_ro_memory(addr_val_pair.0),
-            assert!(
-                true,
-                "address: {:?} belongs to mozak-ro-memory - it is forbidden",
-                addr_val_pair.0
-            );
+            if !mozak_ro_memory.is_address_belong_to_mozak_ro_memory(addr_val_pair.0) {
+                fmt::write(
+                    &mut error,
+                    format_args!(
+                        "address: {:?} belongs to mozak-ro-memory - it is forbidden",
+                        addr_val_pair.0
+                    ),
+                )
+                .expect("write to string should succeed");
+            }
         });
         ro_code.iter().for_each(|addr_val_pair| {
-            // !mozak_ro_memory.is_address_belong_to_mozak_ro_memory(*addr_val_pair.0),
-            assert!(
-                true,
-                "address: {:?} belongs to mozak-ro-memory - it is forbidden",
-                addr_val_pair.0
-            );
+            if !mozak_ro_memory.is_address_belong_to_mozak_ro_memory(*addr_val_pair.0) {
+                fmt::write(
+                    &mut error,
+                    format_args!(
+                        "address: {:?} belongs to mozak-ro-memory - it is forbidden",
+                        addr_val_pair.0
+                    ),
+                )
+                .expect("write to string should succeed");
+            }
         });
-        Program {
+        let program = Program {
             ro_memory: Data(ro_mem.iter().copied().collect()),
             rw_memory: Data(rw_mem.iter().copied().collect()),
             ro_code: ro_code.clone(),
-            mozak_ro_memory: Some(MozakMemory::from(args)),
+            mozak_ro_memory: Some(mozak_ro_memory),
             ..Default::default()
+        };
+        ProgramResult {
+            program,
+            warning: if error.is_empty() { None } else { Some(error) },
         }
     }
 }
