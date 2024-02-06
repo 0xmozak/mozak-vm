@@ -68,8 +68,8 @@ pub struct RunArgs {
 pub struct ProveArgs {
     elf: Input,
     proof: Output,
-    #[command(flatten)]
-    args: RuntimeArguments,
+    #[arg(long)]
+    system_tape: Option<Input>,
     recursive_proof: Option<Output>,
 }
 
@@ -129,6 +129,7 @@ pub fn tapes_to_runtime_arguments(tape_bin: Input) -> mozak_runner::elf::Runtime
     let _ = rkyv::to_bytes::<_, 256>(&sys_tapes.event_tape).unwrap();
 
     mozak_runner::elf::RuntimeArguments {
+        // TODO(bing): use context variables
         context_variables: vec![],
         io_tape_public: public_tape_bytes.to_vec(),
         io_tape_private: private_tape_bytes.to_vec(),
@@ -203,31 +204,27 @@ fn main() -> Result<()> {
             let state = step(&program, state)?.last_state;
             debug!("{:?}", state.registers);
         }
-        Command::ProveAndVerify(RunArgs {
-            mut elf,
-            system_tape,
-        }) => {
+        Command::ProveAndVerify(RunArgs { elf, system_tape }) => {
             let args = system_tape.map_or_else(
                 || mozak_runner::elf::RuntimeArguments::default(),
                 tapes_to_runtime_arguments,
             );
-            let mut elf_bytes = Vec::new();
-            let bytes_read = elf.read_to_end(&mut elf_bytes)?;
-            debug!("Read {bytes_read} of ELF data.");
-
-            let program = Program::mozak_load_program(&elf_bytes, &args).unwrap();
-
+            let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::new(program.clone(), args.into());
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
         }
         Command::Prove(ProveArgs {
             elf,
-            args,
+            system_tape,
             mut proof,
             recursive_proof,
         }) => {
-            let program = load_program(elf)?;
+            let args = system_tape.map_or_else(
+                || mozak_runner::elf::RuntimeArguments::default(),
+                tapes_to_runtime_arguments,
+            );
+            let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::new(program.clone(), args.into());
             let record = step(&program, state)?;
             let stark = if cli.debug {
