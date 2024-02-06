@@ -42,6 +42,7 @@ pub fn mozak_memory_init<F: RichField>(program: &Program) -> Vec<MemoryInit<F>> 
             chain! {
                 mozak_ro_memory.io_tape_public.data.iter(),
                 mozak_ro_memory.io_tape_private.data.iter(),
+                mozak_ro_memory.transcript.data.iter(),
             }
         })
         .map(|(&addr, &value)| MemoryInit {
