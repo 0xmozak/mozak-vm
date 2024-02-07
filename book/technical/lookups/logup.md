@@ -20,11 +20,11 @@ where
 The CTL argument argues that values from multiple tables are in a single table. We call "multiple tables" looking tables
 and "a single table" looked table in our codebase.
 
-To combine multiple tables, we use two random challenges \\( \beta \\) and \\( \gamma \\) from the verifier, which are generated using
+To combine multiple tables, we use two random challenges \\( \beta \\) from the verifier, which are generated using
 the Fiat-Shamir Heuristic in the non-interactive setting. Let \\(s_0, s_1, s_2 ...\\) be columnss from a table, they are combined as
 
 $$
-c_i = s_0*\beta^{n-1} + s_1*\beta^{n-2} + ... + s_{n-1} + \gamma
+c_i = s_0*\beta^{n-1} + s_1*\beta^{n-2} + ... + s_{n-1}
 $$
 
 Both values from the looking tables and the looked table is combined like this.
@@ -34,13 +34,17 @@ Both values from the looking tables and the looked table is combined like this.
 In the LogUp paper, the relation above is checked with the [sumcheck protocol]. Since Mozak-VM is using LogUp in a STARK setting, the sumcheck protocol
 check is replaced with FRI openings.
 
-A "running sum" polynomial \\( f \\) for the looking tables and a polynomial \\( g \\) for the looked table are kepted through the execution traces. At each step, they are accumulated through adding the new combined values \\( c_i \\) with their multiplicity \\( m_i\\)
+A "running sum" of columns \\( zlooking \\) for the looking tables and a polynomial \\( zlooked \\) for the looked table are kepted through the execution traces. At each step, the looked column is accumulated through adding the new combined values \\( c_i \\) with their multiplicity \\( m_i\\) as in the relation
 
 $$
-f_{new} = f + \frac{m_i}{c_i}
+zlooking_{next} = zlooking + \frac{1}{\alpha - c_i}
 $$
 
-the equality of the polynomials \\( f \\) and \\( g \\) are checked with opening of FRI at the last row.
+$$
+zlooked_{next}=zlooked+\frac{m_i}{\alpha - c_i}
+$$
+
+the equality of the polynomials \\( zlooking \\) and \\( zlooked \\) are checked with opening of FRI at the last row.
 
 The cross table lookup is implemented in [cross_table_lookup.rs].
 
