@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use anyhow::Result;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use mozak_circuits::recproof::make_tree::{BranchInputs, LeafInputs};
 use mozak_circuits::recproof::state_update::{BranchCircuit, LeafCircuit};
 use mozak_circuits::recproof::{make_tree, unbounded};
 use mozak_circuits::test_utils::{hash_branch, hash_str, C, D, F};
@@ -24,7 +23,7 @@ impl DummyLeafCircuit {
     pub fn new(circuit_config: &CircuitConfig) -> Self {
         let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
 
-        let make_tree_inputs = LeafInputs::default(&mut builder);
+        let make_tree_inputs = make_tree::LeafInputs::default(&mut builder);
         let make_tree_targets = make_tree_inputs.build(&mut builder);
 
         let (circuit, unbounded) = unbounded::LeafSubCircuit::new(builder);
@@ -70,7 +69,7 @@ impl DummyBranchCircuit {
         let left_proof = builder.add_virtual_proof_with_pis(common);
         let right_proof = builder.add_virtual_proof_with_pis(common);
 
-        let make_tree_inputs = BranchInputs::default(&mut builder);
+        let make_tree_inputs = make_tree::BranchInputs::default(&mut builder);
         let make_tree_targets =
             make_tree_inputs.build(&mut builder, &leaf.make_tree, &left_proof, &right_proof);
 
