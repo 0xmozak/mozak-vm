@@ -15,7 +15,7 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Registry};
 
-const NUM_STARKS: usize = 3;
+const NUM_STARKS: usize = 8;
 
 /// How many `a * b = c` operations to do per row in the AIR.
 const REPETITIONS: usize = 911;
@@ -71,8 +71,13 @@ where
     // collect traces of each stark as Matrices
     let traces = [
         random_valid_trace::<SC::Val>(HEIGHT),
-        random_valid_trace::<SC::Val>(HEIGHT / 2),
-        random_valid_trace::<SC::Val>(HEIGHT / 2),
+        random_valid_trace::<SC::Val>(HEIGHT / 4),
+        random_valid_trace::<SC::Val>(HEIGHT / 8),
+        random_valid_trace::<SC::Val>(HEIGHT / 8),
+        random_valid_trace::<SC::Val>(HEIGHT / 8),
+        random_valid_trace::<SC::Val>(HEIGHT / 8),
+        random_valid_trace::<SC::Val>(HEIGHT / 8),
+        random_valid_trace::<SC::Val>(HEIGHT / 8),
     ];
 
     // height of each trace matrix
@@ -102,7 +107,8 @@ where
         .pcs()
         .open_multi_batches(&prover_data_and_points, &mut challenger);
 
-    let serialized_proof = postcard::to_allocvec(&opening_proof).expect("unable to serialize proof");
+    let serialized_proof =
+        postcard::to_allocvec(&opening_proof).expect("unable to serialize proof");
     tracing::info!("serialized_proof len: {} bytes", serialized_proof.len());
 }
 
