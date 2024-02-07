@@ -40,6 +40,18 @@ jobs:
       - name: Run all the tests from the archive
         run: MOZAK_STARK_DEBUG=true nice cargo nextest run --no-fail-fast --archive-file mozak-vm-tests.tar.zst
 
+  run-examples:
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
+        with:
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and run examples
         run: |
           cd examples && nice cargo build --release
@@ -76,8 +88,7 @@ jobs:
 
       - name: Build all examples
         run: |
-          cd examples-builder
-          cargo build --all-features
+          cd examples-builder && cargo build --all-features
 
   cargo-fmt:
     needs: check-runner
