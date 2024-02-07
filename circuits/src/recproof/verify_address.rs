@@ -141,6 +141,12 @@ pub struct BranchInputs {
 }
 
 pub struct BranchTargets {
+    /// The left direction
+    pub left: BranchDirectionTargets,
+
+    /// The right direction
+    pub right: BranchDirectionTargets,
+
     pub node_present: BoolTarget,
 
     /// The address of this node or `-1` if absent
@@ -185,8 +191,8 @@ impl BranchInputs {
     fn build_helper<F: RichField + Extendable<D>, const D: usize>(
         self,
         builder: &mut CircuitBuilder<F, D>,
-        left: &BranchDirectionTargets,
-        right: &BranchDirectionTargets,
+        left: BranchDirectionTargets,
+        right: BranchDirectionTargets,
     ) -> BranchTargets {
         let Self {
             node_present,
@@ -220,6 +226,8 @@ impl BranchInputs {
         builder.connect(node_address_calc, node_address);
 
         BranchTargets {
+            left,
+            right,
             node_present,
             node_address,
         }
@@ -235,7 +243,7 @@ impl BranchInputs {
     ) -> BranchTargets {
         let left = Self::direction_from_node(left_proof, &leaf.indices);
         let right = Self::direction_from_node(right_proof, &leaf.indices);
-        self.build_helper(builder, &left, &right)
+        self.build_helper(builder, left, right)
     }
 
     pub fn from_branch<F: RichField + Extendable<D>, const D: usize>(
@@ -247,7 +255,7 @@ impl BranchInputs {
     ) -> BranchTargets {
         let left = Self::direction_from_node(left_proof, &branch.indices);
         let right = Self::direction_from_node(right_proof, &branch.indices);
-        self.build_helper(builder, &left, &right)
+        self.build_helper(builder, left, right)
     }
 }
 
@@ -297,6 +305,9 @@ impl BranchTargets {
 }
 
 impl BranchSubCircuit {
+    /// This call is actually totally unnecessary, as the parent will
+    /// be calculated from the child proofs, but it can be used to verify
+    /// the parent is what you think it is.
     pub fn set_inputs<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
