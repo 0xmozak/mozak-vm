@@ -1,7 +1,6 @@
 use core::option::Option;
 use std::cmp::{max, min};
 use std::collections::HashSet;
-use std::fmt;
 use std::iter::repeat;
 use std::ops::Range;
 
@@ -15,7 +14,6 @@ use elf::symbol::SymbolTable;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
 use itertools::{chain, iproduct, izip, Itertools};
-use proptest::collection::vec;
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
