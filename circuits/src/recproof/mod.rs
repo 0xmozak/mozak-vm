@@ -13,6 +13,7 @@ pub mod state_update;
 pub mod summarized;
 pub mod unbounded;
 pub mod unpruned;
+pub mod verify_address;
 
 /// Computes `if b { h0 } else { h1 }`.
 pub(crate) fn select_hash<F, const D: usize>(
