@@ -110,18 +110,24 @@ pub fn execute_code_with_ro_memory(
         io_tape_public,
         transcript,
     };
-    // the warning - `ProgramResult.warning` isn't handled here since in tests we
-    // indeed allow memory addresses to overlap
-    let program = Program::create(ro_mem, rw_mem, &ro_code, &args).program;
-    let state0 = State::new(program.clone(), args);
+    let program_result = Program::create(ro_mem, rw_mem, &ro_code, &args);
+    // the warning - `ProgramResult.warnings` isn't handled here (only traced) since
+    // in tests we indeed allow memory addresses to overlap
+    if !program_result.warnings.is_empty() {
+        log::trace!(
+            "warnings from Program::create call: {:?}",
+            program_result.warnings
+        );
+    }
+    let state0 = State::new(program_result.program.clone(), args);
 
     let state = regs.iter().fold(state0, |state, (rs, val)| {
         state.set_register_value(*rs, *val)
     });
 
-    let record = step(&program, state).unwrap();
+    let record = step(&program_result.program, state).unwrap();
     assert!(record.last_state.has_halted());
-    (program, record)
+    (program_result.program, record)
 }
 
 #[must_use]

@@ -1,7 +1,6 @@
 use core::option::Option;
 use std::cmp::{max, min};
 use std::collections::HashSet;
-use std::fmt;
 use std::iter::repeat;
 use std::ops::Range;
 
@@ -376,8 +375,8 @@ pub struct ProgramResult {
     // for example WR addresses that lay in mozak-ro-memory-region
     pub program: Program,
     // This warning can be unhandled, for cases that require RO,RW or Code ELF regions to overlap
-    // with mozak-ro-memory region (more of less will used only in tests)
-    pub warning: Option<String>,
+    // with mozak-ro-memory region (more of less will use only in tests)
+    pub warnings: Vec<String>,
 }
 impl Program {
     /// Vanilla load-elf - NOT expect "_mozak_*" symbols in link. Maybe we
@@ -611,29 +610,24 @@ impl Program {
         args: &RuntimeArguments,
     ) -> ProgramResult {
         let mozak_ro_memory = MozakMemory::from(args);
-        let mut error = String::new();
-        chain!(ro_mem.iter(), rw_mem.iter()).for_each(|addr_val_pair| {
-            if !mozak_ro_memory.is_address_belongs_to_mozak_ro_memory(addr_val_pair.0) {
-                fmt::write(
-                    &mut error,
-                    format_args!(
-                        "address: {:?} belongs to mozak-ro-memory - it is forbidden",
-                        addr_val_pair.0
-                    ),
-                )
-                .expect("write to string should succeed");
+        let mut warnings = vec![];
+        // TODO(Roman): maybe later on I can refactor it with help of Daniel, I need to
+        // iterate over different types, other then that the code is completely the same
+        // for both `for_each` loops
+        chain!(ro_mem.iter(), rw_mem.iter()).for_each(|(addr, _)| {
+            if !mozak_ro_memory.is_address_belongs_to_mozak_ro_memory(*addr) {
+                warnings.push(
+                    format_args!("address: {addr} belongs to mozak-ro-memory - it is forbidden")
+                        .to_string(),
+                );
             }
         });
-        ro_code.iter().for_each(|addr_val_pair| {
-            if !mozak_ro_memory.is_address_belongs_to_mozak_ro_memory(*addr_val_pair.0) {
-                fmt::write(
-                    &mut error,
-                    format_args!(
-                        "address: {:?} belongs to mozak-ro-memory - it is forbidden",
-                        addr_val_pair.0
-                    ),
-                )
-                .expect("write to string should succeed");
+        ro_code.iter().for_each(|(addr, _)| {
+            if !mozak_ro_memory.is_address_belongs_to_mozak_ro_memory(*addr) {
+                warnings.push(
+                    format_args!("address: {addr} belongs to mozak-ro-memory - it is forbidden")
+                        .to_string(),
+                );
             }
         });
         ProgramResult {
@@ -644,7 +638,7 @@ impl Program {
                 mozak_ro_memory: Some(mozak_ro_memory),
                 ..Default::default()
             },
-            warning: if error.is_empty() { None } else { Some(error) },
+            warnings,
         }
     }
 }

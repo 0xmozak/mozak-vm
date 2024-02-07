@@ -2,7 +2,8 @@ use std::time::Duration;
 
 use anyhow::Result;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use mozak_circuits::recproof::{make_tree, unbounded, CompleteBranchCircuit, CompleteLeafCircuit};
+use mozak_circuits::recproof::state_update::{BranchCircuit, LeafCircuit};
+use mozak_circuits::recproof::{make_tree, unbounded};
 use mozak_circuits::test_utils::{hash_branch, hash_str, C, D, F};
 use plonky2::field::types::Field;
 use plonky2::hash::hash_types::HashOut;
@@ -20,11 +21,13 @@ pub struct DummyLeafCircuit {
 impl DummyLeafCircuit {
     #[must_use]
     pub fn new(circuit_config: &CircuitConfig) -> Self {
-        let builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-        let (circuit, (make_tree, (unbounded, ()))) =
-            make_tree::LeafSubCircuit::new(builder, |_targets, builder| {
-                unbounded::LeafSubCircuit::new(builder)
-            });
+        let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
+
+        let make_tree_inputs = make_tree::LeafInputs::default(&mut builder);
+        let make_tree_targets = make_tree_inputs.build(&mut builder);
+
+        let (circuit, unbounded) = unbounded::LeafSubCircuit::new(builder);
+        let make_tree = make_tree_targets.build(&circuit.prover_only.public_inputs);
 
         Self {
             make_tree,
@@ -65,27 +68,27 @@ impl DummyBranchCircuit {
         let common = &leaf.circuit.common;
         let left_proof = builder.add_virtual_proof_with_pis(common);
         let right_proof = builder.add_virtual_proof_with_pis(common);
-        let (circuit, (make_tree, (unbounded, ()))) = make_tree::BranchSubCircuit::new(
+
+        let make_tree_inputs = make_tree::BranchInputs::default(&mut builder);
+        let make_tree_targets =
+            make_tree_inputs.build(&mut builder, &leaf.make_tree, &left_proof, &right_proof);
+
+        let (circuit, unbounded) = unbounded::BranchSubCircuit::new(
             builder,
-            &leaf.make_tree,
+            &leaf.circuit,
+            make_tree_targets.left_is_leaf,
+            make_tree_targets.right_is_leaf,
             &left_proof,
             &right_proof,
-            |targets, builder| {
-                unbounded::BranchSubCircuit::new(
-                    builder,
-                    &leaf.circuit,
-                    targets.left_is_leaf,
-                    targets.right_is_leaf,
-                    &left_proof,
-                    &right_proof,
-                )
-            },
         );
 
         let targets = DummyBranchTargets {
             left_proof,
             right_proof,
         };
+        let make_tree =
+            make_tree_targets.build(&leaf.make_tree, &circuit.prover_only.public_inputs);
+
         Self {
             make_tree,
             unbounded,
@@ -114,9 +117,9 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
     group.measurement_time(Duration::new(10, 0));
 
     let circuit_config = CircuitConfig::standard_recursion_config();
-    let leaf_circuit = black_box(CompleteLeafCircuit::<F, C, D>::new(&circuit_config));
-    let branch_circuit_1 = CompleteBranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
-    let branch_circuit_2 = CompleteBranchCircuit::from_branch(&circuit_config, &branch_circuit_1);
+    let leaf_circuit = black_box(LeafCircuit::<F, C, D>::new(&circuit_config));
+    let branch_circuit_1 = BranchCircuit::from_leaf(&circuit_config, &leaf_circuit);
+    let branch_circuit_2 = BranchCircuit::from_branch(&circuit_config, &branch_circuit_1);
 
     let zero_hash = black_box(HashOut::from([F::ZERO; 4]));
     let non_zero_hash_1 = black_box(hash_str("Non-Zero Hash 1"));
