@@ -15,6 +15,7 @@ use elf::symbol::SymbolTable;
 use elf::ElfBytes;
 use im::hashmap::HashMap;
 use itertools::{chain, iproduct, izip, Itertools};
+use proptest::collection::vec;
 use serde::{Deserialize, Serialize};
 
 use crate::decode::decode_instruction;
@@ -376,8 +377,8 @@ pub struct ProgramResult {
     // for example WR addresses that lay in mozak-ro-memory-region
     pub program: Program,
     // This warning can be unhandled, for cases that require RO,RW or Code ELF regions to overlap
-    // with mozak-ro-memory region (more of less will used only in tests)
-    pub warning: Option<String>,
+    // with mozak-ro-memory region (more of less will use only in tests)
+    pub warnings: Vec<String>,
 }
 impl Program {
     /// Vanilla load-elf - NOT expect "_mozak_*" symbols in link. Maybe we
@@ -611,29 +612,21 @@ impl Program {
         args: &RuntimeArguments,
     ) -> ProgramResult {
         let mozak_ro_memory = MozakMemory::from(args);
-        let mut error = String::new();
-        chain!(ro_mem.iter(), rw_mem.iter()).for_each(|addr_val_pair| {
-            if !mozak_ro_memory.is_address_belongs_to_mozak_ro_memory(addr_val_pair.0) {
-                fmt::write(
-                    &mut error,
-                    format_args!(
-                        "address: {:?} belongs to mozak-ro-memory - it is forbidden",
-                        addr_val_pair.0
-                    ),
-                )
-                .expect("write to string should succeed");
+        let mut warnings = vec![];
+        chain!(ro_mem.iter(), rw_mem.iter()).for_each(|(addr, _)| {
+            if !mozak_ro_memory.is_address_belongs_to_mozak_ro_memory(*addr) {
+                warnings.push(
+                    format_args!("address: {addr} belongs to mozak-ro-memory - it is forbidden")
+                        .to_string(),
+                );
             }
         });
-        ro_code.iter().for_each(|addr_val_pair| {
-            if !mozak_ro_memory.is_address_belongs_to_mozak_ro_memory(*addr_val_pair.0) {
-                fmt::write(
-                    &mut error,
-                    format_args!(
-                        "address: {:?} belongs to mozak-ro-memory - it is forbidden",
-                        addr_val_pair.0
-                    ),
-                )
-                .expect("write to string should succeed");
+        ro_code.iter().for_each(|(addr, _)| {
+            if !mozak_ro_memory.is_address_belongs_to_mozak_ro_memory(*addr) {
+                warnings.push(
+                    format_args!("address: {addr} belongs to mozak-ro-memory - it is forbidden")
+                        .to_string(),
+                );
             }
         });
         ProgramResult {
@@ -644,7 +637,7 @@ impl Program {
                 mozak_ro_memory: Some(mozak_ro_memory),
                 ..Default::default()
             },
-            warning: if error.is_empty() { None } else { Some(error) },
+            warnings,
         }
     }
 }
