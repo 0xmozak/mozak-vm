@@ -8,11 +8,9 @@
 //! nodes.
 use plonky2::field::extension::Extendable;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField, NUM_HASH_OUT_ELTS};
-use plonky2::iop::target::BoolTarget;
+use plonky2::iop::target::{BoolTarget, Target};
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::CircuitData;
-use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::proof::ProofWithPublicInputsTarget;
 
 use super::hash_or_forward;
@@ -43,9 +41,11 @@ impl PublicIndices {
     }
 }
 
-pub struct LeafSubCircuit {
-    pub targets: LeafTargets,
-    pub indices: PublicIndices,
+pub struct LeafInputs {
+    pub summary_hash_present: BoolTarget,
+
+    /// The hash of the previous state or ZERO if absent
+    pub summary_hash: HashOutTarget,
 }
 
 pub struct LeafTargets {
@@ -55,18 +55,28 @@ pub struct LeafTargets {
     pub summary_hash: HashOutTarget,
 }
 
-impl LeafSubCircuit {
-    #[must_use]
-    pub fn new<F, C, const D: usize, B, R>(
-        mut builder: CircuitBuilder<F, D>,
-        build: B,
-    ) -> (CircuitData<F, C, D>, (Self, R))
+impl LeafInputs {
+    pub fn default<F, const D: usize>(builder: &mut CircuitBuilder<F, D>) -> Self
     where
-        B: FnOnce(&LeafTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F>, {
+        F: RichField + Extendable<D>, {
         let summary_hash_present = builder.add_virtual_bool_target_safe();
         let summary_hash = builder.add_virtual_hash();
+        builder.register_public_input(summary_hash_present.target);
+        builder.register_public_inputs(&summary_hash.elements);
+        Self {
+            summary_hash_present,
+            summary_hash,
+        }
+    }
+
+    #[must_use]
+    pub fn build<F, const D: usize>(self, builder: &mut CircuitBuilder<F, D>) -> LeafTargets
+    where
+        F: RichField + Extendable<D>, {
+        let Self {
+            summary_hash_present,
+            summary_hash,
+        } = self;
 
         // prove hashes align with presence
         for e in summary_hash.elements {
@@ -74,33 +84,41 @@ impl LeafSubCircuit {
             builder.connect(e.target, summary_hash_present.target);
         }
 
-        builder.register_public_input(summary_hash_present.target);
-        builder.register_public_inputs(&summary_hash.elements);
-
-        let targets = LeafTargets {
+        LeafTargets {
             summary_hash_present,
             summary_hash,
-        };
-        let (circuit, r) = build(&targets, builder);
-        let public_inputs = &circuit.prover_only.public_inputs;
+        }
+    }
+}
 
+pub struct LeafSubCircuit {
+    pub targets: LeafTargets,
+    pub indices: PublicIndices,
+}
+
+impl LeafTargets {
+    #[must_use]
+    pub fn build(self, public_inputs: &[Target]) -> LeafSubCircuit {
         let indices = PublicIndices {
             summary_hash_present: public_inputs
                 .iter()
-                .position(|&pi| pi == targets.summary_hash_present.target)
+                .position(|&pi| pi == self.summary_hash_present.target)
                 .expect("target not found"),
-            summary_hash: targets.summary_hash.elements.map(|target| {
+            summary_hash: self.summary_hash.elements.map(|target| {
                 public_inputs
                     .iter()
                     .position(|&pi| pi == target)
                     .expect("target not found")
             }),
         };
-        let v = Self { targets, indices };
-
-        (circuit, (v, r))
+        LeafSubCircuit {
+            targets: self,
+            indices,
+        }
     }
+}
 
+impl LeafSubCircuit {
     pub fn set_inputs<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
@@ -120,12 +138,11 @@ impl LeafSubCircuit {
     }
 }
 
-pub struct BranchSubCircuit {
-    pub targets: BranchTargets,
-    pub indices: PublicIndices,
-    /// The distance from the leaves (`0` being the lowest branch)
-    /// Used for debugging
-    pub dbg_height: usize,
+pub struct BranchInputs {
+    pub summary_hash_present: BoolTarget,
+
+    /// The hash of the previous state or ZERO if absent
+    pub summary_hash: HashOutTarget,
 }
 
 pub struct BranchTargets {
@@ -151,59 +168,18 @@ pub struct BranchDirectionTargets {
     pub summary_hash: HashOutTarget,
 }
 
-impl BranchSubCircuit {
-    fn from_directions<F, C, const D: usize, B, R>(
-        mut builder: CircuitBuilder<F, D>,
-        left: BranchDirectionTargets,
-        right: BranchDirectionTargets,
-        dbg_height: usize,
-        build: B,
-    ) -> (CircuitData<F, C, D>, (Self, R))
-    where
-        B: FnOnce(&BranchTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F>, {
-        let l_present = left.summary_hash_present;
-        let l_hash = left.summary_hash.elements;
-        let r_present = right.summary_hash_present;
-        let r_hash = right.summary_hash.elements;
-
-        // Construct the forwarding "hash".
-        let summary_hash = hash_or_forward(&mut builder, l_present, l_hash, r_present, r_hash);
-
-        let summary_hash_present = builder.or(l_present, r_present);
-
+impl BranchInputs {
+    pub fn default<F: RichField + Extendable<D>, const D: usize>(
+        builder: &mut CircuitBuilder<F, D>,
+    ) -> Self {
+        let summary_hash_present = builder.add_virtual_bool_target_safe();
+        let summary_hash = builder.add_virtual_hash();
         builder.register_public_input(summary_hash_present.target);
         builder.register_public_inputs(&summary_hash.elements);
-
-        let targets = BranchTargets {
-            left,
-            right,
+        Self {
             summary_hash_present,
             summary_hash,
-        };
-        let (circuit, r) = build(&targets, builder);
-        let public_inputs = &circuit.prover_only.public_inputs;
-
-        let indices = PublicIndices {
-            summary_hash_present: public_inputs
-                .iter()
-                .position(|&pi| pi == targets.summary_hash_present.target)
-                .expect("target not found"),
-            summary_hash: targets.summary_hash.elements.map(|target| {
-                public_inputs
-                    .iter()
-                    .position(|&pi| pi == target)
-                    .expect("target not found")
-            }),
-        };
-        let v = Self {
-            targets,
-            indices,
-            dbg_height,
-        };
-
-        (circuit, (v, r))
+        }
     }
 
     fn direction_from_node<const D: usize>(
@@ -220,40 +196,114 @@ impl BranchSubCircuit {
         }
     }
 
-    pub fn from_leaf<F, C, const D: usize, B, R>(
-        builder: CircuitBuilder<F, D>,
+    fn build_helper<F: RichField + Extendable<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<F, D>,
+        left: BranchDirectionTargets,
+        right: BranchDirectionTargets,
+    ) -> BranchTargets {
+        let Self {
+            summary_hash_present,
+            summary_hash,
+        } = self;
+
+        let l_present = left.summary_hash_present;
+        let l_hash = left.summary_hash.elements;
+        let r_present = right.summary_hash_present;
+        let r_hash = right.summary_hash.elements;
+
+        // Construct the forwarding "hash".
+        let summary_hash_calc = hash_or_forward(builder, l_present, l_hash, r_present, r_hash);
+        let summary_hash_present_calc = builder.or(l_present, r_present);
+
+        builder.connect(
+            summary_hash_present_calc.target,
+            summary_hash_present.target,
+        );
+        builder.connect_hashes(summary_hash_calc, summary_hash);
+
+        BranchTargets {
+            left,
+            right,
+            summary_hash_present,
+            summary_hash,
+        }
+    }
+
+    #[must_use]
+    pub fn from_leaf<F: RichField + Extendable<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<F, D>,
         leaf: &LeafSubCircuit,
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
-        build: B,
-    ) -> (CircuitData<F, C, D>, (Self, R))
-    where
-        B: FnOnce(&BranchTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F>, {
-        let left_dir = Self::direction_from_node(left_proof, &leaf.indices);
-        let right_dir = Self::direction_from_node(right_proof, &leaf.indices);
-        let dbg_height = 0;
-        Self::from_directions(builder, left_dir, right_dir, dbg_height, build)
+    ) -> BranchTargets {
+        let left = Self::direction_from_node(left_proof, &leaf.indices);
+        let right = Self::direction_from_node(right_proof, &leaf.indices);
+        self.build_helper(builder, left, right)
     }
 
-    pub fn from_branch<F, C, const D: usize, B, R>(
-        builder: CircuitBuilder<F, D>,
+    pub fn from_branch<F: RichField + Extendable<D>, const D: usize>(
+        self,
+        builder: &mut CircuitBuilder<F, D>,
         branch: &BranchSubCircuit,
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
-        build: B,
-    ) -> (CircuitData<F, C, D>, (Self, R))
-    where
-        B: FnOnce(&BranchTargets, CircuitBuilder<F, D>) -> (CircuitData<F, C, D>, R),
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F>, {
-        let left_dir = Self::direction_from_node(left_proof, &branch.indices);
-        let right_dir = Self::direction_from_node(right_proof, &branch.indices);
-        let dbg_height = branch.dbg_height + 1;
-        Self::from_directions(builder, left_dir, right_dir, dbg_height, build)
+    ) -> BranchTargets {
+        let left = Self::direction_from_node(left_proof, &branch.indices);
+        let right = Self::direction_from_node(right_proof, &branch.indices);
+        self.build_helper(builder, left, right)
+    }
+}
+
+pub struct BranchSubCircuit {
+    pub targets: BranchTargets,
+    pub indices: PublicIndices,
+    /// The distance from the leaves (`0` being the lowest branch)
+    /// Used for debugging
+    pub dbg_height: usize,
+}
+
+impl BranchTargets {
+    fn get_indices(&self, public_inputs: &[Target]) -> PublicIndices {
+        PublicIndices {
+            summary_hash_present: public_inputs
+                .iter()
+                .position(|&pi| pi == self.summary_hash_present.target)
+                .expect("target not found"),
+            summary_hash: self.summary_hash.elements.map(|target| {
+                public_inputs
+                    .iter()
+                    .position(|&pi| pi == target)
+                    .expect("target not found")
+            }),
+        }
     }
 
+    #[must_use]
+    pub fn from_leaf(self, public_inputs: &[Target]) -> BranchSubCircuit {
+        BranchSubCircuit {
+            indices: self.get_indices(public_inputs),
+            targets: self,
+            dbg_height: 0,
+        }
+    }
+
+    #[must_use]
+    pub fn from_branch(
+        self,
+        branch: &BranchSubCircuit,
+        public_inputs: &[Target],
+    ) -> BranchSubCircuit {
+        BranchSubCircuit {
+            indices: self.get_indices(public_inputs),
+            targets: self,
+            dbg_height: branch.dbg_height + 1,
+        }
+    }
+}
+
+impl BranchSubCircuit {
     pub fn set_inputs<F: RichField>(
         &self,
         inputs: &mut PartialWitness<F>,
@@ -277,7 +327,7 @@ impl BranchSubCircuit {
 mod test {
     use anyhow::Result;
     use plonky2::field::types::Field;
-    use plonky2::plonk::circuit_data::CircuitConfig;
+    use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
     use plonky2::plonk::proof::ProofWithPublicInputs;
 
     use super::*;
@@ -291,9 +341,12 @@ mod test {
     impl DummyLeafCircuit {
         #[must_use]
         pub fn new(circuit_config: &CircuitConfig) -> Self {
-            let builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-            let (circuit, (summarized, ())) =
-                LeafSubCircuit::new(builder, |_targets, builder| (builder.build(), ()));
+            let mut builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
+
+            let summarized_inputs = LeafInputs::default(&mut builder);
+            let summarized_targets = summarized_inputs.build(&mut builder);
+            let circuit = builder.build();
+            let summarized = summarized_targets.build(&circuit.prover_only.public_inputs);
 
             Self {
                 summarized,
@@ -340,21 +393,23 @@ mod test {
             let verifier = builder.constant_verifier_data(&circuit_data.verifier_only);
             let left_proof = builder.add_virtual_proof_with_pis(common);
             let right_proof = builder.add_virtual_proof_with_pis(common);
+            let summarized_inputs = BranchInputs::default(&mut builder);
+
             builder.verify_proof::<C>(&left_proof, &verifier, common);
             builder.verify_proof::<C>(&right_proof, &verifier, common);
-
-            let (circuit, (summarized, ())) = BranchSubCircuit::from_leaf(
-                builder,
+            let summarized_targets = summarized_inputs.from_leaf(
+                &mut builder,
                 &leaf.summarized,
                 &left_proof,
                 &right_proof,
-                |_targets, builder| (builder.build(), ()),
             );
-
             let targets = DummyBranchTargets {
                 left_proof,
                 right_proof,
             };
+
+            let circuit = builder.build();
+            let summarized = summarized_targets.from_leaf(&circuit.prover_only.public_inputs);
 
             Self {
                 summarized,
@@ -371,21 +426,24 @@ mod test {
             let verifier = builder.constant_verifier_data(&circuit_data.verifier_only);
             let left_proof = builder.add_virtual_proof_with_pis(common);
             let right_proof = builder.add_virtual_proof_with_pis(common);
+            let summarized_inputs = BranchInputs::default(&mut builder);
+
             builder.verify_proof::<C>(&left_proof, &verifier, common);
             builder.verify_proof::<C>(&right_proof, &verifier, common);
-
-            let (circuit, (summarized, ())) = BranchSubCircuit::from_branch(
-                builder,
+            let summarized_targets = summarized_inputs.from_branch(
+                &mut builder,
                 &branch.summarized,
                 &left_proof,
                 &right_proof,
-                |_targets, builder| (builder.build(), ()),
             );
-
             let targets = DummyBranchTargets {
                 left_proof,
                 right_proof,
             };
+
+            let circuit = builder.build();
+            let summarized = summarized_targets
+                .from_branch(&branch.summarized, &circuit.prover_only.public_inputs);
 
             Self {
                 summarized,
