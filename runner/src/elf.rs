@@ -611,6 +611,9 @@ impl Program {
     ) -> ProgramResult {
         let mozak_ro_memory = MozakMemory::from(args);
         let mut warnings = vec![];
+        // TODO(Roman): maybe later on I can refactor it with help of Daniel, I need to
+        // iterate over different types, other then that the code is completely the same
+        // for both `for_each` loops
         chain!(ro_mem.iter(), rw_mem.iter()).for_each(|(addr, _)| {
             if !mozak_ro_memory.is_address_belongs_to_mozak_ro_memory(*addr) {
                 warnings.push(
