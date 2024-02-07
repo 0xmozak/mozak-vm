@@ -4,12 +4,12 @@ Given two sets \\(S\\) and \\(T\\). [LogUp] checks whether the elements in \\(S\
 the following relation
 
 $$
-\sum_{i=0}^{k} \frac{1}{(\alpha - s_i)} = \sum_{i=0}^{n} \frac{m_i}{(\alpha - t_i)}
+\sum_{i=0}^{k} \frac{1}{(\gamma - s_i)} = \sum_{i=0}^{n} \frac{m_i}{(\gamma - t_i)}
 $$
 
 where
 * k is the number of elements in the set \\(S\\).
-* \\(\alpha \\) is a random challenge from the verifier to the prover.
+* \\(\gamma \\) is a random challenge from the verifier to the prover.
 * \\(s_i\\) is an element in the set \\(S\\).
 * \\(n\\) is the number of elements in the set \\(T\\).
 * \\(t_i\\) is an element in the set \\(T\\).
@@ -37,11 +37,11 @@ check is replaced with FRI openings.
 A "running sum" of columns \\( zlooking \\) for the looking tables and a polynomial \\( zlooked \\) for the looked table are kepted through the execution traces. At each step, the looked column is accumulated through adding the new combined values \\( c_i \\) with their multiplicity \\( m_i\\) as in the relation
 
 $$
-zlooking_{next} = zlooking + \frac{1}{\alpha - c_i}
+zlooking_{next} = zlooking + \frac{1}{\gamma - c_i}
 $$
 
 $$
-zlooked_{next}=zlooked+\frac{m_i}{\alpha - c_i}
+zlooked_{next}=zlooked+\frac{m_i}{\gamma - c_i}
 $$
 
 the equality of the polynomials \\( zlooking \\) and \\( zlooked \\) are checked with opening of FRI at the last row.
