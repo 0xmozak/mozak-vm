@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
     types:
       - opened
@@ -28,10 +28,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install rust toolkit
-        uses: ./.github/actions/rust
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
         with:
           local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Compile
         run: nice cargo nextest run --no-run --locked --features="enable_poseidon_starks" --all-targets
@@ -50,8 +51,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install rust toolkit
-        uses: ./.github/actions/rust
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
         with:
           local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
 
@@ -68,8 +69,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install rust toolkit
-        uses: ./.github/actions/rust
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
         with:
           local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
 
@@ -84,11 +85,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install rust toolkit
-        uses: ./.github/actions/rust
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
         with:
           local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
-
 
       - name: Run fmt
         run: cargo fmt --all --check
@@ -110,8 +110,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install rust toolkit
-        uses: ./.github/actions/rust
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
         with:
           local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
 
