@@ -1,6 +1,6 @@
 #![feature(restricted_std)]
 mod core_logic;
-use mozak_sdk::coretypes::{Address, Poseidon2HashType, ProgramIdentifier, StateObject};
+use mozak_sdk::coretypes::{Address, Poseidon2HashType, ProgramIdentifier, Signature, StateObject};
 #[cfg(not(target_os = "zkvm"))]
 use mozak_sdk::sys::dump_tapes;
 
@@ -39,6 +39,8 @@ fn main() {
         entry_point: 0,
     };
 
+    let user_signature = Signature::from(vec![0]);
+
     let available_state_addresses = [
         [3, 0, 0, 0, 0, 0, 0, 0].into(),
         [3, 0, 0, 0, 0, 0, 0, 1].into(),
@@ -74,6 +76,7 @@ fn main() {
         metadata_object,
         amount_in,
         user_wallet,
+        user_signature,
         objects_presented,
         objects_requested,
         available_state_addresses,

@@ -19,8 +19,8 @@ pub enum MethodArgs {
         ProgramIdentifier,
         ProgramIdentifier,
     ),
-    // GetAmount,
-    // Split,
+    GetAmount,
+    Split,
 }
 
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
@@ -29,6 +29,8 @@ pub enum MethodArgs {
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
 pub enum MethodReturns {
     Transfer,
+    Split,
+    GetAmount,
 }
 
 // TODO: Remove later
@@ -44,6 +46,8 @@ pub fn dispatch(args: MethodArgs) -> MethodReturns {
             transfer(id, object, signature, remitter, remittee);
             MethodReturns::Transfer
         }
+        MethodArgs::Split => MethodReturns::Split,
+        MethodArgs::GetAmount => MethodReturns::GetAmount,
     }
 }
 

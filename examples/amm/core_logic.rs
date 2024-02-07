@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use mozak_sdk::coretypes::{Address, ProgramIdentifier, StateObject};
+use mozak_sdk::coretypes::{Address, ProgramIdentifier, Signature, StateObject};
 use mozak_sdk::sys::call_send;
 use rkyv::{Archive, Deserialize, Serialize};
 
@@ -15,6 +15,24 @@ pub struct MetadataObject {
 
     /// Reserves of tokens on both sides
     pub reserves: [u64; 2],
+}
+
+#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[archive(compare(PartialEq))]
+#[archive_attr(derive(Debug))]
+#[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
+pub enum MethodArgs {
+    // Mint,
+    // Burn,
+    Transfer(
+        ProgramIdentifier,
+        StateObject,
+        Signature,
+        ProgramIdentifier,
+        ProgramIdentifier,
+    ),
+    // GetAmount,
+    // Split,
 }
 
 /// `swap_tokens` swaps `objects_presented`, a homogenous (all objects of the
@@ -33,6 +51,7 @@ pub fn swap_tokens(
     metadata_object: MetadataObject,
     amount_in: u64,
     user_wallet: ProgramIdentifier,
+    user_signature: Signature,
     objects_presented: Vec<StateObject>,
     objects_requested: Vec<StateObject>,
     available_state_addresses: [Address; 2],
@@ -81,9 +100,9 @@ pub fn swap_tokens(
         residual_presented = Some(call_send(
             self_prog_id,
             metadata_object.token_programs[idx_in],
-            token::Methods::Split as u8,
-            calldata,
-            StateObject::default(), // TODO: Take this as a public input
+            token::MethodArgs::Split,
+            token::dispatch,
+            || -> token::MethodReturns { token::MethodReturns::Split },
         ));
     }
     let mut residual_requested: Option<StateObject> = None;
@@ -99,9 +118,9 @@ pub fn swap_tokens(
         residual_requested = Some(call_send(
             self_prog_id,
             metadata_object.token_programs[idx_out],
-            token::Methods::Split as u8,
-            calldata,
-            StateObject::default(), // TODO: Take this as a public input
+            token::MethodArgs::Split,
+            token::dispatch,
+            || -> token::MethodReturns { token::MethodReturns::Split },
         ));
     }
 
@@ -116,9 +135,15 @@ pub fn swap_tokens(
         call_send(
             self_prog_id,
             x.constraint_owner,
-            token::Methods::Transfer as u8,
-            calldata,
-            (), // TODO: Take this as a public input
+            token::MethodArgs::Transfer(
+                self_prog_id,
+                x.clone(),
+                user_signature,
+                metadata_object.token_programs[idx_in],
+                metadata_object.token_programs[idx_out],
+            ),
+            token::dispatch,
+            || -> token::MethodReturns { token::MethodReturns::Transfer },
         );
     });
 
@@ -133,9 +158,15 @@ pub fn swap_tokens(
         call_send(
             self_prog_id,
             x.constraint_owner,
-            token::Methods::Transfer as u8,
-            calldata,
-            (), // TODO: Take this as a public input
+            token::MethodArgs::Transfer(
+                self_prog_id,
+                x.clone(),
+                user_signature,
+                metadata_object.token_programs[idx_in],
+                metadata_object.token_programs[idx_out],
+            ),
+            token::dispatch,
+            || -> token::MethodReturns { token::MethodReturns::Transfer },
         );
     });
 }
@@ -145,14 +176,14 @@ fn extract_amounts(self_prog_id: ProgramIdentifier, objects: &Vec<StateObject>) 
     let mut total_amount = 0;
     let mut last_amount = 0;
     for obj in objects {
-        last_amount = call_send(
+        let ret_val = call_send(
             self_prog_id,
             obj.constraint_owner,
-            token::Methods::GetAmount as u8,
-            obj.data.to_vec(),
-            0, // TODO: Take this as a public input
+            token::MethodArgs::GetAmount,
+            token::dispatch,
+            || -> token::MethodReturns { token::MethodReturns::GetAmount },
         );
-        total_amount += last_amount;
+        total_amount += ret_val as u64;
     }
     (total_amount, last_amount)
 }
