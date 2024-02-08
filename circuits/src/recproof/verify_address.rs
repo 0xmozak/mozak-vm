@@ -507,7 +507,17 @@ mod test {
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
-    fn bad_non_zero_leaf() {
+    fn bad_non_zero_leaf_0() {
+        let circuit_config = CircuitConfig::standard_recursion_config();
+        let circuit = DummyLeafCircuit::new(&circuit_config);
+
+        let proof = circuit.prove_unsafe(false, Some(0)).unwrap();
+        circuit.circuit.verify(proof).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "was set twice with different values")]
+    fn bad_non_zero_leaf_5() {
         let circuit_config = CircuitConfig::standard_recursion_config();
         let circuit = DummyLeafCircuit::new(&circuit_config);
 
