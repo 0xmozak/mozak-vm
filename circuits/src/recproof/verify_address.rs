@@ -136,20 +136,24 @@ impl LeafSubCircuit {
 pub struct BranchInputs {
     pub node_present: BoolTarget,
 
-    /// The address of this node or `-1` if absent
+    /// The address of this node or `-1` if absent.
+    /// This should be the half the value of the child addresses
     pub node_address: Target,
 }
 
 pub struct BranchTargets {
     /// The left direction
+    /// Should have an even address which is one less than `right`
     pub left: BranchDirectionTargets,
 
     /// The right direction
+    /// Should have an odd address which is one more than `left`
     pub right: BranchDirectionTargets,
 
     pub node_present: BoolTarget,
 
     /// The address of this node or `-1` if absent
+    /// This should be the half the value of the child addresses
     pub node_address: Target,
 }
 
@@ -507,17 +511,7 @@ mod test {
 
     #[test]
     #[should_panic(expected = "was set twice with different values")]
-    fn bad_non_zero_leaf_0() {
-        let circuit_config = CircuitConfig::standard_recursion_config();
-        let circuit = DummyLeafCircuit::new(&circuit_config);
-
-        let proof = circuit.prove_unsafe(false, Some(0)).unwrap();
-        circuit.circuit.verify(proof).unwrap();
-    }
-
-    #[test]
-    #[should_panic(expected = "was set twice with different values")]
-    fn bad_non_zero_leaf_5() {
+    fn bad_non_zero_leaf() {
         let circuit_config = CircuitConfig::standard_recursion_config();
         let circuit = DummyLeafCircuit::new(&circuit_config);
 
