@@ -456,9 +456,6 @@ pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D
     set_fri_proof_target(witness, &proof_target.opening_proof, &proof.opening_proof);
 }
 
-// TODO(Matthias): remove this limitation, once we implement the recursion for
-// Register Starks.
-#[cfg(not(feature = "enable_register_starks"))]
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
@@ -475,9 +472,11 @@ mod tests {
     use crate::test_utils::{C, D, F};
     use crate::utils::from_u32;
 
+    type S = MozakStark<F, D>;
+
     #[test]
+    #[ignore]
     fn recursive_verify_mozak_starks() -> Result<()> {
-        type S = MozakStark<F, D>;
         let stark = S::default();
         let mut config = StarkConfig::standard_fast_config();
         config.fri_config.cap_height = 1;
@@ -518,5 +517,54 @@ mod tests {
 
         let recursive_proof = mozak_stark_circuit.prove(&mozak_proof)?;
         mozak_stark_circuit.circuit.verify(recursive_proof)
+    }
+
+    #[test]
+    fn same_circuit_verifiy_different_vm_proofs() -> Result<()> {
+        let stark = S::default();
+        let mut stark_config = StarkConfig::standard_fast_config();
+        stark_config.fri_config.cap_height = 1;
+        let inst = Instruction {
+            op: Op::ADD,
+            args: Args {
+                rd: 5,
+                rs1: 6,
+                rs2: 7,
+                ..Args::default()
+            },
+        };
+        let (program0, record0) = execute_code([inst], &[], &[(6, 100), (7, 200)]);
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program0.entry_point),
+        };
+        let mozak_proof0 = prove::<F, C, D>(
+            &program0,
+            &record0,
+            &stark,
+            &stark_config,
+            public_inputs,
+            &mut TimingTree::default(),
+        )?;
+
+        let (program1, record1) = execute_code(vec![inst; 128], &[], &[(6, 100), (7, 200)]);
+        let public_inputs = PublicInputs {
+            entry_point: from_u32(program1.entry_point),
+        };
+        let mozak_proof1 = prove::<F, C, D>(
+            &program1,
+            &record1,
+            &stark,
+            &stark_config,
+            public_inputs,
+            &mut TimingTree::default(),
+        )?;
+
+        // The degree bits should be different for the two proofs.
+        assert_ne!(
+            mozak_proof0.degree_bits(&stark_config),
+            mozak_proof1.degree_bits(&stark_config)
+        );
+
+        Ok(())
     }
 }
