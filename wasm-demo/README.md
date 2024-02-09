@@ -1,13 +1,79 @@
+# WASM DEMO
 This demo tries to run Mozak-VM and its proof system on WASM. For now it just tries to execute single instruction of ADD.
-The execution works :sparkles: but proving fails as described below.
+The execution and proving works :sparkles:.
 
-To Compile:
+## Installing dependencies
 
-`wasm-pack build --target web`
+This test suite depnds on
 
-Then run webserver from wasm-demo dir with following command
+- `node` (`v20.11.0`),
+- `rust`, (version in `../rust-toolchain.toml`), and
+- `playwright`.
 
-`python3 -m http.server`
+In order to run tests you need to install `playwright` browsers by running
 
-Open local server's URL in browser and you should see two prompts, first after execution and second after proving.
-More details about how to compile [Rust_to_Wasm](https://developer.mozilla.org/en-US/docs/WebAssembly/Rust_to_Wasm)
+```bash
+npx playwright install
+```
+
+## First build
+
+If you checked out the project for the first time run
+
+```bash
+npm ci
+```
+
+which will
+
+- install all the dependencies,
+- run `wasm-pack` to build `wasm32-unknown-unknown` target,
+- run `cargo` to build `wasm32-wasi` target, and
+- compile all the TypeScript files and bundle them in their respective JavaScript files.
+
+All final build artifacts will be placed in `./dist` directory.
+
+## Automated Testing
+
+You can run the Playwright test suite by using
+
+```bash
+npm test
+```
+
+which will
+
+- test `wasm32-wasi` in `wasmtime`, and
+- test `wasm32-unknown-unknown` in 3 major browsers,
+- test `wasm32-wasi` in 3 major browsers.
+
+Note that we need to run `wasmer` first as `playwright` might open a browser window if any tests fails.
+
+## Rebuild
+
+You can rebuild everything using
+
+```bash
+npm run prepare
+```
+
+which will call
+
+- `wasm-pack build --target web`,
+- `cargo build --target wasm32-wasi`, and
+- `webpack`.
+
+If you
+
+## Opening in browser
+
+You can start a local server with all caches disabled on `localhost:3000` by using
+
+```bash
+npm start
+```
+
+There are two test cases
+
+- [`http://localhost:3000/wasm32-unknown-unknown.html`](http://localhost:3000/wasm32-unknown-unknown.html) for testing `wasm32-unkown-unknown` build, and
+- [`http://localhost:3000/wasm32-wasi.html`](http://localhost:3000/wasm32-wasi.html) for testing `wasm32-wasi` build.

@@ -9,7 +9,7 @@ use std::panic;
 
 #[wasm_bindgen]
 extern "C" {
-    pub fn alert(s: &str);
+    pub fn log(s: &str);
 }
 
 #[wasm_bindgen]
@@ -28,9 +28,9 @@ pub fn wasm_demo(a: u32, b: u32) {
     let res = e.1.state_before_final().get_register_value(3);
     let config = StarkConfig::standard_fast_config();
 
-    alert(&format!("ADD {} {}, RES {}", a, b, res));
+    log(&format!("ADD {} {}, RES {}", a, b, res));
     let proving_res = prove_and_verify_mozak_stark(&e.0, &e.1, &config);
-    alert(&format!("Proving :{}", proving_res.is_ok()));
+    log(&format!("Proving :{}", proving_res.is_ok()));
 }
 
 pub fn wasm_demo_(a: u32, b: u32) {
