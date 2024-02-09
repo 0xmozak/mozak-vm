@@ -21,6 +21,7 @@
     "prepare": "wasm-pack build --target web && cargo build --target wasm32-wasi && webpack",
     "postprepare": "cp ../target/wasm32-wasi/debug/demo.wasm ./dist/demo.wasm",
     "start": "http-server -p 3000 -c-1 .",
-    "test": "wasmtime ./dist/demo.wasm && playwright test"
+    "test": "wasmtime ./dist/demo.wasm",
+    "test-slow": "playwright test"
   }
 }

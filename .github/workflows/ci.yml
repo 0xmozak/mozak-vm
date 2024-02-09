@@ -129,7 +129,7 @@ jobs:
       - name: taplo fmt
         run: taplo fmt --check
 
-  wasm-demo-test:
+  wasm-wasmtime-test:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner-label }}
     steps:
@@ -144,16 +144,5 @@ jobs:
       - name: Install dependencies and build the test suite
         run: cd wasm-demo && npm ci
 
-      - name: Install Playwright Browsers
-        run: cd wasm-demo && npx playwright install --with-deps
-
-      - name: Run tests (nicely)
-        run: cd wasm-demo && nice npm test
-
-      - name: Upload Playwright Report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report
-          path: wasm-demo/playwright-report/
-          retention-days: 30
+      - name: Run test suite
+        run: cd wasm-demo && npm test

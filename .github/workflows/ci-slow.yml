@@ -1,0 +1,46 @@
+name: CI (Slow Test Suite)
+
+on:
+  push:
+    branches: ["main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-runner:
+    uses: ./.github/workflows/check-runner.yml
+    secrets: inherit
+
+  wasm-playwright-test:
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner-label }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install CI deps
+        uses: ./.github/actions/ci-deps
+        with:
+          local-cache: ${{ needs.check-runner.outputs.runner-label == 'self-hosted' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies and build the test suite
+        run: cd wasm-demo && npm ci
+
+      - name: Install Playwright Browsers
+        run: cd wasm-demo && npx playwright install --with-deps
+
+      - name: Run slow test suite (nicely)
+        run: cd wasm-demo && nice npm run test-slow
+
+      - name: Upload Playwright Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: wasm-demo/playwright-report/
+          retention-days: 30
