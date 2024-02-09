@@ -139,12 +139,7 @@ impl Mozak3StarkConfig for BabyBearConfig {
     /// (p-1))
     type Perm = Poseidon2<Self::Val, Self::MyMds, DiffusionMatrixBabybear, { Self::WIDTH }, 7>;
     type Val = BabyBear;
-    type ValMmcs = FieldMerkleTreeMmcs<
-        <Self::Val as Field>::Packing,
-        Self::MyHash,
-        Self::MyCompress,
-        { Self::CHUNK },
-    >;
+    type ValMmcs = FieldMerkleTreeMmcs<Self::Val, Self::MyHash, Self::MyCompress, { Self::CHUNK }>;
 
     /// Since `MyHash` outputs 32 bytes, we can use 256/32 = 8 Field elements
     /// to represent it.
