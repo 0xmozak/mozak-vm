@@ -18,7 +18,8 @@ Note how the protocol for the entire system is the intersection of the protocols
 
 To get a useful protocol out of this, we require that each observable's protocol allow all state changes that leave its own observable unchanged.  Formally, we require that $E_o \supseteq \operatorname{const}_o$ where $ \operatorname{const}_o := \left\{ (s, t) \mid o\left(s\right) = o\left(t\right), s, t \in \mathbb{S}\right\} $.  We will also occasionally refer to this protocol as $ o = o $ or as $ =_o $.
 
-> An alternative, equivalent definition is $\operatorname{const}_o := \left\{ \left(\left(s, t_0, t_1, \dots{} \right), \left(s, t'_0, t'_1, \dots{} \right)\right) \mid s \in \mathbb{S}_o \text { and } t_i, t'_i \in \mathbb{S}_i \text{ for all }  i \in \mathbb{O} \setminus \{o\} \right\} $.
+---
+
 
 
 ---
