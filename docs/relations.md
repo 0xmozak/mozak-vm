@@ -18,9 +18,9 @@ Note how the protocol for the entire system is the intersection of the protocols
 
 To get a useful protocol out of this, we require that each observable's protocol allow all state changes that leave its own observable unchanged.  Formally, we require that $E_o \supseteq \operatorname{const}_o$ where $ \operatorname{const}_o := \left\{ (s, t) \mid o\left(s\right) = o\left(t\right), s, t \in \mathbb{S}\right\} $.  We will also occasionally refer to this protocol as $ o = o $ or as $ =_o $.
 
----
+<!-- ---
 
-
+> Everything below here is just random notes.
 
 ---
 
@@ -28,4 +28,4 @@ The set of states $ \mathbb{S} $ is a poset, with the partial order $ \leq $ def
 
 ---
 
-TODO: figure out how to talk about cross program calls?  (And witnesses.  The witness is the important idea, because it's often what restricts allowed transitions in practice.  Especially for a wallet.  Perhaps put that in as an extension at the end?  It's also related to constructivism?)
+TODO: figure out how to talk about cross program calls?  (And witnesses.  The witness is the important idea, because it's often what restricts allowed transitions in practice.  Especially for a wallet.  Perhaps put that in as an extension at the end?  It's also related to constructivism?) -->
