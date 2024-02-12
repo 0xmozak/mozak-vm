@@ -28,45 +28,143 @@ const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
 // A simple DSL for handling extension arithmetic
+mod expr {
+    use std::ops::{Add, Mul, Sub};
 
-type BF<F, const D: usize> = dyn Fn(&mut CircuitBuilder<F, D>) -> ExtensionTarget<D>;
+    use plonky2::field::extension::Extendable;
+    use plonky2::hash::hash_types::RichField;
+    use plonky2::iop::ext_target::ExtensionTarget;
+    use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-fn constant<F, const D: usize>(c: ExtensionTarget<D>) -> Box<BF<F, D>>
-where
-    F: RichField,
-    F: Extendable<D>, {
-    Box::new(move |_| c)
-}
+    trait Expr<F, const D: usize>
+    where
+        F: RichField,
+        F: Extendable<D>, {
+        fn eval(&self, builder: &mut CircuitBuilder<F, D>) -> ExtensionTarget<D>;
+    }
 
-fn c_one<F, const D: usize>() -> Box<BF<F, D>>
-where
-    F: RichField,
-    F: Extendable<D>, {
-    Box::new(move |b| b.one_extension())
-}
+    impl<F, const D: usize> Add for Box<dyn Expr<F, D>> {
+        type Output = Box<AddExpr<F, D>>;
 
-fn sub<F, const D: usize>(left: Box<BF<F, D>>, right: Box<BF<F, D>>) -> Box<BF<F, D>>
-where
-    F: RichField,
-    F: Extendable<D>, {
-    Box::new(move |b| {
-        let l = left(b);
-        let r = right(b);
+        fn add(self, other: Self) -> Self::Output {
+            Box::new(AddExpr {
+                left: self,
+                right: other,
+            })
+        }
+    }
 
-        b.sub_extension(l, r)
-    })
-}
+    impl<F, const D: usize> Sub for Box<dyn Expr<F, D>> {
+        type Output = Box<SubExpr<F, D>>;
 
-fn mul<F, const D: usize>(left: Box<BF<F, D>>, right: Box<BF<F, D>>) -> Box<BF<F, D>>
-where
-    F: RichField,
-    F: Extendable<D>, {
-    Box::new(move |b| {
-        let l = left(b);
-        let r = right(b);
+        fn sub(self, other: Self) -> Self::Output {
+            Box::new(SubExpr {
+                left: self,
+                right: other,
+            })
+        }
+    }
 
-        b.mul_extension(l, r)
-    })
+    impl<F, const D: usize> Mul for Box<dyn Expr<F, D>> {
+        type Output = Box<MulExpr<F, D>>;
+
+        fn mul(self, other: Self) -> Self::Output {
+            Box::new(MulExpr {
+                left: self,
+                right: other,
+            })
+        }
+    }
+
+    struct ConstExpr<const D: usize> {
+        val: ExtensionTarget<D>,
+    }
+
+    impl<F: RichField + Extendable<D>, const D: usize> Expr<F, D> for ConstExpr<D> {
+        fn eval(&self, _builder: &mut CircuitBuilder<F, D>) -> ExtensionTarget<D> { self.val }
+    }
+
+    struct OneExpr<const D: usize> {}
+
+    impl<F: RichField + Extendable<D>, const D: usize> Expr<F, D> for OneExpr<D> {
+        fn eval(&self, builder: &mut CircuitBuilder<F, D>) -> ExtensionTarget<D> {
+            builder.one_extension()
+        }
+    }
+
+    struct SubExpr<F, const D: usize> {
+        left: Box<dyn Expr<F, D>>,
+        right: Box<dyn Expr<F, D>>,
+    }
+
+    impl<F: RichField + Extendable<D>, const D: usize> Expr<F, D> for SubExpr<F, D> {
+        fn eval(&self, builder: &mut CircuitBuilder<F, D>) -> ExtensionTarget<D> {
+            let l = self.left.eval(builder);
+            let r = self.right.eval(builder);
+
+            builder.sub_extension(l, r)
+        }
+    }
+
+    struct AddExpr<F, const D: usize> {
+        left: Box<dyn Expr<F, D>>,
+        right: Box<dyn Expr<F, D>>,
+    }
+
+    impl<F: RichField + Extendable<D>, const D: usize> Expr<F, D> for AddExpr<F, D> {
+        fn eval(&self, builder: &mut CircuitBuilder<F, D>) -> ExtensionTarget<D> {
+            let l = self.left.eval(builder);
+            let r = self.right.eval(builder);
+
+            builder.add_extension(l, r)
+        }
+    }
+
+    struct MulExpr<F, const D: usize> {
+        left: Box<dyn Expr<F, D>>,
+        right: Box<dyn Expr<F, D>>,
+    }
+
+    impl<F: RichField + Extendable<D>, const D: usize> Expr<F, D> for MulExpr<F, D> {
+        fn eval(&self, builder: &mut CircuitBuilder<F, D>) -> ExtensionTarget<D> {
+            let l = self.left.eval(builder);
+            let r = self.right.eval(builder);
+
+            builder.mul_extension(l, r)
+        }
+    }
+
+    // smart constructors
+    type E<F, const D: usize> = Box<dyn Expr<F, D>>;
+
+    fn one<F, const D: usize>() -> E<F, D>
+    where
+        F: RichField,
+        F: Extendable<D>, {
+        Box::new(OneExpr {})
+    }
+
+    pub fn c<F, const D: usize>(val: ExtensionTarget<D>) -> E<F, D>
+    where
+        F: RichField,
+        F: Extendable<D>, {
+        Box::new(ConstExpr { val })
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use plonky2::field::goldilocks_field::GoldilocksField;
+
+        use super::*;
+
+        #[test]
+        fn addition_test() {
+            let a: E<GoldilocksField, 2> = one();
+            let b: E<GoldilocksField, 2> = one();
+
+            let c = a + b;
+        }
+    }
 }
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F, D> {
@@ -228,13 +326,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
         let one = builder.one_extension();
-        // let one_minus_is_init = builder.sub_extension(one, lv.is_init);
-        // let one_minus_is_init_times_executed =
-        //     builder.mul_extension(one_minus_is_init, lv_is_executed);
+        let one_minus_is_init = builder.sub_extension(one, lv.is_init);
+        let one_minus_is_init_times_executed =
+            builder.mul_extension(one_minus_is_init, lv_is_executed);
 
-        let one_minus_is_init_times_executedf =
-            mul(sub(c_one(), constant(lv.is_init)), constant(lv_is_executed));
-        let one_minus_is_init_times_executed = one_minus_is_init_times_executedf(builder);
+        // This is currently broken
+        // let one_minus_is_init_times_executed =
+        //     (expr::c(one) - expr::c(lv.is_init)) * expr::c(lv_is_executed);
         yield_constr.constraint_first_row(builder, one_minus_is_init_times_executed);
 
         let one_sub_clk = builder.sub_extension(one, lv.clk);
