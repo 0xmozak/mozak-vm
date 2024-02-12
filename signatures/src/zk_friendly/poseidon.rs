@@ -1,95 +1,35 @@
 use itertools::chain;
 use plonky2::field::extension::Extendable;
 use plonky2::field::goldilocks_field::GoldilocksField;
-use plonky2::field::types::{Field, Field64, PrimeField64};
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
 use plonky2::hash::poseidon::PoseidonHash;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, Hasher};
+use plonky2::plonk::config::{AlgebraicHasher, GenericConfig, GenericHashOut, Hasher};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
-pub const PUBLIC_KEY_U64LIMBS: usize = 4;
-pub const PRIVATE_KEY_U8LIMBS: usize = 32;
-pub const MESSAGE_U8LIMBS: usize = 32;
-
-/// This is supposed to be a slice of four field
-/// elements in goldilocks, since its output of
-/// poseidon hash.
-pub struct PublicKey {
-    limbs: [u64; PUBLIC_KEY_U64LIMBS],
-}
-
-impl PublicKey {
-    pub fn new(limbs: [u64; PUBLIC_KEY_U64LIMBS]) -> Option<Self> {
-        match limbs
-            .iter()
-            .filter(|&&x| x >= GoldilocksField::ORDER)
-            .count()
-        {
-            0 => Some(Self { limbs }),
-            _ => None,
-        }
-    }
-
-    pub fn get_limbs(&self) -> [u64; PUBLIC_KEY_U64LIMBS] { self.limbs }
-
-    pub fn get_limbs_field(&self) -> [GoldilocksField; PUBLIC_KEY_U64LIMBS] {
-        self.get_limbs().map(GoldilocksField::from_canonical_u64)
-    }
-}
+use super::{Message, PrivateKey, PublicKey, NUM_LIMBS_U8};
 
 impl From<HashOut<GoldilocksField>> for PublicKey {
     fn from(hash: HashOut<GoldilocksField>) -> Self {
-        let limbs = hash
-            .elements
-            .map(|elem| GoldilocksField::to_canonical_u64(&elem));
-
-        Self::new(limbs).unwrap()
+        Self::new(hash.to_bytes().try_into().expect("should be 8 bytes long"))
     }
-}
-
-/// 256 bit private key
-pub struct PrivateKey {
-    limbs: [u8; PRIVATE_KEY_U8LIMBS],
 }
 
 impl PrivateKey {
-    pub fn new(limbs: [u8; PRIVATE_KEY_U8LIMBS]) -> Self { Self { limbs } }
-
-    pub fn get_limbs(&self) -> [u8; PRIVATE_KEY_U8LIMBS] { self.limbs }
-
+    // todo: customize hash
     pub fn get_public_key(&self) -> PublicKey {
         PoseidonHash::hash_or_noop(&self.get_limbs_field()).into()
-    }
-
-    pub fn get_limbs_field(&self) -> [GoldilocksField; PRIVATE_KEY_U8LIMBS] {
-        self.get_limbs().map(GoldilocksField::from_canonical_u8)
-    }
-}
-
-/// For simplicity, this is assumed to be a 256 bit hash
-pub struct Message {
-    limbs: [u8; MESSAGE_U8LIMBS],
-}
-
-impl Message {
-    pub fn new(limbs: [u8; MESSAGE_U8LIMBS]) -> Self { Self { limbs } }
-
-    pub fn get_limbs(&self) -> [u8; MESSAGE_U8LIMBS] { self.limbs }
-
-    pub fn get_limbs_field(&self) -> [GoldilocksField; MESSAGE_U8LIMBS] {
-        self.get_limbs().map(GoldilocksField::from_canonical_u8)
     }
 }
 
 pub fn sign_circuit<F: RichField + Extendable<D>, C: GenericConfig<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
-    private_key_target: [Target; PRIVATE_KEY_U8LIMBS],
-    public_key_target: HashOutTarget,
-    msg_target: [Target; MESSAGE_U8LIMBS],
+    private_key_target: [Target; NUM_LIMBS_U8],
+    public_key_target: [Target; NUM_LIMBS_U8],
+    msg_target: [Target; NUM_LIMBS_U8],
 ) where
     C::Hasher: AlgebraicHasher<F>, {
     // range check each limb to be 8 bits
@@ -98,12 +38,12 @@ pub fn sign_circuit<F: RichField + Extendable<D>, C: GenericConfig<D>, const D: 
 
     // hash the private key
     let hash_private_key = builder.hash_or_noop::<C::Hasher>(private_key_target.to_vec());
-
+    let public_key_as_hash = get_hashout(builder, &public_key_target);
     // check hash(private_key) == public key
-    builder.connect_hashes(hash_private_key, public_key_target);
+    builder.connect_hashes(hash_private_key, public_key_as_hash);
 
     // public key and msg are public inputs
-    builder.register_public_inputs(&public_key_target.elements);
+    builder.register_public_inputs(&public_key_target);
     builder.register_public_inputs(&msg_target);
 }
 
@@ -119,13 +59,13 @@ where
     let mut builder = CircuitBuilder::<F, D>::new(config);
 
     // create targets
-    let private_key_target = builder.add_virtual_target_arr::<PRIVATE_KEY_U8LIMBS>();
-    let public_key_target = builder.add_virtual_target_arr::<PUBLIC_KEY_U64LIMBS>();
-    let msg_target = builder.add_virtual_target_arr::<MESSAGE_U8LIMBS>();
+    let private_key_target = builder.add_virtual_target_arr::<NUM_LIMBS_U8>();
+    let public_key_target = builder.add_virtual_target_arr::<NUM_LIMBS_U8>();
+    let msg_target = builder.add_virtual_target_arr::<NUM_LIMBS_U8>();
 
     // convert inputs slices to field slices.
     let private_key_field = private_key.get_limbs().map(|x| F::from_canonical_u8(x));
-    let public_key_field = public_key.get_limbs().map(|x| F::from_noncanonical_u64(x));
+    let public_key_field = public_key.get_limbs().map(|x| F::from_canonical_u8(x));
     let msg_field = msg.get_limbs().map(|x| F::from_canonical_u8(x));
 
     // set target values
@@ -136,7 +76,7 @@ where
     sign_circuit::<F, C, D>(
         &mut builder,
         private_key_target,
-        public_key_target.into(),
+        public_key_target,
         msg_target,
     );
 
@@ -146,16 +86,33 @@ where
     (data, proof)
 }
 
+pub fn get_hashout<F: RichField + Extendable<D>, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    limbs: &[Target; 32],
+) -> HashOutTarget {
+    let hash_out_target = builder.add_virtual_hash();
+    let zero = builder.zero();
+    let base = builder.constant(F::from_canonical_u16(1 << 8));
+    for i in 0..4 {
+        let u32_target = limbs[8 * i..8 * i + 8]
+            .iter()
+            .rev()
+            .fold(zero, |acc, limb| builder.mul_add(acc, base, *limb));
+        builder.connect(hash_out_target.elements[i], u32_target);
+    }
+    hash_out_target
+}
+
 #[cfg(test)]
 mod tests {
 
     use plonky2::field::types::Sample;
-    use plonky2::hash::hash_types::NUM_HASH_OUT_ELTS;
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use rand::Rng;
 
-    use super::{Message, PrivateKey, PublicKey, MESSAGE_U8LIMBS, PRIVATE_KEY_U8LIMBS};
+    use super::{Message, PrivateKey, PublicKey};
+    use crate::zk_friendly::NUM_LIMBS_U8;
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<2>>::F;
     const D: usize = 2;
@@ -165,11 +122,11 @@ mod tests {
         let mut rng = rand::thread_rng();
 
         // generate random private key
-        let private_key = PrivateKey::new(rng.gen::<[u8; PRIVATE_KEY_U8LIMBS]>());
+        let private_key = PrivateKey::new(rng.gen::<[u8; NUM_LIMBS_U8]>());
         // get public key associated with private key
         let public_key = private_key.get_public_key();
         // generate random message
-        let msg = Message::new(rng.gen::<[u8; MESSAGE_U8LIMBS]>());
+        let msg = Message::new(rng.gen::<[u8; NUM_LIMBS_U8]>());
 
         (private_key, public_key, msg)
     }
@@ -192,7 +149,7 @@ mod tests {
 
         // assert public key is there in public inputs
         assert_eq!(
-            proof.public_inputs[..NUM_HASH_OUT_ELTS],
+            proof.public_inputs[..NUM_LIMBS_U8],
             public_key.get_limbs_field()
         );
         // tamper with public key
@@ -209,12 +166,9 @@ mod tests {
             super::prove_sign::<F, C, D>(config, &private_key, &public_key, &msg);
 
         // assert msg is there in public inputs
-        assert_eq!(
-            proof.public_inputs[NUM_HASH_OUT_ELTS..],
-            msg.get_limbs_field()
-        );
+        assert_eq!(proof.public_inputs[NUM_LIMBS_U8..], msg.get_limbs_field());
         // tamper with msg
-        proof.public_inputs[NUM_HASH_OUT_ELTS] = F::rand();
+        proof.public_inputs[NUM_LIMBS_U8] = F::rand();
         assert!(data.verify(proof).is_ok());
     }
 }
