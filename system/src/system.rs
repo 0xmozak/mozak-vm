@@ -106,7 +106,9 @@ pub fn syscall_ioread_private(buf_ptr: *mut u8, buf_len: usize) {
         for i in 0..isize::try_from(buf_len)
             .expect("syscall_ioread_private: usize to isize cast should succeed for buf_len")
         {
-            buf_ptr.offset(i).write(io_tape_ptr.offset(i).read());
+            buf_ptr
+                .offset(i)
+                .write_unaligned(io_tape_ptr.offset(i).read_unaligned());
         }
     }
     #[cfg(not(target_os = "zkvm"))]
@@ -141,7 +143,9 @@ pub fn syscall_ioread_public(buf_ptr: *mut u8, buf_len: usize) {
         for i in 0..isize::try_from(buf_len)
             .expect("syscall_ioread_public: usize to isize cast should succeed for buf_len")
         {
-            buf_ptr.offset(i).write(io_tape_ptr.offset(i).read());
+            buf_ptr
+                .offset(i)
+                .write_unaligned(io_tape_ptr.offset(i).read_unaligned());
         }
     }
     #[cfg(not(target_os = "zkvm"))]
@@ -176,7 +180,9 @@ pub fn syscall_transcript_read(buf_ptr: *mut u8, buf_len: usize) {
         for i in 0..isize::try_from(buf_len)
             .expect("syscall_transcript_read: usize to isize cast should succeed for buf_len")
         {
-            buf_ptr.offset(i).write(io_tape_ptr.offset(i).read());
+            buf_ptr
+                .offset(i)
+                .write_unaligned(io_tape_ptr.offset(i).read_unaligned());
         }
     }
     #[cfg(not(target_os = "zkvm"))]
