@@ -27,6 +27,48 @@ impl<F, const D: usize> HasNamedColumns for MemoryStark<F, D> {
 const COLUMNS: usize = Memory::<()>::NUMBER_OF_COLUMNS;
 const PUBLIC_INPUTS: usize = 0;
 
+// A simple DSL for handling extension arithmetic
+
+type BF<F, const D: usize> = dyn Fn(&mut CircuitBuilder<F, D>) -> ExtensionTarget<D>;
+
+fn constant<F, const D: usize>(c: ExtensionTarget<D>) -> Box<BF<F, D>>
+where
+    F: RichField,
+    F: Extendable<D>, {
+    Box::new(move |_| c)
+}
+
+fn c_one<F, const D: usize>() -> Box<BF<F, D>>
+where
+    F: RichField,
+    F: Extendable<D>, {
+    Box::new(move |b| b.one_extension())
+}
+
+fn sub<F, const D: usize>(left: Box<BF<F, D>>, right: Box<BF<F, D>>) -> Box<BF<F, D>>
+where
+    F: RichField,
+    F: Extendable<D>, {
+    Box::new(move |b| {
+        let l = left(b);
+        let r = right(b);
+
+        b.sub_extension(l, r)
+    })
+}
+
+fn mul<F, const D: usize>(left: Box<BF<F, D>>, right: Box<BF<F, D>>) -> Box<BF<F, D>>
+where
+    F: RichField,
+    F: Extendable<D>, {
+    Box::new(move |b| {
+        let l = left(b);
+        let r = right(b);
+
+        b.mul_extension(l, r)
+    })
+}
+
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
 
@@ -186,9 +228,13 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
         let one = builder.one_extension();
-        let one_minus_is_init = builder.sub_extension(one, lv.is_init);
-        let one_minus_is_init_times_executed =
-            builder.mul_extension(one_minus_is_init, lv_is_executed);
+        // let one_minus_is_init = builder.sub_extension(one, lv.is_init);
+        // let one_minus_is_init_times_executed =
+        //     builder.mul_extension(one_minus_is_init, lv_is_executed);
+
+        let one_minus_is_init_times_executedf =
+            mul(sub(c_one(), constant(lv.is_init)), constant(lv_is_executed));
+        let one_minus_is_init_times_executed = one_minus_is_init_times_executedf(builder);
         yield_constr.constraint_first_row(builder, one_minus_is_init_times_executed);
 
         let one_sub_clk = builder.sub_extension(one, lv.clk);
