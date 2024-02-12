@@ -516,12 +516,9 @@ where
     assert!(last_degree_bits >= target_degree_bits);
 
     let mut shrink_circuit = PlonkWrapperCircuit::new(circuit, config.clone());
-    let mut shrunk_proof = shrink_circuit.prove(&proof)?;
+    let mut shrunk_proof = shrink_circuit.prove(proof)?;
     let shrunk_degree_bits = shrink_circuit.circuit.common.degree_bits();
-    info!(
-        "shrinking circuit from degree bits {} to {}",
-        last_degree_bits, shrunk_degree_bits
-    );
+    info!("shrinking circuit from degree bits {last_degree_bits} to {shrunk_degree_bits}",);
     last_degree_bits = shrunk_degree_bits;
 
     while last_degree_bits > target_degree_bits {
@@ -529,13 +526,9 @@ where
         let shrunk_degree_bits = shrink_circuit.circuit.common.degree_bits();
         assert!(
             shrunk_degree_bits < last_degree_bits,
-            "shrink failed at degree bits: {}",
-            last_degree_bits
+            "shrink failed at degree bits: {last_degree_bits}",
         );
-        info!(
-            "shrinking circuit from degree bits {} to {}",
-            last_degree_bits, shrunk_degree_bits
-        );
+        info!("shrinking circuit from degree bits {last_degree_bits} to {shrunk_degree_bits}",);
         last_degree_bits = shrunk_degree_bits;
         shrunk_proof = shrink_circuit.prove(&shrunk_proof)?;
     }
