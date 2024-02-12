@@ -460,19 +460,18 @@ pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D
 /// Represents a circuit which recursively verifies a PLONK proof.
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) struct PlonkWrapperCircuit<F, C, const D: usize>
-    where
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F>,
-{
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>, {
     pub(crate) circuit: CircuitData<F, C, D>,
     pub(crate) proof_with_pis_target: ProofWithPublicInputsTarget<D>,
 }
 
 impl<F, C, const D: usize> PlonkWrapperCircuit<F, C, D>
-    where
-        F: RichField + Extendable<D>,
-        C: GenericConfig<D, F = F>,
-        C::Hasher: AlgebraicHasher<F>,
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    C::Hasher: AlgebraicHasher<F>,
 {
     pub(crate) fn new(
         circuit: &CircuitData<F, C, D>,
@@ -501,26 +500,41 @@ impl<F, C, const D: usize> PlonkWrapperCircuit<F, C, D>
     }
 }
 
-pub(crate) fn shrink_to_target_degree_bits<
+pub(crate) fn shrink_to_target_degree_bits_circuit<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     const D: usize,
 >(
     circuit: &CircuitData<F, C, D>,
-    config: CircuitConfig,
+    config: &CircuitConfig,
     target_degree_bits: usize,
-    proof: ProofWithPublicInputs<F, C, D>,
+    proof: &ProofWithPublicInputs<F, C, D>,
 ) -> Result<(PlonkWrapperCircuit<F, C, D>, ProofWithPublicInputs<F, C, D>)>
 where
     C::Hasher: AlgebraicHasher<F>, {
+    let mut last_degree_bits = circuit.common.degree_bits();
+    assert!(last_degree_bits >= target_degree_bits);
+
     let mut shrink_circuit = PlonkWrapperCircuit::new(circuit, config.clone());
     let mut shrinked_proof = proof.clone();
-    while shrink_circuit.circuit.common.degree_bits() > target_degree_bits {
-        info!("shrinking circuit with degree bits: {}", shrink_circuit.circuit.common.degree_bits());
-        shrinked_proof = shrink_circuit.prove(&proof)?;
+    while last_degree_bits > target_degree_bits {
+        info!("shrinking circuit with degree bits: {}", last_degree_bits);
+        shrinked_proof = shrink_circuit.prove(&shrinked_proof)?;
         shrink_circuit = PlonkWrapperCircuit::new(&shrink_circuit.circuit, config.clone());
+        assert!(
+            shrink_circuit.circuit.common.degree_bits() < last_degree_bits,
+            "shrink failed at degree bits: {}",
+            last_degree_bits
+        );
+        last_degree_bits = shrink_circuit.circuit.common.degree_bits();
     }
-    Ok((shrink_circuit, shrinked_proof))
+    assert_eq!(
+        shrink_circuit.circuit.common.degree_bits(),
+        target_degree_bits
+    );
+
+    let final_proof = shrink_circuit.prove(&shrinked_proof)?;
+    Ok((shrink_circuit, final_proof))
 }
 
 // /// Targets for a VM final proof verification circuit.
@@ -548,9 +562,10 @@ where
 //     }
 // }
 
-/// The usual recursion threshold is 2^12 gates, but a few more gates for a constant inner VK and
-/// public inputs are used. This pushes the threshold to 2^13. A narrower witness is used as long as
-/// the number of gates is below this threshold.
+/// The usual recursion threshold is 2^12 gates, but a few more gates for a
+/// constant inner VK and public inputs are used. This pushes the threshold to
+/// 2^13. A narrower witness is used as long as the number of gates is below
+/// this threshold.
 fn shrinking_config() -> CircuitConfig {
     CircuitConfig {
         num_routed_wires: 40,
@@ -562,6 +577,7 @@ fn shrinking_config() -> CircuitConfig {
 mod tests {
     use std::panic;
     use std::panic::AssertUnwindSafe;
+
     use anyhow::Result;
     use log::info;
     use mozak_runner::instruction::{Args, Instruction, Op};
@@ -572,7 +588,9 @@ mod tests {
 
     use crate::stark::mozak_stark::{MozakStark, PublicInputs};
     use crate::stark::prover::prove;
-    use crate::stark::recursive_verifier::{recursive_mozak_stark_circuit, shrink_to_target_degree_bits};
+    use crate::stark::recursive_verifier::{
+        recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit,
+    };
     use crate::stark::verifier::verify_proof;
     use crate::test_utils::{C, D, F};
     use crate::utils::from_u32;
@@ -627,8 +645,6 @@ mod tests {
     #[test]
     fn same_circuit_verify_different_vm_proofs() -> Result<()> {
         let stark = S::default();
-        let mut stark_config = StarkConfig::standard_fast_config();
-        stark_config.fri_config.cap_height = 1;
         let inst = Instruction {
             op: Op::ADD,
             args: Args {
@@ -638,15 +654,17 @@ mod tests {
                 ..Args::default()
             },
         };
+
         let (program0, record0) = execute_code([inst], &[], &[(6, 100), (7, 200)]);
         let public_inputs = PublicInputs {
             entry_point: from_u32(program0.entry_point),
         };
+        let stark_config0 = StarkConfig::standard_fast_config();
         let mozak_proof0 = prove::<F, C, D>(
             &program0,
             &record0,
             &stark,
-            &stark_config,
+            &stark_config0,
             public_inputs,
             &mut TimingTree::default(),
         )?;
@@ -655,64 +673,94 @@ mod tests {
         let public_inputs = PublicInputs {
             entry_point: from_u32(program1.entry_point),
         };
+        let stark_config1 = StarkConfig::standard_fast_config();
         let mozak_proof1 = prove::<F, C, D>(
             &program1,
             &record1,
             &stark,
-            &stark_config,
+            &stark_config1,
             public_inputs,
             &mut TimingTree::default(),
         )?;
 
         // The degree bits should be different for the two proofs.
         assert_ne!(
-            mozak_proof0.degree_bits(&stark_config),
-            mozak_proof1.degree_bits(&stark_config)
+            mozak_proof0.degree_bits(&stark_config0),
+            mozak_proof1.degree_bits(&stark_config1)
         );
 
         let recursion_circuit_config = CircuitConfig::standard_recursion_config();
         let recursion_circuit0 = recursive_mozak_stark_circuit::<F, C, D>(
             &stark,
-            &mozak_proof0.degree_bits(&stark_config),
+            &mozak_proof0.degree_bits(&stark_config0),
             &recursion_circuit_config,
-            &stark_config,
+            &stark_config0,
         );
         let recursion_proof0 = recursion_circuit0.prove(&mozak_proof0)?;
 
         let recursion_circuit1 = recursive_mozak_stark_circuit::<F, C, D>(
             &stark,
-            &mozak_proof1.degree_bits(&stark_config),
+            &mozak_proof1.degree_bits(&stark_config1),
             &recursion_circuit_config,
-            &stark_config,
+            &stark_config1,
         );
         let recursion_proof1 = recursion_circuit1.prove(&mozak_proof1)?;
 
-        recursion_circuit0.circuit.verify(recursion_proof0.clone())?;
+        recursion_circuit0
+            .circuit
+            .verify(recursion_proof0.clone())?;
 
+        // It is not possible to verify different VM proofs with the same recursion
+        // circuit.
         let result = panic::catch_unwind(AssertUnwindSafe(|| {
-            recursion_circuit0.circuit.verify(recursion_proof1.clone()).expect("Verification failed");
+            recursion_circuit0
+                .circuit
+                .verify(recursion_proof1.clone())
+                .expect("Verification failed");
         }));
         assert!(result.is_err(), "Verification did not failed as expected");
 
-        info!("recursion circuit0 degree bits: {}", recursion_circuit0.circuit.common.degree_bits());
-        info!("recursion circuit1 degree bits: {}", recursion_circuit1.circuit.common.degree_bits());
+        let recursion_degree_bits0 = recursion_circuit0.circuit.common.degree_bits();
+        let recursion_degree_bits1 = recursion_circuit1.circuit.common.degree_bits();
+        assert_ne!(recursion_degree_bits0, recursion_degree_bits1);
+        info!("recursion circuit0 degree bits: {}", recursion_degree_bits0);
+        info!("recursion circuit1 degree bits: {}", recursion_degree_bits1);
 
-        let (final_circuit0, _) = shrink_to_target_degree_bits(
+        let target_degree_bits = 12;
+        let (final_circuit0, final_proof0) = shrink_to_target_degree_bits_circuit(
             &recursion_circuit0.circuit,
-            recursion_circuit_config.clone(),
-            13,
-            recursion_proof0,
+            &recursion_circuit_config,
+            target_degree_bits,
+            &recursion_proof0,
         )?;
-        let (final_circuit1, _) = shrink_to_target_degree_bits(
-            &recursion_circuit0.circuit,
-            recursion_circuit_config.clone(),
-            13,
-            recursion_proof1,
+        let (final_circuit1, final_poof1) = shrink_to_target_degree_bits_circuit(
+            &recursion_circuit1.circuit,
+            &recursion_circuit_config,
+            target_degree_bits,
+            &recursion_proof1,
         )?;
-        assert_eq!(final_circuit0.circuit.common.degree_bits(), 13);
-        assert_eq!(final_circuit0.circuit.common.degree_bits(), 13);
+        assert_eq!(
+            final_circuit0.circuit.common.degree_bits(),
+            target_degree_bits
+        );
+        assert_eq!(
+            final_circuit1.circuit.common.degree_bits(),
+            target_degree_bits
+        );
 
+        final_circuit0.circuit.verify(final_proof0)?;
+        final_circuit1.circuit.verify(final_poof1.clone())?;
 
+        // It is still not possible to verify different VM proofs with the same
+        // recursion circuit at this point. But the final proofs now have the same
+        // degree bits.
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            final_circuit0
+                .circuit
+                .verify(final_poof1)
+                .expect("Verification failed");
+        }));
+        assert!(result.is_err(), "Verification did not failed as expected");
 
         Ok(())
     }
