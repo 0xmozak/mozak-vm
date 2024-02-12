@@ -15,7 +15,7 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierCircuitTarget};
+use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use plonky2::util::reducing::ReducingFactorTarget;
@@ -459,12 +459,12 @@ pub fn set_stark_proof_with_pis_target<F, C: GenericConfig<D, F = F>, W, const D
 
 /// Represents a circuit which recursively verifies a PLONK proof.
 #[derive(Eq, PartialEq, Debug)]
-pub(crate) struct PlonkWrapperCircuit<F, C, const D: usize>
+pub struct PlonkWrapperCircuit<F, C, const D: usize>
 where
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>, {
-    pub(crate) circuit: CircuitData<F, C, D>,
-    pub(crate) proof_with_pis_target: ProofWithPublicInputsTarget<D>,
+    pub circuit: CircuitData<F, C, D>,
+    pub proof_with_pis_target: ProofWithPublicInputsTarget<D>,
 }
 
 impl<F, C, const D: usize> PlonkWrapperCircuit<F, C, D>
@@ -473,7 +473,7 @@ where
     C: GenericConfig<D, F = F>,
     C::Hasher: AlgebraicHasher<F>,
 {
-    pub(crate) fn new(
+    pub fn new(
         circuit: &CircuitData<F, C, D>,
         config: CircuitConfig,
     ) -> PlonkWrapperCircuit<F, C, D> {
@@ -490,7 +490,7 @@ where
         }
     }
 
-    pub(crate) fn prove(
+    pub fn prove(
         &self,
         proof: &ProofWithPublicInputs<F, C, D>,
     ) -> Result<ProofWithPublicInputs<F, C, D>> {
@@ -500,7 +500,7 @@ where
     }
 }
 
-pub(crate) fn shrink_to_target_degree_bits_circuit<
+pub fn shrink_to_target_degree_bits_circuit<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     const D: usize,
@@ -537,36 +537,11 @@ where
     Ok((shrink_circuit, final_proof))
 }
 
-// /// Targets for a VM final proof verification circuit.
-// #[derive(Eq, PartialEq, Debug)]
-// pub(crate) struct VMVerificationCircuit<F, C, const D: usize>
-//     where
-//         F: RichField + Extendable<D>,
-//         C: GenericConfig<D, F = F>,
-// {
-//     pub(crate) proof_with_pis_target: ProofWithPublicInputsTarget<D>,
-//     pub(crate) vk_target: VerifierCircuitTarget,
-// }
-//
-// impl<F, C, const D: usize> VMVerificationCircuit<F, C, D>
-//     where
-//         F: RichField + Extendable<D>,
-//         C: GenericConfig<D, F = F>,
-//         C::Hasher: AlgebraicHasher<F>,
-// {
-//     pub(crate) fn new(
-//         builder: &mut CircuitBuilder<F, D>,
-//         config: CircuitConfig,
-//     ) -> crate::stark::recursive_verifier::PlonkWrapperCircuit<F, C, D> {
-//
-//     }
-// }
-
 /// The usual recursion threshold is 2^12 gates, but a few more gates for a
 /// constant inner VK and public inputs are used. This pushes the threshold to
 /// 2^13. A narrower witness is used as long as the number of gates is below
 /// this threshold.
-fn shrinking_config() -> CircuitConfig {
+pub fn shrinking_config() -> CircuitConfig {
     CircuitConfig {
         num_routed_wires: 40,
         ..CircuitConfig::standard_recursion_config()
@@ -589,7 +564,7 @@ mod tests {
     use crate::stark::mozak_stark::{MozakStark, PublicInputs};
     use crate::stark::prover::prove;
     use crate::stark::recursive_verifier::{
-        recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit,
+        recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit, shrinking_config,
     };
     use crate::stark::verifier::verify_proof;
     use crate::test_utils::{C, D, F};
@@ -726,16 +701,16 @@ mod tests {
         info!("recursion circuit0 degree bits: {}", recursion_degree_bits0);
         info!("recursion circuit1 degree bits: {}", recursion_degree_bits1);
 
-        let target_degree_bits = 12;
+        let target_degree_bits = 13;
         let (final_circuit0, final_proof0) = shrink_to_target_degree_bits_circuit(
             &recursion_circuit0.circuit,
-            &recursion_circuit_config,
+            &shrinking_config(),
             target_degree_bits,
             &recursion_proof0,
         )?;
         let (final_circuit1, final_poof1) = shrink_to_target_degree_bits_circuit(
             &recursion_circuit1.circuit,
-            &recursion_circuit_config,
+            &shrinking_config(),
             target_degree_bits,
             &recursion_proof1,
         )?;
