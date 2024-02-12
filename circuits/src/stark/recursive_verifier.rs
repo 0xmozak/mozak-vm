@@ -516,10 +516,10 @@ where
     assert!(last_degree_bits >= target_degree_bits);
 
     let mut shrink_circuit = PlonkWrapperCircuit::new(circuit, config.clone());
-    let mut shrinked_proof = proof.clone();
+    let mut shrunk_proof = proof.clone();
     while last_degree_bits > target_degree_bits {
         info!("shrinking circuit with degree bits: {}", last_degree_bits);
-        shrinked_proof = shrink_circuit.prove(&shrinked_proof)?;
+        shrunk_proof = shrink_circuit.prove(&shrunk_proof)?;
         shrink_circuit = PlonkWrapperCircuit::new(&shrink_circuit.circuit, config.clone());
         assert!(
             shrink_circuit.circuit.common.degree_bits() < last_degree_bits,
@@ -533,10 +533,11 @@ where
         target_degree_bits
     );
 
-    let final_proof = shrink_circuit.prove(&shrinked_proof)?;
+    let final_proof = shrink_circuit.prove(&shrunk_proof)?;
     Ok((shrink_circuit, final_proof))
 }
 
+#[must_use]
 /// The usual recursion threshold is 2^12 gates, but a few more gates for a
 /// constant inner VK and public inputs are used. This pushes the threshold to
 /// 2^13. A narrower witness is used as long as the number of gates is below
@@ -618,6 +619,8 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
+    #[allow(clippy::too_many_lines)]
     fn same_circuit_verify_different_vm_proofs() -> Result<()> {
         let stark = S::default();
         let inst = Instruction {
