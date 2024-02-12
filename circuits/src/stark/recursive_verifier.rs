@@ -516,25 +516,32 @@ where
     assert!(last_degree_bits >= target_degree_bits);
 
     let mut shrink_circuit = PlonkWrapperCircuit::new(circuit, config.clone());
-    let mut shrunk_proof = proof.clone();
+    let mut shrunk_proof = shrink_circuit.prove(&proof)?;
+    let shrunk_degree_bits = shrink_circuit.circuit.common.degree_bits();
+    info!(
+        "shrinking circuit from degree bits {} to {}",
+        last_degree_bits, shrunk_degree_bits
+    );
+    last_degree_bits = shrunk_degree_bits;
+
     while last_degree_bits > target_degree_bits {
-        info!("shrinking circuit with degree bits: {}", last_degree_bits);
-        shrunk_proof = shrink_circuit.prove(&shrunk_proof)?;
         shrink_circuit = PlonkWrapperCircuit::new(&shrink_circuit.circuit, config.clone());
+        let shrunk_degree_bits = shrink_circuit.circuit.common.degree_bits();
         assert!(
-            shrink_circuit.circuit.common.degree_bits() < last_degree_bits,
+            shrunk_degree_bits < last_degree_bits,
             "shrink failed at degree bits: {}",
             last_degree_bits
         );
-        last_degree_bits = shrink_circuit.circuit.common.degree_bits();
+        info!(
+            "shrinking circuit from degree bits {} to {}",
+            last_degree_bits, shrunk_degree_bits
+        );
+        last_degree_bits = shrunk_degree_bits;
+        shrunk_proof = shrink_circuit.prove(&shrunk_proof)?;
     }
-    assert_eq!(
-        shrink_circuit.circuit.common.degree_bits(),
-        target_degree_bits
-    );
+    assert_eq!(last_degree_bits, target_degree_bits);
 
-    let final_proof = shrink_circuit.prove(&shrunk_proof)?;
-    Ok((shrink_circuit, final_proof))
+    Ok((shrink_circuit, shrunk_proof))
 }
 
 #[must_use]
@@ -619,7 +626,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
+    // #[ignore]
     #[allow(clippy::too_many_lines)]
     fn same_circuit_verify_different_vm_proofs() -> Result<()> {
         let stark = S::default();
