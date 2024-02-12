@@ -11,7 +11,7 @@ use p3_mds::integrated_coset_mds::IntegratedCosetMds;
 use p3_merkle_tree::FieldMerkleTreeMmcs;
 use p3_poseidon2::{DiffusionMatrixBabybear, DiffusionMatrixGoldilocks, Poseidon2};
 use p3_symmetric::{SerializingHasher32, SerializingHasher64, TruncatedPermutation};
-use p3_uni_stark::StarkConfigImpl;
+use p3_uni_stark::StarkConfig;
 use rand::thread_rng;
 
 /// This config refers to types required to use Plonky3 `uni_stark` prover
@@ -54,13 +54,8 @@ impl Mozak3StarkConfig for DefaultConfig {
     type FriConfig = FriConfig<Self::ChallengeMmcs>;
     /// Function used to combine `2` (hashed) nodes of Merkle tree
     type MyCompress = TruncatedPermutation<Self::Perm, 2, { Self::CHUNK }, { Self::WIDTH }>;
-    type MyConfig = StarkConfigImpl<
-        Self::Val,
-        Self::Challenge,
-        Self::PackedChallenge,
-        Self::Pcs,
-        Self::Challenger,
-    >;
+    type MyConfig =
+        StarkConfig<Self::Val, Self::Challenge, Self::PackedChallenge, Self::Pcs, Self::Challenger>;
     type MyHash = SerializingHasher64<Keccak256Hash>;
     type MyMds = IntegratedCosetMds<Self::Val, { Self::WIDTH }>;
     type PackedChallenge = BinomialExtensionField<<Self::Val as Field>::Packing, { Self::D }>;
@@ -125,13 +120,8 @@ impl Mozak3StarkConfig for BabyBearConfig {
     type FriConfig = FriConfig<Self::ChallengeMmcs>;
     /// Function used to combine `2` (hashed) nodes of Merkle tree
     type MyCompress = TruncatedPermutation<Self::Perm, 2, { Self::CHUNK }, { Self::WIDTH }>;
-    type MyConfig = StarkConfigImpl<
-        Self::Val,
-        Self::Challenge,
-        Self::PackedChallenge,
-        Self::Pcs,
-        Self::Challenger,
-    >;
+    type MyConfig =
+        StarkConfig<Self::Val, Self::Challenge, Self::PackedChallenge, Self::Pcs, Self::Challenger>;
     type MyHash = SerializingHasher32<Keccak256Hash>;
     type MyMds = IntegratedCosetMds<Self::Val, { Self::WIDTH }>;
     type PackedChallenge = BinomialExtensionField<<Self::Val as Field>::Packing, { Self::D }>;
@@ -149,12 +139,7 @@ impl Mozak3StarkConfig for BabyBearConfig {
     /// (p-1))
     type Perm = Poseidon2<Self::Val, Self::MyMds, DiffusionMatrixBabybear, { Self::WIDTH }, 7>;
     type Val = BabyBear;
-    type ValMmcs = FieldMerkleTreeMmcs<
-        <Self::Val as Field>::Packing,
-        Self::MyHash,
-        Self::MyCompress,
-        { Self::CHUNK },
-    >;
+    type ValMmcs = FieldMerkleTreeMmcs<Self::Val, Self::MyHash, Self::MyCompress, { Self::CHUNK }>;
 
     /// Since `MyHash` outputs 32 bytes, we can use 256/32 = 8 Field elements
     /// to represent it.
