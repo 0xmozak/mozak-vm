@@ -91,23 +91,4 @@ where
         HashOut::from_bytes(&result)
     }
 }
-
-fn biguint_target_to_u8_target<F, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-    biguint_target: &[U32Target; 8],
-) -> [Target; 32]
-where
-    F: RichField + Extendable<D>, {
-    let target_arr = builder.add_virtual_target_arr::<32>();
-    let zero = builder.zero();
-    let base = builder.constant(F::from_canonical_u16(1 << 8));
-    for i in 0..8 {
-        let u32_target = target_arr[4 * i..4 * i + 4]
-            .iter()
-            .rev()
-            .fold(zero, |acc, limb| builder.mul_add(acc, base, *limb));
-        builder.connect(u32_target, biguint_target[i].0);
-    }
-    target_arr
-}
 test_sig!(ZkSigKeccak256Signer);
