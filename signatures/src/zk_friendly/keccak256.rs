@@ -10,34 +10,13 @@ use plonky2::plonk::config::{GenericConfig, GenericHashOut};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2_crypto::hash::keccak256::{CircuitBuilderHashKeccak, WitnessHashKeccak, KECCAK256_R};
 use plonky2_crypto::hash::CircuitBuilderHash;
-use plonky2_crypto::u32::arithmetic_u32::U32Target;
 use sha3::{Digest, Keccak256};
 
 use super::sig::{PrivateKey, PublicKey, Signature, NUM_LIMBS_U8};
+use super::utils::biguint_target_to_u8_target;
 use crate::test_sig;
 
-pub struct ZkSigKeccak256<F, C, const D: usize>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
-    signature: ProofWithPublicInputs<F, C, D>,
-}
-
-impl<F, C, const D: usize> From<ProofWithPublicInputs<F, C, D>> for ZkSigKeccak256<F, C, D>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-{
-    fn from(signature: ProofWithPublicInputs<F, C, D>) -> Self { Self { signature } }
-}
-
-impl<F, C, const D: usize> Into<ProofWithPublicInputs<F, C, D>> for ZkSigKeccak256<F, C, D>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-{
-    fn into(self) -> ProofWithPublicInputs<F, C, D> { self.signature }
-}
+type ZkSigKeccak256<F, C, const D: usize> = ProofWithPublicInputs<F, C, D>;
 
 pub struct ZkSigKeccak256Signer<F, C, const D: usize> {
     _phantom: (PhantomData<F>, PhantomData<C>),

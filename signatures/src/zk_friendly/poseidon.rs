@@ -14,28 +14,7 @@ use super::sig::{PrivateKey, PublicKey, Signature, NUM_LIMBS_U8};
 use super::utils::get_hashout;
 use crate::test_sig;
 
-pub struct ZkSigPoseidon<F, C, const D: usize>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>, {
-    pub signature: ProofWithPublicInputs<F, C, D>,
-}
-
-impl<F, C, const D: usize> From<ProofWithPublicInputs<F, C, D>> for ZkSigPoseidon<F, C, D>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-{
-    fn from(signature: ProofWithPublicInputs<F, C, D>) -> Self { Self { signature } }
-}
-
-impl<F, C, const D: usize> Into<ProofWithPublicInputs<F, C, D>> for ZkSigPoseidon<F, C, D>
-where
-    F: RichField + Extendable<D>,
-    C: GenericConfig<D, F = F>,
-{
-    fn into(self) -> ProofWithPublicInputs<F, C, D> { self.signature }
-}
+type ZkSigPoseidon<F, C, const D: usize> = ProofWithPublicInputs<F, C, D>;
 
 pub struct ZkSigPoseidonSigner<F, C, const D: usize> {
     _phantom: (PhantomData<F>, PhantomData<C>),

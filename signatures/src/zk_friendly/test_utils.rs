@@ -49,11 +49,11 @@ macro_rules! test_sig {
 
                 // assert public key is there in public inputs
                 assert_eq!(
-                    zk_signature.signature.public_inputs[..NUM_LIMBS_U8],
+                    zk_signature.public_inputs[..NUM_LIMBS_U8],
                     public_key.get_limbs_field()
                 );
                 // tamper with public key
-                zk_signature.signature.public_inputs[0] = F::rand();
+                zk_signature.public_inputs[0] = F::rand();
                 assert!(Signer::verify(circuit, zk_signature).is_ok());
             }
 
@@ -67,11 +67,11 @@ macro_rules! test_sig {
 
                 // assert msg is there in public inputs
                 assert_eq!(
-                    zk_signature.signature.public_inputs[NUM_LIMBS_U8..],
+                    zk_signature.public_inputs[NUM_LIMBS_U8..],
                     msg.get_limbs_field()
                 );
                 // tamper with msg
-                zk_signature.signature.public_inputs[NUM_LIMBS_U8] = F::rand();
+                zk_signature.public_inputs[NUM_LIMBS_U8] = F::rand();
                 assert!(Signer::verify(circuit, zk_signature).is_ok());
             }
         }
