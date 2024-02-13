@@ -303,21 +303,40 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
         let one = Expr::from(builder.one_extension());
-        constraint_first_row(yield_constr, builder, (one.clone() - Expr::from(lv.is_init)) * Expr::from(lv_is_executed));
 
-        constraint(yield_constr, builder, (Expr::from(lv.is_init) * (one.clone() - Expr::from(lv.clk))) * Expr::from(lv.clk));
+        let zero_init_clk = one.clone() - Expr::from(lv.clk);
+        let elf_init_clk = Expr::from(lv.clk);
 
-        constraint(yield_constr, builder, (Expr::from(lv.is_init) * (one.clone() - Expr::from(lv.clk))) * Expr::from(lv.value));
+        constraint_first_row(
+            yield_constr,
+            builder,
+            (one.clone() - Expr::from(lv.is_init)) * Expr::from(lv_is_executed));
 
         constraint(
             yield_constr,
             builder,
-            (Expr::from(lv.is_init) * (one.clone() - Expr::from(lv.clk))) * (one.clone() - Expr::from(lv.is_writable)).clone(),
+            Expr::from(lv.is_init) * zero_init_clk.clone() * elf_init_clk.clone());
+
+        constraint(
+            yield_constr,
+            builder,
+            Expr::from(lv.is_init) * zero_init_clk.clone() * Expr::from(lv.value));
+
+        constraint(
+            yield_constr,
+            builder,
+            Expr::from(lv.is_init) * zero_init_clk.clone() * (one.clone() - Expr::from(lv.is_writable)),
         );
 
-        constraint(yield_constr, builder, Expr::from(lv.is_store) * (one.clone() - Expr::from(lv.is_writable)));
+        constraint(
+            yield_constr,
+            builder,
+            (one.clone() - Expr::from(lv.is_writable)) * Expr::from(lv.is_store));
 
-        constraint(yield_constr, builder, Expr::from(nv.is_load) * Expr::from(Expr::from(nv.value) - Expr::from(lv.value)));
+        constraint(
+            yield_constr,
+            builder,
+            Expr::from(nv.is_load) * (Expr::from(nv.value) - Expr::from(lv.value)));
 
         constraint_transition(
             yield_constr,
@@ -325,21 +344,30 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
             (one.clone() - Expr::from(nv.is_init)) * (Expr::from(nv.diff_clk) - (Expr::from(nv.clk) - Expr::from(lv.clk))),
         );
 
-        constraint_transition(yield_constr, builder, Expr::from(lv.is_init) * Expr::from(lv.diff_clk));
-
-        let nv_is_executed = is_executed_ext_circuit(builder, nv);
-        constraint_transition(yield_constr, builder, Expr::from(nv_is_executed) * (Expr::from(lv_is_executed) - Expr::from(nv_is_executed)));
-
         constraint_transition(
             yield_constr,
             builder,
-            (Expr::from(nv.addr) - Expr::from(lv.addr)) * (one - ((Expr::from(nv.addr) - Expr::from(lv.addr)) * Expr::from(nv.diff_addr_inv))),
+            Expr::from(lv.is_init) * Expr::from(lv.diff_clk)
+        );
+
+        // Needed due to mutable borrow of builder...
+        let nv_is_executed = is_executed_ext_circuit(builder, nv);
+        constraint_transition(
+            yield_constr,
+            builder,
+            (Expr::from(lv_is_executed) - Expr::from(nv_is_executed)) * Expr::from(nv_is_executed));
+
+        let diff_addr = Expr::from(nv.addr) - Expr::from(lv.addr);
+        constraint_transition(
+            yield_constr,
+            builder,
+            diff_addr.clone() * (one - diff_addr.clone() * Expr::from(nv.diff_addr_inv)),
         );
 
         constraint_transition(
             yield_constr,
             builder,
-            ((Expr::from(nv.addr) - Expr::from(lv.addr)) * Expr::from(nv.diff_addr_inv)) - Expr::from(nv.is_init),
+            (diff_addr * Expr::from(nv.diff_addr_inv)) - Expr::from(nv.is_init),
         );
     }
 }
