@@ -1,3 +1,4 @@
+#![feature(restricted_std)]
 extern crate alloc;
 
 // use alloc::vec::Vec;
@@ -38,7 +39,6 @@ impl Default for MethodReturns {
 
 #[allow(dead_code)]
 pub fn dispatch(args: MethodArgs) -> MethodReturns {
-    println!("[TKN: DISPATCH] dispatch called \n{:#?}", args);
     match args {
         MethodArgs::Transfer(id, object, signature, remitter, remittee) => {
             transfer(id, object, signature, remitter, remittee);

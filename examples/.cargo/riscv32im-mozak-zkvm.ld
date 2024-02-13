@@ -69,11 +69,13 @@ SECTIONS {
     /* mozak_globals, NOTE: needs to sync with memory regions defined above */
     .mozak_globals : {
         /* Globals like state root can be filled within 0x20000000 to 0x200FFFFF */
+        __mozak_globals_start = .;
         _mozak_context_variables          = 0x20000000;
         /* Space left intentional for further use */
         _mozak_public_io_tape             = 0x21000000;
         _mozak_private_io_tape            = 0x30000000;
         _mozak_transcript                 = 0x40000000;
+        __mozak_globals_end = .;
     } > mozak_context
 
     /* For memory region: `elf_rwdata` -------------------------------------------------------------------   */

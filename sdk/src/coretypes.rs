@@ -176,7 +176,7 @@ pub struct StateObject {
 #[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Default, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
-pub struct RawMessage(Vec<u8>);
+pub struct RawMessage(pub Vec<u8>);
 
 #[cfg(not(target_os = "zkvm"))]
 impl std::fmt::Debug for RawMessage {

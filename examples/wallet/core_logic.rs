@@ -21,7 +21,7 @@ pub enum MethodArgs {
     ApproveSignature(ProgramIdentifier, StateObject, Operation, Signature),
 }
 
-#[derive(Archive, Deserialize, Serialize, PartialEq, Eq, Clone)]
+#[derive(Archive, Debug, Deserialize, Serialize, PartialEq, Eq, Clone)]
 #[archive(compare(PartialEq))]
 #[archive_attr(derive(Debug))]
 #[cfg_attr(not(target_os = "zkvm"), derive(Debug))]
@@ -35,7 +35,6 @@ impl Default for MethodReturns {
 }
 
 pub fn dispatch(args: MethodArgs) -> MethodReturns {
-    println!("[WLT: DISPATCH] dispatch called \n{:#?}", args);
     match args {
         MethodArgs::ApproveSignature(id, object, operation, signature) =>
             MethodReturns::ApproveSignature(approve_signature(id, object, operation, signature)),

@@ -236,8 +236,10 @@ fn main() -> Result<()> {
                 mozak_runner::elf::RuntimeArguments::default,
                 tapes_to_runtime_arguments,
             );
+            mozak_sdk::sys::SystemTapes::load_from_args(args.transcript.as_slice());
             let program = load_program_with_args(elf, &args).unwrap();
             let state = State::<GoldilocksField>::new(program.clone(), args);
+
             let record = step(&program, state)?;
             prove_and_verify_mozak_stark(&program, &record, &config)?;
         }

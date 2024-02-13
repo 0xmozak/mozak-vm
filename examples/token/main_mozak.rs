@@ -3,47 +3,22 @@
 
 mod core_logic;
 
+use std::path::{Path, PathBuf};
+
+use mozak_sdk::coretypes::ProgramIdentifier;
 use mozak_sdk::io::{get_tapes, Extractor};
-use mozak_sdk::sys::mailbox_receive;
+use mozak_sdk::sys::{call_receive, SystemTapes};
 
 pub fn main() {
-    // let (mut public_tape, mut _private_tape) = get_tapes();
-
-    sdk::set_self_prog(prog_id);
-
-    ///
-    for message in mailbox_receive().unwrap() { // iterator
-         // if (message.caller == self_prog_id) {
-         //     // dispatch and check
-         // }
-    }
-
-    // Vec<Element>
-    // Element: Vec<Element> | Message
-
-    // / under B
-    // / | A | B | B->C | B->C->B | B | C |
-
-    // #[allow(clippy::single_match)]
-    // match public_tape.get_u8() {
-
-    //     /// AMM  (Top level)
-    //     ///  USDC (Responders)
-    //     ///    WALLET  (Responders)
-    //     ///
-    //     0 => {
-    //         // Single function execution
-    //         // match public_tape.get_u8() {
-    //         //     unimplemented!()
-    //         // }
-    //     }
-    //     _ => {
-    //         // Multi-function execution based on recepient
-    //         // for calls in global_transcript_calls(program_id) {
-    //         //     // Do those calls
-    //         // }
-    //     }
-    // }
+    assert_eq!(1, 1);
+    guest::env::write(b"1");
+    //    SystemTapes::load_from_file(Path::new("wallet_tfr.tape_bin"));
+    //
+    //    if let Some(message) = call_receive() {
+    //        if message.0.callee_prog != ProgramIdentifier::default() {
+    //            panic!("Program identifiers do not match");
+    //        };
+    //    }
 }
 
 // We define `main()` to be the program's entry point.
