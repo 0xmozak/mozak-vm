@@ -6,10 +6,12 @@ use mozak_circuits::recproof::state_update::{BranchCircuit, LeafCircuit};
 use mozak_circuits::recproof::{make_tree, unbounded};
 use mozak_circuits::test_utils::{hash_branch, hash_str, C, D, F};
 use plonky2::field::types::Field;
-use plonky2::hash::hash_types::HashOut;
+use plonky2::hash::hash_types::{HashOut, RichField};
+use plonky2::hash::poseidon2::Poseidon2Hash;
 use plonky2::iop::witness::{PartialWitness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
+use plonky2::plonk::config::Hasher;
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 
 pub struct DummyLeafCircuit {
@@ -112,6 +114,13 @@ impl DummyBranchCircuit {
     }
 }
 
+fn hash_write<F: RichField>(address: u64, left: &HashOut<F>, right: &HashOut<F>) -> HashOut<F> {
+    let address = F::from_canonical_u64(address);
+    let [l0, l1, l2, l3] = left.elements;
+    let [r0, r1, r2, r3] = right.elements;
+    Poseidon2Hash::hash_no_pad(&[address, l0, l1, l2, l3, r0, r1, r2, r3])
+}
+
 fn bench_prove_verify_recproof(c: &mut Criterion) {
     let mut group = c.benchmark_group("prove_verify_recproof");
     group.measurement_time(Duration::new(10, 0));
@@ -127,36 +136,52 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
     let hash_0_and_1 = black_box(hash_branch(&zero_hash, &non_zero_hash_1));
     let hash_1_and_0 = hash_branch(&non_zero_hash_1, &zero_hash);
     let hash_00_and_00 = hash_branch(&hash_0_and_0, &hash_0_and_0);
-    let hash_01_and_01 = hash_branch(&hash_0_and_1, &hash_0_and_1);
     let hash_01_and_10 = hash_branch(&hash_0_and_1, &hash_1_and_0);
 
+    let slot_3_r0w1 = hash_write(3, &zero_hash, &non_zero_hash_1);
+    let slot_4_r0w1 = hash_write(4, &zero_hash, &non_zero_hash_1);
+    let slot_3_and_4 = hash_branch(&slot_3_r0w1, &slot_4_r0w1);
+
     // Leaf proofs
-    let zero_proof = leaf_circuit.prove(zero_hash, zero_hash, zero_hash).unwrap();
+    let zero_proof = leaf_circuit
+        .prove(zero_hash, zero_hash, zero_hash, None)
+        .unwrap();
     leaf_circuit.circuit.verify(zero_proof.clone()).unwrap();
 
-    let proof_0_to_1 = leaf_circuit
-        .prove(zero_hash, non_zero_hash_1, hash_0_and_1)
+    let proof_0_to_1_id_3 = leaf_circuit
+        .prove(zero_hash, non_zero_hash_1, slot_3_r0w1, Some(3))
         .unwrap();
-    leaf_circuit.circuit.verify(proof_0_to_1.clone()).unwrap();
+    leaf_circuit
+        .circuit
+        .verify(proof_0_to_1_id_3.clone())
+        .unwrap();
+
+    let proof_0_to_1_id_4 = leaf_circuit
+        .prove(zero_hash, non_zero_hash_1, slot_4_r0w1, Some(4))
+        .unwrap();
+    leaf_circuit
+        .circuit
+        .verify(proof_0_to_1_id_4.clone())
+        .unwrap();
 
     // Branch proofs
     let branch_00_and_01_proof = branch_circuit_1
         .prove(
             &zero_proof,
-            &proof_0_to_1,
+            &proof_0_to_1_id_3,
             hash_0_and_0,
             hash_0_and_1,
-            hash_0_and_1,
+            slot_3_r0w1,
         )
         .unwrap();
 
     let branch_01_and_00_proof = branch_circuit_1
         .prove(
-            &proof_0_to_1,
+            &proof_0_to_1_id_4,
             &zero_proof,
             hash_0_and_0,
             hash_1_and_0,
-            hash_0_and_1,
+            slot_4_r0w1,
         )
         .unwrap();
 
@@ -164,12 +189,17 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
     group.bench_function("recproof_leaf_prove", |b| {
         b.iter(|| {
             leaf_circuit
-                .prove(zero_hash, non_zero_hash_1, hash_0_and_1)
+                .prove(zero_hash, non_zero_hash_1, slot_3_r0w1, Some(3))
                 .unwrap()
         })
     });
     group.bench_function("recproof_leaf_verify", |b| {
-        b.iter(|| leaf_circuit.circuit.verify(proof_0_to_1.clone()).unwrap())
+        b.iter(|| {
+            leaf_circuit
+                .circuit
+                .verify(proof_0_to_1_id_3.clone())
+                .unwrap()
+        })
     });
 
     group.bench_function("recproof_branch_prove_1", |b| {
@@ -177,10 +207,10 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
             branch_circuit_1
                 .prove(
                     &zero_proof,
-                    &proof_0_to_1,
+                    &proof_0_to_1_id_3,
                     hash_0_and_0,
                     hash_0_and_1,
-                    hash_0_and_1,
+                    slot_3_r0w1,
                 )
                 .unwrap()
         })
@@ -202,7 +232,7 @@ fn bench_prove_verify_recproof(c: &mut Criterion) {
                     &branch_01_and_00_proof,
                     hash_00_and_00,
                     hash_01_and_10,
-                    hash_01_and_01,
+                    slot_3_and_4,
                 )
                 .unwrap()
         })
