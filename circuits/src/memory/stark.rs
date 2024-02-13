@@ -103,33 +103,33 @@ mod expr {
     pub fn constraint_first_row<F, const D: usize>(
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
         builder: &mut CircuitBuilder<F, D>,
-        constaints: Expr<ExtensionTarget<D>>,
+        constraints: Expr<ExtensionTarget<D>>,
     ) where
         F: RichField,
         F: Extendable<D>, {
-        let built_constraints = constaints.eval(builder);
+        let built_constraints = constraints.eval(builder);
         yield_constr.constraint_first_row(builder, built_constraints);
     }
 
     pub fn constraint<F, const D: usize>(
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
         builder: &mut CircuitBuilder<F, D>,
-        constaints: Expr<ExtensionTarget<D>>,
+        constraints: Expr<ExtensionTarget<D>>,
     ) where
         F: RichField,
         F: Extendable<D>, {
-        let built_constraints = constaints.eval(builder);
+        let built_constraints = constraints.eval(builder);
         yield_constr.constraint(builder, built_constraints);
     }
 
     pub fn constraint_transition<F, const D: usize>(
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
         builder: &mut CircuitBuilder<F, D>,
-        constaints: Expr<ExtensionTarget<D>>,
+        constraints: Expr<ExtensionTarget<D>>,
     ) where
         F: RichField,
         F: Extendable<D>, {
-        let built_constraints = constaints.eval(builder);
+        let built_constraints = constraints.eval(builder);
         yield_constr.constraint_transition(builder, built_constraints);
     }
 
