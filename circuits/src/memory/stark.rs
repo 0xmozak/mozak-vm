@@ -36,11 +36,10 @@ mod expr {
     use plonky2::hash::hash_types::RichField;
     use plonky2::iop::ext_target::ExtensionTarget;
     use plonky2::plonk::circuit_builder::CircuitBuilder;
+    use starky::constraint_consumer::RecursiveConstraintConsumer;
 
     #[derive(Debug, Clone)]
     pub enum Expr<V> {
-        // TODO: Remove this from the AST
-        OneExpr,
         ConstExpr {
             val: V,
         },
@@ -58,17 +57,12 @@ mod expr {
         fn from(val: V) -> Self { Self::ConstExpr { val } }
     }
 
-    impl<V> Expr<V> {
-        pub fn one() -> Self { Self::OneExpr }
-    }
-
     impl<const D: usize> Expr<ExtensionTarget<D>> {
         pub fn eval<F>(&self, builder: &mut CircuitBuilder<F, D>) -> ExtensionTarget<D>
         where
             F: RichField,
             F: Extendable<D>, {
             match self {
-                Expr::OneExpr => builder.one_extension(),
                 Expr::ConstExpr { val } => *val,
                 Expr::SubExpr { left, right } => {
                     let l = left.eval(builder);
@@ -104,6 +98,39 @@ mod expr {
                 right: Rc::new(rhs),
             }
         }
+    }
+
+    pub fn constraint_first_row<F, const D: usize>(
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        constaints: Expr<ExtensionTarget<D>>,
+    ) where
+        F: RichField,
+        F: Extendable<D>, {
+        let built_constraints = constaints.eval(builder);
+        yield_constr.constraint_first_row(builder, built_constraints);
+    }
+
+    pub fn constraint<F, const D: usize>(
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        constaints: Expr<ExtensionTarget<D>>,
+    ) where
+        F: RichField,
+        F: Extendable<D>, {
+        let built_constraints = constaints.eval(builder);
+        yield_constr.constraint(builder, built_constraints);
+    }
+
+    pub fn constraint_transition<F, const D: usize>(
+        yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+        builder: &mut CircuitBuilder<F, D>,
+        constaints: Expr<ExtensionTarget<D>>,
+    ) where
+        F: RichField,
+        F: Extendable<D>, {
+        let built_constraints = constaints.eval(builder);
+        yield_constr.constraint_transition(builder, built_constraints);
     }
 
     #[cfg(test)]
@@ -265,39 +292,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         vars: &Self::EvaluationFrameTarget,
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
-        fn constraint_first_row<F, const D: usize>(
-            yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-            builder: &mut CircuitBuilder<F, D>,
-            constaints: Expr<ExtensionTarget<D>>,
-        ) where
-            F: RichField,
-            F: Extendable<D>, {
-            let built_constraints = constaints.eval(builder);
-            yield_constr.constraint_first_row(builder, built_constraints);
-        }
-
-        fn constraint<F, const D: usize>(
-            yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-            builder: &mut CircuitBuilder<F, D>,
-            constaints: Expr<ExtensionTarget<D>>,
-        ) where
-            F: RichField,
-            F: Extendable<D>, {
-            let built_constraints = constaints.eval(builder);
-            yield_constr.constraint(builder, built_constraints);
-        }
-
-        fn constraint_transition<F, const D: usize>(
-            yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-            builder: &mut CircuitBuilder<F, D>,
-            constaints: Expr<ExtensionTarget<D>>,
-        ) where
-            F: RichField,
-            F: Extendable<D>, {
-            let built_constraints = constaints.eval(builder);
-            yield_constr.constraint_transition(builder, built_constraints);
-        }
-
         let lv: &Memory<ExtensionTarget<D>> = vars.get_local_values().into();
         let nv: &Memory<ExtensionTarget<D>> = vars.get_next_values().into();
 
@@ -308,79 +302,166 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv_is_executed = is_executed_ext_circuit(builder, lv);
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
-        let zero_init_clk = Expr::one() - Expr::from(lv.clk);
-        let elf_init_clk = Expr::from(lv.clk);
-
+        let one: Expr<ExtensionTarget<D>> = Expr::from(builder.one_extension());
+        let one_minus_is_init: Expr<ExtensionTarget<D>> =
+            (one.clone() - Expr::from(lv.is_init))
+                .eval(builder)
+                .into();
+        let one_minus_is_init_times_executed: Expr<ExtensionTarget<D>> =
+            (one_minus_is_init * Expr::from(lv_is_executed))
+                .eval(builder)
+                .into();
         constraint_first_row(
             yield_constr,
             builder,
-            (Expr::one() - Expr::from(lv.is_init)) * Expr::from(lv_is_executed),
+            one_minus_is_init_times_executed
         );
 
+        let one_sub_clk: Expr<ExtensionTarget<D>> =
+            (one.clone() - Expr::from(lv.clk))
+                .eval(builder)
+                .into();
+        let is_init_mul_one_sub_clk: Expr<ExtensionTarget<D>> =
+            (Expr::from(lv.is_init) * one_sub_clk)
+                .eval(builder)
+                .into();
+        let is_init_mul_one_sub_clk_mul_clk: Expr<ExtensionTarget<D>> =
+            (is_init_mul_one_sub_clk.clone() * Expr::from(lv.clk))
+                .eval(builder)
+                .into();
         constraint(
             yield_constr,
             builder,
-            Expr::from(lv.is_init) * zero_init_clk.clone() * elf_init_clk.clone(),
+            is_init_mul_one_sub_clk_mul_clk
         );
 
+        let is_init_mul_clk_mul_value: Expr<ExtensionTarget<D>> =
+            (is_init_mul_one_sub_clk.clone() * Expr::from(lv.value))
+                .eval(builder)
+                .into();
         constraint(
             yield_constr,
             builder,
-            Expr::from(lv.is_init) * zero_init_clk.clone() * Expr::from(lv.value),
+            is_init_mul_clk_mul_value
         );
 
+        let one_sub_is_writable: Expr<ExtensionTarget<D>> =
+            (one.clone() - Expr::from(lv.is_writable))
+                .eval(builder)
+                .into();
+        let is_init_mul_clk_mul_one_sub_is_writeable: Expr<ExtensionTarget<D>> =
+            (is_init_mul_one_sub_clk * one_sub_is_writable.clone())
+                .eval(builder)
+                .into();
         constraint(
             yield_constr,
             builder,
-            Expr::from(lv.is_init)
-                * zero_init_clk.clone()
-                * (Expr::one() - Expr::from(lv.is_writable)),
+            is_init_mul_clk_mul_one_sub_is_writeable
         );
 
+        let is_store_mul_one_sub_is_writable: Expr<ExtensionTarget<D>> =
+            (Expr::from(lv.is_store) *  one_sub_is_writable)
+                .eval(builder)
+                .into();
         constraint(
             yield_constr,
             builder,
-            (Expr::one() - Expr::from(lv.is_writable)) * Expr::from(lv.is_store),
+            is_store_mul_one_sub_is_writable
         );
 
+        let nv_value_sub_lv_value: Expr<ExtensionTarget<D>> =
+            (Expr::from(nv.value) - Expr::from(lv.value))
+                .eval(builder)
+                .into();
+        let is_load_mul_nv_value_sub_lv_value: Expr<ExtensionTarget<D>> =
+            (Expr::from(nv.is_load) * Expr::from(nv_value_sub_lv_value))
+                .eval(builder)
+                .into();
         constraint(
             yield_constr,
             builder,
-            Expr::from(nv.is_load) * (Expr::from(nv.value) - Expr::from(lv.value)),
+            is_load_mul_nv_value_sub_lv_value
         );
 
+        let one_sub_nv_is_init: Expr<ExtensionTarget<D>> =
+            (one.clone() -  Expr::from(nv.is_init))
+                .eval(builder)
+                .into();
+        let nv_clk_sub_lv_clk: Expr<ExtensionTarget<D>> =
+            (Expr::from(nv.clk) - Expr::from(lv.clk))
+                .eval(builder)
+                .into();
+        let nv_diff_clk_sub_nv_clk_sub_lv_clk: Expr<ExtensionTarget<D>> =
+            (Expr::from(nv.diff_clk) - nv_clk_sub_lv_clk)
+                .eval(builder)
+                .into();
+        let one_sub_nv_is_init_mul_nv_diff_clk_sub_nv_clk_sub_lv_clk: Expr<ExtensionTarget<D>> =
+            (one_sub_nv_is_init * nv_diff_clk_sub_nv_clk_sub_lv_clk)
+                .eval(builder)
+                .into();
         constraint_transition(
             yield_constr,
             builder,
-            (Expr::one() - Expr::from(nv.is_init))
-                * (Expr::from(nv.diff_clk) - (Expr::from(nv.clk) - Expr::from(lv.clk))),
+            one_sub_nv_is_init_mul_nv_diff_clk_sub_nv_clk_sub_lv_clk
         );
 
+        let lv_is_init_mul_lv_diff_clk: Expr<ExtensionTarget<D>> =
+            (Expr::from(lv.is_init) * Expr::from(lv.diff_clk))
+                .eval(builder)
+                .into();
         constraint_transition(
             yield_constr,
             builder,
-            Expr::from(lv.is_init) * Expr::from(lv.diff_clk),
+            lv_is_init_mul_lv_diff_clk
         );
 
-        let nv_is_executed = is_executed_ext_circuit(builder, nv);
+        let nv_is_executed: Expr<ExtensionTarget<D>> =
+            Expr::from(is_executed_ext_circuit(builder, nv));
+        let lv_is_executed_sub_nv_is_executed: Expr<ExtensionTarget<D>> =
+            (Expr::from(lv_is_executed) - nv_is_executed.clone())
+                .eval(builder)
+                .into();
+        let constr: Expr<ExtensionTarget<D>> = (nv_is_executed * lv_is_executed_sub_nv_is_executed)
+            .eval(builder)
+            .into();
         constraint_transition(
             yield_constr,
             builder,
-            (Expr::from(lv_is_executed) - Expr::from(nv_is_executed)) * Expr::from(nv_is_executed),
+            constr
         );
-
-        let diff_addr = Expr::from(nv.addr) - Expr::from(lv.addr);
+        
+        let diff_addr: Expr<ExtensionTarget<D>> =
+            (Expr::from(nv.addr) - Expr::from(lv.addr))
+                .eval(builder)
+                .into();
+        let diff_addr_mul_diff_addr_inv: Expr<ExtensionTarget<D>> =
+            (diff_addr.clone() * Expr::from(nv.diff_addr_inv))
+                .eval(builder)
+                .into();
+        let one_sub_diff_addr_mul_diff_addr_inv: Expr<ExtensionTarget<D>> =
+            (one - diff_addr_mul_diff_addr_inv.clone())
+                .eval(builder)
+                .into();
+        let diff_addr_one_sub_diff_addr_mul_diff_addr_inv: Expr<ExtensionTarget<D>> =
+            (diff_addr * one_sub_diff_addr_mul_diff_addr_inv)
+                .eval(builder)
+                .into();
         constraint_transition(
             yield_constr,
             builder,
-            diff_addr.clone() * (Expr::one() - diff_addr.clone() * Expr::from(nv.diff_addr_inv)),
+            diff_addr_one_sub_diff_addr_mul_diff_addr_inv
         );
 
+        let diff_addr_mul_diff_addr_inv_sub_nv_is_init:Expr<ExtensionTarget<D>> =
+            (diff_addr_mul_diff_addr_inv - Expr::from(nv.is_init))
+                .eval(builder)
+                .into();
         constraint_transition(
             yield_constr,
             builder,
-            diff_addr * Expr::from(nv.diff_addr_inv) - Expr::from(nv.diff_addr_inv),
+            diff_addr_mul_diff_addr_inv_sub_nv_is_init
         );
+
     }
 }
 
