@@ -75,7 +75,7 @@ where
         let mut witness = PartialWitness::<F>::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
         let (private_key_target, public_key_target) =
-            Self::hash_circuit(&mut witness, &mut builder, &private_key, &public_key);
+            Self::hash_circuit(&mut witness, &mut builder, private_key, public_key);
 
         // create target for msg
         let msg_target = builder.add_virtual_target_arr::<NUM_LIMBS_U8>();

@@ -7,11 +7,11 @@ macro_rules! test_sig {
             use plonky2::plonk::circuit_data::CircuitConfig;
             use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
             use rand::Rng;
-
-            use super::$signer;
-            use crate::zk_friendly::sig::{
+            use $crate::zk_friendly::sig::{
                 Message, PrivateKey, PublicKey, Signature, NUM_LIMBS_U8,
             };
+
+            use super::$signer;
             type C = PoseidonGoldilocksConfig;
             type F = <C as GenericConfig<2>>::F;
             const D: usize = 2;
