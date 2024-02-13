@@ -30,142 +30,91 @@ const PUBLIC_INPUTS: usize = 0;
 // A simple DSL for handling extension arithmetic
 mod expr {
     use std::ops::{Add, Mul, Sub};
+    use std::rc::Rc;
 
     use plonky2::field::extension::Extendable;
     use plonky2::hash::hash_types::RichField;
     use plonky2::iop::ext_target::ExtensionTarget;
     use plonky2::plonk::circuit_builder::CircuitBuilder;
 
-    trait Expr<F, const D: usize>
-    where
-        F: RichField,
-        F: Extendable<D>, {
-        fn eval(&self, builder: &mut CircuitBuilder<F, D>) -> ExtensionTarget<D>;
+    #[derive(Debug, Clone)]
+    pub enum Expr<V> {
+        OneExpr,
+        ConstExpr {
+            val: V,
+        },
+        SubExpr {
+            left: Rc<Expr<V>>,
+            right: Rc<Expr<V>>,
+        },
+        MulExpr {
+            left: Rc<Expr<V>>,
+            right: Rc<Expr<V>>,
+        },
     }
 
-    impl<F, const D: usize> Add for Box<dyn Expr<F, D>> {
-        type Output = Box<AddExpr<F, D>>;
+    impl<V> From<V> for Expr<V> {
+        fn from(val: V) -> Self { Self::ConstExpr { val } }
+    }
 
-        fn add(self, other: Self) -> Self::Output {
-            Box::new(AddExpr {
-                left: self,
-                right: other,
-            })
+    impl<V> Expr<V> {
+        pub fn one() -> Self { Self::OneExpr }
+    }
+
+    impl<const D: usize> Expr<ExtensionTarget<D>> {
+        pub fn eval<F>(&self, builder: &mut CircuitBuilder<F, D>) -> ExtensionTarget<D>
+        where
+            F: RichField,
+            F: Extendable<D>, {
+            match self {
+                Expr::OneExpr => builder.one_extension(),
+                Expr::ConstExpr { val } => *val,
+                Expr::SubExpr { left, right } => {
+                    let l = left.eval(builder);
+                    let r = right.eval(builder);
+                    builder.sub_extension(l, r)
+                }
+                Expr::MulExpr { left, right } => {
+                    let l = left.eval(builder);
+                    let r = right.eval(builder);
+                    builder.mul_extension(l, r)
+                }
+            }
         }
     }
 
-    impl<F, const D: usize> Sub for Box<dyn Expr<F, D>> {
-        type Output = Box<SubExpr<F, D>>;
+    impl<V> Sub for Expr<V> {
+        type Output = Expr<V>;
 
-        fn sub(self, other: Self) -> Self::Output {
-            Box::new(SubExpr {
-                left: self,
-                right: other,
-            })
+        fn sub(self, rhs: Self) -> Self::Output {
+            Expr::SubExpr {
+                left: Rc::new(self),
+                right: Rc::new(rhs),
+            }
         }
     }
 
-    impl<F, const D: usize> Mul for Box<dyn Expr<F, D>> {
-        type Output = Box<MulExpr<F, D>>;
+    impl<V> Mul for Expr<V> {
+        type Output = Expr<V>;
 
-        fn mul(self, other: Self) -> Self::Output {
-            Box::new(MulExpr {
-                left: self,
-                right: other,
-            })
+        fn mul(self, rhs: Self) -> Self::Output {
+            Expr::MulExpr {
+                left: Rc::new(self),
+                right: Rc::new(rhs),
+            }
         }
-    }
-
-    struct ConstExpr<const D: usize> {
-        val: ExtensionTarget<D>,
-    }
-
-    impl<F: RichField + Extendable<D>, const D: usize> Expr<F, D> for ConstExpr<D> {
-        fn eval(&self, _builder: &mut CircuitBuilder<F, D>) -> ExtensionTarget<D> { self.val }
-    }
-
-    struct OneExpr<const D: usize> {}
-
-    impl<F: RichField + Extendable<D>, const D: usize> Expr<F, D> for OneExpr<D> {
-        fn eval(&self, builder: &mut CircuitBuilder<F, D>) -> ExtensionTarget<D> {
-            builder.one_extension()
-        }
-    }
-
-    struct SubExpr<F, const D: usize> {
-        left: Box<dyn Expr<F, D>>,
-        right: Box<dyn Expr<F, D>>,
-    }
-
-    impl<F: RichField + Extendable<D>, const D: usize> Expr<F, D> for SubExpr<F, D> {
-        fn eval(&self, builder: &mut CircuitBuilder<F, D>) -> ExtensionTarget<D> {
-            let l = self.left.eval(builder);
-            let r = self.right.eval(builder);
-
-            builder.sub_extension(l, r)
-        }
-    }
-
-    struct AddExpr<F, const D: usize> {
-        left: Box<dyn Expr<F, D>>,
-        right: Box<dyn Expr<F, D>>,
-    }
-
-    impl<F: RichField + Extendable<D>, const D: usize> Expr<F, D> for AddExpr<F, D> {
-        fn eval(&self, builder: &mut CircuitBuilder<F, D>) -> ExtensionTarget<D> {
-            let l = self.left.eval(builder);
-            let r = self.right.eval(builder);
-
-            builder.add_extension(l, r)
-        }
-    }
-
-    struct MulExpr<F, const D: usize> {
-        left: Box<dyn Expr<F, D>>,
-        right: Box<dyn Expr<F, D>>,
-    }
-
-    impl<F: RichField + Extendable<D>, const D: usize> Expr<F, D> for MulExpr<F, D> {
-        fn eval(&self, builder: &mut CircuitBuilder<F, D>) -> ExtensionTarget<D> {
-            let l = self.left.eval(builder);
-            let r = self.right.eval(builder);
-
-            builder.mul_extension(l, r)
-        }
-    }
-
-    // smart constructors
-    type E<F, const D: usize> = Box<dyn Expr<F, D>>;
-
-    fn one<F, const D: usize>() -> E<F, D>
-    where
-        F: RichField,
-        F: Extendable<D>, {
-        Box::new(OneExpr {})
-    }
-
-    pub fn c<F, const D: usize>(val: ExtensionTarget<D>) -> E<F, D>
-    where
-        F: RichField,
-        F: Extendable<D>, {
-        Box::new(ConstExpr { val })
     }
 
     #[cfg(test)]
     mod tests {
-        use plonky2::field::goldilocks_field::GoldilocksField;
-
         use super::*;
 
         #[test]
-        fn addition_test() {
-            let a: E<GoldilocksField, 2> = one();
-            let b: E<GoldilocksField, 2> = one();
-
-            let c = a + b;
-        }
+        fn multiplication() { let _: Expr<_> = Expr::from(1) * Expr::from(2); }
     }
 }
+
+use expr::*;
 
 impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F, D> {
     type EvaluationFrame<FE, P, const D2: usize> = StarkFrame<P, P::Scalar, COLUMNS, PUBLIC_INPUTS>
@@ -315,6 +264,39 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         vars: &Self::EvaluationFrameTarget,
         yield_constr: &mut RecursiveConstraintConsumer<F, D>,
     ) {
+        fn constraint_first_row<F, const D: usize>(
+            yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+            builder: &mut CircuitBuilder<F, D>,
+            constaints: Expr<ExtensionTarget<D>>,
+        ) where
+            F: RichField,
+            F: Extendable<D>, {
+            let built_constraints = constaints.eval(builder);
+            yield_constr.constraint_first_row(builder, built_constraints);
+        }
+
+        fn constraint<F, const D: usize>(
+            yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+            builder: &mut CircuitBuilder<F, D>,
+            constaints: Expr<ExtensionTarget<D>>,
+        ) where
+            F: RichField,
+            F: Extendable<D>, {
+            let built_constraints = constaints.eval(builder);
+            yield_constr.constraint(builder, built_constraints);
+        }
+
+        fn constraint_transition<F, const D: usize>(
+            yield_constr: &mut RecursiveConstraintConsumer<F, D>,
+            builder: &mut CircuitBuilder<F, D>,
+            constaints: Expr<ExtensionTarget<D>>,
+        ) where
+            F: RichField,
+            F: Extendable<D>, {
+            let built_constraints = constaints.eval(builder);
+            yield_constr.constraint_transition(builder, built_constraints);
+        }
+
         let lv: &Memory<ExtensionTarget<D>> = vars.get_local_values().into();
         let nv: &Memory<ExtensionTarget<D>> = vars.get_next_values().into();
 
@@ -325,34 +307,40 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv_is_executed = is_executed_ext_circuit(builder, lv);
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
-        let one = builder.one_extension();
-        let one_minus_is_init = builder.sub_extension(one, lv.is_init);
-        let one_minus_is_init_times_executed =
-            builder.mul_extension(one_minus_is_init, lv_is_executed);
+        let zero_init_clk = Expr::one() - Expr::from(lv.clk);
+        let elf_init_clk = Expr::from(lv.clk);
 
-        // This is currently broken
-        // let one_minus_is_init_times_executed =
-        //     (expr::c(one) - expr::c(lv.is_init)) * expr::c(lv_is_executed);
-        yield_constr.constraint_first_row(builder, one_minus_is_init_times_executed);
+        constraint_first_row(
+            yield_constr,
+            builder,
+            (Expr::one() - Expr::from(lv.is_init)) * Expr::from(lv_is_executed),
+        );
 
-        let one_sub_clk = builder.sub_extension(one, lv.clk);
-        let is_init_mul_one_sub_clk = builder.mul_extension(lv.is_init, one_sub_clk);
+        constraint(
+            yield_constr,
+            builder,
+            Expr::from(lv.is_init) * zero_init_clk.clone() * elf_init_clk.clone(),
+        );
 
-        let is_init_mul_one_sub_clk_mul_clk =
-            builder.mul_extension(is_init_mul_one_sub_clk, lv.clk);
-        yield_constr.constraint(builder, is_init_mul_one_sub_clk_mul_clk);
+        constraint(
+            yield_constr,
+            builder,
+            Expr::from(lv.is_init) * zero_init_clk.clone() * Expr::from(lv.value),
+        );
 
-        let is_init_mul_clk_mul_value = builder.mul_extension(is_init_mul_one_sub_clk, lv.value);
-        yield_constr.constraint(builder, is_init_mul_clk_mul_value);
+        constraint(
+            yield_constr,
+            builder,
+            Expr::from(lv.is_init)
+                * zero_init_clk.clone()
+                * (Expr::one() - Expr::from(lv.is_writable)),
+        );
 
-        let one_sub_is_writable = builder.sub_extension(one, lv.is_writable);
-        let is_init_mul_clk_mul_one_sub_is_writable =
-            builder.mul_extension(is_init_mul_one_sub_clk, one_sub_is_writable);
-        yield_constr.constraint(builder, is_init_mul_clk_mul_one_sub_is_writable);
-
-        let is_store_mul_one_sub_is_writable =
-            builder.mul_extension(lv.is_store, one_sub_is_writable);
-        yield_constr.constraint(builder, is_store_mul_one_sub_is_writable);
+        constraint(
+            yield_constr,
+            builder,
+            (Expr::one() - Expr::from(lv.is_writable)) * Expr::from(lv.is_store)
+        );
 
         let nv_value_sub_lv_value = builder.sub_extension(nv.value, lv.value);
         let is_load_mul_nv_value_sub_lv_value =
