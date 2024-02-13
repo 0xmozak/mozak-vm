@@ -302,166 +302,74 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let lv_is_executed = is_executed_ext_circuit(builder, lv);
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
-        let one: Expr<ExtensionTarget<D>> = Expr::from(builder.one_extension());
-        let one_minus_is_init: Expr<ExtensionTarget<D>> =
-            (one.clone() - Expr::from(lv.is_init))
-                .eval(builder)
-                .into();
-        let one_minus_is_init_times_executed: Expr<ExtensionTarget<D>> =
-            (one_minus_is_init * Expr::from(lv_is_executed))
-                .eval(builder)
-                .into();
-        constraint_first_row(
-            yield_constr,
-            builder,
-            one_minus_is_init_times_executed
-        );
+        let one = Expr::from(builder.one_extension());
+        let one_minus_is_init = one.clone() - Expr::from(lv.is_init);
+        let one_minus_is_init_times_executed = one_minus_is_init * Expr::from(lv_is_executed);
+        constraint_first_row(yield_constr, builder, one_minus_is_init_times_executed);
 
-        let one_sub_clk: Expr<ExtensionTarget<D>> =
-            (one.clone() - Expr::from(lv.clk))
-                .eval(builder)
-                .into();
-        let is_init_mul_one_sub_clk: Expr<ExtensionTarget<D>> =
-            (Expr::from(lv.is_init) * one_sub_clk)
-                .eval(builder)
-                .into();
-        let is_init_mul_one_sub_clk_mul_clk: Expr<ExtensionTarget<D>> =
-            (is_init_mul_one_sub_clk.clone() * Expr::from(lv.clk))
-                .eval(builder)
-                .into();
+        let one_sub_clk = one.clone() - Expr::from(lv.clk);
+        let is_init_mul_one_sub_clk = Expr::from(lv.is_init) * one_sub_clk;
+        let is_init_mul_one_sub_clk_mul_clk = is_init_mul_one_sub_clk.clone() * Expr::from(lv.clk);
+        constraint(yield_constr, builder, is_init_mul_one_sub_clk_mul_clk);
+
+        let is_init_mul_clk_mul_value = is_init_mul_one_sub_clk.clone() * Expr::from(lv.value);
+        constraint(yield_constr, builder, is_init_mul_clk_mul_value);
+
+        let one_sub_is_writable = one.clone() - Expr::from(lv.is_writable);
+        let is_init_mul_clk_mul_one_sub_is_writeable =
+            is_init_mul_one_sub_clk * one_sub_is_writable.clone();
         constraint(
             yield_constr,
             builder,
-            is_init_mul_one_sub_clk_mul_clk
+            is_init_mul_clk_mul_one_sub_is_writeable,
         );
 
-        let is_init_mul_clk_mul_value: Expr<ExtensionTarget<D>> =
-            (is_init_mul_one_sub_clk.clone() * Expr::from(lv.value))
-                .eval(builder)
-                .into();
-        constraint(
-            yield_constr,
-            builder,
-            is_init_mul_clk_mul_value
-        );
+        let is_store_mul_one_sub_is_writable = Expr::from(lv.is_store) * one_sub_is_writable;
+        constraint(yield_constr, builder, is_store_mul_one_sub_is_writable);
 
-        let one_sub_is_writable: Expr<ExtensionTarget<D>> =
-            (one.clone() - Expr::from(lv.is_writable))
-                .eval(builder)
-                .into();
-        let is_init_mul_clk_mul_one_sub_is_writeable: Expr<ExtensionTarget<D>> =
-            (is_init_mul_one_sub_clk * one_sub_is_writable.clone())
-                .eval(builder)
-                .into();
-        constraint(
-            yield_constr,
-            builder,
-            is_init_mul_clk_mul_one_sub_is_writeable
-        );
+        let nv_value_sub_lv_value = Expr::from(nv.value) - Expr::from(lv.value);
+        let is_load_mul_nv_value_sub_lv_value =
+            Expr::from(nv.is_load) * Expr::from(nv_value_sub_lv_value);
+        constraint(yield_constr, builder, is_load_mul_nv_value_sub_lv_value);
 
-        let is_store_mul_one_sub_is_writable: Expr<ExtensionTarget<D>> =
-            (Expr::from(lv.is_store) *  one_sub_is_writable)
-                .eval(builder)
-                .into();
-        constraint(
-            yield_constr,
-            builder,
-            is_store_mul_one_sub_is_writable
-        );
-
-        let nv_value_sub_lv_value: Expr<ExtensionTarget<D>> =
-            (Expr::from(nv.value) - Expr::from(lv.value))
-                .eval(builder)
-                .into();
-        let is_load_mul_nv_value_sub_lv_value: Expr<ExtensionTarget<D>> =
-            (Expr::from(nv.is_load) * Expr::from(nv_value_sub_lv_value))
-                .eval(builder)
-                .into();
-        constraint(
-            yield_constr,
-            builder,
-            is_load_mul_nv_value_sub_lv_value
-        );
-
-        let one_sub_nv_is_init: Expr<ExtensionTarget<D>> =
-            (one.clone() -  Expr::from(nv.is_init))
-                .eval(builder)
-                .into();
-        let nv_clk_sub_lv_clk: Expr<ExtensionTarget<D>> =
-            (Expr::from(nv.clk) - Expr::from(lv.clk))
-                .eval(builder)
-                .into();
-        let nv_diff_clk_sub_nv_clk_sub_lv_clk: Expr<ExtensionTarget<D>> =
-            (Expr::from(nv.diff_clk) - nv_clk_sub_lv_clk)
-                .eval(builder)
-                .into();
-        let one_sub_nv_is_init_mul_nv_diff_clk_sub_nv_clk_sub_lv_clk: Expr<ExtensionTarget<D>> =
-            (one_sub_nv_is_init * nv_diff_clk_sub_nv_clk_sub_lv_clk)
-                .eval(builder)
-                .into();
+        let one_sub_nv_is_init = one.clone() - Expr::from(nv.is_init);
+        let nv_clk_sub_lv_clk = Expr::from(nv.clk) - Expr::from(lv.clk);
+        let nv_diff_clk_sub_nv_clk_sub_lv_clk = Expr::from(nv.diff_clk) - nv_clk_sub_lv_clk;
+        let one_sub_nv_is_init_mul_nv_diff_clk_sub_nv_clk_sub_lv_clk =
+            one_sub_nv_is_init * nv_diff_clk_sub_nv_clk_sub_lv_clk;
         constraint_transition(
             yield_constr,
             builder,
-            one_sub_nv_is_init_mul_nv_diff_clk_sub_nv_clk_sub_lv_clk
+            one_sub_nv_is_init_mul_nv_diff_clk_sub_nv_clk_sub_lv_clk,
         );
 
-        let lv_is_init_mul_lv_diff_clk: Expr<ExtensionTarget<D>> =
-            (Expr::from(lv.is_init) * Expr::from(lv.diff_clk))
-                .eval(builder)
-                .into();
+        let lv_is_init_mul_lv_diff_clk = Expr::from(lv.is_init) * Expr::from(lv.diff_clk);
+        constraint_transition(yield_constr, builder, lv_is_init_mul_lv_diff_clk);
+
+        let nv_is_executed = Expr::from(is_executed_ext_circuit(builder, nv));
+        let lv_is_executed_sub_nv_is_executed = Expr::from(lv_is_executed) - nv_is_executed.clone();
+        let constr = nv_is_executed * lv_is_executed_sub_nv_is_executed;
+        constraint_transition(yield_constr, builder, constr);
+
+        let diff_addr = Expr::from(nv.addr) - Expr::from(lv.addr);
+        let diff_addr_mul_diff_addr_inv = diff_addr.clone() * Expr::from(nv.diff_addr_inv);
+        let one_sub_diff_addr_mul_diff_addr_inv = one - diff_addr_mul_diff_addr_inv.clone();
+
+        let diff_addr_one_sub_diff_addr_mul_diff_addr_inv =
+            diff_addr * one_sub_diff_addr_mul_diff_addr_inv;
         constraint_transition(
             yield_constr,
             builder,
-            lv_is_init_mul_lv_diff_clk
+            diff_addr_one_sub_diff_addr_mul_diff_addr_inv,
         );
 
-        let nv_is_executed: Expr<ExtensionTarget<D>> =
-            Expr::from(is_executed_ext_circuit(builder, nv));
-        let lv_is_executed_sub_nv_is_executed: Expr<ExtensionTarget<D>> =
-            (Expr::from(lv_is_executed) - nv_is_executed.clone())
-                .eval(builder)
-                .into();
-        let constr: Expr<ExtensionTarget<D>> = (nv_is_executed * lv_is_executed_sub_nv_is_executed)
-            .eval(builder)
-            .into();
+        let diff_addr_mul_diff_addr_inv_sub_nv_is_init =
+            diff_addr_mul_diff_addr_inv - Expr::from(nv.is_init);
         constraint_transition(
             yield_constr,
             builder,
-            constr
+            diff_addr_mul_diff_addr_inv_sub_nv_is_init,
         );
-        
-        let diff_addr: Expr<ExtensionTarget<D>> =
-            (Expr::from(nv.addr) - Expr::from(lv.addr))
-                .eval(builder)
-                .into();
-        let diff_addr_mul_diff_addr_inv: Expr<ExtensionTarget<D>> =
-            (diff_addr.clone() * Expr::from(nv.diff_addr_inv))
-                .eval(builder)
-                .into();
-        let one_sub_diff_addr_mul_diff_addr_inv: Expr<ExtensionTarget<D>> =
-            (one - diff_addr_mul_diff_addr_inv.clone())
-                .eval(builder)
-                .into();
-        let diff_addr_one_sub_diff_addr_mul_diff_addr_inv: Expr<ExtensionTarget<D>> =
-            (diff_addr * one_sub_diff_addr_mul_diff_addr_inv)
-                .eval(builder)
-                .into();
-        constraint_transition(
-            yield_constr,
-            builder,
-            diff_addr_one_sub_diff_addr_mul_diff_addr_inv
-        );
-
-        let diff_addr_mul_diff_addr_inv_sub_nv_is_init:Expr<ExtensionTarget<D>> =
-            (diff_addr_mul_diff_addr_inv - Expr::from(nv.is_init))
-                .eval(builder)
-                .into();
-        constraint_transition(
-            yield_constr,
-            builder,
-            diff_addr_mul_diff_addr_inv_sub_nv_is_init
-        );
-
     }
 }
 
