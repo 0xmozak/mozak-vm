@@ -13,7 +13,8 @@ use plonky2_crypto::hash::CircuitBuilderHash;
 use plonky2_crypto::u32::arithmetic_u32::U32Target;
 use sha3::{Digest, Keccak256};
 
-use super::{PrivateKey, PublicKey, Signature, NUM_LIMBS_U8};
+use super::sig::{PrivateKey, PublicKey, Signature, NUM_LIMBS_U8};
+use crate::test_sig;
 
 pub struct ZkSigKeccak256<F, C, const D: usize>
 where
@@ -109,41 +110,4 @@ where
     }
     target_arr
 }
-
-#[cfg(test)]
-mod tests {
-
-    use plonky2::plonk::circuit_data::CircuitConfig;
-    use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
-    use rand::Rng;
-
-    use super::ZkSigKeccak256Signer;
-    use crate::zk_friendly::{Message, PrivateKey, PublicKey, Signature, NUM_LIMBS_U8};
-
-    type C = PoseidonGoldilocksConfig;
-    type F = <C as GenericConfig<2>>::F;
-    const D: usize = 2;
-    type Signer = ZkSigKeccak256Signer<F, C, D>;
-
-    fn generate_signature_data() -> (PrivateKey, PublicKey, Message) {
-        let _ = env_logger::try_init();
-        let mut rng = rand::thread_rng();
-
-        // generate random private key
-        let private_key = PrivateKey::new(rng.gen::<[u8; NUM_LIMBS_U8]>());
-        // get public key associated with private key
-        let public_key = Signer::hash_private_key(&private_key).into();
-        // generate random message
-        let msg = Message::new(rng.gen::<[u8; NUM_LIMBS_U8]>());
-
-        (private_key, public_key, msg)
-    }
-
-    #[test]
-    fn test_signature() {
-        let config = CircuitConfig::standard_recursion_zk_config();
-        let (private_key, public_key, msg) = generate_signature_data();
-        let (circuit, zk_signature) = Signer::sign(config, &private_key, &public_key, &msg);
-        assert!(Signer::verify(circuit, zk_signature).is_ok());
-    }
-}
+test_sig!(ZkSigKeccak256Signer);
