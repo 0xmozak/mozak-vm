@@ -153,7 +153,7 @@ pub fn syscall_ioread_public(buf_ptr: *mut u8, buf_len: usize) {
 }
 
 pub fn syscall_transcript_read(buf_ptr: *mut u8, buf_len: usize) {
-    #[cfg(target_os = "zkvm")]
+    #[cfg(all(target_os = "zkvm", not(feature = "mozak-ro-memory")))]
     unsafe {
         core::arch::asm!(
         "ecall",
@@ -161,6 +161,23 @@ pub fn syscall_transcript_read(buf_ptr: *mut u8, buf_len: usize) {
         in ("a1") buf_ptr,
         in ("a2") buf_len,
         );
+    }
+    #[cfg(all(target_os = "zkvm", feature = "mozak-ro-memory"))]
+    // TODO(Roman): later on please add assert(capacity >= buf_len)
+    // NOTE: it is up to the application owner how to implement this, it can be implemented using
+    // zero-copy later on we will change our default implementation to be zero-copy: `buf_ptr =
+    // _mozak_transcript`
+    unsafe {
+        extern "C" {
+            #[link_name = "_mozak_transcript"]
+            static _mozak_transcript: usize;
+        }
+        let io_tape_ptr = &raw const _mozak_transcript as *const u8;
+        for i in 0..isize::try_from(buf_len)
+            .expect("syscall_transcript_read: usize to isize cast should succeed for buf_len")
+        {
+            buf_ptr.offset(i).write(io_tape_ptr.offset(i).read());
+        }
     }
     #[cfg(not(target_os = "zkvm"))]
     {
