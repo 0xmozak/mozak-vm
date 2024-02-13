@@ -5,11 +5,12 @@ use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::hash::hash_types::{HashOut, HashOutTarget, RichField};
 use plonky2::hash::poseidon::PoseidonHash;
 use plonky2::iop::target::Target;
+use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::config::{GenericConfig, Hasher};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 
-use super::{PrivateKey, Signature, NUM_LIMBS_U8};
+use super::{PrivateKey, PublicKey, Signature, NUM_LIMBS_U8};
 
 pub struct ZkSigPoseidon<F, C, const D: usize>
 where
@@ -45,15 +46,21 @@ where
     type Sig = ZkSigPoseidon<F, C, D>;
 
     fn hash_circuit(
+        _witness: &mut PartialWitness<F>,
         builder: &mut CircuitBuilder<F, D>,
-        private_key_target: [Target; NUM_LIMBS_U8],
-        public_key_target: [Target; NUM_LIMBS_U8],
-    ) {
+        _private_key: &PrivateKey,
+        _public_key: &PublicKey,
+    ) -> ([Target; NUM_LIMBS_U8], [Target; NUM_LIMBS_U8]) {
+        let private_key_target = builder.add_virtual_target_arr::<NUM_LIMBS_U8>();
+        let public_key_target = builder.add_virtual_target_arr::<NUM_LIMBS_U8>();
+
         // hash the private key
         let hash_private_key = builder.hash_or_noop::<PoseidonHash>(private_key_target.to_vec());
         let public_key_as_hash = get_hashout(builder, &public_key_target);
+
         // check hash(private_key) == public key
         builder.connect_hashes(hash_private_key, public_key_as_hash);
+        (private_key_target, public_key_target)
     }
 
     fn hash_private_key(private_key: &PrivateKey) -> HashOut<GoldilocksField> {
@@ -69,11 +76,11 @@ pub fn get_hashout<F: RichField + Extendable<D>, const D: usize>(
     let zero = builder.zero();
     let base = builder.constant(F::from_canonical_u16(1 << 8));
     for i in 0..4 {
-        let u32_target = limbs[8 * i..8 * i + 8]
+        let u64_target = limbs[8 * i..8 * i + 8]
             .iter()
             .rev()
             .fold(zero, |acc, limb| builder.mul_add(acc, base, *limb));
-        builder.connect(hash_out_target.elements[i], u32_target);
+        builder.connect(hash_out_target.elements[i], u64_target);
     }
     hash_out_target
 }

@@ -62,10 +62,11 @@ where
     type Sig: From<ProofWithPublicInputs<F, C, D>> + Into<ProofWithPublicInputs<F, C, D>>;
     fn hash_private_key(private_key: &PrivateKey) -> HashOut<GoldilocksField>;
     fn hash_circuit(
+        witness: &mut PartialWitness<F>,
         builder: &mut CircuitBuilder<F, D>,
-        private_key_target: [Target; NUM_LIMBS_U8],
-        public_key_target: [Target; NUM_LIMBS_U8],
-    );
+        private_key: &PrivateKey,
+        public_key: &PublicKey,
+    ) -> ([Target; NUM_LIMBS_U8], [Target; NUM_LIMBS_U8]);
     fn sign(
         config: CircuitConfig,
         private_key: &PrivateKey,
@@ -76,27 +77,24 @@ where
         C::Hasher: AlgebraicHasher<F>, {
         let mut witness = PartialWitness::<F>::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
+        let (private_key_target, public_key_target) =
+            Self::hash_circuit(&mut witness, &mut builder, &private_key, &public_key);
 
-        // create targets
-        let private_key_target = builder.add_virtual_target_arr::<NUM_LIMBS_U8>();
-        let public_key_target = builder.add_virtual_target_arr::<NUM_LIMBS_U8>();
+        // create target for msg
         let msg_target = builder.add_virtual_target_arr::<NUM_LIMBS_U8>();
 
-        // convert inputs slices to field slices.
+        // convert slices to field slices.
+        let msg_field = msg.get_limbs().map(|x| F::from_canonical_u8(x));
         let private_key_field = private_key.get_limbs().map(|x| F::from_canonical_u8(x));
         let public_key_field = public_key.get_limbs().map(|x| F::from_canonical_u8(x));
-        let msg_field = msg.get_limbs().map(|x| F::from_canonical_u8(x));
 
-        // set target values
         witness.set_target_arr(&private_key_target, &private_key_field);
         witness.set_target_arr(&public_key_target, &public_key_field);
         witness.set_target_arr(&msg_target, &msg_field);
 
         // range check each limb to be 8 bits
-        chain!(private_key_target, public_key_target, msg_target)
+        chain!(msg_target, public_key_target, private_key_target)
             .for_each(|target_limb| builder.range_check(target_limb, 8));
-
-        Self::hash_circuit(&mut builder, private_key_target, public_key_target);
 
         // public key and msg are public inputs
         builder.register_public_inputs(&public_key_target);

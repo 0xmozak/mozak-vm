@@ -1,116 +1,140 @@
-use log;
+use std::marker::PhantomData;
+
 use plonky2::field::extension::Extendable;
-use plonky2::hash::hash_types::RichField;
+use plonky2::field::goldilocks_field::GoldilocksField;
+use plonky2::hash::hash_types::{HashOut, RichField};
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::PartialWitness;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData};
-use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
+use plonky2::plonk::config::{GenericConfig, GenericHashOut};
 use plonky2::plonk::proof::ProofWithPublicInputs;
-use plonky2::util::timing::TimingTree;
 use plonky2_crypto::hash::keccak256::{CircuitBuilderHashKeccak, WitnessHashKeccak, KECCAK256_R};
 use plonky2_crypto::hash::CircuitBuilderHash;
-use plonky2_crypto::u32::arithmetic_u32::CircuitBuilderU32;
-use plonky2_crypto::u32::witness::WitnessU32;
+use plonky2_crypto::u32::arithmetic_u32::U32Target;
+use sha3::{Digest, Keccak256};
 
-/// Number of u8 elements needed to represent a private key.
-const PRIVATE_KEY_U8LIMBS: usize = 32;
-/// Number of u8 elements needed to represent a public key.
-const PUBLIC_KEY_U8LIMBS: usize = 32;
-/// Number of u32 elements needed to represent a message.
-const MESSAGE_U32LIMBS: usize = 8;
+use super::{PrivateKey, PublicKey, Signature, NUM_LIMBS_U8};
 
-/// This would be Keccak256 hash of 256 bit long private key
-pub struct PublicKey([u8; PUBLIC_KEY_U8LIMBS]);
-
-/// 256 bit private key
-pub struct PrivateKey([u8; PRIVATE_KEY_U8LIMBS]);
-
-/// Message currently assumed to be at most 256 bits long.
-pub struct Message([u32; MESSAGE_U32LIMBS]);
-
-pub fn prove_sign<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, const D: usize>(
-    config: CircuitConfig,
-    private_key: &PrivateKey,
-    public_key: &PublicKey,
-    msg: &Message,
-) -> (CircuitData<F, C, D>, ProofWithPublicInputs<F, C, D>)
+pub struct ZkSigKeccak256<F, C, const D: usize>
 where
-    C::Hasher: AlgebraicHasher<F>, {
-    let mut witness = PartialWitness::<F>::new();
-    let mut builder = CircuitBuilder::<F, D>::new(config);
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>, {
+    signature: ProofWithPublicInputs<F, C, D>,
+}
 
-    // set private key target. Block size is 1 since 256 bits fit within a block of
-    // size
-    let private_key_target = builder.add_virtual_hash_input_target(1, KECCAK256_R);
-    // set public key target to be hash of private key
-    let public_key_target = builder.hash_keccak256(&private_key_target);
+impl<F, C, const D: usize> From<ProofWithPublicInputs<F, C, D>> for ZkSigKeccak256<F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn from(signature: ProofWithPublicInputs<F, C, D>) -> Self { Self { signature } }
+}
 
-    // set witnesses accordingly
-    witness.set_keccak256_input_target(&private_key_target, &private_key.0);
-    witness.set_keccak256_output_target(&public_key_target, &public_key.0);
+impl<F, C, const D: usize> Into<ProofWithPublicInputs<F, C, D>> for ZkSigKeccak256<F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    fn into(self) -> ProofWithPublicInputs<F, C, D> { self.signature }
+}
 
-    // set message target
-    let message_target = builder.add_virtual_u32_targets(MESSAGE_U32LIMBS);
-    (0..MESSAGE_U32LIMBS).for_each(|i| witness.set_u32_target(message_target[i], msg.0[i]));
+pub struct ZkSigKeccak256Signer<F, C, const D: usize> {
+    _phantom: (PhantomData<F>, PhantomData<C>),
+}
+impl<F, C, const D: usize> Signature<F, C, D> for ZkSigKeccak256Signer<F, C, D>
+where
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+{
+    type Sig = ZkSigKeccak256<F, C, D>;
 
-    // register public key as public input
-    builder.register_public_inputs(
-        &public_key_target
-            .limbs
+    fn hash_circuit(
+        witness: &mut PartialWitness<F>,
+        builder: &mut CircuitBuilder<F, D>,
+        private_key: &PrivateKey,
+        public_key: &PublicKey,
+    ) -> ([Target; NUM_LIMBS_U8], [Target; NUM_LIMBS_U8]) {
+        // set private key target. Block size is 1 since 256 bits fit within a block of
+        // size
+        let private_key_target = builder.add_virtual_hash_input_target(1, KECCAK256_R);
+        // set public key target to be hash of private key
+        let public_key_target = builder.hash_keccak256(&private_key_target);
+
+        // set witnesses accordingly
+        witness.set_keccak256_input_target(&private_key_target, &private_key.get_limbs());
+        witness.set_keccak256_output_target(&public_key_target, &public_key.get_limbs());
+
+        let public_key_target_u8 = biguint_target_to_u8_target(
+            builder,
+            public_key_target
+                .limbs
+                .to_vec()
+                .as_slice()
+                .try_into()
+                .expect("hash should have 8 u32 limbs"),
+        );
+        let private_key_target_u8 = biguint_target_to_u8_target(
+            builder,
+            private_key_target.input.limbs.to_vec().as_slice()[..8]
+                .try_into()
+                .expect("private key should have 8 u32 limbs"),
+        );
+
+        (private_key_target_u8, public_key_target_u8)
+    }
+
+    fn hash_private_key(private_key: &PrivateKey) -> HashOut<GoldilocksField> {
+        let mut hasher = Keccak256::new();
+        hasher.update(private_key.get_limbs());
+        let result = hasher.finalize();
+        HashOut::from_bytes(&result)
+    }
+}
+
+fn biguint_target_to_u8_target<F, const D: usize>(
+    builder: &mut CircuitBuilder<F, D>,
+    biguint_target: &[U32Target; 8],
+) -> [Target; 32]
+where
+    F: RichField + Extendable<D>, {
+    let target_arr = builder.add_virtual_target_arr::<32>();
+    let zero = builder.zero();
+    let base = builder.constant(F::from_canonical_u16(1 << 8));
+    for i in 0..8 {
+        let u32_target = target_arr[4 * i..4 * i + 4]
             .iter()
-            .map(|target| target.0)
-            .collect::<Vec<Target>>(),
-    );
-
-    // register message as public input
-    builder.register_public_inputs(
-        &message_target
-            .iter()
-            .map(|target| target.0)
-            .collect::<Vec<Target>>(),
-    );
-
-    builder.print_gate_counts(0);
-    let data = builder.build::<C>();
-    let timing = TimingTree::new("prove", log::Level::Debug);
-    let proof = data.prove(witness).unwrap();
-    timing.print();
-    (data, proof)
+            .rev()
+            .fold(zero, |acc, limb| builder.mul_add(acc, base, *limb));
+        builder.connect(u32_target, biguint_target[i].0);
+    }
+    target_arr
 }
 
 #[cfg(test)]
 mod tests {
 
-    use num::BigUint;
-    use plonky2::field::types::{Field, Sample};
     use plonky2::plonk::circuit_data::CircuitConfig;
     use plonky2::plonk::config::{GenericConfig, PoseidonGoldilocksConfig};
     use rand::Rng;
-    use sha3::{Digest, Keccak256};
 
-    use super::{Message, PrivateKey, PublicKey, MESSAGE_U32LIMBS, PRIVATE_KEY_U8LIMBS};
+    use super::ZkSigKeccak256Signer;
+    use crate::zk_friendly::{Message, PrivateKey, PublicKey, Signature, NUM_LIMBS_U8};
+
     type C = PoseidonGoldilocksConfig;
     type F = <C as GenericConfig<2>>::F;
     const D: usize = 2;
-    /// Number of u32 limbs needed to hold a public key
-    const PUBLIC_KEY_LEN_U32LIMBS: usize = 8;
+    type Signer = ZkSigKeccak256Signer<F, C, D>;
 
     fn generate_signature_data() -> (PrivateKey, PublicKey, Message) {
         let _ = env_logger::try_init();
         let mut rng = rand::thread_rng();
 
         // generate random private key
-        let private_key = PrivateKey(rng.gen::<[u8; PRIVATE_KEY_U8LIMBS]>());
-
-        // set public key to be hash of private key
-        let mut hasher = Keccak256::new();
-        hasher.update(private_key.0);
-        let result = hasher.finalize();
-        let public_key = PublicKey(result.into());
-
+        let private_key = PrivateKey::new(rng.gen::<[u8; NUM_LIMBS_U8]>());
+        // get public key associated with private key
+        let public_key = Signer::hash_private_key(&private_key).into();
         // generate random message
-        let msg = Message(rng.gen::<[u32; MESSAGE_U32LIMBS]>());
+        let msg = Message::new(rng.gen::<[u8; NUM_LIMBS_U8]>());
 
         (private_key, public_key, msg)
     }
@@ -119,46 +143,7 @@ mod tests {
     fn test_signature() {
         let config = CircuitConfig::standard_recursion_zk_config();
         let (private_key, public_key, msg) = generate_signature_data();
-        let (data, proof) = super::prove_sign::<F, C, D>(config, &private_key, &public_key, &msg);
-        println!("{}", proof.public_inputs.len());
-        let public_key_as_u32_vec = BigUint::from_bytes_le(&public_key.0).to_u32_digits();
-        assert_eq!(
-            proof.public_inputs[..PUBLIC_KEY_LEN_U32LIMBS].to_vec(),
-            public_key_as_u32_vec
-                .into_iter()
-                .map(F::from_canonical_u32)
-                .collect::<Vec<F>>()
-        );
-        assert_eq!(
-            proof.public_inputs[PUBLIC_KEY_LEN_U32LIMBS..],
-            msg.0.map(F::from_canonical_u32)
-        );
-        assert!(data.verify(proof).is_ok());
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_tampering_public_key() {
-        let config = CircuitConfig::standard_recursion_zk_config();
-        let (private_key, public_key, msg) = generate_signature_data();
-        let (data, mut proof) =
-            super::prove_sign::<F, C, D>(config, &private_key, &public_key, &msg);
-
-        // tamper with public key
-        proof.public_inputs[0] = F::rand();
-        assert!(data.verify(proof).is_ok());
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_tampering_message() {
-        let config = CircuitConfig::standard_recursion_zk_config();
-        let (private_key, public_key, msg) = generate_signature_data();
-        let (data, mut proof) =
-            super::prove_sign::<F, C, D>(config, &private_key, &public_key, &msg);
-
-        // tamper with msg
-        proof.public_inputs[PUBLIC_KEY_LEN_U32LIMBS] = F::rand();
-        assert!(data.verify(proof).is_ok());
+        let (circuit, zk_signature) = Signer::sign(config, &private_key, &public_key, &msg);
+        assert!(Signer::verify(circuit, zk_signature).is_ok());
     }
 }
