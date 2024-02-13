@@ -300,6 +300,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         is_binary_ext_circuit(builder, lv.is_load, yield_constr);
         is_binary_ext_circuit(builder, lv.is_init, yield_constr);
         let lv_is_executed = is_executed_ext_circuit(builder, lv);
+        let nv_is_executed = is_executed_ext_circuit(builder, nv);
+
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
         let one = Expr::from(builder.one_extension());
@@ -350,8 +352,6 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
             Expr::from(lv.is_init) * Expr::from(lv.diff_clk)
         );
 
-        // Needed due to mutable borrow of builder...
-        let nv_is_executed = is_executed_ext_circuit(builder, nv);
         constraint_transition(
             yield_constr,
             builder,
