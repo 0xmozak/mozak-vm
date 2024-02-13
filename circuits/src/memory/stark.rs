@@ -29,7 +29,7 @@ const PUBLIC_INPUTS: usize = 0;
 
 // A simple DSL for handling extension arithmetic
 mod expr {
-    use std::ops::{Add, Mul, Sub};
+    use std::ops::{Mul, Sub};
     use std::rc::Rc;
 
     use plonky2::field::extension::Extendable;
@@ -39,6 +39,7 @@ mod expr {
 
     #[derive(Debug, Clone)]
     pub enum Expr<V> {
+        // TODO: Remove this from the AST
         OneExpr,
         ConstExpr {
             val: V,
@@ -339,44 +340,47 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         constraint(
             yield_constr,
             builder,
-            (Expr::one() - Expr::from(lv.is_writable)) * Expr::from(lv.is_store)
+            (Expr::one() - Expr::from(lv.is_writable)) * Expr::from(lv.is_store),
         );
 
-        let nv_value_sub_lv_value = builder.sub_extension(nv.value, lv.value);
-        let is_load_mul_nv_value_sub_lv_value =
-            builder.mul_extension(nv.is_load, nv_value_sub_lv_value);
-        yield_constr.constraint(builder, is_load_mul_nv_value_sub_lv_value);
-
-        let one_sub_nv_is_init = builder.sub_extension(one, nv.is_init);
-        let nv_clk_sub_lv_clk = builder.sub_extension(nv.clk, lv.clk);
-        let nv_diff_clk_sub_nv_clk_sub_lv_clk =
-            builder.sub_extension(nv.diff_clk, nv_clk_sub_lv_clk);
-        let one_sub_nv_is_init_mul_nv_diff_clk_sub_nv_clk_sub_lv_clk =
-            builder.mul_extension(one_sub_nv_is_init, nv_diff_clk_sub_nv_clk_sub_lv_clk);
-        yield_constr.constraint_transition(
+        constraint(
+            yield_constr,
             builder,
-            one_sub_nv_is_init_mul_nv_diff_clk_sub_nv_clk_sub_lv_clk,
+            Expr::from(nv.is_load) * (Expr::from(nv.value) - Expr::from(lv.value)),
         );
-        let lv_is_init_mul_lv_diff_clk = builder.mul_extension(lv.is_init, lv.diff_clk);
-        yield_constr.constraint_transition(builder, lv_is_init_mul_lv_diff_clk);
+
+        constraint_transition(
+            yield_constr,
+            builder,
+            (Expr::one() - Expr::from(nv.is_init))
+                * (Expr::from(nv.diff_clk) - (Expr::from(nv.clk) - Expr::from(lv.clk))),
+        );
+
+        constraint_transition(
+            yield_constr,
+            builder,
+            Expr::from(lv.is_init) * Expr::from(lv.diff_clk),
+        );
 
         let nv_is_executed = is_executed_ext_circuit(builder, nv);
-        let lv_is_executed_sub_nv_is_executed =
-            builder.sub_extension(lv_is_executed, nv_is_executed);
-        let constr = builder.mul_extension(nv_is_executed, lv_is_executed_sub_nv_is_executed);
-        yield_constr.constraint_transition(builder, constr);
+        constraint_transition(
+            yield_constr,
+            builder,
+            (Expr::from(lv_is_executed) - Expr::from(nv_is_executed)) * Expr::from(nv_is_executed),
+        );
 
-        let diff_addr = builder.sub_extension(nv.addr, lv.addr);
-        let diff_addr_mul_diff_addr_inv = builder.mul_extension(diff_addr, nv.diff_addr_inv);
-        let one_sub_diff_addr_mul_diff_addr_inv =
-            builder.sub_extension(one, diff_addr_mul_diff_addr_inv);
-        let diff_addr_one_sub_diff_addr_mul_diff_addr_inv =
-            builder.mul_extension(diff_addr, one_sub_diff_addr_mul_diff_addr_inv);
-        yield_constr.constraint_transition(builder, diff_addr_one_sub_diff_addr_mul_diff_addr_inv);
+        let diff_addr = Expr::from(nv.addr) - Expr::from(lv.addr);
+        constraint_transition(
+            yield_constr,
+            builder,
+            diff_addr.clone() * (Expr::one() - diff_addr.clone() * Expr::from(nv.diff_addr_inv)),
+        );
 
-        let diff_addr_mul_diff_addr_inv_sub_nv_is_init =
-            builder.sub_extension(diff_addr_mul_diff_addr_inv, nv.is_init);
-        yield_constr.constraint_transition(builder, diff_addr_mul_diff_addr_inv_sub_nv_is_init);
+        constraint_transition(
+            yield_constr,
+            builder,
+            diff_addr * Expr::from(nv.diff_addr_inv) - Expr::from(nv.diff_addr_inv),
+        );
     }
 }
 
