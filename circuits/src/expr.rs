@@ -8,15 +8,18 @@ use plonky2::plonk::circuit_builder::CircuitBuilder;
 use starky::constraint_consumer::RecursiveConstraintConsumer;
 
 #[derive(Debug, Clone)]
+pub enum BinOp {
+    Sub,
+    Mul
+}
+
+#[derive(Debug, Clone)]
 pub enum Expr<V> {
     ConstExpr {
         val: V,
     },
-    SubExpr {
-        left: Rc<Expr<V>>,
-        right: Rc<Expr<V>>,
-    },
-    MulExpr {
+    BinOp {
+        op: BinOp,
         left: Rc<Expr<V>>,
         right: Rc<Expr<V>>,
     },
@@ -24,14 +27,16 @@ pub enum Expr<V> {
 
 impl<V> Expr<V> {
     fn sub(left: Self, right: Self) -> Self {
-        Self::SubExpr {
+        Self::BinOp {
+            op: BinOp::Sub,
             left: Rc::new(left),
             right: Rc::new(right),
         }
     }
 
     fn mul(left: Self, right: Self) -> Self {
-        Self::MulExpr {
+        Self::BinOp {
+            op: BinOp::Mul,
             left: Rc::new(left),
             right: Rc::new(right),
         }
@@ -49,15 +54,13 @@ impl<const D: usize> Expr<ExtensionTarget<D>> {
         F: Extendable<D>, {
         match self {
             Expr::ConstExpr { val } => *val,
-            Expr::SubExpr { left, right } => {
+            Expr::BinOp { op, left, right } => {
                 let l = left.eval(builder);
                 let r = right.eval(builder);
-                builder.sub_extension(l, r)
-            }
-            Expr::MulExpr { left, right } => {
-                let l = left.eval(builder);
-                let r = right.eval(builder);
-                builder.mul_extension(l, r)
+                match op {
+                    BinOp::Sub => builder.sub_extension(l, r),
+                    BinOp::Mul => builder.mul_extension(l, r),
+                }
             }
         }
     }
@@ -181,19 +184,22 @@ mod tests {
     use super::*;
 
     // simple evaluator
-    fn eval(e: &Expr<i32>) -> i32 {
+    fn eval<V>(e: &Expr<V>) -> V
+where
+V: Copy,
+V: Sub<Output = V>,
+V: Mul<Output = V>,
+ {
         match e {
             Expr::ConstExpr { val } => *val,
-            Expr::SubExpr { left, right } => {
+            Expr::BinOp { op, left, right } => {
                 let a = eval(left);
                 let b = eval(right);
-                a - b
-            },
-            Expr::MulExpr { left, right } => {
-                let a = eval(left);
-                let b = eval(right);
-                a * b
-           },
+                match op {
+                    BinOp::Sub => a - b,
+                    BinOp::Mul => a * b,
+                }
+            }
         }
     }
 
@@ -226,14 +232,18 @@ mod tests {
 
         // a and b are moved
         let _c = a.clone() - b.clone();
+        assert_eq!(eval(&_c), -1);
 
         // a is cloned behind the scenes
         let _c = &a - b.clone();
+        assert_eq!(eval(&_c), -1);
 
         // b is cloned behind the scenes
         let _c = a.clone() - &b;
+        assert_eq!(eval(&_c), -1);
 
         // a and b are cloned behind the scenes
         let _c = &a - &b;
+        assert_eq!(eval(&_c), -1);
     }
 }
