@@ -341,7 +341,8 @@ pub struct AllProof<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>, co
     #[serde(skip)]
     pub(crate) ctl_challenges: GrandProductChallengeSet<F>,
     pub program_rom_trace_cap: MerkleCap<F, C::Hasher>,
-    pub memory_init_trace_cap: MerkleCap<F, C::Hasher>,
+    pub elf_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
+    pub mozak_memory_init_trace_cap: MerkleCap<F, C::Hasher>,
     pub public_inputs: PublicInputs<F>,
 }
 

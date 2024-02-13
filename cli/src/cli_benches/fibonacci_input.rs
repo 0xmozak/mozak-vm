@@ -38,9 +38,7 @@ pub fn fibonacci_input_mozak_elf(n: u32) -> Result<(), anyhow::Error> {
         vec![],
     );
     let program = Program::mozak_load_program(mozak_examples::FIBONACCI_INPUT_ELF, &args).unwrap();
-    // TODO(Roman): once new io-tapes stark will be implemented, this call needs to
-    // be refactored since it uses old-io-tapes stark backend.
-    let state = State::<GoldilocksField>::new(program.clone(), args);
+    let state = State::<GoldilocksField>::new_mozak_api(program.clone(), args);
     let record = step(&program, state).unwrap();
     prove_and_verify_mozak_stark(&program, &record, &StarkConfig::standard_fast_config())
 }

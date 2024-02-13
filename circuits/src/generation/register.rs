@@ -117,7 +117,7 @@ mod tests {
     use itertools::Itertools;
     use mozak_runner::elf::Program;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::simple_test_code;
+    use mozak_runner::test_utils::execute_code;
     use plonky2::field::goldilocks_field::GoldilocksField;
     use plonky2::field::types::{Field, PrimeField64};
 
@@ -150,7 +150,7 @@ mod tests {
             }),
         ];
 
-        simple_test_code(instructions, &[], &[(6, 100), (7, 200)])
+        execute_code(instructions, &[], &[(6, 100), (7, 200)])
     }
 
     #[rustfmt::skip]
@@ -222,7 +222,7 @@ mod tests {
                 [    8,    0,             0,            neg(7),        1,      0,       0], // init
                 [    9,    0,             0,                 0,        1,      0,       0], // init
                 [    10,   0,             0,                 0,        1,      0,       0], // init
-                // This is one part of the instructions added in the setup fn `simple_test_code()`
+                // This is one part of the instructions added in the setup fn `execute_code()`
                 [    10,   0,            17,                17,        0,      0,       1],
                 [    11,   0,             0,           neg(17),        1,      0,       0], // init
             ],

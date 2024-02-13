@@ -13,16 +13,60 @@ use crate::instruction::{Args, Instruction, Op};
 use crate::state::State;
 use crate::vm::{step, ExecutionRecord};
 
-/// Returns the state just before the final state
-#[must_use]
-pub fn state_before_final(e: &ExecutionRecord<GoldilocksField>) -> &State<GoldilocksField> {
-    &e.executed[e.executed.len() - 2].state
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_sign_loss)]
+pub fn u32_extra() -> impl Strategy<Value = u32> {
+    prop_oneof![
+        Just(0_u32),
+        Just(1_u32),
+        Just(u32::MAX),
+        any::<u32>(),
+        Just(i32::MIN as u32),
+        Just(i32::MAX as u32),
+    ]
 }
 
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_sign_loss)]
+pub fn u64_extra() -> impl Strategy<Value = u64> {
+    prop_oneof![
+        Just(0_u64),
+        Just(1_u64),
+        Just(u64::MAX),
+        any::<u64>(),
+        Just(i64::MIN as u64),
+        Just(i64::MAX as u64),
+    ]
+}
+
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_possible_wrap)]
+pub fn i32_extra() -> impl Strategy<Value = i32> { u32_extra().prop_map(|x| x as i32) }
+
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_possible_truncation)]
+pub fn i16_extra() -> impl Strategy<Value = i16> { i32_extra().prop_map(|x| x as i16) }
+
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_possible_truncation)]
+pub fn i8_extra() -> impl Strategy<Value = i8> { i32_extra().prop_map(|x| x as i8) }
+
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_possible_truncation)]
+pub fn u16_extra() -> impl Strategy<Value = u16> { u32_extra().prop_map(|x| x as u16) }
+
+#[cfg(any(feature = "test", test))]
+#[allow(clippy::cast_possible_truncation)]
+pub fn u8_extra() -> impl Strategy<Value = u8> { u32_extra().prop_map(|x| x as u8) }
+
+#[cfg(any(feature = "test", test))]
+pub fn reg() -> impl Strategy<Value = u8> { u8_extra().prop_map(|x| 1 + (x % 31)) }
 #[must_use]
+#[cfg(any(feature = "test", test))]
 #[allow(clippy::missing_panics_doc)]
 #[allow(clippy::similar_names)]
-pub fn simple_test_code_with_ro_memory(
+pub fn execute_code_with_ro_memory(
     code: impl IntoIterator<Item = Instruction>,
     ro_mem: &[(u32, u8)],
     rw_mem: &[(u32, u8)],
@@ -84,72 +128,24 @@ pub fn simple_test_code_with_ro_memory(
 }
 
 #[must_use]
+#[cfg(any(feature = "test", test))]
 #[allow(clippy::missing_panics_doc)]
-pub fn simple_test_code(
+pub fn execute_code(
     code: impl IntoIterator<Item = Instruction>,
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
-    simple_test_code_with_ro_memory(code, &[], rw_mem, regs, RuntimeArguments::default())
+    execute_code_with_ro_memory(code, &[], rw_mem, regs, RuntimeArguments::default())
 }
 
 #[must_use]
+#[cfg(any(feature = "test", test))]
 #[allow(clippy::missing_panics_doc)]
-pub fn simple_test_code_with_runtime_args(
+pub fn execute_code_with_runtime_args(
     code: impl IntoIterator<Item = Instruction>,
     rw_mem: &[(u32, u8)],
     regs: &[(u8, u32)],
     runtime_args: RuntimeArguments,
 ) -> (Program, ExecutionRecord<GoldilocksField>) {
-    simple_test_code_with_ro_memory(code, &[], rw_mem, regs, runtime_args)
+    execute_code_with_ro_memory(code, &[], rw_mem, regs, runtime_args)
 }
-
-#[cfg(any(feature = "test", test))]
-#[allow(clippy::cast_sign_loss)]
-pub fn u32_extra() -> impl Strategy<Value = u32> {
-    prop_oneof![
-        Just(0_u32),
-        Just(1_u32),
-        Just(u32::MAX),
-        any::<u32>(),
-        Just(i32::MIN as u32),
-        Just(i32::MAX as u32),
-    ]
-}
-
-#[cfg(any(feature = "test", test))]
-#[allow(clippy::cast_sign_loss)]
-pub fn u64_extra() -> impl Strategy<Value = u64> {
-    prop_oneof![
-        Just(0_u64),
-        Just(1_u64),
-        Just(u64::MAX),
-        any::<u64>(),
-        Just(i64::MIN as u64),
-        Just(i64::MAX as u64),
-    ]
-}
-
-#[cfg(any(feature = "test", test))]
-#[allow(clippy::cast_sign_loss)]
-#[allow(clippy::cast_possible_wrap)]
-pub fn i32_extra() -> impl Strategy<Value = i32> { u32_extra().prop_map(|x| x as i32) }
-
-#[cfg(any(feature = "test", test))]
-#[allow(clippy::cast_possible_truncation)]
-pub fn i16_extra() -> impl Strategy<Value = i16> { i32_extra().prop_map(|x| x as i16) }
-
-#[cfg(any(feature = "test", test))]
-#[allow(clippy::cast_possible_truncation)]
-pub fn i8_extra() -> impl Strategy<Value = i8> { i32_extra().prop_map(|x| x as i8) }
-
-#[cfg(any(feature = "test", test))]
-#[allow(clippy::cast_possible_truncation)]
-pub fn u16_extra() -> impl Strategy<Value = u16> { u32_extra().prop_map(|x| x as u16) }
-
-#[cfg(any(feature = "test", test))]
-#[allow(clippy::cast_possible_truncation)]
-pub fn u8_extra() -> impl Strategy<Value = u8> { u32_extra().prop_map(|x| x as u8) }
-
-#[cfg(any(feature = "test", test))]
-pub fn reg() -> impl Strategy<Value = u8> { u8_extra().prop_map(|x| 1 + (x % 31)) }

@@ -178,7 +178,7 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{simple_test_code, state_before_final, u32_extra};
+    use mozak_runner::test_utils::{execute_code, u32_extra};
     use proptest::prelude::ProptestConfig;
     use proptest::strategy::Just;
     use proptest::{prop_oneof, proptest};
@@ -188,7 +188,7 @@ mod tests {
     use crate::test_utils::{ProveAndVerify, D, F};
 
     fn prove_cond_branch<Stark: ProveAndVerify>(a: u32, b: u32, op: Op) {
-        let (program, record) = simple_test_code(
+        let (program, record) = execute_code(
             [
                 Instruction {
                     op,
@@ -222,7 +222,7 @@ mod tests {
             _ => unreachable!(),
         };
         assert_eq!(
-            state_before_final(&record).get_register_value(1),
+            record.state_before_final().get_register_value(1),
             if taken { 0 } else { 10 }
         );
 

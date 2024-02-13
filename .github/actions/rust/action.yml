@@ -42,13 +42,19 @@ runs:
     - name: Install nextest
       if: ${{ steps.toolchain-cache-restore.outputs.cache-hit != 'true' }}
       uses: taiki-e/install-action@nextest
-        
+
+    - name: Install libssl
+      shell: bash
+      # TODO: Handle windows and macOS if required.
+      run:  |
+            if [ "$RUNNER_OS" == "Linux" ]; then
+                apt-get install -y libssl-dev
+            fi
+
     - name: Install taplo-cli
       shell: bash
       run: |
-        curl --fail --silent --show-error --location \
-        https://github.com/tamasfe/taplo/releases/latest/download/taplo-linux-x86_64.gz | \
-          gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
+        cargo install --force --git https://github.com/tamasfe/taplo taplo-cli
 
     - id: toolchain-cache-save
       name: Cache Rust toolchain (Local Save)
