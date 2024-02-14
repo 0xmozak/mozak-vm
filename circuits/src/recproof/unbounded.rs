@@ -50,7 +50,7 @@ pub fn common_data_for_recursion<
     C: GenericConfig<D, F = F>,
     const D: usize,
 >(
-    config: CircuitConfig,
+    config: &CircuitConfig,
     target_degree: usize,
     public_input_size: usize,
 ) -> CommonCircuitData<F, D>
@@ -96,8 +96,11 @@ impl LeafSubCircuit {
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         C::Hasher: AlgebraicHasher<F>, {
-        let mut common_data =
-            common_data_for_recursion::<F, C, D>(CircuitConfig::standard_recursion_config(), 13, 0);
+        let mut common_data = common_data_for_recursion::<F, C, D>(
+            &CircuitConfig::standard_recursion_config(),
+            13,
+            0,
+        );
         let verifier_data_target = builder.add_verifier_data_public_inputs();
         common_data.num_public_inputs = builder.num_public_inputs();
 

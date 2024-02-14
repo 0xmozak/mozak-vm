@@ -548,7 +548,7 @@ impl<const D: usize> VMVerificationTargets<D> {
     pub fn new<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>>(
         builder: &mut CircuitBuilder<F, D>,
         public_inputs_size: usize,
-        final_recursion_circuit_config: CircuitConfig,
+        final_recursion_circuit_config: &CircuitConfig,
         final_recursion_circuit_degree_bits: usize,
     ) -> VMVerificationTargets<D>
     where
@@ -787,7 +787,7 @@ mod tests {
         let targets = VMVerificationTargets::new::<GoldilocksField, C>(
             &mut builder,
             public_inputs_size,
-            shrinking_config(),
+            &shrinking_config(),
             target_degree_bits,
         );
         let circuit = builder.build::<C>();
