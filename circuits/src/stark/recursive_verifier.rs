@@ -500,13 +500,14 @@ where
     }
 }
 
+/// Shrinks a PLONK circuit to the target degree bits.
 pub fn shrink_to_target_degree_bits_circuit<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     const D: usize,
 >(
     circuit: &CircuitData<F, C, D>,
-    config: &CircuitConfig,
+    shrink_config: &CircuitConfig,
     target_degree_bits: usize,
     proof: &ProofWithPublicInputs<F, C, D>,
 ) -> Result<(PlonkWrapperCircuit<F, C, D>, ProofWithPublicInputs<F, C, D>)>
@@ -515,14 +516,14 @@ where
     let mut last_degree_bits = circuit.common.degree_bits();
     assert!(last_degree_bits >= target_degree_bits);
 
-    let mut shrink_circuit = PlonkWrapperCircuit::new(circuit, config.clone());
+    let mut shrink_circuit = PlonkWrapperCircuit::new(circuit, shrink_config.clone());
     let mut shrunk_proof = shrink_circuit.prove(proof)?;
     let shrunk_degree_bits = shrink_circuit.circuit.common.degree_bits();
     info!("shrinking circuit from degree bits {last_degree_bits} to {shrunk_degree_bits}",);
     last_degree_bits = shrunk_degree_bits;
 
     while last_degree_bits > target_degree_bits {
-        shrink_circuit = PlonkWrapperCircuit::new(&shrink_circuit.circuit, config.clone());
+        shrink_circuit = PlonkWrapperCircuit::new(&shrink_circuit.circuit, shrink_config.clone());
         let shrunk_degree_bits = shrink_circuit.circuit.common.degree_bits();
         assert!(
             shrunk_degree_bits < last_degree_bits,
