@@ -13,9 +13,7 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{
-    CircuitConfig, CircuitData, CommonCircuitData, VerifierCircuitTarget,
-};
+use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierCircuitTarget};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use plonky2::util::reducing::ReducingFactorTarget;
@@ -530,31 +528,33 @@ pub struct VMVerificationTargets<const D: usize> {
     pub vk_target: VerifierCircuitTarget,
 }
 
-impl<const D: usize> VMVerificationTargets<D> {
-    pub fn new<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>>(
-        builder: &mut CircuitBuilder<F, D>,
-        public_inputs_size: usize,
-        final_recursion_circuit_config: &CircuitConfig,
-        final_recursion_circuit_degree_bits: usize,
-        common_data_dbg: &CommonCircuitData<F, D>,
-    ) -> VMVerificationTargets<D>
-    where
-        C::Hasher: AlgebraicHasher<F>, {
-        let common_data = common_data_for_recursion::<F, C, D>(
-            final_recursion_circuit_config,
-            final_recursion_circuit_degree_bits,
-            public_inputs_size,
-        );
-        assert_eq!(common_data, common_data_dbg.clone(), "common data mismatch");
+/// Verifies a recursive VM proof. Caller should also verify the program hash
+/// and vk to ensure that the proof is from the correct program.
+pub fn verify_recursive_vm_proof<
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    const D: usize,
+>(
+    builder: &mut CircuitBuilder<F, D>,
+    public_inputs_size: usize,
+    recursion_config: &CircuitConfig,
+    recursion_degree_bits: usize,
+) -> VMVerificationTargets<D>
+where
+    C::Hasher: AlgebraicHasher<F>, {
+    let common_data = common_data_for_recursion::<F, C, D>(
+        recursion_config,
+        recursion_degree_bits,
+        public_inputs_size,
+    );
 
-        let proof_with_pis_target = builder.add_virtual_proof_with_pis(&common_data);
-        let vk_target = builder.add_virtual_verifier_data(common_data.config.fri_config.cap_height);
-        builder.verify_proof::<C>(&proof_with_pis_target, &vk_target, &common_data);
+    let proof_with_pis_target = builder.add_virtual_proof_with_pis(&common_data);
+    let vk_target = builder.add_virtual_verifier_data(common_data.config.fri_config.cap_height);
+    builder.verify_proof::<C>(&proof_with_pis_target, &vk_target, &common_data);
 
-        VMVerificationTargets {
-            proof_with_pis_target,
-            vk_target,
-        }
+    VMVerificationTargets {
+        proof_with_pis_target,
+        vk_target,
     }
 }
 
@@ -579,7 +579,8 @@ mod tests {
     use crate::stark::mozak_stark::{MozakStark, PublicInputs};
     use crate::stark::prover::prove;
     use crate::stark::recursive_verifier::{
-        recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit, VMVerificationTargets,
+        recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit,
+        verify_recursive_vm_proof,
     };
     use crate::stark::verifier::verify_proof;
     use crate::test_utils::{C, D, F};
@@ -633,7 +634,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
+    // #[ignore]
     #[allow(clippy::too_many_lines)]
     fn same_circuit_verify_different_vm_proofs() -> Result<()> {
         let stark = S::default();
@@ -759,12 +760,11 @@ mod tests {
 
         // Let's build a circuit to verify the final proofs.
         let mut builder = CircuitBuilder::new(CircuitConfig::standard_recursion_config());
-        let targets = VMVerificationTargets::new::<GoldilocksField, C>(
+        let targets = verify_recursive_vm_proof::<GoldilocksField, C, D>(
             &mut builder,
             public_inputs_size,
             &CircuitConfig::standard_recursion_config(),
             target_degree_bits,
-            &final_circuit0.circuit.common,
         );
         let circuit = builder.build::<C>();
 
