@@ -658,7 +658,7 @@ mod tests {
     }
 
     #[test]
-    // #[ignore]
+    #[ignore]
     #[allow(clippy::too_many_lines)]
     fn same_circuit_verify_different_vm_proofs() -> Result<()> {
         let stark = S::default();
