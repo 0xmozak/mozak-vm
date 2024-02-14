@@ -7,11 +7,10 @@ use p3_field::Field;
 use p3_fri::{FriConfig, TwoAdicFriPcs, TwoAdicFriPcsConfig};
 use p3_goldilocks::Goldilocks;
 use p3_keccak::Keccak256Hash;
-use p3_mds::integrated_coset_mds::IntegratedCosetMds;
 use p3_merkle_tree::FieldMerkleTreeMmcs;
 use p3_poseidon2::{DiffusionMatrixBabybear, DiffusionMatrixGoldilocks, Poseidon2};
 use p3_symmetric::{SerializingHasher32, SerializingHasher64, TruncatedPermutation};
-use p3_uni_stark::StarkConfigImpl;
+use p3_uni_stark::StarkConfig;
 use rand::thread_rng;
 
 /// This config refers to types required to use Plonky3 `uni_stark` prover
@@ -29,7 +28,6 @@ pub trait Mozak3StarkConfig {
     type PackedChallenge;
     type Pcs;
     type Challenger;
-    type MyMds;
     type Perm;
     type MyHash;
     type MyCompress;
@@ -54,15 +52,9 @@ impl Mozak3StarkConfig for DefaultConfig {
     type FriConfig = FriConfig<Self::ChallengeMmcs>;
     /// Function used to combine `2` (hashed) nodes of Merkle tree
     type MyCompress = TruncatedPermutation<Self::Perm, 2, { Self::CHUNK }, { Self::WIDTH }>;
-    type MyConfig = StarkConfigImpl<
-        Self::Val,
-        Self::Challenge,
-        Self::PackedChallenge,
-        Self::Pcs,
-        Self::Challenger,
-    >;
+    type MyConfig =
+        StarkConfig<Self::Val, Self::Challenge, Self::PackedChallenge, Self::Pcs, Self::Challenger>;
     type MyHash = SerializingHasher64<Keccak256Hash>;
-    type MyMds = IntegratedCosetMds<Self::Val, { Self::WIDTH }>;
     type PackedChallenge = BinomialExtensionField<<Self::Val as Field>::Packing, { Self::D }>;
     type Pcs = TwoAdicFriPcs<
         TwoAdicFriPcsConfig<
@@ -76,7 +68,7 @@ impl Mozak3StarkConfig for DefaultConfig {
     >;
     /// Poseidon2 with sbox degree 7 (Since 7 is smallest prime not dividing
     /// (p-1))
-    type Perm = Poseidon2<Self::Val, Self::MyMds, DiffusionMatrixGoldilocks, { Self::WIDTH }, 7>;
+    type Perm = Poseidon2<Self::Val, DiffusionMatrixGoldilocks, { Self::WIDTH }, 7>;
     type Val = Goldilocks;
     type ValMmcs = FieldMerkleTreeMmcs<
         <Self::Val as Field>::Packing,
@@ -92,9 +84,7 @@ impl Mozak3StarkConfig for DefaultConfig {
     const WIDTH: usize = 16;
 
     fn make_config() -> (Self::MyConfig, Self::Challenger) {
-        let mds = Self::MyMds::default();
-        let perm =
-            Self::Perm::new_from_rng(8, 22, mds, DiffusionMatrixGoldilocks, &mut thread_rng());
+        let perm = Self::Perm::new_from_rng(8, 22, DiffusionMatrixGoldilocks, &mut thread_rng());
         let hash = Self::MyHash::new(Keccak256Hash {});
         let compress = Self::MyCompress::new(perm.clone());
         let val_mmcs = Self::ValMmcs::new(hash, compress);
@@ -125,15 +115,9 @@ impl Mozak3StarkConfig for BabyBearConfig {
     type FriConfig = FriConfig<Self::ChallengeMmcs>;
     /// Function used to combine `2` (hashed) nodes of Merkle tree
     type MyCompress = TruncatedPermutation<Self::Perm, 2, { Self::CHUNK }, { Self::WIDTH }>;
-    type MyConfig = StarkConfigImpl<
-        Self::Val,
-        Self::Challenge,
-        Self::PackedChallenge,
-        Self::Pcs,
-        Self::Challenger,
-    >;
+    type MyConfig =
+        StarkConfig<Self::Val, Self::Challenge, Self::PackedChallenge, Self::Pcs, Self::Challenger>;
     type MyHash = SerializingHasher32<Keccak256Hash>;
-    type MyMds = IntegratedCosetMds<Self::Val, { Self::WIDTH }>;
     type PackedChallenge = BinomialExtensionField<<Self::Val as Field>::Packing, { Self::D }>;
     type Pcs = TwoAdicFriPcs<
         TwoAdicFriPcsConfig<
@@ -147,14 +131,9 @@ impl Mozak3StarkConfig for BabyBearConfig {
     >;
     /// Poseidon2 with sbox degree 7 (Since 7 is smallest prime not dividing
     /// (p-1))
-    type Perm = Poseidon2<Self::Val, Self::MyMds, DiffusionMatrixBabybear, { Self::WIDTH }, 7>;
+    type Perm = Poseidon2<Self::Val, DiffusionMatrixBabybear, { Self::WIDTH }, 7>;
     type Val = BabyBear;
-    type ValMmcs = FieldMerkleTreeMmcs<
-        <Self::Val as Field>::Packing,
-        Self::MyHash,
-        Self::MyCompress,
-        { Self::CHUNK },
-    >;
+    type ValMmcs = FieldMerkleTreeMmcs<Self::Val, Self::MyHash, Self::MyCompress, { Self::CHUNK }>;
 
     /// Since `MyHash` outputs 32 bytes, we can use 256/32 = 8 Field elements
     /// to represent it.
@@ -163,8 +142,7 @@ impl Mozak3StarkConfig for BabyBearConfig {
     const WIDTH: usize = 16;
 
     fn make_config() -> (Self::MyConfig, Self::Challenger) {
-        let mds = Self::MyMds::default();
-        let perm = Self::Perm::new_from_rng(8, 22, mds, DiffusionMatrixBabybear, &mut thread_rng());
+        let perm = Self::Perm::new_from_rng(8, 22, DiffusionMatrixBabybear, &mut thread_rng());
         let hash = Self::MyHash::new(Keccak256Hash {});
         let compress = Self::MyCompress::new(perm.clone());
         let val_mmcs = Self::ValMmcs::new(hash, compress);

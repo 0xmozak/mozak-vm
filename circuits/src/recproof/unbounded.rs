@@ -84,7 +84,7 @@ impl LeafSubCircuit {
     #[must_use]
     pub fn new<F, C, const D: usize>(
         mut builder: CircuitBuilder<F, D>,
-    ) -> (CircuitData<F, C, D>, (Self, ()))
+    ) -> (CircuitData<F, C, D>, Self)
     where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
@@ -105,11 +105,9 @@ impl LeafSubCircuit {
         let targets = Targets {
             verifier_data_target,
         };
-        let circuit = builder.build();
 
-        let v = Self { targets };
-
-        (circuit, (v, ()))
+        // Build the circuit
+        (builder.build(), Self { targets })
     }
 
     /// Get ready to generate a proof
@@ -140,7 +138,7 @@ impl BranchSubCircuit {
         right_is_leaf: BoolTarget,
         left_proof: &ProofWithPublicInputsTarget<D>,
         right_proof: &ProofWithPublicInputsTarget<D>,
-    ) -> (CircuitData<F, C, D>, (Self, ()))
+    ) -> (CircuitData<F, C, D>, Self)
     where
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
@@ -198,11 +196,7 @@ impl BranchSubCircuit {
         };
 
         // Build the circuit
-        let circuit = builder.build();
-
-        let v = Self { targets };
-
-        (circuit, (v, ()))
+        (builder.build(), Self { targets })
     }
 }
 
@@ -224,7 +218,7 @@ mod test {
         #[must_use]
         pub fn new(circuit_config: &CircuitConfig) -> Self {
             let builder = CircuitBuilder::<F, D>::new(circuit_config.clone());
-            let (circuit, (unbounded, ())) = LeafSubCircuit::new(builder);
+            let (circuit, unbounded) = LeafSubCircuit::new(builder);
 
             Self { unbounded, circuit }
         }
@@ -260,7 +254,7 @@ mod test {
             let left_proof = builder.add_virtual_proof_with_pis(common);
             let right_proof = builder.add_virtual_proof_with_pis(common);
 
-            let (circuit, (unbounded, ())) = BranchSubCircuit::new(
+            let (circuit, unbounded) = BranchSubCircuit::new(
                 builder,
                 &leaf.circuit,
                 left_is_leaf,
