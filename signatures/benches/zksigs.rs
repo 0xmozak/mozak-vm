@@ -23,22 +23,21 @@ fn generate_signature_data<S: Signature<F, C, D>>() -> (PrivateKey, PublicKey, M
 }
 
 fn bench_sig<S: Signature<F, C, D>>() -> Result<()> {
-    type Signer = ZkSigSha256Signer<F, C, D>;
     let config = CircuitConfig::standard_recursion_zk_config();
-    let (private_key, public_key, msg) = generate_signature_data::<Signer>();
-    let (circuit, signature) = Signer::sign(config, &private_key, &public_key, &msg);
-    circuit.verify(signature)
+    let (private_key, public_key, msg) = generate_signature_data::<S>();
+    let (circuit, signature) = S::sign(config, &private_key, &public_key, &msg);
+    circuit.verify(signature.into())
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("sha256", |b| {
-        b.iter(|| bench_sig::<ZkSigSha256Signer<F, C, D>>())
+        b.iter(bench_sig::<ZkSigSha256Signer<F, C, D>>)
     });
     c.bench_function("keccak256", |b| {
-        b.iter(|| bench_sig::<ZkSigKeccak256Signer<F, C, D>>())
+        b.iter(bench_sig::<ZkSigKeccak256Signer<F, C, D>>)
     });
     c.bench_function("poseidon", |b| {
-        b.iter(|| bench_sig::<ZkSigPoseidonSigner<F, C, D>>())
+        b.iter(bench_sig::<ZkSigPoseidonSigner<F, C, D>>)
     });
 }
 
