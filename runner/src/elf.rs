@@ -35,12 +35,13 @@ impl MozakMemoryRegion {
     fn fill(&mut self, data: &[u8]) {
         assert!(
             data.len() <= self.capacity.try_into().unwrap(),
-            "fill data must fit into capacity"
+            "fill data ({}) must fit into capacity ({})",
+            data.len(),
+            self.capacity
         );
         for (index, &item) in izip!(self.starting_address.., data) {
             self.data.insert(index, item);
         }
-        log::debug!("data: {:#?} {:#?}", data, self.data);
         assert!(
             self.data.len() <= self.capacity.try_into().unwrap(),
             "data does not fit into capacity"
@@ -50,6 +51,8 @@ impl MozakMemoryRegion {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct MozakMemory {
+    // context variables
+    pub context_variables: MozakMemoryRegion,
     // io private
     pub io_tape_private: MozakMemoryRegion,
     // io public
@@ -70,8 +73,13 @@ impl Default for MozakMemory {
         // it will be possible to implement test that load mozak-empty-ELF and check
         // that all expected addresses and capacities are indeed aligned with the code.
         MozakMemory {
-            io_tape_public: MozakMemoryRegion {
+            context_variables: MozakMemoryRegion {
                 starting_address: 0x2000_0000_u32,
+                capacity: 0x0100_0000_u32,
+                ..Default::default()
+            },
+            io_tape_public: MozakMemoryRegion {
+                starting_address: 0x2100_0000_u32,
                 capacity: 0x0F00_0000_u32,
                 ..Default::default()
             },
@@ -101,6 +109,7 @@ impl From<(&[u8], &[u8])> for MozakMemory {
 impl MozakMemory {
     fn create() -> MozakMemory {
         MozakMemory {
+            context_variables: MozakMemoryRegion::default(),
             io_tape_private: MozakMemoryRegion::default(),
             io_tape_public: MozakMemoryRegion::default(),
             transcript: MozakMemoryRegion::default(),
@@ -118,6 +127,7 @@ impl MozakMemory {
 
     fn is_address_belongs_to_mozak_ro_memory(&self, address: u32) -> bool {
         let mem_addresses = [
+            self.context_variables.memory_range(),
             self.io_tape_public.memory_range(),
             self.io_tape_private.memory_range(),
             self.transcript.memory_range(),
@@ -148,6 +158,11 @@ impl MozakMemory {
                 )
             })
         };
+        self.context_variables.starting_address = get("_mozak_context_variables");
+        log::debug!(
+            "_mozak_context_variables: 0x{:0x}",
+            self.context_variables.starting_address
+        );
         self.io_tape_public.starting_address = get("_mozak_public_io_tape");
         log::debug!(
             "_mozak_public_io_tape: 0x{:0x}",
@@ -162,11 +177,14 @@ impl MozakMemory {
 
         self.transcript.starting_address = get("_mozak_transcript");
         log::debug!(
-            "_mozak_call_tape: 0x{:0x}",
+            "_mozak_transcript: 0x{:0x}",
             self.transcript.starting_address
         );
 
         // compute capacity, assume single memory region (refer to linker-script)
+
+        self.context_variables.capacity =
+            self.io_tape_public.starting_address - self.context_variables.starting_address;
         self.io_tape_public.capacity =
             self.io_tape_private.starting_address - self.io_tape_public.starting_address;
         // refer to linker-script to understand this magic number ...
@@ -184,6 +202,7 @@ impl MozakMemory {
 /// A Mozak program runtime arguments
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RuntimeArguments {
+    pub context_variables: Vec<u8>,
     pub io_tape_private: Vec<u8>,
     pub io_tape_public: Vec<u8>,
     pub transcript: Vec<u8>,
@@ -192,8 +211,14 @@ pub struct RuntimeArguments {
 impl RuntimeArguments {
     /// # Panics
     #[must_use]
-    pub fn new(io_tape_private: Vec<u8>, io_tape_public: Vec<u8>, transcript: Vec<u8>) -> Self {
+    pub fn new(
+        context_variables: Vec<u8>,
+        io_tape_private: Vec<u8>,
+        io_tape_public: Vec<u8>,
+        transcript: Vec<u8>,
+    ) -> Self {
         RuntimeArguments {
+            context_variables,
             io_tape_private,
             io_tape_public,
             transcript,
@@ -206,6 +231,9 @@ impl From<&RuntimeArguments> for MozakMemory {
     fn from(args: &RuntimeArguments) -> Self {
         let mut mozak_ro_memory = MozakMemory::default();
         // Context Variables address
+        mozak_ro_memory
+            .context_variables
+            .fill(args.context_variables.as_slice());
         // IO public
         mozak_ro_memory
             .io_tape_public
@@ -554,6 +582,9 @@ impl Program {
             .as_mut()
             .expect("MozakMemory should exist for mozak-elf case");
         // Context Variables address
+        mozak_ro_memory
+            .context_variables
+            .fill(args.context_variables.as_slice());
         // IO public
         mozak_ro_memory
             .io_tape_public
@@ -653,6 +684,7 @@ mod test {
                 .unwrap()
                 .mozak_ro_memory
                 .unwrap();
+        assert_eq!(mozak_ro_memory.context_variables.data.len(), 0);
         assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 0);
         assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 0);
         assert_eq!(mozak_ro_memory.transcript.data.len(), 0);
@@ -661,11 +693,12 @@ mod test {
     fn test_empty_elf_with_args() {
         let mozak_ro_memory = Program::mozak_load_program(
             mozak_examples::EMPTY_ELF,
-            &RuntimeArguments::new(vec![0, 1], vec![0, 1, 2], vec![0, 1, 2, 3]),
+            &RuntimeArguments::new(vec![0], vec![0, 1], vec![0, 1, 2], vec![0, 1, 2, 3]),
         )
         .unwrap()
         .mozak_ro_memory
         .unwrap();
+        assert_eq!(mozak_ro_memory.context_variables.data.len(), 1);
         assert_eq!(mozak_ro_memory.io_tape_private.data.len(), 2);
         assert_eq!(mozak_ro_memory.io_tape_public.data.len(), 3);
         assert_eq!(mozak_ro_memory.transcript.data.len(), 4);
