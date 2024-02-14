@@ -4,9 +4,11 @@ use plonky2::iop::target::Target;
 use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2_crypto::u32::arithmetic_u32::U32Target;
 
+use super::sig::NUM_LIMBS_U8;
+
 pub fn get_hashout<F: RichField + Extendable<D>, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
-    limbs: &[Target; 32],
+    limbs: &[Target; NUM_LIMBS_U8],
 ) -> HashOutTarget {
     let hash_out_target = builder.add_virtual_hash();
     let zero = builder.zero();
@@ -23,7 +25,7 @@ pub fn get_hashout<F: RichField + Extendable<D>, const D: usize>(
 pub fn biguint_target_to_u8_target<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     biguint_target: &[U32Target; 8],
-) -> [Target; 32]
+) -> [Target; NUM_LIMBS_U8]
 where
     F: RichField + Extendable<D>, {
     let target_arr = builder.add_virtual_target_arr::<32>();
