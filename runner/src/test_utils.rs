@@ -105,7 +105,6 @@ pub fn execute_code_with_ro_memory(
     );
 
     let args = RuntimeArguments {
-        context_variables: vec![],
         io_tape_private,
         io_tape_public,
         transcript,
