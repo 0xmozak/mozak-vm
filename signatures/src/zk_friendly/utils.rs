@@ -45,7 +45,7 @@ where
 pub fn biguint_be_u32_target_to_le_u8_target<F, const D: usize>(
     builder: &mut CircuitBuilder<F, D>,
     biguint_target: &[U32Target; 8],
-) -> [Target; 32]
+) -> [Target; NUM_LIMBS_U8]
 where
     F: RichField + Extendable<D>, {
     let target_arr = builder.add_virtual_target_arr::<32>();
