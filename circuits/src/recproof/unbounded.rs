@@ -57,12 +57,7 @@ pub fn common_data_for_recursion<
 where
     C::Hasher: AlgebraicHasher<F>, {
     let mut builder = CircuitBuilder::<F, D>::new(config.clone());
-    // We don't want to pad all the way up to 2^target_degree_bits, as the builder
-    // will add a few special gates afterward. So just pad to
-    // 2^(target_degree_bits - 1) + 1. Then the builder will pad to the next
-    // power of two.
-    let min_gates = (1 << (target_degree_bits - 1)) + 1;
-    while builder.num_gates() < min_gates {
+    while builder.num_gates() < 1 << 12 {
         builder.add_gate(NoopGate, vec![]);
     }
     let data = builder.build::<C>();
@@ -74,6 +69,11 @@ where
     for _ in 0..public_input_size {
         builder.add_virtual_public_input();
     }
+    // We don't want to pad all the way up to 2^target_degree_bits, as the builder
+    // will add a few special gates afterward. So just pad to
+    // 2^(target_degree_bits - 1) + 1. Then the builder will pad to the next
+    // power of two.
+    let min_gates = (1 << (target_degree_bits - 1)) + 1;
     while builder.num_gates() < min_gates {
         builder.add_gate(NoopGate, vec![]);
     }

@@ -522,7 +522,7 @@ where
     Ok((shrink_circuit, shrunk_proof))
 }
 
-/// Targets for a VM final proof verification circuit.
+/// Targets for a recursive VM proof verification circuit.
 pub struct VMVerificationTargets<const D: usize> {
     pub proof_with_pis_target: ProofWithPublicInputsTarget<D>,
     pub vk_target: VerifierCircuitTarget,
@@ -634,7 +634,7 @@ mod tests {
     }
 
     #[test]
-    // #[ignore]
+    #[ignore]
     #[allow(clippy::too_many_lines)]
     fn same_circuit_verify_different_vm_proofs() -> Result<()> {
         let stark = S::default();
@@ -718,7 +718,7 @@ mod tests {
 
         let recursion_degree_bits0 = recursion_circuit0.circuit.common.degree_bits();
         let recursion_degree_bits1 = recursion_circuit1.circuit.common.degree_bits();
-        // assert_ne!(recursion_degree_bits0, recursion_degree_bits1);
+        assert_ne!(recursion_degree_bits0, recursion_degree_bits1);
         info!("recursion circuit0 degree bits: {}", recursion_degree_bits0);
         info!("recursion circuit1 degree bits: {}", recursion_degree_bits1);
 
