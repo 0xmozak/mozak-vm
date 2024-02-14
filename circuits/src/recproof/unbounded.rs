@@ -56,12 +56,10 @@ pub fn common_data_for_recursion<
 ) -> CommonCircuitData<F, D>
 where
     C::Hasher: AlgebraicHasher<F>, {
-    let builder = CircuitBuilder::<F, D>::new(config.clone());
-    let data = builder.build::<C>();
     let mut builder = CircuitBuilder::<F, D>::new(config.clone());
-    let proof = builder.add_virtual_proof_with_pis(&data.common);
-    let verifier_data = builder.add_virtual_verifier_data(data.common.config.fri_config.cap_height);
-    builder.verify_proof::<C>(&proof, &verifier_data, &data.common);
+    while builder.num_gates() < 1 << target_degree {
+        builder.add_gate(NoopGate, vec![]);
+    }
     let data = builder.build::<C>();
 
     let mut builder = CircuitBuilder::<F, D>::new(config.clone());

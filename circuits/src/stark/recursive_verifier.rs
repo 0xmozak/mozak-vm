@@ -15,7 +15,9 @@ use plonky2::iop::ext_target::ExtensionTarget;
 use plonky2::iop::target::Target;
 use plonky2::iop::witness::{PartialWitness, Witness, WitnessWrite};
 use plonky2::plonk::circuit_builder::CircuitBuilder;
-use plonky2::plonk::circuit_data::{CircuitConfig, CircuitData, VerifierCircuitTarget};
+use plonky2::plonk::circuit_data::{
+    CircuitConfig, CircuitData, CommonCircuitData, VerifierCircuitTarget,
+};
 use plonky2::plonk::config::{AlgebraicHasher, GenericConfig};
 use plonky2::plonk::proof::{ProofWithPublicInputs, ProofWithPublicInputsTarget};
 use plonky2::util::reducing::ReducingFactorTarget;
@@ -162,8 +164,6 @@ where
         );
     }
 
-    add_common_recursion_gates(&mut builder);
-
     let circuit = builder.build();
     MozakStarkVerifierCircuit { circuit, targets }
 }
@@ -235,18 +235,6 @@ where
         init_challenger_state_target,
         zero_target,
     }
-}
-
-/// Add gates that are sometimes used by recursive circuits, even if it's not
-/// actually used by this particular recursive circuit. This is done for
-/// uniformity. We sometimes want all recursion circuits to have the same gate
-/// set, so that we can do 1-of-n conditional recursion efficiently.
-pub fn add_common_recursion_gates<F: RichField + Extendable<D>, const D: usize>(
-    builder: &mut CircuitBuilder<F, D>,
-) {
-    builder.add_gate_to_gate_set(GateRef::new(ExponentiationGate::new_from_config(
-        &builder.config,
-    )));
 }
 
 /// Recursively verifies an inner proof.
@@ -483,7 +471,6 @@ where
         let last_vk = builder.constant_verifier_data(&circuit.verifier_only);
         builder.verify_proof::<C>(&proof_with_pis_target, &last_vk, &circuit.common);
         builder.register_public_inputs(&proof_with_pis_target.public_inputs); // carry PIs forward
-        add_common_recursion_gates(&mut builder);
         let circuit = builder.build::<C>();
         PlonkWrapperCircuit {
             circuit,
@@ -550,6 +537,7 @@ impl<const D: usize> VMVerificationTargets<D> {
         public_inputs_size: usize,
         final_recursion_circuit_config: &CircuitConfig,
         final_recursion_circuit_degree_bits: usize,
+        common_data_dbg: &CommonCircuitData<F, D>,
     ) -> VMVerificationTargets<D>
     where
         C::Hasher: AlgebraicHasher<F>, {
@@ -558,6 +546,7 @@ impl<const D: usize> VMVerificationTargets<D> {
             final_recursion_circuit_degree_bits,
             public_inputs_size,
         );
+        assert_eq!(common_data, common_data_dbg.clone(), "common data mismatch");
 
         let proof_with_pis_target = builder.add_virtual_proof_with_pis(&common_data);
         let vk_target = builder.add_virtual_verifier_data(common_data.config.fri_config.cap_height);
@@ -570,19 +559,7 @@ impl<const D: usize> VMVerificationTargets<D> {
     }
 }
 
-#[must_use]
-/// The usual recursion threshold is 2^12 gates, but a few more gates for a
-/// constant inner VK and public inputs are used. This pushes the threshold to
-/// 2^13. A narrower witness is used as long as the number of gates is below
-/// this threshold.
-pub fn shrinking_config() -> CircuitConfig {
-    CircuitConfig {
-        num_routed_wires: 40,
-        ..CircuitConfig::standard_recursion_config()
-    }
-}
-
-pub const FINAL_RECURSION_THRESHOLD: usize = 13;
+pub const FINAL_RECURSION_THRESHOLD: usize = 12;
 
 #[cfg(test)]
 mod tests {
@@ -603,8 +580,7 @@ mod tests {
     use crate::stark::mozak_stark::{MozakStark, PublicInputs};
     use crate::stark::prover::prove;
     use crate::stark::recursive_verifier::{
-        recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit, shrinking_config,
-        VMVerificationTargets,
+        recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit, VMVerificationTargets,
     };
     use crate::stark::verifier::verify_proof;
     use crate::test_utils::{C, D, F};
@@ -746,16 +722,16 @@ mod tests {
         info!("recursion circuit0 degree bits: {}", recursion_degree_bits0);
         info!("recursion circuit1 degree bits: {}", recursion_degree_bits1);
 
-        let target_degree_bits = 13;
+        let target_degree_bits = 12;
         let (final_circuit0, final_proof0) = shrink_to_target_degree_bits_circuit(
             &recursion_circuit0.circuit,
-            &shrinking_config(),
+            &CircuitConfig::standard_recursion_config(),
             target_degree_bits,
             &recursion_proof0,
         )?;
         let (final_circuit1, final_proof1) = shrink_to_target_degree_bits_circuit(
             &recursion_circuit1.circuit,
-            &shrinking_config(),
+            &CircuitConfig::standard_recursion_config(),
             target_degree_bits,
             &recursion_proof1,
         )?;
@@ -787,8 +763,9 @@ mod tests {
         let targets = VMVerificationTargets::new::<GoldilocksField, C>(
             &mut builder,
             public_inputs_size,
-            &shrinking_config(),
+            &CircuitConfig::standard_recursion_config(),
             target_degree_bits,
+            &final_circuit0.circuit.common,
         );
         let circuit = builder.build::<C>();
 
