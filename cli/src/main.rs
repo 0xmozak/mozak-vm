@@ -97,6 +97,8 @@ impl From<RuntimeArguments> for mozak_runner::elf::RuntimeArguments {
         };
 
         Self {
+            // TODO(bing): use `context_variables`
+            context_variables: vec![],
             io_tape_private,
             io_tape_public,
             transcript,
@@ -152,6 +154,7 @@ fn main() -> Result<()> {
             let program = load_program(elf)?;
             let state = State::<GoldilocksField>::new(program.clone(), args.into());
             let state = step(&program, state)?.last_state;
+            debug!("{:?}", state.registers);
         }
         Command::ProveAndVerify(RunArgs { elf, args }) => {
             let program = load_program(elf)?;
