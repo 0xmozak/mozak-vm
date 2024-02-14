@@ -49,23 +49,30 @@ pub fn common_data_for_recursion<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     const D: usize,
->() -> CommonCircuitData<F, D>
+>(
+    config: CircuitConfig,
+    target_degree: usize,
+    public_input_size: usize,
+) -> CommonCircuitData<F, D>
 where
     C::Hasher: AlgebraicHasher<F>, {
-    let config = CircuitConfig::standard_recursion_config();
-    let mut builder = CircuitBuilder::<F, D>::new(config);
-    while builder.num_gates() < 1 << 12 {
-        builder.add_gate(NoopGate, vec![]);
-    }
+    let builder = CircuitBuilder::<F, D>::new(config.clone());
     let data = builder.build::<C>();
-
-    let config = CircuitConfig::standard_recursion_config();
-    let mut builder = CircuitBuilder::<F, D>::new(config);
+    let mut builder = CircuitBuilder::<F, D>::new(config.clone());
     let proof = builder.add_virtual_proof_with_pis(&data.common);
     let verifier_data = builder.add_virtual_verifier_data(data.common.config.fri_config.cap_height);
     builder.verify_proof::<C>(&proof, &verifier_data, &data.common);
-    while builder.num_gates() < 1 << 12 {
+    let data = builder.build::<C>();
+
+    let mut builder = CircuitBuilder::<F, D>::new(config.clone());
+    let proof = builder.add_virtual_proof_with_pis(&data.common);
+    let verifier_data = builder.add_virtual_verifier_data(data.common.config.fri_config.cap_height);
+    builder.verify_proof::<C>(&proof, &verifier_data, &data.common);
+    while builder.num_gates() < 1 << (target_degree - 1) {
         builder.add_gate(NoopGate, vec![]);
+    }
+    for _ in 0..public_input_size {
+        builder.add_virtual_public_input();
     }
     builder.build::<C>().common
 }
@@ -89,7 +96,8 @@ impl LeafSubCircuit {
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         C::Hasher: AlgebraicHasher<F>, {
-        let mut common_data = common_data_for_recursion::<F, C, D>();
+        let mut common_data =
+            common_data_for_recursion::<F, C, D>(CircuitConfig::standard_recursion_config(), 13, 0);
         let verifier_data_target = builder.add_verifier_data_public_inputs();
         common_data.num_public_inputs = builder.num_public_inputs();
 

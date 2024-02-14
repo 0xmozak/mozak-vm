@@ -8,7 +8,6 @@ use plonky2::field::types::Field;
 use plonky2::fri::witness_util::set_fri_proof_target;
 use plonky2::gates::exponentiation::ExponentiationGate;
 use plonky2::gates::gate::GateRef;
-use plonky2::gates::noop::NoopGate;
 use plonky2::hash::hash_types::RichField;
 use plonky2::hash::hashing::PlonkyPermutation;
 use plonky2::iop::challenger::RecursiveChallenger;
@@ -28,6 +27,7 @@ use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{all_kind, all_starks, TableKindArray};
 use crate::cross_table_lookup::{CrossTableLookup, CtlCheckVarsTarget};
+use crate::recproof::unbounded::common_data_for_recursion;
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::poly::eval_vanishing_poly_circuit;
@@ -547,25 +547,21 @@ pub struct VMVerificationTargets<const D: usize> {
 impl<const D: usize> VMVerificationTargets<D> {
     pub fn new<F: RichField + Extendable<D>, C: GenericConfig<D, F = F>>(
         builder: &mut CircuitBuilder<F, D>,
+        public_inputs_size: usize,
         final_recursion_circuit_config: CircuitConfig,
         final_recursion_circuit_degree_bits: usize,
     ) -> VMVerificationTargets<D>
     where
         C::Hasher: AlgebraicHasher<F>, {
-        let mut final_recursion_circuit_builder =
-            CircuitBuilder::new(final_recursion_circuit_config);
-        while final_recursion_circuit_builder.num_gates()
-            < 1 << (final_recursion_circuit_degree_bits - 1)
-        {
-            final_recursion_circuit_builder.add_gate(NoopGate, vec![]);
-        }
-        add_common_recursion_gates(&mut final_recursion_circuit_builder);
-        let circuit = final_recursion_circuit_builder.build::<C>();
+        let common_data = common_data_for_recursion::<F, C, D>(
+            final_recursion_circuit_config,
+            final_recursion_circuit_degree_bits,
+            public_inputs_size,
+        );
 
-        let proof_with_pis_target = builder.add_virtual_proof_with_pis(&circuit.common);
-        let vk_target =
-            builder.add_virtual_verifier_data(circuit.common.config.fri_config.cap_height);
-        builder.verify_proof::<C>(&proof_with_pis_target, &vk_target, &circuit.common);
+        let proof_with_pis_target = builder.add_virtual_proof_with_pis(&common_data);
+        let vk_target = builder.add_virtual_verifier_data(common_data.config.fri_config.cap_height);
+        builder.verify_proof::<C>(&proof_with_pis_target, &vk_target, &common_data);
 
         VMVerificationTargets {
             proof_with_pis_target,
@@ -731,15 +727,18 @@ mod tests {
             .circuit
             .verify(recursion_proof0.clone())?;
 
+        let public_inputs_size = recursion_proof0.public_inputs.len();
+        assert_eq!(public_inputs_size, recursion_proof1.public_inputs.len());
+
         // It is not possible to verify different VM proofs with the same recursion
         // circuit.
-        // let result = panic::catch_unwind(AssertUnwindSafe(|| {
-        //     recursion_circuit0
-        //         .circuit
-        //         .verify(recursion_proof1.clone())
-        //         .expect("Verification failed");
-        // }));
-        // assert!(result.is_err(), "Verification did not failed as expected");
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            recursion_circuit0
+                .circuit
+                .verify(recursion_proof1.clone())
+                .expect("Verification failed");
+        }));
+        assert!(result.is_err(), "Verification did not failed as expected");
 
         let recursion_degree_bits0 = recursion_circuit0.circuit.common.degree_bits();
         let recursion_degree_bits1 = recursion_circuit1.circuit.common.degree_bits();
@@ -775,26 +774,35 @@ mod tests {
         // It is still not possible to verify different VM proofs with the same
         // recursion circuit at this point. But the final proofs now have the same
         // degree bits.
-        // let result = panic::catch_unwind(AssertUnwindSafe(|| {
-        //     final_circuit0
-        //         .circuit
-        //         .verify(final_poof1.clone())
-        //         .expect("Verification failed");
-        // }));
-        // assert!(result.is_err(), "Verification did not failed as expected");
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            final_circuit0
+                .circuit
+                .verify(final_proof1.clone())
+                .expect("Verification failed");
+        }));
+        assert!(result.is_err(), "Verification did not failed as expected");
 
         // Let's build a circuit to verify the final proofs.
         let mut builder = CircuitBuilder::new(CircuitConfig::standard_recursion_config());
         let targets = VMVerificationTargets::new::<GoldilocksField, C>(
             &mut builder,
+            public_inputs_size,
             shrinking_config(),
             target_degree_bits,
         );
         let circuit = builder.build::<C>();
 
+        // This time, we can verify the final proofs from two different VM programs in
+        // the same circuit.
         let mut pw = PartialWitness::new();
         pw.set_proof_with_pis_target(&targets.proof_with_pis_target, &final_proof0);
         pw.set_verifier_data_target(&targets.vk_target, &final_circuit0.circuit.verifier_only);
+        let proof = circuit.prove(pw)?;
+        circuit.verify(proof)?;
+
+        let mut pw = PartialWitness::new();
+        pw.set_proof_with_pis_target(&targets.proof_with_pis_target, &final_proof1);
+        pw.set_verifier_data_target(&targets.vk_target, &final_circuit1.circuit.verifier_only);
         let proof = circuit.prove(pw)?;
         circuit.verify(proof)?;
 
