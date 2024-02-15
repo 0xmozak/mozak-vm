@@ -17,9 +17,12 @@ pub fn init() {
 #[cfg(target_os = "mozakvm")]
 pub fn finalize() {
     unsafe {
-        let output_bytes_vec = OUTPUT_BYTES.as_ref().unwrap_unchecked();
-        let output_0 = output_bytes_vec.first().unwrap_unchecked();
-        mozak_system::system::syscall_halt(*output_0);
+        mozak_system::system::syscall_halt(
+            OUTPUT_BYTES
+                .as_ref()
+                .and_then(|v| v.first().cloned())
+                .unwrap_or_default(),
+        );
     }
 }
 
