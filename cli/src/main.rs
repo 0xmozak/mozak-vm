@@ -230,7 +230,7 @@ fn main() -> Result<()> {
                 let mut vk_output = vk_output_path.create()?;
 
                 let bytes = final_circuit.circuit.verifier_only.to_bytes().unwrap();
-                vk_output.write_all(&*bytes)?;
+                vk_output.write_all(&bytes)?;
             }
 
             debug!("proof generated successfully!");
