@@ -269,8 +269,10 @@ fn main() -> Result<()> {
             pw.set_proof_with_pis_target(&targets.proof_with_pis_target, &proof);
             pw.set_verifier_data_target(&targets.vk_target, &vk);
             let proof = circuit.prove(pw)?;
-            circuit.verify(proof)?;
-            println!("Recursive proof verified successfully!");
+            circuit.verify(proof.clone())?;
+            println!("Recursive VM proof verified successfully!");
+            println!("Public Inputs (): {:?}", proof.public_inputs);
+            println!("Verifier Key: {:?}", vk);
         }
         Command::ProgramRomHash { elf } => {
             let program = load_program(elf)?;
