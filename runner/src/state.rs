@@ -232,8 +232,9 @@ impl<F: RichField> State<F> {
 
     #[must_use]
     #[allow(clippy::similar_names)]
-    // TODO(Roman): fn name looks strange .... :), but once old-io-tapes mechanism
-    // will be removed, I will rename this function to `new`
+    /// # Panics
+    /// should not panic since access to the `mozak_ro_memory.unwrap()` takes
+    /// place after `is_some` check
     pub fn new(
         Program {
             rw_memory: Data(rw_memory),
@@ -244,23 +245,22 @@ impl<F: RichField> State<F> {
         }: Program,
         RuntimeArguments { .. }: RuntimeArguments,
     ) -> Self {
-        let mut state_mozak_ro_memory = HashMap::default();
-        if mozak_ro_memory.is_some() {
-            let mrm = mozak_ro_memory.unwrap();
-            state_mozak_ro_memory = chain!(
-                mrm.context_variables.data.iter(),
-                mrm.io_tape_private.data.iter(),
-                mrm.io_tape_public.data.iter(),
-                mrm.transcript.data.iter(),
-            )
-            .map(|it| (*it.0, *it.1))
-            .collect();
-        }
         Self {
             pc,
             rw_memory,
             ro_memory,
-            mozak_ro_memory: state_mozak_ro_memory,
+            mozak_ro_memory: if let Some(mrm) = mozak_ro_memory {
+                chain!(
+                    mrm.context_variables.data.iter(),
+                    mrm.io_tape_private.data.iter(),
+                    mrm.io_tape_public.data.iter(),
+                    mrm.transcript.data.iter(),
+                )
+                .map(|(addr, value)| (*addr, *value))
+                .collect()
+            } else {
+                HashMap::default()
+            },
             ..Default::default()
         }
     }
