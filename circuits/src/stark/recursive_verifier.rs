@@ -546,7 +546,8 @@ where
         recursion_config,
         recursion_degree_bits,
         public_inputs_size,
-    ).common;
+    )
+    .common;
 
     let proof_with_pis_target = builder.add_virtual_proof_with_pis(&common_data);
     let vk_target = builder.add_virtual_verifier_data(common_data.config.fri_config.cap_height);

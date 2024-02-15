@@ -103,7 +103,8 @@ impl LeafSubCircuit {
             &CircuitConfig::standard_recursion_config(),
             13,
             0,
-        ).common;
+        )
+        .common;
         let verifier_data_target = builder.add_verifier_data_public_inputs();
         common_data.num_public_inputs = builder.num_public_inputs();
 
