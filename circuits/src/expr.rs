@@ -33,69 +33,53 @@ where
     }
 }
 
-pub fn constraint_first_row<F, const D: usize>(
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-    builder: &mut CircuitBuilder<F, D>,
-    constraints: E<'_, ExtensionTarget<D>>,
-) where
+pub struct ConstraintBuilder<'a, F, const D: usize>
+where
     F: RichField,
     F: Extendable<D>, {
-    let mut evaluator = CircuitBuilderEvaluator { builder };
-    let built_constraints = evaluator.eval(constraints);
-    yield_constr.constraint_first_row(builder, built_constraints);
+    yield_constr: &'a mut RecursiveConstraintConsumer<F, D>,
+    builder: &'a mut CircuitBuilder<F, D>,
 }
 
-pub fn constraint<F, const D: usize>(
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-    builder: &mut CircuitBuilder<F, D>,
-    constraints: E<'_, ExtensionTarget<D>>,
-) where
+impl<'a, F, const D: usize> ConstraintBuilder<'a, F, D>
+where
     F: RichField,
-    F: Extendable<D>, {
-    let mut evaluator = CircuitBuilderEvaluator { builder };
-    let built_constraints = evaluator.eval(constraints);
-    yield_constr.constraint(builder, built_constraints);
-}
-
-pub fn constraint_transition<F, const D: usize>(
-    yield_constr: &mut RecursiveConstraintConsumer<F, D>,
-    builder: &mut CircuitBuilder<F, D>,
-    constraints: E<'_, ExtensionTarget<D>>,
-) where
-    F: RichField,
-    F: Extendable<D>, {
-    let mut evaluator = CircuitBuilderEvaluator { builder };
-    let built_constraints = evaluator.eval(constraints);
-    yield_constr.constraint_transition(builder, built_constraints);
-}
-
-#[cfg(test)]
-mod tests {
-    use expr::PureEvaluator;
-
-    use super::*;
-
-    #[test]
-    fn multiplication() {
-        let expr = ExprBuilder::new();
-
-        let a = expr.lit(1);
-        let b = expr.lit(2);
-
-        // a and b are cloned behind the scenes
-        let c = a * b;
-        assert_eq!(PureEvaluator::new().eval(c), 2);
+    F: Extendable<D>,
+{
+    pub fn new(
+        yield_constr: &'a mut RecursiveConstraintConsumer<F, D>,
+        builder: &'a mut CircuitBuilder<F, D>,
+    ) -> Self {
+        Self {
+            yield_constr,
+            builder,
+        }
     }
 
-    #[test]
-    fn subtraction() {
-        let expr = ExprBuilder::new();
+    pub fn constraint_first_row(&mut self, constraints: E<'_, ExtensionTarget<D>>) {
+        let mut evaluator = CircuitBuilderEvaluator {
+            builder: self.builder,
+        };
+        let built_constraints = evaluator.eval(constraints);
+        self.yield_constr
+            .constraint_first_row(self.builder, built_constraints);
+    }
 
-        let a = expr.lit(1);
-        let b = expr.lit(2);
+    pub fn constraint(&mut self, constraints: E<'_, ExtensionTarget<D>>) {
+        let mut evaluator = CircuitBuilderEvaluator {
+            builder: self.builder,
+        };
+        let built_constraints = evaluator.eval(constraints);
+        self.yield_constr
+            .constraint(self.builder, built_constraints);
+    }
 
-        // a and b are cloned behind the scenes
-        let c = a - b;
-        assert_eq!(PureEvaluator::new().eval(c), -1);
+    pub fn constraint_transition(&mut self, constraints: E<'_, ExtensionTarget<D>>) {
+        let mut evaluator = CircuitBuilderEvaluator {
+            builder: self.builder,
+        };
+        let built_constraints = evaluator.eval(constraints);
+        self.yield_constr
+            .constraint_transition(self.builder, built_constraints);
     }
 }

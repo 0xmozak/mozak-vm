@@ -12,7 +12,7 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
-use crate::expr::{constraint, constraint_first_row, constraint_transition};
+use crate::expr::ConstraintBuilder;
 use crate::memory::columns::{is_executed_ext_circuit, Memory};
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
 
@@ -196,73 +196,36 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
         let zero_init_clk = one - expr.lit(lv.clk);
         let elf_init_clk = expr.lit(lv.clk);
 
-        constraint_first_row(
-            yield_constr,
-            builder,
-            (one - expr.lit(lv.is_init)) * expr.lit(lv_is_executed),
-        );
+        let mut helper = ConstraintBuilder::new(yield_constr, builder);
 
-        constraint(
-            yield_constr,
-            builder,
-            expr.lit(lv.is_init) * zero_init_clk * elf_init_clk,
-        );
+        helper.constraint_first_row((one - expr.lit(lv.is_init)) * expr.lit(lv_is_executed));
 
-        constraint(
-            yield_constr,
-            builder,
-            expr.lit(lv.is_init) * zero_init_clk * expr.lit(lv.value),
-        );
+        helper.constraint(expr.lit(lv.is_init) * zero_init_clk * elf_init_clk);
 
-        constraint(
-            yield_constr,
-            builder,
-            expr.lit(lv.is_init) * zero_init_clk * (one - expr.lit(lv.is_writable)),
-        );
+        helper.constraint(expr.lit(lv.is_init) * zero_init_clk * expr.lit(lv.value));
 
-        constraint(
-            yield_constr,
-            builder,
-            (one - expr.lit(lv.is_writable)) * expr.lit(lv.is_store),
-        );
+        helper.constraint(expr.lit(lv.is_init) * zero_init_clk * (one - expr.lit(lv.is_writable)));
 
-        constraint(
-            yield_constr,
-            builder,
-            expr.lit(nv.is_load) * (expr.lit(nv.value) - expr.lit(lv.value)),
-        );
+        helper.constraint((one - expr.lit(lv.is_writable)) * expr.lit(lv.is_store));
 
-        constraint_transition(
-            yield_constr,
-            builder,
+        helper.constraint(expr.lit(nv.is_load) * (expr.lit(nv.value) - expr.lit(lv.value)));
+
+        helper.constraint_transition(
             (one - expr.lit(nv.is_init))
                 * (expr.lit(nv.diff_clk) - (expr.lit(nv.clk) - expr.lit(lv.clk))),
         );
 
-        constraint_transition(
-            yield_constr,
-            builder,
-            expr.lit(lv.is_init) * expr.lit(lv.diff_clk),
-        );
+        helper.constraint_transition(expr.lit(lv.is_init) * expr.lit(lv.diff_clk));
 
-        constraint_transition(
-            yield_constr,
-            builder,
+        helper.constraint_transition(
             (expr.lit(lv_is_executed) - expr.lit(nv_is_executed)) * expr.lit(nv_is_executed),
         );
 
         let diff_addr = expr.lit(nv.addr) - expr.lit(lv.addr);
-        constraint_transition(
-            yield_constr,
-            builder,
-            diff_addr * (one - diff_addr * expr.lit(nv.diff_addr_inv)),
-        );
+        helper.constraint_transition(diff_addr * (one - diff_addr * expr.lit(nv.diff_addr_inv)));
 
-        constraint_transition(
-            yield_constr,
-            builder,
-            (diff_addr * expr.lit(nv.diff_addr_inv)) - expr.lit(nv.is_init),
-        );
+        helper
+            .constraint_transition((diff_addr * expr.lit(nv.diff_addr_inv)) - expr.lit(nv.is_init));
     }
 }
 
