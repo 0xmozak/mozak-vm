@@ -1,7 +1,7 @@
 use mozak_runner::elf::Program;
 use mozak_runner::instruction::Op::{LH, LHU, SH};
 use mozak_runner::instruction::{Args, Instruction};
-use mozak_runner::test_utils::execute_code;
+use mozak_runner::util::execute_code;
 use mozak_runner::vm::ExecutionRecord;
 use plonky2::field::goldilocks_field::GoldilocksField;
 

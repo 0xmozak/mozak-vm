@@ -1,6 +1,6 @@
 use mozak_circuits::test_utils::prove_and_verify_mozak_stark;
 use mozak_runner::instruction::{Args, Instruction, Op, NOP};
-use mozak_runner::test_utils::execute_code;
+use mozak_runner::util::execute_code;
 use starky::config::StarkConfig;
 
 #[allow(clippy::module_name_repetitions)]

@@ -47,7 +47,8 @@ pub(crate) fn constraints_circuit<F: RichField + Extendable<D>, const D: usize>(
 #[allow(clippy::cast_possible_wrap)]
 mod tests {
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{execute_code, reg, u32_extra};
+    use mozak_runner::test_utils::{reg, u32_extra};
+    use mozak_runner::util::execute_code;
 
     use crate::cpu::stark::CpuStark;
     use crate::stark::mozak_stark::MozakStark;
