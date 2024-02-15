@@ -46,7 +46,7 @@ for profile in "${PROFILES[@]}"; do
             # shellcheck disable=SC2086
             # Double quoting the iotapes here is not what we want since we
             # want an empty argument if iotapes are not required.
-            if !cargo run --bin mozak-cli \
+            if ! cargo run --bin mozak-cli \
                 run -vvv examples/target/riscv32im-mozak-zkvm-elf/"${profile}"/"${bin}" \
                 ${private_iotape} \
                 ${public_iotape}; then
