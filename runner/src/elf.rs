@@ -635,7 +635,7 @@ impl Program {
                 ro_memory: Data(ro_mem.iter().copied().collect()),
                 rw_memory: Data(rw_mem.iter().copied().collect()),
                 ro_code: ro_code.clone(),
-                mozak_ro_memory: Some(mozak_ro_memory),
+                mozak_ro_memory: None,
                 ..Default::default()
             },
             warnings,

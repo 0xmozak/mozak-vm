@@ -244,15 +244,18 @@ impl<F: RichField> State<F> {
         }: Program,
         RuntimeArguments { .. }: RuntimeArguments,
     ) -> Self {
-        let mrm = mozak_ro_memory.unwrap();
-        let state_mozak_ro_memory = chain!(
-            mrm.context_variables.data.iter(),
-            mrm.io_tape_private.data.iter(),
-            mrm.io_tape_public.data.iter(),
-            mrm.transcript.data.iter(),
-        )
-        .map(|it| (*it.0, *it.1))
-        .collect();
+        let mut state_mozak_ro_memory = HashMap::default();
+        if mozak_ro_memory.is_some() {
+            let mrm = mozak_ro_memory.unwrap();
+            state_mozak_ro_memory = chain!(
+                mrm.context_variables.data.iter(),
+                mrm.io_tape_private.data.iter(),
+                mrm.io_tape_public.data.iter(),
+                mrm.transcript.data.iter(),
+            )
+            .map(|it| (*it.0, *it.1))
+            .collect();
+        }
         Self {
             pc,
             rw_memory,

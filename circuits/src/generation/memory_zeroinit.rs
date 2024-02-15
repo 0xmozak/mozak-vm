@@ -32,16 +32,25 @@ pub fn generate_memory_zero_init_trace<F: RichField>(
     step_rows
         .iter()
         .filter(|row| {
-            row.aux.mem.is_some()
-                && (matches!(
-                    row.instruction.op,
-                    Op::LB | Op::LBU | Op::SB | Op::SH | Op::LH | Op::LHU | Op::LW | Op::SW
-                ) || (row.instruction.op == Op::ECALL && row.aux.poseidon2.is_some()))
-                && !program
-                    .mozak_ro_memory
-                    .as_ref()
-                    .unwrap()
-                    .is_address_belongs_to_mozak_ro_memory(row.aux.mem.unwrap().addr)
+            if program.mozak_ro_memory.is_some() {
+                row.aux.mem.is_some()
+                    && (matches!(
+                        row.instruction.op,
+                        Op::LB | Op::LBU | Op::SB | Op::SH | Op::LH | Op::LHU | Op::LW | Op::SW
+                    ) || (row.instruction.op == Op::ECALL && row.aux.poseidon2.is_some()))
+                    && !program
+                        .mozak_ro_memory
+                        .as_ref()
+                        .unwrap()
+                        .is_address_belongs_to_mozak_ro_memory(row.aux.mem.unwrap().addr)
+            } else {
+                row.aux.mem.is_some()
+                    && matches!(
+                        row.instruction.op,
+                        Op::LB | Op::LBU | Op::SB | Op::SH | Op::LH | Op::LHU | Op::LW | Op::SW
+                    )
+                    || (row.instruction.op == Op::ECALL && row.aux.poseidon2.is_some())
+            }
         })
         .for_each(|row| {
             let addr = row.aux.mem.unwrap_or_default().addr;
