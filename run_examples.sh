@@ -30,15 +30,15 @@ for profile in "${PROFILES[@]}"; do
                 continue
                 ;;
             "fibonacci-input")
-                private_iotape="examples/${member}/iotape_private"
-                public_iotape="examples/${member}/iotape_public"
+                private_iotape="--io-tape-private examples/${member}/iotape_private"
+                public_iotape="--io-tape-public examples/${member}/iotape_public"
                 ;;
             "merkleproof-trustedroot")
                 host_target=$(rustc --version --verbose | grep 'host' | cut -d ' ' -f2)
                 cargo run --manifest-path=examples/"${bin}"/Cargo.toml --release --features="native" --bin merkleproof-trustedroot-native --target "$host_target"
 
-                private_iotape="private_input.tape"
-                public_iotape="public_input.tape"
+                private_iotape="--io-tape-private private_input.tape"
+                public_iotape="--io-tape-public public_input.tape"
                 ;;
 
             esac
