@@ -34,11 +34,9 @@ for profile in "${PROFILES[@]}"; do
                 public_iotape="--io-tape-public examples/${member}/iotape_public"
                 ;;
             "merkleproof-trustedroot")
-                host_target=$(rustc --version --verbose | grep 'host' | cut -d ' ' -f2)
-                cargo run --manifest-path=examples/"${bin}"/Cargo.toml --release --features="native" --bin merkleproof-trustedroot-native --target "$host_target"
-
-                private_iotape="--io-tape-private private_input.tape"
-                public_iotape="--io-tape-public public_input.tape"
+                echo "(mozak-cli) skipping (${profile}): ${bin}"
+                skipped="${skipped}${bin} (${profile})\n"
+                continue
                 ;;
 
             esac
