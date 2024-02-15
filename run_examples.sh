@@ -58,7 +58,6 @@ done
 
 if [ -n "$skipped" ]; then
     echo -e "\nSome tests were skipped:\n${skipped}"
-    exit 0
 fi
 
 if [ -n "$failed" ]; then
