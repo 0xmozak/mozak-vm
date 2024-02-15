@@ -158,7 +158,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for InputOutputMe
 mod tests {
     use mozak_runner::elf::RuntimeArguments;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{execute_code_with_runtime_args, u32_extra, u8_extra};
+    use mozak_runner::test_utils::{u32_extra, u8_extra};
+    use mozak_runner::util::execute_code_with_runtime_args;
     use mozak_system::system::ecall;
     use mozak_system::system::reg_abi::{REG_A0, REG_A1, REG_A2};
     use plonky2::plonk::config::Poseidon2GoldilocksConfig;
