@@ -12,11 +12,12 @@ use clio::{Input, Output};
 use log::debug;
 use mozak_circuits::generation::memoryinit::generate_elf_memory_init_trace;
 use mozak_circuits::generation::program::generate_program_rom_trace;
+use mozak_circuits::recproof::unbounded::circuit_data_for_recursion;
 use mozak_circuits::stark::mozak_stark::{MozakStark, PublicInputs};
 use mozak_circuits::stark::proof::AllProof;
 use mozak_circuits::stark::prover::prove;
 use mozak_circuits::stark::recursive_verifier::{
-    recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit, verify_recursive_vm_proof,
+    recursive_mozak_stark_circuit, shrink_to_target_degree_bits_circuit,
 };
 use mozak_circuits::stark::utils::trace_rows_to_poly_values;
 use mozak_circuits::stark::verifier::verify_proof;
@@ -28,8 +29,6 @@ use mozak_runner::vm::step;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::field::types::Field;
 use plonky2::fri::oracle::PolynomialBatch;
-use plonky2::iop::witness::{PartialWitness, WitnessWrite};
-use plonky2::plonk::circuit_builder::CircuitBuilder;
 use plonky2::plonk::circuit_data::{CircuitConfig, VerifierOnlyCircuitData};
 use plonky2::plonk::proof::ProofWithPublicInputs;
 use plonky2::util::timing::TimingTree;
@@ -244,19 +243,15 @@ fn main() -> Result<()> {
             println!("proof verified successfully!");
         }
         Command::VerifyRecursiveProof { mut proof, mut vk } => {
-            let mut vk_buffer: Vec<u8> = vec![];
-            vk.read_to_end(&mut vk_buffer)?;
-            let vk: VerifierOnlyCircuitData<C, D> =
-                VerifierOnlyCircuitData::from_bytes(vk_buffer).unwrap();
-
-            let mut builder = CircuitBuilder::new(CircuitConfig::standard_recursion_config());
-            let targets = verify_recursive_vm_proof::<GoldilocksField, C, D>(
-                &mut builder,
-                PUBLIC_INPUT_SIZE,
+            let mut circuit = circuit_data_for_recursion::<F, C, D>(
                 &CircuitConfig::standard_recursion_config(),
                 TARGET_DEGREE_BITS,
+                PUBLIC_INPUT_SIZE,
             );
-            let circuit = builder.build::<C>();
+
+            let mut vk_buffer: Vec<u8> = vec![];
+            vk.read_to_end(&mut vk_buffer)?;
+            circuit.verifier_only = VerifierOnlyCircuitData::from_bytes(vk_buffer).unwrap();
 
             let mut proof_buffer: Vec<u8> = vec![];
             proof.read_to_end(&mut proof_buffer)?;
@@ -264,15 +259,11 @@ fn main() -> Result<()> {
                 ProofWithPublicInputs::from_bytes(proof_buffer, &circuit.common).map_err(|_| {
                     anyhow::Error::msg("ProofWithPublicInputs deserialization failed.")
                 })?;
+            println!("Public Inputs: {:?}", proof.public_inputs);
+            println!("Verifier Key: {:?}", circuit.verifier_only);
 
-            let mut pw = PartialWitness::new();
-            pw.set_proof_with_pis_target(&targets.proof_with_pis_target, &proof);
-            pw.set_verifier_data_target(&targets.vk_target, &vk);
-            let proof = circuit.prove(pw)?;
             circuit.verify(proof.clone())?;
             println!("Recursive VM proof verified successfully!");
-            println!("Public Inputs (): {:?}", proof.public_inputs);
-            println!("Verifier Key: {:?}", vk);
         }
         Command::ProgramRomHash { elf } => {
             let program = load_program(elf)?;

@@ -25,7 +25,7 @@ use starky::stark::{LookupConfig, Stark};
 
 use super::mozak_stark::{all_kind, all_starks, TableKindArray};
 use crate::cross_table_lookup::{CrossTableLookup, CtlCheckVarsTarget};
-use crate::recproof::unbounded::common_data_for_recursion;
+use crate::recproof::unbounded::circuit_data_for_recursion;
 use crate::stark::mozak_stark::{MozakStark, TableKind};
 use crate::stark::permutation::challenge::{GrandProductChallenge, GrandProductChallengeSet};
 use crate::stark::poly::eval_vanishing_poly_circuit;
@@ -542,11 +542,11 @@ pub fn verify_recursive_vm_proof<
 ) -> VMVerificationTargets<D>
 where
     C::Hasher: AlgebraicHasher<F>, {
-    let common_data = common_data_for_recursion::<F, C, D>(
+    let common_data = circuit_data_for_recursion::<F, C, D>(
         recursion_config,
         recursion_degree_bits,
         public_inputs_size,
-    );
+    ).common;
 
     let proof_with_pis_target = builder.add_virtual_proof_with_pis(&common_data);
     let vk_target = builder.add_virtual_verifier_data(common_data.config.fri_config.cap_height);

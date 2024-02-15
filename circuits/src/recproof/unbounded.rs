@@ -43,9 +43,9 @@ fn from_slice<F: RichField + Extendable<D>, const D: usize>(
     }
 }
 
-// Generates `CommonCircuitData` usable for recursion.
+// Generates `CircuitData` usable for recursion.
 #[must_use]
-pub fn common_data_for_recursion<
+pub fn circuit_data_for_recursion<
     F: RichField + Extendable<D>,
     C: GenericConfig<D, F = F>,
     const D: usize,
@@ -53,7 +53,7 @@ pub fn common_data_for_recursion<
     config: &CircuitConfig,
     target_degree_bits: usize,
     public_input_size: usize,
-) -> CommonCircuitData<F, D>
+) -> CircuitData<F, C, D>
 where
     C::Hasher: AlgebraicHasher<F>, {
     let mut builder = CircuitBuilder::<F, D>::new(config.clone());
@@ -77,7 +77,7 @@ where
     while builder.num_gates() < min_gates {
         builder.add_gate(NoopGate, vec![]);
     }
-    builder.build::<C>().common
+    builder.build::<C>()
 }
 
 pub struct Targets {
@@ -99,11 +99,11 @@ impl LeafSubCircuit {
         F: RichField + Extendable<D>,
         C: GenericConfig<D, F = F>,
         C::Hasher: AlgebraicHasher<F>, {
-        let mut common_data = common_data_for_recursion::<F, C, D>(
+        let mut common_data = circuit_data_for_recursion::<F, C, D>(
             &CircuitConfig::standard_recursion_config(),
             13,
             0,
-        );
+        ).common;
         let verifier_data_target = builder.add_verifier_data_public_inputs();
         common_data.num_public_inputs = builder.num_public_inputs();
 
