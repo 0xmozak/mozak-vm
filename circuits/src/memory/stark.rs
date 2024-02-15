@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use expr::ExprBuilder;
 use mozak_circuits_derive::StarkNameDisplay;
 use plonky2::field::extension::{Extendable, FieldExtension};
 use plonky2::field::packed::PackedField;
@@ -11,9 +12,9 @@ use starky::evaluation_frame::{StarkEvaluationFrame, StarkFrame};
 use starky::stark::Stark;
 
 use crate::columns_view::{HasNamedColumns, NumberOfColumns};
+use crate::expr::{constraint, constraint_first_row, constraint_transition};
 use crate::memory::columns::{is_executed_ext_circuit, Memory};
 use crate::stark::utils::{is_binary, is_binary_ext_circuit};
-use crate::expr::{Expr, constraint, constraint_first_row, constraint_transition};
 
 #[derive(Copy, Clone, Default, StarkNameDisplay)]
 #[allow(clippy::module_name_repetitions)]
@@ -188,70 +189,79 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for MemoryStark<F
 
         is_binary_ext_circuit(builder, lv_is_executed, yield_constr);
 
-        let one = Expr::from(builder.one_extension());
+        let expr = ExprBuilder::new();
 
-        let zero_init_clk = one.clone() - Expr::from(lv.clk);
-        let elf_init_clk = Expr::from(lv.clk);
+        let one = expr.lit(builder.one_extension());
+
+        let zero_init_clk = one - expr.lit(lv.clk);
+        let elf_init_clk = expr.lit(lv.clk);
 
         constraint_first_row(
             yield_constr,
             builder,
-            (one.clone() - Expr::from(lv.is_init)) * Expr::from(lv_is_executed));
-
-        constraint(
-            yield_constr,
-            builder,
-            Expr::from(lv.is_init) * zero_init_clk.clone() * elf_init_clk.clone());
-
-        constraint(
-            yield_constr,
-            builder,
-            Expr::from(lv.is_init) * zero_init_clk.clone() * Expr::from(lv.value));
-
-        constraint(
-            yield_constr,
-            builder,
-            Expr::from(lv.is_init) * zero_init_clk.clone() * (one.clone() - Expr::from(lv.is_writable)),
+            (one - expr.lit(lv.is_init)) * expr.lit(lv_is_executed),
         );
 
         constraint(
             yield_constr,
             builder,
-            (one.clone() - Expr::from(lv.is_writable)) * Expr::from(lv.is_store));
+            expr.lit(lv.is_init) * zero_init_clk * elf_init_clk,
+        );
 
         constraint(
             yield_constr,
             builder,
-            Expr::from(nv.is_load) * (Expr::from(nv.value) - Expr::from(lv.value)));
+            expr.lit(lv.is_init) * zero_init_clk * expr.lit(lv.value),
+        );
 
-        constraint_transition(
+        constraint(
             yield_constr,
             builder,
-            (one.clone() - Expr::from(nv.is_init)) * (Expr::from(nv.diff_clk) - (Expr::from(nv.clk) - Expr::from(lv.clk))),
+            expr.lit(lv.is_init) * zero_init_clk * (one - expr.lit(lv.is_writable)),
+        );
+
+        constraint(
+            yield_constr,
+            builder,
+            (one - expr.lit(lv.is_writable)) * expr.lit(lv.is_store),
+        );
+
+        constraint(
+            yield_constr,
+            builder,
+            expr.lit(nv.is_load) * (expr.lit(nv.value) - expr.lit(lv.value)),
         );
 
         constraint_transition(
             yield_constr,
             builder,
-            Expr::from(lv.is_init) * Expr::from(lv.diff_clk)
+            (one - expr.lit(nv.is_init))
+                * (expr.lit(nv.diff_clk) - (expr.lit(nv.clk) - expr.lit(lv.clk))),
         );
 
         constraint_transition(
             yield_constr,
             builder,
-            (Expr::from(lv_is_executed) - Expr::from(nv_is_executed)) * Expr::from(nv_is_executed));
-
-        let diff_addr = Expr::from(nv.addr) - Expr::from(lv.addr);
-        constraint_transition(
-            yield_constr,
-            builder,
-            diff_addr.clone() * (one - diff_addr.clone() * Expr::from(nv.diff_addr_inv)),
+            expr.lit(lv.is_init) * expr.lit(lv.diff_clk),
         );
 
         constraint_transition(
             yield_constr,
             builder,
-            (diff_addr * Expr::from(nv.diff_addr_inv)) - Expr::from(nv.is_init),
+            (expr.lit(lv_is_executed) - expr.lit(nv_is_executed)) * expr.lit(nv_is_executed),
+        );
+
+        let diff_addr = expr.lit(nv.addr) - expr.lit(lv.addr);
+        constraint_transition(
+            yield_constr,
+            builder,
+            diff_addr * (one - diff_addr * expr.lit(nv.diff_addr_inv)),
+        );
+
+        constraint_transition(
+            yield_constr,
+            builder,
+            (diff_addr * expr.lit(nv.diff_addr_inv)) - expr.lit(nv.is_init),
         );
     }
 }

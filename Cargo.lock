@@ -954,6 +954,7 @@ dependencies = [
  "bitfield",
  "criterion",
  "env_logger",
+ "expr",
  "flexbuffers",
  "hex",
  "im",
