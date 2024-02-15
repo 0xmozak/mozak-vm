@@ -18,7 +18,7 @@ where
     F: RichField,
     F: Extendable<D>,
 {
-    fn delta(
+    fn bin_op(
         &mut self,
         op: &BinOp,
         left: ExtensionTarget<D>,
@@ -41,7 +41,7 @@ pub fn constraint_first_row<F, const D: usize>(
     F: RichField,
     F: Extendable<D>, {
     let mut evaluator = CircuitBuilderEvaluator { builder };
-    let built_constraints = constraints.eval(&mut evaluator);
+    let built_constraints = evaluator.eval(constraints);
     yield_constr.constraint_first_row(builder, built_constraints);
 }
 
@@ -53,7 +53,7 @@ pub fn constraint<F, const D: usize>(
     F: RichField,
     F: Extendable<D>, {
     let mut evaluator = CircuitBuilderEvaluator { builder };
-    let built_constraints = constraints.eval(&mut evaluator);
+    let built_constraints = evaluator.eval(constraints);
     yield_constr.constraint(builder, built_constraints);
 }
 
@@ -65,7 +65,7 @@ pub fn constraint_transition<F, const D: usize>(
     F: RichField,
     F: Extendable<D>, {
     let mut evaluator = CircuitBuilderEvaluator { builder };
-    let built_constraints = constraints.eval(&mut evaluator);
+    let built_constraints = evaluator.eval(constraints);
     yield_constr.constraint_transition(builder, built_constraints);
 }
 
@@ -84,7 +84,7 @@ mod tests {
 
         // a and b are cloned behind the scenes
         let c = a * b;
-        assert_eq!(c.eval(&mut PureEvaluator::new()), 2);
+        assert_eq!(PureEvaluator::new().eval(c), 2);
     }
 
     #[test]
@@ -96,6 +96,6 @@ mod tests {
 
         // a and b are cloned behind the scenes
         let c = a - b;
-        assert_eq!(c.eval(&mut PureEvaluator::new()), -1);
+        assert_eq!(PureEvaluator::new().eval(c), -1);
     }
 }

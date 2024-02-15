@@ -9,14 +9,6 @@ pub struct E<'a, V> {
     builder: &'a ExprBuilder,
 }
 
-impl<'a, V> E<'a, V> {
-    pub fn eval(&self, evaluator: &mut impl Evaluator<V>) -> V
-    where
-        V: Copy, {
-        self.expr.eval(evaluator)
-    }
-}
-
 impl<'a, V> Add for E<'a, V> {
     type Output = E<'a, V>;
 
@@ -112,8 +104,31 @@ impl<V> From<V> for Expr<'_, V> {
     fn from(value: V) -> Self { Expr::Literal { value } }
 }
 
-pub trait Evaluator<V> {
-    fn delta(&mut self, op: &BinOp, left: V, right: V) -> V;
+// Big step evaluator
+fn big_step<'a, E, V>(evaluator: &mut E, expr: &'a Expr<'a, V>) -> V
+where
+    V: Copy,
+    E: ?Sized,
+    E: Evaluator<V>, {
+    match expr {
+        Expr::BinOp { op, left, right } => {
+            let l = big_step(evaluator, left);
+            let r = big_step(evaluator, right);
+
+            evaluator.bin_op(op, l, r)
+        }
+        Expr::Literal { value } => *value,
+    }
+}
+
+pub trait Evaluator<V>
+where
+    V: Copy, {
+    fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V;
+    fn eval<'a>(&mut self, expr: E<'a, V>) -> V {
+        // Default eval
+        big_step(self, expr.expr)
+    }
 }
 
 pub struct PureEvaluator {}
@@ -124,12 +139,13 @@ impl PureEvaluator {
 
 impl<V> Evaluator<V> for PureEvaluator
 where
+    V: Copy,
     V: Add<Output = V>,
     V: Sub<Output = V>,
     V: Mul<Output = V>,
     V: Div<Output = V>,
 {
-    fn delta(&mut self, op: &BinOp, left: V, right: V) -> V {
+    fn bin_op(&mut self, op: &BinOp, left: V, right: V) -> V {
         match op {
             BinOp::Add => left + right,
             BinOp::Sub => left - right,
@@ -173,19 +189,6 @@ impl<'a, V> Expr<'a, V> {
             right,
         }
     }
-
-    fn eval(&self, evaluator: &mut impl Evaluator<V>) -> V
-    where
-        V: Copy, {
-        match self {
-            Expr::Literal { value } => *value,
-            Expr::BinOp { op, left, right } => {
-                let left = left.eval(evaluator);
-                let right = right.eval(evaluator);
-                evaluator.delta(op, left, right)
-            }
-        }
-    }
 }
 
 #[cfg(test)]
@@ -199,9 +202,11 @@ mod tests {
         let a = expr.lit(7);
         let b = expr.lit(5);
 
-        assert_eq!((a + b).eval(&mut PureEvaluator::new()), 12);
-        assert_eq!((a - b).eval(&mut PureEvaluator::new()), 2);
-        assert_eq!((a * b).eval(&mut PureEvaluator::new()), 35);
-        assert_eq!((a / b).eval(&mut PureEvaluator::new()), 1);
+        let mut p = PureEvaluator::new();
+
+        assert_eq!(p.eval(a + b), 12);
+        assert_eq!(p.eval(a - b), 2);
+        assert_eq!(p.eval(a * b), 35);
+        assert_eq!(p.eval(a / b), 1);
     }
 }
