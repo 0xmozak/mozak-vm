@@ -109,7 +109,8 @@ impl<F: RichField + Extendable<D>, const D: usize> Stark<F, D> for RegisterStark
 mod tests {
     use anyhow::Result;
     use mozak_runner::instruction::{Args, Instruction, Op};
-    use mozak_runner::test_utils::{execute_code, reg, u32_extra};
+    use mozak_runner::test_utils::{reg, u32_extra};
+    use mozak_runner::util::execute_code;
     use plonky2::plonk::config::{GenericConfig, Poseidon2GoldilocksConfig};
     use starky::stark_testing::test_stark_low_degree;
 
